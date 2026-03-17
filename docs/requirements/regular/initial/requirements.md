@@ -315,4 +315,4 @@ The initial implementation should use:
 This document is implemented by:
 
 - [Regular / Initial acceptance criteria](/X:/Projects/GitHub/Workflow-orca/docs/requirements/regular/initial/acceptance-criteria.md)
-- [Implementation plan: minimal core](/X:/Projects/GitHub/Workflow-orca/docs/implementation-plan-minimal-core.md)
+- [Implementation plan: minimal core](/X:/Projects/GitHub/Workflow-orca/docs/plans/implementation-plan-minimal-core.md)

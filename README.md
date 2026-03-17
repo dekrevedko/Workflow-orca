@@ -21,6 +21,36 @@ Research project for a .NET 10 workflow engine focused on in-process orchestrati
 
 A workflow definition should describe control flow and business steps without being tightly coupled to a specific database or message broker. Runtime state, event delivery, resumability, and durability should be handled by abstractions so the same workflow model can run in either ephemeral mode or durable mode depending on configured providers.
 
+## Architecture note
+
+When a capability can reasonably vary by runtime, infrastructure, or integration boundary, prefer an interface-first and pluggable design over hardcoded internal implementations.
+
+Examples:
+- persistence is modeled behind store contracts
+- outbox dispatch is modeled behind `IOutboxDispatcher`
+- automatic outbox pump observability and retry timing are modeled behind `IOutboxPumpObserver` and `IOutboxPumpDelayStrategy`
+- durable runtime behavior is configured through engine options rather than hidden static behavior
+
+This should be the default direction for future extensibility points such as step decorators, retry/timeout policies, messaging adapters, and operational hooks. Use concrete internal implementations only when there is no meaningful extension boundary yet.
+
+## Durable runtime notes
+
+- `Wait` and `WaitLong` are both durable waits, but they differ in residency policy:
+  - `Wait` remains a resident wait when the instance stays hot
+  - `WaitLong` checkpoints and is expected to go cold until resumed
+- durable wait semantics are modeled with two axes:
+  - `WaitStatus` for lifecycle (`Active`, `Matched`, `Cancelled`)
+  - `WaitMode` for residency policy (`Resident`, `Cold`)
+- `Parallel` currently means coordinated sequential branch execution, not true concurrent branch execution
+- automatic outbox replay is available when an `IOutboxDispatcher` is configured, and delivery remains at-least-once
+- durable management operations are available through instance and selection scopes:
+  - delete instance state
+  - purge old inbox/outbox/history artifacts
+- retention policy remains intentionally narrow:
+  - runtime/application code should use `DurableArtifactRetentionPolicy`
+  - explicit cutoff purge remains provider/operator-oriented through the store contract
+  - archival/default operator policy remains a follow-up design area
+
 ## Runtime axes
 
 - `Definition semantics`:
@@ -65,14 +95,16 @@ docs/
 
 ## Recommended Starting Point
 
+Read [Documentation map](/X:/Projects/GitHub/Workflow-orca/docs/README.md) for the organized docs tree.
+
 Read [Requirements tree](/X:/Projects/GitHub/Workflow-orca/docs/requirements/README.md) first for the current delivery baseline.
 
 Then read:
 
 - [Regular / Initial requirements](/X:/Projects/GitHub/Workflow-orca/docs/requirements/regular/initial/requirements.md)
 - [Regular / Initial acceptance criteria](/X:/Projects/GitHub/Workflow-orca/docs/requirements/regular/initial/acceptance-criteria.md)
-- [Design proposal: minimal core](/X:/Projects/GitHub/Workflow-orca/docs/design-proposal-minimal-core.md)
-- [Implementation plan: minimal core](/X:/Projects/GitHub/Workflow-orca/docs/implementation-plan-minimal-core.md)
+- [Design proposal: minimal core](/X:/Projects/GitHub/Workflow-orca/docs/architecture/design-proposal-minimal-core.md)
+- [Implementation plan: minimal core](/X:/Projects/GitHub/Workflow-orca/docs/plans/implementation-plan-minimal-core.md)
 
 ## Research artifacts
 
@@ -89,22 +121,22 @@ Then read:
 - [Durable / Initial acceptance criteria](/X:/Projects/GitHub/Workflow-orca/docs/requirements/durable/initial/acceptance-criteria.md)
 - [Durable / Advanced requirements](/X:/Projects/GitHub/Workflow-orca/docs/requirements/durable/advanced/requirements.md)
 - [Durable / Advanced acceptance criteria](/X:/Projects/GitHub/Workflow-orca/docs/requirements/durable/advanced/acceptance-criteria.md)
-- [Design synthesis](/X:/Projects/GitHub/OrcaCore/docs/design-synthesis.md)
-- [Workflow kinds and runtime modes](/X:/Projects/GitHub/OrcaCore/docs/workflow-kinds-and-runtime-modes.md)
-- [Management command surface](/X:/Projects/GitHub/OrcaCore/docs/management-command-surface.md)
-- [Pseudo DSL draft](/X:/Projects/GitHub/OrcaCore/docs/pseudo-dsl-draft.md)
-- [Comparative research](/X:/Projects/GitHub/OrcaCore/docs/comparative-research.md)
-- [Deep dive: MassTransit and Stateless](/X:/Projects/GitHub/OrcaCore/docs/deep-dive-masstransit-stateless.md)
-- [Durable Functions patterns](/X:/Projects/GitHub/OrcaCore/docs/durable-functions-patterns.md)
-- [Orleans patterns](/X:/Projects/GitHub/OrcaCore/docs/orleans-patterns.md)
-- [Instance identity, rehydration, and serialized execution](/X:/Projects/GitHub/OrcaCore/docs/instance-identity-and-rehydration.md)
-- [Lifecycle, resource management, and operational signals](/X:/Projects/GitHub/OrcaCore/docs/lifecycle-resource-management.md)
-- [Workflow Core competitor review](/X:/Projects/GitHub/OrcaCore/docs/workflow-core-competitor-review.md)
-- [Workflow Core issue pattern review](/X:/Projects/GitHub/OrcaCore/docs/workflow-core-issue-pattern-review.md)
-- [Acceptance test matrix](/X:/Projects/GitHub/OrcaCore/docs/acceptance-test-matrix.md)
-- [Requirements draft](/X:/Projects/GitHub/OrcaCore/docs/requirements-draft.md)
-- [Project foundation](/X:/Projects/GitHub/OrcaCore/docs/project-foundation.md)
-- [Research backlog](/X:/Projects/GitHub/OrcaCore/docs/research-backlog.md)
+- [Design synthesis](/X:/Projects/GitHub/Workflow-orca/docs/architecture/design-synthesis.md)
+- [Workflow kinds and runtime modes](/X:/Projects/GitHub/Workflow-orca/docs/architecture/workflow-kinds-and-runtime-modes.md)
+- [Management command surface](/X:/Projects/GitHub/Workflow-orca/docs/architecture/management-command-surface.md)
+- [Pseudo DSL draft](/X:/Projects/GitHub/Workflow-orca/docs/architecture/pseudo-dsl-draft.md)
+- [Comparative research](/X:/Projects/GitHub/Workflow-orca/docs/research/comparative-research.md)
+- [Deep dive: MassTransit and Stateless](/X:/Projects/GitHub/Workflow-orca/docs/research/deep-dive-masstransit-stateless.md)
+- [Durable Functions patterns](/X:/Projects/GitHub/Workflow-orca/docs/research/durable-functions-patterns.md)
+- [Orleans patterns](/X:/Projects/GitHub/Workflow-orca/docs/research/orleans-patterns.md)
+- [Instance identity, rehydration, and serialized execution](/X:/Projects/GitHub/Workflow-orca/docs/architecture/instance-identity-and-rehydration.md)
+- [Lifecycle, resource management, and operational signals](/X:/Projects/GitHub/Workflow-orca/docs/architecture/lifecycle-resource-management.md)
+- [Workflow Core competitor review](/X:/Projects/GitHub/Workflow-orca/docs/research/workflow-core-competitor-review.md)
+- [Workflow Core issue pattern review](/X:/Projects/GitHub/Workflow-orca/docs/research/workflow-core-issue-pattern-review.md)
+- [Acceptance test matrix](/X:/Projects/GitHub/Workflow-orca/docs/plans/acceptance-test-matrix.md)
+- [Requirements draft](/X:/Projects/GitHub/Workflow-orca/docs/plans/requirements-draft.md)
+- [Project foundation](/X:/Projects/GitHub/Workflow-orca/docs/architecture/project-foundation.md)
+- [Research backlog](/X:/Projects/GitHub/Workflow-orca/docs/research/research-backlog.md)
 
 ## Next research steps
 
@@ -118,5 +150,3 @@ Then read:
 8. Define management command surface and step decorators.
 9. Define versioning and deployment rules for long-running workflow instances.
 10. Turn the acceptance-test matrix into executable specs once implementation starts.
-
-

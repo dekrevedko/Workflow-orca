@@ -27,11 +27,11 @@ Current implementation target:
 
 - [Regular / Initial requirements](/X:/Projects/GitHub/Workflow-orca/docs/requirements/regular/initial/requirements.md)
 - [Regular / Initial acceptance criteria](/X:/Projects/GitHub/Workflow-orca/docs/requirements/regular/initial/acceptance-criteria.md)
-- [Implementation plan for minimal core](/X:/Projects/GitHub/Workflow-orca/docs/implementation-plan-minimal-core.md)
+- [Implementation plan for minimal core](/X:/Projects/GitHub/Workflow-orca/docs/plans/implementation-plan-minimal-core.md)
 
 Supporting baseline documents:
 
-- [Design proposal: minimal core](/X:/Projects/GitHub/Workflow-orca/docs/design-proposal-minimal-core.md)
-- [Design decisions tracking](/X:/Projects/GitHub/Workflow-orca/docs/design-decisions-tracking.md)
-- [Workflow kinds and runtime modes](/X:/Projects/GitHub/Workflow-orca/docs/workflow-kinds-and-runtime-modes.md)
-- [Design synthesis](/X:/Projects/GitHub/Workflow-orca/docs/design-synthesis.md)
+- [Design proposal: minimal core](/X:/Projects/GitHub/Workflow-orca/docs/architecture/design-proposal-minimal-core.md)
+- [Design decisions tracking](/X:/Projects/GitHub/Workflow-orca/docs/architecture/design-decisions-tracking.md)
+- [Workflow kinds and runtime modes](/X:/Projects/GitHub/Workflow-orca/docs/architecture/workflow-kinds-and-runtime-modes.md)
+- [Design synthesis](/X:/Projects/GitHub/Workflow-orca/docs/architecture/design-synthesis.md)
