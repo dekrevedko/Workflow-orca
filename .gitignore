@@ -6,4 +6,8 @@ obj/
 *.suo
 *.nupkg
 TestResults/
-
+.claude/
+.dotnet/
+.dotnet-home/
+.tmpreview/
+test-output.log
