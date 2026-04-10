@@ -1,27 +1,47 @@
-# Documentation Map
+# Documentation map
 
-Documentation is organized by concern instead of a flat file list.
+This folder holds **requirements**, **architecture**, **plans**, and **research**. Treat **`src/`** and **`tests/`** as the source of truth for behavior; docs explain intent and history and are updated when the model shifts.
 
-## Folders
+## Start here
 
-- `architecture/`
-  - Design decisions, runtime model, lifecycle, management surface, identity, and system shape.
-- `durable/`
-  - Durable-runtime plans, remediation tracking, cleanup follow-up, and component inventory.
-- `plans/`
-  - Cross-cutting implementation plans, acceptance matrix, and requirements draft.
-- `research/`
-  - Pattern studies, competitor analysis, and research backlog.
-- `reviews/`
-  - Consolidated review findings.
-- `requirements/`
-  - Capability-specific requirements and acceptance criteria.
+1. [Project README](../README.md) — audience, **two engines**, build/test, roadmap.
+2. [Project technical overview](project-technical-overview.md) — durable notes, concepts, **code map**, and links to the full doc tree.
 
-## Suggested Reading Order
+## Source layout (aligned with the solution)
 
-1. `requirements/README.md`
-2. `architecture/project-foundation.md`
-3. `architecture/design-proposal-minimal-core.md`
-4. `plans/implementation-plan-minimal-core.md`
-5. `durable/durable-implementation-plan.md`
-6. `durable/durable-review-remediation-plan.md`
+The solution file at the repo root is **`OrcaCore.slnx`**. Projects:
+
+| Project | Purpose |
+|---------|---------|
+| [OrcaCore.Abstractions](../src/OrcaCore.Abstractions) | Shared contracts and models: `IStep`, `StepContext`, `StepResult`, `EventEnvelope`, `WaitRecord`, `WaitStatus`, `WaitMode`, `WorkflowStatus`, etc. |
+| [OrcaCore.Runtime](../src/OrcaCore.Runtime) | **State-driven** orchestration: `WorkflowEngine` + `InMemoryInstanceStore` (ephemeral), `DurableWorkflowEngine` + `IWorkflowStore` (durable), builders, nodes, routing, durable outbox. |
+| [OrcaCore.EventDrivenPrototype](../src/OrcaCore.EventDrivenPrototype) | **Event-driven** prototype: `EventDrivenWorkflowEngine`, append-only stream types, checkpoints, projections, in-memory prototype store. |
+| [OrcaCore.Tests](../tests/OrcaCore.Tests) | Main test suite (acceptance + durable + unit). |
+| [OrcaCore.EventDrivenPrototype.Tests](../tests/OrcaCore.EventDrivenPrototype.Tests) | Prototype tests. |
+
+There are **no** separate `OrcaCore.Persistence` or `OrcaCore.Messaging` packages today; persistence abstractions for the durable **state-driven** path live under `OrcaCore.Runtime` (e.g. `Durable/Persistence`).
+
+## Architecture docs tied to current code
+
+- [Event-driven prototype status](architecture/event-driven-prototype-status.md) — what the prototype implements and what is missing.
+- [Quick vs durable event-driven engine — feature matrix](architecture/quick-vs-durable-engine-feature-matrix.md) — compares “quick” vs event-driven durable positioning.
+- [Project foundation](architecture/project-foundation.md) — problem statement, ephemeral vs durable modes (conceptual).
+
+## Folder index
+
+- `architecture/` — design decisions, runtime shape, lifecycle, identity, event-driven notes.
+- `durable/` — durable-runtime plans, remediation, component inventory.
+- `plans/` — implementation plans, acceptance matrix, requirements draft.
+- `research/` — pattern studies, competitor analysis, backlog.
+- `reviews/` — consolidated review findings.
+- `requirements/` — capability requirements and acceptance criteria.
+
+## Suggested reading order
+
+1. [requirements/README.md](requirements/README.md)
+2. [project-technical-overview.md](project-technical-overview.md) (especially **Code map** and **Concepts vs code**)
+3. [architecture/project-foundation.md](architecture/project-foundation.md)
+4. [architecture/design-proposal-minimal-core.md](architecture/design-proposal-minimal-core.md)
+5. [plans/implementation-plan-minimal-core.md](plans/implementation-plan-minimal-core.md)
+6. [durable/durable-implementation-plan.md](durable/durable-implementation-plan.md)
+7. [durable/durable-review-remediation-plan.md](durable/durable-review-remediation-plan.md)

@@ -5,9 +5,32 @@ obj/
 *.user
 *.suo
 *.nupkg
-TestResults/
 .claude/
 .dotnet/
 .dotnet-home/
 .tmpreview/
 test-output.log
+
+# Test & coverage (dotnet test, Coverlet, VSTest)
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+coverage/
+coverage.json
+*.lcov
+**/CoverletSourceRootsMapping_*
+**/.msCoverageSourceRootsMapping_*
+
+# BenchmarkDotNet
+BenchmarkDotNet.Artifacts/
+
+# Rider / ReSharper
+*.sln.DotSettings.user
+_ReSharper*/
+*.[Rr]e[Ss]harper
+
+# NCrunch
+_NCrunch_*
+*.ncrunch*
+.*crunch*.local.xml

@@ -1,152 +1,68 @@
 # OrcaCore
 
-Research project for a .NET 10 workflow engine focused on in-process orchestration with optional durability, reusable workflow steps, and pluggable infrastructure.
+**OrcaCore** (**Workflow Orca**) is a .NET workflow engine experiment: in-process orchestration with reusable steps and **pluggable** storage and messaging. The project is public so design discussions, requirements, and code can reach a wider audience.
+
+> **Status:** active research and prototyping — **not** production-ready. APIs and persistence shapes may change.
+
+## Two engines
+
+Workflow Orca splits **state-driven orchestration** (mutable runtime state, explicit step transitions) from an experimental **append-only, event-driven** slice. Both use the same high-level ideas (`IStep`, `EventEnvelope`, waits, correlation), but persistence and replay models differ.
+
+| Engine | Projects & entry points | Best for | Execution model |
+|--------|-------------------------|----------|-----------------|
+| **State-driven** | [`OrcaCore.Abstractions`](src/OrcaCore.Abstractions) + [`OrcaCore.Runtime`](src/OrcaCore.Runtime): **`WorkflowEngine`** (in-memory via `InMemoryInstanceStore`) and **`DurableWorkflowEngine`** with **`IWorkflowStore`** (persisted instances, waits, outbox, history) | Production-shaped experiments today: ephemeral runs, or durable runs with a pluggable store contract | The engine advances **orchestration state** in memory and, in the durable path, **persists** frames, waits, and related records through `IWorkflowStore` — not an append-only domain event log as the primary source of truth. |
+| **Event-driven (prototype)** | [`OrcaCore.EventDrivenPrototype`](src/OrcaCore.EventDrivenPrototype): **`EventDrivenWorkflowEngine`** | Proving long-running semantics with an **append-only per-instance stream**, checkpoints, and projections | Facts are **appended**; checkpoints and projections support resume, deduplication, and routing. Currently in-memory store only. |
+
+See [Code map & types](docs/project-technical-overview.md#code-map) for a file-level index, and [Quick vs durable event-driven engine — feature matrix](docs/architecture/quick-vs-durable-engine-feature-matrix.md) for capabilities.
 
 ## Goals
 
-- Build an in-app workflow engine based on reusable steps.
-- Support infrastructure steps such as `Init`, `End`, `If`, `While`, `Parallel`, `WhenAll`, `WhenFirst`, `Wait`, and `WaitLong`.
-- Allow user-defined business steps with async execution.
-- Publish and consume events so waiting workflows can resume when external signals arrive.
-- Support both ephemeral in-memory execution and durable persisted execution.
-- Keep storage and messaging infrastructure replaceable through adapters.
+- **Composable workflows** — control-flow and business steps: `Init` / `End`, `If` / `While`, `Parallel` (branch + join semantics in tests; not separate `WhenAll`/`WhenFirst` APIs), `Wait`, durable-only `WaitLong`, and user-defined `IStep` types.
+- **Two engines, one product direction** — state-driven ephemeral + durable paths in `OrcaCore.Runtime`; append-only event-driven exploration in `OrcaCore.EventDrivenPrototype` (convergence TBD).
+- **Replaceable infrastructure** — persistence and dispatch behind contracts rather than a single hard-coded backend.
+- **Clear semantics** — explicit modeling of waits, sagas vs regular workflows, and operational hooks as the design matures.
 
-## Non-goals for the first stage
+See [docs/project-technical-overview.md](docs/project-technical-overview.md) for architecture notes, durable-runtime details, core concepts, and links to the full requirements and research tree.
 
-- Production-ready distributed execution.
-- Full visual designer or DSL editor.
-- Broad connector ecosystem before the core runtime model is stable.
+## Current stage
 
-## Core idea
+| Area | State |
+|------|--------|
+| **State-driven runtime** — `OrcaCore.Runtime` + `OrcaCore.Abstractions` | `WorkflowEngine`, `DurableWorkflowEngine`, `IWorkflowStore`, outbox pump, correlation routing; covered by `OrcaCore.Tests`. |
+| **Documentation** | Requirements, architecture, and research notes under [docs/](docs/README.md). |
+| **Event-driven prototype** — `OrcaCore.EventDrivenPrototype` | Append-only stream, checkpoints, projections, straight-line steps + `Wait`, correlation, restart-safe resume. See [event-driven prototype status](docs/architecture/event-driven-prototype-status.md). |
 
-A workflow definition should describe control flow and business steps without being tightly coupled to a specific database or message broker. Runtime state, event delivery, resumability, and durability should be handled by abstractions so the same workflow model can run in either ephemeral mode or durable mode depending on configured providers.
+The prototype intentionally does **not** yet match the state-driven builder surface (no `If` / `While` / `Parallel` / `WaitLong`, timers, or outbox). **Saga** workflows are specified in requirements docs only — there is no `SagaDefinition` in source yet.
 
-## Architecture note
+## Roadmap: research → production-ready
 
-When a capability can reasonably vary by runtime, infrastructure, or integration boundary, prefer an interface-first and pluggable design over hardcoded internal implementations.
+Rough phases; overlap is expected.
 
-Examples:
-- persistence is modeled behind store contracts
-- outbox dispatch is modeled behind `IOutboxDispatcher`
-- automatic outbox pump observability and retry timing are modeled behind `IOutboxPumpObserver` and `IOutboxPumpDelayStrategy`
-- durable runtime behavior is configured through engine options rather than hidden static behavior
+1. **Research & specification** — nail execution model, wait/residency semantics, branch rules, idempotency, and provider boundaries (ongoing; see [docs/requirements/](docs/requirements/README.md) and [docs/research/](docs/research/research-backlog.md)).
+2. **Core runtime convergence** — stabilize APIs, close gaps in tests vs requirements, document breaking-change policy.
+3. **Durable hardening** — operational commands, retention, observability, and at-least-once / replay behavior validated under realistic adapters.
+4. **Event-driven path** — evolve the prototype into a supported execution style or merge learnings into the main engine; extract real store contracts from the in-memory prototype.
+5. **Production readiness** — versioning for long-running instances, security review, performance targets, sample host apps, and published packages with semantic versioning — **explicit non-goal** until earlier phases are satisfied.
 
-This should be the default direction for future extensibility points such as step decorators, retry/timeout policies, messaging adapters, and operational hooks. Use concrete internal implementations only when there is no meaningful extension boundary yet.
+## Build and test
 
-## Durable runtime notes
+Requires a [.NET SDK](https://dotnet.microsoft.com/download) compatible with **.NET 10** (see project files for `TargetFramework`).
 
-- `Wait` and `WaitLong` are both durable waits, but they differ in residency policy:
-  - `Wait` remains a resident wait when the instance stays hot
-  - `WaitLong` checkpoints and is expected to go cold until resumed
-- durable wait semantics are modeled with two axes:
-  - `WaitStatus` for lifecycle (`Active`, `Matched`, `Cancelled`)
-  - `WaitMode` for residency policy (`Resident`, `Cold`)
-- `Parallel` currently means coordinated sequential branch execution, not true concurrent branch execution
-- automatic outbox replay is available when an `IOutboxDispatcher` is configured, and delivery remains at-least-once
-- durable management operations are available through instance and selection scopes:
-  - delete instance state
-  - purge old inbox/outbox/history artifacts
-- retention policy remains intentionally narrow:
-  - runtime/application code should use `DurableArtifactRetentionPolicy`
-  - explicit cutoff purge remains provider/operator-oriented through the store contract
-  - archival/default operator policy remains a follow-up design area
-
-## Runtime axes
-
-- `Definition semantics`:
-  - regular workflow
-  - saga workflow
-- `Execution mode`:
-  - ephemeral mode
-  - durable mode
-
-## Initial concepts
-
-- `WorkflowDefinition`: regular workflow definition.
-- `SagaDefinition`: saga-specific workflow definition with compensation-oriented semantics.
-- `WorkflowInstance`: execution record containing runtime state and business state.
-- `RuntimeState`: engine-owned orchestration metadata such as status, branch state, waits, correlation, checkpoints, and version binding.
-- `BusinessState`: workflow-owned serializable application data used by steps.
-- `Step`: async unit of work that can complete, branch, wait, fail, or publish events.
-- `EventEnvelope`: normalized event contract used by the runtime.
-- `Runtime`: executes ready steps, schedules waits, resumes instances, manages active-instance lifetime, and enforces orchestration semantics.
-- `StorageProvider`: optional persistence for definitions, instances, checkpoints, subscriptions, and workflow data.
-- `EventProvider`: publishes events and delivers them back to waiting workflows.
-
-## Research questions
-
-1. What is the minimal execution model that supports both short waits and durable long waits without overcomplicating the API?
-2. How should parallel branches be represented so `WhenAll` and `WhenFirst` behave predictably?
-3. Where is the boundary between workflow runtime responsibilities and infrastructure adapter responsibilities?
-4. How should idempotency and exactly-once vs at-least-once semantics be expressed?
-5. What persistence shape best supports resume, replay, and debugging?
-
-## Proposed repository layout
-
-```text
-src/
-  OrcaCore.Abstractions/
-  OrcaCore.Runtime/
-  OrcaCore.Persistence/
-  OrcaCore.Messaging/
-tests/
-docs/
+```bash
+dotnet build OrcaCore.slnx
+dotnet test OrcaCore.slnx
 ```
 
-## Recommended Starting Point
+## Documentation
 
-Read [Documentation map](/X:/Projects/GitHub/Workflow-orca/docs/README.md) for the organized docs tree.
+- [Documentation map](docs/README.md)
+- [Technical overview (detailed)](docs/project-technical-overview.md)
+- [Event-driven prototype status](docs/architecture/event-driven-prototype-status.md)
 
-Read [Requirements tree](/X:/Projects/GitHub/Workflow-orca/docs/requirements/README.md) first for the current delivery baseline.
+## Contributing
 
-Then read:
+Issues and PRs are welcome. Because the project is still in a research phase, it helps to align larger changes with the documented requirements or open an issue first.
 
-- [Regular / Initial requirements](/X:/Projects/GitHub/Workflow-orca/docs/requirements/regular/initial/requirements.md)
-- [Regular / Initial acceptance criteria](/X:/Projects/GitHub/Workflow-orca/docs/requirements/regular/initial/acceptance-criteria.md)
-- [Design proposal: minimal core](/X:/Projects/GitHub/Workflow-orca/docs/architecture/design-proposal-minimal-core.md)
-- [Implementation plan: minimal core](/X:/Projects/GitHub/Workflow-orca/docs/plans/implementation-plan-minimal-core.md)
+## License
 
-## Research artifacts
-
-- [Requirements tree](/X:/Projects/GitHub/Workflow-orca/docs/requirements/README.md)
-- [Regular / Initial requirements](/X:/Projects/GitHub/Workflow-orca/docs/requirements/regular/initial/requirements.md)
-- [Regular / Initial acceptance criteria](/X:/Projects/GitHub/Workflow-orca/docs/requirements/regular/initial/acceptance-criteria.md)
-- [Regular / Advanced requirements](/X:/Projects/GitHub/Workflow-orca/docs/requirements/regular/advanced/requirements.md)
-- [Regular / Advanced acceptance criteria](/X:/Projects/GitHub/Workflow-orca/docs/requirements/regular/advanced/acceptance-criteria.md)
-- [Saga / Initial requirements](/X:/Projects/GitHub/Workflow-orca/docs/requirements/saga/initial/requirements.md)
-- [Saga / Initial acceptance criteria](/X:/Projects/GitHub/Workflow-orca/docs/requirements/saga/initial/acceptance-criteria.md)
-- [Saga / Advanced requirements](/X:/Projects/GitHub/Workflow-orca/docs/requirements/saga/advanced/requirements.md)
-- [Saga / Advanced acceptance criteria](/X:/Projects/GitHub/Workflow-orca/docs/requirements/saga/advanced/acceptance-criteria.md)
-- [Durable / Initial requirements](/X:/Projects/GitHub/Workflow-orca/docs/requirements/durable/initial/requirements.md)
-- [Durable / Initial acceptance criteria](/X:/Projects/GitHub/Workflow-orca/docs/requirements/durable/initial/acceptance-criteria.md)
-- [Durable / Advanced requirements](/X:/Projects/GitHub/Workflow-orca/docs/requirements/durable/advanced/requirements.md)
-- [Durable / Advanced acceptance criteria](/X:/Projects/GitHub/Workflow-orca/docs/requirements/durable/advanced/acceptance-criteria.md)
-- [Design synthesis](/X:/Projects/GitHub/Workflow-orca/docs/architecture/design-synthesis.md)
-- [Workflow kinds and runtime modes](/X:/Projects/GitHub/Workflow-orca/docs/architecture/workflow-kinds-and-runtime-modes.md)
-- [Management command surface](/X:/Projects/GitHub/Workflow-orca/docs/architecture/management-command-surface.md)
-- [Pseudo DSL draft](/X:/Projects/GitHub/Workflow-orca/docs/architecture/pseudo-dsl-draft.md)
-- [Comparative research](/X:/Projects/GitHub/Workflow-orca/docs/research/comparative-research.md)
-- [Deep dive: MassTransit and Stateless](/X:/Projects/GitHub/Workflow-orca/docs/research/deep-dive-masstransit-stateless.md)
-- [Durable Functions patterns](/X:/Projects/GitHub/Workflow-orca/docs/research/durable-functions-patterns.md)
-- [Orleans patterns](/X:/Projects/GitHub/Workflow-orca/docs/research/orleans-patterns.md)
-- [Instance identity, rehydration, and serialized execution](/X:/Projects/GitHub/Workflow-orca/docs/architecture/instance-identity-and-rehydration.md)
-- [Lifecycle, resource management, and operational signals](/X:/Projects/GitHub/Workflow-orca/docs/architecture/lifecycle-resource-management.md)
-- [Workflow Core competitor review](/X:/Projects/GitHub/Workflow-orca/docs/research/workflow-core-competitor-review.md)
-- [Workflow Core issue pattern review](/X:/Projects/GitHub/Workflow-orca/docs/research/workflow-core-issue-pattern-review.md)
-- [Acceptance test matrix](/X:/Projects/GitHub/Workflow-orca/docs/plans/acceptance-test-matrix.md)
-- [Requirements draft](/X:/Projects/GitHub/Workflow-orca/docs/plans/requirements-draft.md)
-- [Project foundation](/X:/Projects/GitHub/Workflow-orca/docs/architecture/project-foundation.md)
-- [Research backlog](/X:/Projects/GitHub/Workflow-orca/docs/research/research-backlog.md)
-
-## Next research steps
-
-1. Define branch semantics for `Parallel`, `WhenAll`, and `WhenFirst`.
-2. Define the event envelope, correlation rules, and deduplication strategy.
-3. Define lifecycle and terminal-state semantics.
-4. Define the workflow instance data model and persistence split.
-5. Define provider-level enforcement of serialized execution per instance.
-6. Define timeout policy, stuck detection, and active-eviction semantics.
-7. Define explicit feature matrix for workflow vs saga and durable vs ephemeral.
-8. Define management command surface and step decorators.
-9. Define versioning and deployment rules for long-running workflow instances.
-10. Turn the acceptance-test matrix into executable specs once implementation starts.
+Licensed under the [Apache License 2.0](LICENSE).

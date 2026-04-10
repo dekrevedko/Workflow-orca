@@ -7,6 +7,7 @@ internal sealed class InMemoryInstanceStore
     private readonly ConcurrentDictionary<string, IWorkflowInstance> _instances = new();
     private readonly ConcurrentDictionary<string, object> _definitions = new();
     private readonly ConcurrentDictionary<string, Func<IWorkflowInstance, EventEnvelope, WaitRecord, CancellationToken, Task>> _resumeDelegates = new();
+    private readonly ConcurrentDictionary<string, InstanceCommandLane> _commandLanes = new();
 
     public CorrelationIndex CorrelationIndex { get; } = new();
 
@@ -29,6 +30,8 @@ internal sealed class InMemoryInstanceStore
         if (!_instances.TryAdd(instance.InstanceId, instance))
             throw new InvalidOperationException(
                 $"Instance '{instance.InstanceId}' already exists.");
+
+        _commandLanes[instance.InstanceId] = new InstanceCommandLane();
 
         // Register a typed resume delegate so untyped callers can resume execution
         var definition = GetDefinition<TState>(instance.DefinitionId);
@@ -81,6 +84,9 @@ internal sealed class InMemoryInstanceStore
     {
         foreach (var instance in _instances.Values)
             instance.ExecutionLock.Dispose();
+
+        foreach (var lane in _commandLanes.Values)
+            lane.DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 
     public Func<IWorkflowInstance, EventEnvelope, WaitRecord, CancellationToken, Task> GetResumeDelegate(string instanceId)
@@ -90,5 +96,15 @@ internal sealed class InMemoryInstanceStore
                 $"Resume delegate for instance '{instanceId}' not found.");
 
         return del;
+    }
+
+    public Task EnqueueAsync(string instanceId, Func<IWorkflowInstance, CancellationToken, Task> handler, CancellationToken cancellationToken)
+    {
+        var instance = GetUntyped(instanceId);
+
+        if (!_commandLanes.TryGetValue(instanceId, out var lane))
+            throw new KeyNotFoundException($"Command lane for instance '{instanceId}' not found.");
+
+        return lane.EnqueueAsync(ct => handler(instance, ct), cancellationToken);
     }
 }

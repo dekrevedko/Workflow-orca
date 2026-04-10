@@ -19,19 +19,20 @@ This structure is intentional even though `workflow vs saga` and `ephemeral vs d
 Why:
 
 - the implementation will be delivered in slices, not as one finished matrix
-- the current first slice is `regular + ephemeral`
+- the first slice was framed as `regular + ephemeral`; the codebase now also includes **durable state-driven** execution (`DurableWorkflowEngine` + `IWorkflowStore`) and an **event-driven prototype** — requirements remain sliced by track
 - saga and durable each introduce enough distinct semantics that they need their own requirement and acceptance documents
 - a separate durable track makes it easier to keep durable guarantees explicit and avoid pretending ephemeral mode is durable
 
 Current implementation target:
 
-- [Regular / Initial requirements](/X:/Projects/GitHub/Workflow-orca/docs/requirements/regular/initial/requirements.md)
-- [Regular / Initial acceptance criteria](/X:/Projects/GitHub/Workflow-orca/docs/requirements/regular/initial/acceptance-criteria.md)
-- [Implementation plan for minimal core](/X:/Projects/GitHub/Workflow-orca/docs/plans/implementation-plan-minimal-core.md)
+- [Regular / Initial requirements](regular/initial/requirements.md)
+- [Regular / Initial acceptance criteria](regular/initial/acceptance-criteria.md)
+- [Implementation plan for minimal core](../plans/implementation-plan-minimal-core.md)
 
 Supporting baseline documents:
 
-- [Design proposal: minimal core](/X:/Projects/GitHub/Workflow-orca/docs/architecture/design-proposal-minimal-core.md)
-- [Design decisions tracking](/X:/Projects/GitHub/Workflow-orca/docs/architecture/design-decisions-tracking.md)
-- [Workflow kinds and runtime modes](/X:/Projects/GitHub/Workflow-orca/docs/architecture/workflow-kinds-and-runtime-modes.md)
-- [Design synthesis](/X:/Projects/GitHub/Workflow-orca/docs/architecture/design-synthesis.md)
+- [Design proposal: minimal core](../architecture/design-proposal-minimal-core.md)
+- [Design decisions tracking](../architecture/design-decisions-tracking.md)
+- [Workflow kinds and runtime modes](../architecture/workflow-kinds-and-runtime-modes.md)
+- [Design synthesis](../architecture/design-synthesis.md)
+- [Project technical overview / code map](../project-technical-overview.md)

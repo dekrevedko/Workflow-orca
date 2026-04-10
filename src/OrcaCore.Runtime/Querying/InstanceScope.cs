@@ -35,12 +35,10 @@ public sealed class InstanceScope
 
     public async Task RaiseEvent(EventEnvelope envelope, CancellationToken cancellationToken = default)
     {
-        var instance = _store.GetUntyped(_instanceId);
-        var runtime = instance.RuntimeState;
-
-        await instance.ExecutionLock.WaitAsync(cancellationToken);
-        try
+        await _store.EnqueueAsync(_instanceId, async (instance, ct) =>
         {
+            var runtime = instance.RuntimeState;
+
             // Dedup: skip if this EventId was already consumed or is already buffered
             if (runtime.ConsumedEventIds.Contains(envelope.EventId)
                 || runtime.PendingEvents.Any(p => p.Envelope.EventId == envelope.EventId))
@@ -69,12 +67,8 @@ public sealed class InstanceScope
 
             // Continue execution with the resumed event
             var resumeDelegate = _store.GetResumeDelegate(_instanceId);
-            await resumeDelegate(instance, envelope, match, cancellationToken);
-        }
-        finally
-        {
-            instance.ExecutionLock.Release();
-        }
+            await resumeDelegate(instance, envelope, match, ct);
+        }, cancellationToken);
     }
 
     public IReadOnlyList<WaitRecord> GetActiveWaits()
