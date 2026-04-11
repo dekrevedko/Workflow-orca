@@ -1,3 +1,4 @@
+using OrcaCore.Abstractions.Primitives;
 
 namespace OrcaCore.Tests;
 
@@ -49,5 +50,40 @@ public class CorrelationIndexTests
             index.ResolveExactlyOne("EventA", "corr-1"));
 
         Assert.Contains("No active wait", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TryResolveSingle_returns_success_when_single_match()
+    {
+        var index = new CorrelationIndex();
+        index.Add("EventA", "corr-1", "instance-1");
+
+        var r = index.TryResolveSingle("EventA", "corr-1");
+
+        Assert.Equal(CorrelationIndex.CorrelationResolutionKind.Success, r.Kind);
+        Assert.Equal("instance-1", r.InstanceId);
+    }
+
+    [Fact]
+    public void TryResolveSingle_returns_failure_when_no_match()
+    {
+        var index = new CorrelationIndex();
+
+        var r = index.TryResolveSingle("EventA", "corr-1");
+
+        Assert.Equal(CorrelationIndex.CorrelationResolutionKind.NoActiveWait, r.Kind);
+    }
+
+    [Fact]
+    public void TryResolveSingle_returns_failure_when_ambiguous()
+    {
+        var index = new CorrelationIndex();
+        index.Add("EventA", "corr-1", "instance-1");
+        index.Add("EventA", "corr-1", "instance-2");
+
+        var r = index.TryResolveSingle("EventA", "corr-1");
+
+        Assert.Equal(CorrelationIndex.CorrelationResolutionKind.Ambiguous, r.Kind);
+        Assert.Equal(2, r.MatchCount);
     }
 }

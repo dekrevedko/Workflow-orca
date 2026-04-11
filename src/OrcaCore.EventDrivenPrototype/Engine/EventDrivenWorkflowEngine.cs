@@ -1,5 +1,6 @@
 using OrcaCore.Abstractions.Enums;
 using OrcaCore.Abstractions.Models;
+using OrcaCore.Abstractions.Primitives;
 using OrcaCore.EventDrivenPrototype.Definitions;
 using OrcaCore.EventDrivenPrototype.Persistence;
 using OrcaCore.EventDrivenPrototype.Projections;
@@ -53,46 +54,41 @@ public sealed class EventDrivenWorkflowEngine(InMemoryPrototypeStore store)
         await lane.EnqueueAsync(async ct =>
         {
             var checkpoint = await LoadCheckpointRequiredAsync(instanceId, ct);
+            var disposition = PrototypeEventRouting.ClassifyRaiseToInstance(checkpoint, envelope);
 
-            if (checkpoint.ConsumedEventIds.Contains(envelope.EventId))
+            switch (disposition.Kind)
             {
-                await CommitDuplicateIgnoredAsync(checkpoint, envelope, ct);
-                return;
-            }
-
-            var matchingWait = checkpoint.ActiveWaits.FirstOrDefault(x =>
-                x.Status == WaitStatus.Active &&
-                x.EventName == envelope.EventName &&
-                x.CorrelationId == envelope.CorrelationId);
-
-            if (matchingWait is null)
-            {
-                var pendingEvents = checkpoint.PendingEvents.ToList();
-
-                if (pendingEvents.Any(x => x.Envelope.EventId == envelope.EventId))
-                {
+                case PrototypeEventRouting.RaiseToInstanceKind.DuplicateConsumed:
+                case PrototypeEventRouting.RaiseToInstanceKind.DuplicatePendingBuffer:
                     await CommitDuplicateIgnoredAsync(checkpoint, envelope, ct);
                     return;
-                }
-
-                pendingEvents.Add(new PendingEvent(envelope, DateTimeOffset.UtcNow, false));
-
-                var bufferedCheckpoint = checkpoint with
+                case PrototypeEventRouting.RaiseToInstanceKind.BufferUnmatchedEvent:
                 {
-                    PendingEvents = pendingEvents,
-                    StreamVersion = checkpoint.StreamVersion + 1
-                };
+                    var pendingEvents = checkpoint.PendingEvents.ToList();
+                    pendingEvents.Add(new PendingEvent(envelope, DateTimeOffset.UtcNow, false));
 
-                await store.CommitAsync(
-                    instanceId,
-                    bufferedCheckpoint,
-                    [CreateEventRecord(checkpoint.StreamVersion + 1, PrototypeEventTypes.EventBuffered, envelope.EventId, envelope.EventName, envelope.CorrelationId)],
-                    [new PrototypeInboxRecord(envelope.EventId, envelope.EventName, envelope.CorrelationId, DateTimeOffset.UtcNow, false)],
-                    ct);
+                    var bufferedCheckpoint = checkpoint with
+                    {
+                        PendingEvents = pendingEvents,
+                        StreamVersion = checkpoint.StreamVersion + 1
+                    };
 
-                return;
+                    await store.CommitAsync(
+                        instanceId,
+                        bufferedCheckpoint,
+                        [CreateEventRecord(checkpoint.StreamVersion + 1, PrototypeEventTypes.EventBuffered, envelope.EventId, envelope.EventName, envelope.CorrelationId)],
+                        [new PrototypeInboxRecord(envelope.EventId, envelope.EventName, envelope.CorrelationId, DateTimeOffset.UtcNow, false)],
+                        ct);
+
+                    return;
+                }
+                case PrototypeEventRouting.RaiseToInstanceKind.MatchingWaitResume:
+                    break;
+                default:
+                    throw new InvalidOperationException($"Unexpected disposition kind '{disposition.Kind}'.");
             }
 
+            var matchingWait = disposition.MatchingWait!;
             var registered = GetDefinition(checkpoint.DefinitionId, checkpoint.DefinitionVersion);
             var execution = await registered.RunToSuspensionAsync(checkpoint, envelope, ct);
             var remainingWaits = checkpoint.ActiveWaits.Where(x => x.WaitId != matchingWait.WaitId).ToArray();
@@ -125,14 +121,14 @@ public sealed class EventDrivenWorkflowEngine(InMemoryPrototypeStore store)
 
     public async Task RaiseEventByCorrelationAsync(EventEnvelope envelope, CancellationToken cancellationToken = default)
     {
-        var instanceId = await store.ResolveByCorrelationAsync(envelope.EventName, envelope.CorrelationId, cancellationToken);
+        var instanceId = await store.TryResolveByCorrelationAsync(envelope.EventName, envelope.CorrelationId, cancellationToken);
 
-        if (instanceId is null)
+        if (!instanceId.HasValue)
         {
             throw new InvalidOperationException($"No active wait for event '{envelope.EventName}' and correlation '{envelope.CorrelationId}'.");
         }
 
-        await RaiseEventToInstanceAsync(instanceId, envelope, cancellationToken);
+        await RaiseEventToInstanceAsync(instanceId.Value!, envelope, cancellationToken);
     }
 
     private async Task TryConsumeBufferedEventsAsync(
@@ -292,25 +288,13 @@ public sealed class EventDrivenWorkflowEngine(InMemoryPrototypeStore store)
         return new PrototypeStreamRecord(version, eventType, DateTimeOffset.UtcNow, data);
     }
 
-    private RegisteredPrototypeDefinition GetDefinition(string definitionId, string definitionVersion)
-    {
-        if (_definitions.TryGetValue((definitionId, definitionVersion), out var definition))
-        {
-            return definition;
-        }
-
-        throw new InvalidOperationException($"Definition '{definitionId}' version '{definitionVersion}' is not registered.");
-    }
+    private RegisteredPrototypeDefinition GetDefinition(string definitionId, string definitionVersion) =>
+        PrototypeEventRouting.TryGetDefinition(_definitions, definitionId, definitionVersion)
+            .Match(static ex => throw ex, static d => d);
 
     private async Task<PrototypeCheckpointState> LoadCheckpointRequiredAsync(string instanceId, CancellationToken cancellationToken)
     {
-        var checkpoint = await store.LoadCheckpointAsync(instanceId, cancellationToken);
-
-        if (checkpoint is null)
-        {
-            throw new InvalidOperationException($"Instance '{instanceId}' was not found.");
-        }
-
-        return checkpoint;
+        var loaded = await store.LoadCheckpointAsync(instanceId, cancellationToken);
+        return PrototypeEventRouting.RequireCheckpoint(loaded, instanceId);
     }
 }

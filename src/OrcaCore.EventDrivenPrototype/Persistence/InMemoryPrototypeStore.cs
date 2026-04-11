@@ -1,5 +1,6 @@
 using OrcaCore.Abstractions.Enums;
 using OrcaCore.Abstractions.Models;
+using OrcaCore.Abstractions.Primitives;
 using OrcaCore.EventDrivenPrototype.Engine;
 using OrcaCore.EventDrivenPrototype.Projections;
 
@@ -75,7 +76,7 @@ public sealed class InMemoryPrototypeStore
         }
     }
 
-    internal Task<string?> ResolveByCorrelationAsync(string eventName, string correlationId, CancellationToken cancellationToken)
+    internal Task<Option<string>> TryResolveByCorrelationAsync(string eventName, string correlationId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -90,11 +91,17 @@ public sealed class InMemoryPrototypeStore
 
             return matches.Length switch
             {
-                0 => Task.FromResult<string?>(null),
-                1 => Task.FromResult<string?>(matches[0]),
+                0 => Task.FromResult(Option<string>.None),
+                1 => Task.FromResult(Option<string>.Some(matches[0])),
                 _ => throw new InvalidOperationException($"Ambiguous correlation for event '{eventName}' and correlation '{correlationId}'.")
             };
         }
+    }
+
+    internal async Task<string?> ResolveByCorrelationAsync(string eventName, string correlationId, CancellationToken cancellationToken)
+    {
+        var resolved = await TryResolveByCorrelationAsync(eventName, correlationId, cancellationToken);
+        return resolved.HasValue ? resolved.Value : null;
     }
 
     internal Task CommitAsync(

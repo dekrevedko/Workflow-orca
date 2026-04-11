@@ -1,3 +1,4 @@
+using OrcaCore.Abstractions.Primitives;
 
 namespace OrcaCore.Runtime.Builders;
 
@@ -93,12 +94,29 @@ public sealed class WorkflowBuilder<TState>(string definitionId)
         return this;
     }
 
+    public Validation<WorkflowDefinition<TState>> TryValidate()
+    {
+        var errors = new List<ValidationError>();
+        if (!_initCalled)
+            errors.Add(new ValidationError("BUILD_INIT_REQUIRED", "Init() must be called."));
+        if (!_endCalled)
+            errors.Add(new ValidationError("BUILD_END_REQUIRED", "End() must be called."));
+
+        if (errors.Count > 0)
+            return Validation<WorkflowDefinition<TState>>.Invalid(errors);
+
+        return Validation<WorkflowDefinition<TState>>.Valid(new WorkflowDefinition<TState>(definitionId, _nodes.AsReadOnly()));
+    }
+
     public WorkflowDefinition<TState> Build()
     {
-        if (!_initCalled)
-            throw new InvalidOperationException("Init() must be called.");
-        if (!_endCalled)
-            throw new InvalidOperationException("End() must be called.");
-        return new WorkflowDefinition<TState>(definitionId, _nodes.AsReadOnly());
+        var validation = TryValidate();
+        if (!validation.IsValid)
+        {
+            var message = string.Join(Environment.NewLine, validation.Errors.Select(static e => e.Message));
+            throw new InvalidOperationException(message);
+        }
+
+        return validation.Value!;
     }
 }

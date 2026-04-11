@@ -1,3 +1,4 @@
+using OrcaCore.Abstractions.Primitives;
 
 namespace OrcaCore.Runtime.Durable.Builders;
 
@@ -95,14 +96,31 @@ public sealed class DurableWorkflowBuilder<TState>
         return this;
     }
 
+    public Validation<DurableWorkflowDefinition<TState>> TryValidate()
+    {
+        var errors = new List<ValidationError>();
+        if (!_initCalled)
+            errors.Add(new ValidationError("BUILD_INIT_REQUIRED", "Init() must be called."));
+        if (!_endCalled)
+            errors.Add(new ValidationError("BUILD_END_REQUIRED", "End() must be called."));
+
+        if (errors.Count > 0)
+            return Validation<DurableWorkflowDefinition<TState>>.Invalid(errors);
+
+        return Validation<DurableWorkflowDefinition<TState>>.Valid(
+            new DurableWorkflowDefinition<TState>(_definitionId, _definitionVersion, _nodes.AsReadOnly()));
+    }
+
     public DurableWorkflowDefinition<TState> Build()
     {
-        if (!_initCalled)
-            throw new InvalidOperationException("Init() must be called.");
-        if (!_endCalled)
-            throw new InvalidOperationException("End() must be called.");
+        var validation = TryValidate();
+        if (!validation.IsValid)
+        {
+            var message = string.Join(Environment.NewLine, validation.Errors.Select(static e => e.Message));
+            throw new InvalidOperationException(message);
+        }
 
-        return new DurableWorkflowDefinition<TState>(_definitionId, _definitionVersion, _nodes.AsReadOnly());
+        return validation.Value!;
     }
 
     private void EnsureCanAddNodes()
