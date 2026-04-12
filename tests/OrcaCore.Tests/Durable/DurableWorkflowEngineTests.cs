@@ -13,6 +13,10 @@ public sealed class DurableWorkflowEngineTests
         public bool SawResumedContext { get; set; }
     }
 
+    private record BasePayload(string Value);
+
+    private sealed record DerivedPayload(string Value, string Extra) : BasePayload(Value);
+
     private sealed class CapturePayloadStep : IStep<OrderState>
     {
         public string StepId => "CapturePayload";
@@ -37,23 +41,23 @@ public sealed class DurableWorkflowEngineTests
         }
     }
 
-    private sealed class CallbackOutboxDispatcher(Action<OutboxRecord> onDispatch) : IOutboxDispatcher
+    private sealed class CallbackOutboxDispatcher(Action<DispatchMessage> onDispatch) : IMessageDispatcher
     {
-        public Task DispatchAsync(OutboxRecord record, CancellationToken cancellationToken)
+        public Task<Result<DispatchOutcome>> DispatchAsync(DispatchMessage message, CancellationToken cancellationToken)
         {
-            onDispatch(record);
-            return Task.CompletedTask;
+            onDispatch(message);
+            return Task.FromResult(Result<DispatchOutcome>.Success(new DispatchOutcome(true, false, null)));
         }
     }
 
-    private sealed class FailingOutboxDispatcher(Func<OutboxRecord, bool> shouldFail) : IOutboxDispatcher
+    private sealed class FailingOutboxDispatcher(Func<DispatchMessage, bool> shouldFail) : IMessageDispatcher
     {
-        public Task DispatchAsync(OutboxRecord record, CancellationToken cancellationToken)
+        public Task<Result<DispatchOutcome>> DispatchAsync(DispatchMessage message, CancellationToken cancellationToken)
         {
-            if (shouldFail(record))
+            if (shouldFail(message))
                 throw new InvalidOperationException("dispatch failed");
 
-            return Task.CompletedTask;
+            return Task.FromResult(Result<DispatchOutcome>.Success(new DispatchOutcome(true, false, null)));
         }
     }
 
@@ -96,16 +100,16 @@ public sealed class DurableWorkflowEngineTests
         }
     }
 
-    private sealed class SequenceOutboxDispatcher(params bool[] failSequence) : IOutboxDispatcher
+    private sealed class SequenceOutboxDispatcher(params bool[] failSequence) : IMessageDispatcher
     {
         private readonly Queue<bool> _failures = new(failSequence);
 
-        public Task DispatchAsync(OutboxRecord record, CancellationToken cancellationToken)
+        public Task<Result<DispatchOutcome>> DispatchAsync(DispatchMessage message, CancellationToken cancellationToken)
         {
             if (_failures.Count != 0 && _failures.Dequeue())
                 throw new InvalidOperationException("dispatch failed");
 
-            return Task.CompletedTask;
+            return Task.FromResult(Result<DispatchOutcome>.Success(new DispatchOutcome(true, false, null)));
         }
     }
 
@@ -131,16 +135,17 @@ public sealed class DurableWorkflowEngineTests
         }
     }
 
-    private sealed class BlockingOutboxDispatcher : IOutboxDispatcher
+    private sealed class BlockingOutboxDispatcher : IMessageDispatcher
     {
         private readonly TaskCompletionSource<bool> _entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Task Entered => _entered.Task;
 
-        public async Task DispatchAsync(OutboxRecord record, CancellationToken cancellationToken)
+        public async Task<Result<DispatchOutcome>> DispatchAsync(DispatchMessage message, CancellationToken cancellationToken)
         {
             _entered.TrySetResult(true);
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return Result<DispatchOutcome>.Success(new DispatchOutcome(true, false, null));
         }
     }
 
@@ -184,15 +189,8 @@ public sealed class DurableWorkflowEngineTests
 
         public void ReleaseLoads() => _continueLoads.TrySetResult(true);
 
-        public Task CreateAsync(PersistedInstance data, CancellationToken ct) =>
-            innerStore.CreateAsync(data, ct);
-
-        public Task CreateAsync(
-            PersistedInstance data,
-            IReadOnlyList<OutboxRecord> outboxRecords,
-            IReadOnlyList<HistoryRecord> historyRecords,
-            CancellationToken ct) =>
-            innerStore.CreateAsync(data, outboxRecords, historyRecords, ct);
+        public Task<PersistedInstance> CreateAsync(WorkflowCommit commit, CancellationToken ct) =>
+            innerStore.CreateAsync(commit, ct);
 
         public async Task<PersistedInstance?> LoadAsync(string instanceId, CancellationToken ct)
         {
@@ -212,23 +210,8 @@ public sealed class DurableWorkflowEngineTests
         public Task<IReadOnlyList<InboxRecord>> GetInboxAsync(string instanceId, CancellationToken ct) =>
             innerStore.GetInboxAsync(instanceId, ct);
 
-        public Task<PersistedInstance> CommitTransitionAsync(PersistedInstance data, CancellationToken ct) =>
-            innerStore.CommitTransitionAsync(data, ct);
-
-        public Task<PersistedInstance> CommitTransitionAsync(
-            PersistedInstance data,
-            IReadOnlyList<InboxRecord> inboxRecords,
-            IReadOnlyList<string> processedInboxEventIds,
-            IReadOnlyList<OutboxRecord> outboxRecords,
-            IReadOnlyList<HistoryRecord> historyRecords,
-            CancellationToken ct) =>
-            innerStore.CommitTransitionAsync(
-                data,
-                inboxRecords,
-                processedInboxEventIds,
-                outboxRecords,
-                historyRecords,
-                ct);
+        public Task<PersistedInstance> CommitAsync(WorkflowCommit commit, CancellationToken ct) =>
+            innerStore.CommitAsync(commit, ct);
 
         public Task<IReadOnlyList<PersistedInstance>> QueryAsync(
             WorkflowStatus? status = null,
@@ -240,19 +223,14 @@ public sealed class DurableWorkflowEngineTests
         public Task<CorrelationLookupResult> LookupByCorrelationAsync(string eventName, string correlationId, CancellationToken ct) =>
             innerStore.LookupByCorrelationAsync(eventName, correlationId, ct);
 
-        public Task<IReadOnlyList<OutboxRecord>> GetPendingOutboxAsync(CancellationToken ct) =>
-            innerStore.GetPendingOutboxAsync(ct);
+        public Task<IReadOnlyList<OutboxRecord>> LeaseDispatchableOutboxAsync(OutboxLeaseRequest request, CancellationToken ct) =>
+            innerStore.LeaseDispatchableOutboxAsync(request, ct);
 
-        public Task MarkOutboxDispatchedAsync(string outboxId, CancellationToken ct) =>
-            innerStore.MarkOutboxDispatchedAsync(outboxId, ct);
+        public Task<OutboxRecord> CompleteLeasedOutboxAsync(string outboxId, string leaseOwner, DateTimeOffset dispatchedAt, CancellationToken ct) =>
+            innerStore.CompleteLeasedOutboxAsync(outboxId, leaseOwner, dispatchedAt, ct);
 
-        public Task<OutboxRecord> RecordOutboxDispatchFailureAsync(
-            string outboxId,
-            string? error,
-            DateTimeOffset failedAt,
-            bool poison,
-            CancellationToken ct) =>
-            innerStore.RecordOutboxDispatchFailureAsync(outboxId, error, failedAt, poison, ct);
+        public Task<OutboxRecord> FailLeasedOutboxAsync(string outboxId, string leaseOwner, OutboxDispatchFailure failure, CancellationToken ct) =>
+            innerStore.FailLeasedOutboxAsync(outboxId, leaseOwner, failure, ct);
 
         public Task AppendHistoryAsync(string instanceId, HistoryRecord record, CancellationToken ct) =>
             innerStore.AppendHistoryAsync(instanceId, record, ct);
@@ -275,15 +253,8 @@ public sealed class DurableWorkflowEngineTests
         private bool _failNextProcessedCommit = failNextProcessedCommit;
         private bool _failNextBufferedCommit = failNextBufferedCommit;
 
-        public Task CreateAsync(PersistedInstance data, CancellationToken ct) =>
-            innerStore.CreateAsync(data, ct);
-
-        public Task CreateAsync(
-            PersistedInstance data,
-            IReadOnlyList<OutboxRecord> outboxRecords,
-            IReadOnlyList<HistoryRecord> historyRecords,
-            CancellationToken ct) =>
-            innerStore.CreateAsync(data, outboxRecords, historyRecords, ct);
+        public Task<PersistedInstance> CreateAsync(WorkflowCommit commit, CancellationToken ct) =>
+            innerStore.CreateAsync(commit, ct);
 
         public Task<PersistedInstance?> LoadAsync(string instanceId, CancellationToken ct) =>
             innerStore.LoadAsync(instanceId, ct);
@@ -291,36 +262,21 @@ public sealed class DurableWorkflowEngineTests
         public Task<IReadOnlyList<InboxRecord>> GetInboxAsync(string instanceId, CancellationToken ct) =>
             innerStore.GetInboxAsync(instanceId, ct);
 
-        public Task<PersistedInstance> CommitTransitionAsync(PersistedInstance data, CancellationToken ct) =>
-            innerStore.CommitTransitionAsync(data, ct);
-
-        public Task<PersistedInstance> CommitTransitionAsync(
-            PersistedInstance data,
-            IReadOnlyList<InboxRecord> inboxRecords,
-            IReadOnlyList<string> processedInboxEventIds,
-            IReadOnlyList<OutboxRecord> outboxRecords,
-            IReadOnlyList<HistoryRecord> historyRecords,
-            CancellationToken ct)
+        public Task<PersistedInstance> CommitAsync(WorkflowCommit commit, CancellationToken ct)
         {
-            if (_failNextProcessedCommit && inboxRecords.Any(x => x.Processed))
+            if (_failNextProcessedCommit && commit.InboxRecords.Any(x => x.Processed))
             {
                 _failNextProcessedCommit = false;
                 throw new ConcurrencyException("Injected commit failure.");
             }
 
-            if (_failNextBufferedCommit && inboxRecords.Any(x => !x.Processed))
+            if (_failNextBufferedCommit && commit.InboxRecords.Any(x => !x.Processed))
             {
                 _failNextBufferedCommit = false;
                 throw new ConcurrencyException("Injected buffered commit failure.");
             }
 
-            return innerStore.CommitTransitionAsync(
-                data,
-                inboxRecords,
-                processedInboxEventIds,
-                outboxRecords,
-                historyRecords,
-                ct);
+            return innerStore.CommitAsync(commit, ct);
         }
 
         public Task<IReadOnlyList<PersistedInstance>> QueryAsync(
@@ -333,19 +289,14 @@ public sealed class DurableWorkflowEngineTests
         public Task<CorrelationLookupResult> LookupByCorrelationAsync(string eventName, string correlationId, CancellationToken ct) =>
             innerStore.LookupByCorrelationAsync(eventName, correlationId, ct);
 
-        public Task<IReadOnlyList<OutboxRecord>> GetPendingOutboxAsync(CancellationToken ct) =>
-            innerStore.GetPendingOutboxAsync(ct);
+        public Task<IReadOnlyList<OutboxRecord>> LeaseDispatchableOutboxAsync(OutboxLeaseRequest request, CancellationToken ct) =>
+            innerStore.LeaseDispatchableOutboxAsync(request, ct);
 
-        public Task MarkOutboxDispatchedAsync(string outboxId, CancellationToken ct) =>
-            innerStore.MarkOutboxDispatchedAsync(outboxId, ct);
+        public Task<OutboxRecord> CompleteLeasedOutboxAsync(string outboxId, string leaseOwner, DateTimeOffset dispatchedAt, CancellationToken ct) =>
+            innerStore.CompleteLeasedOutboxAsync(outboxId, leaseOwner, dispatchedAt, ct);
 
-        public Task<OutboxRecord> RecordOutboxDispatchFailureAsync(
-            string outboxId,
-            string? error,
-            DateTimeOffset failedAt,
-            bool poison,
-            CancellationToken ct) =>
-            innerStore.RecordOutboxDispatchFailureAsync(outboxId, error, failedAt, poison, ct);
+        public Task<OutboxRecord> FailLeasedOutboxAsync(string outboxId, string leaseOwner, OutboxDispatchFailure failure, CancellationToken ct) =>
+            innerStore.FailLeasedOutboxAsync(outboxId, leaseOwner, failure, ct);
 
         public Task AppendHistoryAsync(string instanceId, HistoryRecord record, CancellationToken ct) =>
             innerStore.AppendHistoryAsync(instanceId, record, ct);
@@ -364,7 +315,7 @@ public sealed class DurableWorkflowEngineTests
     {
         private bool _failNextCreate = true;
 
-        public Task CreateAsync(PersistedInstance data, CancellationToken ct)
+        public Task<PersistedInstance> CreateAsync(WorkflowCommit commit, CancellationToken ct)
         {
             if (_failNextCreate)
             {
@@ -372,22 +323,7 @@ public sealed class DurableWorkflowEngineTests
                 throw new InvalidOperationException("Injected create failure.");
             }
 
-            return innerStore.CreateAsync(data, ct);
-        }
-
-        public Task CreateAsync(
-            PersistedInstance data,
-            IReadOnlyList<OutboxRecord> outboxRecords,
-            IReadOnlyList<HistoryRecord> historyRecords,
-            CancellationToken ct)
-        {
-            if (_failNextCreate)
-            {
-                _failNextCreate = false;
-                throw new InvalidOperationException("Injected create failure.");
-            }
-
-            return innerStore.CreateAsync(data, outboxRecords, historyRecords, ct);
+            return innerStore.CreateAsync(commit, ct);
         }
 
         public Task<PersistedInstance?> LoadAsync(string instanceId, CancellationToken ct) =>
@@ -396,23 +332,8 @@ public sealed class DurableWorkflowEngineTests
         public Task<IReadOnlyList<InboxRecord>> GetInboxAsync(string instanceId, CancellationToken ct) =>
             innerStore.GetInboxAsync(instanceId, ct);
 
-        public Task<PersistedInstance> CommitTransitionAsync(PersistedInstance data, CancellationToken ct) =>
-            innerStore.CommitTransitionAsync(data, ct);
-
-        public Task<PersistedInstance> CommitTransitionAsync(
-            PersistedInstance data,
-            IReadOnlyList<InboxRecord> inboxRecords,
-            IReadOnlyList<string> processedInboxEventIds,
-            IReadOnlyList<OutboxRecord> outboxRecords,
-            IReadOnlyList<HistoryRecord> historyRecords,
-            CancellationToken ct) =>
-            innerStore.CommitTransitionAsync(
-                data,
-                inboxRecords,
-                processedInboxEventIds,
-                outboxRecords,
-                historyRecords,
-                ct);
+        public Task<PersistedInstance> CommitAsync(WorkflowCommit commit, CancellationToken ct) =>
+            innerStore.CommitAsync(commit, ct);
 
         public Task<IReadOnlyList<PersistedInstance>> QueryAsync(
             WorkflowStatus? status = null,
@@ -424,19 +345,14 @@ public sealed class DurableWorkflowEngineTests
         public Task<CorrelationLookupResult> LookupByCorrelationAsync(string eventName, string correlationId, CancellationToken ct) =>
             innerStore.LookupByCorrelationAsync(eventName, correlationId, ct);
 
-        public Task<IReadOnlyList<OutboxRecord>> GetPendingOutboxAsync(CancellationToken ct) =>
-            innerStore.GetPendingOutboxAsync(ct);
+        public Task<IReadOnlyList<OutboxRecord>> LeaseDispatchableOutboxAsync(OutboxLeaseRequest request, CancellationToken ct) =>
+            innerStore.LeaseDispatchableOutboxAsync(request, ct);
 
-        public Task MarkOutboxDispatchedAsync(string outboxId, CancellationToken ct) =>
-            innerStore.MarkOutboxDispatchedAsync(outboxId, ct);
+        public Task<OutboxRecord> CompleteLeasedOutboxAsync(string outboxId, string leaseOwner, DateTimeOffset dispatchedAt, CancellationToken ct) =>
+            innerStore.CompleteLeasedOutboxAsync(outboxId, leaseOwner, dispatchedAt, ct);
 
-        public Task<OutboxRecord> RecordOutboxDispatchFailureAsync(
-            string outboxId,
-            string? error,
-            DateTimeOffset failedAt,
-            bool poison,
-            CancellationToken ct) =>
-            innerStore.RecordOutboxDispatchFailureAsync(outboxId, error, failedAt, poison, ct);
+        public Task<OutboxRecord> FailLeasedOutboxAsync(string outboxId, string leaseOwner, OutboxDispatchFailure failure, CancellationToken ct) =>
+            innerStore.FailLeasedOutboxAsync(outboxId, leaseOwner, failure, ct);
 
         public Task AppendHistoryAsync(string instanceId, HistoryRecord record, CancellationToken ct) =>
             innerStore.AppendHistoryAsync(instanceId, record, ct);
@@ -451,20 +367,84 @@ public sealed class DurableWorkflowEngineTests
             innerStore.DeleteAsync(instanceId, ct);
     }
 
+    private sealed class AuthoritativeCreateTokenStore(
+        IWorkflowStore innerStore,
+        int initialConcurrencyToken) : IWorkflowStore
+    {
+        public Task<PersistedInstance> CreateAsync(WorkflowCommit commit, CancellationToken ct)
+        {
+            var rewrittenOutbox = commit.OutboxRecords
+                .Select(record => Rewrite(record, initialConcurrencyToken))
+                .ToArray();
+
+            return innerStore.CreateAsync(
+                commit with
+                {
+                    Instance = commit.Instance with { ConcurrencyToken = initialConcurrencyToken },
+                    OutboxRecords = rewrittenOutbox
+                },
+                ct);
+        }
+
+        public Task<PersistedInstance?> LoadAsync(string instanceId, CancellationToken ct) =>
+            innerStore.LoadAsync(instanceId, ct);
+
+        public Task<IReadOnlyList<InboxRecord>> GetInboxAsync(string instanceId, CancellationToken ct) =>
+            innerStore.GetInboxAsync(instanceId, ct);
+
+        public Task<PersistedInstance> CommitAsync(WorkflowCommit commit, CancellationToken ct) =>
+            innerStore.CommitAsync(commit, ct);
+
+        public Task<IReadOnlyList<PersistedInstance>> QueryAsync(
+            WorkflowStatus? status = null,
+            string? definitionId = null,
+            string? definitionVersion = null,
+            CancellationToken ct = default) =>
+            innerStore.QueryAsync(status, definitionId, definitionVersion, ct);
+
+        public Task<CorrelationLookupResult> LookupByCorrelationAsync(string eventName, string correlationId, CancellationToken ct) =>
+            innerStore.LookupByCorrelationAsync(eventName, correlationId, ct);
+
+        public Task<IReadOnlyList<OutboxRecord>> LeaseDispatchableOutboxAsync(OutboxLeaseRequest request, CancellationToken ct) =>
+            innerStore.LeaseDispatchableOutboxAsync(request, ct);
+
+        public Task<OutboxRecord> CompleteLeasedOutboxAsync(string outboxId, string leaseOwner, DateTimeOffset dispatchedAt, CancellationToken ct) =>
+            innerStore.CompleteLeasedOutboxAsync(outboxId, leaseOwner, dispatchedAt, ct);
+
+        public Task<OutboxRecord> FailLeasedOutboxAsync(string outboxId, string leaseOwner, OutboxDispatchFailure failure, CancellationToken ct) =>
+            innerStore.FailLeasedOutboxAsync(outboxId, leaseOwner, failure, ct);
+
+        public Task AppendHistoryAsync(string instanceId, HistoryRecord record, CancellationToken ct) =>
+            innerStore.AppendHistoryAsync(instanceId, record, ct);
+
+        public Task PurgeArtifactsAsync(string instanceId, DateTimeOffset olderThan, CancellationToken ct) =>
+            innerStore.PurgeArtifactsAsync(instanceId, olderThan, ct);
+
+        public Task PurgeArtifactsAsync(string instanceId, DurableArtifactRetentionCutoffs cutoffs, CancellationToken ct) =>
+            innerStore.PurgeArtifactsAsync(instanceId, cutoffs, ct);
+
+        public Task DeleteAsync(string instanceId, CancellationToken ct) =>
+            innerStore.DeleteAsync(instanceId, ct);
+
+        private static OutboxRecord Rewrite(OutboxRecord record, int streamVersion)
+        {
+            var outboxId = OutboxRecord.CreateDeterministicId(record.InstanceId, streamVersion, record.Sequence);
+            return record with
+            {
+                OutboxId = outboxId,
+                IdempotencyKey = outboxId,
+                StreamVersion = streamVersion
+            };
+        }
+    }
+
     private sealed class FailingCommitWithoutReloadStore(IWorkflowStore innerStore) : IWorkflowStore
     {
         private bool _failNextProcessedCommit = true;
         private bool _blockLoadAfterFailure;
 
-        public Task CreateAsync(PersistedInstance data, CancellationToken ct) =>
-            innerStore.CreateAsync(data, ct);
-
-        public Task CreateAsync(
-            PersistedInstance data,
-            IReadOnlyList<OutboxRecord> outboxRecords,
-            IReadOnlyList<HistoryRecord> historyRecords,
-            CancellationToken ct) =>
-            innerStore.CreateAsync(data, outboxRecords, historyRecords, ct);
+        public Task<PersistedInstance> CreateAsync(WorkflowCommit commit, CancellationToken ct) =>
+            innerStore.CreateAsync(commit, ct);
 
         public Task<PersistedInstance?> LoadAsync(string instanceId, CancellationToken ct)
         {
@@ -477,31 +457,16 @@ public sealed class DurableWorkflowEngineTests
         public Task<IReadOnlyList<InboxRecord>> GetInboxAsync(string instanceId, CancellationToken ct) =>
             innerStore.GetInboxAsync(instanceId, ct);
 
-        public Task<PersistedInstance> CommitTransitionAsync(PersistedInstance data, CancellationToken ct) =>
-            innerStore.CommitTransitionAsync(data, ct);
-
-        public Task<PersistedInstance> CommitTransitionAsync(
-            PersistedInstance data,
-            IReadOnlyList<InboxRecord> inboxRecords,
-            IReadOnlyList<string> processedInboxEventIds,
-            IReadOnlyList<OutboxRecord> outboxRecords,
-            IReadOnlyList<HistoryRecord> historyRecords,
-            CancellationToken ct)
+        public Task<PersistedInstance> CommitAsync(WorkflowCommit commit, CancellationToken ct)
         {
-            if (_failNextProcessedCommit && inboxRecords.Any(x => x.Processed))
+            if (_failNextProcessedCommit && commit.InboxRecords.Any(x => x.Processed))
             {
                 _failNextProcessedCommit = false;
                 _blockLoadAfterFailure = true;
                 throw new ConcurrencyException("Injected commit failure.");
             }
 
-            return innerStore.CommitTransitionAsync(
-                data,
-                inboxRecords,
-                processedInboxEventIds,
-                outboxRecords,
-                historyRecords,
-                ct);
+            return innerStore.CommitAsync(commit, ct);
         }
 
         public Task<IReadOnlyList<PersistedInstance>> QueryAsync(
@@ -514,19 +479,14 @@ public sealed class DurableWorkflowEngineTests
         public Task<CorrelationLookupResult> LookupByCorrelationAsync(string eventName, string correlationId, CancellationToken ct) =>
             innerStore.LookupByCorrelationAsync(eventName, correlationId, ct);
 
-        public Task<IReadOnlyList<OutboxRecord>> GetPendingOutboxAsync(CancellationToken ct) =>
-            innerStore.GetPendingOutboxAsync(ct);
+        public Task<IReadOnlyList<OutboxRecord>> LeaseDispatchableOutboxAsync(OutboxLeaseRequest request, CancellationToken ct) =>
+            innerStore.LeaseDispatchableOutboxAsync(request, ct);
 
-        public Task MarkOutboxDispatchedAsync(string outboxId, CancellationToken ct) =>
-            innerStore.MarkOutboxDispatchedAsync(outboxId, ct);
+        public Task<OutboxRecord> CompleteLeasedOutboxAsync(string outboxId, string leaseOwner, DateTimeOffset dispatchedAt, CancellationToken ct) =>
+            innerStore.CompleteLeasedOutboxAsync(outboxId, leaseOwner, dispatchedAt, ct);
 
-        public Task<OutboxRecord> RecordOutboxDispatchFailureAsync(
-            string outboxId,
-            string? error,
-            DateTimeOffset failedAt,
-            bool poison,
-            CancellationToken ct) =>
-            innerStore.RecordOutboxDispatchFailureAsync(outboxId, error, failedAt, poison, ct);
+        public Task<OutboxRecord> FailLeasedOutboxAsync(string outboxId, string leaseOwner, OutboxDispatchFailure failure, CancellationToken ct) =>
+            innerStore.FailLeasedOutboxAsync(outboxId, leaseOwner, failure, ct);
 
         public Task AppendHistoryAsync(string instanceId, HistoryRecord record, CancellationToken ct) =>
             innerStore.AppendHistoryAsync(instanceId, record, ct);
@@ -1082,6 +1042,44 @@ public sealed class DurableWorkflowEngineTests
     }
 
     [Fact]
+    public async Task Buffered_event_persists_declared_payload_type_through_router()
+    {
+        var store = new InMemoryWorkflowStore();
+        var registry = DurablePayloadTypeRegistry.Default
+            .Register<BasePayload>("base", "schema-base")
+            .Register<DerivedPayload>("derived", "schema-derived");
+        var serializer = new JsonPayloadEnvelopeSerializer(registry);
+        var definition = new DurableWorkflowBuilder<OrderState>("DeclaredPayloadBufferFlow", "v1")
+            .Init()
+            .WaitLong("Expected", state => state.Id)
+            .End()
+            .Build();
+
+        await using var engine = DurableWorkflowEngine.Create(
+            store,
+            new DurableWorkflowEngineOptions
+            {
+                PayloadSchemaResolver = registry,
+                PayloadEnvelopeSerializer = serializer
+            });
+        var started = await (await engine.ForDefinitionAsync(definition)).Start(new OrderState());
+
+        await engine.Instance(started.InstanceId).RaiseEvent(
+            new EventEnvelope(
+                "Unexpected",
+                "order-1",
+                new DerivedPayload("payload", "extra"),
+                "evt-buffered",
+                typeof(BasePayload)));
+
+        var persisted = await store.LoadAsync(started.InstanceId, CancellationToken.None);
+
+        Assert.NotNull(persisted);
+        Assert.Equal("base", persisted!.RuntimeState.PendingEvents[0].Envelope.PayloadTypeKey);
+        Assert.Equal("base", store.GetInbox(started.InstanceId)[0].Envelope.PayloadTypeKey);
+    }
+
+    [Fact]
     public async Task Durable_engine_uses_store_returned_concurrency_token_for_follow_up_commits()
     {
         var store = new InMemoryWorkflowStore(concurrencyIncrement: 5);
@@ -1111,6 +1109,37 @@ public sealed class DurableWorkflowEngineTests
         Assert.NotNull(persisted);
         Assert.Equal(10, persisted!.ConcurrencyToken);
         Assert.Equal(WorkflowStatus.Completed, persisted.RuntimeState.Status);
+    }
+
+    [Fact]
+    public async Task Start_uses_store_returned_concurrency_token_and_authoritative_initial_outbox_version()
+    {
+        var innerStore = new InMemoryWorkflowStore(concurrencyIncrement: 5);
+        var store = new AuthoritativeCreateTokenStore(innerStore, initialConcurrencyToken: 5);
+        var definition = new DurableWorkflowBuilder<OrderState>("AuthoritativeCreateFlow", "v1")
+            .Init()
+            .Wait("Approval", state => state.Id)
+            .Then<CapturePayloadStep>()
+            .End()
+            .Build();
+
+        await using var engine = DurableWorkflowEngine.Create(store);
+        var started = await (await engine.ForDefinitionAsync(definition)).Start(new OrderState());
+
+        var pendingOutbox = await innerStore.GetPendingOutboxAsync(CancellationToken.None);
+        var waitingOutbox = Assert.Single(
+            pendingOutbox,
+            record => record.InstanceId == started.InstanceId && record.EventName == "WorkflowWaiting");
+
+        Assert.Equal(5, started.ConcurrencyToken);
+        Assert.Equal(5, waitingOutbox.StreamVersion);
+        Assert.Equal($"{started.InstanceId}:5:0", waitingOutbox.OutboxId);
+
+        await engine.Instance(started.InstanceId).RaiseEvent(
+            new EventEnvelope("Approval", "order-1", "approved", "evt-approved"));
+
+        var completed = await engine.Instance(started.InstanceId).GetAsync();
+        Assert.Equal(10, completed.ConcurrencyToken);
     }
 
     [Fact]
@@ -1357,7 +1386,8 @@ public sealed class DurableWorkflowEngineTests
             });
 
         await AssertEventuallyAsync(
-            async () => (await store.GetPendingOutboxAsync(CancellationToken.None)).Count == 0,
+            async () => store.GetOutboxRecords().All(record =>
+                record.Status is OutboxStatus.Dispatched or OutboxStatus.Poisoned),
             TimeSpan.FromSeconds(2));
 
         Assert.Contains(observer.FailedEvents, x => x == "WorkflowWaiting");
@@ -1410,11 +1440,13 @@ public sealed class DurableWorkflowEngineTests
             new DurableWorkflowEngineOptions
             {
                 AutoDispatchOutbox = false,
+                OutboxDispatchPollingInterval = TimeSpan.FromMilliseconds(10),
                 MaxOutboxDispatchAttempts = 2
             });
         await (await engine.ForDefinitionAsync(definition)).Start(new OrderState());
 
         var first = await engine.DispatchPendingOutboxAsync(new FailingOutboxDispatcher(_ => true));
+        await Task.Delay(TimeSpan.FromMilliseconds(25));
         var second = await engine.DispatchPendingOutboxAsync(new FailingOutboxDispatcher(_ => true));
         var pendingAfterPoison = await store.GetPendingOutboxAsync(CancellationToken.None);
         var poisoned = store.GetOutbox(first.Results[0].Record.OutboxId);
@@ -1733,6 +1765,82 @@ public sealed class DurableWorkflowEngineTests
         Assert.Empty(store.GetInbox(started.InstanceId));
         Assert.DoesNotContain(store.GetHistory(started.InstanceId), x => x.TransitionType == "Old");
         Assert.NotNull(store.GetOutbox("out-dispatched-keep"));
+    }
+
+    [Fact]
+    public async Task Durable_outbox_record_has_deterministic_id_format_and_correct_message_type()
+    {
+        var store = new InMemoryWorkflowStore();
+        var definition = new DurableWorkflowBuilder<OrderState>("DeterministicIdFlow", "v1")
+            .Init()
+            .WaitLong("Approval", state => state.Id)
+            .End()
+            .Build();
+
+        await using var engine = DurableWorkflowEngine.Create(store);
+        var started = await (await engine.ForDefinitionAsync(definition)).Start(new OrderState());
+
+        var outboxRecords = store.GetOutboxRecords(started.InstanceId);
+        var waitingRecord = Assert.Single(outboxRecords, r => r.MessageType == "WorkflowWaiting");
+
+        // Deterministic ID: {instanceId}:{streamVersion}:{sequence}
+        // Start commits use streamVersion=0; resume commits use instance.ConcurrencyToken + 1
+        Assert.Equal($"{started.InstanceId}:0:0", waitingRecord.OutboxId);
+        Assert.Equal(0, waitingRecord.StreamVersion);
+        Assert.Equal(0, waitingRecord.Sequence);
+        Assert.Equal(started.InstanceId, waitingRecord.InstanceId);
+    }
+
+    [Fact]
+    public async Task Durable_outbox_payload_envelope_has_type_key_and_content_type()
+    {
+        var store = new InMemoryWorkflowStore();
+        var definition = new DurableWorkflowBuilder<OrderState>("PayloadEnvelopeFlow", "v1")
+            .Init()
+            .WaitLong("Approval", state => state.Id)
+            .End()
+            .Build();
+
+        await using var engine = DurableWorkflowEngine.Create(store);
+        var started = await (await engine.ForDefinitionAsync(definition)).Start(new OrderState());
+
+        var outboxRecords = store.GetOutboxRecords(started.InstanceId);
+        var waitingRecord = Assert.Single(outboxRecords, r => r.MessageType == "WorkflowWaiting");
+
+        Assert.NotNull(waitingRecord.PayloadEnvelope.TypeKey);
+        Assert.False(string.IsNullOrWhiteSpace(waitingRecord.PayloadEnvelope.TypeKey));
+        Assert.Equal("application/json", waitingRecord.PayloadEnvelope.Payload.ContentType);
+        Assert.NotNull(waitingRecord.PayloadEnvelope.Payload.SchemaId);
+        Assert.False(string.IsNullOrWhiteSpace(waitingRecord.PayloadEnvelope.Payload.SchemaId));
+    }
+
+    [Fact]
+    public async Task Durable_replay_of_same_decision_produces_identical_outbox_ids()
+    {
+        // PP-AT-002: deterministic outbox IDs prevent duplicate delivery on replay.
+        // Re-committing the same outbox record (replay/retry scenario) is idempotent.
+        var store = new InMemoryWorkflowStore();
+        var definition = new DurableWorkflowBuilder<OrderState>("ReplayIdentityFlow", "v1")
+            .Init()
+            .WaitLong("Approval", state => state.Id)
+            .End()
+            .Build();
+
+        await using var engine = DurableWorkflowEngine.Create(store);
+        var started = await (await engine.ForDefinitionAsync(definition)).Start(new OrderState());
+
+        var outboxBefore = store.GetOutboxRecords(started.InstanceId);
+        var originalId = Assert.Single(outboxBefore, r => r.MessageType == "WorkflowWaiting").OutboxId;
+
+        // Simulate replay: re-commit the same outbox record; the store must suppress the duplicate.
+        var persisted = (await store.LoadAsync(started.InstanceId, CancellationToken.None))!;
+        await store.CommitAsync(
+            new WorkflowCommit(persisted, [], [], outboxBefore, [], []),
+            CancellationToken.None);
+
+        var outboxAfter = store.GetOutboxRecords(started.InstanceId);
+        Assert.Single(outboxAfter, r => r.MessageType == "WorkflowWaiting");
+        Assert.Equal(originalId, outboxAfter[0].OutboxId);
     }
 
     private static async Task AssertEventuallyAsync(Func<Task<bool>> condition, TimeSpan timeout)

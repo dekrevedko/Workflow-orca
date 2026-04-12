@@ -6,41 +6,65 @@ internal sealed class DurableOutboxPump(
     IWorkflowStore store,
     DurableWorkflowEngineOptions options)
 {
+    private readonly string _leaseOwner = $"outbox-pump:{Guid.NewGuid():N}";
+
     public Task<OutboxDispatchResult> DispatchPendingAsync(
-        IOutboxDispatcher dispatcher,
+        IMessageDispatcher dispatcher,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(dispatcher);
-        return DispatchCoreAsync(dispatcher.DispatchAsync, observer: null, cancellationToken);
+        return DispatchCoreAsync(dispatcher, observer: null, cancellationToken);
     }
 
     public Task? StartIfConfigured(CancellationToken cancellationToken)
     {
-        if (!options.AutoDispatchOutbox || options.OutboxDispatcher is null)
+        if (!options.AutoDispatchOutbox || options.MessageDispatcher is null)
             return null;
 
         return Task.Run(() => RunAsync(cancellationToken), cancellationToken);
     }
 
     private async Task<OutboxDispatchResult> DispatchCoreAsync(
-        Func<OutboxRecord, CancellationToken, Task> dispatch,
+        IMessageDispatcher dispatcher,
         IOutboxPumpObserver? observer,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var pending = await store.GetPendingOutboxAsync(cancellationToken);
-        var results = new List<OutboxDispatchItemResult>(pending.Count);
+        var leased = await store.LeaseDispatchableOutboxAsync(
+            new OutboxLeaseRequest(_leaseOwner, int.MaxValue, options.OutboxLeaseDuration),
+            cancellationToken);
+        var results = new List<OutboxDispatchItemResult>(leased.Count);
 
-        foreach (var record in pending)
+        foreach (var record in leased)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                await dispatch(record, cancellationToken);
-                await store.MarkOutboxDispatchedAsync(record.OutboxId, cancellationToken);
-                results.Add(new OutboxDispatchItemResult(record, Succeeded: true, Error: null));
-                InvokeObserver(() => observer?.OnDispatchSucceeded(record));
+                var dispatchMessage = Map(record);
+                var dispatchResult = await dispatcher.DispatchAsync(dispatchMessage, cancellationToken);
+                var failed = TryGetFailure(record, dispatchResult);
+                if (failed is null)
+                {
+                    var completed = await store.CompleteLeasedOutboxAsync(
+                        record.OutboxId,
+                        _leaseOwner,
+                        DateTimeOffset.UtcNow,
+                        cancellationToken);
+                    results.Add(new OutboxDispatchItemResult(completed, Succeeded: true, Error: null));
+                    InvokeObserver(() => observer?.OnDispatchSucceeded(completed));
+                    continue;
+                }
+
+                var failedRecord = await store.FailLeasedOutboxAsync(
+                    record.OutboxId,
+                    _leaseOwner,
+                    CreateFailure(record, failed, DateTimeOffset.UtcNow),
+                    cancellationToken);
+                results.Add(new OutboxDispatchItemResult(failedRecord, Succeeded: false, Error: failed.Exception));
+                InvokeObserver(() => observer?.OnDispatchFailed(failedRecord, failed.Exception));
+                if (failed.Poison && options.OutboxPoisonHandler is not null)
+                    await InvokePoisonHandlerAsync(failedRecord, failed.Exception, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -48,23 +72,20 @@ internal sealed class DurableOutboxPump(
             }
             catch (Exception ex)
             {
-                var attempts = record.FailureCount + 1;
-                var poisoned = attempts >= options.MaxOutboxDispatchAttempts;
-                var updated = await store.RecordOutboxDispatchFailureAsync(
+                var failedRecord = await store.FailLeasedOutboxAsync(
                     record.OutboxId,
-                    ex.Message,
-                    DateTimeOffset.UtcNow,
-                    poisoned,
+                    _leaseOwner,
+                    CreateFailure(record, new DispatchFailure(false, ex.Message, ex), DateTimeOffset.UtcNow),
                     cancellationToken);
-                results.Add(new OutboxDispatchItemResult(updated, Succeeded: false, Error: ex));
-                InvokeObserver(() => observer?.OnDispatchFailed(updated, ex));
-                if (poisoned && options.OutboxPoisonHandler is not null)
-                    await InvokePoisonHandlerAsync(updated, ex, cancellationToken);
+                results.Add(new OutboxDispatchItemResult(failedRecord, Succeeded: false, Error: ex));
+                InvokeObserver(() => observer?.OnDispatchFailed(failedRecord, ex));
+                if (failedRecord.Poisoned && options.OutboxPoisonHandler is not null)
+                    await InvokePoisonHandlerAsync(failedRecord, ex, cancellationToken);
             }
         }
 
         return new OutboxDispatchResult(
-            pending.Count,
+            leased.Count,
             results.Count(x => x.Succeeded),
             results.Count(x => !x.Succeeded),
             results);
@@ -79,7 +100,7 @@ internal sealed class DurableOutboxPump(
             try
             {
                 var dispatchResult = await DispatchCoreAsync(
-                    options.OutboxDispatcher!.DispatchAsync,
+                    options.MessageDispatcher!,
                     options.OutboxPumpObserver,
                     cancellationToken);
                 var failure = dispatchResult.Results.FirstOrDefault(x => !x.Succeeded)?.Error;
@@ -126,6 +147,72 @@ internal sealed class DurableOutboxPump(
                 failure));
     }
 
+    private static DispatchMessage Map(OutboxRecord record) =>
+        new(
+            record.OutboxId,
+            record.IdempotencyKey,
+            record.MessageType,
+            record.Channel,
+            record.Destination,
+            record.PayloadEnvelope.Payload,
+            record.CorrelationId,
+            record.CausationEventId,
+            record.InstanceId,
+            record.ParentInstanceId,
+            record.RootInstanceId,
+            record.ResumeTokenId,
+            headers: new Dictionary<string, string>(StringComparer.Ordinal));
+
+    private OutboxDispatchFailure CreateFailure(
+        OutboxRecord record,
+        DispatchFailure failure,
+        DateTimeOffset failedAt)
+    {
+        var attempt = record.AttemptCount + 1;
+        var poison = failure.Poison || attempt >= options.MaxOutboxDispatchAttempts;
+        return new OutboxDispatchFailure(
+            failure.Error,
+            poison,
+            failedAt,
+            poison ? null : failedAt.Add(ResolveRetryDelay(record.AttemptCount)));
+    }
+
+    private TimeSpan ResolveRetryDelay(int completedFailures)
+    {
+        var baseDelay = options.OutboxDispatchPollingInterval;
+        if (baseDelay <= TimeSpan.Zero)
+            return TimeSpan.Zero;
+
+        var exponent = Math.Min(Math.Max(completedFailures, 0), 30);
+        var multiplier = 1L << exponent;
+        var maxTicks = TimeSpan.MaxValue.Ticks;
+        var delayTicks = baseDelay.Ticks > maxTicks / multiplier
+            ? maxTicks
+            : baseDelay.Ticks * multiplier;
+        return TimeSpan.FromTicks(delayTicks);
+    }
+
+    private static DispatchFailure? TryGetFailure(
+        OutboxRecord record,
+        Result<DispatchOutcome> dispatchResult)
+    {
+        if (dispatchResult.IsFailure)
+        {
+            var ex = dispatchResult.Error!;
+            return new DispatchFailure(Poison: false, ex.Message, ex);
+        }
+
+        var outcome = dispatchResult.Value!;
+        if (outcome.Succeeded)
+            return null;
+
+        var message = outcome.Error ?? $"Dispatch of outbox record '{record.OutboxId}' failed.";
+        return new DispatchFailure(
+            Poison: !outcome.Retryable,
+            Error: message,
+            Exception: new InvalidOperationException(message));
+    }
+
     private static void InvokeObserver(Action callback)
     {
         try
@@ -149,4 +236,9 @@ internal sealed class DurableOutboxPump(
             // Poison handling hooks must not affect durable correctness.
         }
     }
+
+    private sealed record DispatchFailure(
+        bool Poison,
+        string? Error,
+        Exception Exception);
 }

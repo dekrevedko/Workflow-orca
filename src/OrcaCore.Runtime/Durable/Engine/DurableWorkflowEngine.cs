@@ -60,7 +60,7 @@ public sealed class DurableWorkflowEngine : IAsyncDisposable
         => await _eventRouter.RouteAsync(envelope, cancellationToken, LoadFromPersisted);
 
     public Task<OutboxDispatchResult> DispatchPendingOutboxAsync(
-        IOutboxDispatcher dispatcher,
+        IMessageDispatcher dispatcher,
         CancellationToken cancellationToken = default)
         => _outboxPump.DispatchPendingAsync(dispatcher, cancellationToken);
 
@@ -214,7 +214,10 @@ public sealed class DurableWorkflowEngine : IAsyncDisposable
             if (!hasResidentWait)
                 continue;
 
-            var instance = StateMapper.FromPersistedState(persisted, definition.InnerDefinition);
+            var instance = StateMapper.FromPersistedState(
+                persisted,
+                definition.InnerDefinition,
+                payloadEnvelopeSerializer: _options.PayloadEnvelopeSerializer);
             RegisterInstance(instance, definition, persisted.ConcurrencyToken, rebuildCorrelation: true);
         }
     }
@@ -241,17 +244,34 @@ public sealed class DurableWorkflowEngine : IAsyncDisposable
                 cancellationToken,
                 durableMode: true);
 
-            var persisted = StateMapper.ToPersistedState(instance, definition.DefinitionVersion, concurrencyToken: 0, payloadTypeResolver: _options.PayloadTypeResolver);
-            var outboxRecords = DurableEventRouter.CreateTransitionOutboxRecords(instanceId, instance.RuntimeState, trigger: "Start");
+            var persisted = StateMapper.ToPersistedState(
+                instance,
+                definition.DefinitionVersion,
+                concurrencyToken: 0,
+                payloadEnvelopeSerializer: _options.PayloadEnvelopeSerializer);
+            var outboxRecords = DurableEventRouter.CreateTransitionOutboxRecords(
+                instanceId,
+                streamVersion: 0,
+                instance.RuntimeState,
+                trigger: "Start",
+                _options.PayloadEnvelopeSerializer);
             var historyRecords = new List<HistoryRecord>
             {
                 new("Started", DateTimeOffset.UtcNow, definition.DefinitionId)
             };
             historyRecords.AddRange(DurableEventRouter.CreateTransitionHistoryRecords(instance.RuntimeState, "Start"));
-            await _store.CreateAsync(persisted, outboxRecords, historyRecords, cancellationToken);
+            var committed = await _store.CreateAsync(
+                new WorkflowCommit(
+                    persisted,
+                    [],
+                    [],
+                    outboxRecords,
+                    [],
+                    historyRecords),
+                cancellationToken);
             stagedCorrelation.ApplyTo(CorrelationIndex);
-            instance.ConcurrencyToken = persisted.ConcurrencyToken;
-            snapshot = CreateSnapshot(instance, definition.DefinitionVersion);
+            instance.ConcurrencyToken = committed.ConcurrencyToken;
+            snapshot = CreateSnapshot(instance, committed.DefinitionVersion ?? definition.DefinitionVersion);
             evictAfterRelease = _instanceManager.ShouldEvict(instanceId);
         }
         catch
@@ -294,12 +314,19 @@ public sealed class DurableWorkflowEngine : IAsyncDisposable
     {
         instance.ConcurrencyToken = concurrencyToken;
         Func<IWorkflowInstance, PersistedInstance> persist = raw =>
-            StateMapper.ToPersistedState((WorkflowInstance<TState>)raw, definition.DefinitionVersion, raw.ConcurrencyToken, payloadTypeResolver: _options.PayloadTypeResolver);
+            StateMapper.ToPersistedState(
+                (WorkflowInstance<TState>)raw,
+                definition.DefinitionVersion,
+                raw.ConcurrencyToken,
+                payloadEnvelopeSerializer: _options.PayloadEnvelopeSerializer);
         Func<IWorkflowInstance, DurableInstanceSnapshot> snapshot = raw => CreateSnapshot((WorkflowInstance<TState>)raw, definition.DefinitionVersion);
         Func<IWorkflowInstance, object> state = raw => CloneStateSnapshot(((WorkflowInstance<TState>)raw).BusinessState)!;
         Action<IWorkflowInstance, PersistedInstance> restore = (raw, persisted) =>
         {
-            var restored = StateMapper.FromPersistedState(persisted, definition.InnerDefinition, payloadTypeResolver: _options.PayloadTypeResolver);
+            var restored = StateMapper.FromPersistedState(
+                persisted,
+                definition.InnerDefinition,
+                payloadEnvelopeSerializer: _options.PayloadEnvelopeSerializer);
             ((WorkflowInstance<TState>)raw).RestoreFrom(restored);
         };
         Func<IWorkflowInstance, EventEnvelope, WaitRecord, ICorrelationMutationSink, CancellationToken, Task<WorkflowExecutionReport>> resume = (raw, envelope, matchedWait, correlationSink, ct) =>
@@ -353,7 +380,10 @@ public sealed class DurableWorkflowEngine : IAsyncDisposable
         PersistedInstance persisted,
         DurableWorkflowDefinition<TState> definition)
     {
-        var instance = StateMapper.FromPersistedState(persisted, definition.InnerDefinition, payloadTypeResolver: _options.PayloadTypeResolver);
+        var instance = StateMapper.FromPersistedState(
+            persisted,
+            definition.InnerDefinition,
+            payloadEnvelopeSerializer: _options.PayloadEnvelopeSerializer);
         RegisterInstance(instance, definition, persisted.ConcurrencyToken, rebuildCorrelation: true);
         return instance;
     }
@@ -384,7 +414,7 @@ public sealed class DurableWorkflowEngine : IAsyncDisposable
 
     private void StartOutboxPumpIfConfigured()
     {
-        if (!_options.AutoDispatchOutbox || _options.OutboxDispatcher is null)
+        if (!_options.AutoDispatchOutbox || _options.MessageDispatcher is null)
             return;
 
         _outboxPumpTask = _outboxPump.StartIfConfigured(_disposeCts.Token);

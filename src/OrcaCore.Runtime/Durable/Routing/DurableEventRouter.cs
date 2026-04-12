@@ -1,6 +1,3 @@
-using System.Text.Json;
-using OrcaCore.Runtime.Durable.Persistence;
-
 namespace OrcaCore.Runtime.Durable.Routing;
 
 internal sealed class DurableEventRouter(
@@ -41,8 +38,7 @@ internal sealed class DurableEventRouter(
                 return;
 
             preMutationSnapshot = registration.Persist(instance);
-            var match = EventMatcher.FindMatch(runtime.ActiveWaits, envelope);
-            if (match is null)
+            if (EventMatcher.FindMatch(runtime.ActiveWaits, envelope) is not { } match)
             {
                 if (runtime.Status is WorkflowStatus.Completed or WorkflowStatus.Failed)
                 {
@@ -63,6 +59,7 @@ internal sealed class DurableEventRouter(
                         await instanceManager.RecoverAfterCommitFailureAsync(instanceId, cancellationToken, loadFromPersisted);
                     throw;
                 }
+
                 evictAfterRelease = instanceManager.ShouldEvict(instanceId);
             }
             else
@@ -81,7 +78,12 @@ internal sealed class DurableEventRouter(
                 inboxRecords.Add(CreateInboxRecord(instanceId, envelope, processed: true));
                 processedInboxEventIds.AddRange(report.ConsumedBufferedEventIds);
                 historyRecords.Add(new HistoryRecord("EventResumed", DateTimeOffset.UtcNow, envelope.EventName));
-                outboxRecords.AddRange(CreateTransitionOutboxRecords(instanceId, runtime, envelope.EventName));
+                outboxRecords.AddRange(CreateTransitionOutboxRecords(
+                    instanceId,
+                    streamVersion: instance.ConcurrencyToken + 1,
+                    runtime,
+                    envelope.EventName,
+                    options.PayloadEnvelopeSerializer));
                 historyRecords.AddRange(CreateTransitionHistoryRecords(runtime, envelope.EventName));
                 try
                 {
@@ -94,6 +96,7 @@ internal sealed class DurableEventRouter(
                         await instanceManager.RecoverAfterCommitFailureAsync(instanceId, cancellationToken, loadFromPersisted);
                     throw;
                 }
+
                 evictAfterRelease = instanceManager.ShouldEvict(instanceId);
             }
         }
@@ -117,12 +120,14 @@ internal sealed class DurableEventRouter(
     {
         var instance = registration.Instance;
         var persisted = registration.Persist(instance);
-        var committed = await store.CommitTransitionAsync(
-            persisted,
-            inboxRecords,
-            processedInboxEventIds,
-            outboxRecords,
-            historyRecords,
+        var committed = await store.CommitAsync(
+            new WorkflowCommit(
+                persisted,
+                inboxRecords,
+                processedInboxEventIds,
+                outboxRecords,
+                [],
+                historyRecords),
             cancellationToken);
         instance.ConcurrencyToken = committed.ConcurrencyToken;
     }
@@ -166,17 +171,15 @@ internal sealed class DurableEventRouter(
 
     private InboxRecord CreateInboxRecord(string instanceId, EventEnvelope envelope, bool processed)
     {
-        JsonElement? payload = null;
-        string? payloadTypeKey = null;
-        if (envelope.Payload is not null)
+        SerializedPayloadEnvelope? payloadEnvelope = null;
+        var payloadType = envelope.PayloadType;
+        if (payloadType is not null)
         {
-            if (!options.PayloadTypeResolver.TryGetTypeKey(envelope.Payload.GetType(), out payloadTypeKey))
-            {
-                throw new DurablePayloadSerializationException(
-                    $"Payload type '{envelope.Payload.GetType().FullName}' is not registered for durable serialization.");
-            }
+            var serialized = options.PayloadEnvelopeSerializer.Serialize(envelope.Payload, payloadType);
+            if (serialized.IsFailure)
+                throw serialized.Error!;
 
-            payload = JsonSerializer.SerializeToElement(envelope.Payload, envelope.Payload.GetType());
+            payloadEnvelope = serialized.Value;
         }
 
         return new InboxRecord(
@@ -185,8 +188,7 @@ internal sealed class DurableEventRouter(
             new PersistedEventEnvelope(
                 envelope.EventName,
                 envelope.CorrelationId,
-                payload,
-                payloadTypeKey,
+                payloadEnvelope,
                 envelope.EventId),
             DateTimeOffset.UtcNow,
             processed);
@@ -194,28 +196,52 @@ internal sealed class DurableEventRouter(
 
     internal static List<OutboxRecord> CreateTransitionOutboxRecords(
         string instanceId,
+        int streamVersion,
         RuntimeState runtime,
-        string trigger)
+        string trigger,
+        IPayloadEnvelopeSerializer payloadEnvelopeSerializer)
     {
         if (runtime.Status is not WorkflowStatus.Waiting and not WorkflowStatus.Completed and not WorkflowStatus.Failed)
             return [];
 
-        var payload = JsonSerializer.SerializeToElement(new
-        {
-            Trigger = trigger,
-            Status = runtime.Status.ToString(),
-            ActiveWaitCount = runtime.ActiveWaits.Count(x => x.Status == WaitStatus.Active)
-        });
+        var payloadResult = payloadEnvelopeSerializer.Serialize(
+            new TransitionStatusPayload(
+                trigger,
+                runtime.Status.ToString(),
+                runtime.ActiveWaits.Count(x => x.Status == WaitStatus.Active)),
+            typeof(TransitionStatusPayload));
+        if (payloadResult.IsFailure)
+            throw payloadResult.Error!;
 
+        var createdAt = DateTimeOffset.UtcNow;
+        var messageType = $"Workflow{runtime.Status}";
         return
         [
             new OutboxRecord(
-                Guid.NewGuid().ToString("N"),
+                OutboxRecord.CreateDeterministicId(instanceId, streamVersion, 0),
+                OutboxRecord.CreateDeterministicId(instanceId, streamVersion, 0),
                 instanceId,
-                $"Workflow{runtime.Status}",
-                payload,
-                DateTimeOffset.UtcNow,
-                Dispatched: false)
+                ParentInstanceId: null,
+                RootInstanceId: instanceId,
+                GroupId: null,
+                StreamId: instanceId,
+                StreamVersion: streamVersion,
+                Sequence: 0,
+                MessageType: messageType,
+                Channel: "workflow-status",
+                Destination: messageType,
+                PayloadEnvelope: payloadResult.Value!,
+                CorrelationId: null,
+                CausationEventId: null,
+                ResumeTokenId: null,
+                Status: OutboxStatus.Pending,
+                AttemptCount: 0,
+                CreatedAt: createdAt,
+                LastAttemptAt: null,
+                NextAttemptAt: null,
+                LeaseOwner: null,
+                LeaseExpiresAt: null,
+                LastError: null)
         ];
     }
 
@@ -233,3 +259,8 @@ internal sealed class DurableEventRouter(
         ];
     }
 }
+
+internal sealed record TransitionStatusPayload(
+    string Trigger,
+    string Status,
+    int ActiveWaitCount);

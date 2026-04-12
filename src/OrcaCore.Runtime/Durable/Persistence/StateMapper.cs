@@ -9,24 +9,27 @@ internal static class StateMapper
         string? definitionVersion = null,
         int concurrencyToken = 0,
         JsonSerializerOptions? serializerOptions = null,
-        IDurablePayloadTypeResolver? payloadTypeResolver = null)
+        IPayloadSchemaResolver? payloadTypeResolver = null,
+        IPayloadEnvelopeSerializer? payloadEnvelopeSerializer = null)
     {
         ArgumentNullException.ThrowIfNull(instance);
 
+        var serializer = payloadEnvelopeSerializer ?? new JsonPayloadEnvelopeSerializer(payloadTypeResolver ?? DurablePayloadTypeRegistry.Default);
         return new PersistedInstance(
             instance.InstanceId,
             instance.DefinitionId,
             definitionVersion,
             concurrencyToken,
             JsonSerializer.SerializeToElement(instance.BusinessState, serializerOptions),
-            ToPersistedRuntimeState(instance.RuntimeState, serializerOptions, payloadTypeResolver ?? DurablePayloadTypeRegistry.Default));
+            ToPersistedRuntimeState(instance.RuntimeState, serializer));
     }
 
     public static WorkflowInstance<TState> FromPersistedState<TState>(
         PersistedInstance persisted,
         WorkflowDefinition<TState> definition,
         JsonSerializerOptions? serializerOptions = null,
-        IDurablePayloadTypeResolver? payloadTypeResolver = null)
+        IPayloadSchemaResolver? payloadTypeResolver = null,
+        IPayloadEnvelopeSerializer? payloadEnvelopeSerializer = null)
     {
         ArgumentNullException.ThrowIfNull(persisted);
         ArgumentNullException.ThrowIfNull(definition);
@@ -42,14 +45,14 @@ internal static class StateMapper
             ?? throw new InvalidOperationException(
                 $"Persisted instance '{persisted.InstanceId}' could not deserialize business state.");
 
+        var serializer = payloadEnvelopeSerializer ?? new JsonPayloadEnvelopeSerializer(payloadTypeResolver ?? DurablePayloadTypeRegistry.Default);
         var runtimeState = FromPersistedRuntimeState(
             persisted.InstanceId,
             persisted.DefinitionId,
             persisted.DefinitionVersion,
             persisted.RuntimeState,
             definition,
-            serializerOptions,
-            payloadTypeResolver ?? DurablePayloadTypeRegistry.Default);
+            serializer);
         return new WorkflowInstance<TState>(
             persisted.InstanceId,
             persisted.DefinitionId,
@@ -59,15 +62,14 @@ internal static class StateMapper
 
     private static PersistedRuntimeState ToPersistedRuntimeState(
         RuntimeState runtimeState,
-        JsonSerializerOptions? serializerOptions,
-        IDurablePayloadTypeResolver payloadTypeResolver)
+        IPayloadEnvelopeSerializer payloadEnvelopeSerializer)
     {
         return new PersistedRuntimeState(
             runtimeState.Status,
             runtimeState.CreatedAt,
             runtimeState.LastTransitionAt,
             runtimeState.ActiveWaits.Select(wait => ToPersistedWaitRecord(wait, runtimeState)).ToArray(),
-            runtimeState.PendingEvents.Select(e => ToPersistedPendingEvent(e, serializerOptions, payloadTypeResolver)).ToArray(),
+            runtimeState.PendingEvents.Select(e => ToPersistedPendingEvent(e, payloadEnvelopeSerializer)).ToArray(),
             runtimeState.ConsumedEventIds.ToArray(),
             runtimeState.Error is null ? null : ToPersistedError(runtimeState.Error),
             ToPersistedExecutionPath(runtimeState.MainPath),
@@ -80,8 +82,7 @@ internal static class StateMapper
         string? definitionVersion,
         PersistedRuntimeState persisted,
         WorkflowDefinition<TState> definition,
-        JsonSerializerOptions? serializerOptions,
-        IDurablePayloadTypeResolver payloadTypeResolver)
+        IPayloadEnvelopeSerializer payloadEnvelopeSerializer)
     {
         var runtimeState = new RuntimeState(persisted.CreatedAt, persisted.LastTransitionAt)
         {
@@ -91,7 +92,7 @@ internal static class StateMapper
 
         runtimeState.ActiveWaits.AddRange(persisted.ActiveWaits.Select(FromPersistedWaitRecord));
         runtimeState.PendingEvents.AddRange(
-            persisted.PendingEvents.Select(e => FromPersistedPendingEvent(e, serializerOptions, payloadTypeResolver)));
+            persisted.PendingEvents.Select(e => FromPersistedPendingEvent(e, payloadEnvelopeSerializer)));
         runtimeState.ConsumedEventIds.UnionWith(persisted.ConsumedEventIds);
         CopyExecutionPath(
             instanceId: instanceId,
@@ -137,70 +138,61 @@ internal static class StateMapper
 
     private static PersistedPendingEvent ToPersistedPendingEvent(
         PendingEvent pendingEvent,
-        JsonSerializerOptions? serializerOptions,
-        IDurablePayloadTypeResolver payloadTypeResolver) =>
-        new(ToPersistedEventEnvelope(pendingEvent.Envelope, serializerOptions, payloadTypeResolver), pendingEvent.ReceivedAt, pendingEvent.Consumed);
+        IPayloadEnvelopeSerializer payloadEnvelopeSerializer) =>
+        new(ToPersistedEventEnvelope(pendingEvent.Envelope, payloadEnvelopeSerializer), pendingEvent.ReceivedAt, pendingEvent.Consumed);
 
     private static PendingEvent FromPersistedPendingEvent(
         PersistedPendingEvent pendingEvent,
-        JsonSerializerOptions? serializerOptions,
-        IDurablePayloadTypeResolver payloadTypeResolver) =>
-        new(FromPersistedEventEnvelope(pendingEvent.Envelope, serializerOptions, payloadTypeResolver), pendingEvent.ReceivedAt, pendingEvent.Consumed);
+        IPayloadEnvelopeSerializer payloadEnvelopeSerializer) =>
+        new(FromPersistedEventEnvelope(pendingEvent.Envelope, payloadEnvelopeSerializer), pendingEvent.ReceivedAt, pendingEvent.Consumed);
 
     private static PersistedEventEnvelope ToPersistedEventEnvelope(
         EventEnvelope envelope,
-        JsonSerializerOptions? serializerOptions,
-        IDurablePayloadTypeResolver payloadTypeResolver)
+        IPayloadEnvelopeSerializer payloadEnvelopeSerializer)
     {
-        JsonElement? payload = null;
-        string? payloadTypeKey = null;
-        if (envelope.Payload is not null)
+        SerializedPayloadEnvelope? payloadEnvelope = null;
+        var payloadType = envelope.PayloadType;
+        if (payloadType is not null)
         {
-            if (!payloadTypeResolver.TryGetTypeKey(envelope.Payload.GetType(), out payloadTypeKey))
-            {
-                throw new DurablePayloadSerializationException(
-                    $"Payload type '{envelope.Payload.GetType().FullName}' is not registered for durable serialization.");
-            }
+            var serialized = payloadEnvelopeSerializer.Serialize(envelope.Payload, payloadType);
+            if (serialized.IsFailure)
+                throw serialized.Error!;
 
-            payload = JsonSerializer.SerializeToElement(envelope.Payload, envelope.Payload.GetType(), serializerOptions);
+            payloadEnvelope = serialized.Value;
         }
 
         return new PersistedEventEnvelope(
             envelope.EventName,
             envelope.CorrelationId,
-            payload,
-            payloadTypeKey,
+            payloadEnvelope,
             envelope.EventId);
     }
 
     private static EventEnvelope FromPersistedEventEnvelope(
         PersistedEventEnvelope envelope,
-        JsonSerializerOptions? serializerOptions,
-        IDurablePayloadTypeResolver payloadTypeResolver)
+        IPayloadEnvelopeSerializer payloadEnvelopeSerializer)
     {
         object? payload = null;
-        if (envelope.Payload is not null)
+        Type? declaredPayloadType = null;
+        if (envelope.PayloadEnvelope is not null)
         {
-            if (envelope.PayloadTypeKey is null)
-            {
-                throw new DurablePayloadDeserializationException(
-                    $"Persisted event '{envelope.EventId}' is missing a payload type key.");
-            }
+            var deserialized = payloadEnvelopeSerializer.Deserialize(
+                envelope.PayloadEnvelope.Payload,
+                envelope.PayloadEnvelope.TypeKey,
+                typeof(object));
+            if (deserialized.IsFailure)
+                throw deserialized.Error!;
 
-            if (!payloadTypeResolver.TryResolveType(envelope.PayloadTypeKey, out var payloadType))
-            {
-                throw new DurablePayloadDeserializationException(
-                    $"Persisted event '{envelope.EventId}' references unknown payload type key '{envelope.PayloadTypeKey}'.");
-            }
-
-            payload = envelope.Payload.Value.Deserialize(payloadType, serializerOptions);
+            payload = deserialized.Value;
+            declaredPayloadType = payload?.GetType();
         }
 
         return new EventEnvelope(
             envelope.EventName,
             envelope.CorrelationId,
             payload,
-            envelope.EventId);
+            envelope.EventId,
+            declaredPayloadType);
     }
 
     private static PersistedExecutionPath ToPersistedExecutionPath(ExecutionPath path) =>

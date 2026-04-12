@@ -7,27 +7,13 @@ namespace OrcaCore.Runtime.Durable.Persistence;
 
 public interface IWorkflowStore
 {
-    Task CreateAsync(PersistedInstance data, CancellationToken ct);
-
-    Task CreateAsync(
-        PersistedInstance data,
-        IReadOnlyList<OutboxRecord> outboxRecords,
-        IReadOnlyList<HistoryRecord> historyRecords,
-        CancellationToken ct);
+    Task<PersistedInstance> CreateAsync(WorkflowCommit commit, CancellationToken ct);
 
     Task<PersistedInstance?> LoadAsync(string instanceId, CancellationToken ct);
 
     Task<IReadOnlyList<InboxRecord>> GetInboxAsync(string instanceId, CancellationToken ct);
 
-    Task<PersistedInstance> CommitTransitionAsync(PersistedInstance data, CancellationToken ct);
-
-    Task<PersistedInstance> CommitTransitionAsync(
-        PersistedInstance data,
-        IReadOnlyList<InboxRecord> inboxRecords,
-        IReadOnlyList<string> processedInboxEventIds,
-        IReadOnlyList<OutboxRecord> outboxRecords,
-        IReadOnlyList<HistoryRecord> historyRecords,
-        CancellationToken ct);
+    Task<PersistedInstance> CommitAsync(WorkflowCommit commit, CancellationToken ct);
 
     Task<IReadOnlyList<PersistedInstance>> QueryAsync(
         WorkflowStatus? status = null,
@@ -40,15 +26,20 @@ public interface IWorkflowStore
         string correlationId,
         CancellationToken ct);
 
-    Task<IReadOnlyList<OutboxRecord>> GetPendingOutboxAsync(CancellationToken ct);
+    Task<IReadOnlyList<OutboxRecord>> LeaseDispatchableOutboxAsync(
+        OutboxLeaseRequest request,
+        CancellationToken ct);
 
-    Task MarkOutboxDispatchedAsync(string outboxId, CancellationToken ct);
-
-    Task<OutboxRecord> RecordOutboxDispatchFailureAsync(
+    Task<OutboxRecord> CompleteLeasedOutboxAsync(
         string outboxId,
-        string? error,
-        DateTimeOffset failedAt,
-        bool poison,
+        string leaseOwner,
+        DateTimeOffset dispatchedAt,
+        CancellationToken ct);
+
+    Task<OutboxRecord> FailLeasedOutboxAsync(
+        string outboxId,
+        string leaseOwner,
+        OutboxDispatchFailure failure,
         CancellationToken ct);
 
     Task AppendHistoryAsync(string instanceId, HistoryRecord record, CancellationToken ct);

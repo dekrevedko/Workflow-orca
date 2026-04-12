@@ -37,6 +37,26 @@ public sealed class InMemoryWorkflowStoreTests
     }
 
     [Fact]
+    public async Task Create_is_atomic_when_outbox_append_fails()
+    {
+        var store = new InMemoryWorkflowStore();
+        await store.AddOutboxAsync(CreateModernOutboxRecord("shared-outbox", "existing-inst", 0, 0));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            store.CreateAsync(
+                new WorkflowCommit(
+                    CreateInstance("inst-create-fail"),
+                    [],
+                    [],
+                    [CreateModernOutboxRecord("shared-outbox", "inst-create-fail", 0, 0)],
+                    [],
+                    []),
+                CancellationToken.None));
+
+        Assert.Null(await store.LoadAsync("inst-create-fail", CancellationToken.None));
+    }
+
+    [Fact]
     public async Task CommitTransition_increments_concurrency_token()
     {
         var store = new InMemoryWorkflowStore();
@@ -125,6 +145,40 @@ public sealed class InMemoryWorkflowStoreTests
         Assert.Single(pendingOutbox);
         Assert.Equal("out-1", pendingOutbox[0].OutboxId);
         Assert.Equal("Existing", pendingOutbox[0].EventName);
+    }
+
+    [Fact]
+    public async Task CommitTransition_suppresses_equivalent_duplicate_outbox_record_by_deterministic_key()
+    {
+        var store = new InMemoryWorkflowStore();
+        var instance = CreateInstance("inst-1", concurrencyToken: 0, status: WorkflowStatus.Waiting);
+        var originalRecord = CreateModernOutboxRecord("inst-1:0:0", "inst-1", 0, 0);
+        await store.CreateAsync(
+            new WorkflowCommit(
+                instance,
+                [],
+                [],
+                [originalRecord],
+                [],
+                []),
+            CancellationToken.None);
+
+        var loaded = await store.LoadAsync("inst-1", CancellationToken.None);
+        Assert.NotNull(loaded);
+
+        await store.CommitAsync(
+            new WorkflowCommit(
+                loaded!,
+                [],
+                [],
+                [CreateModernOutboxRecord("inst-1:0:0", "inst-1", 0, 0)],
+                [],
+                []),
+            CancellationToken.None);
+
+        var records = store.GetOutboxRecords("inst-1");
+        Assert.Single(records);
+        Assert.Equal("inst-1:0:0", records[0].OutboxId);
     }
 
     [Fact]
@@ -322,6 +376,364 @@ public sealed class InMemoryWorkflowStoreTests
         Assert.NotNull(store.GetOutbox("out-dispatched-keep"));
     }
 
+    [Fact]
+    public async Task LeaseDispatchableOutbox_orders_by_stream_version_and_sequence()
+    {
+        var store = new InMemoryWorkflowStore();
+        await store.AddOutboxAsync(CreateModernOutboxRecord("inst-1:1:0", "inst-1", 1, 0));
+        await store.AddOutboxAsync(CreateModernOutboxRecord("inst-1:1:1", "inst-1", 1, 1));
+
+        var leased = await store.LeaseDispatchableOutboxAsync(
+            new OutboxLeaseRequest("worker-1", 10, TimeSpan.FromMinutes(1)),
+            CancellationToken.None);
+
+        Assert.Single(leased);
+        Assert.Equal("inst-1:1:0", leased[0].OutboxId);
+    }
+
+    [Fact]
+    public async Task Expired_lease_can_be_reclaimed()
+    {
+        var store = new InMemoryWorkflowStore();
+        await store.AddOutboxAsync(CreateModernOutboxRecord(
+            "inst-1:1:0",
+            "inst-1",
+            1,
+            0,
+            status: OutboxStatus.Leased,
+            leaseOwner: "worker-1",
+            leaseExpiresAt: DateTimeOffset.UtcNow.AddSeconds(-1)));
+
+        var leased = await store.LeaseDispatchableOutboxAsync(
+            new OutboxLeaseRequest("worker-2", 10, TimeSpan.FromMinutes(1)),
+            CancellationToken.None);
+
+        Assert.Single(leased);
+        Assert.Equal("worker-2", leased[0].LeaseOwner);
+    }
+
+    [Fact]
+    public async Task LeaseDispatchableOutbox_blocks_higher_sequence_while_head_record_is_leased()
+    {
+        var store = new InMemoryWorkflowStore();
+        await store.AddOutboxAsync(CreateModernOutboxRecord(
+            "inst-1:1:0",
+            "inst-1",
+            1,
+            0,
+            status: OutboxStatus.Leased,
+            leaseOwner: "worker-1",
+            leaseExpiresAt: DateTimeOffset.UtcNow.AddMinutes(1)));
+        await store.AddOutboxAsync(CreateModernOutboxRecord("inst-1:1:1", "inst-1", 1, 1));
+
+        var leased = await store.LeaseDispatchableOutboxAsync(
+            new OutboxLeaseRequest("worker-2", 10, TimeSpan.FromMinutes(1)),
+            CancellationToken.None);
+
+        Assert.Empty(leased);
+    }
+
+    [Fact]
+    public async Task CompleteLeasedOutbox_rejects_lost_lease()
+    {
+        var store = new InMemoryWorkflowStore();
+        await store.AddOutboxAsync(CreateModernOutboxRecord("inst-1:1:0", "inst-1", 1, 0));
+        var leased = await store.LeaseDispatchableOutboxAsync(
+            new OutboxLeaseRequest("worker-1", 1, TimeSpan.FromMinutes(1)),
+            CancellationToken.None);
+
+        await Assert.ThrowsAsync<ConcurrencyException>(() =>
+            store.CompleteLeasedOutboxAsync(
+                leased[0].OutboxId,
+                "worker-2",
+                DateTimeOffset.UtcNow,
+                CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task WorkflowCommit_persists_projection_work_atomically()
+    {
+        var store = new InMemoryWorkflowStore();
+        var instance = CreateInstance("inst-1");
+        var projectionPayload = new DispatchPayload(new byte[] { 1, 2, 3 }, "application/json", "projection");
+
+        await store.CreateAsync(
+            new WorkflowCommit(
+                instance,
+                [],
+                [],
+                [],
+                [new ProjectionWorkItem("Outbox", "Refresh", projectionPayload)],
+                [new HistoryRecord("Started", DateTimeOffset.UtcNow, null)]),
+            CancellationToken.None);
+
+        var loaded = await store.LoadAsync("inst-1", CancellationToken.None);
+
+        Assert.NotNull(loaded);
+        Assert.Single(store.GetProjectionWork("inst-1"));
+        Assert.Single(store.GetHistory("inst-1"));
+    }
+
+    [Fact]
+    public async Task FailLeasedOutbox_retryable_returns_to_pending_with_next_attempt_and_clears_lease()
+    {
+        var store = new InMemoryWorkflowStore();
+        await store.AddOutboxAsync(CreateModernOutboxRecord("inst-1:1:0", "inst-1", 1, 0));
+        var leased = await store.LeaseDispatchableOutboxAsync(
+            new OutboxLeaseRequest("worker-1", 1, TimeSpan.FromMinutes(1)),
+            CancellationToken.None);
+
+        var nextAttempt = DateTimeOffset.UtcNow.AddMinutes(5);
+        var updated = await store.FailLeasedOutboxAsync(
+            leased[0].OutboxId,
+            "worker-1",
+            new OutboxDispatchFailure("transient error", Poison: false, DateTimeOffset.UtcNow, nextAttempt),
+            CancellationToken.None);
+
+        Assert.Equal(OutboxStatus.Pending, updated.Status);
+        Assert.Null(updated.LeaseOwner);
+        Assert.Null(updated.LeaseExpiresAt);
+        Assert.NotNull(updated.NextAttemptAt);
+        Assert.Equal("transient error", updated.LastError);
+    }
+
+    [Fact]
+    public async Task FailLeasedOutbox_poison_sets_poisoned_status_and_clears_lease_and_schedule()
+    {
+        var store = new InMemoryWorkflowStore();
+        await store.AddOutboxAsync(CreateModernOutboxRecord("inst-1:1:0", "inst-1", 1, 0));
+        var leased = await store.LeaseDispatchableOutboxAsync(
+            new OutboxLeaseRequest("worker-1", 1, TimeSpan.FromMinutes(1)),
+            CancellationToken.None);
+
+        var updated = await store.FailLeasedOutboxAsync(
+            leased[0].OutboxId,
+            "worker-1",
+            new OutboxDispatchFailure("fatal error", Poison: true, DateTimeOffset.UtcNow, null),
+            CancellationToken.None);
+
+        Assert.Equal(OutboxStatus.Poisoned, updated.Status);
+        Assert.Null(updated.LeaseOwner);
+        Assert.Null(updated.LeaseExpiresAt);
+        Assert.Null(updated.NextAttemptAt);
+        Assert.Equal("fatal error", updated.LastError);
+    }
+
+    [Fact]
+    public async Task FailLeasedOutbox_rejects_wrong_lease_owner()
+    {
+        var store = new InMemoryWorkflowStore();
+        await store.AddOutboxAsync(CreateModernOutboxRecord("inst-1:1:0", "inst-1", 1, 0));
+        await store.LeaseDispatchableOutboxAsync(
+            new OutboxLeaseRequest("worker-1", 1, TimeSpan.FromMinutes(1)),
+            CancellationToken.None);
+
+        await Assert.ThrowsAsync<ConcurrencyException>(() =>
+            store.FailLeasedOutboxAsync(
+                "inst-1:1:0",
+                "worker-2",
+                new OutboxDispatchFailure("error", Poison: false, DateTimeOffset.UtcNow, null),
+                CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task FailLeasedOutbox_increments_attempt_count()
+    {
+        var store = new InMemoryWorkflowStore();
+        await store.AddOutboxAsync(CreateModernOutboxRecord("inst-1:1:0", "inst-1", 1, 0));
+        var leased = await store.LeaseDispatchableOutboxAsync(
+            new OutboxLeaseRequest("worker-1", 1, TimeSpan.FromMinutes(1)),
+            CancellationToken.None);
+        Assert.Equal(0, leased[0].AttemptCount);
+
+        var updated = await store.FailLeasedOutboxAsync(
+            leased[0].OutboxId,
+            "worker-1",
+            new OutboxDispatchFailure(null, Poison: false, DateTimeOffset.UtcNow, null),
+            CancellationToken.None);
+
+        Assert.Equal(1, updated.AttemptCount);
+    }
+
+    [Fact]
+    public async Task CompleteLeasedOutbox_marks_dispatched_and_clears_lease_metadata()
+    {
+        var store = new InMemoryWorkflowStore();
+        await store.AddOutboxAsync(CreateModernOutboxRecord("inst-1:1:0", "inst-1", 1, 0));
+        var leased = await store.LeaseDispatchableOutboxAsync(
+            new OutboxLeaseRequest("worker-1", 1, TimeSpan.FromMinutes(1)),
+            CancellationToken.None);
+
+        var updated = await store.CompleteLeasedOutboxAsync(
+            leased[0].OutboxId,
+            "worker-1",
+            DateTimeOffset.UtcNow,
+            CancellationToken.None);
+
+        Assert.Equal(OutboxStatus.Dispatched, updated.Status);
+        Assert.Null(updated.LeaseOwner);
+        Assert.Null(updated.LeaseExpiresAt);
+        Assert.Equal(1, updated.AttemptCount);
+        Assert.NotNull(updated.LastAttemptAt);
+        Assert.Null(updated.NextAttemptAt);
+        Assert.Null(updated.LastError);
+    }
+
+    [Fact]
+    public async Task LeaseDispatchableOutbox_blocks_higher_sequence_while_lower_is_pending_with_future_next_attempt()
+    {
+        var store = new InMemoryWorkflowStore();
+        await store.AddOutboxAsync(
+            CreateModernOutboxRecord("inst-1:1:0", "inst-1", 1, 0)
+                with { NextAttemptAt = DateTimeOffset.UtcNow.AddMinutes(5) });
+        await store.AddOutboxAsync(CreateModernOutboxRecord("inst-1:1:1", "inst-1", 1, 1));
+
+        var leased = await store.LeaseDispatchableOutboxAsync(
+            new OutboxLeaseRequest("worker-1", 10, TimeSpan.FromMinutes(1)),
+            CancellationToken.None);
+
+        Assert.Empty(leased);
+    }
+
+    [Fact]
+    public async Task LeaseDispatchableOutbox_unblocks_sequence_after_lower_reaches_dispatched()
+    {
+        var store = new InMemoryWorkflowStore();
+        await store.AddOutboxAsync(
+            CreateModernOutboxRecord("inst-1:1:0", "inst-1", 1, 0, status: OutboxStatus.Dispatched));
+        await store.AddOutboxAsync(CreateModernOutboxRecord("inst-1:1:1", "inst-1", 1, 1));
+
+        var leased = await store.LeaseDispatchableOutboxAsync(
+            new OutboxLeaseRequest("worker-1", 10, TimeSpan.FromMinutes(1)),
+            CancellationToken.None);
+
+        Assert.Single(leased);
+        Assert.Equal("inst-1:1:1", leased[0].OutboxId);
+    }
+
+    [Fact]
+    public async Task LeaseDispatchableOutbox_respects_max_count()
+    {
+        var store = new InMemoryWorkflowStore();
+        for (var i = 0; i < 5; i++)
+        {
+            var instanceId = $"inst-{i}";
+            await store.AddOutboxAsync(CreateModernOutboxRecord($"{instanceId}:1:0", instanceId, 1, 0));
+        }
+
+        var leased = await store.LeaseDispatchableOutboxAsync(
+            new OutboxLeaseRequest("worker-1", 3, TimeSpan.FromMinutes(1)),
+            CancellationToken.None);
+
+        Assert.Equal(3, leased.Count);
+    }
+
+    [Fact]
+    public async Task LeaseDispatchableOutbox_sets_lease_owner_and_expiry_on_acquired_record()
+    {
+        var store = new InMemoryWorkflowStore();
+        await store.AddOutboxAsync(CreateModernOutboxRecord("inst-1:1:0", "inst-1", 1, 0));
+        var before = DateTimeOffset.UtcNow;
+
+        var leased = await store.LeaseDispatchableOutboxAsync(
+            new OutboxLeaseRequest("my-worker", 1, TimeSpan.FromMinutes(5)),
+            CancellationToken.None);
+
+        Assert.Single(leased);
+        Assert.Equal(OutboxStatus.Leased, leased[0].Status);
+        Assert.Equal("my-worker", leased[0].LeaseOwner);
+        Assert.NotNull(leased[0].LeaseExpiresAt);
+        Assert.True(leased[0].LeaseExpiresAt >= before.AddMinutes(5).AddSeconds(-1));
+        Assert.True(leased[0].LeaseExpiresAt <= DateTimeOffset.UtcNow.AddMinutes(5).AddSeconds(1));
+    }
+
+    [Fact]
+    public async Task LeaseDispatchableOutbox_returns_records_from_multiple_instances_in_parallel()
+    {
+        var store = new InMemoryWorkflowStore();
+        await store.AddOutboxAsync(CreateModernOutboxRecord("inst-a:1:0", "inst-a", 1, 0));
+        await store.AddOutboxAsync(CreateModernOutboxRecord("inst-b:1:0", "inst-b", 1, 0));
+        await store.AddOutboxAsync(CreateModernOutboxRecord("inst-c:1:0", "inst-c", 1, 0));
+
+        var leased = await store.LeaseDispatchableOutboxAsync(
+            new OutboxLeaseRequest("worker-1", 10, TimeSpan.FromMinutes(1)),
+            CancellationToken.None);
+
+        Assert.Equal(3, leased.Count);
+        Assert.Contains(leased, r => r.InstanceId == "inst-a");
+        Assert.Contains(leased, r => r.InstanceId == "inst-b");
+        Assert.Contains(leased, r => r.InstanceId == "inst-c");
+    }
+
+    [Fact]
+    public async Task LeaseDispatchableOutbox_never_returns_dispatched_or_poisoned_records()
+    {
+        var store = new InMemoryWorkflowStore();
+        await store.AddOutboxAsync(
+            CreateModernOutboxRecord("inst-a:1:0", "inst-a", 1, 0, status: OutboxStatus.Dispatched));
+        await store.AddOutboxAsync(
+            CreateModernOutboxRecord("inst-b:1:0", "inst-b", 1, 0, status: OutboxStatus.Poisoned));
+
+        var leased = await store.LeaseDispatchableOutboxAsync(
+            new OutboxLeaseRequest("worker-1", 10, TimeSpan.FromMinutes(1)),
+            CancellationToken.None);
+
+        Assert.Empty(leased);
+    }
+
+    [Fact]
+    public async Task CommitAsync_failure_rolls_back_all_artifacts_atomically()
+    {
+        var store = new InMemoryWorkflowStore();
+        var instance = CreateInstance("inst-1", status: WorkflowStatus.Waiting, concurrencyToken: 0);
+        await store.CreateAsync(instance, CancellationToken.None);
+
+        // Seed an outbox record with channel "channel-original"
+        var existing = CreateModernOutboxRecord("inst-1:1:0", "inst-1", 1, 0);
+        await store.AddOutboxAsync(existing);
+
+        // Attempt a commit that includes a conflicting non-equivalent version of the same record
+        var conflicting = existing with { Channel = "channel-conflicting" };
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            store.CommitAsync(
+                new WorkflowCommit(
+                    instance with { RuntimeState = instance.RuntimeState with { Status = WorkflowStatus.Completed } },
+                    [new InboxRecord("evt-1", "inst-1", new PersistedEventEnvelope("Approval", "corr-1", null, "evt-1"), DateTimeOffset.UtcNow, Processed: true)],
+                    ["evt-1"],
+                    [conflicting],
+                    [],
+                    [new HistoryRecord("Completed", DateTimeOffset.UtcNow, null)]),
+                CancellationToken.None));
+
+        var loaded = await store.LoadAsync("inst-1", CancellationToken.None);
+        Assert.NotNull(loaded);
+        Assert.Equal(WorkflowStatus.Waiting, loaded!.RuntimeState.Status);
+        Assert.Equal(0, loaded.ConcurrencyToken);
+        Assert.Empty(store.GetInbox("inst-1"));
+        Assert.Empty(store.GetHistory("inst-1"));
+        Assert.Equal("workflow-status", store.GetOutbox("inst-1:1:0")!.Channel);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_removes_all_outbox_records_including_leased()
+    {
+        var store = new InMemoryWorkflowStore();
+        var instance = CreateInstance("inst-1");
+        await store.CreateAsync(instance, CancellationToken.None);
+        await store.AddOutboxAsync(CreateModernOutboxRecord("inst-1:1:0", "inst-1", 1, 0));
+        await store.AddOutboxAsync(CreateModernOutboxRecord("inst-1:1:1", "inst-1", 1, 1));
+
+        // Lease the first record
+        await store.LeaseDispatchableOutboxAsync(
+            new OutboxLeaseRequest("worker-1", 1, TimeSpan.FromMinutes(1)),
+            CancellationToken.None);
+
+        await store.DeleteAsync("inst-1", CancellationToken.None);
+
+        Assert.Null(await store.LoadAsync("inst-1", CancellationToken.None));
+        Assert.Empty(store.GetOutboxRecords("inst-1"));
+    }
+
     private static PersistedInstance CreateInstance(
         string instanceId,
         string definitionId = "DefA",
@@ -366,5 +778,45 @@ public sealed class InMemoryWorkflowStoreTests
                     BranchId: null,
                     [new PersistedFrame(PersistedFrameKind.Root, "", 1, ScopeId: null)]),
                 ActiveParallel: null));
+    }
+
+    private static OutboxRecord CreateModernOutboxRecord(
+        string outboxId,
+        string instanceId,
+        int streamVersion,
+        int sequence,
+        OutboxStatus status = OutboxStatus.Pending,
+        string? leaseOwner = null,
+        DateTimeOffset? leaseExpiresAt = null)
+    {
+        var payloadEnvelope = new JsonPayloadEnvelopeSerializer(DurablePayloadTypeRegistry.Default)
+            .Serialize("payload", typeof(string))
+            .Value!;
+
+        return new OutboxRecord(
+            outboxId,
+            outboxId,
+            instanceId,
+            ParentInstanceId: null,
+            RootInstanceId: instanceId,
+            GroupId: null,
+            StreamId: instanceId,
+            StreamVersion: streamVersion,
+            Sequence: sequence,
+            MessageType: "WorkflowWaiting",
+            Channel: "workflow-status",
+            Destination: "WorkflowWaiting",
+            PayloadEnvelope: payloadEnvelope,
+            CorrelationId: null,
+            CausationEventId: null,
+            ResumeTokenId: null,
+            Status: status,
+            AttemptCount: 0,
+            CreatedAt: DateTimeOffset.UtcNow,
+            LastAttemptAt: null,
+            NextAttemptAt: null,
+            LeaseOwner: leaseOwner,
+            LeaseExpiresAt: leaseExpiresAt,
+            LastError: null);
     }
 }

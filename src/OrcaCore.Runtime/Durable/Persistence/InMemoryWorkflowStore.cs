@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Text.Json;
 
 namespace OrcaCore.Runtime.Durable.Persistence;
 
@@ -10,32 +9,29 @@ internal sealed class InMemoryWorkflowStore(int concurrencyIncrement = 1) : IWor
     private readonly ConcurrentDictionary<string, List<InboxRecord>> _inbox = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, List<HistoryRecord>> _history = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, OutboxRecord> _outbox = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, List<ProjectionWorkItem>> _projectionWork = new(StringComparer.Ordinal);
 
-    public Task CreateAsync(PersistedInstance data, CancellationToken ct)
-        => CreateAsync(data, [], [], ct);
-
-    public Task CreateAsync(
-        PersistedInstance data,
-        IReadOnlyList<OutboxRecord> outboxRecords,
-        IReadOnlyList<HistoryRecord> historyRecords,
-        CancellationToken ct)
+    public Task<PersistedInstance> CreateAsync(WorkflowCommit commit, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
 
         lock (_gate)
         {
-            var clone = CloneInstance(data);
-            if (!_instances.TryAdd(data.InstanceId, clone))
-            {
-                throw new InvalidOperationException(
-                    $"Durable instance '{data.InstanceId}' already exists.");
-            }
+            var instance = CloneInstance(commit.Instance);
+            var stagedInbox = StageInboxRecords(instance.InstanceId, commit.InboxRecords, commit.ProcessedInboxEventIds);
+            var stagedHistory = StageHistoryRecords(instance.InstanceId, commit.HistoryRecords);
+            var stagedProjectionWork = StageProjectionWorkItems(instance.InstanceId, commit.ProjectionWorkItems);
+            var stagedOutbox = StageOutboxRecords(commit.OutboxRecords);
 
-            ValidateOutboxRecords(outboxRecords, _outbox);
-            ApplyOutboxRecords(outboxRecords);
-            ApplyHistoryRecords(data.InstanceId, historyRecords);
+            if (!_instances.TryAdd(instance.InstanceId, instance))
+                throw new InvalidOperationException($"Durable instance '{instance.InstanceId}' already exists.");
+
+            ApplyInboxRecords(instance.InstanceId, stagedInbox);
+            ApplyHistoryRecords(instance.InstanceId, stagedHistory);
+            ApplyProjectionWorkItems(instance.InstanceId, stagedProjectionWork);
+            ApplyStagedOutboxRecords(stagedOutbox);
+            return Task.FromResult(CloneInstance(instance));
         }
-        return Task.CompletedTask;
     }
 
     public Task<PersistedInstance?> LoadAsync(string instanceId, CancellationToken ct)
@@ -54,50 +50,39 @@ internal sealed class InMemoryWorkflowStore(int concurrencyIncrement = 1) : IWor
         return Task.FromResult(GetInbox(instanceId));
     }
 
-    public Task<PersistedInstance> CommitTransitionAsync(PersistedInstance data, CancellationToken ct)
-        => CommitTransitionAsync(data, [], [], [], [], ct);
-
-    public Task<PersistedInstance> CommitTransitionAsync(
-        PersistedInstance data,
-        IReadOnlyList<InboxRecord> inboxRecords,
-        IReadOnlyList<string> processedInboxEventIds,
-        IReadOnlyList<OutboxRecord> outboxRecords,
-        IReadOnlyList<HistoryRecord> historyRecords,
-        CancellationToken ct)
+    public Task<PersistedInstance> CommitAsync(WorkflowCommit commit, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
 
         lock (_gate)
         {
-            if (!_instances.TryGetValue(data.InstanceId, out var current))
-            {
-                throw new KeyNotFoundException(
-                    $"Durable instance '{data.InstanceId}' not found.");
-            }
+            var instance = commit.Instance;
+            if (!_instances.TryGetValue(instance.InstanceId, out var current))
+                throw new KeyNotFoundException($"Durable instance '{instance.InstanceId}' not found.");
 
-            if (current.ConcurrencyToken != data.ConcurrencyToken)
+            if (current.ConcurrencyToken != instance.ConcurrencyToken)
             {
                 throw new ConcurrencyException(
-                    $"Concurrency token mismatch for instance '{data.InstanceId}'. " +
-                    $"Expected {current.ConcurrencyToken} but received {data.ConcurrencyToken}.");
+                    $"Concurrency token mismatch for instance '{instance.InstanceId}'. " +
+                    $"Expected {current.ConcurrencyToken} but received {instance.ConcurrencyToken}.");
             }
 
-            var committed = CloneInstance(data with
+            var committed = CloneInstance(instance with
             {
                 ConcurrencyToken = current.ConcurrencyToken + concurrencyIncrement
             });
-            var stagedInbox = StageInboxRecords(data.InstanceId, inboxRecords, processedInboxEventIds);
-            var stagedHistory = StageHistoryRecords(data.InstanceId, historyRecords);
-            ValidateOutboxRecords(outboxRecords, existingOutbox: null);
-            var stagedOutbox = StageOutboxRecords(outboxRecords);
+            var stagedInbox = StageInboxRecords(instance.InstanceId, commit.InboxRecords, commit.ProcessedInboxEventIds);
+            var stagedHistory = StageHistoryRecords(instance.InstanceId, commit.HistoryRecords);
+            var stagedProjectionWork = StageProjectionWorkItems(instance.InstanceId, commit.ProjectionWorkItems);
+            var stagedOutbox = StageOutboxRecords(commit.OutboxRecords);
 
-            _instances[data.InstanceId] = committed;
-            ApplyInboxRecords(data.InstanceId, stagedInbox);
-            ApplyHistoryRecords(data.InstanceId, stagedHistory);
+            _instances[instance.InstanceId] = committed;
+            ApplyInboxRecords(instance.InstanceId, stagedInbox);
+            ApplyHistoryRecords(instance.InstanceId, stagedHistory);
+            ApplyProjectionWorkItems(instance.InstanceId, stagedProjectionWork);
             ApplyStagedOutboxRecords(stagedOutbox);
+            return Task.FromResult(CloneInstance(committed));
         }
-
-        return Task.FromResult(CloneInstance(_instances[data.InstanceId]));
     }
 
     public Task<IReadOnlyList<PersistedInstance>> QueryAsync(
@@ -157,67 +142,107 @@ internal sealed class InMemoryWorkflowStore(int concurrencyIncrement = 1) : IWor
         return Task.FromResult(new CorrelationLookupResult(matchType, matches));
     }
 
-    public Task<IReadOnlyList<OutboxRecord>> GetPendingOutboxAsync(CancellationToken ct)
+    public Task<IReadOnlyList<OutboxRecord>> LeaseDispatchableOutboxAsync(
+        OutboxLeaseRequest request,
+        CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.LeaseOwner);
 
-        var pending = _outbox.Values
-            .Where(record => !record.Dispatched && !record.Poisoned)
-            .OrderBy(record => record.CreatedAt)
-            .Select(CloneOutboxRecord)
-            .ToArray();
-
-        return Task.FromResult<IReadOnlyList<OutboxRecord>>(pending);
-    }
-
-    public Task MarkOutboxDispatchedAsync(string outboxId, CancellationToken ct)
-    {
-        ct.ThrowIfCancellationRequested();
-
-        while (true)
+        lock (_gate)
         {
-            if (!_outbox.TryGetValue(outboxId, out var current))
+            var now = DateTimeOffset.UtcNow;
+            NormalizeExpiredLeases(now);
+
+            var leased = new List<OutboxRecord>();
+            foreach (var group in _outbox.Values
+                         .GroupBy(record => record.InstanceId, StringComparer.Ordinal)
+                         .OrderBy(group => group.Key, StringComparer.Ordinal))
             {
-                throw new KeyNotFoundException(
-                    $"Outbox record '{outboxId}' not found.");
+                if (leased.Count >= request.MaxCount)
+                    break;
+
+                var next = group
+                    .OrderBy(record => record.StreamVersion)
+                    .ThenBy(record => record.Sequence)
+                    .FirstOrDefault(record =>
+                        record.Status is OutboxStatus.Pending or OutboxStatus.Leased);
+
+                if (next is null || next.Status != OutboxStatus.Pending)
+                    continue;
+
+                if (next.NextAttemptAt is not null && next.NextAttemptAt > now)
+                    continue;
+
+                var leasedRecord = next with
+                {
+                    Status = OutboxStatus.Leased,
+                    LeaseOwner = request.LeaseOwner,
+                    LeaseExpiresAt = now.Add(request.LeaseDuration)
+                };
+                _outbox[next.OutboxId] = leasedRecord;
+                leased.Add(CloneOutboxRecord(leasedRecord));
             }
 
-            if (current.Dispatched)
-                return Task.CompletedTask;
-
-            var updated = current with { Dispatched = true };
-            if (_outbox.TryUpdate(outboxId, updated, current))
-                return Task.CompletedTask;
+            return Task.FromResult<IReadOnlyList<OutboxRecord>>(leased);
         }
     }
 
-    public Task<OutboxRecord> RecordOutboxDispatchFailureAsync(
+    public Task<OutboxRecord> CompleteLeasedOutboxAsync(
         string outboxId,
-        string? error,
-        DateTimeOffset failedAt,
-        bool poison,
+        string leaseOwner,
+        DateTimeOffset dispatchedAt,
         CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
 
-        while (true)
+        lock (_gate)
         {
-            if (!_outbox.TryGetValue(outboxId, out var current))
-            {
-                throw new KeyNotFoundException(
-                    $"Outbox record '{outboxId}' not found.");
-            }
+            var current = GetRequiredOutbox(outboxId);
+            EnsureLeaseOwnership(current, leaseOwner, dispatchedAt);
 
             var updated = current with
             {
-                FailureCount = current.FailureCount + 1,
-                LastFailureAt = failedAt,
-                LastFailure = error,
-                Poisoned = current.Poisoned || poison
+                Status = OutboxStatus.Dispatched,
+                AttemptCount = current.AttemptCount + 1,
+                LastAttemptAt = dispatchedAt,
+                NextAttemptAt = null,
+                LeaseOwner = null,
+                LeaseExpiresAt = null,
+                LastError = null
             };
 
-            if (_outbox.TryUpdate(outboxId, updated, current))
-                return Task.FromResult(CloneOutboxRecord(updated));
+            _outbox[outboxId] = updated;
+            return Task.FromResult(CloneOutboxRecord(updated));
+        }
+    }
+
+    public Task<OutboxRecord> FailLeasedOutboxAsync(
+        string outboxId,
+        string leaseOwner,
+        OutboxDispatchFailure failure,
+        CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            var current = GetRequiredOutbox(outboxId);
+            EnsureLeaseOwnership(current, leaseOwner, failure.FailedAt);
+
+            var updated = current with
+            {
+                Status = failure.Poison ? OutboxStatus.Poisoned : OutboxStatus.Pending,
+                AttemptCount = current.AttemptCount + 1,
+                LastAttemptAt = failure.FailedAt,
+                NextAttemptAt = failure.Poison ? null : failure.NextAttemptAt,
+                LeaseOwner = null,
+                LeaseExpiresAt = null,
+                LastError = failure.Error
+            };
+
+            _outbox[outboxId] = updated;
+            return Task.FromResult(CloneOutboxRecord(updated));
         }
     }
 
@@ -265,7 +290,8 @@ internal sealed class InMemoryWorkflowStore(int concurrencyIncrement = 1) : IWor
             {
                 foreach (var record in _outbox.Values
                              .Where(x => x.InstanceId == instanceId)
-                             .Where(x => (x.Dispatched || x.Poisoned) && x.CreatedAt < cutoffs.TerminalOutboxOlderThan.Value)
+                             .Where(x => x.Status is OutboxStatus.Dispatched or OutboxStatus.Poisoned)
+                             .Where(x => x.CreatedAt < cutoffs.TerminalOutboxOlderThan.Value)
                              .ToArray())
                 {
                     _outbox.TryRemove(record.OutboxId, out _);
@@ -283,13 +309,11 @@ internal sealed class InMemoryWorkflowStore(int concurrencyIncrement = 1) : IWor
         lock (_gate)
         {
             if (!_instances.TryRemove(instanceId, out _))
-            {
-                throw new KeyNotFoundException(
-                    $"Durable instance '{instanceId}' not found.");
-            }
+                throw new KeyNotFoundException($"Durable instance '{instanceId}' not found.");
 
             _inbox.TryRemove(instanceId, out _);
             _history.TryRemove(instanceId, out _);
+            _projectionWork.TryRemove(instanceId, out _);
 
             foreach (var record in _outbox.Values.Where(x => x.InstanceId == instanceId).ToArray())
                 _outbox.TryRemove(record.OutboxId, out _);
@@ -302,14 +326,68 @@ internal sealed class InMemoryWorkflowStore(int concurrencyIncrement = 1) : IWor
     {
         ct.ThrowIfCancellationRequested();
 
-        var clone = CloneOutboxRecord(record);
-        if (!_outbox.TryAdd(record.OutboxId, clone))
+        lock (_gate)
         {
-            throw new InvalidOperationException(
-                $"Outbox record '{record.OutboxId}' already exists.");
+            if (_outbox.TryGetValue(record.OutboxId, out var existing))
+            {
+                if (!AreEquivalent(existing, record))
+                    throw new InvalidOperationException($"Outbox record '{record.OutboxId}' already exists.");
+
+                return Task.CompletedTask;
+            }
+
+            _outbox[record.OutboxId] = CloneOutboxRecord(record);
         }
 
         return Task.CompletedTask;
+    }
+
+    internal Task MarkOutboxDispatchedAsync(string outboxId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            var current = GetRequiredOutbox(outboxId);
+            _outbox[outboxId] = current with
+            {
+                Status = OutboxStatus.Dispatched,
+                LastAttemptAt = DateTimeOffset.UtcNow,
+                NextAttemptAt = null,
+                LeaseOwner = null,
+                LeaseExpiresAt = null,
+                LastError = null
+            };
+        }
+
+        return Task.CompletedTask;
+    }
+
+    internal Task<OutboxRecord> RecordOutboxDispatchFailureAsync(
+        string outboxId,
+        string? error,
+        DateTimeOffset failedAt,
+        bool poison,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            var current = GetRequiredOutbox(outboxId);
+            var updated = current with
+            {
+                Status = poison ? OutboxStatus.Poisoned : OutboxStatus.Pending,
+                AttemptCount = current.AttemptCount + 1,
+                LastAttemptAt = failedAt,
+                NextAttemptAt = poison ? null : failedAt,
+                LeaseOwner = null,
+                LeaseExpiresAt = null,
+                LastError = error
+            };
+            _outbox[outboxId] = updated;
+            return Task.FromResult(CloneOutboxRecord(updated));
+        }
     }
 
     internal IReadOnlyList<HistoryRecord> GetHistory(string instanceId)
@@ -340,6 +418,30 @@ internal sealed class InMemoryWorkflowStore(int concurrencyIncrement = 1) : IWor
             return null;
 
         return CloneOutboxRecord(record);
+    }
+
+    internal IReadOnlyList<OutboxRecord> GetOutboxRecords(string? instanceId = null)
+    {
+        var records = _outbox.Values
+            .Where(record => instanceId is null || string.Equals(record.InstanceId, instanceId, StringComparison.Ordinal))
+            .OrderBy(record => record.InstanceId, StringComparer.Ordinal)
+            .ThenBy(record => record.StreamVersion)
+            .ThenBy(record => record.Sequence)
+            .Select(CloneOutboxRecord)
+            .ToArray();
+
+        return records;
+    }
+
+    internal IReadOnlyList<ProjectionWorkItem> GetProjectionWork(string instanceId)
+    {
+        if (!_projectionWork.TryGetValue(instanceId, out var workItems))
+            return [];
+
+        lock (workItems)
+        {
+            return workItems.Select(CloneProjectionWorkItem).ToArray();
+        }
     }
 
     private static PersistedInstance CloneInstance(PersistedInstance instance) =>
@@ -373,8 +475,7 @@ internal sealed class InMemoryWorkflowStore(int concurrencyIncrement = 1) : IWor
         new(
             envelope.EventName,
             envelope.CorrelationId,
-            envelope.Payload?.Clone(),
-            envelope.PayloadTypeKey,
+            envelope.PayloadEnvelope is null ? null : CloneSerializedPayloadEnvelope(envelope.PayloadEnvelope),
             envelope.EventId);
 
     private static PersistedError CloneError(PersistedError error) =>
@@ -393,17 +494,56 @@ internal sealed class InMemoryWorkflowStore(int concurrencyIncrement = 1) : IWor
             StringComparer.Ordinal));
 
     private static OutboxRecord CloneOutboxRecord(OutboxRecord record) =>
+        record with
+        {
+            PayloadEnvelope = CloneSerializedPayloadEnvelope(record.PayloadEnvelope)
+        };
+
+    private static SerializedPayloadEnvelope CloneSerializedPayloadEnvelope(SerializedPayloadEnvelope envelope)
+    {
+        var body = envelope.Payload.Body.ToArray();
+        return new SerializedPayloadEnvelope(
+            new DispatchPayload(body, envelope.Payload.ContentType, envelope.Payload.SchemaId),
+            envelope.TypeKey);
+    }
+
+    private static bool AreEquivalent(OutboxRecord left, OutboxRecord right)
+    {
+        if (left == right)
+            return true;
+
+        return string.Equals(left.OutboxId, right.OutboxId, StringComparison.Ordinal)
+            && string.Equals(left.IdempotencyKey, right.IdempotencyKey, StringComparison.Ordinal)
+            && string.Equals(left.InstanceId, right.InstanceId, StringComparison.Ordinal)
+            && string.Equals(left.ParentInstanceId, right.ParentInstanceId, StringComparison.Ordinal)
+            && string.Equals(left.RootInstanceId, right.RootInstanceId, StringComparison.Ordinal)
+            && string.Equals(left.GroupId, right.GroupId, StringComparison.Ordinal)
+            && string.Equals(left.StreamId, right.StreamId, StringComparison.Ordinal)
+            && left.StreamVersion == right.StreamVersion
+            && left.Sequence == right.Sequence
+            && string.Equals(left.MessageType, right.MessageType, StringComparison.Ordinal)
+            && string.Equals(left.Channel, right.Channel, StringComparison.Ordinal)
+            && string.Equals(left.Destination, right.Destination, StringComparison.Ordinal)
+            && AreEquivalent(left.PayloadEnvelope, right.PayloadEnvelope)
+            && string.Equals(left.CorrelationId, right.CorrelationId, StringComparison.Ordinal)
+            && string.Equals(left.CausationEventId, right.CausationEventId, StringComparison.Ordinal)
+            && string.Equals(left.ResumeTokenId, right.ResumeTokenId, StringComparison.Ordinal);
+    }
+
+    private static bool AreEquivalent(SerializedPayloadEnvelope left, SerializedPayloadEnvelope right) =>
+        string.Equals(left.TypeKey, right.TypeKey, StringComparison.Ordinal)
+        && AreEquivalent(left.Payload, right.Payload);
+
+    private static bool AreEquivalent(DispatchPayload left, DispatchPayload right) =>
+        string.Equals(left.ContentType, right.ContentType, StringComparison.Ordinal)
+        && string.Equals(left.SchemaId, right.SchemaId, StringComparison.Ordinal)
+        && left.Body.Span.SequenceEqual(right.Body.Span);
+
+    private static ProjectionWorkItem CloneProjectionWorkItem(ProjectionWorkItem item) =>
         new(
-            record.OutboxId,
-            record.InstanceId,
-            record.EventName,
-            record.Payload?.Clone(),
-            record.CreatedAt,
-            record.Dispatched,
-            record.FailureCount,
-            record.LastFailureAt,
-            record.LastFailure,
-            record.Poisoned);
+            item.ProjectionName,
+            item.WorkKind,
+            new DispatchPayload(item.Payload.Body.ToArray(), item.Payload.ContentType, item.Payload.SchemaId));
 
     private List<InboxRecord> StageInboxRecords(
         string instanceId,
@@ -424,7 +564,17 @@ internal sealed class InMemoryWorkflowStore(int concurrencyIncrement = 1) : IWor
         }
 
         foreach (var record in inboxRecords)
-            staged.Add(CloneInboxRecord(record));
+        {
+            var duplicateIndex = staged.FindIndex(existing => string.Equals(existing.EventId, record.EventId, StringComparison.Ordinal));
+            if (duplicateIndex >= 0)
+            {
+                staged[duplicateIndex] = CloneInboxRecord(record);
+            }
+            else
+            {
+                staged.Add(CloneInboxRecord(record));
+            }
+        }
 
         if (processedEventIds.Count != 0)
         {
@@ -459,29 +609,43 @@ internal sealed class InMemoryWorkflowStore(int concurrencyIncrement = 1) : IWor
         return staged;
     }
 
-    private static void ValidateOutboxRecords(
-        IReadOnlyList<OutboxRecord> outboxRecords,
-        IDictionary<string, OutboxRecord>? existingOutbox)
+    private List<ProjectionWorkItem> StageProjectionWorkItems(string instanceId, IReadOnlyList<ProjectionWorkItem> workItems)
     {
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var record in outboxRecords)
+        List<ProjectionWorkItem> staged;
+        if (_projectionWork.TryGetValue(instanceId, out var existing))
         {
-            if (!seen.Add(record.OutboxId)
-                || existingOutbox?.ContainsKey(record.OutboxId) == true)
+            lock (existing)
             {
-                throw new InvalidOperationException(
-                    $"Outbox record '{record.OutboxId}' already exists.");
+                staged = existing.Select(CloneProjectionWorkItem).ToList();
             }
         }
+        else
+        {
+            staged = [];
+        }
+
+        staged.AddRange(workItems.Select(CloneProjectionWorkItem));
+        return staged;
     }
 
     private Dictionary<string, OutboxRecord> StageOutboxRecords(IReadOnlyList<OutboxRecord> outboxRecords)
     {
-        ValidateOutboxRecords(outboxRecords, _outbox);
-        return outboxRecords.ToDictionary(
-            record => record.OutboxId,
-            CloneOutboxRecord,
-            StringComparer.Ordinal);
+        var staged = new Dictionary<string, OutboxRecord>(StringComparer.Ordinal);
+        foreach (var record in outboxRecords)
+        {
+            if (!staged.TryAdd(record.OutboxId, CloneOutboxRecord(record)))
+                throw new InvalidOperationException($"Outbox record '{record.OutboxId}' already exists.");
+
+            if (_outbox.TryGetValue(record.OutboxId, out var existing))
+            {
+                if (!AreEquivalent(existing, record))
+                    throw new InvalidOperationException($"Outbox record '{record.OutboxId}' already exists.");
+
+                staged.Remove(record.OutboxId);
+            }
+        }
+
+        return staged;
     }
 
     private void ApplyInboxRecords(string instanceId, List<InboxRecord> stagedInbox)
@@ -506,16 +670,56 @@ internal sealed class InMemoryWorkflowStore(int concurrencyIncrement = 1) : IWor
         _history[instanceId] = stagedHistory.ToList();
     }
 
-    private void ApplyOutboxRecords(IReadOnlyList<OutboxRecord> outboxRecords)
+    private void ApplyProjectionWorkItems(string instanceId, IReadOnlyList<ProjectionWorkItem> stagedProjectionWork)
     {
-        foreach (var record in outboxRecords)
-            _outbox[record.OutboxId] = CloneOutboxRecord(record);
+        if (stagedProjectionWork.Count == 0)
+        {
+            _projectionWork.TryRemove(instanceId, out _);
+            return;
+        }
+
+        _projectionWork[instanceId] = stagedProjectionWork.Select(CloneProjectionWorkItem).ToList();
     }
 
     private void ApplyStagedOutboxRecords(IReadOnlyDictionary<string, OutboxRecord> stagedOutbox)
     {
         foreach (var entry in stagedOutbox)
             _outbox[entry.Key] = entry.Value;
+    }
+
+    private void NormalizeExpiredLeases(DateTimeOffset now)
+    {
+        foreach (var record in _outbox.Values
+                     .Where(record => record.Status == OutboxStatus.Leased)
+                     .Where(record => record.LeaseExpiresAt is not null && record.LeaseExpiresAt <= now)
+                     .ToArray())
+        {
+            _outbox[record.OutboxId] = record with
+            {
+                Status = OutboxStatus.Pending,
+                LeaseOwner = null,
+                LeaseExpiresAt = null
+            };
+        }
+    }
+
+    private OutboxRecord GetRequiredOutbox(string outboxId)
+    {
+        if (!_outbox.TryGetValue(outboxId, out var current))
+            throw new KeyNotFoundException($"Outbox record '{outboxId}' not found.");
+
+        return current;
+    }
+
+    private static void EnsureLeaseOwnership(OutboxRecord record, string leaseOwner, DateTimeOffset transitionTime)
+    {
+        if (record.Status != OutboxStatus.Leased
+            || !string.Equals(record.LeaseOwner, leaseOwner, StringComparison.Ordinal)
+            || record.LeaseExpiresAt is null
+            || record.LeaseExpiresAt <= transitionTime)
+        {
+            throw new ConcurrencyException($"Lease ownership lost for outbox record '{record.OutboxId}'.");
+        }
     }
 
     private static InboxRecord CloneInboxRecord(InboxRecord record) =>

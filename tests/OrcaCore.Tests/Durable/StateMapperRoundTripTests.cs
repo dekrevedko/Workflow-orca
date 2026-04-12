@@ -10,6 +10,10 @@ public sealed class StateMapperRoundTripTests
         bool Loop = false,
         string? Payload = null);
 
+    private record BasePayload(string Value);
+
+    private sealed record DerivedPayload(string Value, string Extra) : BasePayload(Value);
+
     private sealed record ApprovalPayload(string Value);
 
     [Fact]
@@ -299,5 +303,43 @@ public sealed class StateMapperRoundTripTests
         Assert.Contains(definition.DefinitionId, ex.Message, StringComparison.Ordinal);
         Assert.Contains("v1", ex.Message, StringComparison.Ordinal);
         Assert.Contains("missing/path", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Round_trip_preserves_declared_payload_type_for_buffered_events()
+    {
+        var definition = new WorkflowBuilder<RoundTripState>("DeclaredPayloadFlow")
+            .Init()
+            .Wait("Approval", state => state.Id)
+            .End()
+            .Build();
+
+        var registry = new DurablePayloadTypeRegistry()
+            .Register<BasePayload>("base", "schema-base")
+            .Register<DerivedPayload>("derived", "schema-derived");
+        var serializer = new JsonPayloadEnvelopeSerializer(registry);
+
+        var instance = new WorkflowInstance<RoundTripState>(
+            "instance-declared-payload",
+            definition.DefinitionId,
+            new RoundTripState("corr-declared"));
+
+        await WorkflowRuntime.ExecuteAsync(instance, definition, new CorrelationIndex());
+        instance.RuntimeState.PendingEvents.Add(new PendingEvent(
+            new EventEnvelope(
+                "Buffered",
+                "corr-declared",
+                new DerivedPayload("approved", "extra"),
+                "evt-declared",
+                typeof(BasePayload)),
+            DateTimeOffset.UtcNow,
+            Consumed: false));
+
+        var persisted = StateMapper.ToPersistedState(instance, payloadEnvelopeSerializer: serializer);
+        var restored = StateMapper.FromPersistedState(persisted, definition, payloadEnvelopeSerializer: serializer);
+
+        Assert.Equal("base", persisted.RuntimeState.PendingEvents[0].Envelope.PayloadTypeKey);
+        var payload = Assert.IsType<BasePayload>(restored.RuntimeState.PendingEvents[0].Envelope.Payload);
+        Assert.Equal("approved", payload.Value);
     }
 }

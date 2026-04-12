@@ -4,4 +4,8 @@ public sealed record EventEnvelope(
     string EventName,
     string CorrelationId,
     object? Payload,
-    string EventId);
+    string EventId,
+    Type? DeclaredPayloadType = null)
+{
+    public Type? PayloadType => DeclaredPayloadType ?? Payload?.GetType();
+}

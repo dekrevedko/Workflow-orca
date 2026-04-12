@@ -1,21 +1,33 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using OrcaCore.Runtime.Durable.Routing;
 
 namespace OrcaCore.Runtime.Durable.Serialization;
 
-public sealed class DurablePayloadTypeRegistry : IDurablePayloadTypeResolver
+public sealed class DurablePayloadTypeRegistry : IPayloadSchemaResolver
 {
     private readonly ConcurrentDictionary<Type, string> _typeToKey = new();
     private readonly ConcurrentDictionary<string, Type> _keyToType = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<Type, string> _typeToSchemaId = new();
+    private readonly ConcurrentDictionary<Type, string> _typeToContentType = new();
 
     public static DurablePayloadTypeRegistry Default { get; } = CreateDefault();
 
-    public DurablePayloadTypeRegistry Register<T>(string key) => Register(typeof(T), key);
+    public DurablePayloadTypeRegistry Register<T>(
+        string key,
+        string? schemaId = null,
+        string contentType = JsonPayloadEnvelopeSerializer.JsonContentType) =>
+        Register(typeof(T), key, schemaId, contentType);
 
-    public DurablePayloadTypeRegistry Register(Type type, string key)
+    public DurablePayloadTypeRegistry Register(
+        Type type,
+        string key,
+        string? schemaId = null,
+        string contentType = JsonPayloadEnvelopeSerializer.JsonContentType)
     {
         ArgumentNullException.ThrowIfNull(type);
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        ArgumentException.ThrowIfNullOrWhiteSpace(contentType);
 
         if (_typeToKey.TryGetValue(type, out var existingKey) && !string.Equals(existingKey, key, StringComparison.Ordinal))
             throw new InvalidOperationException($"Payload type '{type.FullName}' is already registered with key '{existingKey}'.");
@@ -25,12 +37,18 @@ public sealed class DurablePayloadTypeRegistry : IDurablePayloadTypeResolver
 
         _typeToKey[type] = key;
         _keyToType[key] = type;
+        _typeToSchemaId[type] = schemaId ?? key;
+        _typeToContentType[type] = contentType;
         return this;
     }
 
     public bool TryGetTypeKey(Type type, out string key) => _typeToKey.TryGetValue(type, out key!);
 
     public bool TryResolveType(string key, out Type type) => _keyToType.TryGetValue(key, out type!);
+
+    public bool TryGetSchemaId(Type type, out string schemaId) => _typeToSchemaId.TryGetValue(type, out schemaId!);
+
+    public bool TryResolveContentType(Type type, out string contentType) => _typeToContentType.TryGetValue(type, out contentType!);
 
     private static DurablePayloadTypeRegistry CreateDefault()
     {
@@ -51,6 +69,7 @@ public sealed class DurablePayloadTypeRegistry : IDurablePayloadTypeResolver
             .Register<Guid>("guid")
             .Register<DateTime>("datetime")
             .Register<DateTimeOffset>("datetimeoffset")
-            .Register<JsonElement>("json");
+            .Register<JsonElement>("json")
+            .Register<TransitionStatusPayload>("workflow-transition-status", "workflow.transition-status.v1");
     }
 }

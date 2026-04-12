@@ -199,15 +199,8 @@ public sealed class DurableAdvancedAcceptanceTests
 
         public void ReleaseLoads() => _continueLoads.TrySetResult(true);
 
-        public Task CreateAsync(PersistedInstance data, CancellationToken ct) =>
-            innerStore.CreateAsync(data, ct);
-
-        public Task CreateAsync(
-            PersistedInstance data,
-            IReadOnlyList<OutboxRecord> outboxRecords,
-            IReadOnlyList<HistoryRecord> historyRecords,
-            CancellationToken ct) =>
-            innerStore.CreateAsync(data, outboxRecords, historyRecords, ct);
+        public Task<PersistedInstance> CreateAsync(WorkflowCommit commit, CancellationToken ct) =>
+            innerStore.CreateAsync(commit, ct);
 
         public async Task<PersistedInstance?> LoadAsync(string instanceId, CancellationToken ct)
         {
@@ -227,23 +220,8 @@ public sealed class DurableAdvancedAcceptanceTests
         public Task<IReadOnlyList<InboxRecord>> GetInboxAsync(string instanceId, CancellationToken ct) =>
             innerStore.GetInboxAsync(instanceId, ct);
 
-        public Task<PersistedInstance> CommitTransitionAsync(PersistedInstance data, CancellationToken ct) =>
-            innerStore.CommitTransitionAsync(data, ct);
-
-        public Task<PersistedInstance> CommitTransitionAsync(
-            PersistedInstance data,
-            IReadOnlyList<InboxRecord> inboxRecords,
-            IReadOnlyList<string> processedInboxEventIds,
-            IReadOnlyList<OutboxRecord> outboxRecords,
-            IReadOnlyList<HistoryRecord> historyRecords,
-            CancellationToken ct) =>
-            innerStore.CommitTransitionAsync(
-                data,
-                inboxRecords,
-                processedInboxEventIds,
-                outboxRecords,
-                historyRecords,
-                ct);
+        public Task<PersistedInstance> CommitAsync(WorkflowCommit commit, CancellationToken ct) =>
+            innerStore.CommitAsync(commit, ct);
 
         public Task<IReadOnlyList<PersistedInstance>> QueryAsync(
             WorkflowStatus? status = null,
@@ -255,19 +233,14 @@ public sealed class DurableAdvancedAcceptanceTests
         public Task<CorrelationLookupResult> LookupByCorrelationAsync(string eventName, string correlationId, CancellationToken ct) =>
             innerStore.LookupByCorrelationAsync(eventName, correlationId, ct);
 
-        public Task<IReadOnlyList<OutboxRecord>> GetPendingOutboxAsync(CancellationToken ct) =>
-            innerStore.GetPendingOutboxAsync(ct);
+        public Task<IReadOnlyList<OutboxRecord>> LeaseDispatchableOutboxAsync(OutboxLeaseRequest request, CancellationToken ct) =>
+            innerStore.LeaseDispatchableOutboxAsync(request, ct);
 
-        public Task MarkOutboxDispatchedAsync(string outboxId, CancellationToken ct) =>
-            innerStore.MarkOutboxDispatchedAsync(outboxId, ct);
+        public Task<OutboxRecord> CompleteLeasedOutboxAsync(string outboxId, string leaseOwner, DateTimeOffset dispatchedAt, CancellationToken ct) =>
+            innerStore.CompleteLeasedOutboxAsync(outboxId, leaseOwner, dispatchedAt, ct);
 
-        public Task<OutboxRecord> RecordOutboxDispatchFailureAsync(
-            string outboxId,
-            string? error,
-            DateTimeOffset failedAt,
-            bool poison,
-            CancellationToken ct) =>
-            innerStore.RecordOutboxDispatchFailureAsync(outboxId, error, failedAt, poison, ct);
+        public Task<OutboxRecord> FailLeasedOutboxAsync(string outboxId, string leaseOwner, OutboxDispatchFailure failure, CancellationToken ct) =>
+            innerStore.FailLeasedOutboxAsync(outboxId, leaseOwner, failure, ct);
 
         public Task AppendHistoryAsync(string instanceId, HistoryRecord record, CancellationToken ct) =>
             innerStore.AppendHistoryAsync(instanceId, record, ct);
