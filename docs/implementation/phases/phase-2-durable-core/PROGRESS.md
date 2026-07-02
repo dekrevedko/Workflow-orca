@@ -6,3 +6,4 @@ T2-02 | done | 2026-07-02 | deviations: resolved IOQ-3 to same-commit-boundary p
 T2-03 | done | 2026-07-02 | deviations: none
 T2-04 | done | 2026-07-02 | deviations: none
 T2-05 | done | 2026-07-02 | deviations: none
+T2-06 | done | 2026-07-02 | deviations: added checkpoint load to IWorkflowEventStore because the command pipeline must rehydrate from checkpoint plus stream tail

@@ -15,8 +15,20 @@ public sealed class FakeWorkflowEventStore :
     private readonly object gate = new();
     private readonly ConcurrentDictionary<EventId, InboxRecordState> inbox = [];
     private readonly ConcurrentDictionary<OutboxRecordId, OutboxWrite> outbox = [];
+    private readonly ConcurrentDictionary<InstanceId, CheckpointWrite> checkpoints = [];
     private readonly ConcurrentDictionary<WorkflowStreamId, List<WorkflowEvent>> streams = [];
     private int failNextCommitBeforeApply;
+
+    public Task<Option<CheckpointWrite>> LoadCheckpointAsync(
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.FromResult(checkpoints.TryGetValue(instanceId, out var checkpoint)
+            ? Option<CheckpointWrite>.Some(CloneCheckpointWrite(checkpoint))
+            : Option<CheckpointWrite>.None);
+    }
 
     public Task<Result<AppendEventsResult>> AppendAsync(
         ProviderCommitBatch batch,
@@ -52,6 +64,11 @@ public sealed class FakeWorkflowEventStore :
             foreach (var record in batch.OutboxRecords)
             {
                 outbox[record.OutboxRecordId] = record;
+            }
+
+            if (batch.Checkpoint is { } checkpoint)
+            {
+                checkpoints[checkpoint.InstanceId] = CloneCheckpointWrite(checkpoint);
             }
 
             return Task.FromResult(Result<AppendEventsResult>.Success(
@@ -101,5 +118,10 @@ public sealed class FakeWorkflowEventStore :
     public void FailNextCommitBeforeApply()
     {
         Interlocked.Exchange(ref failNextCommitBeforeApply, 1);
+    }
+
+    private static CheckpointWrite CloneCheckpointWrite(CheckpointWrite checkpoint)
+    {
+        return checkpoint with { Payload = [.. checkpoint.Payload] };
     }
 }

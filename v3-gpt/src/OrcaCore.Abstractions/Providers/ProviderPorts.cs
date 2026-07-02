@@ -10,6 +10,13 @@ namespace OrcaCore.Abstractions.Providers;
 public interface IWorkflowEventStore
 {
     /// <summary>
+    /// Loads the latest checkpoint for one workflow instance when a provider has one.
+    /// </summary>
+    Task<Option<CheckpointWrite>> LoadCheckpointAsync(
+        InstanceId instanceId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Appends one accepted mutation with optimistic concurrency.
     /// </summary>
     Task<Result<AppendEventsResult>> AppendAsync(

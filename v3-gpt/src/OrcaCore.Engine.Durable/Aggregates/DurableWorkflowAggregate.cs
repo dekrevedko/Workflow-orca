@@ -225,7 +225,7 @@ internal sealed class DurableWorkflowAggregate
     internal DurableDecision DecideWaitMatched(DurableWaitMatchedCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal)
+        if (IsTerminal || activeWaits.All(wait => wait.WaitId != command.WaitId))
         {
             return DurableDecision.Empty;
         }

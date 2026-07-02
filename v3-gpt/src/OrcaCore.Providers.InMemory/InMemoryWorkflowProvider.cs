@@ -25,8 +25,24 @@ public sealed class InMemoryWorkflowProvider :
     private readonly List<OutboxWrite> outbox = [];
     private readonly List<OutboxWrite> dispatched = [];
     private readonly List<ProjectionWrite> projections = [];
+    private readonly Dictionary<InstanceId, CheckpointWrite> checkpoints = [];
     private readonly Dictionary<WorkflowStreamId, List<WorkflowEvent>> streams = [];
     private readonly Dictionary<TimerId, TimerScheduleRequest> timers = [];
+
+    /// <inheritdoc />
+    public Task<Option<CheckpointWrite>> LoadCheckpointAsync(
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            return Task.FromResult(checkpoints.TryGetValue(instanceId, out var checkpoint)
+                ? Option<CheckpointWrite>.Some(CloneCheckpointWrite(checkpoint))
+                : Option<CheckpointWrite>.None);
+        }
+    }
 
     /// <inheritdoc />
     public Task<Result<AppendEventsResult>> AppendAsync(
@@ -51,6 +67,10 @@ public sealed class InMemoryWorkflowProvider :
             ApplyInboxOperations(batch.InboxOperations);
             outbox.AddRange(batch.OutboxRecords.Select(CloneOutboxWrite));
             projections.AddRange(batch.ProjectionOperations);
+            if (batch.Checkpoint is { } checkpoint)
+            {
+                checkpoints[checkpoint.InstanceId] = CloneCheckpointWrite(checkpoint);
+            }
 
             return Task.FromResult(Result<AppendEventsResult>.Success(
                 new AppendEventsResult(new StreamVersion(stream.Count))));
@@ -193,5 +213,10 @@ public sealed class InMemoryWorkflowProvider :
     private static OutboxWrite CloneOutboxWrite(OutboxWrite record)
     {
         return record with { Payload = [.. record.Payload] };
+    }
+
+    private static CheckpointWrite CloneCheckpointWrite(CheckpointWrite checkpoint)
+    {
+        return checkpoint with { Payload = [.. checkpoint.Payload] };
     }
 }
