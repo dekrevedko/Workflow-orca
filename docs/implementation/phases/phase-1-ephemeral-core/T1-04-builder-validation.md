@@ -16,7 +16,9 @@ ALL errors together via `Validation<T>`.
 ## Deliverables
 In `v3/src/OrcaCore.Core/Building/` (builder public; validators internal):
 - `WorkflowBuilder<TState>` fluent surface for Slice 1 primitives:
-  `Init(Func<TInput,TState>)` … `Then<TStep>()` / `Then(stepFactory)` …
+  `Init(Func<TInput,TState>)` … `Then<TStep>()` for parameterless steps,
+  `Then(IStep<TState>)` for explicitly configured instances, `Then(stepFactory)` for factory
+  construction …
   `If(condition, then, else?)` … `While(condition, body)` …
   `Parallel(branches...)` (each branch a nested sequence builder) …
   `Wait(eventName, correlationSelector)` … `End()` / `End(outcomeName)`.
@@ -38,12 +40,19 @@ In `v3/tests/OrcaCore.Core.Tests/Building/WorkflowBuilderTests.cs`:
 5. `Build_WithErrors_ThrowsAggregatedDefinitionException` — message contains every code
 6. `Build_Twice_ProducesEqualIndependentDefinitions` (builder not consumed/corrupted)
 7. `End_WithOutcomeName_LandsOnEndNode`
+8. `Then_GenericParameterlessStep_UsesTypedStepFactory`
+9. `Then_ConfiguredStepInstance_StoresExplicitFactory` — e.g. `Then(new MutatingStep("x"))`
+   without reflection or constructor-argument magic
 In `v3/tests/OrcaCore.Acceptance.Tests/BuilderAcceptanceTests.cs`:
-8. `[Trait("AC","AC-008")] Build_AccumulatesAllValidationErrors`
+10. `[Trait("AC","AC-008")] Build_AccumulatesAllValidationErrors`
 
 ## Implementation notes
 - Builder is sugar over the T1-03 tree (spec CR-001/CR-003: the tree is the stable
   contract): keep it a thin construction layer.
+- Prefer `Then<TStep>()` when `TStep` has a parameterless constructor. Prefer
+  `Then(new ConfiguredStep(...))` or `Then(() => new ConfiguredStep(...))` when a step needs
+  values. Do not add `Then<TStep>(args...)` or `Activator`/reflection construction; the
+  authoring surface must stay explicit and compatible with the no-reflection convention.
 - No durable-only method may exist here (`WaitLong` etc.) — API absence is the enforcement
   (CR-020 discipline).
 

@@ -19,6 +19,10 @@ Read this before every task. Deviations require an explicit note in the task's P
   internal interface in the owning module. Concrete classes are `internal sealed` unless a
   documented reason exists. Constructors take interfaces; `new` of a collaborator inside a
   class body is a smell (factories/DI instead).
+- **Step authoring stays explicit**: builder APIs MAY offer `Then<TStep>()` for parameterless
+  steps and `Then(IStep<TState>)` / `Then(Func<IStep<TState>>)` for configured steps. Do not
+  add reflection-based constructor-argument overloads such as `Then<TStep>(params object[])`;
+  parameterized steps are supplied as explicit instances or factories.
 - **Closed hierarchies for results/events**: `abstract record` base + `sealed record`
   variants (e.g. `StepResult.Completed/Failed/WaitForEvent/Yield`). The consumer `switch`
   must be exhaustive — add a `_ => throw new UnreachableException()` arm only where the
