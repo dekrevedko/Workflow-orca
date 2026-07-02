@@ -1,6 +1,7 @@
 using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
+using OrcaCore.Core.Definitions;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
 
@@ -9,6 +10,7 @@ internal sealed class RuntimeWaitRecord
     internal RuntimeWaitRecord(
         string eventName,
         CorrelationId correlationId,
+        BranchId? branchId,
         DateTimeOffset registeredAt,
         Func<EventEnvelope, CancellationToken, Task> resumeAsync)
     {
@@ -18,6 +20,7 @@ internal sealed class RuntimeWaitRecord
         WaitId = WaitId.New();
         EventName = eventName;
         CorrelationId = correlationId;
+        BranchId = branchId;
         RegisteredAt = registeredAt;
         ResumeAsync = resumeAsync;
     }
@@ -27,6 +30,8 @@ internal sealed class RuntimeWaitRecord
     internal string EventName { get; }
 
     internal CorrelationId CorrelationId { get; }
+
+    internal BranchId? BranchId { get; }
 
     internal DateTimeOffset RegisteredAt { get; }
 
@@ -61,6 +66,7 @@ internal sealed class RuntimeWaitRecord
             EventName = EventName,
             CorrelationId = CorrelationId,
             RegisteredAt = RegisteredAt,
+            BranchId = BranchId?.ToString(),
             Status = Status,
             Mode = Mode
         };

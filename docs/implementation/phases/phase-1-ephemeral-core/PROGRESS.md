@@ -12,3 +12,4 @@ T1-08 | done | 2026-07-02 | deviations: updated the old unsupported-result guard
 T1-09 | done | 2026-07-02 | deviations: out-of-order event tests model "before its wait exists" as the second wait's event arriving while the first wait is active because no start handle exists yet
 T1-10 | done | 2026-07-02 | deviations: correlation index is derived from current in-memory instance state rather than maintained as a separate materialized multi-map
 T1-11 | done | 2026-07-02 | deviations: stale loop events are filtered by consumed wait signature rather than a serialized execution-frame identity
+T1-12 | done | 2026-07-02 | deviations: parallel branch start is deterministic in definition order; racing branch resumes are serialized by the per-instance lane

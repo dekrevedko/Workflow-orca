@@ -1,6 +1,7 @@
 using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Core.Lifecycle;
@@ -37,6 +38,7 @@ internal sealed class Interpreter<TState>
             definition.DefinitionVersion,
             cancellationToken,
             startIndex: 0,
+            branchId: null,
             new ResumeEventSlot(null),
             afterSequence: null).ConfigureAwait(false);
 
@@ -53,6 +55,7 @@ internal sealed class Interpreter<TState>
         DefinitionVersion definitionVersion,
         CancellationToken cancellationToken,
         int startIndex,
+        BranchId? branchId,
         ResumeEventSlot resumeEvent,
         Func<CancellationToken, Task>? afterSequence)
     {
@@ -92,6 +95,7 @@ internal sealed class Interpreter<TState>
                             runState.Instance!,
                             stepResult.EventName!,
                             stepResult.CorrelationId,
+                            branchId,
                             sequence,
                             runState,
                             input,
@@ -139,6 +143,7 @@ internal sealed class Interpreter<TState>
                             definitionVersion,
                             cancellationToken,
                             startIndex: 0,
+                            branchId,
                             resumeEvent,
                             continuationToken => ContinueSequenceAsync(
                                 sequence,
@@ -148,6 +153,7 @@ internal sealed class Interpreter<TState>
                                 definitionId,
                                 definitionVersion,
                                 index + 1,
+                                branchId,
                                 resumeEvent,
                                 afterSequence,
                                 continuationToken)).ConfigureAwait(false))
@@ -167,12 +173,54 @@ internal sealed class Interpreter<TState>
                         definitionId,
                         definitionVersion,
                         index,
+                        branchId,
                         resumeEvent,
                         afterSequence,
                         cancellationToken).ConfigureAwait(false);
                     return false;
-                case ParallelNode<TState>:
-                    throw new NotSupportedException("Parallel interpretation is owned by T1-12.");
+                case ParallelNode<TState> parallelNode:
+                    EnsureInitialized(runState.Initialized, runState.Instance);
+                    var join = new ParallelJoin(
+                        parallelNode.Branches.Count,
+                        continuationToken => ContinueSequenceAsync(
+                            sequence,
+                            runState,
+                            input,
+                            instanceId,
+                            definitionId,
+                            definitionVersion,
+                            index + 1,
+                            branchId,
+                            resumeEvent,
+                            afterSequence,
+                            continuationToken));
+                    foreach (var branch in parallelNode.Branches)
+                    {
+                        var completed = await RunSequenceAsync(
+                            branch.Sequence,
+                            runState,
+                            input,
+                            instanceId,
+                            definitionId,
+                            definitionVersion,
+                            cancellationToken,
+                            startIndex: 0,
+                            branch.BranchId,
+                            resumeEvent,
+                            continuationToken => join.BranchCompletedAsync(continuationToken))
+                            .ConfigureAwait(false);
+                        if (completed)
+                        {
+                            await join.BranchCompletedAsync(cancellationToken).ConfigureAwait(false);
+                        }
+
+                        if (runState.Instance!.Status == WorkflowStatus.Failed)
+                        {
+                            return false;
+                        }
+                    }
+
+                    return false;
                 case WaitNode<TState> waitNode:
                     EnsureInitialized(runState.Initialized, runState.Instance);
                     CorrelationId correlationId;
@@ -191,6 +239,7 @@ internal sealed class Interpreter<TState>
                         runState.Instance!,
                         waitNode.EventName,
                         correlationId,
+                        branchId,
                         sequence,
                         runState,
                         input,
@@ -217,6 +266,7 @@ internal sealed class Interpreter<TState>
         DefinitionId definitionId,
         DefinitionVersion definitionVersion,
         int startIndex,
+        BranchId? branchId,
         ResumeEventSlot resumeEvent,
         Func<CancellationToken, Task>? afterSequence,
         CancellationToken cancellationToken)
@@ -230,6 +280,7 @@ internal sealed class Interpreter<TState>
             definitionVersion,
             cancellationToken,
             startIndex,
+            branchId,
             resumeEvent,
             afterSequence).ConfigureAwait(false);
         if (completed && afterSequence is not null)
@@ -247,6 +298,7 @@ internal sealed class Interpreter<TState>
         DefinitionId definitionId,
         DefinitionVersion definitionVersion,
         int whileIndex,
+        BranchId? branchId,
         ResumeEventSlot resumeEvent,
         Func<CancellationToken, Task>? afterSequence,
         CancellationToken cancellationToken)
@@ -269,6 +321,7 @@ internal sealed class Interpreter<TState>
                     definitionId,
                     definitionVersion,
                     whileIndex + 1,
+                    branchId,
                     resumeEvent,
                     afterSequence,
                     cancellationToken).ConfigureAwait(false);
@@ -284,6 +337,7 @@ internal sealed class Interpreter<TState>
                 definitionVersion,
                 cancellationToken,
                 startIndex: 0,
+                branchId,
                 resumeEvent,
                 continuationToken => ContinueWhileAsync(
                     whileNode,
@@ -294,6 +348,7 @@ internal sealed class Interpreter<TState>
                     definitionId,
                     definitionVersion,
                     whileIndex,
+                    branchId,
                     resumeEvent,
                     afterSequence,
                     continuationToken)).ConfigureAwait(false);
@@ -358,6 +413,7 @@ internal sealed class Interpreter<TState>
         WorkflowInstance<TState> instance,
         string eventName,
         CorrelationId correlationId,
+        BranchId? branchId,
         SequenceNode<TState> sequence,
         InterpreterRunState runState,
         TInput input,
@@ -368,10 +424,15 @@ internal sealed class Interpreter<TState>
         CancellationToken cancellationToken,
         Func<CancellationToken, Task>? afterSequence)
     {
-        FireOrThrow(instance, LifecycleTrigger.EnterWait);
+        if (instance.Status == WorkflowStatus.Running)
+        {
+            FireOrThrow(instance, LifecycleTrigger.EnterWait);
+        }
+
         var wait = instance.EnterWait(
             eventName,
             correlationId,
+            branchId,
             timeProvider.GetUtcNow(),
             (envelope, cancellationToken) => ContinueSequenceAsync(
                 sequence,
@@ -381,6 +442,7 @@ internal sealed class Interpreter<TState>
                 definitionId,
                 definitionVersion,
                 nextIndex,
+                branchId,
                 new ResumeEventSlot(envelope),
                 afterSequence,
                 cancellationToken));
@@ -439,6 +501,23 @@ internal sealed class Interpreter<TState>
             var current = envelope;
             envelope = null;
             return current;
+        }
+    }
+
+    private sealed class ParallelJoin(
+        int branchCount,
+        Func<CancellationToken, Task> continueAsync)
+    {
+        private int remaining = branchCount;
+        private int continued;
+
+        internal async Task BranchCompletedAsync(CancellationToken cancellationToken)
+        {
+            if (Interlocked.Decrement(ref remaining) == 0 &&
+                Interlocked.Exchange(ref continued, 1) == 0)
+            {
+                await continueAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 

@@ -1,6 +1,7 @@
 using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
+using OrcaCore.Core.Definitions;
 using OrcaCore.Core.Lifecycle;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
@@ -58,12 +59,13 @@ internal sealed class WorkflowInstance<TState>
     internal RuntimeWaitRecord EnterWait(
         string eventName,
         CorrelationId correlationId,
+        BranchId? branchId,
         DateTimeOffset registeredAt,
         Func<EventEnvelope, CancellationToken, Task> resumeAsync)
     {
         Status = WorkflowStatus.Waiting;
         UpdatedAt = registeredAt;
-        var wait = new RuntimeWaitRecord(eventName, correlationId, registeredAt, resumeAsync);
+        var wait = new RuntimeWaitRecord(eventName, correlationId, branchId, registeredAt, resumeAsync);
         activeWaits.Add(wait);
         return wait;
     }
@@ -82,7 +84,7 @@ internal sealed class WorkflowInstance<TState>
         var wait = activeWaits.FirstOrDefault(candidate => candidate.Matches(envelope));
         if (wait is null)
         {
-            if (consumedWaits.Contains(new WaitSignature(envelope.EventName, envelope.CorrelationId)))
+            if (HasConsumedWait(envelope.EventName, envelope.CorrelationId))
             {
                 return ToSnapshot();
             }
@@ -154,7 +156,12 @@ internal sealed class WorkflowInstance<TState>
         }
 
         consumedEventIds.Add(envelope.EventId);
-        consumedWaits.Add(new WaitSignature(wait.EventName, wait.CorrelationId));
+        consumedWaits.Add(new WaitSignature(wait.EventName, wait.CorrelationId, wait.BranchId));
+        if (Status == WorkflowStatus.Running && activeWaits.Count > 0)
+        {
+            Status = WorkflowStatus.Waiting;
+        }
+
         return ToSnapshot();
     }
 
@@ -202,5 +209,12 @@ internal sealed class WorkflowInstance<TState>
         return consumedEventIds.Contains(eventId) || pendingEvents.Any(envelope => envelope.EventId == eventId);
     }
 
-    private readonly record struct WaitSignature(string EventName, CorrelationId CorrelationId);
+    private bool HasConsumedWait(string eventName, CorrelationId correlationId)
+    {
+        return consumedWaits.Any(wait =>
+            string.Equals(wait.EventName, eventName, StringComparison.Ordinal) &&
+            wait.CorrelationId == correlationId);
+    }
+
+    private readonly record struct WaitSignature(string EventName, CorrelationId CorrelationId, BranchId? BranchId);
 }
