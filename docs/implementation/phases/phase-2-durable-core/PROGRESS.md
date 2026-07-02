@@ -15,3 +15,4 @@ T2-11 | done | 2026-07-02 | deviations: StartOrGet idempotency is implemented in
 T2-12 | done | 2026-07-02 | deviations: retry/delete/purge baseline surface remains deferred; this slice implements the specified AC-512 through AC-515 and AC-517 pause/resume buffering and discard audit tests
 T2-13 | done | 2026-07-02 | deviations: none
 T2-14 | done | 2026-07-02 | deviations: IOQ-1 resolved to a single PostgreSQL events table with jsonb engine facts and bytea checkpoint payloads; Docker Desktop was started to run Testcontainers verification
+T2-15 | done | 2026-07-02 | deviations: added Claimed outbox state and a minimal retention purge port to express PR-012 and PR-022 safety

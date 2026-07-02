@@ -123,12 +123,17 @@ public sealed class InMemoryWorkflowProvider :
 
         lock (gate)
         {
-            return Task.FromResult<IReadOnlyList<OutboxWrite>>(
-                outbox.Values
-                    .Where(record => record.State is OutboxRecordState.Pending or OutboxRecordState.Retryable)
-                    .Take(maxCount)
-                    .Select(record => CloneOutboxWrite(record.Write))
-                    .ToArray());
+            var claimed = outbox.Values
+                .Where(record => record.State is OutboxRecordState.Pending or OutboxRecordState.Retryable)
+                .Take(maxCount)
+                .Select(record => CloneOutboxWrite(record.Write))
+                .ToArray();
+            foreach (var record in claimed)
+            {
+                outbox[record.OutboxRecordId] = outbox[record.OutboxRecordId] with { State = OutboxRecordState.Claimed };
+            }
+
+            return Task.FromResult<IReadOnlyList<OutboxWrite>>(claimed);
         }
     }
 

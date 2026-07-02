@@ -169,6 +169,11 @@ public enum OutboxRecordState
     Dispatched,
 
     /// <summary>
+    /// The record is claimed by a dispatcher.
+    /// </summary>
+    Claimed,
+
+    /// <summary>
     /// The dispatch failed and may be retried.
     /// </summary>
     Retryable,

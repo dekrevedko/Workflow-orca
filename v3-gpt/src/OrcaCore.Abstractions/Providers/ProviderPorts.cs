@@ -108,6 +108,17 @@ public interface IWorkflowProjectionStore
 }
 
 /// <summary>
+/// Applies retention operations that must preserve active instances and dispatch safety.
+/// </summary>
+public interface IWorkflowRetentionStore
+{
+    /// <summary>
+    /// Purges retained data for one inactive instance when no dispatch is in flight.
+    /// </summary>
+    Task<PurgeResult> PurgeAsync(InstanceId instanceId, CancellationToken cancellationToken);
+}
+
+/// <summary>
 /// Schedules durable timer wake-up commands.
 /// </summary>
 public interface ITimerScheduler

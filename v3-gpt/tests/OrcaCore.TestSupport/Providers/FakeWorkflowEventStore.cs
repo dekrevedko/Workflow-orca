@@ -108,12 +108,17 @@ public sealed class FakeWorkflowEventStore :
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        return Task.FromResult<IReadOnlyList<OutboxWrite>>(
-            outbox.Values
-                .Where(record => record.State is OutboxRecordState.Pending or OutboxRecordState.Retryable)
-                .Take(maxCount)
-                .Select(record => record.Write with { Payload = [.. record.Write.Payload] })
-                .ToArray());
+        var claimed = outbox.Values
+            .Where(record => record.State is OutboxRecordState.Pending or OutboxRecordState.Retryable)
+            .Take(maxCount)
+            .Select(record => record.Write with { Payload = [.. record.Write.Payload] })
+            .ToArray();
+        foreach (var record in claimed)
+        {
+            outbox[record.OutboxRecordId] = outbox[record.OutboxRecordId] with { State = OutboxRecordState.Claimed };
+        }
+
+        return Task.FromResult<IReadOnlyList<OutboxWrite>>(claimed);
     }
 
     public Task<Option<OutboxRecordState>> GetStateAsync(
