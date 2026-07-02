@@ -10,3 +10,4 @@ T2-06 | done | 2026-07-02 | deviations: added checkpoint load to IWorkflowEventS
 T2-07 | done | 2026-07-02 | deviations: checkpoint writes now carry durable aggregate metadata needed for checkpoint-only recovery
 T2-08 | done | 2026-07-02 | deviations: durable WaitLong is represented by a durable-only builder surface and command-level cold wait registration rather than the core builder
 T2-09 | done | 2026-07-02 | deviations: poisoned delivery metadata is exposed through the command result message while the provider inbox stores the stable Poisoned state
+T2-10 | done | 2026-07-02 | deviations: none; IOQ-2 remains deferred to Phase 2 exit and the pump uses Channels only

@@ -22,7 +22,7 @@ public sealed class InMemoryWorkflowProvider :
 
     private readonly object gate = new();
     private readonly Dictionary<EventId, InboxRecordState> inbox = [];
-    private readonly List<OutboxWrite> outbox = [];
+    private readonly Dictionary<OutboxRecordId, InMemoryOutboxRecord> outbox = [];
     private readonly List<OutboxWrite> dispatched = [];
     private readonly List<ProjectionWrite> projections = [];
     private readonly Dictionary<InstanceId, CheckpointWrite> checkpoints = [];
@@ -65,7 +65,13 @@ public sealed class InMemoryWorkflowProvider :
 
             stream.AddRange(batch.Events);
             ApplyInboxOperations(batch.InboxOperations);
-            outbox.AddRange(batch.OutboxRecords.Select(CloneOutboxWrite));
+            foreach (var record in batch.OutboxRecords)
+            {
+                outbox[record.OutboxRecordId] = new InMemoryOutboxRecord(
+                    CloneOutboxWrite(record),
+                    OutboxRecordState.Pending);
+            }
+
             projections.AddRange(batch.ProjectionOperations);
             if (batch.Checkpoint is { } checkpoint)
             {
@@ -116,8 +122,46 @@ public sealed class InMemoryWorkflowProvider :
         lock (gate)
         {
             return Task.FromResult<IReadOnlyList<OutboxWrite>>(
-                outbox.Take(maxCount).Select(CloneOutboxWrite).ToArray());
+                outbox.Values
+                    .Where(record => record.State is OutboxRecordState.Pending or OutboxRecordState.Retryable)
+                    .Take(maxCount)
+                    .Select(record => CloneOutboxWrite(record.Write))
+                    .ToArray());
         }
+    }
+
+    /// <inheritdoc />
+    public Task<Option<OutboxRecordState>> GetStateAsync(
+        OutboxRecordId outboxRecordId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            return Task.FromResult(outbox.TryGetValue(outboxRecordId, out var record)
+                ? Option<OutboxRecordState>.Some(record.State)
+                : Option<OutboxRecordState>.None);
+        }
+    }
+
+    /// <inheritdoc />
+    public Task MarkAsync(
+        OutboxRecordId outboxRecordId,
+        OutboxRecordState state,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            if (outbox.TryGetValue(outboxRecordId, out var record))
+            {
+                outbox[outboxRecordId] = record with { State = state };
+            }
+        }
+
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
@@ -219,4 +263,6 @@ public sealed class InMemoryWorkflowProvider :
     {
         return checkpoint with { Payload = [.. checkpoint.Payload] };
     }
+
+    private sealed record InMemoryOutboxRecord(OutboxWrite Write, OutboxRecordState State);
 }

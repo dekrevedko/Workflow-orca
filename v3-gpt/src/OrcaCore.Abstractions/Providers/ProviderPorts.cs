@@ -52,6 +52,21 @@ public interface IWorkflowOutboxStore
     /// Claims records eligible for dispatch.
     /// </summary>
     Task<IReadOnlyList<OutboxWrite>> ClaimAsync(int maxCount, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Gets the dispatch state for one outbox record.
+    /// </summary>
+    Task<Option<OutboxRecordState>> GetStateAsync(
+        OutboxRecordId outboxRecordId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Marks one outbox record with a dispatch state.
+    /// </summary>
+    Task MarkAsync(
+        OutboxRecordId outboxRecordId,
+        OutboxRecordState state,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>

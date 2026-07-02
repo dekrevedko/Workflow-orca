@@ -14,7 +14,7 @@ public sealed class FakeWorkflowEventStore :
 {
     private readonly object gate = new();
     private readonly ConcurrentDictionary<EventId, InboxRecordState> inbox = [];
-    private readonly ConcurrentDictionary<OutboxRecordId, OutboxWrite> outbox = [];
+    private readonly ConcurrentDictionary<OutboxRecordId, FakeOutboxRecord> outbox = [];
     private readonly ConcurrentDictionary<InstanceId, CheckpointWrite> checkpoints = [];
     private readonly ConcurrentDictionary<WorkflowStreamId, List<WorkflowEvent>> streams = [];
     private int failNextCommitBeforeApply;
@@ -63,7 +63,9 @@ public sealed class FakeWorkflowEventStore :
 
             foreach (var record in batch.OutboxRecords)
             {
-                outbox[record.OutboxRecordId] = record;
+                outbox[record.OutboxRecordId] = new FakeOutboxRecord(
+                    record with { Payload = [.. record.Payload] },
+                    OutboxRecordState.Pending);
             }
 
             if (batch.Checkpoint is { } checkpoint)
@@ -106,7 +108,37 @@ public sealed class FakeWorkflowEventStore :
         cancellationToken.ThrowIfCancellationRequested();
 
         return Task.FromResult<IReadOnlyList<OutboxWrite>>(
-            outbox.Values.Take(maxCount).ToArray());
+            outbox.Values
+                .Where(record => record.State is OutboxRecordState.Pending or OutboxRecordState.Retryable)
+                .Take(maxCount)
+                .Select(record => record.Write with { Payload = [.. record.Write.Payload] })
+                .ToArray());
+    }
+
+    public Task<Option<OutboxRecordState>> GetStateAsync(
+        OutboxRecordId outboxRecordId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.FromResult(outbox.TryGetValue(outboxRecordId, out var record)
+            ? Option<OutboxRecordState>.Some(record.State)
+            : Option<OutboxRecordState>.None);
+    }
+
+    public Task MarkAsync(
+        OutboxRecordId outboxRecordId,
+        OutboxRecordState state,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (outbox.TryGetValue(outboxRecordId, out var record))
+        {
+            outbox[outboxRecordId] = record with { State = state };
+        }
+
+        return Task.CompletedTask;
     }
 
     public Task ApplyAsync(IReadOnlyList<ProjectionWrite> operations, CancellationToken cancellationToken)
@@ -124,4 +156,6 @@ public sealed class FakeWorkflowEventStore :
     {
         return checkpoint with { Payload = [.. checkpoint.Payload] };
     }
+
+    private sealed record FakeOutboxRecord(OutboxWrite Write, OutboxRecordState State);
 }

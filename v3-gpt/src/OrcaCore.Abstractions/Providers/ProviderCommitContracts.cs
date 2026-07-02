@@ -154,6 +154,32 @@ public enum InboxRecordState
 public sealed record OutboxWrite(OutboxRecordId OutboxRecordId, string Kind, byte[] Payload);
 
 /// <summary>
+/// Describes durable outbox dispatch state.
+/// </summary>
+public enum OutboxRecordState
+{
+    /// <summary>
+    /// The record is ready to be claimed.
+    /// </summary>
+    Pending,
+
+    /// <summary>
+    /// The record was dispatched successfully.
+    /// </summary>
+    Dispatched,
+
+    /// <summary>
+    /// The dispatch failed and may be retried.
+    /// </summary>
+    Retryable,
+
+    /// <summary>
+    /// The dispatch failed permanently.
+    /// </summary>
+    Poisoned
+}
+
+/// <summary>
 /// Describes a projection write kind.
 /// </summary>
 public enum ProjectionOperationKind
