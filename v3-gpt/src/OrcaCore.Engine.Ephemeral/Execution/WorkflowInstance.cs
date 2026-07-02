@@ -8,6 +8,8 @@ namespace OrcaCore.Engine.Ephemeral.Execution;
 internal sealed class WorkflowInstance<TState>
 {
     private readonly List<RuntimeWaitRecord> activeWaits = [];
+    private readonly HashSet<EventId> consumedEventIds = [];
+    private readonly List<EventEnvelope> pendingEvents = [];
 
     internal WorkflowInstance(
         InstanceId instanceId,
@@ -43,7 +45,9 @@ internal sealed class WorkflowInstance<TState>
 
     internal string? EndOutcomeName { get; private set; }
 
-    internal void EnterWait(
+    internal bool HasUnresolvedRuntimeWork => activeWaits.Count > 0 || pendingEvents.Count > 0;
+
+    internal RuntimeWaitRecord EnterWait(
         string eventName,
         CorrelationId correlationId,
         DateTimeOffset registeredAt,
@@ -51,7 +55,9 @@ internal sealed class WorkflowInstance<TState>
     {
         Status = WorkflowStatus.Waiting;
         UpdatedAt = registeredAt;
-        activeWaits.Add(new RuntimeWaitRecord(eventName, correlationId, registeredAt, resumeAsync));
+        var wait = new RuntimeWaitRecord(eventName, correlationId, registeredAt, resumeAsync);
+        activeWaits.Add(wait);
+        return wait;
     }
 
     internal async Task<WorkflowInstanceSnapshot> RaiseEventAsync(
@@ -60,19 +66,81 @@ internal sealed class WorkflowInstance<TState>
     {
         ArgumentNullException.ThrowIfNull(envelope);
 
-        var wait = activeWaits.FirstOrDefault(candidate => candidate.Matches(envelope));
-        if (wait is null)
+        if (HasSeen(envelope.EventId) || LifecycleMachine.TerminalStatuses.Contains(Status))
         {
             return ToSnapshot();
         }
 
+        var wait = activeWaits.FirstOrDefault(candidate => candidate.Matches(envelope));
+        if (wait is null)
+        {
+            pendingEvents.Add(envelope);
+            return ToSnapshot();
+        }
+
+        return await ResumeWaitAsync(wait, envelope, removePendingAfterCommit: false, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    internal async Task<WorkflowInstanceSnapshot> MatchPendingEventAsync(
+        RuntimeWaitRecord wait,
+        CancellationToken cancellationToken)
+    {
+        var envelope = pendingEvents.FirstOrDefault(wait.Matches);
+        if (envelope is null)
+        {
+            return ToSnapshot();
+        }
+
+        return await ResumeWaitAsync(wait, envelope, removePendingAfterCommit: true, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private async Task<WorkflowInstanceSnapshot> ResumeWaitAsync(
+        RuntimeWaitRecord wait,
+        EventEnvelope envelope,
+        bool removePendingAfterCommit,
+        CancellationToken cancellationToken)
+    {
         wait.MarkMatched();
         activeWaits.Remove(wait);
         FireOrThrow(LifecycleTrigger.MatchWait);
         Status = WorkflowStatus.Running;
         UpdatedAt = envelope.OccurredAt;
 
-        await wait.ResumeAsync(envelope, cancellationToken).ConfigureAwait(false);
+        var removedPendingEvent = false;
+        if (removePendingAfterCommit)
+        {
+            removedPendingEvent = pendingEvents.RemoveAll(candidate => candidate.EventId == envelope.EventId) > 0;
+        }
+
+        try
+        {
+            await wait.ResumeAsync(envelope, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            wait.MarkActive();
+            if (!activeWaits.Contains(wait))
+            {
+                activeWaits.Add(wait);
+            }
+
+            if (!HasSeen(envelope.EventId))
+            {
+                pendingEvents.Add(envelope);
+            }
+            else if (removedPendingEvent && pendingEvents.All(candidate => candidate.EventId != envelope.EventId))
+            {
+                pendingEvents.Add(envelope);
+            }
+
+            Status = WorkflowStatus.Waiting;
+            UpdatedAt = wait.RegisteredAt;
+            throw;
+        }
+
+        consumedEventIds.Add(envelope.EventId);
         return ToSnapshot();
     }
 
@@ -113,5 +181,10 @@ internal sealed class WorkflowInstance<TState>
         {
             throw result.Error;
         }
+    }
+
+    private bool HasSeen(EventId eventId)
+    {
+        return consumedEventIds.Contains(eventId) || pendingEvents.Any(envelope => envelope.EventId == eventId);
     }
 }

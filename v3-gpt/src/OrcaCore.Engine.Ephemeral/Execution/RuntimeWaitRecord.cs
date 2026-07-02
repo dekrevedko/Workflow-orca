@@ -48,6 +48,11 @@ internal sealed class RuntimeWaitRecord
         Status = "Matched";
     }
 
+    internal void MarkActive()
+    {
+        Status = "Active";
+    }
+
     internal ActiveWaitSnapshot ToSnapshot()
     {
         return new ActiveWaitSnapshot

@@ -86,7 +86,7 @@ internal sealed class Interpreter<TState>
 
                     if (stepResult.Status == StepExecutionStatus.Wait)
                     {
-                        RegisterWait(
+                        await RegisterWaitAsync(
                             runState.Instance!,
                             stepResult.EventName!,
                             stepResult.CorrelationId,
@@ -96,13 +96,24 @@ internal sealed class Interpreter<TState>
                             instanceId,
                             definitionId,
                             definitionVersion,
-                            index + 1);
+                            index + 1,
+                            cancellationToken).ConfigureAwait(false);
                         return false;
                     }
 
                     break;
                 case EndNode<TState> endNode:
                     EnsureInitialized(runState.Initialized, runState.Instance);
+                    if (runState.Instance!.HasUnresolvedRuntimeWork)
+                    {
+                        Fail(
+                            runState.Instance,
+                            new WorkflowLifecycleException(
+                                "Workflow cannot complete with unresolved runtime work."),
+                            node.NodeId);
+                        return false;
+                    }
+
                     FireOrThrow(runState.Instance!, LifecycleTrigger.Complete);
                     runState.Instance!.Complete(endNode.OutcomeName, timeProvider.GetUtcNow());
                     return false;
@@ -178,7 +189,7 @@ internal sealed class Interpreter<TState>
                         return false;
                     }
 
-                    RegisterWait(
+                    await RegisterWaitAsync(
                         runState.Instance!,
                         waitNode.EventName,
                         correlationId,
@@ -188,7 +199,8 @@ internal sealed class Interpreter<TState>
                         instanceId,
                         definitionId,
                         definitionVersion,
-                        index + 1);
+                        index + 1,
+                        cancellationToken).ConfigureAwait(false);
                     return false;
                 default:
                     throw new NotSupportedException($"Node '{node.GetType().Name}' is not supported by T1-05.");
@@ -248,7 +260,7 @@ internal sealed class Interpreter<TState>
             timeProvider.GetUtcNow()));
     }
 
-    private void RegisterWait<TInput>(
+    private async Task RegisterWaitAsync<TInput>(
         WorkflowInstance<TState> instance,
         string eventName,
         CorrelationId correlationId,
@@ -258,10 +270,11 @@ internal sealed class Interpreter<TState>
         InstanceId instanceId,
         DefinitionId definitionId,
         DefinitionVersion definitionVersion,
-        int nextIndex)
+        int nextIndex,
+        CancellationToken cancellationToken)
     {
         FireOrThrow(instance, LifecycleTrigger.EnterWait);
-        instance.EnterWait(
+        var wait = instance.EnterWait(
             eventName,
             correlationId,
             timeProvider.GetUtcNow(),
@@ -275,6 +288,7 @@ internal sealed class Interpreter<TState>
                 cancellationToken,
                 nextIndex,
                 new ResumeEventSlot(envelope)));
+        await instance.MatchPendingEventAsync(wait, cancellationToken).ConfigureAwait(false);
     }
 
     private bool TryEvaluateCondition(
