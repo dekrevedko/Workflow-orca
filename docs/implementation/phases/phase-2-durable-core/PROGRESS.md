@@ -12,3 +12,4 @@ T2-08 | done | 2026-07-02 | deviations: durable WaitLong is represented by a dur
 T2-09 | done | 2026-07-02 | deviations: poisoned delivery metadata is exposed through the command result message while the provider inbox stores the stable Poisoned state
 T2-10 | done | 2026-07-02 | deviations: none; IOQ-2 remains deferred to Phase 2 exit and the pump uses Channels only
 T2-11 | done | 2026-07-02 | deviations: StartOrGet idempotency is implemented in the durable start service for this slice; provider-backed key indexing remains future provider work
+T2-12 | done | 2026-07-02 | deviations: retry/delete/purge baseline surface remains deferred; this slice implements the specified AC-512 through AC-515 and AC-517 pause/resume buffering and discard audit tests

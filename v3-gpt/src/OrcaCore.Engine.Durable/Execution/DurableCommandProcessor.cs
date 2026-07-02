@@ -68,6 +68,28 @@ internal sealed class DurableCommandProcessor(IWorkflowEventStore eventStore)
     }
 
     internal Task<DurableCommandResult> ProcessAsync(
+        DurablePauseCommand command,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        return RunInLaneAsync(
+            command.InstanceId,
+            aggregate => aggregate.DecidePause(command),
+            cancellationToken);
+    }
+
+    internal Task<DurableCommandResult> ProcessAsync(
+        DurableResumeCommand command,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        return RunInLaneAsync(
+            command.InstanceId,
+            aggregate => aggregate.DecideResume(command),
+            cancellationToken);
+    }
+
+    internal Task<DurableCommandResult> ProcessAsync(
         DeliverEventCommand command,
         CancellationToken cancellationToken)
     {
@@ -139,7 +161,10 @@ internal sealed class DurableCommandProcessor(IWorkflowEventStore eventStore)
     {
         var inboxState = await LoadInboxStateAsync(inboxEventId, cancellationToken).ConfigureAwait(false);
         if (inboxState.HasValue &&
-            inboxState.Value is InboxRecordState.Applied or InboxRecordState.DuplicateIgnored)
+            inboxState.Value is
+                InboxRecordState.Applied or
+                InboxRecordState.DuplicateIgnored or
+                InboxRecordState.DiscardedOnResume)
         {
             return new DurableCommandResult(
                 DurableCommandOutcome.NoOp,
@@ -206,9 +231,7 @@ internal sealed class DurableCommandProcessor(IWorkflowEventStore eventStore)
                     ExpectedVersion = aggregate.StreamVersion,
                     Events = decision.Events,
                     Checkpoint = decision.Checkpoint,
-                    InboxOperations = inboxEventId is { } eventId
-                        ? [new InboxWrite(eventId, InboxRecordState.Applied)]
-                        : []
+                    InboxOperations = CreateInboxOperations(inboxEventId, decision)
                 },
                 cancellationToken)
             .ConfigureAwait(false);
@@ -237,8 +260,25 @@ internal sealed class DurableCommandProcessor(IWorkflowEventStore eventStore)
             checkpoint.ErrorSummary,
             checkpoint.OutcomeName,
             [],
+            [],
             checkpoint.ContentType,
             [.. checkpoint.Payload]);
+    }
+
+    private static IReadOnlyList<InboxWrite> CreateInboxOperations(
+        EventId? inboxEventId,
+        DurableDecision decision)
+    {
+        return inboxEventId is { } eventId
+            ? [new InboxWrite(eventId, InboundDeliveryState(decision)), .. decision.InboxOperations]
+            : decision.InboxOperations;
+    }
+
+    private static InboxRecordState InboundDeliveryState(DurableDecision decision)
+    {
+        return decision.Events.Any(workflowEvent => workflowEvent is WorkflowDeliveryBufferedEvent)
+            ? InboxRecordState.Received
+            : InboxRecordState.Applied;
     }
 
     private async Task<Option<InboxRecordState>> LoadInboxStateAsync(

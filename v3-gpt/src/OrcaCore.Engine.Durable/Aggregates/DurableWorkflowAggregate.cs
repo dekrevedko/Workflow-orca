@@ -9,6 +9,7 @@ namespace OrcaCore.Engine.Durable.Aggregates;
 internal sealed class DurableWorkflowAggregate
 {
     private readonly List<DurableActiveWait> activeWaits;
+    private readonly List<DurableBufferedDelivery> bufferedDeliveries;
 
     private DurableWorkflowAggregate(
         InstanceId instanceId,
@@ -19,7 +20,8 @@ internal sealed class DurableWorkflowAggregate
         string? lastStepPath,
         string? errorSummary,
         string? outcomeName,
-        IEnumerable<DurableActiveWait> activeWaits)
+        IEnumerable<DurableActiveWait> activeWaits,
+        IEnumerable<DurableBufferedDelivery> bufferedDeliveries)
     {
         InstanceId = instanceId;
         StreamVersion = streamVersion;
@@ -30,6 +32,7 @@ internal sealed class DurableWorkflowAggregate
         ErrorSummary = errorSummary;
         OutcomeName = outcomeName;
         this.activeWaits = [.. activeWaits];
+        this.bufferedDeliveries = [.. bufferedDeliveries];
     }
 
     internal InstanceId InstanceId { get; private set; }
@@ -56,7 +59,8 @@ internal sealed class DurableWorkflowAggregate
         LastStepPath,
         ErrorSummary,
         OutcomeName,
-        [.. activeWaits]);
+        [.. activeWaits],
+        [.. bufferedDeliveries]);
 
     internal static DurableWorkflowAggregate Empty(InstanceId instanceId)
     {
@@ -69,6 +73,7 @@ internal sealed class DurableWorkflowAggregate
             null,
             null,
             null,
+            [],
             []);
     }
 
@@ -89,7 +94,8 @@ internal sealed class DurableWorkflowAggregate
                 checkpoint.LastStepPath,
                 checkpoint.ErrorSummary,
                 checkpoint.OutcomeName,
-                checkpoint.ActiveWaits);
+                checkpoint.ActiveWaits,
+                checkpoint.BufferedDeliveries);
 
         foreach (var workflowEvent in tail)
         {
@@ -114,6 +120,7 @@ internal sealed class DurableWorkflowAggregate
             ErrorSummary,
             OutcomeName,
             [.. activeWaits],
+            [.. bufferedDeliveries],
             contentType,
             [.. payload]);
     }
@@ -262,6 +269,23 @@ internal sealed class DurableWorkflowAggregate
             return DurableDecision.Empty;
         }
 
+        if (Status == WorkflowStatus.Paused)
+        {
+            return new DurableDecision([
+                new WorkflowDeliveryBufferedEvent
+                {
+                    EventId = EventId.New(),
+                    InstanceId = command.InstanceId,
+                    CommandId = command.CommandId,
+                    CausationId = ToCausationId(command.CommandId),
+                    OccurredAt = command.RequestedAt,
+                    BufferedEventId = command.Envelope.EventId,
+                    EventName = command.Envelope.EventName,
+                    CorrelationId = command.Envelope.CorrelationId
+                }
+            ]);
+        }
+
         var wait = FindActiveWait(command.Envelope);
         if (wait is null)
         {
@@ -280,6 +304,92 @@ internal sealed class DurableWorkflowAggregate
                 MatchedEventId = command.Envelope.EventId
             }
         ]);
+    }
+
+    internal DurableDecision DecidePause(DurablePauseCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        if (IsTerminal || Status is null or WorkflowStatus.Paused)
+        {
+            return DurableDecision.Empty;
+        }
+
+        return new DurableDecision([
+            new WorkflowPausedEvent
+            {
+                EventId = EventId.New(),
+                InstanceId = command.InstanceId,
+                CommandId = command.CommandId,
+                CausationId = ToCausationId(command.CommandId),
+                OccurredAt = command.RequestedAt
+            }
+        ]);
+    }
+
+    internal DurableDecision DecideResume(DurableResumeCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        if (Status != WorkflowStatus.Paused)
+        {
+            return DurableDecision.Empty;
+        }
+
+        var events = new List<WorkflowEvent>
+        {
+            new WorkflowResumedEvent
+            {
+                EventId = EventId.New(),
+                InstanceId = command.InstanceId,
+                CommandId = command.CommandId,
+                CausationId = ToCausationId(command.CommandId),
+                OccurredAt = command.RequestedAt,
+                BufferHandling = command.BufferedDeliveries.ToString()
+            }
+        };
+        var inboxOperations = new List<InboxWrite>();
+        var replayWaits = activeWaits.ToList();
+
+        foreach (var bufferedDelivery in bufferedDeliveries)
+        {
+            if (command.BufferedDeliveries == ResumeBufferedDeliveries.Discard)
+            {
+                events.Add(new WorkflowDeliveryDiscardedEvent
+                {
+                    EventId = EventId.New(),
+                    InstanceId = command.InstanceId,
+                    CommandId = command.CommandId,
+                    CausationId = ToCausationId(command.CommandId),
+                    OccurredAt = command.RequestedAt,
+                    DiscardedEventId = bufferedDelivery.EventId
+                });
+                inboxOperations.Add(new InboxWrite(bufferedDelivery.EventId, InboxRecordState.DiscardedOnResume));
+                continue;
+            }
+
+            var wait = replayWaits.FirstOrDefault(candidate =>
+                candidate.EventName == bufferedDelivery.EventName &&
+                candidate.CorrelationId == bufferedDelivery.CorrelationId);
+            if (wait is null)
+            {
+                inboxOperations.Add(new InboxWrite(bufferedDelivery.EventId, InboxRecordState.Poisoned));
+                continue;
+            }
+
+            replayWaits.RemoveAll(candidate => candidate.WaitId == wait.WaitId);
+            events.Add(new WorkflowWaitMatchedEvent
+            {
+                EventId = EventId.New(),
+                InstanceId = command.InstanceId,
+                CommandId = command.CommandId,
+                CausationId = ToCausationId(command.CommandId),
+                OccurredAt = command.RequestedAt,
+                WaitId = wait.WaitId,
+                MatchedEventId = bufferedDelivery.EventId
+            });
+            inboxOperations.Add(new InboxWrite(bufferedDelivery.EventId, InboxRecordState.Applied));
+        }
+
+        return new DurableDecision(events, null, false, inboxOperations);
     }
 
     internal DurableDecision DecideComplete(DurableCompleteCommand command)
@@ -380,18 +490,37 @@ internal sealed class DurableWorkflowAggregate
                 break;
             case WorkflowWaitMatchedEvent waitMatched:
                 activeWaits.RemoveAll(wait => wait.WaitId == waitMatched.WaitId);
+                bufferedDeliveries.RemoveAll(delivery => delivery.EventId == waitMatched.MatchedEventId);
                 Status = activeWaits.Count == 0 ? WorkflowStatus.Running : WorkflowStatus.Waiting;
+                break;
+            case WorkflowPausedEvent:
+                Status = WorkflowStatus.Paused;
+                break;
+            case WorkflowResumedEvent:
+                Status = activeWaits.Count == 0 ? WorkflowStatus.Running : WorkflowStatus.Waiting;
+                break;
+            case WorkflowDeliveryBufferedEvent deliveryBuffered:
+                bufferedDeliveries.Add(new DurableBufferedDelivery(
+                    deliveryBuffered.BufferedEventId,
+                    deliveryBuffered.EventName,
+                    deliveryBuffered.CorrelationId));
+                Status = WorkflowStatus.Paused;
+                break;
+            case WorkflowDeliveryDiscardedEvent deliveryDiscarded:
+                bufferedDeliveries.RemoveAll(delivery => delivery.EventId == deliveryDiscarded.DiscardedEventId);
                 break;
             case WorkflowCompletedEvent completed:
                 OutcomeName = completed.OutcomeName;
                 Status = WorkflowStatus.Completed;
                 activeWaits.Clear();
+                bufferedDeliveries.Clear();
                 break;
             case WorkflowTerminalEvent terminal:
                 Status = terminal.Status;
                 if (IsTerminal)
                 {
                     activeWaits.Clear();
+                    bufferedDeliveries.Clear();
                 }
 
                 break;
@@ -414,11 +543,28 @@ internal sealed class DurableWorkflowAggregate
     }
 }
 
-internal sealed record DurableDecision(
-    IReadOnlyList<WorkflowEvent> Events,
-    CheckpointWrite? Checkpoint = null,
-    bool EvictAfterCommit = false)
+internal sealed record DurableDecision
 {
+    internal DurableDecision(
+        IReadOnlyList<WorkflowEvent> events,
+        CheckpointWrite? checkpoint = null,
+        bool evictAfterCommit = false,
+        IReadOnlyList<InboxWrite>? inboxOperations = null)
+    {
+        Events = events;
+        Checkpoint = checkpoint;
+        EvictAfterCommit = evictAfterCommit;
+        InboxOperations = inboxOperations ?? [];
+    }
+
+    internal IReadOnlyList<WorkflowEvent> Events { get; }
+
+    internal CheckpointWrite? Checkpoint { get; }
+
+    internal bool EvictAfterCommit { get; }
+
+    internal IReadOnlyList<InboxWrite> InboxOperations { get; }
+
     internal static DurableDecision Empty { get; } = new([]);
 }
 
@@ -430,7 +576,8 @@ internal sealed record DurableAggregateSnapshot(
     string? LastStepPath,
     string? ErrorSummary,
     string? OutcomeName,
-    IReadOnlyList<DurableActiveWait> ActiveWaits);
+    IReadOnlyList<DurableActiveWait> ActiveWaits,
+    IReadOnlyList<DurableBufferedDelivery> BufferedDeliveries);
 
 internal sealed record DurableAggregateCheckpoint(
     InstanceId InstanceId,
@@ -442,6 +589,7 @@ internal sealed record DurableAggregateCheckpoint(
     string? ErrorSummary,
     string? OutcomeName,
     IReadOnlyList<DurableActiveWait> ActiveWaits,
+    IReadOnlyList<DurableBufferedDelivery> BufferedDeliveries,
     string ContentType,
     byte[] Payload);
 
@@ -450,6 +598,11 @@ internal sealed record DurableActiveWait(
     string EventName,
     CorrelationId CorrelationId,
     WaitMode Mode = WaitMode.Resident);
+
+internal sealed record DurableBufferedDelivery(
+    EventId EventId,
+    string EventName,
+    CorrelationId CorrelationId);
 
 internal sealed record DurableStepCompletedCommand(
     CommandId CommandId,
@@ -481,6 +634,23 @@ internal sealed record DurableWaitMatchedCommand(
     DateTimeOffset RequestedAt,
     WaitId WaitId,
     EventId MatchedEventId);
+
+internal sealed record DurablePauseCommand(
+    CommandId CommandId,
+    InstanceId InstanceId,
+    DateTimeOffset RequestedAt);
+
+internal sealed record DurableResumeCommand(
+    CommandId CommandId,
+    InstanceId InstanceId,
+    DateTimeOffset RequestedAt,
+    ResumeBufferedDeliveries BufferedDeliveries = ResumeBufferedDeliveries.Replay);
+
+internal enum ResumeBufferedDeliveries
+{
+    Replay,
+    Discard
+}
 
 internal sealed record DurableCompleteCommand(
     CommandId CommandId,

@@ -120,6 +120,54 @@ public sealed record WorkflowWaitMatchedEvent : WorkflowEvent
 }
 
 /// <summary>
+/// Records that a workflow instance was paused at a safe boundary.
+/// </summary>
+public sealed record WorkflowPausedEvent : WorkflowEvent;
+
+/// <summary>
+/// Records that a paused workflow instance resumed.
+/// </summary>
+public sealed record WorkflowResumedEvent : WorkflowEvent
+{
+    /// <summary>
+    /// Gets how buffered deliveries were handled.
+    /// </summary>
+    public required string BufferHandling { get; init; }
+}
+
+/// <summary>
+/// Records that an inbound delivery was buffered while an instance was paused.
+/// </summary>
+public sealed record WorkflowDeliveryBufferedEvent : WorkflowEvent
+{
+    /// <summary>
+    /// Gets the buffered inbound event identity.
+    /// </summary>
+    public required EventId BufferedEventId { get; init; }
+
+    /// <summary>
+    /// Gets the buffered inbound event name.
+    /// </summary>
+    public required string EventName { get; init; }
+
+    /// <summary>
+    /// Gets the buffered inbound event correlation.
+    /// </summary>
+    public required CorrelationId CorrelationId { get; init; }
+}
+
+/// <summary>
+/// Records that a paused delivery was discarded on resume.
+/// </summary>
+public sealed record WorkflowDeliveryDiscardedEvent : WorkflowEvent
+{
+    /// <summary>
+    /// Gets the discarded inbound event identity.
+    /// </summary>
+    public required EventId DiscardedEventId { get; init; }
+}
+
+/// <summary>
 /// Records that a workflow reached successful completion.
 /// </summary>
 public sealed record WorkflowCompletedEvent : WorkflowEvent
