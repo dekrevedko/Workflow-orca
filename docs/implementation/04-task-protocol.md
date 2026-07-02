@@ -2,6 +2,10 @@
 
 ## 1. Task sizing rules (context-budget discipline)
 
+**Path rule**: every source/test path in a task file is written explicitly under `v3/`
+(e.g. `v3/src/OrcaCore.Core/...`). A task file containing a bare `src/` or `tests/` path is
+a defect — fix the task file, never touch the legacy root tree.
+
 A task MUST fit a small agent session:
 
 - ≤ ~10 files created/modified, ≤ ~500 changed lines (tests included);
@@ -68,7 +72,7 @@ In `<test project>/<file>`:
 
 ## Definition of done
 - [ ] All new tests green; full affected suites green
-- [ ] `dotnet build OrcaCore.slnx` — zero warnings
+- [ ] `dotnet build v3/OrcaCore.slnx` — zero warnings
 - [ ] <task-specific checks: e.g. "Abstractions has no new dependency">
 - [ ] PROGRESS.md updated; committed as "T<id>: ..."
 ```

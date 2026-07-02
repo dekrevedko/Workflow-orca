@@ -16,7 +16,7 @@ phase; do not improvise earlier).
 
 **TPL Dataflow** is *not* used in core. Re-evaluate once, at Phase 2 exit, only for the
 outbox dispatch pump (batching/backpressure); if adopted there, it stays confined to that
-plugin. Recorded as open question OQ-2 below.
+plugin. Recorded as open question IOQ-2 below.
 
 ## 2. Defaults (veto-able)
 
@@ -45,7 +45,7 @@ plugin. Recorded as open question OQ-2 below.
 
 | Plugin | Package |
 |--------|---------|
-| `OrcaCore.Providers.PostgreSql` | `Npgsql` (raw ADO — no ORM, no Dapper for now: full SQL control for the append/commit boundary; revisit as OQ-4) |
+| `OrcaCore.Providers.PostgreSql` | `Npgsql` (raw ADO — no ORM, no Dapper for now: full SQL control for the append/commit boundary; revisit as IOQ-4) |
 | `OrcaCore.Providers.RabbitMq` | `RabbitMQ.Client` |
 | Later: Redis / MSSQL / DynamoDB / ZeroMQ | `StackExchange.Redis` / `Microsoft.Data.SqlClient` / `AWSSDK.DynamoDBv2` / `NetMQ` |
 
@@ -57,20 +57,24 @@ discovery/scanning (plugins are registered explicitly).
 
 ## 4. Open questions register (implementation-level)
 
+Prefix **`IOQ-`** (implementation open question) — deliberately distinct from the spec's
+open questions, which are referenced as "spec open question N" (spec document 13 §13.2).
+The two registers never share numbers.
+
 | # | Question | Resolve at | Constraint while open |
 |---|----------|-----------|----------------------|
-| OQ-1 | Postgres schema shape: one `events` table for all instances vs table-per-definition; JSONB vs bytea payload columns | Phase 2, before T2 store tasks | Ports (PR-010…016) are schema-agnostic; nothing outside the plugin may know |
-| OQ-2 | TPL Dataflow inside the outbox dispatch pump (batching/backpressure) | Phase 2 exit review | Core stays Channels-only; pump interface must not leak the choice |
-| OQ-3 | Projection updates: same transaction as append vs transactional-outbox-driven async projector | Phase 2, T2 design task | Spec DU-011 allows both ("same durability boundary or clearly defined transactional chain"); routing correctness (EV-011) must hold either way |
-| OQ-4 | Allow Dapper inside SQL plugins for read/projection queries | Phase 2 exit | Raw Npgsql until then |
-| OQ-5 | Observability: OpenTelemetry (`ActivitySource`/`Meter`) naming scheme and what's in core vs hosting | Phase 3 start | Core emits via `ILogger` abstractions only until decided |
-| OQ-6 | Management `Where(...)`: expression-tree subset compiler vs source-generated query model | Phase 1 T1-13 (start simple: structured internal model + expression facade, per spec MG-002) | Public shape is fixed by MG-002; only the translation mechanism is open |
-| OQ-7 | Snapshot/approval testing (Verify) for builder validation diagnostics and history projections | Phase 2 | Plain asserts until then |
-| OQ-8 | BenchmarkDotNet micro-benchmarks: which hot paths, and CI treatment | Phase 6 | None before Phase 6 (NF-030: correctness first) |
-| OQ-9 | Public packaging: package IDs, signing, SourceLink, README-per-package | Phase 6 | Never publish before the Slice 6 gate (NF-003) |
-| OQ-10 | DynamoDB single-table design for the event stream | When that plugin is scheduled | Not before MSSQL/Redis plugins |
-| OQ-11 | `InternalsVisibleTo` for tests vs public-API-only testing | Phase 0 T0-01 sets the default: **public-API-first**; `InternalsVisibleTo` granted only to the matching unit-test project | Acceptance tests NEVER use internals |
-| OQ-12 | K8s/EKS dispatcher plugin: official `KubernetesClient` (k8s-dotnet) vs raw HTTP | Phase 6 / scheduler app | Out of library scope until JS adapters are scheduled |
+| IOQ-1 | Postgres schema shape: one `events` table for all instances vs table-per-definition; JSONB vs bytea payload columns | Phase 2, before T2 store tasks | Ports (PR-010…016) are schema-agnostic; nothing outside the plugin may know |
+| IOQ-2 | TPL Dataflow inside the outbox dispatch pump (batching/backpressure) | Phase 2 exit review | Core stays Channels-only; pump interface must not leak the choice |
+| IOQ-3 | Projection updates: same transaction as append vs transactional-outbox-driven async projector | Phase 2, T2 design task | Spec DU-011 allows both ("same durability boundary or clearly defined transactional chain"); routing correctness (EV-011) must hold either way |
+| IOQ-4 | Allow Dapper inside SQL plugins for read/projection queries | Phase 2 exit | Raw Npgsql until then |
+| IOQ-5 | Observability: OpenTelemetry (`ActivitySource`/`Meter`) naming scheme and what's in core vs hosting | Phase 3 start | Core emits via `ILogger` abstractions only until decided |
+| IOQ-6 | Management `Where(...)`: expression-tree subset compiler vs source-generated query model | Phase 1 T1-13 (start simple: structured internal model + expression facade, per spec MG-002) | Public shape is fixed by MG-002; only the translation mechanism is open |
+| IOQ-7 | Snapshot/approval testing (Verify) for builder validation diagnostics and history projections | Phase 2 | Plain asserts until then |
+| IOQ-8 | BenchmarkDotNet micro-benchmarks: which hot paths, and CI treatment | Phase 6 | None before Phase 6 (NF-030: correctness first) |
+| IOQ-9 | Public packaging: package IDs, signing, SourceLink, README-per-package | Phase 6 | Never publish before the Slice 6 gate (NF-003) |
+| IOQ-10 | DynamoDB single-table design for the event stream | When that plugin is scheduled | Not before MSSQL/Redis plugins |
+| IOQ-11 | `InternalsVisibleTo` for tests vs public-API-only testing | Phase 0 T0-01 sets the default: **public-API-first**; `InternalsVisibleTo` granted only to the matching unit-test project | Acceptance tests NEVER use internals |
+| IOQ-12 | K8s/EKS dispatcher plugin: official `KubernetesClient` (k8s-dotnet) vs raw HTTP | Phase 6 / scheduler app | Out of library scope until JS adapters are scheduled |
 
 Spec-level open questions live in [specs/13-phasing-and-open-questions.md](../specs/13-phasing-and-open-questions.md)
 (§13.2) and are **not** repeated here; when a task touches one, the task file must say which
@@ -78,7 +82,9 @@ resolution it assumes.
 
 ## 5. Decision log protocol
 
-When an Open item is resolved: move it to Decided/Default with one line of rationale, note
-the date, and update any task files that referenced it. Agents MUST NOT resolve open
-questions implicitly inside a task; if a task cannot proceed without a resolution, stop and
-surface it.
+When an `IOQ-` item is resolved: move it to Decided/Default with one line of rationale,
+note the date, and update any task files that referenced it. When a **spec** open question
+is resolved during implementation, log the resolution here (one dated line) **and** mark
+the question resolved in spec §13.2 — the spec stays the authority; this file is the
+crosswalk. Agents MUST NOT resolve open questions of either register implicitly inside a
+task; if a task cannot proceed without a resolution, stop and surface it.

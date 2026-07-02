@@ -34,7 +34,7 @@ without large context windows.
 | Phase | Spec slice | Contents | Detail level here |
 |-------|-----------|----------|-------------------|
 | 0 | — | Repo skeleton, quality gates, primitives | Fully detailed tasks |
-| 1 | Slice 1 | Ephemeral engine core | Fully detailed for T1‑01…05; index for the rest |
+| 1 | Slice 1 | Ephemeral engine core | Fully detailed for T1‑01…05; T1‑06…15 expanded by [T1‑05a](phases/phase-1-ephemeral-core/T1-05a-expand-remaining-tasks.md) |
 | 2 | Slice 2 | Durable event-sourced core + **PostgreSQL plugin** | Task index |
 | 3 | Slice 3 | Timers, policies, lifecycle events, observability, governance | Task index |
 | 4 | Slice 4 | `ForEach`, `RunChild(ren)` | Task index |
@@ -51,7 +51,9 @@ against a real database while they are still cheap to change; the certification 
 
 Detailed task files for Phases 2+ are **generated at phase start** (the first task of every
 phase, `Tn-00`, expands the phase README's task index into task files using the template in
-[04-task-protocol.md](04-task-protocol.md)). Writing all ~80 detailed files up front would
+[04-task-protocol.md](04-task-protocol.md); Phase 1's remainder is expanded mid-phase by
+its own [T1-05a](phases/phase-1-ephemeral-core/T1-05a-expand-remaining-tasks.md)). Writing
+all ~80 detailed files up front would
 desynchronize from reality as earlier phases evolve, and expansion-at-start keeps every
 detailed instruction consistent with the code that actually exists. `Tn-00` tasks are
 Sonnet-level; most execution tasks are Haiku-level (marked per task).
@@ -86,9 +88,9 @@ are green, the next phase begins with its `Tn-00` expansion task (Sonnet-level).
 within a phase follows the index; tasks whose dependencies are done may run in any order.
 
 Model routing: use the task's **Difficulty** marker — Haiku-class models for `Haiku` tasks,
-Sonnet-class for `Sonnet` tasks and all `Tn-00` expansions. Exception: run the **first
-session (T0-01) on a Sonnet-class model** regardless of its marker — it is the protocol
-smoke test, and a misconfigured skeleton poisons every later task.
+Sonnet-class for `Sonnet` tasks and all expansion tasks (`Tn-00`, T1-05a). T0-01 is
+Sonnet-marked deliberately: it is the protocol smoke test, and a misconfigured skeleton
+poisons every later task.
 
 ## How an agent executes one task (summary; full protocol in 04)
 

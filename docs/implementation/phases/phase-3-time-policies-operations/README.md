@@ -4,16 +4,17 @@
 events, stuck detection, statistics/pressure metrics, resource governance (in-process tier).
 
 **Entry criteria**: Phase 2 exit green.
-**Exit criteria**: AC-111…113, AC-204/205, AC-507…511, AC-312 green; OQ-5 (observability)
-resolved and logged.
+**Exit criteria**: AC-111…113, AC-204/205, AC-507…511, AC-312 green; **AC-513's
+timer-firing clause** re-verified now that durable timers exist (the event clause was gated
+in Phase 2); IOQ-5 (observability) resolved and logged.
 
 ## Task index (expanded by T3-00)
 
 | Task | Title | Difficulty | Summary |
 |------|-------|-----------|---------|
-| T3-00 | Expand index | Sonnet | Template expansion; resolve OQ-5 with the reviewer first |
+| T3-00 | Expand index | Sonnet | Template expansion; resolve IOQ-5 with the reviewer first |
 | T3-01 | Transient timer service (ephemeral) | Haiku | Min-heap over `TimeProvider` + channel of due firings; `Delay` builder primitive (EV-050 transient tier); AC-111 (ephemeral) |
-| T3-02 | Durable timers via `ITimerScheduler` | Sonnet | `TimerScheduled` fact → `FireTimer` command; InMemory + Postgres scheduler implementations; certification additions; AC-111 (durable) |
+| T3-02 | Durable timers via `ITimerScheduler` | Sonnet | `TimerScheduled` fact → `FireTimer` command; InMemory + Postgres scheduler implementations; certification additions; AC-111 (durable); AC-513 timer-firing clause (buffered while paused) |
 | T3-03 | Timer/event race semantics | Sonnet | Deterministic winner, loser cancellation per policy (EV-051); AC-112 |
 | T3-04 | Policy decorator model | Sonnet | Declarative decorators on step/scope/definition: structured retry, timeout, cancellation (CR-006); builder surface + definition-tree metadata |
 | T3-05 | Timeout policy enforcement | Haiku | Outcomes: retry/fail/cancel-branch/compensate-hook/operator-hold (EV-052, MG-041); AC-113 |

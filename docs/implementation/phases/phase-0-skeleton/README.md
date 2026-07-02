@@ -13,7 +13,7 @@ physically true (verified by project references).
 
 | Task | Title | Difficulty |
 |------|-------|-----------|
-| [T0-01](T0-01-solution-skeleton.md) | Solution, projects, build props, package management | Haiku |
+| [T0-01](T0-01-solution-skeleton.md) | Solution, projects, build props, package management | Sonnet |
 | [T0-02](T0-02-ci-pipeline.md) | CI pipeline (build + test on push/PR) | Haiku |
 | [T0-03](T0-03-functional-primitives.md) | `Result<T>` / `Option<T>` / `Validation<T>` | Haiku |
 | [T0-04](T0-04-test-support-foundation.md) | TestSupport project: fake clock harness, race helper, trait conventions | Sonnet |

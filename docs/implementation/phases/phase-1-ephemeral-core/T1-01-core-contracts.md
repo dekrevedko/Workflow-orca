@@ -1,6 +1,6 @@
 # T1-01: Core contracts in Abstractions
 
-**Difficulty**: Haiku        **Depends on**: T0-03
+**Difficulty**: Sonnet        **Depends on**: T0-03
 **Spec**: CR-011, CR-020, CR-021, CR-022, EV-001, EV-002        **AC**: none directly
 
 ## Goal
@@ -10,10 +10,10 @@ results, the event envelope, statuses, strongly-typed IDs, and the metadata-only
 ## Read first
 - Spec: [specs/03-domain-model-and-glossary.md](../../../specs/03-domain-model-and-glossary.md) §3.2
 - Spec: [specs/04-requirements-core-runtime.md](../../../specs/04-requirements-core-runtime.md) §4.2–4.3
-- `src/OrcaCore.Abstractions/Primitives/` (from T0-03)
+- `v3/src/OrcaCore.Abstractions/Primitives/` (from T0-03)
 
 ## Deliverables
-In `src/OrcaCore.Abstractions/` (folders: `Steps/`, `Events/`, `Instances/`, `Ids/`):
+In `v3/src/OrcaCore.Abstractions/` (folders: `Steps/`, `Events/`, `Instances/`, `Ids/`):
 - IDs: `InstanceId`, `EventId`, `WaitId`, `DefinitionId`, `DefinitionVersion`,
   `CorrelationId` — readonly record structs, `New()` factories using `Guid.CreateVersion7()`
   where GUID-based; `CorrelationId` wraps `string`.
@@ -27,15 +27,18 @@ In `src/OrcaCore.Abstractions/` (folders: `Steps/`, `Events/`, `Instances/`, `Id
 - `EventEnvelope` — `EventId`, `EventName`, `CorrelationId`, `Payload (object?)`,
   `OccurredAt (DateTimeOffset)`; immutable record.
 - `WorkflowStatus` enum — `Running`, `Waiting`, `Completed`, `Failed`, `Cancelled`,
-  `Terminated`, `Paused` (shared set per CR-030; `Paused` exists in the enum, is simply
-  never produced by the ephemeral engine).
+  `Terminated`, `Paused`. Contract note (spec CR-030): the enum is the ONE shared status
+  type for both modes; `Paused` is the durable-only value and MUST be **unreachable** in
+  ephemeral mode — the ephemeral engine never produces it, and no ephemeral API accepts
+  it. XML-doc `Paused` with exactly this constraint. This is deliberate shared-contract
+  design, not a durable leak (see phase README exit criteria).
 - `WorkflowInstanceSnapshot` — metadata-only immutable record: instance id, definition
   id+version, status, created/updated timestamps, error summary (`string?`), end outcome
   name (`string?`).
 - Exception taxonomy per conventions §5 (base exists from T0-03; add the derived types).
 
 ## Tests to write FIRST
-In `tests/OrcaCore.Core.Tests/Contracts/`:
+In `v3/tests/OrcaCore.Core.Tests/Contracts/`:
 1. `Ids_New_AreUniqueAndVersion7Ordered` — two `New()` ids differ; creation order is
    reflected in byte order (V7 property)
 2. `StepResult_Variants_HaveValueEquality`

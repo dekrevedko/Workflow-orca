@@ -1,6 +1,6 @@
 # T1-04: Fluent builder + accumulated validation
 
-**Difficulty**: Haiku        **Depends on**: T1-03
+**Difficulty**: Sonnet        **Depends on**: T1-03
 **Spec**: CR-001, CR-002, CR-005, CR-008        **AC**: AC-008
 
 ## Goal
@@ -10,11 +10,11 @@ ALL errors together via `Validation<T>`.
 
 ## Read first
 - Spec: [specs/04-requirements-core-runtime.md](../../../specs/04-requirements-core-runtime.md) §4.1
-- `src/OrcaCore.Core/Definitions/` (T1-03)
-- `src/OrcaCore.Abstractions/Primitives/Validation.cs` (T0-03)
+- `v3/src/OrcaCore.Core/Definitions/` (T1-03)
+- `v3/src/OrcaCore.Abstractions/Primitives/Validation.cs` (T0-03)
 
 ## Deliverables
-In `src/OrcaCore.Core/Building/` (builder public; validators internal):
+In `v3/src/OrcaCore.Core/Building/` (builder public; validators internal):
 - `WorkflowBuilder<TState>` fluent surface for Slice 1 primitives:
   `Init(Func<TInput,TState>)` … `Then<TStep>()` / `Then(stepFactory)` …
   `If(condition, then, else?)` … `While(condition, body)` …
@@ -29,7 +29,7 @@ In `src/OrcaCore.Core/Building/` (builder public; validators internal):
   null delegates. Each error: stable `Code`, human message, `Path` into the tree.
 
 ## Tests to write FIRST
-In `tests/OrcaCore.Core.Tests/Building/WorkflowBuilderTests.cs`:
+In `v3/tests/OrcaCore.Core.Tests/Building/WorkflowBuilderTests.cs`:
 1. `Build_MinimalWorkflow_ProducesInitStepEndTree`
 2. `Build_NestedStructures_ProduceExpectedTree` (If→Parallel→Wait shape)
 3. `BuildValidated_MissingInit_ReportsError`
@@ -38,7 +38,7 @@ In `tests/OrcaCore.Core.Tests/Building/WorkflowBuilderTests.cs`:
 5. `Build_WithErrors_ThrowsAggregatedDefinitionException` — message contains every code
 6. `Build_Twice_ProducesEqualIndependentDefinitions` (builder not consumed/corrupted)
 7. `End_WithOutcomeName_LandsOnEndNode`
-In `tests/OrcaCore.Acceptance.Tests/BuilderAcceptanceTests.cs`:
+In `v3/tests/OrcaCore.Acceptance.Tests/BuilderAcceptanceTests.cs`:
 8. `[Trait("AC","AC-008")] Build_AccumulatesAllValidationErrors`
 
 ## Implementation notes

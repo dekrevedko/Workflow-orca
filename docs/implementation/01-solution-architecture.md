@@ -83,7 +83,7 @@ Defined in Abstractions, consumed by the durable engine, implemented by provider
 The **atomic commit boundary** (PR-020) is expressed as one port-level unit-of-work
 operation on the store family (a provider composes events + checkpoint + inbox + outbox +
 projection work into one transaction or a documented transactional chain); its exact shape
-is designed in Phase 2 under OQ-1/OQ-3.
+is designed in Phase 2 under IOQ-1/IOQ-3.
 
 ## 5. Concurrency model (Channels + TPL)
 

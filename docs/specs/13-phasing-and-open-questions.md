@@ -33,7 +33,8 @@ areas (waits, loops, branches, joins, routing, serialized execution):
 - Outbox with async at-least-once dispatch, pump hooks, unified record kinds.
 - Durable management: pause/resume, retry, history, delete/purge/retention baseline.
 - Gate: AC-301…AC-311, AC-314, AC-316, AC-114, AC-504…506, AC-512…515, AC-517
-  (pause/resume incl. discard-on-resume).
+  (pause/resume incl. discard-on-resume). AC-513 gates here for its **event-buffering
+  clause**; its timer-firing clause is re-verified in Slice 3 once durable timers exist.
   Excludes AC-312 (pressure metrics — gated in Slice 3 alongside statistics), AC-313
   (continue-as-new — gating depends on open question 10 below), and AC-315 (multi-node —
   gated in Slice 6 as advanced).
@@ -44,7 +45,8 @@ areas (waits, loops, branches, joins, routing, serialized execution):
 - Lifecycle event publication with documented durability; stuck detection; statistics and
   pressure metrics; resource governance (limits, named pools).
 - `WhenFirst` with residual policies.
-- Gate: AC-111…113, AC-204/205, AC-507…511, AC-312.
+- Gate: AC-111…113, AC-204/205, AC-507…511, AC-312, plus AC-513's timer-firing clause
+  (deferred from Slice 2).
 
 ### Slice 4 — Composition at scale
 
@@ -63,8 +65,9 @@ Derived from the EKS job-scheduler driving scenario (document 14); depends on Sl
   propagation (JS-006).
 - Durable resource pools with ticket semantics (MG-062…064) and their binding to external
   jobs (JS-007).
-- Gate: JS-AC-001…006, JS-AC-009…013, AC-518…522. (JS-AC-007/008 and the EKS adapters land
-  with Slice 6.)
+- Gate: JS-AC-001…007, JS-AC-009…013, AC-518…522 — JS-AC-007 lands here because durable
+  pool quota enforcement is library behavior, verified against in-memory/reference pool
+  stores and a fake dispatcher. (JS-AC-008 and the real EKS adapters land with Slice 6.)
 
 ### Slice 5 — Saga
 

@@ -1,6 +1,6 @@
 # T0-01: Solution, projects, build props, package management
 
-**Difficulty**: Haiku        **Depends on**: none
+**Difficulty**: Sonnet (protocol smoke test — see KICKOFF.md)        **Depends on**: none
 **Spec**: NF-001, NF-002, NF-010        **AC**: none
 
 ## Goal

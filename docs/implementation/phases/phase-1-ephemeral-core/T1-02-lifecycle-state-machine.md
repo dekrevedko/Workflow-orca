@@ -11,13 +11,16 @@ the runtime, not a framework.
 
 ## Read first
 - Spec: [specs/04-requirements-core-runtime.md](../../../specs/04-requirements-core-runtime.md) §4.4
-- `src/OrcaCore.Abstractions/Instances/WorkflowStatus.cs` (T1-01)
+- `v3/src/OrcaCore.Abstractions/Instances/WorkflowStatus.cs` (T1-01)
 
 ## Deliverables
-In `src/OrcaCore.Core/Lifecycle/` (all internal):
+In `v3/src/OrcaCore.Core/Lifecycle/` (all internal):
 - `LifecycleTrigger` enum — named triggers: `Start`, `EnterWait`, `MatchWait`, `Complete`,
-  `Fail`, `Cancel`, `Terminate`, `Pause`, `Resume` (pause/resume in the table now, used
-  only by the durable engine later).
+  `Fail`, `Cancel`, `Terminate`, `Pause`, `Resume`. The `Pause`/`Resume` rows are part of
+  the shared transition table (spec CR-030 defines one table for both modes); they are
+  **unreachable from ephemeral mode** — this type is `internal` to Core and the ephemeral
+  engine never fires them. Defining the full table once, data-driven and tested, beats
+  editing a published table in Phase 2.
 - `LifecycleMachine` — pure, stateless service: `Result<WorkflowStatus>
   Fire(WorkflowStatus current, LifecycleTrigger trigger)`; failure carries
   `WorkflowLifecycleException` with a message naming current status + rejected trigger.
@@ -25,7 +28,7 @@ In `src/OrcaCore.Core/Lifecycle/` (all internal):
   by tests — not `if` chains.
 
 ## Tests to write FIRST
-In `tests/OrcaCore.Core.Tests/Lifecycle/LifecycleMachineTests.cs`:
+In `v3/tests/OrcaCore.Core.Tests/Lifecycle/LifecycleMachineTests.cs`:
 1. `Fire_LegalTransitions_ReturnTargetStatus` — `[Theory]` over the full legal set:
    Running→Waiting (EnterWait), Waiting→Running (MatchWait), Running→Completed,
    Running→Failed, Running/Waiting→Cancelled (Cancel), Running/Waiting→Terminated,

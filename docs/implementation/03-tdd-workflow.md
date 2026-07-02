@@ -7,7 +7,7 @@ any implementation guidance** — they are the task's real specification.
 
 1. **Red** — create the test file(s) named in the task; write every listed test case
    (they may be `[Fact]` stubs asserting the final behavior, not placeholders). Run:
-   `dotnet test --filter <task filter>`. Every new test MUST fail, and fail for the right
+   `dotnet test v3/OrcaCore.slnx --filter <task filter>`. Every new test MUST fail, and fail for the right
    reason (missing type/behavior — not a typo). If a listed test passes immediately, stop
    and re-read the task: either the behavior exists (task may be obsolete) or the test is
    wrong.
@@ -16,7 +16,7 @@ any implementation guidance** — they are the task's real specification.
 3. **Refactor** — with green tests: remove duplication, tighten access modifiers
    (`internal sealed`), improve names. Tests stay green throughout.
 4. **Regression** — run the full test suite of every project you touched, then
-   `dotnet build OrcaCore.slnx` (warnings are errors).
+   `dotnet build v3/OrcaCore.slnx` (warnings are errors).
 5. Only then: DoD checklist, PROGRESS.md, commit.
 
 ## 2. Test taxonomy
