@@ -1,10 +1,14 @@
+using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
+using OrcaCore.Core.Lifecycle;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
 
 internal sealed class WorkflowInstance<TState>
 {
+    private readonly List<RuntimeWaitRecord> activeWaits = [];
+
     internal WorkflowInstance(
         InstanceId instanceId,
         DefinitionId definitionId,
@@ -39,6 +43,39 @@ internal sealed class WorkflowInstance<TState>
 
     internal string? EndOutcomeName { get; private set; }
 
+    internal void EnterWait(
+        string eventName,
+        CorrelationId correlationId,
+        DateTimeOffset registeredAt,
+        Func<EventEnvelope, CancellationToken, Task> resumeAsync)
+    {
+        Status = WorkflowStatus.Waiting;
+        UpdatedAt = registeredAt;
+        activeWaits.Add(new RuntimeWaitRecord(eventName, correlationId, registeredAt, resumeAsync));
+    }
+
+    internal async Task<WorkflowInstanceSnapshot> RaiseEventAsync(
+        EventEnvelope envelope,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(envelope);
+
+        var wait = activeWaits.FirstOrDefault(candidate => candidate.Matches(envelope));
+        if (wait is null)
+        {
+            return ToSnapshot();
+        }
+
+        wait.MarkMatched();
+        activeWaits.Remove(wait);
+        FireOrThrow(LifecycleTrigger.MatchWait);
+        Status = WorkflowStatus.Running;
+        UpdatedAt = envelope.OccurredAt;
+
+        await wait.ResumeAsync(envelope, cancellationToken).ConfigureAwait(false);
+        return ToSnapshot();
+    }
+
     internal void Complete(string? outcomeName, DateTimeOffset updatedAt)
     {
         Status = WorkflowStatus.Completed;
@@ -64,7 +101,17 @@ internal sealed class WorkflowInstance<TState>
             CreatedAt = CreatedAt,
             UpdatedAt = UpdatedAt,
             ErrorSummary = ErrorDetails?.Summary,
-            EndOutcomeName = EndOutcomeName
+            EndOutcomeName = EndOutcomeName,
+            ActiveWaits = activeWaits.Select(wait => wait.ToSnapshot()).ToArray()
         };
+    }
+
+    private void FireOrThrow(LifecycleTrigger trigger)
+    {
+        var result = LifecycleMachine.Fire(Status, trigger);
+        if (result.IsFailure)
+        {
+            throw result.Error;
+        }
     }
 }

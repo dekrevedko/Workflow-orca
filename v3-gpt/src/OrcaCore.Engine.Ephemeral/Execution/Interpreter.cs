@@ -1,3 +1,4 @@
+using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Steps;
@@ -34,7 +35,9 @@ internal sealed class Interpreter<TState>
             instanceId,
             definition.DefinitionId,
             definition.DefinitionVersion,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            startIndex: 0,
+            new ResumeEventSlot(null)).ConfigureAwait(false);
 
         EnsureInitialized(runState.Initialized, runState.Instance);
         return runState.Instance!;
@@ -47,10 +50,13 @@ internal sealed class Interpreter<TState>
         InstanceId instanceId,
         DefinitionId definitionId,
         DefinitionVersion definitionVersion,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int startIndex,
+        ResumeEventSlot resumeEvent)
     {
-        foreach (var node in sequence.Children)
+        for (var index = startIndex; index < sequence.Children.Count; index++)
         {
+            var node = sequence.Children[index];
             cancellationToken.ThrowIfCancellationRequested();
 
             switch (node)
@@ -67,13 +73,30 @@ internal sealed class Interpreter<TState>
                     break;
                 case BusinessStepNode<TState> stepNode:
                     EnsureInitialized(runState.Initialized, runState.Instance);
-                    var shouldContinue = await ExecuteStepAsync(
+                    var stepResult = await ExecuteStepAsync(
                         runState.Instance!,
                         stepNode,
                         node.NodeId,
+                        resumeEvent,
                         cancellationToken).ConfigureAwait(false);
-                    if (!shouldContinue)
+                    if (stepResult.Status == StepExecutionStatus.Stop)
                     {
+                        return false;
+                    }
+
+                    if (stepResult.Status == StepExecutionStatus.Wait)
+                    {
+                        RegisterWait(
+                            runState.Instance!,
+                            stepResult.EventName!,
+                            stepResult.CorrelationId,
+                            sequence,
+                            runState,
+                            input,
+                            instanceId,
+                            definitionId,
+                            definitionVersion,
+                            index + 1);
                         return false;
                     }
 
@@ -100,7 +123,9 @@ internal sealed class Interpreter<TState>
                             instanceId,
                             definitionId,
                             definitionVersion,
-                            cancellationToken).ConfigureAwait(false))
+                            cancellationToken,
+                            startIndex: 0,
+                            resumeEvent).ConfigureAwait(false))
                     {
                         return false;
                     }
@@ -128,7 +153,9 @@ internal sealed class Interpreter<TState>
                                 instanceId,
                                 definitionId,
                                 definitionVersion,
-                                cancellationToken).ConfigureAwait(false))
+                                cancellationToken,
+                                startIndex: 0,
+                                resumeEvent).ConfigureAwait(false))
                         {
                             return false;
                         }
@@ -137,8 +164,32 @@ internal sealed class Interpreter<TState>
                     break;
                 case ParallelNode<TState>:
                     throw new NotSupportedException("Parallel interpretation is owned by T1-12.");
-                case WaitNode<TState>:
-                    throw new NotSupportedException("Wait interpretation is owned by T1-08.");
+                case WaitNode<TState> waitNode:
+                    EnsureInitialized(runState.Initialized, runState.Instance);
+                    CorrelationId correlationId;
+                    try
+                    {
+                        correlationId = waitNode.CorrelationSelector(runState.Instance!.State);
+                    }
+                    catch (Exception exception)
+                        when (exception is not OperationCanceledException and not NotSupportedException)
+                    {
+                        Fail(runState.Instance!, exception, node.NodeId);
+                        return false;
+                    }
+
+                    RegisterWait(
+                        runState.Instance!,
+                        waitNode.EventName,
+                        correlationId,
+                        sequence,
+                        runState,
+                        input,
+                        instanceId,
+                        definitionId,
+                        definitionVersion,
+                        index + 1);
+                    return false;
                 default:
                     throw new NotSupportedException($"Node '{node.GetType().Name}' is not supported by T1-05.");
             }
@@ -147,16 +198,17 @@ internal sealed class Interpreter<TState>
         return true;
     }
 
-    private async Task<bool> ExecuteStepAsync(
+    private async Task<StepExecutionResult> ExecuteStepAsync(
         WorkflowInstance<TState> instance,
         BusinessStepNode<TState> stepNode,
         string stepPath,
+        ResumeEventSlot resumeEvent,
         CancellationToken cancellationToken)
     {
         try
         {
             var step = stepNode.StepFactory();
-            var context = new StepContext<TState>(instance.State, resumedEvent: null, timeProvider);
+            var context = new StepContext<TState>(instance.State, resumeEvent.Take(), timeProvider);
             var result = await step.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
             return ApplyResult(instance, result, stepPath);
@@ -164,21 +216,21 @@ internal sealed class Interpreter<TState>
         catch (Exception exception) when (exception is not OperationCanceledException and not NotSupportedException)
         {
             Fail(instance, exception, stepPath);
-            return false;
+            return StepExecutionResult.Stop();
         }
     }
 
-    private bool ApplyResult(WorkflowInstance<TState> instance, StepResult result, string stepPath)
+    private StepExecutionResult ApplyResult(WorkflowInstance<TState> instance, StepResult result, string stepPath)
     {
         switch (result)
         {
             case StepResult.Completed:
-                return true;
+                return StepExecutionResult.Continue();
             case StepResult.Failed failed:
                 Fail(instance, failed.Error, stepPath);
-                return false;
-            case StepResult.WaitForEvent:
-                throw new NotSupportedException("WaitForEvent step results are owned by T1-08.");
+                return StepExecutionResult.Stop();
+            case StepResult.WaitForEvent wait:
+                return StepExecutionResult.Wait(wait.EventName, wait.CorrelationId);
             case StepResult.Yield:
                 throw new NotSupportedException("Yield step results are owned by T1-15.");
             default:
@@ -194,6 +246,35 @@ internal sealed class Interpreter<TState>
             exception.Message,
             stepPath,
             timeProvider.GetUtcNow()));
+    }
+
+    private void RegisterWait<TInput>(
+        WorkflowInstance<TState> instance,
+        string eventName,
+        CorrelationId correlationId,
+        SequenceNode<TState> sequence,
+        InterpreterRunState runState,
+        TInput input,
+        InstanceId instanceId,
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        int nextIndex)
+    {
+        FireOrThrow(instance, LifecycleTrigger.EnterWait);
+        instance.EnterWait(
+            eventName,
+            correlationId,
+            timeProvider.GetUtcNow(),
+            (envelope, cancellationToken) => RunSequenceAsync(
+                sequence,
+                runState,
+                input,
+                instanceId,
+                definitionId,
+                definitionVersion,
+                cancellationToken,
+                nextIndex,
+                new ResumeEventSlot(envelope)));
     }
 
     private bool TryEvaluateCondition(
@@ -237,5 +318,45 @@ internal sealed class Interpreter<TState>
         internal bool Initialized { get; set; }
 
         internal WorkflowInstance<TState>? Instance { get; set; }
+    }
+
+    private sealed class ResumeEventSlot(EventEnvelope? envelope)
+    {
+        private EventEnvelope? envelope = envelope;
+
+        internal EventEnvelope? Take()
+        {
+            var current = envelope;
+            envelope = null;
+            return current;
+        }
+    }
+
+    private enum StepExecutionStatus
+    {
+        Continue,
+        Stop,
+        Wait
+    }
+
+    private sealed record StepExecutionResult(
+        StepExecutionStatus Status,
+        string? EventName,
+        CorrelationId CorrelationId)
+    {
+        internal static StepExecutionResult Continue()
+        {
+            return new StepExecutionResult(StepExecutionStatus.Continue, null, default);
+        }
+
+        internal static StepExecutionResult Stop()
+        {
+            return new StepExecutionResult(StepExecutionStatus.Stop, null, default);
+        }
+
+        internal static StepExecutionResult Wait(string eventName, CorrelationId correlationId)
+        {
+            return new StepExecutionResult(StepExecutionStatus.Wait, eventName, correlationId);
+        }
     }
 }

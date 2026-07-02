@@ -46,4 +46,9 @@ public sealed record WorkflowInstanceSnapshot
     /// Gets the named end outcome when the definition ended with one.
     /// </summary>
     public string? EndOutcomeName { get; init; }
+
+    /// <summary>
+    /// Gets immutable snapshots of currently active waits.
+    /// </summary>
+    public IReadOnlyList<ActiveWaitSnapshot> ActiveWaits { get; init; } = [];
 }

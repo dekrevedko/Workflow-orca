@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
@@ -97,5 +98,34 @@ public sealed class EphemeralWorkflowEngine
             cancellationToken).ConfigureAwait(false);
 
         return snapshot;
+    }
+
+    /// <summary>
+    /// Delivers an event directly to one known instance and resumes it when an active wait matches.
+    /// </summary>
+    public async Task<WorkflowInstanceSnapshot> RaiseEventAsync<TState>(
+        InstanceId instanceId,
+        EventEnvelope envelope,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(envelope);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!instanceRegistry.TryGet(instanceId, out var registeredInstance))
+        {
+            throw new WorkflowRoutingException(
+                $"No workflow instance exists for instance id '{instanceId}'.");
+        }
+
+        if (registeredInstance is not WorkflowInstance<TState> instance)
+        {
+            throw new WorkflowDefinitionException(
+                $"Workflow instance '{instanceId}' is not using state type '{typeof(TState).Name}'.");
+        }
+
+        return await executionLane.RunAsync(
+            instanceId,
+            laneCancellationToken => instance.RaiseEventAsync(envelope, laneCancellationToken),
+            cancellationToken).ConfigureAwait(false);
     }
 }
