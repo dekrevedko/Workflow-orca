@@ -25,48 +25,116 @@ internal sealed class Interpreter<TState>
     {
         ArgumentNullException.ThrowIfNull(definition);
 
-        var state = default(TState);
-        var initialized = false;
-        WorkflowInstance<TState>? instance = null;
+        var runState = new InterpreterRunState();
 
-        foreach (var node in definition.RootSequence.Children)
+        await RunSequenceAsync(
+            definition.RootSequence,
+            runState,
+            input,
+            instanceId,
+            definition.DefinitionId,
+            definition.DefinitionVersion,
+            cancellationToken).ConfigureAwait(false);
+
+        EnsureInitialized(runState.Initialized, runState.Instance);
+        return runState.Instance!;
+    }
+
+    private async Task<bool> RunSequenceAsync<TInput>(
+        SequenceNode<TState> sequence,
+        InterpreterRunState runState,
+        TInput input,
+        InstanceId instanceId,
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        CancellationToken cancellationToken)
+    {
+        foreach (var node in sequence.Children)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             switch (node)
             {
                 case InitNode<TState> initNode:
-                    state = initNode.CreateState(input);
-                    initialized = true;
-                    instance = new WorkflowInstance<TState>(
+                    var state = initNode.CreateState(input);
+                    runState.Initialized = true;
+                    runState.Instance = new WorkflowInstance<TState>(
                         instanceId,
-                        definition.DefinitionId,
-                        definition.DefinitionVersion,
+                        definitionId,
+                        definitionVersion,
                         state,
                         timeProvider.GetUtcNow());
                     break;
                 case BusinessStepNode<TState> stepNode:
-                    EnsureInitialized(initialized, instance);
+                    EnsureInitialized(runState.Initialized, runState.Instance);
                     var shouldContinue = await ExecuteStepAsync(
-                        instance!,
+                        runState.Instance!,
                         stepNode,
                         node.NodeId,
                         cancellationToken).ConfigureAwait(false);
                     if (!shouldContinue)
                     {
-                        return instance!;
+                        return false;
                     }
 
                     break;
                 case EndNode<TState> endNode:
-                    EnsureInitialized(initialized, instance);
-                    FireOrThrow(instance!, LifecycleTrigger.Complete);
-                    instance!.Complete(endNode.OutcomeName, timeProvider.GetUtcNow());
-                    return instance;
-                case IfNode<TState>:
-                    throw new NotSupportedException("If interpretation is owned by T1-07.");
-                case WhileNode<TState>:
-                    throw new NotSupportedException("While interpretation is owned by T1-07.");
+                    EnsureInitialized(runState.Initialized, runState.Instance);
+                    FireOrThrow(runState.Instance!, LifecycleTrigger.Complete);
+                    runState.Instance!.Complete(endNode.OutcomeName, timeProvider.GetUtcNow());
+                    return false;
+                case IfNode<TState> ifNode:
+                    EnsureInitialized(runState.Initialized, runState.Instance);
+                    if (!TryEvaluateCondition(runState.Instance!, ifNode.Condition, node.NodeId, out var ifResult))
+                    {
+                        return false;
+                    }
+
+                    var selectedSequence = ifResult
+                        ? ifNode.Then
+                        : ifNode.Else;
+                    if (!await RunSequenceAsync(
+                            selectedSequence,
+                            runState,
+                            input,
+                            instanceId,
+                            definitionId,
+                            definitionVersion,
+                            cancellationToken).ConfigureAwait(false))
+                    {
+                        return false;
+                    }
+
+                    break;
+                case WhileNode<TState> whileNode:
+                    EnsureInitialized(runState.Initialized, runState.Instance);
+                    while (true)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (!TryEvaluateCondition(runState.Instance!, whileNode.Condition, node.NodeId, out var whileResult))
+                        {
+                            return false;
+                        }
+
+                        if (!whileResult)
+                        {
+                            break;
+                        }
+
+                        if (!await RunSequenceAsync(
+                                whileNode.Body,
+                                runState,
+                                input,
+                                instanceId,
+                                definitionId,
+                                definitionVersion,
+                                cancellationToken).ConfigureAwait(false))
+                        {
+                            return false;
+                        }
+                    }
+
+                    break;
                 case ParallelNode<TState>:
                     throw new NotSupportedException("Parallel interpretation is owned by T1-12.");
                 case WaitNode<TState>:
@@ -76,8 +144,7 @@ internal sealed class Interpreter<TState>
             }
         }
 
-        EnsureInitialized(initialized, instance);
-        return instance!;
+        return true;
     }
 
     private async Task<bool> ExecuteStepAsync(
@@ -129,6 +196,25 @@ internal sealed class Interpreter<TState>
             timeProvider.GetUtcNow()));
     }
 
+    private bool TryEvaluateCondition(
+        WorkflowInstance<TState> instance,
+        Func<TState, bool> condition,
+        string nodePath,
+        out bool result)
+    {
+        try
+        {
+            result = condition(instance.State);
+            return true;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException and not NotSupportedException)
+        {
+            Fail(instance, exception, nodePath);
+            result = false;
+            return false;
+        }
+    }
+
     private static void FireOrThrow(WorkflowInstance<TState> instance, LifecycleTrigger trigger)
     {
         var result = LifecycleMachine.Fire(instance.Status, trigger);
@@ -144,5 +230,12 @@ internal sealed class Interpreter<TState>
         {
             throw new WorkflowDefinitionException("Workflow execution reached a node before Init created state.");
         }
+    }
+
+    private sealed class InterpreterRunState
+    {
+        internal bool Initialized { get; set; }
+
+        internal WorkflowInstance<TState>? Instance { get; set; }
     }
 }
