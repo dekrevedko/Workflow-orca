@@ -23,6 +23,7 @@ See [Code map & types](docs/project-technical-overview.md#code-map) for a file-l
 - **Clear semantics** — explicit modeling of waits, sagas vs regular workflows, and operational hooks as the design matures.
 
 See [docs/project-technical-overview.md](docs/project-technical-overview.md) for architecture notes, durable-runtime details, core concepts, and links to the full requirements and research tree.
+For the current implementation status and feature-by-feature roadmap, see [docs/plans/current-roadmap.md](docs/plans/current-roadmap.md).
 
 ## Current stage
 
@@ -56,6 +57,7 @@ dotnet test OrcaCore.slnx
 ## Documentation
 
 - [Documentation map](docs/README.md)
+- [Current roadmap](docs/plans/current-roadmap.md)
 - [Technical overview (detailed)](docs/project-technical-overview.md)
 - [Event-driven prototype status](docs/architecture/event-driven-prototype-status.md)
 

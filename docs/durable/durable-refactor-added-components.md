@@ -36,7 +36,8 @@ It is not the full historical inventory of every durable foundation type ever in
 
 ## Outbox / dispatch / retry / poison handling
 
-- `IOutboxDispatcher`
+- `IMessageDispatcher` (`OrcaCore.Abstractions.Messaging`)
+- `DispatchMessage`, `DispatchPayload`, `DispatchOutcome`
 - `IOutboxPumpObserver`
 - `IOutboxPumpDelayStrategy`
 - `IOutboxPoisonHandler`
@@ -58,7 +59,9 @@ It is not the full historical inventory of every durable foundation type ever in
 
 ## Durable payload registration and serialization safety
 
-- `IDurablePayloadTypeResolver`
+- `IPayloadSchemaResolver` (default implementation `DurablePayloadTypeRegistry`)
+- `IPayloadEnvelopeSerializer` (default `JsonPayloadEnvelopeSerializer`)
+- `SerializedPayloadEnvelope`
 - `DurablePayloadTypeRegistry`
 - `DurablePayloadSerializationException`
 - `DurablePayloadDeserializationException`

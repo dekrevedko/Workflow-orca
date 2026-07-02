@@ -591,6 +591,25 @@ public class InterpreterEdgeCaseTests
     }
 
     [Fact]
+    public async Task ResumedEvent_is_null_for_step_not_preceded_by_wait()
+    {
+        // A step that runs without a preceding Wait must have context.ResumedEvent == null.
+        // If this contract is broken the step receives stale event data from a prior resume.
+        var definition = new WorkflowBuilder<MyState>("NoWaitNoEvent")
+            .Init()
+            .Then<CapturePayloadStep>()
+            .End()
+            .Build();
+
+        await using var engine = new WorkflowEngine();
+        var snapshot = await engine.ForDefinition(definition).Start(new MyState());
+
+        var state = engine.Instance(snapshot.InstanceId).GetState<MyState>();
+        Assert.Equal(WorkflowStatus.Completed, snapshot.Status);
+        Assert.Empty(state.Log); // CapturePayloadStep only logs when payload is non-null
+    }
+
+    [Fact]
     public async Task Resumed_event_payload_only_available_to_first_step_after_wait()
     {
         var def = new WorkflowBuilder<MyState>("PayloadConsumed")

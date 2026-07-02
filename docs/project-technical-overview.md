@@ -24,13 +24,13 @@ Use this table when navigating the repo; types are in `src/` unless noted.
 
 | Area | Location | Notable types |
 |------|----------|----------------|
-| Step contract & shared models | `OrcaCore.Abstractions/` | `IStep`, `StepContext`, `StepResult`, `EventEnvelope`, `PendingEvent`, `WaitRecord`, `WaitStatus`, `WaitMode`, `WorkflowStatus`, `WorkflowInstanceSnapshot` |
+| Step contract & shared models | `OrcaCore.Abstractions/` | `IStep`, `StepContext`, `StepResult`, `EventEnvelope`, `PendingEvent`, `WaitRecord`, `WaitStatus`, `WaitMode`, `WorkflowStatus`, `WorkflowInstanceSnapshot`, outbox transport `IMessageDispatcher` / `DispatchMessage` / `DispatchPayload` / `DispatchOutcome`, payload `IPayloadSchemaResolver` / `IPayloadEnvelopeSerializer` / `SerializedPayloadEnvelope` |
 | Ephemeral engine | `OrcaCore.Runtime/Engine`, `Storage`, `Execution` | `WorkflowEngine`, `InMemoryInstanceStore`, `InstanceScope`, `WorkflowRuntime`, `WorkflowInstance` |
 | Definition builders (ephemeral) | `OrcaCore.Runtime/Builders` | `WorkflowBuilder`, `BranchBuilder`, `ParallelBuilder` |
 | Durable engine | `OrcaCore.Runtime/Durable/Engine` | `DurableWorkflowEngine`, `DurableWorkflowEngineOptions` |
 | Durable definitions | `OrcaCore.Runtime/Durable/Definitions`, `Durable/Builders` | `DurableWorkflowDefinition`, `DurableWorkflowBuilder`, `DurableBranchBuilder`, `DurableParallelBuilder` |
 | Durable persistence contract | `OrcaCore.Runtime/Durable/Persistence` | `IWorkflowStore`, `InMemoryWorkflowStore`, `PersistedInstance`, inbox/outbox/history record types |
-| Durable outbox | `OrcaCore.Runtime/Durable/Outbox` | `DurableOutboxPump`, `IOutboxDispatcher`, `IOutboxPumpObserver`, `IOutboxPumpDelayStrategy` |
+| Durable outbox | `OrcaCore.Runtime/Durable/Outbox` | `DurableOutboxPump`, `IOutboxPumpObserver`, `IOutboxPumpDelayStrategy` (transport dispatch is `IMessageDispatcher` in `OrcaCore.Abstractions/Messaging`, configured on `DurableWorkflowEngineOptions.MessageDispatcher`) |
 | Durable routing & management | `OrcaCore.Runtime/Durable/Routing`, `Durable/Execution`, `Durable/Querying`, `Durable/Management` | `DurableEventRouter`, `DurableInstanceManager`, `DurableInstanceScope`, retention types |
 | Execution graph nodes | `OrcaCore.Runtime/Execution/Nodes` | `IfNode`, `WhileNode`, `ParallelNode`, `WaitNode`, `WaitLongNode`, `BusinessStepNode`, … |
 | Event-driven prototype | `OrcaCore.EventDrivenPrototype/` | `EventDrivenWorkflowEngine`, `InMemoryPrototypeStore`, `PrototypeCheckpointState`, projections under `Projections/` |
@@ -63,7 +63,7 @@ When a capability can reasonably vary by runtime, infrastructure, or integration
 Examples:
 
 - persistence is modeled behind store contracts
-- outbox dispatch is modeled behind `IOutboxDispatcher`
+- outbox dispatch is modeled behind `IMessageDispatcher` (`DispatchMessage` / `DispatchOutcome`), with the durable pump mapping leased `OutboxRecord` rows to `DispatchMessage` before calling the adapter
 - automatic outbox pump observability and retry timing are modeled behind `IOutboxPumpObserver` and `IOutboxPumpDelayStrategy`
 - durable runtime behavior is configured through engine options rather than hidden static behavior
 
@@ -78,7 +78,7 @@ This should be the default direction for future extensibility points such as ste
   - `WaitStatus` for lifecycle (`Active`, `Matched`, `Cancelled`)
   - `WaitMode` for residency policy (`Resident`, `Cold`)
 - `Parallel` currently means coordinated sequential branch execution, not true concurrent branch execution
-- automatic outbox replay is available when an `IOutboxDispatcher` is configured, and delivery remains at-least-once
+- automatic outbox replay is available when an `IMessageDispatcher` is configured on `DurableWorkflowEngineOptions` (`MessageDispatcher`, or the init-only `OutboxDispatcher` alias for the same backing field), and delivery remains at-least-once
 - durable management operations are available through instance and selection scopes:
   - delete instance state
   - purge old inbox/outbox/history artifacts

@@ -341,8 +341,8 @@ Specific fixes covered:
 Replace `AssemblyQualifiedName` payload persistence with a stable registered type key.
 
 Implement:
-- durable payload type registry/resolver in durable engine options
-- `PersistedEventEnvelope.PayloadType` changes meaning from CLR type name to durable payload type key
+- durable payload type registry / `IPayloadSchemaResolver` in durable engine options (default `DurablePayloadTypeRegistry`)
+- persisted inbox/outbox payloads use `SerializedPayloadEnvelope` with an explicit type key (`PersistedEventEnvelope.PayloadTypeKey`); legacy CLR assembly-qualified names are not the contract
 - only registered keys are deserializable
 - unknown keys fail fast with explicit durable deserialization exceptions
 
@@ -359,7 +359,7 @@ Specific fixes covered:
 - S1
 - S2
 - G10
-- minor omission about `PersistedEventEnvelope.PayloadType`
+- minor omission about how persisted payload typing is surfaced (`PayloadTypeKey` / envelope rather than a single `PayloadType` CLR-name field)
 
 ### 10. Rehydration diagnostics
 

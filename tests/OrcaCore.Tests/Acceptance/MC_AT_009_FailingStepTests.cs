@@ -55,6 +55,10 @@ public class MC_AT_009_FailingStepTests
         Assert.NotNull(snapshot.Error);
         Assert.Equal("Failing", snapshot.Error.StepId);
         Assert.Contains("Business error", snapshot.Error.Exception.Message);
+        // RWI-AT-016: error details are inspectable – verify all fields populated
+        Assert.NotEmpty(snapshot.Error.ExceptionType);
+        Assert.NotEmpty(snapshot.Error.Message);
+        Assert.True(snapshot.Error.Timestamp > DateTimeOffset.MinValue);
         Assert.False(engine.Instance(snapshot.InstanceId).GetState<MyState>().StepCExecuted);
     }
 
@@ -75,6 +79,9 @@ public class MC_AT_009_FailingStepTests
         Assert.Equal(WorkflowStatus.Failed, snapshot.Status);
         Assert.NotNull(snapshot.Error);
         Assert.Equal("Throwing", snapshot.Error.StepId);
+        Assert.NotEmpty(snapshot.Error.ExceptionType);
+        Assert.NotEmpty(snapshot.Error.Message);
+        Assert.True(snapshot.Error.Timestamp > DateTimeOffset.MinValue);
         Assert.False(engine.Instance(snapshot.InstanceId).GetState<MyState>().StepCExecuted);
     }
 

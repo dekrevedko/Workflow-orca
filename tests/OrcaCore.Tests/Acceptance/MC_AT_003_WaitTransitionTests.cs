@@ -29,8 +29,16 @@ public class MC_AT_003_WaitTransitionTests
 
         var waits = engine.Instance(snapshot.InstanceId).GetActiveWaits();
         Assert.Single(waits);
-        Assert.Equal("OrderApproved", waits[0].EventName);
-        Assert.Equal("order-42", waits[0].CorrelationId);
-        Assert.Equal(WaitStatus.Active, waits[0].Status);
+
+        var wait = waits[0];
+        Assert.Equal("OrderApproved", wait.EventName);
+        Assert.Equal("order-42", wait.CorrelationId);
+        Assert.Equal(WaitStatus.Active, wait.Status);
+
+        // RWI-AT-003: "one active wait is inspectable" – verify all WaitRecord fields
+        Assert.NotEmpty(wait.WaitId);           // unique identifier assigned by engine
+        Assert.True(wait.RegisteredAt > DateTimeOffset.MinValue); // timestamp populated
+        Assert.Equal(WaitMode.Resident, wait.Mode);  // ephemeral Wait uses Resident mode
+        Assert.Null(wait.BranchId);             // top-level wait has no branch
     }
 }

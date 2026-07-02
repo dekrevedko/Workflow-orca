@@ -7,6 +7,8 @@ This folder holds **requirements**, **architecture**, **plans**, and **research*
 1. [Project README](../README.md) — audience, **two engines**, build/test, roadmap.
 2. [Project technical overview](project-technical-overview.md) — durable notes, concepts, **code map**, and links to the full doc tree.
 
+3. [Current roadmap](plans/current-roadmap.md) - implemented features, in-progress tracks, and planned scope.
+
 ## Source layout (aligned with the solution)
 
 The solution file at the repo root is **`OrcaCore.slnx`**. Projects:
@@ -29,6 +31,8 @@ There are **no** separate `OrcaCore.Persistence` or `OrcaCore.Messaging` package
 
 ## Folder index
 
+- `specs/` — **consolidated product requirements & specifications** (self-contained package for a from-scratch implementation; see [specs/README.md](specs/README.md)).
+- `implementation/` — **agent-executable implementation guide** (stack decisions, conventions, TDD workflow, phased task files sized for small-context LLM agents; see [implementation/README.md](implementation/README.md)).
 - `architecture/` — design decisions, runtime shape, lifecycle, identity, event-driven notes.
 - `durable/` — durable-runtime plans, remediation, component inventory.
 - `plans/` — implementation plans, acceptance matrix, requirements draft.

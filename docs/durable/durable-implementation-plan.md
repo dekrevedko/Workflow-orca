@@ -194,7 +194,7 @@ Core durable runtime plumbing is now in place. The remaining work is follow-on f
   - treat inbox records as the committed restart boundary and audit trail
   - do not remove runtime dedup structures yet; inbox complements them rather than replacing them
 - Automatic outbox pump API:
-  - keep automatic replay enabled by default when an `IOutboxDispatcher` is configured
+  - keep automatic replay enabled by default when an `IMessageDispatcher` is configured on `DurableWorkflowEngineOptions`
   - keep explicit `DispatchPendingOutboxAsync(...)` for tests and manual recovery
   - keep retry timing and observability pluggable through `IOutboxPumpDelayStrategy` and `IOutboxPumpObserver`
 

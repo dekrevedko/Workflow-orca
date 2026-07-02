@@ -23,6 +23,8 @@ For the event-driven engine, outbox is not optional infrastructure.
 
 It is a first-class correctness boundary.
 
+Outbox is a durable-engine concern only. The ephemeral engine's lightweight `ForEach` does not have or need an outbox.
+
 The write path must be able to say:
 
 - these workflow facts were committed
@@ -129,6 +131,7 @@ Examples:
 - send `ReserveInventory`
 - emit `WorkflowStepCompleted`
 - emit `ChildWorkflowStartRequested`
+- emit `ChildWorkflowCancelRequested`
 
 ### B. Engine-owned status publication
 
@@ -138,31 +141,50 @@ Examples:
 - child-group progress updates
 - child workflow completion notifications
 - fanout batch progress notifications
+- parent resume notifications keyed by durable resume token
 
 ### C. Parent-child orchestration
 
 Examples:
 
 - start child workflow command
+- cancel child workflow command
 - child completion event for parent
 - fanout-group status updates
+
+### D. Durable-only extension points
+
+Examples:
+
+- saga compensation command
+- domain-specific transport message registered through durable-only outbox mapping
 
 ## Outbox Record Shape
 
 Suggested durable model:
 
 ```csharp
+public sealed record OutboxPayload(
+    ReadOnlyMemory<byte> Body,
+    string ContentType,
+    string SchemaId);
+
 public sealed record OutboxRecord(
     string OutboxId,
+    string IdempotencyKey,
     string InstanceId,
+    string? ParentInstanceId,
+    string RootInstanceId,
     string StreamId,
     int StreamVersion,
+    int Sequence,
     string MessageType,
     string Channel,
     string Destination,
-    object Payload,
+    OutboxPayload Payload,
     string? CorrelationId,
     string? CausationEventId,
+    string? ResumeTokenId,
     OutboxStatus Status,
     int AttemptCount,
     DateTimeOffset CreatedAt,
@@ -185,14 +207,59 @@ public enum OutboxStatus
 
 Important fields:
 
+- `OutboxId`
+  - deterministic identifier derived from `(InstanceId, StreamVersion, Sequence)`
+  - replay of the same accepted decision must recreate the same id
+  - the store must upsert by this key so restart replay does not create duplicates
+
+- `IdempotencyKey`
+  - defaults to `OutboxId`
+  - is the transport-visible dedupe token used by downstream consumers
+  - adapters may copy it into transport-specific headers, but should not invent a new semantic key
+
 - `StreamVersion`
   - ties the message to committed workflow progression
+
+- `Sequence`
+  - preserves intra-commit ordering for one workflow instance
+  - lets dispatcher emit residual cancel commands before parent resume when both are created in one commit
 
 - `CausationEventId`
   - explains which workflow event caused publication
 
 - `CorrelationId`
   - for downstream tracing and orchestration
+
+- `ResumeTokenId`
+  - present on records that represent parent resume or other barrier-release messages
+  - must be reused on replay rather than minting a second token
+
+- `Payload`
+  - serialized durable envelope, not a live CLR object
+  - must obey the same serializer contract as durable workflow payloads and saga compensation payloads
+
+## Deterministic Identity And Dedupe
+
+Outbox identity must be deterministic across replay.
+
+Rule:
+
+- `OutboxId` is a derived composite key from `(InstanceId, StreamVersion, Sequence)`
+- one valid representation is `{InstanceId}:{StreamVersion}:{Sequence}`
+- stores may represent it as a composite primary key or canonical string, but should not add non-deterministic key generation
+- `Sequence` is a gap-free 0-based integer assigned in `WorkflowDecision.OutgoingMessages` order
+- `Sequence` is unique within `(InstanceId, StreamVersion)` and has no global meaning
+- replay of the same accepted mutation must assign the same `Sequence` values in the same order
+- persistence must treat `OutboxId` as an idempotent insert/upsert key
+
+Default rule:
+
+- `IdempotencyKey = OutboxId`
+
+That single key serves two purposes:
+
+- store-level duplicate suppression during replay
+- transport-level duplicate suppression for at-least-once dispatch
 
 ## Outbox And Workflow Decisions
 
@@ -213,7 +280,7 @@ public sealed record OutgoingMessageIntent(
     string MessageType,
     string Channel,
     string Destination,
-    object Payload,
+    OutboxPayload Payload,
     string? CorrelationId);
 ```
 
@@ -238,7 +305,7 @@ Instead:
 1. parent commits:
    - `ChildGroupCreated`
    - `ChildScheduled`
-   - outbox record `ChildWorkflowStartRequested`
+   - outbox records `ChildWorkflowStartRequested` only for the initial dispatch window
 2. outbox dispatcher delivers the start message
 3. child engine receives it and starts child workflow
 
@@ -247,6 +314,8 @@ This gives:
 - durable parent truth
 - reliable child start intent
 - retryable start dispatch
+- restart-safe `MaxConcurrency`
+- deterministic replay because the same child-start intent recreates the same `OutboxId`
 
 ### Child completion back to parent
 
@@ -256,7 +325,8 @@ Child completion should also go through a reliable channel:
    - `ChildWorkflowCompleted`
    - outbox record `ChildWorkflowCompletedNotification`
 2. dispatcher publishes notification
-3. parent receives completion event and advances group state
+3. parent inbox records the notification idempotently and advances group state in the same commit
+4. if the barrier is satisfied, that same parent commit records `ResumeTokenId` and enqueues parent resume publication
 
 ### Why this matters
 
@@ -265,6 +335,21 @@ Without outbox:
 - parent may think child was scheduled, but start command was lost
 - child may complete, but parent notification is lost
 - `WhenAll` on child workflows becomes unreliable
+
+## Inbox Coupling
+
+Outbox guarantees are only half of the durable loop. Child-to-parent completion needs inbox rules as well.
+
+Minimum inbox contract:
+
+- every inbound message carries a dedupe key derived from the sender's `IdempotencyKey`
+- parent inbox persists receipt, dedupe decision, workflow events, projection work, and any newly created outbox records in one commit
+- duplicate child completion notifications do not advance the barrier twice
+- when barrier completion wins, the recorded `ResumeTokenId` is reused on replay and on repeated inbox delivery
+
+This document does not fully design inbox storage, but the outbox implementation must depend on a sibling inbox contract with those guarantees.
+
+Detailed inbox design should live in `event-driven-inbox-design.md`.
 
 ## `ForEach` / Fanout Integration
 
@@ -301,9 +386,10 @@ Correct path:
 1. parent commits:
    - `ChildGroupCreated`
    - `ChildScheduled` per batch
-   - outbox start requests per child
-2. dispatcher sends child start requests
+   - outbox start requests only for the initial window allowed by `MaxConcurrency`
+2. dispatcher sends the initial child start requests
 3. child completions come back through outbox-backed notifications
+4. each completion commit may enqueue the next child start request until `NextDispatchIndex` reaches the end
 
 ### Intermediate status publication
 
@@ -365,7 +451,7 @@ Examples:
 
 ```csharp
 Result<IReadOnlyList<OutboxRecord>> CreateOutboxRecords(WorkflowDecision decision);
-Result<DispatchOutcome> Dispatch(OutboxRecord record);
+Result<DispatchOutcome> Dispatch(DispatchMessage message);
 Result<PoisonDecision> EvaluatePoison(OutboxRecord record, Exception error);
 ```
 
@@ -375,16 +461,20 @@ This keeps outbox behavior explicit without leaning on exceptions for ordinary d
 
 Dispatcher should be decoupled from commit.
 
-Suggested abstraction:
+In the durable runtime, persistence stays on `OutboxRecord`, but the transport-facing port operates on a shared envelope so ephemeral and durable hosts can share broker adapters.
+
+Implemented abstraction (see `OrcaCore.Abstractions.Messaging`):
 
 ```csharp
-public interface IOutboxDispatcher
+public interface IMessageDispatcher
 {
     Task<Result<DispatchOutcome>> DispatchAsync(
-        OutboxRecord record,
+        DispatchMessage message,
         CancellationToken cancellationToken);
 }
 ```
+
+`DispatchMessage` carries `MessageId`, `IdempotencyKey`, routing (`Channel`, `Destination`), `DispatchPayload` (bytes, content type, schema id), correlation/lineage fields, and optional `Headers`. The durable outbox pump maps each leased `OutboxRecord` to `DispatchMessage` before invoking the dispatcher.
 
 Where:
 
@@ -399,6 +489,8 @@ public sealed record DispatchOutcome(
 
 - publish to transport
 - report success/failure
+- preserve persisted `Sequence` ordering for records belonging to the same `InstanceId`
+- serialize dispatch eligibility per `InstanceId`, while allowing different `InstanceId` values to dispatch in parallel
 - do not mutate workflow state directly
 
 ### Engine responsibilities
@@ -407,6 +499,19 @@ public sealed record DispatchOutcome(
 - call dispatcher
 - mark dispatched / failed / poisoned
 - retry according to policy
+
+### Ordering rule
+
+Outbox records created by one accepted mutation are not an unordered set.
+
+Required rule:
+
+- records for the same `InstanceId` dispatch in persisted `Sequence` order
+- a record is not eligible for dispatch until all lower-`Sequence` records for the same `InstanceId` are in a terminal status
+- a failing record therefore head-of-line-blocks its instance until it succeeds or is poisoned
+- when one commit contains both residual child-cancel commands and parent resume publication, the engine's decision-to-records mapping must assign lower `Sequence` values to the cancel commands than to resume
+- the dispatcher preserves the order produced by the mapping layer; it does not repair incorrect ordering after persistence
+- cross-instance ordering is not required
 
 ## Retry And Poison Policy
 
@@ -433,7 +538,10 @@ Poison handling:
 ```csharp
 public interface IOutboxPoisonHandler
 {
-    Task HandleAsync(OutboxRecord record, CancellationToken cancellationToken);
+    Task HandleAsync(
+        OutboxRecord record,
+        Exception exception,
+        CancellationToken cancellationToken);
 }
 ```
 
@@ -441,6 +549,11 @@ For child workflows and fanout:
 
 - poison must be visible operationally
 - parent workflows may need stuck-child or failed-dispatch remediation paths later
+
+Current scope:
+
+- poisoned child-start or child-cancel records must be observable on the outbox projection
+- automatic parent advancement on poison remains out of scope for this iteration
 
 ## Projection Interaction
 
@@ -463,12 +576,19 @@ Suggested projection:
 ```csharp
 public sealed record OutboxSummaryProjection(
     string InstanceId,
+    string? GroupId,
     int PendingCount,
     int FailedCount,
     int PoisonedCount,
     int DispatchedCount,
     DateTimeOffset UpdatedAt);
 ```
+
+For child orchestration, the projection should be queryable by group and message type so operators can distinguish:
+
+- poisoned child-start commands
+- poisoned child-cancel commands
+- normal status publications
 
 ## Transaction Boundary
 
@@ -518,15 +638,16 @@ Flow:
 Flow:
 
 1. parent commits:
-   - `ChildGroupCreated`
-   - `ChildScheduled`
-   - outbox `ChildWorkflowStartRequested`
+    - `ChildGroupCreated`
+    - `ChildScheduled`
+    - outbox `ChildWorkflowStartRequested` for the initial dispatch window only
 2. dispatcher publishes
 3. child starts
 4. child completes and commits:
-   - `ChildWorkflowCompleted`
-   - outbox `ChildWorkflowCompletedNotification`
-5. parent receives child completion and advances
+    - `ChildWorkflowCompleted`
+    - outbox `ChildWorkflowCompletedNotification`
+5. parent inbox dedupes completion, updates group state, and records `ResumeTokenId` if the barrier is satisfied
+6. same commit enqueues ordered cancel commands first and parent resume second when `WhenAny + CancelRemaining` applies
 
 ### Example 3: Intermediate step status
 
@@ -571,15 +692,65 @@ Given a workflow step that publishes status
 When the host crashes after commit but before dispatch
 Then the status publication remains present in outbox and is eventually dispatchable
 
+### OB-AT-006: Replay of the same decision does not create duplicate outbox records
+
+Given a workflow decision that is replayed after a crash
+When the engine recreates outbox records for that same accepted mutation
+Then each recreated record has the same `OutboxId`
+And persistence suppresses duplicate inserts by `OutboxId`
+
+### OB-AT-007: Same-instance dispatch preserves commit order
+
+Given one workflow commit that creates multiple outbox records for the same `InstanceId`
+When the dispatcher processes those records
+Then it dispatches them in persisted `Sequence` order
+And child cancel commands dispatch before parent resume if both exist in that commit
+
+### OB-AT-008: Durable child throttling emits only the active window
+
+Given `RunChildren` with `MaxConcurrency = N`
+When the parent first commits the child group
+Then only the initial window of `min(MaxConcurrency, TotalChildren)` child-start records is created
+And later child completions create additional start records as slots open
+
+### OB-AT-009: Resume token is recorded once and reused on replay
+
+Given a child-group barrier that becomes satisfied
+When the parent records resume intent
+Then the same commit persists `ResumeTokenId` before resume dispatch
+And replay reuses the same token rather than minting a new one
+
+### OB-AT-010: Inbox dedupe prevents duplicate parent advancement
+
+Given duplicate child completion notifications caused by at-least-once delivery
+When the parent processes them through inbox
+Then only the first accepted notification changes group/barrier state
+And later duplicates are recorded as deduped without advancing the parent again
+
+### OB-AT-011: Outbox payloads are durable serialized envelopes
+
+Given an outbox record for external dispatch, child orchestration, or saga compensation
+When the record is persisted and later dispatched from another process
+Then payload bytes, `ContentType`, and `SchemaId` are sufficient to deserialize it correctly
+
+### OB-AT-012: Durable-only extensions reuse the same physical outbox
+
+Given a new durable message kind such as `ChildWorkflowCancelRequested` or saga compensation
+When the engine registers its outbox mapping
+Then it produces standard `OutboxRecord` entries in the same physical outbox
+And does not require a second outbox store
+
 ## Recommended Implementation Order
 
 1. define outbox mapping model from workflow decision to `OutgoingMessageIntent`
-2. add outbox persistence to event-driven prototype store contract
-3. add pending outbox query and dispatch lifecycle
-4. add retry and poison policy
-5. integrate with child workflow start/completion
-6. integrate with `ForEach` / fanout scheduling
-7. add status-message publication patterns
+2. add outbox persistence with deterministic `OutboxId`, `IdempotencyKey`, serialized payload envelope, and ordered `Sequence`
+3. add sibling inbox contract for dedupe and commit coupling
+4. add pending outbox query and dispatch lifecycle with same-instance ordering
+5. add retry and poison policy
+6. integrate with child workflow start/completion and durable resume-token handling
+7. integrate with `ForEach` / fanout scheduling using incremental windowed emission for `MaxConcurrency`
+8. add durable-only registration for cancellation and compensation message kinds
+9. add status-message publication patterns
 
 ## Recommendation
 
