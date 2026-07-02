@@ -108,6 +108,23 @@ internal sealed class Interpreter<TState>
                         return false;
                     }
 
+                    if (stepResult.Status == StepExecutionStatus.Yield)
+                    {
+                        runState.Instance!.ScheduleYield(continuationToken => ContinueSequenceAsync(
+                            sequence,
+                            runState,
+                            input,
+                            instanceId,
+                            definitionId,
+                            definitionVersion,
+                            index,
+                            branchId,
+                            resumeEvent,
+                            afterSequence,
+                            continuationToken));
+                        return false;
+                    }
+
                     break;
                 case EndNode<TState> endNode:
                     EnsureInitialized(runState.Initialized, runState.Instance);
@@ -393,7 +410,7 @@ internal sealed class Interpreter<TState>
             case StepResult.WaitForEvent wait:
                 return StepExecutionResult.Wait(wait.EventName, wait.CorrelationId);
             case StepResult.Yield:
-                throw new NotSupportedException("Yield step results are owned by T1-15.");
+                return StepExecutionResult.Yield();
             default:
                 throw new NotSupportedException($"Step result '{result.GetType().Name}' is not supported.");
         }
@@ -525,7 +542,8 @@ internal sealed class Interpreter<TState>
     {
         Continue,
         Stop,
-        Wait
+        Wait,
+        Yield
     }
 
     private sealed record StepExecutionResult(
@@ -546,6 +564,11 @@ internal sealed class Interpreter<TState>
         internal static StepExecutionResult Wait(string eventName, CorrelationId correlationId)
         {
             return new StepExecutionResult(StepExecutionStatus.Wait, eventName, correlationId);
+        }
+
+        internal static StepExecutionResult Yield()
+        {
+            return new StepExecutionResult(StepExecutionStatus.Yield, null, default);
         }
     }
 }

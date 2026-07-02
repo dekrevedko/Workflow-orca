@@ -88,12 +88,13 @@ public sealed class EphemeralWorkflowEngine
         }
 
         var instanceId = InstanceId.New();
+        WorkflowInstance<TState>? instance = null;
         var snapshot = await executionLane.RunAsync(
             instanceId,
             async laneCancellationToken =>
             {
                 var interpreter = new Interpreter<TState>(timeProvider);
-                var instance = await interpreter.RunAsync(
+                instance = await interpreter.RunAsync(
                     definition,
                     input,
                     instanceId,
@@ -104,7 +105,9 @@ public sealed class EphemeralWorkflowEngine
             },
             cancellationToken).ConfigureAwait(false);
 
-        return snapshot;
+        return instance is null
+            ? snapshot
+            : await DrainYieldContinuationsAsync(instance, instanceId, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -152,10 +155,11 @@ public sealed class EphemeralWorkflowEngine
                 $"Workflow instance '{instanceId}' is not using state type '{typeof(TState).Name}'.");
         }
 
-        return await executionLane.RunAsync(
+        var snapshot = await executionLane.RunAsync(
             instanceId,
             laneCancellationToken => instance.RaiseEventAsync(envelope, laneCancellationToken),
             cancellationToken).ConfigureAwait(false);
+        return await DrainYieldContinuationsAsync(instance, instanceId, cancellationToken).ConfigureAwait(false);
     }
 
     internal async Task<WorkflowInstanceSnapshot> CancelInstanceAsync(
@@ -196,6 +200,27 @@ public sealed class EphemeralWorkflowEngine
             instanceId,
             _ => Task.FromResult(command(instance)),
             cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<WorkflowInstanceSnapshot> DrainYieldContinuationsAsync(
+        IWorkflowInstance instance,
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
+    {
+        var snapshot = instance.ToSnapshot();
+        while (instance.TryTakeYieldContinuation(out var continuation))
+        {
+            snapshot = await executionLane.RunAsync(
+                instanceId,
+                async laneCancellationToken =>
+                {
+                    await continuation!(laneCancellationToken).ConfigureAwait(false);
+                    return instance.ToSnapshot();
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        return snapshot;
     }
 
     /// <summary>

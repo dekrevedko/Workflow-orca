@@ -13,6 +13,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     private readonly HashSet<EventId> consumedEventIds = [];
     private readonly HashSet<WaitSignature> consumedWaits = [];
     private readonly List<EventEnvelope> pendingEvents = [];
+    private Func<CancellationToken, Task>? yieldContinuation;
 
     internal WorkflowInstance(
         InstanceId instanceId,
@@ -198,6 +199,26 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         return ToSnapshot();
     }
 
+    internal void ScheduleYield(Func<CancellationToken, Task> continueAsync)
+    {
+        ArgumentNullException.ThrowIfNull(continueAsync);
+
+        if (LifecycleMachine.TerminalStatuses.Contains(Status))
+        {
+            throw new WorkflowLifecycleException(
+                $"Cannot yield workflow instance '{InstanceId}' because status '{Status}' is terminal.");
+        }
+
+        yieldContinuation = continueAsync;
+    }
+
+    internal bool TryTakeYieldContinuation(out Func<CancellationToken, Task>? continuation)
+    {
+        continuation = yieldContinuation;
+        yieldContinuation = null;
+        return continuation is not null;
+    }
+
     internal WorkflowInstanceSnapshot ToSnapshot()
     {
         return new WorkflowInstanceSnapshot
@@ -233,6 +254,11 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     WorkflowInstanceSnapshot IWorkflowInstance.Terminate(DateTimeOffset updatedAt)
     {
         return Terminate(updatedAt);
+    }
+
+    bool IWorkflowInstance.TryTakeYieldContinuation(out Func<CancellationToken, Task>? continuation)
+    {
+        return TryTakeYieldContinuation(out continuation);
     }
 
     private void ApplyTerminalTrigger(LifecycleTrigger trigger, DateTimeOffset updatedAt)

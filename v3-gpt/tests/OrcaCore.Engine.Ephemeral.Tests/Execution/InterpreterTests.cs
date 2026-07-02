@@ -127,7 +127,7 @@ public sealed class InterpreterTests
         var engine = new EphemeralWorkflowEngine();
         var definition = Definition(new WorkflowBuilder<TestState>()
             .Init<string>(_ => new TestState())
-            .Then(() => new YieldResultStep())
+            .Then(() => new UnsupportedResultStep())
             .End());
 
         engine.RegisterDefinition(definition);
@@ -138,7 +138,7 @@ public sealed class InterpreterTests
             TestContext.Current.CancellationToken);
 
         await act.Should().ThrowAsync<NotSupportedException>()
-            .WithMessage("*T1-15*");
+            .WithMessage("*UnsupportedResult*");
     }
 
     private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> Definition(
@@ -184,13 +184,15 @@ public sealed class InterpreterTests
         }
     }
 
-    private sealed class YieldResultStep : IStep<TestState>
+    private sealed class UnsupportedResultStep : IStep<TestState>
     {
         public ValueTask<StepResult> ExecuteAsync(
             StepContext<TestState> context,
             CancellationToken cancellationToken)
         {
-            return ValueTask.FromResult<StepResult>(new StepResult.Yield());
+            return ValueTask.FromResult<StepResult>(new UnsupportedResult());
         }
     }
+
+    private sealed record UnsupportedResult : StepResult;
 }

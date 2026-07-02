@@ -117,7 +117,7 @@ public sealed class MailboxTests
         var definition = new WorkflowBuilder<TestState>()
             .Init<string>(_ => state)
             .Wait("First", _ => FirstCorrelation)
-            .Then(() => new YieldingStep())
+            .Then(() => new UnsupportedResultStep())
             .End()
             .Build(DefinitionId.New(), DefinitionVersion.Initial);
         engine.RegisterDefinition(definition);
@@ -130,7 +130,7 @@ public sealed class MailboxTests
             TestContext.Current.CancellationToken);
 
         await act.Should().ThrowAsync<NotSupportedException>()
-            .WithMessage("*T1-15*");
+            .WithMessage("*UnsupportedResult*");
         registry.TryGet(waiting.InstanceId, out var instance).Should().BeTrue();
         var snapshot = ((WorkflowInstance<TestState>)instance!).ToSnapshot();
         snapshot.Status.Should().Be(WorkflowStatus.Waiting);
@@ -223,13 +223,15 @@ public sealed class MailboxTests
         }
     }
 
-    private sealed class YieldingStep : IStep<TestState>
+    private sealed class UnsupportedResultStep : IStep<TestState>
     {
         public ValueTask<StepResult> ExecuteAsync(
             StepContext<TestState> context,
             CancellationToken cancellationToken)
         {
-            return ValueTask.FromResult<StepResult>(new StepResult.Yield());
+            return ValueTask.FromResult<StepResult>(new UnsupportedResult());
         }
     }
+
+    private sealed record UnsupportedResult : StepResult;
 }
