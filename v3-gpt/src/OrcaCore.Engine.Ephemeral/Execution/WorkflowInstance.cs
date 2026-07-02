@@ -6,7 +6,7 @@ using OrcaCore.Core.Lifecycle;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
 
-internal sealed class WorkflowInstance<TState>
+internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 {
     private readonly List<RuntimeWaitRecord> activeWaits = [];
     private readonly HashSet<EventId> consumedEventIds = [];
@@ -193,6 +193,17 @@ internal sealed class WorkflowInstance<TState>
             EndOutcomeName = EndOutcomeName,
             ActiveWaits = activeWaits.Select(wait => wait.ToSnapshot()).ToArray()
         };
+    }
+
+    InstanceId IWorkflowInstance.InstanceId => InstanceId;
+
+    Type IWorkflowInstance.StateType => typeof(TState);
+
+    object IWorkflowInstance.StateObject => State!;
+
+    WorkflowInstanceSnapshot IWorkflowInstance.ToSnapshot()
+    {
+        return ToSnapshot();
     }
 
     private void FireOrThrow(LifecycleTrigger trigger)

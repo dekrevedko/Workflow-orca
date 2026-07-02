@@ -19,6 +19,16 @@ internal sealed class InMemoryInstanceRegistry : IInstanceRegistry
         return instances.TryGetValue(instanceId, out instance);
     }
 
+    public IReadOnlyCollection<object> GetMany(IReadOnlyCollection<InstanceId> instanceIds)
+    {
+        ArgumentNullException.ThrowIfNull(instanceIds);
+
+        return instanceIds
+            .Where(instances.ContainsKey)
+            .Select(instanceId => instances[instanceId])
+            .ToArray();
+    }
+
     public IReadOnlyCollection<object> List()
     {
         return instances.Values.ToArray();

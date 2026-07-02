@@ -46,7 +46,13 @@ public sealed class EphemeralWorkflowEngine
         this.timeProvider = timeProvider;
         this.instanceRegistry = instanceRegistry;
         this.executionLane = executionLane;
+        Management = new EphemeralManagement(this, instanceRegistry);
     }
+
+    /// <summary>
+    /// Gets the management query entry point for ephemeral instances.
+    /// </summary>
+    public EphemeralManagement Management { get; }
 
     /// <summary>
     /// Registers a workflow definition version for later starts.
