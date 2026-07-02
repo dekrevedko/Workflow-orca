@@ -20,6 +20,7 @@ internal sealed class Interpreter<TState>
     internal async Task<WorkflowInstance<TState>> RunAsync<TInput>(
         WorkflowDefinition<TState> definition,
         TInput input,
+        InstanceId instanceId,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -38,7 +39,7 @@ internal sealed class Interpreter<TState>
                     state = initNode.CreateState(input);
                     initialized = true;
                     instance = new WorkflowInstance<TState>(
-                        InstanceId.New(),
+                        instanceId,
                         definition.DefinitionId,
                         definition.DefinitionVersion,
                         state,

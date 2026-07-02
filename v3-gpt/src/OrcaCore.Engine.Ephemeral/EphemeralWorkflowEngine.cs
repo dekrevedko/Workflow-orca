@@ -13,6 +13,7 @@ namespace OrcaCore.Engine.Ephemeral;
 public sealed class EphemeralWorkflowEngine
 {
     private readonly ConcurrentDictionary<DefinitionId, object> definitions = [];
+    private readonly InstanceExecutionLane executionLane;
     private readonly IInstanceRegistry instanceRegistry;
     private readonly TimeProvider timeProvider;
 
@@ -28,17 +29,22 @@ public sealed class EphemeralWorkflowEngine
     /// Initializes an engine using the supplied time provider and an in-memory instance registry.
     /// </summary>
     public EphemeralWorkflowEngine(TimeProvider timeProvider)
-        : this(timeProvider, new InMemoryInstanceRegistry())
+        : this(timeProvider, new InMemoryInstanceRegistry(), new InstanceExecutionLane())
     {
     }
 
-    internal EphemeralWorkflowEngine(TimeProvider timeProvider, IInstanceRegistry instanceRegistry)
+    internal EphemeralWorkflowEngine(
+        TimeProvider timeProvider,
+        IInstanceRegistry instanceRegistry,
+        InstanceExecutionLane executionLane)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(instanceRegistry);
+        ArgumentNullException.ThrowIfNull(executionLane);
 
         this.timeProvider = timeProvider;
         this.instanceRegistry = instanceRegistry;
+        this.executionLane = executionLane;
     }
 
     /// <summary>
@@ -73,10 +79,23 @@ public sealed class EphemeralWorkflowEngine
                 $"Workflow definition '{definitionId}' was not registered for state type '{typeof(TState).Name}'.");
         }
 
-        var interpreter = new Interpreter<TState>(timeProvider);
-        var instance = await interpreter.RunAsync(definition, input, cancellationToken).ConfigureAwait(false);
-        instanceRegistry.Save(instance);
+        var instanceId = InstanceId.New();
+        var snapshot = await executionLane.RunAsync(
+            instanceId,
+            async laneCancellationToken =>
+            {
+                var interpreter = new Interpreter<TState>(timeProvider);
+                var instance = await interpreter.RunAsync(
+                    definition,
+                    input,
+                    instanceId,
+                    laneCancellationToken).ConfigureAwait(false);
+                instanceRegistry.Save(instance);
 
-        return instance.ToSnapshot();
+                return instance.ToSnapshot();
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        return snapshot;
     }
 }
