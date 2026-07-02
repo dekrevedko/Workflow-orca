@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using OrcaCore.Abstractions.Primitives;
 using Xunit;
 
@@ -10,8 +11,8 @@ public sealed class OptionTests
     {
         var option = Option<string>.Some("value");
 
-        Assert.True(option.HasValue);
-        Assert.Equal("value", option.Value);
+        option.HasValue.Should().BeTrue();
+        option.Value.Should().Be("value");
     }
 
     [Fact]
@@ -19,8 +20,9 @@ public sealed class OptionTests
     {
         var option = Option<string>.None;
 
-        Assert.False(option.HasValue);
-        Assert.Throws<InvalidOperationException>(() => option.Value);
+        option.HasValue.Should().BeFalse();
+        var act = () => option.Value;
+        act.Should().Throw<InvalidOperationException>();
     }
 
     [Fact]
@@ -28,7 +30,7 @@ public sealed class OptionTests
     {
         var option = Option<string>.None;
 
-        Assert.Equal("fallback", option.GetValueOrDefault("fallback"));
+        option.GetValueOrDefault("fallback").Should().Be("fallback");
     }
 
     [Fact]
@@ -36,8 +38,9 @@ public sealed class OptionTests
     {
         var option = Option<int>.None.Map(value => value.ToString());
 
-        Assert.False(option.HasValue);
-        Assert.Throws<InvalidOperationException>(() => option.Value);
+        option.HasValue.Should().BeFalse();
+        var act = () => option.Value;
+        act.Should().Throw<InvalidOperationException>();
     }
 
     [Fact]
@@ -45,7 +48,8 @@ public sealed class OptionTests
     {
         Option<string> option = default;
 
-        Assert.False(option.HasValue);
-        Assert.Throws<InvalidOperationException>(() => option.Value);
+        option.HasValue.Should().BeFalse();
+        var act = () => option.Value;
+        act.Should().Throw<InvalidOperationException>();
     }
 }

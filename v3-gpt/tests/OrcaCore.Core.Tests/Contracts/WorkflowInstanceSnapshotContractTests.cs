@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using OrcaCore.Abstractions.Instances;
 using Xunit;
 
@@ -13,8 +14,8 @@ public sealed class WorkflowInstanceSnapshotContractTests
             .Select(property => property.PropertyType)
             .ToArray();
 
-        Assert.DoesNotContain(propertyTypes, type => type.IsGenericParameter);
-        Assert.DoesNotContain(propertyTypes, type => type.Name.Contains("State", StringComparison.Ordinal));
-        Assert.DoesNotContain(propertyTypes, type => type == typeof(object));
+        propertyTypes.Should().NotContain(type => type.IsGenericParameter);
+        propertyTypes.Should().NotContain(type => type.Name.Contains("State", StringComparison.Ordinal));
+        propertyTypes.Should().NotContain(type => type == typeof(object));
     }
 }

@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Primitives;
 using Xunit;
@@ -11,9 +12,9 @@ public sealed class ResultTests
     {
         var result = Result<int>.Success(42);
 
-        Assert.True(result.IsSuccess);
-        Assert.False(result.IsFailure);
-        Assert.Equal(42, result.Value);
+        result.IsSuccess.Should().BeTrue();
+        result.IsFailure.Should().BeFalse();
+        result.Value.Should().Be(42);
     }
 
     [Fact]
@@ -22,10 +23,11 @@ public sealed class ResultTests
         var error = new TestOrcaCoreException("failed");
         var result = Result<int>.Failure(error);
 
-        Assert.True(result.IsFailure);
-        Assert.False(result.IsSuccess);
-        Assert.Same(error, result.Error);
-        Assert.Throws<InvalidOperationException>(() => result.Value);
+        result.IsFailure.Should().BeTrue();
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Should().BeSameAs(error);
+        var act = () => result.Value;
+        act.Should().Throw<InvalidOperationException>();
     }
 
     [Fact]
@@ -33,8 +35,8 @@ public sealed class ResultTests
     {
         var result = Result<int>.Success(4).Map(value => value * 2);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(8, result.Value);
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(8);
     }
 
     [Fact]
@@ -44,8 +46,8 @@ public sealed class ResultTests
 
         var result = Result<int>.Failure(error).Map(value => value * 2);
 
-        Assert.True(result.IsFailure);
-        Assert.Same(error, result.Error);
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().BeSameAs(error);
     }
 
     [Fact]
@@ -58,9 +60,9 @@ public sealed class ResultTests
         var failure = Result<int>.Failure(error)
             .Bind(value => Result<string>.Success(value.ToString()));
 
-        Assert.Equal("2", success.Value);
-        Assert.True(failure.IsFailure);
-        Assert.Same(error, failure.Error);
+        success.Value.Should().Be("2");
+        failure.IsFailure.Should().BeTrue();
+        failure.Error.Should().BeSameAs(error);
     }
 
     [Fact]
@@ -92,10 +94,10 @@ public sealed class ResultTests
                 return -1;
             });
 
-        Assert.Equal(4, success);
-        Assert.Equal(-1, failure);
-        Assert.Equal(1, successCalls);
-        Assert.Equal(1, failureCalls);
+        success.Should().Be(4);
+        failure.Should().Be(-1);
+        successCalls.Should().Be(1);
+        failureCalls.Should().Be(1);
     }
 
     [Fact]
@@ -103,10 +105,11 @@ public sealed class ResultTests
     {
         Result<string> result = default;
 
-        Assert.True(result.IsFailure);
-        Assert.False(result.IsSuccess);
-        Assert.NotNull(result.Error);
-        Assert.Throws<InvalidOperationException>(() => result.Value);
+        result.IsFailure.Should().BeTrue();
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Should().NotBeNull();
+        var act = () => result.Value;
+        act.Should().Throw<InvalidOperationException>();
     }
 
     private sealed class TestOrcaCoreException(string message) : OrcaCoreException(message);

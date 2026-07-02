@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using OrcaCore.Abstractions.Ids;
 using Xunit;
 
@@ -11,12 +12,11 @@ public sealed class IdContractTests
         var first = InstanceId.New();
         var second = NextOrderedInstanceIdAfter(first);
 
-        Assert.NotEqual(first, second);
-        Assert.Equal(7, first.Value.Version);
-        Assert.Equal(7, second.Value.Version);
-        Assert.True(
-            first.Value.ToByteArray(bigEndian: true).AsSpan().SequenceCompareTo(
-                second.Value.ToByteArray(bigEndian: true)) < 0);
+        first.Should().NotBe(second);
+        first.Value.Version.Should().Be(7);
+        second.Value.Version.Should().Be(7);
+        first.Value.ToByteArray(bigEndian: true).AsSpan().SequenceCompareTo(
+            second.Value.ToByteArray(bigEndian: true)).Should().BeLessThan(0);
     }
 
     private static InstanceId NextOrderedInstanceIdAfter(InstanceId first)

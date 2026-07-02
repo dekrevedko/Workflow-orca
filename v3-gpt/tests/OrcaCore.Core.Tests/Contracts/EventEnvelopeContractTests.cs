@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using Xunit;
@@ -30,6 +31,6 @@ public sealed class EventEnvelopeContractTests
             OccurredAt = occurredAt
         };
 
-        Assert.Equal(first, second);
+        first.Should().Be(second);
     }
 }

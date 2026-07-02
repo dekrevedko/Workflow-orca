@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using AwesomeAssertions;
 using OrcaCore.TestSupport;
 using Xunit;
 
@@ -20,7 +21,7 @@ public sealed class RaceCoordinatorTests
         }, TestContext.Current.CancellationToken);
 
         await coordinator.WaitForArrivalsAsync(1, TestContext.Current.CancellationToken);
-        Assert.False(first.IsCompleted);
+        first.IsCompleted.Should().BeFalse();
 
         var second = Task.Run(async () =>
         {
@@ -30,7 +31,7 @@ public sealed class RaceCoordinatorTests
 
         await Task.WhenAll(first, second);
 
-        Assert.Equal([2, 2], observedArrivals.Order());
+        observedArrivals.Order().Should().Equal([2, 2]);
     }
 
     [Fact]
@@ -43,6 +44,7 @@ public sealed class RaceCoordinatorTests
         await coordinator.WaitForArrivalsAsync(1, TestContext.Current.CancellationToken);
         clock.Advance(TimeSpan.FromSeconds(5));
 
-        await Assert.ThrowsAsync<TimeoutException>(async () => await arrival);
+        var act = async () => await arrival;
+        await act.Should().ThrowAsync<TimeoutException>();
     }
 }

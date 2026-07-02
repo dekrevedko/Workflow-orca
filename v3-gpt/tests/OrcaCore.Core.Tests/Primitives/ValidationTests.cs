@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using OrcaCore.Abstractions.Primitives;
 using Xunit;
 
@@ -10,9 +11,9 @@ public sealed class ValidationTests
     {
         var validation = Validation<string>.Valid("value");
 
-        Assert.True(validation.IsValid);
-        Assert.Equal("value", validation.Value);
-        Assert.Empty(validation.Errors);
+        validation.IsValid.Should().BeTrue();
+        validation.Value.Should().Be("value");
+        validation.Errors.Should().BeEmpty();
     }
 
     [Fact]
@@ -23,9 +24,10 @@ public sealed class ValidationTests
 
         var validation = Validation<string>.Invalid([first, second]);
 
-        Assert.False(validation.IsValid);
-        Assert.Equal([first, second], validation.Errors);
-        Assert.Throws<InvalidOperationException>(() => validation.Value);
+        validation.IsValid.Should().BeFalse();
+        validation.Errors.Should().Equal([first, second]);
+        var act = () => validation.Value;
+        act.Should().Throw<InvalidOperationException>();
     }
 
     [Fact]
@@ -38,7 +40,7 @@ public sealed class ValidationTests
 
         var combined = first.Combine(second, (left, right) => left + right);
 
-        Assert.False(combined.IsValid);
-        Assert.Equal([firstError, secondError], combined.Errors);
+        combined.IsValid.Should().BeFalse();
+        combined.Errors.Should().Equal([firstError, secondError]);
     }
 }

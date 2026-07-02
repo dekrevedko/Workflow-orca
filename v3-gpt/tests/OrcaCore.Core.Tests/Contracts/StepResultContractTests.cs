@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Steps;
@@ -14,12 +15,11 @@ public sealed class StepResultContractTests
         var error = new WorkflowDefinitionException("Definition is invalid.");
         var correlationId = new CorrelationId("order-123");
 
-        Assert.Equal(new StepResult.Completed(), new StepResult.Completed());
-        Assert.Equal(new StepResult.Failed(error), new StepResult.Failed(error));
-        Assert.Equal(
-            new StepResult.WaitForEvent("OrderApproved", correlationId),
-            new StepResult.WaitForEvent("OrderApproved", correlationId));
-        Assert.Equal(new StepResult.Yield(), new StepResult.Yield());
+        new StepResult.Completed().Should().Be(new StepResult.Completed());
+        new StepResult.Failed(error).Should().Be(new StepResult.Failed(error));
+        new StepResult.WaitForEvent("OrderApproved", correlationId)
+            .Should().Be(new StepResult.WaitForEvent("OrderApproved", correlationId));
+        new StepResult.Yield().Should().Be(new StepResult.Yield());
     }
 
     [Fact]
@@ -37,9 +37,9 @@ public sealed class StepResultContractTests
             };
         }
 
-        Assert.Equal("completed", Describe(new StepResult.Completed()));
-        Assert.Equal("failed", Describe(new StepResult.Failed(new WorkflowDefinitionException("failed"))));
-        Assert.Equal("wait", Describe(new StepResult.WaitForEvent("Event", new CorrelationId("corr"))));
-        Assert.Equal("yield", Describe(new StepResult.Yield()));
+        Describe(new StepResult.Completed()).Should().Be("completed");
+        Describe(new StepResult.Failed(new WorkflowDefinitionException("failed"))).Should().Be("failed");
+        Describe(new StepResult.WaitForEvent("Event", new CorrelationId("corr"))).Should().Be("wait");
+        Describe(new StepResult.Yield()).Should().Be("yield");
     }
 }

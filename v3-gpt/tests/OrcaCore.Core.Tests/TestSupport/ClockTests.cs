@@ -1,3 +1,4 @@
+using AwesomeAssertions;
 using OrcaCore.TestSupport;
 using Xunit;
 
@@ -13,6 +14,6 @@ public sealed class ClockTests
 
         clock.Advance(TimeSpan.FromMinutes(17));
 
-        Assert.Equal(start.AddMinutes(17), clock.Now);
+        clock.Now.Should().Be(start.AddMinutes(17));
     }
 }
