@@ -6,6 +6,17 @@ composition (AC-2xx), durable (AC-3xx), saga (AC-4xx), management/operations (AC
 child workflows & fanout (AC-6xx). Criteria marked **[provider]** belong to the provider
 certification suite (PR-024).
 
+**Scenario criteria by reference:** the job-scheduler criteria (`JS-AC-001…013`) live in
+[14-driving-scenario-eks-job-scheduler.md](14-driving-scenario-eks-job-scheduler.md) §14.4
+next to the `JS-` requirements they verify, and are part of this catalog by reference —
+phase gates (document 13) cite them alongside `AC-xxx`.
+
+**Coverage classes** (see NF-012): (1) *direct* — a behavioral requirement is named in a
+criterion's tag; (2) *certification* — provider invariants verified by the reusable
+**[provider]** suite; (3) *structural* — contract shapes, pipeline structure, port
+definitions, and API-surface rules are verified by unit tests in the implementation
+program and exercised indirectly by many criteria here, without a dedicated AC each.
+
 ## Core runtime (AC-0xx)
 
 - **AC-001** *Straight-line completion* — Given `Init → Step → End`, when started, the

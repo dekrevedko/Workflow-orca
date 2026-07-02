@@ -45,7 +45,7 @@ Every requirement has a stable ID. Prefixes:
 9. [09-requirements-management-operations.md](09-requirements-management-operations.md) — fluent management surface, lifecycle events, observability, resource governance.
 10. [10-provider-model-and-extensibility.md](10-provider-model-and-extensibility.md) — provider contracts, capability model, provider invariants.
 11. [11-non-functional-requirements.md](11-non-functional-requirements.md) — platform, quality, API design, security, performance posture.
-12. [12-acceptance-criteria.md](12-acceptance-criteria.md) — consolidated, numbered acceptance criteria catalog.
+12. [12-acceptance-criteria.md](12-acceptance-criteria.md) — consolidated, numbered acceptance criteria catalog (`AC-xxx`; the scenario criteria `JS-AC-xxx` live in document 14 and are part of the catalog by reference).
 13. [13-phasing-and-open-questions.md](13-phasing-and-open-questions.md) — recommended delivery slices and the decisions intentionally left open.
 14. [14-driving-scenario-eks-job-scheduler.md](14-driving-scenario-eks-job-scheduler.md) — target application (EKS job scheduler with DAG runs): fit assessment, derived `JS-` requirements, library/application boundary.
 

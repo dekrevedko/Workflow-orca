@@ -42,8 +42,8 @@ In `tests/OrcaCore.Acceptance.Tests/BuilderAcceptanceTests.cs`:
 8. `[Trait("AC","AC-008")] Build_AccumulatesAllValidationErrors`
 
 ## Implementation notes
-- Builder is sugar over the T1-03 tree (spec DD-105 lineage): keep it a thin construction
-  layer; the tree is the contract.
+- Builder is sugar over the T1-03 tree (spec CR-001/CR-003: the tree is the stable
+  contract): keep it a thin construction layer.
 - No durable-only method may exist here (`WaitLong` etc.) — API absence is the enforcement
   (CR-020 discipline).
 

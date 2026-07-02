@@ -31,9 +31,15 @@ Nullable reference types enabled; warnings as errors; immutable contracts where 
 - Public API remains idiomatic .NET; internal functional primitives per PR-050.
 
 ### NF-012 Test-first acceptance
-Every requirement in documents 04–10 maps to acceptance criteria (document 12); acceptance
-tests are written against public surfaces, not internals. Provider invariants ship as a
-reusable certification suite (PR-024).
+Every **behavioral** requirement in documents 04–10 SHALL be verified by acceptance
+criteria (document 12, including the scenario criteria of document 14 by reference) or by
+the provider certification suite. **Structural and contract-shape** requirements — e.g.
+contract shapes (CR-011, CR-015), pipeline structure (DU-011), port definitions
+(PR-010…016), API-surface rules (MG-011, SG-001) — are verified by unit tests in the
+implementation program and exercised indirectly by many acceptance criteria; they do not
+each carry a dedicated AC. The coverage classes are stated in document 12's preamble.
+Acceptance tests are written against public surfaces, not internals. Provider invariants
+ship as a reusable certification suite (PR-024).
 
 ## 11.3 Determinism and correctness
 

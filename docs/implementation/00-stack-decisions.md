@@ -64,7 +64,7 @@ discovery/scanning (plugins are registered explicitly).
 | OQ-3 | Projection updates: same transaction as append vs transactional-outbox-driven async projector | Phase 2, T2 design task | Spec DU-011 allows both ("same durability boundary or clearly defined transactional chain"); routing correctness (EV-011) must hold either way |
 | OQ-4 | Allow Dapper inside SQL plugins for read/projection queries | Phase 2 exit | Raw Npgsql until then |
 | OQ-5 | Observability: OpenTelemetry (`ActivitySource`/`Meter`) naming scheme and what's in core vs hosting | Phase 3 start | Core emits via `ILogger` abstractions only until decided |
-| OQ-6 | Management `Where(...)`: expression-tree subset compiler vs source-generated query model | Phase 1 T1-13 (start simple: structured internal model + expression facade per spec DD-113) | Public shape is fixed by MG-002; only the translation mechanism is open |
+| OQ-6 | Management `Where(...)`: expression-tree subset compiler vs source-generated query model | Phase 1 T1-13 (start simple: structured internal model + expression facade, per spec MG-002) | Public shape is fixed by MG-002; only the translation mechanism is open |
 | OQ-7 | Snapshot/approval testing (Verify) for builder validation diagnostics and history projections | Phase 2 | Plain asserts until then |
 | OQ-8 | BenchmarkDotNet micro-benchmarks: which hot paths, and CI treatment | Phase 6 | None before Phase 6 (NF-030: correctness first) |
 | OQ-9 | Public packaging: package IDs, signing, SourceLink, README-per-package | Phase 6 | Never publish before the Slice 6 gate (NF-003) |

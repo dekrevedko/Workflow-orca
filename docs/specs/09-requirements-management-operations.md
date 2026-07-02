@@ -52,7 +52,8 @@ Minimum surface: `Start` (definition-scoped), `Instance(id)` retrieval, `List`, 
 ### MG-011 Durable-only commands
 `StartOrGet` (strong semantics), `Pause`/`Resume`, `Retry` (failed-instance recovery),
 step-level `Retry`, `GetHistory`, `Archive`, `Purge` SHALL be durable-facing; hidden from
-ephemeral APIs where practical (DD-003 discipline), rejected fast otherwise.
+ephemeral APIs where practical (durable-only API separation — DU-001 and guiding
+principle 5 in document 01), rejected fast otherwise.
 
 ### MG-012 Recovery is first-class
 Recovery SHALL cover at least: wait-resume (events), failure-retry (instance and step level,

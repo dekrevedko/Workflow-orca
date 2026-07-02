@@ -107,8 +107,9 @@ Decisions intentionally left open, with the constraint each answer must respect:
 6. **Decorator representation** — Attributes, fluent builder calls, metadata objects, or
    hybrid (CR-006 fixes semantics, not syntax).
 7. **Compile-time vs runtime mode separation** — How much durable/ephemeral separation is
-   enforced by distinct types vs runtime checks (DD-003 direction: as much compile-time as
-   practical without doubling every abstraction).
+   enforced by distinct types vs runtime checks (direction per DU-001 and guiding
+   principle 5 in document 01: as much compile-time as practical without doubling every
+   abstraction).
 8. **Eviction policy shape** — Plain idle timeout, LRU-like pressure eviction, or hybrid
    (MG-050 fixes the safety semantics only).
 9. **Lifecycle event durability split** — Exactly which lifecycle events are durable vs
@@ -123,12 +124,11 @@ Decisions intentionally left open, with the constraint each answer must respect:
     saga precedes the compensation-heavy track.
 13. **Ephemeral saga depth** — Fully supported limited mode vs explicitly "advanced/at your
     own risk" labeling (SG-030 minimum stands).
-14. **Keep or cut `Yield`** — CR-017 defines `Yield` as a cooperative checkpoint
-    (commit-and-reschedule). If no real use case materializes during Slice 1, it MAY be cut
-    from the step-result contract (removing AC-013) before the surface stabilizes; the
-    decision must be made no later than the end of Slice 2, when the durable commit-boundary
-    behavior would otherwise need implementing. Note: loop/`ForEach`/`Parallel` fairness
-    (CR-017's listed uses) already argues for keeping it.
+14. **RESOLVED (2026-07-01): `Yield` is committed.** CR-017 (cooperative checkpoint) is a
+    mandatory part of the step-result contract, and AC-013 gates Slice 1 (ephemeral
+    behavior) with its crash-survival clause re-verified in Slice 2. Rationale: the
+    loop/`ForEach`/`Parallel` fairness uses listed in CR-017 were confirmed as real product
+    scenarios. (Number retained to keep cross-references stable.)
 15. **DAG compile target** — JS-001 (document 14) compiles DAG definitions onto existing
     primitives. Open: does each DAG node execute as a durable child workflow instance
     (recommended — isolation, lineage, per-node retry via `RunChildren`) or as in-instance
@@ -153,8 +153,9 @@ Decisions made during spec review, now normative:
   policies); terminate is forced (no cooperation, no policies, no compensation). (CR-031.)
 - **Ephemeral timers are transient**: kept (timeout patterns need them) but explicitly
   in-process, activation-local, lost on exit — the Orleans timer/reminder split. (EV-050.)
-- **`Yield` defined**: cooperative checkpoint — commit progress, release the lane,
-  reschedule the same step. (CR-017; retention tracked as open question 14.)
+- **`Yield` defined and committed**: cooperative checkpoint — commit progress, release the
+  lane, reschedule the same step. Mandatory in the step-result contract; question 14 is
+  resolved. (CR-017, AC-013.)
 - **Named End outcomes**: `End` may carry an outcome name recorded as queryable metadata and
   carried on the end-of-life lifecycle event/publication; no new statuses. (CR-008.)
 - **Resume delivery handling**: `Resume` offers Replay (default) or auditable Discard of the

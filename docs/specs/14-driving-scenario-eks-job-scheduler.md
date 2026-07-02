@@ -30,7 +30,7 @@ The durable engine covers the hard parts of this scenario without change:
 | Job timeout ("kill after 2h") | Timer/event race (EV-051), timeout policies (EV-052) |
 | Job retry with backoff | Structured retry decorator (CR-006) |
 | Fan-out node (map over N inputs) | `RunChildren` + partitioners (CP-021, CP-030) |
-| Max N concurrent jobs per queue/cluster | Durable throttling (CP-023) + named pools (MG-061) |
+| Max N concurrent jobs per cluster/queue | Durable resource pools with tickets (MG-062…064, bound to jobs by JS-007); `RunChildren` dispatch windows (CP-023) apply only to group-scoped child throttling. Transient in-process pools (MG-061) are unsuitable here — see JS-007 |
 | Exactly-once "all dependencies done" continuation | Resume token barrier (CP-024), joins (CP-002) |
 | Operator pause / resume / cancel of a run | MG-013, CR-031 (cancel is cooperative → job deletion) |
 | Idempotent scheduled starts across scheduler restarts | `StartOrGet` (DU-053) |
@@ -133,8 +133,10 @@ not a rate (N per second); rate-based token-refill pools are tracked as open que
 - **JS-AC-006** *Job timeout kills the job* — On timeout, the configured policy fires
   deterministically and a job-delete command is dispatched through the outbox. [JS-002,
   EV-051, DU-031]
-- **JS-AC-007** *Queue quota honored* — At most N jobs of a named pool/queue run
-  concurrently, including across restart. [JS-003, MG-061, CP-023]
+- **JS-AC-007** *Queue quota honored durably* — At most N jobs holding tickets of a named
+  durable pool run concurrently — across definitions, DAG runs, and scheduler restarts.
+  Group-scoped child dispatch windows (CP-023) compose with, and never substitute for, the
+  pool cap. [JS-007, MG-062, MG-063]
 - **JS-AC-008** *Scheduled occurrence idempotent* — Two triggers for the same occurrence key
   yield one run. [JS-004, DU-053]
 - **JS-AC-009** *Run cancel propagates* — Cancelling a run dispatches stop commands for all
