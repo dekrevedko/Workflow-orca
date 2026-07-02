@@ -1,0 +1,56 @@
+name: ci-v3-workspace
+
+on:
+  push:
+    paths:
+      - "v3/**"
+      - ".github/workflows/ci-v3-workspace.yml"
+  pull_request:
+    paths:
+      - "v3/**"
+      - ".github/workflows/ci-v3-workspace.yml"
+
+concurrency:
+  group: ci-v3-workspace-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: v3
+
+jobs:
+  build-test:
+    name: build and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: v3/global.json
+
+      - name: Check Docker availability
+        shell: bash
+        working-directory: .
+        run: |
+          if docker info >/dev/null 2>&1; then
+            echo "ORCA_SKIP_CONTAINER_TESTS=false" >> "$GITHUB_ENV"
+          else
+            echo "ORCA_SKIP_CONTAINER_TESTS=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build
+        run: dotnet build OrcaCore.slnx
+
+      - name: Test with coverage
+        run: dotnet test OrcaCore.slnx --no-build --collect:"XPlat Code Coverage"
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-v3
+          path: v3/**/TestResults/**/coverage.cobertura.xml
+          if-no-files-found: error
