@@ -17,6 +17,8 @@ internal sealed class DurableWorkflowAggregate
         DefinitionId? definitionId,
         DefinitionVersion? definitionVersion,
         WorkflowStatus? status,
+        DateTimeOffset? createdAt,
+        DateTimeOffset? updatedAt,
         string? lastStepPath,
         string? errorSummary,
         string? outcomeName,
@@ -28,6 +30,8 @@ internal sealed class DurableWorkflowAggregate
         DefinitionId = definitionId;
         DefinitionVersion = definitionVersion;
         Status = status;
+        CreatedAt = createdAt;
+        UpdatedAt = updatedAt;
         LastStepPath = lastStepPath;
         ErrorSummary = errorSummary;
         OutcomeName = outcomeName;
@@ -45,6 +49,10 @@ internal sealed class DurableWorkflowAggregate
 
     internal WorkflowStatus? Status { get; private set; }
 
+    internal DateTimeOffset? CreatedAt { get; private set; }
+
+    internal DateTimeOffset? UpdatedAt { get; private set; }
+
     internal string? LastStepPath { get; private set; }
 
     internal string? ErrorSummary { get; private set; }
@@ -56,6 +64,8 @@ internal sealed class DurableWorkflowAggregate
         DefinitionId,
         DefinitionVersion,
         Status,
+        CreatedAt,
+        UpdatedAt,
         LastStepPath,
         ErrorSummary,
         OutcomeName,
@@ -67,6 +77,8 @@ internal sealed class DurableWorkflowAggregate
         return new DurableWorkflowAggregate(
             instanceId,
             StreamVersion.Empty,
+            null,
+            null,
             null,
             null,
             null,
@@ -91,6 +103,8 @@ internal sealed class DurableWorkflowAggregate
                 checkpoint.DefinitionId,
                 checkpoint.DefinitionVersion,
                 checkpoint.Status,
+                checkpoint.CreatedAt,
+                checkpoint.UpdatedAt,
                 checkpoint.LastStepPath,
                 checkpoint.ErrorSummary,
                 checkpoint.OutcomeName,
@@ -116,6 +130,8 @@ internal sealed class DurableWorkflowAggregate
             DefinitionId,
             DefinitionVersion,
             Status,
+            CreatedAt,
+            UpdatedAt,
             LastStepPath,
             ErrorSummary,
             OutcomeName,
@@ -443,6 +459,43 @@ internal sealed class DurableWorkflowAggregate
         ], null, true);
     }
 
+    internal IReadOnlyList<ProjectionWrite> CreateProjectionWrites(IReadOnlyList<WorkflowEvent> events)
+    {
+        ArgumentNullException.ThrowIfNull(events);
+
+        if (events.Count == 0)
+        {
+            return [];
+        }
+
+        var projected = new DurableWorkflowAggregate(
+            InstanceId,
+            StreamVersion,
+            DefinitionId,
+            DefinitionVersion,
+            Status,
+            CreatedAt,
+            UpdatedAt,
+            LastStepPath,
+            ErrorSummary,
+            OutcomeName,
+            activeWaits,
+            bufferedDeliveries);
+
+        foreach (var workflowEvent in events)
+        {
+            projected.Apply(workflowEvent);
+        }
+
+        var snapshot = projected.ToInstanceSnapshot();
+        return snapshot is null
+            ? []
+            : [new ProjectionWrite(projected.InstanceId, ProjectionOperationKind.UpsertSummary)
+            {
+                InstanceSnapshot = snapshot
+            }];
+    }
+
     private bool IsTerminal =>
         Status is WorkflowStatus.Completed
             or WorkflowStatus.Failed
@@ -458,6 +511,8 @@ internal sealed class DurableWorkflowAggregate
             InstanceId = workflowEvent.InstanceId;
         }
 
+        CreatedAt ??= workflowEvent.OccurredAt;
+        UpdatedAt = workflowEvent.OccurredAt;
         StreamVersion = StreamVersion.Next();
         switch (workflowEvent)
         {
@@ -485,6 +540,7 @@ internal sealed class DurableWorkflowAggregate
                     waitRegistered.WaitId,
                     waitRegistered.EventName,
                     waitRegistered.CorrelationId,
+                    waitRegistered.OccurredAt,
                     waitRegistered.Mode));
                 Status = WorkflowStatus.Waiting;
                 break;
@@ -535,6 +591,41 @@ internal sealed class DurableWorkflowAggregate
         return new CausationId(commandId.Value);
     }
 
+    private WorkflowInstanceSnapshot? ToInstanceSnapshot()
+    {
+        if (DefinitionId is not { } definitionId ||
+            DefinitionVersion is not { } definitionVersion ||
+            Status is not { } status ||
+            CreatedAt is not { } createdAt ||
+            UpdatedAt is not { } updatedAt)
+        {
+            return null;
+        }
+
+        return new WorkflowInstanceSnapshot
+        {
+            InstanceId = InstanceId,
+            DefinitionId = definitionId,
+            DefinitionVersion = definitionVersion,
+            Status = status,
+            CreatedAt = createdAt,
+            UpdatedAt = updatedAt,
+            ErrorSummary = ErrorSummary,
+            EndOutcomeName = OutcomeName,
+            ActiveWaits = activeWaits
+                .Select(wait => new ActiveWaitSnapshot
+                {
+                    WaitId = wait.WaitId,
+                    EventName = wait.EventName,
+                    CorrelationId = wait.CorrelationId,
+                    RegisteredAt = wait.RegisteredAt,
+                    Status = "Active",
+                    Mode = wait.Mode.ToString()
+                })
+                .ToArray()
+        };
+    }
+
     private DurableActiveWait? FindActiveWait(EventEnvelope envelope)
     {
         return activeWaits.FirstOrDefault(wait =>
@@ -573,6 +664,8 @@ internal sealed record DurableAggregateSnapshot(
     DefinitionId? DefinitionId,
     DefinitionVersion? DefinitionVersion,
     WorkflowStatus? Status,
+    DateTimeOffset? CreatedAt,
+    DateTimeOffset? UpdatedAt,
     string? LastStepPath,
     string? ErrorSummary,
     string? OutcomeName,
@@ -585,6 +678,8 @@ internal sealed record DurableAggregateCheckpoint(
     DefinitionId? DefinitionId,
     DefinitionVersion? DefinitionVersion,
     WorkflowStatus? Status,
+    DateTimeOffset? CreatedAt,
+    DateTimeOffset? UpdatedAt,
     string? LastStepPath,
     string? ErrorSummary,
     string? OutcomeName,
@@ -597,6 +692,7 @@ internal sealed record DurableActiveWait(
     WaitId WaitId,
     string EventName,
     CorrelationId CorrelationId,
+    DateTimeOffset RegisteredAt,
     WaitMode Mode = WaitMode.Resident);
 
 internal sealed record DurableBufferedDelivery(

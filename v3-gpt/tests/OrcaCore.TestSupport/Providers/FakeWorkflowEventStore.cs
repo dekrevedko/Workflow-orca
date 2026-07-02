@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 
@@ -145,6 +146,36 @@ public sealed class FakeWorkflowEventStore :
     {
         cancellationToken.ThrowIfCancellationRequested();
         return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<WorkflowInstanceSnapshot>> ListAsync(
+        WorkflowProjectionQuery query,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult<IReadOnlyList<WorkflowInstanceSnapshot>>([]);
+    }
+
+    public Task<int> CountAsync(WorkflowProjectionQuery query, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(0);
+    }
+
+    public Task<IReadOnlyList<ActiveWaitSnapshot>> ListActiveWaitsAsync(
+        WorkflowProjectionQuery query,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult<IReadOnlyList<ActiveWaitSnapshot>>([]);
+    }
+
+    public Task<WorkflowStatistics> GetStatisticsAsync(
+        WorkflowProjectionQuery query,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(new WorkflowStatistics { Groups = [] });
     }
 
     public void FailNextCommitBeforeApply()

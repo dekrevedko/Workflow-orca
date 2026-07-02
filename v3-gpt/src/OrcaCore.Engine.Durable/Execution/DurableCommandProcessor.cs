@@ -231,7 +231,8 @@ internal sealed class DurableCommandProcessor(IWorkflowEventStore eventStore)
                     ExpectedVersion = aggregate.StreamVersion,
                     Events = decision.Events,
                     Checkpoint = decision.Checkpoint,
-                    InboxOperations = CreateInboxOperations(inboxEventId, decision)
+                    InboxOperations = CreateInboxOperations(inboxEventId, decision),
+                    ProjectionOperations = aggregate.CreateProjectionWrites(decision.Events)
                 },
                 cancellationToken)
             .ConfigureAwait(false);
@@ -256,6 +257,8 @@ internal sealed class DurableCommandProcessor(IWorkflowEventStore eventStore)
             checkpoint.DefinitionId,
             checkpoint.DefinitionVersion,
             checkpoint.Status,
+            null,
+            null,
             checkpoint.LastStepPath,
             checkpoint.ErrorSummary,
             checkpoint.OutcomeName,

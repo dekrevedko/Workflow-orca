@@ -208,4 +208,61 @@ public enum ProjectionOperationKind
 /// <summary>
 /// Describes one projection update in a provider commit.
 /// </summary>
-public sealed record ProjectionWrite(InstanceId InstanceId, ProjectionOperationKind Kind);
+public sealed record ProjectionWrite(InstanceId InstanceId, ProjectionOperationKind Kind)
+{
+    /// <summary>
+    /// Gets the projected instance summary for upsert operations.
+    /// </summary>
+    public WorkflowInstanceSnapshot? InstanceSnapshot { get; init; }
+
+    /// <summary>
+    /// Gets the projected active wait for upsert operations.
+    /// </summary>
+    public ActiveWaitSnapshot? ActiveWait { get; init; }
+
+    /// <summary>
+    /// Gets the wait identity for remove operations.
+    /// </summary>
+    public WaitId? WaitId { get; init; }
+}
+
+/// <summary>
+/// Describes a structured provider-side projection query.
+/// </summary>
+public sealed record WorkflowProjectionQuery
+{
+    /// <summary>
+    /// Gets an unconstrained projection query.
+    /// </summary>
+    public static WorkflowProjectionQuery All { get; } = new();
+
+    /// <summary>
+    /// Gets an optional instance identity filter.
+    /// </summary>
+    public InstanceId? InstanceId { get; init; }
+
+    /// <summary>
+    /// Gets an optional definition identity filter.
+    /// </summary>
+    public DefinitionId? DefinitionId { get; init; }
+
+    /// <summary>
+    /// Gets an optional definition version filter.
+    /// </summary>
+    public DefinitionVersion? DefinitionVersion { get; init; }
+
+    /// <summary>
+    /// Gets an optional lifecycle status filter.
+    /// </summary>
+    public WorkflowStatus? Status { get; init; }
+
+    /// <summary>
+    /// Gets an optional active-wait event name filter.
+    /// </summary>
+    public string? ActiveWaitEventName { get; init; }
+
+    /// <summary>
+    /// Gets an optional active-wait correlation filter.
+    /// </summary>
+    public CorrelationId? ActiveWaitCorrelationId { get; init; }
+}

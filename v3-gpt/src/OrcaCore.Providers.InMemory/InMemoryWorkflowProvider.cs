@@ -1,6 +1,7 @@
 using System.Text.Json;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 
@@ -25,6 +26,7 @@ public sealed class InMemoryWorkflowProvider :
     private readonly Dictionary<OutboxRecordId, InMemoryOutboxRecord> outbox = [];
     private readonly List<OutboxWrite> dispatched = [];
     private readonly List<ProjectionWrite> projections = [];
+    private readonly Dictionary<InstanceId, WorkflowInstanceSnapshot> summaries = [];
     private readonly Dictionary<InstanceId, CheckpointWrite> checkpoints = [];
     private readonly Dictionary<WorkflowStreamId, List<WorkflowEvent>> streams = [];
     private readonly Dictionary<TimerId, TimerScheduleRequest> timers = [];
@@ -72,7 +74,7 @@ public sealed class InMemoryWorkflowProvider :
                     OutboxRecordState.Pending);
             }
 
-            projections.AddRange(batch.ProjectionOperations);
+            ApplyProjectionOperations(batch.ProjectionOperations);
             if (batch.Checkpoint is { } checkpoint)
             {
                 checkpoints[checkpoint.InstanceId] = CloneCheckpointWrite(checkpoint);
@@ -172,10 +174,90 @@ public sealed class InMemoryWorkflowProvider :
 
         lock (gate)
         {
-            projections.AddRange(operations);
+            ApplyProjectionOperations(operations);
         }
 
         return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<WorkflowInstanceSnapshot>> ListAsync(
+        WorkflowProjectionQuery query,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            return Task.FromResult<IReadOnlyList<WorkflowInstanceSnapshot>>(
+                summaries.Values
+                    .Where(snapshot => Matches(snapshot, query))
+                    .Select(CloneSnapshot)
+                    .ToArray());
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<int> CountAsync(WorkflowProjectionQuery query, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            return Task.FromResult(summaries.Values.Count(snapshot => Matches(snapshot, query)));
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<ActiveWaitSnapshot>> ListActiveWaitsAsync(
+        WorkflowProjectionQuery query,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            return Task.FromResult<IReadOnlyList<ActiveWaitSnapshot>>(
+                summaries.Values
+                    .Where(snapshot => Matches(snapshot, query))
+                    .SelectMany(snapshot => snapshot.ActiveWaits)
+                    .Select(CloneActiveWait)
+                    .ToArray());
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<WorkflowStatistics> GetStatisticsAsync(
+        WorkflowProjectionQuery query,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            var groups = summaries.Values
+                .Where(snapshot => Matches(snapshot, query))
+                .GroupBy(snapshot => new
+                {
+                    snapshot.DefinitionId,
+                    snapshot.DefinitionVersion,
+                    snapshot.Status
+                })
+                .Select(group => new WorkflowStatisticsGroup
+                {
+                    DefinitionId = group.Key.DefinitionId,
+                    DefinitionVersion = group.Key.DefinitionVersion,
+                    Status = group.Key.Status,
+                    Count = group.Count()
+                })
+                .ToArray();
+
+            return Task.FromResult(new WorkflowStatistics { Groups = groups });
+        }
     }
 
     /// <inheritdoc />
@@ -252,6 +334,40 @@ public sealed class InMemoryWorkflowProvider :
 
             inbox[operation.EventId] = operation.State;
         }
+    }
+
+    private void ApplyProjectionOperations(IEnumerable<ProjectionWrite> operations)
+    {
+        foreach (var operation in operations)
+        {
+            projections.Add(operation);
+            if (operation.InstanceSnapshot is { } snapshot)
+            {
+                summaries[operation.InstanceId] = CloneSnapshot(snapshot);
+            }
+        }
+    }
+
+    private static bool Matches(WorkflowInstanceSnapshot snapshot, WorkflowProjectionQuery query)
+    {
+        return (query.InstanceId is null || snapshot.InstanceId == query.InstanceId) &&
+            (query.DefinitionId is null || snapshot.DefinitionId == query.DefinitionId) &&
+            (query.DefinitionVersion is null || snapshot.DefinitionVersion == query.DefinitionVersion) &&
+            (query.Status is null || snapshot.Status == query.Status) &&
+            (query.ActiveWaitEventName is null || snapshot.ActiveWaits.Any(wait =>
+                string.Equals(wait.EventName, query.ActiveWaitEventName, StringComparison.Ordinal))) &&
+            (query.ActiveWaitCorrelationId is null || snapshot.ActiveWaits.Any(wait =>
+                wait.CorrelationId == query.ActiveWaitCorrelationId));
+    }
+
+    private static WorkflowInstanceSnapshot CloneSnapshot(WorkflowInstanceSnapshot snapshot)
+    {
+        return snapshot with { ActiveWaits = snapshot.ActiveWaits.Select(CloneActiveWait).ToArray() };
+    }
+
+    private static ActiveWaitSnapshot CloneActiveWait(ActiveWaitSnapshot snapshot)
+    {
+        return snapshot with { };
     }
 
     private static OutboxWrite CloneOutboxWrite(OutboxWrite record)

@@ -1,5 +1,6 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 
 namespace OrcaCore.Abstractions.Providers;
@@ -78,6 +79,32 @@ public interface IWorkflowProjectionStore
     /// Applies projection operations included in a commit batch.
     /// </summary>
     Task ApplyAsync(IReadOnlyList<ProjectionWrite> operations, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Lists projected instance summaries matching a structured query.
+    /// </summary>
+    Task<IReadOnlyList<WorkflowInstanceSnapshot>> ListAsync(
+        WorkflowProjectionQuery query,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Counts projected instance summaries matching a structured query.
+    /// </summary>
+    Task<int> CountAsync(WorkflowProjectionQuery query, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Lists projected active waits matching a structured query.
+    /// </summary>
+    Task<IReadOnlyList<ActiveWaitSnapshot>> ListActiveWaitsAsync(
+        WorkflowProjectionQuery query,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Gets projected grouped statistics matching a structured query.
+    /// </summary>
+    Task<WorkflowStatistics> GetStatisticsAsync(
+        WorkflowProjectionQuery query,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>
