@@ -18,5 +18,6 @@
     <ProjectReference Include="..\..\src\OrcaCore.Engine.Durable\OrcaCore.Engine.Durable.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Providers.InMemory\OrcaCore.Providers.InMemory.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Hosting\OrcaCore.Hosting.csproj" />
+    <ProjectReference Include="..\OrcaCore.TestSupport\OrcaCore.TestSupport.csproj" />
   </ItemGroup>
 </Project>
