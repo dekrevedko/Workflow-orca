@@ -16,3 +16,4 @@ T2-12 | done | 2026-07-02 | deviations: retry/delete/purge baseline surface rema
 T2-13 | done | 2026-07-02 | deviations: none
 T2-14 | done | 2026-07-02 | deviations: IOQ-1 resolved to a single PostgreSQL events table with jsonb engine facts and bytea checkpoint payloads; Docker Desktop was started to run Testcontainers verification
 T2-15 | done | 2026-07-02 | deviations: added Claimed outbox state and a minimal retention purge port to express PR-012 and PR-022 safety
+Phase 2 exit | done | 2026-07-02 | deviations: IOQ-2 resolved to keep the outbox pump on Channels/TPL without TPL Dataflow; IOQ-4 resolved to keep SQL plugins on raw Npgsql without Dapper; full build/test suite green before exit
