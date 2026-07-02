@@ -56,26 +56,39 @@ desynchronize from reality as earlier phases evolve, and expansion-at-start keep
 detailed instruction consistent with the code that actually exists. `Tn-00` tasks are
 Sonnet-level; most execution tasks are Haiku-level (marked per task).
 
-## Entry point — starting implementation
+## Workspace: the `v3/` rule
+
+The from-scratch implementation lives in the **`v3/` subfolder** on the
+**`feature/v3-rebuild`** branch. The repository root also contains the **legacy
+implementation** (`src/`, `tests/`, `OrcaCore.slnx` at root) kept for reference.
+
+**Hard rules for every agent session:**
+
+- All implementation work happens under `v3/`: `v3/OrcaCore.slnx`, `v3/src/`, `v3/tests/`,
+  `v3/Directory.Build.props`, `v3/Directory.Packages.props`.
+- **Never read, reference, copy from, or modify** the legacy root `src/`, `tests/`, or root
+  `OrcaCore.slnx` — not even "for inspiration". The spec package is the only source of
+  truth; legacy code embodies superseded designs.
+- `docs/specs/` and `docs/implementation/` are read-only inputs (task files update only
+  their phase `PROGRESS.md`).
+- Where any task file says "repo root", read it as **`v3/`**.
 
 The very first task is **[T0-01](phases/phase-0-skeleton/T0-01-solution-skeleton.md)**
-(solution skeleton). Kick off a session with this prompt (works for Claude Code / Codex):
+(solution skeleton).
 
-```text
-Read docs/implementation/README.md and follow its ground rules.
-Then read docs/implementation/02-engineering-conventions.md and 03-tdd-workflow.md.
-Execute exactly one task per docs/implementation/04-task-protocol.md:
-docs/implementation/phases/phase-0-skeleton/T0-01-solution-skeleton.md
-Do not read any other files except those the task lists under "Read first".
-Stop after the task's Definition of Done is checked, PROGRESS.md is updated, and the
-commit is made.
-```
+## Entry point — starting implementation
 
-Every subsequent session uses the same prompt with the task path swapped. To find the next
-task: open the current phase's `PROGRESS.md` — the next pending entry in the phase README's
-task index is the target. When a phase's exit criteria are green, the next phase begins with
-its `Tn-00` expansion task (Sonnet-level). Task order within a phase follows the index;
-tasks whose dependencies are done may run in any order.
+Kick off a session with the prompt in **[KICKOFF.md](KICKOFF.md)** (kept there so it is
+versioned and copy-pasteable). Every subsequent session uses the same prompt with the task
+path swapped. To find the next task: open the current phase's `PROGRESS.md` — the next
+pending entry in the phase README's task index is the target. When a phase's exit criteria
+are green, the next phase begins with its `Tn-00` expansion task (Sonnet-level). Task order
+within a phase follows the index; tasks whose dependencies are done may run in any order.
+
+Model routing: use the task's **Difficulty** marker — Haiku-class models for `Haiku` tasks,
+Sonnet-class for `Sonnet` tasks and all `Tn-00` expansions. Exception: run the **first
+session (T0-01) on a Sonnet-class model** regardless of its marker — it is the protocol
+smoke test, and a misconfigured skeleton poisons every later task.
 
 ## How an agent executes one task (summary; full protocol in 04)
 
