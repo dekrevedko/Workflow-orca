@@ -11,3 +11,7 @@ T0-01 | done | 2026-07-02 | deviations: v3/global.json pins installed SDK 10.0.3
 T0-02 | done | 2026-07-02 | deviations: workflow file named `ci-v3-workspace.yml` (not `ci-v3.yml`) because that name is already taken by the parallel v3-gpt workspace's workflow; remote green/red GitHub Actions verification deferred — requires a pushed branch, not done without explicit push authorization; local `dotnet build`/`dotnet test` equivalents pass
 T0-03 | done | 2026-07-02 | deviations: none
 T0-04 | done | 2026-07-02 | deviations: RaceCoordinator's timeout is a real wall-clock CancellationTokenSource (not FakeTimeProvider-driven) because its purpose is to bound actual test-run wall time and fail fast rather than hang; this is a test-harness utility, not production src/ code, so the TimeProvider-everywhere rule doesn't apply to it
+
+## Phase 1 — ephemeral engine core
+
+T1-01 | done | 2026-07-02 | deviations: DefinitionId/DefinitionVersion/CorrelationId are NOT Guid.CreateVersion7-based (only InstanceId/EventId/WaitId are, matching 00-stack-decisions §2's explicit list); DefinitionId and CorrelationId wrap validated non-empty strings, DefinitionVersion wraps a validated positive int; "V7 ordered" verified via ordinal string comparison of two New() ids rather than IComparable (kept surface minimal per T0-03 precedent)
