@@ -204,7 +204,7 @@ internal sealed class DurableWorkflowAggregate
                 OccurredAt = command.RequestedAt,
                 Status = WorkflowStatus.Failed
             }
-        ]);
+        ], null, true);
     }
 
     internal DurableDecision DecideWaitRegistered(DurableWaitRegisteredCommand command)
@@ -225,9 +225,10 @@ internal sealed class DurableWorkflowAggregate
                 OccurredAt = command.RequestedAt,
                 WaitId = command.WaitId,
                 EventName = command.EventName,
-                CorrelationId = command.CorrelationId
+                CorrelationId = command.CorrelationId,
+                Mode = command.Mode
             }
-        ]);
+        ], null, command.Mode == WaitMode.Cold);
     }
 
     internal DurableDecision DecideWaitMatched(DurableWaitMatchedCommand command)
@@ -279,7 +280,7 @@ internal sealed class DurableWorkflowAggregate
                 OccurredAt = command.RequestedAt,
                 Status = WorkflowStatus.Completed
             }
-        ]);
+        ], null, true);
     }
 
     internal DurableDecision DecideFail(DurableFailCommand command)
@@ -300,7 +301,7 @@ internal sealed class DurableWorkflowAggregate
                 OccurredAt = command.RequestedAt,
                 Status = WorkflowStatus.Failed
             }
-        ]);
+        ], null, true);
     }
 
     private bool IsTerminal =>
@@ -344,7 +345,8 @@ internal sealed class DurableWorkflowAggregate
                 activeWaits.Add(new DurableActiveWait(
                     waitRegistered.WaitId,
                     waitRegistered.EventName,
-                    waitRegistered.CorrelationId));
+                    waitRegistered.CorrelationId,
+                    waitRegistered.Mode));
                 Status = WorkflowStatus.Waiting;
                 break;
             case WorkflowWaitMatchedEvent waitMatched:
@@ -378,7 +380,8 @@ internal sealed class DurableWorkflowAggregate
 
 internal sealed record DurableDecision(
     IReadOnlyList<WorkflowEvent> Events,
-    CheckpointWrite? Checkpoint = null)
+    CheckpointWrite? Checkpoint = null,
+    bool EvictAfterCommit = false)
 {
     internal static DurableDecision Empty { get; } = new([]);
 }
@@ -409,7 +412,8 @@ internal sealed record DurableAggregateCheckpoint(
 internal sealed record DurableActiveWait(
     WaitId WaitId,
     string EventName,
-    CorrelationId CorrelationId);
+    CorrelationId CorrelationId,
+    WaitMode Mode = WaitMode.Resident);
 
 internal sealed record DurableStepCompletedCommand(
     CommandId CommandId,
@@ -432,7 +436,8 @@ internal sealed record DurableWaitRegisteredCommand(
     DateTimeOffset RequestedAt,
     WaitId WaitId,
     string EventName,
-    CorrelationId CorrelationId);
+    CorrelationId CorrelationId,
+    WaitMode Mode = WaitMode.Resident);
 
 internal sealed record DurableWaitMatchedCommand(
     CommandId CommandId,

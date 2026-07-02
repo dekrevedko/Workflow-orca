@@ -87,6 +87,18 @@ internal sealed class DurableCommandProcessor(IWorkflowEventStore eventStore)
             cancellationToken);
     }
 
+    internal Task<DurableCommandResult> EvictIdleAsync(
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
+    {
+        return RunInLaneAsync(
+            instanceId,
+            aggregate => aggregate.Snapshot.Status is null
+                ? DurableDecision.Empty
+                : new DurableDecision([], null, true),
+            cancellationToken);
+    }
+
     private async Task<DurableCommandResult> RunInLaneAsync(
         InstanceId instanceId,
         Func<DurableWorkflowAggregate, DurableDecision> decide,
@@ -125,6 +137,15 @@ internal sealed class DurableCommandProcessor(IWorkflowEventStore eventStore)
 
         if (decision.Events.Count == 0 && decision.Checkpoint is null)
         {
+            if (decision.EvictAfterCommit)
+            {
+                return new DurableCommandResult(
+                    DurableCommandOutcome.Evicted,
+                    "Instance is evictable from hot memory.",
+                    aggregate.StreamVersion,
+                    true);
+            }
+
             return new DurableCommandResult(
                 DurableCommandOutcome.NoOp,
                 "Command produced no durable events.",
@@ -147,7 +168,8 @@ internal sealed class DurableCommandProcessor(IWorkflowEventStore eventStore)
             success => new DurableCommandResult(
                 DurableCommandOutcome.Committed,
                 null,
-                success.NewVersion),
+                success.NewVersion,
+                decision.EvictAfterCommit),
             error => new DurableCommandResult(
                 DurableCommandOutcome.Conflict,
                 error.Message,
@@ -175,10 +197,12 @@ internal enum DurableCommandOutcome
 {
     Committed,
     Conflict,
+    Evicted,
     NoOp
 }
 
 internal sealed record DurableCommandResult(
     DurableCommandOutcome Outcome,
     string? Message,
-    StreamVersion StreamVersion);
+    StreamVersion StreamVersion,
+    bool Evicted = false);

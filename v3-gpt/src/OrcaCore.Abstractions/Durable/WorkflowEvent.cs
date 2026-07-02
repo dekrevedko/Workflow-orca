@@ -96,6 +96,11 @@ public sealed record WorkflowWaitRegisteredEvent : WorkflowEvent
     /// Gets the wait correlation identity.
     /// </summary>
     public required CorrelationId CorrelationId { get; init; }
+
+    /// <summary>
+    /// Gets whether the wait is resident or cold.
+    /// </summary>
+    public WaitMode Mode { get; init; } = WaitMode.Resident;
 }
 
 /// <summary>
