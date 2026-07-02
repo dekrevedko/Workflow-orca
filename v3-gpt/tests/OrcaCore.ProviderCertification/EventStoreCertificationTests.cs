@@ -36,12 +36,11 @@ public abstract class EventStoreCertificationTests
     {
         var fixture = CreateFixture();
         var inboxEventId = EventId.New();
-        fixture.FailNextCommitBeforeApply();
 
         var result = await fixture.EventStore.AppendAsync(
             Batch(
                 new WorkflowStreamId(InstanceId.New()),
-                StreamVersion.Empty,
+                new StreamVersion(1),
                 inboxEventId: inboxEventId),
             TestContext.Current.CancellationToken);
         var inboxRecord = await fixture.InboxStore.GetAsync(
@@ -76,12 +75,11 @@ public abstract class EventStoreCertificationTests
     public async Task OutboxRecords_AreNotVisibleWhenCommitFails()
     {
         var fixture = CreateFixture();
-        fixture.FailNextCommitBeforeApply();
 
         await fixture.EventStore.AppendAsync(
             Batch(
                 new WorkflowStreamId(InstanceId.New()),
-                StreamVersion.Empty,
+                new StreamVersion(1),
                 outboxRecordId: OutboxRecordId.New()),
             TestContext.Current.CancellationToken);
         var claimed = await fixture.OutboxStore.ClaimAsync(10, TestContext.Current.CancellationToken);
@@ -143,9 +141,9 @@ public interface IProviderCertificationFixture
     IWorkflowOutboxStore OutboxStore { get; }
 
     /// <summary>
-    /// Makes the next commit fail before any batch operation is applied.
+    /// Gets the projection store observed by certification tests.
     /// </summary>
-    void FailNextCommitBeforeApply();
+    IWorkflowProjectionStore ProjectionStore { get; }
 }
 
 public sealed class FakeEventStoreCertificationTests : EventStoreCertificationTests
@@ -164,9 +162,6 @@ public sealed class FakeEventStoreCertificationTests : EventStoreCertificationTe
 
         public IWorkflowOutboxStore OutboxStore => provider;
 
-        public void FailNextCommitBeforeApply()
-        {
-            provider.FailNextCommitBeforeApply();
-        }
+        public IWorkflowProjectionStore ProjectionStore => provider;
     }
 }
