@@ -40,3 +40,9 @@ v3-gpt/**/bin/
 v3-gpt/**/obj/
 v3-gpt/TestResults/
 v3-gpt/**/TestResults/
+
+# v3 rebuild workspace
+v3/**/bin/
+v3/**/obj/
+v3/TestResults/
+v3/**/TestResults/
