@@ -1,5 +1,6 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Instances;
 
 namespace OrcaCore.Abstractions.Providers;
 
@@ -78,7 +79,38 @@ public sealed record CheckpointWrite(
     InstanceId InstanceId,
     StreamVersion StreamVersion,
     string ContentType,
-    byte[] Payload);
+    byte[] Payload)
+{
+    /// <summary>
+    /// Gets the workflow definition identity restored by this checkpoint when known.
+    /// </summary>
+    public DefinitionId? DefinitionId { get; init; }
+
+    /// <summary>
+    /// Gets the workflow definition version restored by this checkpoint when known.
+    /// </summary>
+    public DefinitionVersion? DefinitionVersion { get; init; }
+
+    /// <summary>
+    /// Gets the lifecycle status restored by this checkpoint when known.
+    /// </summary>
+    public WorkflowStatus? Status { get; init; }
+
+    /// <summary>
+    /// Gets the last completed step path restored by this checkpoint when known.
+    /// </summary>
+    public string? LastStepPath { get; init; }
+
+    /// <summary>
+    /// Gets the failure summary restored by this checkpoint when known.
+    /// </summary>
+    public string? ErrorSummary { get; init; }
+
+    /// <summary>
+    /// Gets the completion outcome restored by this checkpoint when known.
+    /// </summary>
+    public string? OutcomeName { get; init; }
+}
 
 /// <summary>
 /// Describes an inbox state write.

@@ -159,12 +159,12 @@ internal sealed class DurableCommandProcessor(IWorkflowEventStore eventStore)
         return new DurableAggregateCheckpoint(
             checkpoint.InstanceId,
             checkpoint.StreamVersion,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
+            checkpoint.DefinitionId,
+            checkpoint.DefinitionVersion,
+            checkpoint.Status,
+            checkpoint.LastStepPath,
+            checkpoint.ErrorSummary,
+            checkpoint.OutcomeName,
             [],
             checkpoint.ContentType,
             [.. checkpoint.Payload]);

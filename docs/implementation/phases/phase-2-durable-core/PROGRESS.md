@@ -7,3 +7,4 @@ T2-03 | done | 2026-07-02 | deviations: none
 T2-04 | done | 2026-07-02 | deviations: none
 T2-05 | done | 2026-07-02 | deviations: none
 T2-06 | done | 2026-07-02 | deviations: added checkpoint load to IWorkflowEventStore because the command pipeline must rehydrate from checkpoint plus stream tail
+T2-07 | done | 2026-07-02 | deviations: checkpoint writes now carry durable aggregate metadata needed for checkpoint-only recovery

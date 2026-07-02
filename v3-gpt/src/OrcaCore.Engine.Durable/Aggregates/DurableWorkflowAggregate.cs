@@ -151,7 +151,15 @@ internal sealed class DurableWorkflowAggregate
             command.InstanceId,
             StreamVersion.Next(),
             command.StateContentType,
-            [.. command.StatePayload]);
+            [.. command.StatePayload])
+        {
+            DefinitionId = DefinitionId,
+            DefinitionVersion = DefinitionVersion,
+            Status = WorkflowStatus.Running,
+            LastStepPath = command.StepPath,
+            ErrorSummary = null,
+            OutcomeName = null
+        };
 
         return new DurableDecision(
             [
