@@ -37,7 +37,8 @@ internal sealed class Interpreter<TState>
             definition.DefinitionVersion,
             cancellationToken,
             startIndex: 0,
-            new ResumeEventSlot(null)).ConfigureAwait(false);
+            new ResumeEventSlot(null),
+            afterSequence: null).ConfigureAwait(false);
 
         EnsureInitialized(runState.Initialized, runState.Instance);
         return runState.Instance!;
@@ -52,7 +53,8 @@ internal sealed class Interpreter<TState>
         DefinitionVersion definitionVersion,
         CancellationToken cancellationToken,
         int startIndex,
-        ResumeEventSlot resumeEvent)
+        ResumeEventSlot resumeEvent,
+        Func<CancellationToken, Task>? afterSequence)
     {
         for (var index = startIndex; index < sequence.Children.Count; index++)
         {
@@ -97,7 +99,8 @@ internal sealed class Interpreter<TState>
                             definitionId,
                             definitionVersion,
                             index + 1,
-                            cancellationToken).ConfigureAwait(false);
+                            cancellationToken,
+                            afterSequence).ConfigureAwait(false);
                         return false;
                     }
 
@@ -136,7 +139,18 @@ internal sealed class Interpreter<TState>
                             definitionVersion,
                             cancellationToken,
                             startIndex: 0,
-                            resumeEvent).ConfigureAwait(false))
+                            resumeEvent,
+                            continuationToken => ContinueSequenceAsync(
+                                sequence,
+                                runState,
+                                input,
+                                instanceId,
+                                definitionId,
+                                definitionVersion,
+                                index + 1,
+                                resumeEvent,
+                                afterSequence,
+                                continuationToken)).ConfigureAwait(false))
                     {
                         return false;
                     }
@@ -144,35 +158,19 @@ internal sealed class Interpreter<TState>
                     break;
                 case WhileNode<TState> whileNode:
                     EnsureInitialized(runState.Initialized, runState.Instance);
-                    while (true)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        if (!TryEvaluateCondition(runState.Instance!, whileNode.Condition, node.NodeId, out var whileResult))
-                        {
-                            return false;
-                        }
-
-                        if (!whileResult)
-                        {
-                            break;
-                        }
-
-                        if (!await RunSequenceAsync(
-                                whileNode.Body,
-                                runState,
-                                input,
-                                instanceId,
-                                definitionId,
-                                definitionVersion,
-                                cancellationToken,
-                                startIndex: 0,
-                                resumeEvent).ConfigureAwait(false))
-                        {
-                            return false;
-                        }
-                    }
-
-                    break;
+                    await ContinueWhileAsync(
+                        whileNode,
+                        sequence,
+                        runState,
+                        input,
+                        instanceId,
+                        definitionId,
+                        definitionVersion,
+                        index,
+                        resumeEvent,
+                        afterSequence,
+                        cancellationToken).ConfigureAwait(false);
+                    return false;
                 case ParallelNode<TState>:
                     throw new NotSupportedException("Parallel interpretation is owned by T1-12.");
                 case WaitNode<TState> waitNode:
@@ -200,7 +198,8 @@ internal sealed class Interpreter<TState>
                         definitionId,
                         definitionVersion,
                         index + 1,
-                        cancellationToken).ConfigureAwait(false);
+                        cancellationToken,
+                        afterSequence).ConfigureAwait(false);
                     return false;
                 default:
                     throw new NotSupportedException($"Node '{node.GetType().Name}' is not supported by T1-05.");
@@ -208,6 +207,101 @@ internal sealed class Interpreter<TState>
         }
 
         return true;
+    }
+
+    private async Task ContinueSequenceAsync<TInput>(
+        SequenceNode<TState> sequence,
+        InterpreterRunState runState,
+        TInput input,
+        InstanceId instanceId,
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        int startIndex,
+        ResumeEventSlot resumeEvent,
+        Func<CancellationToken, Task>? afterSequence,
+        CancellationToken cancellationToken)
+    {
+        var completed = await RunSequenceAsync(
+            sequence,
+            runState,
+            input,
+            instanceId,
+            definitionId,
+            definitionVersion,
+            cancellationToken,
+            startIndex,
+            resumeEvent,
+            afterSequence).ConfigureAwait(false);
+        if (completed && afterSequence is not null)
+        {
+            await afterSequence(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task ContinueWhileAsync<TInput>(
+        WhileNode<TState> whileNode,
+        SequenceNode<TState> parentSequence,
+        InterpreterRunState runState,
+        TInput input,
+        InstanceId instanceId,
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        int whileIndex,
+        ResumeEventSlot resumeEvent,
+        Func<CancellationToken, Task>? afterSequence,
+        CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!TryEvaluateCondition(runState.Instance!, whileNode.Condition, whileNode.NodeId, out var whileResult))
+            {
+                return;
+            }
+
+            if (!whileResult)
+            {
+                await ContinueSequenceAsync(
+                    parentSequence,
+                    runState,
+                    input,
+                    instanceId,
+                    definitionId,
+                    definitionVersion,
+                    whileIndex + 1,
+                    resumeEvent,
+                    afterSequence,
+                    cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            var completedBody = await RunSequenceAsync(
+                whileNode.Body,
+                runState,
+                input,
+                instanceId,
+                definitionId,
+                definitionVersion,
+                cancellationToken,
+                startIndex: 0,
+                resumeEvent,
+                continuationToken => ContinueWhileAsync(
+                    whileNode,
+                    parentSequence,
+                    runState,
+                    input,
+                    instanceId,
+                    definitionId,
+                    definitionVersion,
+                    whileIndex,
+                    resumeEvent,
+                    afterSequence,
+                    continuationToken)).ConfigureAwait(false);
+            if (!completedBody)
+            {
+                return;
+            }
+        }
     }
 
     private async Task<StepExecutionResult> ExecuteStepAsync(
@@ -271,23 +365,25 @@ internal sealed class Interpreter<TState>
         DefinitionId definitionId,
         DefinitionVersion definitionVersion,
         int nextIndex,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<CancellationToken, Task>? afterSequence)
     {
         FireOrThrow(instance, LifecycleTrigger.EnterWait);
         var wait = instance.EnterWait(
             eventName,
             correlationId,
             timeProvider.GetUtcNow(),
-            (envelope, cancellationToken) => RunSequenceAsync(
+            (envelope, cancellationToken) => ContinueSequenceAsync(
                 sequence,
                 runState,
                 input,
                 instanceId,
                 definitionId,
                 definitionVersion,
-                cancellationToken,
                 nextIndex,
-                new ResumeEventSlot(envelope)));
+                new ResumeEventSlot(envelope),
+                afterSequence,
+                cancellationToken));
         await instance.MatchPendingEventAsync(wait, cancellationToken).ConfigureAwait(false);
     }
 

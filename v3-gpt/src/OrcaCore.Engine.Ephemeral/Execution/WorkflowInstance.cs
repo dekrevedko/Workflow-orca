@@ -9,6 +9,7 @@ internal sealed class WorkflowInstance<TState>
 {
     private readonly List<RuntimeWaitRecord> activeWaits = [];
     private readonly HashSet<EventId> consumedEventIds = [];
+    private readonly HashSet<WaitSignature> consumedWaits = [];
     private readonly List<EventEnvelope> pendingEvents = [];
 
     internal WorkflowInstance(
@@ -81,6 +82,11 @@ internal sealed class WorkflowInstance<TState>
         var wait = activeWaits.FirstOrDefault(candidate => candidate.Matches(envelope));
         if (wait is null)
         {
+            if (consumedWaits.Contains(new WaitSignature(envelope.EventName, envelope.CorrelationId)))
+            {
+                return ToSnapshot();
+            }
+
             pendingEvents.Add(envelope);
             return ToSnapshot();
         }
@@ -148,6 +154,7 @@ internal sealed class WorkflowInstance<TState>
         }
 
         consumedEventIds.Add(envelope.EventId);
+        consumedWaits.Add(new WaitSignature(wait.EventName, wait.CorrelationId));
         return ToSnapshot();
     }
 
@@ -194,4 +201,6 @@ internal sealed class WorkflowInstance<TState>
     {
         return consumedEventIds.Contains(eventId) || pendingEvents.Any(envelope => envelope.EventId == eventId);
     }
+
+    private readonly record struct WaitSignature(string EventName, CorrelationId CorrelationId);
 }
