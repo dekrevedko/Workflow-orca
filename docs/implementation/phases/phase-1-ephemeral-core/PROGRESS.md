@@ -10,3 +10,4 @@ T1-06 | done | 2026-07-02 | deviations: none
 T1-07 | done | 2026-07-02 | deviations: none
 T1-08 | done | 2026-07-02 | deviations: updated the old unsupported-result guard from WaitForEvent to Yield because WaitForEvent is now implemented in this task; stayed at 10 files but exceeded the rough 500-line budget due wait API and acceptance coverage
 T1-09 | done | 2026-07-02 | deviations: out-of-order event tests model "before its wait exists" as the second wait's event arriving while the first wait is active because no start handle exists yet
+T1-10 | done | 2026-07-02 | deviations: correlation index is derived from current in-memory instance state rather than maintained as a separate materialized multi-map

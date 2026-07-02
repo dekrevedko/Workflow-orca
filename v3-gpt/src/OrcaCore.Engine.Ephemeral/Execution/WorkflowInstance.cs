@@ -47,6 +47,13 @@ internal sealed class WorkflowInstance<TState>
 
     internal bool HasUnresolvedRuntimeWork => activeWaits.Count > 0 || pendingEvents.Count > 0;
 
+    internal bool HasActiveWait(string eventName, CorrelationId correlationId)
+    {
+        return activeWaits.Any(wait =>
+            string.Equals(wait.EventName, eventName, StringComparison.Ordinal) &&
+            wait.CorrelationId == correlationId);
+    }
+
     internal RuntimeWaitRecord EnterWait(
         string eventName,
         CorrelationId correlationId,

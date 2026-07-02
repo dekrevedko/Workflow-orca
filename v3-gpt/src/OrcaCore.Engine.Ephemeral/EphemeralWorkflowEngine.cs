@@ -128,4 +128,69 @@ public sealed class EphemeralWorkflowEngine
             laneCancellationToken => instance.RaiseEventAsync(envelope, laneCancellationToken),
             cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Resolves one active wait by event name and correlation, then delivers the event to it.
+    /// </summary>
+    public async Task<WorkflowInstanceSnapshot> RaiseEventByCorrelationAsync<TState>(
+        EventEnvelope envelope,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(envelope);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var matches = instanceRegistry.List()
+            .OfType<WorkflowInstance<TState>>()
+            .Where(instance => instance.HasActiveWait(envelope.EventName, envelope.CorrelationId))
+            .ToArray();
+
+        if (matches.Length == 0)
+        {
+            throw new WorkflowRoutingException(
+                $"No active wait exists for event '{envelope.EventName}' and correlation '{envelope.CorrelationId}'.");
+        }
+
+        if (matches.Length > 1)
+        {
+            throw new WorkflowRoutingException(
+                $"Correlation-targeted delivery for event '{envelope.EventName}' and correlation " +
+                $"'{envelope.CorrelationId}' is ambiguous; use instance-targeted delivery or definition fanout.");
+        }
+
+        return await RaiseEventAsync<TState>(
+            matches[0].InstanceId,
+            envelope,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Delivers an event to all active waits belonging to one workflow definition.
+    /// </summary>
+    public async Task<IReadOnlyList<WorkflowInstanceSnapshot>> RaiseEventByDefinitionAsync<TState>(
+        DefinitionId definitionId,
+        EventEnvelope envelope,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(envelope);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var matches = instanceRegistry.List()
+            .OfType<WorkflowInstance<TState>>()
+            .Where(instance =>
+                instance.DefinitionId == definitionId &&
+                instance.HasActiveWait(envelope.EventName, envelope.CorrelationId))
+            .ToArray();
+        var snapshots = new List<WorkflowInstanceSnapshot>(matches.Length);
+
+        foreach (var instance in matches)
+        {
+            var snapshot = await RaiseEventAsync<TState>(
+                instance.InstanceId,
+                envelope,
+                cancellationToken).ConfigureAwait(false);
+            snapshots.Add(snapshot);
+        }
+
+        return snapshots;
+    }
 }
