@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Aggregates;
 
@@ -9,6 +10,7 @@ namespace OrcaCore.Engine.Durable.Execution;
 internal sealed class DurableCommandProcessor(IWorkflowEventStore eventStore)
 {
     private readonly ConcurrentDictionary<InstanceId, SemaphoreSlim> lanes = [];
+    private readonly IWorkflowInboxStore? inboxStore = eventStore as IWorkflowInboxStore;
 
     internal Task<DurableCommandResult> ProcessAsync(
         StartWorkflowCommand command,
@@ -66,6 +68,18 @@ internal sealed class DurableCommandProcessor(IWorkflowEventStore eventStore)
     }
 
     internal Task<DurableCommandResult> ProcessAsync(
+        DeliverEventCommand command,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        return RunInLaneAsync(
+            command.InstanceId,
+            aggregate => aggregate.DecideDeliverEvent(command),
+            cancellationToken,
+            command.Envelope.EventId);
+    }
+
+    internal Task<DurableCommandResult> ProcessAsync(
         DurableCompleteCommand command,
         CancellationToken cancellationToken)
     {
@@ -102,13 +116,14 @@ internal sealed class DurableCommandProcessor(IWorkflowEventStore eventStore)
     private async Task<DurableCommandResult> RunInLaneAsync(
         InstanceId instanceId,
         Func<DurableWorkflowAggregate, DurableDecision> decide,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        EventId? inboxEventId = null)
     {
         var lane = lanes.GetOrAdd(instanceId, _ => new SemaphoreSlim(1, 1));
         await lane.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return await ProcessCoreAsync(instanceId, decide, cancellationToken).ConfigureAwait(false);
+            return await ProcessCoreAsync(instanceId, decide, cancellationToken, inboxEventId).ConfigureAwait(false);
         }
         finally
         {
@@ -119,8 +134,27 @@ internal sealed class DurableCommandProcessor(IWorkflowEventStore eventStore)
     private async Task<DurableCommandResult> ProcessCoreAsync(
         InstanceId instanceId,
         Func<DurableWorkflowAggregate, DurableDecision> decide,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        EventId? inboxEventId)
     {
+        var inboxState = await LoadInboxStateAsync(inboxEventId, cancellationToken).ConfigureAwait(false);
+        if (inboxState.HasValue &&
+            inboxState.Value is InboxRecordState.Applied or InboxRecordState.DuplicateIgnored)
+        {
+            return new DurableCommandResult(
+                DurableCommandOutcome.NoOp,
+                "Inbound event was already applied.",
+                StreamVersion.Empty);
+        }
+
+        if (inboxState.HasValue && inboxState.Value == InboxRecordState.Poisoned)
+        {
+            return new DurableCommandResult(
+                DurableCommandOutcome.Poisoned,
+                "Inbound event was previously recorded as poisoned.",
+                StreamVersion.Empty);
+        }
+
         var checkpointOption = await eventStore
             .LoadCheckpointAsync(instanceId, cancellationToken)
             .ConfigureAwait(false);
@@ -137,6 +171,18 @@ internal sealed class DurableCommandProcessor(IWorkflowEventStore eventStore)
 
         if (decision.Events.Count == 0 && decision.Checkpoint is null)
         {
+            if (inboxEventId is { } poisonedEventId)
+            {
+                return await CommitInboxOnlyAsync(
+                    instanceId,
+                    aggregate.StreamVersion,
+                    poisonedEventId,
+                    InboxRecordState.Poisoned,
+                    DurableCommandOutcome.Poisoned,
+                    "No active wait matched the inbound event.",
+                    cancellationToken).ConfigureAwait(false);
+            }
+
             if (decision.EvictAfterCommit)
             {
                 return new DurableCommandResult(
@@ -159,7 +205,10 @@ internal sealed class DurableCommandProcessor(IWorkflowEventStore eventStore)
                     StreamId = new WorkflowStreamId(instanceId),
                     ExpectedVersion = aggregate.StreamVersion,
                     Events = decision.Events,
-                    Checkpoint = decision.Checkpoint
+                    Checkpoint = decision.Checkpoint,
+                    InboxOperations = inboxEventId is { } eventId
+                        ? [new InboxWrite(eventId, InboxRecordState.Applied)]
+                        : []
                 },
                 cancellationToken)
             .ConfigureAwait(false);
@@ -191,6 +240,51 @@ internal sealed class DurableCommandProcessor(IWorkflowEventStore eventStore)
             checkpoint.ContentType,
             [.. checkpoint.Payload]);
     }
+
+    private async Task<Option<InboxRecordState>> LoadInboxStateAsync(
+        EventId? eventId,
+        CancellationToken cancellationToken)
+    {
+        if (eventId is not { } inboxEventId)
+        {
+            return Option<InboxRecordState>.None;
+        }
+
+        return await RequiredInboxStore()
+            .GetAsync(inboxEventId, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private async Task<DurableCommandResult> CommitInboxOnlyAsync(
+        InstanceId instanceId,
+        StreamVersion expectedVersion,
+        EventId eventId,
+        InboxRecordState state,
+        DurableCommandOutcome successOutcome,
+        string successMessage,
+        CancellationToken cancellationToken)
+    {
+        var appendResult = await eventStore
+            .AppendAsync(
+                new ProviderCommitBatch
+                {
+                    StreamId = new WorkflowStreamId(instanceId),
+                    ExpectedVersion = expectedVersion,
+                    InboxOperations = [new InboxWrite(eventId, state)]
+                },
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return appendResult.Match(
+            success => new DurableCommandResult(successOutcome, successMessage, success.NewVersion),
+            error => new DurableCommandResult(DurableCommandOutcome.Conflict, error.Message, expectedVersion));
+    }
+
+    private IWorkflowInboxStore RequiredInboxStore()
+    {
+        return inboxStore ?? throw new InvalidOperationException(
+            "Durable event delivery requires an inbox-capable provider.");
+    }
 }
 
 internal enum DurableCommandOutcome
@@ -198,6 +292,7 @@ internal enum DurableCommandOutcome
     Committed,
     Conflict,
     Evicted,
+    Poisoned,
     NoOp
 }
 

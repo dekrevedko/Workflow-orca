@@ -1,4 +1,5 @@
 using OrcaCore.Abstractions.Durable;
+using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
@@ -253,6 +254,34 @@ internal sealed class DurableWorkflowAggregate
         ]);
     }
 
+    internal DurableDecision DecideDeliverEvent(DeliverEventCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        if (IsTerminal)
+        {
+            return DurableDecision.Empty;
+        }
+
+        var wait = FindActiveWait(command.Envelope);
+        if (wait is null)
+        {
+            return DurableDecision.Empty;
+        }
+
+        return new DurableDecision([
+            new WorkflowWaitMatchedEvent
+            {
+                EventId = EventId.New(),
+                InstanceId = command.InstanceId,
+                CommandId = command.CommandId,
+                CausationId = ToCausationId(command.CommandId),
+                OccurredAt = command.RequestedAt,
+                WaitId = wait.WaitId,
+                MatchedEventId = command.Envelope.EventId
+            }
+        ]);
+    }
+
     internal DurableDecision DecideComplete(DurableCompleteCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -375,6 +404,13 @@ internal sealed class DurableWorkflowAggregate
     private static CausationId ToCausationId(CommandId commandId)
     {
         return new CausationId(commandId.Value);
+    }
+
+    private DurableActiveWait? FindActiveWait(EventEnvelope envelope)
+    {
+        return activeWaits.FirstOrDefault(wait =>
+            wait.EventName == envelope.EventName &&
+            wait.CorrelationId == envelope.CorrelationId);
     }
 }
 
