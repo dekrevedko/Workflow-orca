@@ -11,3 +11,4 @@ T2-07 | done | 2026-07-02 | deviations: checkpoint writes now carry durable aggr
 T2-08 | done | 2026-07-02 | deviations: durable WaitLong is represented by a durable-only builder surface and command-level cold wait registration rather than the core builder
 T2-09 | done | 2026-07-02 | deviations: poisoned delivery metadata is exposed through the command result message while the provider inbox stores the stable Poisoned state
 T2-10 | done | 2026-07-02 | deviations: none; IOQ-2 remains deferred to Phase 2 exit and the pump uses Channels only
+T2-11 | done | 2026-07-02 | deviations: StartOrGet idempotency is implemented in the durable start service for this slice; provider-backed key indexing remains future provider work
