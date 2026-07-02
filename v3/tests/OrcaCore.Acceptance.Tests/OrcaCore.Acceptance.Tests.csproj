@@ -25,6 +25,7 @@
     <ProjectReference Include="..\..\src\OrcaCore.Hosting\OrcaCore.Hosting.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Abstractions\OrcaCore.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Providers.InMemory\OrcaCore.Providers.InMemory.csproj" />
+    <ProjectReference Include="..\OrcaCore.TestSupport\OrcaCore.TestSupport.csproj" />
   </ItemGroup>
 
 </Project>
