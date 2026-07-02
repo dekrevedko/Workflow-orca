@@ -15,3 +15,4 @@ T0-04 | done | 2026-07-02 | deviations: RaceCoordinator's timeout is a real wall
 ## Phase 1 — ephemeral engine core
 
 T1-01 | done | 2026-07-02 | deviations: DefinitionId/DefinitionVersion/CorrelationId are NOT Guid.CreateVersion7-based (only InstanceId/EventId/WaitId are, matching 00-stack-decisions §2's explicit list); DefinitionId and CorrelationId wrap validated non-empty strings, DefinitionVersion wraps a validated positive int; "V7 ordered" verified via ordinal string comparison of two New() ids rather than IComparable (kept surface minimal per T0-03 precedent)
+T1-02 | done | 2026-07-02 | deviations: Theory+MemberData over the internal LifecycleTrigger enum hits CS0051/CS0053 (public theory method/property can't expose an internal parameter type even with InternalsVisibleTo, and xUnit requires public test classes) — rewrote as two [Fact] tests looping over private (tuple) fixtures instead, keeping LifecycleTrigger internal per the task's explicit requirement
