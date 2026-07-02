@@ -1,0 +1,105 @@
+using System.Collections.Concurrent;
+using OrcaCore.Abstractions.Durable;
+using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Primitives;
+using OrcaCore.Abstractions.Providers;
+
+namespace OrcaCore.TestSupport.Providers;
+
+public sealed class FakeWorkflowEventStore :
+    IWorkflowEventStore,
+    IWorkflowInboxStore,
+    IWorkflowOutboxStore,
+    IWorkflowProjectionStore
+{
+    private readonly object gate = new();
+    private readonly ConcurrentDictionary<EventId, InboxRecordState> inbox = [];
+    private readonly ConcurrentDictionary<OutboxRecordId, OutboxWrite> outbox = [];
+    private readonly ConcurrentDictionary<WorkflowStreamId, List<WorkflowEvent>> streams = [];
+    private int failNextCommitBeforeApply;
+
+    public Task<Result<AppendEventsResult>> AppendAsync(
+        ProviderCommitBatch batch,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            if (Interlocked.Exchange(ref failNextCommitBeforeApply, 0) == 1)
+            {
+                return Task.FromResult(EventStoreConflict.ExpectedVersionMismatch(
+                    batch.ExpectedVersion,
+                    batch.ExpectedVersion));
+            }
+
+            var stream = streams.GetOrAdd(batch.StreamId, _ => []);
+            var actualVersion = new StreamVersion(stream.Count);
+            if (actualVersion != batch.ExpectedVersion)
+            {
+                return Task.FromResult(EventStoreConflict.ExpectedVersionMismatch(
+                    batch.ExpectedVersion,
+                    actualVersion));
+            }
+
+            stream.AddRange(batch.Events);
+            foreach (var operation in batch.InboxOperations)
+            {
+                inbox[operation.EventId] = operation.State;
+            }
+
+            foreach (var record in batch.OutboxRecords)
+            {
+                outbox[record.OutboxRecordId] = record;
+            }
+
+            return Task.FromResult(Result<AppendEventsResult>.Success(
+                new AppendEventsResult(new StreamVersion(stream.Count))));
+        }
+    }
+
+    public Task<IReadOnlyList<WorkflowEvent>> LoadTailAsync(
+        WorkflowStreamId streamId,
+        StreamVersion afterVersion,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            var events = streams.TryGetValue(streamId, out var stream)
+                ? stream.Skip((int)afterVersion.Value).ToArray()
+                : [];
+            return Task.FromResult<IReadOnlyList<WorkflowEvent>>(events);
+        }
+    }
+
+    public Task<Option<InboxRecordState>> GetAsync(EventId eventId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.FromResult(inbox.TryGetValue(eventId, out var state)
+            ? Option<InboxRecordState>.Some(state)
+            : Option<InboxRecordState>.None);
+    }
+
+    public Task<IReadOnlyList<OutboxWrite>> ClaimAsync(int maxCount, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.FromResult<IReadOnlyList<OutboxWrite>>(
+            outbox.Values.Take(maxCount).ToArray());
+    }
+
+    public Task ApplyAsync(IReadOnlyList<ProjectionWrite> operations, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.CompletedTask;
+    }
+
+    public void FailNextCommitBeforeApply()
+    {
+        Interlocked.Exchange(ref failNextCommitBeforeApply, 1);
+    }
+}
