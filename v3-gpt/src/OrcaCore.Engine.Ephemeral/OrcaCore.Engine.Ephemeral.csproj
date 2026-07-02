@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\OrcaCore.Abstractions\OrcaCore.Abstractions.csproj" />
+    <ProjectReference Include="..\OrcaCore.Core\OrcaCore.Core.csproj" />
+  </ItemGroup>
+</Project>

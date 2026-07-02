@@ -34,3 +34,9 @@ _ReSharper*/
 _NCrunch_*
 *.ncrunch*
 .*crunch*.local.xml
+
+# v3-gpt rebuild workspace
+v3-gpt/**/bin/
+v3-gpt/**/obj/
+v3-gpt/TestResults/
+v3-gpt/**/TestResults/

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OrcaCore.Abstractions\OrcaCore.Abstractions.csproj" />
+    <ProjectReference Include="..\OrcaCore.Core\OrcaCore.Core.csproj" />
+    <ProjectReference Include="..\OrcaCore.Engine.Ephemeral\OrcaCore.Engine.Ephemeral.csproj" />
+    <ProjectReference Include="..\OrcaCore.Engine.Durable\OrcaCore.Engine.Durable.csproj" />
+    <ProjectReference Include="..\OrcaCore.Providers.InMemory\OrcaCore.Providers.InMemory.csproj" />
+  </ItemGroup>
+</Project>
