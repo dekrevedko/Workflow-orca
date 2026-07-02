@@ -11,5 +11,9 @@ internal interface IWorkflowInstance
 
     object StateObject { get; }
 
+    WorkflowInstanceSnapshot Cancel(DateTimeOffset updatedAt);
+
+    WorkflowInstanceSnapshot Terminate(DateTimeOffset updatedAt);
+
     WorkflowInstanceSnapshot ToSnapshot();
 }

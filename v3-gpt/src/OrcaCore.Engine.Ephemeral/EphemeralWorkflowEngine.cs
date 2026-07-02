@@ -4,6 +4,7 @@ using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Definitions;
+using OrcaCore.Core.Lifecycle;
 using OrcaCore.Engine.Ephemeral.Execution;
 
 namespace OrcaCore.Engine.Ephemeral;
@@ -107,6 +108,28 @@ public sealed class EphemeralWorkflowEngine
     }
 
     /// <summary>
+    /// Starts a short-running workflow and returns its terminal snapshot.
+    /// </summary>
+    public async Task<WorkflowInstanceSnapshot> AwaitCompletionAsync<TInput, TState>(
+        DefinitionId definitionId,
+        TInput input,
+        CancellationToken cancellationToken)
+    {
+        var snapshot = await StartAsync<TInput, TState>(
+            definitionId,
+            input,
+            cancellationToken).ConfigureAwait(false);
+
+        if (!LifecycleMachine.TerminalStatuses.Contains(snapshot.Status))
+        {
+            throw new WorkflowLifecycleException(
+                $"Workflow instance '{snapshot.InstanceId}' did not reach a terminal status synchronously.");
+        }
+
+        return snapshot;
+    }
+
+    /// <summary>
     /// Delivers an event directly to one known instance and resumes it when an active wait matches.
     /// </summary>
     public async Task<WorkflowInstanceSnapshot> RaiseEventAsync<TState>(
@@ -132,6 +155,46 @@ public sealed class EphemeralWorkflowEngine
         return await executionLane.RunAsync(
             instanceId,
             laneCancellationToken => instance.RaiseEventAsync(envelope, laneCancellationToken),
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    internal async Task<WorkflowInstanceSnapshot> CancelInstanceAsync(
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
+    {
+        return await RunTerminalCommandAsync(
+            instanceId,
+            instance => instance.Cancel(timeProvider.GetUtcNow()),
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    internal async Task<WorkflowInstanceSnapshot> TerminateInstanceAsync(
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
+    {
+        return await RunTerminalCommandAsync(
+            instanceId,
+            instance => instance.Terminate(timeProvider.GetUtcNow()),
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<WorkflowInstanceSnapshot> RunTerminalCommandAsync(
+        InstanceId instanceId,
+        Func<IWorkflowInstance, WorkflowInstanceSnapshot> command,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!instanceRegistry.TryGet(instanceId, out var registeredInstance) ||
+            registeredInstance is not IWorkflowInstance instance)
+        {
+            throw new WorkflowRoutingException(
+                $"No workflow instance exists for instance id '{instanceId}'.");
+        }
+
+        return await executionLane.RunAsync(
+            instanceId,
+            _ => Task.FromResult(command(instance)),
             cancellationToken).ConfigureAwait(false);
     }
 

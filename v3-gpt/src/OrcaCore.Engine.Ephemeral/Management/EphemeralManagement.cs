@@ -30,7 +30,7 @@ public sealed class EphemeralManagement
     /// </summary>
     public EphemeralManagementQuery All()
     {
-        return new EphemeralManagementQuery(engine, () => registry.List());
+        return new EphemeralManagementQuery(engine, () => registry.List(), requiresDestructiveSafety: true);
     }
 
     /// <summary>
@@ -46,7 +46,7 @@ public sealed class EphemeralManagement
     /// </summary>
     public EphemeralInstanceManagement Instance(InstanceId instanceId)
     {
-        return new EphemeralInstanceManagement(registry, instanceId);
+        return new EphemeralInstanceManagement(engine, registry, instanceId);
     }
 
     /// <summary>
@@ -57,7 +57,7 @@ public sealed class EphemeralManagement
         ArgumentNullException.ThrowIfNull(instanceIds);
 
         var ids = instanceIds.ToArray();
-        return new EphemeralManagementQuery(engine, () => registry.GetMany(ids));
+        return new EphemeralManagementQuery(engine, () => registry.GetMany(ids), requiresDestructiveSafety: false);
     }
 }
 
@@ -69,21 +69,25 @@ public sealed class EphemeralManagementQuery
     private readonly EphemeralWorkflowEngine engine;
     private readonly IReadOnlyList<Expression<Func<WorkflowInstanceQueryModel, bool>>> filters;
     private readonly Func<IReadOnlyCollection<object>> loadInstances;
+    private readonly bool requiresDestructiveSafety;
 
     internal EphemeralManagementQuery(
         EphemeralWorkflowEngine engine,
-        Func<IReadOnlyCollection<object>> loadInstances)
-        : this(engine, loadInstances, [])
+        Func<IReadOnlyCollection<object>> loadInstances,
+        bool requiresDestructiveSafety)
+        : this(engine, loadInstances, requiresDestructiveSafety, [])
     {
     }
 
     private EphemeralManagementQuery(
         EphemeralWorkflowEngine engine,
         Func<IReadOnlyCollection<object>> loadInstances,
+        bool requiresDestructiveSafety,
         IReadOnlyList<Expression<Func<WorkflowInstanceQueryModel, bool>>> filters)
     {
         this.engine = engine;
         this.loadInstances = loadInstances;
+        this.requiresDestructiveSafety = requiresDestructiveSafety;
         this.filters = filters;
     }
 
@@ -95,7 +99,7 @@ public sealed class EphemeralManagementQuery
         ArgumentNullException.ThrowIfNull(predicate);
         QueryPredicateValidator.Validate(predicate);
 
-        return new EphemeralManagementQuery(engine, loadInstances, [.. filters, predicate]);
+        return new EphemeralManagementQuery(engine, loadInstances, requiresDestructiveSafety, [.. filters, predicate]);
     }
 
     /// <summary>
@@ -187,6 +191,56 @@ public sealed class EphemeralManagementQuery
         return results;
     }
 
+    /// <summary>
+    /// Cancels every non-terminal instance in the current selection.
+    /// </summary>
+    public async Task<TerminalCommandReport> CancelAsync(CancellationToken cancellationToken)
+    {
+        var results = new List<WorkflowInstanceSnapshot>();
+        foreach (var snapshot in List().Where(snapshot => !IsTerminal(snapshot.Status)))
+        {
+            results.Add(await engine.CancelInstanceAsync(snapshot.InstanceId, cancellationToken).ConfigureAwait(false));
+        }
+
+        return new TerminalCommandReport { Results = results };
+    }
+
+    /// <summary>
+    /// Rejects broad destructive termination unless explicit safety is supplied.
+    /// </summary>
+    public Task<TerminalCommandReport> TerminateAsync(CancellationToken cancellationToken)
+    {
+        if (requiresDestructiveSafety)
+        {
+            throw new WorkflowLifecycleException(
+                "Broad destructive Terminate requires explicit safety confirmation.");
+        }
+
+        return TerminateAsync(DestructiveCommandSafety.Confirmed, cancellationToken);
+    }
+
+    /// <summary>
+    /// Terminates every non-terminal instance in the current selection.
+    /// </summary>
+    public async Task<TerminalCommandReport> TerminateAsync(
+        DestructiveCommandSafety safety,
+        CancellationToken cancellationToken)
+    {
+        if (safety != DestructiveCommandSafety.Confirmed)
+        {
+            throw new WorkflowLifecycleException(
+                "Terminate requires explicit safety confirmation.");
+        }
+
+        var results = new List<WorkflowInstanceSnapshot>();
+        foreach (var snapshot in List().Where(snapshot => !IsTerminal(snapshot.Status)))
+        {
+            results.Add(await engine.TerminateInstanceAsync(snapshot.InstanceId, cancellationToken).ConfigureAwait(false));
+        }
+
+        return new TerminalCommandReport { Results = results };
+    }
+
     private IEnumerable<WorkflowInstanceSnapshot> ApplyFilters(IEnumerable<WorkflowInstanceSnapshot> snapshots)
     {
         var filtered = snapshots;
@@ -206,6 +260,14 @@ public sealed class EphemeralManagementQuery
             .Select(instance => instance.ToSnapshot())
             .ToArray();
     }
+
+    private static bool IsTerminal(WorkflowStatus status)
+    {
+        return status is WorkflowStatus.Completed or
+            WorkflowStatus.Failed or
+            WorkflowStatus.Cancelled or
+            WorkflowStatus.Terminated;
+    }
 }
 
 /// <summary>
@@ -213,11 +275,16 @@ public sealed class EphemeralManagementQuery
 /// </summary>
 public sealed class EphemeralInstanceManagement
 {
+    private readonly EphemeralWorkflowEngine engine;
     private readonly InstanceId instanceId;
     private readonly IInstanceRegistry registry;
 
-    internal EphemeralInstanceManagement(IInstanceRegistry registry, InstanceId instanceId)
+    internal EphemeralInstanceManagement(
+        EphemeralWorkflowEngine engine,
+        IInstanceRegistry registry,
+        InstanceId instanceId)
     {
+        this.engine = engine;
         this.registry = registry;
         this.instanceId = instanceId;
     }
@@ -251,6 +318,22 @@ public sealed class EphemeralInstanceManagement
     public IReadOnlyList<ActiveWaitSnapshot> GetActiveWaits()
     {
         return Get().ActiveWaits.ToArray();
+    }
+
+    /// <summary>
+    /// Cooperatively cancels the selected instance.
+    /// </summary>
+    public Task<WorkflowInstanceSnapshot> CancelAsync(CancellationToken cancellationToken)
+    {
+        return engine.CancelInstanceAsync(instanceId, cancellationToken);
+    }
+
+    /// <summary>
+    /// Forcibly terminates the selected instance.
+    /// </summary>
+    public Task<WorkflowInstanceSnapshot> TerminateAsync(CancellationToken cancellationToken)
+    {
+        return engine.TerminateInstanceAsync(instanceId, cancellationToken);
     }
 
     private IWorkflowInstance GetInstance()
@@ -331,6 +414,27 @@ public sealed record WorkflowStatisticsGroup
     public required WorkflowStatus Status { get; init; }
 
     public required int Count { get; init; }
+}
+
+/// <summary>
+/// Explicit confirmation token for broad destructive commands.
+/// </summary>
+public enum DestructiveCommandSafety
+{
+    /// <summary>
+    /// Caller explicitly confirmed the destructive breadth.
+    /// </summary>
+    Confirmed
+}
+
+/// <summary>
+/// Result summary for terminal management commands.
+/// </summary>
+public sealed record TerminalCommandReport
+{
+    public required IReadOnlyList<WorkflowInstanceSnapshot> Results { get; init; }
+
+    public int AffectedCount => Results.Count;
 }
 
 internal sealed class QueryPredicateValidator : ExpressionVisitor

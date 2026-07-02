@@ -1,4 +1,5 @@
 using OrcaCore.Abstractions.Events;
+using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Definitions;
@@ -76,19 +77,25 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     {
         ArgumentNullException.ThrowIfNull(envelope);
 
-        if (HasSeen(envelope.EventId) || LifecycleMachine.TerminalStatuses.Contains(Status))
+        if (HasSeen(envelope.EventId))
         {
             return ToSnapshot();
+        }
+
+        if (HasConsumedWait(envelope.EventName, envelope.CorrelationId))
+        {
+            return ToSnapshot();
+        }
+
+        if (LifecycleMachine.TerminalStatuses.Contains(Status))
+        {
+            throw new WorkflowLifecycleException(
+                $"Cannot raise event for workflow instance '{InstanceId}' because status '{Status}' is terminal.");
         }
 
         var wait = activeWaits.FirstOrDefault(candidate => candidate.Matches(envelope));
         if (wait is null)
         {
-            if (HasConsumedWait(envelope.EventName, envelope.CorrelationId))
-            {
-                return ToSnapshot();
-            }
-
             pendingEvents.Add(envelope);
             return ToSnapshot();
         }
@@ -179,6 +186,18 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         UpdatedAt = errorDetails.OccurredAt;
     }
 
+    internal WorkflowInstanceSnapshot Cancel(DateTimeOffset updatedAt)
+    {
+        ApplyTerminalTrigger(LifecycleTrigger.Cancel, updatedAt);
+        return ToSnapshot();
+    }
+
+    internal WorkflowInstanceSnapshot Terminate(DateTimeOffset updatedAt)
+    {
+        ApplyTerminalTrigger(LifecycleTrigger.Terminate, updatedAt);
+        return ToSnapshot();
+    }
+
     internal WorkflowInstanceSnapshot ToSnapshot()
     {
         return new WorkflowInstanceSnapshot
@@ -204,6 +223,30 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     WorkflowInstanceSnapshot IWorkflowInstance.ToSnapshot()
     {
         return ToSnapshot();
+    }
+
+    WorkflowInstanceSnapshot IWorkflowInstance.Cancel(DateTimeOffset updatedAt)
+    {
+        return Cancel(updatedAt);
+    }
+
+    WorkflowInstanceSnapshot IWorkflowInstance.Terminate(DateTimeOffset updatedAt)
+    {
+        return Terminate(updatedAt);
+    }
+
+    private void ApplyTerminalTrigger(LifecycleTrigger trigger, DateTimeOffset updatedAt)
+    {
+        var result = LifecycleMachine.Fire(Status, trigger);
+        if (result.IsFailure)
+        {
+            throw result.Error;
+        }
+
+        Status = result.Value;
+        UpdatedAt = updatedAt;
+        activeWaits.Clear();
+        pendingEvents.Clear();
     }
 
     private void FireOrThrow(LifecycleTrigger trigger)

@@ -14,3 +14,4 @@ T1-10 | done | 2026-07-02 | deviations: correlation index is derived from curren
 T1-11 | done | 2026-07-02 | deviations: stale loop events are filtered by consumed wait signature rather than a serialized execution-frame identity
 T1-12 | done | 2026-07-02 | deviations: parallel branch start is deterministic in definition order; racing branch resumes are serialized by the per-instance lane
 T1-13 | done | 2026-07-02 | deviations: state copies use System.Text.Json serialization for this baseline
+T1-14 | done | 2026-07-02 | deviations: concurrent stale resume events with consumed wait signatures remain idempotent no-ops even after terminal completion
