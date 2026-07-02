@@ -32,6 +32,15 @@ public sealed class WorkflowBuilder<TState>
     }
 
     /// <summary>
+    /// Adds an explicitly configured business step instance.
+    /// </summary>
+    public WorkflowBuilder<TState> Then(IStep<TState>? step)
+    {
+        nodes.Add(new StepBuilderNode(() => step!, step is null));
+        return this;
+    }
+
+    /// <summary>
     /// Adds a business step using a deterministic step factory.
     /// </summary>
     public WorkflowBuilder<TState> Then(Func<IStep<TState>>? stepFactory)

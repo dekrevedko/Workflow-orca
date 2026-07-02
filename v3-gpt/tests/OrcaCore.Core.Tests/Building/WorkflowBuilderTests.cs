@@ -120,6 +120,42 @@ public sealed class WorkflowBuilderTests
             .Single().OutcomeName.Should().Be("Approved");
     }
 
+    [Fact]
+    public void Then_GenericParameterlessStep_UsesTypedStepFactory()
+    {
+        var definition = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("created"))
+            .Then<TestStep>()
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+
+        var step = definition.RootSequence.Children
+            .OfType<BusinessStepNode<TestState>>()
+            .Single()
+            .StepFactory();
+
+        step.Should().BeOfType<TestStep>();
+    }
+
+    [Fact]
+    public void Then_ConfiguredStepInstance_StoresExplicitFactory()
+    {
+        var configuredStep = new ConfiguredStep("x");
+
+        var definition = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("created"))
+            .Then(configuredStep)
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+
+        var step = definition.RootSequence.Children
+            .OfType<BusinessStepNode<TestState>>()
+            .Single()
+            .StepFactory();
+
+        step.Should().BeSameAs(configuredStep);
+    }
+
     private sealed record TestState(string CorrelationId, bool ShouldRoute = true);
 
     private sealed class TestStep : IStep<TestState>
@@ -128,6 +164,17 @@ public sealed class WorkflowBuilderTests
             StepContext<TestState> context,
             CancellationToken cancellationToken)
         {
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed class ConfiguredStep(string name) : IStep<TestState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<TestState> context,
+            CancellationToken cancellationToken)
+        {
+            _ = name;
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
         }
     }
