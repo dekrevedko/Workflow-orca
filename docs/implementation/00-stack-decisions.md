@@ -29,6 +29,7 @@ plugin. Recorded as open question IOQ-2 below.
 | IDs | **`Guid.CreateVersion7()`** | Time-ordered GUIDs for `InstanceId`, `EventId`, `CommandId`, tickets — index-friendly in Postgres |
 | Time | **`TimeProvider`** everywhere | No `DateTime.Now`/`UtcNow`/`Task.Delay(int)` in production code; tests use `FakeTimeProvider` (`Microsoft.Extensions.TimeProvider.Testing`) |
 | Durable projections | **Same commit boundary as event append** (resolved 2026-07-02, IOQ-3) | Projection writes are included in the provider commit batch with events, checkpoint, inbox, and outbox records so routing/query correctness is immediately consistent after accepted mutations. |
+| PostgreSQL event schema | **Single provider-owned `events` table for all instances; engine facts stored as `jsonb`; checkpoint business payloads stored as `bytea` with content type** (resolved 2026-07-02, IOQ-1) | Table-per-definition would leak workflow definitions into provider schema and complicate cross-definition management queries; JSONB keeps engine facts inspectable for projections/history, while checkpoint byte payloads preserve the explicit serialization seam. |
 | Mocking | **Hand-rolled fakes first**, NSubstitute allowed | Fakes of ports live in a shared test-support project and double as executable documentation; NSubstitute only for narrow one-off stubs |
 | Assertions | **AwesomeAssertions** (FluentAssertions API, Apache-2.0 community fork) | Same `FluentAssertions` namespace and `Should()` syntax — tests read as classic FluentAssertions; maintained and xUnit v3-aware. Original `FluentAssertions` v8+ is banned (commercial license); pinning original FA **7.x** (last Apache release) is the recorded fallback if the fork ever misbehaves. Plain xUnit `Assert` remains acceptable where clearer (e.g. structural checks) |
 | Integration tests | **Testcontainers for .NET** | Postgres, RabbitMQ, later Redis/MSSQL/DynamoDB(-local) |
@@ -64,7 +65,6 @@ The two registers never share numbers.
 
 | # | Question | Resolve at | Constraint while open |
 |---|----------|-----------|----------------------|
-| IOQ-1 | Postgres schema shape: one `events` table for all instances vs table-per-definition; JSONB vs bytea payload columns | Phase 2, before T2 store tasks | Ports (PR-010…016) are schema-agnostic; nothing outside the plugin may know |
 | IOQ-2 | TPL Dataflow inside the outbox dispatch pump (batching/backpressure) | Phase 2 exit review | Core stays Channels-only; pump interface must not leak the choice |
 | IOQ-4 | Allow Dapper inside SQL plugins for read/projection queries | Phase 2 exit | Raw Npgsql until then |
 | IOQ-5 | Observability: OpenTelemetry (`ActivitySource`/`Meter`) naming scheme and what's in core vs hosting | Phase 3 start | Core emits via `ILogger` abstractions only until decided |

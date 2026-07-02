@@ -6,6 +6,7 @@
     <Project Path="src/OrcaCore.Engine.Ephemeral/OrcaCore.Engine.Ephemeral.csproj" />
     <Project Path="src/OrcaCore.Hosting/OrcaCore.Hosting.csproj" />
     <Project Path="src/OrcaCore.Providers.InMemory/OrcaCore.Providers.InMemory.csproj" />
+    <Project Path="src/OrcaCore.Providers.PostgreSql/OrcaCore.Providers.PostgreSql.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/OrcaCore.Acceptance.Tests/OrcaCore.Acceptance.Tests.csproj" />
@@ -13,6 +14,7 @@
     <Project Path="tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj" />
     <Project Path="tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj" />
     <Project Path="tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj" />
+    <Project Path="tests/OrcaCore.Providers.PostgreSql.Tests/OrcaCore.Providers.PostgreSql.Tests.csproj" />
     <Project Path="tests/OrcaCore.TestSupport/OrcaCore.TestSupport.csproj" />
   </Folder>
 </Solution>

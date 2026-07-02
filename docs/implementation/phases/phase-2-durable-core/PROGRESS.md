@@ -14,3 +14,4 @@ T2-10 | done | 2026-07-02 | deviations: none; IOQ-2 remains deferred to Phase 2 
 T2-11 | done | 2026-07-02 | deviations: StartOrGet idempotency is implemented in the durable start service for this slice; provider-backed key indexing remains future provider work
 T2-12 | done | 2026-07-02 | deviations: retry/delete/purge baseline surface remains deferred; this slice implements the specified AC-512 through AC-515 and AC-517 pause/resume buffering and discard audit tests
 T2-13 | done | 2026-07-02 | deviations: none
+T2-14 | done | 2026-07-02 | deviations: IOQ-1 resolved to a single PostgreSQL events table with jsonb engine facts and bytea checkpoint payloads; Docker Desktop was started to run Testcontainers verification
