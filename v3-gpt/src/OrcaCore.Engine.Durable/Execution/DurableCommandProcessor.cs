@@ -11,8 +11,7 @@ public sealed class DurableCommandProcessor
 {
     private readonly DurableCommandRuntime runtime;
     private readonly IWorkflowEventStore eventStore;
-    private readonly DurableCommitMaterializer commitMaterializer = new();
-    private readonly DurableResourcePoolCommitEffects resourcePoolCommitEffects;
+    private readonly DurableCommitPipeline commitPipeline;
     private readonly IResourcePoolStore? resourcePoolStore;
     private readonly IWorkflowInboxStore? inboxStore;
     private readonly IWorkflowStartIdempotencyStore? startIdempotencyStore;
@@ -38,7 +37,10 @@ public sealed class DurableCommandProcessor
         this.runtime = runtime;
         eventStore = runtime.EventStore;
         resourcePoolStore = runtime.ResourcePoolStore;
-        resourcePoolCommitEffects = new DurableResourcePoolCommitEffects(resourcePoolStore);
+        commitPipeline = new DurableCommitPipeline(
+            eventStore,
+            new DurableCommitMaterializer(),
+            new DurableResourcePoolCommitEffects(resourcePoolStore));
         inboxStore = eventStore as IWorkflowInboxStore;
         startIdempotencyStore = eventStore as IWorkflowStartIdempotencyStore;
     }
@@ -496,61 +498,9 @@ public sealed class DurableCommandProcessor
             tail);
         var decision = await decide(aggregate, cancellationToken).ConfigureAwait(false);
 
-        if (decision.Events.Count == 0 && decision.Checkpoint is null)
-        {
-            if (inboxEventId is { } poisonedEventId)
-            {
-                return await CommitInboxOnlyAsync(
-                    instanceId,
-                    aggregate.StreamVersion,
-                    poisonedEventId,
-                    InboxRecordState.Poisoned,
-                    DurableCommandOutcome.Poisoned,
-                    "No active wait matched the inbound event.",
-                    cancellationToken).ConfigureAwait(false);
-            }
-
-            if (decision.EvictAfterCommit)
-            {
-                return new DurableCommandResult(
-                    DurableCommandOutcome.Evicted,
-                    "Instance is evictable from hot memory.",
-                    aggregate.StreamVersion,
-                    true);
-            }
-
-            return new DurableCommandResult(
-                DurableCommandOutcome.NoOp,
-                "Command produced no durable events.",
-                aggregate.StreamVersion);
-        }
-
-        var appendResult = await eventStore
-            .AppendAsync(
-                commitMaterializer.CreateBatch(
-                    instanceId,
-                    aggregate.StreamVersion,
-                    decision,
-                    aggregate,
-                    inboxEventId),
-                cancellationToken)
+        return await commitPipeline
+            .CommitAsync(instanceId, aggregate, decision, inboxEventId, cancellationToken)
             .ConfigureAwait(false);
-
-        if (appendResult.IsFailure)
-        {
-            await resourcePoolCommitEffects.RollBackAcquiresAsync(decision.Events, cancellationToken).ConfigureAwait(false);
-            return new DurableCommandResult(
-                DurableCommandOutcome.Conflict,
-                appendResult.Error.Message,
-                aggregate.StreamVersion);
-        }
-
-        await resourcePoolCommitEffects.ReleaseCommittedTicketsAsync(decision.Events, cancellationToken).ConfigureAwait(false);
-        return new DurableCommandResult(
-            DurableCommandOutcome.Committed,
-            null,
-            appendResult.Value.NewVersion,
-            decision.EvictAfterCommit);
     }
 
     private static DurableAggregateCheckpoint ToAggregateCheckpoint(CheckpointWrite checkpoint)
@@ -641,26 +591,6 @@ public sealed class DurableCommandProcessor
         return await RequiredInboxStore()
             .GetAsync(inboxEventId, cancellationToken)
             .ConfigureAwait(false);
-    }
-
-    private async Task<DurableCommandResult> CommitInboxOnlyAsync(
-        InstanceId instanceId,
-        StreamVersion expectedVersion,
-        EventId eventId,
-        InboxRecordState state,
-        DurableCommandOutcome successOutcome,
-        string successMessage,
-        CancellationToken cancellationToken)
-    {
-        var appendResult = await eventStore
-            .AppendAsync(
-                commitMaterializer.CreateInboxOnlyBatch(instanceId, expectedVersion, eventId, state),
-                cancellationToken)
-            .ConfigureAwait(false);
-
-        return appendResult.Match(
-            success => new DurableCommandResult(successOutcome, successMessage, success.NewVersion),
-            error => new DurableCommandResult(DurableCommandOutcome.Conflict, error.Message, expectedVersion));
     }
 
     private IWorkflowInboxStore RequiredInboxStore()

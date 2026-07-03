@@ -95,6 +95,14 @@ Follow-up implementation verification, 2026-07-03:
   `-warnaserror`, the full non-integration `v3-gpt/tests` sweep, and
   `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 81, skipped 18, failed
   0.
+- Durable commit-pipeline extraction pass added focused
+  `DurableCommitPipeline` tests for inbox-only poison commits, no-append
+  eviction, append conflicts, and resource-pool side effects routed by append
+  success or failure. Focused durable execution coverage passed before broader
+  verification. Broader verification passed the non-integration analyzer build
+  loop with `-warnaserror`, the full non-integration `v3-gpt/tests` sweep, and
+  `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 81, skipped 18, failed
+  0.
 - Durable wait-state extraction pass added focused `DurableWaitState` tests and
   reran the durable analyzer build and full durable test project before broader
   verification.
@@ -321,6 +329,11 @@ Implementation update:
   rollback on append conflict, committed-ticket release, and transient release
   retry. `DurableCommandProcessor` still owns command routing, rehydration, lane
   execution, and append result branching.
+- 2026-07-03: extracted `DurableCommitPipeline` for no-op/eviction decisions,
+  inbox-only poison commits, provider append, conflict result mapping, and
+  commit-success/failure resource-pool effect routing. `DurableCommandProcessor`
+  still owns command routing, rehydration, lane execution, inbox preflight, and
+  resource-pool acquire command planning.
 
 ### DurableWorkflowAggregate is a feature sink
 
