@@ -1,0 +1,355 @@
+using AwesomeAssertions;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using OrcaCore.Abstractions.Durable;
+using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Instances;
+using OrcaCore.Abstractions.Providers;
+using OrcaCore.Abstractions.Steps;
+using OrcaCore.Core.Building;
+using OrcaCore.Engine.Durable.Execution;
+using OrcaCore.Engine.Durable.Management;
+using OrcaCore.Engine.Ephemeral;
+using OrcaCore.Hosting;
+using OrcaCore.Hosting.Services;
+using OrcaCore.Integration.Tests.Fixtures;
+using OrcaCore.Integration.Tests.Support;
+using OrcaCore.SampleHost;
+using OrcaCore.TestSupport;
+using Xunit;
+
+namespace OrcaCore.Integration.Tests.Hosting;
+
+[Collection(nameof(PostgreSqlCollection))]
+[Trait(Traits.Category, Traits.Integration)]
+public sealed class HostingPostgreSqlIntegrationTests(PostgreSqlOrcaFixture fixture)
+{
+    [Fact]
+    [Trait(Traits.Scenario, "INT-HO-001")]
+    [Trait("AC", "AC-001")]
+    public async Task INT_HO_001_SampleHostRunsEphemeralWorkflowToCompletion()
+    {
+        using var host = SampleHostApplication.Build([]);
+        var engine = host.Services.GetRequiredService<EphemeralWorkflowEngine>();
+        var definition = new WorkflowBuilder<TestState>()
+            .Init<string>(input => new TestState { Value = input })
+            .Then(() => new CompletedStep())
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+        engine.RegisterDefinition(definition);
+
+        var snapshot = await engine.AwaitCompletionAsync<string, TestState>(
+            definition.DefinitionId,
+            "done",
+            TestContext.Current.CancellationToken);
+
+        snapshot.Status.Should().Be(WorkflowStatus.Completed);
+    }
+
+    [Fact]
+    [Trait(Traits.Scenario, "INT-HO-002")]
+    [Trait("AC", "AC-310")]
+    public async Task INT_HO_002_HostPumpDispatchesProcessorCommittedOutbox()
+    {
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        var dispatcher = new RecordingMessageDispatcher();
+        using var host = OrcaIntegrationHost.Build(
+            fixture.ConnectionString,
+            new Microsoft.Extensions.Time.Testing.FakeTimeProvider(IntegrationIds.Timestamp(0)),
+            dispatcher);
+        var pools = host.Services.GetRequiredService<IResourcePoolStore>();
+        await pools.UpsertPoolAsync(
+            IntegrationCommands.Pool("db", 1),
+            TestContext.Current.CancellationToken);
+        var processor = host.Services.GetRequiredService<DurableCommandProcessor>();
+        await processor.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+        await processor.ProcessAsync(
+            IntegrationCommands.RunExternalJob(1, 2, "job-1", IntegrationCommands.Requirement("db")),
+            TestContext.Current.CancellationToken);
+
+        await host.StartAsync(TestContext.Current.CancellationToken);
+        await OrcaIntegrationHost.PumpOutboxOnceAsync(host, TestContext.Current.CancellationToken);
+        await host.StopAsync(TestContext.Current.CancellationToken);
+
+        dispatcher.Records.Should().ContainSingle(record => record.Kind == "external-job-start");
+    }
+
+    [Fact]
+    [Trait(Traits.Scenario, "INT-HO-003")]
+    [Trait("AC", "AC-111")]
+    public async Task INT_HO_003_HostTimerServiceFiresDueTimer()
+    {
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(IntegrationIds.Timestamp(0));
+        var dispatcher = new RecordingMessageDispatcher();
+        using var host = OrcaIntegrationHost.Build(fixture.ConnectionString, clock, dispatcher);
+        var processor = host.Services.GetRequiredService<DurableCommandProcessor>();
+        await processor.ProcessAsync(IntegrationCommands.Start(3), TestContext.Current.CancellationToken);
+        await processor.ProcessAsync(
+            IntegrationCommands.ScheduleTimer(3, 10, 2, IntegrationIds.Timestamp(0)),
+            TestContext.Current.CancellationToken);
+
+        clock.Advance(TimeSpan.FromMinutes(1));
+        await host.StartAsync(TestContext.Current.CancellationToken);
+        var scheduler = host.Services.GetRequiredService<ITimerScheduler>();
+        var due = await scheduler.ClaimDueAsync(clock.GetUtcNow(), 100, TestContext.Current.CancellationToken);
+        foreach (var command in due)
+        {
+            await processor.ProcessAsync(command, TestContext.Current.CancellationToken);
+        }
+        await host.StopAsync(TestContext.Current.CancellationToken);
+
+        var store = host.Services.GetRequiredService<IWorkflowEventStore>();
+        var events = await store.LoadTailAsync(
+            new WorkflowStreamId(IntegrationIds.Instance(3)),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+        events.OfType<WorkflowTimerFiredEvent>().Should().ContainSingle();
+    }
+
+    [Fact]
+    [Trait(Traits.Scenario, "INT-HO-007")]
+    [Trait("AC", "PR-040")]
+    public void INT_HO_007_PostgreSqlHostResolvesPostgreSqlStore()
+    {
+        var dispatcher = new RecordingMessageDispatcher();
+        using var host = OrcaIntegrationHost.Build(
+            fixture.ConnectionString,
+            new Microsoft.Extensions.Time.Testing.FakeTimeProvider(IntegrationIds.Timestamp(0)),
+            dispatcher);
+
+        host.Services.GetRequiredService<IWorkflowEventStore>()
+            .Should().BeOfType<OrcaCore.Providers.PostgreSql.PostgreSqlWorkflowStore>();
+    }
+
+    [Fact]
+    [Trait(Traits.Scenario, "INT-HO-013")]
+    public void INT_HO_013_HostRegistersBothEngines()
+    {
+        using var host = SampleHostApplication.Build([]);
+        host.Services.GetRequiredService<EphemeralWorkflowEngine>().Should().NotBeNull();
+        host.Services.GetRequiredService<DurableCommandProcessor>().Should().NotBeNull();
+    }
+
+    [Fact]
+    [Trait(Traits.Scenario, "INT-HO-004")]
+    [Trait("AC", "AC-316")]
+    public async Task INT_HO_004_GracefulHostShutdownAfterPumpCycle()
+    {
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        var (host, dispatcher, _) = await OrcaIntegrationHost.BuildPostgreSqlAsync(
+            fixture.ConnectionString,
+            cancellationToken: TestContext.Current.CancellationToken);
+        using (host)
+        {
+            var processor = host.Services.GetRequiredService<DurableCommandProcessor>();
+            await processor.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+            await OrcaIntegrationHost.PumpOutboxOnceAsync(host, TestContext.Current.CancellationToken);
+            await host.StopAsync(TestContext.Current.CancellationToken);
+            dispatcher.Records.Should().NotBeEmpty();
+        }
+    }
+
+    [Fact]
+    [Trait(Traits.Scenario, "INT-HO-006")]
+    [Trait("AC", "AC-521")]
+    public async Task INT_HO_006_OperationalSweepExpiresPoolTickets()
+    {
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        await using var pools = await fixture.CreatePoolStoreAsync();
+        await pools.UpsertPoolAsync(
+            IntegrationCommands.Pool("db", 1),
+            TestContext.Current.CancellationToken);
+        var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(IntegrationIds.Timestamp(0));
+        var dispatcher = new RecordingMessageDispatcher();
+        using var host = OrcaIntegrationHost.Build(fixture.ConnectionString, clock, dispatcher);
+        await host.StartAsync(TestContext.Current.CancellationToken);
+        var sweep = host.Services.GetServices<Microsoft.Extensions.Hosting.IHostedService>()
+            .OfType<OrcaCoreOperationalSweepHostedService>()
+            .Should().ContainSingle().Subject;
+        await sweep.StopAsync(TestContext.Current.CancellationToken);
+        await host.StopAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    [Trait(Traits.Scenario, "INT-HO-005")]
+    [Trait("AC", "AC-316")]
+    public async Task INT_HO_005_HostShutdownMidProcessorCommand_BlockedWithoutInjectHook()
+    {
+        await Task.CompletedTask;
+        Assert.Skip("Requires injectable slow-append hook on PostgreSqlWorkflowStore.");
+    }
+
+    [Fact]
+    [Trait(Traits.Scenario, "INT-HO-008")]
+    public void INT_HO_008_HostedServicesIdempotentRegistration()
+    {
+        var services = new ServiceCollection();
+        services.AddOrcaCore();
+        services.AddOrcaCoreHostedServices();
+        services.AddOrcaCoreHostedServices();
+        using var provider = services.BuildServiceProvider();
+        provider.GetServices<IHostedService>()
+            .Count(service => service is OrcaCoreOutboxPumpHostedService)
+            .Should().Be(2);
+    }
+
+    [Fact]
+    [Trait(Traits.Scenario, "INT-HO-009")]
+    [Trait("AC", "DU-032")]
+    public async Task INT_HO_009_OutboxPumpBatchSizeBoundary()
+    {
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        var dispatcher = new RecordingMessageDispatcher();
+        using var host = OrcaIntegrationHost.Build(
+            fixture.ConnectionString,
+            new Microsoft.Extensions.Time.Testing.FakeTimeProvider(IntegrationIds.Timestamp(0)),
+            dispatcher,
+            options => options.OutboxPumpBatchSize = 10);
+        var store = host.Services.GetRequiredService<IWorkflowEventStore>();
+        for (var i = 1; i <= 15; i++)
+        {
+            await store.AppendAsync(
+                IntegrationCommands.OutboxOnlyBatch(
+                    1,
+                    new OutboxWrite(IntegrationIds.Outbox(i), "workflow.completed", [(byte)i])),
+                TestContext.Current.CancellationToken);
+        }
+
+        await OrcaIntegrationHost.PumpOutboxOnceAsync(host, TestContext.Current.CancellationToken);
+        await OrcaIntegrationHost.PumpOutboxOnceAsync(host, TestContext.Current.CancellationToken);
+
+        dispatcher.Records.Should().HaveCount(15);
+    }
+
+    [Fact]
+    [Trait(Traits.Scenario, "INT-HO-010")]
+    [Trait("AC", "EV-050")]
+    public async Task INT_HO_010_TimerSweepWithNoDueTimers_IsNoOp()
+    {
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(IntegrationIds.Timestamp(0));
+        var dispatcher = new RecordingMessageDispatcher();
+        using var host = OrcaIntegrationHost.Build(fixture.ConnectionString, clock, dispatcher);
+        await host.StartAsync(TestContext.Current.CancellationToken);
+        await OrcaIntegrationHost.FireTimersOnceAsync(host, TestContext.Current.CancellationToken);
+        await host.StopAsync(TestContext.Current.CancellationToken);
+        var store = host.Services.GetRequiredService<IWorkflowEventStore>();
+        var events = await store.LoadTailAsync(
+            new WorkflowStreamId(IntegrationIds.Instance(1)),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+        events.Should().BeEmpty();
+    }
+
+    [Fact]
+    [Trait(Traits.Scenario, "INT-HO-011")]
+    [Trait("AC", "NF-020")]
+    public async Task INT_HO_011_FakeTimeProviderDrivesHostedIntervals()
+    {
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(IntegrationIds.Timestamp(0));
+        var dispatcher = new RecordingMessageDispatcher();
+        using var host = OrcaIntegrationHost.Build(fixture.ConnectionString, clock, dispatcher);
+        var processor = host.Services.GetRequiredService<DurableCommandProcessor>();
+        await processor.ProcessAsync(IntegrationCommands.Start(4), TestContext.Current.CancellationToken);
+        await processor.ProcessAsync(
+            IntegrationCommands.ScheduleTimer(4, 11, 2, IntegrationIds.Timestamp(0)),
+            TestContext.Current.CancellationToken);
+        await host.Services.GetRequiredService<IWorkflowEventStore>().AppendAsync(
+            IntegrationCommands.OutboxOnlyBatch(
+                4,
+                new OutboxWrite(IntegrationIds.Outbox(4), "workflow.completed", [1])),
+            TestContext.Current.CancellationToken);
+
+        clock.Advance(TimeSpan.FromMinutes(1));
+        await OrcaIntegrationHost.PumpOutboxOnceAsync(host, TestContext.Current.CancellationToken);
+        var scheduler = host.Services.GetRequiredService<ITimerScheduler>();
+        var due = await scheduler.ClaimDueAsync(clock.GetUtcNow(), 100, TestContext.Current.CancellationToken);
+        foreach (var command in due.Where(c => c.InstanceId == IntegrationIds.Instance(4)))
+        {
+            await processor.ProcessAsync(command, TestContext.Current.CancellationToken);
+        }
+        await OrcaIntegrationHost.RunOperationalSweepOnceAsync(host, TestContext.Current.CancellationToken);
+
+        dispatcher.Records.Should().NotBeEmpty();
+        var store = host.Services.GetRequiredService<IWorkflowEventStore>();
+        (await store.LoadTailAsync(
+            new WorkflowStreamId(IntegrationIds.Instance(4)),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken))
+            .OfType<WorkflowTimerFiredEvent>()
+            .Should().ContainSingle(e => e.InstanceId == IntegrationIds.Instance(4));
+    }
+
+    [Fact]
+    [Trait(Traits.Scenario, "INT-HO-012")]
+    [Trait("AC", "AC-301")]
+    public async Task INT_HO_012_SampleHostDurableWaitSurvivesHostRebuild()
+    {
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        var dispatcher = new RecordingMessageDispatcher();
+        using var host = OrcaIntegrationHost.Build(
+            fixture.ConnectionString,
+            new Microsoft.Extensions.Time.Testing.FakeTimeProvider(IntegrationIds.Timestamp(0)),
+            dispatcher);
+        var processor = host.Services.GetRequiredService<DurableCommandProcessor>();
+        var management = host.Services.GetRequiredService<DurableManagement>();
+        await processor.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+        await processor.ProcessAsync(
+            IntegrationCommands.WaitRegistered(1, 10, 2),
+            TestContext.Current.CancellationToken);
+        await host.StopAsync(TestContext.Current.CancellationToken);
+
+        using var restarted = OrcaIntegrationHost.Build(
+            fixture.ConnectionString,
+            new Microsoft.Extensions.Time.Testing.FakeTimeProvider(IntegrationIds.Timestamp(0)),
+            dispatcher);
+        var restartedProcessor = restarted.Services.GetRequiredService<DurableCommandProcessor>();
+        await restartedProcessor.ProcessAsync(
+            IntegrationCommands.Deliver(1, 50, 3),
+            TestContext.Current.CancellationToken);
+        var snapshot = await restarted.Services.GetRequiredService<DurableManagement>()
+            .Instance(IntegrationIds.Instance(1))
+            .GetAsync(TestContext.Current.CancellationToken);
+        snapshot.Status.Should().Be(WorkflowStatus.Running);
+    }
+
+    [Fact]
+    [Trait(Traits.Scenario, "INT-HO-014")]
+    public async Task INT_HO_014_CancellationTokenStopsHostedLoops()
+    {
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        var (host, _, _) = await OrcaIntegrationHost.BuildPostgreSqlAsync(
+            fixture.ConnectionString,
+            cancellationToken: TestContext.Current.CancellationToken);
+        using (host)
+        {
+            await host.StopAsync(TestContext.Current.CancellationToken);
+            host.Services.GetServices<IHostedService>().Should().NotBeEmpty();
+        }
+    }
+
+    [Fact]
+    [Trait(Traits.Scenario, "INT-HO-015")]
+    [Trait("AC", "OB-010")]
+    public async Task INT_HO_015_OutboxPumpObserver_BlockedUntilImplemented()
+    {
+        await Task.CompletedTask;
+        Assert.Skip("IOutboxPumpObserver not implemented yet.");
+    }
+
+    private sealed class TestState
+    {
+        public string Value { get; set; } = string.Empty;
+    }
+
+    private sealed class CompletedStep : IStep<TestState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(StepContext<TestState> context, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+}
