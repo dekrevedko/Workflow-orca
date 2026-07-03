@@ -8,11 +8,10 @@ namespace OrcaCore.Engine.Durable.Aggregates;
 
 internal sealed class DurableWorkflowAggregate
 {
-    private readonly List<DurableActiveTimer> activeTimers;
-    private readonly List<DurableBufferedTimer> bufferedTimers;
     private readonly DurableChildWorkflowState childState;
     private readonly DurableExternalJobState externalJobState;
     private readonly DurableResourcePoolState resourcePoolState;
+    private readonly DurableTimerState timerState;
     private readonly DurableWaitState waitState;
     private readonly DurableSagaState sagaState;
 
@@ -58,9 +57,8 @@ internal sealed class DurableWorkflowAggregate
         ErrorSummary = errorSummary;
         OutcomeName = outcomeName;
         ContinueAsNewGeneration = continueAsNewGeneration;
-        this.activeTimers = [.. activeTimers];
+        timerState = DurableTimerState.FromSnapshot(activeTimers, bufferedTimers);
         waitState = DurableWaitState.FromSnapshot(activeWaits, bufferedDeliveries);
-        this.bufferedTimers = [.. bufferedTimers];
         childState = DurableChildWorkflowState.FromSnapshot(
             activeChildren,
             activeChildGroups,
@@ -116,10 +114,10 @@ internal sealed class DurableWorkflowAggregate
         ErrorSummary,
         OutcomeName,
         ContinueAsNewGeneration,
-        [.. activeTimers],
+        timerState.ActiveTimers,
         waitState.ActiveWaits,
         waitState.BufferedDeliveries,
-        [.. bufferedTimers],
+        timerState.BufferedTimers,
         childState.ActiveChildren,
         childState.ActiveChildGroups,
         resourcePoolState.ActiveTickets,
@@ -225,10 +223,10 @@ internal sealed class DurableWorkflowAggregate
             ErrorSummary,
             OutcomeName,
             ContinueAsNewGeneration,
-            [.. activeTimers],
+            timerState.ActiveTimers,
             waitState.ActiveWaits,
             waitState.BufferedDeliveries,
-            [.. bufferedTimers],
+            timerState.BufferedTimers,
             childState.ActiveChildren,
             childState.ActiveChildGroups,
             resourcePoolState.ActiveTickets,
@@ -1032,7 +1030,7 @@ internal sealed class DurableWorkflowAggregate
     internal DurableDecision DecideTimerFired(FireTimerCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
-        var timer = activeTimers.FirstOrDefault(candidate => candidate.TimerId == command.TimerId);
+        var timer = timerState.FindActive(command.TimerId);
         if (IsTerminal || timer is null)
         {
             return DurableDecision.Empty;
@@ -1167,23 +1165,9 @@ internal sealed class DurableWorkflowAggregate
             }
         };
 
-        foreach (var bufferedTimer in bufferedTimers)
-        {
-            if (command.BufferedDeliveries == ResumeBufferedDeliveries.Discard)
-            {
-                continue;
-            }
-
-            events.Add(new WorkflowTimerFiredEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                TimerId = bufferedTimer.TimerId
-            });
-        }
+        events.AddRange(timerState.PlanBufferedReplay(
+            CreateTimerEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
+            command.BufferedDeliveries));
 
         var replayPlan = waitState.PlanBufferedDeliveryReplay(
             CreateWaitEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
@@ -1291,10 +1275,10 @@ internal sealed class DurableWorkflowAggregate
             ErrorSummary,
             OutcomeName,
             ContinueAsNewGeneration,
-            activeTimers,
+            timerState.ActiveTimers,
             waitState.ActiveWaits,
             waitState.BufferedDeliveries,
-            bufferedTimers,
+            timerState.BufferedTimers,
             childState.ActiveChildren,
             childState.ActiveChildGroups,
             resourcePoolState.ActiveTickets,
@@ -1354,9 +1338,8 @@ internal sealed class DurableWorkflowAggregate
                 Status = WorkflowStatus.Running;
                 ErrorSummary = null;
                 OutcomeName = null;
-                activeTimers.Clear();
+                timerState.Clear();
                 waitState.Clear();
-                bufferedTimers.Clear();
                 childState.ClearActiveChildren();
                 resourcePoolState.Clear();
                 externalJobState.Clear();
@@ -1373,7 +1356,7 @@ internal sealed class DurableWorkflowAggregate
                 LastStepPath = stepFailed.StepPath;
                 ErrorSummary = stepFailed.ErrorSummary;
                 Status = WorkflowStatus.Failed;
-                activeTimers.Clear();
+                timerState.Clear();
                 waitState.Clear();
                 childState.ClearActiveChildren();
                 break;
@@ -1386,17 +1369,12 @@ internal sealed class DurableWorkflowAggregate
                 Status = waitState.HasActiveWaits ? WorkflowStatus.Waiting : WorkflowStatus.Running;
                 break;
             case WorkflowTimerScheduledEvent timerScheduled:
-                activeTimers.Add(new DurableActiveTimer(
-                    timerScheduled.TimerId,
-                    timerScheduled.FireAt,
-                    timerScheduled.WakeupName,
-                    timerScheduled.OccurredAt));
+                timerState.Apply(timerScheduled);
                 Status = WorkflowStatus.Waiting;
                 break;
             case WorkflowTimerFiredEvent timerFired:
-                activeTimers.RemoveAll(timer => timer.TimerId == timerFired.TimerId);
-                bufferedTimers.RemoveAll(timer => timer.TimerId == timerFired.TimerId);
-                Status = !waitState.HasActiveWaits && activeTimers.Count == 0
+                timerState.Apply(timerFired);
+                Status = !waitState.HasActiveWaits && !timerState.HasActiveTimers
                     ? WorkflowStatus.Running
                     : WorkflowStatus.Waiting;
                 break;
@@ -1459,12 +1437,7 @@ internal sealed class DurableWorkflowAggregate
                 sagaState.Apply(workflowEvent, UpdatedAt);
                 break;
             case WorkflowTimerBufferedEvent timerBuffered:
-                activeTimers.RemoveAll(timer => timer.TimerId == timerBuffered.TimerId);
-                bufferedTimers.RemoveAll(timer => timer.TimerId == timerBuffered.TimerId);
-                bufferedTimers.Add(new DurableBufferedTimer(
-                    timerBuffered.TimerId,
-                    timerBuffered.WakeupName,
-                    timerBuffered.OccurredAt));
+                timerState.Apply(timerBuffered);
                 Status = WorkflowStatus.Paused;
                 break;
             case WorkflowPausedEvent:
@@ -1482,9 +1455,8 @@ internal sealed class DurableWorkflowAggregate
             case WorkflowCompletedEvent completed:
                 OutcomeName = completed.OutcomeName;
                 Status = WorkflowStatus.Completed;
-                activeTimers.Clear();
+                timerState.Clear();
                 waitState.Clear();
-                bufferedTimers.Clear();
                 childState.ClearActiveChildren();
                 resourcePoolState.Clear();
                 externalJobState.Clear();
@@ -1493,9 +1465,8 @@ internal sealed class DurableWorkflowAggregate
                 Status = terminal.Status;
                 if (IsTerminal)
                 {
-                    activeTimers.Clear();
+                    timerState.Clear();
                     waitState.Clear();
-                    bufferedTimers.Clear();
                     childState.ClearActiveChildren();
                     resourcePoolState.Clear();
                     externalJobState.Clear();
@@ -1519,6 +1490,14 @@ internal sealed class DurableWorkflowAggregate
         DateTimeOffset requestedAt)
     {
         return new DurableWaitEventContext(commandId, instanceId, requestedAt);
+    }
+
+    private static DurableTimerEventContext CreateTimerEventContext(
+        CommandId commandId,
+        InstanceId instanceId,
+        DateTimeOffset requestedAt)
+    {
+        return new DurableTimerEventContext(commandId, instanceId, requestedAt);
     }
 
     private DurableExternalJobEventContext CreateExternalJobEventContext(
@@ -1617,21 +1596,10 @@ internal sealed class DurableWorkflowAggregate
     {
         return new WorkflowRuntimeCheckpointState
         {
-            ActiveTimers = activeTimers
-                .Select(timer => new CheckpointActiveTimer(
-                    timer.TimerId,
-                    timer.FireAt,
-                    timer.WakeupName,
-                    timer.RegisteredAt))
-                .ToArray(),
+            ActiveTimers = timerState.CreateCheckpointActiveTimers(),
             ActiveWaits = waitState.CreateCheckpointActiveWaits(),
             BufferedDeliveries = waitState.CreateCheckpointBufferedDeliveries(),
-            BufferedTimers = bufferedTimers
-                .Select(timer => new CheckpointBufferedTimer(
-                    timer.TimerId,
-                    timer.WakeupName,
-                    timer.BufferedAt))
-                .ToArray(),
+            BufferedTimers = timerState.CreateCheckpointBufferedTimers(),
             ActiveChildren = childState.CreateCheckpointActiveChildren(),
             ActiveChildGroups = childState.CreateCheckpointActiveChildGroups(),
             ActiveResourceTickets = resourcePoolState.CreateCheckpointActiveResourceTickets(),
