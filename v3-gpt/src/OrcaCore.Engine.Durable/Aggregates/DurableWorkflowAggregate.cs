@@ -15,7 +15,7 @@ internal sealed class DurableWorkflowAggregate
     private readonly List<DurableActiveChildGroup> activeChildGroups;
     private readonly List<DurableCompletedChild> completedChildren = [];
     private readonly List<ResourcePoolTicket> activeResourceTickets;
-    private readonly List<DurableActiveExternalJob> activeExternalJobs;
+    private readonly DurableExternalJobState externalJobState;
     private readonly DurableWaitState waitState;
     private readonly DurableSagaState sagaState;
     private readonly HashSet<string> compensatedChildGroups = new(StringComparer.Ordinal);
@@ -70,7 +70,7 @@ internal sealed class DurableWorkflowAggregate
         this.activeChildren = [.. activeChildren];
         this.activeChildGroups = [.. activeChildGroups];
         this.activeResourceTickets = [.. activeResourceTickets];
-        this.activeExternalJobs = [.. activeExternalJobs];
+        externalJobState = DurableExternalJobState.FromSnapshot(activeExternalJobs);
         sagaState = DurableSagaState.FromSnapshot(
             completedSagaForwardActions,
             sagaCompensationActions,
@@ -126,7 +126,7 @@ internal sealed class DurableWorkflowAggregate
         [.. activeChildren],
         [.. activeChildGroups],
         [.. activeResourceTickets],
-        [.. activeExternalJobs],
+        externalJobState.ActiveJobs,
         sagaState.CompletedForwardActions,
         sagaState.CompensationActions,
         sagaState.RecoveryInterventions,
@@ -235,7 +235,7 @@ internal sealed class DurableWorkflowAggregate
             [.. activeChildren],
             [.. activeChildGroups],
             [.. activeResourceTickets],
-            [.. activeExternalJobs],
+            externalJobState.ActiveJobs,
             contentType,
             [.. payload]);
     }
@@ -687,8 +687,7 @@ internal sealed class DurableWorkflowAggregate
         ResourcePoolAcquireResult? acquireResult)
     {
         ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal || activeExternalJobs.Any(job =>
-                string.Equals(job.ExternalJobId, command.ExternalJobId, StringComparison.Ordinal)))
+        if (IsTerminal || externalJobState.Find(command.ExternalJobId) is not null)
         {
             return DurableDecision.Empty;
         }
@@ -790,8 +789,7 @@ internal sealed class DurableWorkflowAggregate
     internal DurableDecision DecideExternalJobCompleted(CompleteExternalJobCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
-        var job = activeExternalJobs.FirstOrDefault(candidate =>
-            string.Equals(candidate.ExternalJobId, command.ExternalJobId, StringComparison.Ordinal));
+        var job = externalJobState.Find(command.ExternalJobId);
         if (IsTerminal || job is null)
         {
             return DurableDecision.Empty;
@@ -829,8 +827,7 @@ internal sealed class DurableWorkflowAggregate
     internal DurableDecision DecideExternalJobTimedOut(TimeoutExternalJobCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
-        var job = activeExternalJobs.FirstOrDefault(candidate =>
-            string.Equals(candidate.ExternalJobId, command.ExternalJobId, StringComparison.Ordinal));
+        var job = externalJobState.Find(command.ExternalJobId);
         if (IsTerminal || job is null)
         {
             return DurableDecision.Empty;
@@ -882,21 +879,8 @@ internal sealed class DurableWorkflowAggregate
             return DurableDecision.Empty;
         }
 
-        var events = new List<WorkflowEvent>();
-        foreach (var externalJob in activeExternalJobs)
-        {
-            events.Add(new WorkflowExternalJobStopRequestedEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                ExternalJobId = externalJob.ExternalJobId
-            });
-        }
+        var events = new List<WorkflowEvent>(externalJobState.CreateStopRequestedEvents(
+            CreateExternalJobEventContext(command.CommandId, command.InstanceId, command.RequestedAt)));
 
         events.AddRange(ReleaseEvents(command.CommandId, command.InstanceId, command.RequestedAt));
         events.Add(new WorkflowTerminalEvent
@@ -1446,7 +1430,7 @@ internal sealed class DurableWorkflowAggregate
             activeChildren,
             activeChildGroups,
             activeResourceTickets,
-            activeExternalJobs,
+            externalJobState.ActiveJobs,
             sagaState.CompletedForwardActions,
             sagaState.CompensationActions,
             sagaState.RecoveryInterventions,
@@ -1507,7 +1491,7 @@ internal sealed class DurableWorkflowAggregate
                 bufferedTimers.Clear();
                 activeChildren.Clear();
                 activeResourceTickets.Clear();
-                activeExternalJobs.Clear();
+                externalJobState.Clear();
                 break;
             case WorkflowStepCompletedEvent stepCompleted:
                 LastStepPath = stepCompleted.StepPath;
@@ -1689,18 +1673,13 @@ internal sealed class DurableWorkflowAggregate
                     string.Equals(ticket.HolderKey, resourcePoolReleased.HolderKey, StringComparison.Ordinal));
                 break;
             case WorkflowExternalJobStartedEvent externalJobStarted:
-                activeExternalJobs.Add(new DurableActiveExternalJob(
-                    externalJobStarted.ExternalJobId,
-                    externalJobStarted.WaitId,
-                    externalJobStarted.TimeoutTimerId));
+                externalJobState.Apply(externalJobStarted);
                 break;
             case WorkflowExternalJobCompletedEvent externalJobCompleted:
-                activeExternalJobs.RemoveAll(job =>
-                    string.Equals(job.ExternalJobId, externalJobCompleted.ExternalJobId, StringComparison.Ordinal));
+                externalJobState.Apply(externalJobCompleted);
                 break;
             case WorkflowExternalJobTimedOutEvent externalJobTimedOut:
-                activeExternalJobs.RemoveAll(job =>
-                    string.Equals(job.ExternalJobId, externalJobTimedOut.ExternalJobId, StringComparison.Ordinal));
+                externalJobState.Apply(externalJobTimedOut);
                 break;
             case WorkflowExternalJobStopRequestedEvent:
                 break;
@@ -1742,7 +1721,7 @@ internal sealed class DurableWorkflowAggregate
                 bufferedTimers.Clear();
                 activeChildren.Clear();
                 activeResourceTickets.Clear();
-                activeExternalJobs.Clear();
+                externalJobState.Clear();
                 break;
             case WorkflowTerminalEvent terminal:
                 Status = terminal.Status;
@@ -1753,7 +1732,7 @@ internal sealed class DurableWorkflowAggregate
                     bufferedTimers.Clear();
                     activeChildren.Clear();
                     activeResourceTickets.Clear();
-                    activeExternalJobs.Clear();
+                    externalJobState.Clear();
                 }
 
                 break;
@@ -1774,6 +1753,19 @@ internal sealed class DurableWorkflowAggregate
         DateTimeOffset requestedAt)
     {
         return new DurableWaitEventContext(commandId, instanceId, requestedAt);
+    }
+
+    private DurableExternalJobEventContext CreateExternalJobEventContext(
+        CommandId commandId,
+        InstanceId instanceId,
+        DateTimeOffset requestedAt)
+    {
+        return new DurableExternalJobEventContext(
+            commandId,
+            instanceId,
+            requestedAt,
+            ParentInstanceId,
+            RootInstanceId ?? InstanceId);
     }
 
     private DurableSagaEventContext CreateSagaEventContext(
@@ -2032,12 +2024,7 @@ internal sealed class DurableWorkflowAggregate
                     group.Children))
                 .ToArray(),
             ActiveResourceTickets = [.. activeResourceTickets],
-            ActiveExternalJobs = activeExternalJobs
-                .Select(job => new CheckpointActiveExternalJob(
-                    job.ExternalJobId,
-                    job.WaitId,
-                    job.TimeoutTimerId))
-                .ToArray()
+            ActiveExternalJobs = externalJobState.CreateCheckpointActiveExternalJobs()
         };
     }
 }
