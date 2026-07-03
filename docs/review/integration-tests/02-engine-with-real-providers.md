@@ -102,8 +102,8 @@ prove **engine + store** together across process and commit boundaries.
 - **Assert:** Wait visible without loading payload from event stream
 
 ### INT-EP-016 — History pressure metrics after large append (PostgreSQL)
-- **Priority:** P2 | **AC:** AC-312 | **Status:** Missing
-- **Act:** Append N events; `GetPressureMetrics`
+- **Priority:** P2 | **AC:** AC-312 | **Status:** Covered
+- **Act:** Append events; query `DurableManagement.All().StatisticsAsync`
 - **Assert:** Stream/checkpoint/outbox counts non-zero
 
 ### INT-EP-017 — Deserialize payload round-trip through PG serializer

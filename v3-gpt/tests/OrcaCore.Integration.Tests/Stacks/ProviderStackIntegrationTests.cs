@@ -217,10 +217,38 @@ public sealed class ProviderStackIntegrationTests(OrcaStackFixture fixture)
     [Fact]
     [Trait(Traits.Scenario, "INT-ST-010")]
     [Trait("AC", "DU-033")]
-    public async Task INT_ST_010_MultiDispatcherRouting_BlockedUntilRouterExists()
+    public async Task INT_ST_010_MultiDispatcherRouting_ByOutboxKind()
     {
-        await Task.CompletedTask;
-        Assert.Skip("Outbox kind router not implemented in host yet.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        await fixture.RabbitMq.PurgeQueueAsync(TestContext.Current.CancellationToken);
+        var lifecycleDispatcher = new RecordingMessageDispatcher();
+        await using var store = await fixture.PostgreSql.CreateStoreAsync();
+        var router = new OutboxKindMessageDispatcher(
+            [
+                new OutboxKindDispatcherRoute("child-start", fixture.RabbitMq.CreateDispatcher()),
+                new OutboxKindDispatcherRoute("lifecycle-event", lifecycleDispatcher)
+            ]);
+        var pump = new DurableOutboxPump(store, router);
+        await store.AppendAsync(
+            IntegrationCommands.OutboxOnlyBatch(
+                10,
+                new OutboxWrite(IntegrationIds.Outbox(10), "child-start", [1, 2, 3]),
+                new OutboxWrite(IntegrationIds.Outbox(11), "lifecycle-event", [4, 5, 6])),
+            TestContext.Current.CancellationToken);
+
+        var dispatched = await pump.PumpOnceAsync(10, TestContext.Current.CancellationToken);
+        var rabbitMessage = await fixture.RabbitMq.BasicGetAsync(TestContext.Current.CancellationToken);
+        var extraRabbitMessage = await fixture.RabbitMq.BasicGetAsync(TestContext.Current.CancellationToken);
+        var childState = await store.GetStateAsync(IntegrationIds.Outbox(10), TestContext.Current.CancellationToken);
+        var lifecycleState = await store.GetStateAsync(IntegrationIds.Outbox(11), TestContext.Current.CancellationToken);
+
+        dispatched.Should().Be(2);
+        rabbitMessage.Should().NotBeNull();
+        extraRabbitMessage.Should().BeNull();
+        lifecycleDispatcher.Records.Should().ContainSingle()
+            .Which.Kind.Should().Be("lifecycle-event");
+        childState.Value.Should().Be(OutboxRecordState.Dispatched);
+        lifecycleState.Value.Should().Be(OutboxRecordState.Dispatched);
     }
 
     [Fact]

@@ -70,7 +70,7 @@ Today each plugin is tested **in isolation**. These scenarios catch wiring mista
 - **Assert:** Same as INT-ST-001 for ZMQ transport
 
 ### INT-ST-010 — Multi-dispatcher routing by outbox kind
-- **Priority:** P2 | **AC:** DU-033 | **Status:** Missing
+- **Priority:** P2 | **AC:** DU-033 | **Status:** Covered
 - **Setup:** `child-start` → RabbitMQ; `lifecycle-event` → no-op / different exchange
 - **Assert:** Router dispatches by `OutboxWrite.Kind`
 

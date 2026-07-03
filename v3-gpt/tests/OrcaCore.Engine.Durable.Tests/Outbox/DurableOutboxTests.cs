@@ -125,6 +125,40 @@ public sealed class DurableOutboxTests
     }
 
     [Fact]
+    [Trait("AC", "DU-033")]
+    public async Task OutboxKindMessageDispatcher_DispatchesByKind()
+    {
+        var childDispatcher = new FakeMessageDispatcher();
+        var lifecycleDispatcher = new FakeMessageDispatcher();
+        var dispatcher = new OutboxKindMessageDispatcher(
+            [
+                new OutboxKindDispatcherRoute("child-start", childDispatcher),
+                new OutboxKindDispatcherRoute("lifecycle-event", lifecycleDispatcher)
+            ]);
+        var child = new OutboxWrite(OutboxRecordId.New(), "child-start", [1]);
+        var lifecycle = new OutboxWrite(OutboxRecordId.New(), "lifecycle-event", [2]);
+
+        var childResult = await dispatcher.DispatchAsync(child, TestContext.Current.CancellationToken);
+        var lifecycleResult = await dispatcher.DispatchAsync(lifecycle, TestContext.Current.CancellationToken);
+
+        childResult.Should().Be(DispatchResult.Success);
+        lifecycleResult.Should().Be(DispatchResult.Success);
+        childDispatcher.Dispatched.Should().ContainSingle().Which.Should().Be(child);
+        lifecycleDispatcher.Dispatched.Should().ContainSingle().Which.Should().Be(lifecycle);
+    }
+
+    [Fact]
+    public async Task OutboxKindMessageDispatcher_UnknownKind_IsPermanentFailure()
+    {
+        var dispatcher = new OutboxKindMessageDispatcher([]);
+        var record = new OutboxWrite(OutboxRecordId.New(), "missing", [1]);
+
+        var result = await dispatcher.DispatchAsync(record, TestContext.Current.CancellationToken);
+
+        result.Should().Be(DispatchResult.PermanentFailure);
+    }
+
+    [Fact]
     public async Task UnifiedOutbox_CarriesStatusAndExternalMessageRecords()
     {
         var store = new InMemoryWorkflowProvider();

@@ -239,11 +239,11 @@ internal static class IntegrationCommands
 
     internal static ProviderCommitBatch OutboxOnlyBatch(
         int instance,
-        OutboxWrite record) =>
+        params OutboxWrite[] records) =>
         new()
         {
             StreamId = new WorkflowStreamId(IntegrationIds.Instance(instance)),
             ExpectedVersion = StreamVersion.Empty,
-            OutboxRecords = [record]
+            OutboxRecords = records
         };
 }

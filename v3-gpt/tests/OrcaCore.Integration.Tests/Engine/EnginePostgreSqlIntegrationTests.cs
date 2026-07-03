@@ -385,10 +385,28 @@ public sealed class EnginePostgreSqlIntegrationTests(PostgreSqlOrcaFixture fixtu
     [Fact]
     [Trait(Traits.Scenario, "INT-EP-016")]
     [Trait("AC", "AC-312")]
-    public async Task INT_EP_016_HistoryPressureMetrics_BlockedUntilApiExists()
+    public async Task INT_EP_016_HistoryPressureMetrics_VisibleThroughManagementStatistics()
     {
-        await Task.CompletedTask;
-        Assert.Skip("GetPressureMetrics API not exposed on PostgreSqlWorkflowStore yet.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        await using var store = await fixture.CreateStoreAsync();
+        var processor = await fixture.CreateProcessorAsync(store);
+        var management = fixture.CreateManagement(store);
+        await processor.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+        await processor.ProcessAsync(
+            IntegrationCommands.StepCompleted(1, 2, "root/1"),
+            TestContext.Current.CancellationToken);
+        await store.AppendAsync(
+            IntegrationCommands.OutboxOnlyBatch(
+                2,
+                new OutboxWrite(IntegrationIds.Outbox(16), "pressure-check", [1])),
+            TestContext.Current.CancellationToken);
+
+        var statistics = await management.All().StatisticsAsync(TestContext.Current.CancellationToken);
+
+        statistics.Pressure.TotalStreamEvents.Should().BeGreaterThan(1);
+        statistics.Pressure.CheckpointCount.Should().BeGreaterThan(0);
+        statistics.Pressure.PendingOutboxCount.Should().BeGreaterThan(0);
+        statistics.Pressure.ActiveInstanceCount.Should().Be(1);
     }
 
     [Fact]
