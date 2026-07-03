@@ -29,12 +29,7 @@ public sealed class SqlServerWorkflowStore :
     private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
 
     private readonly string connectionString;
-    private readonly object gate = new();
-    private readonly Dictionary<string, ResourcePoolDefinition> resourcePools = new(StringComparer.Ordinal);
-    private readonly List<ResourcePoolTicket> resourceTickets = [];
-    private readonly List<ResourcePoolWaiter> resourceWaiters = [];
-    private readonly List<ResourcePoolExpiredTicket> expiredResourceTickets = [];
-    private readonly List<ResourcePoolAuditRecord> resourceAuditRecords = [];
+    private readonly SqlServerResourcePoolStore resourcePoolStore;
 
     /// <summary>
     /// Initializes the SQL Server workflow store from a connection string.
@@ -43,6 +38,7 @@ public sealed class SqlServerWorkflowStore :
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         this.connectionString = connectionString;
+        resourcePoolStore = new SqlServerResourcePoolStore(connectionString);
     }
 
     /// <summary>
@@ -241,16 +237,7 @@ public sealed class SqlServerWorkflowStore :
     /// <inheritdoc />
     public Task UpsertPoolAsync(ResourcePoolDefinition definition, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(definition);
-        ValidateResourcePool(definition);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (gate)
-        {
-            resourcePools[definition.Name] = definition;
-        }
-
-        return Task.CompletedTask;
+        return resourcePoolStore.UpsertPoolAsync(definition, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -258,39 +245,7 @@ public sealed class SqlServerWorkflowStore :
         ResourcePoolAcquireRequest request,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
-        ValidateResourcePoolAcquireRequest(request);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (gate)
-        {
-            if (!AllResourcePoolsExist(request.Requirements))
-            {
-                return Task.FromResult(new ResourcePoolAcquireResult(
-                    ResourcePoolAcquireStatus.Rejected,
-                    [],
-                    null,
-                    "One or more resource pools do not exist."));
-            }
-
-            if (CanGrantResourceTickets(request.Requirements))
-            {
-                var granted = GrantResourceTickets(request, request.RequestedAt);
-                return Task.FromResult(new ResourcePoolAcquireResult(
-                    ResourcePoolAcquireStatus.Granted,
-                    granted,
-                    null,
-                    null));
-            }
-
-            var waiter = FindResourceWaiter(request.HolderInstanceId, request.HolderKey)
-                ?? EnqueueResourceWaiter(request);
-            return Task.FromResult(new ResourcePoolAcquireResult(
-                ResourcePoolAcquireStatus.Queued,
-                [],
-                waiter,
-                null));
-        }
+        return resourcePoolStore.AcquireAsync(request, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -298,70 +253,25 @@ public sealed class SqlServerWorkflowStore :
         ResourcePoolReleaseRequest request,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
-        ArgumentException.ThrowIfNullOrWhiteSpace(request.HolderKey);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (gate)
-        {
-            var released = resourceTickets
-                .Where(ticket => ticket.HolderInstanceId == request.HolderInstanceId &&
-                    string.Equals(ticket.HolderKey, request.HolderKey, StringComparison.Ordinal))
-                .ToArray();
-            resourceTickets.RemoveAll(ticket => released.Contains(ticket));
-
-            var grantedWaiters = GrantQueuedResourceWaiters(request.ReleasedAt);
-            return Task.FromResult(new ResourcePoolReleaseResult(released, grantedWaiters));
-        }
+        return resourcePoolStore.ReleaseAsync(request, cancellationToken);
     }
 
     /// <inheritdoc />
     public Task<Option<ResourcePoolSnapshot>> GetPoolAsync(string poolName, CancellationToken cancellationToken)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(poolName);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (gate)
-        {
-            return Task.FromResult(resourcePools.TryGetValue(poolName, out var definition)
-                ? Option<ResourcePoolSnapshot>.Some(SnapshotResourcePool(definition))
-                : Option<ResourcePoolSnapshot>.None);
-        }
+        return resourcePoolStore.GetPoolAsync(poolName, cancellationToken);
     }
 
     /// <inheritdoc />
     public Task ResizePoolAsync(string poolName, int capacity, CancellationToken cancellationToken)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(poolName);
-        ArgumentOutOfRangeException.ThrowIfNegative(capacity);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (gate)
-        {
-            if (resourcePools.TryGetValue(poolName, out var definition))
-            {
-                resourcePools[poolName] = definition with { Capacity = capacity };
-            }
-        }
-
-        return Task.CompletedTask;
+        return resourcePoolStore.ResizePoolAsync(poolName, capacity, cancellationToken);
     }
 
     /// <inheritdoc />
     public Task<ResourcePoolExpiryResult> ExpireTicketsAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (gate)
-        {
-            var newlyExpired = resourceTickets
-                .Where(ticket => ticket.ExpiresAt <= now &&
-                    expiredResourceTickets.All(expired => expired.Ticket.TicketId != ticket.TicketId))
-                .Select(ticket => new ResourcePoolExpiredTicket(ticket, now))
-                .ToArray();
-            expiredResourceTickets.AddRange(newlyExpired);
-            return Task.FromResult(new ResourcePoolExpiryResult(newlyExpired));
-        }
+        return resourcePoolStore.ExpireTicketsAsync(now, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -371,29 +281,7 @@ public sealed class SqlServerWorkflowStore :
         DateTimeOffset releasedAt,
         CancellationToken cancellationToken)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (gate)
-        {
-            var ticket = resourceTickets.FirstOrDefault(candidate => candidate.TicketId == ticketId);
-            if (ticket is null)
-            {
-                return Task.FromResult(new ResourcePoolForceReleaseResult(null, [], null));
-            }
-
-            resourceTickets.Remove(ticket);
-            expiredResourceTickets.RemoveAll(expired => expired.Ticket.TicketId == ticketId);
-            var audit = new ResourcePoolAuditRecord(
-                Guid.CreateVersion7(),
-                "ForceRelease",
-                reason,
-                releasedAt,
-                ticket);
-            resourceAuditRecords.Add(audit);
-            var granted = GrantQueuedResourceWaiters(releasedAt);
-            return Task.FromResult(new ResourcePoolForceReleaseResult(ticket, granted, audit));
-        }
+        return resourcePoolStore.ForceReleaseTicketAsync(ticketId, reason, releasedAt, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -1320,136 +1208,6 @@ public sealed class SqlServerWorkflowStore :
                 RecoveryInterventions = scope.RecoveryInterventions.Select(intervention => intervention with { }).ToArray()
             }).ToArray()
         };
-    }
-
-    private ResourcePoolSnapshot SnapshotResourcePool(ResourcePoolDefinition definition)
-    {
-        var held = resourceTickets
-            .Where(ticket => string.Equals(ticket.PoolName, definition.Name, StringComparison.Ordinal))
-            .ToArray();
-        var queued = resourceWaiters
-            .Where(waiter => waiter.Requirements.Any(requirement =>
-                string.Equals(requirement.PoolName, definition.Name, StringComparison.Ordinal)))
-            .ToArray();
-        return new ResourcePoolSnapshot(
-            definition.Name,
-            definition.Capacity,
-            Math.Max(0, definition.Capacity - held.Sum(ticket => ticket.Count)),
-            held,
-            queued)
-        {
-            ExpiredTickets = expiredResourceTickets
-                .Where(expired => string.Equals(expired.Ticket.PoolName, definition.Name, StringComparison.Ordinal))
-                .ToArray(),
-            AuditRecords = resourceAuditRecords
-                .Where(audit => string.Equals(audit.Ticket?.PoolName, definition.Name, StringComparison.Ordinal))
-                .ToArray()
-        };
-    }
-
-    private bool AllResourcePoolsExist(IEnumerable<ResourcePoolRequirement> requirements)
-    {
-        return requirements.All(requirement => resourcePools.ContainsKey(requirement.PoolName));
-    }
-
-    private bool CanGrantResourceTickets(IEnumerable<ResourcePoolRequirement> requirements)
-    {
-        foreach (var requirement in requirements)
-        {
-            var held = resourceTickets
-                .Where(ticket => string.Equals(ticket.PoolName, requirement.PoolName, StringComparison.Ordinal))
-                .Sum(ticket => ticket.Count);
-            if (resourcePools[requirement.PoolName].Capacity - held < requirement.Count)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private IReadOnlyList<ResourcePoolTicket> GrantResourceTickets(
-        ResourcePoolAcquireRequest request,
-        DateTimeOffset acquiredAt)
-    {
-        var granted = request.Requirements
-            .Select(requirement => new ResourcePoolTicket(
-                Guid.CreateVersion7(),
-                requirement.PoolName,
-                requirement.Count,
-                request.HolderInstanceId,
-                request.HolderKey,
-                acquiredAt,
-                request.ExpiresAt))
-            .ToArray();
-        resourceTickets.AddRange(granted);
-        return granted;
-    }
-
-    private IReadOnlyList<ResourcePoolWaiter> GrantQueuedResourceWaiters(DateTimeOffset grantedAt)
-    {
-        var granted = new List<ResourcePoolWaiter>();
-        foreach (var waiter in resourceWaiters.OrderBy(waiter => waiter.RequestedAt).ThenBy(waiter => waiter.WaiterId).ToArray())
-        {
-            if (!CanGrantResourceTickets(waiter.Requirements))
-            {
-                continue;
-            }
-
-            GrantResourceTickets(
-                new ResourcePoolAcquireRequest(
-                    waiter.HolderInstanceId,
-                    waiter.HolderKey,
-                    waiter.Requirements,
-                    waiter.RequestedAt,
-                    waiter.ExpiresAt),
-                grantedAt);
-            resourceWaiters.Remove(waiter);
-            granted.Add(waiter);
-        }
-
-        return granted;
-    }
-
-    private ResourcePoolWaiter EnqueueResourceWaiter(ResourcePoolAcquireRequest request)
-    {
-        var waiter = new ResourcePoolWaiter(
-            Guid.CreateVersion7(),
-            request.HolderInstanceId,
-            request.HolderKey,
-            request.Requirements.ToArray(),
-            request.RequestedAt,
-            request.ExpiresAt);
-        resourceWaiters.Add(waiter);
-        return waiter;
-    }
-
-    private ResourcePoolWaiter? FindResourceWaiter(InstanceId holderInstanceId, string holderKey)
-    {
-        return resourceWaiters.FirstOrDefault(waiter =>
-            waiter.HolderInstanceId == holderInstanceId &&
-            string.Equals(waiter.HolderKey, holderKey, StringComparison.Ordinal));
-    }
-
-    private static void ValidateResourcePool(ResourcePoolDefinition definition)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(definition.Name);
-        ArgumentOutOfRangeException.ThrowIfNegative(definition.Capacity);
-    }
-
-    private static void ValidateResourcePoolAcquireRequest(ResourcePoolAcquireRequest request)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(request.HolderKey);
-        if (request.Requirements.Count == 0)
-        {
-            throw new ArgumentException("At least one resource requirement is required.", nameof(request));
-        }
-
-        foreach (var requirement in request.Requirements)
-        {
-            ArgumentException.ThrowIfNullOrWhiteSpace(requirement.PoolName);
-            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(requirement.Count, 0);
-        }
     }
 
     private sealed record SqlServerOutboxRecord(OutboxWrite Write, OutboxRecordState State);

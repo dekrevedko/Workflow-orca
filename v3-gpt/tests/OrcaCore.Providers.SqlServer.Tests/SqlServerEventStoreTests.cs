@@ -43,14 +43,39 @@ public sealed class SqlServerEventStoreTests : IAsyncLifetime
             """
             select count(*)
             from dbo.orcacore_schema_migrations
-            where migration_id in ('001_initial', '002_claim_leases');
+            where migration_id in ('001_initial', '002_claim_leases', '003_resource_pools');
             """,
             connection);
 
         var migrationCount = (int)(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken)
             ?? throw new InvalidOperationException());
 
-        migrationCount.Should().Be(2);
+        migrationCount.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_CreatesResourcePoolTables()
+    {
+        await using var connection = new SqlConnection(container.GetConnectionString());
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var command = new SqlCommand(
+            """
+            select count(*)
+            from sys.tables
+            where schema_id = schema_id('dbo')
+              and name in (
+                'orcacore_resource_pools',
+                'orcacore_resource_tickets',
+                'orcacore_resource_waiters',
+                'orcacore_resource_expired_tickets',
+                'orcacore_resource_audit');
+            """,
+            connection);
+
+        var tableCount = (int)(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken)
+            ?? throw new InvalidOperationException());
+
+        tableCount.Should().Be(5);
     }
 
     [Fact]

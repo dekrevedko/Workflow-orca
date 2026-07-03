@@ -47,6 +47,10 @@ Follow-up implementation verification, 2026-07-03:
   `v3-gpt/tests` sweep, including integration tests. Integration coverage is now
   passed 70, skipped 29, failed 0 because the PostgreSQL restart and two-host
   `StartOrGet` scenarios are active.
+- SQL Server resource-pool implementation pass reran the non-integration
+  analyzer build loop with `-warnaserror`, the full SQL Server provider suite,
+  and the full `v3-gpt/tests` sweep including integration tests. Integration
+  coverage is now passed 73, skipped 26, failed 0.
 
 ## Completed In This Pass
 
@@ -295,7 +299,9 @@ Implementation update:
 - Provider tests cover restart persistence and duplicate-key rollback; integration
   tests now execute PostgreSQL restart and two-host `StartOrGet` scenarios.
 
-### SQL Server resource pools are in-memory
+### SQL Server resource pools were in-memory
+
+Status: fixed 2026-07-03 in `v3-gpt` after PostgreSQL start-idempotency parity.
 
 Evidence:
 - `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:25`
@@ -307,6 +313,20 @@ Risk: resource tickets disappear on restart and split across store instances.
 
 Recommendation: persist pool definitions, tickets, waiters, expiry, and audit
 records in SQL Server or do not expose the durable resource-pool Adapter.
+
+Follow-up result:
+- Added SQL Server migration `003_resource_pools` and fresh-schema resource-pool
+  tables for pool definitions, tickets, FIFO waiters, expired-ticket audit, and
+  operator audit records.
+- Extracted internal `SqlServerResourcePoolStore` so `SqlServerWorkflowStore`
+  still exposes `IResourcePoolStore` but no longer owns process-local pool
+  collections.
+- Acquisition, release, expiry, and force-release now execute through SQL Server
+  transactions with a transaction-owned application lock, so separate
+  `SqlServerWorkflowStore` instances share one durable capacity lane.
+- Added SQL Server provider tests for restart persistence, split-store capacity
+  sharing, split-store release/grant behavior, resource-pool table creation, and
+  migration journal coverage.
 
 ## P2 Findings
 
