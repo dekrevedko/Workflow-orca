@@ -14,8 +14,9 @@ namespace OrcaCore.Engine.Ephemeral.Execution;
 /// <c>Parallel</c>/<c>WhenAll</c> join (CP-001/CP-002, T1-12), <c>Wait</c> suspension → <c>End</c>
 /// — driving all orchestration decisions itself (CR-010/CR-012). Position is tracked as a stack
 /// of <see cref="Frame"/>s (CR-015) so nested containers (If inside While, branch inside
-/// Parallel, ...) and rehydration are represented exactly. Only <see cref="StepResult.Yield"/>
-/// remains out of scope until T1-15.
+/// Parallel, ...) and rehydration are represented exactly. <see cref="StepResult.Yield"/>
+/// (CR-017, T1-15) is supported for straight-line/control-flow steps; it remains out of scope
+/// inside a <c>Parallel</c> branch.
 ///
 /// <c>Parallel</c> branches are driven as sequential round-robin WITHIN this single
 /// lane-protected call — never on separate <see cref="Task"/>s — so every branch-state commit and
@@ -174,6 +175,19 @@ internal sealed class Interpreter<TState>
 
                 case BusinessStepNode<TState> businessStepNode:
                     await ExecuteBusinessNodeAsync(instance, definition, businessStepNode, timeProvider, index, cancellationToken).ConfigureAwait(false);
+                    if (instance.YieldPending)
+                    {
+                        // CR-017: the pointer stays parked at THIS step (no AdvanceSequenceIndex)
+                        // so the next continuation re-executes it. Status is still Running, so the
+                        // `while (instance.Status == WorkflowStatus.Running)` condition alone would
+                        // not stop this loop — this explicit break is what actually releases
+                        // control back to the caller (the engine facade's lane wrapper), which is
+                        // what "release the instance's execution lane" means for a synchronous,
+                        // single-caller ephemeral engine with no background scheduler.
+                        instance.UpdatedAt = timeProvider.GetUtcNow();
+                        return;
+                    }
+
                     if (instance.Status == WorkflowStatus.Running)
                     {
                         AdvanceSequenceIndex(instance);
@@ -645,7 +659,7 @@ internal sealed class Interpreter<TState>
 
             case StepResult.Yield:
                 throw new NotSupportedException(
-                    "StepResult.Yield is not supported inside a Parallel branch yet; yield lands in T1-15.");
+                    "StepResult.Yield is not supported inside a Parallel branch (parallel governance is a later phase; T1-15 covers straight-line/control-flow only).");
 
             default:
                 throw new UnreachableException($"Unhandled {nameof(StepResult)} variant '{result.GetType().Name}'.");
@@ -912,8 +926,12 @@ internal sealed class Interpreter<TState>
                 break;
 
             case StepResult.Yield:
-                throw new NotSupportedException(
-                    "StepResult.Yield is not supported by the straight-line interpreter yet; yield lands in T1-15.");
+                // CR-017: commit progress made so far (business-state mutations already applied
+                // directly to instance.State by the step body above — nothing further to persist
+                // in ephemeral mode) and signal the run loop to stop WITHOUT advancing past this
+                // step, so the same step re-executes on the next continuation.
+                instance.YieldPending = true;
+                break;
 
             default:
                 throw new UnreachableException($"Unhandled {nameof(StepResult)} variant '{result.GetType().Name}'.");

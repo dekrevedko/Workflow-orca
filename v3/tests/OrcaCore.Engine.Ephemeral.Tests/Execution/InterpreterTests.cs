@@ -169,10 +169,17 @@ public class InterpreterTests
     }
 
     [Fact]
-    public async Task Run_YieldResult_ThrowsNamingOwnerTask()
+    public async Task Run_YieldResult_StopsRunLoopWithoutAdvancing_InstanceStillRunning()
     {
+        // T1-15 (CR-017): Interpreter.RunAsync itself only drives ONE lane-protected cycle - a
+        // yielding step stops the run loop with YieldPending set and the pointer parked on the
+        // SAME step, without throwing and without reaching a terminal status. Multi-cycle
+        // continuation across separate lane calls is exercised at the engine facade level
+        // (YieldTests.cs / YieldAcceptanceTests.cs); this interpreter-level test proves the
+        // single-cycle stopping behavior the engine facade's continuation loop depends on.
         var builder = WorkflowBuilder<OrderState>.Create<int>(input => new OrderState { Total = input });
         builder.Then(new UnsupportedResultStep(new StepResult.Yield()));
+        builder.Then(new RecordingStep("after-yield"));
         builder.End();
         var definition = builder.Build(new DefinitionId("order-workflow"), new DefinitionVersion(1));
 
@@ -180,9 +187,10 @@ public class InterpreterTests
         var instance = NewInstance(clock);
 
         var interpreter = new Interpreter<OrderState>();
-        var act = async () => await interpreter.RunAsync(instance, definition, clock.TimeProvider, TestContext.Current.CancellationToken);
+        await interpreter.RunAsync(instance, definition, clock.TimeProvider, TestContext.Current.CancellationToken);
 
-        var exception = await act.Should().ThrowAsync<NotSupportedException>();
-        exception.Which.Message.Should().Contain("T1-15");
+        instance.Status.Should().Be(WorkflowStatus.Running);
+        instance.YieldPending.Should().BeTrue();
+        instance.State.Executed.Should().BeEmpty();
     }
 }

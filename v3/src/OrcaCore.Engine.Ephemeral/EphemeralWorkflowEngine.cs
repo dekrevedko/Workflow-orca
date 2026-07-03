@@ -111,11 +111,11 @@ public sealed class EphemeralWorkflowEngine
         var instanceCancellation = instanceCancellations.GetOrAdd(instance.InstanceId, static _ => new CancellationTokenSource());
 
         var interpreter = new Interpreter<TState>();
-        await executionLane.RunAsync(
-            instance.InstanceId,
-            async () =>
+        await RunUntilNotYieldingAsync(
+            instance,
+            async ct =>
             {
-                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, instanceCancellation.Token);
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, instanceCancellation.Token);
                 await interpreter.RunAsync(instance, definition, timeProvider, linkedCts.Token).ConfigureAwait(false);
             },
             cancellationToken).ConfigureAwait(false);
@@ -124,6 +124,34 @@ public sealed class EphemeralWorkflowEngine
         CompleteAwaitersIfTerminal(instance);
 
         return ToSnapshot(instance);
+    }
+
+    /// <summary>
+    /// CR-017: repeatedly issues SEPARATE <see cref="InstanceExecutionLane.RunAsync"/> calls for
+    /// <paramref name="instance"/> — each cycle of "interpret until yield-or-suspend" is its own
+    /// lane acquisition/release — as long as the interpreter keeps stopping because of a
+    /// cooperative <see cref="StepResult.Yield"/> (<see cref="WorkflowInstance{TState}.YieldPending"/>).
+    /// This is what "release the instance's execution lane" (CR-017) means for a synchronous,
+    /// single-caller ephemeral engine with no background scheduler: the lane genuinely becomes
+    /// available to any other concurrent caller for this instance between continuations, then this
+    /// same logical operation reacquires it to continue. Stops once the interpreter halts for a
+    /// real reason — terminal, a genuine <c>Wait</c> suspension, or (mid-loop only) a failure.
+    /// </summary>
+    private async ValueTask RunUntilNotYieldingAsync<TState>(
+        WorkflowInstance<TState> instance,
+        Func<CancellationToken, ValueTask> runOnce,
+        CancellationToken cancellationToken)
+    {
+        do
+        {
+            instance.YieldPending = false;
+
+            await executionLane.RunAsync(
+                instance.InstanceId,
+                () => runOnce(cancellationToken),
+                cancellationToken).ConfigureAwait(false);
+        }
+        while (instance.YieldPending);
     }
 
     /// <summary>
@@ -139,31 +167,44 @@ public sealed class EphemeralWorkflowEngine
         EventEnvelope envelope,
         CancellationToken cancellationToken)
     {
+        var instance = instanceRegistry.TryGet<TState>(instanceId);
+        if (instance is null)
+        {
+            return RaiseEventOutcome.InstanceNotFound;
+        }
+
+        if (!definitions.TryGetValue(instance.DefinitionId, out var untypedDefinition) ||
+            untypedDefinition is not WorkflowDefinition<TState> definition)
+        {
+            throw new WorkflowDefinitionException(
+                $"No definition registered for '{instance.DefinitionId}'. The instance cannot be resumed.");
+        }
+
         var outcome = RaiseEventOutcome.InstanceNotFound;
+        var isFirstAttempt = true;
 
-        await executionLane.RunAsync(
-            instanceId,
-            async () =>
+        await RunUntilNotYieldingAsync(
+            instance,
+            async ct =>
             {
-                var instance = instanceRegistry.TryGet<TState>(instanceId);
-                if (instance is null)
-                {
-                    return;
-                }
-
-                if (!definitions.TryGetValue(instance.DefinitionId, out var untypedDefinition) ||
-                    untypedDefinition is not WorkflowDefinition<TState> definition)
-                {
-                    throw new WorkflowDefinitionException(
-                        $"No definition registered for '{instance.DefinitionId}'. The instance cannot be resumed.");
-                }
-
                 var instanceCancellation = instanceCancellations.GetOrAdd(instanceId, static _ => new CancellationTokenSource());
-                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, instanceCancellation.Token);
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, instanceCancellation.Token);
 
                 var interpreter = new Interpreter<TState>();
-                outcome = await interpreter.TryResumeAsync(instance, definition, envelope, timeProvider, linkedCts.Token)
-                    .ConfigureAwait(false);
+                if (isFirstAttempt)
+                {
+                    // Only the first cycle matches/consumes the delivered event (EV-023
+                    // exactly-once). CR-017 continuation cycles after this one are draining
+                    // further yields of the same step the resume landed on - the event has
+                    // already done its job (TryResumeAsync -> ResumeWaitAsync -> RunLoopAsync).
+                    isFirstAttempt = false;
+                    outcome = await interpreter.TryResumeAsync(instance, definition, envelope, timeProvider, linkedCts.Token)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    await interpreter.RunAsync(instance, definition, timeProvider, linkedCts.Token).ConfigureAwait(false);
+                }
 
                 SyncCorrelationIndex(instance);
                 CompleteAwaitersIfTerminal(instance);

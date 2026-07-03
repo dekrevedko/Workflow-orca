@@ -138,6 +138,18 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     public EventEnvelope? PendingResumedEvent { get; set; }
 
     /// <summary>
+    /// CR-017: set by the interpreter when a business step returns <see cref="OrcaCore.Abstractions.Steps.StepResult.Yield"/>
+    /// and the run loop exits WITHOUT advancing past the yielding step (so the same step
+    /// re-executes on the next continuation). The instance stays <see cref="WorkflowStatus.Running"/>
+    /// throughout — this flag, not <see cref="Status"/>, is what tells the engine facade "this run
+    /// stopped because of a cooperative yield, not because it is done or genuinely suspended", so
+    /// it knows to release the execution lane and issue a fresh lane call to continue (the
+    /// ephemeral engine's stand-in for CR-017's "reschedule continuation of the same step").
+    /// Cleared by the engine facade before each re-entry.
+    /// </summary>
+    internal bool YieldPending { get; set; }
+
+    /// <summary>
     /// Per-instance pending-event mailbox (EV-030): events that arrived but did not match the
     /// active wait (or arrived with no active wait at all) are buffered here, keyed by
     /// <see cref="EventId"/> to prevent duplicate buffering (EV-031). Cleared entry-by-entry
