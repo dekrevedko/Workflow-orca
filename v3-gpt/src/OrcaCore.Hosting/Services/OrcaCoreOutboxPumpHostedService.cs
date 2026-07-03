@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Outbox;
 
 namespace OrcaCore.Hosting.Services;
@@ -30,6 +31,11 @@ public sealed class OrcaCoreOutboxPumpHostedService(
         OrcaCoreHostedServiceOptions value,
         CancellationToken stoppingToken)
     {
-        return pump.PumpOnceAsync(value.OutboxPumpBatchSize, stoppingToken);
+        return pump.PumpOnceAsync(
+            new OutboxClaimRequest(
+                value.OutboxPumpBatchSize,
+                timeProvider.GetUtcNow(),
+                value.OutboxClaimLeaseDuration),
+            stoppingToken);
     }
 }

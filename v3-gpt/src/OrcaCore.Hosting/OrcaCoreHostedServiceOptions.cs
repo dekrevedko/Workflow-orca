@@ -16,6 +16,11 @@ public sealed class OrcaCoreHostedServiceOptions
     public int OutboxPumpBatchSize { get; set; } = 100;
 
     /// <summary>
+    /// Gets or sets how long a durable outbox claim is reserved before another worker may retry it.
+    /// </summary>
+    public TimeSpan OutboxClaimLeaseDuration { get; set; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>
     /// Gets or sets how often due durable timers are claimed and fired.
     /// </summary>
     public TimeSpan TimerSweepInterval { get; set; } = TimeSpan.FromSeconds(1);
@@ -24,6 +29,11 @@ public sealed class OrcaCoreHostedServiceOptions
     /// Gets or sets the maximum number of due durable timers claimed per sweep.
     /// </summary>
     public int TimerSweepBatchSize { get; set; } = 100;
+
+    /// <summary>
+    /// Gets or sets how long a durable timer claim is reserved before another worker may retry it.
+    /// </summary>
+    public TimeSpan TimerClaimLeaseDuration { get; set; } = TimeSpan.FromMinutes(5);
 
     /// <summary>
     /// Gets or sets how often operational maintenance sweeps run.
@@ -45,6 +55,11 @@ public sealed class OrcaCoreHostedServiceOptions
             throw new InvalidOperationException("Outbox pump batch size must be positive.");
         }
 
+        if (OutboxClaimLeaseDuration <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException("Outbox claim lease duration must be positive.");
+        }
+
         if (TimerSweepInterval <= TimeSpan.Zero)
         {
             throw new InvalidOperationException("Timer sweep interval must be positive.");
@@ -53,6 +68,11 @@ public sealed class OrcaCoreHostedServiceOptions
         if (TimerSweepBatchSize <= 0)
         {
             throw new InvalidOperationException("Timer sweep batch size must be positive.");
+        }
+
+        if (TimerClaimLeaseDuration <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException("Timer claim lease duration must be positive.");
         }
 
         if (OperationalSweepInterval <= TimeSpan.Zero)

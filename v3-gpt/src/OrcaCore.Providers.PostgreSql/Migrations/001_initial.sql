@@ -39,11 +39,15 @@ create table if not exists orcacore_outbox (
     instance_id uuid not null,
     kind text not null,
     payload bytea not null,
-    state text not null
+    state text not null,
+    claimed_until timestamp with time zone null
 );
 
 create index if not exists ix_orcacore_outbox_state
     on orcacore_outbox (state);
+
+create index if not exists ix_orcacore_outbox_claim
+    on orcacore_outbox (state, claimed_until, outbox_record_id);
 
 create table if not exists orcacore_instance_projections (
     instance_id uuid primary key,
@@ -95,11 +99,15 @@ create table if not exists orcacore_timers (
     command_id uuid not null,
     fire_at timestamp with time zone not null,
     wakeup_name text not null,
-    claimed boolean not null default false
+    claimed boolean not null default false,
+    claimed_until timestamp with time zone null
 );
 
 create index if not exists ix_orcacore_timers_due
     on orcacore_timers (claimed, fire_at);
+
+create index if not exists ix_orcacore_timers_claim
+    on orcacore_timers (fire_at, claimed_until, timer_id);
 
 create table if not exists orcacore_history_projections (
     history_id uuid primary key,

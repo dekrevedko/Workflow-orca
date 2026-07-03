@@ -77,6 +77,13 @@ public interface IWorkflowOutboxStore
     Task<IReadOnlyList<OutboxWrite>> ClaimAsync(int maxCount, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Claims records eligible for dispatch with a recoverable lease.
+    /// </summary>
+    Task<IReadOnlyList<OutboxWrite>> ClaimAsync(
+        OutboxClaimRequest request,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Gets the dispatch state for one outbox record.
     /// </summary>
     Task<Option<OutboxRecordState>> GetStateAsync(
@@ -90,6 +97,11 @@ public interface IWorkflowOutboxStore
         OutboxRecordId outboxRecordId,
         OutboxRecordState state,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Releases one claimed outbox record so it can be retried.
+    /// </summary>
+    Task ReleaseAsync(OutboxRecordId outboxRecordId, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -162,6 +174,23 @@ public interface ITimerScheduler
         DateTimeOffset dueAtOrBefore,
         int maxCount,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Claims due wake-ups with a recoverable lease and returns timer-fire commands.
+    /// </summary>
+    Task<IReadOnlyList<FireTimerCommand>> ClaimDueAsync(
+        TimerClaimRequest request,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Completes one claimed timer after its fire command has been durably processed.
+    /// </summary>
+    Task CompleteAsync(TimerId timerId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Releases one claimed timer so it can be retried.
+    /// </summary>
+    Task ReleaseAsync(TimerId timerId, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -221,6 +250,23 @@ public sealed record TimerScheduleRequest
     /// </summary>
     public required string WakeupName { get; init; }
 }
+
+/// <summary>
+/// Describes a recoverable durable outbox claim request.
+/// </summary>
+public sealed record OutboxClaimRequest(
+    int MaxCount,
+    DateTimeOffset ClaimedAt,
+    TimeSpan LeaseDuration);
+
+/// <summary>
+/// Describes a recoverable durable timer claim request.
+/// </summary>
+public sealed record TimerClaimRequest(
+    DateTimeOffset DueAtOrBefore,
+    int MaxCount,
+    DateTimeOffset ClaimedAt,
+    TimeSpan LeaseDuration);
 
 /// <summary>
 /// Describes one serialized payload.

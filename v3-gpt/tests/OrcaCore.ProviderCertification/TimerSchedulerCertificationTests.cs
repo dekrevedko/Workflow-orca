@@ -72,6 +72,55 @@ public abstract class TimerSchedulerCertificationTests
             .Which.TimerId.Should().Be(request.TimerId);
     }
 
+    [Fact]
+    [Trait("AC", "EV-050")]
+    public async Task ClaimDueAsync_LeaseExpires_TimerCanBeClaimedAgainUntilCompleted()
+    {
+        var scheduler = CreateTimerScheduler();
+        var request = Request(fireAt: Timestamp(10));
+        await scheduler.ScheduleAsync(request, TestContext.Current.CancellationToken);
+
+        var first = await scheduler.ClaimDueAsync(
+            new TimerClaimRequest(Timestamp(10), 1, Timestamp(10), TimeSpan.FromSeconds(5)),
+            TestContext.Current.CancellationToken);
+        var stillLeased = await scheduler.ClaimDueAsync(
+            new TimerClaimRequest(Timestamp(14), 1, Timestamp(14), TimeSpan.FromSeconds(5)),
+            TestContext.Current.CancellationToken);
+        var reclaimed = await scheduler.ClaimDueAsync(
+            new TimerClaimRequest(Timestamp(16), 1, Timestamp(16), TimeSpan.FromSeconds(5)),
+            TestContext.Current.CancellationToken);
+
+        await scheduler.CompleteAsync(request.TimerId, TestContext.Current.CancellationToken);
+        var afterComplete = await scheduler.ClaimDueAsync(
+            new TimerClaimRequest(Timestamp(30), 1, Timestamp(30), TimeSpan.FromSeconds(5)),
+            TestContext.Current.CancellationToken);
+
+        first.Should().ContainSingle().Which.TimerId.Should().Be(request.TimerId);
+        stillLeased.Should().BeEmpty();
+        reclaimed.Should().ContainSingle().Which.TimerId.Should().Be(request.TimerId);
+        afterComplete.Should().BeEmpty();
+    }
+
+    [Fact]
+    [Trait("AC", "EV-050")]
+    public async Task ReleaseAsync_ClaimedTimer_CanBeClaimedAgain()
+    {
+        var scheduler = CreateTimerScheduler();
+        var request = Request(fireAt: Timestamp(10));
+        await scheduler.ScheduleAsync(request, TestContext.Current.CancellationToken);
+        await scheduler.ClaimDueAsync(
+            new TimerClaimRequest(Timestamp(10), 1, Timestamp(10), TimeSpan.FromMinutes(1)),
+            TestContext.Current.CancellationToken);
+
+        await scheduler.ReleaseAsync(request.TimerId, TestContext.Current.CancellationToken);
+        var reclaimed = await scheduler.ClaimDueAsync(
+            new TimerClaimRequest(Timestamp(11), 1, Timestamp(11), TimeSpan.FromMinutes(1)),
+            TestContext.Current.CancellationToken);
+
+        reclaimed.Should().ContainSingle()
+            .Which.TimerId.Should().Be(request.TimerId);
+    }
+
     protected static TimerScheduleRequest Request(DateTimeOffset fireAt)
     {
         return new TimerScheduleRequest

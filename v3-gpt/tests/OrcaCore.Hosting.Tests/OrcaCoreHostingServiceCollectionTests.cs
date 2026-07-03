@@ -269,6 +269,13 @@ public sealed class OrcaCoreHostingServiceCollectionTests
             return inner.ClaimAsync(maxCount, cancellationToken);
         }
 
+        public Task<IReadOnlyList<OutboxWrite>> ClaimAsync(
+            OutboxClaimRequest request,
+            CancellationToken cancellationToken)
+        {
+            return inner.ClaimAsync(request, cancellationToken);
+        }
+
         public Task<Option<OutboxRecordState>> GetStateAsync(
             OutboxRecordId outboxRecordId,
             CancellationToken cancellationToken)
@@ -282,6 +289,11 @@ public sealed class OrcaCoreHostingServiceCollectionTests
             CancellationToken cancellationToken)
         {
             return inner.MarkAsync(outboxRecordId, state, cancellationToken);
+        }
+
+        public Task ReleaseAsync(OutboxRecordId outboxRecordId, CancellationToken cancellationToken)
+        {
+            return inner.ReleaseAsync(outboxRecordId, cancellationToken);
         }
 
         public Task ApplyAsync(IReadOnlyList<ProjectionWrite> operations, CancellationToken cancellationToken)
@@ -336,6 +348,23 @@ public sealed class OrcaCoreHostingServiceCollectionTests
             CancellationToken cancellationToken)
         {
             return inner.ClaimDueAsync(dueAtOrBefore, maxCount, cancellationToken);
+        }
+
+        public Task<IReadOnlyList<FireTimerCommand>> ClaimDueAsync(
+            TimerClaimRequest request,
+            CancellationToken cancellationToken)
+        {
+            return inner.ClaimDueAsync(request, cancellationToken);
+        }
+
+        public Task CompleteAsync(TimerId timerId, CancellationToken cancellationToken)
+        {
+            return inner.CompleteAsync(timerId, cancellationToken);
+        }
+
+        public Task ReleaseAsync(TimerId timerId, CancellationToken cancellationToken)
+        {
+            return inner.ReleaseAsync(timerId, cancellationToken);
         }
 
         public async Task<DispatchResult> DispatchAsync(OutboxWrite record, CancellationToken cancellationToken)

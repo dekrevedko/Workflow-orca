@@ -176,6 +176,58 @@ public abstract class EventStoreCertificationTests
         afterDispatch.Should().BeEmpty();
     }
 
+    [Fact]
+    [Trait("AC", "DU-032")]
+    public async Task ClaimAsync_LeaseExpires_RecordCanBeClaimedAgain()
+    {
+        var fixture = CreateFixture();
+        var outboxRecordId = OutboxRecordId.New();
+        await fixture.EventStore.AppendAsync(
+            Batch(
+                new WorkflowStreamId(InstanceId.New()),
+                StreamVersion.Empty,
+                outboxRecordId: outboxRecordId),
+            TestContext.Current.CancellationToken);
+
+        var first = await fixture.OutboxStore.ClaimAsync(
+            new OutboxClaimRequest(1, Timestamp(10), TimeSpan.FromSeconds(5)),
+            TestContext.Current.CancellationToken);
+        var stillLeased = await fixture.OutboxStore.ClaimAsync(
+            new OutboxClaimRequest(1, Timestamp(14), TimeSpan.FromSeconds(5)),
+            TestContext.Current.CancellationToken);
+        var reclaimed = await fixture.OutboxStore.ClaimAsync(
+            new OutboxClaimRequest(1, Timestamp(16), TimeSpan.FromSeconds(5)),
+            TestContext.Current.CancellationToken);
+
+        first.Should().ContainSingle(record => record.OutboxRecordId == outboxRecordId);
+        stillLeased.Should().BeEmpty();
+        reclaimed.Should().ContainSingle(record => record.OutboxRecordId == outboxRecordId);
+    }
+
+    [Fact]
+    [Trait("AC", "DU-032")]
+    public async Task ReleaseAsync_ClaimedOutboxRecord_CanBeClaimedAgain()
+    {
+        var fixture = CreateFixture();
+        var outboxRecordId = OutboxRecordId.New();
+        await fixture.EventStore.AppendAsync(
+            Batch(
+                new WorkflowStreamId(InstanceId.New()),
+                StreamVersion.Empty,
+                outboxRecordId: outboxRecordId),
+            TestContext.Current.CancellationToken);
+        await fixture.OutboxStore.ClaimAsync(
+            new OutboxClaimRequest(1, Timestamp(10), TimeSpan.FromMinutes(1)),
+            TestContext.Current.CancellationToken);
+
+        await fixture.OutboxStore.ReleaseAsync(outboxRecordId, TestContext.Current.CancellationToken);
+        var reclaimed = await fixture.OutboxStore.ClaimAsync(
+            new OutboxClaimRequest(1, Timestamp(11), TimeSpan.FromMinutes(1)),
+            TestContext.Current.CancellationToken);
+
+        reclaimed.Should().ContainSingle(record => record.OutboxRecordId == outboxRecordId);
+    }
+
     private static ProviderCommitBatch Batch(
         WorkflowStreamId streamId,
         StreamVersion expectedVersion,
@@ -206,6 +258,11 @@ public abstract class EventStoreCertificationTests
                 ? [new OutboxWrite(recordId, "status", [1])]
                 : []
         };
+    }
+
+    private static DateTimeOffset Timestamp(int seconds)
+    {
+        return new DateTimeOffset(2026, 7, 3, 12, 0, seconds, TimeSpan.Zero);
     }
 }
 

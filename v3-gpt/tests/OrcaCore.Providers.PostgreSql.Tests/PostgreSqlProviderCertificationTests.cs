@@ -46,11 +46,15 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
     [Fact]
     public async Task InitializeAsync_AppliesRelationalSqlMigrations()
     {
-        var migrationId = await ScalarAsync<string>(
+        var initialMigrationId = await ScalarAsync<string>(
             "select migration_id from orcacore_schema_migrations where migration_id = @migration_id;",
             "001_initial");
+        var leaseMigrationId = await ScalarAsync<string>(
+            "select migration_id from orcacore_schema_migrations where migration_id = @migration_id;",
+            "002_claim_leases");
 
-        migrationId.Should().Be("001_initial");
+        initialMigrationId.Should().Be("001_initial");
+        leaseMigrationId.Should().Be("002_claim_leases");
     }
 
     [Fact]
@@ -208,7 +212,7 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
     }
 
     [Fact]
-    public async Task PostgreSql_ClaimDueAsync_DeletesClaimedTimerRows()
+    public async Task PostgreSql_ClaimDueAsync_LeasesTimerRowsUntilCompleted()
     {
         var store = await CreateStoreAsync();
         var request = new TimerScheduleRequest
@@ -221,12 +225,22 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         };
         await store.ScheduleAsync(request, TestContext.Current.CancellationToken);
 
-        await store.ClaimDueAsync(Timestamp(10), 10, TestContext.Current.CancellationToken);
-        var count = await ScalarAsync<long>(
+        var claimed = await store.ClaimDueAsync(Timestamp(10), 10, TestContext.Current.CancellationToken);
+        var leasedCount = await ScalarAsync<long>(
+            "select count(*) from orcacore_timers where timer_id = @instance_id;",
+            new InstanceId(request.TimerId.Value));
+        var secondClaim = await store.ClaimDueAsync(Timestamp(10), 10, TestContext.Current.CancellationToken);
+
+        await store.CompleteAsync(request.TimerId, TestContext.Current.CancellationToken);
+        var completedCount = await ScalarAsync<long>(
             "select count(*) from orcacore_timers where timer_id = @instance_id;",
             new InstanceId(request.TimerId.Value));
 
-        count.Should().Be(0);
+        claimed.Should().ContainSingle()
+            .Which.TimerId.Should().Be(request.TimerId);
+        leasedCount.Should().Be(1);
+        secondClaim.Should().BeEmpty();
+        completedCount.Should().Be(0);
     }
 
     [Fact]

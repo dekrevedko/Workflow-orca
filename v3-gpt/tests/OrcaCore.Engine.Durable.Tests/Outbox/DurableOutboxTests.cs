@@ -74,6 +74,21 @@ public sealed class DurableOutboxTests
     }
 
     [Fact]
+    public async Task OutboxPump_DispatcherThrows_MarksRecordRetryable()
+    {
+        var recordId = OutboxRecordId.New();
+        var store = new InMemoryWorkflowProvider();
+        await store.AppendAsync(Batch(recordId), TestContext.Current.CancellationToken);
+        var pump = new DurableOutboxPump(store, new ThrowingDispatcher());
+
+        var count = await pump.PumpOnceAsync(10, TestContext.Current.CancellationToken);
+        var state = await store.GetStateAsync(recordId, TestContext.Current.CancellationToken);
+
+        count.Should().Be(0);
+        state.Value.Should().Be(OutboxRecordState.Retryable);
+    }
+
+    [Fact]
     public async Task UnifiedOutbox_CarriesStatusAndExternalMessageRecords()
     {
         var store = new InMemoryWorkflowProvider();
@@ -112,5 +127,13 @@ public sealed class DurableOutboxTests
             ],
             OutboxRecords = [new OutboxWrite(outboxRecordId, kind, [1])]
         };
+    }
+
+    private sealed class ThrowingDispatcher : IMessageDispatcher
+    {
+        public Task<DispatchResult> DispatchAsync(OutboxWrite record, CancellationToken cancellationToken)
+        {
+            throw new InvalidOperationException("transport unavailable");
+        }
     }
 }

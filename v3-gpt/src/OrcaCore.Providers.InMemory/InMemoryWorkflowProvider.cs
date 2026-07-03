@@ -22,6 +22,7 @@ public sealed class InMemoryWorkflowProvider :
     IWorkflowPayloadSerializer
 {
     private const string JsonContentType = "application/json";
+    private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
 
     private readonly object gate = new();
     private readonly Dictionary<EventId, InboxRecordState> inbox = [];
@@ -33,7 +34,7 @@ public sealed class InMemoryWorkflowProvider :
     private readonly Dictionary<InstanceId, WorkflowInstanceSnapshot> summaries = [];
     private readonly Dictionary<InstanceId, CheckpointWrite> checkpoints = [];
     private readonly Dictionary<WorkflowStreamId, List<WorkflowEvent>> streams = [];
-    private readonly Dictionary<TimerId, TimerScheduleRequest> timers = [];
+    private readonly Dictionary<TimerId, InMemoryTimerSchedule> timers = [];
 
     /// <inheritdoc />
     public Task<Option<CheckpointWrite>> LoadCheckpointAsync(
@@ -83,7 +84,7 @@ public sealed class InMemoryWorkflowProvider :
             ApplyProjectionOperations(batch.ProjectionOperations);
             foreach (var timer in batch.TimerSchedules)
             {
-                timers[timer.TimerId] = timer;
+                timers[timer.TimerId] = new InMemoryTimerSchedule(timer, ClaimedUntil: null);
             }
 
             if (batch.Checkpoint is { } checkpoint)
@@ -145,19 +146,35 @@ public sealed class InMemoryWorkflowProvider :
     /// <inheritdoc />
     public Task<IReadOnlyList<OutboxWrite>> ClaimAsync(int maxCount, CancellationToken cancellationToken)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(maxCount);
+        return ClaimAsync(
+            new OutboxClaimRequest(maxCount, DateTimeOffset.UtcNow, DefaultLeaseDuration),
+            cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<OutboxWrite>> ClaimAsync(
+        OutboxClaimRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentOutOfRangeException.ThrowIfNegative(request.MaxCount);
+        ThrowIfInvalidLease(request.LeaseDuration);
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (gate)
         {
             var claimed = outbox.Values
-                .Where(record => record.State is OutboxRecordState.Pending or OutboxRecordState.Retryable)
-                .Take(maxCount)
+                .Where(record => IsOutboxClaimable(record, request.ClaimedAt))
+                .Take(request.MaxCount)
                 .Select(record => CloneOutboxWrite(record.Write))
                 .ToArray();
             foreach (var record in claimed)
             {
-                outbox[record.OutboxRecordId] = outbox[record.OutboxRecordId] with { State = OutboxRecordState.Claimed };
+                outbox[record.OutboxRecordId] = outbox[record.OutboxRecordId] with
+                {
+                    State = OutboxRecordState.Claimed,
+                    ClaimedUntil = request.ClaimedAt.Add(request.LeaseDuration)
+                };
             }
 
             return Task.FromResult<IReadOnlyList<OutboxWrite>>(claimed);
@@ -191,7 +208,32 @@ public sealed class InMemoryWorkflowProvider :
         {
             if (outbox.TryGetValue(outboxRecordId, out var record))
             {
-                outbox[outboxRecordId] = record with { State = state };
+                outbox[outboxRecordId] = record with
+                {
+                    State = state,
+                    ClaimedUntil = state == OutboxRecordState.Claimed ? record.ClaimedUntil : null
+                };
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task ReleaseAsync(OutboxRecordId outboxRecordId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            if (outbox.TryGetValue(outboxRecordId, out var record) &&
+                record.State == OutboxRecordState.Claimed)
+            {
+                outbox[outboxRecordId] = record with
+                {
+                    State = OutboxRecordState.Retryable,
+                    ClaimedUntil = null
+                };
             }
         }
 
@@ -312,7 +354,7 @@ public sealed class InMemoryWorkflowProvider :
 
         lock (gate)
         {
-            timers[request.TimerId] = request;
+            timers[request.TimerId] = new InMemoryTimerSchedule(request, ClaimedUntil: null);
         }
 
         return Task.CompletedTask;
@@ -324,30 +366,75 @@ public sealed class InMemoryWorkflowProvider :
         int maxCount,
         CancellationToken cancellationToken)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(maxCount);
+        return ClaimDueAsync(
+            new TimerClaimRequest(dueAtOrBefore, maxCount, dueAtOrBefore, DefaultLeaseDuration),
+            cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<FireTimerCommand>> ClaimDueAsync(
+        TimerClaimRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentOutOfRangeException.ThrowIfNegative(request.MaxCount);
+        ThrowIfInvalidLease(request.LeaseDuration);
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (gate)
         {
             var due = timers.Values
-                .Where(timer => timer.FireAt <= dueAtOrBefore)
-                .OrderBy(timer => timer.FireAt)
-                .ThenBy(timer => timer.TimerId.Value)
-                .Take(maxCount)
+                .Where(timer => timer.Request.FireAt <= request.DueAtOrBefore &&
+                    (timer.ClaimedUntil is null || timer.ClaimedUntil <= request.ClaimedAt))
+                .OrderBy(timer => timer.Request.FireAt)
+                .ThenBy(timer => timer.Request.TimerId.Value)
+                .Take(request.MaxCount)
                 .ToArray();
             foreach (var timer in due)
             {
-                timers.Remove(timer.TimerId);
+                timers[timer.Request.TimerId] = timer with
+                {
+                    ClaimedUntil = request.ClaimedAt.Add(request.LeaseDuration)
+                };
             }
 
             return Task.FromResult<IReadOnlyList<FireTimerCommand>>(due.Select(timer => new FireTimerCommand
             {
-                CommandId = timer.CommandId,
-                InstanceId = timer.InstanceId,
-                RequestedAt = dueAtOrBefore,
-                TimerId = timer.TimerId
+                CommandId = timer.Request.CommandId,
+                InstanceId = timer.Request.InstanceId,
+                RequestedAt = request.ClaimedAt,
+                TimerId = timer.Request.TimerId
             }).ToArray());
         }
+    }
+
+    /// <inheritdoc />
+    public Task CompleteAsync(TimerId timerId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            timers.Remove(timerId);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task ReleaseAsync(TimerId timerId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            if (timers.TryGetValue(timerId, out var timer))
+            {
+                timers[timerId] = timer with { ClaimedUntil = null };
+            }
+        }
+
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
@@ -586,8 +673,8 @@ public sealed class InMemoryWorkflowProvider :
         checkpoints.Remove(instanceId);
         streams.Remove(new WorkflowStreamId(instanceId));
         foreach (var timerId in timers.Values
-            .Where(timer => timer.InstanceId == instanceId)
-            .Select(timer => timer.TimerId)
+            .Where(timer => timer.Request.InstanceId == instanceId)
+            .Select(timer => timer.Request.TimerId)
             .ToArray())
         {
             timers.Remove(timerId);
@@ -607,5 +694,26 @@ public sealed class InMemoryWorkflowProvider :
         }
     }
 
-    private sealed record InMemoryOutboxRecord(InstanceId InstanceId, OutboxWrite Write, OutboxRecordState State);
+    private static bool IsOutboxClaimable(InMemoryOutboxRecord record, DateTimeOffset claimedAt)
+    {
+        return record.State is OutboxRecordState.Pending or OutboxRecordState.Retryable ||
+            (record.State == OutboxRecordState.Claimed &&
+                (record.ClaimedUntil is null || record.ClaimedUntil <= claimedAt));
+    }
+
+    private static void ThrowIfInvalidLease(TimeSpan leaseDuration)
+    {
+        if (leaseDuration <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(leaseDuration), leaseDuration, "Lease duration must be positive.");
+        }
+    }
+
+    private sealed record InMemoryOutboxRecord(
+        InstanceId InstanceId,
+        OutboxWrite Write,
+        OutboxRecordState State,
+        DateTimeOffset? ClaimedUntil = null);
+
+    private sealed record InMemoryTimerSchedule(TimerScheduleRequest Request, DateTimeOffset? ClaimedUntil);
 }

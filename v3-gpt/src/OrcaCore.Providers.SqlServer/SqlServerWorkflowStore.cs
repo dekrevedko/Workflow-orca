@@ -31,6 +31,7 @@ public sealed class SqlServerWorkflowStore :
     private const string TimerFiredEventType = nameof(WorkflowTimerFiredEvent);
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
 
     private readonly string connectionString;
     private readonly object gate = new();
@@ -109,8 +110,20 @@ public sealed class SqlServerWorkflowStore :
     /// <inheritdoc />
     public Task<IReadOnlyList<OutboxWrite>> ClaimAsync(int maxCount, CancellationToken cancellationToken)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(maxCount);
-        return ClaimCoreAsync(maxCount, cancellationToken);
+        return ClaimAsync(
+            new OutboxClaimRequest(maxCount, DateTimeOffset.UtcNow, DefaultLeaseDuration),
+            cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<OutboxWrite>> ClaimAsync(
+        OutboxClaimRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentOutOfRangeException.ThrowIfNegative(request.MaxCount);
+        ThrowIfInvalidLease(request.LeaseDuration);
+        return ClaimCoreAsync(request, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -128,6 +141,12 @@ public sealed class SqlServerWorkflowStore :
         CancellationToken cancellationToken)
     {
         return MarkCoreAsync(outboxRecordId, state, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task ReleaseAsync(OutboxRecordId outboxRecordId, CancellationToken cancellationToken)
+    {
+        return ReleaseOutboxCoreAsync(outboxRecordId, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -194,10 +213,34 @@ public sealed class SqlServerWorkflowStore :
         int maxCount,
         CancellationToken cancellationToken)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(maxCount);
+        return ClaimDueAsync(
+            new TimerClaimRequest(dueAtOrBefore, maxCount, dueAtOrBefore, DefaultLeaseDuration),
+            cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<FireTimerCommand>> ClaimDueAsync(
+        TimerClaimRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentOutOfRangeException.ThrowIfNegative(request.MaxCount);
+        ThrowIfInvalidLease(request.LeaseDuration);
         cancellationToken.ThrowIfCancellationRequested();
 
-        return ClaimDueCoreAsync(dueAtOrBefore, maxCount, cancellationToken);
+        return ClaimDueCoreAsync(request, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task CompleteAsync(TimerId timerId, CancellationToken cancellationToken)
+    {
+        return CompleteTimerCoreAsync(timerId, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task ReleaseAsync(TimerId timerId, CancellationToken cancellationToken)
+    {
+        return ReleaseTimerCoreAsync(timerId, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -525,7 +568,9 @@ public sealed class SqlServerWorkflowStore :
             new DefinitionVersion(reader.GetInt32(2))));
     }
 
-    private async Task<IReadOnlyList<OutboxWrite>> ClaimCoreAsync(int maxCount, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<OutboxWrite>> ClaimCoreAsync(
+        OutboxClaimRequest request,
+        CancellationToken cancellationToken)
     {
         await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var transaction = (SqlTransaction)await connection
@@ -537,19 +582,24 @@ public sealed class SqlServerWorkflowStore :
                 select top (@max_count) outbox_record_id
                 from dbo.orcacore_outbox with (updlock, readpast, rowlock)
                 where state in (@pending, @retryable)
+                   or (state = @claimed and (claimed_until is null or claimed_until <= @claimed_at))
                 order by outbox_record_id
             )
             update dbo.orcacore_outbox
-            set state = @claimed
+            set
+                state = @claimed,
+                claimed_until = @claimed_until
             output inserted.outbox_record_id, inserted.kind, inserted.payload
             where outbox_record_id in (select outbox_record_id from claimed);
             """,
             connection,
             transaction);
-        command.Parameters.AddWithValue("@max_count", maxCount);
+        command.Parameters.AddWithValue("@max_count", request.MaxCount);
         command.Parameters.AddWithValue("@pending", OutboxRecordState.Pending.ToString());
         command.Parameters.AddWithValue("@retryable", OutboxRecordState.Retryable.ToString());
         command.Parameters.AddWithValue("@claimed", OutboxRecordState.Claimed.ToString());
+        command.Parameters.AddWithValue("@claimed_at", request.ClaimedAt);
+        command.Parameters.AddWithValue("@claimed_until", request.ClaimedAt.Add(request.LeaseDuration));
 
         var records = new List<OutboxWrite>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
@@ -588,10 +638,41 @@ public sealed class SqlServerWorkflowStore :
     {
         await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var command = new SqlCommand(
-            "update dbo.orcacore_outbox set state = @state where outbox_record_id = @outbox_record_id;",
+            """
+            update dbo.orcacore_outbox
+            set
+                state = @state,
+                claimed_until = case
+                    when @state = @claimed then claimed_until
+                    else null
+                end
+            where outbox_record_id = @outbox_record_id;
+            """,
             connection);
         command.Parameters.AddWithValue("@outbox_record_id", outboxRecordId.Value);
         command.Parameters.AddWithValue("@state", state.ToString());
+        command.Parameters.AddWithValue("@claimed", OutboxRecordState.Claimed.ToString());
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task ReleaseOutboxCoreAsync(
+        OutboxRecordId outboxRecordId,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new SqlCommand(
+            """
+            update dbo.orcacore_outbox
+            set
+                state = @retryable,
+                claimed_until = null
+            where outbox_record_id = @outbox_record_id
+              and state = @claimed;
+            """,
+            connection);
+        command.Parameters.AddWithValue("@outbox_record_id", outboxRecordId.Value);
+        command.Parameters.AddWithValue("@retryable", OutboxRecordState.Retryable.ToString());
+        command.Parameters.AddWithValue("@claimed", OutboxRecordState.Claimed.ToString());
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -707,8 +788,7 @@ public sealed class SqlServerWorkflowStore :
     }
 
     private async Task<IReadOnlyList<FireTimerCommand>> ClaimDueCoreAsync(
-        DateTimeOffset dueAtOrBefore,
-        int maxCount,
+        TimerClaimRequest request,
         CancellationToken cancellationToken)
     {
         await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -721,16 +801,22 @@ public sealed class SqlServerWorkflowStore :
                 select top (@max_count) timer_id
                 from dbo.orcacore_timers with (updlock, readpast, rowlock)
                 where fire_at <= @due_at
+                  and (claimed = 0 or claimed_until is null or claimed_until <= @claimed_at)
                 order by fire_at, timer_id
             )
-            delete from dbo.orcacore_timers
-            output deleted.timer_id, deleted.instance_id, deleted.command_id
+            update dbo.orcacore_timers
+            set
+                claimed = 1,
+                claimed_until = @claimed_until
+            output inserted.timer_id, inserted.instance_id, inserted.command_id
             where timer_id in (select timer_id from due);
             """,
             connection,
             transaction);
-        command.Parameters.AddWithValue("@max_count", maxCount);
-        command.Parameters.AddWithValue("@due_at", dueAtOrBefore);
+        command.Parameters.AddWithValue("@max_count", request.MaxCount);
+        command.Parameters.AddWithValue("@due_at", request.DueAtOrBefore);
+        command.Parameters.AddWithValue("@claimed_at", request.ClaimedAt);
+        command.Parameters.AddWithValue("@claimed_until", request.ClaimedAt.Add(request.LeaseDuration));
 
         var commands = new List<FireTimerCommand>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
@@ -741,13 +827,39 @@ public sealed class SqlServerWorkflowStore :
                 TimerId = new TimerId(reader.GetGuid(0)),
                 InstanceId = new InstanceId(reader.GetGuid(1)),
                 CommandId = new CommandId(reader.GetGuid(2)),
-                RequestedAt = dueAtOrBefore
+                RequestedAt = request.ClaimedAt
             });
         }
 
         await reader.DisposeAsync().ConfigureAwait(false);
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         return commands;
+    }
+
+    private async Task CompleteTimerCoreAsync(TimerId timerId, CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new SqlCommand(
+            "delete from dbo.orcacore_timers where timer_id = @timer_id;",
+            connection);
+        command.Parameters.AddWithValue("@timer_id", timerId.Value);
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task ReleaseTimerCoreAsync(TimerId timerId, CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new SqlCommand(
+            """
+            update dbo.orcacore_timers
+            set
+                claimed = 0,
+                claimed_until = null
+            where timer_id = @timer_id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("@timer_id", timerId.Value);
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<SqlConnection> OpenConnectionAsync(CancellationToken cancellationToken)
@@ -1091,12 +1203,28 @@ public sealed class SqlServerWorkflowStore :
             set instance_id = @instance_id,
                 command_id = @command_id,
                 fire_at = @fire_at,
-                wakeup_name = @wakeup_name
+                wakeup_name = @wakeup_name,
+                claimed = 0,
+                claimed_until = null
             where timer_id = @timer_id;
             if @@rowcount = 0
             begin
-                insert into dbo.orcacore_timers (timer_id, instance_id, command_id, fire_at, wakeup_name)
-                values (@timer_id, @instance_id, @command_id, @fire_at, @wakeup_name);
+                insert into dbo.orcacore_timers (
+                    timer_id,
+                    instance_id,
+                    command_id,
+                    fire_at,
+                    wakeup_name,
+                    claimed,
+                    claimed_until)
+                values (
+                    @timer_id,
+                    @instance_id,
+                    @command_id,
+                    @fire_at,
+                    @wakeup_name,
+                    0,
+                    null);
             end;
             """,
             connection,
@@ -1161,6 +1289,14 @@ public sealed class SqlServerWorkflowStore :
     private static void AddNullable(SqlCommand command, string name, object? value)
     {
         command.Parameters.AddWithValue(name, value ?? DBNull.Value);
+    }
+
+    private static void ThrowIfInvalidLease(TimeSpan leaseDuration)
+    {
+        if (leaseDuration <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(leaseDuration), leaseDuration, "Lease duration must be positive.");
+        }
     }
 
     private static bool Matches(WorkflowInstanceSnapshot snapshot, WorkflowProjectionQuery query)

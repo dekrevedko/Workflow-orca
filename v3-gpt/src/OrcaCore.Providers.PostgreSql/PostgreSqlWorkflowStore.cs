@@ -63,6 +63,7 @@ public sealed class PostgreSqlWorkflowStore :
     private const string SagaManualRecoveryRecordedEventType = nameof(SagaManualRecoveryRecordedEvent);
 
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
+    private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
 
     private readonly NpgsqlDataSource dataSource;
 
@@ -259,20 +260,46 @@ public sealed class PostgreSqlWorkflowStore :
     /// <inheritdoc />
     public async Task<IReadOnlyList<OutboxWrite>> ClaimAsync(int maxCount, CancellationToken cancellationToken)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(maxCount);
-
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        return await ClaimAsync(
+            connection,
+            new OutboxClaimRequest(maxCount, DateTimeOffset.UtcNow, DefaultLeaseDuration),
+            cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<OutboxWrite>> ClaimAsync(
+        OutboxClaimRequest request,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        return await ClaimAsync(connection, request, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<IReadOnlyList<OutboxWrite>> ClaimAsync(
+        NpgsqlConnection connection,
+        OutboxClaimRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentOutOfRangeException.ThrowIfNegative(request.MaxCount);
+        ThrowIfInvalidLease(request.LeaseDuration);
+
         await using var transaction = await connection
             .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
             .ConfigureAwait(false);
         await using var command = new NpgsqlCommand(
             """
             update orcacore_outbox
-            set state = @claimed
+            set
+                state = @claimed,
+                claimed_until = @claimed_until
             where outbox_record_id in (
                 select outbox_record_id
                 from orcacore_outbox
                 where state in (@pending, @retryable)
+                   or (state = @claimed and (claimed_until is null or claimed_until <= @claimed_at))
                 order by outbox_record_id
                 for update skip locked
                 limit @max_count
@@ -284,7 +311,9 @@ public sealed class PostgreSqlWorkflowStore :
         command.Parameters.AddWithValue("claimed", OutboxRecordState.Claimed.ToString());
         command.Parameters.AddWithValue("pending", OutboxRecordState.Pending.ToString());
         command.Parameters.AddWithValue("retryable", OutboxRecordState.Retryable.ToString());
-        command.Parameters.AddWithValue("max_count", maxCount);
+        command.Parameters.AddWithValue("claimed_at", request.ClaimedAt);
+        command.Parameters.AddWithValue("claimed_until", request.ClaimedAt.Add(request.LeaseDuration));
+        command.Parameters.AddWithValue("max_count", request.MaxCount);
 
         var records = new List<OutboxWrite>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
@@ -332,12 +361,39 @@ public sealed class PostgreSqlWorkflowStore :
         await using var command = new NpgsqlCommand(
             """
             update orcacore_outbox
-            set state = @state
+            set
+                state = @state,
+                claimed_until = case
+                    when @state = @claimed then claimed_until
+                    else null
+                end
             where outbox_record_id = @outbox_record_id;
             """,
             connection);
         command.Parameters.AddWithValue("outbox_record_id", outboxRecordId.Value);
         command.Parameters.AddWithValue("state", state.ToString());
+        command.Parameters.AddWithValue("claimed", OutboxRecordState.Claimed.ToString());
+
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task ReleaseAsync(OutboxRecordId outboxRecordId, CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new NpgsqlCommand(
+            """
+            update orcacore_outbox
+            set
+                state = @retryable,
+                claimed_until = null
+            where outbox_record_id = @outbox_record_id
+              and state = @claimed;
+            """,
+            connection);
+        command.Parameters.AddWithValue("outbox_record_id", outboxRecordId.Value);
+        command.Parameters.AddWithValue("retryable", OutboxRecordState.Retryable.ToString());
+        command.Parameters.AddWithValue("claimed", OutboxRecordState.Claimed.ToString());
 
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -561,20 +617,23 @@ public sealed class PostgreSqlWorkflowStore :
                 command_id,
                 fire_at,
                 wakeup_name,
-                claimed)
+                claimed,
+                claimed_until)
             values (
                 @timer_id,
                 @instance_id,
                 @command_id,
                 @fire_at,
                 @wakeup_name,
-                false)
+                false,
+                null)
             on conflict (timer_id) do update set
                 instance_id = excluded.instance_id,
                 command_id = excluded.command_id,
                 fire_at = excluded.fire_at,
                 wakeup_name = excluded.wakeup_name,
-                claimed = false;
+                claimed = false,
+                claimed_until = null;
             """,
             connection);
         command.Parameters.AddWithValue("timer_id", request.TimerId.Value);
@@ -592,7 +651,20 @@ public sealed class PostgreSqlWorkflowStore :
         int maxCount,
         CancellationToken cancellationToken)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(maxCount);
+        return await ClaimDueAsync(
+            new TimerClaimRequest(dueAtOrBefore, maxCount, dueAtOrBefore, DefaultLeaseDuration),
+            cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<FireTimerCommand>> ClaimDueAsync(
+        TimerClaimRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentOutOfRangeException.ThrowIfNegative(request.MaxCount);
+        ThrowIfInvalidLease(request.LeaseDuration);
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var transaction = await connection
@@ -600,12 +672,15 @@ public sealed class PostgreSqlWorkflowStore :
             .ConfigureAwait(false);
         await using var command = new NpgsqlCommand(
             """
-            delete from orcacore_timers
+            update orcacore_timers
+            set
+                claimed = true,
+                claimed_until = @claimed_until
             where timer_id in (
                 select timer_id
                 from orcacore_timers
-                where claimed = false
-                  and fire_at <= @due_at
+                where fire_at <= @due_at
+                  and (claimed = false or claimed_until is null or claimed_until <= @claimed_at)
                 order by fire_at, timer_id
                 for update skip locked
                 limit @max_count
@@ -614,8 +689,10 @@ public sealed class PostgreSqlWorkflowStore :
             """,
             connection,
             transaction);
-        command.Parameters.AddWithValue("due_at", dueAtOrBefore);
-        command.Parameters.AddWithValue("max_count", maxCount);
+        command.Parameters.AddWithValue("due_at", request.DueAtOrBefore);
+        command.Parameters.AddWithValue("claimed_at", request.ClaimedAt);
+        command.Parameters.AddWithValue("claimed_until", request.ClaimedAt.Add(request.LeaseDuration));
+        command.Parameters.AddWithValue("max_count", request.MaxCount);
 
         var commands = new List<FireTimerCommand>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
@@ -626,13 +703,46 @@ public sealed class PostgreSqlWorkflowStore :
                 TimerId = new TimerId(reader.GetGuid(0)),
                 InstanceId = new InstanceId(reader.GetGuid(1)),
                 CommandId = new CommandId(reader.GetGuid(2)),
-                RequestedAt = dueAtOrBefore
+                RequestedAt = request.ClaimedAt
             });
         }
 
         await reader.DisposeAsync().ConfigureAwait(false);
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         return commands;
+    }
+
+    /// <inheritdoc />
+    public async Task CompleteAsync(TimerId timerId, CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new NpgsqlCommand(
+            """
+            delete from orcacore_timers
+            where timer_id = @timer_id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("timer_id", timerId.Value);
+
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task ReleaseAsync(TimerId timerId, CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new NpgsqlCommand(
+            """
+            update orcacore_timers
+            set
+                claimed = false,
+                claimed_until = null
+            where timer_id = @timer_id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("timer_id", timerId.Value);
+
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -942,20 +1052,23 @@ public sealed class PostgreSqlWorkflowStore :
                 command_id,
                 fire_at,
                 wakeup_name,
-                claimed)
+                claimed,
+                claimed_until)
             values (
                 @timer_id,
                 @instance_id,
                 @command_id,
                 @fire_at,
                 @wakeup_name,
-                false)
+                false,
+                null)
             on conflict (timer_id) do update set
                 instance_id = excluded.instance_id,
                 command_id = excluded.command_id,
                 fire_at = excluded.fire_at,
                 wakeup_name = excluded.wakeup_name,
-                claimed = false;
+                claimed = false,
+                claimed_until = null;
             """,
             connection,
             transaction);
@@ -1267,6 +1380,14 @@ public sealed class PostgreSqlWorkflowStore :
     {
         var parameter = command.Parameters.Add(name, type);
         parameter.Value = value ?? DBNull.Value;
+    }
+
+    private static void ThrowIfInvalidLease(TimeSpan leaseDuration)
+    {
+        if (leaseDuration <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(leaseDuration), leaseDuration, "Lease duration must be positive.");
+        }
     }
 
     private static async Task<bool> IsActiveInstanceAsync(

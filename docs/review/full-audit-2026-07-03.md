@@ -35,6 +35,14 @@ Not run to completion:
   loop hung in provider/infrastructure tests before the timeout-test race was
   fixed. The audit recommends tagging container tests and isolating them in CI.
 
+Follow-up implementation verification, 2026-07-03:
+- Timer/outbox lease implementation pass ran all non-integration `v3-gpt/tests`
+  projects plus `v3-gpt/tests/OrcaCore.Integration.Tests`.
+- Analyzer build loop with `-warnaserror` passed for every `v3-gpt` project,
+  including integration tests.
+- Integration tests are now honored for implementation verification: passed 68,
+  skipped 31, failed 0.
+
 ## Completed In This Pass
 
 R8 quality and analyzer remediation:
@@ -154,6 +162,19 @@ delete-on-claim. The Interface should include claim, complete, and release or
 retry semantics. This creates Locality for crash-safety rules and lets provider
 Adapters share the same lifecycle.
 
+Implementation update:
+- 2026-07-03: Added lease-aware `TimerClaimRequest` plus `CompleteAsync` and
+  `ReleaseAsync` to `ITimerScheduler`.
+- In-memory, PostgreSQL, and SQL Server schedulers now claim due timers without
+  deleting them. Claimed timers become eligible again when their lease expires,
+  can be explicitly released, and are deleted only after completion.
+- `OrcaCoreTimerHostedService` now claims with the configured
+  `TimerClaimLeaseDuration`, completes timers after `Committed` or `NoOp`
+  durable results, and releases claims on conflicts, cancellation, and
+  exceptions.
+- Provider certification tests now cover timer lease expiry, release, and
+  completion semantics across providers.
+
 ## P1 Findings
 
 ### Outbox records can remain claimed forever
@@ -172,6 +193,18 @@ record in `Claimed` until manual repair.
 Recommendation: turn outbox claiming into a lease Module with retry-after,
 attempt tracking, and explicit completion/failure. Add tests that simulate
 dispatcher failure and process restart.
+
+Implementation update:
+- 2026-07-03: Added lease-aware `OutboxClaimRequest` and `ReleaseAsync` to
+  `IWorkflowOutboxStore`.
+- In-memory, PostgreSQL, SQL Server, and test-support outbox stores now claim
+  pending/retryable records and expired claimed records with a lease deadline.
+  Marking a terminal state clears the lease, and release returns claimed work to
+  `Retryable`.
+- `DurableOutboxPump` now claims with a recoverable lease, marks dispatcher
+  exceptions as `Retryable`, and releases records on cancellation.
+- PostgreSQL and SQL Server migrations add `claimed_until` for outbox records;
+  provider certification tests cover lease expiry and explicit release.
 
 ### Hosted services lack transient-failure boundaries
 
@@ -398,10 +431,11 @@ Module Interface and keep source-text checks explicitly named as guard tests.
 
 ## Recommended Refactoring Order
 
-1. Create `DurableCommandRuntime` and route management/timer/public durable
-   entrypoints through one process-wide per-instance lane Seam.
-2. Fix timer and outbox claim semantics with lease Modules before expanding
-   clustered durable execution.
+1. Completed 2026-07-03: create `DurableCommandRuntime` and route
+   management/timer/public durable entrypoints through one process-wide
+   per-instance lane Seam.
+2. Completed 2026-07-03: fix timer and outbox claim semantics with lease
+   Modules before expanding clustered durable execution.
 3. Create `WorkflowEventCodec` and complete SQL Server event coverage.
 4. Persist PostgreSQL start idempotency and SQL Server resource pools, or remove
    those durable-provider claims until true.
@@ -417,6 +451,6 @@ Module Interface and keep source-text checks explicitly named as guard tests.
 
 The R8 quality issues and immediate channel-substrate drift are addressed. The
 remaining high-risk items are not analyzer warnings; they are durable execution
-and provider semantics. The next refactoring pass should prioritize durable
-ordering, timer/outbox crash safety, and provider parity before adding more
-composition features.
+and provider semantics. The next refactoring pass should prioritize provider
+parity, especially SQL Server event coverage and PostgreSQL start idempotency,
+before adding more composition features.

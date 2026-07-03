@@ -40,13 +40,17 @@ public sealed class SqlServerEventStoreTests : IAsyncLifetime
         await using var connection = new SqlConnection(container.GetConnectionString());
         await connection.OpenAsync(TestContext.Current.CancellationToken);
         await using var command = new SqlCommand(
-            "select migration_id from dbo.orcacore_schema_migrations where migration_id = @migration_id;",
+            """
+            select count(*)
+            from dbo.orcacore_schema_migrations
+            where migration_id in ('001_initial', '002_claim_leases');
+            """,
             connection);
-        command.Parameters.AddWithValue("@migration_id", "001_initial");
 
-        var migrationId = await command.ExecuteScalarAsync(TestContext.Current.CancellationToken);
+        var migrationCount = (int)(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken)
+            ?? throw new InvalidOperationException());
 
-        migrationId.Should().Be("001_initial");
+        migrationCount.Should().Be(2);
     }
 
     [Fact]

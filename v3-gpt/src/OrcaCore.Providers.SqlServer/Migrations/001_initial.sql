@@ -54,9 +54,11 @@ begin
         instance_id uniqueidentifier not null,
         kind nvarchar(256) not null,
         payload varbinary(max) not null,
-        state nvarchar(64) not null
+        state nvarchar(64) not null,
+        claimed_until datetimeoffset null
     );
     create index ix_orcacore_outbox_state on dbo.orcacore_outbox (state);
+    create index ix_orcacore_outbox_claim on dbo.orcacore_outbox (state, claimed_until, outbox_record_id);
 end;
 
 if object_id('dbo.orcacore_instance_projections', 'U') is null
@@ -98,7 +100,10 @@ begin
         instance_id uniqueidentifier not null,
         command_id uniqueidentifier not null,
         fire_at datetimeoffset not null,
-        wakeup_name nvarchar(256) not null
+        wakeup_name nvarchar(256) not null,
+        claimed bit not null default 0,
+        claimed_until datetimeoffset null
     );
     create index ix_orcacore_timers_due on dbo.orcacore_timers (fire_at, timer_id);
+    create index ix_orcacore_timers_claim on dbo.orcacore_timers (fire_at, claimed_until, timer_id);
 end;

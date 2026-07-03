@@ -32,12 +32,45 @@ public sealed class OrcaCoreTimerHostedService(
         OrcaCoreHostedServiceOptions value,
         CancellationToken stoppingToken)
     {
+        var now = timeProvider.GetUtcNow();
         var due = await scheduler
-            .ClaimDueAsync(timeProvider.GetUtcNow(), value.TimerSweepBatchSize, stoppingToken)
+            .ClaimDueAsync(
+                new TimerClaimRequest(
+                    now,
+                    value.TimerSweepBatchSize,
+                    now,
+                    value.TimerClaimLeaseDuration),
+                stoppingToken)
             .ConfigureAwait(false);
         foreach (var command in due)
         {
-            await commandProcessor.ProcessAsync(command, stoppingToken).ConfigureAwait(false);
+            try
+            {
+                var result = await commandProcessor.ProcessAsync(command, stoppingToken).ConfigureAwait(false);
+                if (ShouldCompleteClaim(result.Outcome))
+                {
+                    await scheduler.CompleteAsync(command.TimerId, stoppingToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await scheduler.ReleaseAsync(command.TimerId, stoppingToken).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                await scheduler.ReleaseAsync(command.TimerId, CancellationToken.None).ConfigureAwait(false);
+                throw;
+            }
+            catch (Exception)
+            {
+                await scheduler.ReleaseAsync(command.TimerId, CancellationToken.None).ConfigureAwait(false);
+                throw;
+            }
         }
+    }
+
+    private static bool ShouldCompleteClaim(DurableCommandOutcome outcome)
+    {
+        return outcome is DurableCommandOutcome.Committed or DurableCommandOutcome.NoOp;
     }
 }
