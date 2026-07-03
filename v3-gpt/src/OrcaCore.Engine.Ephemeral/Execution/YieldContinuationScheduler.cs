@@ -33,25 +33,36 @@ internal sealed class YieldContinuationScheduler(
         ArgumentNullException.ThrowIfNull(instance);
         ArgumentNullException.ThrowIfNull(onSnapshotCommitted);
 
-        var snapshot = instance.ToSnapshot();
-        while (instance.TryTakeYieldContinuation(out var continuation))
+        while (true)
         {
             await using (await governance.EnterAdvancementAsync(cancellationToken).ConfigureAwait(false))
             {
-                snapshot = await executionLane.RunAsync(
+                var result = await executionLane.RunAsync(
                     instanceId,
                     async laneCancellationToken =>
                     {
+                        if (!instance.TryTakeYieldContinuation(out var continuation))
+                        {
+                            return new YieldDrainResult(instance.ToSnapshot(), false);
+                        }
+
                         using var linkedCancellation = instance.CreateLinkedExecutionToken(laneCancellationToken);
                         await continuation!(linkedCancellation.Token).ConfigureAwait(false);
-                        return instance.ToSnapshot();
+                        return new YieldDrainResult(instance.ToSnapshot(), true);
                     },
                     cancellationToken).ConfigureAwait(false);
+
+                if (!result.DrainedContinuation)
+                {
+                    return result.Snapshot;
+                }
+
+                onSnapshotCommitted(result.Snapshot);
             }
-
-            onSnapshotCommitted(snapshot);
         }
-
-        return snapshot;
     }
+
+    private sealed record YieldDrainResult(
+        WorkflowInstanceSnapshot Snapshot,
+        bool DrainedContinuation);
 }

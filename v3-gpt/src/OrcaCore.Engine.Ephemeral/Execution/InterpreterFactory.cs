@@ -14,12 +14,14 @@ internal sealed class InterpreterFactory(
     {
         var failureHandler = new WorkflowFailureHandler<TState>(timeProvider);
         var conditionEvaluator = new ConditionEvaluator<TState>(failureHandler);
+        var suspensionScheduler = new SuspensionScheduler<TState>(timeProvider, timerService);
         return new Interpreter<TState>(
             timeProvider,
             new StepExecutor<TState>(timeProvider, governance, stuckStepThreshold),
             failureHandler,
             conditionEvaluator,
-            new SuspensionScheduler<TState>(timeProvider, timerService),
+            suspensionScheduler,
+            new WaitExecutor<TState>(suspensionScheduler, failureHandler),
             new WhileNodeRunner<TState>(conditionEvaluator),
             new ParallelNodeRunner<TState>(),
             new WhenFirstNodeRunner<TState>(timeProvider),

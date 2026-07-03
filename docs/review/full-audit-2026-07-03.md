@@ -103,6 +103,15 @@ Follow-up implementation verification, 2026-07-03:
   loop with `-warnaserror`, the full non-integration `v3-gpt/tests` sweep, and
   `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 81, skipped 18, failed
   0.
+- Ephemeral wait-executor extraction pass added a focused public regression for
+  wait correlation selector failure, then fixed a yield-drain snapshot race
+  exposed by broad verification by taking initial yield snapshots through the
+  per-instance lane. Focused wait/interpreter/loop/timer-race and yield/parallel
+  coverage passed before broader verification. Broader verification passed the
+  non-integration analyzer build loop with `-warnaserror`, the full
+  non-integration `v3-gpt/tests` sweep, and
+  `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 81, skipped 18, failed
+  0.
 - Durable wait-state extraction pass added focused `DurableWaitState` tests and
   reran the durable analyzer build and full durable test project before broader
   verification.
@@ -573,6 +582,14 @@ Implementation update:
   scheduler-only wrapper would be pass-through glue. The extracted Module owns
   both yield continuation scheduling and lane/governance-aware draining from
   start, timer, and event-resume entry points.
+- 2026-07-03: hardened `YieldContinuationScheduler` so its initial snapshot and
+  continuation checks run through the per-instance lane; broad ephemeral
+  verification had exposed an intermittent concurrent snapshot race while
+  parallel wait branches were resuming.
+- 2026-07-03: extracted `WaitExecutor<TState>` for explicit `WaitNode`
+  correlation selector evaluation, selector-failure recording, and wait
+  suspension registration. `SuspensionScheduler<TState>` still owns the shared
+  wait/delay timer mechanics used by wait nodes and step wait results.
 - Remaining interpreter decomposition should stop unless another behavior can be
   made directly testable without turning the interpreter into pass-through glue.
 
@@ -581,7 +598,7 @@ Implementation update:
 | Module | Current shape | Refactoring direction |
 | --- | --- | --- |
 | `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs` | About 2,603 lines before decomposition; one aggregate owns timers, projections, lifecycle transitions, and replay orchestration. Saga compensation state has been extracted to `DurableSagaState`; active-wait and buffered-delivery state has been extracted to `DurableWaitState`; external-job state has been extracted to `DurableExternalJobState`; child workflow state has been extracted to `DurableChildWorkflowState`; resource-pool state has been extracted to `DurableResourcePoolState`. | Keep the aggregate Interface. Further extraction should target timers or projection/replay orchestration only when it creates behavior-testable Locality rather than pass-through glue. |
-| `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` | About 979 lines before decomposition; one processor handles command overloads, rehydration, and append result branching. `DurableCommandRuntime` owns per-instance lanes, `DurableCommitMaterializer` owns provider commit-batch materialization, and `DurableResourcePoolCommitEffects` owns resource-pool commit side effects. | Continue toward `DurableCommitPipeline` only where append result handling can become behavior-testable Locality rather than pass-through glue. |
+| `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` | About 979 lines before decomposition; one processor handled command overloads, rehydration, and append result branching. `DurableCommandRuntime` owns per-instance lanes, `DurableCommitMaterializer` owns provider commit-batch materialization, `DurableResourcePoolCommitEffects` owns resource-pool commit side effects, and `DurableCommitPipeline` owns no-op/poison/append-result behavior. | Continue only where another behavior can become testable Locality; avoid splitting command overloads into pass-through classes. |
 | `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs` | About 1,515 lines; event codec switches at `:1363`, `:1419`, and `:1464`; projection operation switch at `:979`. | Move event mapping into `WorkflowEventCodec`; move projection writes into a projection store Module; keep this Adapter focused on PostgreSQL SQL and transaction shape. |
 | `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs` | About 1,369 lines; event codec switches at `:1194`, `:1207`, and `:1220`; projection operation switch at `:949`; resource pools are in-memory inside the same store. | Share `WorkflowEventCodec`; split durable event store, projection store, timer store, outbox store, and resource pool Adapter responsibilities. |
 

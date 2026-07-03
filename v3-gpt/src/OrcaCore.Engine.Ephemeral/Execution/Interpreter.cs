@@ -15,6 +15,7 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
     private readonly WorkflowFailureHandler<TState> failureHandler;
     private readonly ConditionEvaluator<TState> conditionEvaluator;
     private readonly SuspensionScheduler<TState> suspensionScheduler;
+    private readonly WaitExecutor<TState> waitExecutor;
     private readonly WhileNodeRunner<TState> whileRunner;
     private readonly ParallelNodeRunner<TState> parallelRunner;
     private readonly WhenFirstNodeRunner<TState> whenFirstRunner;
@@ -27,6 +28,7 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
         WorkflowFailureHandler<TState> failureHandler,
         ConditionEvaluator<TState> conditionEvaluator,
         SuspensionScheduler<TState> suspensionScheduler,
+        WaitExecutor<TState> waitExecutor,
         WhileNodeRunner<TState> whileRunner,
         ParallelNodeRunner<TState> parallelRunner,
         WhenFirstNodeRunner<TState> whenFirstRunner,
@@ -38,6 +40,7 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
         ArgumentNullException.ThrowIfNull(failureHandler);
         ArgumentNullException.ThrowIfNull(conditionEvaluator);
         ArgumentNullException.ThrowIfNull(suspensionScheduler);
+        ArgumentNullException.ThrowIfNull(waitExecutor);
         ArgumentNullException.ThrowIfNull(whileRunner);
         ArgumentNullException.ThrowIfNull(parallelRunner);
         ArgumentNullException.ThrowIfNull(whenFirstRunner);
@@ -49,6 +52,7 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
         this.failureHandler = failureHandler;
         this.conditionEvaluator = conditionEvaluator;
         this.suspensionScheduler = suspensionScheduler;
+        this.waitExecutor = waitExecutor;
         this.whileRunner = whileRunner;
         this.parallelRunner = parallelRunner;
         this.whenFirstRunner = whenFirstRunner;
@@ -154,7 +158,16 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
                     return false;
 
                 case WaitNode<TState> waitNode:
-                    await RunWaitAsync(waitNode, node.NodeId, context, index, cancellationToken).ConfigureAwait(false);
+                    await waitExecutor
+                        .ExecuteAsync(
+                            waitNode,
+                            node.NodeId,
+                            EnsureInitialized(context.RunState),
+                            context,
+                            index,
+                            this,
+                            cancellationToken)
+                        .ConfigureAwait(false);
                     return false;
 
                 case DelayNode<TState> delayNode:
@@ -276,37 +289,6 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
             continuationToken => ContinueSequenceAsync(context, ifIndex + 1, continuationToken));
 
         return await RunSequenceAsync(childContext, startIndex: 0, cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task RunWaitAsync<TInput>(
-        WaitNode<TState> waitNode,
-        string nodeId,
-        SequenceExecutionContext<TState, TInput> context,
-        int waitIndex,
-        CancellationToken cancellationToken)
-    {
-        var instance = EnsureInitialized(context.RunState);
-        CorrelationId correlationId;
-        try
-        {
-            correlationId = waitNode.CorrelationSelector(instance.State);
-        }
-        catch (Exception exception)
-            when (exception is not OperationCanceledException and not NotSupportedException)
-        {
-            failureHandler.Fail(instance, exception, nodeId);
-            return;
-        }
-
-        await suspensionScheduler.RegisterWaitAsync(
-            instance,
-            waitNode.EventName,
-            correlationId,
-            waitNode.Timeout,
-            context,
-            nextIndex: waitIndex + 1,
-            this,
-            cancellationToken).ConfigureAwait(false);
     }
 
     private static WorkflowInstance<TState> EnsureInitialized(InterpreterRunState<TState> runState)

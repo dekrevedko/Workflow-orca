@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
@@ -39,6 +40,27 @@ public sealed class WaitMatchingTests
                 wait.Status == "Active" &&
                 wait.Mode == "Resident");
         state.Values.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Run_WaitCorrelationSelectorThrows_FailsWorkflowWithoutRegisteringWait()
+    {
+        var engine = new EphemeralWorkflowEngine();
+        var definition = Definition(new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState())
+            .Wait("Approved", _ => throw new WorkflowDefinitionException("selector boom"))
+            .Then(() => new AppendPayloadStep())
+            .End());
+        engine.RegisterDefinition(definition);
+
+        var snapshot = await engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "start",
+            TestContext.Current.CancellationToken);
+
+        snapshot.Status.Should().Be(WorkflowStatus.Failed);
+        snapshot.ErrorSummary.Should().Contain("selector boom");
+        snapshot.ActiveWaits.Should().BeEmpty();
     }
 
     [Fact]
