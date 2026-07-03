@@ -415,10 +415,31 @@ public sealed class EnginePostgreSqlIntegrationTests(PostgreSqlOrcaFixture fixtu
     [Fact]
     [Trait(Traits.Scenario, "INT-EP-018")]
     [Trait("AC", "AC-304")]
-    public async Task INT_EP_018_WaitLongColdEviction_BlockedUntilActivationLayer()
+    public async Task INT_EP_018_WaitLongColdEviction_RehydratesFromPostgreSql()
     {
-        await Task.CompletedTask;
-        Assert.Skip("Durable activation/eviction layer not integrated in host yet.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        await using (var firstStore = await fixture.CreateStoreAsync())
+        {
+            var first = await fixture.CreateProcessorAsync(firstStore);
+            await first.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+            var wait = await first.ProcessAsync(
+                IntegrationCommands.WaitRegistered(1, 10, 2, mode: WaitMode.Cold),
+                TestContext.Current.CancellationToken);
+            wait.Evicted.Should().BeTrue();
+        }
+
+        await using var secondStore = await fixture.CreateStoreAsync();
+        var second = await fixture.CreateProcessorAsync(secondStore);
+        var result = await second.ProcessAsync(
+            IntegrationCommands.Deliver(1, 50, 3),
+            TestContext.Current.CancellationToken);
+        var events = await secondStore.LoadTailAsync(
+            new WorkflowStreamId(IntegrationIds.Instance(1)),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+
+        result.Outcome.Should().Be(DurableCommandOutcome.Committed);
+        events.OfType<WorkflowWaitMatchedEvent>().Should().ContainSingle();
     }
 
     private static StartOrGetRequest StartRequest(string key)

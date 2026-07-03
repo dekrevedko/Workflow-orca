@@ -1,4 +1,6 @@
 using AwesomeAssertions;
+using NetMQ;
+using NetMQ.Sockets;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
@@ -8,6 +10,7 @@ using OrcaCore.Integration.Tests.Fixtures;
 using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Integration.Tests.Support;
 using OrcaCore.Providers.RabbitMq;
+using OrcaCore.Providers.ZeroMq;
 using OrcaCore.TestSupport;
 using Xunit;
 
@@ -170,10 +173,45 @@ public sealed class ProviderStackIntegrationTests(OrcaStackFixture fixture)
 
     [Fact]
     [Trait(Traits.Scenario, "INT-ST-009")]
-    public async Task INT_ST_009_ZeroMqDispatcherStack_BlockedUntilProfileExists()
+    public async Task INT_ST_009_ZeroMqDispatcherStack_DeliversEnvelope()
     {
-        await Task.CompletedTask;
-        Assert.Skip("ZeroMQ dispatcher host profile not configured in integration harness.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        var endpoint = $"tcp://127.0.0.1:{FreeTcpPort()}";
+        using var pull = new PullSocket();
+        pull.Bind(endpoint);
+        using var publisher = new NetMqPublisher(new ZeroMqMessageDispatcherOptions
+        {
+            Endpoint = endpoint,
+            Topic = "orcacore.outbox",
+            SendTimeout = TimeSpan.FromSeconds(1)
+        });
+        await using var store = await fixture.PostgreSql.CreateStoreAsync();
+        var pump = new DurableOutboxPump(
+            store,
+            new ZeroMqMessageDispatcher(
+                publisher,
+                new ZeroMqMessageDispatcherOptions
+                {
+                    Endpoint = endpoint,
+                    Topic = "orcacore.outbox",
+                    SendTimeout = TimeSpan.FromSeconds(1)
+                }));
+        await store.AppendAsync(
+            IntegrationCommands.OutboxOnlyBatch(
+                1,
+                new OutboxWrite(IntegrationIds.Outbox(9), "workflow.completed", [9, 8, 7])),
+            TestContext.Current.CancellationToken);
+
+        var dispatched = await pump.PumpOnceAsync(10, TestContext.Current.CancellationToken);
+        var message = new NetMQMessage();
+        var received = pull.TryReceiveMultipartMessage(TimeSpan.FromSeconds(2), ref message);
+
+        dispatched.Should().Be(1);
+        received.Should().BeTrue();
+        var receivedMessage = message ?? throw new InvalidOperationException("No ZeroMQ message was received.");
+        receivedMessage.Select(frame => frame.ConvertToString()).Take(2)
+            .Should().Equal("orcacore.outbox", "workflow.completed");
+        receivedMessage[2].ToByteArray().Should().Equal([9, 8, 7]);
     }
 
     [Fact]
@@ -198,10 +236,36 @@ public sealed class ProviderStackIntegrationTests(OrcaStackFixture fixture)
 
     [Fact]
     [Trait(Traits.Scenario, "INT-ST-012")]
-    public async Task INT_ST_012_ConnectionStringRotation_BlockedInTestHarness()
+    public async Task INT_ST_012_ConnectionStringRotation_RebuildsHostWithSameDatabase()
     {
-        await Task.CompletedTask;
-        Assert.Skip("Connection string rotation simulation not implemented in Testcontainers fixture.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        var firstDispatcher = new RecordingMessageDispatcher();
+        using (var firstHost = OrcaIntegrationHost.Build(
+            fixture.PostgreSql.ConnectionString,
+            new Microsoft.Extensions.Time.Testing.FakeTimeProvider(IntegrationIds.Timestamp(0)),
+            firstDispatcher))
+        {
+            var processor = firstHost.Services.GetRequiredService<DurableCommandProcessor>();
+            await processor.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+            await processor.ProcessAsync(
+                IntegrationCommands.WaitRegistered(1, 10, 2),
+                TestContext.Current.CancellationToken);
+        }
+
+        var secondDispatcher = new RecordingMessageDispatcher();
+        using var secondHost = OrcaIntegrationHost.Build(
+            fixture.PostgreSql.ConnectionString,
+            new Microsoft.Extensions.Time.Testing.FakeTimeProvider(IntegrationIds.Timestamp(1)),
+            secondDispatcher);
+        await secondHost.Services.GetRequiredService<DurableCommandProcessor>()
+            .ProcessAsync(IntegrationCommands.Deliver(1, 50, 3), TestContext.Current.CancellationToken);
+
+        var events = await secondHost.Services.GetRequiredService<IWorkflowEventStore>()
+            .LoadTailAsync(
+                new WorkflowStreamId(IntegrationIds.Instance(1)),
+                StreamVersion.Empty,
+                TestContext.Current.CancellationToken);
+        events.OfType<WorkflowWaitMatchedEvent>().Should().ContainSingle();
     }
 
     [Fact]
@@ -237,5 +301,12 @@ public sealed class ProviderStackIntegrationTests(OrcaStackFixture fixture)
         await pump.PumpOnceAsync(10, TestContext.Current.CancellationToken);
         var message = await fixture.RabbitMq.BasicGetAsync(TestContext.Current.CancellationToken);
         message.Should().NotBeNull();
+    }
+
+    private static int FreeTcpPort()
+    {
+        using var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        listener.Start();
+        return ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
     }
 }

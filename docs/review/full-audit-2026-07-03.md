@@ -56,6 +56,11 @@ Follow-up implementation verification, 2026-07-03:
   and in-memory retention certification. Successful archive now has shared
   certification coverage in addition to active-instance and in-flight outbox
   safety checks.
+- Outbox observer and interpreter-runner decomposition pass reran focused
+  durable outbox tests, focused ephemeral interpreter/control-flow tests, the
+  non-integration analyzer build loop with `-warnaserror`, and the full
+  `v3-gpt/tests/OrcaCore.Integration.Tests` project. Integration coverage is
+  now passed 81, skipped 18, failed 0.
 
 ## Completed In This Pass
 
@@ -227,6 +232,9 @@ Implementation update:
   exceptions as `Retryable`, and releases records on cancellation.
 - PostgreSQL and SQL Server migrations add `claimed_until` for outbox records;
   provider certification tests cover lease expiry and explicit release.
+- `IOutboxPumpObserver` now provides per-cycle claimed, attempted, success,
+  retryable-failure, and permanent-failure counts; hosting can register the
+  observer and integration coverage asserts the hosted pump summary.
 
 ### Hosted services lack transient-failure boundaries
 
@@ -462,9 +470,17 @@ Implementation update:
   delivery, lifecycle event recording, and step-result mapping behind one
   internal Module. `Interpreter<TState>` still owns recursive node orchestration
   and consumes the step outcome.
-- Remaining interpreter decomposition targets are wait registration, delay
-  scheduling, parallel/when-first join coordination, loop execution, and yield
-  continuation scheduling.
+- 2026-07-03: extracted `ConditionEvaluator<TState>`,
+  `SuspensionScheduler<TState>`, `WhileNodeRunner<TState>`,
+  `ParallelNodeRunner<TState>`, `WhenFirstNodeRunner<TState>`,
+  `ForEachNodeRunner<TState>`, `ParallelJoin`, `WhenFirstJoin`,
+  `WorkflowFailureHandler<TState>`, and `WorkflowLifecycleTransition`. The
+  interpreter now stays closer to orchestration and delegates condition
+  handling, wait/delay suspension, loop execution, parallel joins, when-first
+  joins, foreach scheduling, failure recording, and lifecycle transitions.
+- Remaining interpreter decomposition targets are yield continuation scheduling
+  and any additional extraction that makes a behavior directly testable without
+  turning the interpreter into pass-through glue.
 
 ### Other switch-heavy or oversized Modules to prioritize
 
@@ -506,12 +522,15 @@ Module Interface and keep source-text checks explicitly named as guard tests.
    event coverage.
 4. Completed 2026-07-03: PostgreSQL start idempotency, SQL Server resource-pool
    persistence, and SQL Server retention certification parity.
-5. Extract internal durable aggregate slices for waits, children, resource pools,
+5. Continue behavior-preserving `Interpreter<TState>` decomposition only where
+   it adds locality or testability; yield continuation scheduling is the next
+   specific candidate.
+6. Extract internal durable aggregate slices for waits, children, resource pools,
    external jobs, and saga compensation.
-6. Introduce a shared `InstanceLane` Module to remove duplicated channel-lane
+7. Introduce a shared `InstanceLane` Module to remove duplicated channel-lane
    Implementation.
-7. Split test execution into unit, container, and active integration lanes in CI.
-8. Replace scheduler-yield negative assertions with deterministic test-support
+8. Split test execution into unit, container, and active integration lanes in CI.
+9. Replace scheduler-yield negative assertions with deterministic test-support
    probes.
 
 ## Current Risk Summary

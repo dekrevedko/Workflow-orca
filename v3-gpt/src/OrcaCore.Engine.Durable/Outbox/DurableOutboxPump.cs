@@ -9,7 +9,8 @@ namespace OrcaCore.Engine.Durable.Outbox;
 /// </summary>
 public sealed class DurableOutboxPump(
     IWorkflowOutboxStore outboxStore,
-    IMessageDispatcher dispatcher)
+    IMessageDispatcher dispatcher,
+    IOutboxPumpObserver? observer = null)
 {
     private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
 
@@ -50,11 +51,29 @@ public sealed class DurableOutboxPump(
         activity?.SetTag("orcacore.outbox.claimed_count", records.Count);
 
         var dispatched = 0;
+        var dispatchAttempts = 0;
+        var successes = 0;
+        var retryableFailures = 0;
+        var permanentFailures = 0;
         foreach (var record in records)
         {
             try
             {
+                dispatchAttempts++;
                 var result = await dispatcher.DispatchAsync(record, cancellationToken).ConfigureAwait(false);
+                switch (result)
+                {
+                    case DispatchResult.Success:
+                        successes++;
+                        break;
+                    case DispatchResult.RetryableFailure:
+                        retryableFailures++;
+                        break;
+                    case DispatchResult.PermanentFailure:
+                        permanentFailures++;
+                        break;
+                }
+
                 await outboxStore
                     .MarkAsync(record.OutboxRecordId, ToState(result), cancellationToken)
                     .ConfigureAwait(false);
@@ -69,10 +88,25 @@ public sealed class DurableOutboxPump(
             }
             catch (Exception)
             {
+                retryableFailures++;
                 await outboxStore
                     .MarkAsync(record.OutboxRecordId, OutboxRecordState.Retryable, CancellationToken.None)
                     .ConfigureAwait(false);
             }
+        }
+
+        if (observer is not null)
+        {
+            await observer
+                .OnPumpCompletedAsync(
+                    new OutboxPumpObservation(
+                        records.Count,
+                        dispatchAttempts,
+                        successes,
+                        retryableFailures,
+                        permanentFailures),
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
 
         activity?.SetTag("orcacore.outbox.dispatched_count", dispatched);

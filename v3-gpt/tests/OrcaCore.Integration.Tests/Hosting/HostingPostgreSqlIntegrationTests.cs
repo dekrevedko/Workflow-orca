@@ -9,6 +9,7 @@ using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Engine.Durable.Management;
+using OrcaCore.Engine.Durable.Outbox;
 using OrcaCore.Engine.Ephemeral;
 using OrcaCore.Hosting;
 using OrcaCore.Hosting.Services;
@@ -329,10 +330,38 @@ public sealed class HostingPostgreSqlIntegrationTests(PostgreSqlOrcaFixture fixt
     [Fact]
     [Trait(Traits.Scenario, "INT-HO-015")]
     [Trait("AC", "OB-010")]
-    public async Task INT_HO_015_OutboxPumpObserver_BlockedUntilImplemented()
+    public async Task INT_HO_015_OutboxPumpObserver_ReceivesHostedPumpSummary()
     {
-        await Task.CompletedTask;
-        Assert.Skip("IOutboxPumpObserver not implemented yet.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        var dispatcher = new RecordingMessageDispatcher();
+        var observer = new RecordingOutboxPumpObserver();
+        using var host = OrcaIntegrationHost.Build(
+            fixture.ConnectionString,
+            new Microsoft.Extensions.Time.Testing.FakeTimeProvider(IntegrationIds.Timestamp(0)),
+            dispatcher,
+            configureServices: services => services.AddSingleton<IOutboxPumpObserver>(observer));
+        var pools = host.Services.GetRequiredService<IResourcePoolStore>();
+        await pools.UpsertPoolAsync(
+            IntegrationCommands.Pool("db", 1),
+            TestContext.Current.CancellationToken);
+        var processor = host.Services.GetRequiredService<DurableCommandProcessor>();
+        await processor.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+        await processor.ProcessAsync(
+            IntegrationCommands.RunExternalJob(1, 2, "job-1", IntegrationCommands.Requirement("db")),
+            TestContext.Current.CancellationToken);
+
+        var dispatchedCount = await OrcaIntegrationHost.PumpOutboxOnceAsync(
+            host,
+            TestContext.Current.CancellationToken);
+
+        dispatchedCount.Should().BeGreaterThan(0);
+        observer.Observations.Should().ContainSingle()
+            .Which.Should().Be(new OutboxPumpObservation(
+                ClaimedCount: dispatchedCount,
+                DispatchAttemptCount: dispatchedCount,
+                SuccessCount: dispatchedCount,
+                RetryableFailureCount: 0,
+                PermanentFailureCount: 0));
     }
 
     private sealed class TestState
@@ -346,6 +375,19 @@ public sealed class HostingPostgreSqlIntegrationTests(PostgreSqlOrcaFixture fixt
         {
             cancellationToken.ThrowIfCancellationRequested();
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed class RecordingOutboxPumpObserver : IOutboxPumpObserver
+    {
+        internal List<OutboxPumpObservation> Observations { get; } = [];
+
+        public ValueTask OnPumpCompletedAsync(
+            OutboxPumpObservation observation,
+            CancellationToken cancellationToken)
+        {
+            Observations.Add(observation);
+            return ValueTask.CompletedTask;
         }
     }
 }

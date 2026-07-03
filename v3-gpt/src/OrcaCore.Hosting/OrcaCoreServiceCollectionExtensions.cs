@@ -48,7 +48,10 @@ public static class OrcaCoreServiceCollectionExtensions
             provider.GetService<IResourcePoolStore>()));
         services.TryAddSingleton(provider => new DurableCommandProcessor(
             provider.GetRequiredService<DurableCommandRuntime>()));
-        services.TryAddSingleton<DurableOutboxPump>();
+        services.TryAddSingleton(provider => new DurableOutboxPump(
+            provider.GetRequiredService<IWorkflowOutboxStore>(),
+            provider.GetRequiredService<IMessageDispatcher>(),
+            provider.GetService<IOutboxPumpObserver>()));
         services.TryAddSingleton(provider => new DurableManagement(
             provider.GetRequiredService<IWorkflowProjectionStore>(),
             provider.GetRequiredService<IResourcePoolStore>(),

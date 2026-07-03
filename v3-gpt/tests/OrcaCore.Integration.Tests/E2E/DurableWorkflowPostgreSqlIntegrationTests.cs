@@ -347,10 +347,69 @@ public sealed class DurableWorkflowPostgreSqlIntegrationTests(PostgreSqlOrcaFixt
     [Fact]
     [Trait(Traits.Scenario, "INT-E2E-017")]
     [Trait("AC", "AC-610")]
-    public async Task INT_E2E_017_ParentResumeTokenBarrier_BlockedUntilHarnessExists()
+    public async Task INT_E2E_017_ParentResumeTokenBarrierSurvivesProcessorRestart()
     {
-        await Task.CompletedTask;
-        Assert.Skip("Parent resume token barrier requires child completion harness on PostgreSql.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        await using (var firstStore = await fixture.CreateStoreAsync())
+        {
+            var first = await fixture.CreateProcessorAsync(firstStore);
+            await first.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+            await first.ProcessAsync(
+                IntegrationCommands.RunChildren(1, 2, "a", "b"),
+                TestContext.Current.CancellationToken);
+            var scheduled = (await firstStore.LoadTailAsync(
+                new WorkflowStreamId(IntegrationIds.Instance(1)),
+                StreamVersion.Empty,
+                TestContext.Current.CancellationToken)).OfType<WorkflowChildrenScheduledEvent>().Single();
+            await first.ProcessAsync(
+                IntegrationCommands.ChildCompleted(1, 10, scheduled.Children[0].ChildInstanceId),
+                TestContext.Current.CancellationToken);
+        }
+
+        await using var restartedStore = await fixture.CreateStoreAsync();
+        var restarted = await fixture.CreateProcessorAsync(restartedStore);
+        var restartedEvents = await restartedStore.LoadTailAsync(
+            new WorkflowStreamId(IntegrationIds.Instance(1)),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+        var restartedSchedule = restartedEvents.OfType<WorkflowChildrenScheduledEvent>().Single();
+        await restarted.ProcessAsync(
+            IntegrationCommands.ChildCompleted(1, 11, restartedSchedule.Children[1].ChildInstanceId),
+            TestContext.Current.CancellationToken);
+        var token = (await restartedStore.LoadTailAsync(
+            new WorkflowStreamId(IntegrationIds.Instance(1)),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken)).OfType<WorkflowParentResumeTokenRecordedEvent>().Single();
+
+        var firstConsume = await restarted.ProcessAsync(
+            new ConsumeParentResumeTokenCommand
+            {
+                CommandId = IntegrationIds.Command(12),
+                InstanceId = IntegrationIds.Instance(1),
+                RequestedAt = IntegrationIds.Timestamp(12),
+                GroupId = token.GroupId,
+                ResumeTokenId = token.ResumeTokenId
+            },
+            TestContext.Current.CancellationToken);
+        var duplicateConsume = await restarted.ProcessAsync(
+            new ConsumeParentResumeTokenCommand
+            {
+                CommandId = IntegrationIds.Command(13),
+                InstanceId = IntegrationIds.Instance(1),
+                RequestedAt = IntegrationIds.Timestamp(13),
+                GroupId = token.GroupId,
+                ResumeTokenId = token.ResumeTokenId
+            },
+            TestContext.Current.CancellationToken);
+        var finalEvents = await restartedStore.LoadTailAsync(
+            new WorkflowStreamId(IntegrationIds.Instance(1)),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+
+        firstConsume.Outcome.Should().Be(DurableCommandOutcome.Committed);
+        duplicateConsume.Outcome.Should().Be(DurableCommandOutcome.NoOp);
+        finalEvents.OfType<WorkflowParentResumeTokenConsumedEvent>().Should().ContainSingle()
+            .Which.ResumeTokenId.Should().Be(token.ResumeTokenId);
     }
 
     [Fact]

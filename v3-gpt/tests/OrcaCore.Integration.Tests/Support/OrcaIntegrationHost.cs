@@ -80,11 +80,12 @@ internal static class OrcaIntegrationHost
     internal static async Task<(IHost Host, RecordingMessageDispatcher Dispatcher, FakeTimeProvider Clock)> BuildPostgreSqlAsync(
         string connectionString,
         Action<OrcaCoreHostedServiceOptions>? configure = null,
+        Action<IServiceCollection>? configureServices = null,
         CancellationToken cancellationToken = default)
     {
         var clock = new FakeTimeProvider(IntegrationIds.Timestamp(0));
         var dispatcher = new RecordingMessageDispatcher();
-        var host = Build(connectionString, clock, dispatcher, configure);
+        var host = Build(connectionString, clock, dispatcher, configure, configureServices);
         await host.StartAsync(cancellationToken);
         return (host, dispatcher, clock);
     }
@@ -93,7 +94,8 @@ internal static class OrcaIntegrationHost
         string connectionString,
         FakeTimeProvider clock,
         IMessageDispatcher dispatcher,
-        Action<OrcaCoreHostedServiceOptions>? configure = null)
+        Action<OrcaCoreHostedServiceOptions>? configure = null,
+        Action<IServiceCollection>? configureServices = null)
     {
         var builder = Host.CreateApplicationBuilder([]);
         builder.Services.AddSingleton<TimeProvider>(clock);
@@ -108,6 +110,7 @@ internal static class OrcaIntegrationHost
                 configure?.Invoke(options);
             });
         builder.Services.Replace(ServiceDescriptor.Singleton<IMessageDispatcher>(dispatcher));
+        configureServices?.Invoke(builder.Services);
         return builder.Build();
     }
 
@@ -116,10 +119,10 @@ internal static class OrcaIntegrationHost
         return SampleHostApplication.Build([]);
     }
 
-    internal static async Task PumpOutboxOnceAsync(IHost host, CancellationToken cancellationToken)
+    internal static async Task<int> PumpOutboxOnceAsync(IHost host, CancellationToken cancellationToken)
     {
         var pump = host.Services.GetRequiredService<DurableOutboxPump>();
-        await pump.PumpOnceAsync(100, cancellationToken);
+        return await pump.PumpOnceAsync(100, cancellationToken);
     }
 
     internal static async Task FireTimersOnceAsync(IHost host, CancellationToken cancellationToken)

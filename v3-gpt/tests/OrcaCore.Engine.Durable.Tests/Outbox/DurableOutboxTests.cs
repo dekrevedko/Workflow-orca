@@ -89,6 +89,42 @@ public sealed class DurableOutboxTests
     }
 
     [Fact]
+    [Trait("AC", "OB-010")]
+    public async Task OutboxPump_NotifiesObserverAfterPumpCycle()
+    {
+        var first = OutboxRecordId.New();
+        var second = OutboxRecordId.New();
+        var store = new InMemoryWorkflowProvider();
+        await store.AppendAsync(
+            new ProviderCommitBatch
+            {
+                StreamId = new WorkflowStreamId(InstanceId.New()),
+                ExpectedVersion = StreamVersion.Empty,
+                OutboxRecords =
+                [
+                    new OutboxWrite(first, "status", [1]),
+                    new OutboxWrite(second, "external-message", [2])
+                ]
+            },
+            TestContext.Current.CancellationToken);
+        var observer = new RecordingObserver();
+        var pump = new DurableOutboxPump(
+            store,
+            new FakeMessageDispatcher(DispatchResult.Success, DispatchResult.RetryableFailure),
+            observer);
+
+        await pump.PumpOnceAsync(10, TestContext.Current.CancellationToken);
+
+        observer.Observations.Should().ContainSingle()
+            .Which.Should().Be(new OutboxPumpObservation(
+                ClaimedCount: 2,
+                DispatchAttemptCount: 2,
+                SuccessCount: 1,
+                RetryableFailureCount: 1,
+                PermanentFailureCount: 0));
+    }
+
+    [Fact]
     public async Task UnifiedOutbox_CarriesStatusAndExternalMessageRecords()
     {
         var store = new InMemoryWorkflowProvider();
@@ -134,6 +170,19 @@ public sealed class DurableOutboxTests
         public Task<DispatchResult> DispatchAsync(OutboxWrite record, CancellationToken cancellationToken)
         {
             throw new InvalidOperationException("transport unavailable");
+        }
+    }
+
+    private sealed class RecordingObserver : IOutboxPumpObserver
+    {
+        internal List<OutboxPumpObservation> Observations { get; } = [];
+
+        public ValueTask OnPumpCompletedAsync(
+            OutboxPumpObservation observation,
+            CancellationToken cancellationToken)
+        {
+            Observations.Add(observation);
+            return ValueTask.CompletedTask;
         }
     }
 }

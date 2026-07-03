@@ -1,4 +1,3 @@
-using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
@@ -9,11 +8,17 @@ using OrcaCore.Engine.Ephemeral.Timers;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
 
-internal sealed class Interpreter<TState>
+internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
 {
-    private readonly EphemeralTimerService timerService;
     private readonly TimeProvider timeProvider;
     private readonly StepExecutor<TState> stepExecutor;
+    private readonly WorkflowFailureHandler<TState> failureHandler;
+    private readonly ConditionEvaluator<TState> conditionEvaluator;
+    private readonly SuspensionScheduler<TState> suspensionScheduler;
+    private readonly WhileNodeRunner<TState> whileRunner;
+    private readonly ParallelNodeRunner<TState> parallelRunner;
+    private readonly WhenFirstNodeRunner<TState> whenFirstRunner;
+    private readonly ForEachNodeRunner<TState> forEachRunner;
 
     internal Interpreter(
         TimeProvider timeProvider,
@@ -26,8 +31,14 @@ internal sealed class Interpreter<TState>
         ArgumentNullException.ThrowIfNull(governance);
 
         this.timeProvider = timeProvider;
-        this.timerService = timerService;
         stepExecutor = new StepExecutor<TState>(timeProvider, governance, stuckStepThreshold);
+        failureHandler = new WorkflowFailureHandler<TState>(timeProvider);
+        conditionEvaluator = new ConditionEvaluator<TState>(failureHandler);
+        suspensionScheduler = new SuspensionScheduler<TState>(timeProvider, timerService, this);
+        whileRunner = new WhileNodeRunner<TState>(this, conditionEvaluator);
+        parallelRunner = new ParallelNodeRunner<TState>(this);
+        whenFirstRunner = new WhenFirstNodeRunner<TState>(this, timeProvider);
+        forEachRunner = new ForEachNodeRunner<TState>(this, timeProvider);
     }
 
     internal async Task<WorkflowInstance<TState>> RunAsync<TInput>(
@@ -38,312 +49,107 @@ internal sealed class Interpreter<TState>
     {
         ArgumentNullException.ThrowIfNull(definition);
 
-        var runState = new InterpreterRunState();
-
-        await RunSequenceAsync(
+        var runState = new InterpreterRunState<TState>();
+        var context = new SequenceExecutionContext<TState, TInput>(
             definition.RootSequence,
             runState,
             input,
             instanceId,
             definition.DefinitionId,
             definition.DefinitionVersion,
-            cancellationToken,
-            startIndex: 0,
             branchId: null,
             new ResumeEventSlot(null),
-            afterSequence: null).ConfigureAwait(false);
+            afterSequence: null);
 
-        EnsureInitialized(runState.Initialized, runState.Instance);
+        await RunSequenceAsync(context, startIndex: 0, cancellationToken).ConfigureAwait(false);
+
+        EnsureInitialized(runState);
         return runState.Instance!;
     }
 
     private async Task<bool> RunSequenceAsync<TInput>(
-        SequenceNode<TState> sequence,
-        InterpreterRunState runState,
-        TInput input,
-        InstanceId instanceId,
-        DefinitionId definitionId,
-        DefinitionVersion definitionVersion,
-        CancellationToken cancellationToken,
+        SequenceExecutionContext<TState, TInput> context,
         int startIndex,
-        BranchId? branchId,
-        ResumeEventSlot resumeEvent,
-        Func<CancellationToken, Task>? afterSequence,
+        CancellationToken cancellationToken,
         bool deferStepFailures = false)
     {
-        for (var index = startIndex; index < sequence.Children.Count; index++)
+        for (var index = startIndex; index < context.Sequence.Children.Count; index++)
         {
-            var node = sequence.Children[index];
+            var node = context.Sequence.Children[index];
             cancellationToken.ThrowIfCancellationRequested();
 
             switch (node)
             {
                 case InitNode<TState> initNode:
-                    var state = initNode.CreateState(input);
-                    runState.Initialized = true;
-                    runState.Instance = new WorkflowInstance<TState>(
-                        instanceId,
-                        definitionId,
-                        definitionVersion,
-                        state,
+                    context.RunState.Initialized = true;
+                    context.RunState.Instance = new WorkflowInstance<TState>(
+                        context.InstanceId,
+                        context.DefinitionId,
+                        context.DefinitionVersion,
+                        initNode.CreateState(context.Input),
                         timeProvider.GetUtcNow());
                     break;
+
                 case BusinessStepNode<TState> stepNode:
-                    EnsureInitialized(runState.Initialized, runState.Instance);
-                    var stepResult = await stepExecutor.ExecuteAsync(
-                        runState.Instance!,
-                        stepNode,
-                        node.NodeId,
-                        resumeEvent.Take(),
-                        cancellationToken,
-                        deferStepFailures).ConfigureAwait(false);
-                    if (stepResult.Status == StepExecutionStatus.Failed)
+                    if (!await RunStepAsync(stepNode, node.NodeId, context, index, cancellationToken, deferStepFailures)
+                            .ConfigureAwait(false))
                     {
-                        runState.DeferredFailure = stepResult.Error;
-                        return false;
-                    }
-
-                    if (stepResult.Status == StepExecutionStatus.Stop)
-                    {
-                        return false;
-                    }
-
-                    if (stepResult.Status == StepExecutionStatus.Wait)
-                    {
-                        await RegisterWaitAsync(
-                            runState.Instance!,
-                            stepResult.EventName!,
-                            stepResult.CorrelationId,
-                            null,
-                            branchId,
-                            sequence,
-                            runState,
-                            input,
-                            instanceId,
-                            definitionId,
-                            definitionVersion,
-                            index + 1,
-                            cancellationToken,
-                            afterSequence).ConfigureAwait(false);
-                        return false;
-                    }
-
-                    if (stepResult.Status == StepExecutionStatus.Yield)
-                    {
-                        runState.Instance!.ScheduleYield(continuationToken => ContinueSequenceAsync(
-                            sequence,
-                            runState,
-                            input,
-                            instanceId,
-                            definitionId,
-                            definitionVersion,
-                            index,
-                            branchId,
-                            resumeEvent,
-                            afterSequence,
-                            continuationToken));
                         return false;
                     }
 
                     break;
+
                 case EndNode<TState> endNode:
-                    EnsureInitialized(runState.Initialized, runState.Instance);
-                    if (runState.Instance!.HasUnresolvedRuntimeWork)
-                    {
-                        Fail(
-                            runState.Instance,
-                            new WorkflowLifecycleException(
-                                "Workflow cannot complete with unresolved runtime work."),
-                            node.NodeId);
-                        return false;
-                    }
+                    return Complete(endNode, node.NodeId, context.RunState);
 
-                    FireOrThrow(runState.Instance!, LifecycleTrigger.Complete);
-                    runState.Instance!.Complete(endNode.OutcomeName, timeProvider.GetUtcNow());
-                    return false;
                 case IfNode<TState> ifNode:
-                    EnsureInitialized(runState.Initialized, runState.Instance);
-                    if (!TryEvaluateCondition(runState.Instance!, ifNode.Condition, node.NodeId, out var ifResult))
-                    {
-                        return false;
-                    }
-
-                    var selectedSequence = ifResult
-                        ? ifNode.Then
-                        : ifNode.Else;
-                    if (!await RunSequenceAsync(
-                            selectedSequence,
-                            runState,
-                            input,
-                            instanceId,
-                            definitionId,
-                            definitionVersion,
-                            cancellationToken,
-                            startIndex: 0,
-                            branchId,
-                            resumeEvent,
-                            continuationToken => ContinueSequenceAsync(
-                                sequence,
-                                runState,
-                                input,
-                                instanceId,
-                                definitionId,
-                                definitionVersion,
-                                index + 1,
-                                branchId,
-                                resumeEvent,
-                                afterSequence,
-                                continuationToken)).ConfigureAwait(false))
+                    if (!await RunIfAsync(ifNode, node.NodeId, context, index, cancellationToken).ConfigureAwait(false))
                     {
                         return false;
                     }
 
                     break;
+
                 case WhileNode<TState> whileNode:
-                    EnsureInitialized(runState.Initialized, runState.Instance);
-                    await ContinueWhileAsync(
-                        whileNode,
-                        sequence,
-                        runState,
-                        input,
-                        instanceId,
-                        definitionId,
-                        definitionVersion,
-                        index,
-                        branchId,
-                        resumeEvent,
-                        afterSequence,
-                        cancellationToken).ConfigureAwait(false);
+                    EnsureInitialized(context.RunState);
+                    await whileRunner.RunAsync(whileNode, context, index, cancellationToken).ConfigureAwait(false);
                     return false;
+
                 case ParallelNode<TState> parallelNode:
-                    EnsureInitialized(runState.Initialized, runState.Instance);
-                    var join = new ParallelJoin(
-                        parallelNode.Branches.Count,
-                        continuationToken => ContinueSequenceAsync(
-                            sequence,
-                            runState,
-                            input,
-                            instanceId,
-                            definitionId,
-                            definitionVersion,
-                            index + 1,
-                            branchId,
-                            resumeEvent,
-                            afterSequence,
-                            continuationToken));
-                    foreach (var branch in parallelNode.Branches)
-                    {
-                        var completed = await RunSequenceAsync(
-                            branch.Sequence,
-                            runState,
-                            input,
-                            instanceId,
-                            definitionId,
-                            definitionVersion,
-                            cancellationToken,
-                            startIndex: 0,
-                            branch.BranchId,
-                            resumeEvent,
-                            continuationToken => join.BranchCompletedAsync(continuationToken))
-                            .ConfigureAwait(false);
-                        if (completed)
-                        {
-                            await join.BranchCompletedAsync(cancellationToken).ConfigureAwait(false);
-                        }
-
-                        if (runState.Instance!.Status == WorkflowStatus.Failed)
-                        {
-                            return false;
-                        }
-                    }
-
+                    EnsureInitialized(context.RunState);
+                    await parallelRunner.RunAsync(parallelNode, context, index, cancellationToken).ConfigureAwait(false);
                     return false;
+
                 case WhenFirstNode<TState> whenFirstNode:
-                    EnsureInitialized(runState.Initialized, runState.Instance);
-                    await RunWhenFirstAsync(
-                        whenFirstNode,
-                        sequence,
-                        runState,
-                        input,
-                        instanceId,
-                        definitionId,
-                        definitionVersion,
-                        index,
-                        branchId,
-                        resumeEvent,
-                        afterSequence,
-                        cancellationToken).ConfigureAwait(false);
+                    EnsureInitialized(context.RunState);
+                    await whenFirstRunner.RunAsync(whenFirstNode, context, index, cancellationToken).ConfigureAwait(false);
                     return false;
+
                 case ForEachNode<TState> forEachNode:
-                    EnsureInitialized(runState.Initialized, runState.Instance);
-                    await RunForEachAsync(
-                        forEachNode,
-                        sequence,
-                        runState,
-                        input,
-                        instanceId,
-                        definitionId,
-                        definitionVersion,
-                        index,
-                        branchId,
-                        resumeEvent,
-                        afterSequence,
-                        cancellationToken).ConfigureAwait(false);
+                    EnsureInitialized(context.RunState);
+                    await forEachRunner.RunAsync(forEachNode, context, index, cancellationToken).ConfigureAwait(false);
                     return false;
+
                 case RunChildNode<TState>:
                 case RunChildrenNode<TState>:
-                    EnsureInitialized(runState.Initialized, runState.Instance);
-                    Fail(
-                        runState.Instance!,
+                    failureHandler.Fail(
+                        EnsureInitialized(context.RunState),
                         new NotSupportedException("Durable child workflow nodes require the durable engine."),
                         node.NodeId);
                     return false;
-                case WaitNode<TState> waitNode:
-                    EnsureInitialized(runState.Initialized, runState.Instance);
-                    CorrelationId correlationId;
-                    try
-                    {
-                        correlationId = waitNode.CorrelationSelector(runState.Instance!.State);
-                    }
-                    catch (Exception exception)
-                        when (exception is not OperationCanceledException and not NotSupportedException)
-                    {
-                        Fail(runState.Instance!, exception, node.NodeId);
-                        return false;
-                    }
 
-                    await RegisterWaitAsync(
-                        runState.Instance!,
-                        waitNode.EventName,
-                        correlationId,
-                        waitNode.Timeout,
-                        branchId,
-                        sequence,
-                        runState,
-                        input,
-                        instanceId,
-                        definitionId,
-                        definitionVersion,
-                        index + 1,
-                        cancellationToken,
-                        afterSequence).ConfigureAwait(false);
+                case WaitNode<TState> waitNode:
+                    await RunWaitAsync(waitNode, node.NodeId, context, index, cancellationToken).ConfigureAwait(false);
                     return false;
+
                 case DelayNode<TState> delayNode:
-                    EnsureInitialized(runState.Initialized, runState.Instance);
-                    RegisterDelay(
-                        runState.Instance!,
+                    suspensionScheduler.RegisterDelay(
+                        EnsureInitialized(context.RunState),
                         delayNode.Duration,
-                        sequence,
-                        runState,
-                        input,
-                        instanceId,
-                        definitionId,
-                        definitionVersion,
-                        index + 1,
-                        branchId,
-                        resumeEvent,
-                        afterSequence);
+                        context,
+                        nextIndex: index + 1);
                     return false;
+
                 default:
                     throw new NotSupportedException($"Node '{node.GetType().Name}' is not supported by T1-05.");
             }
@@ -353,691 +159,169 @@ internal sealed class Interpreter<TState>
     }
 
     private async Task ContinueSequenceAsync<TInput>(
-        SequenceNode<TState> sequence,
-        InterpreterRunState runState,
-        TInput input,
-        InstanceId instanceId,
-        DefinitionId definitionId,
-        DefinitionVersion definitionVersion,
+        SequenceExecutionContext<TState, TInput> context,
         int startIndex,
-        BranchId? branchId,
-        ResumeEventSlot resumeEvent,
-        Func<CancellationToken, Task>? afterSequence,
         CancellationToken cancellationToken)
     {
-        var completed = await RunSequenceAsync(
-            sequence,
-            runState,
-            input,
-            instanceId,
-            definitionId,
-            definitionVersion,
-            cancellationToken,
-            startIndex,
-            branchId,
-            resumeEvent,
-            afterSequence).ConfigureAwait(false);
-        if (completed && afterSequence is not null)
+        var completed = await RunSequenceAsync(context, startIndex, cancellationToken).ConfigureAwait(false);
+        if (completed && context.AfterSequence is not null)
         {
-            await afterSequence(cancellationToken).ConfigureAwait(false);
+            await context.AfterSequence(cancellationToken).ConfigureAwait(false);
         }
     }
 
-    private async Task RunWhenFirstAsync<TInput>(
-        WhenFirstNode<TState> whenFirstNode,
-        SequenceNode<TState> parentSequence,
-        InterpreterRunState runState,
-        TInput input,
-        InstanceId instanceId,
-        DefinitionId definitionId,
-        DefinitionVersion definitionVersion,
-        int whenFirstIndex,
-        BranchId? parentBranchId,
-        ResumeEventSlot resumeEvent,
-        Func<CancellationToken, Task>? afterSequence,
-        CancellationToken cancellationToken)
-    {
-        var join = new WhenFirstJoin(
-            whenFirstNode,
-            runState.Instance!,
-            () => timeProvider.GetUtcNow(),
-            continuationToken => ContinueSequenceAsync(
-                parentSequence,
-                runState,
-                input,
-                instanceId,
-                definitionId,
-                definitionVersion,
-                whenFirstIndex + 1,
-                parentBranchId,
-                resumeEvent,
-                afterSequence,
-                continuationToken));
-        foreach (var branch in whenFirstNode.Branches)
-        {
-            if (join.ShouldStopScheduling)
-            {
-                return;
-            }
-
-            var completed = await RunSequenceAsync(
-                branch.Sequence,
-                runState,
-                input,
-                instanceId,
-                definitionId,
-                definitionVersion,
-                cancellationToken,
-                startIndex: 0,
-                branch.BranchId,
-                resumeEvent,
-                continuationToken => join.BranchCompletedAsync(branch, continuationToken))
-                .ConfigureAwait(false);
-            if (completed)
-            {
-                await join.BranchCompletedAsync(branch, cancellationToken).ConfigureAwait(false);
-            }
-
-            if (runState.Instance!.Status == WorkflowStatus.Failed)
-            {
-                return;
-            }
-        }
-    }
-
-    private async Task RunForEachAsync<TInput>(
-        ForEachNode<TState> forEachNode,
-        SequenceNode<TState> parentSequence,
-        InterpreterRunState runState,
-        TInput input,
-        InstanceId instanceId,
-        DefinitionId definitionId,
-        DefinitionVersion definitionVersion,
-        int forEachIndex,
-        BranchId? parentBranchId,
-        ResumeEventSlot resumeEvent,
-        Func<CancellationToken, Task>? afterSequence,
-        CancellationToken cancellationToken)
-    {
-        IReadOnlyList<ForEachWorkItemSnapshot> workItems;
-        try
-        {
-            workItems = forEachNode.MaterializeWorkItems(runState.Instance!.State);
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException and not NotSupportedException)
-        {
-            Fail(runState.Instance!, exception, forEachNode.NodeId);
-            return;
-        }
-
-        var group = runState.Instance!.RecordForEachGroup(
-            forEachNode.NodeId,
-            workItems,
-            forEachNode.MaxConcurrency,
-            timeProvider.GetUtcNow());
-        if (workItems.Count == 0)
-        {
-            await ContinueSequenceAsync(
-                parentSequence,
-                runState,
-                input,
-                instanceId,
-                definitionId,
-                definitionVersion,
-                forEachIndex + 1,
-                parentBranchId,
-                resumeEvent,
-                afterSequence,
-                cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        var gate = new object();
-        var finishedItems = new HashSet<int>();
-        var activeCount = 0;
-        var nextOrdinal = 0;
-        var continued = 0;
-        Exception? firstFailure = null;
-        var maxConcurrency = forEachNode.MaxConcurrency ?? workItems.Count;
-
-        async Task DispatchAvailableAsync(CancellationToken dispatchToken)
-        {
-            while (true)
-            {
-                int workItemIndex;
-                lock (gate)
-                {
-                    if (activeCount >= maxConcurrency ||
-                        nextOrdinal >= workItems.Count ||
-                        runState.Instance!.Status == WorkflowStatus.Failed ||
-                        (forEachNode.JoinPolicy is ForEachJoinPolicy.WhenAny &&
-                            Interlocked.CompareExchange(ref continued, 0, 0) == 1))
-                    {
-                        return;
-                    }
-
-                    workItemIndex = workItems[nextOrdinal].Index;
-                    nextOrdinal++;
-                    activeCount++;
-                    runState.Instance.StartForEachWorkItem(group, workItemIndex, timeProvider.GetUtcNow());
-                }
-
-                var completed = await RunSequenceAsync(
-                    forEachNode.Body,
-                    runState,
-                    input,
-                    instanceId,
-                    definitionId,
-                    definitionVersion,
-                    dispatchToken,
-                    startIndex: 0,
-                    new BranchId(workItemIndex, $"item-{workItemIndex}"),
-                    resumeEvent,
-                    itemToken => ItemCompletedAsync(workItemIndex, itemToken),
-                    deferStepFailures: true).ConfigureAwait(false);
-
-                var itemFailure = runState.TakeDeferredFailure();
-                if (itemFailure is not null)
-                {
-                    await ItemFailedAsync(workItemIndex, itemFailure, dispatchToken).ConfigureAwait(false);
-                    if (runState.Instance!.Status == WorkflowStatus.Failed)
-                    {
-                        return;
-                    }
-
-                    continue;
-                }
-
-                if (runState.Instance!.Status == WorkflowStatus.Failed)
-                {
-                    return;
-                }
-
-                if (completed)
-                {
-                    await ItemCompletedAsync(workItemIndex, dispatchToken).ConfigureAwait(false);
-                }
-            }
-        }
-
-        async Task ItemCompletedAsync(int workItemIndex, CancellationToken itemToken)
-        {
-            var shouldContinueParent = false;
-            var shouldFailParent = false;
-            lock (gate)
-            {
-                if (!finishedItems.Add(workItemIndex))
-                {
-                    return;
-                }
-
-                activeCount--;
-                runState.Instance!.CompleteForEachWorkItem(group, workItemIndex, timeProvider.GetUtcNow());
-                if (forEachNode.JoinPolicy is ForEachJoinPolicy.WhenAny)
-                {
-                    if (forEachNode.ResidualPolicy is ForEachResidualPolicy.CancelRemaining)
-                    {
-                        var cancelled = runState.Instance.CancelForEachResidualWork(
-                            group,
-                            workItemIndex,
-                            timeProvider.GetUtcNow());
-                        foreach (var cancelledIndex in cancelled)
-                        {
-                            runState.Instance.ResolveBranchRuntimeWork(
-                                new BranchId(cancelledIndex, $"item-{cancelledIndex}"));
-                        }
-
-                        shouldContinueParent = true;
-                    }
-                    else
-                    {
-                        shouldContinueParent = finishedItems.Count == workItems.Count;
-                    }
-                }
-                else if (finishedItems.Count == workItems.Count)
-                {
-                    shouldFailParent = firstFailure is not null &&
-                        forEachNode.FailurePolicy is ForEachFailurePolicy.WaitAllThenFail;
-                    shouldContinueParent = !shouldFailParent;
-                }
-            }
-
-            if (shouldFailParent)
-            {
-                Fail(runState.Instance!, firstFailure!, forEachNode.NodeId);
-                return;
-            }
-
-            if (shouldContinueParent)
-            {
-                if (Interlocked.Exchange(ref continued, 1) == 0)
-                {
-                    await ContinueSequenceAsync(
-                        parentSequence,
-                        runState,
-                        input,
-                        instanceId,
-                        definitionId,
-                        definitionVersion,
-                        forEachIndex + 1,
-                        parentBranchId,
-                        resumeEvent,
-                        afterSequence,
-                        itemToken).ConfigureAwait(false);
-                }
-
-                return;
-            }
-
-            await DispatchAvailableAsync(itemToken).ConfigureAwait(false);
-        }
-
-        async Task ItemFailedAsync(int workItemIndex, Exception exception, CancellationToken itemToken)
-        {
-            var shouldContinueParent = false;
-            var shouldFailParent = false;
-            lock (gate)
-            {
-                if (!finishedItems.Add(workItemIndex))
-                {
-                    return;
-                }
-
-                firstFailure ??= exception;
-                activeCount--;
-                runState.Instance!.FailForEachWorkItem(
-                    group,
-                    workItemIndex,
-                    exception.Message,
-                    timeProvider.GetUtcNow());
-                shouldFailParent = forEachNode.FailurePolicy is ForEachFailurePolicy.FailFast ||
-                    (forEachNode.FailurePolicy is ForEachFailurePolicy.WaitAllThenFail &&
-                        finishedItems.Count == workItems.Count);
-                shouldContinueParent = forEachNode.FailurePolicy is ForEachFailurePolicy.ContinueWithPartialFailures &&
-                    finishedItems.Count == workItems.Count;
-            }
-
-            if (shouldFailParent)
-            {
-                Fail(runState.Instance!, firstFailure!, forEachNode.NodeId);
-                return;
-            }
-
-            if (shouldContinueParent)
-            {
-                if (Interlocked.Exchange(ref continued, 1) == 0)
-                {
-                    await ContinueSequenceAsync(
-                        parentSequence,
-                        runState,
-                        input,
-                        instanceId,
-                        definitionId,
-                        definitionVersion,
-                        forEachIndex + 1,
-                        parentBranchId,
-                        resumeEvent,
-                        afterSequence,
-                        itemToken).ConfigureAwait(false);
-                }
-
-                return;
-            }
-
-            await DispatchAvailableAsync(itemToken).ConfigureAwait(false);
-        }
-
-        await DispatchAvailableAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task ContinueWhileAsync<TInput>(
-        WhileNode<TState> whileNode,
-        SequenceNode<TState> parentSequence,
-        InterpreterRunState runState,
-        TInput input,
-        InstanceId instanceId,
-        DefinitionId definitionId,
-        DefinitionVersion definitionVersion,
-        int whileIndex,
-        BranchId? branchId,
-        ResumeEventSlot resumeEvent,
-        Func<CancellationToken, Task>? afterSequence,
-        CancellationToken cancellationToken)
-    {
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (!TryEvaluateCondition(runState.Instance!, whileNode.Condition, whileNode.NodeId, out var whileResult))
-            {
-                return;
-            }
-
-            if (!whileResult)
-            {
-                await ContinueSequenceAsync(
-                    parentSequence,
-                    runState,
-                    input,
-                    instanceId,
-                    definitionId,
-                    definitionVersion,
-                    whileIndex + 1,
-                    branchId,
-                    resumeEvent,
-                    afterSequence,
-                    cancellationToken).ConfigureAwait(false);
-                return;
-            }
-
-            var completedBody = await RunSequenceAsync(
-                whileNode.Body,
-                runState,
-                input,
-                instanceId,
-                definitionId,
-                definitionVersion,
-                cancellationToken,
-                startIndex: 0,
-                branchId,
-                resumeEvent,
-                continuationToken => ContinueWhileAsync(
-                    whileNode,
-                    parentSequence,
-                    runState,
-                    input,
-                    instanceId,
-                    definitionId,
-                    definitionVersion,
-                    whileIndex,
-                    branchId,
-                    resumeEvent,
-                    afterSequence,
-                    continuationToken)).ConfigureAwait(false);
-            if (!completedBody)
-            {
-                return;
-            }
-        }
-    }
-
-    private void Fail(WorkflowInstance<TState> instance, Exception exception, string stepPath)
-    {
-        var occurredAt = timeProvider.GetUtcNow();
-        instance.RecordLifecycleEvent("StepFailed", stepPath, WorkflowStatus.Failed, occurredAt);
-        FireOrThrow(instance, LifecycleTrigger.Fail);
-        instance.Fail(new WorkflowErrorDetails(
-            exception.GetType().Name,
-            exception.Message,
-            stepPath,
-            occurredAt));
-    }
-
-    private async Task RegisterWaitAsync<TInput>(
-        WorkflowInstance<TState> instance,
-        string eventName,
-        CorrelationId correlationId,
-        TimeSpan? timeout,
-        BranchId? branchId,
-        SequenceNode<TState> sequence,
-        InterpreterRunState runState,
-        TInput input,
-        InstanceId instanceId,
-        DefinitionId definitionId,
-        DefinitionVersion definitionVersion,
-        int nextIndex,
+    private async Task<bool> RunStepAsync<TInput>(
+        BusinessStepNode<TState> stepNode,
+        string nodeId,
+        SequenceExecutionContext<TState, TInput> context,
+        int stepIndex,
         CancellationToken cancellationToken,
-        Func<CancellationToken, Task>? afterSequence)
+        bool deferStepFailures)
     {
-        if (instance.Status == WorkflowStatus.Running)
-        {
-            FireOrThrow(instance, LifecycleTrigger.EnterWait);
-        }
+        var instance = EnsureInitialized(context.RunState);
+        var stepResult = await stepExecutor.ExecuteAsync(
+            instance,
+            stepNode,
+            nodeId,
+            context.ResumeEvent.Take(),
+            cancellationToken,
+            deferStepFailures).ConfigureAwait(false);
 
-        var wait = instance.EnterWait(
-            eventName,
-            correlationId,
-            branchId,
-            timeProvider.GetUtcNow(),
-            (envelope, cancellationToken) => ContinueSequenceAsync(
-                sequence,
-                runState,
-                input,
-                instanceId,
-                definitionId,
-                definitionVersion,
-                nextIndex,
-                branchId,
-                new ResumeEventSlot(envelope),
-                afterSequence,
-                cancellationToken));
-        if (timeout is { } timeoutDuration)
+        switch (stepResult.Status)
         {
-            var timeoutTimer = timerService.Schedule(
-                instanceId,
-                timeoutDuration,
-                timerCancellationToken => instance.FireWaitTimeoutAsync(
-                    wait,
-                    timeProvider.GetUtcNow(),
-                    continuationToken => ContinueSequenceAsync(
-                        sequence,
-                        runState,
-                        input,
-                        instanceId,
-                        definitionId,
-                        definitionVersion,
-                        nextIndex,
-                        branchId,
-                        new ResumeEventSlot(null),
-                        afterSequence,
-                        continuationToken),
-                    timerCancellationToken));
-            wait.SetCancelLoser(() => timerService.Cancel(timeoutTimer));
+            case StepExecutionStatus.Continue:
+                return true;
+            case StepExecutionStatus.Failed:
+                context.RunState.DeferredFailure = stepResult.Error;
+                return false;
+            case StepExecutionStatus.Stop:
+                return false;
+            case StepExecutionStatus.Wait:
+                await suspensionScheduler.RegisterWaitAsync(
+                    instance,
+                    stepResult.EventName!,
+                    stepResult.CorrelationId,
+                    timeout: null,
+                    context,
+                    nextIndex: stepIndex + 1,
+                    cancellationToken).ConfigureAwait(false);
+                return false;
+            case StepExecutionStatus.Yield:
+                instance.ScheduleYield(continuationToken => ContinueSequenceAsync(
+                    context,
+                    stepIndex,
+                    continuationToken));
+                return false;
+            default:
+                throw new NotSupportedException(
+                    $"Step execution status '{stepResult.Status}' is not supported.");
         }
-
-        await instance.MatchPendingEventAsync(wait, cancellationToken).ConfigureAwait(false);
     }
 
-    private void RegisterDelay<TInput>(
-        WorkflowInstance<TState> instance,
-        TimeSpan duration,
-        SequenceNode<TState> sequence,
-        InterpreterRunState runState,
-        TInput input,
-        InstanceId instanceId,
-        DefinitionId definitionId,
-        DefinitionVersion definitionVersion,
-        int nextIndex,
-        BranchId? branchId,
-        ResumeEventSlot resumeEvent,
-        Func<CancellationToken, Task>? afterSequence)
+    private bool Complete(
+        EndNode<TState> endNode,
+        string nodeId,
+        InterpreterRunState<TState> runState)
     {
-        if (instance.Status == WorkflowStatus.Running)
+        var instance = EnsureInitialized(runState);
+        if (instance.HasUnresolvedRuntimeWork)
         {
-            FireOrThrow(instance, LifecycleTrigger.EnterWait);
-        }
-
-        var registeredAt = timeProvider.GetUtcNow();
-        var timer = instance.EnterDelay(branchId, registeredAt);
-        var scheduledTimer = timerService.Schedule(
-            instanceId,
-            duration,
-            cancellationToken => instance.FireDelayAsync(
-                timer,
-                timeProvider.GetUtcNow(),
-                continuationToken => ContinueSequenceAsync(
-                    sequence,
-                    runState,
-                    input,
-                    instanceId,
-                    definitionId,
-                    definitionVersion,
-                    nextIndex,
-                    branchId,
-                    resumeEvent,
-                    afterSequence,
-                    continuationToken),
-                cancellationToken));
-        timer.SetCancel(() => timerService.Cancel(scheduledTimer));
-    }
-
-    private bool TryEvaluateCondition(
-        WorkflowInstance<TState> instance,
-        Func<TState, bool> condition,
-        string nodePath,
-        out bool result)
-    {
-        try
-        {
-            result = condition(instance.State);
-            return true;
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException and not NotSupportedException)
-        {
-            Fail(instance, exception, nodePath);
-            result = false;
+            failureHandler.Fail(
+                instance,
+                new WorkflowLifecycleException("Workflow cannot complete with unresolved runtime work."),
+                nodeId);
             return false;
         }
+
+        WorkflowLifecycleTransition.FireOrThrow(instance, LifecycleTrigger.Complete);
+        instance.Complete(endNode.OutcomeName, timeProvider.GetUtcNow());
+        return false;
     }
 
-    private static void FireOrThrow(WorkflowInstance<TState> instance, LifecycleTrigger trigger)
+    private async Task<bool> RunIfAsync<TInput>(
+        IfNode<TState> ifNode,
+        string nodeId,
+        SequenceExecutionContext<TState, TInput> context,
+        int ifIndex,
+        CancellationToken cancellationToken)
     {
-        var result = LifecycleMachine.Fire(instance.Status, trigger);
-        if (result.IsFailure)
+        var instance = EnsureInitialized(context.RunState);
+        if (!conditionEvaluator.TryEvaluate(instance, ifNode.Condition, nodeId, out var ifResult))
         {
-            throw result.Error;
+            return false;
         }
+
+        var childContext = context.CreateNested(
+            ifResult ? ifNode.Then : ifNode.Else,
+            context.BranchId,
+            context.ResumeEvent,
+            continuationToken => ContinueSequenceAsync(context, ifIndex + 1, continuationToken));
+
+        return await RunSequenceAsync(childContext, startIndex: 0, cancellationToken).ConfigureAwait(false);
     }
 
-    private static void EnsureInitialized(bool initialized, WorkflowInstance<TState>? instance)
+    private async Task RunWaitAsync<TInput>(
+        WaitNode<TState> waitNode,
+        string nodeId,
+        SequenceExecutionContext<TState, TInput> context,
+        int waitIndex,
+        CancellationToken cancellationToken)
     {
-        if (!initialized || instance is null)
+        var instance = EnsureInitialized(context.RunState);
+        CorrelationId correlationId;
+        try
+        {
+            correlationId = waitNode.CorrelationSelector(instance.State);
+        }
+        catch (Exception exception)
+            when (exception is not OperationCanceledException and not NotSupportedException)
+        {
+            failureHandler.Fail(instance, exception, nodeId);
+            return;
+        }
+
+        await suspensionScheduler.RegisterWaitAsync(
+            instance,
+            waitNode.EventName,
+            correlationId,
+            waitNode.Timeout,
+            context,
+            nextIndex: waitIndex + 1,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private static WorkflowInstance<TState> EnsureInitialized(InterpreterRunState<TState> runState)
+    {
+        if (!runState.Initialized || runState.Instance is null)
         {
             throw new WorkflowDefinitionException("Workflow execution reached a node before Init created state.");
         }
+
+        return runState.Instance;
     }
 
-    private sealed class InterpreterRunState
+    Task<bool> ISequenceExecutionEngine<TState>.RunSequenceAsync<TInput>(
+        SequenceExecutionContext<TState, TInput> context,
+        int startIndex,
+        CancellationToken cancellationToken,
+        bool deferStepFailures)
     {
-        internal bool Initialized { get; set; }
-
-        internal WorkflowInstance<TState>? Instance { get; set; }
-
-        internal Exception? DeferredFailure { get; set; }
-
-        internal Exception? TakeDeferredFailure()
-        {
-            var failure = DeferredFailure;
-            DeferredFailure = null;
-            return failure;
-        }
+        return RunSequenceAsync(context, startIndex, cancellationToken, deferStepFailures);
     }
 
-    private sealed class ResumeEventSlot(EventEnvelope? envelope)
+    Task ISequenceExecutionEngine<TState>.ContinueSequenceAsync<TInput>(
+        SequenceExecutionContext<TState, TInput> context,
+        int startIndex,
+        CancellationToken cancellationToken)
     {
-        private EventEnvelope? envelope = envelope;
-
-        internal EventEnvelope? Take()
-        {
-            var current = envelope;
-            envelope = null;
-            return current;
-        }
+        return ContinueSequenceAsync(context, startIndex, cancellationToken);
     }
 
-    private sealed class ParallelJoin(
-        int branchCount,
-        Func<CancellationToken, Task> continueAsync)
-    {
-        private int remaining = branchCount;
-        private int continued;
-
-        internal async Task BranchCompletedAsync(CancellationToken cancellationToken)
-        {
-            if (Interlocked.Decrement(ref remaining) == 0 &&
-                Interlocked.Exchange(ref continued, 1) == 0)
-            {
-                await continueAsync(cancellationToken).ConfigureAwait(false);
-            }
-        }
-    }
-
-    private sealed class WhenFirstJoin(
-        WhenFirstNode<TState> node,
+    void ISequenceExecutionEngine<TState>.Fail(
         WorkflowInstance<TState> instance,
-        Func<DateTimeOffset> getUtcNow,
-        Func<CancellationToken, Task> continueAsync)
+        Exception exception,
+        string stepPath)
     {
-        private readonly object gate = new();
-        private readonly HashSet<BranchId> completedBranches = [];
-        private int continued;
-        private BranchId? winner;
-
-        internal bool ShouldStopScheduling
-        {
-            get
-            {
-                lock (gate)
-                {
-                    return node.ResidualPolicy is not WhenFirstResidualPolicy.LetRemainingComplete &&
-                        winner is not null;
-                }
-            }
-        }
-
-        internal async Task BranchCompletedAsync(ParallelBranch<TState> branch, CancellationToken cancellationToken)
-        {
-            var shouldContinue = false;
-            lock (gate)
-            {
-                if (!completedBranches.Add(branch.BranchId))
-                {
-                    return;
-                }
-
-                var recordedAt = getUtcNow();
-                if (winner is null)
-                {
-                    winner = branch.BranchId;
-                    instance.RecordCompositionBranchOutcome(node.NodeId, branch.BranchId, "Winner", recordedAt);
-                    switch (node.ResidualPolicy)
-                    {
-                        case WhenFirstResidualPolicy.CancelRemaining:
-                            RecordResidualBranches("Cancelled", recordedAt);
-                            shouldContinue = true;
-                            break;
-                        case WhenFirstResidualPolicy.IgnoreRemaining:
-                            RecordResidualBranches("Ignored", recordedAt);
-                            shouldContinue = true;
-                            break;
-                        case WhenFirstResidualPolicy.LetRemainingComplete:
-                            shouldContinue = completedBranches.Count == node.Branches.Count;
-                            break;
-                        default:
-                            throw new NotSupportedException(
-                                $"WhenFirst residual policy '{node.ResidualPolicy}' is not supported.");
-                    }
-                }
-                else
-                {
-                    instance.RecordCompositionBranchOutcome(node.NodeId, branch.BranchId, "Completed", recordedAt);
-                    shouldContinue = node.ResidualPolicy is WhenFirstResidualPolicy.LetRemainingComplete &&
-                        completedBranches.Count == node.Branches.Count;
-                }
-            }
-
-            if (shouldContinue && Interlocked.Exchange(ref continued, 1) == 0)
-            {
-                await continueAsync(cancellationToken).ConfigureAwait(false);
-            }
-        }
-
-        private void RecordResidualBranches(string status, DateTimeOffset recordedAt)
-        {
-            foreach (var residualBranch in node.Branches.Where(candidate => candidate.BranchId != winner))
-            {
-                instance.RecordCompositionBranchOutcome(node.NodeId, residualBranch.BranchId, status, recordedAt);
-                instance.ResolveBranchRuntimeWork(residualBranch.BranchId);
-            }
-        }
+        failureHandler.Fail(instance, exception, stepPath);
     }
 }

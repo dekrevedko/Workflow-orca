@@ -1,6 +1,8 @@
 using AwesomeAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Engine.Durable.Outbox;
@@ -200,18 +202,70 @@ public sealed class MultiNodePostgreSqlIntegrationTests(OrcaStackFixture fixture
     [Fact]
     [Trait(Traits.Scenario, "INT-MN-007")]
     [Trait("AC", "DU-032")]
-    public async Task INT_MN_007_ProcessExitMidPump_BlockedWithoutBrokerHook()
+    public async Task INT_MN_007_ProcessExitMidPump_ReleasesClaimForRetry()
     {
-        await Task.CompletedTask;
-        Assert.Skip("Mid-dispatch kill simulation requires broker-side hook.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        await using var store = await fixture.PostgreSql.CreateStoreAsync();
+        await store.AppendAsync(
+            IntegrationCommands.OutboxOnlyBatch(
+                1,
+                new OutboxWrite(IntegrationIds.Outbox(7), "workflow.completed", [7])),
+            TestContext.Current.CancellationToken);
+        var dispatcher = new CancelOnceDispatcher();
+        var pump = new DurableOutboxPump(store, dispatcher);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            pump.PumpOnceAsync(10, TestContext.Current.CancellationToken));
+        var retried = await pump.PumpOnceAsync(10, TestContext.Current.CancellationToken);
+        var state = await store.GetStateAsync(IntegrationIds.Outbox(7), TestContext.Current.CancellationToken);
+
+        retried.Should().Be(1);
+        dispatcher.Records.Should().ContainSingle()
+            .Which.OutboxRecordId.Should().Be(IntegrationIds.Outbox(7));
+        state.Value.Should().Be(OutboxRecordState.Dispatched);
     }
 
     [Fact]
     [Trait(Traits.Scenario, "INT-MN-008")]
-    public async Task INT_MN_008_RollingDeploySimulation_BlockedUntilMultiHostFixture()
+    public async Task INT_MN_008_RollingDeploySimulation_NewHostContinuesCommittedWait()
     {
-        await Task.CompletedTask;
-        Assert.Skip("Full rolling deploy simulation deferred; use processor restart tests for now.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        var oldDispatcher = new RecordingMessageDispatcher();
+        using (var oldHost = OrcaIntegrationHost.Build(
+            fixture.PostgreSql.ConnectionString,
+            new Microsoft.Extensions.Time.Testing.FakeTimeProvider(IntegrationIds.Timestamp(0)),
+            oldDispatcher))
+        {
+            await oldHost.StartAsync(TestContext.Current.CancellationToken);
+            var processor = oldHost.Services.GetRequiredService<DurableCommandProcessor>();
+            await processor.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+            await processor.ProcessAsync(
+                IntegrationCommands.WaitRegistered(1, 10, 2),
+                TestContext.Current.CancellationToken);
+            await oldHost.StopAsync(TestContext.Current.CancellationToken);
+        }
+
+        var newDispatcher = new RecordingMessageDispatcher();
+        using var newHost = OrcaIntegrationHost.Build(
+            fixture.PostgreSql.ConnectionString,
+            new Microsoft.Extensions.Time.Testing.FakeTimeProvider(IntegrationIds.Timestamp(1)),
+            newDispatcher);
+        await newHost.StartAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            await newHost.Services.GetRequiredService<DurableCommandProcessor>()
+                .ProcessAsync(IntegrationCommands.Deliver(1, 50, 3), TestContext.Current.CancellationToken);
+            var events = await newHost.Services.GetRequiredService<IWorkflowEventStore>()
+                .LoadTailAsync(
+                    new WorkflowStreamId(IntegrationIds.Instance(1)),
+                    StreamVersion.Empty,
+                    TestContext.Current.CancellationToken);
+            events.OfType<WorkflowWaitMatchedEvent>().Should().ContainSingle();
+        }
+        finally
+        {
+            await newHost.StopAsync(TestContext.Current.CancellationToken);
+        }
     }
 
     [Fact]
@@ -343,10 +397,47 @@ public sealed class MultiNodePostgreSqlIntegrationTests(OrcaStackFixture fixture
     [Fact]
     [Trait(Traits.Scenario, "INT-MN-015")]
     [Trait("AC", "AC-504")]
-    public async Task INT_MN_015_EvictionRehydrateAcrossHosts_BlockedUntilActivationExists()
+    public async Task INT_MN_015_EvictionRehydrateAcrossHosts_ColdWaitResumesFromStore()
     {
-        await Task.CompletedTask;
-        Assert.Skip("Durable activation/eviction layer not integrated yet.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        await using (var firstStore = await fixture.PostgreSql.CreateStoreAsync())
+        {
+            var first = new DurableCommandProcessor(firstStore);
+            await first.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+            var wait = await first.ProcessAsync(
+                IntegrationCommands.WaitRegistered(1, 10, 2, mode: WaitMode.Cold),
+                TestContext.Current.CancellationToken);
+            wait.Evicted.Should().BeTrue();
+        }
+
+        await using var secondStore = await fixture.PostgreSql.CreateStoreAsync();
+        var second = new DurableCommandProcessor(secondStore);
+        await second.ProcessAsync(
+            IntegrationCommands.Deliver(1, 50, 3),
+            TestContext.Current.CancellationToken);
+        var events = await secondStore.LoadTailAsync(
+            new WorkflowStreamId(IntegrationIds.Instance(1)),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+        events.OfType<WorkflowWaitMatchedEvent>().Should().ContainSingle();
+    }
+
+    private sealed class CancelOnceDispatcher : IMessageDispatcher
+    {
+        private int attempts;
+
+        internal List<OutboxWrite> Records { get; } = [];
+
+        public Task<DispatchResult> DispatchAsync(OutboxWrite record, CancellationToken cancellationToken)
+        {
+            if (Interlocked.Increment(ref attempts) == 1)
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
+
+            Records.Add(record);
+            return Task.FromResult(DispatchResult.Success);
+        }
     }
 
     private static StartOrGetRequest StartRequest(string key)

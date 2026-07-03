@@ -157,20 +157,11 @@ internal sealed class StepExecutor<TState>
     {
         var occurredAt = timeProvider.GetUtcNow();
         instance.RecordLifecycleEvent("StepFailed", stepPath, WorkflowStatus.Failed, occurredAt);
-        FireOrThrow(instance, LifecycleTrigger.Fail);
+        WorkflowLifecycleTransition.FireOrThrow(instance, LifecycleTrigger.Fail);
         instance.Fail(new WorkflowErrorDetails(
             exception.GetType().Name,
             exception.Message,
             stepPath,
             occurredAt));
-    }
-
-    private static void FireOrThrow(WorkflowInstance<TState> instance, LifecycleTrigger trigger)
-    {
-        var result = LifecycleMachine.Fire(instance.Status, trigger);
-        if (result.IsFailure)
-        {
-            throw result.Error;
-        }
     }
 }

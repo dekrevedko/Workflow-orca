@@ -46,7 +46,8 @@ internal static class IntegrationCommands
         int instance,
         int wait,
         int command,
-        string? branchId = null) =>
+        string? branchId = null,
+        WaitMode mode = WaitMode.Resident) =>
         new(
             IntegrationIds.Command(command),
             IntegrationIds.Instance(instance),
@@ -54,7 +55,7 @@ internal static class IntegrationCommands
             IntegrationIds.Wait(wait),
             "Approved",
             new CorrelationId("order-1"),
-            WaitMode.Resident,
+            mode,
             branchId);
 
     internal static DeliverEventCommand Deliver(
