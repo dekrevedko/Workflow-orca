@@ -9,4 +9,7 @@ namespace OrcaCore.Engine.Ephemeral.Execution;
 internal interface IInstanceRegistry
 {
     void Add<TState>(WorkflowInstance<TState> instance);
+
+    /// <summary>Looks up a live instance by id, typed as <typeparamref name="TState"/>.</summary>
+    WorkflowInstance<TState>? TryGet<TState>(InstanceId instanceId);
 }

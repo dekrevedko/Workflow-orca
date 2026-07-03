@@ -14,4 +14,9 @@ internal sealed class InstanceRegistry : IInstanceRegistry
 
     public void Add<TState>(WorkflowInstance<TState> instance) =>
         instances[instance.InstanceId] = instance;
+
+    public WorkflowInstance<TState>? TryGet<TState>(InstanceId instanceId) =>
+        instances.TryGetValue(instanceId, out var untyped) && untyped is WorkflowInstance<TState> typed
+            ? typed
+            : null;
 }

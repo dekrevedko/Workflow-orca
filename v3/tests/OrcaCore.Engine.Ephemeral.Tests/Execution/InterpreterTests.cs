@@ -150,10 +150,11 @@ public class InterpreterTests
     }
 
     [Fact]
-    public async Task Run_UnsupportedResult_ThrowsNamingOwnerTask()
+    public async Task Run_WaitForEventResult_SuspendsInstanceWithoutAdvancing()
     {
         var builder = WorkflowBuilder<OrderState>.Create<int>(input => new OrderState { Total = input });
         builder.Then(new UnsupportedResultStep(new StepResult.WaitForEvent("ApprovalReceived", new CorrelationId("order-1"))));
+        builder.Then(new RecordingStep("never"));
         builder.End();
         var definition = builder.Build(new DefinitionId("order-workflow"), new DefinitionVersion(1));
 
@@ -161,10 +162,10 @@ public class InterpreterTests
         var instance = NewInstance(clock);
 
         var interpreter = new Interpreter<OrderState>();
-        var act = async () => await interpreter.RunAsync(instance, definition, clock.TimeProvider, TestContext.Current.CancellationToken);
+        await interpreter.RunAsync(instance, definition, clock.TimeProvider, TestContext.Current.CancellationToken);
 
-        var exception = await act.Should().ThrowAsync<NotSupportedException>();
-        exception.Which.Message.Should().Contain("T1-08");
+        instance.Status.Should().Be(WorkflowStatus.Waiting);
+        instance.State.Executed.Should().BeEmpty();
     }
 
     [Fact]

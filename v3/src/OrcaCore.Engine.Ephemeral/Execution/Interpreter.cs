@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using OrcaCore.Abstractions.Events;
+using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Definitions;
@@ -8,12 +10,11 @@ namespace OrcaCore.Engine.Ephemeral.Execution;
 
 /// <summary>
 /// Walks a <see cref="WorkflowDefinition{TState}"/> body — <c>Init</c> (already applied by the
-/// engine facade before this runs) → business steps, <c>If</c>/<c>While</c> control flow →
-/// <c>End</c> — driving all orchestration decisions itself (CR-010/CR-012). Position is tracked
-/// as a stack of <see cref="Frame"/>s (CR-015) so nested containers (If inside While, ...) and
-/// rehydration are represented exactly. Only the <see cref="StepResult.Completed"/> and
-/// <see cref="StepResult.Failed"/> variants are handled; <see cref="StepResult.WaitForEvent"/>
-/// and <see cref="StepResult.Yield"/> are out of scope until T1-08/T1-15.
+/// engine facade before this runs) → business steps, <c>If</c>/<c>While</c> control flow,
+/// <c>Wait</c> suspension → <c>End</c> — driving all orchestration decisions itself
+/// (CR-010/CR-012). Position is tracked as a stack of <see cref="Frame"/>s (CR-015) so nested
+/// containers (If inside While, ...) and rehydration are represented exactly. Only
+/// <see cref="StepResult.Yield"/> remains out of scope until T1-15.
 /// </summary>
 internal sealed class Interpreter<TState>
 {
@@ -33,6 +34,50 @@ internal sealed class Interpreter<TState>
             instance.Pointer = ExecutionPointer.Empty.Push(Frame.AtSequenceIndex(0));
         }
 
+        await RunLoopAsync(instance, definition, timeProvider, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Attempts to match <paramref name="envelope"/> against <paramref name="instance"/>'s
+    /// active wait (EV-020) and, on match, resumes execution from where the <c>Wait</c> left
+    /// off (EV-022/EV-023). Returns the outcome without throwing for the routine no-match case.
+    /// Caller (the engine facade) MUST invoke this only through the per-instance execution lane.
+    /// </summary>
+    public async ValueTask<RaiseEventOutcome> TryResumeAsync(
+        WorkflowInstance<TState> instance,
+        WorkflowDefinition<TState> definition,
+        EventEnvelope envelope,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        var wait = instance.ActiveWait;
+        if (instance.Status != WorkflowStatus.Waiting ||
+            wait is null ||
+            wait.Status != WaitStatus.Active ||
+            wait.EventName != envelope.EventName ||
+            !wait.CorrelationId.Equals(envelope.CorrelationId))
+        {
+            return RaiseEventOutcome.NoMatch;
+        }
+
+        wait.Status = WaitStatus.Matched;
+        instance.ActiveWait = null;
+        instance.PendingResumedEvent = envelope;
+        Advance(instance, LifecycleTrigger.MatchWait);
+        AdvanceSequenceIndex(instance);
+        instance.UpdatedAt = timeProvider.GetUtcNow();
+
+        await RunLoopAsync(instance, definition, timeProvider, cancellationToken).ConfigureAwait(false);
+
+        return RaiseEventOutcome.Resumed;
+    }
+
+    private async ValueTask RunLoopAsync(
+        WorkflowInstance<TState> instance,
+        WorkflowDefinition<TState> definition,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
         while (instance.Status == WorkflowStatus.Running)
         {
             var (sequence, isRoot) = ResolveCurrentSequence(definition.Root, instance.Pointer);
@@ -74,6 +119,10 @@ internal sealed class Interpreter<TState>
 
                 case WhileNode whileNode:
                     EnterOrSkipWhile(instance, whileNode);
+                    break;
+
+                case WaitNode waitNode:
+                    EnterWait(instance, waitNode, timeProvider);
                     break;
 
                 case DefinitionNode when isRoot && index == 0:
@@ -168,6 +217,25 @@ internal sealed class Interpreter<TState>
     }
 
     /// <summary>
+    /// Registers an <see cref="ActiveWait"/> record (EV-021, EV-040) and moves the instance to
+    /// <c>Waiting</c> (CR-030). The pointer is left positioned at this <see cref="WaitNode"/>
+    /// itself so a later match (<see cref="TryResumeAsync"/>) advances past it and continues
+    /// with the following step (EV-022/EV-023).
+    /// </summary>
+    private static void EnterWait(WorkflowInstance<TState> instance, WaitNode waitNode, TimeProvider timeProvider)
+    {
+        var correlationId = waitNode.SelectCorrelationId(GetBoxedState(instance));
+        RegisterActiveWait(instance, waitNode.EventName, correlationId, timeProvider);
+    }
+
+    /// <summary>Creates the <see cref="ActiveWait"/> record and fires the shared <c>EnterWait</c> transition (EV-021, EV-040).</summary>
+    private static void RegisterActiveWait(WorkflowInstance<TState> instance, string eventName, CorrelationId correlationId, TimeProvider timeProvider)
+    {
+        instance.ActiveWait = new ActiveWait(WaitId.New(), eventName, correlationId, timeProvider.GetUtcNow());
+        Advance(instance, LifecycleTrigger.EnterWait);
+    }
+
+    /// <summary>
     /// Called when a nested sequence (If branch or While body) has run past its last step. Pops
     /// back to the enclosing sequence and advances past the container that owned it — re-entering
     /// a While re-evaluates its condition (loop semantics); an If branch simply rejoins the
@@ -213,7 +281,9 @@ internal sealed class Interpreter<TState>
         {
             State = instance.State,
             TimeProvider = timeProvider,
+            ResumedEvent = instance.PendingResumedEvent,
         };
+        instance.PendingResumedEvent = null;
 
         StepResult result;
         try
@@ -235,9 +305,9 @@ internal sealed class Interpreter<TState>
                 Fail(instance, DescribeError(failed.Error.GetType().Name, failed.Error.Message, stepIndex, timeProvider));
                 break;
 
-            case StepResult.WaitForEvent:
-                throw new NotSupportedException(
-                    "StepResult.WaitForEvent is not supported by the straight-line interpreter yet; waits land in T1-08.");
+            case StepResult.WaitForEvent waitForEvent:
+                RegisterActiveWait(instance, waitForEvent.EventName, waitForEvent.CorrelationId, timeProvider);
+                break;
 
             case StepResult.Yield:
                 throw new NotSupportedException(

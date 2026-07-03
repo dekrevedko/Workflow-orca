@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using OrcaCore.Abstractions.Errors;
+using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Definitions;
@@ -72,6 +73,47 @@ public sealed class EphemeralWorkflowEngine
             cancellationToken).ConfigureAwait(false);
 
         return ToSnapshot(instance);
+    }
+
+    /// <summary>
+    /// Delivers <paramref name="envelope"/> to the instance identified by <paramref name="instanceId"/>
+    /// (instance-targeted only — correlation-index fanout is T1-10). Routes through the T1-06
+    /// execution lane so concurrent deliveries for the same instance serialize: only one caller
+    /// observes <see cref="RaiseEventOutcome.Resumed"/> for a given wait (EV-023 exactly-once).
+    /// Returns <see cref="RaiseEventOutcome.NoMatch"/> rather than throwing when the event does
+    /// not match the instance's active wait (EV matching rule) — matching is a routine outcome.
+    /// </summary>
+    public async Task<RaiseEventOutcome> RaiseEventAsync<TState>(
+        InstanceId instanceId,
+        EventEnvelope envelope,
+        CancellationToken cancellationToken)
+    {
+        var outcome = RaiseEventOutcome.InstanceNotFound;
+
+        await executionLane.RunAsync(
+            instanceId,
+            async () =>
+            {
+                var instance = instanceRegistry.TryGet<TState>(instanceId);
+                if (instance is null)
+                {
+                    return;
+                }
+
+                if (!definitions.TryGetValue(instance.DefinitionId, out var untypedDefinition) ||
+                    untypedDefinition is not WorkflowDefinition<TState> definition)
+                {
+                    throw new WorkflowDefinitionException(
+                        $"No definition registered for '{instance.DefinitionId}'. The instance cannot be resumed.");
+                }
+
+                var interpreter = new Interpreter<TState>();
+                outcome = await interpreter.TryResumeAsync(instance, definition, envelope, timeProvider, cancellationToken)
+                    .ConfigureAwait(false);
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        return outcome;
     }
 
     private static WorkflowInstanceSnapshot ToSnapshot<TState>(WorkflowInstance<TState> instance) =>

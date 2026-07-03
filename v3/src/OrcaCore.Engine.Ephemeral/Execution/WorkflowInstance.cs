@@ -1,3 +1,4 @@
+using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Definitions;
@@ -48,4 +49,14 @@ internal sealed class WorkflowInstance<TState>
     public string? ErrorSummary { get; set; }
 
     public string? EndOutcomeName { get; set; }
+
+    /// <summary>The instance's single resident wait (EV-021), or null when not waiting. Instance-targeted only.</summary>
+    public ActiveWait? ActiveWait { get; set; }
+
+    /// <summary>
+    /// The envelope that resumed the current run, surfaced to the first step's
+    /// <see cref="OrcaCore.Abstractions.Steps.StepContext{TState}.ResumedEvent"/> only (EV-022).
+    /// Cleared by the interpreter immediately after that one step executes.
+    /// </summary>
+    public EventEnvelope? PendingResumedEvent { get; set; }
 }
