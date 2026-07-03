@@ -3,14 +3,13 @@ using OrcaCore.Core.Definitions;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
 
-internal sealed class ForEachNodeRunner<TState>(
-    ISequenceExecutionEngine<TState> sequenceExecution,
-    TimeProvider timeProvider)
+internal sealed class ForEachNodeRunner<TState>(TimeProvider timeProvider)
 {
     internal async Task RunAsync<TInput>(
         ForEachNode<TState> forEachNode,
         SequenceExecutionContext<TState, TInput> parentContext,
         int forEachIndex,
+        ISequenceExecutionEngine<TState> sequenceExecution,
         CancellationToken cancellationToken)
     {
         IReadOnlyList<ForEachWorkItemSnapshot> workItems;

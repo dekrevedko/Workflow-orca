@@ -3,14 +3,13 @@ using OrcaCore.Core.Definitions;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
 
-internal sealed class WhenFirstNodeRunner<TState>(
-    ISequenceExecutionEngine<TState> sequenceExecution,
-    TimeProvider timeProvider)
+internal sealed class WhenFirstNodeRunner<TState>(TimeProvider timeProvider)
 {
     internal async Task RunAsync<TInput>(
         WhenFirstNode<TState> whenFirstNode,
         SequenceExecutionContext<TState, TInput> parentContext,
         int whenFirstIndex,
+        ISequenceExecutionEngine<TState> sequenceExecution,
         CancellationToken cancellationToken)
     {
         var join = new WhenFirstJoin<TState>(

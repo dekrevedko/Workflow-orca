@@ -3,12 +3,13 @@ using OrcaCore.Core.Definitions;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
 
-internal sealed class ParallelNodeRunner<TState>(ISequenceExecutionEngine<TState> sequenceExecution)
+internal sealed class ParallelNodeRunner<TState>
 {
     internal async Task RunAsync<TInput>(
         ParallelNode<TState> parallelNode,
         SequenceExecutionContext<TState, TInput> parentContext,
         int parallelIndex,
+        ISequenceExecutionEngine<TState> sequenceExecution,
         CancellationToken cancellationToken)
     {
         var join = new ParallelJoin(

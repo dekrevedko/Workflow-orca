@@ -7,8 +7,7 @@ namespace OrcaCore.Engine.Ephemeral.Execution;
 
 internal sealed class SuspensionScheduler<TState>(
     TimeProvider timeProvider,
-    EphemeralTimerService timerService,
-    ISequenceExecutionEngine<TState> sequenceExecution)
+    EphemeralTimerService timerService)
 {
     internal async Task RegisterWaitAsync<TInput>(
         WorkflowInstance<TState> instance,
@@ -17,6 +16,7 @@ internal sealed class SuspensionScheduler<TState>(
         TimeSpan? timeout,
         SequenceExecutionContext<TState, TInput> context,
         int nextIndex,
+        ISequenceExecutionEngine<TState> sequenceExecution,
         CancellationToken cancellationToken)
     {
         if (instance.Status == WorkflowStatus.Running)
@@ -56,7 +56,8 @@ internal sealed class SuspensionScheduler<TState>(
         WorkflowInstance<TState> instance,
         TimeSpan duration,
         SequenceExecutionContext<TState, TInput> context,
-        int nextIndex)
+        int nextIndex,
+        ISequenceExecutionEngine<TState> sequenceExecution)
     {
         if (instance.Status == WorkflowStatus.Running)
         {

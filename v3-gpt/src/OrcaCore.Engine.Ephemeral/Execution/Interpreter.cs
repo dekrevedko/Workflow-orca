@@ -23,26 +23,37 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
 
     internal Interpreter(
         TimeProvider timeProvider,
-        EphemeralTimerService timerService,
-        ResourceGovernanceCoordinator governance,
-        YieldContinuationScheduler yieldContinuationScheduler,
-        TimeSpan? stuckStepThreshold = null)
+        StepExecutor<TState> stepExecutor,
+        WorkflowFailureHandler<TState> failureHandler,
+        ConditionEvaluator<TState> conditionEvaluator,
+        SuspensionScheduler<TState> suspensionScheduler,
+        WhileNodeRunner<TState> whileRunner,
+        ParallelNodeRunner<TState> parallelRunner,
+        WhenFirstNodeRunner<TState> whenFirstRunner,
+        ForEachNodeRunner<TState> forEachRunner,
+        YieldContinuationScheduler yieldContinuationScheduler)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
-        ArgumentNullException.ThrowIfNull(timerService);
-        ArgumentNullException.ThrowIfNull(governance);
+        ArgumentNullException.ThrowIfNull(stepExecutor);
+        ArgumentNullException.ThrowIfNull(failureHandler);
+        ArgumentNullException.ThrowIfNull(conditionEvaluator);
+        ArgumentNullException.ThrowIfNull(suspensionScheduler);
+        ArgumentNullException.ThrowIfNull(whileRunner);
+        ArgumentNullException.ThrowIfNull(parallelRunner);
+        ArgumentNullException.ThrowIfNull(whenFirstRunner);
+        ArgumentNullException.ThrowIfNull(forEachRunner);
         ArgumentNullException.ThrowIfNull(yieldContinuationScheduler);
 
         this.timeProvider = timeProvider;
+        this.stepExecutor = stepExecutor;
+        this.failureHandler = failureHandler;
+        this.conditionEvaluator = conditionEvaluator;
+        this.suspensionScheduler = suspensionScheduler;
+        this.whileRunner = whileRunner;
+        this.parallelRunner = parallelRunner;
+        this.whenFirstRunner = whenFirstRunner;
+        this.forEachRunner = forEachRunner;
         this.yieldContinuationScheduler = yieldContinuationScheduler;
-        stepExecutor = new StepExecutor<TState>(timeProvider, governance, stuckStepThreshold);
-        failureHandler = new WorkflowFailureHandler<TState>(timeProvider);
-        conditionEvaluator = new ConditionEvaluator<TState>(failureHandler);
-        suspensionScheduler = new SuspensionScheduler<TState>(timeProvider, timerService, this);
-        whileRunner = new WhileNodeRunner<TState>(this, conditionEvaluator);
-        parallelRunner = new ParallelNodeRunner<TState>(this);
-        whenFirstRunner = new WhenFirstNodeRunner<TState>(this, timeProvider);
-        forEachRunner = new ForEachNodeRunner<TState>(this, timeProvider);
     }
 
     internal async Task<WorkflowInstance<TState>> RunAsync<TInput>(
@@ -116,22 +127,22 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
 
                 case WhileNode<TState> whileNode:
                     EnsureInitialized(context.RunState);
-                    await whileRunner.RunAsync(whileNode, context, index, cancellationToken).ConfigureAwait(false);
+                    await whileRunner.RunAsync(whileNode, context, index, this, cancellationToken).ConfigureAwait(false);
                     return false;
 
                 case ParallelNode<TState> parallelNode:
                     EnsureInitialized(context.RunState);
-                    await parallelRunner.RunAsync(parallelNode, context, index, cancellationToken).ConfigureAwait(false);
+                    await parallelRunner.RunAsync(parallelNode, context, index, this, cancellationToken).ConfigureAwait(false);
                     return false;
 
                 case WhenFirstNode<TState> whenFirstNode:
                     EnsureInitialized(context.RunState);
-                    await whenFirstRunner.RunAsync(whenFirstNode, context, index, cancellationToken).ConfigureAwait(false);
+                    await whenFirstRunner.RunAsync(whenFirstNode, context, index, this, cancellationToken).ConfigureAwait(false);
                     return false;
 
                 case ForEachNode<TState> forEachNode:
                     EnsureInitialized(context.RunState);
-                    await forEachRunner.RunAsync(forEachNode, context, index, cancellationToken).ConfigureAwait(false);
+                    await forEachRunner.RunAsync(forEachNode, context, index, this, cancellationToken).ConfigureAwait(false);
                     return false;
 
                 case RunChildNode<TState>:
@@ -151,7 +162,8 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
                         EnsureInitialized(context.RunState),
                         delayNode.Duration,
                         context,
-                        nextIndex: index + 1);
+                        nextIndex: index + 1,
+                        this);
                     return false;
 
                 default:
@@ -208,6 +220,7 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
                     timeout: null,
                     context,
                     nextIndex: stepIndex + 1,
+                    this,
                     cancellationToken).ConfigureAwait(false);
                 return false;
             case StepExecutionStatus.Yield:
@@ -292,6 +305,7 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
             waitNode.Timeout,
             context,
             nextIndex: waitIndex + 1,
+            this,
             cancellationToken).ConfigureAwait(false);
     }
 

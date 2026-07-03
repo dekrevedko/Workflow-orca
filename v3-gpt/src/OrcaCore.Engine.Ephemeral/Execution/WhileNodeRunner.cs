@@ -2,14 +2,13 @@ using OrcaCore.Core.Definitions;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
 
-internal sealed class WhileNodeRunner<TState>(
-    ISequenceExecutionEngine<TState> sequenceExecution,
-    ConditionEvaluator<TState> conditionEvaluator)
+internal sealed class WhileNodeRunner<TState>(ConditionEvaluator<TState> conditionEvaluator)
 {
     internal async Task RunAsync<TInput>(
         WhileNode<TState> whileNode,
         SequenceExecutionContext<TState, TInput> parentContext,
         int whileIndex,
+        ISequenceExecutionEngine<TState> sequenceExecution,
         CancellationToken cancellationToken)
     {
         while (true)
@@ -41,6 +40,7 @@ internal sealed class WhileNodeRunner<TState>(
                     whileNode,
                     parentContext,
                     whileIndex,
+                    sequenceExecution,
                     continuationToken));
             var completedBody = await sequenceExecution.RunSequenceAsync(
                 bodyContext,

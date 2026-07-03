@@ -28,6 +28,7 @@ public sealed class EphemeralWorkflowEngine
     private readonly EphemeralTimerService timerService;
     private readonly TimeProvider timeProvider;
     private readonly YieldContinuationScheduler yieldContinuationScheduler;
+    private readonly InterpreterFactory interpreterFactory;
 
     /// <summary>
     /// Initializes an engine using system time and an in-memory instance registry.
@@ -81,6 +82,12 @@ public sealed class EphemeralWorkflowEngine
         governance = new ResourceGovernanceCoordinator(options);
         timerService = new EphemeralTimerService(timeProvider);
         yieldContinuationScheduler = new YieldContinuationScheduler(governance, executionLane);
+        interpreterFactory = new InterpreterFactory(
+            timeProvider,
+            timerService,
+            governance,
+            yieldContinuationScheduler,
+            options.StuckStepThreshold);
         Management = new EphemeralManagement(this, instanceRegistry);
     }
 
@@ -130,12 +137,7 @@ public sealed class EphemeralWorkflowEngine
                 instanceId,
                 async laneCancellationToken =>
                 {
-                    var interpreter = new Interpreter<TState>(
-                        timeProvider,
-                        timerService,
-                        governance,
-                        yieldContinuationScheduler,
-                        options.StuckStepThreshold);
+                    var interpreter = interpreterFactory.Create<TState>();
                     instance = await interpreter.RunAsync(
                         definition,
                         input,
