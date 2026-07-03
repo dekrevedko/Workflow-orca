@@ -1,5 +1,6 @@
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
+using OrcaCore.Abstractions.Providers;
 
 namespace OrcaCore.Abstractions.Durable;
 
@@ -32,6 +33,16 @@ public abstract record WorkflowEvent
     /// Gets when the fact occurred.
     /// </summary>
     public required DateTimeOffset OccurredAt { get; init; }
+
+    /// <summary>
+    /// Gets the parent workflow instance when this fact belongs to child work.
+    /// </summary>
+    public InstanceId? ParentInstanceId { get; init; }
+
+    /// <summary>
+    /// Gets the root workflow instance for the workflow tree.
+    /// </summary>
+    public InstanceId? RootInstanceId { get; init; }
 }
 
 /// <summary>
@@ -48,6 +59,22 @@ public sealed record WorkflowStartedEvent : WorkflowEvent
     /// Gets the workflow definition version bound at start.
     /// </summary>
     public required DefinitionVersion DefinitionVersion { get; init; }
+}
+
+/// <summary>
+/// Records that a workflow instance rolled over to a new baseline generation.
+/// </summary>
+public sealed record WorkflowContinuedAsNewEvent : WorkflowEvent
+{
+    /// <summary>
+    /// Gets the previous stream version that was sealed by the rollover.
+    /// </summary>
+    public required StreamVersion PreviousStreamVersion { get; init; }
+
+    /// <summary>
+    /// Gets the monotonic generation number for the new baseline.
+    /// </summary>
+    public required int Generation { get; init; }
 }
 
 /// <summary>
@@ -120,6 +147,240 @@ public sealed record WorkflowWaitMatchedEvent : WorkflowEvent
 }
 
 /// <summary>
+/// Records that a durable timer was scheduled for one workflow instance.
+/// </summary>
+public sealed record WorkflowTimerScheduledEvent : WorkflowEvent
+{
+    /// <summary>
+    /// Gets the durable timer identity.
+    /// </summary>
+    public required TimerId TimerId { get; init; }
+
+    /// <summary>
+    /// Gets when the timer becomes eligible to fire.
+    /// </summary>
+    public required DateTimeOffset FireAt { get; init; }
+
+    /// <summary>
+    /// Gets the logical wake-up name.
+    /// </summary>
+    public required string WakeupName { get; init; }
+}
+
+/// <summary>
+/// Records that a durable timer fired and was consumed.
+/// </summary>
+public sealed record WorkflowTimerFiredEvent : WorkflowEvent
+{
+    /// <summary>
+    /// Gets the durable timer identity.
+    /// </summary>
+    public required TimerId TimerId { get; init; }
+}
+
+/// <summary>
+/// Records that a parent scheduled a child workflow and entered a synthetic wait.
+/// </summary>
+public sealed record WorkflowChildScheduledEvent : WorkflowEvent
+{
+    public required InstanceId ChildInstanceId { get; init; }
+
+    public required DefinitionId ChildDefinitionId { get; init; }
+
+    public required DefinitionVersion ChildDefinitionVersion { get; init; }
+
+    public required WaitId WaitId { get; init; }
+
+    public required RunChildFailurePolicy FailurePolicy { get; init; }
+}
+
+/// <summary>
+/// Records that a parent materialized a deterministic child workflow group.
+/// </summary>
+public sealed record WorkflowChildrenScheduledEvent : WorkflowEvent
+{
+    public required string GroupId { get; init; }
+
+    public required DefinitionId ChildDefinitionId { get; init; }
+
+    public required DefinitionVersion ChildDefinitionVersion { get; init; }
+
+    public required RunChildFailurePolicy FailurePolicy { get; init; }
+
+    public required RunChildrenJoinPolicy JoinPolicy { get; init; }
+
+    public required RunChildrenResidualPolicy ResidualPolicy { get; init; }
+
+    public required int TotalItemCount { get; init; }
+
+    public required int InitialDispatchCount { get; init; }
+
+    public required int NextDispatchIndex { get; init; }
+
+    public required IReadOnlyList<WorkflowChildMaterialization> Children { get; init; }
+}
+
+public sealed record WorkflowChildMaterialization
+{
+    public required int Index { get; init; }
+
+    public required InstanceId ChildInstanceId { get; init; }
+
+    public required string ItemSnapshot { get; init; }
+}
+
+/// <summary>
+/// Records that a child workflow reached a terminal status observed by its parent.
+/// </summary>
+public sealed record WorkflowChildCompletedEvent : WorkflowEvent
+{
+    public required InstanceId ChildInstanceId { get; init; }
+
+    public required WorkflowStatus ChildStatus { get; init; }
+
+    public string? ErrorSummary { get; init; }
+}
+
+/// <summary>
+/// Records the durable token that authorizes exactly one parent resume for a child group.
+/// </summary>
+public sealed record WorkflowParentResumeTokenRecordedEvent : WorkflowEvent
+{
+    public required string GroupId { get; init; }
+
+    public required EventId ResumeTokenId { get; init; }
+}
+
+/// <summary>
+/// Records durable residual child handling intent before parent resume.
+/// </summary>
+public sealed record WorkflowChildResidualIntentRecordedEvent : WorkflowEvent
+{
+    public required string GroupId { get; init; }
+
+    public required RunChildrenResidualPolicy ResidualPolicy { get; init; }
+
+    public required IReadOnlyList<InstanceId> ResidualChildInstanceIds { get; init; }
+}
+
+/// <summary>
+/// Records explicit compensation workflows materialized for completed children in a group.
+/// </summary>
+public sealed record WorkflowChildCompensationScheduledEvent : WorkflowEvent
+{
+    public required string GroupId { get; init; }
+
+    public required DefinitionId CompensationDefinitionId { get; init; }
+
+    public required DefinitionVersion CompensationDefinitionVersion { get; init; }
+
+    public required IReadOnlyList<WorkflowChildCompensationMaterialization> Compensations { get; init; }
+}
+
+public sealed record WorkflowChildCompensationMaterialization
+{
+    public required int Index { get; init; }
+
+    public required InstanceId SourceChildInstanceId { get; init; }
+
+    public required InstanceId CompensationInstanceId { get; init; }
+
+    public required string ItemSnapshot { get; init; }
+}
+
+/// <summary>
+/// Records that resource-pool tickets were acquired for a guarded holder.
+/// </summary>
+public sealed record WorkflowResourcePoolAcquiredEvent : WorkflowEvent
+{
+    public required string HolderKey { get; init; }
+
+    public required IReadOnlyList<ResourcePoolTicket> Tickets { get; init; }
+}
+
+/// <summary>
+/// Records that resource-pool acquisition suspended the instance as a cold wait.
+/// </summary>
+public sealed record WorkflowResourcePoolQueuedEvent : WorkflowEvent
+{
+    public required WaitId WaitId { get; init; }
+
+    public required string HolderKey { get; init; }
+
+    public required IReadOnlyList<ResourcePoolRequirement> Requirements { get; init; }
+
+    public DateTimeOffset? ExpiresAt { get; init; }
+}
+
+/// <summary>
+/// Records that resource-pool tickets were released for a guarded holder.
+/// </summary>
+public sealed record WorkflowResourcePoolReleasedEvent : WorkflowEvent
+{
+    public required string HolderKey { get; init; }
+
+    public required IReadOnlyList<ResourcePoolTicket> Tickets { get; init; }
+}
+
+/// <summary>
+/// Records that an external job start command is committed for dispatch.
+/// </summary>
+public sealed record WorkflowExternalJobStartedEvent : WorkflowEvent
+{
+    public required string ExternalJobId { get; init; }
+
+    public required byte[] Payload { get; init; }
+
+    public required WaitId WaitId { get; init; }
+
+    public TimerId? TimeoutTimerId { get; init; }
+
+    public DateTimeOffset? TimeoutAt { get; init; }
+}
+
+/// <summary>
+/// Records that an external job completion report resumed the waiting workflow.
+/// </summary>
+public sealed record WorkflowExternalJobCompletedEvent : WorkflowEvent
+{
+    public required string ExternalJobId { get; init; }
+
+    public required EventId CompletionEventId { get; init; }
+}
+
+/// <summary>
+/// Records that external job timeout handling won the race.
+/// </summary>
+public sealed record WorkflowExternalJobTimedOutEvent : WorkflowEvent
+{
+    public required string ExternalJobId { get; init; }
+}
+
+/// <summary>
+/// Records durable intent to stop external work.
+/// </summary>
+public sealed record WorkflowExternalJobStopRequestedEvent : WorkflowEvent
+{
+    public required string ExternalJobId { get; init; }
+}
+
+/// <summary>
+/// Records that a timer firing was accepted while advancement was paused.
+/// </summary>
+public sealed record WorkflowTimerBufferedEvent : WorkflowEvent
+{
+    /// <summary>
+    /// Gets the durable timer identity.
+    /// </summary>
+    public required TimerId TimerId { get; init; }
+
+    /// <summary>
+    /// Gets the logical wake-up name.
+    /// </summary>
+    public required string WakeupName { get; init; }
+}
+
+/// <summary>
 /// Records that a workflow instance was paused at a safe boundary.
 /// </summary>
 public sealed record WorkflowPausedEvent : WorkflowEvent;
@@ -187,4 +448,156 @@ public sealed record WorkflowTerminalEvent : WorkflowEvent
     /// Gets the terminal workflow status.
     /// </summary>
     public required WorkflowStatus Status { get; init; }
+}
+
+/// <summary>
+/// Records that a compensatable saga forward action completed successfully.
+/// </summary>
+public sealed record SagaForwardActionCompletedEvent : WorkflowEvent
+{
+    /// <summary>
+    /// Gets the logical compensation scope identity.
+    /// </summary>
+    public required string ScopeId { get; init; }
+
+    /// <summary>
+    /// Gets the stable forward action key.
+    /// </summary>
+    public required string ActionKey { get; init; }
+
+    /// <summary>
+    /// Gets the stable compensation action key to run if this forward action is compensated.
+    /// </summary>
+    public required string CompensationKey { get; init; }
+}
+
+/// <summary>
+/// Records that a saga forward action timed out and which compensation policy applied.
+/// </summary>
+public sealed record SagaForwardActionTimedOutEvent : WorkflowEvent
+{
+    /// <summary>
+    /// Gets the logical compensation scope identity.
+    /// </summary>
+    public required string ScopeId { get; init; }
+
+    /// <summary>
+    /// Gets the stable forward action key.
+    /// </summary>
+    public required string ActionKey { get; init; }
+
+    /// <summary>
+    /// Gets whether timeout policy required compensating the scope.
+    /// </summary>
+    public required bool CompensateScope { get; init; }
+}
+
+/// <summary>
+/// Records that compensation was requested for a saga scope.
+/// </summary>
+public sealed record SagaCompensationRequestedEvent : WorkflowEvent
+{
+    /// <summary>
+    /// Gets the logical compensation scope identity.
+    /// </summary>
+    public required string ScopeId { get; init; }
+
+    /// <summary>
+    /// Gets an optional operator or policy reason for the compensation request.
+    /// </summary>
+    public string? Reason { get; init; }
+}
+
+/// <summary>
+/// Records that one saga compensating action started.
+/// </summary>
+public sealed record SagaCompensationStartedEvent : WorkflowEvent
+{
+    /// <summary>
+    /// Gets the logical compensation scope identity.
+    /// </summary>
+    public required string ScopeId { get; init; }
+
+    /// <summary>
+    /// Gets the stable compensating action key.
+    /// </summary>
+    public required string ActionKey { get; init; }
+
+    /// <summary>
+    /// Gets the deterministic zero-based compensation order.
+    /// </summary>
+    public required int Order { get; init; }
+}
+
+/// <summary>
+/// Records that one saga compensating action completed.
+/// </summary>
+public sealed record SagaCompensationCompletedEvent : WorkflowEvent
+{
+    /// <summary>
+    /// Gets the logical compensation scope identity.
+    /// </summary>
+    public required string ScopeId { get; init; }
+
+    /// <summary>
+    /// Gets the stable compensating action key.
+    /// </summary>
+    public required string ActionKey { get; init; }
+}
+
+/// <summary>
+/// Records that one saga compensating action failed.
+/// </summary>
+public sealed record SagaCompensationFailedEvent : WorkflowEvent
+{
+    /// <summary>
+    /// Gets the logical compensation scope identity.
+    /// </summary>
+    public required string ScopeId { get; init; }
+
+    /// <summary>
+    /// Gets the stable compensating action key.
+    /// </summary>
+    public required string ActionKey { get; init; }
+
+    /// <summary>
+    /// Gets the compensation failure summary.
+    /// </summary>
+    public required string ErrorSummary { get; init; }
+}
+
+/// <summary>
+/// Records an operator recovery intervention for a compensation-failed saga.
+/// </summary>
+public sealed record SagaManualRecoveryRecordedEvent : WorkflowEvent
+{
+    /// <summary>
+    /// Gets the logical compensation scope identity.
+    /// </summary>
+    public required string ScopeId { get; init; }
+
+    /// <summary>
+    /// Gets the stable compensating action key affected by the intervention.
+    /// </summary>
+    public required string ActionKey { get; init; }
+
+    /// <summary>
+    /// Gets the operator identity supplied by the caller.
+    /// </summary>
+    public required string OperatorId { get; init; }
+
+    /// <summary>
+    /// Gets the recovery action name allowed by policy.
+    /// </summary>
+    public required string RecoveryAction { get; init; }
+
+    /// <summary>
+    /// Gets an optional operator-supplied reason.
+    /// </summary>
+    public string? Reason { get; init; }
+
+    /// <summary>
+    /// Gets the terminal status produced by the recovery action.
+    /// </summary>
+    public required WorkflowStatus TargetStatus { get; init; }
 }

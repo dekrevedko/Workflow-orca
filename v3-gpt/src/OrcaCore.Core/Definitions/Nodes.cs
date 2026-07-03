@@ -1,4 +1,5 @@
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Steps;
 
 namespace OrcaCore.Core.Definitions;
@@ -18,15 +19,21 @@ internal sealed record InitNode<TState> : WorkflowNode<TState>
 
 internal sealed record BusinessStepNode<TState> : WorkflowNode<TState>
 {
-    internal BusinessStepNode(string nodeId, Func<IStep<TState>> stepFactory)
+    internal BusinessStepNode(
+        string nodeId,
+        Func<IStep<TState>> stepFactory,
+        WorkflowPolicySet? policies = null)
         : base(nodeId)
     {
         ArgumentNullException.ThrowIfNull(stepFactory);
 
         StepFactory = stepFactory;
+        Policies = policies ?? WorkflowPolicySet.Empty;
     }
 
     internal Func<IStep<TState>> StepFactory { get; }
+
+    internal WorkflowPolicySet Policies { get; }
 }
 
 internal sealed record EndNode<TState> : WorkflowNode<TState>
@@ -95,6 +102,97 @@ internal sealed record ParallelNode<TState> : WorkflowNode<TState>
     internal IReadOnlyList<ParallelBranch<TState>> Branches { get; }
 }
 
+internal sealed record WhenFirstNode<TState> : WorkflowNode<TState>
+{
+    internal WhenFirstNode(
+        string nodeId,
+        WhenFirstResidualPolicy residualPolicy,
+        IEnumerable<ParallelBranch<TState>> branches)
+        : base(nodeId)
+    {
+        ArgumentNullException.ThrowIfNull(branches);
+
+        ResidualPolicy = residualPolicy;
+        Branches = new ReadOnlyList<ParallelBranch<TState>>(branches);
+    }
+
+    internal WhenFirstResidualPolicy ResidualPolicy { get; }
+
+    internal IReadOnlyList<ParallelBranch<TState>> Branches { get; }
+}
+
+internal abstract record ForEachNode<TState> : WorkflowNode<TState>
+{
+    protected ForEachNode(
+        string nodeId,
+        SequenceNode<TState> body,
+        int? maxConcurrency,
+        ForEachJoinPolicy joinPolicy,
+        ForEachFailurePolicy failurePolicy,
+        ForEachResidualPolicy residualPolicy)
+        : base(nodeId)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+
+        Body = body;
+        MaxConcurrency = maxConcurrency;
+        JoinPolicy = joinPolicy;
+        FailurePolicy = failurePolicy;
+        ResidualPolicy = residualPolicy;
+    }
+
+    internal SequenceNode<TState> Body { get; }
+
+    internal int? MaxConcurrency { get; }
+
+    internal ForEachJoinPolicy JoinPolicy { get; }
+
+    internal ForEachFailurePolicy FailurePolicy { get; }
+
+    internal ForEachResidualPolicy ResidualPolicy { get; }
+
+    internal abstract IReadOnlyList<ForEachWorkItemSnapshot> MaterializeWorkItems(TState state);
+}
+
+internal sealed record ForEachNode<TState, TItem> : ForEachNode<TState>
+{
+    internal ForEachNode(
+        string nodeId,
+        Func<TState, IReadOnlyList<TItem>> itemSelector,
+        WorkflowPartitioner<TItem> partitioner,
+        SequenceNode<TState> body,
+        int? maxConcurrency,
+        ForEachJoinPolicy joinPolicy,
+        ForEachFailurePolicy failurePolicy,
+        ForEachResidualPolicy residualPolicy)
+        : base(nodeId, body, maxConcurrency, joinPolicy, failurePolicy, residualPolicy)
+    {
+        ArgumentNullException.ThrowIfNull(itemSelector);
+        ArgumentNullException.ThrowIfNull(partitioner);
+
+        ItemSelector = itemSelector;
+        Partitioner = partitioner;
+    }
+
+    private Func<TState, IReadOnlyList<TItem>> ItemSelector { get; }
+
+    private WorkflowPartitioner<TItem> Partitioner { get; }
+
+    internal override IReadOnlyList<ForEachWorkItemSnapshot> MaterializeWorkItems(TState state)
+    {
+        var items = ItemSelector(state);
+        var partitions = Partitioner.Partition(items);
+        return partitions
+            .Select(partition => new ForEachWorkItemSnapshot
+            {
+                Index = partition.Index,
+                Items = partition.Items.Cast<object?>().ToArray(),
+                Status = ForEachWorkItemStatus.Pending
+            })
+            .ToArray();
+    }
+}
+
 internal sealed record ParallelBranch<TState>
 {
     internal ParallelBranch(BranchId branchId, SequenceNode<TState> sequence)
@@ -112,7 +210,11 @@ internal sealed record ParallelBranch<TState>
 
 internal sealed record WaitNode<TState> : WorkflowNode<TState>
 {
-    internal WaitNode(string nodeId, string eventName, Func<TState, CorrelationId> correlationSelector)
+    internal WaitNode(
+        string nodeId,
+        string eventName,
+        Func<TState, CorrelationId> correlationSelector,
+        TimeSpan? timeout = null)
         : base(nodeId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
@@ -120,11 +222,25 @@ internal sealed record WaitNode<TState> : WorkflowNode<TState>
 
         EventName = eventName;
         CorrelationSelector = correlationSelector;
+        Timeout = timeout;
     }
 
     internal string EventName { get; }
 
     internal Func<TState, CorrelationId> CorrelationSelector { get; }
+
+    internal TimeSpan? Timeout { get; }
+}
+
+internal sealed record DelayNode<TState> : WorkflowNode<TState>
+{
+    internal DelayNode(string nodeId, TimeSpan duration)
+        : base(nodeId)
+    {
+        Duration = duration;
+    }
+
+    internal TimeSpan Duration { get; }
 }
 
 internal sealed record SequenceNode<TState> : WorkflowNode<TState>

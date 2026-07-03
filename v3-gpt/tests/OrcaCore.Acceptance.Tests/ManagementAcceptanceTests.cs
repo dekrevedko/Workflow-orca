@@ -1,10 +1,14 @@
 using AwesomeAssertions;
+using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
+using OrcaCore.Abstractions.Providers;
 using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
+using OrcaCore.Engine.Durable.Management;
 using OrcaCore.Engine.Ephemeral;
+using OrcaCore.Providers.InMemory;
 using Xunit;
 
 namespace OrcaCore.Acceptance.Tests;
@@ -86,6 +90,46 @@ public sealed class ManagementAcceptanceTests
     }
 
     [Fact]
+    [Trait("AC", "AC-312")]
+    public async Task Statistics_ShowHistoryPressure()
+    {
+        var instanceId = InstanceIdValue(1);
+        var store = new InMemoryWorkflowProvider();
+        await store.AppendAsync(
+            new ProviderCommitBatch
+            {
+                StreamId = new WorkflowStreamId(instanceId),
+                ExpectedVersion = StreamVersion.Empty,
+                Events = [Started(instanceId)],
+                Checkpoint = new CheckpointWrite(instanceId, new StreamVersion(1), "application/json", [1]),
+                OutboxRecords = [new OutboxWrite(OutboxRecordId.New(), "lifecycle-event", [2])],
+                ProjectionOperations =
+                [
+                    new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
+                    {
+                        InstanceSnapshot = new WorkflowInstanceSnapshot
+                        {
+                            InstanceId = instanceId,
+                            DefinitionId = DefinitionIdValue(1),
+                            DefinitionVersion = DefinitionVersion.Initial,
+                            Status = WorkflowStatus.Running,
+                            CreatedAt = Timestamp(1),
+                            UpdatedAt = Timestamp(2)
+                        }
+                    }
+                ]
+            },
+            TestContext.Current.CancellationToken);
+
+        var statistics = await new DurableManagement(store).All()
+            .StatisticsAsync(TestContext.Current.CancellationToken);
+
+        statistics.Pressure.TotalStreamEvents.Should().Be(1);
+        statistics.Pressure.CheckpointCount.Should().Be(1);
+        statistics.Pressure.PendingOutboxCount.Should().Be(1);
+    }
+
+    [Fact]
     [Trait("AC", "AC-009")]
     public async Task PublicApiResults_DoNotLeakLiveInstances()
     {
@@ -152,6 +196,40 @@ public sealed class ManagementAcceptanceTests
             Payload = payload,
             OccurredAt = DateTimeOffset.UtcNow
         };
+    }
+
+    private static WorkflowStartedEvent Started(InstanceId instanceId)
+    {
+        return new WorkflowStartedEvent
+        {
+            EventId = EventId.New(),
+            InstanceId = instanceId,
+            CommandId = CommandId.New(),
+            CausationId = CausationId.New(),
+            OccurredAt = Timestamp(1),
+            DefinitionId = DefinitionIdValue(1),
+            DefinitionVersion = DefinitionVersion.Initial
+        };
+    }
+
+    private static DateTimeOffset Timestamp(int seconds)
+    {
+        return new DateTimeOffset(2026, 7, 2, 14, 0, seconds, TimeSpan.Zero);
+    }
+
+    private static InstanceId InstanceIdValue(int value)
+    {
+        return new InstanceId(GuidValue(value));
+    }
+
+    private static DefinitionId DefinitionIdValue(int value)
+    {
+        return new DefinitionId(GuidValue(value));
+    }
+
+    private static Guid GuidValue(int value)
+    {
+        return Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}");
     }
 
     private sealed class TestState

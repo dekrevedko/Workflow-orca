@@ -87,6 +87,16 @@ public sealed record CheckpointWrite(
     public DefinitionId? DefinitionId { get; init; }
 
     /// <summary>
+    /// Gets the parent workflow instance restored by this checkpoint when known.
+    /// </summary>
+    public InstanceId? ParentInstanceId { get; init; }
+
+    /// <summary>
+    /// Gets the root workflow instance restored by this checkpoint when known.
+    /// </summary>
+    public InstanceId? RootInstanceId { get; init; }
+
+    /// <summary>
     /// Gets the workflow definition version restored by this checkpoint when known.
     /// </summary>
     public DefinitionVersion? DefinitionVersion { get; init; }
@@ -110,6 +120,11 @@ public sealed record CheckpointWrite(
     /// Gets the completion outcome restored by this checkpoint when known.
     /// </summary>
     public string? OutcomeName { get; init; }
+
+    /// <summary>
+    /// Gets the continue-as-new generation restored by this checkpoint.
+    /// </summary>
+    public int ContinueAsNewGeneration { get; init; }
 }
 
 /// <summary>
@@ -245,6 +260,16 @@ public sealed record WorkflowProjectionQuery
     /// Gets an optional instance identity filter.
     /// </summary>
     public InstanceId? InstanceId { get; init; }
+
+    /// <summary>
+    /// Gets an optional parent instance identity filter.
+    /// </summary>
+    public InstanceId? ParentInstanceId { get; init; }
+
+    /// <summary>
+    /// Gets an optional root instance identity filter.
+    /// </summary>
+    public InstanceId? RootInstanceId { get; init; }
 
     /// <summary>
     /// Gets an optional definition identity filter.

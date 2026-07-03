@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OrcaCore.Abstractions\OrcaCore.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

@@ -121,6 +121,46 @@ public sealed class WorkflowBuilderTests
     }
 
     [Fact]
+    public void Delay_WithPositiveDuration_AddsTimerNode()
+    {
+        var delay = TimeSpan.FromSeconds(30);
+
+        var definition = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("created"))
+            .Delay(delay)
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+
+        definition.RootSequence.Children.OfType<DelayNode<TestState>>()
+            .Single().Duration.Should().Be(delay);
+    }
+
+    [Fact]
+    public void Delay_WithNonPositiveDuration_ReportsValidationError()
+    {
+        var validation = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("created"))
+            .Delay(TimeSpan.Zero)
+            .End()
+            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+
+        validation.IsValid.Should().BeFalse();
+        validation.Errors.Should().ContainSingle(error => error.Code == BuilderValidationCodes.NonPositiveDelay);
+    }
+
+    [Fact]
+    public void Build_DelayBeforeEnd_DoesNotCountAsEnd()
+    {
+        var validation = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("created"))
+            .Delay(TimeSpan.FromSeconds(1))
+            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+
+        validation.IsValid.Should().BeFalse();
+        validation.Errors.Should().ContainSingle(error => error.Code == BuilderValidationCodes.MissingEnd);
+    }
+
+    [Fact]
     public void Then_GenericParameterlessStep_UsesTypedStepFactory()
     {
         var definition = new WorkflowBuilder<TestState>()
@@ -154,6 +194,23 @@ public sealed class WorkflowBuilderTests
             .StepFactory();
 
         step.Should().BeSameAs(configuredStep);
+    }
+
+    [Fact]
+    public void WorkflowBuilder_DoesNotExposeCompensationMethods()
+    {
+        var publicMethodNames = typeof(WorkflowBuilder<TestState>)
+            .GetMethods()
+            .Where(method => method.DeclaringType == typeof(WorkflowBuilder<TestState>))
+            .Select(method => method.Name)
+            .ToArray();
+
+        publicMethodNames.Should().NotContain(
+            [
+                "CompensateBy",
+                "CompensationScope",
+                "Compensate"
+            ]);
     }
 
     private sealed record TestState(string CorrelationId, bool ShouldRoute = true);

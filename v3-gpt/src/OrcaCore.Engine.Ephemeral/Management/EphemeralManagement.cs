@@ -137,6 +137,47 @@ public sealed class EphemeralManagementQuery
     }
 
     /// <summary>
+    /// Gets lifecycle events for instances in the current selection.
+    /// </summary>
+    public IReadOnlyList<LifecycleEventSnapshot> GetLifecycleEvents()
+    {
+        return List()
+            .SelectMany(snapshot => snapshot.LifecycleEvents)
+            .ToArray();
+    }
+
+    /// <summary>
+    /// Marks selected non-terminal instances as stuck when they have made no progress beyond the threshold.
+    /// </summary>
+    public IReadOnlyList<WorkflowInstanceSnapshot> DetectStuck(TimeSpan threshold)
+    {
+        if (threshold <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(threshold), threshold, "Stuck threshold must be positive.");
+        }
+
+        var now = engine.GetUtcNow();
+        var compiledFilters = filters.Select(filter => filter.Compile()).ToArray();
+        var marked = new List<WorkflowInstanceSnapshot>();
+        foreach (var instance in loadInstances().OfType<IWorkflowInstance>())
+        {
+            var snapshot = instance.ToSnapshot();
+            if (compiledFilters.Any(filter => !filter(WorkflowInstanceQueryModel.From(snapshot))))
+            {
+                continue;
+            }
+
+            var updated = instance.MarkStuckIfNoProgress(now, threshold);
+            if (updated.IsStuck)
+            {
+                marked.Add(updated);
+            }
+        }
+
+        return marked;
+    }
+
+    /// <summary>
     /// Returns grouped status statistics for instances in the current selection.
     /// </summary>
     public WorkflowStatistics Statistics()
@@ -321,6 +362,14 @@ public sealed class EphemeralInstanceManagement
     }
 
     /// <summary>
+    /// Gets lifecycle events for the selected instance.
+    /// </summary>
+    public IReadOnlyList<LifecycleEventSnapshot> GetLifecycleEvents()
+    {
+        return Get().LifecycleEvents.ToArray();
+    }
+
+    /// <summary>
     /// Cooperatively cancels the selected instance.
     /// </summary>
     public Task<WorkflowInstanceSnapshot> CancelAsync(CancellationToken cancellationToken)
@@ -378,6 +427,10 @@ public sealed record WorkflowInstanceQueryModel
 
     public string? EndOutcomeName { get; init; }
 
+    public bool IsStuck { get; init; }
+
+    public bool HasStuckStep { get; init; }
+
     internal static WorkflowInstanceQueryModel From(WorkflowInstanceSnapshot snapshot)
     {
         return new WorkflowInstanceQueryModel
@@ -389,7 +442,9 @@ public sealed record WorkflowInstanceQueryModel
             CreatedAt = snapshot.CreatedAt,
             UpdatedAt = snapshot.UpdatedAt,
             ErrorSummary = snapshot.ErrorSummary,
-            EndOutcomeName = snapshot.EndOutcomeName
+            EndOutcomeName = snapshot.EndOutcomeName,
+            IsStuck = snapshot.IsStuck,
+            HasStuckStep = snapshot.HasStuckStep
         };
     }
 }

@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Options" />
   </ItemGroup>
@@ -11,5 +12,6 @@
     <ProjectReference Include="..\OrcaCore.Engine.Ephemeral\OrcaCore.Engine.Ephemeral.csproj" />
     <ProjectReference Include="..\OrcaCore.Engine.Durable\OrcaCore.Engine.Durable.csproj" />
     <ProjectReference Include="..\OrcaCore.Providers.InMemory\OrcaCore.Providers.InMemory.csproj" />
+    <ProjectReference Include="..\OrcaCore.Providers.RabbitMq\OrcaCore.Providers.RabbitMq.csproj" />
   </ItemGroup>
 </Project>

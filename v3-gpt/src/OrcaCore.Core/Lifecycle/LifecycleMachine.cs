@@ -18,6 +18,10 @@ internal static class LifecycleMachine
             [new(WorkflowStatus.Waiting, LifecycleTrigger.Cancel)] = WorkflowStatus.Cancelled,
             [new(WorkflowStatus.Running, LifecycleTrigger.Terminate)] = WorkflowStatus.Terminated,
             [new(WorkflowStatus.Waiting, LifecycleTrigger.Terminate)] = WorkflowStatus.Terminated,
+            [new(WorkflowStatus.Running, LifecycleTrigger.Compensate)] = WorkflowStatus.Compensated,
+            [new(WorkflowStatus.Waiting, LifecycleTrigger.Compensate)] = WorkflowStatus.Compensated,
+            [new(WorkflowStatus.Running, LifecycleTrigger.FailCompensation)] = WorkflowStatus.CompensationFailed,
+            [new(WorkflowStatus.Waiting, LifecycleTrigger.FailCompensation)] = WorkflowStatus.CompensationFailed,
             [new(WorkflowStatus.Running, LifecycleTrigger.Pause)] = WorkflowStatus.Paused,
             [new(WorkflowStatus.Waiting, LifecycleTrigger.Pause)] = WorkflowStatus.Paused,
             [new(WorkflowStatus.Paused, LifecycleTrigger.Resume)] = WorkflowStatus.Running,
@@ -31,7 +35,9 @@ internal static class LifecycleMachine
             WorkflowStatus.Completed,
             WorkflowStatus.Failed,
             WorkflowStatus.Cancelled,
-            WorkflowStatus.Terminated
+            WorkflowStatus.Terminated,
+            WorkflowStatus.Compensated,
+            WorkflowStatus.CompensationFailed
         }.ToFrozenSet();
 
     internal static Result<WorkflowStatus> Fire(WorkflowStatus current, LifecycleTrigger trigger)

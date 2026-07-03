@@ -5,7 +5,7 @@ using Xunit;
 
 namespace OrcaCore.ProviderCertification;
 
-public sealed class InMemoryProviderCertificationTests : EventStoreCertificationTests
+public sealed class InMemoryProviderCertificationTests : ContinueAsNewCertificationTests
 {
     [Fact]
     public void InMemoryEventStore_PassesEventStoreCertification()

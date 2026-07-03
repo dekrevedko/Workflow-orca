@@ -41,6 +41,21 @@ internal sealed class RuntimeWaitRecord
 
     internal Func<EventEnvelope, CancellationToken, Task> ResumeAsync { get; }
 
+    private Action? cancelLoser;
+
+    internal void SetCancelLoser(Action cancel)
+    {
+        ArgumentNullException.ThrowIfNull(cancel);
+
+        cancelLoser = cancel;
+    }
+
+    internal void CancelLoser()
+    {
+        cancelLoser?.Invoke();
+        cancelLoser = null;
+    }
+
     internal bool Matches(EventEnvelope envelope)
     {
         return Status == "Active" &&

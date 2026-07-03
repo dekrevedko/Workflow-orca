@@ -13,6 +13,16 @@ public sealed record WorkflowInstanceSnapshot
     public required InstanceId InstanceId { get; init; }
 
     /// <summary>
+    /// Gets the parent workflow instance when this snapshot describes child work.
+    /// </summary>
+    public InstanceId? ParentInstanceId { get; init; }
+
+    /// <summary>
+    /// Gets the root workflow instance for the workflow tree.
+    /// </summary>
+    public InstanceId? RootInstanceId { get; init; }
+
+    /// <summary>
     /// Gets the workflow definition identity.
     /// </summary>
     public required DefinitionId DefinitionId { get; init; }
@@ -38,6 +48,36 @@ public sealed record WorkflowInstanceSnapshot
     public required DateTimeOffset UpdatedAt { get; init; }
 
     /// <summary>
+    /// Gets when the current lifecycle status was entered.
+    /// </summary>
+    public DateTimeOffset? CurrentStatusEnteredAt { get; init; }
+
+    /// <summary>
+    /// Gets when the instance last made observable execution progress.
+    /// </summary>
+    public DateTimeOffset? LastActiveAt { get; init; }
+
+    /// <summary>
+    /// Gets whether the instance has any current stuck signal.
+    /// </summary>
+    public bool IsStuck { get; init; }
+
+    /// <summary>
+    /// Gets whether any step on the instance has exceeded its stuck threshold.
+    /// </summary>
+    public bool HasStuckStep { get; init; }
+
+    /// <summary>
+    /// Gets the path of the step that most recently exceeded its stuck threshold.
+    /// </summary>
+    public string? StuckStepPath { get; init; }
+
+    /// <summary>
+    /// Gets when stuck work was detected.
+    /// </summary>
+    public DateTimeOffset? StuckDetectedAt { get; init; }
+
+    /// <summary>
     /// Gets the failure summary when status is failed.
     /// </summary>
     public string? ErrorSummary { get; init; }
@@ -48,7 +88,37 @@ public sealed record WorkflowInstanceSnapshot
     public string? EndOutcomeName { get; init; }
 
     /// <summary>
+    /// Gets the current continue-as-new generation for this logical instance.
+    /// </summary>
+    public int ContinueAsNewGeneration { get; init; }
+
+    /// <summary>
+    /// Gets when durable metadata was archived, when archived.
+    /// </summary>
+    public DateTimeOffset? ArchivedAt { get; init; }
+
+    /// <summary>
     /// Gets immutable snapshots of currently active waits.
     /// </summary>
     public IReadOnlyList<ActiveWaitSnapshot> ActiveWaits { get; init; } = [];
+
+    /// <summary>
+    /// Gets immutable snapshots of completed composition branch outcomes.
+    /// </summary>
+    public IReadOnlyList<CompositionBranchOutcomeSnapshot> CompositionOutcomes { get; init; } = [];
+
+    /// <summary>
+    /// Gets immutable snapshots of in-instance ForEach groups.
+    /// </summary>
+    public IReadOnlyList<ForEachGroupSnapshot> ForEachGroups { get; init; } = [];
+
+    /// <summary>
+    /// Gets immutable snapshots of lifecycle events observed for the instance.
+    /// </summary>
+    public IReadOnlyList<LifecycleEventSnapshot> LifecycleEvents { get; init; } = [];
+
+    /// <summary>
+    /// Gets durable saga audit snapshots for compensation scopes on this instance.
+    /// </summary>
+    public IReadOnlyList<SagaAuditScopeSnapshot> SagaAudits { get; init; } = [];
 }

@@ -12,6 +12,8 @@ namespace OrcaCore.Core.Building;
 public sealed class WorkflowBuilder<TState>
 {
     private readonly List<BuilderNode> nodes = [];
+    private WorkflowPolicySet definitionPolicies = WorkflowPolicySet.Empty;
+    private WorkflowPolicySet pendingPolicies = WorkflowPolicySet.Empty;
 
     /// <summary>
     /// Adds the Init node that converts start input into business state.
@@ -36,7 +38,7 @@ public sealed class WorkflowBuilder<TState>
     /// </summary>
     public WorkflowBuilder<TState> Then(IStep<TState>? step)
     {
-        nodes.Add(new StepBuilderNode(() => step!, step is null));
+        nodes.Add(new StepBuilderNode(() => step!, step is null, ConsumePendingPolicies()));
         return this;
     }
 
@@ -45,7 +47,52 @@ public sealed class WorkflowBuilder<TState>
     /// </summary>
     public WorkflowBuilder<TState> Then(Func<IStep<TState>>? stepFactory)
     {
-        nodes.Add(new StepBuilderNode(stepFactory, stepFactory is null));
+        nodes.Add(new StepBuilderNode(stepFactory, stepFactory is null, ConsumePendingPolicies()));
+        return this;
+    }
+
+    /// <summary>
+    /// Adds a retry decorator to the next authored step.
+    /// </summary>
+    public WorkflowBuilder<TState> WithRetry(int maxAttempts)
+    {
+        pendingPolicies = pendingPolicies.WithRetry(maxAttempts);
+        return this;
+    }
+
+    /// <summary>
+    /// Adds a timeout decorator to the next authored step.
+    /// </summary>
+    public WorkflowBuilder<TState> WithTimeout(TimeSpan duration)
+    {
+        pendingPolicies = pendingPolicies.WithTimeout(duration);
+        return this;
+    }
+
+    /// <summary>
+    /// Adds a cancellation decorator to the next authored step.
+    /// </summary>
+    public WorkflowBuilder<TState> WithCancellation()
+    {
+        pendingPolicies = pendingPolicies.WithCancellation();
+        return this;
+    }
+
+    /// <summary>
+    /// Adds an in-process pool hint decorator to the next authored step.
+    /// </summary>
+    public WorkflowBuilder<TState> WithPoolKey(string poolKey)
+    {
+        pendingPolicies = pendingPolicies.WithPoolKey(poolKey);
+        return this;
+    }
+
+    /// <summary>
+    /// Adds a definition-level retry decorator.
+    /// </summary>
+    public WorkflowBuilder<TState> WithDefinitionRetry(int maxAttempts)
+    {
+        definitionPolicies = definitionPolicies.WithRetry(maxAttempts);
         return this;
     }
 
@@ -103,11 +150,92 @@ public sealed class WorkflowBuilder<TState>
     }
 
     /// <summary>
+    /// Adds a WhenFirst node that cancels losing branch work after the first branch completes.
+    /// </summary>
+    public WorkflowBuilder<TState> WhenFirst(
+        params (string Name, Action<WorkflowBuilder<TState>> Build)[] branches)
+    {
+        return WhenFirst(WhenFirstResidualPolicy.CancelRemaining, branches);
+    }
+
+    /// <summary>
+    /// Adds a WhenFirst node with an explicit losing-branch residual policy.
+    /// </summary>
+    public WorkflowBuilder<TState> WhenFirst(
+        WhenFirstResidualPolicy residualPolicy,
+        params (string Name, Action<WorkflowBuilder<TState>> Build)[] branches)
+    {
+        ArgumentNullException.ThrowIfNull(branches);
+
+        var branchNodes = new List<ParallelBranchBuilderNode>(branches.Length);
+        foreach (var (name, build) in branches)
+        {
+            var branchBuilder = new WorkflowBuilder<TState>();
+            build?.Invoke(branchBuilder);
+            branchNodes.Add(new ParallelBranchBuilderNode(name, build is null, branchBuilder.nodes));
+        }
+
+        nodes.Add(new WhenFirstBuilderNode(residualPolicy, branchNodes));
+        return this;
+    }
+
+    /// <summary>
+    /// Adds an in-instance ForEach node with deterministic partitioning and WhenAll join behavior.
+    /// </summary>
+    public WorkflowBuilder<TState> ForEach<TItem>(
+        Func<TState, IReadOnlyList<TItem>>? itemSelector,
+        WorkflowPartitioner<TItem>? partitioner,
+        Action<WorkflowBuilder<TState>> body,
+        int? maxConcurrency = null,
+        ForEachJoinPolicy joinPolicy = ForEachJoinPolicy.WhenAll,
+        ForEachFailurePolicy failurePolicy = ForEachFailurePolicy.FailFast,
+        ForEachResidualPolicy residualPolicy = ForEachResidualPolicy.CancelRemaining)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+
+        var bodyBuilder = new WorkflowBuilder<TState>();
+        body(bodyBuilder);
+
+        nodes.Add(new ForEachBuilderNode<TItem>(
+            itemSelector,
+            itemSelector is null,
+            partitioner,
+            partitioner is null,
+            bodyBuilder.nodes,
+            maxConcurrency,
+            joinPolicy,
+            failurePolicy,
+            residualPolicy));
+        return this;
+    }
+
+    /// <summary>
     /// Adds a wait for an event name and correlation selector.
     /// </summary>
     public WorkflowBuilder<TState> Wait(string eventName, Func<TState, CorrelationId>? correlationSelector)
     {
-        nodes.Add(new WaitBuilderNode(eventName, correlationSelector, correlationSelector is null));
+        nodes.Add(new WaitBuilderNode(eventName, correlationSelector, correlationSelector is null, null));
+        return this;
+    }
+
+    /// <summary>
+    /// Adds a wait that races an event against a timeout.
+    /// </summary>
+    public WorkflowBuilder<TState> Wait(
+        string eventName,
+        Func<TState, CorrelationId>? correlationSelector,
+        TimeSpan timeout)
+    {
+        nodes.Add(new WaitBuilderNode(eventName, correlationSelector, correlationSelector is null, timeout));
+        return this;
+    }
+
+    /// <summary>
+    /// Adds a first-class delay node.
+    /// </summary>
+    public WorkflowBuilder<TState> Delay(TimeSpan duration)
+    {
+        nodes.Add(new DelayBuilderNode(duration));
         return this;
     }
 
@@ -170,6 +298,7 @@ public sealed class WorkflowBuilder<TState>
         }
 
         ValidateNodes(nodes, "root", errors);
+        ValidatePolicies(definitionPolicies, "root/policies", errors);
 
         if (errors.Count > 0)
         {
@@ -178,7 +307,7 @@ public sealed class WorkflowBuilder<TState>
 
         var root = new SequenceNode<TState>("root", BuildNodes(nodes, "root"));
         return Validation<WorkflowDefinition<TState>>.Valid(
-            new WorkflowDefinition<TState>(definitionId, definitionVersion, root));
+            new WorkflowDefinition<TState>(definitionId, definitionVersion, root, definitionPolicies));
     }
 
     private static bool ContainsEnd(IEnumerable<BuilderNode> candidateNodes)
@@ -195,6 +324,11 @@ public sealed class WorkflowBuilder<TState>
                     return true;
                 case ParallelBuilderNode parallelNode
                     when parallelNode.Branches.Any(branch => ContainsEnd(branch.Nodes)):
+                    return true;
+                case WhenFirstBuilderNode whenFirstNode
+                    when whenFirstNode.Branches.Any(branch => ContainsEnd(branch.Nodes)):
+                    return true;
+                case IForEachBuilderNode forEachNode when ContainsEnd(forEachNode.BodyNodes):
                     return true;
             }
         }
@@ -220,6 +354,36 @@ public sealed class WorkflowBuilder<TState>
                         "A required workflow builder delegate was null.",
                         nodePath));
                     break;
+                case DelayBuilderNode delayNode when delayNode.Duration <= TimeSpan.Zero:
+                    errors.Add(new ValidationError(
+                        BuilderValidationCodes.NonPositiveDelay,
+                        "Delay duration must be greater than zero.",
+                        nodePath));
+                    break;
+                case WaitBuilderNode { Timeout: { } timeout } when timeout <= TimeSpan.Zero:
+                    errors.Add(new ValidationError(
+                        BuilderValidationCodes.NonPositiveTimeout,
+                        "Wait timeout must be greater than zero.",
+                        nodePath));
+                    break;
+                case IForEachBuilderNode { HasNullDelegate: true }:
+                    errors.Add(new ValidationError(
+                        BuilderValidationCodes.NullDelegate,
+                        "A required workflow builder delegate was null.",
+                        nodePath));
+                    break;
+                case IForEachBuilderNode { HasNullPartitioner: true }:
+                    errors.Add(new ValidationError(
+                        BuilderValidationCodes.NullDelegate,
+                        "A required workflow partitioner was null.",
+                        nodePath));
+                    break;
+                case IForEachBuilderNode { MaxConcurrency: <= 0 }:
+                    errors.Add(new ValidationError(
+                        BuilderValidationCodes.NonPositiveMaxConcurrency,
+                        "ForEach max concurrency must be greater than zero.",
+                        nodePath));
+                    break;
             }
 
             switch (node)
@@ -240,41 +404,61 @@ public sealed class WorkflowBuilder<TState>
                     ValidateNodes(whileNode.BodyNodes, $"{nodePath}/body", errors);
                     break;
                 case ParallelBuilderNode parallelNode:
-                    ValidateParallel(parallelNode, nodePath, errors);
+                    ValidateBranches(parallelNode.Branches, nodePath, "Parallel", errors);
                     break;
+                case WhenFirstBuilderNode whenFirstNode:
+                    ValidateBranches(whenFirstNode.Branches, nodePath, "WhenFirst", errors);
+                    break;
+                case IForEachBuilderNode forEachNode:
+                    if (forEachNode.BodyNodes.Count == 0)
+                    {
+                        errors.Add(new ValidationError(
+                            BuilderValidationCodes.EmptyForEach,
+                            "ForEach nodes require a non-empty body.",
+                            nodePath));
+                    }
+
+                    ValidateNodes(forEachNode.BodyNodes, $"{nodePath}/body", errors);
+                    break;
+            }
+
+            if (node is StepBuilderNode stepNode)
+            {
+                ValidatePolicies(stepNode.Policies, $"{nodePath}/policies", errors);
             }
 
             index++;
         }
     }
 
-    private static void ValidateParallel(
-        ParallelBuilderNode parallelNode,
+    private static void ValidateBranches(
+        IReadOnlyList<ParallelBranchBuilderNode> branches,
         string path,
+        string nodeName,
         List<ValidationError> errors)
     {
-        if (parallelNode.Branches.Count == 0)
+        if (branches.Count == 0)
         {
             errors.Add(new ValidationError(
                 BuilderValidationCodes.EmptyParallel,
-                "Parallel nodes require at least one branch.",
+                $"{nodeName} nodes require at least one branch.",
                 path));
         }
 
-        foreach (var duplicate in parallelNode.Branches
+        foreach (var duplicate in branches
                      .GroupBy(branch => branch.Name, StringComparer.Ordinal)
                      .Where(group => group.Count() > 1)
                      .Select(group => group.Key))
         {
             errors.Add(new ValidationError(
                 BuilderValidationCodes.DuplicateBranchName,
-                $"Parallel branch name '{duplicate}' is duplicated.",
+                $"{nodeName} branch name '{duplicate}' is duplicated.",
                 path));
         }
 
-        for (var branchIndex = 0; branchIndex < parallelNode.Branches.Count; branchIndex++)
+        for (var branchIndex = 0; branchIndex < branches.Count; branchIndex++)
         {
-            var branch = parallelNode.Branches[branchIndex];
+            var branch = branches[branchIndex];
             var branchPath = $"{path}/branches/{branchIndex}";
             if (branch.HasNullDelegate)
             {
@@ -288,7 +472,7 @@ public sealed class WorkflowBuilder<TState>
             {
                 errors.Add(new ValidationError(
                     BuilderValidationCodes.EmptyBranch,
-                    "Parallel branches require a non-empty body.",
+                    $"{nodeName} branches require a non-empty body.",
                     branchPath));
             }
 
@@ -305,12 +489,19 @@ public sealed class WorkflowBuilder<TState>
             yield return node switch
             {
                 InitBuilderNode initNode => new InitNode<TState>(nodeId, initNode.CreateState),
-                StepBuilderNode stepNode => new BusinessStepNode<TState>(nodeId, stepNode.StepFactory!),
+                StepBuilderNode stepNode => new BusinessStepNode<TState>(
+                    nodeId,
+                    stepNode.StepFactory!,
+                    stepNode.Policies),
                 EndBuilderNode endNode => new EndNode<TState>(nodeId, endNode.OutcomeName),
                 WaitBuilderNode waitNode => new WaitNode<TState>(
                     nodeId,
                     waitNode.EventName,
-                    waitNode.CorrelationSelector!),
+                    waitNode.CorrelationSelector!,
+                    waitNode.Timeout),
+                DelayBuilderNode delayNode => new DelayNode<TState>(
+                    nodeId,
+                    delayNode.Duration),
                 IfBuilderNode ifNode => new IfNode<TState>(
                     nodeId,
                     ifNode.Condition!,
@@ -327,6 +518,19 @@ public sealed class WorkflowBuilder<TState>
                         new SequenceNode<TState>(
                             $"{nodeId}/branches/{ordinal}",
                             BuildNodes(branch.Nodes, $"{nodeId}/branches/{ordinal}"))))),
+                WhenFirstBuilderNode whenFirstNode => new WhenFirstNode<TState>(
+                    nodeId,
+                    whenFirstNode.ResidualPolicy,
+                    whenFirstNode.Branches.Select((branch, ordinal) => new ParallelBranch<TState>(
+                        new BranchId(ordinal, branch.Name),
+                        new SequenceNode<TState>(
+                            $"{nodeId}/branches/{ordinal}",
+                            BuildNodes(branch.Nodes, $"{nodeId}/branches/{ordinal}"))))),
+                IForEachBuilderNode forEachNode => forEachNode.Build(
+                    nodeId,
+                    new SequenceNode<TState>(
+                        $"{nodeId}/body",
+                        BuildNodes(forEachNode.BodyNodes, $"{nodeId}/body"))),
                 _ => throw new InvalidOperationException($"Unknown builder node '{node.GetType().Name}'.")
             };
             index++;
@@ -337,14 +541,38 @@ public sealed class WorkflowBuilder<TState>
 
     private sealed record InitBuilderNode(Func<object?, TState> CreateState, bool HasNullDelegate) : BuilderNode;
 
-    private sealed record StepBuilderNode(Func<IStep<TState>>? StepFactory, bool HasNullDelegate) : BuilderNode;
+    private static void ValidatePolicies(WorkflowPolicySet policies, string path, List<ValidationError> errors)
+    {
+        if (policies.Retry is { MaxAttempts: <= 0 })
+        {
+            errors.Add(new ValidationError(
+                BuilderValidationCodes.InvalidRetryPolicy,
+                "Retry max attempts must be greater than zero.",
+                path));
+        }
+    }
+
+    private WorkflowPolicySet ConsumePendingPolicies()
+    {
+        var policies = pendingPolicies;
+        pendingPolicies = WorkflowPolicySet.Empty;
+        return policies;
+    }
+
+    private sealed record StepBuilderNode(
+        Func<IStep<TState>>? StepFactory,
+        bool HasNullDelegate,
+        WorkflowPolicySet Policies) : BuilderNode;
 
     private sealed record EndBuilderNode(string? OutcomeName) : BuilderNode;
 
     private sealed record WaitBuilderNode(
         string EventName,
         Func<TState, CorrelationId>? CorrelationSelector,
-        bool HasNullDelegate) : BuilderNode;
+        bool HasNullDelegate,
+        TimeSpan? Timeout) : BuilderNode;
+
+    private sealed record DelayBuilderNode(TimeSpan Duration) : BuilderNode;
 
     private sealed record IfBuilderNode(
         Func<TState, bool>? Condition,
@@ -358,6 +586,54 @@ public sealed class WorkflowBuilder<TState>
         IReadOnlyList<BuilderNode> BodyNodes) : BuilderNode;
 
     private sealed record ParallelBuilderNode(IReadOnlyList<ParallelBranchBuilderNode> Branches) : BuilderNode;
+
+    private sealed record WhenFirstBuilderNode(
+        WhenFirstResidualPolicy ResidualPolicy,
+        IReadOnlyList<ParallelBranchBuilderNode> Branches) : BuilderNode;
+
+    private interface IForEachBuilderNode
+    {
+        bool HasNullDelegate { get; }
+
+        bool HasNullPartitioner { get; }
+
+        IReadOnlyList<BuilderNode> BodyNodes { get; }
+
+        int? MaxConcurrency { get; }
+
+        ForEachJoinPolicy JoinPolicy { get; }
+
+        ForEachFailurePolicy FailurePolicy { get; }
+
+        ForEachResidualPolicy ResidualPolicy { get; }
+
+        WorkflowNode<TState> Build(string nodeId, SequenceNode<TState> body);
+    }
+
+    private sealed record ForEachBuilderNode<TItem>(
+        Func<TState, IReadOnlyList<TItem>>? ItemSelector,
+        bool HasNullDelegate,
+        WorkflowPartitioner<TItem>? Partitioner,
+        bool HasNullPartitioner,
+        IReadOnlyList<BuilderNode> BodyNodes,
+        int? MaxConcurrency,
+        ForEachJoinPolicy JoinPolicy,
+        ForEachFailurePolicy FailurePolicy,
+        ForEachResidualPolicy ResidualPolicy) : BuilderNode, IForEachBuilderNode
+    {
+        public WorkflowNode<TState> Build(string nodeId, SequenceNode<TState> body)
+        {
+            return new ForEachNode<TState, TItem>(
+                nodeId,
+                ItemSelector!,
+                Partitioner!,
+                body,
+                MaxConcurrency,
+                JoinPolicy,
+                FailurePolicy,
+                ResidualPolicy);
+        }
+    }
 
     private sealed record ParallelBranchBuilderNode(
         string Name,

@@ -95,6 +95,19 @@ internal sealed class WaitIdJsonConverter : JsonConverter<WaitId>
     }
 }
 
+internal sealed class TimerIdJsonConverter : JsonConverter<TimerId>
+{
+    public override TimerId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        return new TimerId(reader.GetGuid());
+    }
+
+    public override void Write(Utf8JsonWriter writer, TimerId value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value.Value);
+    }
+}
+
 internal sealed class CorrelationIdJsonConverter : JsonConverter<CorrelationId>
 {
     public override CorrelationId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -105,5 +118,18 @@ internal sealed class CorrelationIdJsonConverter : JsonConverter<CorrelationId>
     public override void Write(Utf8JsonWriter writer, CorrelationId value, JsonSerializerOptions options)
     {
         writer.WriteStringValue(value.Value);
+    }
+}
+
+internal sealed class StreamVersionJsonConverter : JsonConverter<StreamVersion>
+{
+    public override StreamVersion Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        return new StreamVersion(reader.GetInt64());
+    }
+
+    public override void Write(Utf8JsonWriter writer, StreamVersion value, JsonSerializerOptions options)
+    {
+        writer.WriteNumberValue(value.Value);
     }
 }

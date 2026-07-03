@@ -9,4 +9,9 @@ public sealed record WorkflowStatistics
     /// Gets the grouped counts.
     /// </summary>
     public required IReadOnlyList<WorkflowStatisticsGroup> Groups { get; init; }
+
+    /// <summary>
+    /// Gets provider pressure indicators.
+    /// </summary>
+    public WorkflowPressureMetrics Pressure { get; init; } = new();
 }

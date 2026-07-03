@@ -16,6 +16,10 @@ public sealed class LifecycleMachineTests
     [InlineData(WorkflowStatus.Waiting, (int)LifecycleTrigger.Cancel, WorkflowStatus.Cancelled)]
     [InlineData(WorkflowStatus.Running, (int)LifecycleTrigger.Terminate, WorkflowStatus.Terminated)]
     [InlineData(WorkflowStatus.Waiting, (int)LifecycleTrigger.Terminate, WorkflowStatus.Terminated)]
+    [InlineData(WorkflowStatus.Running, (int)LifecycleTrigger.Compensate, WorkflowStatus.Compensated)]
+    [InlineData(WorkflowStatus.Waiting, (int)LifecycleTrigger.Compensate, WorkflowStatus.Compensated)]
+    [InlineData(WorkflowStatus.Running, (int)LifecycleTrigger.FailCompensation, WorkflowStatus.CompensationFailed)]
+    [InlineData(WorkflowStatus.Waiting, (int)LifecycleTrigger.FailCompensation, WorkflowStatus.CompensationFailed)]
     [InlineData(WorkflowStatus.Running, (int)LifecycleTrigger.Pause, WorkflowStatus.Paused)]
     [InlineData(WorkflowStatus.Waiting, (int)LifecycleTrigger.Pause, WorkflowStatus.Paused)]
     [InlineData(WorkflowStatus.Paused, (int)LifecycleTrigger.Resume, WorkflowStatus.Running)]
@@ -60,14 +64,16 @@ public sealed class LifecycleMachineTests
     }
 
     [Fact]
-    public void TerminalStatuses_AreExactly_Completed_Failed_Cancelled_Terminated()
+    public void TerminalStatuses_AreExactly_RegularAndSagaTerminalStates()
     {
         LifecycleMachine.TerminalStatuses.Order().Should().Equal(
             [
                 WorkflowStatus.Completed,
                 WorkflowStatus.Failed,
                 WorkflowStatus.Cancelled,
-                WorkflowStatus.Terminated
+                WorkflowStatus.Terminated,
+                WorkflowStatus.Compensated,
+                WorkflowStatus.CompensationFailed
             ]);
     }
 
@@ -79,7 +85,9 @@ public sealed class LifecycleMachineTests
                      WorkflowStatus.Completed,
                      WorkflowStatus.Failed,
                      WorkflowStatus.Cancelled,
-                     WorkflowStatus.Terminated
+                     WorkflowStatus.Terminated,
+                     WorkflowStatus.Compensated,
+                     WorkflowStatus.CompensationFailed
                  })
         {
             foreach (var trigger in Enum.GetValues<LifecycleTrigger>())

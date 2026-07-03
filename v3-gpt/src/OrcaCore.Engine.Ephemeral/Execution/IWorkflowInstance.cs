@@ -15,6 +15,8 @@ internal interface IWorkflowInstance
 
     WorkflowInstanceSnapshot Terminate(DateTimeOffset updatedAt);
 
+    WorkflowInstanceSnapshot MarkStuckIfNoProgress(DateTimeOffset now, TimeSpan threshold);
+
     bool TryTakeYieldContinuation(out Func<CancellationToken, Task>? continuation);
 
     WorkflowInstanceSnapshot ToSnapshot();

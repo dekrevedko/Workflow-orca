@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace OrcaCore.Abstractions.Ids;
 
 /// <summary>
 /// Identifies one logical workflow instance across activations and hosts.
 /// </summary>
+[JsonConverter(typeof(InstanceIdJsonConverter))]
 public readonly record struct InstanceId
 {
     /// <summary>

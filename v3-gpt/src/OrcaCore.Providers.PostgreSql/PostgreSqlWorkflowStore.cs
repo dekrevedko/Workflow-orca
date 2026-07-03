@@ -18,20 +18,45 @@ public sealed class PostgreSqlWorkflowStore :
     IWorkflowInboxStore,
     IWorkflowOutboxStore,
     IWorkflowProjectionStore,
+    ITimerScheduler,
     IWorkflowRetentionStore,
     IAsyncDisposable
 {
     private const string StartedEventType = nameof(WorkflowStartedEvent);
+    private const string ContinuedAsNewEventType = nameof(WorkflowContinuedAsNewEvent);
     private const string StepCompletedEventType = nameof(WorkflowStepCompletedEvent);
     private const string StepFailedEventType = nameof(WorkflowStepFailedEvent);
     private const string WaitRegisteredEventType = nameof(WorkflowWaitRegisteredEvent);
     private const string WaitMatchedEventType = nameof(WorkflowWaitMatchedEvent);
+    private const string TimerScheduledEventType = nameof(WorkflowTimerScheduledEvent);
+    private const string TimerFiredEventType = nameof(WorkflowTimerFiredEvent);
+    private const string ChildScheduledEventType = nameof(WorkflowChildScheduledEvent);
+    private const string ChildrenScheduledEventType = nameof(WorkflowChildrenScheduledEvent);
+    private const string ChildCompletedEventType = nameof(WorkflowChildCompletedEvent);
+    private const string ParentResumeTokenRecordedEventType = nameof(WorkflowParentResumeTokenRecordedEvent);
+    private const string ChildResidualIntentRecordedEventType = nameof(WorkflowChildResidualIntentRecordedEvent);
+    private const string ChildCompensationScheduledEventType = nameof(WorkflowChildCompensationScheduledEvent);
+    private const string ResourcePoolAcquiredEventType = nameof(WorkflowResourcePoolAcquiredEvent);
+    private const string ResourcePoolQueuedEventType = nameof(WorkflowResourcePoolQueuedEvent);
+    private const string ResourcePoolReleasedEventType = nameof(WorkflowResourcePoolReleasedEvent);
+    private const string ExternalJobStartedEventType = nameof(WorkflowExternalJobStartedEvent);
+    private const string ExternalJobCompletedEventType = nameof(WorkflowExternalJobCompletedEvent);
+    private const string ExternalJobTimedOutEventType = nameof(WorkflowExternalJobTimedOutEvent);
+    private const string ExternalJobStopRequestedEventType = nameof(WorkflowExternalJobStopRequestedEvent);
+    private const string TimerBufferedEventType = nameof(WorkflowTimerBufferedEvent);
     private const string PausedEventType = nameof(WorkflowPausedEvent);
     private const string ResumedEventType = nameof(WorkflowResumedEvent);
     private const string DeliveryBufferedEventType = nameof(WorkflowDeliveryBufferedEvent);
     private const string DeliveryDiscardedEventType = nameof(WorkflowDeliveryDiscardedEvent);
     private const string CompletedEventType = nameof(WorkflowCompletedEvent);
     private const string TerminalEventType = nameof(WorkflowTerminalEvent);
+    private const string SagaForwardActionCompletedEventType = nameof(SagaForwardActionCompletedEvent);
+    private const string SagaForwardActionTimedOutEventType = nameof(SagaForwardActionTimedOutEvent);
+    private const string SagaCompensationRequestedEventType = nameof(SagaCompensationRequestedEvent);
+    private const string SagaCompensationStartedEventType = nameof(SagaCompensationStartedEvent);
+    private const string SagaCompensationCompletedEventType = nameof(SagaCompensationCompletedEvent);
+    private const string SagaCompensationFailedEventType = nameof(SagaCompensationFailedEvent);
+    private const string SagaManualRecoveryRecordedEventType = nameof(SagaManualRecoveryRecordedEvent);
 
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 
@@ -87,8 +112,12 @@ public sealed class PostgreSqlWorkflowStore :
                 status text null,
                 last_step_path text null,
                 error_summary text null,
-                outcome_name text null
+                outcome_name text null,
+                continue_as_new_generation integer not null default 0
             );
+
+            alter table orcacore_checkpoints
+                add column if not exists continue_as_new_generation integer not null default 0;
 
             create table if not exists orcacore_inbox (
                 event_id uuid primary key,
@@ -108,14 +137,34 @@ public sealed class PostgreSqlWorkflowStore :
 
             create table if not exists orcacore_instance_projections (
                 instance_id uuid primary key,
+                parent_instance_id uuid null,
+                root_instance_id uuid null,
                 definition_id uuid not null,
                 definition_version integer not null,
                 status text not null,
                 created_at timestamp with time zone not null,
                 updated_at timestamp with time zone not null,
                 error_summary text null,
-                outcome_name text null
+                outcome_name text null,
+                continue_as_new_generation integer not null default 0,
+                archived_at timestamp with time zone null,
+                saga_audits jsonb not null default '[]'::jsonb
             );
+
+            alter table orcacore_instance_projections
+                add column if not exists parent_instance_id uuid null;
+
+            alter table orcacore_instance_projections
+                add column if not exists root_instance_id uuid null;
+
+            alter table orcacore_instance_projections
+                add column if not exists saga_audits jsonb not null default '[]'::jsonb;
+
+            alter table orcacore_instance_projections
+                add column if not exists continue_as_new_generation integer not null default 0;
+
+            alter table orcacore_instance_projections
+                add column if not exists archived_at timestamp with time zone null;
 
             create table if not exists orcacore_active_wait_projections (
                 wait_id uuid primary key,
@@ -129,6 +178,18 @@ public sealed class PostgreSqlWorkflowStore :
 
             create index if not exists ix_orcacore_active_wait_lookup
                 on orcacore_active_wait_projections (event_name, correlation_id);
+
+            create table if not exists orcacore_timers (
+                timer_id uuid primary key,
+                instance_id uuid not null,
+                command_id uuid not null,
+                fire_at timestamp with time zone not null,
+                wakeup_name text not null,
+                claimed boolean not null default false
+            );
+
+            create index if not exists ix_orcacore_timers_due
+                on orcacore_timers (claimed, fire_at);
             """,
             connection);
 
@@ -151,7 +212,8 @@ public sealed class PostgreSqlWorkflowStore :
                    status,
                    last_step_path,
                    error_summary,
-                   outcome_name
+                   outcome_name,
+                   continue_as_new_generation
             from orcacore_checkpoints
             where instance_id = @instance_id;
             """,
@@ -175,7 +237,8 @@ public sealed class PostgreSqlWorkflowStore :
             Status = reader.IsDBNull(5) ? null : Enum.Parse<WorkflowStatus>(reader.GetString(5)),
             LastStepPath = reader.IsDBNull(6) ? null : reader.GetString(6),
             ErrorSummary = reader.IsDBNull(7) ? null : reader.GetString(7),
-            OutcomeName = reader.IsDBNull(8) ? null : reader.GetString(8)
+            OutcomeName = reader.IsDBNull(8) ? null : reader.GetString(8),
+            ContinueAsNewGeneration = reader.GetInt32(9)
         });
     }
 
@@ -398,15 +461,22 @@ public sealed class PostgreSqlWorkflowStore :
         await using var command = new NpgsqlCommand(
             """
             select instance_id,
+                   parent_instance_id,
+                   root_instance_id,
                    definition_id,
                    definition_version,
                    status,
                    created_at,
                    updated_at,
                    error_summary,
-                   outcome_name
+                   outcome_name,
+                   continue_as_new_generation,
+                   archived_at,
+                   saga_audits
             from orcacore_instance_projections summary
             where (@instance_id is null or summary.instance_id = @instance_id)
+              and (@parent_instance_id is null or summary.parent_instance_id = @parent_instance_id)
+              and (@root_instance_id is null or summary.root_instance_id = @root_instance_id)
               and (@definition_id is null or summary.definition_id = @definition_id)
               and (@definition_version is null or summary.definition_version = @definition_version)
               and (@status is null or summary.status = @status)
@@ -432,14 +502,19 @@ public sealed class PostgreSqlWorkflowStore :
             snapshots.Add(new WorkflowInstanceSnapshot
             {
                 InstanceId = instanceId,
-                DefinitionId = new DefinitionId(reader.GetGuid(1)),
-                DefinitionVersion = new DefinitionVersion(reader.GetInt32(2)),
-                Status = Enum.Parse<WorkflowStatus>(reader.GetString(3)),
-                CreatedAt = reader.GetFieldValue<DateTimeOffset>(4),
-                UpdatedAt = reader.GetFieldValue<DateTimeOffset>(5),
-                ErrorSummary = reader.IsDBNull(6) ? null : reader.GetString(6),
-                EndOutcomeName = reader.IsDBNull(7) ? null : reader.GetString(7),
-                ActiveWaits = await LoadActiveWaitsAsync(instanceId, cancellationToken).ConfigureAwait(false)
+                ParentInstanceId = reader.IsDBNull(1) ? null : new InstanceId(reader.GetGuid(1)),
+                RootInstanceId = reader.IsDBNull(2) ? null : new InstanceId(reader.GetGuid(2)),
+                DefinitionId = new DefinitionId(reader.GetGuid(3)),
+                DefinitionVersion = new DefinitionVersion(reader.GetInt32(4)),
+                Status = Enum.Parse<WorkflowStatus>(reader.GetString(5)),
+                CreatedAt = reader.GetFieldValue<DateTimeOffset>(6),
+                UpdatedAt = reader.GetFieldValue<DateTimeOffset>(7),
+                ErrorSummary = reader.IsDBNull(8) ? null : reader.GetString(8),
+                EndOutcomeName = reader.IsDBNull(9) ? null : reader.GetString(9),
+                ContinueAsNewGeneration = reader.GetInt32(10),
+                ArchivedAt = reader.IsDBNull(11) ? null : reader.GetFieldValue<DateTimeOffset>(11),
+                ActiveWaits = await LoadActiveWaitsAsync(instanceId, cancellationToken).ConfigureAwait(false),
+                SagaAudits = reader.IsDBNull(12) ? [] : DeserializeSagaAudits(reader.GetString(12))
             });
         }
 
@@ -483,11 +558,182 @@ public sealed class PostgreSqlWorkflowStore :
             })
             .ToArray();
 
-        return new WorkflowStatistics { Groups = groups };
+        return new WorkflowStatistics
+        {
+            Groups = groups,
+            Pressure = await LoadPressureMetricsAsync(cancellationToken).ConfigureAwait(false)
+        };
+    }
+
+    private async Task<WorkflowPressureMetrics> LoadPressureMetricsAsync(CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new NpgsqlCommand(
+            """
+            select
+                (select count(*) from orcacore_events) as stream_events,
+                (select count(*) from orcacore_checkpoints) as checkpoints,
+                (select count(*) from orcacore_outbox where state in (@pending, @retryable)) as pending_outbox,
+                (select count(*) from orcacore_instance_projections
+                    where status in (@running, @waiting, @paused)) as active_instances;
+            """,
+            connection);
+        command.Parameters.AddWithValue("pending", OutboxRecordState.Pending.ToString());
+        command.Parameters.AddWithValue("retryable", OutboxRecordState.Retryable.ToString());
+        command.Parameters.AddWithValue("running", WorkflowStatus.Running.ToString());
+        command.Parameters.AddWithValue("waiting", WorkflowStatus.Waiting.ToString());
+        command.Parameters.AddWithValue("paused", WorkflowStatus.Paused.ToString());
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return new WorkflowPressureMetrics();
+        }
+
+        return new WorkflowPressureMetrics
+        {
+            TotalStreamEvents = reader.GetInt64(0),
+            CheckpointCount = checked((int)reader.GetInt64(1)),
+            PendingOutboxCount = checked((int)reader.GetInt64(2)),
+            ActiveInstanceCount = checked((int)reader.GetInt64(3))
+        };
     }
 
     /// <inheritdoc />
+    public async Task ScheduleAsync(TimerScheduleRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new NpgsqlCommand(
+            """
+            insert into orcacore_timers (
+                timer_id,
+                instance_id,
+                command_id,
+                fire_at,
+                wakeup_name,
+                claimed)
+            values (
+                @timer_id,
+                @instance_id,
+                @command_id,
+                @fire_at,
+                @wakeup_name,
+                false)
+            on conflict (timer_id) do update set
+                instance_id = excluded.instance_id,
+                command_id = excluded.command_id,
+                fire_at = excluded.fire_at,
+                wakeup_name = excluded.wakeup_name,
+                claimed = false;
+            """,
+            connection);
+        command.Parameters.AddWithValue("timer_id", request.TimerId.Value);
+        command.Parameters.AddWithValue("instance_id", request.InstanceId.Value);
+        command.Parameters.AddWithValue("command_id", request.CommandId.Value);
+        command.Parameters.AddWithValue("fire_at", request.FireAt);
+        command.Parameters.AddWithValue("wakeup_name", request.WakeupName);
+
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<FireTimerCommand>> ClaimDueAsync(
+        DateTimeOffset dueAtOrBefore,
+        int maxCount,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(maxCount);
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = await connection
+            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
+            .ConfigureAwait(false);
+        await using var command = new NpgsqlCommand(
+            """
+            update orcacore_timers
+            set claimed = true
+            where timer_id in (
+                select timer_id
+                from orcacore_timers
+                where claimed = false
+                  and fire_at <= @due_at
+                order by fire_at, timer_id
+                for update skip locked
+                limit @max_count
+            )
+            returning timer_id, instance_id, command_id;
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("due_at", dueAtOrBefore);
+        command.Parameters.AddWithValue("max_count", maxCount);
+
+        var commands = new List<FireTimerCommand>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            commands.Add(new FireTimerCommand
+            {
+                TimerId = new TimerId(reader.GetGuid(0)),
+                InstanceId = new InstanceId(reader.GetGuid(1)),
+                CommandId = new CommandId(reader.GetGuid(2)),
+                RequestedAt = dueAtOrBefore
+            });
+        }
+
+        await reader.DisposeAsync().ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return commands;
+    }
+
+    /// <inheritdoc />
+    public async Task<ArchiveResult> ArchiveAsync(RetentionPolicy policy, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = await connection
+            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (await IsActiveInstanceAsync(connection, transaction, policy.InstanceId, cancellationToken).ConfigureAwait(false))
+        {
+            await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+            return new ArchiveResult { Archived = false, Reason = "Instance is active." };
+        }
+
+        var archived = await ArchiveInstanceAsync(
+            connection,
+            transaction,
+            policy.InstanceId,
+            policy.RequestedAt,
+            cancellationToken).ConfigureAwait(false);
+        if (!archived)
+        {
+            await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+            return new ArchiveResult { Archived = false, Reason = "Instance projection was not found." };
+        }
+
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return new ArchiveResult { Archived = true };
+    }
+
+    /// <inheritdoc />
+    public async Task<PurgeResult> PurgeAsync(RetentionPolicy policy, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
+
+        return await PurgeCoreAsync(policy.InstanceId, cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<PurgeResult> PurgeAsync(InstanceId instanceId, CancellationToken cancellationToken)
+    {
+        return await PurgeCoreAsync(instanceId, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<PurgeResult> PurgeCoreAsync(InstanceId instanceId, CancellationToken cancellationToken)
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var transaction = await connection
@@ -592,7 +838,8 @@ public sealed class PostgreSqlWorkflowStore :
                 status,
                 last_step_path,
                 error_summary,
-                outcome_name)
+                outcome_name,
+                continue_as_new_generation)
             values (
                 @instance_id,
                 @stream_version,
@@ -603,7 +850,8 @@ public sealed class PostgreSqlWorkflowStore :
                 @status,
                 @last_step_path,
                 @error_summary,
-                @outcome_name)
+                @outcome_name,
+                @continue_as_new_generation)
             on conflict (instance_id) do update set
                 stream_version = excluded.stream_version,
                 content_type = excluded.content_type,
@@ -613,7 +861,8 @@ public sealed class PostgreSqlWorkflowStore :
                 status = excluded.status,
                 last_step_path = excluded.last_step_path,
                 error_summary = excluded.error_summary,
-                outcome_name = excluded.outcome_name;
+                outcome_name = excluded.outcome_name,
+                continue_as_new_generation = excluded.continue_as_new_generation;
             """,
             connection,
             transaction);
@@ -628,6 +877,7 @@ public sealed class PostgreSqlWorkflowStore :
         command.Parameters.AddWithValue("last_step_path", (object?)checkpoint.LastStepPath ?? DBNull.Value);
         command.Parameters.AddWithValue("error_summary", (object?)checkpoint.ErrorSummary ?? DBNull.Value);
         command.Parameters.AddWithValue("outcome_name", (object?)checkpoint.OutcomeName ?? DBNull.Value);
+        command.Parameters.AddWithValue("continue_as_new_generation", checkpoint.ContinueAsNewGeneration);
 
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -740,36 +990,55 @@ public sealed class PostgreSqlWorkflowStore :
             """
             insert into orcacore_instance_projections (
                 instance_id,
+                parent_instance_id,
+                root_instance_id,
                 definition_id,
                 definition_version,
                 status,
                 created_at,
                 updated_at,
                 error_summary,
-                outcome_name)
+                outcome_name,
+                continue_as_new_generation,
+                archived_at,
+                saga_audits)
             values (
                 @instance_id,
+                @parent_instance_id,
+                @root_instance_id,
                 @definition_id,
                 @definition_version,
                 @status,
                 @created_at,
                 @updated_at,
                 @error_summary,
-                @outcome_name)
+                @outcome_name,
+                @continue_as_new_generation,
+                @archived_at,
+                @saga_audits)
             on conflict (instance_id) do update set
+                parent_instance_id = excluded.parent_instance_id,
+                root_instance_id = excluded.root_instance_id,
                 definition_id = excluded.definition_id,
                 definition_version = excluded.definition_version,
                 status = excluded.status,
                 created_at = excluded.created_at,
                 updated_at = excluded.updated_at,
                 error_summary = excluded.error_summary,
-                outcome_name = excluded.outcome_name;
+                outcome_name = excluded.outcome_name,
+                continue_as_new_generation = excluded.continue_as_new_generation,
+                archived_at = excluded.archived_at,
+                saga_audits = excluded.saga_audits;
             delete from orcacore_active_wait_projections
             where instance_id = @instance_id;
             """,
             connection,
             transaction);
         command.Parameters.AddWithValue("instance_id", snapshot.InstanceId.Value);
+        command.Parameters.Add("parent_instance_id", NpgsqlDbType.Uuid).Value =
+            (object?)snapshot.ParentInstanceId?.Value ?? DBNull.Value;
+        command.Parameters.Add("root_instance_id", NpgsqlDbType.Uuid).Value =
+            (object?)snapshot.RootInstanceId?.Value ?? DBNull.Value;
         command.Parameters.AddWithValue("definition_id", snapshot.DefinitionId.Value);
         command.Parameters.AddWithValue("definition_version", snapshot.DefinitionVersion.Value);
         command.Parameters.AddWithValue("status", snapshot.Status.ToString());
@@ -777,6 +1046,12 @@ public sealed class PostgreSqlWorkflowStore :
         command.Parameters.AddWithValue("updated_at", snapshot.UpdatedAt);
         command.Parameters.AddWithValue("error_summary", (object?)snapshot.ErrorSummary ?? DBNull.Value);
         command.Parameters.AddWithValue("outcome_name", (object?)snapshot.EndOutcomeName ?? DBNull.Value);
+        command.Parameters.AddWithValue("continue_as_new_generation", snapshot.ContinueAsNewGeneration);
+        command.Parameters.AddWithValue("archived_at", (object?)snapshot.ArchivedAt ?? DBNull.Value);
+        command.Parameters.AddWithValue(
+            "saga_audits",
+            NpgsqlDbType.Jsonb,
+            JsonSerializer.Serialize(snapshot.SagaAudits, JsonOptions));
 
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         foreach (var activeWait in snapshot.ActiveWaits)
@@ -895,6 +1170,8 @@ public sealed class PostgreSqlWorkflowStore :
     private static void AddProjectionQueryParameters(NpgsqlCommand command, WorkflowProjectionQuery query)
     {
         AddNullableParameter(command, "instance_id", NpgsqlDbType.Uuid, query.InstanceId?.Value);
+        AddNullableParameter(command, "parent_instance_id", NpgsqlDbType.Uuid, query.ParentInstanceId?.Value);
+        AddNullableParameter(command, "root_instance_id", NpgsqlDbType.Uuid, query.RootInstanceId?.Value);
         AddNullableParameter(command, "definition_id", NpgsqlDbType.Uuid, query.DefinitionId?.Value);
         AddNullableParameter(command, "definition_version", NpgsqlDbType.Integer, query.DefinitionVersion?.Value);
         AddNullableParameter(command, "status", NpgsqlDbType.Text, query.Status?.ToString());
@@ -934,6 +1211,28 @@ public sealed class PostgreSqlWorkflowStore :
                 WorkflowStatus.Running or
                 WorkflowStatus.Waiting or
                 WorkflowStatus.Paused;
+    }
+
+    private static async Task<bool> ArchiveInstanceAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        InstanceId instanceId,
+        DateTimeOffset archivedAt,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new NpgsqlCommand(
+            """
+            update orcacore_instance_projections
+            set archived_at = @archived_at
+            where instance_id = @instance_id;
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("instance_id", instanceId.Value);
+        command.Parameters.AddWithValue("archived_at", archivedAt);
+
+        var affected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        return affected > 0;
     }
 
     private static async Task<bool> HasClaimedOutboxAsync(
@@ -984,6 +1283,11 @@ public sealed class PostgreSqlWorkflowStore :
         return JsonSerializer.Serialize(workflowEvent, workflowEvent.GetType(), JsonOptions);
     }
 
+    private static IReadOnlyList<SagaAuditScopeSnapshot> DeserializeSagaAudits(string payload)
+    {
+        return JsonSerializer.Deserialize<IReadOnlyList<SagaAuditScopeSnapshot>>(payload, JsonOptions) ?? [];
+    }
+
     private static JsonSerializerOptions CreateJsonOptions()
     {
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
@@ -994,7 +1298,9 @@ public sealed class PostgreSqlWorkflowStore :
         options.Converters.Add(new DefinitionIdJsonConverter());
         options.Converters.Add(new DefinitionVersionJsonConverter());
         options.Converters.Add(new WaitIdJsonConverter());
+        options.Converters.Add(new TimerIdJsonConverter());
         options.Converters.Add(new CorrelationIdJsonConverter());
+        options.Converters.Add(new StreamVersionJsonConverter());
         return options;
     }
 
@@ -1003,16 +1309,40 @@ public sealed class PostgreSqlWorkflowStore :
         return eventType switch
         {
             StartedEventType => Required(JsonSerializer.Deserialize<WorkflowStartedEvent>(payload, JsonOptions)),
+            ContinuedAsNewEventType => Required(JsonSerializer.Deserialize<WorkflowContinuedAsNewEvent>(payload, JsonOptions)),
             StepCompletedEventType => Required(JsonSerializer.Deserialize<WorkflowStepCompletedEvent>(payload, JsonOptions)),
             StepFailedEventType => Required(JsonSerializer.Deserialize<WorkflowStepFailedEvent>(payload, JsonOptions)),
             WaitRegisteredEventType => Required(JsonSerializer.Deserialize<WorkflowWaitRegisteredEvent>(payload, JsonOptions)),
             WaitMatchedEventType => Required(JsonSerializer.Deserialize<WorkflowWaitMatchedEvent>(payload, JsonOptions)),
+            TimerScheduledEventType => Required(JsonSerializer.Deserialize<WorkflowTimerScheduledEvent>(payload, JsonOptions)),
+            TimerFiredEventType => Required(JsonSerializer.Deserialize<WorkflowTimerFiredEvent>(payload, JsonOptions)),
+            ChildScheduledEventType => Required(JsonSerializer.Deserialize<WorkflowChildScheduledEvent>(payload, JsonOptions)),
+            ChildrenScheduledEventType => Required(JsonSerializer.Deserialize<WorkflowChildrenScheduledEvent>(payload, JsonOptions)),
+            ChildCompletedEventType => Required(JsonSerializer.Deserialize<WorkflowChildCompletedEvent>(payload, JsonOptions)),
+            ParentResumeTokenRecordedEventType => Required(JsonSerializer.Deserialize<WorkflowParentResumeTokenRecordedEvent>(payload, JsonOptions)),
+            ChildResidualIntentRecordedEventType => Required(JsonSerializer.Deserialize<WorkflowChildResidualIntentRecordedEvent>(payload, JsonOptions)),
+            ChildCompensationScheduledEventType => Required(JsonSerializer.Deserialize<WorkflowChildCompensationScheduledEvent>(payload, JsonOptions)),
+            ResourcePoolAcquiredEventType => Required(JsonSerializer.Deserialize<WorkflowResourcePoolAcquiredEvent>(payload, JsonOptions)),
+            ResourcePoolQueuedEventType => Required(JsonSerializer.Deserialize<WorkflowResourcePoolQueuedEvent>(payload, JsonOptions)),
+            ResourcePoolReleasedEventType => Required(JsonSerializer.Deserialize<WorkflowResourcePoolReleasedEvent>(payload, JsonOptions)),
+            ExternalJobStartedEventType => Required(JsonSerializer.Deserialize<WorkflowExternalJobStartedEvent>(payload, JsonOptions)),
+            ExternalJobCompletedEventType => Required(JsonSerializer.Deserialize<WorkflowExternalJobCompletedEvent>(payload, JsonOptions)),
+            ExternalJobTimedOutEventType => Required(JsonSerializer.Deserialize<WorkflowExternalJobTimedOutEvent>(payload, JsonOptions)),
+            ExternalJobStopRequestedEventType => Required(JsonSerializer.Deserialize<WorkflowExternalJobStopRequestedEvent>(payload, JsonOptions)),
+            TimerBufferedEventType => Required(JsonSerializer.Deserialize<WorkflowTimerBufferedEvent>(payload, JsonOptions)),
             PausedEventType => Required(JsonSerializer.Deserialize<WorkflowPausedEvent>(payload, JsonOptions)),
             ResumedEventType => Required(JsonSerializer.Deserialize<WorkflowResumedEvent>(payload, JsonOptions)),
             DeliveryBufferedEventType => Required(JsonSerializer.Deserialize<WorkflowDeliveryBufferedEvent>(payload, JsonOptions)),
             DeliveryDiscardedEventType => Required(JsonSerializer.Deserialize<WorkflowDeliveryDiscardedEvent>(payload, JsonOptions)),
             CompletedEventType => Required(JsonSerializer.Deserialize<WorkflowCompletedEvent>(payload, JsonOptions)),
             TerminalEventType => Required(JsonSerializer.Deserialize<WorkflowTerminalEvent>(payload, JsonOptions)),
+            SagaForwardActionCompletedEventType => Required(JsonSerializer.Deserialize<SagaForwardActionCompletedEvent>(payload, JsonOptions)),
+            SagaForwardActionTimedOutEventType => Required(JsonSerializer.Deserialize<SagaForwardActionTimedOutEvent>(payload, JsonOptions)),
+            SagaCompensationRequestedEventType => Required(JsonSerializer.Deserialize<SagaCompensationRequestedEvent>(payload, JsonOptions)),
+            SagaCompensationStartedEventType => Required(JsonSerializer.Deserialize<SagaCompensationStartedEvent>(payload, JsonOptions)),
+            SagaCompensationCompletedEventType => Required(JsonSerializer.Deserialize<SagaCompensationCompletedEvent>(payload, JsonOptions)),
+            SagaCompensationFailedEventType => Required(JsonSerializer.Deserialize<SagaCompensationFailedEvent>(payload, JsonOptions)),
+            SagaManualRecoveryRecordedEventType => Required(JsonSerializer.Deserialize<SagaManualRecoveryRecordedEvent>(payload, JsonOptions)),
             _ => throw new InvalidOperationException($"Workflow event type '{eventType}' is not supported.")
         };
     }
@@ -1022,16 +1352,40 @@ public sealed class PostgreSqlWorkflowStore :
         return workflowEvent switch
         {
             WorkflowStartedEvent => StartedEventType,
+            WorkflowContinuedAsNewEvent => ContinuedAsNewEventType,
             WorkflowStepCompletedEvent => StepCompletedEventType,
             WorkflowStepFailedEvent => StepFailedEventType,
             WorkflowWaitRegisteredEvent => WaitRegisteredEventType,
             WorkflowWaitMatchedEvent => WaitMatchedEventType,
+            WorkflowTimerScheduledEvent => TimerScheduledEventType,
+            WorkflowTimerFiredEvent => TimerFiredEventType,
+            WorkflowChildScheduledEvent => ChildScheduledEventType,
+            WorkflowChildrenScheduledEvent => ChildrenScheduledEventType,
+            WorkflowChildCompletedEvent => ChildCompletedEventType,
+            WorkflowParentResumeTokenRecordedEvent => ParentResumeTokenRecordedEventType,
+            WorkflowChildResidualIntentRecordedEvent => ChildResidualIntentRecordedEventType,
+            WorkflowChildCompensationScheduledEvent => ChildCompensationScheduledEventType,
+            WorkflowResourcePoolAcquiredEvent => ResourcePoolAcquiredEventType,
+            WorkflowResourcePoolQueuedEvent => ResourcePoolQueuedEventType,
+            WorkflowResourcePoolReleasedEvent => ResourcePoolReleasedEventType,
+            WorkflowExternalJobStartedEvent => ExternalJobStartedEventType,
+            WorkflowExternalJobCompletedEvent => ExternalJobCompletedEventType,
+            WorkflowExternalJobTimedOutEvent => ExternalJobTimedOutEventType,
+            WorkflowExternalJobStopRequestedEvent => ExternalJobStopRequestedEventType,
+            WorkflowTimerBufferedEvent => TimerBufferedEventType,
             WorkflowPausedEvent => PausedEventType,
             WorkflowResumedEvent => ResumedEventType,
             WorkflowDeliveryBufferedEvent => DeliveryBufferedEventType,
             WorkflowDeliveryDiscardedEvent => DeliveryDiscardedEventType,
             WorkflowCompletedEvent => CompletedEventType,
             WorkflowTerminalEvent => TerminalEventType,
+            SagaForwardActionCompletedEvent => SagaForwardActionCompletedEventType,
+            SagaForwardActionTimedOutEvent => SagaForwardActionTimedOutEventType,
+            SagaCompensationRequestedEvent => SagaCompensationRequestedEventType,
+            SagaCompensationStartedEvent => SagaCompensationStartedEventType,
+            SagaCompensationCompletedEvent => SagaCompensationCompletedEventType,
+            SagaCompensationFailedEvent => SagaCompensationFailedEventType,
+            SagaManualRecoveryRecordedEvent => SagaManualRecoveryRecordedEventType,
             _ => throw new InvalidOperationException(
                 $"Workflow event '{workflowEvent.GetType().Name}' is not supported.")
         };

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="coverlet.collector" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" PrivateAssets="all" />
+    <PackageReference Include="Testcontainers.MsSql" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\OrcaCore.Abstractions\OrcaCore.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\OrcaCore.Providers.SqlServer\OrcaCore.Providers.SqlServer.csproj" />
+    <ProjectReference Include="..\OrcaCore.ProviderCertification\OrcaCore.ProviderCertification.csproj" />
+  </ItemGroup>
+</Project>

@@ -36,6 +36,16 @@ public enum WorkflowStatus
     Terminated,
 
     /// <summary>
+    /// The saga reached a terminal state after successful compensation.
+    /// </summary>
+    Compensated,
+
+    /// <summary>
+    /// The saga reached a terminal state because a compensating action failed.
+    /// </summary>
+    CompensationFailed,
+
+    /// <summary>
     /// Durable-only status. The ephemeral engine never produces Paused and no ephemeral API accepts it.
     /// </summary>
     Paused

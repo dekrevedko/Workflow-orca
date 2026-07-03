@@ -92,56 +92,79 @@ Derived from the EKS job-scheduler driving scenario (document 14); depends on Sl
 
 Decisions intentionally left open, with the constraint each answer must respect:
 
-1. **Wait unification** — Do `Wait`/`WaitLong` remain separate public concepts forever, or
-   converge into one wait with a residency policy? (Must preserve EV-040/041 semantics and
-   API-level durable separation.)
-2. **History retention depth** — Is full stream history mandatory in durable mode, or is
-   checkpoint-plus-essential-operational-events an allowed provider profile? (DU-071's
-   inspection contract is mandatory either way.)
+1. **RESOLVED (2026-07-02): `Wait` and `WaitLong` stay separate public concepts.**
+   `WaitLong` remains durable-only and represents cold-evictable, restart-safe waits.
+   `Wait` remains the regular wait concept for public surfaces that do not make durable
+   residency guarantees. Implementations may share internals, but the API-level durable
+   separation is permanent.
+2. **RESOLVED (2026-07-02): durable history is retention-policy governed.** Durable
+   providers MUST expose and document a retention policy; the library does not require
+   providers to keep complete stream history forever. DU-071 inspection remains mandatory
+   within the active retention window and for essential operational facts required by
+   management, recovery, audit, and compliance-oriented queries.
 3. **Provider emulation** — Must providers offer true event-store semantics, or may they
    emulate append/expected-version over relational tables? (PR-020/021 invariants must hold
    either way.)
-4. **Fanout mechanics at scale** — Definition fanout as projection-driven command emission
-   vs broker-native publish with instance-side correlation; batching/pagination for large
-   fanout.
+4. **RESOLVED (2026-07-02): fanout may use provider-native mechanics when available.**
+   The library defines fanout semantics and correlation guarantees; providers may implement
+   large fanout through native capabilities such as broker publish/routing in RabbitMQ when
+   that preserves OrcaCore delivery, deduplication, batching, and observability contracts.
+   Providers without native fanout use projection-driven command emission with pagination.
 5. **Business-state typing** — Strongly typed only, or hybrid with schema/versioning help
    from the engine? How much state-migration responsibility belongs to the engine vs the
    application?
-6. **Decorator representation** — Attributes, fluent builder calls, metadata objects, or
-   hybrid (CR-006 fixes semantics, not syntax).
-7. **Compile-time vs runtime mode separation** — How much durable/ephemeral separation is
-   enforced by distinct types vs runtime checks (direction per DU-001 and guiding
-   principle 5 in document 01: as much compile-time as practical without doubling every
-   abstraction).
+6. **RESOLVED (2026-07-02): fluent builder calls plus explicit metadata objects.**
+   Retry, timeout, cancellation, and resource hints are authored through fluent builder
+   methods and represented as explicit definition metadata. Attributes and reflection-based
+   policy discovery are not part of this implementation track.
+7. **RESOLVED (2026-07-02): compile-time separation as far as practical without doubling every abstraction.**
+   Durable-only and ephemeral-only features SHOULD be absent from the wrong public surface
+   through distinct authoring/runtime entry points where that keeps APIs clear and does not
+   duplicate every shared contract. Shared abstractions remain shared when the semantic
+   contract is genuinely common; runtime validation is acceptable for edge cases and
+   provider/runtime dispatch paths that would otherwise force parallel abstraction trees.
 8. **Eviction policy shape** — Plain idle timeout, LRU-like pressure eviction, or hybrid
    (MG-050 fixes the safety semantics only).
 9. **Lifecycle event durability split** — Exactly which lifecycle events are durable vs
    best-effort per mode (MG-021 requires the split be documented; the split itself is open).
-10. **Continue-as-new timing** — Introduced with the durable core (Slice 2) or deferred to
-    production readiness (Slice 6), given history-growth requirements already exist. This
-    decision directly determines which slice gates AC-313 — see the Slice 2 and Slice 6
-    gate notes above.
+10. **RESOLVED (2026-07-02): continue-as-new belongs with the durable core.**
+    AC-313 gates Slice 2 because durable history growth exists as soon as event-sourced
+    execution exists. Later phases may add archival and production-readiness polish, but
+    the core DU-042 rollover contract is an early durable requirement, not a Slice 6-only
+    feature.
 11. **Synchronous completion bridge shape** — Await-handle vs poll-to-terminal vs callback
     (CR-016 fixes the requirement, not the shape).
-12. **Saga track order** — Whether a process-manager-style (message-driven, no compensation)
-    saga precedes the compensation-heavy track.
-13. **Ephemeral saga depth** — Fully supported limited mode vs explicitly "advanced/at your
-    own risk" labeling (SG-030 minimum stands).
+12. **RESOLVED (2026-07-02): compensation-heavy saga track comes first.** Phase 5
+    implements saga as the compensation-aware semantic kind: forward actions,
+    compensation bindings/scopes, reverse deterministic compensation, saga terminal
+    states, durable audit/operator recovery, child compensation, and in-process-only
+    ephemeral saga mode. A process-manager-style, message-driven saga without
+    compensation is not a prerequisite track.
+13. **RESOLVED (2026-07-02): Ephemeral saga is in-process only.** Ephemeral saga support
+    is a clearly labeled limited mode for one process lifetime only: no durable recovery,
+    no durable compensation audit, and no post-restart operator remediation claims. Public
+    XML documentation and implementation docs MUST state this limitation anywhere the
+    ephemeral saga surface is introduced. SG-030 remains the minimum contract.
 14. **RESOLVED (2026-07-01): `Yield` is committed.** CR-017 (cooperative checkpoint) is a
     mandatory part of the step-result contract, and AC-013 gates Slice 1 (ephemeral
     behavior) with its crash-survival clause re-verified in Slice 2. Rationale: the
     loop/`ForEach`/`Parallel` fairness uses listed in CR-017 were confirmed as real product
     scenarios. (Number retained to keep cross-references stable.)
-15. **DAG compile target** — JS-001 (document 14) compiles DAG definitions onto existing
-    primitives. Open: does each DAG node execute as a durable child workflow instance
-    (recommended — isolation, lineage, per-node retry via `RunChildren`) or as in-instance
-    join/group state (lighter, no per-node identity)? Must be decided when Slice 4b starts;
-    both must satisfy JS-AC-001…003 identically.
+15. **RESOLVED (2026-07-02): DAG compile target is child-instance-per-node.** JS-001
+    DAG definitions compile each node as a durable child workflow instance using
+    `RunChildren`-style orchestration. This preserves per-node identity, lineage,
+    retry isolation, and restart-safe joins without creating a second in-instance DAG
+    runtime.
 16. **Durable pool extensions** — MG-062 fixes concurrency-cap (ticket) semantics only.
     Open extensions: rate-based pools (token refill per interval), priority queues instead
     of FIFO, revocation policy beyond expiry, and sharing one logical pool across engines
     that do **not** share a store (would require an external arbiter — likely out of scope
     for the library).
+
+**Resolution for question 15 (2026-07-02): child-instance-per-node.** Each DAG node
+executes as a durable child workflow instance using `RunChildren`-style orchestration.
+This preserves isolation, lineage, per-node retry, and restart-safe joins through the
+existing Phase 4 model while avoiding a second in-instance DAG runtime.
 
 ## 13.3 Post-review decisions (recorded)
 

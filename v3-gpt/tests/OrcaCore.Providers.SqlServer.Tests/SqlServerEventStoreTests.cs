@@ -1,0 +1,145 @@
+using AwesomeAssertions;
+using OrcaCore.Abstractions.Durable;
+using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Instances;
+using OrcaCore.Abstractions.Providers;
+using OrcaCore.Providers.SqlServer;
+using Testcontainers.MsSql;
+using Xunit;
+
+namespace OrcaCore.Providers.SqlServer.Tests;
+
+public sealed class SqlServerEventStoreTests : IAsyncLifetime
+{
+    private readonly MsSqlContainer container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
+        .WithPassword("OrcaCore!123")
+        .Build();
+    private SqlServerWorkflowStore? store;
+
+    public async ValueTask InitializeAsync()
+    {
+        await container.StartAsync(TestContext.Current.CancellationToken);
+        store = new SqlServerWorkflowStore(container.GetConnectionString());
+        await store.InitializeAsync(TestContext.Current.CancellationToken);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (store is not null)
+        {
+            await store.DisposeAsync();
+        }
+
+        await container.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task AppendAsync_ProjectionCommitFails_RollsBackEventsInboxAndOutbox()
+    {
+        var instanceId = InstanceIdValue(1);
+        var inboxEventId = EventIdValue(20);
+        var outboxRecordId = OutboxRecordIdValue(30);
+
+        var result = await RequiredStore().AppendAsync(
+            new ProviderCommitBatch
+            {
+                StreamId = new WorkflowStreamId(instanceId),
+                ExpectedVersion = StreamVersion.Empty,
+                Events = [Started(instanceId)],
+                InboxOperations = [new InboxWrite(inboxEventId, InboxRecordState.Applied)],
+                OutboxRecords = [new OutboxWrite(outboxRecordId, "external-message", [1])],
+                ProjectionOperations =
+                [
+                    new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
+                    {
+                        InstanceSnapshot = Snapshot(instanceId)
+                    }
+                ]
+            },
+            TestContext.Current.CancellationToken);
+
+        var tail = await RequiredStore().LoadTailAsync(
+            new WorkflowStreamId(instanceId),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+        var inbox = await RequiredStore().GetAsync(inboxEventId, TestContext.Current.CancellationToken);
+        var outbox = await RequiredStore().GetStateAsync(outboxRecordId, TestContext.Current.CancellationToken);
+
+        result.IsFailure.Should().BeTrue();
+        tail.Should().BeEmpty();
+        inbox.HasValue.Should().BeFalse();
+        outbox.HasValue.Should().BeFalse();
+    }
+
+    private SqlServerWorkflowStore RequiredStore()
+    {
+        return store ?? throw new InvalidOperationException("SQL Server test store is not initialized.");
+    }
+
+    private static WorkflowStartedEvent Started(InstanceId instanceId)
+    {
+        return new WorkflowStartedEvent
+        {
+            EventId = EventIdValue(1),
+            InstanceId = instanceId,
+            CommandId = CommandIdValue(1),
+            CausationId = CausationIdValue(1),
+            OccurredAt = Timestamp(1),
+            DefinitionId = DefinitionIdValue(1),
+            DefinitionVersion = DefinitionVersion.Initial
+        };
+    }
+
+    private static WorkflowInstanceSnapshot Snapshot(InstanceId instanceId)
+    {
+        return new WorkflowInstanceSnapshot
+        {
+            InstanceId = instanceId,
+            DefinitionId = DefinitionIdValue(1),
+            DefinitionVersion = DefinitionVersion.Initial,
+            Status = WorkflowStatus.Running,
+            CreatedAt = Timestamp(1),
+            UpdatedAt = Timestamp(1)
+        };
+    }
+
+    private static DateTimeOffset Timestamp(int seconds)
+    {
+        return new DateTimeOffset(2026, 7, 2, 12, 0, seconds, TimeSpan.Zero);
+    }
+
+    private static EventId EventIdValue(int value)
+    {
+        return new EventId(GuidValue(value));
+    }
+
+    private static InstanceId InstanceIdValue(int value)
+    {
+        return new InstanceId(GuidValue(value));
+    }
+
+    private static CommandId CommandIdValue(int value)
+    {
+        return new CommandId(GuidValue(value));
+    }
+
+    private static CausationId CausationIdValue(int value)
+    {
+        return new CausationId(GuidValue(value));
+    }
+
+    private static DefinitionId DefinitionIdValue(int value)
+    {
+        return new DefinitionId(GuidValue(value));
+    }
+
+    private static OutboxRecordId OutboxRecordIdValue(int value)
+    {
+        return new OutboxRecordId(GuidValue(value));
+    }
+
+    private static Guid GuidValue(int value)
+    {
+        return Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}");
+    }
+}

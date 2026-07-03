@@ -10,7 +10,7 @@ using Xunit;
 
 namespace OrcaCore.Providers.PostgreSql.Tests;
 
-public sealed class PostgreSqlProviderCertificationTests : EventStoreCertificationTests, IAsyncLifetime
+public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertificationTests, IAsyncLifetime
 {
     private readonly PostgreSqlContainer container = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("orcacore")
@@ -160,6 +160,58 @@ public sealed class PostgreSqlProviderCertificationTests : EventStoreCertificati
             .Which.InstanceId.Should().Be(instanceId);
     }
 
+    [Fact]
+    [Trait("AC", "AC-407")]
+    public async Task PostgreSql_SagaEventsAndAuditProjectionRoundTrip()
+    {
+        var instanceId = InstanceIdValue(1);
+        var store = await CreateStoreAsync();
+        await store.AppendAsync(
+            new ProviderCommitBatch
+            {
+                StreamId = new WorkflowStreamId(instanceId),
+                ExpectedVersion = StreamVersion.Empty,
+                Events =
+                [
+                    StartEvent(instanceId),
+                    new SagaForwardActionCompletedEvent
+                    {
+                        EventId = EventIdValue(101),
+                        InstanceId = instanceId,
+                        CommandId = CommandIdValue(2),
+                        CausationId = CausationIdValue(2),
+                        OccurredAt = Timestamp(2),
+                        ScopeId = "checkout",
+                        ActionKey = "reserve",
+                        CompensationKey = "release"
+                    }
+                ],
+                ProjectionOperations =
+                [
+                    new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
+                    {
+                        InstanceSnapshot = SagaSnapshot(instanceId)
+                    }
+                ]
+            },
+            TestContext.Current.CancellationToken);
+
+        var tail = await store.LoadTailAsync(
+            new WorkflowStreamId(instanceId),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+        var projections = await store.ListAsync(
+            new WorkflowProjectionQuery { InstanceId = instanceId },
+            TestContext.Current.CancellationToken);
+
+        tail.OfType<SagaForwardActionCompletedEvent>().Should().ContainSingle()
+            .Which.CompensationKey.Should().Be("release");
+        projections.Should().ContainSingle()
+            .Which.SagaAudits.Should().ContainSingle()
+            .Which.CompensationActions.Should().ContainSingle()
+            .Which.Status.Should().Be(SagaCompensationActionStatus.Completed);
+    }
+
     private async Task<PostgreSqlWorkflowStore> CreateStoreAsync()
     {
         var store = new PostgreSqlWorkflowStore(container.GetConnectionString());
@@ -214,6 +266,43 @@ public sealed class PostgreSqlProviderCertificationTests : EventStoreCertificati
                     RegisteredAt = Timestamp(2),
                     Status = "Active",
                     Mode = "Resident"
+                }
+            ]
+        };
+    }
+
+    private static WorkflowInstanceSnapshot SagaSnapshot(InstanceId instanceId)
+    {
+        return Snapshot(instanceId, WorkflowStatus.Compensated) with
+        {
+            SagaAudits =
+            [
+                new SagaAuditScopeSnapshot
+                {
+                    ScopeId = "checkout",
+                    Outcome = WorkflowStatus.Compensated,
+                    ForwardActions =
+                    [
+                        new SagaForwardActionSnapshot
+                        {
+                            ScopeId = "checkout",
+                            ActionKey = "reserve",
+                            CompensationKey = "release",
+                            CompletedAt = Timestamp(2)
+                        }
+                    ],
+                    CompensationActions =
+                    [
+                        new SagaCompensationActionSnapshot
+                        {
+                            ScopeId = "checkout",
+                            ActionKey = "release",
+                            Order = 0,
+                            StartedAt = Timestamp(3),
+                            CompletedAt = Timestamp(4),
+                            Status = SagaCompensationActionStatus.Completed
+                        }
+                    ]
                 }
             ]
         };

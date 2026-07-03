@@ -14,6 +14,16 @@ public sealed record WorkflowInstanceQueryModel
     public required InstanceId InstanceId { get; init; }
 
     /// <summary>
+    /// Gets the parent workflow instance when this instance is child work.
+    /// </summary>
+    public InstanceId? ParentInstanceId { get; init; }
+
+    /// <summary>
+    /// Gets the root workflow instance for this workflow tree.
+    /// </summary>
+    public InstanceId? RootInstanceId { get; init; }
+
+    /// <summary>
     /// Gets the workflow definition identity.
     /// </summary>
     public required DefinitionId DefinitionId { get; init; }
@@ -37,4 +47,14 @@ public sealed record WorkflowInstanceQueryModel
     /// Gets when the instance metadata last changed.
     /// </summary>
     public required DateTimeOffset UpdatedAt { get; init; }
+
+    /// <summary>
+    /// Gets whether the instance has any current stuck signal.
+    /// </summary>
+    public bool IsStuck { get; init; }
+
+    /// <summary>
+    /// Gets whether any step on the instance has exceeded its stuck threshold.
+    /// </summary>
+    public bool HasStuckStep { get; init; }
 }

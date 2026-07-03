@@ -113,9 +113,14 @@ public interface IWorkflowProjectionStore
 public interface IWorkflowRetentionStore
 {
     /// <summary>
-    /// Purges retained data for one inactive instance when no dispatch is in flight.
+    /// Archives one inactive instance according to an explicit retention policy.
     /// </summary>
-    Task<PurgeResult> PurgeAsync(InstanceId instanceId, CancellationToken cancellationToken);
+    Task<ArchiveResult> ArchiveAsync(RetentionPolicy policy, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Purges retained data according to an explicit retention policy when no dispatch is in flight.
+    /// </summary>
+    Task<PurgeResult> PurgeAsync(RetentionPolicy policy, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -127,6 +132,14 @@ public interface ITimerScheduler
     /// Schedules a durable wake-up.
     /// </summary>
     Task ScheduleAsync(TimerScheduleRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Claims due wake-ups and returns timer-fire commands exactly once.
+    /// </summary>
+    Task<IReadOnlyList<FireTimerCommand>> ClaimDueAsync(
+        DateTimeOffset dueAtOrBefore,
+        int maxCount,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>

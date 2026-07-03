@@ -54,6 +54,8 @@ internal static class ProjectionPredicateTranslator
         return memberName switch
         {
             nameof(WorkflowInstanceQueryModel.InstanceId) => query with { InstanceId = (InstanceId?)value },
+            nameof(WorkflowInstanceQueryModel.ParentInstanceId) => query with { ParentInstanceId = (InstanceId?)value },
+            nameof(WorkflowInstanceQueryModel.RootInstanceId) => query with { RootInstanceId = (InstanceId?)value },
             nameof(WorkflowInstanceQueryModel.DefinitionId) => query with { DefinitionId = (DefinitionId?)value },
             nameof(WorkflowInstanceQueryModel.DefinitionVersion) => query with { DefinitionVersion = (DefinitionVersion?)value },
             nameof(WorkflowInstanceQueryModel.Status) => query with { Status = ToWorkflowStatus(value) },

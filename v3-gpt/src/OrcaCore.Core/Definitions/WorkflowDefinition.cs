@@ -10,13 +10,15 @@ public sealed record WorkflowDefinition<TState>
     internal WorkflowDefinition(
         DefinitionId definitionId,
         DefinitionVersion definitionVersion,
-        SequenceNode<TState> rootSequence)
+        SequenceNode<TState> rootSequence,
+        WorkflowPolicySet? policies = null)
     {
         ArgumentNullException.ThrowIfNull(rootSequence);
 
         DefinitionId = definitionId;
         DefinitionVersion = definitionVersion;
         RootSequence = rootSequence;
+        Policies = policies ?? WorkflowPolicySet.Empty;
     }
 
     /// <summary>
@@ -30,4 +32,6 @@ public sealed record WorkflowDefinition<TState>
     public DefinitionVersion DefinitionVersion { get; }
 
     internal SequenceNode<TState> RootSequence { get; }
+
+    internal WorkflowPolicySet Policies { get; }
 }

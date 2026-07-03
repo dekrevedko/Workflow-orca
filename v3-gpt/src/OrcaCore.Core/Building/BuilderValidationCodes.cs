@@ -39,4 +39,49 @@ public static class BuilderValidationCodes
     /// A required delegate is null.
     /// </summary>
     public const string NullDelegate = "WF007_NULL_DELEGATE";
+
+    /// <summary>
+    /// A delay node has a non-positive duration.
+    /// </summary>
+    public const string NonPositiveDelay = "WF008_NON_POSITIVE_DELAY";
+
+    /// <summary>
+    /// A wait timeout has a non-positive duration.
+    /// </summary>
+    public const string NonPositiveTimeout = "WF009_NON_POSITIVE_TIMEOUT";
+
+    /// <summary>
+    /// A retry policy is structurally invalid.
+    /// </summary>
+    public const string InvalidRetryPolicy = "WF010_INVALID_RETRY_POLICY";
+
+    /// <summary>
+    /// A ForEach node has no body.
+    /// </summary>
+    public const string EmptyForEach = "WF011_EMPTY_FOREACH";
+
+    /// <summary>
+    /// A max concurrency value is non-positive.
+    /// </summary>
+    public const string NonPositiveMaxConcurrency = "WF012_NON_POSITIVE_MAX_CONCURRENCY";
+
+    /// <summary>
+    /// A DAG node id is duplicated.
+    /// </summary>
+    public const string DagDuplicateNode = "WF013_DAG_DUPLICATE_NODE";
+
+    /// <summary>
+    /// A DAG edge references a missing node.
+    /// </summary>
+    public const string DagMissingNode = "WF014_DAG_MISSING_NODE";
+
+    /// <summary>
+    /// A DAG contains a cycle.
+    /// </summary>
+    public const string DagCycle = "WF015_DAG_CYCLE";
+
+    /// <summary>
+    /// A saga compensation scope id is duplicated.
+    /// </summary>
+    public const string SagaDuplicateScope = "WF016_SAGA_DUPLICATE_SCOPE";
 }

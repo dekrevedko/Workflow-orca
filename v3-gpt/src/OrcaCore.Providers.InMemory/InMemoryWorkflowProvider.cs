@@ -15,6 +15,7 @@ public sealed class InMemoryWorkflowProvider :
     IWorkflowInboxStore,
     IWorkflowOutboxStore,
     IWorkflowProjectionStore,
+    IWorkflowRetentionStore,
     ITimerScheduler,
     IMessageDispatcher,
     IWorkflowPayloadSerializer
@@ -70,6 +71,7 @@ public sealed class InMemoryWorkflowProvider :
             foreach (var record in batch.OutboxRecords)
             {
                 outbox[record.OutboxRecordId] = new InMemoryOutboxRecord(
+                    batch.StreamId.InstanceId,
                     CloneOutboxWrite(record),
                     OutboxRecordState.Pending);
             }
@@ -261,7 +263,19 @@ public sealed class InMemoryWorkflowProvider :
                 })
                 .ToArray();
 
-            return Task.FromResult(new WorkflowStatistics { Groups = groups });
+            return Task.FromResult(new WorkflowStatistics
+            {
+                Groups = groups,
+                Pressure = new WorkflowPressureMetrics
+                {
+                    TotalStreamEvents = streams.Values.Sum(stream => (long)stream.Count),
+                    CheckpointCount = checkpoints.Count,
+                    PendingOutboxCount = outbox.Values.Count(record =>
+                        record.State is OutboxRecordState.Pending or OutboxRecordState.Retryable),
+                    ActiveInstanceCount = summaries.Values.Count(snapshot =>
+                        snapshot.Status is WorkflowStatus.Running or WorkflowStatus.Waiting or WorkflowStatus.Paused)
+                }
+            });
         }
     }
 
@@ -277,6 +291,38 @@ public sealed class InMemoryWorkflowProvider :
         }
 
         return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<FireTimerCommand>> ClaimDueAsync(
+        DateTimeOffset dueAtOrBefore,
+        int maxCount,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(maxCount);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            var due = timers.Values
+                .Where(timer => timer.FireAt <= dueAtOrBefore)
+                .OrderBy(timer => timer.FireAt)
+                .ThenBy(timer => timer.TimerId.Value)
+                .Take(maxCount)
+                .ToArray();
+            foreach (var timer in due)
+            {
+                timers.Remove(timer.TimerId);
+            }
+
+            return Task.FromResult<IReadOnlyList<FireTimerCommand>>(due.Select(timer => new FireTimerCommand
+            {
+                CommandId = timer.CommandId,
+                InstanceId = timer.InstanceId,
+                RequestedAt = dueAtOrBefore,
+                TimerId = timer.TimerId
+            }).ToArray());
+        }
     }
 
     /// <inheritdoc />
@@ -314,6 +360,60 @@ public sealed class InMemoryWorkflowProvider :
 
         return JsonSerializer.Deserialize<TPayload>(payload.Payload)
             ?? throw new JsonException($"Payload could not be deserialized as '{typeof(TPayload).Name}'.");
+    }
+
+    /// <inheritdoc />
+    public Task<ArchiveResult> ArchiveAsync(RetentionPolicy policy, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            if (IsActive(policy.InstanceId))
+            {
+                return Task.FromResult(new ArchiveResult { Archived = false, Reason = "Instance is active." });
+            }
+
+            if (!summaries.TryGetValue(policy.InstanceId, out var snapshot))
+            {
+                return Task.FromResult(new ArchiveResult
+                {
+                    Archived = false,
+                    Reason = "Instance projection was not found."
+                });
+            }
+
+            summaries[policy.InstanceId] = snapshot with { ArchivedAt = policy.RequestedAt };
+            return Task.FromResult(new ArchiveResult { Archived = true });
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<PurgeResult> PurgeAsync(RetentionPolicy policy, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            if (IsActive(policy.InstanceId))
+            {
+                return Task.FromResult(new PurgeResult { Purged = false, Reason = "Instance is active." });
+            }
+
+            if (HasClaimedOutbox(policy.InstanceId))
+            {
+                return Task.FromResult(new PurgeResult
+                {
+                    Purged = false,
+                    Reason = "Instance has claimed outbox records."
+                });
+            }
+
+            DeleteInstanceData(policy.InstanceId);
+            return Task.FromResult(new PurgeResult { Purged = true });
+        }
     }
 
     private List<WorkflowEvent> GetStream(WorkflowStreamId streamId)
@@ -356,6 +456,8 @@ public sealed class InMemoryWorkflowProvider :
     private static bool Matches(WorkflowInstanceSnapshot snapshot, WorkflowProjectionQuery query)
     {
         return (query.InstanceId is null || snapshot.InstanceId == query.InstanceId) &&
+            (query.ParentInstanceId is null || snapshot.ParentInstanceId == query.ParentInstanceId) &&
+            (query.RootInstanceId is null || snapshot.RootInstanceId == query.RootInstanceId) &&
             (query.DefinitionId is null || snapshot.DefinitionId == query.DefinitionId) &&
             (query.DefinitionVersion is null || snapshot.DefinitionVersion == query.DefinitionVersion) &&
             (query.Status is null || snapshot.Status == query.Status) &&
@@ -367,12 +469,26 @@ public sealed class InMemoryWorkflowProvider :
 
     private static WorkflowInstanceSnapshot CloneSnapshot(WorkflowInstanceSnapshot snapshot)
     {
-        return snapshot with { ActiveWaits = snapshot.ActiveWaits.Select(CloneActiveWait).ToArray() };
+        return snapshot with
+        {
+            ActiveWaits = snapshot.ActiveWaits.Select(CloneActiveWait).ToArray(),
+            SagaAudits = snapshot.SagaAudits.Select(CloneSagaAuditScope).ToArray()
+        };
     }
 
     private static ActiveWaitSnapshot CloneActiveWait(ActiveWaitSnapshot snapshot)
     {
         return snapshot with { };
+    }
+
+    private static SagaAuditScopeSnapshot CloneSagaAuditScope(SagaAuditScopeSnapshot snapshot)
+    {
+        return snapshot with
+        {
+            ForwardActions = snapshot.ForwardActions.Select(action => action with { }).ToArray(),
+            CompensationActions = snapshot.CompensationActions.Select(action => action with { }).ToArray(),
+            RecoveryInterventions = snapshot.RecoveryInterventions.Select(intervention => intervention with { }).ToArray()
+        };
     }
 
     private static OutboxWrite CloneOutboxWrite(OutboxWrite record)
@@ -385,5 +501,32 @@ public sealed class InMemoryWorkflowProvider :
         return checkpoint with { Payload = [.. checkpoint.Payload] };
     }
 
-    private sealed record InMemoryOutboxRecord(OutboxWrite Write, OutboxRecordState State);
+    private bool IsActive(InstanceId instanceId)
+    {
+        return summaries.TryGetValue(instanceId, out var snapshot) &&
+            snapshot.Status is WorkflowStatus.Running or WorkflowStatus.Waiting or WorkflowStatus.Paused;
+    }
+
+    private bool HasClaimedOutbox(InstanceId instanceId)
+    {
+        return outbox.Values.Any(record =>
+            record.InstanceId == instanceId &&
+            record.State == OutboxRecordState.Claimed);
+    }
+
+    private void DeleteInstanceData(InstanceId instanceId)
+    {
+        summaries.Remove(instanceId);
+        checkpoints.Remove(instanceId);
+        streams.Remove(new WorkflowStreamId(instanceId));
+        foreach (var recordId in outbox.Values
+            .Where(record => record.InstanceId == instanceId)
+            .Select(record => record.Write.OutboxRecordId)
+            .ToArray())
+        {
+            outbox.Remove(recordId);
+        }
+    }
+
+    private sealed record InMemoryOutboxRecord(InstanceId InstanceId, OutboxWrite Write, OutboxRecordState State);
 }

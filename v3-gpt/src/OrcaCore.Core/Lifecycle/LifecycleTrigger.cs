@@ -9,6 +9,8 @@ internal enum LifecycleTrigger
     Fail,
     Cancel,
     Terminate,
+    Compensate,
+    FailCompensation,
     Pause,
     Resume
 }
