@@ -42,6 +42,11 @@ Follow-up implementation verification, 2026-07-03:
   including integration tests.
 - Integration tests are now honored for implementation verification: passed 68,
   skipped 31, failed 0.
+- PostgreSQL start-idempotency implementation pass reran the analyzer build
+  loop for every `v3-gpt` project with `-warnaserror` and the full
+  `v3-gpt/tests` sweep, including integration tests. Integration coverage is now
+  passed 70, skipped 29, failed 0 because the PostgreSQL restart and two-host
+  `StartOrGet` scenarios are active.
 
 ## Completed In This Pass
 
@@ -278,6 +283,18 @@ PostgreSQL is the durable provider.
 Recommendation: implement the idempotency port in PostgreSQL and add provider
 certification coverage.
 
+Implementation update:
+- 2026-07-03: PostgreSQL now implements `IWorkflowStartIdempotencyStore` and
+  persists start idempotency keys in `orcacore_start_idempotency` in the same
+  transaction as the accepted start event.
+- Added migration `003_start_idempotency` and fresh-schema coverage in
+  `001_initial.sql`. PostgreSQL DI now exposes the idempotency store port.
+- `DurableStartService` now re-reads the durable idempotency mapping after a
+  start conflict so concurrent hosts return the winning instance instead of
+  surfacing a duplicate-start failure.
+- Provider tests cover restart persistence and duplicate-key rollback; integration
+  tests now execute PostgreSQL restart and two-host `StartOrGet` scenarios.
+
 ### SQL Server resource pools are in-memory
 
 Evidence:
@@ -451,8 +468,8 @@ Module Interface and keep source-text checks explicitly named as guard tests.
    Modules before expanding clustered durable execution.
 3. Completed 2026-07-03: create `WorkflowEventCodec` and complete SQL Server
    event coverage.
-4. Persist PostgreSQL start idempotency and SQL Server resource pools, or remove
-   those durable-provider claims until true.
+4. Completed 2026-07-03 for PostgreSQL start idempotency. Persist SQL Server
+   resource pools, or remove that durable-provider claim until true.
 5. Extract internal durable aggregate slices for waits, children, resource pools,
    external jobs, and saga compensation.
 6. Introduce a shared `InstanceLane` Module to remove duplicated channel-lane
@@ -466,5 +483,5 @@ Module Interface and keep source-text checks explicitly named as guard tests.
 The R8 quality issues and immediate channel-substrate drift are addressed. The
 remaining high-risk items are not analyzer warnings; they are durable execution
 and provider semantics. The next refactoring pass should prioritize provider
-parity, especially PostgreSQL start idempotency and SQL Server durable resource
-pools, before adding more composition features.
+parity, especially SQL Server durable resource pools, before adding more
+composition features.

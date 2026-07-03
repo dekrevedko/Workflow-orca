@@ -28,21 +28,10 @@ internal sealed class DurableStartService(DurableCommandProcessor commandProcess
                 return new StartOrGetResult(existing.InstanceId, false);
             }
 
-            var durableExisting = await commandProcessor
-                .GetStartedAsync(request.IdempotencyKey, cancellationToken)
-                .ConfigureAwait(false);
-            if (durableExisting.HasValue)
+            var durableExisting = await TryGetDurableExistingAsync(request, cancellationToken).ConfigureAwait(false);
+            if (durableExisting is not null)
             {
-                DurableVersionCompatibility.EnsureCompatible(
-                    durableExisting.Value.DefinitionId,
-                    durableExisting.Value.DefinitionVersion,
-                    request.DefinitionId,
-                    request.DefinitionVersion);
-                startedInstances[request.IdempotencyKey] = new StartedInstance(
-                    durableExisting.Value.InstanceId,
-                    durableExisting.Value.DefinitionId,
-                    durableExisting.Value.DefinitionVersion);
-                return new StartOrGetResult(durableExisting.Value.InstanceId, false);
+                return durableExisting;
             }
 
             var instanceId = InstanceId.New();
@@ -61,6 +50,12 @@ internal sealed class DurableStartService(DurableCommandProcessor commandProcess
                 .ConfigureAwait(false);
             if (result.Outcome != DurableCommandOutcome.Committed)
             {
+                var winner = await TryGetDurableExistingAsync(request, cancellationToken).ConfigureAwait(false);
+                if (winner is not null)
+                {
+                    return winner;
+                }
+
                 throw new InvalidOperationException(
                     $"StartOrGet could not start workflow for key '{request.IdempotencyKey}': {result.Message}");
             }
@@ -74,6 +69,30 @@ internal sealed class DurableStartService(DurableCommandProcessor commandProcess
         {
             gate.Release();
         }
+    }
+
+    private async Task<StartOrGetResult?> TryGetDurableExistingAsync(
+        StartOrGetRequest request,
+        CancellationToken cancellationToken)
+    {
+        var durableExisting = await commandProcessor
+            .GetStartedAsync(request.IdempotencyKey, cancellationToken)
+            .ConfigureAwait(false);
+        if (!durableExisting.HasValue)
+        {
+            return null;
+        }
+
+        DurableVersionCompatibility.EnsureCompatible(
+            durableExisting.Value.DefinitionId,
+            durableExisting.Value.DefinitionVersion,
+            request.DefinitionId,
+            request.DefinitionVersion);
+        startedInstances[request.IdempotencyKey] = new StartedInstance(
+            durableExisting.Value.InstanceId,
+            durableExisting.Value.DefinitionId,
+            durableExisting.Value.DefinitionVersion);
+        return new StartOrGetResult(durableExisting.Value.InstanceId, false);
     }
 
     private sealed record StartedInstance(

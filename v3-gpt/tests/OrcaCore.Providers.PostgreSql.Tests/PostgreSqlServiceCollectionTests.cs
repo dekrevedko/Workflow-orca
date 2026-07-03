@@ -21,6 +21,7 @@ public sealed class PostgreSqlServiceCollectionTests
         await using var provider = services.BuildServiceProvider();
         provider.GetRequiredService<IWorkflowEventStore>().Should().BeOfType<PostgreSqlWorkflowStore>();
         provider.GetRequiredService<IWorkflowInboxStore>().Should().BeOfType<PostgreSqlWorkflowStore>();
+        provider.GetRequiredService<IWorkflowStartIdempotencyStore>().Should().BeOfType<PostgreSqlWorkflowStore>();
         provider.GetRequiredService<IWorkflowOutboxStore>().Should().BeOfType<PostgreSqlWorkflowStore>();
         provider.GetRequiredService<IWorkflowProjectionStore>().Should().BeOfType<PostgreSqlWorkflowStore>();
         provider.GetRequiredService<ITimerScheduler>().Should().BeOfType<PostgreSqlWorkflowStore>();

@@ -176,7 +176,30 @@ public sealed class EnginePostgreSqlIntegrationTests(PostgreSqlOrcaFixture fixtu
     [Trait("AC", "AC-311")]
     public async Task INT_EP_004_StartOrGetSurvivesProcessorRestart()
     {
-        Assert.Skip("PostgreSqlWorkflowStore does not implement IWorkflowStartIdempotencyStore yet.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        StartOrGetResult first;
+        await using (var store = await fixture.CreateStoreAsync())
+        {
+            var starter = new DurableStartService(new DurableCommandProcessor(store));
+            first = await starter.StartOrGetAsync(
+                StartRequest("order-int-ep-004"),
+                TestContext.Current.CancellationToken);
+        }
+
+        await using var restartedStore = await fixture.CreateStoreAsync();
+        var restartedStarter = new DurableStartService(new DurableCommandProcessor(restartedStore));
+        var second = await restartedStarter.StartOrGetAsync(
+            StartRequest("order-int-ep-004"),
+            TestContext.Current.CancellationToken);
+        var events = await restartedStore.LoadTailAsync(
+            new WorkflowStreamId(first.InstanceId),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+
+        first.Created.Should().BeTrue();
+        second.Created.Should().BeFalse();
+        second.InstanceId.Should().Be(first.InstanceId);
+        events.OfType<WorkflowStartedEvent>().Should().ContainSingle();
     }
 
     [Fact]
@@ -404,5 +427,15 @@ public sealed class EnginePostgreSqlIntegrationTests(PostgreSqlOrcaFixture fixtu
     {
         await Task.CompletedTask;
         Assert.Skip("Durable activation/eviction layer not integrated in host yet.");
+    }
+
+    private static StartOrGetRequest StartRequest(string key)
+    {
+        return new StartOrGetRequest(
+            key,
+            IntegrationIds.Definition(1),
+            DefinitionVersion.Initial,
+            null,
+            IntegrationIds.Timestamp(1));
     }
 }

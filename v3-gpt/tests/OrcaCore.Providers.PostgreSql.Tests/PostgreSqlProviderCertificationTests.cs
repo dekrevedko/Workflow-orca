@@ -52,9 +52,13 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         var leaseMigrationId = await ScalarAsync<string>(
             "select migration_id from orcacore_schema_migrations where migration_id = @migration_id;",
             "002_claim_leases");
+        var startIdempotencyMigrationId = await ScalarAsync<string>(
+            "select migration_id from orcacore_schema_migrations where migration_id = @migration_id;",
+            "003_start_idempotency");
 
         initialMigrationId.Should().Be("001_initial");
         leaseMigrationId.Should().Be("002_claim_leases");
+        startIdempotencyMigrationId.Should().Be("003_start_idempotency");
     }
 
     [Fact]
@@ -84,6 +88,99 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
 
         inbox.Value.Should().Be(InboxRecordState.Applied);
         afterDuplicate.Value.Should().Be(InboxRecordState.Applied);
+    }
+
+    [Fact]
+    [Trait("AC", "AC-311")]
+    public async Task PostgreSql_StartIdempotencyPersistsAcrossRestart()
+    {
+        var instanceId = InstanceIdValue(901);
+        const string IdempotencyKey = "order-901";
+        await using (var store = await CreateStoreAsync())
+        {
+            await store.AppendAsync(
+                new ProviderCommitBatch
+                {
+                    StreamId = new WorkflowStreamId(instanceId),
+                    ExpectedVersion = StreamVersion.Empty,
+                    Events = [StartEvent(instanceId)],
+                    StartIdempotencyOperations =
+                    [
+                        new StartIdempotencyWrite(
+                            IdempotencyKey,
+                            instanceId,
+                            DefinitionIdValue(1),
+                            DefinitionVersion.Initial)
+                    ]
+                },
+                TestContext.Current.CancellationToken);
+        }
+
+        await using var restarted = await CreateStoreAsync();
+        var idempotencyStore = (IWorkflowStartIdempotencyStore)restarted;
+        var existing = await idempotencyStore.GetStartedAsync(
+            IdempotencyKey,
+            TestContext.Current.CancellationToken);
+
+        existing.HasValue.Should().BeTrue();
+        existing.Value.InstanceId.Should().Be(instanceId);
+        existing.Value.DefinitionId.Should().Be(DefinitionIdValue(1));
+        existing.Value.DefinitionVersion.Should().Be(DefinitionVersion.Initial);
+    }
+
+    [Fact]
+    [Trait("AC", "AC-311")]
+    public async Task PostgreSql_DuplicateStartIdempotencyKey_RollsBackAppend()
+    {
+        const string IdempotencyKey = "order-duplicate";
+        var firstInstanceId = InstanceIdValue(902);
+        var duplicateInstanceId = InstanceIdValue(903);
+        await using var store = await CreateStoreAsync();
+        var first = await store.AppendAsync(
+            new ProviderCommitBatch
+            {
+                StreamId = new WorkflowStreamId(firstInstanceId),
+                ExpectedVersion = StreamVersion.Empty,
+                Events = [StartEvent(firstInstanceId)],
+                StartIdempotencyOperations =
+                [
+                    new StartIdempotencyWrite(
+                        IdempotencyKey,
+                        firstInstanceId,
+                        DefinitionIdValue(1),
+                        DefinitionVersion.Initial)
+                ]
+            },
+            TestContext.Current.CancellationToken);
+
+        var duplicate = await store.AppendAsync(
+            new ProviderCommitBatch
+            {
+                StreamId = new WorkflowStreamId(duplicateInstanceId),
+                ExpectedVersion = StreamVersion.Empty,
+                Events = [StartEvent(duplicateInstanceId)],
+                StartIdempotencyOperations =
+                [
+                    new StartIdempotencyWrite(
+                        IdempotencyKey,
+                        duplicateInstanceId,
+                        DefinitionIdValue(2),
+                        new DefinitionVersion(2))
+                ]
+            },
+            TestContext.Current.CancellationToken);
+        var duplicateTail = await store.LoadTailAsync(
+            new WorkflowStreamId(duplicateInstanceId),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+        var existing = await ((IWorkflowStartIdempotencyStore)store).GetStartedAsync(
+            IdempotencyKey,
+            TestContext.Current.CancellationToken);
+
+        first.IsSuccess.Should().BeTrue();
+        duplicate.IsFailure.Should().BeTrue();
+        duplicateTail.Should().BeEmpty();
+        existing.Value.InstanceId.Should().Be(firstInstanceId);
     }
 
     [Fact]

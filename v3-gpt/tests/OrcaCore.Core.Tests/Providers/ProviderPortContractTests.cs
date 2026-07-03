@@ -47,6 +47,14 @@ public sealed class ProviderPortContractTests
             ],
             Checkpoint = new CheckpointWrite(instanceId, new StreamVersion(1), "application/json", [1, 2, 3]),
             InboxOperations = [new InboxWrite(EventId.New(), InboxRecordState.Received)],
+            StartIdempotencyOperations =
+            [
+                new StartIdempotencyWrite(
+                    "order-1",
+                    instanceId,
+                    DefinitionId.New(),
+                    DefinitionVersion.Initial)
+            ],
             OutboxRecords = [new OutboxWrite(OutboxRecordId.New(), "status", [4, 5])],
             ProjectionOperations = [new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)]
         };
@@ -54,6 +62,7 @@ public sealed class ProviderPortContractTests
         batch.Events.Should().ContainSingle();
         batch.Checkpoint.Should().NotBeNull();
         batch.InboxOperations.Should().ContainSingle();
+        batch.StartIdempotencyOperations.Should().ContainSingle();
         batch.OutboxRecords.Should().ContainSingle();
         batch.ProjectionOperations.Should().ContainSingle();
     }

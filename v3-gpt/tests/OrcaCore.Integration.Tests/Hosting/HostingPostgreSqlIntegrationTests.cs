@@ -90,14 +90,7 @@ public sealed class HostingPostgreSqlIntegrationTests(PostgreSqlOrcaFixture fixt
             TestContext.Current.CancellationToken);
 
         clock.Advance(TimeSpan.FromMinutes(1));
-        await host.StartAsync(TestContext.Current.CancellationToken);
-        var scheduler = host.Services.GetRequiredService<ITimerScheduler>();
-        var due = await scheduler.ClaimDueAsync(clock.GetUtcNow(), 100, TestContext.Current.CancellationToken);
-        foreach (var command in due)
-        {
-            await processor.ProcessAsync(command, TestContext.Current.CancellationToken);
-        }
-        await host.StopAsync(TestContext.Current.CancellationToken);
+        await OrcaIntegrationHost.FireTimersOnceAsync(host, TestContext.Current.CancellationToken);
 
         var store = host.Services.GetRequiredService<IWorkflowEventStore>();
         var events = await store.LoadTailAsync(
@@ -189,9 +182,10 @@ public sealed class HostingPostgreSqlIntegrationTests(PostgreSqlOrcaFixture fixt
         services.AddOrcaCoreHostedServices();
         services.AddOrcaCoreHostedServices();
         using var provider = services.BuildServiceProvider();
-        provider.GetServices<IHostedService>()
-            .Count(service => service is OrcaCoreOutboxPumpHostedService)
-            .Should().Be(2);
+        var hostedServices = provider.GetServices<IHostedService>().ToArray();
+        hostedServices.Should().ContainSingle(service => service is OrcaCoreOutboxPumpHostedService);
+        hostedServices.Should().ContainSingle(service => service is OrcaCoreTimerHostedService);
+        hostedServices.Should().ContainSingle(service => service is OrcaCoreOperationalSweepHostedService);
     }
 
     [Fact]
@@ -264,12 +258,7 @@ public sealed class HostingPostgreSqlIntegrationTests(PostgreSqlOrcaFixture fixt
 
         clock.Advance(TimeSpan.FromMinutes(1));
         await OrcaIntegrationHost.PumpOutboxOnceAsync(host, TestContext.Current.CancellationToken);
-        var scheduler = host.Services.GetRequiredService<ITimerScheduler>();
-        var due = await scheduler.ClaimDueAsync(clock.GetUtcNow(), 100, TestContext.Current.CancellationToken);
-        foreach (var command in due.Where(c => c.InstanceId == IntegrationIds.Instance(4)))
-        {
-            await processor.ProcessAsync(command, TestContext.Current.CancellationToken);
-        }
+        await OrcaIntegrationHost.FireTimersOnceAsync(host, TestContext.Current.CancellationToken);
         await OrcaIntegrationHost.RunOperationalSweepOnceAsync(host, TestContext.Current.CancellationToken);
 
         dispatcher.Records.Should().NotBeEmpty();

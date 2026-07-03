@@ -83,10 +83,21 @@ internal static class OrcaIntegrationHost
         var scheduler = host.Services.GetRequiredService<ITimerScheduler>();
         var processor = host.Services.GetRequiredService<DurableCommandProcessor>();
         var clock = host.Services.GetRequiredService<TimeProvider>();
-        var due = await scheduler.ClaimDueAsync(clock.GetUtcNow(), 100, cancellationToken);
+        var now = clock.GetUtcNow();
+        var due = await scheduler.ClaimDueAsync(
+            new TimerClaimRequest(now, 100, now, TimeSpan.FromMinutes(5)),
+            cancellationToken);
         foreach (var command in due)
         {
-            await processor.ProcessAsync(command, cancellationToken);
+            var result = await processor.ProcessAsync(command, cancellationToken);
+            if (result.Outcome is DurableCommandOutcome.Committed or DurableCommandOutcome.NoOp)
+            {
+                await scheduler.CompleteAsync(command.TimerId, cancellationToken);
+            }
+            else
+            {
+                await scheduler.ReleaseAsync(command.TimerId, cancellationToken);
+            }
         }
     }
 

@@ -47,6 +47,7 @@ public sealed class PostgreSqlOrcaFixture : IAsyncLifetime
                 orcacore_active_wait_projections,
                 orcacore_timers,
                 orcacore_outbox,
+                orcacore_start_idempotency,
                 orcacore_inbox,
                 orcacore_checkpoints,
                 orcacore_events,

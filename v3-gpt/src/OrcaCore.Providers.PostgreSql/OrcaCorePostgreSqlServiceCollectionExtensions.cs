@@ -54,6 +54,8 @@ public static class OrcaCorePostgreSqlServiceCollectionExtensions
             provider.GetRequiredService<PostgreSqlWorkflowStore>()));
         services.Replace(ServiceDescriptor.Singleton<IWorkflowInboxStore>(provider =>
             provider.GetRequiredService<PostgreSqlWorkflowStore>()));
+        services.Replace(ServiceDescriptor.Singleton<IWorkflowStartIdempotencyStore>(provider =>
+            provider.GetRequiredService<PostgreSqlWorkflowStore>()));
         services.Replace(ServiceDescriptor.Singleton<IWorkflowOutboxStore>(provider =>
             provider.GetRequiredService<PostgreSqlWorkflowStore>()));
         services.Replace(ServiceDescriptor.Singleton<IWorkflowProjectionStore>(provider =>

@@ -219,8 +219,28 @@ public sealed class MultiNodePostgreSqlIntegrationTests(OrcaStackFixture fixture
     [Trait("AC", "AC-311")]
     public async Task INT_MN_009_StartOrGetFromTwoHosts_BlockedUntilPgIdempotencyStore()
     {
-        await Task.CompletedTask;
-        Assert.Skip("PostgreSqlWorkflowStore does not implement IWorkflowStartIdempotencyStore yet.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        await using var storeA = await fixture.PostgreSql.CreateStoreAsync();
+        await using var storeB = await fixture.PostgreSql.CreateStoreAsync();
+        var starterA = new DurableStartService(new DurableCommandProcessor(storeA));
+        var starterB = new DurableStartService(new DurableCommandProcessor(storeB));
+
+        var first = starterA.StartOrGetAsync(
+            StartRequest("order-int-mn-009"),
+            TestContext.Current.CancellationToken);
+        var second = starterB.StartOrGetAsync(
+            StartRequest("order-int-mn-009"),
+            TestContext.Current.CancellationToken);
+        var results = await Task.WhenAll(first, second);
+        var instanceId = results.Select(result => result.InstanceId).Distinct().Single();
+        var events = await storeA.LoadTailAsync(
+            new WorkflowStreamId(instanceId),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+
+        results.Should().ContainSingle(result => result.Created);
+        results.Should().OnlyContain(result => result.InstanceId == instanceId);
+        events.OfType<WorkflowStartedEvent>().Should().ContainSingle();
     }
 
     [Fact]
@@ -327,5 +347,15 @@ public sealed class MultiNodePostgreSqlIntegrationTests(OrcaStackFixture fixture
     {
         await Task.CompletedTask;
         Assert.Skip("Durable activation/eviction layer not integrated yet.");
+    }
+
+    private static StartOrGetRequest StartRequest(string key)
+    {
+        return new StartOrGetRequest(
+            key,
+            IntegrationIds.Definition(1),
+            DefinitionVersion.Initial,
+            null,
+            IntegrationIds.Timestamp(1));
     }
 }

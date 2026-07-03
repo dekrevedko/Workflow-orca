@@ -18,6 +18,7 @@ namespace OrcaCore.Providers.PostgreSql;
 public sealed class PostgreSqlWorkflowStore :
     IWorkflowEventStore,
     IWorkflowInboxStore,
+    IWorkflowStartIdempotencyStore,
     IWorkflowOutboxStore,
     IWorkflowProjectionStore,
     ITimerScheduler,
@@ -153,6 +154,8 @@ public sealed class PostgreSqlWorkflowStore :
 
             await ApplyInboxOperationsAsync(connection, transaction, batch.InboxOperations, cancellationToken)
                 .ConfigureAwait(false);
+            await ApplyStartIdempotencyOperationsAsync(connection, transaction, batch.StartIdempotencyOperations, cancellationToken)
+                .ConfigureAwait(false);
             await InsertOutboxRecordsAsync(connection, transaction, batch.StreamId.InstanceId, batch.OutboxRecords, cancellationToken)
                 .ConfigureAwait(false);
             await ApplyProjectionOperationsAsync(connection, transaction, batch.ProjectionOperations, cancellationToken)
@@ -217,6 +220,35 @@ public sealed class PostgreSqlWorkflowStore :
         return state is null
             ? Option<InboxRecordState>.None
             : Option<InboxRecordState>.Some(Enum.Parse<InboxRecordState>((string)state));
+    }
+
+    /// <inheritdoc />
+    public async Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new NpgsqlCommand(
+            """
+            select instance_id, definition_id, definition_version
+            from orcacore_start_idempotency
+            where idempotency_key = @idempotency_key;
+            """,
+            connection);
+        command.Parameters.AddWithValue("idempotency_key", idempotencyKey);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return Option<StartedWorkflowIdempotencyRecord>.None;
+        }
+
+        return Option<StartedWorkflowIdempotencyRecord>.Some(new StartedWorkflowIdempotencyRecord(
+            idempotencyKey,
+            new InstanceId(reader.GetGuid(0)),
+            new DefinitionId(reader.GetGuid(1)),
+            new DefinitionVersion(reader.GetInt32(2))));
     }
 
     /// <inheritdoc />
@@ -946,6 +978,38 @@ public sealed class PostgreSqlWorkflowStore :
             command.Parameters.AddWithValue("event_id", operation.EventId.Value);
             command.Parameters.AddWithValue("state", operation.State.ToString());
             command.Parameters.AddWithValue("applied", InboxRecordState.Applied.ToString());
+
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task ApplyStartIdempotencyOperationsAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        IEnumerable<StartIdempotencyWrite> operations,
+        CancellationToken cancellationToken)
+    {
+        foreach (var operation in operations)
+        {
+            await using var command = new NpgsqlCommand(
+                """
+                insert into orcacore_start_idempotency (
+                    idempotency_key,
+                    instance_id,
+                    definition_id,
+                    definition_version)
+                values (
+                    @idempotency_key,
+                    @instance_id,
+                    @definition_id,
+                    @definition_version);
+                """,
+                connection,
+                transaction);
+            command.Parameters.AddWithValue("idempotency_key", operation.IdempotencyKey);
+            command.Parameters.AddWithValue("instance_id", operation.InstanceId.Value);
+            command.Parameters.AddWithValue("definition_id", operation.DefinitionId.Value);
+            command.Parameters.AddWithValue("definition_version", operation.DefinitionVersion.Value);
 
             await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
