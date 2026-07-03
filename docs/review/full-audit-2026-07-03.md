@@ -108,6 +108,18 @@ should depend on this Seam. The Adapter can be the current channel-backed lane
 plus processor logic. This adds Leverage because all durable callers share one
 ordering point and Locality because correctness fixes land in one place.
 
+Implementation update:
+- 2026-07-03: Introduced `DurableCommandRuntime` as the process-owned durable
+  lane/runtime Module. `DurableCommandProcessor` is now a compatibility adapter
+  over that runtime, and hosting registers one singleton runtime shared by the
+  processor, timer hosted service, and `DurableManagement`.
+- Added focused tests proving two processors over the same runtime reuse one
+  per-instance lane and that management commands can use the injected command
+  processor instead of reconstructing one from stores.
+- Remaining work: route any future in-process child-command/outbox dispatcher
+  through `DurableCommandRuntime`; current child workflow commands are only
+  materialized as outbox records.
+
 ### SQL Server provider cannot persist most durable events
 
 Evidence:

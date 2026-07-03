@@ -143,6 +143,36 @@ public sealed class DurableCommandPipelineTests
         processor.ActiveLaneCount.Should().Be(0);
     }
 
+    [Fact]
+    public async Task Runtime_SharedByProcessors_ReusesOneInstanceLane()
+    {
+        var instanceId = InstanceIdValue(1);
+        var store = new BlockingAppendEventStore
+        {
+            Tail = [Started(instanceId)]
+        };
+        var runtime = new DurableCommandRuntime(store);
+        var firstProcessor = new DurableCommandProcessor(runtime);
+        var secondProcessor = new DurableCommandProcessor(runtime);
+        var first = firstProcessor.ProcessAsync(
+            StepCompletedCommand(instanceId, 2),
+            TestContext.Current.CancellationToken);
+
+        await store.AppendEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var second = secondProcessor.ProcessAsync(
+            StepCompletedCommand(instanceId, 3),
+            TestContext.Current.CancellationToken);
+
+        firstProcessor.ActiveLaneCount.Should().Be(1);
+        secondProcessor.ActiveLaneCount.Should().Be(1);
+
+        store.ReleaseAppend();
+        await Task.WhenAll(first, second).WaitAsync(TestContext.Current.CancellationToken);
+
+        store.MaxConcurrentAppends.Should().Be(1);
+        secondProcessor.ActiveLaneCount.Should().Be(0);
+    }
+
     private static DurableStepCompletedCommand StepCompletedCommand(InstanceId instanceId, int commandValue)
     {
         return new DurableStepCompletedCommand(
@@ -297,6 +327,70 @@ public sealed class DurableCommandPipelineTests
             cancellationToken.ThrowIfCancellationRequested();
             LoadedTailAfterVersion = afterVersion;
             return Task.FromResult(Tail);
+        }
+    }
+
+    private sealed class BlockingAppendEventStore : IWorkflowEventStore
+    {
+        private readonly object gate = new();
+        private readonly TaskCompletionSource releaseAppend = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int activeAppends;
+
+        public TaskCompletionSource AppendEntered { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public IReadOnlyList<WorkflowEvent> Tail { get; init; } = [];
+
+        public int MaxConcurrentAppends { get; private set; }
+
+        public Task<Option<CheckpointWrite>> LoadCheckpointAsync(
+            InstanceId instanceId,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(Option<CheckpointWrite>.None);
+        }
+
+        public async Task<Result<AppendEventsResult>> AppendAsync(
+            ProviderCommitBatch batch,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var active = Interlocked.Increment(ref activeAppends);
+            lock (gate)
+            {
+                MaxConcurrentAppends = Math.Max(MaxConcurrentAppends, active);
+            }
+
+            AppendEntered.TrySetResult();
+            try
+            {
+                if (active == 1)
+                {
+                    await releaseAppend.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+
+                return Result<AppendEventsResult>.Success(
+                    new AppendEventsResult(batch.ExpectedVersion.Next()));
+            }
+            finally
+            {
+                Interlocked.Decrement(ref activeAppends);
+            }
+        }
+
+        public Task<IReadOnlyList<WorkflowEvent>> LoadTailAsync(
+            WorkflowStreamId streamId,
+            StreamVersion afterVersion,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(Tail);
+        }
+
+        public void ReleaseAppend()
+        {
+            releaseAppend.TrySetResult();
         }
     }
 }

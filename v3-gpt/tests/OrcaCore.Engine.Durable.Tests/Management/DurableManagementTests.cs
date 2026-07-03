@@ -201,6 +201,25 @@ public sealed class DurableManagementTests
     }
 
     [Fact]
+    public async Task ManagementCommands_UseInjectedCommandProcessor()
+    {
+        var instanceId = InstanceIdValue(1);
+        var eventStore = new InMemoryWorkflowProvider();
+        var processor = new DurableCommandProcessor(eventStore);
+        var management = new DurableManagement(
+            new ProjectionOnlyStore(),
+            commandProcessor: processor);
+        await processor.ProcessAsync(StartCommand(instanceId), TestContext.Current.CancellationToken);
+
+        var cancelled = await management.CancelAsync(
+            instanceId,
+            Timestamp(2),
+            TestContext.Current.CancellationToken);
+
+        cancelled.Outcome.Should().Be(DurableCommandOutcome.Committed);
+    }
+
+    [Fact]
     public void EphemeralManagement_DoesNotExposePauseResumeRetryHistoryArchivePurge()
     {
         typeof(EphemeralManagement).Assembly.GetTypes()
@@ -409,6 +428,40 @@ public sealed class DurableManagementTests
             CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
+        }
+    }
+
+    private sealed class ProjectionOnlyStore : IWorkflowProjectionStore
+    {
+        public Task ApplyAsync(IReadOnlyList<ProjectionWrite> operations, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<IReadOnlyList<WorkflowInstanceSnapshot>> ListAsync(
+            WorkflowProjectionQuery query,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult<IReadOnlyList<WorkflowInstanceSnapshot>>([]);
+        }
+
+        public Task<int> CountAsync(WorkflowProjectionQuery query, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(0);
+        }
+
+        public Task<IReadOnlyList<ActiveWaitSnapshot>> ListActiveWaitsAsync(
+            WorkflowProjectionQuery query,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult<IReadOnlyList<ActiveWaitSnapshot>>([]);
+        }
+
+        public Task<OrcaCore.Abstractions.Instances.WorkflowStatistics> GetStatisticsAsync(
+            WorkflowProjectionQuery query,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new OrcaCore.Abstractions.Instances.WorkflowStatistics { Groups = [] });
         }
     }
 }

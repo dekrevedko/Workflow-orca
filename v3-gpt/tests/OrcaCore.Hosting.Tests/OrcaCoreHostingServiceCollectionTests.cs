@@ -30,6 +30,7 @@ public sealed class OrcaCoreHostingServiceCollectionTests
 
         using var provider = services.BuildServiceProvider();
         provider.GetRequiredService<EphemeralWorkflowEngine>().Should().NotBeNull();
+        provider.GetRequiredService<DurableCommandRuntime>().Should().NotBeNull();
         provider.GetRequiredService<DurableCommandProcessor>().Should().NotBeNull();
         provider.GetRequiredService<DurableOutboxPump>().Should().NotBeNull();
         provider.GetRequiredService<DurableManagement>().Should().NotBeNull();

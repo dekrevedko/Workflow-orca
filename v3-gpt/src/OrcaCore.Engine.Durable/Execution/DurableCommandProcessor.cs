@@ -8,13 +8,40 @@ using OrcaCore.Engine.Durable.Aggregates;
 
 namespace OrcaCore.Engine.Durable.Execution;
 
-public sealed class DurableCommandProcessor(IWorkflowEventStore eventStore, IResourcePoolStore? resourcePoolStore = null)
+public sealed class DurableCommandProcessor
 {
-    private readonly DurableInstanceCommandLane lanes = new();
-    private readonly IWorkflowInboxStore? inboxStore = eventStore as IWorkflowInboxStore;
-    private readonly IWorkflowStartIdempotencyStore? startIdempotencyStore = eventStore as IWorkflowStartIdempotencyStore;
+    private readonly DurableCommandRuntime runtime;
+    private readonly IWorkflowEventStore eventStore;
+    private readonly IResourcePoolStore? resourcePoolStore;
+    private readonly IWorkflowInboxStore? inboxStore;
+    private readonly IWorkflowStartIdempotencyStore? startIdempotencyStore;
 
-    internal int ActiveLaneCount => lanes.ActiveLaneCount;
+    /// <summary>
+    /// Initializes a command processor with its own durable command runtime.
+    /// </summary>
+    /// <param name="eventStore">The durable event store used for command commits.</param>
+    /// <param name="resourcePoolStore">The optional durable resource-pool store used by resource commands.</param>
+    public DurableCommandProcessor(IWorkflowEventStore eventStore, IResourcePoolStore? resourcePoolStore = null)
+        : this(new DurableCommandRuntime(eventStore, resourcePoolStore))
+    {
+    }
+
+    /// <summary>
+    /// Initializes a command processor that uses a shared durable command runtime.
+    /// </summary>
+    /// <param name="runtime">The shared durable command runtime for the host process.</param>
+    public DurableCommandProcessor(DurableCommandRuntime runtime)
+    {
+        ArgumentNullException.ThrowIfNull(runtime);
+
+        this.runtime = runtime;
+        eventStore = runtime.EventStore;
+        resourcePoolStore = runtime.ResourcePoolStore;
+        inboxStore = eventStore as IWorkflowInboxStore;
+        startIdempotencyStore = eventStore as IWorkflowStartIdempotencyStore;
+    }
+
+    internal int ActiveLaneCount => runtime.ActiveLaneCount;
 
     internal async Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedAsync(
         string idempotencyKey,
@@ -420,7 +447,7 @@ public sealed class DurableCommandProcessor(IWorkflowEventStore eventStore, IRes
         CancellationToken cancellationToken,
         EventId? inboxEventId = null)
     {
-        return await lanes.RunAsync(
+        return await runtime.RunAsync(
             instanceId,
             token => ProcessCoreAsync(instanceId, decide, token, inboxEventId),
             cancellationToken).ConfigureAwait(false);

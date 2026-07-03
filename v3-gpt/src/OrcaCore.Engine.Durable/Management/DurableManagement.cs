@@ -15,7 +15,8 @@ namespace OrcaCore.Engine.Durable.Management;
 public sealed class DurableManagement(
     IWorkflowProjectionStore projectionStore,
     IResourcePoolStore? resourcePoolStore = null,
-    IWorkflowEventStore? eventStore = null)
+    IWorkflowEventStore? eventStore = null,
+    DurableCommandProcessor? commandProcessor = null)
 {
     private readonly IWorkflowEventStore? eventStore = eventStore ?? projectionStore as IWorkflowEventStore;
     private readonly IWorkflowRetentionStore? retentionStore = projectionStore as IWorkflowRetentionStore;
@@ -345,7 +346,7 @@ public sealed class DurableManagement(
 
     private DurableCommandProcessor RequiredCommandProcessor()
     {
-        return new DurableCommandProcessor(RequiredWorkflowEventStore(), resourcePoolStore);
+        return commandProcessor ?? new DurableCommandProcessor(RequiredWorkflowEventStore(), resourcePoolStore);
     }
 
     private IWorkflowRetentionStore RequiredRetentionStore()

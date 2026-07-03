@@ -18,11 +18,12 @@ public sealed class ParentResumeTokenTests
         var parentId = InstanceIdValue(1);
         var store = await SeedRunChildrenAsync(parentId);
         var scheduled = await ScheduledGroupAsync(store, parentId);
+        var runtime = new DurableCommandRuntime(store);
 
         await Task.WhenAll(scheduled.Children.Select(child =>
-            new DurableCommandProcessor(store)
+            new DurableCommandProcessor(runtime)
                 .ProcessAsync(ChildCompleted(parentId, child.ChildInstanceId), TestContext.Current.CancellationToken)));
-        await new DurableCommandProcessor(store)
+        await new DurableCommandProcessor(runtime)
             .ProcessAsync(ChildCompleted(parentId, scheduled.Children.Last().ChildInstanceId), TestContext.Current.CancellationToken);
 
         var tokens = await ResumeTokensAsync(store, parentId);
