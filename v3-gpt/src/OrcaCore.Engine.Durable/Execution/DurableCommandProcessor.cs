@@ -464,24 +464,9 @@ public sealed class DurableCommandProcessor
         EventId? inboxEventId)
     {
         var inboxState = await LoadInboxStateAsync(inboxEventId, cancellationToken).ConfigureAwait(false);
-        if (inboxState.HasValue &&
-            inboxState.Value is
-                InboxRecordState.Applied or
-                InboxRecordState.DuplicateIgnored or
-                InboxRecordState.DiscardedOnResume)
+        if (DurableInboxPreflight.TryCreateResult(inboxState) is { } preflightResult)
         {
-            return new DurableCommandResult(
-                DurableCommandOutcome.NoOp,
-                "Inbound event was already applied.",
-                StreamVersion.Empty);
-        }
-
-        if (inboxState.HasValue && inboxState.Value == InboxRecordState.Poisoned)
-        {
-            return new DurableCommandResult(
-                DurableCommandOutcome.Poisoned,
-                "Inbound event was previously recorded as poisoned.",
-                StreamVersion.Empty);
+            return preflightResult;
         }
 
         var checkpointOption = await eventStore
