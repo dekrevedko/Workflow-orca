@@ -317,6 +317,59 @@ Risk: disposing one store can tear down a host-owned or shared pool.
 Recommendation: split owned-data-source and borrowed-data-source Adapters, or
 track ownership explicitly.
 
+## Large Module And Switch Hotspots
+
+This is the first refactoring lens to apply after the P0/P1 correctness fixes.
+The goal is not to split by file size alone. The goal is to find shallow
+Modules where a caller or test must understand a large switch, many feature
+branches, or a long list of operation modes to use the Module safely.
+
+### `Interpreter<TState>` should be treated as a priority decomposition target
+
+Evidence:
+- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs:13` declares
+  `internal sealed class Interpreter<TState>`.
+- The file is currently about 1,215 lines.
+- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs:82` starts a
+  large node-dispatch switch over `InitNode`, `BusinessStepNode`, `EndNode`,
+  `IfNode`, `WhileNode`, `ParallelNode`, `WhenFirstNode`, `ForEachNode`,
+  child-workflow nodes, `WaitNode`, and `DelayNode`.
+- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs:766` starts
+  step execution, combining timeout, retry, governance, step factory, result
+  handling, stuck-step detection, and failure deferral.
+
+Refactoring direction:
+- Keep `Interpreter<TState>` as the orchestration Module and preserve its
+  external Interface.
+- Extract internal Modules by behavior, not one class per syntax node:
+  `StepExecutor`, `WaitExecutor`, `DelayScheduler`, `ParallelJoinCoordinator`,
+  `WhenFirstCoordinator`, `LoopExecutor`, and `YieldContinuationScheduler`.
+- Each extracted Module should hide ordering, cancellation, and continuation
+  invariants behind a small Interface. The test surface should move to those
+  Interfaces where bugs currently require large integration-style tests.
+
+Acceptance signal for this refactor:
+- The large dispatch switch becomes a shallow routing table.
+- Timeout/retry/governance behavior can be tested through `StepExecutor`
+  without constructing a full interpreter run.
+- Wait/delay/parallel behavior can be tested through their own Modules with
+  fake time and deterministic probes.
+
+### Other switch-heavy or oversized Modules to prioritize
+
+| Module | Current shape | Refactoring direction |
+| --- | --- | --- |
+| `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs` | About 2,603 lines; one aggregate owns waits, timers, child workflows, resource pools, external jobs, saga compensation, projections, and replay. | Keep the aggregate Interface, but move rules into internal state slice Modules: wait state, child workflow state, resource pool state, external job state, saga compensation state. |
+| `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` | About 979 lines; one processor handles command overloads, rehydration, commit, outbox/timer/projection/idempotency materialization, and resource-pool side effects. | Create `DurableCommandRuntime` and `DurableCommitPipeline`; materializers become internal Modules behind small Interfaces. |
+| `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs` | About 1,515 lines; event codec switches at `:1363`, `:1419`, and `:1464`; projection operation switch at `:979`. | Move event mapping into `WorkflowEventCodec`; move projection writes into a projection store Module; keep this Adapter focused on PostgreSQL SQL and transaction shape. |
+| `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs` | About 1,369 lines; event codec switches at `:1194`, `:1207`, and `:1220`; projection operation switch at `:949`; resource pools are in-memory inside the same store. | Share `WorkflowEventCodec`; split durable event store, projection store, timer store, outbox store, and resource pool Adapter responsibilities. |
+
+Avoid replacing these switches with many tiny pass-through classes. A new Module
+only earns its keep when deleting it would push real invariants and branching
+back into several callers. The useful seams here are the ones that create
+Locality for behavior that is currently hard to test without loading the whole
+class.
+
 ## P3 Findings
 
 ### Thin test stubs could use a mocking framework
