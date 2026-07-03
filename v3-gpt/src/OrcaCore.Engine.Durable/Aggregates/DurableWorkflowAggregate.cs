@@ -18,10 +18,7 @@ internal sealed class DurableWorkflowAggregate
     private readonly List<DurableCompletedChild> completedChildren = [];
     private readonly List<ResourcePoolTicket> activeResourceTickets;
     private readonly List<DurableActiveExternalJob> activeExternalJobs;
-    private readonly List<DurableSagaForwardAction> completedSagaForwardActions = [];
-    private readonly List<DurableSagaCompensationAction> sagaCompensationActions = [];
-    private readonly List<DurableSagaRecoveryIntervention> sagaRecoveryInterventions = [];
-    private readonly HashSet<string> requestedSagaCompensationScopes = new(StringComparer.Ordinal);
+    private readonly DurableSagaState sagaState;
     private readonly HashSet<string> compensatedChildGroups = new(StringComparer.Ordinal);
     private readonly HashSet<EventId> recordedParentResumeTokens = [];
     private readonly HashSet<EventId> consumedParentResumeTokens = [];
@@ -76,10 +73,11 @@ internal sealed class DurableWorkflowAggregate
         this.activeChildGroups = [.. activeChildGroups];
         this.activeResourceTickets = [.. activeResourceTickets];
         this.activeExternalJobs = [.. activeExternalJobs];
-        this.completedSagaForwardActions = [.. completedSagaForwardActions];
-        this.sagaCompensationActions = [.. sagaCompensationActions];
-        this.sagaRecoveryInterventions = [.. sagaRecoveryInterventions];
-        this.requestedSagaCompensationScopes = new HashSet<string>(requestedSagaCompensationScopes, StringComparer.Ordinal);
+        sagaState = DurableSagaState.FromSnapshot(
+            completedSagaForwardActions,
+            sagaCompensationActions,
+            sagaRecoveryInterventions,
+            requestedSagaCompensationScopes);
         this.recordedParentResumeTokens = [.. recordedParentResumeTokens];
         this.consumedParentResumeTokens = [.. consumedParentResumeTokens];
     }
@@ -131,10 +129,10 @@ internal sealed class DurableWorkflowAggregate
         [.. activeChildGroups],
         [.. activeResourceTickets],
         [.. activeExternalJobs],
-        [.. completedSagaForwardActions],
-        [.. sagaCompensationActions],
-        [.. sagaRecoveryInterventions],
-        [.. requestedSagaCompensationScopes]);
+        sagaState.CompletedForwardActions,
+        sagaState.CompensationActions,
+        sagaState.RecoveryInterventions,
+        sagaState.RequestedCompensationScopes);
 
     internal static DurableWorkflowAggregate Empty(InstanceId instanceId)
     {
@@ -950,9 +948,7 @@ internal sealed class DurableWorkflowAggregate
         RecordSagaForwardActionCompletedCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal || completedSagaForwardActions.Any(action =>
-                string.Equals(action.ScopeId, command.ScopeId, StringComparison.Ordinal) &&
-                string.Equals(action.ActionKey, command.ActionKey, StringComparison.Ordinal)))
+        if (IsTerminal || sagaState.HasForwardAction(command.ScopeId, command.ActionKey))
         {
             return DurableDecision.Empty;
         }
@@ -977,15 +973,13 @@ internal sealed class DurableWorkflowAggregate
     internal DurableDecision DecideRequestSagaCompensation(RequestSagaCompensationCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal || requestedSagaCompensationScopes.Contains(command.ScopeId))
+        if (IsTerminal || sagaState.HasRequestedCompensation(command.ScopeId))
         {
             return DurableDecision.Empty;
         }
 
-        return new DurableDecision(CreateSagaCompensationPlanEvents(
-            command.CommandId,
-            command.InstanceId,
-            command.RequestedAt,
+        return new DurableDecision(sagaState.PlanCompensation(
+            CreateSagaEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
             command.ScopeId,
             command.Reason));
     }
@@ -1015,64 +1009,15 @@ internal sealed class DurableWorkflowAggregate
             }
         };
 
-        if (command.CompensateScope && !requestedSagaCompensationScopes.Contains(command.ScopeId))
+        if (command.CompensateScope && !sagaState.HasRequestedCompensation(command.ScopeId))
         {
-            events.AddRange(CreateSagaCompensationPlanEvents(
-                command.CommandId,
-                command.InstanceId,
-                command.RequestedAt,
+            events.AddRange(sagaState.PlanCompensation(
+                CreateSagaEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
                 command.ScopeId,
                 "timeout"));
         }
 
         return new DurableDecision(events);
-    }
-
-    private IReadOnlyList<WorkflowEvent> CreateSagaCompensationPlanEvents(
-        CommandId commandId,
-        InstanceId instanceId,
-        DateTimeOffset requestedAt,
-        string scopeId,
-        string? reason)
-    {
-        var events = new List<WorkflowEvent>
-        {
-            new SagaCompensationRequestedEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = instanceId,
-                CommandId = commandId,
-                CausationId = ToCausationId(commandId),
-                OccurredAt = requestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                ScopeId = scopeId,
-                Reason = reason
-            }
-        };
-        var eligibleActions = completedSagaForwardActions
-            .Where(action => string.Equals(action.ScopeId, scopeId, StringComparison.Ordinal))
-            .Where(action => !string.IsNullOrWhiteSpace(action.CompensationKey))
-            .Reverse()
-            .ToArray();
-        for (var index = 0; index < eligibleActions.Length; index++)
-        {
-            events.Add(new SagaCompensationStartedEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = instanceId,
-                CommandId = commandId,
-                CausationId = ToCausationId(commandId),
-                OccurredAt = requestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                ScopeId = scopeId,
-                ActionKey = eligibleActions[index].CompensationKey,
-                Order = index
-            });
-        }
-
-        return events;
     }
 
     internal DurableDecision DecideCompleteSagaCompensation(CompleteSagaCompensationCommand command)
@@ -1099,7 +1044,7 @@ internal sealed class DurableWorkflowAggregate
             }
         };
 
-        if (AllSagaCompensationsCompleteAfter(command.ScopeId, command.ActionKey))
+        if (sagaState.AllCompensationsCompleteAfter(command.ScopeId, command.ActionKey))
         {
             events.Add(new WorkflowTerminalEvent
             {
@@ -1542,10 +1487,10 @@ internal sealed class DurableWorkflowAggregate
             activeChildGroups,
             activeResourceTickets,
             activeExternalJobs,
-            completedSagaForwardActions,
-            sagaCompensationActions,
-            sagaRecoveryInterventions,
-            requestedSagaCompensationScopes,
+            sagaState.CompletedForwardActions,
+            sagaState.CompensationActions,
+            sagaState.RecoveryInterventions,
+            sagaState.RequestedCompensationScopes,
             recordedParentResumeTokens,
             consumedParentResumeTokens);
 
@@ -1807,62 +1752,14 @@ internal sealed class DurableWorkflowAggregate
                 break;
             case WorkflowExternalJobStopRequestedEvent:
                 break;
-            case SagaForwardActionCompletedEvent sagaForwardActionCompleted:
-                completedSagaForwardActions.RemoveAll(action =>
-                    string.Equals(action.ScopeId, sagaForwardActionCompleted.ScopeId, StringComparison.Ordinal) &&
-                    string.Equals(action.ActionKey, sagaForwardActionCompleted.ActionKey, StringComparison.Ordinal));
-                completedSagaForwardActions.Add(new DurableSagaForwardAction(
-                    sagaForwardActionCompleted.ScopeId,
-                    sagaForwardActionCompleted.ActionKey,
-                    sagaForwardActionCompleted.CompensationKey,
-                    sagaForwardActionCompleted.OccurredAt));
-                break;
+            case SagaForwardActionCompletedEvent:
             case SagaForwardActionTimedOutEvent:
-                break;
-            case SagaCompensationRequestedEvent sagaCompensationRequested:
-                requestedSagaCompensationScopes.Add(sagaCompensationRequested.ScopeId);
-                break;
-            case SagaCompensationStartedEvent sagaCompensationStarted:
-                sagaCompensationActions.RemoveAll(action =>
-                    string.Equals(action.ScopeId, sagaCompensationStarted.ScopeId, StringComparison.Ordinal) &&
-                    string.Equals(action.ActionKey, sagaCompensationStarted.ActionKey, StringComparison.Ordinal));
-                sagaCompensationActions.Add(new DurableSagaCompensationAction(
-                    sagaCompensationStarted.ScopeId,
-                    sagaCompensationStarted.ActionKey,
-                    sagaCompensationStarted.Order,
-                    sagaCompensationStarted.OccurredAt,
-                    null,
-                    null,
-                    null,
-                    SagaCompensationActionStatus.Started));
-                break;
-            case SagaCompensationCompletedEvent sagaCompensationCompleted:
-                UpdateSagaCompensationAction(
-                    sagaCompensationCompleted.ScopeId,
-                    sagaCompensationCompleted.ActionKey,
-                    sagaCompensationCompleted.OccurredAt,
-                    null,
-                    null,
-                    SagaCompensationActionStatus.Completed);
-                break;
-            case SagaCompensationFailedEvent sagaCompensationFailed:
-                UpdateSagaCompensationAction(
-                    sagaCompensationFailed.ScopeId,
-                    sagaCompensationFailed.ActionKey,
-                    null,
-                    sagaCompensationFailed.OccurredAt,
-                    sagaCompensationFailed.ErrorSummary,
-                    SagaCompensationActionStatus.Failed);
-                break;
-            case SagaManualRecoveryRecordedEvent sagaManualRecoveryRecorded:
-                sagaRecoveryInterventions.Add(new DurableSagaRecoveryIntervention(
-                    sagaManualRecoveryRecorded.ScopeId,
-                    sagaManualRecoveryRecorded.ActionKey,
-                    sagaManualRecoveryRecorded.OperatorId,
-                    sagaManualRecoveryRecorded.RecoveryAction,
-                    sagaManualRecoveryRecorded.Reason,
-                    sagaManualRecoveryRecorded.OccurredAt,
-                    sagaManualRecoveryRecorded.TargetStatus));
+            case SagaCompensationRequestedEvent:
+            case SagaCompensationStartedEvent:
+            case SagaCompensationCompletedEvent:
+            case SagaCompensationFailedEvent:
+            case SagaManualRecoveryRecordedEvent:
+                sagaState.Apply(workflowEvent, UpdatedAt);
                 break;
             case WorkflowTimerBufferedEvent timerBuffered:
                 activeTimers.RemoveAll(timer => timer.TimerId == timerBuffered.TimerId);
@@ -1923,6 +1820,19 @@ internal sealed class DurableWorkflowAggregate
     private static CausationId ToCausationId(CommandId commandId)
     {
         return new CausationId(commandId.Value);
+    }
+
+    private DurableSagaEventContext CreateSagaEventContext(
+        CommandId commandId,
+        InstanceId instanceId,
+        DateTimeOffset requestedAt)
+    {
+        return new DurableSagaEventContext(
+            commandId,
+            instanceId,
+            requestedAt,
+            ParentInstanceId,
+            RootInstanceId ?? InstanceId);
     }
 
     private IReadOnlyList<WorkflowResourcePoolReleasedEvent> ReleaseEvents(
@@ -2099,57 +2009,6 @@ internal sealed class DurableWorkflowAggregate
         return new InstanceId(new Guid(hash[..16]));
     }
 
-    private void UpdateSagaCompensationAction(
-        string scopeId,
-        string actionKey,
-        DateTimeOffset? completedAt,
-        DateTimeOffset? failedAt,
-        string? errorSummary,
-        SagaCompensationActionStatus status)
-    {
-        var existing = sagaCompensationActions.FirstOrDefault(action =>
-            string.Equals(action.ScopeId, scopeId, StringComparison.Ordinal) &&
-            string.Equals(action.ActionKey, actionKey, StringComparison.Ordinal));
-        if (existing is null)
-        {
-            sagaCompensationActions.Add(new DurableSagaCompensationAction(
-                scopeId,
-                actionKey,
-                0,
-                completedAt ?? failedAt ?? UpdatedAt ?? DateTimeOffset.MinValue,
-                completedAt,
-                failedAt,
-                errorSummary,
-                status));
-            return;
-        }
-
-        sagaCompensationActions.Remove(existing);
-        sagaCompensationActions.Add(existing with
-        {
-            CompletedAt = completedAt ?? existing.CompletedAt,
-            FailedAt = failedAt ?? existing.FailedAt,
-            ErrorSummary = errorSummary ?? existing.ErrorSummary,
-            Status = status
-        });
-    }
-
-    private bool AllSagaCompensationsCompleteAfter(string scopeId, string completedActionKey)
-    {
-        var actions = sagaCompensationActions
-            .Where(action => string.Equals(action.ScopeId, scopeId, StringComparison.Ordinal))
-            .ToArray();
-        if (actions.Length == 0)
-        {
-            return false;
-        }
-
-        var completedCount = actions.Count(action =>
-            action.Status == SagaCompensationActionStatus.Completed ||
-            string.Equals(action.ActionKey, completedActionKey, StringComparison.Ordinal));
-        return completedCount == actions.Length;
-    }
-
     private WorkflowInstanceSnapshot? ToInstanceSnapshot()
     {
         if (DefinitionId is not { } definitionId ||
@@ -2186,67 +2045,8 @@ internal sealed class DurableWorkflowAggregate
                     Mode = wait.Mode.ToString()
                 })
                 .ToArray(),
-            SagaAudits = CreateSagaAuditScopes()
+            SagaAudits = sagaState.CreateAuditScopes(Status)
         };
-    }
-
-    private IReadOnlyList<SagaAuditScopeSnapshot> CreateSagaAuditScopes()
-    {
-        var scopeIds = completedSagaForwardActions.Select(action => action.ScopeId)
-            .Concat(sagaCompensationActions.Select(action => action.ScopeId))
-            .Concat(sagaRecoveryInterventions.Select(intervention => intervention.ScopeId))
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(scopeId => scopeId, StringComparer.Ordinal)
-            .ToArray();
-
-        return scopeIds.Select(scopeId => new SagaAuditScopeSnapshot
-        {
-            ScopeId = scopeId,
-            Outcome = Status is WorkflowStatus.Compensated or WorkflowStatus.CompensationFailed ? Status : null,
-            ForwardActions = completedSagaForwardActions
-                .Where(action => string.Equals(action.ScopeId, scopeId, StringComparison.Ordinal))
-                .OrderBy(action => action.CompletedAt)
-                .ThenBy(action => action.ActionKey, StringComparer.Ordinal)
-                .Select(action => new SagaForwardActionSnapshot
-                {
-                    ScopeId = action.ScopeId,
-                    ActionKey = action.ActionKey,
-                    CompensationKey = action.CompensationKey,
-                    CompletedAt = action.CompletedAt
-                })
-                .ToArray(),
-            CompensationActions = sagaCompensationActions
-                .Where(action => string.Equals(action.ScopeId, scopeId, StringComparison.Ordinal))
-                .OrderBy(action => action.Order)
-                .ThenBy(action => action.ActionKey, StringComparer.Ordinal)
-                .Select(action => new SagaCompensationActionSnapshot
-                {
-                    ScopeId = action.ScopeId,
-                    ActionKey = action.ActionKey,
-                    Order = action.Order,
-                    StartedAt = action.StartedAt,
-                    CompletedAt = action.CompletedAt,
-                    FailedAt = action.FailedAt,
-                    ErrorSummary = action.ErrorSummary,
-                    Status = action.Status
-                })
-                .ToArray(),
-            RecoveryInterventions = sagaRecoveryInterventions
-                .Where(intervention => string.Equals(intervention.ScopeId, scopeId, StringComparison.Ordinal))
-                .OrderBy(intervention => intervention.RecordedAt)
-                .ThenBy(intervention => intervention.ActionKey, StringComparer.Ordinal)
-                .Select(intervention => new SagaRecoveryInterventionSnapshot
-                {
-                    ScopeId = intervention.ScopeId,
-                    ActionKey = intervention.ActionKey,
-                    OperatorId = intervention.OperatorId,
-                    RecoveryAction = intervention.RecoveryAction,
-                    Reason = intervention.Reason,
-                    RecordedAt = intervention.RecordedAt,
-                    TargetStatus = intervention.TargetStatus
-                })
-                .ToArray()
-        }).ToArray();
     }
 
     private DurableActiveWait? FindActiveWait(EventEnvelope envelope)
