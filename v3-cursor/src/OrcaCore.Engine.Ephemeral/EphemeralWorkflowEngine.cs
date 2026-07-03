@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using OrcaCore.Abstractions.Errors;
+using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Definitions;
@@ -69,6 +70,55 @@ public sealed class EphemeralWorkflowEngine
                 var instance = await interpreter.RunAsync(definition, input, instanceId, ct).ConfigureAwait(false);
                 registry.Save(instanceId, instance);
                 return instance.ToSnapshot();
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Instance-targeted event delivery (EV-010 item 1): delivers <paramref name="event"/>
+    /// directly to <paramref name="instanceId"/>. Routes through the per-instance execution
+    /// lane (CR-040) so a matching event resumes its instance exactly once even under
+    /// concurrent delivery (EV-023). A non-matching event returns
+    /// <see cref="RaiseEventResult.NoMatch"/> rather than throwing (EV-020); correlation-targeted
+    /// and definition-targeted fanout routing arrive in T1-10.
+    /// </summary>
+    public async Task<RaiseEventResult> RaiseEventAsync<TState>(
+        InstanceId instanceId,
+        EventEnvelope @event,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(@event);
+
+        return await executionLane.RunAsync(
+            instanceId,
+            async ct =>
+            {
+                if (!registry.TryGet(instanceId, out var stored) ||
+                    stored is not WorkflowInstance<TState> instance)
+                {
+                    throw new WorkflowRoutingException(
+                        $"No active instance '{instanceId}' found for business state type '{typeof(TState).Name}'.");
+                }
+
+                if (instance.Status != WorkflowStatus.Waiting ||
+                    instance.ActiveWait is not { Status: WaitStatus.Active } wait ||
+                    !string.Equals(wait.EventName, @event.EventName, StringComparison.Ordinal) ||
+                    !wait.CorrelationId.Equals(@event.CorrelationId))
+                {
+                    return (RaiseEventResult)new RaiseEventResult.NoMatch();
+                }
+
+                if (!definitions.TryGetValue(instance.DefinitionId, out var registered) ||
+                    registered is not WorkflowDefinition<TState> definition)
+                {
+                    throw new WorkflowDefinitionException(
+                        $"No definition registered for '{instance.DefinitionId}' with business state type '{typeof(TState).Name}'.");
+                }
+
+                var interpreter = new Interpreter<TState>(timeProvider);
+                var resumed = await interpreter.ResumeAsync(definition, instance, @event, ct).ConfigureAwait(false);
+                registry.Save(instanceId, resumed);
+                return new RaiseEventResult.Resumed(resumed.ToSnapshot());
             },
             cancellationToken).ConfigureAwait(false);
     }

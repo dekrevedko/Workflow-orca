@@ -31,15 +31,42 @@ public sealed class WorkflowInstanceSnapshotTests
 
         foreach (var property in snapshotType.GetProperties())
         {
-            var propertyType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
-
-            if (propertyType == typeof(string))
-            {
-                continue;
-            }
-
-            propertyType.IsValueType.Should().BeTrue(
-                because: $"property {property.Name} must be metadata-only (value type or string)");
+            IsMetadataOnly(property.PropertyType).Should().BeTrue(
+                because: $"property {property.Name} must be metadata-only (value type, string, or an immutable " +
+                    "collection/record composed entirely of metadata-only members)");
         }
+    }
+
+    /// <summary>
+    /// A type is metadata-only when it is a value type, a string, a read-only collection of a
+    /// metadata-only element type (e.g. <see cref="ActiveWaitSnapshot"/> lists), or a sealed
+    /// record whose own public properties are all metadata-only. This keeps snapshot types
+    /// free of live runtime references (CR-021) without forcing every nested field into a
+    /// value type.
+    /// </summary>
+    private static bool IsMetadataOnly(Type type)
+    {
+        var underlying = Nullable.GetUnderlyingType(type) ?? type;
+
+        if (underlying == typeof(string) || underlying.IsValueType)
+        {
+            return true;
+        }
+
+        if (underlying.IsGenericType)
+        {
+            var elementType = underlying.GetGenericArguments() is [var single] ? single : null;
+            var isReadOnlyCollection = underlying.GetInterfaces().Concat([underlying])
+                .Any(candidate => candidate.IsGenericType &&
+                    candidate.GetGenericTypeDefinition() == typeof(IReadOnlyList<>));
+
+            if (isReadOnlyCollection && elementType is not null)
+            {
+                return IsMetadataOnly(elementType);
+            }
+        }
+
+        return underlying.IsSealed &&
+            underlying.GetProperties().All(nested => IsMetadataOnly(nested.PropertyType));
     }
 }

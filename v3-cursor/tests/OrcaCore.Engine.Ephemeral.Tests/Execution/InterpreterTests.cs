@@ -133,15 +133,11 @@ public sealed class InterpreterTests
         instance.EndOutcomeName.Should().Be("Approved");
     }
 
-    [Theory]
-    [InlineData(true, "T1-08")]
-    [InlineData(false, "T1-15")]
-    public async Task Run_UnsupportedResult_ThrowsNamingOwnerTask(bool isWaitForEvent, string expectedOwnerTaskId)
+    [Fact]
+    public async Task Run_YieldResult_ThrowsNamingOwnerTask()
     {
         var clock = new Clock(DateTimeOffset.UnixEpoch);
-        StepResult unsupported = isWaitForEvent
-            ? new StepResult.WaitForEvent("ApprovalReceived", new CorrelationId("order-1"))
-            : new StepResult.Yield();
+        StepResult unsupported = new StepResult.Yield();
 
         var definition = WorkflowBuilder<OrderState>.Create<int>(input => new OrderState { Total = input })
             .Then(new UnsupportedResultStep(unsupported))
@@ -151,6 +147,6 @@ public sealed class InterpreterTests
         var act = () => CreateInterpreter(clock).RunAsync(definition, 10, InstanceId.New(), CancellationToken.None).AsTask();
 
         var exception = await act.Should().ThrowAsync<NotSupportedException>();
-        exception.Which.Message.Should().Contain(expectedOwnerTaskId);
+        exception.Which.Message.Should().Contain("T1-15");
     }
 }

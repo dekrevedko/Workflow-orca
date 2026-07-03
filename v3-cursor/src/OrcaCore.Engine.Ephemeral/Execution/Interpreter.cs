@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using OrcaCore.Abstractions.Errors;
+using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Steps;
@@ -9,11 +10,12 @@ using OrcaCore.Core.Lifecycle;
 namespace OrcaCore.Engine.Ephemeral.Execution;
 
 /// <summary>
-/// Ephemeral interpreter (T1-05/T1-07): walks <c>Init → business steps → If/While → End</c>,
-/// owning every orchestration decision (CR-010). Steps are passive: they execute and return
-/// <see cref="StepResult"/>; the interpreter alone advances position and lifecycle status.
-/// Position is tracked as a stack of <see cref="Frame"/>s (CR-015). Waits, Yield, and
-/// <see cref="ParallelNode"/> are out of scope and surface as <see cref="NotSupportedException"/>.
+/// Ephemeral interpreter (T1-05/T1-07/T1-08): walks <c>Init → business steps → If/While →
+/// Wait → End</c>, owning every orchestration decision (CR-010). Steps are passive: they
+/// execute and return <see cref="StepResult"/>; the interpreter alone advances position and
+/// lifecycle status. Position is tracked as a stack of <see cref="Frame"/>s (CR-015).
+/// <see cref="ParallelNode"/> and <see cref="StepResult.Yield"/> are out of scope and surface
+/// as <see cref="NotSupportedException"/>.
 /// </summary>
 /// <typeparam name="TState">Workflow-owned business state type.</typeparam>
 internal sealed class Interpreter<TState>
@@ -30,16 +32,65 @@ internal sealed class Interpreter<TState>
     /// Runs <paramref name="definition"/> to its first suspension or terminal outcome, inline
     /// (CR-016).
     /// </summary>
-    internal async ValueTask<WorkflowInstance<TState>> RunAsync<TInput>(
+    internal ValueTask<WorkflowInstance<TState>> RunAsync<TInput>(
         WorkflowDefinition<TState> definition,
         TInput input,
         InstanceId instanceId,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definition);
-
-        WorkflowInstance<TState>? instance = null;
         var pointer = ExecutionPointer.Empty.Push(Frame.AtSequenceIndex(0));
+        return ExecuteAsync(definition, instance: null, pointer, resumedEvent: null, input, instanceId, cancellationToken);
+    }
+
+    /// <summary>
+    /// Resumes <paramref name="instance"/> after its active wait has already been confirmed to
+    /// match <paramref name="matchedEvent"/> (EV-020). Transitions <c>Waiting → Running</c> via
+    /// <c>LifecycleMachine.MatchWait</c> (EV-023), advances past the matched wait's position,
+    /// and continues execution with the matched envelope available to the next step only
+    /// (EV-022).
+    /// </summary>
+    internal async ValueTask<WorkflowInstance<TState>> ResumeAsync(
+        WorkflowDefinition<TState> definition,
+        WorkflowInstance<TState> instance,
+        EventEnvelope matchedEvent,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(instance);
+        ArgumentNullException.ThrowIfNull(matchedEvent);
+
+        var now = timeProvider.GetUtcNow();
+        var transition = LifecycleMachine.Fire(instance.Status, LifecycleTrigger.MatchWait);
+        if (transition.IsFailure)
+        {
+            throw transition.Error;
+        }
+
+        instance.ClearActiveWait();
+        instance.Advance(instance.Pointer, transition.Value, now);
+        AdvanceSequenceIndex(instance);
+
+        return await ExecuteAsync(
+            definition,
+            instance,
+            instance.Pointer,
+            matchedEvent,
+            input: default(object),
+            instance.InstanceId,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask<WorkflowInstance<TState>> ExecuteAsync<TInput>(
+        WorkflowDefinition<TState> definition,
+        WorkflowInstance<TState>? instance,
+        ExecutionPointer pointer,
+        EventEnvelope? resumedEvent,
+        TInput input,
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
+    {
+        var pendingResumedEvent = resumedEvent;
 
         while (true)
         {
@@ -81,7 +132,8 @@ internal sealed class Interpreter<TState>
 
                 case BusinessStepNode<TState> stepNode:
                     var running = RequireStarted(instance, path);
-                    await ExecuteStepAsync(running, stepNode, path, index, cancellationToken).ConfigureAwait(false);
+                    await ExecuteStepAsync(running, stepNode, path, index, pendingResumedEvent, cancellationToken).ConfigureAwait(false);
+                    pendingResumedEvent = null;
                     pointer = running.Pointer;
                     if (running.Status != WorkflowStatus.Running)
                     {
@@ -117,10 +169,20 @@ internal sealed class Interpreter<TState>
                     pointer = whileInstance.Pointer;
                     break;
 
+                case WaitNode waitNode:
+                    var waitInstance = RequireStarted(instance, path);
+                    if (!TryEnterWaitNode(waitInstance, waitNode, path, index))
+                    {
+                        return waitInstance;
+                    }
+
+                    pointer = waitInstance.Pointer;
+                    break;
+
                 default:
                     throw new NotSupportedException(
                         $"Definition node '{sequence.Steps[index].GetType().Name}' at '{path}' is out of scope for the " +
-                        "ephemeral interpreter; Parallel arrives in T1-12, Wait in T1-08.");
+                        "ephemeral interpreter; Parallel arrives in T1-12.");
             }
         }
     }
@@ -144,10 +206,11 @@ internal sealed class Interpreter<TState>
         BusinessStepNode<TState> stepNode,
         string path,
         int index,
+        EventEnvelope? resumedEvent,
         CancellationToken cancellationToken)
     {
         var step = stepNode.CreateStep();
-        var context = new StepContext<TState>(instance.State, timeProvider);
+        var context = new StepContext<TState>(instance.State, timeProvider, resumedEvent);
 
         StepResult result;
         try
@@ -174,10 +237,9 @@ internal sealed class Interpreter<TState>
                 Fail(instance, failed.Error, path, index);
                 return;
 
-            case StepResult.WaitForEvent:
-                throw new NotSupportedException(
-                    $"StepResult.WaitForEvent at '{path}' is not supported yet; owned by T1-08 " +
-                    "(resident waits and instance-targeted matching).");
+            case StepResult.WaitForEvent waitForEvent:
+                EnterWait(instance, waitForEvent.EventName, waitForEvent.CorrelationId);
+                return;
 
             case StepResult.Yield:
                 throw new NotSupportedException(
@@ -240,6 +302,42 @@ internal sealed class Interpreter<TState>
         }
 
         return true;
+    }
+
+    private bool TryEnterWaitNode(WorkflowInstance<TState> instance, WaitNode waitNode, string path, int index)
+    {
+        CorrelationId correlationId;
+        try
+        {
+            correlationId = waitNode.SelectCorrelationId(instance.State);
+        }
+        catch (Exception exception)
+        {
+            Fail(instance, exception, path, index);
+            return false;
+        }
+
+        EnterWait(instance, waitNode.EventName, correlationId);
+        return true;
+    }
+
+    /// <summary>
+    /// Registers a resident wait record and transitions <c>Running → Waiting</c> via
+    /// <c>LifecycleMachine.EnterWait</c> (EV-040). The pointer is left unchanged so a matching
+    /// resume advances to the very next position (EV-022).
+    /// </summary>
+    private void EnterWait(WorkflowInstance<TState> instance, string eventName, CorrelationId correlationId)
+    {
+        var now = timeProvider.GetUtcNow();
+        var transition = LifecycleMachine.Fire(instance.Status, LifecycleTrigger.EnterWait);
+        if (transition.IsFailure)
+        {
+            throw transition.Error;
+        }
+
+        var wait = new WaitRecord(WaitId.New(), eventName, correlationId, now, BranchId: null, WaitMode.Resident, WaitStatus.Active);
+        instance.RegisterWait(wait);
+        instance.Advance(instance.Pointer, transition.Value, now);
     }
 
     private bool TryPopToParent(WorkflowInstance<TState> instance)

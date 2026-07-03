@@ -14,6 +14,10 @@ namespace OrcaCore.Abstractions.Instances;
 /// <param name="UpdatedAt">UTC timestamp of the last metadata change.</param>
 /// <param name="ErrorSummary">Optional human-readable failure summary when status is failed.</param>
 /// <param name="EndOutcomeName">Optional terminal outcome name when the workflow completed.</param>
+/// <param name="ActiveWaits">
+/// Currently active wait records (EV-021), empty unless <paramref name="Status"/> is
+/// <see cref="WorkflowStatus.Waiting"/>.
+/// </param>
 public sealed record WorkflowInstanceSnapshot(
     InstanceId InstanceId,
     DefinitionId DefinitionId,
@@ -22,4 +26,5 @@ public sealed record WorkflowInstanceSnapshot(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     string? ErrorSummary,
-    string? EndOutcomeName);
+    string? EndOutcomeName,
+    IReadOnlyList<ActiveWaitSnapshot> ActiveWaits);
