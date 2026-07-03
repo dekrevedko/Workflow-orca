@@ -455,6 +455,17 @@ Acceptance signal for this refactor:
 - Wait/delay/parallel behavior can be tested through their own Modules with
   fake time and deterministic probes.
 
+Implementation update:
+- 2026-07-03: extracted `StepExecutor<TState>` and `StepExecutionResult` from
+  `Interpreter<TState>`. Step execution now owns timeout cancellation, retry
+  attempts, resource-governance leases, stuck-step detection, resumed event
+  delivery, lifecycle event recording, and step-result mapping behind one
+  internal Module. `Interpreter<TState>` still owns recursive node orchestration
+  and consumes the step outcome.
+- Remaining interpreter decomposition targets are wait registration, delay
+  scheduling, parallel/when-first join coordination, loop execution, and yield
+  continuation scheduling.
+
 ### Other switch-heavy or oversized Modules to prioritize
 
 | Module | Current shape | Refactoring direction |

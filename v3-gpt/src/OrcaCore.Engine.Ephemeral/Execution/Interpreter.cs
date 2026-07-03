@@ -2,7 +2,6 @@ using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Core.Lifecycle;
 using OrcaCore.Engine.Ephemeral.Governance;
@@ -12,10 +11,9 @@ namespace OrcaCore.Engine.Ephemeral.Execution;
 
 internal sealed class Interpreter<TState>
 {
-    private readonly TimeSpan? stuckStepThreshold;
-    private readonly ResourceGovernanceCoordinator governance;
     private readonly EphemeralTimerService timerService;
     private readonly TimeProvider timeProvider;
+    private readonly StepExecutor<TState> stepExecutor;
 
     internal Interpreter(
         TimeProvider timeProvider,
@@ -29,8 +27,7 @@ internal sealed class Interpreter<TState>
 
         this.timeProvider = timeProvider;
         this.timerService = timerService;
-        this.governance = governance;
-        this.stuckStepThreshold = stuckStepThreshold;
+        stepExecutor = new StepExecutor<TState>(timeProvider, governance, stuckStepThreshold);
     }
 
     internal async Task<WorkflowInstance<TState>> RunAsync<TInput>(
@@ -93,11 +90,11 @@ internal sealed class Interpreter<TState>
                     break;
                 case BusinessStepNode<TState> stepNode:
                     EnsureInitialized(runState.Initialized, runState.Instance);
-                    var stepResult = await ExecuteStepAsync(
+                    var stepResult = await stepExecutor.ExecuteAsync(
                         runState.Instance!,
                         stepNode,
                         node.NodeId,
-                        resumeEvent,
+                        resumeEvent.Take(),
                         cancellationToken,
                         deferStepFailures).ConfigureAwait(false);
                     if (stepResult.Status == StepExecutionStatus.Failed)
@@ -763,134 +760,6 @@ internal sealed class Interpreter<TState>
         }
     }
 
-    private async Task<StepExecutionResult> ExecuteStepAsync(
-        WorkflowInstance<TState> instance,
-        BusinessStepNode<TState> stepNode,
-        string stepPath,
-        ResumeEventSlot resumeEvent,
-        CancellationToken cancellationToken,
-        bool deferFailures)
-    {
-        var timedOut = false;
-        using var timeoutCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        using var timeoutTimer = stepNode.Policies.Timeout is { } timeout
-            ? timeProvider.CreateTimer(
-                _ =>
-                {
-                    timedOut = true;
-                    timeoutCancellation.Cancel();
-                },
-                null,
-                timeout.Duration,
-                Timeout.InfiniteTimeSpan)
-            : null;
-        var executionToken = timeoutTimer is null
-            ? cancellationToken
-            : timeoutCancellation.Token;
-        await using var governanceLease = await governance
-            .EnterStepAsync(stepNode.Policies.PoolKey, executionToken)
-            .ConfigureAwait(false);
-        var maxAttempts = stepNode.Policies.Retry?.MaxAttempts ?? 1;
-        var step = stepNode.StepFactory();
-        var resumedEvent = resumeEvent.Take();
-
-        for (var attempt = 1; attempt <= maxAttempts; attempt++)
-        {
-            var stepStartedAt = timeProvider.GetUtcNow();
-            instance.StartStep(stepPath, stepStartedAt, stepNode.Policies.Timeout?.Duration);
-            try
-            {
-                var context = new StepContext<TState>(instance.State, resumedEvent, timeProvider);
-                var result = await step.ExecuteAsync(context, executionToken).ConfigureAwait(false);
-                instance.CompleteStep(stepPath, timeProvider.GetUtcNow());
-                RecordStuckStepIfNeeded(instance, stepPath, stepStartedAt);
-                if (result is StepResult.Failed && attempt < maxAttempts)
-                {
-                    continue;
-                }
-
-                return ApplyResult(instance, result, stepPath, deferFailures);
-            }
-            catch (OperationCanceledException) when (timedOut && !cancellationToken.IsCancellationRequested)
-            {
-                instance.CompleteStep(stepPath, timeProvider.GetUtcNow());
-                var timeoutException = new TimeoutException(
-                    $"Step '{stepPath}' timed out after {stepNode.Policies.Timeout!.Duration}.");
-                if (deferFailures)
-                {
-                    return StepExecutionResult.Failed(timeoutException);
-                }
-
-                Fail(instance, timeoutException, stepPath);
-                return StepExecutionResult.Stop();
-            }
-            catch (Exception exception) when (exception is not OperationCanceledException and not NotSupportedException)
-            {
-                instance.CompleteStep(stepPath, timeProvider.GetUtcNow());
-                RecordStuckStepIfNeeded(instance, stepPath, stepStartedAt);
-                if (attempt < maxAttempts)
-                {
-                    continue;
-                }
-
-                if (deferFailures)
-                {
-                    return StepExecutionResult.Failed(exception);
-                }
-
-                Fail(instance, exception, stepPath);
-                return StepExecutionResult.Stop();
-            }
-        }
-
-        return StepExecutionResult.Stop();
-    }
-
-    private void RecordStuckStepIfNeeded(
-        WorkflowInstance<TState> instance,
-        string stepPath,
-        DateTimeOffset stepStartedAt)
-    {
-        if (stuckStepThreshold is not { } threshold)
-        {
-            return;
-        }
-
-        var now = timeProvider.GetUtcNow();
-        if (now - stepStartedAt > threshold)
-        {
-            instance.MarkStuckStep(stepPath, now);
-        }
-    }
-
-    private StepExecutionResult ApplyResult(
-        WorkflowInstance<TState> instance,
-        StepResult result,
-        string stepPath,
-        bool deferFailures)
-    {
-        switch (result)
-        {
-            case StepResult.Completed:
-                instance.RecordLifecycleEvent("StepCompleted", stepPath, WorkflowStatus.Running, timeProvider.GetUtcNow());
-                return StepExecutionResult.Continue();
-            case StepResult.Failed failed:
-                if (deferFailures)
-                {
-                    return StepExecutionResult.Failed(failed.Error);
-                }
-
-                Fail(instance, failed.Error, stepPath);
-                return StepExecutionResult.Stop();
-            case StepResult.WaitForEvent wait:
-                return StepExecutionResult.Wait(wait.EventName, wait.CorrelationId);
-            case StepResult.Yield:
-                return StepExecutionResult.Yield();
-            default:
-                throw new NotSupportedException($"Step result '{result.GetType().Name}' is not supported.");
-        }
-    }
-
     private void Fail(WorkflowInstance<TState> instance, Exception exception, string stepPath)
     {
         var occurredAt = timeProvider.GetUtcNow();
@@ -1169,47 +1038,6 @@ internal sealed class Interpreter<TState>
                 instance.RecordCompositionBranchOutcome(node.NodeId, residualBranch.BranchId, status, recordedAt);
                 instance.ResolveBranchRuntimeWork(residualBranch.BranchId);
             }
-        }
-    }
-
-    private enum StepExecutionStatus
-    {
-        Continue,
-        Stop,
-        Wait,
-        Yield,
-        Failed
-    }
-
-    private sealed record StepExecutionResult(
-        StepExecutionStatus Status,
-        string? EventName,
-        CorrelationId CorrelationId,
-        Exception? Error)
-    {
-        internal static StepExecutionResult Continue()
-        {
-            return new StepExecutionResult(StepExecutionStatus.Continue, null, default, null);
-        }
-
-        internal static StepExecutionResult Stop()
-        {
-            return new StepExecutionResult(StepExecutionStatus.Stop, null, default, null);
-        }
-
-        internal static StepExecutionResult Wait(string eventName, CorrelationId correlationId)
-        {
-            return new StepExecutionResult(StepExecutionStatus.Wait, eventName, correlationId, null);
-        }
-
-        internal static StepExecutionResult Yield()
-        {
-            return new StepExecutionResult(StepExecutionStatus.Yield, null, default, null);
-        }
-
-        internal static StepExecutionResult Failed(Exception exception)
-        {
-            return new StepExecutionResult(StepExecutionStatus.Failed, null, default, exception);
         }
     }
 }
