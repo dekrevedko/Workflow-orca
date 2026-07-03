@@ -5,7 +5,7 @@ namespace OrcaCore.Core.Definitions;
 /// Container nodes hold child <see cref="SequenceNode"/>s; the interpreter (T1-05) walks
 /// the tree uniformly.
 /// </summary>
-internal abstract record DefinitionNode
+public abstract record DefinitionNode
 {
     private protected DefinitionNode()
     {
