@@ -59,4 +59,25 @@ internal sealed class WorkflowInstance<TState>
     /// Cleared by the interpreter immediately after that one step executes.
     /// </summary>
     public EventEnvelope? PendingResumedEvent { get; set; }
+
+    /// <summary>
+    /// Per-instance pending-event mailbox (EV-030): events that arrived but did not match the
+    /// active wait (or arrived with no active wait at all) are buffered here, keyed by
+    /// <see cref="EventId"/> to prevent duplicate buffering (EV-031). Cleared entry-by-entry
+    /// only after the resuming transition it drives commits (EV-032) — never before.
+    /// </summary>
+    public Dictionary<EventId, EventEnvelope> Mailbox { get; } = [];
+
+    /// <summary>
+    /// Runtime dedup set of <see cref="EventId"/>s whose matching transition has already
+    /// committed (EV-031/EV-032). Checked before buffering or resuming so a duplicate delivery
+    /// never causes a second continuation.
+    /// </summary>
+    public HashSet<EventId> ConsumedEventIds { get; } = [];
+
+    /// <summary>Test/inspection surface: number of events currently buffered and unconsumed.</summary>
+    public int PendingMailboxCount => Mailbox.Count;
+
+    /// <summary>Test/inspection surface: whether <paramref name="eventId"/> has committed a resume.</summary>
+    public bool IsEventConsumed(EventId eventId) => ConsumedEventIds.Contains(eventId);
 }

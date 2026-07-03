@@ -50,16 +50,48 @@ internal sealed class Interpreter<TState>
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
-        var wait = instance.ActiveWait;
-        if (instance.Status != WorkflowStatus.Waiting ||
-            wait is null ||
-            wait.Status != WaitStatus.Active ||
-            wait.EventName != envelope.EventName ||
-            !wait.CorrelationId.Equals(envelope.CorrelationId))
+        // EV-031: a duplicate delivery of an already-consumed EventId must never buffer again
+        // or drive a second continuation, regardless of the instance's current wait state.
+        if (instance.ConsumedEventIds.Contains(envelope.EventId))
         {
             return RaiseEventOutcome.NoMatch;
         }
 
+        var wait = instance.ActiveWait;
+        var matchesActiveWait =
+            instance.Status == WorkflowStatus.Waiting &&
+            wait is { Status: WaitStatus.Active } &&
+            wait.EventName == envelope.EventName &&
+            wait.CorrelationId.Equals(envelope.CorrelationId);
+
+        if (!matchesActiveWait)
+        {
+            // EV-030: buffer for a future matching Wait instead of dropping the event. EV-031:
+            // a duplicate EventId already pending must not create a second mailbox entry.
+            instance.Mailbox.TryAdd(envelope.EventId, envelope);
+            return RaiseEventOutcome.NoMatch;
+        }
+
+        await ResumeWaitAsync(instance, definition, wait!, envelope, timeProvider, cancellationToken).ConfigureAwait(false);
+
+        return RaiseEventOutcome.Resumed;
+    }
+
+    /// <summary>
+    /// Drives the resuming transition for <paramref name="envelope"/> matched against
+    /// <paramref name="wait"/>. EV-032: the event is only marked consumed (and removed from the
+    /// mailbox, if it was buffered there) after the transition it drives completes — mutate
+    /// first, mark-consumed second, so a failed continuation leaves the event available/
+    /// re-matchable rather than silently dropped.
+    /// </summary>
+    private async ValueTask ResumeWaitAsync(
+        WorkflowInstance<TState> instance,
+        WorkflowDefinition<TState> definition,
+        ActiveWait wait,
+        EventEnvelope envelope,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
         wait.Status = WaitStatus.Matched;
         instance.ActiveWait = null;
         instance.PendingResumedEvent = envelope;
@@ -69,7 +101,16 @@ internal sealed class Interpreter<TState>
 
         await RunLoopAsync(instance, definition, timeProvider, cancellationToken).ConfigureAwait(false);
 
-        return RaiseEventOutcome.Resumed;
+        if (instance.Status == WorkflowStatus.Failed)
+        {
+            // The continuation this event drove did not commit successfully — EV-032 requires
+            // the event to remain available/re-matchable, so it must not be marked consumed.
+            // If it had been buffered (bidirectional match), it also stays in the mailbox.
+            return;
+        }
+
+        instance.ConsumedEventIds.Add(envelope.EventId);
+        instance.Mailbox.Remove(envelope.EventId);
     }
 
     private async ValueTask RunLoopAsync(
@@ -100,12 +141,22 @@ internal sealed class Interpreter<TState>
             switch (node)
             {
                 case EndNode endNode:
+                    if (instance.ActiveWait is { Status: WaitStatus.Active })
+                    {
+                        // CR-032: an instance shall not reach Completed while a runtime-owned
+                        // wait is unresolved. No explicit cancel/ignore policy exists yet
+                        // (later phase), so reaching End here is itself illegal — fail instead
+                        // of silently dropping the unresolved wait.
+                        Fail(instance, $"Cannot complete: wait '{instance.ActiveWait.EventName}' is still Active (CR-032).");
+                        break;
+                    }
+
                     instance.EndOutcomeName = endNode.OutcomeName;
                     Advance(instance, LifecycleTrigger.Complete);
                     break;
 
                 case BusinessStepNode<TState> businessStepNode:
-                    await ExecuteBusinessNodeAsync(instance, businessStepNode, timeProvider, index, cancellationToken).ConfigureAwait(false);
+                    await ExecuteBusinessNodeAsync(instance, definition, businessStepNode, timeProvider, index, cancellationToken).ConfigureAwait(false);
                     if (instance.Status == WorkflowStatus.Running)
                     {
                         AdvanceSequenceIndex(instance);
@@ -122,7 +173,7 @@ internal sealed class Interpreter<TState>
                     break;
 
                 case WaitNode waitNode:
-                    EnterWait(instance, waitNode, timeProvider);
+                    await EnterWaitAsync(instance, definition, waitNode, timeProvider, cancellationToken).ConfigureAwait(false);
                     break;
 
                 case DefinitionNode when isRoot && index == 0:
@@ -222,17 +273,55 @@ internal sealed class Interpreter<TState>
     /// itself so a later match (<see cref="TryResumeAsync"/>) advances past it and continues
     /// with the following step (EV-022/EV-023).
     /// </summary>
-    private static void EnterWait(WorkflowInstance<TState> instance, WaitNode waitNode, TimeProvider timeProvider)
+    private async ValueTask EnterWaitAsync(
+        WorkflowInstance<TState> instance,
+        WorkflowDefinition<TState> definition,
+        WaitNode waitNode,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
     {
         var correlationId = waitNode.SelectCorrelationId(GetBoxedState(instance));
-        RegisterActiveWait(instance, waitNode.EventName, correlationId, timeProvider);
+        await RegisterActiveWaitAsync(instance, definition, waitNode.EventName, correlationId, timeProvider, cancellationToken)
+            .ConfigureAwait(false);
     }
 
-    /// <summary>Creates the <see cref="ActiveWait"/> record and fires the shared <c>EnterWait</c> transition (EV-021, EV-040).</summary>
-    private static void RegisterActiveWait(WorkflowInstance<TState> instance, string eventName, CorrelationId correlationId, TimeProvider timeProvider)
+    /// <summary>
+    /// Creates the <see cref="ActiveWait"/> record and fires the shared <c>EnterWait</c>
+    /// transition (EV-021, EV-040). EV-030 bidirectional matching: before suspending, checks the
+    /// mailbox for an already-buffered event matching this brand-new wait and, if found, resumes
+    /// immediately instead of leaving the instance <c>Waiting</c> for a future delivery.
+    /// </summary>
+    private async ValueTask RegisterActiveWaitAsync(
+        WorkflowInstance<TState> instance,
+        WorkflowDefinition<TState> definition,
+        string eventName,
+        CorrelationId correlationId,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
     {
-        instance.ActiveWait = new ActiveWait(WaitId.New(), eventName, correlationId, timeProvider.GetUtcNow());
+        var wait = new ActiveWait(WaitId.New(), eventName, correlationId, timeProvider.GetUtcNow());
+        instance.ActiveWait = wait;
         Advance(instance, LifecycleTrigger.EnterWait);
+
+        var buffered = FindBufferedMatch(instance, eventName, correlationId);
+        if (buffered is not null)
+        {
+            await ResumeWaitAsync(instance, definition, wait, buffered, timeProvider, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Finds a mailbox entry matching <paramref name="eventName"/>/<paramref name="correlationId"/>, if any (EV-030).</summary>
+    private static EventEnvelope? FindBufferedMatch(WorkflowInstance<TState> instance, string eventName, CorrelationId correlationId)
+    {
+        foreach (var envelope in instance.Mailbox.Values)
+        {
+            if (envelope.EventName == eventName && envelope.CorrelationId.Equals(correlationId))
+            {
+                return envelope;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -271,6 +360,7 @@ internal sealed class Interpreter<TState>
 
     private async ValueTask ExecuteBusinessNodeAsync(
         WorkflowInstance<TState> instance,
+        WorkflowDefinition<TState> definition,
         BusinessStepNode<TState> businessStepNode,
         TimeProvider timeProvider,
         int stepIndex,
@@ -306,7 +396,9 @@ internal sealed class Interpreter<TState>
                 break;
 
             case StepResult.WaitForEvent waitForEvent:
-                RegisterActiveWait(instance, waitForEvent.EventName, waitForEvent.CorrelationId, timeProvider);
+                await RegisterActiveWaitAsync(
+                    instance, definition, waitForEvent.EventName, waitForEvent.CorrelationId, timeProvider, cancellationToken)
+                    .ConfigureAwait(false);
                 break;
 
             case StepResult.Yield:
