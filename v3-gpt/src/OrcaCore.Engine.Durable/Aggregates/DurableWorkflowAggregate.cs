@@ -10,14 +10,13 @@ namespace OrcaCore.Engine.Durable.Aggregates;
 internal sealed class DurableWorkflowAggregate
 {
     private readonly List<DurableActiveTimer> activeTimers;
-    private readonly List<DurableActiveWait> activeWaits;
-    private readonly List<DurableBufferedDelivery> bufferedDeliveries;
     private readonly List<DurableBufferedTimer> bufferedTimers;
     private readonly List<DurableActiveChild> activeChildren;
     private readonly List<DurableActiveChildGroup> activeChildGroups;
     private readonly List<DurableCompletedChild> completedChildren = [];
     private readonly List<ResourcePoolTicket> activeResourceTickets;
     private readonly List<DurableActiveExternalJob> activeExternalJobs;
+    private readonly DurableWaitState waitState;
     private readonly DurableSagaState sagaState;
     private readonly HashSet<string> compensatedChildGroups = new(StringComparer.Ordinal);
     private readonly HashSet<EventId> recordedParentResumeTokens = [];
@@ -66,8 +65,7 @@ internal sealed class DurableWorkflowAggregate
         OutcomeName = outcomeName;
         ContinueAsNewGeneration = continueAsNewGeneration;
         this.activeTimers = [.. activeTimers];
-        this.activeWaits = [.. activeWaits];
-        this.bufferedDeliveries = [.. bufferedDeliveries];
+        waitState = DurableWaitState.FromSnapshot(activeWaits, bufferedDeliveries);
         this.bufferedTimers = [.. bufferedTimers];
         this.activeChildren = [.. activeChildren];
         this.activeChildGroups = [.. activeChildGroups];
@@ -122,8 +120,8 @@ internal sealed class DurableWorkflowAggregate
         OutcomeName,
         ContinueAsNewGeneration,
         [.. activeTimers],
-        [.. activeWaits],
-        [.. bufferedDeliveries],
+        waitState.ActiveWaits,
+        waitState.BufferedDeliveries,
         [.. bufferedTimers],
         [.. activeChildren],
         [.. activeChildGroups],
@@ -231,8 +229,8 @@ internal sealed class DurableWorkflowAggregate
             OutcomeName,
             ContinueAsNewGeneration,
             [.. activeTimers],
-            [.. activeWaits],
-            [.. bufferedDeliveries],
+            waitState.ActiveWaits,
+            waitState.BufferedDeliveries,
             [.. bufferedTimers],
             [.. activeChildren],
             [.. activeChildGroups],
@@ -604,11 +602,8 @@ internal sealed class DurableWorkflowAggregate
             }
         ]);
 
-        var matched = bufferedDeliveries
-            .Where(delivery => Matches(command.EventName, command.CorrelationId, command.BranchId, delivery))
-            .Take(1)
-            .ToArray();
-        if (matched.Length == 0)
+        var matched = waitState.FindBufferedDelivery(command.EventName, command.CorrelationId, command.BranchId);
+        if (matched is null)
         {
             return new DurableDecision(
                 decision.Events,
@@ -627,12 +622,12 @@ internal sealed class DurableWorkflowAggregate
                     CausationId = ToCausationId(command.CommandId),
                     OccurredAt = command.RequestedAt,
                     WaitId = command.WaitId,
-                    MatchedEventId = matched[0].EventId
+                    MatchedEventId = matched.EventId
                 }
             ],
             null,
             false,
-            [new InboxWrite(matched[0].EventId, InboxRecordState.Applied)]);
+            [new InboxWrite(matched.EventId, InboxRecordState.Applied)]);
     }
 
     internal DurableDecision DecideResourcePoolAcquire(
@@ -1140,7 +1135,7 @@ internal sealed class DurableWorkflowAggregate
     internal DurableDecision DecideWaitMatched(DurableWaitMatchedCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal || activeWaits.All(wait => wait.WaitId != command.WaitId))
+        if (IsTerminal || !waitState.HasWait(command.WaitId))
         {
             return DurableDecision.Empty;
         }
@@ -1246,7 +1241,7 @@ internal sealed class DurableWorkflowAggregate
             ]);
         }
 
-        var wait = FindActiveWait(command.Envelope);
+        var wait = waitState.FindActiveWait(command.Envelope);
         if (wait is null)
         {
             return new DurableDecision([
@@ -1319,8 +1314,6 @@ internal sealed class DurableWorkflowAggregate
                 BufferHandling = command.BufferedDeliveries.ToString()
             }
         };
-        var inboxOperations = new List<InboxWrite>();
-        var replayWaits = activeWaits.ToList();
 
         foreach (var bufferedTimer in bufferedTimers)
         {
@@ -1340,45 +1333,12 @@ internal sealed class DurableWorkflowAggregate
             });
         }
 
-        foreach (var bufferedDelivery in bufferedDeliveries)
-        {
-            if (command.BufferedDeliveries == ResumeBufferedDeliveries.Discard)
-            {
-                events.Add(new WorkflowDeliveryDiscardedEvent
-                {
-                    EventId = EventId.New(),
-                    InstanceId = command.InstanceId,
-                    CommandId = command.CommandId,
-                    CausationId = ToCausationId(command.CommandId),
-                    OccurredAt = command.RequestedAt,
-                    DiscardedEventId = bufferedDelivery.EventId
-                });
-                inboxOperations.Add(new InboxWrite(bufferedDelivery.EventId, InboxRecordState.DiscardedOnResume));
-                continue;
-            }
+        var replayPlan = waitState.PlanBufferedDeliveryReplay(
+            CreateWaitEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
+            command.BufferedDeliveries);
+        events.AddRange(replayPlan.Events);
 
-            var wait = replayWaits.FirstOrDefault(candidate => Matches(candidate, bufferedDelivery));
-            if (wait is null)
-            {
-                inboxOperations.Add(new InboxWrite(bufferedDelivery.EventId, InboxRecordState.Poisoned));
-                continue;
-            }
-
-            replayWaits.RemoveAll(candidate => candidate.WaitId == wait.WaitId);
-            events.Add(new WorkflowWaitMatchedEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                WaitId = wait.WaitId,
-                MatchedEventId = bufferedDelivery.EventId
-            });
-            inboxOperations.Add(new InboxWrite(bufferedDelivery.EventId, InboxRecordState.Applied));
-        }
-
-        return new DurableDecision(events, null, false, inboxOperations);
+        return new DurableDecision(events, null, false, replayPlan.InboxWrites);
     }
 
     internal DurableDecision DecideComplete(DurableCompleteCommand command)
@@ -1480,8 +1440,8 @@ internal sealed class DurableWorkflowAggregate
             OutcomeName,
             ContinueAsNewGeneration,
             activeTimers,
-            activeWaits,
-            bufferedDeliveries,
+            waitState.ActiveWaits,
+            waitState.BufferedDeliveries,
             bufferedTimers,
             activeChildren,
             activeChildGroups,
@@ -1543,8 +1503,7 @@ internal sealed class DurableWorkflowAggregate
                 ErrorSummary = null;
                 OutcomeName = null;
                 activeTimers.Clear();
-                activeWaits.Clear();
-                bufferedDeliveries.Clear();
+                waitState.Clear();
                 bufferedTimers.Clear();
                 activeChildren.Clear();
                 activeResourceTickets.Clear();
@@ -1563,23 +1522,16 @@ internal sealed class DurableWorkflowAggregate
                 ErrorSummary = stepFailed.ErrorSummary;
                 Status = WorkflowStatus.Failed;
                 activeTimers.Clear();
-                activeWaits.Clear();
+                waitState.Clear();
                 activeChildren.Clear();
                 break;
             case WorkflowWaitRegisteredEvent waitRegistered:
-                activeWaits.Add(new DurableActiveWait(
-                    waitRegistered.WaitId,
-                    waitRegistered.EventName,
-                    waitRegistered.CorrelationId,
-                    waitRegistered.OccurredAt,
-                    waitRegistered.Mode,
-                    waitRegistered.BranchId));
+                waitState.Apply(waitRegistered);
                 Status = WorkflowStatus.Waiting;
                 break;
             case WorkflowWaitMatchedEvent waitMatched:
-                activeWaits.RemoveAll(wait => wait.WaitId == waitMatched.WaitId);
-                bufferedDeliveries.RemoveAll(delivery => delivery.EventId == waitMatched.MatchedEventId);
-                Status = activeWaits.Count == 0 ? WorkflowStatus.Running : WorkflowStatus.Waiting;
+                waitState.Apply(waitMatched);
+                Status = waitState.HasActiveWaits ? WorkflowStatus.Waiting : WorkflowStatus.Running;
                 break;
             case WorkflowTimerScheduledEvent timerScheduled:
                 activeTimers.Add(new DurableActiveTimer(
@@ -1592,7 +1544,7 @@ internal sealed class DurableWorkflowAggregate
             case WorkflowTimerFiredEvent timerFired:
                 activeTimers.RemoveAll(timer => timer.TimerId == timerFired.TimerId);
                 bufferedTimers.RemoveAll(timer => timer.TimerId == timerFired.TimerId);
-                Status = activeWaits.Count == 0 && activeTimers.Count == 0
+                Status = !waitState.HasActiveWaits && activeTimers.Count == 0
                     ? WorkflowStatus.Running
                     : WorkflowStatus.Waiting;
                 break;
@@ -1605,7 +1557,7 @@ internal sealed class DurableWorkflowAggregate
                     RunChildrenJoinPolicy.WhenAll,
                     RunChildrenResidualPolicy.CancelRemaining,
                     null));
-                activeWaits.Add(new DurableActiveWait(
+                waitState.Register(new DurableActiveWait(
                     childScheduled.WaitId,
                     "ChildCompleted",
                     ChildCorrelation(childScheduled.ChildInstanceId),
@@ -1634,7 +1586,7 @@ internal sealed class DurableWorkflowAggregate
                         childrenScheduled.JoinPolicy,
                         childrenScheduled.ResidualPolicy,
                         child.ItemSnapshot));
-                    activeWaits.Add(new DurableActiveWait(
+                    waitState.Register(new DurableActiveWait(
                         waitId,
                         "ChildCompleted",
                         ChildCorrelation(child.ChildInstanceId),
@@ -1661,7 +1613,7 @@ internal sealed class DurableWorkflowAggregate
                             activeGroup.JoinPolicy,
                             activeGroup.ResidualPolicy,
                             child.ItemSnapshot));
-                        activeWaits.Add(new DurableActiveWait(
+                        waitState.Register(new DurableActiveWait(
                             waitId,
                             "ChildCompleted",
                             ChildCorrelation(child.ChildInstanceId),
@@ -1702,7 +1654,7 @@ internal sealed class DurableWorkflowAggregate
                         child => child.ChildInstanceId == residualChildId);
                     if (residualChild is not null)
                     {
-                        activeWaits.RemoveAll(wait => wait.WaitId == residualChild.WaitId);
+                        waitState.Remove(residualChild.WaitId);
                     }
 
                     activeChildren.RemoveAll(child => child.ChildInstanceId == residualChildId);
@@ -1724,7 +1676,7 @@ internal sealed class DurableWorkflowAggregate
                 Status = WorkflowStatus.Running;
                 break;
             case WorkflowResourcePoolQueuedEvent resourcePoolQueued:
-                activeWaits.Add(new DurableActiveWait(
+                waitState.Register(new DurableActiveWait(
                     resourcePoolQueued.WaitId,
                     "ResourcePoolGranted",
                     new CorrelationId(resourcePoolQueued.HolderKey),
@@ -1774,24 +1726,19 @@ internal sealed class DurableWorkflowAggregate
                 Status = WorkflowStatus.Paused;
                 break;
             case WorkflowResumedEvent:
-                Status = activeWaits.Count == 0 ? WorkflowStatus.Running : WorkflowStatus.Waiting;
+                Status = waitState.HasActiveWaits ? WorkflowStatus.Waiting : WorkflowStatus.Running;
                 break;
             case WorkflowDeliveryBufferedEvent deliveryBuffered:
-                bufferedDeliveries.Add(new DurableBufferedDelivery(
-                    deliveryBuffered.BufferedEventId,
-                    deliveryBuffered.EventName,
-                    deliveryBuffered.CorrelationId,
-                    deliveryBuffered.BranchId));
+                waitState.Apply(deliveryBuffered);
                 break;
             case WorkflowDeliveryDiscardedEvent deliveryDiscarded:
-                bufferedDeliveries.RemoveAll(delivery => delivery.EventId == deliveryDiscarded.DiscardedEventId);
+                waitState.Apply(deliveryDiscarded);
                 break;
             case WorkflowCompletedEvent completed:
                 OutcomeName = completed.OutcomeName;
                 Status = WorkflowStatus.Completed;
                 activeTimers.Clear();
-                activeWaits.Clear();
-                bufferedDeliveries.Clear();
+                waitState.Clear();
                 bufferedTimers.Clear();
                 activeChildren.Clear();
                 activeResourceTickets.Clear();
@@ -1802,8 +1749,7 @@ internal sealed class DurableWorkflowAggregate
                 if (IsTerminal)
                 {
                     activeTimers.Clear();
-                    activeWaits.Clear();
-                    bufferedDeliveries.Clear();
+                    waitState.Clear();
                     bufferedTimers.Clear();
                     activeChildren.Clear();
                     activeResourceTickets.Clear();
@@ -1820,6 +1766,14 @@ internal sealed class DurableWorkflowAggregate
     private static CausationId ToCausationId(CommandId commandId)
     {
         return new CausationId(commandId.Value);
+    }
+
+    private static DurableWaitEventContext CreateWaitEventContext(
+        CommandId commandId,
+        InstanceId instanceId,
+        DateTimeOffset requestedAt)
+    {
+        return new DurableWaitEventContext(commandId, instanceId, requestedAt);
     }
 
     private DurableSagaEventContext CreateSagaEventContext(
@@ -2033,64 +1987,9 @@ internal sealed class DurableWorkflowAggregate
             ErrorSummary = ErrorSummary,
             EndOutcomeName = OutcomeName,
             ContinueAsNewGeneration = ContinueAsNewGeneration,
-            ActiveWaits = activeWaits
-                .Select(wait => new ActiveWaitSnapshot
-                {
-                    WaitId = wait.WaitId,
-                    EventName = wait.EventName,
-                    CorrelationId = wait.CorrelationId,
-                    RegisteredAt = wait.RegisteredAt,
-                    BranchId = wait.BranchId,
-                    Status = "Active",
-                    Mode = wait.Mode.ToString()
-                })
-                .ToArray(),
+            ActiveWaits = waitState.CreateActiveWaitSnapshots(),
             SagaAudits = sagaState.CreateAuditScopes(Status)
         };
-    }
-
-    private DurableActiveWait? FindActiveWait(EventEnvelope envelope)
-    {
-        var matches = activeWaits.Where(wait => Matches(wait, envelope)).ToArray();
-        if (string.IsNullOrWhiteSpace(envelope.BranchId) &&
-            matches.Count(wait => !string.IsNullOrWhiteSpace(wait.BranchId)) > 1)
-        {
-            return null;
-        }
-
-        return matches.FirstOrDefault();
-    }
-
-    private static bool Matches(DurableActiveWait wait, EventEnvelope envelope)
-    {
-        return wait.EventName == envelope.EventName &&
-            wait.CorrelationId == envelope.CorrelationId &&
-            BranchesMatch(wait.BranchId, envelope.BranchId);
-    }
-
-    private static bool Matches(DurableActiveWait wait, DurableBufferedDelivery delivery)
-    {
-        return wait.EventName == delivery.EventName &&
-            wait.CorrelationId == delivery.CorrelationId &&
-            BranchesMatch(wait.BranchId, delivery.BranchId);
-    }
-
-    private static bool Matches(
-        string eventName,
-        CorrelationId correlationId,
-        string? branchId,
-        DurableBufferedDelivery delivery)
-    {
-        return eventName == delivery.EventName &&
-            correlationId == delivery.CorrelationId &&
-            BranchesMatch(branchId, delivery.BranchId);
-    }
-
-    private static bool BranchesMatch(string? waitBranchId, string? eventBranchId)
-    {
-        return string.IsNullOrWhiteSpace(waitBranchId) ||
-            string.IsNullOrWhiteSpace(eventBranchId) ||
-            string.Equals(waitBranchId, eventBranchId, StringComparison.Ordinal);
     }
 
     private WorkflowRuntimeCheckpointState ToCheckpointRuntimeState()
@@ -2104,22 +2003,8 @@ internal sealed class DurableWorkflowAggregate
                     timer.WakeupName,
                     timer.RegisteredAt))
                 .ToArray(),
-            ActiveWaits = activeWaits
-                .Select(wait => new CheckpointActiveWait(
-                    wait.WaitId,
-                    wait.EventName,
-                    wait.CorrelationId,
-                    wait.RegisteredAt,
-                    wait.Mode,
-                    wait.BranchId))
-                .ToArray(),
-            BufferedDeliveries = bufferedDeliveries
-                .Select(delivery => new CheckpointBufferedDelivery(
-                    delivery.EventId,
-                    delivery.EventName,
-                    delivery.CorrelationId,
-                    delivery.BranchId))
-                .ToArray(),
+            ActiveWaits = waitState.CreateCheckpointActiveWaits(),
+            BufferedDeliveries = waitState.CreateCheckpointBufferedDeliveries(),
             BufferedTimers = bufferedTimers
                 .Select(timer => new CheckpointBufferedTimer(
                     timer.TimerId,
