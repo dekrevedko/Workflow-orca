@@ -11,7 +11,19 @@ public class IdsTests
         var second = InstanceId.New();
 
         first.Should().NotBe(second);
-        string.CompareOrdinal(first.ToString(), second.ToString()).Should().BeLessThan(0);
+
+        // UUIDv7 layout (RFC 9562, big-endian): version nibble is the high nibble of byte 6
+        // (must be 0x7), variant bits are the top two bits of byte 8 (must be 0b10). .NET's
+        // CreateVersion7 uses random (not monotonic) sub-millisecond bits, so two rapid calls
+        // are NOT guaranteed to sort by string/byte order — only the version/variant markers
+        // are a stable, deterministic assertion.
+        var firstBytes = first.Value.ToByteArray(bigEndian: true);
+        var secondBytes = second.Value.ToByteArray(bigEndian: true);
+
+        (firstBytes[6] >> 4).Should().Be(0x7);
+        (secondBytes[6] >> 4).Should().Be(0x7);
+        (firstBytes[8] >> 6).Should().Be(0b10);
+        (secondBytes[8] >> 6).Should().Be(0b10);
     }
 
     [Fact]
