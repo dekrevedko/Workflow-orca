@@ -4,6 +4,7 @@ using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Definitions;
+using OrcaCore.Core.Lifecycle;
 using OrcaCore.Engine.Ephemeral.Execution;
 using OrcaCore.Engine.Ephemeral.Management;
 
@@ -31,6 +32,23 @@ public sealed class EphemeralWorkflowEngine
     /// <summary>Definition-targeted fanout scoping (EV-010): which instances belong to which definition.</summary>
     private readonly ConcurrentDictionary<DefinitionId, ConcurrentDictionary<InstanceId, byte>> instancesByDefinition = new();
 
+    /// <summary>
+    /// Per-instance cooperative-cancellation source (CR-031 Cancel): linked into the token
+    /// business steps observe (<see cref="Interpreter{TState}"/>'s <c>ExecuteAsync</c> calls) so a
+    /// concurrent <see cref="CancelAsync{TState}"/> call signals an in-flight step immediately,
+    /// without waiting for the instance's execution lane turn. Created when an instance starts,
+    /// disposed once the instance reaches a terminal status.
+    /// </summary>
+    private readonly ConcurrentDictionary<InstanceId, CancellationTokenSource> instanceCancellations = new();
+
+    /// <summary>
+    /// Per-instance completion bridge (CR-016): lazily created by
+    /// <see cref="AwaitCompletionAsync{TState}"/> for an instance that is not yet terminal, and
+    /// completed by <see cref="CompleteAwaitersIfTerminal{TState}"/> the moment any engine-driven
+    /// mutation lands the instance on a terminal <see cref="WorkflowStatus"/>.
+    /// </summary>
+    private readonly ConcurrentDictionary<InstanceId, TaskCompletionSource<WorkflowInstanceSnapshot>> completionWaiters = new();
+
     private readonly Lock indexLock = new();
 
     public EphemeralWorkflowEngine()
@@ -53,9 +71,12 @@ public sealed class EphemeralWorkflowEngine
     /// The management query entry point (MG-001/MG-010, T1-13): scope selection
     /// (<c>All()</c>/<c>ForDefinition(id)</c>/<c>Instance(id)</c>), constrained filtering
     /// (<c>Where(...)</c>, MG-002), and terminal snapshot/statistics queries (MG-005 - every
-    /// result is an immutable snapshot or copy, never a live runtime object).
+    /// result is an immutable snapshot or copy, never a live runtime object). T1-14 adds bulk
+    /// <c>Terminate(...)</c> (MG-004) over the selected scope, routed back through
+    /// <see cref="TerminateAsync{TState}"/> per instance so every instance still commits through
+    /// its own execution lane (CR-040).
     /// </summary>
-    public ManagementQueryRoot Query() => new(instanceRegistry);
+    public ManagementQueryRoot Query() => new(instanceRegistry, TerminateUntypedAsync);
 
     /// <summary>
     /// Starts a new instance of the definition identified by <paramref name="definitionId"/>,
@@ -87,14 +108,20 @@ public sealed class EphemeralWorkflowEngine
 
         instanceRegistry.Add(instance);
         instancesByDefinition.GetOrAdd(definitionId, static _ => new ConcurrentDictionary<InstanceId, byte>())[instance.InstanceId] = 0;
+        var instanceCancellation = instanceCancellations.GetOrAdd(instance.InstanceId, static _ => new CancellationTokenSource());
 
         var interpreter = new Interpreter<TState>();
         await executionLane.RunAsync(
             instance.InstanceId,
-            () => interpreter.RunAsync(instance, definition, timeProvider, cancellationToken),
+            async () =>
+            {
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, instanceCancellation.Token);
+                await interpreter.RunAsync(instance, definition, timeProvider, linkedCts.Token).ConfigureAwait(false);
+            },
             cancellationToken).ConfigureAwait(false);
 
         SyncCorrelationIndex(instance);
+        CompleteAwaitersIfTerminal(instance);
 
         return ToSnapshot(instance);
     }
@@ -131,11 +158,15 @@ public sealed class EphemeralWorkflowEngine
                         $"No definition registered for '{instance.DefinitionId}'. The instance cannot be resumed.");
                 }
 
+                var instanceCancellation = instanceCancellations.GetOrAdd(instanceId, static _ => new CancellationTokenSource());
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, instanceCancellation.Token);
+
                 var interpreter = new Interpreter<TState>();
-                outcome = await interpreter.TryResumeAsync(instance, definition, envelope, timeProvider, cancellationToken)
+                outcome = await interpreter.TryResumeAsync(instance, definition, envelope, timeProvider, linkedCts.Token)
                     .ConfigureAwait(false);
 
                 SyncCorrelationIndex(instance);
+                CompleteAwaitersIfTerminal(instance);
             },
             cancellationToken).ConfigureAwait(false);
 
@@ -208,26 +239,185 @@ public sealed class EphemeralWorkflowEngine
     }
 
     /// <summary>
-    /// Reconciles the EV-011 correlation index for one instance against its current runtime
-    /// state after a lane-guarded mutation (start, resume). Removes any stale entry first, then
-    /// re-registers if the instance is <c>Waiting</c> with a still-<c>Active</c> wait — covers
-    /// registration, match/resume, and terminal cleanup in one place, since all three collapse
-    /// to "what does this instance's active wait look like right now".
+    /// The completion bridge (CR-016): awaits <paramref name="instanceId"/> reaching a terminal
+    /// <see cref="WorkflowStatus"/> and returns its terminal snapshot, without exposing any live
+    /// internal state. If the instance is already terminal, returns immediately. Otherwise waits
+    /// on a per-instance completion signal that any later engine-driven mutation for this instance
+    /// (a resume, <see cref="CancelAsync{TState}"/>, or <see cref="TerminateAsync{TState}"/>,
+    /// possibly from a different caller) completes once that mutation lands the instance on a
+    /// terminal status. Cancelling <paramref name="cancellationToken"/> cancels only this caller's
+    /// wait (<see cref="Task.WaitAsync(CancellationToken)"/> never affects other awaiters of the
+    /// same underlying instance completion).
     /// </summary>
-    private void SyncCorrelationIndex<TState>(WorkflowInstance<TState> instance)
+    public async Task<WorkflowInstanceSnapshot> AwaitCompletionAsync<TState>(
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
+    {
+        var current = instanceRegistry.TryGetUntyped(instanceId);
+        if (current is not null && LifecycleMachine.TerminalStatuses.Contains(current.Status))
+        {
+            return ToSnapshot(current);
+        }
+
+        var tcs = completionWaiters.GetOrAdd(
+            instanceId, static _ => new TaskCompletionSource<WorkflowInstanceSnapshot>(TaskCreationOptions.RunContinuationsAsynchronously));
+
+        // Re-check after registering the waiter: the instance may have reached terminal status
+        // between the lookup above and GetOrAdd (a concurrent mutation's own completion signal
+        // could have already fired and removed the entry) - if so, fall back to the direct read
+        // instead of waiting on a TCS nothing will ever complete again.
+        var recheck = instanceRegistry.TryGetUntyped(instanceId);
+        if (recheck is not null && LifecycleMachine.TerminalStatuses.Contains(recheck.Status))
+        {
+            return ToSnapshot(recheck);
+        }
+
+        return await tcs.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Graceful cancel (CR-031): signals the instance's cooperative <see cref="CancellationTokenSource"/>
+    /// immediately (thread-safe, does not wait for the execution lane), so a genuinely in-flight
+    /// step's <c>ExecuteAsync</c> observes cancellation as soon as it next checks its token. Then,
+    /// through the execution lane, fires <see cref="LifecycleTrigger.Cancel"/> (CR-030) and marks
+    /// every active wait <see cref="WaitStatus.Cancelled"/> before the instance commits
+    /// <see cref="WorkflowStatus.Cancelled"/>. Throws <see cref="WorkflowLifecycleException"/> if
+    /// the instance is already terminal (CR-030/AC-005) or not found. <typeparamref name="TState"/>
+    /// is not otherwise needed (a terminal command never touches business state) but is kept on
+    /// this overload to match <see cref="StartAsync{TInput,TState}"/>/<see cref="RaiseEventAsync{TState}"/>'s
+    /// generic facade shape.
+    /// </summary>
+    public Task<WorkflowInstanceSnapshot> CancelAsync<TState>(InstanceId instanceId, CancellationToken cancellationToken) =>
+        ApplyTerminalTriggerAsync(instanceId, LifecycleTrigger.Cancel, cancellationToken);
+
+    /// <summary>
+    /// Forced terminate (CR-031): no cooperative wait for in-flight work - through the execution
+    /// lane, fires <see cref="LifecycleTrigger.Terminate"/> immediately, forcibly marks every
+    /// active wait <see cref="WaitStatus.Cancelled"/> (the natural terminal wait status), and
+    /// commits <see cref="WorkflowStatus.Terminated"/>. No policies or compensation run. Throws
+    /// <see cref="WorkflowLifecycleException"/> if the instance is already terminal (CR-030/AC-005)
+    /// or not found.
+    /// </summary>
+    public Task<WorkflowInstanceSnapshot> TerminateAsync<TState>(InstanceId instanceId, CancellationToken cancellationToken) =>
+        ApplyTerminalTriggerAsync(instanceId, LifecycleTrigger.Terminate, cancellationToken);
+
+    /// <summary>
+    /// Non-generic terminate entry point for the management surface's bulk
+    /// <c>ManagementQueryScope.Terminate(...)</c> (MG-004, T1-14): reuses
+    /// <see cref="ApplyTerminalTriggerAsync"/> directly, since a terminal command never touches
+    /// business state and so needs no <c>TState</c> at any call site — <see cref="ManagementQueryScope"/>
+    /// only ever knows instances as <see cref="IWorkflowInstance"/>.
+    /// </summary>
+    private async Task<TerminalCommandOutcome> TerminateUntypedAsync(InstanceId instanceId, CancellationToken cancellationToken)
+    {
+        var snapshot = await ApplyTerminalTriggerAsync(instanceId, LifecycleTrigger.Terminate, cancellationToken).ConfigureAwait(false);
+        return new TerminalCommandOutcome(snapshot.InstanceId, snapshot.Status);
+    }
+
+    /// <summary>
+    /// Shared, state-agnostic Cancel/Terminate implementation (CR-031), reached by both the
+    /// generic <see cref="CancelAsync{TState}"/>/<see cref="TerminateAsync{TState}"/> facade
+    /// overloads and the untyped management bulk-terminate path — a terminal command mutates only
+    /// engine-owned lifecycle/wait state, never business state, so it needs no <c>TState</c> at
+    /// all. Cancel additionally signals the instance-scoped cooperative
+    /// <see cref="CancellationTokenSource"/> immediately, before entering the lane (CR-031's
+    /// cooperative-stop requirement, so a genuinely in-flight step observes it as soon as it next
+    /// checks its token); Terminate does not (forced, no cooperative wait). Throws
+    /// <see cref="WorkflowLifecycleException"/> if the instance is already terminal (CR-030/AC-005)
+    /// or not found.
+    /// </summary>
+    private async Task<WorkflowInstanceSnapshot> ApplyTerminalTriggerAsync(
+        InstanceId instanceId,
+        LifecycleTrigger trigger,
+        CancellationToken cancellationToken)
+    {
+        if (trigger == LifecycleTrigger.Cancel && instanceCancellations.TryGetValue(instanceId, out var cooperativeSource))
+        {
+            cooperativeSource.Cancel();
+        }
+
+        WorkflowInstanceSnapshot? snapshot = null;
+        WorkflowLifecycleException? failure = null;
+
+        await executionLane.RunAsync(
+            instanceId,
+            () =>
+            {
+                var instance = instanceRegistry.TryGetUntyped(instanceId);
+                if (instance is null)
+                {
+                    failure = new WorkflowLifecycleException(
+                        $"No instance registered for '{instanceId}'. It may already have been removed or never started.");
+                    return ValueTask.CompletedTask;
+                }
+
+                try
+                {
+                    instance.ApplyTerminalTrigger(trigger, timeProvider);
+                }
+                catch (WorkflowLifecycleException exception)
+                {
+                    failure = exception;
+                    return ValueTask.CompletedTask;
+                }
+
+                SyncCorrelationIndex(instance);
+                CompleteAwaitersIfTerminal(instance);
+                snapshot = ToSnapshot(instance);
+                return ValueTask.CompletedTask;
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        return snapshot ?? throw failure!;
+    }
+
+    /// <summary>
+    /// Reconciles the EV-011 correlation index for one instance against its current runtime
+    /// state after a lane-guarded mutation (start, resume, cancel/terminate). Removes any stale
+    /// entry first, then re-registers if the instance is <c>Waiting</c> with a still-<c>Active</c>
+    /// wait — covers registration, match/resume, and terminal cleanup in one place, since all
+    /// three collapse to "what does this instance's active wait look like right now". The
+    /// state-agnostic <see cref="IWorkflowInstance"/> surface is enough here — active-wait lookup
+    /// never needs <c>TState</c>.
+    /// </summary>
+    private void SyncCorrelationIndex(IWorkflowInstance instance)
     {
         lock (indexLock)
         {
             correlationIndex.Remove(instance.InstanceId);
 
-            if (instance.Status == WorkflowStatus.Waiting && instance.ActiveWait is { Status: WaitStatus.Active } wait)
+            if (instance.Status == WorkflowStatus.Waiting && instance.ActiveWaitSources() is [{ BranchId: null } wait])
             {
                 correlationIndex.Register(instance.InstanceId, wait.EventName, wait.CorrelationId);
             }
         }
     }
 
-    private static WorkflowInstanceSnapshot ToSnapshot<TState>(WorkflowInstance<TState> instance) =>
+    /// <summary>
+    /// Completes this instance's <see cref="AwaitCompletionAsync{TState}"/> waiter (if one is
+    /// registered) with the final snapshot, the moment any lane-guarded mutation lands the
+    /// instance on a terminal <see cref="WorkflowStatus"/> (CR-016). Also disposes and removes the
+    /// instance's cooperative-cancellation source (CR-031) — nothing observes it once terminal.
+    /// </summary>
+    private void CompleteAwaitersIfTerminal(IWorkflowInstance instance)
+    {
+        if (!LifecycleMachine.TerminalStatuses.Contains(instance.Status))
+        {
+            return;
+        }
+
+        if (completionWaiters.TryRemove(instance.InstanceId, out var tcs))
+        {
+            tcs.TrySetResult(ToSnapshot(instance));
+        }
+
+        if (instanceCancellations.TryRemove(instance.InstanceId, out var cts))
+        {
+            cts.Dispose();
+        }
+    }
+
+    private static WorkflowInstanceSnapshot ToSnapshot(IWorkflowInstance instance) =>
         new(
             instance.InstanceId,
             instance.DefinitionId,

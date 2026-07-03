@@ -3,6 +3,7 @@ using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Definitions;
+using OrcaCore.Core.Lifecycle;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
 
@@ -46,6 +47,20 @@ internal interface IWorkflowInstance
 
     /// <summary>Returns a copy of the business state, boxed as <see cref="object"/> — never the live reference (CR-021, T1-13).</summary>
     object GetStateCopy();
+
+    /// <summary>
+    /// Fires <paramref name="trigger"/> (CR-030, T1-14: <see cref="LifecycleTrigger.Cancel"/> or
+    /// <see cref="LifecycleTrigger.Terminate"/> only) against this instance's current
+    /// <see cref="Status"/> via <see cref="LifecycleMachine.Fire"/>, and — only on success — marks
+    /// every currently <see cref="WaitStatus.Active"/> wait (the top-level wait and, if a
+    /// <see cref="ActiveParallelJoin"/> is in flight, every branch's wait) <see cref="WaitStatus.Cancelled"/>
+    /// (CR-031: "active waits and timers move to Cancelled"). Never touches business state, so no
+    /// <c>TState</c> is needed at the call site — the terminal-command path (Cancel/Terminate) is
+    /// entirely state-agnostic. Throws <see cref="OrcaCore.Abstractions.Errors.WorkflowLifecycleException"/>
+    /// (via <see cref="LifecycleMachine.Fire"/>'s <c>Result</c>) for an illegal trigger from the
+    /// instance's current status — terminal instances reject cleanly (CR-030/AC-005).
+    /// </summary>
+    void ApplyTerminalTrigger(LifecycleTrigger trigger, TimeProvider timeProvider);
 }
 
 /// <summary>
@@ -189,5 +204,30 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     {
         var json = JsonSerializer.SerializeToUtf8Bytes(State);
         return JsonSerializer.Deserialize<TState>(json)!;
+    }
+
+    /// <inheritdoc />
+    public void ApplyTerminalTrigger(LifecycleTrigger trigger, TimeProvider timeProvider)
+    {
+        var result = LifecycleMachine.Fire(Status, trigger);
+        Status = result.IsSuccess ? result.Value : throw result.Error;
+
+        if (ActiveJoin is { } join)
+        {
+            foreach (var branch in join.Branches)
+            {
+                if (branch.ActiveWait is { Status: WaitStatus.Active } branchWait)
+                {
+                    branchWait.Status = WaitStatus.Cancelled;
+                }
+            }
+        }
+
+        if (ActiveWait is { Status: WaitStatus.Active } wait)
+        {
+            wait.Status = WaitStatus.Cancelled;
+        }
+
+        UpdatedAt = timeProvider.GetUtcNow();
     }
 }

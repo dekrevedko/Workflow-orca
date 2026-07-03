@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
+using OrcaCore.Core.Lifecycle;
 using OrcaCore.Engine.Ephemeral.Execution;
 
 namespace OrcaCore.Engine.Ephemeral.Management;
@@ -14,19 +15,25 @@ namespace OrcaCore.Engine.Ephemeral.Management;
 public sealed class ManagementQueryScope
 {
     private readonly IInstanceRegistry instanceRegistry;
+    private readonly TerminateInstanceAsync terminateInstance;
     private readonly DefinitionId? definitionId;
     private readonly InstanceId? instanceId;
     private readonly Func<WorkflowInstanceSnapshot, bool>? predicate;
+    private readonly bool isUnconstrainedAll;
 
     internal ManagementQueryScope(
         IInstanceRegistry instanceRegistry,
+        TerminateInstanceAsync terminateInstance,
         DefinitionId? definitionId,
         InstanceId? instanceId,
+        bool isUnconstrainedAll,
         Func<WorkflowInstanceSnapshot, bool>? predicate = null)
     {
         this.instanceRegistry = instanceRegistry;
+        this.terminateInstance = terminateInstance;
         this.definitionId = definitionId;
         this.instanceId = instanceId;
+        this.isUnconstrainedAll = isUnconstrainedAll;
         this.predicate = predicate;
     }
 
@@ -34,13 +41,15 @@ public sealed class ManagementQueryScope
     /// Narrows the current scope with a constrained, translatable predicate over
     /// <see cref="WorkflowInstanceSnapshot"/> metadata (MG-002). Arbitrary delegates/external
     /// calls/non-translatable constructs are rejected by <see cref="SnapshotPredicateValidator"/>
-    /// before the expression is ever compiled. Has no side effects (MG-001 stage 2).
+    /// before the expression is ever compiled. Has no side effects (MG-001 stage 2). Narrowing
+    /// with <c>Where(...)</c> clears the MG-004 "unconstrained All()" flag — a filtered selection
+    /// is no longer the literal broad-destructive case <see cref="Terminate"/> guards against.
     /// </summary>
     public ManagementQueryScope Where(Expression<Func<WorkflowInstanceSnapshot, bool>> filter)
     {
         var compiled = SnapshotPredicateValidator.ValidateAndCompile(filter);
         var combined = predicate is null ? compiled : snapshot => predicate(snapshot) && compiled(snapshot);
-        return new ManagementQueryScope(instanceRegistry, definitionId, instanceId, combined);
+        return new ManagementQueryScope(instanceRegistry, terminateInstance, definitionId, instanceId, isUnconstrainedAll: false, combined);
     }
 
     /// <summary>Returns every snapshot currently matching this scope (MG-001 terminal query, MG-005 snapshot-only, EV-013/AC-115 bulk read).</summary>
@@ -106,6 +115,41 @@ public sealed class ManagementQueryScope
         [.. MatchingInstances()
             .GroupBy(instance => (instance.DefinitionId, instance.DefinitionVersion, instance.Status))
             .Select(group => new InstanceStatisticsGroup(group.Key.DefinitionId, group.Key.DefinitionVersion, group.Key.Status, group.Count()))];
+
+    /// <summary>
+    /// Forced terminate (CR-031) over every instance currently matching this scope (MG-004): each
+    /// instance still commits through its own execution lane (CR-040), independently, so one
+    /// instance's outcome cannot block another's. An already-terminal instance in the selection is
+    /// skipped, not reported as a failure — Terminate's contract is "every matching instance ends
+    /// up terminal", which an already-terminal instance already satisfies.
+    ///
+    /// MG-004 safety gate: a literal unconstrained <c>All()</c> selection (never narrowed by
+    /// <see cref="Where"/>, <c>ForDefinition</c>, or <c>Instance</c>) is a broad destructive
+    /// operation and requires <paramref name="confirmBroadSelection"/> to be explicitly
+    /// <see langword="true"/> — otherwise this throws <see cref="WorkflowDefinitionException"/>
+    /// without terminating anything. A <see cref="Where"/>-filtered, definition-scoped, or
+    /// instance-scoped selection does not need the gate.
+    /// </summary>
+    public async Task<IReadOnlyList<TerminalCommandOutcome>> Terminate(bool confirmBroadSelection = false, CancellationToken cancellationToken = default)
+    {
+        if (isUnconstrainedAll && !confirmBroadSelection)
+        {
+            throw new WorkflowDefinitionException(
+                "Terminate() over an unconstrained All() selection affects every registered instance across every " +
+                "definition (MG-004). Narrow the scope first (Where(...)/ForDefinition/Instance), or pass " +
+                "confirmBroadSelection: true to explicitly confirm this broad destructive operation.");
+        }
+
+        var targets = MatchingInstances()
+            .Where(instance => !LifecycleMachine.TerminalStatuses.Contains(instance.Status))
+            .Select(instance => instance.InstanceId)
+            .ToArray();
+
+        var outcomes = await Task.WhenAll(
+            targets.Select(id => terminateInstance(id, cancellationToken))).ConfigureAwait(false);
+
+        return outcomes;
+    }
 
     private IEnumerable<IWorkflowInstance> MatchingInstances()
     {
