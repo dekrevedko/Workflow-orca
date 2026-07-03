@@ -67,8 +67,11 @@ internal sealed class Interpreter<TState>
         if (!matchesActiveWait)
         {
             // EV-030: buffer for a future matching Wait instead of dropping the event. EV-031:
-            // a duplicate EventId already pending must not create a second mailbox entry.
-            instance.Mailbox.TryAdd(envelope.EventId, envelope);
+            // a duplicate EventId already pending must not create a second mailbox entry. EV-043:
+            // tag the entry with the loop-iteration identity in effect right now, so a later
+            // iteration's wait registration cannot bidirectionally match stale earlier-iteration
+            // residue (FindBufferedMatch checks this tag against the CURRENT identity).
+            instance.Mailbox.TryAdd(envelope.EventId, new BufferedEvent(envelope, LoopIterationPath(instance.Pointer)));
             return RaiseEventOutcome.NoMatch;
         }
 
@@ -250,15 +253,21 @@ internal sealed class Interpreter<TState>
     }
 
     /// <summary>
-    /// Evaluates the loop condition; if true, pushes a loop-body frame at index 0. If false,
-    /// advances past the While node in the enclosing sequence.
+    /// Evaluates the loop condition; if true, pushes a loop-body frame at index 0, tagged with a
+    /// fresh per-instance iteration counter for this <paramref name="whileNode"/> (EV-043) so
+    /// every iteration has a distinct <see cref="Frame.LoopIteration"/> — never the same value
+    /// twice, which would make later-iteration waits indistinguishable from earlier ones. If
+    /// false, advances past the While node in the enclosing sequence.
     /// </summary>
     private static void EnterOrSkipWhile(WorkflowInstance<TState> instance, WhileNode whileNode)
     {
         if (whileNode.Condition(GetBoxedState(instance)))
         {
+            var iteration = instance.LoopIterationCounters.GetValueOrDefault(whileNode);
+            instance.LoopIterationCounters[whileNode] = iteration + 1;
+
             instance.Pointer = instance.Pointer
-                .Push(Frame.AtLoopIteration(0))
+                .Push(Frame.AtLoopIteration(iteration))
                 .Push(Frame.AtSequenceIndex(0));
         }
         else
@@ -310,18 +319,52 @@ internal sealed class Interpreter<TState>
         }
     }
 
-    /// <summary>Finds a mailbox entry matching <paramref name="eventName"/>/<paramref name="correlationId"/>, if any (EV-030).</summary>
+    /// <summary>
+    /// Finds a mailbox entry matching <paramref name="eventName"/>/<paramref name="correlationId"/>
+    /// AND the loop-iteration identity currently in effect on <see cref="WorkflowInstance{TState}.Pointer"/>
+    /// (EV-043) — the pointer already reflects the new wait's frame(s) by the time this runs
+    /// (pushed in <see cref="EnterOrSkipWhile"/> before the run loop reaches the Wait node, or
+    /// left as-is for a <see cref="StepResult.WaitForEvent"/> wait registered outside any freshly
+    /// entered loop frame), so comparing against it here correctly rejects entries buffered under
+    /// an earlier iteration's identity even when the (name, correlation) key coincides. An empty
+    /// identity (not inside any loop) matches only other empty-identity entries, preserving plain
+    /// top-level mailbox buffering (EV-030, T1-09) unchanged.
+    /// </summary>
     private static EventEnvelope? FindBufferedMatch(WorkflowInstance<TState> instance, string eventName, CorrelationId correlationId)
     {
-        foreach (var envelope in instance.Mailbox.Values)
+        var currentIterationPath = LoopIterationPath(instance.Pointer);
+
+        foreach (var buffered in instance.Mailbox.Values)
         {
-            if (envelope.EventName == eventName && envelope.CorrelationId.Equals(correlationId))
+            if (buffered.Envelope.EventName == eventName &&
+                buffered.Envelope.CorrelationId.Equals(correlationId) &&
+                buffered.LoopIterationPath.SequenceEqual(currentIterationPath))
             {
-                return envelope;
+                return buffered.Envelope;
             }
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// The ordered sequence of <see cref="Frame.LoopIteration"/> values found in
+    /// <paramref name="pointer"/>'s frames (EV-043) — the runtime "which loop iteration(s) am I
+    /// currently inside" identity. Empty means not inside any loop right now. Two identities are
+    /// equal iff their sequences are equal (<see cref="Enumerable.SequenceEqual{TSource}(IEnumerable{TSource}, IEnumerable{TSource})"/>).
+    /// </summary>
+    private static IReadOnlyList<int> LoopIterationPath(ExecutionPointer pointer)
+    {
+        List<int>? path = null;
+        foreach (var frame in pointer.Frames)
+        {
+            if (frame.LoopIteration is { } iteration)
+            {
+                (path ??= []).Add(iteration);
+            }
+        }
+
+        return path ?? [];
     }
 
     /// <summary>
