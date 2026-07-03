@@ -19,4 +19,7 @@ internal sealed class InstanceRegistry : IInstanceRegistry
         instances.TryGetValue(instanceId, out var untyped) && untyped is WorkflowInstance<TState> typed
             ? typed
             : null;
+
+    public IReadOnlyList<IWorkflowInstance> GetAll() =>
+        [.. instances.Values.Cast<IWorkflowInstance>()];
 }

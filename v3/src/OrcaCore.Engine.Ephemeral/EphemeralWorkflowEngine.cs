@@ -5,6 +5,7 @@ using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Engine.Ephemeral.Execution;
+using OrcaCore.Engine.Ephemeral.Management;
 
 namespace OrcaCore.Engine.Ephemeral;
 
@@ -47,6 +48,14 @@ public sealed class EphemeralWorkflowEngine
     /// <summary>Registers a built, validated definition (CR-002) for later starts.</summary>
     public void RegisterDefinition<TState>(WorkflowDefinition<TState> definition) =>
         definitions[definition.DefinitionId] = definition;
+
+    /// <summary>
+    /// The management query entry point (MG-001/MG-010, T1-13): scope selection
+    /// (<c>All()</c>/<c>ForDefinition(id)</c>/<c>Instance(id)</c>), constrained filtering
+    /// (<c>Where(...)</c>, MG-002), and terminal snapshot/statistics queries (MG-005 - every
+    /// result is an immutable snapshot or copy, never a live runtime object).
+    /// </summary>
+    public ManagementQueryRoot Query() => new(instanceRegistry);
 
     /// <summary>
     /// Starts a new instance of the definition identified by <paramref name="definitionId"/>,
