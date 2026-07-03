@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Outbox;
@@ -11,7 +12,8 @@ namespace OrcaCore.Hosting.Services;
 public sealed class OrcaCoreOutboxPumpHostedService(
     DurableOutboxPump pump,
     IOptions<OrcaCoreHostedServiceOptions> options,
-    TimeProvider timeProvider) : BackgroundService
+    TimeProvider timeProvider,
+    ILogger<OrcaCoreOutboxPumpHostedService> logger) : BackgroundService
 {
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -19,11 +21,20 @@ public sealed class OrcaCoreOutboxPumpHostedService(
         var value = options.Value;
         value.Validate();
 
-        await RunOnceAsync(value, stoppingToken).ConfigureAwait(false);
+        var failureBoundary = new HostedServiceFailureBoundary(
+            nameof(OrcaCoreOutboxPumpHostedService),
+            logger,
+            timeProvider);
+
+        await failureBoundary
+            .RunAsync(token => RunOnceAsync(value, token), value.TransientFailureBackoff, stoppingToken)
+            .ConfigureAwait(false);
         using var timer = new PeriodicTimer(value.OutboxPumpInterval, timeProvider);
         while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false))
         {
-            await RunOnceAsync(value, stoppingToken).ConfigureAwait(false);
+            await failureBoundary
+                .RunAsync(token => RunOnceAsync(value, token), value.TransientFailureBackoff, stoppingToken)
+                .ConfigureAwait(false);
         }
     }
 

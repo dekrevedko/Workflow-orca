@@ -41,6 +41,11 @@ public sealed class OrcaCoreHostedServiceOptions
     public TimeSpan OperationalSweepInterval { get; set; } = TimeSpan.FromMinutes(1);
 
     /// <summary>
+    /// Gets or sets how long a hosted service waits before retrying after one transient cycle failure.
+    /// </summary>
+    public TimeSpan TransientFailureBackoff { get; set; } = TimeSpan.FromSeconds(1);
+
+    /// <summary>
     /// Throws when any option would make a hosted-service loop invalid.
     /// </summary>
     public void Validate()
@@ -78,6 +83,11 @@ public sealed class OrcaCoreHostedServiceOptions
         if (OperationalSweepInterval <= TimeSpan.Zero)
         {
             throw new InvalidOperationException("Operational sweep interval must be positive.");
+        }
+
+        if (TransientFailureBackoff <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException("Transient failure backoff must be positive.");
         }
     }
 }

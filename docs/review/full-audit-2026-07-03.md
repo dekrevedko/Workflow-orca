@@ -90,6 +90,14 @@ Follow-up implementation verification, 2026-07-03:
   `-warnaserror`, the full non-integration `v3-gpt/tests` sweep, and
   `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 83, skipped 16, failed
   0.
+- Hosted-service transient-failure boundary pass added shared retry/backoff
+  handling with source-generated logging for outbox pump, timer sweep, and
+  operational sweep loops. Focused hosting tests cover first-cycle failures and
+  subsequent retry cycles for all three hosted services. Broader verification
+  passed the non-integration analyzer build loop with `-warnaserror`, the
+  non-integration `v3-gpt/tests` sweep after replacing a wall-clock test yield
+  flagged by repository guards, and `v3-gpt/tests/OrcaCore.Integration.Tests`
+  with passed 83, skipped 16, failed 0.
 - Durable commit-materializer extraction pass added focused
   `DurableCommitMaterializer` tests and reran focused command-pipeline tests
   before broader verification. Broader verification passed the non-integration
@@ -313,6 +321,18 @@ without structured diagnostics.
 
 Recommendation: add source-generated logging and a retry/backoff policy at the
 hosting Seam. Keep policy options in hosting, not provider Adapters.
+
+Implementation update:
+- 2026-07-03: Added `HostedServiceFailureBoundary` with shared transient
+  failure handling and source-generated warning logging.
+- `OrcaCoreHostedServiceOptions.TransientFailureBackoff` controls retry delay in
+  hosting. Provider Adapters remain unchanged.
+- Outbox pump, timer sweep, and operational sweep hosted services now catch
+  non-cancellation cycle failures, delay through the injected `TimeProvider`,
+  and continue processing instead of letting one provider or transport exception
+  terminate the background loop.
+- Hosting tests simulate first-cycle outbox claim, timer claim, and resource
+  pool expiry failures and verify the next cycle still runs.
 
 ### DurableCommandProcessor is too shallow for its current responsibility
 
@@ -660,7 +680,7 @@ Module Interface and keep source-text checks explicitly named as guard tests.
 
 The R8 quality issues, immediate channel-substrate drift, timer/outbox claim
 leases, PostgreSQL start idempotency, SQL Server event coverage, SQL Server
-resource-pool persistence, and SQL Server retention certification parity are
-addressed. The next refactoring pass should prioritize durable aggregate,
-durable command-processor, and interpreter decomposition without weakening the
-provider certification surface.
+resource-pool persistence, SQL Server retention certification parity, and
+hosted-service transient-failure boundaries are addressed. The next refactoring
+pass should prioritize durable aggregate, durable command-processor, and
+interpreter decomposition without weakening the provider certification surface.

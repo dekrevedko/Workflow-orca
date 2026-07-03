@@ -1,6 +1,8 @@
 using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
@@ -20,6 +22,9 @@ namespace OrcaCore.Hosting.Tests;
 
 public sealed class OrcaCoreHostingServiceCollectionTests
 {
+    private static readonly TimeSpan HostedInterval = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan FailureBackoff = TimeSpan.FromSeconds(1);
+
     [Fact]
     [Trait("AC", "PR-040")]
     public void AddOrcaCore_RegistersCoreEnginesAndInMemoryDefaults()
@@ -133,11 +138,82 @@ public sealed class OrcaCoreHostingServiceCollectionTests
         expiredAt.Should().Be(clock.GetUtcNow());
     }
 
+    [Fact]
+    [Trait("AC", "PR-040")]
+    public async Task HostedOutboxPump_WhenTransientClaimFailureOccurs_RetriesOnNextCycle()
+    {
+        var clock = new FakeTimeProvider(Timestamp(0));
+        var workflowStore = new RecordingWorkflowProvider();
+        using var service = new OrcaCoreOutboxPumpHostedService(
+            new DurableOutboxPump(workflowStore, workflowStore),
+            Options.Create(CreateFastRetryOptions()),
+            clock,
+            NullLogger<OrcaCoreOutboxPumpHostedService>.Instance);
+        workflowStore.FailNextOutboxClaim(new InvalidOperationException("transient outbox failure"));
+
+        await service.StartAsync(TestContext.Current.CancellationToken);
+        await workflowStore.OutboxClaimFailed.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var retry = workflowStore.OutboxClaimRetried.Task;
+        await AdvanceUntilObservedAsync(clock, retry);
+        var attempts = await retry.WaitAsync(TestContext.Current.CancellationToken);
+        await service.StopAsync(TestContext.Current.CancellationToken);
+
+        attempts.Should().BeGreaterThan(1);
+    }
+
+    [Fact]
+    [Trait("AC", "PR-040")]
+    public async Task HostedTimerService_WhenTransientClaimFailureOccurs_RetriesOnNextCycle()
+    {
+        var clock = new FakeTimeProvider(Timestamp(0));
+        var workflowStore = new RecordingWorkflowProvider();
+        using var service = new OrcaCoreTimerHostedService(
+            workflowStore,
+            new DurableCommandProcessor(new DurableCommandRuntime(workflowStore)),
+            Options.Create(CreateFastRetryOptions()),
+            clock,
+            NullLogger<OrcaCoreTimerHostedService>.Instance);
+        workflowStore.FailNextTimerClaim(new InvalidOperationException("transient timer failure"));
+
+        await service.StartAsync(TestContext.Current.CancellationToken);
+        await workflowStore.TimerClaimFailed.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var retry = workflowStore.TimerClaimRetried.Task;
+        await AdvanceUntilObservedAsync(clock, retry);
+        var attempts = await retry.WaitAsync(TestContext.Current.CancellationToken);
+        await service.StopAsync(TestContext.Current.CancellationToken);
+
+        attempts.Should().BeGreaterThan(1);
+    }
+
+    [Fact]
+    [Trait("AC", "PR-040")]
+    public async Task HostedOperationalSweep_WhenTransientExpiryFailureOccurs_RetriesOnNextCycle()
+    {
+        var clock = new FakeTimeProvider(Timestamp(0));
+        var resourcePoolStore = new RecordingResourcePoolStore();
+        using var service = new OrcaCoreOperationalSweepHostedService(
+            resourcePoolStore,
+            Options.Create(CreateFastRetryOptions()),
+            clock,
+            NullLogger<OrcaCoreOperationalSweepHostedService>.Instance);
+        resourcePoolStore.FailNextExpiry(new InvalidOperationException("transient sweep failure"));
+
+        await service.StartAsync(TestContext.Current.CancellationToken);
+        await resourcePoolStore.ExpiryFailed.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var retry = resourcePoolStore.ExpiryRetried.Task;
+        await AdvanceUntilObservedAsync(clock, retry);
+        var attempts = await retry.WaitAsync(TestContext.Current.CancellationToken);
+        await service.StopAsync(TestContext.Current.CancellationToken);
+
+        attempts.Should().BeGreaterThan(1);
+    }
+
     private static IHost BuildHost(
         out RecordingWorkflowProvider workflowStore,
         out RecordingResourcePoolStore resourcePoolStore,
         out FakeTimeProvider clock,
-        FakeTimeProvider? suppliedClock = null)
+        FakeTimeProvider? suppliedClock = null,
+        Action<OrcaCoreHostedServiceOptions>? configureHostedServices = null)
     {
         workflowStore = new RecordingWorkflowProvider();
         resourcePoolStore = new RecordingResourcePoolStore();
@@ -165,8 +241,37 @@ public sealed class OrcaCoreHostingServiceCollectionTests
                 options.OutboxPumpInterval = TimeSpan.FromMinutes(5);
                 options.TimerSweepInterval = TimeSpan.FromMinutes(5);
                 options.OperationalSweepInterval = TimeSpan.FromMinutes(5);
+                configureHostedServices?.Invoke(options);
             });
         return builder.Build();
+    }
+
+    private static void ConfigureFastRetry(OrcaCoreHostedServiceOptions options)
+    {
+        options.OutboxPumpInterval = HostedInterval;
+        options.TimerSweepInterval = HostedInterval;
+        options.OperationalSweepInterval = HostedInterval;
+        options.TransientFailureBackoff = FailureBackoff;
+    }
+
+    private static OrcaCoreHostedServiceOptions CreateFastRetryOptions()
+    {
+        var options = new OrcaCoreHostedServiceOptions();
+        ConfigureFastRetry(options);
+        return options;
+    }
+
+    private static async Task AdvanceUntilObservedAsync(FakeTimeProvider clock, Task observed)
+    {
+        for (var attempt = 0; attempt < 8 && !observed.IsCompleted; attempt++)
+        {
+            await Task.Yield();
+            clock.Advance(FailureBackoff);
+            await Task.Yield();
+            clock.Advance(HostedInterval);
+        }
+
+        observed.IsCompleted.Should().BeTrue("the hosted-service retry window should have elapsed under fake time");
     }
 
     private static StartWorkflowCommand Start(InstanceId instanceId)
@@ -218,12 +323,38 @@ public sealed class OrcaCoreHostingServiceCollectionTests
         IWorkflowPayloadSerializer
     {
         private readonly InMemoryWorkflowProvider inner = new();
+        private Exception? outboxClaimFailure;
+        private Exception? timerClaimFailure;
+        private int outboxClaimAttempts;
+        private int timerClaimAttempts;
 
         internal TaskCompletionSource<OutboxWrite> Dispatched { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         internal TaskCompletionSource<WorkflowTimerFiredEvent> TimerFired { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal TaskCompletionSource<Exception> OutboxClaimFailed { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal TaskCompletionSource<int> OutboxClaimRetried { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal TaskCompletionSource<Exception> TimerClaimFailed { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal TaskCompletionSource<int> TimerClaimRetried { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal void FailNextOutboxClaim(Exception exception)
+        {
+            outboxClaimFailure = exception;
+        }
+
+        internal void FailNextTimerClaim(Exception exception)
+        {
+            timerClaimFailure = exception;
+        }
 
         public Task<Option<CheckpointWrite>> LoadCheckpointAsync(
             InstanceId instanceId,
@@ -274,6 +405,19 @@ public sealed class OrcaCoreHostingServiceCollectionTests
             OutboxClaimRequest request,
             CancellationToken cancellationToken)
         {
+            var attempt = Interlocked.Increment(ref outboxClaimAttempts);
+            var failure = Interlocked.Exchange(ref outboxClaimFailure, null);
+            if (failure is not null)
+            {
+                OutboxClaimFailed.TrySetResult(failure);
+                return Task.FromException<IReadOnlyList<OutboxWrite>>(failure);
+            }
+
+            if (attempt > 1)
+            {
+                OutboxClaimRetried.TrySetResult(attempt);
+            }
+
             return inner.ClaimAsync(request, cancellationToken);
         }
 
@@ -355,6 +499,19 @@ public sealed class OrcaCoreHostingServiceCollectionTests
             TimerClaimRequest request,
             CancellationToken cancellationToken)
         {
+            var attempt = Interlocked.Increment(ref timerClaimAttempts);
+            var failure = Interlocked.Exchange(ref timerClaimFailure, null);
+            if (failure is not null)
+            {
+                TimerClaimFailed.TrySetResult(failure);
+                return Task.FromException<IReadOnlyList<FireTimerCommand>>(failure);
+            }
+
+            if (attempt > 1)
+            {
+                TimerClaimRetried.TrySetResult(attempt);
+            }
+
             return inner.ClaimDueAsync(request, cancellationToken);
         }
 
@@ -389,9 +546,22 @@ public sealed class OrcaCoreHostingServiceCollectionTests
     private sealed class RecordingResourcePoolStore : IResourcePoolStore
     {
         private readonly InMemoryResourcePoolStore inner = new();
+        private Exception? expiryFailure;
+        private int expiryAttempts;
 
         internal TaskCompletionSource<DateTimeOffset> ExpiredAt { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal TaskCompletionSource<Exception> ExpiryFailed { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal TaskCompletionSource<int> ExpiryRetried { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal void FailNextExpiry(Exception exception)
+        {
+            expiryFailure = exception;
+        }
 
         public Task UpsertPoolAsync(ResourcePoolDefinition definition, CancellationToken cancellationToken)
         {
@@ -428,6 +598,19 @@ public sealed class OrcaCoreHostingServiceCollectionTests
             DateTimeOffset now,
             CancellationToken cancellationToken)
         {
+            var attempt = Interlocked.Increment(ref expiryAttempts);
+            var failure = Interlocked.Exchange(ref expiryFailure, null);
+            if (failure is not null)
+            {
+                ExpiryFailed.TrySetResult(failure);
+                return Task.FromException<ResourcePoolExpiryResult>(failure);
+            }
+
+            if (attempt > 1)
+            {
+                ExpiryRetried.TrySetResult(attempt);
+            }
+
             ExpiredAt.TrySetResult(now);
             return inner.ExpireTicketsAsync(now, cancellationToken);
         }

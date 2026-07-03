@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Engine.Durable.Management;
@@ -71,6 +73,8 @@ public static class OrcaCoreServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddOptions<OrcaCoreHostedServiceOptions>();
+        services.TryAddSingleton<ILoggerFactory>(_ => NullLoggerFactory.Instance);
+        services.TryAddSingleton(typeof(ILogger<>), typeof(Logger<>));
         if (configure is not null)
         {
             services.Configure(configure);

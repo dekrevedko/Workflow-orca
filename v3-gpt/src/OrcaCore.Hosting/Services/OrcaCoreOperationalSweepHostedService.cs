@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OrcaCore.Abstractions.Providers;
 
@@ -10,7 +11,8 @@ namespace OrcaCore.Hosting.Services;
 public sealed class OrcaCoreOperationalSweepHostedService(
     IResourcePoolStore resourcePoolStore,
     IOptions<OrcaCoreHostedServiceOptions> options,
-    TimeProvider timeProvider) : BackgroundService
+    TimeProvider timeProvider,
+    ILogger<OrcaCoreOperationalSweepHostedService> logger) : BackgroundService
 {
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -18,11 +20,20 @@ public sealed class OrcaCoreOperationalSweepHostedService(
         var value = options.Value;
         value.Validate();
 
-        await RunOnceAsync(stoppingToken).ConfigureAwait(false);
+        var failureBoundary = new HostedServiceFailureBoundary(
+            nameof(OrcaCoreOperationalSweepHostedService),
+            logger,
+            timeProvider);
+
+        await failureBoundary
+            .RunAsync(RunOnceAsync, value.TransientFailureBackoff, stoppingToken)
+            .ConfigureAwait(false);
         using var timer = new PeriodicTimer(value.OperationalSweepInterval, timeProvider);
         while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false))
         {
-            await RunOnceAsync(stoppingToken).ConfigureAwait(false);
+            await failureBoundary
+                .RunAsync(RunOnceAsync, value.TransientFailureBackoff, stoppingToken)
+                .ConfigureAwait(false);
         }
     }
 
