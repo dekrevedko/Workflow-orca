@@ -46,3 +46,9 @@ v3/**/bin/
 v3/**/obj/
 v3/TestResults/
 v3/**/TestResults/
+
+# v3-cursor rebuild workspace
+v3-cursor/**/bin/
+v3-cursor/**/obj/
+v3-cursor/TestResults/
+v3-cursor/**/TestResults/
