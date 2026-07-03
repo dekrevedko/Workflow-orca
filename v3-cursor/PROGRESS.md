@@ -17,3 +17,5 @@ Local progress log for the `v3-cursor/` workspace. Phase task specs live under
 | Task | Status | Date | Notes |
 |------|--------|------|-------|
 | T1-01 | done | 2026-07-02 | core contracts (CR-011/020/022, EV-001) |
+| T1-03 | done | 2026-07-02 | definition model (CR-003/015); internal nodes, public WorkflowDefinition/ExecutionPointer |
+| T1-02 | done | 2026-07-02 | lifecycle state machine (CR-030); table-driven LifecycleMachine + 4 tests |
