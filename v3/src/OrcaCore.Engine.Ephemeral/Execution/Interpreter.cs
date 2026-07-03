@@ -11,10 +11,16 @@ namespace OrcaCore.Engine.Ephemeral.Execution;
 /// <summary>
 /// Walks a <see cref="WorkflowDefinition{TState}"/> body — <c>Init</c> (already applied by the
 /// engine facade before this runs) → business steps, <c>If</c>/<c>While</c> control flow,
-/// <c>Wait</c> suspension → <c>End</c> — driving all orchestration decisions itself
-/// (CR-010/CR-012). Position is tracked as a stack of <see cref="Frame"/>s (CR-015) so nested
-/// containers (If inside While, ...) and rehydration are represented exactly. Only
-/// <see cref="StepResult.Yield"/> remains out of scope until T1-15.
+/// <c>Parallel</c>/<c>WhenAll</c> join (CP-001/CP-002, T1-12), <c>Wait</c> suspension → <c>End</c>
+/// — driving all orchestration decisions itself (CR-010/CR-012). Position is tracked as a stack
+/// of <see cref="Frame"/>s (CR-015) so nested containers (If inside While, branch inside
+/// Parallel, ...) and rehydration are represented exactly. Only <see cref="StepResult.Yield"/>
+/// remains out of scope until T1-15.
+///
+/// <c>Parallel</c> branches are driven as sequential round-robin WITHIN this single
+/// lane-protected call — never on separate <see cref="Task"/>s — so every branch-state commit and
+/// join check trivially satisfies CR-044's "commit through the per-instance serialized path"
+/// requirement without any new synchronization primitive (see T1-12 PROGRESS.md deviation note).
 /// </summary>
 internal sealed class Interpreter<TState>
 {
@@ -39,9 +45,11 @@ internal sealed class Interpreter<TState>
 
     /// <summary>
     /// Attempts to match <paramref name="envelope"/> against <paramref name="instance"/>'s
-    /// active wait (EV-020) and, on match, resumes execution from where the <c>Wait</c> left
-    /// off (EV-022/EV-023). Returns the outcome without throwing for the routine no-match case.
-    /// Caller (the engine facade) MUST invoke this only through the per-instance execution lane.
+    /// active wait (EV-020) — either the top-level wait or, when a <see cref="ActiveParallelJoin"/>
+    /// is in flight, any branch's wait (CP-001/AC-110) — and on match, resumes execution from
+    /// where the <c>Wait</c> left off (EV-022/EV-023). Returns the outcome without throwing for
+    /// the routine no-match case. Caller (the engine facade) MUST invoke this only through the
+    /// per-instance execution lane.
     /// </summary>
     public async ValueTask<RaiseEventOutcome> TryResumeAsync(
         WorkflowInstance<TState> instance,
@@ -55,6 +63,12 @@ internal sealed class Interpreter<TState>
         if (instance.ConsumedEventIds.Contains(envelope.EventId))
         {
             return RaiseEventOutcome.NoMatch;
+        }
+
+        if (instance.Status == WorkflowStatus.Waiting && instance.ActiveJoin is { } join)
+        {
+            return await TryResumeBranchAsync(instance, definition, join, envelope, timeProvider, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         var wait = instance.ActiveWait;
@@ -179,6 +193,10 @@ internal sealed class Interpreter<TState>
                     await EnterWaitAsync(instance, definition, waitNode, timeProvider, cancellationToken).ConfigureAwait(false);
                     break;
 
+                case ParallelNode parallelNode:
+                    await DriveParallelAsync(instance, definition, parallelNode, timeProvider, cancellationToken).ConfigureAwait(false);
+                    break;
+
                 case DefinitionNode when isRoot && index == 0:
                     // Root position 0 is always Init when present (CR-005): the engine facade
                     // already converted input to state before this loop starts, so the
@@ -194,6 +212,455 @@ internal sealed class Interpreter<TState>
             instance.UpdatedAt = timeProvider.GetUtcNow();
         }
     }
+
+    // ----------------------------------------------------------------------------------------
+    // Parallel / WhenAll (CP-001, CP-002, CP-003, CR-044, T1-12)
+    // ----------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Entry point for a <see cref="ParallelNode"/> position. Initializes one
+    /// <see cref="BranchRuntime"/> per declared branch on first encounter (no
+    /// <see cref="WorkflowInstance{TState}.ActiveJoin"/> yet at this position), then drives every
+    /// branch forward and checks the join condition. The outer <c>instance.Pointer</c> is NOT
+    /// advanced past the node until the join fires (CP-002 exactly-once).
+    /// </summary>
+    private async ValueTask DriveParallelAsync(
+        WorkflowInstance<TState> instance,
+        WorkflowDefinition<TState> definition,
+        ParallelNode parallelNode,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        instance.ActiveJoin ??= new ActiveParallelJoin(
+            parallelNode,
+            [.. parallelNode.Branches.Select(branch => new BranchRuntime(branch.Id))]);
+
+        await DriveJoinAsync(instance, definition, instance.ActiveJoin, timeProvider, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Drives every currently-<see cref="WorkflowStatus.Running"/> branch of <paramref name="join"/>,
+    /// in stable <see cref="BranchId.Ordinal"/> order (CP-003 determinism), until each branch is
+    /// <see cref="WorkflowStatus.Completed"/>, <see cref="WorkflowStatus.Failed"/>, or
+    /// <see cref="WorkflowStatus.Waiting"/>. Then checks the join condition exactly once
+    /// (CP-002): any branch <see cref="WorkflowStatus.Failed"/> fails the whole instance; all
+    /// branches <see cref="WorkflowStatus.Completed"/> fires the continuation exactly once
+    /// (clears <see cref="WorkflowInstance{TState}.ActiveJoin"/>, advances the outer pointer past
+    /// the node); otherwise the instance suspends with the join left in place, same as any other
+    /// Wait suspension.
+    /// </summary>
+    private async ValueTask DriveJoinAsync(
+        WorkflowInstance<TState> instance,
+        WorkflowDefinition<TState> definition,
+        ActiveParallelJoin join,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        foreach (var branch in join.Branches)
+        {
+            if (branch.Status == WorkflowStatus.Running)
+            {
+                await DriveBranchAsync(instance, definition, join.Node, branch, timeProvider, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        if (join.Branches.Any(branch => branch.Status == WorkflowStatus.Failed))
+        {
+            var failedBranch = join.Branches.First(branch => branch.Status == WorkflowStatus.Failed);
+            instance.ActiveJoin = null;
+            Fail(instance, $"Parallel branch '{failedBranch.Id.Name}' (ordinal {failedBranch.Id.Ordinal}) failed: {failedBranch.ErrorSummary}");
+            return;
+        }
+
+        if (join.Branches.All(branch => branch.Status == WorkflowStatus.Completed))
+        {
+            // CP-002: fires exactly once — this arm is reached at most once per join, because
+            // ActiveJoin is cleared here and the outer pointer moves past the ParallelNode, so a
+            // later RunLoopAsync pass never re-evaluates this join again.
+            instance.ActiveJoin = null;
+            AdvanceSequenceIndex(instance);
+            return;
+        }
+
+        // At least one branch is Waiting and none can progress further without external input:
+        // suspend the instance (normal Wait-style suspension), leaving ActiveJoin in place so a
+        // later TryResumeAsync can find and resume the matching branch.
+        if (instance.Status == WorkflowStatus.Running)
+        {
+            Advance(instance, LifecycleTrigger.EnterWait);
+        }
+    }
+
+    /// <summary>
+    /// Mini run-loop scoped to one <paramref name="branch"/>: same node-handling shape as
+    /// <see cref="RunLoopAsync"/>, but reading/writing <c>branch.Pointer</c>/<c>branch.Status</c>
+    /// instead of the instance's, and resolving sequences from <paramref name="parallelNode"/>'s
+    /// declared branch body instead of the definition root. Runs until the branch is
+    /// <see cref="WorkflowStatus.Completed"/>, <see cref="WorkflowStatus.Failed"/>, or
+    /// <see cref="WorkflowStatus.Waiting"/>.
+    /// </summary>
+    private async ValueTask DriveBranchAsync(
+        WorkflowInstance<TState> instance,
+        WorkflowDefinition<TState> definition,
+        ParallelNode parallelNode,
+        BranchRuntime branch,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        var branchRoot = parallelNode.Branches.Single(declared => declared.Id.Equals(branch.Id)).Body;
+
+        while (branch.Status == WorkflowStatus.Running)
+        {
+            var sequence = ResolveBranchSequence(branchRoot, branch.Pointer);
+            var index = branch.Pointer.Frames[^1].SequenceIndex!.Value;
+
+            if (index >= sequence.Steps.Count)
+            {
+                if (!TryPopBranchToParent(branch))
+                {
+                    // Branch body exhausted with no explicit End — the branch is done.
+                    branch.Status = WorkflowStatus.Completed;
+                    break;
+                }
+
+                continue;
+            }
+
+            var node = sequence.Steps[index];
+
+            switch (node)
+            {
+                case EndNode endNode:
+                    if (branch.ActiveWait is { Status: WaitStatus.Active })
+                    {
+                        // CR-032 applies per-branch too: a branch shall not complete while its
+                        // own wait is unresolved.
+                        FailBranch(branch, $"Cannot complete branch: wait '{branch.ActiveWait.EventName}' is still Active (CR-032).");
+                        break;
+                    }
+
+                    _ = endNode.OutcomeName; // branch outcomes are not surfaced (out of scope); the End node still ends the branch.
+                    branch.Status = WorkflowStatus.Completed;
+                    break;
+
+                case BusinessStepNode<TState> businessStepNode:
+                    await ExecuteBranchBusinessNodeAsync(instance, branch, businessStepNode, timeProvider, index, cancellationToken).ConfigureAwait(false);
+                    if (branch.Status == WorkflowStatus.Running)
+                    {
+                        AdvanceBranchSequenceIndex(branch);
+                    }
+
+                    break;
+
+                case IfNode ifNode:
+                    EnterBranchIf(instance, branch, ifNode);
+                    break;
+
+                case WhileNode whileNode:
+                    EnterOrSkipBranchWhile(instance, branch, whileNode);
+                    break;
+
+                case WaitNode waitNode:
+                    EnterBranchWait(instance, branch, waitNode, timeProvider);
+                    break;
+
+                default:
+                    throw new NotSupportedException(
+                        $"Definition node '{node.GetType().Name}' is out of scope inside a Parallel branch (T1-12).");
+            }
+
+            instance.UpdatedAt = timeProvider.GetUtcNow();
+        }
+    }
+
+    /// <summary>
+    /// Called when <see cref="TryResumeAsync"/> finds <see cref="WorkflowInstance{TState}.ActiveJoin"/>
+    /// set: tries every branch's <see cref="BranchRuntime.ActiveWait"/> for a match (CP-001/AC-110
+    /// — a matching event resumes ONLY its branch), resumes that one branch's mini-loop, then
+    /// re-runs the join-condition check across ALL branches (not just the resumed one) so the
+    /// continuation still fires exactly once total regardless of which branch resumed (CP-002).
+    /// </summary>
+    private async ValueTask<RaiseEventOutcome> TryResumeBranchAsync(
+        WorkflowInstance<TState> instance,
+        WorkflowDefinition<TState> definition,
+        ActiveParallelJoin join,
+        EventEnvelope envelope,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        BranchRuntime? matchedBranch = null;
+        foreach (var branch in join.Branches)
+        {
+            if (branch.ActiveWait is { Status: WaitStatus.Active } wait &&
+                wait.EventName == envelope.EventName &&
+                wait.CorrelationId.Equals(envelope.CorrelationId))
+            {
+                matchedBranch = branch;
+                break;
+            }
+        }
+
+        if (matchedBranch is null)
+        {
+            // EV-030: buffer for a future matching branch wait, tagged with no loop-iteration
+            // identity of its own — branch-scoped mailbox matching is resolved directly against
+            // each branch's ActiveWait above, not via FindBufferedMatch/loop-iteration tagging.
+            instance.Mailbox.TryAdd(envelope.EventId, new BufferedEvent(envelope, []));
+            return RaiseEventOutcome.NoMatch;
+        }
+
+        matchedBranch.ActiveWait!.Status = WaitStatus.Matched;
+        matchedBranch.ActiveWait = null;
+        matchedBranch.PendingResumedEvent = envelope;
+        matchedBranch.Status = WorkflowStatus.Running;
+        AdvanceBranchSequenceIndex(matchedBranch);
+        instance.UpdatedAt = timeProvider.GetUtcNow();
+
+        var parallelNode = join.Node;
+        await DriveBranchAsync(instance, definition, parallelNode, matchedBranch, timeProvider, cancellationToken).ConfigureAwait(false);
+
+        if (matchedBranch.Status == WorkflowStatus.Failed)
+        {
+            // EV-032 parity: the continuation this event drove did not commit — leave it
+            // available/re-matchable (do not mark consumed), and still re-run the join check so
+            // a genuine branch failure is observed even though this event stays unconsumed.
+            await ReevaluateJoinAfterBranchResumeAsync(instance, definition, join, timeProvider, cancellationToken).ConfigureAwait(false);
+            return RaiseEventOutcome.Resumed;
+        }
+
+        instance.ConsumedEventIds.Add(envelope.EventId);
+        instance.Mailbox.Remove(envelope.EventId);
+
+        await ReevaluateJoinAfterBranchResumeAsync(instance, definition, join, timeProvider, cancellationToken).ConfigureAwait(false);
+
+        return RaiseEventOutcome.Resumed;
+    }
+
+    /// <summary>
+    /// Re-runs the CP-002 join check for <paramref name="join"/> after a single branch resumed
+    /// out-of-band (via <see cref="TryResumeBranchAsync"/>), then — if the join fired and the
+    /// outer instance is running again — continues the outer run loop so execution proceeds past
+    /// the <see cref="ParallelNode"/>.
+    /// </summary>
+    private async ValueTask ReevaluateJoinAfterBranchResumeAsync(
+        WorkflowInstance<TState> instance,
+        WorkflowDefinition<TState> definition,
+        ActiveParallelJoin join,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        if (join.Branches.Any(branch => branch.Status == WorkflowStatus.Failed))
+        {
+            var failedBranch = join.Branches.First(branch => branch.Status == WorkflowStatus.Failed);
+            instance.ActiveJoin = null;
+            Fail(instance, $"Parallel branch '{failedBranch.Id.Name}' (ordinal {failedBranch.Id.Ordinal}) failed: {failedBranch.ErrorSummary}");
+            return;
+        }
+
+        if (!join.Branches.All(branch => branch.Status == WorkflowStatus.Completed))
+        {
+            // Still waiting on other branches — nothing else to do; instance stays Waiting.
+            return;
+        }
+
+        // All branches completed: fire the continuation exactly once, then resume the outer loop.
+        instance.ActiveJoin = null;
+        AdvanceSequenceIndex(instance);
+        Advance(instance, LifecycleTrigger.MatchWait);
+
+        await RunLoopAsync(instance, definition, timeProvider, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Branch-scoped counterpart of <see cref="ResolveCurrentSequence"/>, rooted at the branch body instead of the definition root.</summary>
+    private static SequenceNode ResolveBranchSequence(SequenceNode branchRoot, ExecutionPointer pointer)
+    {
+        var sequence = branchRoot;
+
+        for (var i = 0; i < pointer.Frames.Count - 1; i += 2)
+        {
+            var containerFrame = pointer.Frames[i];
+            var childFrame = pointer.Frames[i + 1];
+            var node = sequence.Steps[containerFrame.SequenceIndex!.Value];
+
+            sequence = node switch
+            {
+                IfNode ifNode when childFrame.BranchId is { Name: "Then" } => ifNode.Then,
+                IfNode ifNode when childFrame.BranchId is { Name: "Else" } => ifNode.Else,
+                WhileNode whileNode when childFrame.LoopIteration is not null => whileNode.Body,
+                _ => throw new UnreachableException($"Frame pair at depth {i} does not resolve to a nested sequence."),
+            };
+        }
+
+        return sequence;
+    }
+
+    private static void AdvanceBranchSequenceIndex(BranchRuntime branch)
+    {
+        var frames = branch.Pointer.Frames;
+        var innermost = frames[^1];
+        var advanced = Frame.AtSequenceIndex(innermost.SequenceIndex!.Value + 1);
+
+        branch.Pointer = branch.Pointer.Pop().Push(advanced);
+    }
+
+    private static void EnterBranchIf(WorkflowInstance<TState> instance, BranchRuntime branch, IfNode ifNode)
+    {
+        var takeThen = ifNode.Condition(instance.State);
+        var branchName = takeThen ? "Then" : "Else";
+
+        branch.Pointer = branch.Pointer
+            .Push(Frame.InBranch(new BranchId(takeThen ? 0 : 1, branchName)))
+            .Push(Frame.AtSequenceIndex(0));
+    }
+
+    private static void EnterOrSkipBranchWhile(WorkflowInstance<TState> instance, BranchRuntime branch, WhileNode whileNode)
+    {
+        if (whileNode.Condition(instance.State))
+        {
+            var iteration = instance.LoopIterationCounters.GetValueOrDefault(whileNode);
+            instance.LoopIterationCounters[whileNode] = iteration + 1;
+
+            branch.Pointer = branch.Pointer
+                .Push(Frame.AtLoopIteration(iteration))
+                .Push(Frame.AtSequenceIndex(0));
+        }
+        else
+        {
+            AdvanceBranchSequenceIndex(branch);
+        }
+    }
+
+    private static bool TryPopBranchToParent(BranchRuntime branch)
+    {
+        var frames = branch.Pointer.Frames;
+        if (frames.Count <= 1)
+        {
+            return false;
+        }
+
+        var containerFrame = frames[^2];
+        branch.Pointer = branch.Pointer.Pop().Pop();
+
+        if (containerFrame.LoopIteration is not null)
+        {
+            return true;
+        }
+
+        AdvanceBranchSequenceIndex(branch);
+        return true;
+    }
+
+    /// <summary>
+    /// Registers a branch-scoped <see cref="ActiveWait"/> (CP-001: tagged with this branch's
+    /// <see cref="BranchId"/> so <see cref="TryResumeBranchAsync"/> matches only this branch) and
+    /// moves the branch to <see cref="WorkflowStatus.Waiting"/>. EV-030 bidirectional matching:
+    /// checks the mailbox for an already-buffered event matching this brand-new wait before
+    /// leaving the branch suspended.
+    /// </summary>
+    private void EnterBranchWait(WorkflowInstance<TState> instance, BranchRuntime branch, WaitNode waitNode, TimeProvider timeProvider)
+    {
+        var correlationId = waitNode.SelectCorrelationId(instance.State);
+        var wait = new ActiveWait(WaitId.New(), waitNode.EventName, correlationId, timeProvider.GetUtcNow(), branch.Id);
+        branch.ActiveWait = wait;
+        branch.Status = WorkflowStatus.Waiting;
+
+        var bufferedKey = instance.Mailbox
+            .FirstOrDefault(entry =>
+                entry.Value.Envelope.EventName == waitNode.EventName &&
+                entry.Value.Envelope.CorrelationId.Equals(correlationId));
+
+        if (bufferedKey.Value is not null)
+        {
+            var buffered = bufferedKey.Value.Envelope;
+            wait.Status = WaitStatus.Matched;
+            branch.ActiveWait = null;
+            branch.PendingResumedEvent = buffered;
+            branch.Status = WorkflowStatus.Running;
+            AdvanceBranchSequenceIndex(branch);
+            instance.ConsumedEventIds.Add(buffered.EventId);
+            instance.Mailbox.Remove(bufferedKey.Key);
+        }
+    }
+
+    private async ValueTask ExecuteBranchBusinessNodeAsync(
+        WorkflowInstance<TState> instance,
+        BranchRuntime branch,
+        BusinessStepNode<TState> businessStepNode,
+        TimeProvider timeProvider,
+        int stepIndex,
+        CancellationToken cancellationToken)
+    {
+        var step = businessStepNode.CreateStep();
+        var context = new StepContext<TState>
+        {
+            State = instance.State,
+            TimeProvider = timeProvider,
+            ResumedEvent = branch.PendingResumedEvent,
+        };
+        branch.PendingResumedEvent = null;
+
+        StepResult result;
+        try
+        {
+            result = await step.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            FailBranch(branch, DescribeError(exception.GetType().Name, exception.Message, stepIndex, timeProvider));
+            return;
+        }
+
+        switch (result)
+        {
+            case StepResult.Completed:
+                break;
+
+            case StepResult.Failed failed:
+                FailBranch(branch, DescribeError(failed.Error.GetType().Name, failed.Error.Message, stepIndex, timeProvider));
+                break;
+
+            case StepResult.WaitForEvent waitForEvent:
+                var wait = new ActiveWait(WaitId.New(), waitForEvent.EventName, waitForEvent.CorrelationId, timeProvider.GetUtcNow(), branch.Id);
+                branch.ActiveWait = wait;
+                branch.Status = WorkflowStatus.Waiting;
+
+                var bufferedKey = instance.Mailbox
+                    .FirstOrDefault(entry =>
+                        entry.Value.Envelope.EventName == waitForEvent.EventName &&
+                        entry.Value.Envelope.CorrelationId.Equals(waitForEvent.CorrelationId));
+
+                if (bufferedKey.Value is not null)
+                {
+                    var buffered = bufferedKey.Value.Envelope;
+                    wait.Status = WaitStatus.Matched;
+                    branch.ActiveWait = null;
+                    branch.PendingResumedEvent = buffered;
+                    branch.Status = WorkflowStatus.Running;
+                    AdvanceBranchSequenceIndex(branch);
+                    instance.ConsumedEventIds.Add(buffered.EventId);
+                    instance.Mailbox.Remove(bufferedKey.Key);
+                }
+
+                break;
+
+            case StepResult.Yield:
+                throw new NotSupportedException(
+                    "StepResult.Yield is not supported inside a Parallel branch yet; yield lands in T1-15.");
+
+            default:
+                throw new UnreachableException($"Unhandled {nameof(StepResult)} variant '{result.GetType().Name}'.");
+        }
+    }
+
+    private static void FailBranch(BranchRuntime branch, string errorSummary)
+    {
+        branch.ErrorSummary = errorSummary;
+        branch.Status = WorkflowStatus.Failed;
+    }
+
+    // ----------------------------------------------------------------------------------------
+    // Straight-line / control-flow helpers (outer instance scope, unchanged from T1-11)
+    // ----------------------------------------------------------------------------------------
 
     /// <summary>
     /// Descends from <paramref name="root"/> following every frame pair but the trailing

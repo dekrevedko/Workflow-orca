@@ -61,6 +61,13 @@ internal sealed class WorkflowInstance<TState>
     public ActiveWait? ActiveWait { get; set; }
 
     /// <summary>
+    /// The in-flight <see cref="ParallelNode"/> join (CP-002), or null when no <c>Parallel</c> is
+    /// currently active at this position. While set, <see cref="Pointer"/> stays parked at the
+    /// <see cref="ParallelNode"/>'s own position — see <see cref="ActiveParallelJoin"/>.
+    /// </summary>
+    internal ActiveParallelJoin? ActiveJoin { get; set; }
+
+    /// <summary>
     /// The envelope that resumed the current run, surfaced to the first step's
     /// <see cref="OrcaCore.Abstractions.Steps.StepContext{TState}.ResumedEvent"/> only (EV-022).
     /// Cleared by the interpreter immediately after that one step executes.
