@@ -94,22 +94,6 @@ public sealed class ProviderStackIntegrationTests(OrcaStackFixture fixture)
     }
 
     [Fact]
-    [Trait(Traits.Scenario, "INT-ST-013")]
-    public async Task INT_ST_013_SqlServerStack_BlockedUntilRealStore()
-    {
-        await Task.CompletedTask;
-        Assert.Skip("SqlServer provider stack blocked until real SQL persistence (R5 P0).");
-    }
-
-    [Fact]
-    [Trait(Traits.Scenario, "INT-ST-005")]
-    public async Task INT_ST_005_RedisProjectionCrossProcess_BlockedUntilRealRedis()
-    {
-        await Task.CompletedTask;
-        Assert.Skip("RedisProjectionStore does not persist to Redis yet (R5 P1).");
-    }
-
-    [Fact]
     [Trait(Traits.Scenario, "INT-ST-003")]
     [Trait("AC", "DU-032")]
     public async Task INT_ST_003_RabbitMqPermanentFailure_PoisonsOutbox()

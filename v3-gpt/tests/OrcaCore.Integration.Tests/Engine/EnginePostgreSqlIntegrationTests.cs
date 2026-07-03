@@ -224,14 +224,6 @@ public sealed class EnginePostgreSqlIntegrationTests(PostgreSqlOrcaFixture fixtu
     }
 
     [Fact]
-    [Trait(Traits.Scenario, "INT-EP-013")]
-    public async Task INT_EP_013_SqlServerEnginePath_BlockedUntilRealStore()
-    {
-        await Task.CompletedTask;
-        Assert.Skip("SqlServerWorkflowStore is an in-memory stub until real SQL I/O lands (R5 P0).");
-    }
-
-    [Fact]
     [Trait(Traits.Scenario, "INT-EP-002")]
     [Trait("AC", "AC-114")]
     public async Task INT_EP_002_CrashBeforeCommit_BlockedWithoutInjectHook()

@@ -28,6 +28,19 @@ public sealed partial class RepositoryGuardTests
     }
 
     [Fact]
+    public void IntegrationScenarioCatalog_HasTraitCoverage()
+    {
+        var repoRoot = FindRepoRoot();
+        var catalogIds = CatalogedIntegrationScenarios(repoRoot);
+        var taggedIds = TaggedIntegrationScenarios(repoRoot);
+
+        catalogIds
+            .Except(taggedIds, StringComparer.Ordinal)
+            .Should()
+            .BeEmpty();
+    }
+
+    [Fact]
     public void TestSources_DoNotUseWallClockTaskDelay()
     {
         var repoRoot = FindRepoRoot();
@@ -233,6 +246,26 @@ public sealed partial class RepositoryGuardTests
             .ToHashSet(StringComparer.Ordinal);
     }
 
+    private static IReadOnlySet<string> CatalogedIntegrationScenarios(string repoRoot)
+    {
+        return Directory
+            .EnumerateFiles(Path.Combine(repoRoot, "docs", "review", "integration-tests"), "*.md", SearchOption.TopDirectoryOnly)
+            .Select(File.ReadAllText)
+            .SelectMany(source => IntegrationScenarioIdRegex().Matches(source))
+            .Select(match => match.Value)
+            .ToHashSet(StringComparer.Ordinal);
+    }
+
+    private static IReadOnlySet<string> TaggedIntegrationScenarios(string repoRoot)
+    {
+        return Directory
+            .EnumerateFiles(Path.Combine(repoRoot, "v3-gpt", "tests", "OrcaCore.Integration.Tests"), "*.cs", SearchOption.AllDirectories)
+            .Select(File.ReadAllText)
+            .SelectMany(source => IntegrationScenarioTraitRegex().Matches(source))
+            .Select(match => match.Groups[1].Value)
+            .ToHashSet(StringComparer.Ordinal);
+    }
+
     private static string FindRepoRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
@@ -254,4 +287,10 @@ public sealed partial class RepositoryGuardTests
 
     [GeneratedRegex(@"Trait\(""AC"",\s*""((?:AC|JS-AC)-\d{3})""\)", RegexOptions.CultureInvariant)]
     private static partial Regex AcceptanceTraitRegex();
+
+    [GeneratedRegex(@"INT-[A-Z0-9]+-\d{3}", RegexOptions.CultureInvariant)]
+    private static partial Regex IntegrationScenarioIdRegex();
+
+    [GeneratedRegex(@"Trait\(Traits\.Scenario,\s*""(INT-[A-Z0-9]+-\d{3})""\)", RegexOptions.CultureInvariant)]
+    private static partial Regex IntegrationScenarioTraitRegex();
 }

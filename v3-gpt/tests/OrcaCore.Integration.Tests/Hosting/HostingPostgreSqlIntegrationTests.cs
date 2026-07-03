@@ -68,10 +68,17 @@ public sealed class HostingPostgreSqlIntegrationTests(PostgreSqlOrcaFixture fixt
             TestContext.Current.CancellationToken);
 
         await host.StartAsync(TestContext.Current.CancellationToken);
-        await OrcaIntegrationHost.PumpOutboxOnceAsync(host, TestContext.Current.CancellationToken);
-        await host.StopAsync(TestContext.Current.CancellationToken);
-
-        dispatcher.Records.Should().ContainSingle(record => record.Kind == "external-job-start");
+        try
+        {
+            var dispatched = await dispatcher.WaitForDispatchAsync(
+                record => record.Kind == "external-job-start",
+                TestContext.Current.CancellationToken);
+            dispatched.Kind.Should().Be("external-job-start");
+        }
+        finally
+        {
+            await host.StopAsync(TestContext.Current.CancellationToken);
+        }
     }
 
     [Fact]

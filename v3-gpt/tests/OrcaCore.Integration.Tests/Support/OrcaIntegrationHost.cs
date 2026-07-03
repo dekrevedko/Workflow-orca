@@ -15,18 +15,62 @@ namespace OrcaCore.Integration.Tests.Support;
 
 internal sealed class RecordingMessageDispatcher : IMessageDispatcher
 {
+    private readonly object gate = new();
     private readonly TaskCompletionSource<OutboxWrite> dispatched = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly List<OutboxWrite> records = [];
+    private readonly List<(Predicate<OutboxWrite> Predicate, TaskCompletionSource<OutboxWrite> Completion)> waiters = [];
 
     internal Task<OutboxWrite> Dispatched => dispatched.Task;
 
-    internal IReadOnlyList<OutboxWrite> Records => records;
+    internal IReadOnlyList<OutboxWrite> Records
+    {
+        get
+        {
+            lock (gate)
+            {
+                return records.ToArray();
+            }
+        }
+    }
+
+    internal Task<OutboxWrite> WaitForDispatchAsync(
+        Predicate<OutboxWrite> predicate,
+        CancellationToken cancellationToken)
+    {
+        lock (gate)
+        {
+            if (records.FirstOrDefault(record => predicate(record)) is { } existing)
+            {
+                return Task.FromResult(existing);
+            }
+
+            var completion = new TaskCompletionSource<OutboxWrite>(TaskCreationOptions.RunContinuationsAsynchronously);
+            waiters.Add((predicate, completion));
+            cancellationToken.Register(() => completion.TrySetCanceled(cancellationToken));
+            return completion.Task;
+        }
+    }
 
     public Task<DispatchResult> DispatchAsync(OutboxWrite record, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        records.Add(record);
+        List<TaskCompletionSource<OutboxWrite>> matchingWaiters = [];
+        lock (gate)
+        {
+            records.Add(record);
+            foreach (var waiter in waiters.Where(waiter => waiter.Predicate(record)).ToArray())
+            {
+                waiters.Remove(waiter);
+                matchingWaiters.Add(waiter.Completion);
+            }
+        }
+
         dispatched.TrySetResult(record);
+        foreach (var waiter in matchingWaiters)
+        {
+            waiter.TrySetResult(record);
+        }
+
         return Task.FromResult(DispatchResult.Success);
     }
 }

@@ -73,9 +73,9 @@ public static class OrcaCoreServiceCollectionExtensions
             services.Configure(configure);
         }
 
-        services.AddSingleton<IHostedService, OrcaCoreOutboxPumpHostedService>();
-        services.AddSingleton<IHostedService, OrcaCoreTimerHostedService>();
-        services.AddSingleton<IHostedService, OrcaCoreOperationalSweepHostedService>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, OrcaCoreOutboxPumpHostedService>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, OrcaCoreTimerHostedService>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, OrcaCoreOperationalSweepHostedService>());
         return services;
     }
 }

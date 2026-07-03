@@ -49,6 +49,7 @@ public sealed class OrcaCoreHostingServiceCollectionTests
         services.Should().NotContain(descriptor => descriptor.ServiceType == typeof(IHostedService));
 
         services.AddOrcaCoreHostedServices();
+        services.AddOrcaCoreHostedServices();
 
         using var provider = services.BuildServiceProvider();
         var hostedServices = provider.GetServices<IHostedService>().ToArray();
