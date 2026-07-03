@@ -24,44 +24,6 @@ public sealed class PostgreSqlWorkflowStore :
     IWorkflowRetentionStore,
     IAsyncDisposable
 {
-    private const string StartedEventType = nameof(WorkflowStartedEvent);
-    private const string ContinuedAsNewEventType = nameof(WorkflowContinuedAsNewEvent);
-    private const string StepCompletedEventType = nameof(WorkflowStepCompletedEvent);
-    private const string StepFailedEventType = nameof(WorkflowStepFailedEvent);
-    private const string WaitRegisteredEventType = nameof(WorkflowWaitRegisteredEvent);
-    private const string WaitMatchedEventType = nameof(WorkflowWaitMatchedEvent);
-    private const string TimerScheduledEventType = nameof(WorkflowTimerScheduledEvent);
-    private const string TimerFiredEventType = nameof(WorkflowTimerFiredEvent);
-    private const string ChildScheduledEventType = nameof(WorkflowChildScheduledEvent);
-    private const string ChildrenScheduledEventType = nameof(WorkflowChildrenScheduledEvent);
-    private const string ChildrenDispatchedEventType = nameof(WorkflowChildrenDispatchedEvent);
-    private const string ChildCompletedEventType = nameof(WorkflowChildCompletedEvent);
-    private const string ParentResumeTokenRecordedEventType = nameof(WorkflowParentResumeTokenRecordedEvent);
-    private const string ParentResumeTokenConsumedEventType = nameof(WorkflowParentResumeTokenConsumedEvent);
-    private const string ChildResidualIntentRecordedEventType = nameof(WorkflowChildResidualIntentRecordedEvent);
-    private const string ChildCompensationScheduledEventType = nameof(WorkflowChildCompensationScheduledEvent);
-    private const string ResourcePoolAcquiredEventType = nameof(WorkflowResourcePoolAcquiredEvent);
-    private const string ResourcePoolQueuedEventType = nameof(WorkflowResourcePoolQueuedEvent);
-    private const string ResourcePoolReleasedEventType = nameof(WorkflowResourcePoolReleasedEvent);
-    private const string ExternalJobStartedEventType = nameof(WorkflowExternalJobStartedEvent);
-    private const string ExternalJobCompletedEventType = nameof(WorkflowExternalJobCompletedEvent);
-    private const string ExternalJobTimedOutEventType = nameof(WorkflowExternalJobTimedOutEvent);
-    private const string ExternalJobStopRequestedEventType = nameof(WorkflowExternalJobStopRequestedEvent);
-    private const string TimerBufferedEventType = nameof(WorkflowTimerBufferedEvent);
-    private const string PausedEventType = nameof(WorkflowPausedEvent);
-    private const string ResumedEventType = nameof(WorkflowResumedEvent);
-    private const string DeliveryBufferedEventType = nameof(WorkflowDeliveryBufferedEvent);
-    private const string DeliveryDiscardedEventType = nameof(WorkflowDeliveryDiscardedEvent);
-    private const string CompletedEventType = nameof(WorkflowCompletedEvent);
-    private const string TerminalEventType = nameof(WorkflowTerminalEvent);
-    private const string SagaForwardActionCompletedEventType = nameof(SagaForwardActionCompletedEvent);
-    private const string SagaForwardActionTimedOutEventType = nameof(SagaForwardActionTimedOutEvent);
-    private const string SagaCompensationRequestedEventType = nameof(SagaCompensationRequestedEvent);
-    private const string SagaCompensationStartedEventType = nameof(SagaCompensationStartedEvent);
-    private const string SagaCompensationCompletedEventType = nameof(SagaCompensationCompletedEvent);
-    private const string SagaCompensationFailedEventType = nameof(SagaCompensationFailedEvent);
-    private const string SagaManualRecoveryRecordedEventType = nameof(SagaManualRecoveryRecordedEvent);
-
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
     private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
 
@@ -232,7 +194,7 @@ public sealed class PostgreSqlWorkflowStore :
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            events.Add(DeserializeEvent(reader.GetString(0), reader.GetString(1)));
+            events.Add(WorkflowEventCodec.Deserialize(reader.GetString(0), reader.GetString(1)));
         }
 
         return events;
@@ -892,9 +854,9 @@ public sealed class PostgreSqlWorkflowStore :
         command.Parameters.AddWithValue("stream_id", streamId.InstanceId.Value);
         command.Parameters.AddWithValue("version", version.Value);
         command.Parameters.AddWithValue("event_id", workflowEvent.EventId.Value);
-        command.Parameters.AddWithValue("event_type", ToEventType(workflowEvent));
+        command.Parameters.AddWithValue("event_type", WorkflowEventCodec.ToEventType(workflowEvent));
         command.Parameters.AddWithValue("occurred_at", workflowEvent.OccurredAt);
-        command.Parameters.Add("payload", NpgsqlDbType.Jsonb).Value = SerializeEvent(workflowEvent);
+        command.Parameters.Add("payload", NpgsqlDbType.Jsonb).Value = WorkflowEventCodec.Serialize(workflowEvent);
 
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -1481,52 +1443,6 @@ public sealed class PostgreSqlWorkflowStore :
         }
     }
 
-    private static string SerializeEvent(WorkflowEvent workflowEvent)
-    {
-        return workflowEvent switch
-        {
-            WorkflowStartedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowStartedEvent),
-            WorkflowContinuedAsNewEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowContinuedAsNewEvent),
-            WorkflowStepCompletedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowStepCompletedEvent),
-            WorkflowStepFailedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowStepFailedEvent),
-            WorkflowWaitRegisteredEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowWaitRegisteredEvent),
-            WorkflowWaitMatchedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowWaitMatchedEvent),
-            WorkflowTimerScheduledEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowTimerScheduledEvent),
-            WorkflowTimerFiredEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowTimerFiredEvent),
-            WorkflowChildScheduledEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowChildScheduledEvent),
-            WorkflowChildrenScheduledEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowChildrenScheduledEvent),
-            WorkflowChildrenDispatchedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowChildrenDispatchedEvent),
-            WorkflowChildCompletedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowChildCompletedEvent),
-            WorkflowParentResumeTokenRecordedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowParentResumeTokenRecordedEvent),
-            WorkflowParentResumeTokenConsumedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowParentResumeTokenConsumedEvent),
-            WorkflowChildResidualIntentRecordedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowChildResidualIntentRecordedEvent),
-            WorkflowChildCompensationScheduledEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowChildCompensationScheduledEvent),
-            WorkflowResourcePoolAcquiredEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowResourcePoolAcquiredEvent),
-            WorkflowResourcePoolQueuedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowResourcePoolQueuedEvent),
-            WorkflowResourcePoolReleasedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowResourcePoolReleasedEvent),
-            WorkflowExternalJobStartedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowExternalJobStartedEvent),
-            WorkflowExternalJobCompletedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowExternalJobCompletedEvent),
-            WorkflowExternalJobTimedOutEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowExternalJobTimedOutEvent),
-            WorkflowExternalJobStopRequestedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowExternalJobStopRequestedEvent),
-            WorkflowTimerBufferedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowTimerBufferedEvent),
-            WorkflowPausedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowPausedEvent),
-            WorkflowResumedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowResumedEvent),
-            WorkflowDeliveryBufferedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowDeliveryBufferedEvent),
-            WorkflowDeliveryDiscardedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowDeliveryDiscardedEvent),
-            WorkflowCompletedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowCompletedEvent),
-            WorkflowTerminalEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowTerminalEvent),
-            SagaForwardActionCompletedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.SagaForwardActionCompletedEvent),
-            SagaForwardActionTimedOutEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.SagaForwardActionTimedOutEvent),
-            SagaCompensationRequestedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.SagaCompensationRequestedEvent),
-            SagaCompensationStartedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.SagaCompensationStartedEvent),
-            SagaCompensationCompletedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.SagaCompensationCompletedEvent),
-            SagaCompensationFailedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.SagaCompensationFailedEvent),
-            SagaManualRecoveryRecordedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.SagaManualRecoveryRecordedEvent),
-            _ => throw new InvalidOperationException(
-                $"Workflow event '{workflowEvent.GetType().Name}' is not supported.")
-        };
-    }
-
     private static IReadOnlyList<SagaAuditScopeSnapshot> DeserializeSagaAudits(string payload)
     {
         return JsonSerializer.Deserialize<IReadOnlyList<SagaAuditScopeSnapshot>>(payload, JsonOptions) ?? [];
@@ -1537,100 +1453,4 @@ public sealed class PostgreSqlWorkflowStore :
         return new JsonSerializerOptions(JsonSerializerDefaults.Web);
     }
 
-    private static WorkflowEvent DeserializeEvent(string eventType, string payload)
-    {
-        return eventType switch
-        {
-            StartedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowStartedEvent)),
-            ContinuedAsNewEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowContinuedAsNewEvent)),
-            StepCompletedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowStepCompletedEvent)),
-            StepFailedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowStepFailedEvent)),
-            WaitRegisteredEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowWaitRegisteredEvent)),
-            WaitMatchedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowWaitMatchedEvent)),
-            TimerScheduledEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowTimerScheduledEvent)),
-            TimerFiredEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowTimerFiredEvent)),
-            ChildScheduledEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowChildScheduledEvent)),
-            ChildrenScheduledEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowChildrenScheduledEvent)),
-            ChildrenDispatchedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowChildrenDispatchedEvent)),
-            ChildCompletedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowChildCompletedEvent)),
-            ParentResumeTokenRecordedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowParentResumeTokenRecordedEvent)),
-            ParentResumeTokenConsumedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowParentResumeTokenConsumedEvent)),
-            ChildResidualIntentRecordedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowChildResidualIntentRecordedEvent)),
-            ChildCompensationScheduledEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowChildCompensationScheduledEvent)),
-            ResourcePoolAcquiredEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowResourcePoolAcquiredEvent)),
-            ResourcePoolQueuedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowResourcePoolQueuedEvent)),
-            ResourcePoolReleasedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowResourcePoolReleasedEvent)),
-            ExternalJobStartedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowExternalJobStartedEvent)),
-            ExternalJobCompletedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowExternalJobCompletedEvent)),
-            ExternalJobTimedOutEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowExternalJobTimedOutEvent)),
-            ExternalJobStopRequestedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowExternalJobStopRequestedEvent)),
-            TimerBufferedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowTimerBufferedEvent)),
-            PausedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowPausedEvent)),
-            ResumedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowResumedEvent)),
-            DeliveryBufferedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowDeliveryBufferedEvent)),
-            DeliveryDiscardedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowDeliveryDiscardedEvent)),
-            CompletedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowCompletedEvent)),
-            TerminalEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowTerminalEvent)),
-            SagaForwardActionCompletedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.SagaForwardActionCompletedEvent)),
-            SagaForwardActionTimedOutEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.SagaForwardActionTimedOutEvent)),
-            SagaCompensationRequestedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.SagaCompensationRequestedEvent)),
-            SagaCompensationStartedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.SagaCompensationStartedEvent)),
-            SagaCompensationCompletedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.SagaCompensationCompletedEvent)),
-            SagaCompensationFailedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.SagaCompensationFailedEvent)),
-            SagaManualRecoveryRecordedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.SagaManualRecoveryRecordedEvent)),
-            _ => throw new InvalidOperationException($"Workflow event type '{eventType}' is not supported.")
-        };
-    }
-
-    private static string ToEventType(WorkflowEvent workflowEvent)
-    {
-        return workflowEvent switch
-        {
-            WorkflowStartedEvent => StartedEventType,
-            WorkflowContinuedAsNewEvent => ContinuedAsNewEventType,
-            WorkflowStepCompletedEvent => StepCompletedEventType,
-            WorkflowStepFailedEvent => StepFailedEventType,
-            WorkflowWaitRegisteredEvent => WaitRegisteredEventType,
-            WorkflowWaitMatchedEvent => WaitMatchedEventType,
-            WorkflowTimerScheduledEvent => TimerScheduledEventType,
-            WorkflowTimerFiredEvent => TimerFiredEventType,
-            WorkflowChildScheduledEvent => ChildScheduledEventType,
-            WorkflowChildrenScheduledEvent => ChildrenScheduledEventType,
-            WorkflowChildrenDispatchedEvent => ChildrenDispatchedEventType,
-            WorkflowChildCompletedEvent => ChildCompletedEventType,
-            WorkflowParentResumeTokenRecordedEvent => ParentResumeTokenRecordedEventType,
-            WorkflowParentResumeTokenConsumedEvent => ParentResumeTokenConsumedEventType,
-            WorkflowChildResidualIntentRecordedEvent => ChildResidualIntentRecordedEventType,
-            WorkflowChildCompensationScheduledEvent => ChildCompensationScheduledEventType,
-            WorkflowResourcePoolAcquiredEvent => ResourcePoolAcquiredEventType,
-            WorkflowResourcePoolQueuedEvent => ResourcePoolQueuedEventType,
-            WorkflowResourcePoolReleasedEvent => ResourcePoolReleasedEventType,
-            WorkflowExternalJobStartedEvent => ExternalJobStartedEventType,
-            WorkflowExternalJobCompletedEvent => ExternalJobCompletedEventType,
-            WorkflowExternalJobTimedOutEvent => ExternalJobTimedOutEventType,
-            WorkflowExternalJobStopRequestedEvent => ExternalJobStopRequestedEventType,
-            WorkflowTimerBufferedEvent => TimerBufferedEventType,
-            WorkflowPausedEvent => PausedEventType,
-            WorkflowResumedEvent => ResumedEventType,
-            WorkflowDeliveryBufferedEvent => DeliveryBufferedEventType,
-            WorkflowDeliveryDiscardedEvent => DeliveryDiscardedEventType,
-            WorkflowCompletedEvent => CompletedEventType,
-            WorkflowTerminalEvent => TerminalEventType,
-            SagaForwardActionCompletedEvent => SagaForwardActionCompletedEventType,
-            SagaForwardActionTimedOutEvent => SagaForwardActionTimedOutEventType,
-            SagaCompensationRequestedEvent => SagaCompensationRequestedEventType,
-            SagaCompensationStartedEvent => SagaCompensationStartedEventType,
-            SagaCompensationCompletedEvent => SagaCompensationCompletedEventType,
-            SagaCompensationFailedEvent => SagaCompensationFailedEventType,
-            SagaManualRecoveryRecordedEvent => SagaManualRecoveryRecordedEventType,
-            _ => throw new InvalidOperationException(
-                $"Workflow event '{workflowEvent.GetType().Name}' is not supported.")
-        };
-    }
-
-    private static TEvent Required<TEvent>(TEvent? workflowEvent)
-        where TEvent : WorkflowEvent
-    {
-        return workflowEvent ?? throw new JsonException("Workflow event payload could not be deserialized.");
-    }
 }

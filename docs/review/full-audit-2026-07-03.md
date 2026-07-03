@@ -144,6 +144,14 @@ serialization into a shared `WorkflowEventCodec` Module. Provider Adapters
 should handle SQL dialect and transaction shape only. This improves Locality for
 event schema changes and gives all providers the same event coverage.
 
+Implementation update:
+- 2026-07-03: Added shared `WorkflowEventCodec` in abstractions and routed
+  PostgreSQL and SQL Server workflow stores through it for event type mapping,
+  source-generated serialization, and deserialization.
+- SQL Server now supports the same concrete durable workflow event catalog as
+  PostgreSQL. Provider certification covers append/load round-trip for every
+  concrete `WorkflowEvent`.
+
 ### Durable timers are removed before timer-fired commit succeeds
 
 Evidence:
@@ -300,6 +308,11 @@ Recommendation: create `WorkflowEventCodec` and make provider Adapters depend
 on that Interface. This is a high-Leverage Module because every new event type
 currently has multiple edit points.
 
+Implementation update:
+- 2026-07-03: Completed with shared `WorkflowEventCodec`; provider Adapters now
+  keep SQL dialect and transaction behavior local while delegating event codec
+  behavior to one Module.
+
 ### Ephemeral runtime is facade-heavy
 
 Evidence:
@@ -436,7 +449,8 @@ Module Interface and keep source-text checks explicitly named as guard tests.
    per-instance lane Seam.
 2. Completed 2026-07-03: fix timer and outbox claim semantics with lease
    Modules before expanding clustered durable execution.
-3. Create `WorkflowEventCodec` and complete SQL Server event coverage.
+3. Completed 2026-07-03: create `WorkflowEventCodec` and complete SQL Server
+   event coverage.
 4. Persist PostgreSQL start idempotency and SQL Server resource pools, or remove
    those durable-provider claims until true.
 5. Extract internal durable aggregate slices for waits, children, resource pools,
@@ -452,5 +466,5 @@ Module Interface and keep source-text checks explicitly named as guard tests.
 The R8 quality issues and immediate channel-substrate drift are addressed. The
 remaining high-risk items are not analyzer warnings; they are durable execution
 and provider semantics. The next refactoring pass should prioritize provider
-parity, especially SQL Server event coverage and PostgreSQL start idempotency,
-before adding more composition features.
+parity, especially PostgreSQL start idempotency and SQL Server durable resource
+pools, before adding more composition features.

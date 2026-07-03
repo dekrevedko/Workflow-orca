@@ -25,11 +25,6 @@ public sealed class SqlServerWorkflowStore :
     IResourcePoolStore,
     IAsyncDisposable
 {
-    private const string StartedEventType = nameof(WorkflowStartedEvent);
-    private const string ContinuedAsNewEventType = nameof(WorkflowContinuedAsNewEvent);
-    private const string TimerScheduledEventType = nameof(WorkflowTimerScheduledEvent);
-    private const string TimerFiredEventType = nameof(WorkflowTimerFiredEvent);
-
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
 
@@ -525,7 +520,7 @@ public sealed class SqlServerWorkflowStore :
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            events.Add(DeserializeEvent(reader.GetString(0), reader.GetString(1)));
+            events.Add(WorkflowEventCodec.Deserialize(reader.GetString(0), reader.GetString(1)));
         }
 
         return events;
@@ -916,9 +911,9 @@ public sealed class SqlServerWorkflowStore :
         command.Parameters.AddWithValue("@stream_id", streamId.InstanceId.Value);
         command.Parameters.AddWithValue("@version", version.Value);
         command.Parameters.AddWithValue("@event_id", workflowEvent.EventId.Value);
-        command.Parameters.AddWithValue("@event_type", ToEventType(workflowEvent));
+        command.Parameters.AddWithValue("@event_type", WorkflowEventCodec.ToEventType(workflowEvent));
         command.Parameters.AddWithValue("@occurred_at", workflowEvent.OccurredAt);
-            command.Parameters.AddWithValue("@payload", SerializeEvent(workflowEvent));
+        command.Parameters.AddWithValue("@payload", WorkflowEventCodec.Serialize(workflowEvent));
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -1325,50 +1320,6 @@ public sealed class SqlServerWorkflowStore :
                 RecoveryInterventions = scope.RecoveryInterventions.Select(intervention => intervention with { }).ToArray()
             }).ToArray()
         };
-    }
-
-    private static string ToEventType(WorkflowEvent workflowEvent)
-    {
-        return workflowEvent switch
-        {
-            WorkflowStartedEvent => StartedEventType,
-            WorkflowContinuedAsNewEvent => ContinuedAsNewEventType,
-            WorkflowTimerScheduledEvent => TimerScheduledEventType,
-            WorkflowTimerFiredEvent => TimerFiredEventType,
-            _ => throw new InvalidOperationException(
-                $"Workflow event '{workflowEvent.GetType().Name}' is not supported by the SQL Server provider.")
-        };
-    }
-
-    private static string SerializeEvent(WorkflowEvent workflowEvent)
-    {
-        return workflowEvent switch
-        {
-            WorkflowStartedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowStartedEvent),
-            WorkflowContinuedAsNewEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowContinuedAsNewEvent),
-            WorkflowTimerScheduledEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowTimerScheduledEvent),
-            WorkflowTimerFiredEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowTimerFiredEvent),
-            _ => throw new InvalidOperationException(
-                $"Workflow event '{workflowEvent.GetType().Name}' is not supported by the SQL Server provider.")
-        };
-    }
-
-    private static WorkflowEvent DeserializeEvent(string eventType, string payload)
-    {
-        return eventType switch
-        {
-            StartedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowStartedEvent)),
-            ContinuedAsNewEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowContinuedAsNewEvent)),
-            TimerScheduledEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowTimerScheduledEvent)),
-            TimerFiredEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowTimerFiredEvent)),
-            _ => throw new InvalidOperationException($"Workflow event type '{eventType}' is not supported.")
-        };
-    }
-
-    private static TEvent Required<TEvent>(TEvent? workflowEvent)
-        where TEvent : WorkflowEvent
-    {
-        return workflowEvent ?? throw new JsonException("Workflow event payload could not be deserialized.");
     }
 
     private ResourcePoolSnapshot SnapshotResourcePool(ResourcePoolDefinition definition)

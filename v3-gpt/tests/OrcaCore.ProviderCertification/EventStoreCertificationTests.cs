@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.TestSupport.Providers;
 using Xunit;
@@ -228,6 +229,37 @@ public abstract class EventStoreCertificationTests
         reclaimed.Should().ContainSingle(record => record.OutboxRecordId == outboxRecordId);
     }
 
+    [Fact]
+    [Trait("AC", "PR-010")]
+    [Trait("AC", "PR-016")]
+    public async Task AppendAsync_AllWorkflowEventTypes_RoundTripsFromTail()
+    {
+        var fixture = CreateFixture();
+        var instanceId = InstanceId.New();
+        var streamId = new WorkflowStreamId(instanceId);
+        var events = AllWorkflowEventTypes(instanceId);
+
+        var result = await fixture.EventStore.AppendAsync(
+            new ProviderCommitBatch
+            {
+                StreamId = streamId,
+                ExpectedVersion = StreamVersion.Empty,
+                Events = events
+            },
+            TestContext.Current.CancellationToken);
+        var tail = await fixture.EventStore.LoadTailAsync(
+            streamId,
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.NewVersion.Should().Be(new StreamVersion(events.Count));
+        tail.Select(workflowEvent => workflowEvent.GetType())
+            .Should()
+            .Equal(events.Select(workflowEvent => workflowEvent.GetType()));
+        tail.Should().BeEquivalentTo(events, options => options.WithStrictOrdering());
+    }
+
     private static ProviderCommitBatch Batch(
         WorkflowStreamId streamId,
         StreamVersion expectedVersion,
@@ -264,8 +296,465 @@ public abstract class EventStoreCertificationTests
     {
         return new DateTimeOffset(2026, 7, 3, 12, 0, seconds, TimeSpan.Zero);
     }
-}
 
+    private static IReadOnlyList<WorkflowEvent> AllWorkflowEventTypes(InstanceId instanceId)
+    {
+        var eventSequence = 100;
+        EventId nextEventId() => new(Guid.Parse($"00000000-0000-0000-0000-{eventSequence++:000000000000}"));
+        CommandId commandId() => CommandId.New();
+        CausationId causationId() => CausationId.New();
+        DateTimeOffset occurredAt() => Timestamp(eventSequence % 50);
+
+        var waitId = WaitId.New();
+        var timerId = TimerId.New();
+        var childInstanceId = InstanceId.New();
+        var childDefinitionId = DefinitionId.New();
+        var childDefinitionVersion = DefinitionVersion.Initial;
+        var completionDefinitionId = DefinitionId.New();
+        var completionDefinitionVersion = new DefinitionVersion(2);
+        var groupId = "children-group";
+        var resumeTokenId = nextEventId();
+        var ticket = new ResourcePoolTicket(
+            Guid.Parse("00000000-0000-0000-0000-000000000901"),
+            "cpu",
+            2,
+            instanceId,
+            "holder-1",
+            Timestamp(4),
+            Timestamp(44));
+
+        return
+        [
+            new WorkflowStartedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                DefinitionId = DefinitionId.New(),
+                DefinitionVersion = DefinitionVersion.Initial,
+                IdempotencyKey = "start-key"
+            },
+            new WorkflowContinuedAsNewEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                PreviousStreamVersion = new StreamVersion(12),
+                Generation = 2
+            },
+            new WorkflowStepCompletedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                StepPath = "root.step"
+            },
+            new WorkflowStepFailedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                StepPath = "root.fail",
+                ErrorSummary = "failed"
+            },
+            new WorkflowWaitRegisteredEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                WaitId = waitId,
+                EventName = "approved",
+                CorrelationId = new CorrelationId("order-1"),
+                Mode = WaitMode.Cold,
+                BranchId = "branch-a"
+            },
+            new WorkflowWaitMatchedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                WaitId = waitId,
+                MatchedEventId = EventId.New()
+            },
+            new WorkflowTimerScheduledEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                TimerId = timerId,
+                FireAt = Timestamp(42),
+                WakeupName = "timeout"
+            },
+            new WorkflowTimerFiredEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                TimerId = timerId
+            },
+            new WorkflowChildScheduledEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                ChildInstanceId = childInstanceId,
+                ChildDefinitionId = childDefinitionId,
+                ChildDefinitionVersion = childDefinitionVersion,
+                WaitId = WaitId.New(),
+                FailurePolicy = RunChildFailurePolicy.PropagateFailure
+            },
+            new WorkflowChildrenScheduledEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                GroupId = groupId,
+                ChildDefinitionId = childDefinitionId,
+                ChildDefinitionVersion = childDefinitionVersion,
+                FailurePolicy = RunChildFailurePolicy.ContinueParent,
+                JoinPolicy = RunChildrenJoinPolicy.WhenAny,
+                ResidualPolicy = RunChildrenResidualPolicy.CancelRemaining,
+                TotalItemCount = 2,
+                InitialDispatchCount = 1,
+                NextDispatchIndex = 1,
+                MaxConcurrency = 1,
+                Children =
+                [
+                    new WorkflowChildMaterialization
+                    {
+                        Index = 0,
+                        ChildInstanceId = childInstanceId,
+                        ChildDefinitionId = childDefinitionId,
+                        ChildDefinitionVersion = childDefinitionVersion,
+                        ItemSnapshot = """{"id":1}"""
+                    }
+                ]
+            },
+            new WorkflowChildrenDispatchedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                GroupId = groupId,
+                PreviousDispatchIndex = 1,
+                NextDispatchIndex = 2,
+                Children =
+                [
+                    new WorkflowChildMaterialization
+                    {
+                        Index = 1,
+                        ChildInstanceId = InstanceId.New(),
+                        ChildDefinitionId = childDefinitionId,
+                        ChildDefinitionVersion = childDefinitionVersion,
+                        ItemSnapshot = """{"id":2}"""
+                    }
+                ]
+            },
+            new WorkflowChildCompletedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                ChildInstanceId = childInstanceId,
+                ChildStatus = WorkflowStatus.Completed,
+                ErrorSummary = null
+            },
+            new WorkflowParentResumeTokenRecordedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                GroupId = groupId,
+                ResumeTokenId = resumeTokenId
+            },
+            new WorkflowParentResumeTokenConsumedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                GroupId = groupId,
+                ResumeTokenId = resumeTokenId
+            },
+            new WorkflowChildResidualIntentRecordedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                GroupId = groupId,
+                ResidualPolicy = RunChildrenResidualPolicy.DetachRemaining,
+                ResidualChildInstanceIds = [childInstanceId]
+            },
+            new WorkflowChildCompensationScheduledEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                GroupId = groupId,
+                CompensationDefinitionId = completionDefinitionId,
+                CompensationDefinitionVersion = completionDefinitionVersion,
+                Compensations =
+                [
+                    new WorkflowChildCompensationMaterialization
+                    {
+                        Index = 0,
+                        SourceChildInstanceId = childInstanceId,
+                        CompensationInstanceId = InstanceId.New(),
+                        ItemSnapshot = """{"compensate":true}"""
+                    }
+                ]
+            },
+            new WorkflowResourcePoolAcquiredEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                HolderKey = "holder-1",
+                Tickets = [ticket]
+            },
+            new WorkflowResourcePoolQueuedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                WaitId = WaitId.New(),
+                HolderKey = "holder-2",
+                Requirements = [new ResourcePoolRequirement("cpu", 1)],
+                ExpiresAt = Timestamp(45)
+            },
+            new WorkflowResourcePoolReleasedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                HolderKey = "holder-1",
+                Tickets = [ticket]
+            },
+            new WorkflowExternalJobStartedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                ExternalJobId = "job-1",
+                Payload = [1, 2, 3],
+                WaitId = WaitId.New(),
+                TimeoutTimerId = TimerId.New(),
+                TimeoutAt = Timestamp(46)
+            },
+            new WorkflowExternalJobCompletedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                ExternalJobId = "job-1",
+                CompletionEventId = EventId.New()
+            },
+            new WorkflowExternalJobTimedOutEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                ExternalJobId = "job-1"
+            },
+            new WorkflowExternalJobStopRequestedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                ExternalJobId = "job-1"
+            },
+            new WorkflowTimerBufferedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                TimerId = TimerId.New(),
+                WakeupName = "paused-timeout"
+            },
+            new WorkflowPausedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt()
+            },
+            new WorkflowResumedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                BufferHandling = "replay"
+            },
+            new WorkflowDeliveryBufferedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                BufferedEventId = EventId.New(),
+                EventName = "approved",
+                CorrelationId = new CorrelationId("order-2"),
+                BranchId = "branch-b"
+            },
+            new WorkflowDeliveryDiscardedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                DiscardedEventId = EventId.New()
+            },
+            new WorkflowCompletedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                OutcomeName = "ok"
+            },
+            new WorkflowTerminalEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                Status = WorkflowStatus.Cancelled
+            },
+            new SagaForwardActionCompletedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                ScopeId = "scope-1",
+                ActionKey = "reserve",
+                CompensationKey = "release"
+            },
+            new SagaForwardActionTimedOutEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                ScopeId = "scope-1",
+                ActionKey = "charge",
+                CompensateScope = true
+            },
+            new SagaCompensationRequestedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                ScopeId = "scope-1",
+                Reason = "timeout"
+            },
+            new SagaCompensationStartedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                ScopeId = "scope-1",
+                ActionKey = "release",
+                Order = 1
+            },
+            new SagaCompensationCompletedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                ScopeId = "scope-1",
+                ActionKey = "release"
+            },
+            new SagaCompensationFailedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                ScopeId = "scope-1",
+                ActionKey = "refund",
+                ErrorSummary = "manual review"
+            },
+            new SagaManualRecoveryRecordedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                ScopeId = "scope-1",
+                ActionKey = "refund",
+                OperatorId = "operator-1",
+                RecoveryAction = "mark-complete",
+                Reason = "resolved",
+                TargetStatus = WorkflowStatus.Completed
+            }
+        ];
+    }
+}
 /// <summary>
 /// Supplies the provider ports exercised by provider certification tests.
 /// </summary>
