@@ -23,6 +23,11 @@ public sealed record EventEnvelope
     public required CorrelationId CorrelationId { get; init; }
 
     /// <summary>
+    /// Gets the optional composition branch identity for instance-targeted delivery.
+    /// </summary>
+    public string? BranchId { get; init; }
+
+    /// <summary>
     /// Gets the business payload carried by the event.
     /// </summary>
     public object? Payload { get; init; }

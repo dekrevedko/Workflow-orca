@@ -58,6 +58,12 @@ internal sealed class RuntimeWaitRecord
 
     internal bool Matches(EventEnvelope envelope)
     {
+        if (!string.IsNullOrWhiteSpace(envelope.BranchId) &&
+            !string.Equals(BranchId?.ToString(), envelope.BranchId, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
         return Status == "Active" &&
             string.Equals(EventName, envelope.EventName, StringComparison.Ordinal) &&
             CorrelationId == envelope.CorrelationId;

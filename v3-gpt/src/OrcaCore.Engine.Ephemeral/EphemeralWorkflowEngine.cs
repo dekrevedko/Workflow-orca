@@ -18,7 +18,9 @@ namespace OrcaCore.Engine.Ephemeral;
 public sealed class EphemeralWorkflowEngine
 {
     private readonly ConcurrentDictionary<DefinitionId, object> definitions = [];
+    private readonly ConcurrentDictionary<InstanceId, IReadOnlyList<WaitRoutingKey>> indexedInstanceWaits = [];
     private readonly ConcurrentDictionary<InstanceId, object> sagaRuntimeStates = [];
+    private readonly ConcurrentDictionary<WaitRoutingKey, ConcurrentDictionary<InstanceId, byte>> waitIndex = [];
     private readonly InstanceExecutionLane executionLane;
     private readonly ResourceGovernanceCoordinator governance;
     private readonly IInstanceRegistry instanceRegistry;
@@ -143,9 +145,11 @@ public sealed class EphemeralWorkflowEngine
                 cancellationToken).ConfigureAwait(false);
         }
 
-        return instance is null
+        snapshot = instance is null
             ? snapshot
             : await DrainYieldContinuationsAsync(instance, instanceId, cancellationToken).ConfigureAwait(false);
+        IndexSnapshot(snapshot);
+        return snapshot;
     }
 
     internal DateTimeOffset GetUtcNow()
@@ -287,14 +291,31 @@ public sealed class EphemeralWorkflowEngine
         foreach (var timer in dueTimers)
         {
             WorkflowInstanceSnapshot snapshot;
+            instanceRegistry.TryGet(timer.InstanceId, out var registeredInstance);
             await using (await governance.EnterAdvancementAsync(cancellationToken).ConfigureAwait(false))
             {
                 snapshot = await executionLane.RunAsync(
                     timer.InstanceId,
-                    timer.FireAsync,
+                    async laneCancellationToken =>
+                    {
+                        if (registeredInstance is IWorkflowInstance instanceForToken)
+                        {
+                            using var linkedCancellation = instanceForToken.CreateLinkedExecutionToken(laneCancellationToken);
+                            return await timer.FireAsync(linkedCancellation.Token).ConfigureAwait(false);
+                        }
+
+                        return await timer.FireAsync(laneCancellationToken).ConfigureAwait(false);
+                    },
                     cancellationToken).ConfigureAwait(false);
             }
 
+            if (registeredInstance is IWorkflowInstance instance)
+            {
+                snapshot = await DrainYieldContinuationsAsync(instance, timer.InstanceId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            IndexSnapshot(snapshot);
             snapshots.Add(snapshot);
         }
 
@@ -329,21 +350,44 @@ public sealed class EphemeralWorkflowEngine
         {
             snapshot = await executionLane.RunAsync(
                 instanceId,
-                laneCancellationToken => instance.RaiseEventAsync(envelope, laneCancellationToken),
+                async laneCancellationToken =>
+                {
+                    using var linkedCancellation = instance.CreateLinkedExecutionToken(laneCancellationToken);
+                    return await instance.RaiseEventAsync(envelope, linkedCancellation.Token).ConfigureAwait(false);
+                },
                 cancellationToken).ConfigureAwait(false);
         }
 
-        return await DrainYieldContinuationsAsync(instance, instanceId, cancellationToken).ConfigureAwait(false);
+        snapshot = await DrainYieldContinuationsAsync(instance, instanceId, cancellationToken).ConfigureAwait(false);
+        IndexSnapshot(snapshot);
+        return snapshot;
     }
 
     internal async Task<WorkflowInstanceSnapshot> CancelInstanceAsync(
         InstanceId instanceId,
         CancellationToken cancellationToken)
     {
-        return await RunTerminalCommandAsync(
-            instanceId,
-            instance => instance.Cancel(timeProvider.GetUtcNow()),
-            cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!instanceRegistry.TryGet(instanceId, out var registeredInstance) ||
+            registeredInstance is not IWorkflowInstance instance)
+        {
+            throw new WorkflowRoutingException(
+                $"No workflow instance exists for instance id '{instanceId}'.");
+        }
+
+        instance.SignalCancellation();
+        WorkflowInstanceSnapshot snapshot;
+        await using (await governance.EnterAdvancementAsync(cancellationToken).ConfigureAwait(false))
+        {
+            snapshot = await executionLane.RunAsync(
+                instanceId,
+                _ => Task.FromResult(instance.Cancel(timeProvider.GetUtcNow())),
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        IndexSnapshot(snapshot);
+        return snapshot;
     }
 
     internal async Task<WorkflowInstanceSnapshot> TerminateInstanceAsync(
@@ -372,10 +416,12 @@ public sealed class EphemeralWorkflowEngine
 
         await using (await governance.EnterAdvancementAsync(cancellationToken).ConfigureAwait(false))
         {
-            return await executionLane.RunAsync(
+            var snapshot = await executionLane.RunAsync(
                 instanceId,
                 _ => Task.FromResult(command(instance)),
                 cancellationToken).ConfigureAwait(false);
+            IndexSnapshot(snapshot);
+            return snapshot;
         }
     }
 
@@ -393,11 +439,13 @@ public sealed class EphemeralWorkflowEngine
                     instanceId,
                     async laneCancellationToken =>
                     {
-                        await continuation!(laneCancellationToken).ConfigureAwait(false);
+                        using var linkedCancellation = instance.CreateLinkedExecutionToken(laneCancellationToken);
+                        await continuation!(linkedCancellation.Token).ConfigureAwait(false);
                         return instance.ToSnapshot();
                     },
                     cancellationToken).ConfigureAwait(false);
             }
+            IndexSnapshot(snapshot);
         }
 
         return snapshot;
@@ -499,7 +547,14 @@ public sealed class EphemeralWorkflowEngine
         ArgumentNullException.ThrowIfNull(envelope);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var matches = instanceRegistry.List()
+        var key = WaitRoutingKey.From(envelope);
+        if (!waitIndex.TryGetValue(key, out var indexedInstances) || indexedInstances.IsEmpty)
+        {
+            throw new WorkflowRoutingException(
+                $"No active wait exists for event '{envelope.EventName}' and correlation '{envelope.CorrelationId}'.");
+        }
+
+        var matches = instanceRegistry.GetMany(indexedInstances.Keys.ToArray())
             .OfType<WorkflowInstance<TState>>()
             .Where(instance => instance.HasActiveWait(envelope.EventName, envelope.CorrelationId))
             .ToArray();
@@ -521,6 +576,37 @@ public sealed class EphemeralWorkflowEngine
             matches[0].InstanceId,
             envelope,
             cancellationToken).ConfigureAwait(false);
+    }
+
+    private void IndexSnapshot(WorkflowInstanceSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+
+        if (indexedInstanceWaits.TryRemove(snapshot.InstanceId, out var previousKeys))
+        {
+            foreach (var previousKey in previousKeys)
+            {
+                if (waitIndex.TryGetValue(previousKey, out var instances))
+                {
+                    instances.TryRemove(snapshot.InstanceId, out _);
+                }
+            }
+        }
+
+        var activeKeys = snapshot.ActiveWaits
+            .Select(wait => new WaitRoutingKey(wait.EventName, wait.CorrelationId))
+            .Distinct()
+            .ToArray();
+        if (activeKeys.Length == 0)
+        {
+            return;
+        }
+
+        indexedInstanceWaits[snapshot.InstanceId] = activeKeys;
+        foreach (var key in activeKeys)
+        {
+            waitIndex.GetOrAdd(key, _ => new ConcurrentDictionary<InstanceId, byte>())[snapshot.InstanceId] = 0;
+        }
     }
 
     /// <summary>
@@ -565,5 +651,13 @@ public sealed class EphemeralWorkflowEngine
         internal List<SagaForwardAction<TState>> CompletedActions { get; } = [];
 
         internal bool CompensationRequested { get; set; }
+    }
+
+    private readonly record struct WaitRoutingKey(string EventName, CorrelationId CorrelationId)
+    {
+        internal static WaitRoutingKey From(EventEnvelope envelope)
+        {
+            return new WaitRoutingKey(envelope.EventName, envelope.CorrelationId);
+        }
     }
 }

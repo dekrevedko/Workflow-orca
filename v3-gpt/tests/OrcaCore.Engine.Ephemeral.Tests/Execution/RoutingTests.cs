@@ -6,6 +6,7 @@ using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
 using OrcaCore.Engine.Ephemeral;
+using OrcaCore.Engine.Ephemeral.Execution;
 using Xunit;
 
 namespace OrcaCore.Engine.Ephemeral.Tests.Execution;
@@ -127,6 +128,27 @@ public sealed class RoutingTests
             .WithMessage("*no active wait*");
     }
 
+    [Fact]
+    [Trait("AC", "AC-115")]
+    public async Task RaiseByCorrelationAsync_UsesIndexedLookupInsteadOfRegistryWideScan()
+    {
+        var registry = new CountingInstanceRegistry();
+        var engine = new EphemeralWorkflowEngine(TimeProvider.System, registry, new InstanceExecutionLane());
+        var state = new TestState();
+        var definition = Definition(state, "Approved", Correlation);
+        engine.RegisterDefinition(definition);
+        await StartAsync(engine, definition);
+        registry.ResetCounts();
+
+        var snapshot = await engine.RaiseEventByCorrelationAsync<TestState>(
+            Event("Approved", Correlation, "payload"),
+            TestContext.Current.CancellationToken);
+
+        snapshot.Status.Should().Be(WorkflowStatus.Completed);
+        registry.GetManyCount.Should().BeGreaterThan(0);
+        registry.ListCount.Should().Be(0);
+    }
+
     private static Task<WorkflowInstanceSnapshot> StartAsync(
         EphemeralWorkflowEngine engine,
         OrcaCore.Core.Definitions.WorkflowDefinition<TestState> definition)
@@ -179,6 +201,46 @@ public sealed class RoutingTests
             }
 
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed class CountingInstanceRegistry : IInstanceRegistry
+    {
+        private readonly Dictionary<InstanceId, object> instances = [];
+
+        internal int GetManyCount { get; private set; }
+
+        internal int ListCount { get; private set; }
+
+        public void Save<TState>(WorkflowInstance<TState> instance)
+        {
+            instances[instance.InstanceId] = instance;
+        }
+
+        public bool TryGet(InstanceId instanceId, out object? instance)
+        {
+            return instances.TryGetValue(instanceId, out instance);
+        }
+
+        public IReadOnlyCollection<object> GetMany(IReadOnlyCollection<InstanceId> instanceIds)
+        {
+            GetManyCount++;
+            return instanceIds
+                .Where(instances.ContainsKey)
+                .Select(instanceId => instances[instanceId])
+                .ToArray();
+        }
+
+        public IReadOnlyCollection<object> List()
+        {
+            ListCount++;
+            return instances.Values.ToArray();
+        }
+
+        internal void ResetCounts()
+        {
+            GetManyCount = 0;
+            ListCount = 0;
         }
     }
 }

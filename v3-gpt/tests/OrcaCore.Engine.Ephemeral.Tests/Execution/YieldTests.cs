@@ -24,7 +24,7 @@ public sealed class YieldTests
             TestContext.Current.CancellationToken);
         await gate.Yielded.Task.WaitAsync(TestContext.Current.CancellationToken);
         await gate.BlockedBeforeCompletion.Task.WaitAsync(TestContext.Current.CancellationToken);
-        var running = await WaitForSingleSnapshotAsync(engine);
+        var running = engine.Management.All().Get();
         gate.ReleaseCompletion();
         var completed = await start.WaitAsync(TestContext.Current.CancellationToken);
 
@@ -63,7 +63,7 @@ public sealed class YieldTests
             TestContext.Current.CancellationToken);
         await gate.Yielded.Task.WaitAsync(TestContext.Current.CancellationToken);
         await gate.BlockedBeforeCompletion.Task.WaitAsync(TestContext.Current.CancellationToken);
-        var snapshot = await WaitForSingleSnapshotAsync(engine);
+        var snapshot = engine.Management.All().Get();
         var state = engine.Management.Instance(snapshot.InstanceId).GetState<TestState>();
         gate.ReleaseCompletion();
         await start.WaitAsync(TestContext.Current.CancellationToken);
@@ -102,7 +102,8 @@ public sealed class YieldTests
             "start",
             TestContext.Current.CancellationToken);
         await gate.Yielded.Task.WaitAsync(TestContext.Current.CancellationToken);
-        var running = await WaitForSingleSnapshotAsync(engine);
+        await gate.BlockedBeforeCompletion.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var running = engine.Management.All().Get();
 
         running.Status.Should().Be(WorkflowStatus.Running);
         gate.ReleaseCompletion();
@@ -118,23 +119,6 @@ public sealed class YieldTests
             .Then(() => new YieldingStep(gate))
             .End()
             .Build(DefinitionId.New(), DefinitionVersion.Initial);
-    }
-
-    private static async Task<WorkflowInstanceSnapshot> WaitForSingleSnapshotAsync(EphemeralWorkflowEngine engine)
-    {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-        while (!timeout.IsCancellationRequested)
-        {
-            var snapshots = engine.Management.All().List();
-            if (snapshots.Count == 1)
-            {
-                return snapshots[0];
-            }
-
-            await Task.Delay(10, timeout.Token).ConfigureAwait(false);
-        }
-
-        throw new TimeoutException("Timed out waiting for yielded instance snapshot.");
     }
 
     private sealed class TestState

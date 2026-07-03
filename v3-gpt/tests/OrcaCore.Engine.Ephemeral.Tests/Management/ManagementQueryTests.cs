@@ -7,6 +7,7 @@ using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
 using OrcaCore.Engine.Ephemeral;
 using OrcaCore.Engine.Ephemeral.Execution;
+using OrcaCore.TestSupport;
 using Xunit;
 
 namespace OrcaCore.Engine.Ephemeral.Tests.Management;
@@ -147,6 +148,79 @@ public sealed class ManagementQueryTests
     }
 
     [Fact]
+    [Trait("AC", "AC-503")]
+    public async Task Statistics_IncludesActiveWaitStuckAndAgeAggregates()
+    {
+        var clock = new Clock(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
+        var engine = new EphemeralWorkflowEngine(clock.TimeProvider);
+        var waiting = WaitingDefinition();
+        engine.RegisterDefinition(waiting);
+        await engine.StartAsync<string, TestState>(
+            waiting.DefinitionId,
+            "wait",
+            TestContext.Current.CancellationToken);
+        clock.Advance(TimeSpan.FromMinutes(10));
+        engine.Management.All().DetectStuck(TimeSpan.FromMinutes(5));
+
+        var statistics = engine.Management.All().Statistics();
+
+        statistics.ActiveWaitsByEventName.Should().ContainSingle(wait =>
+            wait.EventName == "Ready" && wait.Count == 1);
+        statistics.StuckCount.Should().Be(1);
+        statistics.OldestActiveInstanceAge.Should().BeGreaterThanOrEqualTo(TimeSpan.FromMinutes(10));
+    }
+
+    [Fact]
+    [Trait("AC", "AC-516")]
+    public async Task InstanceStepScope_ReturnsActiveStepAndStepLifecycleEvents()
+    {
+        var step = new BlockingStep();
+        var engine = new EphemeralWorkflowEngine();
+        var definition = new WorkflowBuilder<TestState>()
+            .Init<string>(input => new TestState { Name = input })
+            .Wait("Ready", state => new CorrelationId(state.Name))
+            .Then(() => step)
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+        engine.RegisterDefinition(definition);
+        var started = await engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "wait",
+            TestContext.Current.CancellationToken);
+        var delivery = engine.RaiseEventAsync<TestState>(
+            started.InstanceId,
+            Event("Ready", "wait", "payload"),
+            TestContext.Current.CancellationToken);
+        await step.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
+
+        var activeStep = engine.Management.Instance(started.InstanceId).Get().ActiveStep;
+        activeStep.Should().NotBeNull();
+        var stepScope = engine.Management.Instance(started.InstanceId).Step(activeStep!.StepPath);
+
+        stepScope.GetActiveStep().Should().BeEquivalentTo(activeStep);
+        step.Release();
+        await delivery.WaitAsync(TestContext.Current.CancellationToken);
+        stepScope.GetLifecycleEvents().Should().Contain(lifecycleEvent =>
+            lifecycleEvent.EventName == "StepCompleted" && lifecycleEvent.StepPath == activeStep.StepPath);
+    }
+
+    [Fact]
+    public async Task InstanceSagaScope_ReturnsSagaAuditSnapshots()
+    {
+        var engine = new EphemeralWorkflowEngine();
+        var definition = CompletedDefinition();
+        engine.RegisterDefinition(definition);
+        var started = await engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "done",
+            TestContext.Current.CancellationToken);
+
+        var audits = engine.Management.Instance(started.InstanceId).Saga().GetAudits();
+
+        audits.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task BulkGet_ByIdsOrFilter_UsesSingleRegistryOperation()
     {
         var registry = new CountingInstanceRegistry();
@@ -237,6 +311,27 @@ public sealed class ManagementQueryTests
             }
 
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed class BlockingStep : IStep<TestState>
+    {
+        private readonly TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal void Release()
+        {
+            release.TrySetResult();
+        }
+
+        public async ValueTask<StepResult> ExecuteAsync(
+            StepContext<TestState> context,
+            CancellationToken cancellationToken)
+        {
+            Started.TrySetResult();
+            await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            return new StepResult.Completed();
         }
     }
 

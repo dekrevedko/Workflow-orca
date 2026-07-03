@@ -789,10 +789,12 @@ internal sealed class Interpreter<TState>
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
             var stepStartedAt = timeProvider.GetUtcNow();
+            instance.StartStep(stepPath, stepStartedAt, stepNode.Policies.Timeout?.Duration);
             try
             {
                 var context = new StepContext<TState>(instance.State, resumedEvent, timeProvider);
                 var result = await step.ExecuteAsync(context, executionToken).ConfigureAwait(false);
+                instance.CompleteStep(stepPath, timeProvider.GetUtcNow());
                 RecordStuckStepIfNeeded(instance, stepPath, stepStartedAt);
                 if (result is StepResult.Failed && attempt < maxAttempts)
                 {
@@ -803,6 +805,7 @@ internal sealed class Interpreter<TState>
             }
             catch (OperationCanceledException) when (timedOut && !cancellationToken.IsCancellationRequested)
             {
+                instance.CompleteStep(stepPath, timeProvider.GetUtcNow());
                 var timeoutException = new TimeoutException(
                     $"Step '{stepPath}' timed out after {stepNode.Policies.Timeout!.Duration}.");
                 if (deferFailures)
@@ -815,6 +818,7 @@ internal sealed class Interpreter<TState>
             }
             catch (Exception exception) when (exception is not OperationCanceledException and not NotSupportedException)
             {
+                instance.CompleteStep(stepPath, timeProvider.GetUtcNow());
                 RecordStuckStepIfNeeded(instance, stepPath, stepStartedAt);
                 if (attempt < maxAttempts)
                 {

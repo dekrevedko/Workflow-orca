@@ -95,6 +95,35 @@ public sealed class WhenFirstTests
             outcome.BranchId == "1:b" && outcome.Status == "Completed");
     }
 
+    [Fact]
+    [Trait("AC", "AC-204")]
+    public async Task WhenFirst_ConcurrentWaitingBranchEvents_SelectsSingleWinnerAndRunsContinuationOnce()
+    {
+        var state = new TestState();
+        var engine = new EphemeralWorkflowEngine();
+        var definition = WaitingDefinition(state, WhenFirstResidualPolicy.LetRemainingComplete);
+        engine.RegisterDefinition(definition);
+        var waiting = await engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "start",
+            TestContext.Current.CancellationToken);
+
+        var first = engine.RaiseEventAsync<TestState>(
+            waiting.InstanceId,
+            Event("A", new CorrelationId("a"), "a"),
+            TestContext.Current.CancellationToken);
+        var second = engine.RaiseEventAsync<TestState>(
+            waiting.InstanceId,
+            Event("B", new CorrelationId("b"), "b"),
+            TestContext.Current.CancellationToken);
+        var results = await Task.WhenAll(first, second).WaitAsync(TestContext.Current.CancellationToken);
+
+        results.Should().Contain(snapshot => snapshot.Status == WorkflowStatus.Completed);
+        state.Values.Count(value => value == "after").Should().Be(1);
+        engine.Management.Instance(waiting.InstanceId).Get().CompositionOutcomes
+            .Should().ContainSingle(outcome => outcome.Status == "Winner");
+    }
+
     private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> WaitingDefinition(
         TestState state,
         WhenFirstResidualPolicy residualPolicy)

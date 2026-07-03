@@ -103,6 +103,11 @@ public sealed record WorkflowInstanceSnapshot
     public IReadOnlyList<ActiveWaitSnapshot> ActiveWaits { get; init; } = [];
 
     /// <summary>
+    /// Gets the step currently executing on this instance, when the in-process engine can observe it.
+    /// </summary>
+    public ActiveStepSnapshot? ActiveStep { get; init; }
+
+    /// <summary>
     /// Gets immutable snapshots of completed composition branch outcomes.
     /// </summary>
     public IReadOnlyList<CompositionBranchOutcomeSnapshot> CompositionOutcomes { get; init; } = [];

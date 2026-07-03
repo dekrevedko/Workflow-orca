@@ -182,7 +182,8 @@ public sealed class EphemeralManagementQuery
     /// </summary>
     public WorkflowStatistics Statistics()
     {
-        var groups = List()
+        var snapshots = List();
+        var groups = snapshots
             .GroupBy(snapshot => new
             {
                 snapshot.DefinitionId,
@@ -200,8 +201,32 @@ public sealed class EphemeralManagementQuery
             .ThenBy(group => group.DefinitionVersion.Value)
             .ThenBy(group => group.Status)
             .ToArray();
+        var activeWaitsByEventName = snapshots
+            .SelectMany(snapshot => snapshot.ActiveWaits)
+            .GroupBy(wait => wait.EventName, StringComparer.Ordinal)
+            .Select(group => new ActiveWaitStatistics
+            {
+                EventName = group.Key,
+                Count = group.Count()
+            })
+            .OrderBy(group => group.EventName, StringComparer.Ordinal)
+            .ToArray();
+        var nonTerminal = snapshots
+            .Where(snapshot => !IsTerminal(snapshot.Status))
+            .ToArray();
+        var now = engine.GetUtcNow();
+        var oldestActiveAge = nonTerminal.Length == 0
+            ? (TimeSpan?)null
+            : nonTerminal.Max(snapshot => now - snapshot.CreatedAt);
+        var stuckCount = snapshots.Count(snapshot => snapshot.IsStuck || snapshot.HasStuckStep);
 
-        return new WorkflowStatistics { Groups = groups };
+        return new WorkflowStatistics
+        {
+            Groups = groups,
+            ActiveWaitsByEventName = activeWaitsByEventName,
+            OldestActiveInstanceAge = oldestActiveAge,
+            StuckCount = stuckCount
+        };
     }
 
     /// <summary>
@@ -370,6 +395,24 @@ public sealed class EphemeralInstanceManagement
     }
 
     /// <summary>
+    /// Selects lifecycle and execution metadata for one step path on this instance.
+    /// </summary>
+    public EphemeralStepManagement Step(string stepPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(stepPath);
+
+        return new EphemeralStepManagement(this, stepPath);
+    }
+
+    /// <summary>
+    /// Selects saga metadata for this instance.
+    /// </summary>
+    public EphemeralSagaManagement Saga()
+    {
+        return new EphemeralSagaManagement(this);
+    }
+
+    /// <summary>
     /// Cooperatively cancels the selected instance.
     /// </summary>
     public Task<WorkflowInstanceSnapshot> CancelAsync(CancellationToken cancellationToken)
@@ -455,6 +498,22 @@ public sealed record WorkflowInstanceQueryModel
 public sealed record WorkflowStatistics
 {
     public required IReadOnlyList<WorkflowStatisticsGroup> Groups { get; init; }
+
+    public IReadOnlyList<ActiveWaitStatistics> ActiveWaitsByEventName { get; init; } = [];
+
+    public TimeSpan? OldestActiveInstanceAge { get; init; }
+
+    public int StuckCount { get; init; }
+}
+
+/// <summary>
+/// Count for active waits grouped by event name.
+/// </summary>
+public sealed record ActiveWaitStatistics
+{
+    public required string EventName { get; init; }
+
+    public required int Count { get; init; }
 }
 
 /// <summary>
@@ -490,6 +549,54 @@ public sealed record TerminalCommandReport
     public required IReadOnlyList<WorkflowInstanceSnapshot> Results { get; init; }
 
     public int AffectedCount => Results.Count;
+}
+
+/// <summary>
+/// Instance-scoped query surface for one step path.
+/// </summary>
+public sealed class EphemeralStepManagement
+{
+    private readonly EphemeralInstanceManagement instance;
+    private readonly string stepPath;
+
+    internal EphemeralStepManagement(EphemeralInstanceManagement instance, string stepPath)
+    {
+        this.instance = instance;
+        this.stepPath = stepPath;
+    }
+
+    public ActiveStepSnapshot? GetActiveStep()
+    {
+        var activeStep = instance.Get().ActiveStep;
+        return activeStep is not null && string.Equals(activeStep.StepPath, stepPath, StringComparison.Ordinal)
+            ? activeStep
+            : null;
+    }
+
+    public IReadOnlyList<LifecycleEventSnapshot> GetLifecycleEvents()
+    {
+        return instance.GetLifecycleEvents()
+            .Where(lifecycleEvent => string.Equals(lifecycleEvent.StepPath, stepPath, StringComparison.Ordinal))
+            .ToArray();
+    }
+}
+
+/// <summary>
+/// Instance-scoped query surface for saga metadata.
+/// </summary>
+public sealed class EphemeralSagaManagement
+{
+    private readonly EphemeralInstanceManagement instance;
+
+    internal EphemeralSagaManagement(EphemeralInstanceManagement instance)
+    {
+        this.instance = instance;
+    }
+
+    public IReadOnlyList<SagaAuditScopeSnapshot> GetAudits()
+    {
+        return instance.Get().SagaAudits.ToArray();
+    }
 }
 
 internal sealed class QueryPredicateValidator : ExpressionVisitor

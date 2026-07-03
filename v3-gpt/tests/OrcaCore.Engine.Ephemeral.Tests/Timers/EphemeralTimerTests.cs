@@ -5,6 +5,7 @@ using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Engine.Ephemeral;
+using OrcaCore.Engine.Ephemeral.Timers;
 using OrcaCore.TestSupport;
 using Xunit;
 
@@ -58,6 +59,71 @@ public sealed class EphemeralTimerTests
         sink.Should().Equal(["after-delay"]);
     }
 
+    [Fact]
+    public async Task FireDueTimersAsync_TimerContinuationYields_DrainsYieldContinuation()
+    {
+        var clock = new Clock(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
+        var engine = new EphemeralWorkflowEngine(clock.TimeProvider);
+        var state = new YieldAfterTimerState();
+        var definition = new WorkflowBuilder<YieldAfterTimerState>()
+            .Init<string>(_ => state)
+            .Delay(TimeSpan.FromMinutes(5))
+            .Then(() => new YieldOnceStep())
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+        engine.RegisterDefinition(definition);
+        await engine.StartAsync<string, YieldAfterTimerState>(
+            definition.DefinitionId,
+            "start",
+            TestContext.Current.CancellationToken);
+        clock.Advance(TimeSpan.FromMinutes(5));
+
+        var fired = await engine.FireDueTimersAsync(TestContext.Current.CancellationToken);
+
+        fired.Should().ContainSingle()
+            .Which.Status.Should().Be(WorkflowStatus.Completed);
+        state.Attempts.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task TimerService_ConcurrentScheduleCancelAndClaim_DoesNotCorruptDueTimers()
+    {
+        var service = new EphemeralTimerService(TimeProvider.System);
+        var instanceId = InstanceId.New();
+        var snapshot = new WorkflowInstanceSnapshot
+        {
+            InstanceId = instanceId,
+            DefinitionId = DefinitionId.New(),
+            DefinitionVersion = DefinitionVersion.Initial,
+            Status = WorkflowStatus.Waiting,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+
+        await Parallel.ForEachAsync(
+            Enumerable.Range(0, 2_000),
+            TestContext.Current.CancellationToken,
+            (index, _) =>
+            {
+                var timer = service.Schedule(instanceId, TimeSpan.Zero, _ => Task.FromResult(snapshot));
+                if (index % 3 == 0)
+                {
+                    service.Cancel(timer);
+                }
+
+                if (index % 5 == 0)
+                {
+                    service.ClaimDueTimers();
+                }
+
+                return ValueTask.CompletedTask;
+            });
+
+        var due = service.ClaimDueTimers();
+
+        due.Select(timer => timer.Token).Should().OnlyHaveUniqueItems();
+    }
+
     private static WorkflowDefinition<TimerState> CreateDelayedDefinition(List<string> sink, TimeSpan delay)
     {
         return new WorkflowBuilder<TimerState>()
@@ -78,6 +144,25 @@ public sealed class EphemeralTimerTests
         {
             context.State.Sink.Add(value);
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed class YieldAfterTimerState
+    {
+        public int Attempts { get; set; }
+    }
+
+    private sealed class YieldOnceStep : IStep<YieldAfterTimerState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<YieldAfterTimerState> context,
+            CancellationToken cancellationToken)
+        {
+            context.State.Attempts++;
+            return ValueTask.FromResult<StepResult>(
+                context.State.Attempts == 1
+                    ? new StepResult.Yield()
+                    : new StepResult.Completed());
         }
     }
 }

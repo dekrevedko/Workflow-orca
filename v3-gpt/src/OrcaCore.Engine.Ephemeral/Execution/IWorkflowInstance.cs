@@ -19,5 +19,9 @@ internal interface IWorkflowInstance
 
     bool TryTakeYieldContinuation(out Func<CancellationToken, Task>? continuation);
 
+    CancellationTokenSource CreateLinkedExecutionToken(CancellationToken cancellationToken);
+
+    void SignalCancellation();
+
     WorkflowInstanceSnapshot ToSnapshot();
 }

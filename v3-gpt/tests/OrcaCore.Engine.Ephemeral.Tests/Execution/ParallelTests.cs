@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Events;
+using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Steps;
@@ -137,6 +138,57 @@ public sealed class ParallelTests
     }
 
     [Fact]
+    [Trait("AC", "AC-110")]
+    public async Task RaiseEventAsync_ParallelBranchWaitsWithSameCorrelation_UsesBranchIdForDelivery()
+    {
+        var state = new TestState();
+        var engine = new EphemeralWorkflowEngine();
+        var definition = SameCorrelationWaitingParallelDefinition(state);
+        engine.RegisterDefinition(definition);
+        var waiting = await engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "start",
+            TestContext.Current.CancellationToken);
+
+        var first = await engine.RaiseEventAsync<TestState>(
+            waiting.InstanceId,
+            Event("Ready", new CorrelationId("same"), "a", branchId: "0:a"),
+            TestContext.Current.CancellationToken);
+        var completed = await engine.RaiseEventAsync<TestState>(
+            waiting.InstanceId,
+            Event("Ready", new CorrelationId("same"), "b", branchId: "1:b"),
+            TestContext.Current.CancellationToken);
+
+        first.Status.Should().Be(WorkflowStatus.Waiting);
+        first.ActiveWaits.Should().ContainSingle(wait => wait.BranchId == "1:b");
+        completed.Status.Should().Be(WorkflowStatus.Completed);
+        state.Values.Should().Equal(["a", "b", "after"]);
+    }
+
+    [Fact]
+    [Trait("AC", "AC-110")]
+    public async Task RaiseEventAsync_ParallelBranchWaitsWithSameCorrelation_RejectsAmbiguousDelivery()
+    {
+        var state = new TestState();
+        var engine = new EphemeralWorkflowEngine();
+        var definition = SameCorrelationWaitingParallelDefinition(state);
+        engine.RegisterDefinition(definition);
+        var waiting = await engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "start",
+            TestContext.Current.CancellationToken);
+
+        var act = () => engine.RaiseEventAsync<TestState>(
+            waiting.InstanceId,
+            Event("Ready", new CorrelationId("same"), "a"),
+            TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<WorkflowRoutingException>()
+            .WithMessage("*multiple branch waits*BranchId*");
+        state.Values.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Run_ParallelBranchCommits_RouteThroughInstanceLane()
     {
         var state = new TestState();
@@ -197,13 +249,31 @@ public sealed class ParallelTests
             .Build(DefinitionId.New(), DefinitionVersion.Initial);
     }
 
-    private static EventEnvelope Event(string name, CorrelationId correlationId, object? payload)
+    private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> SameCorrelationWaitingParallelDefinition(
+        TestState state)
+    {
+        return new WorkflowBuilder<TestState>()
+            .Init<string>(_ => state)
+            .Parallel(
+                ("a", branch => branch.Wait("Ready", _ => new CorrelationId("same")).Then(() => new CaptureStep())),
+                ("b", branch => branch.Wait("Ready", _ => new CorrelationId("same")).Then(() => new CaptureStep())))
+            .Then(() => new AppendStep("after"))
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+    }
+
+    private static EventEnvelope Event(
+        string name,
+        CorrelationId correlationId,
+        object? payload,
+        string? branchId = null)
     {
         return new EventEnvelope
         {
             EventId = EventId.New(),
             EventName = name,
             CorrelationId = correlationId,
+            BranchId = branchId,
             Payload = payload,
             OccurredAt = DateTimeOffset.UtcNow
         };

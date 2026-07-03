@@ -17,6 +17,8 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     private readonly List<LifecycleEventSnapshot> lifecycleEvents = [];
     private readonly List<EventEnvelope> pendingEvents = [];
     private readonly List<RuntimeTimerRecord> activeTimers = [];
+    private readonly CancellationTokenSource cancellationSource = new();
+    private ActiveStepSnapshot? activeStep;
     private Func<CancellationToken, Task>? yieldContinuation;
     private bool hasStuckStep;
     private bool isStuck;
@@ -109,7 +111,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
             return ToSnapshot();
         }
 
-        if (HasConsumedWait(envelope.EventName, envelope.CorrelationId))
+        if (HasConsumedWait(envelope))
         {
             return ToSnapshot();
         }
@@ -120,7 +122,14 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
                 $"Cannot raise event for workflow instance '{InstanceId}' because status '{Status}' is terminal.");
         }
 
-        var wait = activeWaits.FirstOrDefault(candidate => candidate.Matches(envelope));
+        var matchingWaits = activeWaits.Where(candidate => candidate.Matches(envelope)).ToArray();
+        if (matchingWaits.Length > 1 && string.IsNullOrWhiteSpace(envelope.BranchId))
+        {
+            throw new WorkflowRoutingException(
+                $"Event '{envelope.EventName}' with correlation '{envelope.CorrelationId}' matches multiple branch waits; provide BranchId.");
+        }
+
+        var wait = matchingWaits.FirstOrDefault();
         if (wait is null)
         {
             pendingEvents.Add(envelope);
@@ -216,6 +225,8 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         }
 
         wait.MarkMatched();
+        consumedWaits.Add(new WaitSignature(wait.EventName, wait.CorrelationId, wait.BranchId));
+        pendingEvents.RemoveAll(candidate => WaitSignature.From(candidate) == new WaitSignature(wait.EventName, wait.CorrelationId, wait.BranchId));
         FireOrThrow(LifecycleTrigger.MatchWait);
         Status = WorkflowStatus.Running;
         UpdatedAt = firedAt;
@@ -465,6 +476,31 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         });
     }
 
+    internal void StartStep(string stepPath, DateTimeOffset startedAt, TimeSpan? expectedTimeout)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(stepPath);
+
+        activeStep = new ActiveStepSnapshot
+        {
+            StepPath = stepPath,
+            StartedAt = startedAt,
+            ExpectedTimeout = expectedTimeout
+        };
+        UpdatedAt = startedAt;
+        LastActiveAt = startedAt;
+    }
+
+    internal void CompleteStep(string stepPath, DateTimeOffset completedAt)
+    {
+        if (activeStep is not null && string.Equals(activeStep.StepPath, stepPath, StringComparison.Ordinal))
+        {
+            activeStep = null;
+        }
+
+        UpdatedAt = completedAt;
+        LastActiveAt = completedAt;
+    }
+
     internal void Complete(string? outcomeName, DateTimeOffset updatedAt)
     {
         Status = WorkflowStatus.Completed;
@@ -507,6 +543,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
     internal WorkflowInstanceSnapshot Cancel(DateTimeOffset updatedAt)
     {
+        SignalCancellation();
         ApplyTerminalTrigger(LifecycleTrigger.Cancel, updatedAt);
         return ToSnapshot();
     }
@@ -537,6 +574,19 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         return continuation is not null;
     }
 
+    internal CancellationTokenSource CreateLinkedExecutionToken(CancellationToken cancellationToken)
+    {
+        return CancellationTokenSource.CreateLinkedTokenSource(cancellationSource.Token, cancellationToken);
+    }
+
+    internal void SignalCancellation()
+    {
+        if (!cancellationSource.IsCancellationRequested)
+        {
+            cancellationSource.Cancel();
+        }
+    }
+
     internal WorkflowInstanceSnapshot ToSnapshot()
     {
         return new WorkflowInstanceSnapshot
@@ -556,6 +606,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
             ErrorSummary = ErrorDetails?.Summary,
             EndOutcomeName = EndOutcomeName,
             ActiveWaits = activeWaits.Select(wait => wait.ToSnapshot()).ToArray(),
+            ActiveStep = activeStep,
             CompositionOutcomes = compositionOutcomes.ToArray(),
             ForEachGroups = forEachGroups.Select(group => group.ToSnapshot()).ToArray(),
             LifecycleEvents = lifecycleEvents.ToArray()
@@ -593,6 +644,16 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         return TryTakeYieldContinuation(out continuation);
     }
 
+    CancellationTokenSource IWorkflowInstance.CreateLinkedExecutionToken(CancellationToken cancellationToken)
+    {
+        return CreateLinkedExecutionToken(cancellationToken);
+    }
+
+    void IWorkflowInstance.SignalCancellation()
+    {
+        SignalCancellation();
+    }
+
     private void ApplyTerminalTrigger(LifecycleTrigger trigger, DateTimeOffset updatedAt)
     {
         var result = LifecycleMachine.Fire(Status, trigger);
@@ -619,6 +680,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         activeWaits.Clear();
         activeTimers.Clear();
         pendingEvents.Clear();
+        activeStep = null;
     }
 
     private void FireOrThrow(LifecycleTrigger trigger)
@@ -635,14 +697,42 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         return consumedEventIds.Contains(eventId) || pendingEvents.Any(envelope => envelope.EventId == eventId);
     }
 
-    private bool HasConsumedWait(string eventName, CorrelationId correlationId)
+    private bool HasConsumedWait(EventEnvelope envelope)
     {
-        return consumedWaits.Any(wait =>
-            string.Equals(wait.EventName, eventName, StringComparison.Ordinal) &&
-            wait.CorrelationId == correlationId);
+        var signature = WaitSignature.From(envelope);
+        return consumedWaits.Contains(signature) ||
+            (string.IsNullOrWhiteSpace(envelope.BranchId) && consumedWaits.Any(wait =>
+                string.Equals(wait.EventName, envelope.EventName, StringComparison.Ordinal) &&
+                wait.CorrelationId == envelope.CorrelationId &&
+                wait.BranchId is null));
     }
 
-    private readonly record struct WaitSignature(string EventName, CorrelationId CorrelationId, BranchId? BranchId);
+    private readonly record struct WaitSignature(string EventName, CorrelationId CorrelationId, BranchId? BranchId)
+    {
+        internal static WaitSignature From(EventEnvelope envelope)
+        {
+            BranchId? branchId = string.IsNullOrWhiteSpace(envelope.BranchId)
+                ? null
+                : ParseBranchId(envelope.BranchId);
+            return new WaitSignature(envelope.EventName, envelope.CorrelationId, branchId);
+        }
+
+        private static BranchId ParseBranchId(string value)
+        {
+            var separator = value.IndexOf(':', StringComparison.Ordinal);
+            if (separator <= 0 || separator == value.Length - 1)
+            {
+                throw new WorkflowRoutingException($"BranchId '{value}' is not in '<ordinal>:<name>' format.");
+            }
+
+            if (!int.TryParse(value[..separator], out var ordinal))
+            {
+                throw new WorkflowRoutingException($"BranchId '{value}' does not start with a numeric ordinal.");
+            }
+
+            return new BranchId(ordinal, value[(separator + 1)..]);
+        }
+    }
 
     internal sealed class ForEachGroupRecord
     {

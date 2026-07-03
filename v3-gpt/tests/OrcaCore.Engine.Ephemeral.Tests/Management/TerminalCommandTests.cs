@@ -70,6 +70,38 @@ public sealed class TerminalCommandTests
     }
 
     [Fact]
+    [Trait("AC", "AC-014")]
+    public async Task CancelAsync_InFlightStep_SignalsStepCancellationToken()
+    {
+        var step = new CancellableStep();
+        var engine = new EphemeralWorkflowEngine();
+        var definition = new WorkflowBuilder<TestState>()
+            .Init<string>(input => new TestState { Name = input })
+            .Wait("Ready", state => new CorrelationId(state.Name))
+            .Then(() => step)
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+        engine.RegisterDefinition(definition);
+        var started = await engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "wait",
+            TestContext.Current.CancellationToken);
+
+        var delivery = engine.RaiseEventAsync<TestState>(
+            started.InstanceId,
+            Event("Ready", "wait"),
+            TestContext.Current.CancellationToken);
+        await step.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var cancelled = await engine.Management.Instance(started.InstanceId)
+            .CancelAsync(TestContext.Current.CancellationToken);
+
+        cancelled.Status.Should().Be(WorkflowStatus.Cancelled);
+        step.ObservedCancellation.Task.IsCompletedSuccessfully.Should().BeTrue();
+        await delivery.Invoking(task => task.WaitAsync(TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
     public async Task TerminateAsync_RunningInstance_TransitionsToTerminatedAndStopsAdvancement()
     {
         var engine = new EphemeralWorkflowEngine();
@@ -203,6 +235,32 @@ public sealed class TerminalCommandTests
             CancellationToken cancellationToken)
         {
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed class CancellableStep : IStep<TestState>
+    {
+        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal TaskCompletionSource ObservedCancellation { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async ValueTask<StepResult> ExecuteAsync(
+            StepContext<TestState> context,
+            CancellationToken cancellationToken)
+        {
+            Started.TrySetResult();
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                ObservedCancellation.TrySetResult();
+                throw;
+            }
+
+            return new StepResult.Completed();
         }
     }
 }
