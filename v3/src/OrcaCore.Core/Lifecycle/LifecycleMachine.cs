@@ -8,9 +8,10 @@ namespace OrcaCore.Core.Lifecycle;
 /// <summary>
 /// Pure, stateless instance lifecycle machine (CR-030). The transition table is data, not
 /// control flow, and covers every <see cref="WorkflowStatus"/> as either a legal source or a
-/// declared terminal.
+/// declared terminal. Public so both engine assemblies can drive it (Core is engine-agnostic
+/// shared runtime machinery, not itself part of the authoring-facing API).
 /// </summary>
-internal static class LifecycleMachine
+public static class LifecycleMachine
 {
     private static readonly FrozenDictionary<(WorkflowStatus Current, LifecycleTrigger Trigger), WorkflowStatus> Transitions =
         new Dictionary<(WorkflowStatus, LifecycleTrigger), WorkflowStatus>
@@ -31,7 +32,7 @@ internal static class LifecycleMachine
         }.ToFrozenDictionary();
 
     /// <summary>Terminal statuses reject every trigger (CR-030); <c>Paused</c> is not terminal.</summary>
-    internal static readonly FrozenSet<WorkflowStatus> TerminalStatuses = new[]
+    public static readonly FrozenSet<WorkflowStatus> TerminalStatuses = new[]
     {
         WorkflowStatus.Completed,
         WorkflowStatus.Failed,
@@ -39,7 +40,7 @@ internal static class LifecycleMachine
         WorkflowStatus.Terminated,
     }.ToFrozenSet();
 
-    internal static Result<WorkflowStatus> Fire(WorkflowStatus current, LifecycleTrigger trigger) =>
+    public static Result<WorkflowStatus> Fire(WorkflowStatus current, LifecycleTrigger trigger) =>
         Transitions.TryGetValue((current, trigger), out var next)
             ? Result<WorkflowStatus>.Success(next)
             : Result<WorkflowStatus>.Failure(new WorkflowLifecycleException(
