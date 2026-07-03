@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
@@ -11,16 +10,11 @@ internal sealed class DurableWorkflowAggregate
 {
     private readonly List<DurableActiveTimer> activeTimers;
     private readonly List<DurableBufferedTimer> bufferedTimers;
-    private readonly List<DurableActiveChild> activeChildren;
-    private readonly List<DurableActiveChildGroup> activeChildGroups;
-    private readonly List<DurableCompletedChild> completedChildren = [];
     private readonly List<ResourcePoolTicket> activeResourceTickets;
+    private readonly DurableChildWorkflowState childState;
     private readonly DurableExternalJobState externalJobState;
     private readonly DurableWaitState waitState;
     private readonly DurableSagaState sagaState;
-    private readonly HashSet<string> compensatedChildGroups = new(StringComparer.Ordinal);
-    private readonly HashSet<EventId> recordedParentResumeTokens = [];
-    private readonly HashSet<EventId> consumedParentResumeTokens = [];
 
     private DurableWorkflowAggregate(
         InstanceId instanceId,
@@ -67,8 +61,13 @@ internal sealed class DurableWorkflowAggregate
         this.activeTimers = [.. activeTimers];
         waitState = DurableWaitState.FromSnapshot(activeWaits, bufferedDeliveries);
         this.bufferedTimers = [.. bufferedTimers];
-        this.activeChildren = [.. activeChildren];
-        this.activeChildGroups = [.. activeChildGroups];
+        childState = DurableChildWorkflowState.FromSnapshot(
+            activeChildren,
+            activeChildGroups,
+            [],
+            [],
+            recordedParentResumeTokens,
+            consumedParentResumeTokens);
         this.activeResourceTickets = [.. activeResourceTickets];
         externalJobState = DurableExternalJobState.FromSnapshot(activeExternalJobs);
         sagaState = DurableSagaState.FromSnapshot(
@@ -76,8 +75,6 @@ internal sealed class DurableWorkflowAggregate
             sagaCompensationActions,
             sagaRecoveryInterventions,
             requestedSagaCompensationScopes);
-        this.recordedParentResumeTokens = [.. recordedParentResumeTokens];
-        this.consumedParentResumeTokens = [.. consumedParentResumeTokens];
     }
 
     internal InstanceId InstanceId { get; private set; }
@@ -123,8 +120,8 @@ internal sealed class DurableWorkflowAggregate
         waitState.ActiveWaits,
         waitState.BufferedDeliveries,
         [.. bufferedTimers],
-        [.. activeChildren],
-        [.. activeChildGroups],
+        childState.ActiveChildren,
+        childState.ActiveChildGroups,
         [.. activeResourceTickets],
         externalJobState.ActiveJobs,
         sagaState.CompletedForwardActions,
@@ -232,8 +229,8 @@ internal sealed class DurableWorkflowAggregate
             waitState.ActiveWaits,
             waitState.BufferedDeliveries,
             [.. bufferedTimers],
-            [.. activeChildren],
-            [.. activeChildGroups],
+            childState.ActiveChildren,
+            childState.ActiveChildGroups,
             [.. activeResourceTickets],
             externalJobState.ActiveJobs,
             contentType,
@@ -383,50 +380,23 @@ internal sealed class DurableWorkflowAggregate
     internal DurableDecision DecideChildCompleted(DurableChildCompletedCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
-        var activeChild = activeChildren.FirstOrDefault(child => child.ChildInstanceId == command.ChildInstanceId);
-        if (activeChild is null || IsTerminal)
+        if (IsTerminal)
         {
             return DurableDecision.Empty;
         }
 
-        var childCompleted = new WorkflowChildCompletedEvent
+        var plan = childState.PlanChildCompletion(
+            CreateChildWorkflowEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
+            command);
+        if (plan is null)
         {
-            EventId = EventId.New(),
-            InstanceId = command.InstanceId,
-            CommandId = command.CommandId,
-            CausationId = ToCausationId(command.CommandId),
-            OccurredAt = command.RequestedAt,
-            ParentInstanceId = ParentInstanceId,
-            RootInstanceId = RootInstanceId ?? InstanceId,
-            ChildInstanceId = command.ChildInstanceId,
-            ChildStatus = command.ChildStatus,
-            ErrorSummary = command.ErrorSummary
-        };
-        var waitMatched = new WorkflowWaitMatchedEvent
-        {
-            EventId = EventId.New(),
-            InstanceId = command.InstanceId,
-            CommandId = command.CommandId,
-            CausationId = ToCausationId(command.CommandId),
-            OccurredAt = command.RequestedAt,
-            ParentInstanceId = ParentInstanceId,
-            RootInstanceId = RootInstanceId ?? InstanceId,
-            WaitId = activeChild.WaitId,
-            MatchedEventId = childCompleted.EventId
-        };
-        var childDispatch = DispatchChildrenIfCapacity(command, activeChild);
-        WorkflowEvent[] childDispatchEvents = childDispatch is null ? [] : [childDispatch];
-        var residualIntent = ResidualIntentIfNeeded(command, activeChild);
-        var resumeToken = ResumeTokenIfGroupComplete(command, activeChild, childDispatch);
+            return DurableDecision.Empty;
+        }
 
-        if (command.ChildStatus == WorkflowStatus.Failed &&
-            activeChild.FailurePolicy is RunChildFailurePolicy.PropagateFailure)
+        if (plan.ShouldFailParent)
         {
             return new DurableDecision([
-                childCompleted,
-                .. residualIntent,
-                .. resumeToken,
-                waitMatched,
+                .. plan.Events,
                 new WorkflowTerminalEvent
                 {
                     EventId = EventId.New(),
@@ -441,13 +411,7 @@ internal sealed class DurableWorkflowAggregate
             ]);
         }
 
-        return new DurableDecision([
-            childCompleted,
-            .. childDispatchEvents,
-            .. residualIntent,
-            .. resumeToken,
-            waitMatched
-        ]);
+        return new DurableDecision(plan.Events);
     }
 
     internal DurableDecision DecideRunChildren(DurableRunChildrenCommand command)
@@ -459,7 +423,7 @@ internal sealed class DurableWorkflowAggregate
         }
 
         var groupId = command.CommandId.Value.ToString("D");
-        if (activeChildren.Any(child => string.Equals(child.GroupId, groupId, StringComparison.Ordinal)))
+        if (childState.HasActiveChildInGroup(groupId))
         {
             return DurableDecision.Empty;
         }
@@ -468,7 +432,7 @@ internal sealed class DurableWorkflowAggregate
             .Select((itemSnapshot, index) => new WorkflowChildMaterialization
             {
                 Index = index,
-                ChildInstanceId = DeterministicChildId(command.InstanceId, command.CommandId, index),
+                ChildInstanceId = DurableChildWorkflowState.DeterministicChildId(command.InstanceId, command.CommandId, index),
                 ChildDefinitionId = command.ChildDefinitionId,
                 ChildDefinitionVersion = command.ChildDefinitionVersion,
                 ItemSnapshot = itemSnapshot
@@ -504,47 +468,17 @@ internal sealed class DurableWorkflowAggregate
     internal DurableDecision DecideCompensateChildGroup(CompensateChildGroupCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal || compensatedChildGroups.Contains(command.GroupId))
+        if (IsTerminal)
         {
             return DurableDecision.Empty;
         }
 
-        var eligibleChildren = completedChildren
-            .Where(child => string.Equals(child.GroupId, command.GroupId, StringComparison.Ordinal))
-            .OrderBy(child => child.CompletedAt)
-            .ThenBy(child => child.ChildInstanceId.Value)
-            .ToArray();
-        if (eligibleChildren.Length == 0)
-        {
-            return DurableDecision.Empty;
-        }
-
-        var compensations = eligibleChildren
-            .Select((child, index) => new WorkflowChildCompensationMaterialization
-            {
-                Index = index,
-                SourceChildInstanceId = child.ChildInstanceId,
-                CompensationInstanceId = DeterministicChildId(command.InstanceId, command.CommandId, index),
-                ItemSnapshot = child.ItemSnapshot ?? string.Empty
-            })
-            .ToArray();
-
-        return new DurableDecision([
-            new WorkflowChildCompensationScheduledEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                GroupId = command.GroupId,
-                CompensationDefinitionId = command.CompensationDefinitionId,
-                CompensationDefinitionVersion = command.CompensationDefinitionVersion,
-                Compensations = compensations
-            }
-        ]);
+        var compensation = childState.PlanChildGroupCompensation(
+            CreateChildWorkflowEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
+            command.GroupId,
+            command.CompensationDefinitionId,
+            command.CompensationDefinitionVersion);
+        return compensation is null ? DurableDecision.Empty : new DurableDecision([compensation]);
     }
 
     internal DurableDecision DecideStepFailed(DurableStepFailedCommand command)
@@ -901,26 +835,11 @@ internal sealed class DurableWorkflowAggregate
     {
         ArgumentNullException.ThrowIfNull(command);
         ArgumentException.ThrowIfNullOrWhiteSpace(command.GroupId);
-        if (!recordedParentResumeTokens.Contains(command.ResumeTokenId) ||
-            consumedParentResumeTokens.Contains(command.ResumeTokenId))
-        {
-            return DurableDecision.Empty;
-        }
-
-        return new DurableDecision([
-            new WorkflowParentResumeTokenConsumedEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                GroupId = command.GroupId,
-                ResumeTokenId = command.ResumeTokenId
-            }
-        ]);
+        var consumed = childState.PlanResumeTokenConsumption(
+            CreateChildWorkflowEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
+            command.GroupId,
+            command.ResumeTokenId);
+        return consumed is null ? DurableDecision.Empty : new DurableDecision([consumed]);
     }
 
     internal DurableDecision DecideRecordSagaForwardActionCompleted(
@@ -1427,16 +1346,16 @@ internal sealed class DurableWorkflowAggregate
             waitState.ActiveWaits,
             waitState.BufferedDeliveries,
             bufferedTimers,
-            activeChildren,
-            activeChildGroups,
+            childState.ActiveChildren,
+            childState.ActiveChildGroups,
             activeResourceTickets,
             externalJobState.ActiveJobs,
             sagaState.CompletedForwardActions,
             sagaState.CompensationActions,
             sagaState.RecoveryInterventions,
             sagaState.RequestedCompensationScopes,
-            recordedParentResumeTokens,
-            consumedParentResumeTokens);
+            childState.RecordedParentResumeTokens,
+            childState.ConsumedParentResumeTokens);
 
         foreach (var workflowEvent in events)
         {
@@ -1489,7 +1408,7 @@ internal sealed class DurableWorkflowAggregate
                 activeTimers.Clear();
                 waitState.Clear();
                 bufferedTimers.Clear();
-                activeChildren.Clear();
+                childState.ClearActiveChildren();
                 activeResourceTickets.Clear();
                 externalJobState.Clear();
                 break;
@@ -1507,7 +1426,7 @@ internal sealed class DurableWorkflowAggregate
                 Status = WorkflowStatus.Failed;
                 activeTimers.Clear();
                 waitState.Clear();
-                activeChildren.Clear();
+                childState.ClearActiveChildren();
                 break;
             case WorkflowWaitRegisteredEvent waitRegistered:
                 waitState.Apply(waitRegistered);
@@ -1533,125 +1452,31 @@ internal sealed class DurableWorkflowAggregate
                     : WorkflowStatus.Waiting;
                 break;
             case WorkflowChildScheduledEvent childScheduled:
-                activeChildren.Add(new DurableActiveChild(
-                    childScheduled.ChildInstanceId.Value.ToString("D"),
-                    childScheduled.ChildInstanceId,
-                    childScheduled.WaitId,
-                    childScheduled.FailurePolicy,
-                    RunChildrenJoinPolicy.WhenAll,
-                    RunChildrenResidualPolicy.CancelRemaining,
-                    null));
-                waitState.Register(new DurableActiveWait(
-                    childScheduled.WaitId,
-                    "ChildCompleted",
-                    ChildCorrelation(childScheduled.ChildInstanceId),
-                    childScheduled.OccurredAt));
+                ApplyChildReplayEffects(childState.Apply(childScheduled));
                 Status = WorkflowStatus.Waiting;
                 break;
             case WorkflowChildrenScheduledEvent childrenScheduled:
-                activeChildGroups.RemoveAll(group =>
-                    string.Equals(group.GroupId, childrenScheduled.GroupId, StringComparison.Ordinal));
-                activeChildGroups.Add(new DurableActiveChildGroup(
-                    childrenScheduled.GroupId,
-                    childrenScheduled.FailurePolicy,
-                    childrenScheduled.JoinPolicy,
-                    childrenScheduled.ResidualPolicy,
-                    childrenScheduled.MaxConcurrency,
-                    childrenScheduled.NextDispatchIndex,
-                    childrenScheduled.Children));
-                foreach (var child in childrenScheduled.Children.Take(childrenScheduled.InitialDispatchCount))
-                {
-                    var waitId = new WaitId(child.ChildInstanceId.Value);
-                    activeChildren.Add(new DurableActiveChild(
-                        childrenScheduled.GroupId,
-                        child.ChildInstanceId,
-                        waitId,
-                        childrenScheduled.FailurePolicy,
-                        childrenScheduled.JoinPolicy,
-                        childrenScheduled.ResidualPolicy,
-                        child.ItemSnapshot));
-                    waitState.Register(new DurableActiveWait(
-                        waitId,
-                        "ChildCompleted",
-                        ChildCorrelation(child.ChildInstanceId),
-                        childrenScheduled.OccurredAt));
-                }
-
+                ApplyChildReplayEffects(childState.Apply(childrenScheduled));
                 Status = WorkflowStatus.Waiting;
                 break;
             case WorkflowChildrenDispatchedEvent childrenDispatched:
-                var activeGroup = activeChildGroups.FirstOrDefault(group =>
-                    string.Equals(group.GroupId, childrenDispatched.GroupId, StringComparison.Ordinal));
-                if (activeGroup is not null)
-                {
-                    activeChildGroups.Remove(activeGroup);
-                    activeChildGroups.Add(activeGroup with { NextDispatchIndex = childrenDispatched.NextDispatchIndex });
-                    foreach (var child in childrenDispatched.Children)
-                    {
-                        var waitId = new WaitId(child.ChildInstanceId.Value);
-                        activeChildren.Add(new DurableActiveChild(
-                            activeGroup.GroupId,
-                            child.ChildInstanceId,
-                            waitId,
-                            activeGroup.FailurePolicy,
-                            activeGroup.JoinPolicy,
-                            activeGroup.ResidualPolicy,
-                            child.ItemSnapshot));
-                        waitState.Register(new DurableActiveWait(
-                            waitId,
-                            "ChildCompleted",
-                            ChildCorrelation(child.ChildInstanceId),
-                            childrenDispatched.OccurredAt));
-                    }
-                }
-
+                ApplyChildReplayEffects(childState.Apply(childrenDispatched));
                 Status = WorkflowStatus.Waiting;
                 break;
             case WorkflowChildCompletedEvent childCompleted:
-                var completedChild = activeChildren.FirstOrDefault(
-                    child => child.ChildInstanceId == childCompleted.ChildInstanceId);
-                if (completedChild is not null && childCompleted.ChildStatus is WorkflowStatus.Completed)
-                {
-                    completedChildren.RemoveAll(child =>
-                        string.Equals(child.GroupId, completedChild.GroupId, StringComparison.Ordinal) &&
-                        child.ChildInstanceId == childCompleted.ChildInstanceId);
-                    completedChildren.Add(new DurableCompletedChild(
-                        completedChild.GroupId,
-                        childCompleted.ChildInstanceId,
-                        completedChild.ItemSnapshot,
-                        childCompleted.OccurredAt));
-                }
-
-                activeChildren.RemoveAll(child => child.ChildInstanceId == childCompleted.ChildInstanceId);
-                ErrorSummary = childCompleted.ChildStatus == WorkflowStatus.Failed &&
-                    completedChild?.FailurePolicy is RunChildFailurePolicy.PropagateFailure
-                    ? childCompleted.ErrorSummary
-                    : ErrorSummary;
+                ApplyChildReplayEffects(childState.Apply(childCompleted));
                 break;
             case WorkflowChildCompensationScheduledEvent childCompensationScheduled:
-                compensatedChildGroups.Add(childCompensationScheduled.GroupId);
+                childState.Apply(childCompensationScheduled);
                 break;
             case WorkflowChildResidualIntentRecordedEvent residualIntent:
-                foreach (var residualChildId in residualIntent.ResidualChildInstanceIds)
-                {
-                    var residualChild = activeChildren.FirstOrDefault(
-                        child => child.ChildInstanceId == residualChildId);
-                    if (residualChild is not null)
-                    {
-                        waitState.Remove(residualChild.WaitId);
-                    }
-
-                    activeChildren.RemoveAll(child => child.ChildInstanceId == residualChildId);
-                }
-
+                ApplyChildReplayEffects(childState.Apply(residualIntent));
                 break;
             case WorkflowParentResumeTokenRecordedEvent parentResumeToken:
-                recordedParentResumeTokens.Add(parentResumeToken.ResumeTokenId);
-                activeChildGroups.RemoveAll(group =>
-                    string.Equals(group.GroupId, parentResumeToken.GroupId, StringComparison.Ordinal));
+                childState.Apply(parentResumeToken);
                 break;
             case WorkflowParentResumeTokenConsumedEvent parentResumeTokenConsumed:
-                consumedParentResumeTokens.Add(parentResumeTokenConsumed.ResumeTokenId);
+                childState.Apply(parentResumeTokenConsumed);
                 break;
             case WorkflowResourcePoolAcquiredEvent resourcePoolAcquired:
                 activeResourceTickets.RemoveAll(ticket =>
@@ -1719,7 +1544,7 @@ internal sealed class DurableWorkflowAggregate
                 activeTimers.Clear();
                 waitState.Clear();
                 bufferedTimers.Clear();
-                activeChildren.Clear();
+                childState.ClearActiveChildren();
                 activeResourceTickets.Clear();
                 externalJobState.Clear();
                 break;
@@ -1730,7 +1555,7 @@ internal sealed class DurableWorkflowAggregate
                     activeTimers.Clear();
                     waitState.Clear();
                     bufferedTimers.Clear();
-                    activeChildren.Clear();
+                    childState.ClearActiveChildren();
                     activeResourceTickets.Clear();
                     externalJobState.Clear();
                 }
@@ -1761,6 +1586,19 @@ internal sealed class DurableWorkflowAggregate
         DateTimeOffset requestedAt)
     {
         return new DurableExternalJobEventContext(
+            commandId,
+            instanceId,
+            requestedAt,
+            ParentInstanceId,
+            RootInstanceId ?? InstanceId);
+    }
+
+    private DurableChildWorkflowEventContext CreateChildWorkflowEventContext(
+        CommandId commandId,
+        InstanceId instanceId,
+        DateTimeOffset requestedAt)
+    {
+        return new DurableChildWorkflowEventContext(
             commandId,
             instanceId,
             requestedAt,
@@ -1803,156 +1641,6 @@ internal sealed class DurableWorkflowAggregate
                 Tickets = group.ToArray()
             })
             .ToArray();
-    }
-
-    private IReadOnlyList<WorkflowParentResumeTokenRecordedEvent> ResumeTokenIfGroupComplete(
-        DurableChildCompletedCommand command,
-        DurableActiveChild activeChild,
-        WorkflowChildrenDispatchedEvent? childDispatch)
-    {
-        if (activeChild.JoinPolicy is RunChildrenJoinPolicy.WhenAny)
-        {
-            return [ResumeToken(command, activeChild)];
-        }
-
-        var remainingInGroup = activeChildren.Count(child =>
-            string.Equals(child.GroupId, activeChild.GroupId, StringComparison.Ordinal) &&
-            child.ChildInstanceId != activeChild.ChildInstanceId) +
-            (childDispatch?.Children.Count ?? 0);
-        var group = activeChildGroups.FirstOrDefault(candidate =>
-            string.Equals(candidate.GroupId, activeChild.GroupId, StringComparison.Ordinal));
-        var nextDispatchIndex = childDispatch?.NextDispatchIndex ?? group?.NextDispatchIndex ?? 0;
-        if (remainingInGroup > 0 || (group is not null && nextDispatchIndex < group.Children.Count))
-        {
-            return [];
-        }
-
-        return
-        [
-            ResumeToken(command, activeChild)
-        ];
-    }
-
-    private WorkflowChildrenDispatchedEvent? DispatchChildrenIfCapacity(
-        DurableChildCompletedCommand command,
-        DurableActiveChild activeChild)
-    {
-        if (activeChild.JoinPolicy is not RunChildrenJoinPolicy.WhenAll)
-        {
-            return null;
-        }
-
-        var group = activeChildGroups.FirstOrDefault(candidate =>
-            string.Equals(candidate.GroupId, activeChild.GroupId, StringComparison.Ordinal));
-        if (group is null || group.NextDispatchIndex >= group.Children.Count)
-        {
-            return null;
-        }
-
-        var activeAfterCompletion = activeChildren.Count(child =>
-            string.Equals(child.GroupId, activeChild.GroupId, StringComparison.Ordinal) &&
-            child.ChildInstanceId != activeChild.ChildInstanceId);
-        var availableSlots = group.MaxConcurrency - activeAfterCompletion;
-        if (availableSlots <= 0)
-        {
-            return null;
-        }
-
-        var children = group.Children
-            .Skip(group.NextDispatchIndex)
-            .Take(availableSlots)
-            .ToArray();
-        if (children.Length == 0)
-        {
-            return null;
-        }
-
-        return new WorkflowChildrenDispatchedEvent
-        {
-            EventId = EventId.New(),
-            InstanceId = command.InstanceId,
-            CommandId = command.CommandId,
-            CausationId = ToCausationId(command.CommandId),
-            OccurredAt = command.RequestedAt,
-            ParentInstanceId = ParentInstanceId,
-            RootInstanceId = RootInstanceId ?? InstanceId,
-            GroupId = activeChild.GroupId,
-            PreviousDispatchIndex = group.NextDispatchIndex,
-            NextDispatchIndex = group.NextDispatchIndex + children.Length,
-            Children = children
-        };
-    }
-
-    private IReadOnlyList<WorkflowChildResidualIntentRecordedEvent> ResidualIntentIfNeeded(
-        DurableChildCompletedCommand command,
-        DurableActiveChild activeChild)
-    {
-        if (activeChild.JoinPolicy is not RunChildrenJoinPolicy.WhenAny ||
-            activeChild.ResidualPolicy is not RunChildrenResidualPolicy.CancelRemaining)
-        {
-            return [];
-        }
-
-        var residualChildIds = activeChildren
-            .Where(child => string.Equals(child.GroupId, activeChild.GroupId, StringComparison.Ordinal) &&
-                child.ChildInstanceId != activeChild.ChildInstanceId)
-            .Select(child => child.ChildInstanceId)
-            .ToArray();
-        return residualChildIds.Length == 0
-            ? []
-            :
-            [
-                new WorkflowChildResidualIntentRecordedEvent
-                {
-                    EventId = EventId.New(),
-                    InstanceId = command.InstanceId,
-                    CommandId = command.CommandId,
-                    CausationId = ToCausationId(command.CommandId),
-                    OccurredAt = command.RequestedAt,
-                    ParentInstanceId = ParentInstanceId,
-                    RootInstanceId = RootInstanceId ?? InstanceId,
-                    GroupId = activeChild.GroupId,
-                    ResidualPolicy = activeChild.ResidualPolicy,
-                    ResidualChildInstanceIds = residualChildIds
-                }
-            ];
-    }
-
-    private WorkflowParentResumeTokenRecordedEvent ResumeToken(
-        DurableChildCompletedCommand command,
-        DurableActiveChild activeChild)
-    {
-        return new WorkflowParentResumeTokenRecordedEvent
-        {
-            EventId = EventId.New(),
-            InstanceId = command.InstanceId,
-            CommandId = command.CommandId,
-            CausationId = ToCausationId(command.CommandId),
-            OccurredAt = command.RequestedAt,
-            ParentInstanceId = ParentInstanceId,
-            RootInstanceId = RootInstanceId ?? InstanceId,
-            GroupId = activeChild.GroupId,
-            ResumeTokenId = new EventId(Guid.Parse(activeChild.GroupId))
-        };
-    }
-
-    private static CorrelationId ChildCorrelation(InstanceId childInstanceId)
-    {
-        return new CorrelationId(childInstanceId.Value.ToString("D"));
-    }
-
-    private static InstanceId DeterministicChildId(
-        InstanceId parentInstanceId,
-        CommandId commandId,
-        int index)
-    {
-        Span<byte> input = stackalloc byte[36];
-        parentInstanceId.Value.TryWriteBytes(input[..16]);
-        commandId.Value.TryWriteBytes(input.Slice(16, 16));
-        BitConverter.TryWriteBytes(input.Slice(32, 4), index);
-        Span<byte> hash = stackalloc byte[32];
-        SHA256.HashData(input, hash);
-        return new InstanceId(new Guid(hash[..16]));
     }
 
     private WorkflowInstanceSnapshot? ToInstanceSnapshot()
@@ -2003,29 +1691,26 @@ internal sealed class DurableWorkflowAggregate
                     timer.WakeupName,
                     timer.BufferedAt))
                 .ToArray(),
-            ActiveChildren = activeChildren
-                .Select(child => new CheckpointActiveChild(
-                    child.GroupId,
-                    child.ChildInstanceId,
-                    child.WaitId,
-                    child.FailurePolicy,
-                    child.JoinPolicy,
-                    child.ResidualPolicy,
-                    child.ItemSnapshot))
-                .ToArray(),
-            ActiveChildGroups = activeChildGroups
-                .Select(group => new CheckpointActiveChildGroup(
-                    group.GroupId,
-                    group.FailurePolicy,
-                    group.JoinPolicy,
-                    group.ResidualPolicy,
-                    group.MaxConcurrency,
-                    group.NextDispatchIndex,
-                    group.Children))
-                .ToArray(),
+            ActiveChildren = childState.CreateCheckpointActiveChildren(),
+            ActiveChildGroups = childState.CreateCheckpointActiveChildGroups(),
             ActiveResourceTickets = [.. activeResourceTickets],
             ActiveExternalJobs = externalJobState.CreateCheckpointActiveExternalJobs()
         };
+    }
+
+    private void ApplyChildReplayEffects(DurableChildReplayEffects effects)
+    {
+        foreach (var wait in effects.WaitsToRegister)
+        {
+            waitState.Register(wait);
+        }
+
+        foreach (var waitId in effects.WaitIdsToRemove)
+        {
+            waitState.Remove(waitId);
+        }
+
+        ErrorSummary = effects.PropagatedFailureErrorSummary ?? ErrorSummary;
     }
 }
 
