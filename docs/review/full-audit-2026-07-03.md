@@ -147,6 +147,13 @@ Follow-up implementation verification, 2026-07-03:
   `-warnaserror`, the full non-integration `v3-gpt/tests` sweep, and
   `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 83, skipped 16,
   failed 0 passed.
+- Shared instance-lane extraction pass added focused `InstanceLane` tests for
+  serialization, cross-instance overlap, exception release, cancellation, and
+  idle eviction. Focused core/ephemeral/durable lane coverage, the
+  non-integration analyzer build loop with `-warnaserror`, the full
+  non-integration `v3-gpt/tests` sweep, and
+  `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 83, skipped 16,
+  failed 0 passed.
 
 ## Completed In This Pass
 
@@ -161,12 +168,13 @@ R8 quality and analyzer remediation:
 - .NET analyzers are explicitly enabled.
 
 Channel-substrate migration:
-- `InstanceExecutionLane` and `DurableInstanceCommandLane` now use bounded
-  `System.Threading.Channels` instead of unbounded semaphore dictionaries.
+- `OrcaCore.Core.Concurrency.InstanceLane` owns the bounded
+  `System.Threading.Channels` Implementation used by the durable and ephemeral
+  engine adapters.
 - Per-instance work is serialized by a single-reader channel.
 - Idle lanes self-evict after the current batch drains.
 - Tests cover same-instance serialization, cross-instance overlap, exception
-  release, and idle-lane eviction.
+  release, cancellation before enqueue, and idle-lane eviction.
 
 Test hygiene:
 - Timeout policy tests now wait until the never-completing step has registered
@@ -185,19 +193,27 @@ lived until disposal. That proved the mailbox shape but did not provide
 backpressure or lane eviction.
 
 Current `v3-gpt`:
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/InstanceExecutionLane.cs:64`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableInstanceCommandLane.cs:47`
+- `v3-gpt/src/OrcaCore.Core/Concurrency/InstanceLane.cs:7`
+- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/InstanceExecutionLane.cs:6`
+- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableInstanceCommandLane.cs:6`
 
 The current Implementation uses bounded channels with `FullMode = Wait`,
-`SingleReader = true`, and self-eviction. This is closer to the documented
-channel substrate, but the Module is duplicated between engines and the Seam is
-still concrete.
+`SingleReader = true`, and self-eviction through the shared
+`OrcaCore.Core.Concurrency.InstanceLane` Module. The engine-specific lane
+classes are now adapters that preserve local engine seams while sharing the
+channel behavior.
 
 Refactoring candidate: introduce a shared internal `InstanceLane` Module with
 the Interface `RunAsync(instanceId, operation, cancellationToken)`. Keep the
 channel-backed Adapter internal. This increases Depth because ordering,
 backpressure, cancellation, exception propagation, and eviction sit behind one
 small Interface. It improves Locality because future lane bug fixes happen once.
+
+Implementation update:
+- 2026-07-03: introduced `OrcaCore.Core.Concurrency.InstanceLane` and routed
+  `InstanceExecutionLane` and `DurableInstanceCommandLane` through it. The
+  shared Module now owns ordering, backpressure, cancellation propagation,
+  exception propagation, and idle eviction.
 
 ## P0 Findings
 

@@ -1,16 +1,13 @@
-using System.Collections.Concurrent;
-using System.Threading.Channels;
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Core.Concurrency;
 
 namespace OrcaCore.Engine.Durable.Execution;
 
 internal sealed class DurableInstanceCommandLane
 {
-    private const int LaneCapacity = 1024;
+    private readonly InstanceLane lane = new();
 
-    private readonly ConcurrentDictionary<InstanceId, InstanceLane> lanes = [];
-
-    internal int ActiveLaneCount => lanes.Count;
+    internal int ActiveLaneCount => lane.ActiveLaneCount;
 
     internal async Task<T> RunAsync<T>(
         InstanceId instanceId,
@@ -19,129 +16,6 @@ internal sealed class DurableInstanceCommandLane
     {
         ArgumentNullException.ThrowIfNull(operation);
 
-        var workItem = new LaneWorkItem<T>(operation, cancellationToken);
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var lane = lanes.GetOrAdd(instanceId, static (id, owner) => new InstanceLane(id, owner), this);
-            if (await lane.TryEnqueueAsync(workItem, cancellationToken).ConfigureAwait(false))
-            {
-                return await workItem.Completion.Task.ConfigureAwait(false);
-            }
-
-            lanes.TryRemove(new KeyValuePair<InstanceId, InstanceLane>(instanceId, lane));
-        }
-    }
-
-    private sealed class InstanceLane
-    {
-        private readonly Channel<ILaneWorkItem> channel;
-        private readonly InstanceId instanceId;
-        private readonly DurableInstanceCommandLane owner;
-        private int accepting = 1;
-
-        internal InstanceLane(InstanceId instanceId, DurableInstanceCommandLane owner)
-        {
-            this.instanceId = instanceId;
-            this.owner = owner;
-            channel = Channel.CreateBounded<ILaneWorkItem>(new BoundedChannelOptions(LaneCapacity)
-            {
-                AllowSynchronousContinuations = false,
-                FullMode = BoundedChannelFullMode.Wait,
-                SingleReader = true,
-                SingleWriter = false
-            });
-            _ = ProcessAsync();
-        }
-
-        internal async Task<bool> TryEnqueueAsync(
-            ILaneWorkItem workItem,
-            CancellationToken cancellationToken)
-        {
-            if (Volatile.Read(ref accepting) == 0)
-            {
-                return false;
-            }
-
-            try
-            {
-                await channel.Writer.WriteAsync(workItem, cancellationToken).ConfigureAwait(false);
-                return true;
-            }
-            catch (ChannelClosedException)
-            {
-                return false;
-            }
-        }
-
-        private async Task ProcessAsync()
-        {
-            try
-            {
-                while (await channel.Reader.WaitToReadAsync().ConfigureAwait(false))
-                {
-                    while (channel.Reader.TryRead(out var workItem))
-                    {
-                        await workItem.ExecuteAsync().ConfigureAwait(false);
-                    }
-
-                    if (await TryCloseWhenIdleAsync().ConfigureAwait(false))
-                    {
-                        return;
-                    }
-                }
-            }
-            finally
-            {
-                owner.lanes.TryRemove(new KeyValuePair<InstanceId, InstanceLane>(instanceId, this));
-            }
-        }
-
-        private async Task<bool> TryCloseWhenIdleAsync()
-        {
-            if (Interlocked.CompareExchange(ref accepting, 0, 1) != 1)
-            {
-                return false;
-            }
-
-            channel.Writer.TryComplete();
-            while (channel.Reader.TryRead(out var workItem))
-            {
-                await workItem.ExecuteAsync().ConfigureAwait(false);
-            }
-
-            return true;
-        }
-    }
-
-    private interface ILaneWorkItem
-    {
-        ValueTask ExecuteAsync();
-    }
-
-    private sealed class LaneWorkItem<T>(
-        Func<CancellationToken, Task<T>> operation,
-        CancellationToken cancellationToken) : ILaneWorkItem
-    {
-        internal TaskCompletionSource<T> Completion { get; } =
-            new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        public async ValueTask ExecuteAsync()
-        {
-            try
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var result = await operation(cancellationToken).ConfigureAwait(false);
-                Completion.TrySetResult(result);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                Completion.TrySetCanceled(cancellationToken);
-            }
-            catch (Exception exception)
-            {
-                Completion.TrySetException(exception);
-            }
-        }
+        return await lane.RunAsync(instanceId, operation, cancellationToken).ConfigureAwait(false);
     }
 }
