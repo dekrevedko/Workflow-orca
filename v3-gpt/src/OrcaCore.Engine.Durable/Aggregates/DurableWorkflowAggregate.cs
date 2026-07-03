@@ -10,9 +10,9 @@ internal sealed class DurableWorkflowAggregate
 {
     private readonly List<DurableActiveTimer> activeTimers;
     private readonly List<DurableBufferedTimer> bufferedTimers;
-    private readonly List<ResourcePoolTicket> activeResourceTickets;
     private readonly DurableChildWorkflowState childState;
     private readonly DurableExternalJobState externalJobState;
+    private readonly DurableResourcePoolState resourcePoolState;
     private readonly DurableWaitState waitState;
     private readonly DurableSagaState sagaState;
 
@@ -68,7 +68,7 @@ internal sealed class DurableWorkflowAggregate
             [],
             recordedParentResumeTokens,
             consumedParentResumeTokens);
-        this.activeResourceTickets = [.. activeResourceTickets];
+        resourcePoolState = DurableResourcePoolState.FromSnapshot(activeResourceTickets);
         externalJobState = DurableExternalJobState.FromSnapshot(activeExternalJobs);
         sagaState = DurableSagaState.FromSnapshot(
             completedSagaForwardActions,
@@ -122,7 +122,7 @@ internal sealed class DurableWorkflowAggregate
         [.. bufferedTimers],
         childState.ActiveChildren,
         childState.ActiveChildGroups,
-        [.. activeResourceTickets],
+        resourcePoolState.ActiveTickets,
         externalJobState.ActiveJobs,
         sagaState.CompletedForwardActions,
         sagaState.CompensationActions,
@@ -231,7 +231,7 @@ internal sealed class DurableWorkflowAggregate
             [.. bufferedTimers],
             childState.ActiveChildren,
             childState.ActiveChildGroups,
-            [.. activeResourceTickets],
+            resourcePoolState.ActiveTickets,
             externalJobState.ActiveJobs,
             contentType,
             [.. payload]);
@@ -490,6 +490,7 @@ internal sealed class DurableWorkflowAggregate
         }
 
         return new DurableDecision([
+            .. ReleaseEvents(command.CommandId, command.InstanceId, command.RequestedAt),
             new WorkflowStepFailedEvent
             {
                 EventId = EventId.New(),
@@ -575,45 +576,15 @@ internal sealed class DurableWorkflowAggregate
             return DurableDecision.Empty;
         }
 
-        if (acquireResult.Status == ResourcePoolAcquireStatus.Granted)
-        {
-            return new DurableDecision([
-                new WorkflowResourcePoolAcquiredEvent
-                {
-                    EventId = EventId.New(),
-                    InstanceId = command.InstanceId,
-                    CommandId = command.CommandId,
-                    CausationId = ToCausationId(command.CommandId),
-                    OccurredAt = command.RequestedAt,
-                    ParentInstanceId = ParentInstanceId,
-                    RootInstanceId = RootInstanceId ?? InstanceId,
-                    HolderKey = command.HolderKey,
-                    Tickets = acquireResult.Tickets
-                }
-            ]);
-        }
-
-        if (acquireResult.Status == ResourcePoolAcquireStatus.Queued)
-        {
-            return new DurableDecision([
-                new WorkflowResourcePoolQueuedEvent
-                {
-                    EventId = EventId.New(),
-                    InstanceId = command.InstanceId,
-                    CommandId = command.CommandId,
-                    CausationId = ToCausationId(command.CommandId),
-                    OccurredAt = command.RequestedAt,
-                    ParentInstanceId = ParentInstanceId,
-                    RootInstanceId = RootInstanceId ?? InstanceId,
-                    WaitId = WaitId.New(),
-                    HolderKey = command.HolderKey,
-                    Requirements = command.Requirements,
-                    ExpiresAt = command.ExpiresAt
-                }
-            ], null, true);
-        }
-
-        return DurableDecision.Empty;
+        var plan = resourcePoolState.PlanAcquire(
+            CreateResourcePoolEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
+            command.HolderKey,
+            command.Requirements,
+            command.ExpiresAt,
+            acquireResult);
+        return plan.Events.Count == 0
+            ? DurableDecision.Empty
+            : new DurableDecision(plan.Events, null, plan.EvictAfterCommit);
     }
 
     internal DurableDecision DecideRunExternalJob(
@@ -626,49 +597,27 @@ internal sealed class DurableWorkflowAggregate
             return DurableDecision.Empty;
         }
 
-        if (acquireResult is not null && acquireResult.Status == ResourcePoolAcquireStatus.Queued)
-        {
-            return new DurableDecision([
-                new WorkflowResourcePoolQueuedEvent
-                {
-                    EventId = EventId.New(),
-                    InstanceId = command.InstanceId,
-                    CommandId = command.CommandId,
-                    CausationId = ToCausationId(command.CommandId),
-                    OccurredAt = command.RequestedAt,
-                    ParentInstanceId = ParentInstanceId,
-                    RootInstanceId = RootInstanceId ?? InstanceId,
-                    WaitId = WaitId.New(),
-                    HolderKey = command.ExternalJobId,
-                    Requirements = command.Requirements,
-                    ExpiresAt = command.TimeoutAt
-                }
-            ], null, true);
-        }
-
         if (acquireResult is { Status: ResourcePoolAcquireStatus.Rejected })
         {
             return DurableDecision.Empty;
         }
 
+        var resourcePoolAcquirePlan = acquireResult is null
+            ? DurableResourcePoolAcquirePlan.Empty
+            : resourcePoolState.PlanAcquire(
+                CreateResourcePoolEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
+                command.ExternalJobId,
+                command.Requirements,
+                command.TimeoutAt,
+                acquireResult);
+        if (resourcePoolAcquirePlan.EvictAfterCommit)
+        {
+            return new DurableDecision(resourcePoolAcquirePlan.Events, null, true);
+        }
+
         var waitId = WaitId.New();
         TimerId? timeoutTimerId = command.TimeoutAt is null ? null : TimerId.New();
-        var events = new List<WorkflowEvent>();
-        if (acquireResult is { Status: ResourcePoolAcquireStatus.Granted })
-        {
-            events.Add(new WorkflowResourcePoolAcquiredEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                HolderKey = command.ExternalJobId,
-                Tickets = acquireResult.Tickets
-            });
-        }
+        var events = new List<WorkflowEvent>(resourcePoolAcquirePlan.Events);
 
         events.Add(new WorkflowExternalJobStartedEvent
         {
@@ -1348,7 +1297,7 @@ internal sealed class DurableWorkflowAggregate
             bufferedTimers,
             childState.ActiveChildren,
             childState.ActiveChildGroups,
-            activeResourceTickets,
+            resourcePoolState.ActiveTickets,
             externalJobState.ActiveJobs,
             sagaState.CompletedForwardActions,
             sagaState.CompensationActions,
@@ -1409,7 +1358,7 @@ internal sealed class DurableWorkflowAggregate
                 waitState.Clear();
                 bufferedTimers.Clear();
                 childState.ClearActiveChildren();
-                activeResourceTickets.Clear();
+                resourcePoolState.Clear();
                 externalJobState.Clear();
                 break;
             case WorkflowStepCompletedEvent stepCompleted:
@@ -1479,23 +1428,15 @@ internal sealed class DurableWorkflowAggregate
                 childState.Apply(parentResumeTokenConsumed);
                 break;
             case WorkflowResourcePoolAcquiredEvent resourcePoolAcquired:
-                activeResourceTickets.RemoveAll(ticket =>
-                    string.Equals(ticket.HolderKey, resourcePoolAcquired.HolderKey, StringComparison.Ordinal));
-                activeResourceTickets.AddRange(resourcePoolAcquired.Tickets);
+                resourcePoolState.Apply(resourcePoolAcquired);
                 Status = WorkflowStatus.Running;
                 break;
             case WorkflowResourcePoolQueuedEvent resourcePoolQueued:
-                waitState.Register(new DurableActiveWait(
-                    resourcePoolQueued.WaitId,
-                    "ResourcePoolGranted",
-                    new CorrelationId(resourcePoolQueued.HolderKey),
-                    resourcePoolQueued.OccurredAt,
-                    WaitMode.Cold));
+                ApplyResourcePoolReplayEffects(resourcePoolState.Apply(resourcePoolQueued));
                 Status = WorkflowStatus.Waiting;
                 break;
             case WorkflowResourcePoolReleasedEvent resourcePoolReleased:
-                activeResourceTickets.RemoveAll(ticket =>
-                    string.Equals(ticket.HolderKey, resourcePoolReleased.HolderKey, StringComparison.Ordinal));
+                resourcePoolState.Apply(resourcePoolReleased);
                 break;
             case WorkflowExternalJobStartedEvent externalJobStarted:
                 externalJobState.Apply(externalJobStarted);
@@ -1545,7 +1486,7 @@ internal sealed class DurableWorkflowAggregate
                 waitState.Clear();
                 bufferedTimers.Clear();
                 childState.ClearActiveChildren();
-                activeResourceTickets.Clear();
+                resourcePoolState.Clear();
                 externalJobState.Clear();
                 break;
             case WorkflowTerminalEvent terminal:
@@ -1556,7 +1497,7 @@ internal sealed class DurableWorkflowAggregate
                     waitState.Clear();
                     bufferedTimers.Clear();
                     childState.ClearActiveChildren();
-                    activeResourceTickets.Clear();
+                    resourcePoolState.Clear();
                     externalJobState.Clear();
                 }
 
@@ -1586,6 +1527,19 @@ internal sealed class DurableWorkflowAggregate
         DateTimeOffset requestedAt)
     {
         return new DurableExternalJobEventContext(
+            commandId,
+            instanceId,
+            requestedAt,
+            ParentInstanceId,
+            RootInstanceId ?? InstanceId);
+    }
+
+    private DurableResourcePoolEventContext CreateResourcePoolEventContext(
+        CommandId commandId,
+        InstanceId instanceId,
+        DateTimeOffset requestedAt)
+    {
+        return new DurableResourcePoolEventContext(
             commandId,
             instanceId,
             requestedAt,
@@ -1625,22 +1579,9 @@ internal sealed class DurableWorkflowAggregate
         DateTimeOffset occurredAt,
         string? holderKey = null)
     {
-        return activeResourceTickets
-            .Where(ticket => holderKey is null || string.Equals(ticket.HolderKey, holderKey, StringComparison.Ordinal))
-            .GroupBy(ticket => ticket.HolderKey, StringComparer.Ordinal)
-            .Select(group => new WorkflowResourcePoolReleasedEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = instanceId,
-                CommandId = commandId,
-                CausationId = ToCausationId(commandId),
-                OccurredAt = occurredAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                HolderKey = group.Key,
-                Tickets = group.ToArray()
-            })
-            .ToArray();
+        return resourcePoolState.CreateReleaseEvents(
+            CreateResourcePoolEventContext(commandId, instanceId, occurredAt),
+            holderKey);
     }
 
     private WorkflowInstanceSnapshot? ToInstanceSnapshot()
@@ -1693,7 +1634,7 @@ internal sealed class DurableWorkflowAggregate
                 .ToArray(),
             ActiveChildren = childState.CreateCheckpointActiveChildren(),
             ActiveChildGroups = childState.CreateCheckpointActiveChildGroups(),
-            ActiveResourceTickets = [.. activeResourceTickets],
+            ActiveResourceTickets = resourcePoolState.CreateCheckpointActiveResourceTickets(),
             ActiveExternalJobs = externalJobState.CreateCheckpointActiveExternalJobs()
         };
     }
@@ -1711,6 +1652,14 @@ internal sealed class DurableWorkflowAggregate
         }
 
         ErrorSummary = effects.PropagatedFailureErrorSummary ?? ErrorSummary;
+    }
+
+    private void ApplyResourcePoolReplayEffects(DurableResourcePoolReplayEffects effects)
+    {
+        foreach (var wait in effects.WaitsToRegister)
+        {
+            waitState.Register(wait);
+        }
     }
 }
 

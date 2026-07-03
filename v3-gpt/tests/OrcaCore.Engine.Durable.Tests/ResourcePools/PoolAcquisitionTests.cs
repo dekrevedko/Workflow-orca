@@ -99,6 +99,35 @@ public sealed class PoolAcquisitionTests
 
     [Fact]
     [Trait("AC", "AC-520")]
+    public async Task FailGuardedScope_ReleasesTicketsExactlyOnce()
+    {
+        var provider = new InMemoryWorkflowProvider();
+        var pools = new InMemoryResourcePoolStore();
+        await pools.UpsertPoolAsync(Pool("db", 1), TestContext.Current.CancellationToken);
+        var processor = new DurableCommandProcessor(provider, pools);
+        await processor.ProcessAsync(Start(1), TestContext.Current.CancellationToken);
+        await processor.ProcessAsync(Acquire(1, "node-1", Requirement("db")), TestContext.Current.CancellationToken);
+
+        await processor.ProcessAsync(
+            new DurableStepFailedCommand(CommandIdValue(3), InstanceIdValue(1), Timestamp(3), "guarded", "boom"),
+            TestContext.Current.CancellationToken);
+        await processor.ProcessAsync(
+            new DurableStepFailedCommand(CommandIdValue(4), InstanceIdValue(1), Timestamp(4), "guarded", "boom"),
+            TestContext.Current.CancellationToken);
+        var snapshot = await pools.GetPoolAsync("db", TestContext.Current.CancellationToken);
+        var events = await provider.LoadTailAsync(
+            new WorkflowStreamId(InstanceIdValue(1)),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+
+        snapshot.Value.HeldTickets.Should().BeEmpty();
+        events.OfType<WorkflowResourcePoolReleasedEvent>().Should().ContainSingle()
+            .Which.Tickets.Should().ContainSingle()
+            .Which.HolderKey.Should().Be("node-1");
+    }
+
+    [Fact]
+    [Trait("AC", "AC-520")]
     public async Task TerminateGuardedScope_ReleasesTicketsExactlyOnce()
     {
         var provider = new InMemoryWorkflowProvider();

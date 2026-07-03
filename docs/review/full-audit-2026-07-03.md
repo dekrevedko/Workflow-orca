@@ -74,6 +74,14 @@ Follow-up implementation verification, 2026-07-03:
   build loop with `-warnaserror`, the full non-integration `v3-gpt/tests`
   sweep, and `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 81, skipped
   18, failed 0.
+- Durable resource-pool state extraction pass added focused
+  `DurableResourcePoolState` tests and reran focused resource-pool/external-job
+  tests plus the full durable test project before broader verification. The
+  pass also fixed guarded resource tickets not being released when a durable
+  step fails. Broader verification passed the non-integration analyzer build
+  loop with `-warnaserror`, the full non-integration `v3-gpt/tests` sweep, and
+  `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 81, skipped 18, failed
+  0.
 - Durable wait-state extraction pass added focused `DurableWaitState` tests and
   reran the durable analyzer build and full durable test project before broader
   verification.
@@ -324,6 +332,13 @@ Implementation update:
   tracking, child compensation planning, replay effects, and checkpoint
   projection. The aggregate still owns lifecycle terminal checks and terminal
   event emission.
+- 2026-07-03: extracted `DurableResourcePoolState` for active ticket storage,
+  acquire/queue event planning, release event planning, queued-wait replay
+  effects, active-ticket replay, and checkpoint projection. The aggregate still
+  owns lifecycle status transitions and external-job orchestration. During this
+  extraction, `DecideStepFailed` was corrected to emit resource-pool release
+  events before terminal failure so provider-held tickets are released by the
+  post-commit side-effect path.
 
 ### PostgreSQL start idempotency is not durable
 
@@ -528,7 +543,7 @@ Implementation update:
 
 | Module | Current shape | Refactoring direction |
 | --- | --- | --- |
-| `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs` | About 2,603 lines before decomposition; one aggregate owns timers, child workflows, resource pools, projections, and replay. Saga compensation state has been extracted to `DurableSagaState`; active-wait and buffered-delivery state has been extracted to `DurableWaitState`; external-job state has been extracted to `DurableExternalJobState`; child workflow state has been extracted to `DurableChildWorkflowState`. | Keep the aggregate Interface, but move remaining resource-pool rules into an internal state slice Module. |
+| `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs` | About 2,603 lines before decomposition; one aggregate owns timers, projections, lifecycle transitions, and replay orchestration. Saga compensation state has been extracted to `DurableSagaState`; active-wait and buffered-delivery state has been extracted to `DurableWaitState`; external-job state has been extracted to `DurableExternalJobState`; child workflow state has been extracted to `DurableChildWorkflowState`; resource-pool state has been extracted to `DurableResourcePoolState`. | Keep the aggregate Interface. Further extraction should target timers or projection/replay orchestration only when it creates behavior-testable Locality rather than pass-through glue. |
 | `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` | About 979 lines; one processor handles command overloads, rehydration, commit, outbox/timer/projection/idempotency materialization, and resource-pool side effects. | Create `DurableCommandRuntime` and `DurableCommitPipeline`; materializers become internal Modules behind small Interfaces. |
 | `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs` | About 1,515 lines; event codec switches at `:1363`, `:1419`, and `:1464`; projection operation switch at `:979`. | Move event mapping into `WorkflowEventCodec`; move projection writes into a projection store Module; keep this Adapter focused on PostgreSQL SQL and transaction shape. |
 | `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs` | About 1,369 lines; event codec switches at `:1194`, `:1207`, and `:1220`; projection operation switch at `:949`; resource pools are in-memory inside the same store. | Share `WorkflowEventCodec`; split durable event store, projection store, timer store, outbox store, and resource pool Adapter responsibilities. |
@@ -566,9 +581,9 @@ Module Interface and keep source-text checks explicitly named as guard tests.
    persistence, and SQL Server retention certification parity.
 5. Continue behavior-preserving `Interpreter<TState>` decomposition only where
    it adds locality or testability.
-6. Continue internal durable aggregate slices for resource pools. Wait state,
-   saga compensation state, external-job state, and child workflow state are
-   complete.
+6. Completed 2026-07-03: internal durable aggregate slices for wait state, saga
+   compensation state, external-job state, child workflow state, and
+   resource-pool state.
 7. Introduce a shared `InstanceLane` Module to remove duplicated channel-lane
    Implementation.
 8. Split test execution into unit, container, and active integration lanes in CI.
