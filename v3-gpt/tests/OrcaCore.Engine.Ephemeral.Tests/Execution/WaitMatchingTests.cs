@@ -90,6 +90,31 @@ public sealed class WaitMatchingTests
     }
 
     [Fact]
+    public async Task RaiseEventAsync_MatchingEvent_ThenYieldingStep_DrainsYieldContinuation()
+    {
+        var state = new TestState();
+        var engine = new EphemeralWorkflowEngine();
+        var definition = Definition(new WorkflowBuilder<TestState>()
+            .Init<string>(_ => state)
+            .Wait("Approved", _ => Correlation)
+            .Then(() => new YieldOnceStep())
+            .End());
+        engine.RegisterDefinition(definition);
+        var waiting = await engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "start",
+            TestContext.Current.CancellationToken);
+
+        var resumed = await engine.RaiseEventAsync<TestState>(
+            waiting.InstanceId,
+            Event("Approved", Correlation, "ok"),
+            TestContext.Current.CancellationToken);
+
+        resumed.Status.Should().Be(WorkflowStatus.Completed);
+        state.YieldAttempts.Should().Be(2);
+    }
+
+    [Fact]
     public async Task RaiseEventAsync_WrongNameOrCorrelation_LeavesInstanceWaiting()
     {
         var state = new TestState();
@@ -223,6 +248,8 @@ public sealed class WaitMatchingTests
         public bool SecondStepSawResumedEvent { get; set; }
 
         public int Count { get; set; }
+
+        public int YieldAttempts { get; set; }
     }
 
     private sealed class WaitResultStep : IStep<TestState>
@@ -270,6 +297,20 @@ public sealed class WaitMatchingTests
         {
             context.State.Count++;
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed class YieldOnceStep : IStep<TestState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<TestState> context,
+            CancellationToken cancellationToken)
+        {
+            context.State.YieldAttempts++;
+            return ValueTask.FromResult<StepResult>(
+                context.State.YieldAttempts == 1
+                    ? new StepResult.Yield()
+                    : new StepResult.Completed());
         }
     }
 }

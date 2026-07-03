@@ -19,18 +19,22 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
     private readonly ParallelNodeRunner<TState> parallelRunner;
     private readonly WhenFirstNodeRunner<TState> whenFirstRunner;
     private readonly ForEachNodeRunner<TState> forEachRunner;
+    private readonly YieldContinuationScheduler yieldContinuationScheduler;
 
     internal Interpreter(
         TimeProvider timeProvider,
         EphemeralTimerService timerService,
         ResourceGovernanceCoordinator governance,
+        YieldContinuationScheduler yieldContinuationScheduler,
         TimeSpan? stuckStepThreshold = null)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(timerService);
         ArgumentNullException.ThrowIfNull(governance);
+        ArgumentNullException.ThrowIfNull(yieldContinuationScheduler);
 
         this.timeProvider = timeProvider;
+        this.yieldContinuationScheduler = yieldContinuationScheduler;
         stepExecutor = new StepExecutor<TState>(timeProvider, governance, stuckStepThreshold);
         failureHandler = new WorkflowFailureHandler<TState>(timeProvider);
         conditionEvaluator = new ConditionEvaluator<TState>(failureHandler);
@@ -207,10 +211,11 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
                     cancellationToken).ConfigureAwait(false);
                 return false;
             case StepExecutionStatus.Yield:
-                instance.ScheduleYield(continuationToken => ContinueSequenceAsync(
+                yieldContinuationScheduler.Schedule(
+                    instance,
+                    this,
                     context,
-                    stepIndex,
-                    continuationToken));
+                    stepIndex);
                 return false;
             default:
                 throw new NotSupportedException(

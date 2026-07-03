@@ -27,6 +27,7 @@ public sealed class EphemeralWorkflowEngine
     private readonly EphemeralWorkflowEngineOptions options;
     private readonly EphemeralTimerService timerService;
     private readonly TimeProvider timeProvider;
+    private readonly YieldContinuationScheduler yieldContinuationScheduler;
 
     /// <summary>
     /// Initializes an engine using system time and an in-memory instance registry.
@@ -79,6 +80,7 @@ public sealed class EphemeralWorkflowEngine
         this.executionLane = executionLane;
         governance = new ResourceGovernanceCoordinator(options);
         timerService = new EphemeralTimerService(timeProvider);
+        yieldContinuationScheduler = new YieldContinuationScheduler(governance, executionLane);
         Management = new EphemeralManagement(this, instanceRegistry);
     }
 
@@ -132,6 +134,7 @@ public sealed class EphemeralWorkflowEngine
                         timeProvider,
                         timerService,
                         governance,
+                        yieldContinuationScheduler,
                         options.StuckStepThreshold);
                     instance = await interpreter.RunAsync(
                         definition,
@@ -147,7 +150,9 @@ public sealed class EphemeralWorkflowEngine
 
         snapshot = instance is null
             ? snapshot
-            : await DrainYieldContinuationsAsync(instance, instanceId, cancellationToken).ConfigureAwait(false);
+            : await yieldContinuationScheduler
+                .DrainAsync(instance, instanceId, IndexSnapshot, cancellationToken)
+                .ConfigureAwait(false);
         IndexSnapshot(snapshot);
         return snapshot;
     }
@@ -311,7 +316,8 @@ public sealed class EphemeralWorkflowEngine
 
             if (registeredInstance is IWorkflowInstance instance)
             {
-                snapshot = await DrainYieldContinuationsAsync(instance, timer.InstanceId, cancellationToken)
+                snapshot = await yieldContinuationScheduler
+                    .DrainAsync(instance, timer.InstanceId, IndexSnapshot, cancellationToken)
                     .ConfigureAwait(false);
             }
 
@@ -358,7 +364,9 @@ public sealed class EphemeralWorkflowEngine
                 cancellationToken).ConfigureAwait(false);
         }
 
-        snapshot = await DrainYieldContinuationsAsync(instance, instanceId, cancellationToken).ConfigureAwait(false);
+        snapshot = await yieldContinuationScheduler
+            .DrainAsync(instance, instanceId, IndexSnapshot, cancellationToken)
+            .ConfigureAwait(false);
         IndexSnapshot(snapshot);
         return snapshot;
     }
@@ -423,32 +431,6 @@ public sealed class EphemeralWorkflowEngine
             IndexSnapshot(snapshot);
             return snapshot;
         }
-    }
-
-    private async Task<WorkflowInstanceSnapshot> DrainYieldContinuationsAsync(
-        IWorkflowInstance instance,
-        InstanceId instanceId,
-        CancellationToken cancellationToken)
-    {
-        var snapshot = instance.ToSnapshot();
-        while (instance.TryTakeYieldContinuation(out var continuation))
-        {
-            await using (await governance.EnterAdvancementAsync(cancellationToken).ConfigureAwait(false))
-            {
-                snapshot = await executionLane.RunAsync(
-                    instanceId,
-                    async laneCancellationToken =>
-                    {
-                        using var linkedCancellation = instance.CreateLinkedExecutionToken(laneCancellationToken);
-                        await continuation!(linkedCancellation.Token).ConfigureAwait(false);
-                        return instance.ToSnapshot();
-                    },
-                    cancellationToken).ConfigureAwait(false);
-            }
-            IndexSnapshot(snapshot);
-        }
-
-        return snapshot;
     }
 
     private async Task<WorkflowInstanceSnapshot> CompensateSagaRuntimeAsync<TState>(

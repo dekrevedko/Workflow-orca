@@ -61,6 +61,10 @@ Follow-up implementation verification, 2026-07-03:
   non-integration analyzer build loop with `-warnaserror`, and the full
   `v3-gpt/tests/OrcaCore.Integration.Tests` project. Integration coverage is
   now passed 81, skipped 18, failed 0.
+- Yield continuation scheduler pass reran focused yield/wait/timer tests, full
+  `OrcaCore.Engine.Ephemeral.Tests`, filtered acceptance yield/wait/timer
+  coverage, the non-integration analyzer build loop with `-warnaserror`, the
+  full integration project, and all non-integration `v3-gpt/tests` projects.
 
 ## Completed In This Pass
 
@@ -478,9 +482,12 @@ Implementation update:
   interpreter now stays closer to orchestration and delegates condition
   handling, wait/delay suspension, loop execution, parallel joins, when-first
   joins, foreach scheduling, failure recording, and lifecycle transitions.
-- Remaining interpreter decomposition targets are yield continuation scheduling
-  and any additional extraction that makes a behavior directly testable without
-  turning the interpreter into pass-through glue.
+- 2026-07-03: extracted `YieldContinuationScheduler` after confirming that a
+  scheduler-only wrapper would be pass-through glue. The extracted Module owns
+  both yield continuation scheduling and lane/governance-aware draining from
+  start, timer, and event-resume entry points.
+- Remaining interpreter decomposition should stop unless another behavior can be
+  made directly testable without turning the interpreter into pass-through glue.
 
 ### Other switch-heavy or oversized Modules to prioritize
 
@@ -523,8 +530,7 @@ Module Interface and keep source-text checks explicitly named as guard tests.
 4. Completed 2026-07-03: PostgreSQL start idempotency, SQL Server resource-pool
    persistence, and SQL Server retention certification parity.
 5. Continue behavior-preserving `Interpreter<TState>` decomposition only where
-   it adds locality or testability; yield continuation scheduling is the next
-   specific candidate.
+   it adds locality or testability.
 6. Extract internal durable aggregate slices for waits, children, resource pools,
    external jobs, and saga compensation.
 7. Introduce a shared `InstanceLane` Module to remove duplicated channel-lane
