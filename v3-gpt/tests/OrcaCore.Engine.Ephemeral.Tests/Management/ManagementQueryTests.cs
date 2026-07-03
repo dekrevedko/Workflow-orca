@@ -36,6 +36,81 @@ public sealed class ManagementQueryTests
     }
 
     [Fact]
+    public void Where_AllowsMetadataComparisonsCapturedConstantsAndBooleanComposition()
+    {
+        var engine = new EphemeralWorkflowEngine();
+        var definitionId = DefinitionId.New();
+        var cutoff = DateTimeOffset.UtcNow.AddMinutes(1);
+
+        var act = () => engine.Management.All().Where(instance =>
+            instance.DefinitionId == definitionId &&
+            instance.Status != WorkflowStatus.Failed &&
+            instance.CreatedAt < cutoff);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Where_RejectsMethodCalls()
+    {
+        var engine = new EphemeralWorkflowEngine();
+
+        var act = () => engine.Management.All().Where(instance =>
+            instance.EndOutcomeName!.StartsWith("Approved"));
+
+        act.Should().Throw<NotSupportedException>()
+            .WithMessage("*call methods*");
+    }
+
+    [Fact]
+    public void Where_RejectsArithmeticOperators()
+    {
+        var engine = new EphemeralWorkflowEngine();
+
+        var act = () => engine.Management.All().Where(instance =>
+            instance.CreatedAt.Ticks + 1 > 0);
+
+        act.Should().Throw<NotSupportedException>()
+            .WithMessage("*binary operator*Add*");
+    }
+
+    [Fact]
+    public void Where_RejectsIndexerAccess()
+    {
+        var engine = new EphemeralWorkflowEngine();
+
+        var act = () => engine.Management.All().Where(instance =>
+            instance.EndOutcomeName![0] == 'A');
+
+        act.Should().Throw<NotSupportedException>()
+            .WithMessage("*indexer*");
+    }
+
+    [Fact]
+    public void Where_RejectsConditionalExpressions()
+    {
+        var engine = new EphemeralWorkflowEngine();
+
+        var act = () => engine.Management.All().Where(instance =>
+            instance.Status == WorkflowStatus.Completed ? true : false);
+
+        act.Should().Throw<NotSupportedException>()
+            .WithMessage("*conditional*");
+    }
+
+    [Fact]
+    public void Where_RejectsObjectConstruction()
+    {
+        var engine = new EphemeralWorkflowEngine();
+
+        var act = () => engine.Management.All().Where(instance =>
+            instance.CreatedAt > new DateTimeOffset(2026, 7, 3, 0, 0, 0, TimeSpan.Zero));
+
+        act.Should().Throw<NotSupportedException>()
+            .WithMessage("*construct objects*");
+    }
+
+    [Fact]
     public async Task Get_ReturnsSnapshotCopy_NotLiveInstance()
     {
         var engine = new EphemeralWorkflowEngine();

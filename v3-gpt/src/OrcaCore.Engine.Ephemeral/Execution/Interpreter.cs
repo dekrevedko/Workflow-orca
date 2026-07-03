@@ -293,6 +293,14 @@ internal sealed class Interpreter<TState>
                         afterSequence,
                         cancellationToken).ConfigureAwait(false);
                     return false;
+                case RunChildNode<TState>:
+                case RunChildrenNode<TState>:
+                    EnsureInitialized(runState.Initialized, runState.Instance);
+                    Fail(
+                        runState.Instance!,
+                        new NotSupportedException("Durable child workflow nodes require the durable engine."),
+                        node.NodeId);
+                    return false;
                 case WaitNode<TState> waitNode:
                     EnsureInitialized(runState.Initialized, runState.Instance);
                     CorrelationId correlationId;

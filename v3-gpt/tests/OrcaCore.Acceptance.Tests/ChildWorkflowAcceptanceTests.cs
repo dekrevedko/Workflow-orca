@@ -188,7 +188,7 @@ public sealed class ChildWorkflowAcceptanceTests
             .ProcessAsync(ChildCompleted(parentId, scheduled.Children[0].ChildInstanceId), TestContext.Current.CancellationToken);
         var outbox = await store.ClaimAsync(10, TestContext.Current.CancellationToken);
 
-        outbox.Select(record => record.Kind).Should().Contain(["child-start", "external-message"]);
+        outbox.Select(record => record.Kind).Should().Contain(["child-start", "child-cancel"]);
     }
 
     [Fact]

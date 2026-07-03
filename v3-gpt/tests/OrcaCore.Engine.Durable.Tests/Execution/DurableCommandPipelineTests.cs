@@ -49,6 +49,35 @@ public sealed class DurableCommandPipelineTests
     }
 
     [Fact]
+    [Trait("AC", "EV-050")]
+    public async Task ProcessCommand_TimerScheduled_IncludesTimerScheduleInCommitBatch()
+    {
+        var instanceId = InstanceIdValue(1);
+        var timerId = TimerIdValue(10);
+        var store = new RecordingEventStore
+        {
+            Tail = [Started(instanceId)]
+        };
+        var processor = new DurableCommandProcessor(store);
+
+        await processor.ProcessAsync(
+            new ScheduleTimerCommand
+            {
+                CommandId = CommandIdValue(10),
+                InstanceId = instanceId,
+                RequestedAt = Timestamp(10),
+                TimerId = timerId,
+                FireAt = Timestamp(30),
+                WakeupName = "approval-timeout"
+            },
+            TestContext.Current.CancellationToken);
+
+        store.AppendedBatch.Should().NotBeNull();
+        store.AppendedBatch!.TimerSchedules.Should().ContainSingle()
+            .Which.TimerId.Should().Be(timerId);
+    }
+
+    [Fact]
     public async Task ProcessCommand_VersionConflict_ReturnsClearConflict()
     {
         var instanceId = InstanceIdValue(1);
@@ -97,6 +126,21 @@ public sealed class DurableCommandPipelineTests
         results.Count(result => result.Outcome == DurableCommandOutcome.Committed).Should().Be(1);
         results.Count(result => result.Outcome == DurableCommandOutcome.NoOp).Should().Be(1);
         events.OfType<WorkflowWaitMatchedEvent>().Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task ProcessCommand_WhenBatchDrains_EvictsIdleLane()
+    {
+        var instanceId = InstanceIdValue(1);
+        var store = new RecordingEventStore
+        {
+            Tail = [Started(instanceId)]
+        };
+        var processor = new DurableCommandProcessor(store);
+
+        await processor.ProcessAsync(StepCompletedCommand(instanceId, 2), TestContext.Current.CancellationToken);
+
+        processor.ActiveLaneCount.Should().Be(0);
     }
 
     private static DurableStepCompletedCommand StepCompletedCommand(InstanceId instanceId, int commandValue)
@@ -198,6 +242,11 @@ public sealed class DurableCommandPipelineTests
     private static WaitId WaitIdValue(int value)
     {
         return new WaitId(GuidValue(value));
+    }
+
+    private static TimerId TimerIdValue(int value)
+    {
+        return new TimerId(GuidValue(value));
     }
 
     private static Guid GuidValue(int value)

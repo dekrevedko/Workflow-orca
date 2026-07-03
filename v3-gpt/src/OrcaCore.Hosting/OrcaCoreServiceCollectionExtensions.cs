@@ -4,10 +4,10 @@ using Microsoft.Extensions.Hosting;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Engine.Durable.Management;
+using OrcaCore.Engine.Durable.Outbox;
 using OrcaCore.Engine.Ephemeral;
 using OrcaCore.Hosting.Services;
 using OrcaCore.Providers.InMemory;
-using OrcaCore.Providers.RabbitMq;
 
 namespace OrcaCore.Hosting;
 
@@ -44,6 +44,7 @@ public static class OrcaCoreServiceCollectionExtensions
         services.TryAddSingleton<IResourcePoolStore>(provider =>
             provider.GetRequiredService<InMemoryResourcePoolStore>());
         services.TryAddSingleton<DurableCommandProcessor>();
+        services.TryAddSingleton<DurableOutboxPump>();
         services.TryAddSingleton(provider => new DurableManagement(
             provider.GetRequiredService<IWorkflowProjectionStore>(),
             provider.GetRequiredService<IResourcePoolStore>(),
@@ -53,27 +54,19 @@ public static class OrcaCoreServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Registers RabbitMQ as the durable outbox message dispatcher.
-    /// </summary>
-    public static IServiceCollection AddOrcaCoreRabbitMq(
-        this IServiceCollection services,
-        RabbitMqMessageDispatcherOptions options)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-        ArgumentNullException.ThrowIfNull(options);
-
-        services.AddSingleton(options);
-        services.AddSingleton<IRabbitMqPublisher, RabbitMqClientPublisher>();
-        services.AddSingleton<IMessageDispatcher, RabbitMqMessageDispatcher>();
-        return services;
-    }
-
-    /// <summary>
     /// Registers OrcaCore background services for hosted applications.
     /// </summary>
-    public static IServiceCollection AddOrcaCoreHostedServices(this IServiceCollection services)
+    public static IServiceCollection AddOrcaCoreHostedServices(
+        this IServiceCollection services,
+        Action<OrcaCoreHostedServiceOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(services);
+
+        services.AddOptions<OrcaCoreHostedServiceOptions>();
+        if (configure is not null)
+        {
+            services.Configure(configure);
+        }
 
         services.AddSingleton<IHostedService, OrcaCoreOutboxPumpHostedService>();
         services.AddSingleton<IHostedService, OrcaCoreTimerHostedService>();

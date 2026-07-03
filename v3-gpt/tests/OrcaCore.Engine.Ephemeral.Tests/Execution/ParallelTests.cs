@@ -189,6 +189,33 @@ public sealed class ParallelTests
     }
 
     [Fact]
+    [Trait("AC", "AC-110")]
+    public async Task RaiseEventAsync_RemainingBranchWait_RejectsWrongBranchId()
+    {
+        var state = new TestState();
+        var engine = new EphemeralWorkflowEngine();
+        var definition = SameCorrelationWaitingParallelDefinition(state);
+        engine.RegisterDefinition(definition);
+        var waiting = await engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "start",
+            TestContext.Current.CancellationToken);
+        await engine.RaiseEventAsync<TestState>(
+            waiting.InstanceId,
+            Event("Ready", new CorrelationId("same"), "a", branchId: "0:a"),
+            TestContext.Current.CancellationToken);
+
+        var stillWaiting = await engine.RaiseEventAsync<TestState>(
+            waiting.InstanceId,
+            Event("Ready", new CorrelationId("same"), "wrong", branchId: "0:a"),
+            TestContext.Current.CancellationToken);
+
+        stillWaiting.Status.Should().Be(WorkflowStatus.Waiting);
+        stillWaiting.ActiveWaits.Should().ContainSingle(wait => wait.BranchId == "1:b");
+        state.Values.Should().Equal(["a"]);
+    }
+
+    [Fact]
     public async Task Run_ParallelBranchCommits_RouteThroughInstanceLane()
     {
         var state = new TestState();

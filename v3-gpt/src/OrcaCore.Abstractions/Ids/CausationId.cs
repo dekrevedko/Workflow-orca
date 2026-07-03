@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace OrcaCore.Abstractions.Ids;
 
 /// <summary>
 /// Identifies the durable causal chain that produced workflow engine facts.
 /// </summary>
+[JsonConverter(typeof(CausationIdJsonConverter))]
 public readonly record struct CausationId
 {
     /// <summary>

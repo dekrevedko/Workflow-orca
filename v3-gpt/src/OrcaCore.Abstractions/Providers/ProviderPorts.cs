@@ -45,6 +45,28 @@ public interface IWorkflowInboxStore
 }
 
 /// <summary>
+/// Stores durable start idempotency mappings.
+/// </summary>
+public interface IWorkflowStartIdempotencyStore
+{
+    /// <summary>
+    /// Gets the instance bound to one start idempotency key, when present.
+    /// </summary>
+    Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Describes the workflow instance that won a durable start idempotency key.
+/// </summary>
+public sealed record StartedWorkflowIdempotencyRecord(
+    string IdempotencyKey,
+    InstanceId InstanceId,
+    DefinitionId DefinitionId,
+    DefinitionVersion DefinitionVersion);
+
+/// <summary>
 /// Stores durable outbound dispatch records.
 /// </summary>
 public interface IWorkflowOutboxStore

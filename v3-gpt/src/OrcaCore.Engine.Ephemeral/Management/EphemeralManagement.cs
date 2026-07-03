@@ -601,6 +601,18 @@ public sealed class EphemeralSagaManagement
 
 internal sealed class QueryPredicateValidator : ExpressionVisitor
 {
+    private static readonly HashSet<ExpressionType> AllowedBinaryNodeTypes =
+    [
+        ExpressionType.AndAlso,
+        ExpressionType.OrElse,
+        ExpressionType.Equal,
+        ExpressionType.NotEqual,
+        ExpressionType.GreaterThan,
+        ExpressionType.GreaterThanOrEqual,
+        ExpressionType.LessThan,
+        ExpressionType.LessThanOrEqual
+    ];
+
     private QueryPredicateValidator()
     {
     }
@@ -610,6 +622,27 @@ internal sealed class QueryPredicateValidator : ExpressionVisitor
         new QueryPredicateValidator().Visit(expression);
     }
 
+    protected override Expression VisitBinary(BinaryExpression node)
+    {
+        if (!AllowedBinaryNodeTypes.Contains(node.NodeType))
+        {
+            throw new NotSupportedException(
+                $"Management predicates cannot use binary operator '{node.NodeType}'.");
+        }
+
+        return base.VisitBinary(node);
+    }
+
+    protected override Expression VisitConditional(ConditionalExpression node)
+    {
+        throw new NotSupportedException("Management predicates cannot use conditional expressions.");
+    }
+
+    protected override Expression VisitIndex(IndexExpression node)
+    {
+        throw new NotSupportedException("Management predicates cannot use indexer access.");
+    }
+
     protected override Expression VisitInvocation(InvocationExpression node)
     {
         throw new NotSupportedException("Management predicates cannot invoke delegates.");
@@ -617,6 +650,11 @@ internal sealed class QueryPredicateValidator : ExpressionVisitor
 
     protected override Expression VisitMethodCall(MethodCallExpression node)
     {
+        if (node.Method.IsSpecialName && string.Equals(node.Method.Name, "get_Chars", StringComparison.Ordinal))
+        {
+            throw new NotSupportedException("Management predicates cannot use indexer access.");
+        }
+
         throw new NotSupportedException("Management predicates cannot call methods.");
     }
 

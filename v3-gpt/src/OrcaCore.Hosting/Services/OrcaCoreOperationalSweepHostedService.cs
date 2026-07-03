@@ -1,21 +1,33 @@
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
+using OrcaCore.Abstractions.Providers;
 
 namespace OrcaCore.Hosting.Services;
 
 /// <summary>
 /// Hosts periodic OrcaCore operational sweeps.
 /// </summary>
-public sealed class OrcaCoreOperationalSweepHostedService : IHostedService
+public sealed class OrcaCoreOperationalSweepHostedService(
+    IResourcePoolStore resourcePoolStore,
+    IOptions<OrcaCoreHostedServiceOptions> options,
+    TimeProvider timeProvider) : BackgroundService
 {
     /// <inheritdoc />
-    public Task StartAsync(CancellationToken cancellationToken)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        return Task.CompletedTask;
+        var value = options.Value;
+        value.Validate();
+
+        await RunOnceAsync(stoppingToken).ConfigureAwait(false);
+        using var timer = new PeriodicTimer(value.OperationalSweepInterval, timeProvider);
+        while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false))
+        {
+            await RunOnceAsync(stoppingToken).ConfigureAwait(false);
+        }
     }
 
-    /// <inheritdoc />
-    public Task StopAsync(CancellationToken cancellationToken)
+    private Task RunOnceAsync(CancellationToken stoppingToken)
     {
-        return Task.CompletedTask;
+        return resourcePoolStore.ExpireTicketsAsync(timeProvider.GetUtcNow(), stoppingToken);
     }
 }

@@ -1,11 +1,14 @@
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Durable;
+using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
+using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Aggregates;
 using OrcaCore.Engine.Durable.Execution;
+using OrcaCore.Engine.Durable.Management;
 using OrcaCore.Engine.Ephemeral;
 using OrcaCore.Providers.InMemory;
 using Xunit;
@@ -120,6 +123,84 @@ public sealed class DurableManagementTests
     }
 
     [Fact]
+    [Trait("AC", "AC-516")]
+    public async Task DurableTerminate_RequiresExplicitDestructiveSafety()
+    {
+        var instanceId = InstanceIdValue(1);
+        var store = new InMemoryWorkflowProvider();
+        var management = new DurableManagement(store);
+        await new DurableCommandProcessor(store).ProcessAsync(
+            StartCommand(instanceId),
+            TestContext.Current.CancellationToken);
+
+        var unsafeTerminate = async () => await management.TerminateAsync(
+            instanceId,
+            Timestamp(2),
+            TestContext.Current.CancellationToken);
+        var terminated = await management.TerminateAsync(
+            instanceId,
+            Timestamp(2),
+            OrcaCore.Engine.Durable.Management.DestructiveCommandSafety.Confirmed,
+            TestContext.Current.CancellationToken);
+
+        await unsafeTerminate.Should().ThrowAsync<WorkflowLifecycleException>()
+            .WithMessage("*explicit destructive safety confirmation*");
+        terminated.Outcome.Should().Be(DurableCommandOutcome.Committed);
+    }
+
+    [Fact]
+    [Trait("AC", "AC-516")]
+    public async Task DurablePurge_RequiresExplicitDestructiveSafety()
+    {
+        var instanceId = InstanceIdValue(1);
+        var store = new InMemoryWorkflowProvider();
+        var management = new DurableManagement(store);
+        await new DurableCommandProcessor(store).ProcessAsync(
+            StartCommand(instanceId),
+            TestContext.Current.CancellationToken);
+        await management.TerminateAsync(
+            instanceId,
+            Timestamp(2),
+            OrcaCore.Engine.Durable.Management.DestructiveCommandSafety.Confirmed,
+            TestContext.Current.CancellationToken);
+        var policy = new RetentionPolicy
+        {
+            InstanceId = instanceId,
+            RequestedAt = Timestamp(3),
+            Reason = "retention window elapsed"
+        };
+
+        var unsafePurge = async () => await management.PurgeAsync(policy, TestContext.Current.CancellationToken);
+        var purged = await management.PurgeAsync(
+            policy,
+            OrcaCore.Engine.Durable.Management.DestructiveCommandSafety.Confirmed,
+            TestContext.Current.CancellationToken);
+
+        await unsafePurge.Should().ThrowAsync<WorkflowLifecycleException>()
+            .WithMessage("*explicit destructive safety confirmation*");
+        purged.Purged.Should().BeTrue();
+    }
+
+    [Fact]
+    [Trait("AC", "DU-071")]
+    public async Task ReconstructDagRunAsync_LoadsTailOnlyAfterLatestCheckpoint()
+    {
+        var store = new CheckpointedDagStore();
+        var management = new DurableManagement(store, eventStore: store);
+
+        var snapshot = await management.ReconstructDagRunAsync(
+            CheckpointedDagStore.RootInstanceId,
+            TestContext.Current.CancellationToken);
+
+        store.LoadedAfterVersion.Should().Be(new StreamVersion(12));
+        snapshot.Nodes.Should().ContainSingle()
+            .Which.Should().Match<DagNodeRunSnapshot>(node =>
+                node.NodeId == "node-a" &&
+                node.InstanceId == CheckpointedDagStore.ChildInstanceId &&
+                node.Status == WorkflowStatus.Completed);
+    }
+
+    [Fact]
     public void EphemeralManagement_DoesNotExposePauseResumeRetryHistoryArchivePurge()
     {
         typeof(EphemeralManagement).Assembly.GetTypes()
@@ -214,6 +295,11 @@ public sealed class DurableManagementTests
         return new CommandId(GuidValue(value));
     }
 
+    private static DefinitionId DefinitionIdValue(int value)
+    {
+        return new DefinitionId(GuidValue(value));
+    }
+
     private static WaitId WaitIdValue(int value)
     {
         return new WaitId(GuidValue(value));
@@ -222,5 +308,107 @@ public sealed class DurableManagementTests
     private static Guid GuidValue(int value)
     {
         return Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}");
+    }
+
+    private sealed class CheckpointedDagStore : IWorkflowEventStore, IWorkflowProjectionStore
+    {
+        internal static readonly InstanceId RootInstanceId = InstanceIdValue(10);
+        internal static readonly InstanceId ChildInstanceId = InstanceIdValue(11);
+
+        internal StreamVersion? LoadedAfterVersion { get; private set; }
+
+        public Task<Option<CheckpointWrite>> LoadCheckpointAsync(
+            InstanceId instanceId,
+            CancellationToken cancellationToken)
+        {
+            var checkpoint = new CheckpointWrite(instanceId, new StreamVersion(12), "application/json", [])
+            {
+                RuntimeState = new WorkflowRuntimeCheckpointState
+                {
+                    ActiveChildGroups =
+                    [
+                        new CheckpointActiveChildGroup(
+                            "group-a",
+                            RunChildFailurePolicy.PropagateFailure,
+                            RunChildrenJoinPolicy.WhenAll,
+                            RunChildrenResidualPolicy.LetRemainingComplete,
+                            1,
+                            1,
+                            [
+                                new WorkflowChildMaterialization
+                                {
+                                    Index = 0,
+                                    ChildInstanceId = ChildInstanceId,
+                                    ChildDefinitionId = DefinitionIdValue(2),
+                                    ChildDefinitionVersion = DefinitionVersion.Initial,
+                                    ItemSnapshot = "node-a"
+                                }
+                            ])
+                    ]
+                }
+            };
+
+            return Task.FromResult(Option<CheckpointWrite>.Some(checkpoint));
+        }
+
+        public Task<Result<AppendEventsResult>> AppendAsync(
+            ProviderCommitBatch batch,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<IReadOnlyList<WorkflowEvent>> LoadTailAsync(
+            WorkflowStreamId streamId,
+            StreamVersion afterVersion,
+            CancellationToken cancellationToken)
+        {
+            LoadedAfterVersion = afterVersion;
+            return Task.FromResult<IReadOnlyList<WorkflowEvent>>([]);
+        }
+
+        public Task ApplyAsync(IReadOnlyList<ProjectionWrite> operations, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<IReadOnlyList<WorkflowInstanceSnapshot>> ListAsync(
+            WorkflowProjectionQuery query,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult<IReadOnlyList<WorkflowInstanceSnapshot>>(
+            [
+                new WorkflowInstanceSnapshot
+                {
+                    InstanceId = ChildInstanceId,
+                    ParentInstanceId = RootInstanceId,
+                    RootInstanceId = RootInstanceId,
+                    DefinitionId = DefinitionIdValue(2),
+                    DefinitionVersion = DefinitionVersion.Initial,
+                    Status = WorkflowStatus.Completed,
+                    CreatedAt = Timestamp(1),
+                    UpdatedAt = Timestamp(2)
+                }
+            ]);
+        }
+
+        public Task<int> CountAsync(WorkflowProjectionQuery query, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<IReadOnlyList<ActiveWaitSnapshot>> ListActiveWaitsAsync(
+            WorkflowProjectionQuery query,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<OrcaCore.Abstractions.Instances.WorkflowStatistics> GetStatisticsAsync(
+            WorkflowProjectionQuery query,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
     }
 }

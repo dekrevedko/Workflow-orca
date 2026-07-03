@@ -48,5 +48,7 @@ public sealed class PostgreSqlRetentionCertificationTests : RetentionCertificati
         public IWorkflowProjectionStore ProjectionStore => store;
 
         public IWorkflowRetentionStore RetentionStore => store;
+
+        public ITimerScheduler TimerScheduler => store;
     }
 }

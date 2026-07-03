@@ -14,6 +14,7 @@
     <Project Path="src/OrcaCore.Providers.InMemory/OrcaCore.Providers.InMemory.csproj" />
     <Project Path="src/OrcaCore.Providers.PostgreSql/OrcaCore.Providers.PostgreSql.csproj" />
     <Project Path="src/OrcaCore.Providers.RabbitMq/OrcaCore.Providers.RabbitMq.csproj" />
+    <Project Path="src/OrcaCore.Providers.Relational/OrcaCore.Providers.Relational.csproj" />
     <Project Path="src/OrcaCore.Providers.Redis/OrcaCore.Providers.Redis.csproj" />
     <Project Path="src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj" />
     <Project Path="src/OrcaCore.Providers.ZeroMq/OrcaCore.Providers.ZeroMq.csproj" />
@@ -24,6 +25,7 @@
     <Project Path="tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj" />
     <Project Path="tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj" />
     <Project Path="tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj" />
+    <Project Path="tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj" />
     <Project Path="tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj" />
     <Project Path="tests/OrcaCore.Providers.PostgreSql.Tests/OrcaCore.Providers.PostgreSql.Tests.csproj" />
     <Project Path="tests/OrcaCore.Providers.RabbitMq.Tests/OrcaCore.Providers.RabbitMq.Tests.csproj" />

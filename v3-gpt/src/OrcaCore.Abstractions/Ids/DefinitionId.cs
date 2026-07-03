@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace OrcaCore.Abstractions.Ids;
 
 /// <summary>
 /// Identifies an immutable workflow definition family.
 /// </summary>
+[JsonConverter(typeof(DefinitionIdJsonConverter))]
 public readonly record struct DefinitionId
 {
     /// <summary>

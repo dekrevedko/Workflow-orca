@@ -36,6 +36,50 @@ public sealed class DagBuilderTests
         plan.GetRunnableNodes(["A", "B", "C"], []).Select(node => node.NodeId).Should().Equal("D");
     }
 
+    [Fact]
+    public void CreateChildBatches_WhenRunnableNodesUseDifferentDefinitions_GroupsByDefinition()
+    {
+        var plan = Diamond().BuildValidated().Value;
+        var runnable = plan.GetRunnableNodes(["A"], []);
+
+        var batches = plan.CreateChildBatches(runnable);
+
+        batches.Should().HaveCount(2);
+        batches.Select(batch => batch.ChildDefinitionId).Should().BeEquivalentTo(
+            [DefinitionIdValue(2), DefinitionIdValue(3)]);
+        batches.SelectMany(batch => batch.ItemSnapshots).Should().BeEquivalentTo("B", "C");
+        var act = () => plan.CreateChildBatch(runnable);
+        act.Should().Throw<ArgumentException>().WithMessage("*heterogeneous*");
+    }
+
+    [Fact]
+    public void CreateChildBatch_WhenThrottleCapIsProvided_ClampsMaxConcurrency()
+    {
+        var plan = new WorkflowDagBuilder()
+            .Node("A", DefinitionIdValue(1), DefinitionVersion.Initial)
+            .Node("B", DefinitionIdValue(1), DefinitionVersion.Initial)
+            .BuildValidated()
+            .Value;
+
+        var batch = plan.CreateChildBatch(plan.GetRunnableNodes([], []), maxConcurrency: 1);
+
+        batch.ItemSnapshots.Should().Equal("A", "B");
+        batch.MaxConcurrency.Should().Be(1);
+    }
+
+    [Fact]
+    public void WorkflowDagRunner_ReturnsNextBatchesFromCompletionState()
+    {
+        var plan = Diamond().BuildValidated().Value;
+        var runner = new WorkflowDagRunner(plan, maxConcurrency: 1);
+
+        var batches = runner.GetNextBatches(["A"], []);
+
+        batches.Should().HaveCount(2);
+        batches.Should().OnlyContain(batch => batch.MaxConcurrency == 1);
+        batches.SelectMany(batch => batch.ItemSnapshots).Should().BeEquivalentTo("B", "C");
+    }
+
     public static WorkflowDagBuilder Diamond()
     {
         return new WorkflowDagBuilder()

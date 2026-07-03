@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace OrcaCore.Abstractions.Ids;
 
 /// <summary>
 /// Identifies one durable outbox record.
 /// </summary>
+[JsonConverter(typeof(OutboxRecordIdJsonConverter))]
 public readonly record struct OutboxRecordId
 {
     /// <summary>

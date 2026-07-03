@@ -18,7 +18,19 @@ public sealed class FakeWorkflowEventStore :
     private readonly ConcurrentDictionary<OutboxRecordId, FakeOutboxRecord> outbox = [];
     private readonly ConcurrentDictionary<InstanceId, CheckpointWrite> checkpoints = [];
     private readonly ConcurrentDictionary<WorkflowStreamId, List<WorkflowEvent>> streams = [];
+    private readonly List<ProviderCommitBatch> committedBatches = [];
     private int failNextCommitBeforeApply;
+
+    public IReadOnlyList<ProviderCommitBatch> CommittedBatches
+    {
+        get
+        {
+            lock (gate)
+            {
+                return committedBatches.ToArray();
+            }
+        }
+    }
 
     public Task<Option<CheckpointWrite>> LoadCheckpointAsync(
         InstanceId instanceId,
@@ -73,6 +85,8 @@ public sealed class FakeWorkflowEventStore :
             {
                 checkpoints[checkpoint.InstanceId] = CloneCheckpointWrite(checkpoint);
             }
+
+            committedBatches.Add(batch);
 
             return Task.FromResult(Result<AppendEventsResult>.Success(
                 new AppendEventsResult(new StreamVersion(stream.Count))));
@@ -190,7 +204,24 @@ public sealed class FakeWorkflowEventStore :
 
     private static CheckpointWrite CloneCheckpointWrite(CheckpointWrite checkpoint)
     {
-        return checkpoint with { Payload = [.. checkpoint.Payload] };
+        return checkpoint with
+        {
+            Payload = [.. checkpoint.Payload],
+            RuntimeState = new WorkflowRuntimeCheckpointState
+            {
+                ActiveTimers = checkpoint.RuntimeState.ActiveTimers.Select(timer => timer with { }).ToArray(),
+                ActiveWaits = checkpoint.RuntimeState.ActiveWaits.Select(wait => wait with { }).ToArray(),
+                BufferedDeliveries = checkpoint.RuntimeState.BufferedDeliveries.Select(delivery => delivery with { }).ToArray(),
+                BufferedTimers = checkpoint.RuntimeState.BufferedTimers.Select(timer => timer with { }).ToArray(),
+                ActiveChildren = checkpoint.RuntimeState.ActiveChildren.Select(child => child with { }).ToArray(),
+                ActiveChildGroups = checkpoint.RuntimeState.ActiveChildGroups.Select(group => group with
+                {
+                    Children = group.Children.Select(child => child with { }).ToArray()
+                }).ToArray(),
+                ActiveResourceTickets = checkpoint.RuntimeState.ActiveResourceTickets.Select(ticket => ticket with { }).ToArray(),
+                ActiveExternalJobs = checkpoint.RuntimeState.ActiveExternalJobs.Select(job => job with { }).ToArray()
+            }
+        };
     }
 
     private sealed record FakeOutboxRecord(OutboxWrite Write, OutboxRecordState State);

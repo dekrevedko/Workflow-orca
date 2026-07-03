@@ -65,7 +65,26 @@ public sealed record ProviderCommitBatch
     /// Gets projection writes included in the commit boundary.
     /// </summary>
     public IReadOnlyList<ProjectionWrite> ProjectionOperations { get; init; } = [];
+
+    /// <summary>
+    /// Gets durable timer schedules included in the same commit boundary as the events that declared them.
+    /// </summary>
+    public IReadOnlyList<TimerScheduleRequest> TimerSchedules { get; init; } = [];
+
+    /// <summary>
+    /// Gets durable start idempotency keys bound in the same commit as the start event.
+    /// </summary>
+    public IReadOnlyList<StartIdempotencyWrite> StartIdempotencyOperations { get; init; } = [];
 }
+
+/// <summary>
+/// Records the durable mapping from a caller-supplied start idempotency key to the instance that won it.
+/// </summary>
+public sealed record StartIdempotencyWrite(
+    string IdempotencyKey,
+    InstanceId InstanceId,
+    DefinitionId DefinitionId,
+    DefinitionVersion DefinitionVersion);
 
 /// <summary>
 /// Describes the result of a successful append.
@@ -125,7 +144,132 @@ public sealed record CheckpointWrite(
     /// Gets the continue-as-new generation restored by this checkpoint.
     /// </summary>
     public int ContinueAsNewGeneration { get; init; }
+
+    /// <summary>
+    /// Gets engine runtime collections that must survive checkpoint compaction.
+    /// </summary>
+    public WorkflowRuntimeCheckpointState RuntimeState { get; init; } = WorkflowRuntimeCheckpointState.Empty;
 }
+
+/// <summary>
+/// Captures non-business durable runtime state materialized into a checkpoint.
+/// </summary>
+public sealed record WorkflowRuntimeCheckpointState
+{
+    /// <summary>
+    /// Gets an empty runtime-state checkpoint.
+    /// </summary>
+    public static WorkflowRuntimeCheckpointState Empty { get; } = new();
+
+    /// <summary>
+    /// Gets active durable timers.
+    /// </summary>
+    public IReadOnlyList<CheckpointActiveTimer> ActiveTimers { get; init; } = [];
+
+    /// <summary>
+    /// Gets active durable waits.
+    /// </summary>
+    public IReadOnlyList<CheckpointActiveWait> ActiveWaits { get; init; } = [];
+
+    /// <summary>
+    /// Gets buffered inbound deliveries.
+    /// </summary>
+    public IReadOnlyList<CheckpointBufferedDelivery> BufferedDeliveries { get; init; } = [];
+
+    /// <summary>
+    /// Gets buffered timer firings accepted while paused.
+    /// </summary>
+    public IReadOnlyList<CheckpointBufferedTimer> BufferedTimers { get; init; } = [];
+
+    /// <summary>
+    /// Gets active child waits.
+    /// </summary>
+    public IReadOnlyList<CheckpointActiveChild> ActiveChildren { get; init; } = [];
+
+    /// <summary>
+    /// Gets active child group dispatch metadata.
+    /// </summary>
+    public IReadOnlyList<CheckpointActiveChildGroup> ActiveChildGroups { get; init; } = [];
+
+    /// <summary>
+    /// Gets active resource-pool tickets.
+    /// </summary>
+    public IReadOnlyList<ResourcePoolTicket> ActiveResourceTickets { get; init; } = [];
+
+    /// <summary>
+    /// Gets active external jobs.
+    /// </summary>
+    public IReadOnlyList<CheckpointActiveExternalJob> ActiveExternalJobs { get; init; } = [];
+}
+
+/// <summary>
+/// Checkpoint materialization of one active timer.
+/// </summary>
+public sealed record CheckpointActiveTimer(
+    TimerId TimerId,
+    DateTimeOffset FireAt,
+    string WakeupName,
+    DateTimeOffset RegisteredAt);
+
+/// <summary>
+/// Checkpoint materialization of one active wait.
+/// </summary>
+public sealed record CheckpointActiveWait(
+    WaitId WaitId,
+    string EventName,
+    CorrelationId CorrelationId,
+    DateTimeOffset RegisteredAt,
+    WaitMode Mode,
+    string? BranchId);
+
+/// <summary>
+/// Checkpoint materialization of one buffered inbound delivery.
+/// </summary>
+public sealed record CheckpointBufferedDelivery(
+    EventId EventId,
+    string EventName,
+    CorrelationId CorrelationId,
+    string? BranchId);
+
+/// <summary>
+/// Checkpoint materialization of one buffered timer firing.
+/// </summary>
+public sealed record CheckpointBufferedTimer(
+    TimerId TimerId,
+    string WakeupName,
+    DateTimeOffset BufferedAt);
+
+/// <summary>
+/// Checkpoint materialization of one active child.
+/// </summary>
+public sealed record CheckpointActiveChild(
+    string GroupId,
+    InstanceId ChildInstanceId,
+    WaitId WaitId,
+    RunChildFailurePolicy FailurePolicy,
+    RunChildrenJoinPolicy JoinPolicy,
+    RunChildrenResidualPolicy ResidualPolicy,
+    string? ItemSnapshot);
+
+/// <summary>
+/// Checkpoint materialization of one active child group.
+/// </summary>
+public sealed record CheckpointActiveChildGroup(
+    string GroupId,
+    RunChildFailurePolicy FailurePolicy,
+    RunChildrenJoinPolicy JoinPolicy,
+    RunChildrenResidualPolicy ResidualPolicy,
+    int MaxConcurrency,
+    int NextDispatchIndex,
+    IReadOnlyList<WorkflowChildMaterialization> Children);
+
+/// <summary>
+/// Checkpoint materialization of one active external job.
+/// </summary>
+public sealed record CheckpointActiveExternalJob(
+    string ExternalJobId,
+    WaitId WaitId,
+    TimerId? TimeoutTimerId);
 
 /// <summary>
 /// Describes an inbox state write.
@@ -244,7 +388,21 @@ public sealed record ProjectionWrite(InstanceId InstanceId, ProjectionOperationK
     /// Gets the wait identity for remove operations.
     /// </summary>
     public WaitId? WaitId { get; init; }
+
+    /// <summary>
+    /// Gets a history entry for append-history projection operations.
+    /// </summary>
+    public ProjectionHistoryWrite? History { get; init; }
 }
+
+/// <summary>
+/// Describes one durable history projection entry.
+/// </summary>
+public sealed record ProjectionHistoryWrite(
+    Guid HistoryId,
+    DateTimeOffset RecordedAt,
+    string Kind,
+    string PayloadJson);
 
 /// <summary>
 /// Describes a structured provider-side projection query.

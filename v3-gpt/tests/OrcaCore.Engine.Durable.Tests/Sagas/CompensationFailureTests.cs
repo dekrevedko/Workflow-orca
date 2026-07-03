@@ -53,6 +53,38 @@ public sealed class CompensationFailureTests
     }
 
     [Fact]
+    public void MultipleCompensationCompletions_TerminateOnlyAfterAllStartedActionsComplete()
+    {
+        var firstStarted = CompensationStarted("release-inventory", 0);
+        var secondStarted = CompensationStarted("void-payment", 1);
+        var aggregate = DurableWorkflowAggregate.Rehydrate(null, [Started(), firstStarted, secondStarted]);
+
+        var first = aggregate.DecideCompleteSagaCompensation(
+            new CompleteSagaCompensationCommand
+            {
+                CommandId = CommandIdValue(3),
+                InstanceId = InstanceIdValue(1),
+                RequestedAt = Timestamp(3),
+                ScopeId = "checkout",
+                ActionKey = "release-inventory"
+            });
+        var replayed = DurableWorkflowAggregate.Rehydrate(null, [Started(), firstStarted, secondStarted, .. first.Events]);
+        var second = replayed.DecideCompleteSagaCompensation(
+            new CompleteSagaCompensationCommand
+            {
+                CommandId = CommandIdValue(4),
+                InstanceId = InstanceIdValue(1),
+                RequestedAt = Timestamp(4),
+                ScopeId = "checkout",
+                ActionKey = "void-payment"
+            });
+
+        first.Events.OfType<WorkflowTerminalEvent>().Should().BeEmpty();
+        second.Events.OfType<WorkflowTerminalEvent>().Should().ContainSingle()
+            .Which.Status.Should().Be(WorkflowStatus.Compensated);
+    }
+
+    [Fact]
     [Trait("AC", "AC-409")]
     public void RepeatedCompensationRequest_DoesNotDuplicateCompensationFacts()
     {
@@ -113,16 +145,21 @@ public sealed class CompensationFailureTests
 
     private static SagaCompensationStartedEvent CompensationStarted()
     {
+        return CompensationStarted("release", 0);
+    }
+
+    private static SagaCompensationStartedEvent CompensationStarted(string actionKey, int order)
+    {
         return new SagaCompensationStartedEvent
         {
-            EventId = EventIdValue(2),
+            EventId = EventIdValue(order + 2),
             InstanceId = InstanceIdValue(1),
             CommandId = CommandIdValue(2),
             CausationId = CausationIdValue(2),
             OccurredAt = Timestamp(2),
             ScopeId = "checkout",
-            ActionKey = "release",
-            Order = 0
+            ActionKey = actionKey,
+            Order = order
         };
     }
 

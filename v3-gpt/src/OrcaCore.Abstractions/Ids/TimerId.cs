@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace OrcaCore.Abstractions.Ids;
 
 /// <summary>
 /// Identifies one durable timer wake-up.
 /// </summary>
+[JsonConverter(typeof(TimerIdJsonConverter))]
 public readonly record struct TimerId
 {
     /// <summary>

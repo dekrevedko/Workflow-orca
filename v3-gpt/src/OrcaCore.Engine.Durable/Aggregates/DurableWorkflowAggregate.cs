@@ -12,7 +12,9 @@ internal sealed class DurableWorkflowAggregate
     private readonly List<DurableActiveTimer> activeTimers;
     private readonly List<DurableActiveWait> activeWaits;
     private readonly List<DurableBufferedDelivery> bufferedDeliveries;
+    private readonly List<DurableBufferedTimer> bufferedTimers;
     private readonly List<DurableActiveChild> activeChildren;
+    private readonly List<DurableActiveChildGroup> activeChildGroups;
     private readonly List<DurableCompletedChild> completedChildren = [];
     private readonly List<ResourcePoolTicket> activeResourceTickets;
     private readonly List<DurableActiveExternalJob> activeExternalJobs;
@@ -21,6 +23,8 @@ internal sealed class DurableWorkflowAggregate
     private readonly List<DurableSagaRecoveryIntervention> sagaRecoveryInterventions = [];
     private readonly HashSet<string> requestedSagaCompensationScopes = new(StringComparer.Ordinal);
     private readonly HashSet<string> compensatedChildGroups = new(StringComparer.Ordinal);
+    private readonly HashSet<EventId> recordedParentResumeTokens = [];
+    private readonly HashSet<EventId> consumedParentResumeTokens = [];
 
     private DurableWorkflowAggregate(
         InstanceId instanceId,
@@ -39,13 +43,17 @@ internal sealed class DurableWorkflowAggregate
         IEnumerable<DurableActiveTimer> activeTimers,
         IEnumerable<DurableActiveWait> activeWaits,
         IEnumerable<DurableBufferedDelivery> bufferedDeliveries,
+        IEnumerable<DurableBufferedTimer> bufferedTimers,
         IEnumerable<DurableActiveChild> activeChildren,
+        IEnumerable<DurableActiveChildGroup> activeChildGroups,
         IEnumerable<ResourcePoolTicket> activeResourceTickets,
         IEnumerable<DurableActiveExternalJob> activeExternalJobs,
         IEnumerable<DurableSagaForwardAction> completedSagaForwardActions,
         IEnumerable<DurableSagaCompensationAction> sagaCompensationActions,
         IEnumerable<DurableSagaRecoveryIntervention> sagaRecoveryInterventions,
-        IEnumerable<string> requestedSagaCompensationScopes)
+        IEnumerable<string> requestedSagaCompensationScopes,
+        IEnumerable<EventId> recordedParentResumeTokens,
+        IEnumerable<EventId> consumedParentResumeTokens)
     {
         InstanceId = instanceId;
         StreamVersion = streamVersion;
@@ -63,13 +71,17 @@ internal sealed class DurableWorkflowAggregate
         this.activeTimers = [.. activeTimers];
         this.activeWaits = [.. activeWaits];
         this.bufferedDeliveries = [.. bufferedDeliveries];
+        this.bufferedTimers = [.. bufferedTimers];
         this.activeChildren = [.. activeChildren];
+        this.activeChildGroups = [.. activeChildGroups];
         this.activeResourceTickets = [.. activeResourceTickets];
         this.activeExternalJobs = [.. activeExternalJobs];
         this.completedSagaForwardActions = [.. completedSagaForwardActions];
         this.sagaCompensationActions = [.. sagaCompensationActions];
         this.sagaRecoveryInterventions = [.. sagaRecoveryInterventions];
         this.requestedSagaCompensationScopes = new HashSet<string>(requestedSagaCompensationScopes, StringComparer.Ordinal);
+        this.recordedParentResumeTokens = [.. recordedParentResumeTokens];
+        this.consumedParentResumeTokens = [.. consumedParentResumeTokens];
     }
 
     internal InstanceId InstanceId { get; private set; }
@@ -114,7 +126,9 @@ internal sealed class DurableWorkflowAggregate
         [.. activeTimers],
         [.. activeWaits],
         [.. bufferedDeliveries],
+        [.. bufferedTimers],
         [.. activeChildren],
+        [.. activeChildGroups],
         [.. activeResourceTickets],
         [.. activeExternalJobs],
         [.. completedSagaForwardActions],
@@ -138,6 +152,10 @@ internal sealed class DurableWorkflowAggregate
             null,
             null,
             0,
+            [],
+            [],
+            [],
+            [],
             [],
             [],
             [],
@@ -175,9 +193,13 @@ internal sealed class DurableWorkflowAggregate
                 checkpoint.ActiveTimers,
                 checkpoint.ActiveWaits,
                 checkpoint.BufferedDeliveries,
+                checkpoint.BufferedTimers,
                 checkpoint.ActiveChildren,
+                checkpoint.ActiveChildGroups,
                 checkpoint.ActiveResourceTickets,
                 checkpoint.ActiveExternalJobs,
+                [],
+                [],
                 [],
                 [],
                 [],
@@ -213,7 +235,9 @@ internal sealed class DurableWorkflowAggregate
             [.. activeTimers],
             [.. activeWaits],
             [.. bufferedDeliveries],
+            [.. bufferedTimers],
             [.. activeChildren],
+            [.. activeChildGroups],
             [.. activeResourceTickets],
             [.. activeExternalJobs],
             contentType,
@@ -239,7 +263,8 @@ internal sealed class DurableWorkflowAggregate
                 ParentInstanceId = command.ParentInstanceId,
                 RootInstanceId = command.RootInstanceId ?? command.InstanceId,
                 DefinitionId = command.DefinitionId,
-                DefinitionVersion = command.DefinitionVersion
+                DefinitionVersion = command.DefinitionVersion,
+                IdempotencyKey = command.IdempotencyKey
             }
         ]);
     }
@@ -266,7 +291,8 @@ internal sealed class DurableWorkflowAggregate
             LastStepPath = command.StepPath,
             ErrorSummary = null,
             OutcomeName = null,
-            ContinueAsNewGeneration = ContinueAsNewGeneration
+            ContinueAsNewGeneration = ContinueAsNewGeneration,
+            RuntimeState = ToCheckpointRuntimeState()
         };
 
         return new DurableDecision(
@@ -392,14 +418,18 @@ internal sealed class DurableWorkflowAggregate
             WaitId = activeChild.WaitId,
             MatchedEventId = childCompleted.EventId
         };
+        var childDispatch = DispatchChildrenIfCapacity(command, activeChild);
+        WorkflowEvent[] childDispatchEvents = childDispatch is null ? [] : [childDispatch];
+        var residualIntent = ResidualIntentIfNeeded(command, activeChild);
+        var resumeToken = ResumeTokenIfGroupComplete(command, activeChild, childDispatch);
 
         if (command.ChildStatus == WorkflowStatus.Failed &&
             activeChild.FailurePolicy is RunChildFailurePolicy.PropagateFailure)
         {
             return new DurableDecision([
                 childCompleted,
-                .. ResidualIntentIfNeeded(command, activeChild),
-                .. ResumeTokenIfGroupComplete(command, activeChild),
+                .. residualIntent,
+                .. resumeToken,
                 waitMatched,
                 new WorkflowTerminalEvent
                 {
@@ -417,8 +447,9 @@ internal sealed class DurableWorkflowAggregate
 
         return new DurableDecision([
             childCompleted,
-            .. ResidualIntentIfNeeded(command, activeChild),
-            .. ResumeTokenIfGroupComplete(command, activeChild),
+            .. childDispatchEvents,
+            .. residualIntent,
+            .. resumeToken,
             waitMatched
         ]);
     }
@@ -442,10 +473,13 @@ internal sealed class DurableWorkflowAggregate
             {
                 Index = index,
                 ChildInstanceId = DeterministicChildId(command.InstanceId, command.CommandId, index),
+                ChildDefinitionId = command.ChildDefinitionId,
+                ChildDefinitionVersion = command.ChildDefinitionVersion,
                 ItemSnapshot = itemSnapshot
             })
             .ToArray();
-        var initialDispatchCount = Math.Min(command.MaxConcurrency ?? children.Length, children.Length);
+        var maxConcurrency = Math.Min(command.MaxConcurrency ?? children.Length, children.Length);
+        var initialDispatchCount = Math.Min(maxConcurrency, children.Length);
         return new DurableDecision([
             new WorkflowChildrenScheduledEvent
             {
@@ -465,6 +499,7 @@ internal sealed class DurableWorkflowAggregate
                 TotalItemCount = children.Length,
                 InitialDispatchCount = initialDispatchCount,
                 NextDispatchIndex = initialDispatchCount,
+                MaxConcurrency = maxConcurrency,
                 Children = children
             }
         ]);
@@ -555,7 +590,7 @@ internal sealed class DurableWorkflowAggregate
             return DurableDecision.Empty;
         }
 
-        return new DurableDecision([
+        var decision = new DurableDecision([
             new WorkflowWaitRegisteredEvent
             {
                 EventId = EventId.New(),
@@ -566,9 +601,40 @@ internal sealed class DurableWorkflowAggregate
                 WaitId = command.WaitId,
                 EventName = command.EventName,
                 CorrelationId = command.CorrelationId,
-                Mode = command.Mode
+                Mode = command.Mode,
+                BranchId = command.BranchId
             }
-        ], null, command.Mode == WaitMode.Cold);
+        ]);
+
+        var matched = bufferedDeliveries
+            .Where(delivery => Matches(command.EventName, command.CorrelationId, command.BranchId, delivery))
+            .Take(1)
+            .ToArray();
+        if (matched.Length == 0)
+        {
+            return new DurableDecision(
+                decision.Events,
+                null,
+                command.Mode == WaitMode.Cold);
+        }
+
+        return new DurableDecision(
+            [
+                .. decision.Events,
+                new WorkflowWaitMatchedEvent
+                {
+                    EventId = EventId.New(),
+                    InstanceId = command.InstanceId,
+                    CommandId = command.CommandId,
+                    CausationId = ToCausationId(command.CommandId),
+                    OccurredAt = command.RequestedAt,
+                    WaitId = command.WaitId,
+                    MatchedEventId = matched[0].EventId
+                }
+            ],
+            null,
+            false,
+            [new InboxWrite(matched[0].EventId, InboxRecordState.Applied)]);
     }
 
     internal DurableDecision DecideResourcePoolAcquire(
@@ -854,6 +920,32 @@ internal sealed class DurableWorkflowAggregate
         return new DurableDecision(events, null, true);
     }
 
+    internal DurableDecision DecideConsumeParentResumeToken(ConsumeParentResumeTokenCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        ArgumentException.ThrowIfNullOrWhiteSpace(command.GroupId);
+        if (!recordedParentResumeTokens.Contains(command.ResumeTokenId) ||
+            consumedParentResumeTokens.Contains(command.ResumeTokenId))
+        {
+            return DurableDecision.Empty;
+        }
+
+        return new DurableDecision([
+            new WorkflowParentResumeTokenConsumedEvent
+            {
+                EventId = EventId.New(),
+                InstanceId = command.InstanceId,
+                CommandId = command.CommandId,
+                CausationId = ToCausationId(command.CommandId),
+                OccurredAt = command.RequestedAt,
+                ParentInstanceId = ParentInstanceId,
+                RootInstanceId = RootInstanceId ?? InstanceId,
+                GroupId = command.GroupId,
+                ResumeTokenId = command.ResumeTokenId
+            }
+        ]);
+    }
+
     internal DurableDecision DecideRecordSagaForwardActionCompleted(
         RecordSagaForwardActionCompletedCommand command)
     {
@@ -991,7 +1083,8 @@ internal sealed class DurableWorkflowAggregate
             return DurableDecision.Empty;
         }
 
-        return new DurableDecision([
+        var events = new List<WorkflowEvent>
+        {
             new SagaCompensationCompletedEvent
             {
                 EventId = EventId.New(),
@@ -1003,8 +1096,12 @@ internal sealed class DurableWorkflowAggregate
                 RootInstanceId = RootInstanceId ?? InstanceId,
                 ScopeId = command.ScopeId,
                 ActionKey = command.ActionKey
-            },
-            new WorkflowTerminalEvent
+            }
+        };
+
+        if (AllSagaCompensationsCompleteAfter(command.ScopeId, command.ActionKey))
+        {
+            events.Add(new WorkflowTerminalEvent
             {
                 EventId = EventId.New(),
                 InstanceId = command.InstanceId,
@@ -1014,8 +1111,10 @@ internal sealed class DurableWorkflowAggregate
                 ParentInstanceId = ParentInstanceId,
                 RootInstanceId = RootInstanceId ?? InstanceId,
                 Status = WorkflowStatus.Compensated
-            }
-        ], null, true);
+            });
+        }
+
+        return new DurableDecision(events, null, events.Any(workflowEvent => workflowEvent is WorkflowTerminalEvent));
     }
 
     internal DurableDecision DecideFailSagaCompensation(FailSagaCompensationCommand command)
@@ -1196,7 +1295,8 @@ internal sealed class DurableWorkflowAggregate
                     OccurredAt = command.RequestedAt,
                     BufferedEventId = command.Envelope.EventId,
                     EventName = command.Envelope.EventName,
-                    CorrelationId = command.Envelope.CorrelationId
+                    CorrelationId = command.Envelope.CorrelationId,
+                    BranchId = command.Envelope.BranchId
                 }
             ]);
         }
@@ -1204,7 +1304,20 @@ internal sealed class DurableWorkflowAggregate
         var wait = FindActiveWait(command.Envelope);
         if (wait is null)
         {
-            return DurableDecision.Empty;
+            return new DurableDecision([
+                new WorkflowDeliveryBufferedEvent
+                {
+                    EventId = EventId.New(),
+                    InstanceId = command.InstanceId,
+                    CommandId = command.CommandId,
+                    CausationId = ToCausationId(command.CommandId),
+                    OccurredAt = command.RequestedAt,
+                    BufferedEventId = command.Envelope.EventId,
+                    EventName = command.Envelope.EventName,
+                    CorrelationId = command.Envelope.CorrelationId,
+                    BranchId = command.Envelope.BranchId
+                }
+            ]);
         }
 
         return new DurableDecision([
@@ -1264,6 +1377,24 @@ internal sealed class DurableWorkflowAggregate
         var inboxOperations = new List<InboxWrite>();
         var replayWaits = activeWaits.ToList();
 
+        foreach (var bufferedTimer in bufferedTimers)
+        {
+            if (command.BufferedDeliveries == ResumeBufferedDeliveries.Discard)
+            {
+                continue;
+            }
+
+            events.Add(new WorkflowTimerFiredEvent
+            {
+                EventId = EventId.New(),
+                InstanceId = command.InstanceId,
+                CommandId = command.CommandId,
+                CausationId = ToCausationId(command.CommandId),
+                OccurredAt = command.RequestedAt,
+                TimerId = bufferedTimer.TimerId
+            });
+        }
+
         foreach (var bufferedDelivery in bufferedDeliveries)
         {
             if (command.BufferedDeliveries == ResumeBufferedDeliveries.Discard)
@@ -1281,9 +1412,7 @@ internal sealed class DurableWorkflowAggregate
                 continue;
             }
 
-            var wait = replayWaits.FirstOrDefault(candidate =>
-                candidate.EventName == bufferedDelivery.EventName &&
-                candidate.CorrelationId == bufferedDelivery.CorrelationId);
+            var wait = replayWaits.FirstOrDefault(candidate => Matches(candidate, bufferedDelivery));
             if (wait is null)
             {
                 inboxOperations.Add(new InboxWrite(bufferedDelivery.EventId, InboxRecordState.Poisoned));
@@ -1408,13 +1537,17 @@ internal sealed class DurableWorkflowAggregate
             activeTimers,
             activeWaits,
             bufferedDeliveries,
+            bufferedTimers,
             activeChildren,
+            activeChildGroups,
             activeResourceTickets,
             activeExternalJobs,
             completedSagaForwardActions,
             sagaCompensationActions,
             sagaRecoveryInterventions,
-            requestedSagaCompensationScopes);
+            requestedSagaCompensationScopes,
+            recordedParentResumeTokens,
+            consumedParentResumeTokens);
 
         foreach (var workflowEvent in events)
         {
@@ -1467,6 +1600,7 @@ internal sealed class DurableWorkflowAggregate
                 activeTimers.Clear();
                 activeWaits.Clear();
                 bufferedDeliveries.Clear();
+                bufferedTimers.Clear();
                 activeChildren.Clear();
                 activeResourceTickets.Clear();
                 activeExternalJobs.Clear();
@@ -1493,7 +1627,8 @@ internal sealed class DurableWorkflowAggregate
                     waitRegistered.EventName,
                     waitRegistered.CorrelationId,
                     waitRegistered.OccurredAt,
-                    waitRegistered.Mode));
+                    waitRegistered.Mode,
+                    waitRegistered.BranchId));
                 Status = WorkflowStatus.Waiting;
                 break;
             case WorkflowWaitMatchedEvent waitMatched:
@@ -1511,6 +1646,7 @@ internal sealed class DurableWorkflowAggregate
                 break;
             case WorkflowTimerFiredEvent timerFired:
                 activeTimers.RemoveAll(timer => timer.TimerId == timerFired.TimerId);
+                bufferedTimers.RemoveAll(timer => timer.TimerId == timerFired.TimerId);
                 Status = activeWaits.Count == 0 && activeTimers.Count == 0
                     ? WorkflowStatus.Running
                     : WorkflowStatus.Waiting;
@@ -1532,6 +1668,16 @@ internal sealed class DurableWorkflowAggregate
                 Status = WorkflowStatus.Waiting;
                 break;
             case WorkflowChildrenScheduledEvent childrenScheduled:
+                activeChildGroups.RemoveAll(group =>
+                    string.Equals(group.GroupId, childrenScheduled.GroupId, StringComparison.Ordinal));
+                activeChildGroups.Add(new DurableActiveChildGroup(
+                    childrenScheduled.GroupId,
+                    childrenScheduled.FailurePolicy,
+                    childrenScheduled.JoinPolicy,
+                    childrenScheduled.ResidualPolicy,
+                    childrenScheduled.MaxConcurrency,
+                    childrenScheduled.NextDispatchIndex,
+                    childrenScheduled.Children));
                 foreach (var child in childrenScheduled.Children.Take(childrenScheduled.InitialDispatchCount))
                 {
                     var waitId = new WaitId(child.ChildInstanceId.Value);
@@ -1548,6 +1694,34 @@ internal sealed class DurableWorkflowAggregate
                         "ChildCompleted",
                         ChildCorrelation(child.ChildInstanceId),
                         childrenScheduled.OccurredAt));
+                }
+
+                Status = WorkflowStatus.Waiting;
+                break;
+            case WorkflowChildrenDispatchedEvent childrenDispatched:
+                var activeGroup = activeChildGroups.FirstOrDefault(group =>
+                    string.Equals(group.GroupId, childrenDispatched.GroupId, StringComparison.Ordinal));
+                if (activeGroup is not null)
+                {
+                    activeChildGroups.Remove(activeGroup);
+                    activeChildGroups.Add(activeGroup with { NextDispatchIndex = childrenDispatched.NextDispatchIndex });
+                    foreach (var child in childrenDispatched.Children)
+                    {
+                        var waitId = new WaitId(child.ChildInstanceId.Value);
+                        activeChildren.Add(new DurableActiveChild(
+                            activeGroup.GroupId,
+                            child.ChildInstanceId,
+                            waitId,
+                            activeGroup.FailurePolicy,
+                            activeGroup.JoinPolicy,
+                            activeGroup.ResidualPolicy,
+                            child.ItemSnapshot));
+                        activeWaits.Add(new DurableActiveWait(
+                            waitId,
+                            "ChildCompleted",
+                            ChildCorrelation(child.ChildInstanceId),
+                            childrenDispatched.OccurredAt));
+                    }
                 }
 
                 Status = WorkflowStatus.Waiting;
@@ -1590,7 +1764,13 @@ internal sealed class DurableWorkflowAggregate
                 }
 
                 break;
-            case WorkflowParentResumeTokenRecordedEvent:
+            case WorkflowParentResumeTokenRecordedEvent parentResumeToken:
+                recordedParentResumeTokens.Add(parentResumeToken.ResumeTokenId);
+                activeChildGroups.RemoveAll(group =>
+                    string.Equals(group.GroupId, parentResumeToken.GroupId, StringComparison.Ordinal));
+                break;
+            case WorkflowParentResumeTokenConsumedEvent parentResumeTokenConsumed:
+                consumedParentResumeTokens.Add(parentResumeTokenConsumed.ResumeTokenId);
                 break;
             case WorkflowResourcePoolAcquiredEvent resourcePoolAcquired:
                 activeResourceTickets.RemoveAll(ticket =>
@@ -1686,6 +1866,11 @@ internal sealed class DurableWorkflowAggregate
                 break;
             case WorkflowTimerBufferedEvent timerBuffered:
                 activeTimers.RemoveAll(timer => timer.TimerId == timerBuffered.TimerId);
+                bufferedTimers.RemoveAll(timer => timer.TimerId == timerBuffered.TimerId);
+                bufferedTimers.Add(new DurableBufferedTimer(
+                    timerBuffered.TimerId,
+                    timerBuffered.WakeupName,
+                    timerBuffered.OccurredAt));
                 Status = WorkflowStatus.Paused;
                 break;
             case WorkflowPausedEvent:
@@ -1698,8 +1883,8 @@ internal sealed class DurableWorkflowAggregate
                 bufferedDeliveries.Add(new DurableBufferedDelivery(
                     deliveryBuffered.BufferedEventId,
                     deliveryBuffered.EventName,
-                    deliveryBuffered.CorrelationId));
-                Status = WorkflowStatus.Paused;
+                    deliveryBuffered.CorrelationId,
+                    deliveryBuffered.BranchId));
                 break;
             case WorkflowDeliveryDiscardedEvent deliveryDiscarded:
                 bufferedDeliveries.RemoveAll(delivery => delivery.EventId == deliveryDiscarded.DiscardedEventId);
@@ -1710,6 +1895,7 @@ internal sealed class DurableWorkflowAggregate
                 activeTimers.Clear();
                 activeWaits.Clear();
                 bufferedDeliveries.Clear();
+                bufferedTimers.Clear();
                 activeChildren.Clear();
                 activeResourceTickets.Clear();
                 activeExternalJobs.Clear();
@@ -1721,6 +1907,7 @@ internal sealed class DurableWorkflowAggregate
                     activeTimers.Clear();
                     activeWaits.Clear();
                     bufferedDeliveries.Clear();
+                    bufferedTimers.Clear();
                     activeChildren.Clear();
                     activeResourceTickets.Clear();
                     activeExternalJobs.Clear();
@@ -1764,7 +1951,8 @@ internal sealed class DurableWorkflowAggregate
 
     private IReadOnlyList<WorkflowParentResumeTokenRecordedEvent> ResumeTokenIfGroupComplete(
         DurableChildCompletedCommand command,
-        DurableActiveChild activeChild)
+        DurableActiveChild activeChild,
+        WorkflowChildrenDispatchedEvent? childDispatch)
     {
         if (activeChild.JoinPolicy is RunChildrenJoinPolicy.WhenAny)
         {
@@ -1773,8 +1961,12 @@ internal sealed class DurableWorkflowAggregate
 
         var remainingInGroup = activeChildren.Count(child =>
             string.Equals(child.GroupId, activeChild.GroupId, StringComparison.Ordinal) &&
-            child.ChildInstanceId != activeChild.ChildInstanceId);
-        if (remainingInGroup > 0)
+            child.ChildInstanceId != activeChild.ChildInstanceId) +
+            (childDispatch?.Children.Count ?? 0);
+        var group = activeChildGroups.FirstOrDefault(candidate =>
+            string.Equals(candidate.GroupId, activeChild.GroupId, StringComparison.Ordinal));
+        var nextDispatchIndex = childDispatch?.NextDispatchIndex ?? group?.NextDispatchIndex ?? 0;
+        if (remainingInGroup > 0 || (group is not null && nextDispatchIndex < group.Children.Count))
         {
             return [];
         }
@@ -1783,6 +1975,56 @@ internal sealed class DurableWorkflowAggregate
         [
             ResumeToken(command, activeChild)
         ];
+    }
+
+    private WorkflowChildrenDispatchedEvent? DispatchChildrenIfCapacity(
+        DurableChildCompletedCommand command,
+        DurableActiveChild activeChild)
+    {
+        if (activeChild.JoinPolicy is not RunChildrenJoinPolicy.WhenAll)
+        {
+            return null;
+        }
+
+        var group = activeChildGroups.FirstOrDefault(candidate =>
+            string.Equals(candidate.GroupId, activeChild.GroupId, StringComparison.Ordinal));
+        if (group is null || group.NextDispatchIndex >= group.Children.Count)
+        {
+            return null;
+        }
+
+        var activeAfterCompletion = activeChildren.Count(child =>
+            string.Equals(child.GroupId, activeChild.GroupId, StringComparison.Ordinal) &&
+            child.ChildInstanceId != activeChild.ChildInstanceId);
+        var availableSlots = group.MaxConcurrency - activeAfterCompletion;
+        if (availableSlots <= 0)
+        {
+            return null;
+        }
+
+        var children = group.Children
+            .Skip(group.NextDispatchIndex)
+            .Take(availableSlots)
+            .ToArray();
+        if (children.Length == 0)
+        {
+            return null;
+        }
+
+        return new WorkflowChildrenDispatchedEvent
+        {
+            EventId = EventId.New(),
+            InstanceId = command.InstanceId,
+            CommandId = command.CommandId,
+            CausationId = ToCausationId(command.CommandId),
+            OccurredAt = command.RequestedAt,
+            ParentInstanceId = ParentInstanceId,
+            RootInstanceId = RootInstanceId ?? InstanceId,
+            GroupId = activeChild.GroupId,
+            PreviousDispatchIndex = group.NextDispatchIndex,
+            NextDispatchIndex = group.NextDispatchIndex + children.Length,
+            Children = children
+        };
     }
 
     private IReadOnlyList<WorkflowChildResidualIntentRecordedEvent> ResidualIntentIfNeeded(
@@ -1892,6 +2134,22 @@ internal sealed class DurableWorkflowAggregate
         });
     }
 
+    private bool AllSagaCompensationsCompleteAfter(string scopeId, string completedActionKey)
+    {
+        var actions = sagaCompensationActions
+            .Where(action => string.Equals(action.ScopeId, scopeId, StringComparison.Ordinal))
+            .ToArray();
+        if (actions.Length == 0)
+        {
+            return false;
+        }
+
+        var completedCount = actions.Count(action =>
+            action.Status == SagaCompensationActionStatus.Completed ||
+            string.Equals(action.ActionKey, completedActionKey, StringComparison.Ordinal));
+        return completedCount == actions.Length;
+    }
+
     private WorkflowInstanceSnapshot? ToInstanceSnapshot()
     {
         if (DefinitionId is not { } definitionId ||
@@ -1923,6 +2181,7 @@ internal sealed class DurableWorkflowAggregate
                     EventName = wait.EventName,
                     CorrelationId = wait.CorrelationId,
                     RegisteredAt = wait.RegisteredAt,
+                    BranchId = wait.BranchId,
                     Status = "Active",
                     Mode = wait.Mode.ToString()
                 })
@@ -1992,9 +2251,109 @@ internal sealed class DurableWorkflowAggregate
 
     private DurableActiveWait? FindActiveWait(EventEnvelope envelope)
     {
-        return activeWaits.FirstOrDefault(wait =>
-            wait.EventName == envelope.EventName &&
-            wait.CorrelationId == envelope.CorrelationId);
+        var matches = activeWaits.Where(wait => Matches(wait, envelope)).ToArray();
+        if (string.IsNullOrWhiteSpace(envelope.BranchId) &&
+            matches.Count(wait => !string.IsNullOrWhiteSpace(wait.BranchId)) > 1)
+        {
+            return null;
+        }
+
+        return matches.FirstOrDefault();
+    }
+
+    private static bool Matches(DurableActiveWait wait, EventEnvelope envelope)
+    {
+        return wait.EventName == envelope.EventName &&
+            wait.CorrelationId == envelope.CorrelationId &&
+            BranchesMatch(wait.BranchId, envelope.BranchId);
+    }
+
+    private static bool Matches(DurableActiveWait wait, DurableBufferedDelivery delivery)
+    {
+        return wait.EventName == delivery.EventName &&
+            wait.CorrelationId == delivery.CorrelationId &&
+            BranchesMatch(wait.BranchId, delivery.BranchId);
+    }
+
+    private static bool Matches(
+        string eventName,
+        CorrelationId correlationId,
+        string? branchId,
+        DurableBufferedDelivery delivery)
+    {
+        return eventName == delivery.EventName &&
+            correlationId == delivery.CorrelationId &&
+            BranchesMatch(branchId, delivery.BranchId);
+    }
+
+    private static bool BranchesMatch(string? waitBranchId, string? eventBranchId)
+    {
+        return string.IsNullOrWhiteSpace(waitBranchId) ||
+            string.IsNullOrWhiteSpace(eventBranchId) ||
+            string.Equals(waitBranchId, eventBranchId, StringComparison.Ordinal);
+    }
+
+    private WorkflowRuntimeCheckpointState ToCheckpointRuntimeState()
+    {
+        return new WorkflowRuntimeCheckpointState
+        {
+            ActiveTimers = activeTimers
+                .Select(timer => new CheckpointActiveTimer(
+                    timer.TimerId,
+                    timer.FireAt,
+                    timer.WakeupName,
+                    timer.RegisteredAt))
+                .ToArray(),
+            ActiveWaits = activeWaits
+                .Select(wait => new CheckpointActiveWait(
+                    wait.WaitId,
+                    wait.EventName,
+                    wait.CorrelationId,
+                    wait.RegisteredAt,
+                    wait.Mode,
+                    wait.BranchId))
+                .ToArray(),
+            BufferedDeliveries = bufferedDeliveries
+                .Select(delivery => new CheckpointBufferedDelivery(
+                    delivery.EventId,
+                    delivery.EventName,
+                    delivery.CorrelationId,
+                    delivery.BranchId))
+                .ToArray(),
+            BufferedTimers = bufferedTimers
+                .Select(timer => new CheckpointBufferedTimer(
+                    timer.TimerId,
+                    timer.WakeupName,
+                    timer.BufferedAt))
+                .ToArray(),
+            ActiveChildren = activeChildren
+                .Select(child => new CheckpointActiveChild(
+                    child.GroupId,
+                    child.ChildInstanceId,
+                    child.WaitId,
+                    child.FailurePolicy,
+                    child.JoinPolicy,
+                    child.ResidualPolicy,
+                    child.ItemSnapshot))
+                .ToArray(),
+            ActiveChildGroups = activeChildGroups
+                .Select(group => new CheckpointActiveChildGroup(
+                    group.GroupId,
+                    group.FailurePolicy,
+                    group.JoinPolicy,
+                    group.ResidualPolicy,
+                    group.MaxConcurrency,
+                    group.NextDispatchIndex,
+                    group.Children))
+                .ToArray(),
+            ActiveResourceTickets = [.. activeResourceTickets],
+            ActiveExternalJobs = activeExternalJobs
+                .Select(job => new CheckpointActiveExternalJob(
+                    job.ExternalJobId,
+                    job.WaitId,
+                    job.TimeoutTimerId))
+                .ToArray()
+        };
     }
 }
 
@@ -2039,7 +2398,9 @@ internal sealed record DurableAggregateSnapshot(
     IReadOnlyList<DurableActiveTimer> ActiveTimers,
     IReadOnlyList<DurableActiveWait> ActiveWaits,
     IReadOnlyList<DurableBufferedDelivery> BufferedDeliveries,
+    IReadOnlyList<DurableBufferedTimer> BufferedTimers,
     IReadOnlyList<DurableActiveChild> ActiveChildren,
+    IReadOnlyList<DurableActiveChildGroup> ActiveChildGroups,
     IReadOnlyList<ResourcePoolTicket> ActiveResourceTickets,
     IReadOnlyList<DurableActiveExternalJob> ActiveExternalJobs,
     IReadOnlyList<DurableSagaForwardAction> CompletedSagaForwardActions,
@@ -2064,7 +2425,9 @@ internal sealed record DurableAggregateCheckpoint(
     IReadOnlyList<DurableActiveTimer> ActiveTimers,
     IReadOnlyList<DurableActiveWait> ActiveWaits,
     IReadOnlyList<DurableBufferedDelivery> BufferedDeliveries,
+    IReadOnlyList<DurableBufferedTimer> BufferedTimers,
     IReadOnlyList<DurableActiveChild> ActiveChildren,
+    IReadOnlyList<DurableActiveChildGroup> ActiveChildGroups,
     IReadOnlyList<ResourcePoolTicket> ActiveResourceTickets,
     IReadOnlyList<DurableActiveExternalJob> ActiveExternalJobs,
     string ContentType,
@@ -2081,12 +2444,19 @@ internal sealed record DurableActiveWait(
     string EventName,
     CorrelationId CorrelationId,
     DateTimeOffset RegisteredAt,
-    WaitMode Mode = WaitMode.Resident);
+    WaitMode Mode = WaitMode.Resident,
+    string? BranchId = null);
 
 internal sealed record DurableBufferedDelivery(
     EventId EventId,
     string EventName,
-    CorrelationId CorrelationId);
+    CorrelationId CorrelationId,
+    string? BranchId);
+
+internal sealed record DurableBufferedTimer(
+    TimerId TimerId,
+    string WakeupName,
+    DateTimeOffset BufferedAt);
 
 internal sealed record DurableActiveChild(
     string GroupId,
@@ -2096,6 +2466,15 @@ internal sealed record DurableActiveChild(
     RunChildrenJoinPolicy JoinPolicy,
     RunChildrenResidualPolicy ResidualPolicy,
     string? ItemSnapshot);
+
+internal sealed record DurableActiveChildGroup(
+    string GroupId,
+    RunChildFailurePolicy FailurePolicy,
+    RunChildrenJoinPolicy JoinPolicy,
+    RunChildrenResidualPolicy ResidualPolicy,
+    int MaxConcurrency,
+    int NextDispatchIndex,
+    IReadOnlyList<WorkflowChildMaterialization> Children);
 
 internal sealed record DurableCompletedChild(
     string GroupId,
@@ -2184,7 +2563,8 @@ internal sealed record DurableWaitRegisteredCommand(
     WaitId WaitId,
     string EventName,
     CorrelationId CorrelationId,
-    WaitMode Mode = WaitMode.Resident);
+    WaitMode Mode = WaitMode.Resident,
+    string? BranchId = null);
 
 internal sealed record DurableWaitMatchedCommand(
     CommandId CommandId,

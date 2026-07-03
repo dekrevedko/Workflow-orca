@@ -21,9 +21,8 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
     /// Initializes a PostgreSQL resource-pool store from a connection string.
     /// </summary>
     public PostgreSqlResourcePoolStore(string connectionString)
-        : this(NpgsqlDataSource.Create(connectionString))
+        : this(CreateDataSource(connectionString))
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
     }
 
     /// <summary>
@@ -318,6 +317,12 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
     public async ValueTask DisposeAsync()
     {
         await dataSource.DisposeAsync().ConfigureAwait(false);
+    }
+
+    private static NpgsqlDataSource CreateDataSource(string connectionString)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+        return NpgsqlDataSource.Create(connectionString);
     }
 
     private static async Task LockPoolTablesAsync(
@@ -889,9 +894,7 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
 
     private static JsonSerializerOptions CreateJsonOptions()
     {
-        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
-        options.Converters.Add(new InstanceIdJsonConverter());
-        return options;
+        return new JsonSerializerOptions(JsonSerializerDefaults.Web);
     }
 
     private static void ValidatePool(ResourcePoolDefinition definition)

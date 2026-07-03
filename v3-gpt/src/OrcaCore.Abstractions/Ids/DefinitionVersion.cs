@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace OrcaCore.Abstractions.Ids;
 
 /// <summary>
 /// Identifies one immutable version of a workflow definition.
 /// </summary>
+[JsonConverter(typeof(DefinitionVersionJsonConverter))]
 public readonly record struct DefinitionVersion
 {
     /// <summary>

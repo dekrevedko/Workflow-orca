@@ -40,10 +40,8 @@ public sealed class ExecutionLaneTests
             },
             TestContext.Current.CancellationToken);
 
-        var startedBeforeRelease = await CompletesWithinAsync(
-            secondEntered.Task,
-            TimeSpan.FromMilliseconds(75),
-            TestContext.Current.CancellationToken);
+        await Task.Yield();
+        var startedBeforeRelease = secondEntered.Task.IsCompleted;
         releaseFirst.SetResult();
 
         await Task.WhenAll(first, second).WaitAsync(TestContext.Current.CancellationToken);
@@ -121,16 +119,17 @@ public sealed class ExecutionLaneTests
         result.Should().Be(42);
     }
 
-    private static async Task<bool> CompletesWithinAsync(
-        Task task,
-        TimeSpan timeout,
-        CancellationToken cancellationToken)
+    [Fact]
+    public async Task RunAsync_WhenBatchDrains_EvictsIdleLane()
     {
-        var winner = await Task.WhenAny(
-            task,
-            Task.Delay(timeout, cancellationToken)).ConfigureAwait(false);
+        var lane = new InstanceExecutionLane();
 
-        return ReferenceEquals(winner, task);
+        await lane.RunAsync(
+            InstanceId.New(),
+            _ => Task.CompletedTask,
+            TestContext.Current.CancellationToken);
+
+        lane.ActiveLaneCount.Should().Be(0);
     }
 
     private sealed record TestState(RaceCoordinator Coordinator);

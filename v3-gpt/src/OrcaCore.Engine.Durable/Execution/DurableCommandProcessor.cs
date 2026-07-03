@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Text.Json;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
@@ -11,8 +10,21 @@ namespace OrcaCore.Engine.Durable.Execution;
 
 public sealed class DurableCommandProcessor(IWorkflowEventStore eventStore, IResourcePoolStore? resourcePoolStore = null)
 {
-    private readonly ConcurrentDictionary<InstanceId, SemaphoreSlim> lanes = [];
+    private readonly DurableInstanceCommandLane lanes = new();
     private readonly IWorkflowInboxStore? inboxStore = eventStore as IWorkflowInboxStore;
+    private readonly IWorkflowStartIdempotencyStore? startIdempotencyStore = eventStore as IWorkflowStartIdempotencyStore;
+
+    internal int ActiveLaneCount => lanes.ActiveLaneCount;
+
+    internal async Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        return startIdempotencyStore is null
+            ? Option<StartedWorkflowIdempotencyRecord>.None
+            : await startIdempotencyStore.GetStartedAsync(idempotencyKey, cancellationToken).ConfigureAwait(false);
+    }
 
     public Task<DurableCommandResult> ProcessAsync(
         StartWorkflowCommand command,
@@ -103,6 +115,28 @@ public sealed class DurableCommandProcessor(IWorkflowEventStore eventStore, IRes
     }
 
     public Task<DurableCommandResult> ProcessAsync(
+        ScheduleTimerCommand command,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        return RunInLaneAsync(
+            command.InstanceId,
+            aggregate => aggregate.DecideTimerScheduled(command),
+            cancellationToken);
+    }
+
+    public Task<DurableCommandResult> ProcessAsync(
+        FireTimerCommand command,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        return RunInLaneAsync(
+            command.InstanceId,
+            aggregate => aggregate.DecideTimerFired(command),
+            cancellationToken);
+    }
+
+    public Task<DurableCommandResult> ProcessAsync(
         AcquireResourcePoolCommand command,
         CancellationToken cancellationToken)
     {
@@ -186,6 +220,17 @@ public sealed class DurableCommandProcessor(IWorkflowEventStore eventStore, IRes
         return RunInLaneAsync(
             command.InstanceId,
             aggregate => aggregate.DecideCancel(command),
+            cancellationToken);
+    }
+
+    public Task<DurableCommandResult> ProcessAsync(
+        ConsumeParentResumeTokenCommand command,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        return RunInLaneAsync(
+            command.InstanceId,
+            aggregate => aggregate.DecideConsumeParentResumeToken(command),
             cancellationToken);
     }
 
@@ -375,16 +420,10 @@ public sealed class DurableCommandProcessor(IWorkflowEventStore eventStore, IRes
         CancellationToken cancellationToken,
         EventId? inboxEventId = null)
     {
-        var lane = lanes.GetOrAdd(instanceId, _ => new SemaphoreSlim(1, 1));
-        await lane.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return await ProcessCoreAsync(instanceId, decide, cancellationToken, inboxEventId).ConfigureAwait(false);
-        }
-        finally
-        {
-            lane.Release();
-        }
+        return await lanes.RunAsync(
+            instanceId,
+            token => ProcessCoreAsync(instanceId, decide, token, inboxEventId),
+            cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<DurableCommandResult> ProcessCoreAsync(
@@ -467,13 +506,16 @@ public sealed class DurableCommandProcessor(IWorkflowEventStore eventStore, IRes
                     Checkpoint = decision.Checkpoint,
                     InboxOperations = CreateInboxOperations(inboxEventId, decision),
                     OutboxRecords = CreateOutboxRecords(decision.Events),
-                    ProjectionOperations = aggregate.CreateProjectionWrites(decision.Events)
+                    ProjectionOperations = aggregate.CreateProjectionWrites(decision.Events),
+                    StartIdempotencyOperations = CreateStartIdempotencyWrites(decision.Events),
+                    TimerSchedules = CreateTimerSchedules(decision.Events)
                 },
                 cancellationToken)
             .ConfigureAwait(false);
 
         if (appendResult.IsFailure)
         {
+            await RollBackResourcePoolAcquiresAsync(decision.Events, cancellationToken).ConfigureAwait(false);
             return new DurableCommandResult(
                 DurableCommandOutcome.Conflict,
                 appendResult.Error.Message,
@@ -504,14 +546,77 @@ public sealed class DurableCommandProcessor(IWorkflowEventStore eventStore, IRes
             checkpoint.ErrorSummary,
             checkpoint.OutcomeName,
             checkpoint.ContinueAsNewGeneration,
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
+            checkpoint.RuntimeState.ActiveTimers
+                .Select(timer => new DurableActiveTimer(
+                    timer.TimerId,
+                    timer.FireAt,
+                    timer.WakeupName,
+                    timer.RegisteredAt))
+                .ToArray(),
+            checkpoint.RuntimeState.ActiveWaits
+                .Select(wait => new DurableActiveWait(
+                    wait.WaitId,
+                    wait.EventName,
+                    wait.CorrelationId,
+                    wait.RegisteredAt,
+                    wait.Mode,
+                    wait.BranchId))
+                .ToArray(),
+            checkpoint.RuntimeState.BufferedDeliveries
+                .Select(delivery => new DurableBufferedDelivery(
+                    delivery.EventId,
+                    delivery.EventName,
+                    delivery.CorrelationId,
+                    delivery.BranchId))
+                .ToArray(),
+            checkpoint.RuntimeState.BufferedTimers
+                .Select(timer => new DurableBufferedTimer(
+                    timer.TimerId,
+                    timer.WakeupName,
+                    timer.BufferedAt))
+                .ToArray(),
+            checkpoint.RuntimeState.ActiveChildren
+                .Select(child => new DurableActiveChild(
+                    child.GroupId,
+                    child.ChildInstanceId,
+                    child.WaitId,
+                    child.FailurePolicy,
+                    child.JoinPolicy,
+                    child.ResidualPolicy,
+                    child.ItemSnapshot))
+                .ToArray(),
+            checkpoint.RuntimeState.ActiveChildGroups
+                .Select(group => new DurableActiveChildGroup(
+                    group.GroupId,
+                    group.FailurePolicy,
+                    group.JoinPolicy,
+                    group.ResidualPolicy,
+                    group.MaxConcurrency,
+                    group.NextDispatchIndex,
+                    group.Children))
+                .ToArray(),
+            checkpoint.RuntimeState.ActiveResourceTickets,
+            checkpoint.RuntimeState.ActiveExternalJobs
+                .Select(job => new DurableActiveExternalJob(
+                    job.ExternalJobId,
+                    job.WaitId,
+                    job.TimeoutTimerId))
+                .ToArray(),
             checkpoint.ContentType,
             [.. checkpoint.Payload]);
+    }
+
+    private static IReadOnlyList<StartIdempotencyWrite> CreateStartIdempotencyWrites(IReadOnlyList<WorkflowEvent> events)
+    {
+        return events
+            .OfType<WorkflowStartedEvent>()
+            .Where(started => !string.IsNullOrWhiteSpace(started.IdempotencyKey))
+            .Select(started => new StartIdempotencyWrite(
+                started.IdempotencyKey!,
+                started.InstanceId,
+                started.DefinitionId,
+                started.DefinitionVersion))
+            .ToArray();
     }
 
     private static IReadOnlyList<OutboxWrite> CreateOutboxRecords(IReadOnlyList<WorkflowEvent> events)
@@ -520,6 +625,21 @@ public sealed class DurableCommandProcessor(IWorkflowEventStore eventStore, IRes
             .Concat(CreateChildStartOutboxRecords(events))
             .Concat(CreateResidualOutboxRecords(events))
             .Concat(CreateExternalJobOutboxRecords(events))
+            .ToArray();
+    }
+
+    private static IReadOnlyList<TimerScheduleRequest> CreateTimerSchedules(IReadOnlyList<WorkflowEvent> events)
+    {
+        return events
+            .OfType<WorkflowTimerScheduledEvent>()
+            .Select(timer => new TimerScheduleRequest
+            {
+                TimerId = timer.TimerId,
+                InstanceId = timer.InstanceId,
+                CommandId = new CommandId(timer.EventId.Value),
+                FireAt = timer.FireAt,
+                WakeupName = timer.WakeupName
+            })
             .ToArray();
     }
 
@@ -580,8 +700,24 @@ public sealed class DurableCommandProcessor(IWorkflowEventStore eventStore, IRes
                     RequestedAt = group.OccurredAt,
                     ParentInstanceId = group.InstanceId,
                     RootInstanceId = group.RootInstanceId ?? group.InstanceId,
-                    DefinitionId = group.ChildDefinitionId,
-                    DefinitionVersion = group.ChildDefinitionVersion
+                    DefinitionId = child.ChildDefinitionId,
+                    DefinitionVersion = child.ChildDefinitionVersion
+                }))))
+            .ToArray();
+        var dispatchedChildren = events
+            .OfType<WorkflowChildrenDispatchedEvent>()
+            .SelectMany(group => group.Children.Select(child => new OutboxWrite(
+                OutboxRecordId.New(),
+                "child-start",
+                JsonSerializer.SerializeToUtf8Bytes(new StartWorkflowCommand
+                {
+                    CommandId = new CommandId(child.ChildInstanceId.Value),
+                    InstanceId = child.ChildInstanceId,
+                    RequestedAt = group.OccurredAt,
+                    ParentInstanceId = group.InstanceId,
+                    RootInstanceId = group.RootInstanceId ?? group.InstanceId,
+                    DefinitionId = child.ChildDefinitionId,
+                    DefinitionVersion = child.ChildDefinitionVersion
                 }))))
             .ToArray();
         var childCompensations = events
@@ -601,17 +737,24 @@ public sealed class DurableCommandProcessor(IWorkflowEventStore eventStore, IRes
                 }))))
             .ToArray();
 
-        return [.. singleChildren, .. childGroups, .. childCompensations];
+        return [.. singleChildren, .. childGroups, .. dispatchedChildren, .. childCompensations];
     }
 
     private static IReadOnlyList<OutboxWrite> CreateResidualOutboxRecords(IReadOnlyList<WorkflowEvent> events)
     {
         return events
             .OfType<WorkflowChildResidualIntentRecordedEvent>()
-            .Select(residual => new OutboxWrite(
+            .SelectMany(residual => residual.ResidualChildInstanceIds.Select(childId => new OutboxWrite(
                 OutboxRecordId.New(),
-                "external-message",
-                JsonSerializer.SerializeToUtf8Bytes(residual)))
+                "child-cancel",
+                JsonSerializer.SerializeToUtf8Bytes(new CancelWorkflowCommand
+                {
+                    CommandId = new CommandId(childId.Value),
+                    InstanceId = childId,
+                    RequestedAt = residual.OccurredAt,
+                    ParentInstanceId = residual.InstanceId,
+                    RootInstanceId = residual.RootInstanceId ?? residual.InstanceId
+                }))))
             .ToArray();
     }
 
@@ -777,11 +920,45 @@ public sealed class DurableCommandProcessor(IWorkflowEventStore eventStore, IRes
     {
         foreach (var released in events.OfType<WorkflowResourcePoolReleasedEvent>())
         {
+            await ReleaseWithRetryAsync(
+                new ResourcePoolReleaseRequest(released.InstanceId, released.HolderKey, released.OccurredAt),
+                cancellationToken)
+                .ConfigureAwait(false);
+        }
+    }
+
+    private async Task RollBackResourcePoolAcquiresAsync(
+        IReadOnlyList<WorkflowEvent> events,
+        CancellationToken cancellationToken)
+    {
+        foreach (var acquired in events.OfType<WorkflowResourcePoolAcquiredEvent>())
+        {
             await RequiredResourcePoolStore()
                 .ReleaseAsync(
-                    new ResourcePoolReleaseRequest(released.InstanceId, released.HolderKey, released.OccurredAt),
+                    new ResourcePoolReleaseRequest(acquired.InstanceId, acquired.HolderKey, acquired.OccurredAt),
                     cancellationToken)
                 .ConfigureAwait(false);
+        }
+    }
+
+    private async Task ReleaseWithRetryAsync(
+        ResourcePoolReleaseRequest request,
+        CancellationToken cancellationToken)
+    {
+        const int maxAttempts = 3;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await RequiredResourcePoolStore()
+                    .ReleaseAsync(request, cancellationToken)
+                    .ConfigureAwait(false);
+                return;
+            }
+            catch when (attempt < maxAttempts && !cancellationToken.IsCancellationRequested)
+            {
+                await Task.Yield();
+            }
         }
     }
 }

@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace OrcaCore.Abstractions.Ids;
 
 /// <summary>
 /// Identifies a zero-based durable stream version.
 /// </summary>
+[JsonConverter(typeof(StreamVersionJsonConverter))]
 public readonly record struct StreamVersion
 {
     /// <summary>

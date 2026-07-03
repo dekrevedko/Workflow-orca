@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace OrcaCore.Abstractions.Ids;
 
 /// <summary>
 /// Identifies one runtime-owned wait registration.
 /// </summary>
+[JsonConverter(typeof(WaitIdJsonConverter))]
 public readonly record struct WaitId
 {
     /// <summary>

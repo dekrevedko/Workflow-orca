@@ -12,6 +12,7 @@ public abstract class TimerSchedulerCertificationTests
     protected abstract ITimerScheduler CreateTimerScheduler();
 
     [Fact]
+    [Trait("AC", "EV-050")]
     public async Task ScheduleAsync_DueTimer_IsClaimableOnce()
     {
         var scheduler = CreateTimerScheduler();
@@ -38,6 +39,7 @@ public abstract class TimerSchedulerCertificationTests
     }
 
     [Fact]
+    [Trait("AC", "EV-050")]
     public async Task ScheduleAsync_NotDueTimer_IsNotClaimed()
     {
         var scheduler = CreateTimerScheduler();
@@ -49,6 +51,25 @@ public abstract class TimerSchedulerCertificationTests
             TestContext.Current.CancellationToken);
 
         claimed.Should().BeEmpty();
+    }
+
+    [Fact]
+    [Trait("AC", "EV-050")]
+    [Trait("AC", "NF-020")]
+    public async Task ClaimDueAsync_ConcurrentWorkers_ClaimTimerOnce()
+    {
+        var scheduler = CreateTimerScheduler();
+        var request = Request(fireAt: Timestamp(10));
+        await scheduler.ScheduleAsync(request, TestContext.Current.CancellationToken);
+
+        var first = scheduler.ClaimDueAsync(Timestamp(10), maxCount: 1, TestContext.Current.CancellationToken);
+        var second = scheduler.ClaimDueAsync(Timestamp(10), maxCount: 1, TestContext.Current.CancellationToken);
+        var claimed = (await Task.WhenAll(first, second).WaitAsync(TestContext.Current.CancellationToken))
+            .SelectMany(commands => commands)
+            .ToArray();
+
+        claimed.Should().ContainSingle()
+            .Which.TimerId.Should().Be(request.TimerId);
     }
 
     protected static TimerScheduleRequest Request(DateTimeOffset fireAt)

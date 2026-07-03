@@ -50,6 +50,11 @@ public sealed record StartWorkflowCommand : WorkflowCommand
     /// Gets the workflow definition version bound at start.
     /// </summary>
     public required DefinitionVersion DefinitionVersion { get; init; }
+
+    /// <summary>
+    /// Gets an optional caller-supplied key used to make start-or-get durable across restarts.
+    /// </summary>
+    public string? IdempotencyKey { get; init; }
 }
 
 /// <summary>
@@ -99,6 +104,22 @@ public sealed record FireTimerCommand : WorkflowCommand
 /// Requests cooperative cancellation for a durable workflow instance.
 /// </summary>
 public sealed record CancelWorkflowCommand : WorkflowCommand;
+
+/// <summary>
+/// Requests idempotent consumption of a parent resume token recorded for a child group.
+/// </summary>
+public sealed record ConsumeParentResumeTokenCommand : WorkflowCommand
+{
+    /// <summary>
+    /// Gets the child group whose parent continuation is being consumed.
+    /// </summary>
+    public required string GroupId { get; init; }
+
+    /// <summary>
+    /// Gets the resume token identity to consume.
+    /// </summary>
+    public required EventId ResumeTokenId { get; init; }
+}
 
 /// <summary>
 /// Requests forced termination for a durable workflow instance.

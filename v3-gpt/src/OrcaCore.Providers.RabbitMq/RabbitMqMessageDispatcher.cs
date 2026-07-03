@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using OrcaCore.Abstractions.Providers;
 
 namespace OrcaCore.Providers.RabbitMq;
@@ -21,7 +22,7 @@ public sealed class RabbitMqMessageDispatcher(IRabbitMqPublisher publisher) : IM
             RabbitMqPublishOutcome.Confirmed => DispatchResult.Success,
             RabbitMqPublishOutcome.RetryableFailure => DispatchResult.RetryableFailure,
             RabbitMqPublishOutcome.PermanentFailure => DispatchResult.PermanentFailure,
-            _ => throw new InvalidOperationException($"Unknown RabbitMQ publish outcome '{outcome}'.")
+            _ => throw new UnreachableException()
         };
     }
 

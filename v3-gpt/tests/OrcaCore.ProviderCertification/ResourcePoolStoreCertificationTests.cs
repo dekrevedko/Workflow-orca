@@ -50,6 +50,25 @@ public abstract class ResourcePoolStoreCertificationTests
     }
 
     [Fact]
+    [Trait("AC", "AC-518")]
+    [Trait("AC", "AC-519")]
+    public async Task AcquireAsync_ConcurrentRequestsForLastSlot_GrantsOneAndQueuesOne()
+    {
+        var store = CreateStore();
+        await store.UpsertPoolAsync(Pool("db", 1), TestContext.Current.CancellationToken);
+
+        var first = store.AcquireAsync(Request(1, Requirement("db")), TestContext.Current.CancellationToken);
+        var second = store.AcquireAsync(Request(2, Requirement("db")), TestContext.Current.CancellationToken);
+        var results = await Task.WhenAll(first, second).WaitAsync(TestContext.Current.CancellationToken);
+        var snapshot = await store.GetPoolAsync("db", TestContext.Current.CancellationToken);
+
+        results.Count(result => result.Status == ResourcePoolAcquireStatus.Granted).Should().Be(1);
+        results.Count(result => result.Status == ResourcePoolAcquireStatus.Queued).Should().Be(1);
+        snapshot.Value.HeldTickets.Sum(ticket => ticket.Count).Should().Be(1);
+        snapshot.Value.QueuedWaiters.Should().ContainSingle();
+    }
+
+    [Fact]
     [Trait("AC", "AC-522")]
     public async Task AcquireAsync_WhenMultiplePoolsRequested_GrantsAllOrNone()
     {
@@ -158,6 +177,109 @@ public abstract class ResourcePoolStoreCertificationTests
             .Which.HolderInstanceId.Should().Be(InstanceIdValue(2));
         snapshot.Value.AuditRecords.Should().ContainSingle()
             .Which.Reason.Should().Be("operator requested");
+    }
+
+    [Fact]
+    [Trait("Scenario", "NEG-MG-011")]
+    [Trait("AC", "MG-062")]
+    public async Task NEG_MG_011_AcquireAsync_UnknownPoolRejectsWithoutTicket()
+    {
+        var store = CreateStore();
+
+        var result = await store.AcquireAsync(
+            Request(1, Requirement("pool-does-not-exist")),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResourcePoolAcquireStatus.Rejected);
+        result.Tickets.Should().BeEmpty();
+        result.QueuedWaiter.Should().BeNull();
+        result.Error.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    [Trait("Scenario", "NEG-MG-012")]
+    [Trait("AC", "AC-518")]
+    public async Task NEG_MG_012_AcquireAsync_CapacityZeroPoolNeverGrantsTicket()
+    {
+        var store = CreateStore();
+        await store.UpsertPoolAsync(Pool("db", 0), TestContext.Current.CancellationToken);
+
+        var result = await store.AcquireAsync(
+            Request(1, Requirement("db")),
+            TestContext.Current.CancellationToken);
+        var snapshot = await store.GetPoolAsync("db", TestContext.Current.CancellationToken);
+
+        result.Status.Should().NotBe(ResourcePoolAcquireStatus.Granted);
+        result.Tickets.Should().BeEmpty();
+        snapshot.Value.AvailableCapacity.Should().Be(0);
+        snapshot.Value.HeldTickets.Should().BeEmpty();
+    }
+
+    [Fact]
+    [Trait("Scenario", "NEG-MG-013")]
+    [Trait("AC", "AC-520")]
+    public async Task NEG_MG_013_ReleaseAsync_UnknownHolderDoesNotChangeCapacity()
+    {
+        var store = CreateStore();
+        await store.UpsertPoolAsync(Pool("db", 1), TestContext.Current.CancellationToken);
+        await store.AcquireAsync(Request(1, Requirement("db")), TestContext.Current.CancellationToken);
+
+        var release = await store.ReleaseAsync(
+            new ResourcePoolReleaseRequest(InstanceIdValue(404), "missing-holder", Date(10)),
+            TestContext.Current.CancellationToken);
+        var snapshot = await store.GetPoolAsync("db", TestContext.Current.CancellationToken);
+
+        release.ReleasedTickets.Should().BeEmpty();
+        release.GrantedWaiters.Should().BeEmpty();
+        snapshot.Value.HeldTickets.Should().ContainSingle()
+            .Which.HolderInstanceId.Should().Be(InstanceIdValue(1));
+        snapshot.Value.AvailableCapacity.Should().Be(0);
+    }
+
+    [Fact]
+    [Trait("Scenario", "NEG-MG-014")]
+    [Trait("AC", "AC-520")]
+    public async Task NEG_MG_014_ReleaseAsync_DoubleReleaseDoesNotIncrementCapacityTwice()
+    {
+        var store = CreateStore();
+        await store.UpsertPoolAsync(Pool("db", 1), TestContext.Current.CancellationToken);
+        var acquired = await store.AcquireAsync(Request(1, Requirement("db")), TestContext.Current.CancellationToken);
+
+        var firstRelease = await store.ReleaseAsync(
+            new ResourcePoolReleaseRequest(InstanceIdValue(1), "node-1", Date(10)),
+            TestContext.Current.CancellationToken);
+        var secondRelease = await store.ReleaseAsync(
+            new ResourcePoolReleaseRequest(InstanceIdValue(1), "node-1", Date(11)),
+            TestContext.Current.CancellationToken);
+        var snapshot = await store.GetPoolAsync("db", TestContext.Current.CancellationToken);
+
+        firstRelease.ReleasedTickets.Should().BeEquivalentTo(acquired.Tickets);
+        secondRelease.ReleasedTickets.Should().BeEmpty();
+        snapshot.Value.HeldTickets.Should().BeEmpty();
+        snapshot.Value.AvailableCapacity.Should().Be(1);
+    }
+
+    [Fact]
+    [Trait("Scenario", "NEG-PR-018")]
+    [Trait("AC", "NF-040")]
+    public async Task NEG_PR_018_ResourcePoolNameWithSqlMetacharactersIsTreatedAsData()
+    {
+        var store = CreateStore();
+        const string maliciousPoolName = "db'; drop table orcacore_resource_pools; --";
+        await store.UpsertPoolAsync(Pool(maliciousPoolName, 1), TestContext.Current.CancellationToken);
+        await store.UpsertPoolAsync(Pool("db", 1), TestContext.Current.CancellationToken);
+
+        var result = await store.AcquireAsync(
+            Request(1, Requirement(maliciousPoolName)),
+            TestContext.Current.CancellationToken);
+        var maliciousSnapshot = await store.GetPoolAsync(maliciousPoolName, TestContext.Current.CancellationToken);
+        var normalSnapshot = await store.GetPoolAsync("db", TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResourcePoolAcquireStatus.Granted);
+        result.Tickets.Should().ContainSingle()
+            .Which.PoolName.Should().Be(maliciousPoolName);
+        maliciousSnapshot.HasValue.Should().BeTrue();
+        normalSnapshot.HasValue.Should().BeTrue();
     }
 
     private static ResourcePoolDefinition Pool(string name, int capacity)

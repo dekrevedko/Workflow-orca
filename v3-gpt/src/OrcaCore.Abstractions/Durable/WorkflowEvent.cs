@@ -59,6 +59,11 @@ public sealed record WorkflowStartedEvent : WorkflowEvent
     /// Gets the workflow definition version bound at start.
     /// </summary>
     public required DefinitionVersion DefinitionVersion { get; init; }
+
+    /// <summary>
+    /// Gets the durable start-or-get idempotency key when the instance was started that way.
+    /// </summary>
+    public string? IdempotencyKey { get; init; }
 }
 
 /// <summary>
@@ -128,6 +133,11 @@ public sealed record WorkflowWaitRegisteredEvent : WorkflowEvent
     /// Gets whether the wait is resident or cold.
     /// </summary>
     public WaitMode Mode { get; init; } = WaitMode.Resident;
+
+    /// <summary>
+    /// Gets the parallel branch identity when this wait is branch-scoped.
+    /// </summary>
+    public string? BranchId { get; init; }
 }
 
 /// <summary>
@@ -217,6 +227,8 @@ public sealed record WorkflowChildrenScheduledEvent : WorkflowEvent
 
     public required int NextDispatchIndex { get; init; }
 
+    public required int MaxConcurrency { get; init; }
+
     public required IReadOnlyList<WorkflowChildMaterialization> Children { get; init; }
 }
 
@@ -226,7 +238,25 @@ public sealed record WorkflowChildMaterialization
 
     public required InstanceId ChildInstanceId { get; init; }
 
+    public required DefinitionId ChildDefinitionId { get; init; }
+
+    public required DefinitionVersion ChildDefinitionVersion { get; init; }
+
     public required string ItemSnapshot { get; init; }
+}
+
+/// <summary>
+/// Records that a throttled child group advanced and dispatched more children.
+/// </summary>
+public sealed record WorkflowChildrenDispatchedEvent : WorkflowEvent
+{
+    public required string GroupId { get; init; }
+
+    public required int PreviousDispatchIndex { get; init; }
+
+    public required int NextDispatchIndex { get; init; }
+
+    public required IReadOnlyList<WorkflowChildMaterialization> Children { get; init; }
 }
 
 /// <summary>
@@ -245,6 +275,16 @@ public sealed record WorkflowChildCompletedEvent : WorkflowEvent
 /// Records the durable token that authorizes exactly one parent resume for a child group.
 /// </summary>
 public sealed record WorkflowParentResumeTokenRecordedEvent : WorkflowEvent
+{
+    public required string GroupId { get; init; }
+
+    public required EventId ResumeTokenId { get; init; }
+}
+
+/// <summary>
+/// Records that a parent resume token was consumed by the parent continuation driver.
+/// </summary>
+public sealed record WorkflowParentResumeTokenConsumedEvent : WorkflowEvent
 {
     public required string GroupId { get; init; }
 
@@ -397,7 +437,7 @@ public sealed record WorkflowResumedEvent : WorkflowEvent
 }
 
 /// <summary>
-/// Records that an inbound delivery was buffered while an instance was paused.
+/// Records that an inbound delivery was buffered until a matching wait is available or the instance resumes.
 /// </summary>
 public sealed record WorkflowDeliveryBufferedEvent : WorkflowEvent
 {
@@ -415,6 +455,11 @@ public sealed record WorkflowDeliveryBufferedEvent : WorkflowEvent
     /// Gets the buffered inbound event correlation.
     /// </summary>
     public required CorrelationId CorrelationId { get; init; }
+
+    /// <summary>
+    /// Gets the parallel branch identity when the inbound event is branch-scoped.
+    /// </summary>
+    public string? BranchId { get; init; }
 }
 
 /// <summary>

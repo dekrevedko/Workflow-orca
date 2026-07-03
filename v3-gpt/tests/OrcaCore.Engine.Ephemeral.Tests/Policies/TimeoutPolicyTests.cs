@@ -16,10 +16,11 @@ public sealed class TimeoutPolicyTests
     {
         var clock = new Clock(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
         var engine = new EphemeralWorkflowEngine(clock.TimeProvider);
+        var step = new NeverCompletesStep();
         var definition = new WorkflowBuilder<TimeoutState>()
             .Init<string>(_ => new TimeoutState())
             .WithTimeout(TimeSpan.FromSeconds(30))
-            .Then<NeverCompletesStep>()
+            .Then(() => step)
             .End()
             .Build(DefinitionId.New(), DefinitionVersion.Initial);
         engine.RegisterDefinition(definition);
@@ -28,6 +29,7 @@ public sealed class TimeoutPolicyTests
             definition.DefinitionId,
             "start",
             TestContext.Current.CancellationToken);
+        await step.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
         clock.Advance(TimeSpan.FromSeconds(30));
 
         var snapshot = await startTask.WaitAsync(TestContext.Current.CancellationToken);
@@ -40,12 +42,16 @@ public sealed class TimeoutPolicyTests
 
     private sealed class NeverCompletesStep : IStep<TimeoutState>
     {
+        public TaskCompletionSource Started { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         public async ValueTask<StepResult> ExecuteAsync(
             StepContext<TimeoutState> context,
             CancellationToken cancellationToken)
         {
-            await Task.Delay(Timeout.InfiniteTimeSpan, context.TimeProvider, cancellationToken)
-                .ConfigureAwait(false);
+            var delay = Task.Delay(Timeout.InfiniteTimeSpan, context.TimeProvider, cancellationToken);
+            Started.TrySetResult();
+            await delay.ConfigureAwait(false);
             return new StepResult.Completed();
         }
     }

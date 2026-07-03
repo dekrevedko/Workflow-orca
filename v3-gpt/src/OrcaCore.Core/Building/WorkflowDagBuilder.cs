@@ -215,7 +215,7 @@ public sealed record WorkflowDagPlan(
     /// <summary>
     /// Creates a neutral child batch that durable orchestration can submit through RunChildren.
     /// </summary>
-    public WorkflowDagChildBatch CreateChildBatch(IReadOnlyList<WorkflowDagNode> runnableNodes)
+    public WorkflowDagChildBatch CreateChildBatch(IReadOnlyList<WorkflowDagNode> runnableNodes, int? maxConcurrency = null)
     {
         ArgumentNullException.ThrowIfNull(runnableNodes);
         if (runnableNodes.Count == 0)
@@ -224,14 +224,92 @@ public sealed record WorkflowDagPlan(
         }
 
         var first = runnableNodes[0];
+        if (runnableNodes.Any(node =>
+            node.ChildDefinitionId != first.ChildDefinitionId ||
+            node.ChildDefinitionVersion != first.ChildDefinitionVersion ||
+            node.FailurePolicy != first.FailurePolicy))
+        {
+            throw new ArgumentException(
+                "CreateChildBatch requires runnable DAG nodes with the same child definition and failure policy; use CreateChildBatches for heterogeneous runnable nodes.",
+                nameof(runnableNodes));
+        }
+
         return new WorkflowDagChildBatch(
             first.ChildDefinitionId,
             first.ChildDefinitionVersion,
             runnableNodes.Select(node => node.NodeId).ToArray(),
             first.FailurePolicy,
-            runnableNodes.Count);
+            ClampConcurrency(maxConcurrency, runnableNodes.Count));
+    }
+
+    /// <summary>
+    /// Creates one or more child batches grouped by child definition and failure policy.
+    /// </summary>
+    public IReadOnlyList<WorkflowDagChildBatch> CreateChildBatches(
+        IReadOnlyList<WorkflowDagNode> runnableNodes,
+        int? maxConcurrency = null)
+    {
+        ArgumentNullException.ThrowIfNull(runnableNodes);
+        if (runnableNodes.Count == 0)
+        {
+            return [];
+        }
+
+        return runnableNodes
+            .GroupBy(
+                node => new WorkflowDagBatchKey(
+                    node.ChildDefinitionId,
+                    node.ChildDefinitionVersion,
+                    node.FailurePolicy))
+            .OrderBy(group => group.Min(node => node.NodeId), StringComparer.Ordinal)
+            .Select(group =>
+            {
+                var nodes = group.OrderBy(node => node.NodeId, StringComparer.Ordinal).ToArray();
+                return new WorkflowDagChildBatch(
+                    group.Key.ChildDefinitionId,
+                    group.Key.ChildDefinitionVersion,
+                    nodes.Select(node => node.NodeId).ToArray(),
+                    group.Key.FailurePolicy,
+                    ClampConcurrency(maxConcurrency, nodes.Length));
+            })
+            .ToArray();
+    }
+
+    private static int ClampConcurrency(int? maxConcurrency, int itemCount)
+    {
+        if (maxConcurrency is <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxConcurrency), "DAG max concurrency must be greater than zero.");
+        }
+
+        return Math.Min(maxConcurrency ?? itemCount, itemCount);
     }
 }
+
+/// <summary>
+/// Reference runner that turns DAG completion state into durable child batches.
+/// </summary>
+public sealed class WorkflowDagRunner(WorkflowDagPlan plan, int? maxConcurrency = null)
+{
+    /// <summary>
+    /// Gets the next runnable batches grouped by durable child definition.
+    /// </summary>
+    public IReadOnlyList<WorkflowDagChildBatch> GetNextBatches(
+        IReadOnlyCollection<string> completedNodeIds,
+        IReadOnlyCollection<string> failedNodeIds)
+    {
+        ArgumentNullException.ThrowIfNull(completedNodeIds);
+        ArgumentNullException.ThrowIfNull(failedNodeIds);
+
+        var runnableNodes = plan.GetRunnableNodes(completedNodeIds, failedNodeIds);
+        return plan.CreateChildBatches(runnableNodes, maxConcurrency);
+    }
+}
+
+internal sealed record WorkflowDagBatchKey(
+    DefinitionId ChildDefinitionId,
+    DefinitionVersion ChildDefinitionVersion,
+    RunChildFailurePolicy FailurePolicy);
 
 /// <summary>
 /// Represents one compiled DAG node.

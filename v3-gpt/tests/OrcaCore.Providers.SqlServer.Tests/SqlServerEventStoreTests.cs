@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using Microsoft.Data.SqlClient;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
@@ -34,7 +35,22 @@ public sealed class SqlServerEventStoreTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task AppendAsync_ProjectionCommitFails_RollsBackEventsInboxAndOutbox()
+    public async Task InitializeAsync_AppliesRelationalSqlMigrations()
+    {
+        await using var connection = new SqlConnection(container.GetConnectionString());
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var command = new SqlCommand(
+            "select migration_id from dbo.orcacore_schema_migrations where migration_id = @migration_id;",
+            connection);
+        command.Parameters.AddWithValue("@migration_id", "001_initial");
+
+        var migrationId = await command.ExecuteScalarAsync(TestContext.Current.CancellationToken);
+
+        migrationId.Should().Be("001_initial");
+    }
+
+    [Fact]
+    public async Task AppendAsync_ProjectionOperations_CommitWithEventsInboxAndOutbox()
     {
         var instanceId = InstanceIdValue(1);
         var inboxEventId = EventIdValue(20);
@@ -65,10 +81,68 @@ public sealed class SqlServerEventStoreTests : IAsyncLifetime
         var inbox = await RequiredStore().GetAsync(inboxEventId, TestContext.Current.CancellationToken);
         var outbox = await RequiredStore().GetStateAsync(outboxRecordId, TestContext.Current.CancellationToken);
 
-        result.IsFailure.Should().BeTrue();
-        tail.Should().BeEmpty();
-        inbox.HasValue.Should().BeFalse();
-        outbox.HasValue.Should().BeFalse();
+        result.IsSuccess.Should().BeTrue();
+        tail.Should().ContainSingle();
+        inbox.Value.Should().Be(InboxRecordState.Applied);
+        outbox.Value.Should().Be(OutboxRecordState.Pending);
+    }
+
+    [Fact]
+    public async Task AppendAsync_CommittedData_IsLoadedByNewStoreInstance()
+    {
+        var instanceId = InstanceIdValue(4);
+        var inboxEventId = EventIdValue(21);
+        var outboxRecordId = OutboxRecordIdValue(31);
+
+        await RequiredStore().AppendAsync(
+            new ProviderCommitBatch
+            {
+                StreamId = new WorkflowStreamId(instanceId),
+                ExpectedVersion = StreamVersion.Empty,
+                Events = [Started(instanceId)],
+                InboxOperations = [new InboxWrite(inboxEventId, InboxRecordState.Applied)],
+                OutboxRecords = [new OutboxWrite(outboxRecordId, "external-message", [7])],
+                ProjectionOperations =
+                [
+                    new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
+                    {
+                        InstanceSnapshot = Snapshot(instanceId)
+                    }
+                ],
+                TimerSchedules =
+                [
+                    new TimerScheduleRequest
+                    {
+                        TimerId = TimerIdValue(40),
+                        InstanceId = instanceId,
+                        CommandId = CommandIdValue(40),
+                        FireAt = Timestamp(10),
+                        WakeupName = "approval-timeout"
+                    }
+                ]
+            },
+            TestContext.Current.CancellationToken);
+        await using var restarted = new SqlServerWorkflowStore(container.GetConnectionString());
+        await restarted.InitializeAsync(TestContext.Current.CancellationToken);
+
+        var tail = await restarted.LoadTailAsync(
+            new WorkflowStreamId(instanceId),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+        var inbox = await restarted.GetAsync(inboxEventId, TestContext.Current.CancellationToken);
+        var outbox = await restarted.GetStateAsync(outboxRecordId, TestContext.Current.CancellationToken);
+        var projections = await restarted.ListAsync(
+            new WorkflowProjectionQuery { InstanceId = instanceId },
+            TestContext.Current.CancellationToken);
+        var timers = await restarted.ClaimDueAsync(Timestamp(10), 10, TestContext.Current.CancellationToken);
+
+        tail.Should().ContainSingle();
+        inbox.Value.Should().Be(InboxRecordState.Applied);
+        outbox.Value.Should().Be(OutboxRecordState.Pending);
+        projections.Should().ContainSingle()
+            .Which.InstanceId.Should().Be(instanceId);
+        timers.Should().ContainSingle()
+            .Which.InstanceId.Should().Be(instanceId);
     }
 
     private SqlServerWorkflowStore RequiredStore()
@@ -136,6 +210,11 @@ public sealed class SqlServerEventStoreTests : IAsyncLifetime
     private static OutboxRecordId OutboxRecordIdValue(int value)
     {
         return new OutboxRecordId(GuidValue(value));
+    }
+
+    private static TimerId TimerIdValue(int value)
+    {
+        return new TimerId(GuidValue(value));
     }
 
     private static Guid GuidValue(int value)

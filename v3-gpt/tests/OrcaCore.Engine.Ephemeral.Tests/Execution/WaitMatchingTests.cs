@@ -143,6 +143,52 @@ public sealed class WaitMatchingTests
         state.Values.Should().HaveCount(1);
     }
 
+    [Fact]
+    public async Task RaiseEventAsync_ThreeSequentialWaits_CompleteInOrder()
+    {
+        var state = new TestState();
+        var engine = new EphemeralWorkflowEngine();
+        var definition = Definition(new WorkflowBuilder<TestState>()
+            .Init<string>(_ => state)
+            .Wait("A", _ => Correlation)
+            .Then(() => new IncrementStep())
+            .Wait("B", _ => Correlation)
+            .Then(() => new IncrementStep())
+            .Wait("C", _ => Correlation)
+            .Then(() => new IncrementStep())
+            .End());
+        engine.RegisterDefinition(definition);
+        var waiting = await engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "start",
+            TestContext.Current.CancellationToken);
+
+        var afterA = await engine.RaiseEventAsync<TestState>(
+            waiting.InstanceId,
+            Event("A", Correlation, "a"),
+            TestContext.Current.CancellationToken);
+        afterA.Status.Should().Be(WorkflowStatus.Waiting);
+        afterA.ActiveWaits.Should().ContainSingle().Which.EventName.Should().Be("B");
+        state.Count.Should().Be(1);
+
+        var afterB = await engine.RaiseEventAsync<TestState>(
+            waiting.InstanceId,
+            Event("B", Correlation, "b"),
+            TestContext.Current.CancellationToken);
+        afterB.Status.Should().Be(WorkflowStatus.Waiting);
+        afterB.ActiveWaits.Should().ContainSingle().Which.EventName.Should().Be("C");
+        state.Count.Should().Be(2);
+
+        var completed = await engine.RaiseEventAsync<TestState>(
+            waiting.InstanceId,
+            Event("C", Correlation, "c"),
+            TestContext.Current.CancellationToken);
+
+        completed.Status.Should().Be(WorkflowStatus.Completed);
+        completed.ActiveWaits.Should().BeEmpty();
+        state.Count.Should().Be(3);
+    }
+
     private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> WaitingDefinition(TestState state)
     {
         return Definition(new WorkflowBuilder<TestState>()
@@ -175,6 +221,8 @@ public sealed class WaitMatchingTests
         public List<string> Values { get; } = [];
 
         public bool SecondStepSawResumedEvent { get; set; }
+
+        public int Count { get; set; }
     }
 
     private sealed class WaitResultStep : IStep<TestState>
@@ -210,6 +258,17 @@ public sealed class WaitMatchingTests
             CancellationToken cancellationToken)
         {
             context.State.SecondStepSawResumedEvent = context.ResumedEvent is not null;
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed class IncrementStep : IStep<TestState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<TestState> context,
+            CancellationToken cancellationToken)
+        {
+            context.State.Count++;
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
         }
     }

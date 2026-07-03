@@ -35,6 +35,13 @@ release automation are deferred until the owner reopens packaging.
   stores. Do not bake credentials into workflow definitions or serialized payloads.
 - Destructive retention commands must preserve active instances and in-flight dispatch
   safety.
+- Durable management `Terminate` and `Purge` require explicit destructive safety
+  confirmation in the library API. Host applications must still authenticate and authorize
+  the operator before passing that confirmation.
+- Redis projection storage is a trusted persistence boundary. Use Redis ACLs, network
+  isolation, and tenant-separated keyspaces; the provider stores projection blobs with a
+  versioned checksum envelope and ignores malformed or tampered values, but Redis writers
+  are still part of the trusted host deployment.
 
 ## Versioning Policy
 
@@ -76,7 +83,12 @@ OrcaCore service registration:
 
 - `AddOrcaCore()` for engines and in-memory provider defaults.
 - `AddOrcaCoreHostedServices()` for the outbox pump, timer, and operational sweep service
-  registrations.
+  registrations. These services execute the durable outbox pump, due-timer claiming, and
+  resource-pool expiry sweeps on configurable intervals.
+- Provider packages own provider-specific registrations:
+  `OrcaCore.Providers.PostgreSql.AddOrcaCorePostgreSql(...)`,
+  `OrcaCore.Providers.Redis.AddOrcaCoreRedisProjectionCache(...)`, and
+  `OrcaCore.Providers.RabbitMq.AddOrcaCoreRabbitMq(...)`.
 
 The sample intentionally uses in-memory providers so it can build and smoke-test without
 external infrastructure.

@@ -1,27 +1,33 @@
-using System.Threading.Channels;
+using System.Diagnostics;
+using OrcaCore.Abstractions.Diagnostics;
 using OrcaCore.Abstractions.Providers;
 
 namespace OrcaCore.Engine.Durable.Outbox;
 
-internal sealed class DurableOutboxPump(
+/// <summary>
+/// Claims committed durable outbox records and dispatches them through the configured dispatcher.
+/// </summary>
+public sealed class DurableOutboxPump(
     IWorkflowOutboxStore outboxStore,
     IMessageDispatcher dispatcher)
 {
-    internal async Task<int> PumpOnceAsync(int maxCount, CancellationToken cancellationToken)
+    /// <summary>
+    /// Claims and dispatches at most <paramref name="maxCount"/> outbox records.
+    /// </summary>
+    public async Task<int> PumpOnceAsync(int maxCount, CancellationToken cancellationToken)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxCount);
+
+        using var activity = OrcaCoreDiagnostics.ActivitySource.StartActivity("OrcaCore.Outbox.PumpOnce");
+        activity?.SetTag("orcacore.outbox.max_count", maxCount);
+
         var records = await outboxStore
             .ClaimAsync(maxCount, cancellationToken)
             .ConfigureAwait(false);
-        var channel = Channel.CreateUnbounded<OutboxWrite>();
-        foreach (var record in records)
-        {
-            await channel.Writer.WriteAsync(record, cancellationToken).ConfigureAwait(false);
-        }
-
-        channel.Writer.Complete();
+        activity?.SetTag("orcacore.outbox.claimed_count", records.Count);
 
         var dispatched = 0;
-        await foreach (var record in channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        foreach (var record in records)
         {
             var result = await dispatcher.DispatchAsync(record, cancellationToken).ConfigureAwait(false);
             await outboxStore
@@ -30,6 +36,7 @@ internal sealed class DurableOutboxPump(
             dispatched++;
         }
 
+        activity?.SetTag("orcacore.outbox.dispatched_count", dispatched);
         return dispatched;
     }
 
@@ -40,7 +47,7 @@ internal sealed class DurableOutboxPump(
             DispatchResult.Success => OutboxRecordState.Dispatched,
             DispatchResult.RetryableFailure => OutboxRecordState.Retryable,
             DispatchResult.PermanentFailure => OutboxRecordState.Poisoned,
-            _ => throw new InvalidOperationException($"Unknown dispatch result '{result}'.")
+            _ => throw new UnreachableException()
         };
     }
 }

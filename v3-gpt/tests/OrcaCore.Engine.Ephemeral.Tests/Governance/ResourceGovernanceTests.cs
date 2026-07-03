@@ -35,12 +35,11 @@ public sealed class ResourceGovernanceTests
             "second",
             TestContext.Current.CancellationToken);
 
-        var secondEnteredBeforeRelease = await gate.WaitForEnteredCountAsync(
-            2,
-            TimeSpan.FromMilliseconds(75),
-            TestContext.Current.CancellationToken);
+        var secondEntry = gate.WaitForEnteredCountAsync(2, TestContext.Current.CancellationToken);
+        await Task.Yield();
+        var secondEnteredBeforeRelease = secondEntry.IsCompleted;
         gate.ReleaseOne();
-        await gate.WaitForEnteredCountAsync(2, TestContext.Current.CancellationToken);
+        await secondEntry;
         gate.ReleaseOne();
         var snapshots = await Task.WhenAll(first, second).WaitAsync(TestContext.Current.CancellationToken);
 
@@ -74,12 +73,11 @@ public sealed class ResourceGovernanceTests
             "second",
             TestContext.Current.CancellationToken);
 
-        var secondEnteredBeforeRelease = await gate.WaitForEnteredCountAsync(
-            2,
-            TimeSpan.FromMilliseconds(75),
-            TestContext.Current.CancellationToken);
+        var secondEntry = gate.WaitForEnteredCountAsync(2, TestContext.Current.CancellationToken);
+        await Task.Yield();
+        var secondEnteredBeforeRelease = secondEntry.IsCompleted;
         gate.ReleaseOne();
-        await gate.WaitForEnteredCountAsync(2, TestContext.Current.CancellationToken);
+        await secondEntry;
         gate.ReleaseOne();
         await Task.WhenAll(first, second).WaitAsync(TestContext.Current.CancellationToken);
 
@@ -119,10 +117,8 @@ public sealed class ResourceGovernanceTests
             Event(EventId.New()),
             TestContext.Current.CancellationToken);
 
-        var secondCompletedBeforeRelease = await CompletesWithinAsync(
-            second,
-            TimeSpan.FromMilliseconds(75),
-            TestContext.Current.CancellationToken);
+        await Task.Yield();
+        var secondCompletedBeforeRelease = second.IsCompleted;
         gate.ReleaseOne();
         await first.WaitAsync(TestContext.Current.CancellationToken);
         await second.WaitAsync(TestContext.Current.CancellationToken);
@@ -161,15 +157,6 @@ public sealed class ResourceGovernanceTests
         };
     }
 
-    private static async Task<bool> CompletesWithinAsync(
-        Task task,
-        TimeSpan timeout,
-        CancellationToken cancellationToken)
-    {
-        var winner = await Task.WhenAny(task, Task.Delay(timeout, cancellationToken)).ConfigureAwait(false);
-        return ReferenceEquals(winner, task);
-    }
-
     private sealed record TestState(StepGate Gate);
 
     private sealed class BlockingStep : IStep<TestState>
@@ -185,7 +172,9 @@ public sealed class ResourceGovernanceTests
 
     private sealed class StepGate
     {
+        private readonly object gate = new();
         private readonly Queue<TaskCompletionSource> releases = [];
+        private readonly Dictionary<int, TaskCompletionSource> enteredWaiters = [];
         private int activeCount;
         private int enteredCount;
 
@@ -196,14 +185,23 @@ public sealed class ResourceGovernanceTests
         internal Task EnterAndWaitAsync(CancellationToken cancellationToken)
         {
             TaskCompletionSource release;
-            lock (releases)
+            TaskCompletionSource[] completedWaiters;
+            lock (gate)
             {
                 enteredCount++;
                 activeCount++;
                 MaxObservedConcurrent = Math.Max(MaxObservedConcurrent, activeCount);
                 release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                 releases.Enqueue(release);
-                Monitor.PulseAll(releases);
+                completedWaiters = enteredWaiters
+                    .Where(waiter => enteredCount >= waiter.Key)
+                    .Select(waiter => waiter.Value)
+                    .ToArray();
+            }
+
+            foreach (var waiter in completedWaiters)
+            {
+                waiter.TrySetResult();
             }
 
             return WaitForReleaseAsync(release, cancellationToken);
@@ -212,7 +210,7 @@ public sealed class ResourceGovernanceTests
         internal void ReleaseOne()
         {
             TaskCompletionSource release;
-            lock (releases)
+            lock (gate)
             {
                 release = releases.Dequeue();
                 activeCount--;
@@ -223,37 +221,22 @@ public sealed class ResourceGovernanceTests
 
         internal async Task WaitForEnteredCountAsync(int count, CancellationToken cancellationToken)
         {
-            while (true)
+            TaskCompletionSource waiter;
+            lock (gate)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                lock (releases)
+                if (enteredCount >= count)
                 {
-                    if (enteredCount >= count)
-                    {
-                        return;
-                    }
+                    return;
                 }
 
-                await Task.Delay(10, cancellationToken).ConfigureAwait(false);
+                if (!enteredWaiters.TryGetValue(count, out waiter!))
+                {
+                    waiter = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                    enteredWaiters.Add(count, waiter);
+                }
             }
-        }
 
-        internal async Task<bool> WaitForEnteredCountAsync(
-            int count,
-            TimeSpan timeout,
-            CancellationToken cancellationToken)
-        {
-            using var timeoutCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutCancellation.CancelAfter(timeout);
-            try
-            {
-                await WaitForEnteredCountAsync(count, timeoutCancellation.Token).ConfigureAwait(false);
-                return true;
-            }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-            {
-                return false;
-            }
+            await waiter.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
 
         private async Task WaitForReleaseAsync(

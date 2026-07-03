@@ -1,21 +1,35 @@
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
+using OrcaCore.Engine.Durable.Outbox;
 
 namespace OrcaCore.Hosting.Services;
 
 /// <summary>
 /// Hosts durable outbox pumping for applications that opt in.
 /// </summary>
-public sealed class OrcaCoreOutboxPumpHostedService : IHostedService
+public sealed class OrcaCoreOutboxPumpHostedService(
+    DurableOutboxPump pump,
+    IOptions<OrcaCoreHostedServiceOptions> options,
+    TimeProvider timeProvider) : BackgroundService
 {
     /// <inheritdoc />
-    public Task StartAsync(CancellationToken cancellationToken)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        return Task.CompletedTask;
+        var value = options.Value;
+        value.Validate();
+
+        await RunOnceAsync(value, stoppingToken).ConfigureAwait(false);
+        using var timer = new PeriodicTimer(value.OutboxPumpInterval, timeProvider);
+        while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false))
+        {
+            await RunOnceAsync(value, stoppingToken).ConfigureAwait(false);
+        }
     }
 
-    /// <inheritdoc />
-    public Task StopAsync(CancellationToken cancellationToken)
+    private Task RunOnceAsync(
+        OrcaCoreHostedServiceOptions value,
+        CancellationToken stoppingToken)
     {
-        return Task.CompletedTask;
+        return pump.PumpOnceAsync(value.OutboxPumpBatchSize, stoppingToken);
     }
 }

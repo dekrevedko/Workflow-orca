@@ -75,6 +75,41 @@ public abstract class RetentionCertificationTests
         tail.Should().NotBeEmpty();
     }
 
+    [Fact]
+    [Trait("AC", "AC-314")]
+    public async Task PurgePolicy_RemovesDurableTimersForPurgedInstance()
+    {
+        var fixture = CreateFixture();
+        var instanceId = InstanceIdValue(3);
+        await SeedInstanceAsync(fixture, instanceId, WorkflowStatus.Completed);
+        await fixture.TimerScheduler.ScheduleAsync(
+            new TimerScheduleRequest
+            {
+                TimerId = TimerIdValue(1),
+                InstanceId = instanceId,
+                CommandId = CommandIdValue(3),
+                FireAt = Timestamp(5),
+                WakeupName = "retention-timeout"
+            },
+            TestContext.Current.CancellationToken);
+
+        var result = await fixture.RetentionStore.PurgeAsync(
+            new RetentionPolicy
+            {
+                InstanceId = instanceId,
+                RequestedAt = Timestamp(6),
+                Reason = "retention elapsed"
+            },
+            TestContext.Current.CancellationToken);
+        var claimed = await fixture.TimerScheduler.ClaimDueAsync(
+            Timestamp(6),
+            maxCount: 10,
+            TestContext.Current.CancellationToken);
+
+        result.Purged.Should().BeTrue();
+        claimed.Should().BeEmpty();
+    }
+
     private static async Task SeedInstanceAsync(
         IRetentionCertificationFixture fixture,
         InstanceId instanceId,
@@ -161,6 +196,11 @@ public abstract class RetentionCertificationTests
         return new OutboxRecordId(GuidValue(value));
     }
 
+    private static TimerId TimerIdValue(int value)
+    {
+        return new TimerId(GuidValue(value));
+    }
+
     private static Guid GuidValue(int value)
     {
         return Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}");
@@ -176,6 +216,8 @@ public interface IRetentionCertificationFixture
     IWorkflowProjectionStore ProjectionStore { get; }
 
     IWorkflowRetentionStore RetentionStore { get; }
+
+    ITimerScheduler TimerScheduler { get; }
 }
 
 public sealed class InMemoryRetentionCertificationTests : RetentionCertificationTests
@@ -195,5 +237,7 @@ public sealed class InMemoryRetentionCertificationTests : RetentionCertification
         public IWorkflowProjectionStore ProjectionStore => provider;
 
         public IWorkflowRetentionStore RetentionStore => provider;
+
+        public ITimerScheduler TimerScheduler => provider;
     }
 }

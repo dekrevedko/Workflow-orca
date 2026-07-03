@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Providers.RabbitMq;
@@ -41,6 +42,22 @@ public sealed class RabbitMqMessageDispatcherTests
         result.Should().Be(DispatchResult.PermanentFailure);
     }
 
+    [Fact]
+    public void AddOrcaCoreRabbitMq_RegistersDispatcherFromProviderPackage()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IMessageDispatcher>(new StubDispatcher());
+
+        services.AddOrcaCoreRabbitMq(new RabbitMqMessageDispatcherOptions
+        {
+            ConnectionString = "amqp://guest:guest@localhost:5672/",
+            ExchangeName = "orca"
+        });
+
+        using var provider = services.BuildServiceProvider();
+        provider.GetRequiredService<IMessageDispatcher>().Should().BeOfType<RabbitMqMessageDispatcher>();
+    }
+
     private static OutboxWrite Record()
     {
         return new OutboxWrite(
@@ -56,6 +73,14 @@ public sealed class RabbitMqMessageDispatcherTests
             CancellationToken cancellationToken)
         {
             return Task.FromResult(outcome);
+        }
+    }
+
+    private sealed class StubDispatcher : IMessageDispatcher
+    {
+        public Task<DispatchResult> DispatchAsync(OutboxWrite record, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
         }
     }
 }

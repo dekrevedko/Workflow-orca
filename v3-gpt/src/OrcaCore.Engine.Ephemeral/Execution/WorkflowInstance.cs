@@ -12,6 +12,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     private readonly List<RuntimeWaitRecord> activeWaits = [];
     private readonly HashSet<EventId> consumedEventIds = [];
     private readonly HashSet<WaitSignature> consumedWaits = [];
+    private readonly HashSet<WaitSignature> timedOutWaits = [];
     private readonly List<CompositionBranchOutcomeSnapshot> compositionOutcomes = [];
     private readonly List<ForEachGroupRecord> forEachGroups = [];
     private readonly List<LifecycleEventSnapshot> lifecycleEvents = [];
@@ -111,13 +112,18 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
             return ToSnapshot();
         }
 
-        if (HasConsumedWait(envelope))
+        if (HasTimedOutWait(envelope))
         {
             return ToSnapshot();
         }
 
         if (LifecycleMachine.TerminalStatuses.Contains(Status))
         {
+            if (HasConsumedWait(envelope))
+            {
+                return ToSnapshot();
+            }
+
             throw new WorkflowLifecycleException(
                 $"Cannot raise event for workflow instance '{InstanceId}' because status '{Status}' is terminal.");
         }
@@ -132,6 +138,11 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         var wait = matchingWaits.FirstOrDefault();
         if (wait is null)
         {
+            if (HasConsumedWait(envelope))
+            {
+                return ToSnapshot();
+            }
+
             pendingEvents.Add(envelope);
             return ToSnapshot();
         }
@@ -226,6 +237,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
         wait.MarkMatched();
         consumedWaits.Add(new WaitSignature(wait.EventName, wait.CorrelationId, wait.BranchId));
+        timedOutWaits.Add(new WaitSignature(wait.EventName, wait.CorrelationId, wait.BranchId));
         pendingEvents.RemoveAll(candidate => WaitSignature.From(candidate) == new WaitSignature(wait.EventName, wait.CorrelationId, wait.BranchId));
         FireOrThrow(LifecycleTrigger.MatchWait);
         Status = WorkflowStatus.Running;
@@ -702,6 +714,16 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         var signature = WaitSignature.From(envelope);
         return consumedWaits.Contains(signature) ||
             (string.IsNullOrWhiteSpace(envelope.BranchId) && consumedWaits.Any(wait =>
+                string.Equals(wait.EventName, envelope.EventName, StringComparison.Ordinal) &&
+                wait.CorrelationId == envelope.CorrelationId &&
+                wait.BranchId is null));
+    }
+
+    private bool HasTimedOutWait(EventEnvelope envelope)
+    {
+        var signature = WaitSignature.From(envelope);
+        return timedOutWaits.Contains(signature) ||
+            (string.IsNullOrWhiteSpace(envelope.BranchId) && timedOutWaits.Any(wait =>
                 string.Equals(wait.EventName, envelope.EventName, StringComparison.Ordinal) &&
                 wait.CorrelationId == envelope.CorrelationId &&
                 wait.BranchId is null));

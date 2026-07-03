@@ -6,7 +6,7 @@ using Xunit;
 
 namespace OrcaCore.Providers.SqlServer.Tests;
 
-public sealed class SqlServerProviderCertificationTests : EventStoreCertificationTests, IAsyncLifetime
+public sealed class SqlServerProviderCertificationTests : ContinueAsNewCertificationTests, IAsyncLifetime
 {
     private readonly MsSqlContainer container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
         .WithPassword("OrcaCore!123")

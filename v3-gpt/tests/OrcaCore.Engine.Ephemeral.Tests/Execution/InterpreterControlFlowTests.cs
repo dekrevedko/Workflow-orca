@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Steps;
@@ -81,6 +82,28 @@ public sealed class InterpreterControlFlowTests
     }
 
     [Fact]
+    public async Task Run_IfWithEmptyThenBranch_ContinuesAfterBranch()
+    {
+        var state = new TestState { Flag = true };
+        var engine = new EphemeralWorkflowEngine();
+        var definition = Definition(new WorkflowBuilder<TestState>()
+            .Init<string>(_ => state)
+            .If(current => current.Flag, _ => { })
+            .Then(() => new AppendStep("after"))
+            .End());
+
+        engine.RegisterDefinition(definition);
+
+        var snapshot = await engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "start",
+            TestContext.Current.CancellationToken);
+
+        snapshot.Status.Should().Be(WorkflowStatus.Completed);
+        state.Values.Should().Equal(["after"]);
+    }
+
+    [Fact]
     public async Task Run_WhileConditionTrueThenFalse_ReevaluatesConditionEachIteration()
     {
         var state = new TestState();
@@ -106,6 +129,29 @@ public sealed class InterpreterControlFlowTests
 
         state.Iterations.Should().Be(3);
         state.ConditionChecks.Should().Be(4);
+        state.Values.Should().Equal(["after"]);
+    }
+
+    [Fact]
+    public async Task Run_WhileInitiallyFalse_SkipsBodyAndContinuesAfterLoop()
+    {
+        var state = new TestState();
+        var engine = new EphemeralWorkflowEngine();
+        var definition = Definition(new WorkflowBuilder<TestState>()
+            .Init<string>(_ => state)
+            .While(_ => false, body => body.Then(() => new IncrementIterationStep()))
+            .Then(() => new AppendStep("after"))
+            .End());
+
+        engine.RegisterDefinition(definition);
+
+        var snapshot = await engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "start",
+            TestContext.Current.CancellationToken);
+
+        snapshot.Status.Should().Be(WorkflowStatus.Completed);
+        state.Iterations.Should().Be(0);
         state.Values.Should().Equal(["after"]);
     }
 
@@ -136,6 +182,31 @@ public sealed class InterpreterControlFlowTests
 
         state.Values.Should().Equal(["first", "later", "after"]);
         state.Iterations.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Run_ParallelWithOneFailingBranch_FailsWorkflowAndSkipsContinuation()
+    {
+        var state = new TestState();
+        var engine = new EphemeralWorkflowEngine();
+        var definition = Definition(new WorkflowBuilder<TestState>()
+            .Init<string>(_ => state)
+            .Parallel(
+                ("a", branch => branch.Then(() => new AppendStep("a"))),
+                ("b", branch => branch.Then(() => new FailingStep())))
+            .Then(() => new AppendStep("after"))
+            .End());
+
+        engine.RegisterDefinition(definition);
+
+        var snapshot = await engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "start",
+            TestContext.Current.CancellationToken);
+
+        snapshot.Status.Should().Be(WorkflowStatus.Failed);
+        snapshot.ErrorSummary.Should().Contain("boom");
+        state.Values.Should().NotContain("after");
     }
 
     private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> Definition(
@@ -174,6 +245,17 @@ public sealed class InterpreterControlFlowTests
         {
             context.State.Iterations++;
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed class FailingStep : IStep<TestState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<TestState> context,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult<StepResult>(
+                new StepResult.Failed(new WorkflowDefinitionException("boom")));
         }
     }
 }

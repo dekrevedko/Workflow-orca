@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace OrcaCore.Abstractions.Ids;
 
 /// <summary>
 /// Carries first-class request-reply correlation identity across events.
 /// </summary>
+[JsonConverter(typeof(CorrelationIdJsonConverter))]
 public readonly record struct CorrelationId
 {
     /// <summary>

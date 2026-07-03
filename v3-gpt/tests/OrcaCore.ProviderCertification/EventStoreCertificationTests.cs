@@ -87,6 +87,95 @@ public abstract class EventStoreCertificationTests
         claimed.Should().BeEmpty();
     }
 
+    [Fact]
+    [Trait("Scenario", "NEG-PR-003")]
+    [Trait("AC", "PR-010")]
+    public async Task NEG_PR_003_AppendAsync_EmptyBatchIsNoOpAndDoesNotAdvanceStream()
+    {
+        var fixture = CreateFixture();
+        var streamId = new WorkflowStreamId(InstanceId.New());
+
+        var result = await fixture.EventStore.AppendAsync(
+            new ProviderCommitBatch
+            {
+                StreamId = streamId,
+                ExpectedVersion = StreamVersion.Empty
+            },
+            TestContext.Current.CancellationToken);
+        var tail = await fixture.EventStore.LoadTailAsync(
+            streamId,
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.NewVersion.Should().Be(StreamVersion.Empty);
+        tail.Should().BeEmpty();
+    }
+
+    [Fact]
+    [Trait("Scenario", "NEG-PR-006")]
+    [Trait("AC", "DU-032")]
+    public async Task NEG_PR_006_ClaimAsync_WithNoPendingOutboxReturnsEmptyBatch()
+    {
+        var fixture = CreateFixture();
+
+        var claimed = await fixture.OutboxStore.ClaimAsync(10, TestContext.Current.CancellationToken);
+
+        claimed.Should().BeEmpty();
+    }
+
+    [Fact]
+    [Trait("Scenario", "NEG-PR-007")]
+    [Trait("AC", "DU-032")]
+    public async Task NEG_PR_007_MarkAsync_UnknownOutboxRecordDoesNotCreateState()
+    {
+        var fixture = CreateFixture();
+        var outboxRecordId = OutboxRecordId.New();
+
+        await fixture.OutboxStore.MarkAsync(
+            outboxRecordId,
+            OutboxRecordState.Dispatched,
+            TestContext.Current.CancellationToken);
+        var state = await fixture.OutboxStore.GetStateAsync(
+            outboxRecordId,
+            TestContext.Current.CancellationToken);
+
+        state.HasValue.Should().BeFalse();
+    }
+
+    [Fact]
+    [Trait("Scenario", "NEG-PR-008")]
+    [Trait("AC", "DU-032")]
+    public async Task NEG_PR_008_MarkAsync_DispatchedOutboxRecordTwiceIsIdempotent()
+    {
+        var fixture = CreateFixture();
+        var outboxRecordId = OutboxRecordId.New();
+        await fixture.EventStore.AppendAsync(
+            Batch(
+                new WorkflowStreamId(InstanceId.New()),
+                StreamVersion.Empty,
+                outboxRecordId: outboxRecordId),
+            TestContext.Current.CancellationToken);
+
+        var claimed = await fixture.OutboxStore.ClaimAsync(10, TestContext.Current.CancellationToken);
+        await fixture.OutboxStore.MarkAsync(
+            outboxRecordId,
+            OutboxRecordState.Dispatched,
+            TestContext.Current.CancellationToken);
+        await fixture.OutboxStore.MarkAsync(
+            outboxRecordId,
+            OutboxRecordState.Dispatched,
+            TestContext.Current.CancellationToken);
+        var state = await fixture.OutboxStore.GetStateAsync(
+            outboxRecordId,
+            TestContext.Current.CancellationToken);
+        var afterDispatch = await fixture.OutboxStore.ClaimAsync(10, TestContext.Current.CancellationToken);
+
+        claimed.Should().ContainSingle(record => record.OutboxRecordId == outboxRecordId);
+        state.Value.Should().Be(OutboxRecordState.Dispatched);
+        afterDispatch.Should().BeEmpty();
+    }
+
     private static ProviderCommitBatch Batch(
         WorkflowStreamId streamId,
         StreamVersion expectedVersion,

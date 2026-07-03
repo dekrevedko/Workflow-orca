@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using OrcaCore.Abstractions.Errors;
+using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Steps;
@@ -210,6 +212,42 @@ public sealed class WorkflowBuilder<TState>
     }
 
     /// <summary>
+    /// Adds a durable child workflow node.
+    /// </summary>
+    public WorkflowBuilder<TState> RunChild(
+        DefinitionId childDefinitionId,
+        DefinitionVersion childDefinitionVersion,
+        RunChildFailurePolicy failurePolicy = RunChildFailurePolicy.PropagateFailure)
+    {
+        nodes.Add(new RunChildBuilderNode(childDefinitionId, childDefinitionVersion, failurePolicy));
+        return this;
+    }
+
+    /// <summary>
+    /// Adds a durable child workflow fan-out node.
+    /// </summary>
+    public WorkflowBuilder<TState> RunChildren(
+        DefinitionId childDefinitionId,
+        DefinitionVersion childDefinitionVersion,
+        Func<TState, IReadOnlyList<string>>? itemSnapshotSelector,
+        RunChildFailurePolicy failurePolicy = RunChildFailurePolicy.PropagateFailure,
+        int? maxConcurrency = null,
+        RunChildrenJoinPolicy joinPolicy = RunChildrenJoinPolicy.WhenAll,
+        RunChildrenResidualPolicy residualPolicy = RunChildrenResidualPolicy.CancelRemaining)
+    {
+        nodes.Add(new RunChildrenBuilderNode(
+            childDefinitionId,
+            childDefinitionVersion,
+            itemSnapshotSelector,
+            itemSnapshotSelector is null,
+            failurePolicy,
+            maxConcurrency,
+            joinPolicy,
+            residualPolicy));
+        return this;
+    }
+
+    /// <summary>
     /// Adds a wait for an event name and correlation selector.
     /// </summary>
     public WorkflowBuilder<TState> Wait(string eventName, Func<TState, CorrelationId>? correlationSelector)
@@ -349,6 +387,7 @@ public sealed class WorkflowBuilder<TState>
                 case IfBuilderNode { HasNullDelegate: true }:
                 case WhileBuilderNode { HasNullDelegate: true }:
                 case WaitBuilderNode { HasNullDelegate: true }:
+                case RunChildrenBuilderNode { HasNullDelegate: true }:
                     errors.Add(new ValidationError(
                         BuilderValidationCodes.NullDelegate,
                         "A required workflow builder delegate was null.",
@@ -382,6 +421,12 @@ public sealed class WorkflowBuilder<TState>
                     errors.Add(new ValidationError(
                         BuilderValidationCodes.NonPositiveMaxConcurrency,
                         "ForEach max concurrency must be greater than zero.",
+                        nodePath));
+                    break;
+                case RunChildrenBuilderNode { MaxConcurrency: <= 0 }:
+                    errors.Add(new ValidationError(
+                        BuilderValidationCodes.NonPositiveMaxConcurrency,
+                        "RunChildren max concurrency must be greater than zero.",
                         nodePath));
                     break;
             }
@@ -531,7 +576,21 @@ public sealed class WorkflowBuilder<TState>
                     new SequenceNode<TState>(
                         $"{nodeId}/body",
                         BuildNodes(forEachNode.BodyNodes, $"{nodeId}/body"))),
-                _ => throw new InvalidOperationException($"Unknown builder node '{node.GetType().Name}'.")
+                RunChildBuilderNode runChildNode => new RunChildNode<TState>(
+                    nodeId,
+                    runChildNode.ChildDefinitionId,
+                    runChildNode.ChildDefinitionVersion,
+                    runChildNode.FailurePolicy),
+                RunChildrenBuilderNode runChildrenNode => new RunChildrenNode<TState>(
+                    nodeId,
+                    runChildrenNode.ChildDefinitionId,
+                    runChildrenNode.ChildDefinitionVersion,
+                    runChildrenNode.ItemSnapshotSelector!,
+                    runChildrenNode.FailurePolicy,
+                    runChildrenNode.MaxConcurrency,
+                    runChildrenNode.JoinPolicy,
+                    runChildrenNode.ResidualPolicy),
+                _ => throw new UnreachableException()
             };
             index++;
         }
@@ -590,6 +649,21 @@ public sealed class WorkflowBuilder<TState>
     private sealed record WhenFirstBuilderNode(
         WhenFirstResidualPolicy ResidualPolicy,
         IReadOnlyList<ParallelBranchBuilderNode> Branches) : BuilderNode;
+
+    private sealed record RunChildBuilderNode(
+        DefinitionId ChildDefinitionId,
+        DefinitionVersion ChildDefinitionVersion,
+        RunChildFailurePolicy FailurePolicy) : BuilderNode;
+
+    private sealed record RunChildrenBuilderNode(
+        DefinitionId ChildDefinitionId,
+        DefinitionVersion ChildDefinitionVersion,
+        Func<TState, IReadOnlyList<string>>? ItemSnapshotSelector,
+        bool HasNullDelegate,
+        RunChildFailurePolicy FailurePolicy,
+        int? MaxConcurrency,
+        RunChildrenJoinPolicy JoinPolicy,
+        RunChildrenResidualPolicy ResidualPolicy) : BuilderNode;
 
     private interface IForEachBuilderNode
     {

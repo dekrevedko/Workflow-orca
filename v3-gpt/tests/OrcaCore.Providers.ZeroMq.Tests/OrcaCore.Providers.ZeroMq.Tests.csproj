@@ -8,6 +8,7 @@
     <PackageReference Include="AwesomeAssertions" />
     <PackageReference Include="coverlet.collector" PrivateAssets="all" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" PrivateAssets="all" />
+    <PackageReference Include="NetMQ" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
@@ -15,5 +16,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\OrcaCore.Abstractions\OrcaCore.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Providers.ZeroMq\OrcaCore.Providers.ZeroMq.csproj" />
+    <ProjectReference Include="..\OrcaCore.ProviderCertification\OrcaCore.ProviderCertification.csproj" />
   </ItemGroup>
 </Project>

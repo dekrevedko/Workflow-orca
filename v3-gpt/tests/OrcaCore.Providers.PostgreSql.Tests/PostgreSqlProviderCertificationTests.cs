@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using Npgsql;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
@@ -43,6 +44,16 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
     }
 
     [Fact]
+    public async Task InitializeAsync_AppliesRelationalSqlMigrations()
+    {
+        var migrationId = await ScalarAsync<string>(
+            "select migration_id from orcacore_schema_migrations where migration_id = @migration_id;",
+            "001_initial");
+
+        migrationId.Should().Be("001_initial");
+    }
+
+    [Fact]
     [Trait("AC", "AC-305")]
     public async Task PostgreSql_DuplicateEventsBeforeAndAfterRestartDedup()
     {
@@ -84,6 +95,138 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         var claimed = await store.ClaimAsync(10, TestContext.Current.CancellationToken);
 
         claimed.Should().BeEmpty();
+    }
+
+    [Fact]
+    [Trait("AC", "AC-309")]
+    public async Task PostgreSql_ExpectedVersionConflict_ReportsActualVersion()
+    {
+        var store = await CreateStoreAsync();
+        var instanceId = InstanceIdValue(50);
+        await store.AppendAsync(
+            Batch(instanceId, StreamVersion.Empty),
+            TestContext.Current.CancellationToken);
+
+        var conflict = await store.AppendAsync(
+            Batch(instanceId, StreamVersion.Empty),
+            TestContext.Current.CancellationToken);
+
+        conflict.IsFailure.Should().BeTrue();
+        conflict.Error.Message.Should().Contain("actual stream version is '1'");
+    }
+
+    [Fact]
+    [Trait("AC", "EV-050")]
+    public async Task PostgreSql_AppendBatch_CommitsTimerScheduleAtomically()
+    {
+        var store = await CreateStoreAsync();
+        var instanceId = InstanceIdValue(51);
+        var timer = new TimerScheduleRequest
+        {
+            TimerId = TimerIdValue(51),
+            InstanceId = instanceId,
+            CommandId = CommandIdValue(51),
+            FireAt = Timestamp(10),
+            WakeupName = "approval-timeout"
+        };
+
+        await store.AppendAsync(
+            Batch(instanceId, StreamVersion.Empty) with { TimerSchedules = [timer] },
+            TestContext.Current.CancellationToken);
+        var claimed = await store.ClaimDueAsync(Timestamp(10), 10, TestContext.Current.CancellationToken);
+
+        claimed.Should().ContainSingle()
+            .Which.TimerId.Should().Be(timer.TimerId);
+    }
+
+    [Fact]
+    [Trait("AC", "EV-050")]
+    public async Task PostgreSql_AppendBatch_WhenCommitFails_DoesNotLeaveTimerSchedule()
+    {
+        var store = await CreateStoreAsync();
+        var instanceId = InstanceIdValue(52);
+        var timer = new TimerScheduleRequest
+        {
+            TimerId = TimerIdValue(52),
+            InstanceId = instanceId,
+            CommandId = CommandIdValue(52),
+            FireAt = Timestamp(10),
+            WakeupName = "approval-timeout"
+        };
+
+        await store.AppendAsync(
+            Batch(instanceId, new StreamVersion(1)) with { TimerSchedules = [timer] },
+            TestContext.Current.CancellationToken);
+        var claimed = await store.ClaimDueAsync(Timestamp(10), 10, TestContext.Current.CancellationToken);
+
+        claimed.Should().BeEmpty();
+    }
+
+    [Fact]
+    [Trait("AC", "DU-071")]
+    public async Task PostgreSql_AppendHistoryProjection_PersistsHistoryRow()
+    {
+        var store = await CreateStoreAsync();
+        var instanceId = InstanceIdValue(53);
+        await store.ApplyAsync(
+            [
+                new ProjectionWrite(instanceId, ProjectionOperationKind.AppendHistory)
+                {
+                    History = new ProjectionHistoryWrite(GuidValue(53), Timestamp(11), "operator-note", """{"message":"created"}""")
+                }
+            ],
+            TestContext.Current.CancellationToken);
+
+        var count = await ScalarAsync<long>(
+            "select count(*) from orcacore_history_projections where instance_id = @instance_id;",
+            instanceId);
+
+        count.Should().Be(1);
+    }
+
+    [Fact]
+    [Trait("AC", "DU-070")]
+    public async Task PostgreSql_CountAsync_UsesScalarQueryWithoutDeserializingProjectionPayloads()
+    {
+        var store = await CreateStoreAsync();
+        var instanceId = InstanceIdValue(54);
+        await store.ApplyAsync(
+            [new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
+            {
+                InstanceSnapshot = RunningSnapshot(instanceId)
+            }],
+            TestContext.Current.CancellationToken);
+        await ExecuteAsync(
+            """update orcacore_instance_projections set saga_audits = '{"not":"an-array"}'::jsonb where instance_id = @instance_id;""",
+            instanceId);
+
+        var count = await store.CountAsync(
+            new WorkflowProjectionQuery { InstanceId = instanceId },
+            TestContext.Current.CancellationToken);
+
+        count.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task PostgreSql_ClaimDueAsync_DeletesClaimedTimerRows()
+    {
+        var store = await CreateStoreAsync();
+        var request = new TimerScheduleRequest
+        {
+            TimerId = TimerIdValue(55),
+            InstanceId = InstanceIdValue(55),
+            CommandId = CommandIdValue(55),
+            FireAt = Timestamp(10),
+            WakeupName = "approval-timeout"
+        };
+        await store.ScheduleAsync(request, TestContext.Current.CancellationToken);
+
+        await store.ClaimDueAsync(Timestamp(10), 10, TestContext.Current.CancellationToken);
+        var count = await ScalarAsync<long>(
+            "select count(*) from orcacore_timers where timer_id = @instance_id;",
+            new InstanceId(request.TimerId.Value));
+
+        count.Should().Be(0);
     }
 
     [Fact]
@@ -217,6 +360,33 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         var store = new PostgreSqlWorkflowStore(container.GetConnectionString());
         await store.InitializeAsync(TestContext.Current.CancellationToken);
         return store;
+    }
+
+    private async Task<T> ScalarAsync<T>(string sql, InstanceId instanceId)
+    {
+        await using var connection = new NpgsqlConnection(container.GetConnectionString());
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("instance_id", instanceId.Value);
+        return (T)(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken) ?? throw new InvalidOperationException());
+    }
+
+    private async Task<T> ScalarAsync<T>(string sql, string migrationId)
+    {
+        await using var connection = new NpgsqlConnection(container.GetConnectionString());
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("migration_id", migrationId);
+        return (T)(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken) ?? throw new InvalidOperationException());
+    }
+
+    private async Task ExecuteAsync(string sql, InstanceId instanceId)
+    {
+        await using var connection = new NpgsqlConnection(container.GetConnectionString());
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("instance_id", instanceId.Value);
+        await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
     }
 
     private static ProviderCommitBatch Batch(
@@ -373,6 +543,11 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
     private static WaitId WaitIdValue(int value)
     {
         return new WaitId(GuidValue(value));
+    }
+
+    private static TimerId TimerIdValue(int value)
+    {
+        return new TimerId(GuidValue(value));
     }
 
     private sealed class PostgreSqlProviderCertificationFixture(PostgreSqlWorkflowStore store)

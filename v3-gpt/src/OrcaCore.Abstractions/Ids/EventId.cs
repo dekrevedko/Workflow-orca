@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace OrcaCore.Abstractions.Ids;
 
 /// <summary>
 /// Identifies one inbound or runtime event for deduplication.
 /// </summary>
+[JsonConverter(typeof(EventIdJsonConverter))]
 public readonly record struct EventId
 {
     /// <summary>

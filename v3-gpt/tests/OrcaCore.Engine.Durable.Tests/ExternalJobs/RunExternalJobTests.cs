@@ -74,6 +74,44 @@ public sealed class RunExternalJobTests
     }
 
     [Fact]
+    [Trait("Scenario", "NEG-JS-005")]
+    [Trait("AC", "JS-AC-004")]
+    public async Task NEG_JS_005_CompleteExternalJob_WrongCorrelationDoesNotResumeWaitingJob()
+    {
+        var provider = new InMemoryWorkflowProvider();
+        var pools = new InMemoryResourcePoolStore();
+        await pools.UpsertPoolAsync(Pool("db", 1), TestContext.Current.CancellationToken);
+        var processor = new DurableCommandProcessor(provider, pools);
+        await processor.ProcessAsync(Start(1), TestContext.Current.CancellationToken);
+        await processor.ProcessAsync(RunExternalJob(1, "job-1", Requirement("db")), TestContext.Current.CancellationToken);
+        var wrongCompletionEventId = EventIdValue(91);
+
+        var result = await processor.ProcessAsync(
+            CompleteExternalJob(1, "job-2", wrongCompletionEventId, commandValue: 3),
+            TestContext.Current.CancellationToken);
+        var events = await provider.LoadTailAsync(
+            new WorkflowStreamId(InstanceIdValue(1)),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+        var snapshot = (await provider.ListAsync(
+            new WorkflowProjectionQuery { InstanceId = InstanceIdValue(1) },
+            TestContext.Current.CancellationToken)).Should().ContainSingle().Subject;
+        var pool = await pools.GetPoolAsync("db", TestContext.Current.CancellationToken);
+        var inbox = await provider.GetAsync(wrongCompletionEventId, TestContext.Current.CancellationToken);
+
+        result.Outcome.Should().Be(DurableCommandOutcome.Poisoned);
+        inbox.Value.Should().Be(InboxRecordState.Poisoned);
+        events.OfType<WorkflowExternalJobCompletedEvent>().Should().BeEmpty();
+        events.OfType<WorkflowWaitMatchedEvent>().Should().BeEmpty();
+        snapshot.Status.Should().Be(WorkflowStatus.Waiting);
+        snapshot.ActiveWaits.Should().ContainSingle(wait =>
+            wait.EventName == "ExternalJobCompleted" &&
+            wait.CorrelationId == new CorrelationId("job-1"));
+        pool.Value.HeldTickets.Should().ContainSingle()
+            .Which.HolderKey.Should().Be("job-1");
+    }
+
+    [Fact]
     [Trait("AC", "JS-AC-006")]
     [Trait("AC", "JS-AC-011")]
     public async Task TimeoutExternalJob_WhenTimerWins_DispatchesStopCommandAndReleasesTickets()

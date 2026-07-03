@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using System.Text.Json;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
@@ -29,7 +30,7 @@ public sealed class ChildResidualPolicyTests
 
     [Fact]
     [Trait("AC", "AC-613")]
-    public async Task UnifiedOutbox_CarriesChildStartAndExternalRecords()
+    public async Task UnifiedOutbox_CarriesChildStartAndTypedChildCancelRecords()
     {
         var parentId = InstanceIdValue(10);
         var store = await SeedWhenAnyAsync(parentId);
@@ -39,7 +40,11 @@ public sealed class ChildResidualPolicyTests
             .ProcessAsync(ChildCompleted(parentId, scheduled.Children[0].ChildInstanceId), TestContext.Current.CancellationToken);
         var outbox = await store.ClaimAsync(10, TestContext.Current.CancellationToken);
 
-        outbox.Select(record => record.Kind).Should().Contain(["child-start", "external-message"]);
+        outbox.Select(record => record.Kind).Should().Contain("child-start");
+        var cancels = outbox.Where(record => record.Kind == "child-cancel").ToArray();
+        cancels.Should().HaveCount(2);
+        cancels.Select(record => JsonSerializer.Deserialize<CancelWorkflowCommand>(record.Payload)!.InstanceId)
+            .Should().BeEquivalentTo(scheduled.Children.Skip(1).Select(child => child.ChildInstanceId));
     }
 
     private static async Task<InMemoryWorkflowProvider> SeedWhenAnyAsync(InstanceId parentId)

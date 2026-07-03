@@ -22,10 +22,10 @@ public sealed class DagAcceptanceTests
         var processor = new DurableCommandProcessor(store);
         await processor.ProcessAsync(Start(parentId), TestContext.Current.CancellationToken);
 
-        await processor.ProcessAsync(ToCommand(parentId, CommandIdValue(2), Timestamp(2), plan.CreateChildBatch(plan.GetRunnableNodes([], []))), TestContext.Current.CancellationToken);
-        await processor.ProcessAsync(ToCommand(parentId, CommandIdValue(3), Timestamp(3), plan.CreateChildBatch(plan.GetRunnableNodes(["A"], []))), TestContext.Current.CancellationToken);
+        await ProcessBatchesAsync(processor, parentId, 2, Timestamp(2), plan.CreateChildBatches(plan.GetRunnableNodes([], [])));
+        await ProcessBatchesAsync(processor, parentId, 3, Timestamp(3), plan.CreateChildBatches(plan.GetRunnableNodes(["A"], [])));
         plan.GetRunnableNodes(["A", "C"], []).Select(node => node.NodeId).Should().NotContain("D");
-        await processor.ProcessAsync(ToCommand(parentId, CommandIdValue(4), Timestamp(4), plan.CreateChildBatch(plan.GetRunnableNodes(["A", "C", "B"], []))), TestContext.Current.CancellationToken);
+        await ProcessBatchesAsync(processor, parentId, 5, Timestamp(4), plan.CreateChildBatches(plan.GetRunnableNodes(["A", "C", "B"], [])));
 
         var scheduled = (await store.LoadTailAsync(new WorkflowStreamId(parentId), StreamVersion.Empty, TestContext.Current.CancellationToken))
             .OfType<WorkflowChildrenScheduledEvent>()
@@ -94,6 +94,21 @@ public sealed class DagAcceptanceTests
             batch.ItemSnapshots,
             batch.FailurePolicy,
             batch.MaxConcurrency);
+    }
+
+    private static async Task ProcessBatchesAsync(
+        DurableCommandProcessor processor,
+        InstanceId parentInstanceId,
+        int commandStart,
+        DateTimeOffset requestedAt,
+        IReadOnlyList<WorkflowDagChildBatch> batches)
+    {
+        for (var index = 0; index < batches.Count; index++)
+        {
+            await processor.ProcessAsync(
+                ToCommand(parentInstanceId, CommandIdValue(commandStart + index), requestedAt, batches[index]),
+                TestContext.Current.CancellationToken);
+        }
     }
 
     private static DateTimeOffset Timestamp(int minutes)

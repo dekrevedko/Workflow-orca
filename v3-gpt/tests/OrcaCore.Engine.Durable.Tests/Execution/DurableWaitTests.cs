@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Durable;
+using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Building;
@@ -127,6 +128,34 @@ public sealed class DurableWaitTests
     }
 
     [Fact]
+    [Trait("AC", "AC-110")]
+    public async Task BranchScopedWaits_RequireMatchingBranchId()
+    {
+        var instanceId = InstanceIdValue(1);
+        var store = new InMemoryWorkflowProvider();
+        var processor = new DurableCommandProcessor(store);
+        await processor.ProcessAsync(StartCommand(instanceId), TestContext.Current.CancellationToken);
+        await processor.ProcessAsync(
+            WaitRegisteredCommand(instanceId, WaitIdValue(1), 2, WaitMode.Resident, "0:a"),
+            TestContext.Current.CancellationToken);
+        await processor.ProcessAsync(
+            WaitRegisteredCommand(instanceId, WaitIdValue(2), 3, WaitMode.Resident, "1:b"),
+            TestContext.Current.CancellationToken);
+
+        await processor.ProcessAsync(Deliver(instanceId, 4, null), TestContext.Current.CancellationToken);
+        await processor.ProcessAsync(Deliver(instanceId, 5, "0:a"), TestContext.Current.CancellationToken);
+        var events = await store.LoadTailAsync(
+            new WorkflowStreamId(instanceId),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+
+        events.OfType<WorkflowDeliveryBufferedEvent>().Should().ContainSingle()
+            .Which.BranchId.Should().BeNull();
+        events.OfType<WorkflowWaitMatchedEvent>().Should().ContainSingle()
+            .Which.WaitId.Should().Be(WaitIdValue(1));
+    }
+
+    [Fact]
     public void EphemeralBuilder_DoesNotExposeWaitLong()
     {
         typeof(WorkflowBuilder<TestState>).GetMethods()
@@ -149,7 +178,8 @@ public sealed class DurableWaitTests
         InstanceId instanceId,
         WaitId waitId,
         int commandValue,
-        WaitMode waitMode)
+        WaitMode waitMode,
+        string? branchId = null)
     {
         return new DurableWaitRegisteredCommand(
             CommandIdValue(commandValue),
@@ -158,7 +188,26 @@ public sealed class DurableWaitTests
             waitId,
             "Approved",
             new CorrelationId("order-1"),
-            waitMode);
+            waitMode,
+            branchId);
+    }
+
+    private static DeliverEventCommand Deliver(InstanceId instanceId, int commandValue, string? branchId)
+    {
+        return new DeliverEventCommand
+        {
+            CommandId = CommandIdValue(commandValue),
+            InstanceId = instanceId,
+            RequestedAt = Timestamp(commandValue),
+            Envelope = new EventEnvelope
+            {
+                EventId = EventIdValue(commandValue + 100),
+                EventName = "Approved",
+                CorrelationId = new CorrelationId("order-1"),
+                BranchId = branchId,
+                OccurredAt = Timestamp(commandValue)
+            }
+        };
     }
 
     private static DurableWaitMatchedCommand WaitMatchedCommand(

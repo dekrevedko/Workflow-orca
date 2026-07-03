@@ -16,7 +16,7 @@ internal sealed class EphemeralTimerService(TimeProvider timeProvider)
         ArgumentNullException.ThrowIfNull(fireAsync);
 
         var scheduledTimer = new ScheduledTimer(
-            Guid.NewGuid(),
+            Guid.CreateVersion7(),
             instanceId,
             timeProvider.GetUtcNow().Add(delay),
             fireAsync);

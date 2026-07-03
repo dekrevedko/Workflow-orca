@@ -12,6 +12,5 @@
     <ProjectReference Include="..\OrcaCore.Engine.Ephemeral\OrcaCore.Engine.Ephemeral.csproj" />
     <ProjectReference Include="..\OrcaCore.Engine.Durable\OrcaCore.Engine.Durable.csproj" />
     <ProjectReference Include="..\OrcaCore.Providers.InMemory\OrcaCore.Providers.InMemory.csproj" />
-    <ProjectReference Include="..\OrcaCore.Providers.RabbitMq\OrcaCore.Providers.RabbitMq.csproj" />
   </ItemGroup>
 </Project>

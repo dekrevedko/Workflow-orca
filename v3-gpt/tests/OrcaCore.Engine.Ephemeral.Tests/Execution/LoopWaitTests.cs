@@ -104,6 +104,49 @@ public sealed class LoopWaitTests
         state.Payloads.Should().Equal(["first", "second"]);
     }
 
+    [Fact]
+    public async Task RaiseEventAsync_WaitInsideWhile_DoesNotReExecuteStepsBeforeWaitOnResume()
+    {
+        var state = new TestState();
+        var engine = new EphemeralWorkflowEngine();
+        var definition = NoDoubleExecutionDefinition(state);
+        engine.RegisterDefinition(definition);
+
+        var firstWait = await engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "start",
+            TestContext.Current.CancellationToken);
+        var firstWaitId = engine.Management.Instance(firstWait.InstanceId)
+            .GetActiveWaits()
+            .Should().ContainSingle().Which.WaitId;
+
+        state.PreWaitCount.Should().Be(1);
+        state.PostWaitCount.Should().Be(0);
+
+        var secondWait = await engine.RaiseEventAsync<TestState>(
+            firstWait.InstanceId,
+            Event("Approval", new CorrelationId("corr-1"), "first"),
+            TestContext.Current.CancellationToken);
+        var secondWaitId = engine.Management.Instance(firstWait.InstanceId)
+            .GetActiveWaits()
+            .Should().ContainSingle().Which.WaitId;
+
+        secondWait.Status.Should().Be(WorkflowStatus.Waiting);
+        secondWaitId.Should().NotBe(firstWaitId);
+        state.PreWaitCount.Should().Be(2);
+        state.PostWaitCount.Should().Be(1);
+
+        var completed = await engine.RaiseEventAsync<TestState>(
+            firstWait.InstanceId,
+            Event("Approval", new CorrelationId("corr-1"), "second"),
+            TestContext.Current.CancellationToken);
+
+        completed.Status.Should().Be(WorkflowStatus.Completed);
+        engine.Management.Instance(firstWait.InstanceId).GetActiveWaits().Should().BeEmpty();
+        state.PreWaitCount.Should().Be(2);
+        state.PostWaitCount.Should().Be(2);
+    }
+
     private static Task<WorkflowInstanceSnapshot> StartAsync(
         EphemeralWorkflowEngine engine,
         OrcaCore.Core.Definitions.WorkflowDefinition<TestState> definition)
@@ -123,6 +166,20 @@ public sealed class LoopWaitTests
                 body => body
                     .Wait("Tick", current => IterationCorrelation(current.Iteration))
                     .Then(() => new CaptureAndIncrementStep()))
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+    }
+
+    private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> NoDoubleExecutionDefinition(TestState state)
+    {
+        return new WorkflowBuilder<TestState>()
+            .Init<string>(_ => state)
+            .While(
+                current => current.PostWaitCount < 2,
+                body => body
+                    .Then(() => new CountPreWaitStep())
+                    .Wait("Approval", _ => new CorrelationId("corr-1"))
+                    .Then(() => new CountPostWaitStep()))
             .End()
             .Build(DefinitionId.New(), DefinitionVersion.Initial);
     }
@@ -149,6 +206,10 @@ public sealed class LoopWaitTests
         public int Iteration { get; set; }
 
         public List<string> Payloads { get; } = [];
+
+        public int PreWaitCount { get; set; }
+
+        public int PostWaitCount { get; set; }
     }
 
     private sealed class CaptureAndIncrementStep : IStep<TestState>
@@ -163,6 +224,28 @@ public sealed class LoopWaitTests
             }
 
             context.State.Iteration++;
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed class CountPreWaitStep : IStep<TestState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<TestState> context,
+            CancellationToken cancellationToken)
+        {
+            context.State.PreWaitCount++;
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed class CountPostWaitStep : IStep<TestState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<TestState> context,
+            CancellationToken cancellationToken)
+        {
+            context.State.PostWaitCount++;
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
         }
     }

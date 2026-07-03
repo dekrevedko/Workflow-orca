@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace OrcaCore.Abstractions.Ids;
 
 /// <summary>
 /// Identifies one durable workflow command request.
 /// </summary>
+[JsonConverter(typeof(CommandIdJsonConverter))]
 public readonly record struct CommandId
 {
     /// <summary>

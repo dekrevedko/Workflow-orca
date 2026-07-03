@@ -5,5 +5,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\OrcaCore.Abstractions\OrcaCore.Abstractions.csproj" />
+    <ProjectReference Include="..\OrcaCore.Providers.Relational\OrcaCore.Providers.Relational.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Migrations\*.sql" />
   </ItemGroup>
 </Project>

@@ -13,6 +13,7 @@ namespace OrcaCore.Providers.InMemory;
 public sealed class InMemoryWorkflowProvider :
     IWorkflowEventStore,
     IWorkflowInboxStore,
+    IWorkflowStartIdempotencyStore,
     IWorkflowOutboxStore,
     IWorkflowProjectionStore,
     IWorkflowRetentionStore,
@@ -24,9 +25,11 @@ public sealed class InMemoryWorkflowProvider :
 
     private readonly object gate = new();
     private readonly Dictionary<EventId, InboxRecordState> inbox = [];
+    private readonly Dictionary<string, StartedWorkflowIdempotencyRecord> startIdempotency = new(StringComparer.Ordinal);
     private readonly Dictionary<OutboxRecordId, InMemoryOutboxRecord> outbox = [];
     private readonly List<OutboxWrite> dispatched = [];
     private readonly List<ProjectionWrite> projections = [];
+    private readonly List<ProjectionHistoryWrite> history = [];
     private readonly Dictionary<InstanceId, WorkflowInstanceSnapshot> summaries = [];
     private readonly Dictionary<InstanceId, CheckpointWrite> checkpoints = [];
     private readonly Dictionary<WorkflowStreamId, List<WorkflowEvent>> streams = [];
@@ -68,6 +71,7 @@ public sealed class InMemoryWorkflowProvider :
 
             stream.AddRange(batch.Events);
             ApplyInboxOperations(batch.InboxOperations);
+            ApplyStartIdempotencyOperations(batch.StartIdempotencyOperations);
             foreach (var record in batch.OutboxRecords)
             {
                 outbox[record.OutboxRecordId] = new InMemoryOutboxRecord(
@@ -77,6 +81,11 @@ public sealed class InMemoryWorkflowProvider :
             }
 
             ApplyProjectionOperations(batch.ProjectionOperations);
+            foreach (var timer in batch.TimerSchedules)
+            {
+                timers[timer.TimerId] = timer;
+            }
+
             if (batch.Checkpoint is { } checkpoint)
             {
                 checkpoints[checkpoint.InstanceId] = CloneCheckpointWrite(checkpoint);
@@ -114,6 +123,22 @@ public sealed class InMemoryWorkflowProvider :
             return Task.FromResult(inbox.TryGetValue(eventId, out var state)
                 ? Option<InboxRecordState>.Some(state)
                 : Option<InboxRecordState>.None);
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            return Task.FromResult(startIdempotency.TryGetValue(idempotencyKey, out var record)
+                ? Option<StartedWorkflowIdempotencyRecord>.Some(record)
+                : Option<StartedWorkflowIdempotencyRecord>.None);
         }
     }
 
@@ -441,6 +466,20 @@ public sealed class InMemoryWorkflowProvider :
         }
     }
 
+    private void ApplyStartIdempotencyOperations(IEnumerable<StartIdempotencyWrite> operations)
+    {
+        foreach (var operation in operations)
+        {
+            startIdempotency.TryAdd(
+                operation.IdempotencyKey,
+                new StartedWorkflowIdempotencyRecord(
+                    operation.IdempotencyKey,
+                    operation.InstanceId,
+                    operation.DefinitionId,
+                    operation.DefinitionVersion));
+        }
+    }
+
     private void ApplyProjectionOperations(IEnumerable<ProjectionWrite> operations)
     {
         foreach (var operation in operations)
@@ -449,6 +488,11 @@ public sealed class InMemoryWorkflowProvider :
             if (operation.InstanceSnapshot is { } snapshot)
             {
                 summaries[operation.InstanceId] = CloneSnapshot(snapshot);
+            }
+
+            if (operation.Kind == ProjectionOperationKind.AppendHistory && operation.History is { } entry)
+            {
+                history.Add(entry);
             }
         }
     }
@@ -498,7 +542,29 @@ public sealed class InMemoryWorkflowProvider :
 
     private static CheckpointWrite CloneCheckpointWrite(CheckpointWrite checkpoint)
     {
-        return checkpoint with { Payload = [.. checkpoint.Payload] };
+        return checkpoint with
+        {
+            Payload = [.. checkpoint.Payload],
+            RuntimeState = CloneRuntimeState(checkpoint.RuntimeState)
+        };
+    }
+
+    private static WorkflowRuntimeCheckpointState CloneRuntimeState(WorkflowRuntimeCheckpointState state)
+    {
+        return new WorkflowRuntimeCheckpointState
+        {
+            ActiveTimers = state.ActiveTimers.Select(timer => timer with { }).ToArray(),
+            ActiveWaits = state.ActiveWaits.Select(wait => wait with { }).ToArray(),
+            BufferedDeliveries = state.BufferedDeliveries.Select(delivery => delivery with { }).ToArray(),
+            BufferedTimers = state.BufferedTimers.Select(timer => timer with { }).ToArray(),
+            ActiveChildren = state.ActiveChildren.Select(child => child with { }).ToArray(),
+            ActiveChildGroups = state.ActiveChildGroups.Select(group => group with
+            {
+                Children = group.Children.Select(child => child with { }).ToArray()
+            }).ToArray(),
+            ActiveResourceTickets = state.ActiveResourceTickets.Select(ticket => ticket with { }).ToArray(),
+            ActiveExternalJobs = state.ActiveExternalJobs.Select(job => job with { }).ToArray()
+        };
     }
 
     private bool IsActive(InstanceId instanceId)
@@ -519,6 +585,19 @@ public sealed class InMemoryWorkflowProvider :
         summaries.Remove(instanceId);
         checkpoints.Remove(instanceId);
         streams.Remove(new WorkflowStreamId(instanceId));
+        foreach (var timerId in timers.Values
+            .Where(timer => timer.InstanceId == instanceId)
+            .Select(timer => timer.TimerId)
+            .ToArray())
+        {
+            timers.Remove(timerId);
+        }
+
+        var purgedHistoryIds = projections
+            .Where(operation => operation.InstanceId == instanceId && operation.History is not null)
+            .Select(operation => operation.History!.HistoryId)
+            .ToHashSet();
+        history.RemoveAll(entry => purgedHistoryIds.Contains(entry.HistoryId));
         foreach (var recordId in outbox.Values
             .Where(record => record.InstanceId == instanceId)
             .Select(record => record.Write.OutboxRecordId)

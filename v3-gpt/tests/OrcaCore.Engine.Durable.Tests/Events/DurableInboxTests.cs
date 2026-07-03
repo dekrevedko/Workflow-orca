@@ -90,7 +90,8 @@ public sealed class DurableInboxTests
     }
 
     [Fact]
-    public async Task PoisonedDelivery_IsRecordedWithClearFailureMetadata()
+    [Trait("AC", "AC-104")]
+    public async Task EarlyDeliveryWithoutActiveWait_IsBufferedForFutureWait()
     {
         var instanceId = InstanceIdValue(1);
         var eventId = EventIdValue(50);
@@ -104,9 +105,38 @@ public sealed class DurableInboxTests
             TestContext.Current.CancellationToken);
         var inbox = await store.GetAsync(eventId, TestContext.Current.CancellationToken);
 
-        result.Outcome.Should().Be(DurableCommandOutcome.Poisoned);
-        result.Message.Should().Contain("No active wait");
-        inbox.Value.Should().Be(InboxRecordState.Poisoned);
+        result.Outcome.Should().Be(DurableCommandOutcome.Committed);
+        inbox.Value.Should().Be(InboxRecordState.Received);
+    }
+
+    [Fact]
+    [Trait("AC", "AC-104")]
+    public async Task EarlyDelivery_IsMatchedWhenWaitRegisters()
+    {
+        var instanceId = InstanceIdValue(2);
+        var eventId = EventIdValue(51);
+        var store = new InMemoryWorkflowProvider();
+        var processor = new DurableCommandProcessor(store);
+        await processor.ProcessAsync(StartCommand(instanceId), TestContext.Current.CancellationToken);
+        await processor.ProcessAsync(
+            DeliverCommand(instanceId, eventId, 2),
+            TestContext.Current.CancellationToken);
+
+        var registered = await new DurableCommandProcessor(store).ProcessAsync(
+            WaitRegisteredCommand(instanceId, WaitIdValue(2), 3),
+            TestContext.Current.CancellationToken);
+        var inbox = await store.GetAsync(eventId, TestContext.Current.CancellationToken);
+        var events = await store.LoadTailAsync(
+            new WorkflowStreamId(instanceId),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+
+        registered.Outcome.Should().Be(DurableCommandOutcome.Committed);
+        inbox.Value.Should().Be(InboxRecordState.Applied);
+        events.OfType<WorkflowDeliveryBufferedEvent>().Should().ContainSingle()
+            .Which.BufferedEventId.Should().Be(eventId);
+        events.OfType<WorkflowWaitMatchedEvent>().Should().ContainSingle()
+            .Which.MatchedEventId.Should().Be(eventId);
     }
 
     private static async Task SeedWaitAsync(

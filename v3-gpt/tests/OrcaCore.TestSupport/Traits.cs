@@ -26,6 +26,16 @@ public static class Traits
     public const string Container = "Container";
 
     /// <summary>
+    /// Category value for cross-boundary integration tests (Docker/Testcontainers).
+    /// </summary>
+    public const string Integration = "Integration";
+
+    /// <summary>
+    /// Trait key for integration scenario identifiers (INT-*).
+    /// </summary>
+    public const string Scenario = "Scenario";
+
+    /// <summary>
     /// Creates an acceptance-criteria trait pair.
     /// </summary>
     public static (string Key, string Value) AcceptanceCriterion(string id)

@@ -111,6 +111,7 @@ public sealed class ChildCompensationTests
             TotalItemCount = 3,
             InitialDispatchCount = 3,
             NextDispatchIndex = 3,
+            MaxConcurrency = 3,
             Children =
             [
                 Child(0, "alpha"),
@@ -126,6 +127,8 @@ public sealed class ChildCompensationTests
         {
             Index = index,
             ChildInstanceId = ChildId(index),
+            ChildDefinitionId = DefinitionIdValue(2),
+            ChildDefinitionVersion = DefinitionVersion.Initial,
             ItemSnapshot = itemSnapshot
         };
     }

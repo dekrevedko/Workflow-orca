@@ -28,6 +28,23 @@ internal sealed class DurableStartService(DurableCommandProcessor commandProcess
                 return new StartOrGetResult(existing.InstanceId, false);
             }
 
+            var durableExisting = await commandProcessor
+                .GetStartedAsync(request.IdempotencyKey, cancellationToken)
+                .ConfigureAwait(false);
+            if (durableExisting.HasValue)
+            {
+                DurableVersionCompatibility.EnsureCompatible(
+                    durableExisting.Value.DefinitionId,
+                    durableExisting.Value.DefinitionVersion,
+                    request.DefinitionId,
+                    request.DefinitionVersion);
+                startedInstances[request.IdempotencyKey] = new StartedInstance(
+                    durableExisting.Value.InstanceId,
+                    durableExisting.Value.DefinitionId,
+                    durableExisting.Value.DefinitionVersion);
+                return new StartOrGetResult(durableExisting.Value.InstanceId, false);
+            }
+
             var instanceId = InstanceId.New();
             var result = await commandProcessor
                 .ProcessAsync(
@@ -37,7 +54,8 @@ internal sealed class DurableStartService(DurableCommandProcessor commandProcess
                         InstanceId = instanceId,
                         RequestedAt = request.RequestedAt,
                         DefinitionId = request.DefinitionId,
-                        DefinitionVersion = request.DefinitionVersion
+                        DefinitionVersion = request.DefinitionVersion,
+                        IdempotencyKey = request.IdempotencyKey
                     },
                     cancellationToken)
                 .ConfigureAwait(false);

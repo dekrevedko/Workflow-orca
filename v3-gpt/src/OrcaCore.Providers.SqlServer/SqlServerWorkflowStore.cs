@@ -1,3 +1,5 @@
+using System.Data;
+using System.Text.Json;
 using Microsoft.Data.SqlClient;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Errors;
@@ -5,6 +7,8 @@ using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.Abstractions.Serialization;
+using OrcaCore.Providers.Relational;
 
 namespace OrcaCore.Providers.SqlServer;
 
@@ -14,20 +18,22 @@ namespace OrcaCore.Providers.SqlServer;
 public sealed class SqlServerWorkflowStore :
     IWorkflowEventStore,
     IWorkflowInboxStore,
+    IWorkflowStartIdempotencyStore,
     IWorkflowOutboxStore,
     IWorkflowProjectionStore,
     ITimerScheduler,
     IResourcePoolStore,
     IAsyncDisposable
 {
+    private const string StartedEventType = nameof(WorkflowStartedEvent);
+    private const string ContinuedAsNewEventType = nameof(WorkflowContinuedAsNewEvent);
+    private const string TimerScheduledEventType = nameof(WorkflowTimerScheduledEvent);
+    private const string TimerFiredEventType = nameof(WorkflowTimerFiredEvent);
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
     private readonly string connectionString;
     private readonly object gate = new();
-    private readonly Dictionary<WorkflowStreamId, List<WorkflowEvent>> streams = [];
-    private readonly Dictionary<InstanceId, CheckpointWrite> checkpoints = [];
-    private readonly Dictionary<EventId, InboxRecordState> inbox = [];
-    private readonly Dictionary<OutboxRecordId, SqlServerOutboxRecord> outbox = [];
-    private readonly Dictionary<InstanceId, WorkflowInstanceSnapshot> summaries = [];
-    private readonly Dictionary<TimerId, TimerScheduleRequest> timers = [];
     private readonly Dictionary<string, ResourcePoolDefinition> resourcePools = new(StringComparer.Ordinal);
     private readonly List<ResourcePoolTicket> resourceTickets = [];
     private readonly List<ResourcePoolWaiter> resourceWaiters = [];
@@ -50,6 +56,13 @@ public sealed class SqlServerWorkflowStore :
     {
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await RelationalMigrationRunner
+            .ApplyAsync(
+                connection,
+                SqlServerWorkflowStoreMigrations.Journal,
+                SqlServerWorkflowStoreMigrations.All,
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -57,14 +70,7 @@ public sealed class SqlServerWorkflowStore :
         InstanceId instanceId,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (gate)
-        {
-            return Task.FromResult(checkpoints.TryGetValue(instanceId, out var checkpoint)
-                ? Option<CheckpointWrite>.Some(CloneCheckpoint(checkpoint))
-                : Option<CheckpointWrite>.None);
-        }
+        return LoadCheckpointCoreAsync(instanceId, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -73,50 +79,7 @@ public sealed class SqlServerWorkflowStore :
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(batch);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (gate)
-        {
-            if (batch.ProjectionOperations.Count > 0)
-            {
-                return Task.FromResult(Result<AppendEventsResult>.Failure(
-                    new OrcaCoreException("SQL Server projections are outside the T6-08 event-store slice.")));
-            }
-
-            var stream = GetStream(batch.StreamId);
-            var actualVersion = new StreamVersion(stream.Count);
-            if (actualVersion != batch.ExpectedVersion)
-            {
-                return Task.FromResult(EventStoreConflict.ExpectedVersionMismatch(batch.ExpectedVersion, actualVersion));
-            }
-
-            stream.AddRange(batch.Events);
-            foreach (var operation in batch.InboxOperations)
-            {
-                if (inbox.TryGetValue(operation.EventId, out var existingState) &&
-                    existingState == InboxRecordState.Applied)
-                {
-                    continue;
-                }
-
-                inbox[operation.EventId] = operation.State;
-            }
-
-            foreach (var record in batch.OutboxRecords)
-            {
-                outbox[record.OutboxRecordId] = new SqlServerOutboxRecord(
-                    CloneOutbox(record),
-                    OutboxRecordState.Pending);
-            }
-
-            if (batch.Checkpoint is { } checkpoint)
-            {
-                checkpoints[checkpoint.InstanceId] = CloneCheckpoint(checkpoint);
-            }
-
-            return Task.FromResult(Result<AppendEventsResult>.Success(
-                new AppendEventsResult(new StreamVersion(stream.Count))));
-        }
+        return AppendCoreAsync(batch, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -125,53 +88,29 @@ public sealed class SqlServerWorkflowStore :
         StreamVersion afterVersion,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (gate)
-        {
-            var tail = streams.TryGetValue(streamId, out var stream)
-                ? stream.Skip((int)afterVersion.Value).ToArray()
-                : [];
-            return Task.FromResult<IReadOnlyList<WorkflowEvent>>(tail);
-        }
+        return LoadTailCoreAsync(streamId, afterVersion, cancellationToken);
     }
 
     /// <inheritdoc />
     public Task<Option<InboxRecordState>> GetAsync(EventId eventId, CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
+        return GetInboxCoreAsync(eventId, cancellationToken);
+    }
 
-        lock (gate)
-        {
-            return Task.FromResult(inbox.TryGetValue(eventId, out var state)
-                ? Option<InboxRecordState>.Some(state)
-                : Option<InboxRecordState>.None);
-        }
+    /// <inheritdoc />
+    public Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        return GetStartedCoreAsync(idempotencyKey, cancellationToken);
     }
 
     /// <inheritdoc />
     public Task<IReadOnlyList<OutboxWrite>> ClaimAsync(int maxCount, CancellationToken cancellationToken)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(maxCount);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (gate)
-        {
-            var claimed = outbox.Values
-                .Where(record => record.State is OutboxRecordState.Pending or OutboxRecordState.Retryable)
-                .Take(maxCount)
-                .Select(record => CloneOutbox(record.Write))
-                .ToArray();
-            foreach (var record in claimed)
-            {
-                outbox[record.OutboxRecordId] = outbox[record.OutboxRecordId] with
-                {
-                    State = OutboxRecordState.Claimed
-                };
-            }
-
-            return Task.FromResult<IReadOnlyList<OutboxWrite>>(claimed);
-        }
+        return ClaimCoreAsync(maxCount, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -179,14 +118,7 @@ public sealed class SqlServerWorkflowStore :
         OutboxRecordId outboxRecordId,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (gate)
-        {
-            return Task.FromResult(outbox.TryGetValue(outboxRecordId, out var record)
-                ? Option<OutboxRecordState>.Some(record.State)
-                : Option<OutboxRecordState>.None);
-        }
+        return GetOutboxStateCoreAsync(outboxRecordId, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -195,37 +127,14 @@ public sealed class SqlServerWorkflowStore :
         OutboxRecordState state,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (gate)
-        {
-            if (outbox.TryGetValue(outboxRecordId, out var record))
-            {
-                outbox[outboxRecordId] = record with { State = state };
-            }
-        }
-
-        return Task.CompletedTask;
+        return MarkCoreAsync(outboxRecordId, state, cancellationToken);
     }
 
     /// <inheritdoc />
     public Task ApplyAsync(IReadOnlyList<ProjectionWrite> operations, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(operations);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (gate)
-        {
-            foreach (var operation in operations)
-            {
-                if (operation.InstanceSnapshot is { } snapshot)
-                {
-                    summaries[operation.InstanceId] = CloneSnapshot(snapshot);
-                }
-            }
-        }
-
-        return Task.CompletedTask;
+        return ApplyCoreAsync(operations, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -236,14 +145,7 @@ public sealed class SqlServerWorkflowStore :
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
 
-        lock (gate)
-        {
-            return Task.FromResult<IReadOnlyList<WorkflowInstanceSnapshot>>(
-                summaries.Values
-                    .Where(snapshot => Matches(snapshot, query))
-                    .Select(CloneSnapshot)
-                    .ToArray());
-        }
+        return ListCoreAsync(query, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -252,10 +154,7 @@ public sealed class SqlServerWorkflowStore :
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
 
-        lock (gate)
-        {
-            return Task.FromResult(summaries.Values.Count(snapshot => Matches(snapshot, query)));
-        }
+        return CountCoreAsync(query, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -266,15 +165,7 @@ public sealed class SqlServerWorkflowStore :
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
 
-        lock (gate)
-        {
-            return Task.FromResult<IReadOnlyList<ActiveWaitSnapshot>>(
-                summaries.Values
-                    .Where(snapshot => Matches(snapshot, query))
-                    .SelectMany(snapshot => snapshot.ActiveWaits)
-                    .Select(wait => wait with { })
-                    .ToArray());
-        }
+        return ListActiveWaitsCoreAsync(query, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -285,28 +176,7 @@ public sealed class SqlServerWorkflowStore :
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
 
-        lock (gate)
-        {
-            return Task.FromResult(new WorkflowStatistics
-            {
-                Groups = summaries.Values
-                    .Where(snapshot => Matches(snapshot, query))
-                    .GroupBy(snapshot => new
-                    {
-                        snapshot.DefinitionId,
-                        snapshot.DefinitionVersion,
-                        snapshot.Status
-                    })
-                    .Select(group => new WorkflowStatisticsGroup
-                    {
-                        DefinitionId = group.Key.DefinitionId,
-                        DefinitionVersion = group.Key.DefinitionVersion,
-                        Status = group.Key.Status,
-                        Count = group.Count()
-                    })
-                    .ToArray()
-            });
-        }
+        return GetStatisticsCoreAsync(query, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -315,12 +185,7 @@ public sealed class SqlServerWorkflowStore :
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        lock (gate)
-        {
-            timers[request.TimerId] = request;
-        }
-
-        return Task.CompletedTask;
+        return ScheduleCoreAsync(request, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -332,27 +197,7 @@ public sealed class SqlServerWorkflowStore :
         ArgumentOutOfRangeException.ThrowIfNegative(maxCount);
         cancellationToken.ThrowIfCancellationRequested();
 
-        lock (gate)
-        {
-            var due = timers.Values
-                .Where(timer => timer.FireAt <= dueAtOrBefore)
-                .OrderBy(timer => timer.FireAt)
-                .ThenBy(timer => timer.TimerId.Value)
-                .Take(maxCount)
-                .ToArray();
-            foreach (var timer in due)
-            {
-                timers.Remove(timer.TimerId);
-            }
-
-            return Task.FromResult<IReadOnlyList<FireTimerCommand>>(due.Select(timer => new FireTimerCommand
-            {
-                CommandId = timer.CommandId,
-                InstanceId = timer.InstanceId,
-                RequestedAt = dueAtOrBefore,
-                TimerId = timer.TimerId
-            }).ToArray());
-        }
+        return ClaimDueCoreAsync(dueAtOrBefore, maxCount, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -519,25 +364,803 @@ public sealed class SqlServerWorkflowStore :
         return ValueTask.CompletedTask;
     }
 
-    private List<WorkflowEvent> GetStream(WorkflowStreamId streamId)
+    private async Task<Option<CheckpointWrite>> LoadCheckpointCoreAsync(
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
     {
-        if (!streams.TryGetValue(streamId, out var stream))
+        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new SqlCommand(
+            """
+            select stream_version, content_type, payload, definition_id, definition_version, status,
+                   last_step_path, error_summary, outcome_name, continue_as_new_generation
+            from dbo.orcacore_checkpoints
+            where instance_id = @instance_id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("@instance_id", instanceId.Value);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            stream = [];
-            streams.Add(streamId, stream);
+            return Option<CheckpointWrite>.None;
         }
 
-        return stream;
+        return Option<CheckpointWrite>.Some(new CheckpointWrite(
+            instanceId,
+            new StreamVersion(reader.GetInt64(0)),
+            reader.GetString(1),
+            (byte[])reader[2])
+        {
+            DefinitionId = reader.IsDBNull(3) ? null : new DefinitionId(reader.GetGuid(3)),
+            DefinitionVersion = reader.IsDBNull(4) ? null : new DefinitionVersion(reader.GetInt32(4)),
+            Status = reader.IsDBNull(5) ? null : Enum.Parse<WorkflowStatus>(reader.GetString(5)),
+            LastStepPath = reader.IsDBNull(6) ? null : reader.GetString(6),
+            ErrorSummary = reader.IsDBNull(7) ? null : reader.GetString(7),
+            OutcomeName = reader.IsDBNull(8) ? null : reader.GetString(8),
+            ContinueAsNewGeneration = reader.GetInt32(9)
+        });
     }
 
-    private static CheckpointWrite CloneCheckpoint(CheckpointWrite checkpoint)
+    private async Task<Result<AppendEventsResult>> AppendCoreAsync(
+        ProviderCommitBatch batch,
+        CancellationToken cancellationToken)
     {
-        return checkpoint with { Payload = [.. checkpoint.Payload] };
+        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = (SqlTransaction)await connection
+            .BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+            .ConfigureAwait(false);
+
+        try
+        {
+            var actualVersion = await LoadActualVersionAsync(connection, transaction, batch.StreamId, cancellationToken)
+                .ConfigureAwait(false);
+            if (actualVersion != batch.ExpectedVersion)
+            {
+                await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                return EventStoreConflict.ExpectedVersionMismatch(batch.ExpectedVersion, actualVersion);
+            }
+
+            var nextVersion = batch.ExpectedVersion.Value;
+            foreach (var workflowEvent in batch.Events)
+            {
+                nextVersion++;
+                await InsertEventAsync(
+                    connection,
+                    transaction,
+                    batch.StreamId,
+                    new StreamVersion(nextVersion),
+                    workflowEvent,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (batch.Checkpoint is { } checkpoint)
+            {
+                await UpsertCheckpointAsync(connection, transaction, checkpoint, cancellationToken).ConfigureAwait(false);
+            }
+
+            await ApplyInboxOperationsAsync(connection, transaction, batch.InboxOperations, cancellationToken)
+                .ConfigureAwait(false);
+            await ApplyStartIdempotencyOperationsAsync(connection, transaction, batch.StartIdempotencyOperations, cancellationToken)
+                .ConfigureAwait(false);
+            await InsertOutboxRecordsAsync(connection, transaction, batch.StreamId.InstanceId, batch.OutboxRecords, cancellationToken)
+                .ConfigureAwait(false);
+            await ApplyProjectionOperationsAsync(connection, transaction, batch.ProjectionOperations, cancellationToken)
+                .ConfigureAwait(false);
+            await UpsertTimerSchedulesAsync(connection, transaction, batch.TimerSchedules, cancellationToken)
+                .ConfigureAwait(false);
+
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return Result<AppendEventsResult>.Success(new AppendEventsResult(new StreamVersion(nextVersion)));
+        }
+        catch (SqlException exception) when (exception.Number is 2601 or 2627)
+        {
+            await RollbackQuietlyAsync(transaction, cancellationToken).ConfigureAwait(false);
+            var actualVersion = await LoadActualVersionAsync(connection, null, batch.StreamId, cancellationToken)
+                .ConfigureAwait(false);
+            return EventStoreConflict.ExpectedVersionMismatch(batch.ExpectedVersion, actualVersion);
+        }
     }
 
-    private static OutboxWrite CloneOutbox(OutboxWrite record)
+    private async Task<IReadOnlyList<WorkflowEvent>> LoadTailCoreAsync(
+        WorkflowStreamId streamId,
+        StreamVersion afterVersion,
+        CancellationToken cancellationToken)
     {
-        return record with { Payload = [.. record.Payload] };
+        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new SqlCommand(
+            """
+            select event_type, payload
+            from dbo.orcacore_events
+            where stream_id = @stream_id and version > @after_version
+            order by version;
+            """,
+            connection);
+        command.Parameters.AddWithValue("@stream_id", streamId.InstanceId.Value);
+        command.Parameters.AddWithValue("@after_version", afterVersion.Value);
+
+        var events = new List<WorkflowEvent>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            events.Add(DeserializeEvent(reader.GetString(0), reader.GetString(1)));
+        }
+
+        return events;
+    }
+
+    private async Task<Option<InboxRecordState>> GetInboxCoreAsync(EventId eventId, CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new SqlCommand("select state from dbo.orcacore_inbox where event_id = @event_id;", connection);
+        command.Parameters.AddWithValue("@event_id", eventId.Value);
+        var state = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return state is null
+            ? Option<InboxRecordState>.None
+            : Option<InboxRecordState>.Some(Enum.Parse<InboxRecordState>((string)state));
+    }
+
+    private async Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedCoreAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new SqlCommand(
+            """
+            select instance_id, definition_id, definition_version
+            from dbo.orcacore_start_idempotency
+            where idempotency_key = @idempotency_key;
+            """,
+            connection);
+        command.Parameters.AddWithValue("@idempotency_key", idempotencyKey);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return Option<StartedWorkflowIdempotencyRecord>.None;
+        }
+
+        return Option<StartedWorkflowIdempotencyRecord>.Some(new StartedWorkflowIdempotencyRecord(
+            idempotencyKey,
+            new InstanceId(reader.GetGuid(0)),
+            new DefinitionId(reader.GetGuid(1)),
+            new DefinitionVersion(reader.GetInt32(2))));
+    }
+
+    private async Task<IReadOnlyList<OutboxWrite>> ClaimCoreAsync(int maxCount, CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = (SqlTransaction)await connection
+            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
+            .ConfigureAwait(false);
+        await using var command = new SqlCommand(
+            """
+            ;with claimed as (
+                select top (@max_count) outbox_record_id
+                from dbo.orcacore_outbox with (updlock, readpast, rowlock)
+                where state in (@pending, @retryable)
+                order by outbox_record_id
+            )
+            update dbo.orcacore_outbox
+            set state = @claimed
+            output inserted.outbox_record_id, inserted.kind, inserted.payload
+            where outbox_record_id in (select outbox_record_id from claimed);
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("@max_count", maxCount);
+        command.Parameters.AddWithValue("@pending", OutboxRecordState.Pending.ToString());
+        command.Parameters.AddWithValue("@retryable", OutboxRecordState.Retryable.ToString());
+        command.Parameters.AddWithValue("@claimed", OutboxRecordState.Claimed.ToString());
+
+        var records = new List<OutboxWrite>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            records.Add(new OutboxWrite(
+                new OutboxRecordId(reader.GetGuid(0)),
+                reader.GetString(1),
+                (byte[])reader[2]));
+        }
+
+        await reader.DisposeAsync().ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return records;
+    }
+
+    private async Task<Option<OutboxRecordState>> GetOutboxStateCoreAsync(
+        OutboxRecordId outboxRecordId,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new SqlCommand(
+            "select state from dbo.orcacore_outbox where outbox_record_id = @outbox_record_id;",
+            connection);
+        command.Parameters.AddWithValue("@outbox_record_id", outboxRecordId.Value);
+        var state = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return state is null
+            ? Option<OutboxRecordState>.None
+            : Option<OutboxRecordState>.Some(Enum.Parse<OutboxRecordState>((string)state));
+    }
+
+    private async Task MarkCoreAsync(
+        OutboxRecordId outboxRecordId,
+        OutboxRecordState state,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new SqlCommand(
+            "update dbo.orcacore_outbox set state = @state where outbox_record_id = @outbox_record_id;",
+            connection);
+        command.Parameters.AddWithValue("@outbox_record_id", outboxRecordId.Value);
+        command.Parameters.AddWithValue("@state", state.ToString());
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task ApplyCoreAsync(IReadOnlyList<ProjectionWrite> operations, CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = (SqlTransaction)await connection
+            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
+            .ConfigureAwait(false);
+        await ApplyProjectionOperationsAsync(connection, transaction, operations, cancellationToken).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<IReadOnlyList<WorkflowInstanceSnapshot>> ListCoreAsync(
+        WorkflowProjectionQuery query,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new SqlCommand(
+            """
+            select instance_id, parent_instance_id, root_instance_id, definition_id, definition_version,
+                   status, created_at, updated_at, error_summary, outcome_name,
+                   continue_as_new_generation, archived_at, saga_audits
+            from dbo.orcacore_instance_projections
+            order by instance_id;
+            """,
+            connection);
+
+        var snapshots = new List<WorkflowInstanceSnapshot>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            snapshots.Add(new WorkflowInstanceSnapshot
+            {
+                InstanceId = new InstanceId(reader.GetGuid(0)),
+                ParentInstanceId = reader.IsDBNull(1) ? null : new InstanceId(reader.GetGuid(1)),
+                RootInstanceId = reader.IsDBNull(2) ? null : new InstanceId(reader.GetGuid(2)),
+                DefinitionId = new DefinitionId(reader.GetGuid(3)),
+                DefinitionVersion = new DefinitionVersion(reader.GetInt32(4)),
+                Status = Enum.Parse<WorkflowStatus>(reader.GetString(5)),
+                CreatedAt = reader.GetFieldValue<DateTimeOffset>(6),
+                UpdatedAt = reader.GetFieldValue<DateTimeOffset>(7),
+                ErrorSummary = reader.IsDBNull(8) ? null : reader.GetString(8),
+                EndOutcomeName = reader.IsDBNull(9) ? null : reader.GetString(9),
+                ContinueAsNewGeneration = reader.GetInt32(10),
+                ArchivedAt = reader.IsDBNull(11) ? null : reader.GetFieldValue<DateTimeOffset>(11),
+                SagaAudits = reader.IsDBNull(12)
+                    ? []
+                    : JsonSerializer.Deserialize<IReadOnlyList<SagaAuditScopeSnapshot>>(reader.GetString(12), JsonOptions) ?? []
+            });
+        }
+
+        await reader.DisposeAsync().ConfigureAwait(false);
+        var waits = await LoadActiveWaitsAsync(connection, snapshots.Select(snapshot => snapshot.InstanceId).ToArray(), cancellationToken)
+            .ConfigureAwait(false);
+        return snapshots
+            .Select(snapshot => snapshot with
+            {
+                ActiveWaits = waits.TryGetValue(snapshot.InstanceId, out var activeWaits) ? activeWaits : []
+            })
+            .Where(snapshot => Matches(snapshot, query))
+            .Select(CloneSnapshot)
+            .ToArray();
+    }
+
+    private async Task<int> CountCoreAsync(WorkflowProjectionQuery query, CancellationToken cancellationToken)
+    {
+        var snapshots = await ListCoreAsync(query, cancellationToken).ConfigureAwait(false);
+        return snapshots.Count;
+    }
+
+    private async Task<IReadOnlyList<ActiveWaitSnapshot>> ListActiveWaitsCoreAsync(
+        WorkflowProjectionQuery query,
+        CancellationToken cancellationToken)
+    {
+        var snapshots = await ListCoreAsync(query, cancellationToken).ConfigureAwait(false);
+        return snapshots.SelectMany(snapshot => snapshot.ActiveWaits).ToArray();
+    }
+
+    private async Task<WorkflowStatistics> GetStatisticsCoreAsync(
+        WorkflowProjectionQuery query,
+        CancellationToken cancellationToken)
+    {
+        var snapshots = await ListCoreAsync(query, cancellationToken).ConfigureAwait(false);
+        return new WorkflowStatistics
+        {
+            Groups = snapshots
+                .GroupBy(snapshot => new
+                {
+                    snapshot.DefinitionId,
+                    snapshot.DefinitionVersion,
+                    snapshot.Status
+                })
+                .Select(group => new WorkflowStatisticsGroup
+                {
+                    DefinitionId = group.Key.DefinitionId,
+                    DefinitionVersion = group.Key.DefinitionVersion,
+                    Status = group.Key.Status,
+                    Count = group.Count()
+                })
+                .ToArray()
+        };
+    }
+
+    private async Task ScheduleCoreAsync(TimerScheduleRequest request, CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = (SqlTransaction)await connection
+            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
+            .ConfigureAwait(false);
+        await UpsertTimerScheduleAsync(connection, transaction, request, cancellationToken).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<IReadOnlyList<FireTimerCommand>> ClaimDueCoreAsync(
+        DateTimeOffset dueAtOrBefore,
+        int maxCount,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = (SqlTransaction)await connection
+            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
+            .ConfigureAwait(false);
+        await using var command = new SqlCommand(
+            """
+            ;with due as (
+                select top (@max_count) timer_id
+                from dbo.orcacore_timers with (updlock, readpast, rowlock)
+                where fire_at <= @due_at
+                order by fire_at, timer_id
+            )
+            delete from dbo.orcacore_timers
+            output deleted.timer_id, deleted.instance_id, deleted.command_id
+            where timer_id in (select timer_id from due);
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("@max_count", maxCount);
+        command.Parameters.AddWithValue("@due_at", dueAtOrBefore);
+
+        var commands = new List<FireTimerCommand>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            commands.Add(new FireTimerCommand
+            {
+                TimerId = new TimerId(reader.GetGuid(0)),
+                InstanceId = new InstanceId(reader.GetGuid(1)),
+                CommandId = new CommandId(reader.GetGuid(2)),
+                RequestedAt = dueAtOrBefore
+            });
+        }
+
+        await reader.DisposeAsync().ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return commands;
+    }
+
+    private async Task<SqlConnection> OpenConnectionAsync(CancellationToken cancellationToken)
+    {
+        var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        return connection;
+    }
+
+    private static async Task<StreamVersion> LoadActualVersionAsync(
+        SqlConnection connection,
+        SqlTransaction? transaction,
+        WorkflowStreamId streamId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new SqlCommand(
+            "select isnull(max(version), 0) from dbo.orcacore_events where stream_id = @stream_id;",
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("@stream_id", streamId.InstanceId.Value);
+        var actual = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return new StreamVersion(Convert.ToInt64(actual));
+    }
+
+    private static async Task RollbackQuietlyAsync(SqlTransaction transaction, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (InvalidOperationException)
+        {
+        }
+        catch (SqlException)
+        {
+        }
+    }
+
+    private static async Task InsertEventAsync(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        WorkflowStreamId streamId,
+        StreamVersion version,
+        WorkflowEvent workflowEvent,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new SqlCommand(
+            """
+            insert into dbo.orcacore_events (stream_id, version, event_id, event_type, occurred_at, payload)
+            values (@stream_id, @version, @event_id, @event_type, @occurred_at, @payload);
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("@stream_id", streamId.InstanceId.Value);
+        command.Parameters.AddWithValue("@version", version.Value);
+        command.Parameters.AddWithValue("@event_id", workflowEvent.EventId.Value);
+        command.Parameters.AddWithValue("@event_type", ToEventType(workflowEvent));
+        command.Parameters.AddWithValue("@occurred_at", workflowEvent.OccurredAt);
+            command.Parameters.AddWithValue("@payload", SerializeEvent(workflowEvent));
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task UpsertCheckpointAsync(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        CheckpointWrite checkpoint,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new SqlCommand(
+            """
+            update dbo.orcacore_checkpoints
+            set stream_version = @stream_version,
+                content_type = @content_type,
+                payload = @payload,
+                definition_id = @definition_id,
+                definition_version = @definition_version,
+                status = @status,
+                last_step_path = @last_step_path,
+                error_summary = @error_summary,
+                outcome_name = @outcome_name,
+                continue_as_new_generation = @continue_as_new_generation
+            where instance_id = @instance_id;
+            if @@rowcount = 0
+            begin
+                insert into dbo.orcacore_checkpoints (
+                    instance_id, stream_version, content_type, payload, definition_id, definition_version,
+                    status, last_step_path, error_summary, outcome_name, continue_as_new_generation)
+                values (
+                    @instance_id, @stream_version, @content_type, @payload, @definition_id, @definition_version,
+                    @status, @last_step_path, @error_summary, @outcome_name, @continue_as_new_generation);
+            end;
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("@instance_id", checkpoint.InstanceId.Value);
+        command.Parameters.AddWithValue("@stream_version", checkpoint.StreamVersion.Value);
+        command.Parameters.AddWithValue("@content_type", checkpoint.ContentType);
+        command.Parameters.AddWithValue("@payload", checkpoint.Payload);
+        AddNullable(command, "@definition_id", checkpoint.DefinitionId?.Value);
+        AddNullable(command, "@definition_version", checkpoint.DefinitionVersion?.Value);
+        AddNullable(command, "@status", checkpoint.Status?.ToString());
+        AddNullable(command, "@last_step_path", checkpoint.LastStepPath);
+        AddNullable(command, "@error_summary", checkpoint.ErrorSummary);
+        AddNullable(command, "@outcome_name", checkpoint.OutcomeName);
+        command.Parameters.AddWithValue("@continue_as_new_generation", checkpoint.ContinueAsNewGeneration);
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task ApplyInboxOperationsAsync(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        IEnumerable<InboxWrite> operations,
+        CancellationToken cancellationToken)
+    {
+        foreach (var operation in operations)
+        {
+            await using var command = new SqlCommand(
+                """
+                update dbo.orcacore_inbox
+                set state = case when state = @applied then state else @state end
+                where event_id = @event_id;
+                if @@rowcount = 0
+                begin
+                    insert into dbo.orcacore_inbox (event_id, state)
+                    values (@event_id, @state);
+                end;
+                """,
+                connection,
+                transaction);
+            command.Parameters.AddWithValue("@event_id", operation.EventId.Value);
+            command.Parameters.AddWithValue("@state", operation.State.ToString());
+            command.Parameters.AddWithValue("@applied", InboxRecordState.Applied.ToString());
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task ApplyStartIdempotencyOperationsAsync(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        IEnumerable<StartIdempotencyWrite> operations,
+        CancellationToken cancellationToken)
+    {
+        foreach (var operation in operations)
+        {
+            await using var command = new SqlCommand(
+                """
+                if not exists (
+                    select 1 from dbo.orcacore_start_idempotency where idempotency_key = @idempotency_key)
+                begin
+                    insert into dbo.orcacore_start_idempotency (
+                        idempotency_key, instance_id, definition_id, definition_version)
+                    values (
+                        @idempotency_key, @instance_id, @definition_id, @definition_version);
+                end;
+                """,
+                connection,
+                transaction);
+            command.Parameters.AddWithValue("@idempotency_key", operation.IdempotencyKey);
+            command.Parameters.AddWithValue("@instance_id", operation.InstanceId.Value);
+            command.Parameters.AddWithValue("@definition_id", operation.DefinitionId.Value);
+            command.Parameters.AddWithValue("@definition_version", operation.DefinitionVersion.Value);
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task InsertOutboxRecordsAsync(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        InstanceId instanceId,
+        IEnumerable<OutboxWrite> records,
+        CancellationToken cancellationToken)
+    {
+        foreach (var record in records)
+        {
+            await using var command = new SqlCommand(
+                """
+                insert into dbo.orcacore_outbox (outbox_record_id, instance_id, kind, payload, state)
+                values (@outbox_record_id, @instance_id, @kind, @payload, @state);
+                """,
+                connection,
+                transaction);
+            command.Parameters.AddWithValue("@outbox_record_id", record.OutboxRecordId.Value);
+            command.Parameters.AddWithValue("@instance_id", instanceId.Value);
+            command.Parameters.AddWithValue("@kind", record.Kind);
+            command.Parameters.AddWithValue("@payload", record.Payload);
+            command.Parameters.AddWithValue("@state", OutboxRecordState.Pending.ToString());
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task ApplyProjectionOperationsAsync(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        IEnumerable<ProjectionWrite> operations,
+        CancellationToken cancellationToken)
+    {
+        foreach (var operation in operations)
+        {
+            switch (operation.Kind)
+            {
+                case ProjectionOperationKind.UpsertSummary when operation.InstanceSnapshot is { } snapshot:
+                    await UpsertSummaryProjectionAsync(connection, transaction, snapshot, cancellationToken)
+                        .ConfigureAwait(false);
+                    break;
+                case ProjectionOperationKind.UpsertActiveWait when operation.ActiveWait is { } activeWait:
+                    await UpsertActiveWaitProjectionAsync(connection, transaction, operation.InstanceId, activeWait, cancellationToken)
+                        .ConfigureAwait(false);
+                    break;
+                case ProjectionOperationKind.RemoveActiveWait when operation.WaitId is { } waitId:
+                    await using (var command = new SqlCommand(
+                        "delete from dbo.orcacore_active_wait_projections where wait_id = @wait_id;",
+                        connection,
+                        transaction))
+                    {
+                        command.Parameters.AddWithValue("@wait_id", waitId.Value);
+                        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                    }
+
+                    break;
+            }
+        }
+    }
+
+    private static async Task UpsertSummaryProjectionAsync(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        WorkflowInstanceSnapshot snapshot,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new SqlCommand(
+            """
+            update dbo.orcacore_instance_projections
+            set parent_instance_id = @parent_instance_id,
+                root_instance_id = @root_instance_id,
+                definition_id = @definition_id,
+                definition_version = @definition_version,
+                status = @status,
+                created_at = @created_at,
+                updated_at = @updated_at,
+                error_summary = @error_summary,
+                outcome_name = @outcome_name,
+                continue_as_new_generation = @continue_as_new_generation,
+                archived_at = @archived_at,
+                saga_audits = @saga_audits
+            where instance_id = @instance_id;
+            if @@rowcount = 0
+            begin
+                insert into dbo.orcacore_instance_projections (
+                    instance_id, parent_instance_id, root_instance_id, definition_id, definition_version,
+                    status, created_at, updated_at, error_summary, outcome_name,
+                    continue_as_new_generation, archived_at, saga_audits)
+                values (
+                    @instance_id, @parent_instance_id, @root_instance_id, @definition_id, @definition_version,
+                    @status, @created_at, @updated_at, @error_summary, @outcome_name,
+                    @continue_as_new_generation, @archived_at, @saga_audits);
+            end;
+            delete from dbo.orcacore_active_wait_projections where instance_id = @instance_id;
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("@instance_id", snapshot.InstanceId.Value);
+        AddNullable(command, "@parent_instance_id", snapshot.ParentInstanceId?.Value);
+        AddNullable(command, "@root_instance_id", snapshot.RootInstanceId?.Value);
+        command.Parameters.AddWithValue("@definition_id", snapshot.DefinitionId.Value);
+        command.Parameters.AddWithValue("@definition_version", snapshot.DefinitionVersion.Value);
+        command.Parameters.AddWithValue("@status", snapshot.Status.ToString());
+        command.Parameters.AddWithValue("@created_at", snapshot.CreatedAt);
+        command.Parameters.AddWithValue("@updated_at", snapshot.UpdatedAt);
+        AddNullable(command, "@error_summary", snapshot.ErrorSummary);
+        AddNullable(command, "@outcome_name", snapshot.EndOutcomeName);
+        command.Parameters.AddWithValue("@continue_as_new_generation", snapshot.ContinueAsNewGeneration);
+        AddNullable(command, "@archived_at", snapshot.ArchivedAt);
+        command.Parameters.AddWithValue("@saga_audits", JsonSerializer.Serialize(snapshot.SagaAudits, JsonOptions));
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+
+        foreach (var wait in snapshot.ActiveWaits)
+        {
+            await UpsertActiveWaitProjectionAsync(connection, transaction, snapshot.InstanceId, wait, cancellationToken)
+                .ConfigureAwait(false);
+        }
+    }
+
+    private static async Task UpsertActiveWaitProjectionAsync(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        InstanceId instanceId,
+        ActiveWaitSnapshot wait,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new SqlCommand(
+            """
+            update dbo.orcacore_active_wait_projections
+            set instance_id = @instance_id,
+                event_name = @event_name,
+                correlation_id = @correlation_id,
+                registered_at = @registered_at,
+                status = @status,
+                mode = @mode
+            where wait_id = @wait_id;
+            if @@rowcount = 0
+            begin
+                insert into dbo.orcacore_active_wait_projections (
+                    wait_id, instance_id, event_name, correlation_id, registered_at, status, mode)
+                values (
+                    @wait_id, @instance_id, @event_name, @correlation_id, @registered_at, @status, @mode);
+            end;
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("@wait_id", wait.WaitId.Value);
+        command.Parameters.AddWithValue("@instance_id", instanceId.Value);
+        command.Parameters.AddWithValue("@event_name", wait.EventName);
+        command.Parameters.AddWithValue("@correlation_id", wait.CorrelationId.Value);
+        command.Parameters.AddWithValue("@registered_at", wait.RegisteredAt);
+        command.Parameters.AddWithValue("@status", wait.Status);
+        command.Parameters.AddWithValue("@mode", wait.Mode);
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task UpsertTimerSchedulesAsync(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        IEnumerable<TimerScheduleRequest> requests,
+        CancellationToken cancellationToken)
+    {
+        foreach (var request in requests)
+        {
+            await UpsertTimerScheduleAsync(connection, transaction, request, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task UpsertTimerScheduleAsync(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        TimerScheduleRequest request,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new SqlCommand(
+            """
+            update dbo.orcacore_timers
+            set instance_id = @instance_id,
+                command_id = @command_id,
+                fire_at = @fire_at,
+                wakeup_name = @wakeup_name
+            where timer_id = @timer_id;
+            if @@rowcount = 0
+            begin
+                insert into dbo.orcacore_timers (timer_id, instance_id, command_id, fire_at, wakeup_name)
+                values (@timer_id, @instance_id, @command_id, @fire_at, @wakeup_name);
+            end;
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("@timer_id", request.TimerId.Value);
+        command.Parameters.AddWithValue("@instance_id", request.InstanceId.Value);
+        command.Parameters.AddWithValue("@command_id", request.CommandId.Value);
+        command.Parameters.AddWithValue("@fire_at", request.FireAt);
+        command.Parameters.AddWithValue("@wakeup_name", request.WakeupName);
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<IReadOnlyDictionary<InstanceId, IReadOnlyList<ActiveWaitSnapshot>>> LoadActiveWaitsAsync(
+        SqlConnection connection,
+        IReadOnlyList<InstanceId> instanceIds,
+        CancellationToken cancellationToken)
+    {
+        if (instanceIds.Count == 0)
+        {
+            return new Dictionary<InstanceId, IReadOnlyList<ActiveWaitSnapshot>>();
+        }
+
+        var parameterNames = instanceIds.Select((_, index) => $"@instance_id_{index}").ToArray();
+        await using var command = new SqlCommand(
+            $"""
+            select instance_id, wait_id, event_name, correlation_id, registered_at, status, mode
+            from dbo.orcacore_active_wait_projections
+            where instance_id in ({string.Join(", ", parameterNames)})
+            order by instance_id, registered_at, wait_id;
+            """,
+            connection);
+        for (var index = 0; index < instanceIds.Count; index++)
+        {
+            command.Parameters.AddWithValue(parameterNames[index], instanceIds[index].Value);
+        }
+
+        var waits = new Dictionary<InstanceId, List<ActiveWaitSnapshot>>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            var instanceId = new InstanceId(reader.GetGuid(0));
+            if (!waits.TryGetValue(instanceId, out var instanceWaits))
+            {
+                instanceWaits = [];
+                waits.Add(instanceId, instanceWaits);
+            }
+
+            instanceWaits.Add(new ActiveWaitSnapshot
+            {
+                WaitId = new WaitId(reader.GetGuid(1)),
+                EventName = reader.GetString(2),
+                CorrelationId = new CorrelationId(reader.GetString(3)),
+                RegisteredAt = reader.GetFieldValue<DateTimeOffset>(4),
+                Status = reader.GetString(5),
+                Mode = reader.GetString(6)
+            });
+        }
+
+        return waits.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<ActiveWaitSnapshot>)pair.Value);
+    }
+
+    private static void AddNullable(SqlCommand command, string name, object? value)
+    {
+        command.Parameters.AddWithValue(name, value ?? DBNull.Value);
     }
 
     private static bool Matches(WorkflowInstanceSnapshot snapshot, WorkflowProjectionQuery query)
@@ -566,6 +1189,50 @@ public sealed class SqlServerWorkflowStore :
                 RecoveryInterventions = scope.RecoveryInterventions.Select(intervention => intervention with { }).ToArray()
             }).ToArray()
         };
+    }
+
+    private static string ToEventType(WorkflowEvent workflowEvent)
+    {
+        return workflowEvent switch
+        {
+            WorkflowStartedEvent => StartedEventType,
+            WorkflowContinuedAsNewEvent => ContinuedAsNewEventType,
+            WorkflowTimerScheduledEvent => TimerScheduledEventType,
+            WorkflowTimerFiredEvent => TimerFiredEventType,
+            _ => throw new InvalidOperationException(
+                $"Workflow event '{workflowEvent.GetType().Name}' is not supported by the SQL Server provider.")
+        };
+    }
+
+    private static string SerializeEvent(WorkflowEvent workflowEvent)
+    {
+        return workflowEvent switch
+        {
+            WorkflowStartedEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowStartedEvent),
+            WorkflowContinuedAsNewEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowContinuedAsNewEvent),
+            WorkflowTimerScheduledEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowTimerScheduledEvent),
+            WorkflowTimerFiredEvent typed => JsonSerializer.Serialize(typed, OrcaCoreJsonSerializerContext.Default.WorkflowTimerFiredEvent),
+            _ => throw new InvalidOperationException(
+                $"Workflow event '{workflowEvent.GetType().Name}' is not supported by the SQL Server provider.")
+        };
+    }
+
+    private static WorkflowEvent DeserializeEvent(string eventType, string payload)
+    {
+        return eventType switch
+        {
+            StartedEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowStartedEvent)),
+            ContinuedAsNewEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowContinuedAsNewEvent)),
+            TimerScheduledEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowTimerScheduledEvent)),
+            TimerFiredEventType => Required(JsonSerializer.Deserialize(payload, OrcaCoreJsonSerializerContext.Default.WorkflowTimerFiredEvent)),
+            _ => throw new InvalidOperationException($"Workflow event type '{eventType}' is not supported.")
+        };
+    }
+
+    private static TEvent Required<TEvent>(TEvent? workflowEvent)
+        where TEvent : WorkflowEvent
+    {
+        return workflowEvent ?? throw new JsonException("Workflow event payload could not be deserialized.");
     }
 
     private ResourcePoolSnapshot SnapshotResourcePool(ResourcePoolDefinition definition)

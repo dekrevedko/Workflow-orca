@@ -1,3 +1,4 @@
+using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Steps;
@@ -191,6 +192,66 @@ internal sealed record ForEachNode<TState, TItem> : ForEachNode<TState>
             })
             .ToArray();
     }
+}
+
+internal sealed record RunChildNode<TState> : WorkflowNode<TState>
+{
+    internal RunChildNode(
+        string nodeId,
+        DefinitionId childDefinitionId,
+        DefinitionVersion childDefinitionVersion,
+        RunChildFailurePolicy failurePolicy)
+        : base(nodeId)
+    {
+        ChildDefinitionId = childDefinitionId;
+        ChildDefinitionVersion = childDefinitionVersion;
+        FailurePolicy = failurePolicy;
+    }
+
+    internal DefinitionId ChildDefinitionId { get; }
+
+    internal DefinitionVersion ChildDefinitionVersion { get; }
+
+    internal RunChildFailurePolicy FailurePolicy { get; }
+}
+
+internal sealed record RunChildrenNode<TState> : WorkflowNode<TState>
+{
+    internal RunChildrenNode(
+        string nodeId,
+        DefinitionId childDefinitionId,
+        DefinitionVersion childDefinitionVersion,
+        Func<TState, IReadOnlyList<string>> itemSnapshotSelector,
+        RunChildFailurePolicy failurePolicy,
+        int? maxConcurrency,
+        RunChildrenJoinPolicy joinPolicy,
+        RunChildrenResidualPolicy residualPolicy)
+        : base(nodeId)
+    {
+        ArgumentNullException.ThrowIfNull(itemSnapshotSelector);
+
+        ChildDefinitionId = childDefinitionId;
+        ChildDefinitionVersion = childDefinitionVersion;
+        ItemSnapshotSelector = itemSnapshotSelector;
+        FailurePolicy = failurePolicy;
+        MaxConcurrency = maxConcurrency;
+        JoinPolicy = joinPolicy;
+        ResidualPolicy = residualPolicy;
+    }
+
+    internal DefinitionId ChildDefinitionId { get; }
+
+    internal DefinitionVersion ChildDefinitionVersion { get; }
+
+    internal Func<TState, IReadOnlyList<string>> ItemSnapshotSelector { get; }
+
+    internal RunChildFailurePolicy FailurePolicy { get; }
+
+    internal int? MaxConcurrency { get; }
+
+    internal RunChildrenJoinPolicy JoinPolicy { get; }
+
+    internal RunChildrenResidualPolicy ResidualPolicy { get; }
 }
 
 internal sealed record ParallelBranch<TState>

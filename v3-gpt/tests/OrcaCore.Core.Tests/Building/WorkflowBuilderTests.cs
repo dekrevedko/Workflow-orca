@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Steps;
@@ -197,6 +198,104 @@ public sealed class WorkflowBuilderTests
     }
 
     [Fact]
+    public void RunChild_AddsDurableChildNode()
+    {
+        var definition = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("created"))
+            .RunChild(DefinitionIdValue(2), DefinitionVersion.Initial, RunChildFailurePolicy.ContinueParent)
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+
+        var node = definition.RootSequence.Children.OfType<RunChildNode<TestState>>().Single();
+        node.ChildDefinitionId.Should().Be(DefinitionIdValue(2));
+        node.FailurePolicy.Should().Be(RunChildFailurePolicy.ContinueParent);
+    }
+
+    [Fact]
+    public void RunChildren_AddsDurableFanoutNodeWithValidation()
+    {
+        var validation = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("created"))
+            .RunChildren(
+                DefinitionIdValue(2),
+                DefinitionVersion.Initial,
+                state => [state.CorrelationId],
+                maxConcurrency: 2,
+                joinPolicy: RunChildrenJoinPolicy.WhenAny)
+            .End()
+            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+
+        validation.IsValid.Should().BeTrue();
+        var node = validation.Value.RootSequence.Children.OfType<RunChildrenNode<TestState>>().Single();
+        node.ItemSnapshotSelector(new TestState("item")).Should().Equal("item");
+        node.MaxConcurrency.Should().Be(2);
+        node.JoinPolicy.Should().Be(RunChildrenJoinPolicy.WhenAny);
+    }
+
+    [Fact]
+    public void RunChildren_WithNonPositiveMaxConcurrency_ReportsValidationError()
+    {
+        var validation = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("created"))
+            .RunChildren(DefinitionIdValue(2), DefinitionVersion.Initial, _ => ["item"], maxConcurrency: 0)
+            .End()
+            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+
+        validation.Errors.Should().ContainSingle(error => error.Code == BuilderValidationCodes.NonPositiveMaxConcurrency);
+    }
+
+    [Fact]
+    [Trait("Scenario", "NEG-CP-001")]
+    [Trait("AC", "CP-001")]
+    public void NEG_CP_001_ParallelWithSingleBranch_BuildsDocumentedDegenerateBranch()
+    {
+        var definition = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("created"))
+            .Parallel(("only", branch => branch.Then<TestStep>()))
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+
+        definition.RootSequence.Children.OfType<ParallelNode<TestState>>()
+            .Single()
+            .Branches.Should().ContainSingle()
+            .Which.BranchId.Name.Should().Be("only");
+    }
+
+    [Fact]
+    [Trait("Scenario", "NEG-CP-002")]
+    [Trait("AC", "CP-001")]
+    public void NEG_CP_002_ParallelWithZeroBranches_ReportsValidationError()
+    {
+        var validation = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("created"))
+            .Parallel()
+            .End()
+            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+
+        validation.IsValid.Should().BeFalse();
+        validation.Errors.Should().ContainSingle(error => error.Code == BuilderValidationCodes.EmptyParallel);
+    }
+
+    [Fact]
+    [Trait("Scenario", "NEG-CP-006")]
+    [Trait("AC", "AC-601")]
+    public void NEG_CP_006_ForEachNonPositiveMaxConcurrency_ReportsValidationError()
+    {
+        var validation = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("created"))
+            .ForEach(
+                _ => new[] { 1 },
+                WorkflowPartitioner<int>.Items(),
+                body => body.Then<TestStep>(),
+                maxConcurrency: 0)
+            .End()
+            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+
+        validation.IsValid.Should().BeFalse();
+        validation.Errors.Should().ContainSingle(error => error.Code == BuilderValidationCodes.NonPositiveMaxConcurrency);
+    }
+
+    [Fact]
     public void WorkflowBuilder_DoesNotExposeCompensationMethods()
     {
         var publicMethodNames = typeof(WorkflowBuilder<TestState>)
@@ -214,6 +313,11 @@ public sealed class WorkflowBuilderTests
     }
 
     private sealed record TestState(string CorrelationId, bool ShouldRoute = true);
+
+    private static DefinitionId DefinitionIdValue(int value)
+    {
+        return new DefinitionId(Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}"));
+    }
 
     private sealed class TestStep : IStep<TestState>
     {

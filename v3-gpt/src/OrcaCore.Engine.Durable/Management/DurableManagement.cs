@@ -1,7 +1,11 @@
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Durable;
+using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Instances;
+using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.Engine.Durable.Aggregates;
+using OrcaCore.Engine.Durable.Execution;
 
 namespace OrcaCore.Engine.Durable.Management;
 
@@ -38,6 +42,98 @@ public sealed class DurableManagement(
     public DurableManagementQuery Instance(InstanceId instanceId)
     {
         return All().Where(instance => instance.InstanceId == instanceId);
+    }
+
+    /// <summary>
+    /// Pauses one durable instance at the next safe boundary.
+    /// </summary>
+    public Task<DurableCommandResult> PauseAsync(
+        InstanceId instanceId,
+        DateTimeOffset requestedAt,
+        CancellationToken cancellationToken)
+    {
+        return RequiredCommandProcessor().ProcessAsync(
+            new DurablePauseCommand(CommandId.New(), instanceId, requestedAt),
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Resumes one paused durable instance.
+    /// </summary>
+    public Task<DurableCommandResult> ResumeAsync(
+        InstanceId instanceId,
+        DateTimeOffset requestedAt,
+        bool replayBufferedDeliveries,
+        CancellationToken cancellationToken)
+    {
+        return RequiredCommandProcessor().ProcessAsync(
+            new DurableResumeCommand(
+                CommandId.New(),
+                instanceId,
+                requestedAt,
+                replayBufferedDeliveries ? ResumeBufferedDeliveries.Replay : ResumeBufferedDeliveries.Discard),
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Cancels one durable instance.
+    /// </summary>
+    public Task<DurableCommandResult> CancelAsync(
+        InstanceId instanceId,
+        DateTimeOffset requestedAt,
+        CancellationToken cancellationToken)
+    {
+        return RequiredCommandProcessor().ProcessAsync(
+            new CancelWorkflowCommand
+            {
+                CommandId = CommandId.New(),
+                InstanceId = instanceId,
+                RequestedAt = requestedAt
+            },
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Terminates one durable instance.
+    /// </summary>
+    public Task<DurableCommandResult> TerminateAsync(
+        InstanceId instanceId,
+        DateTimeOffset requestedAt,
+        CancellationToken cancellationToken)
+    {
+        throw new WorkflowLifecycleException(
+            "Durable Terminate requires explicit destructive safety confirmation.");
+    }
+
+    /// <summary>
+    /// Terminates one durable instance after explicit destructive safety confirmation.
+    /// </summary>
+    public Task<DurableCommandResult> TerminateAsync(
+        InstanceId instanceId,
+        DateTimeOffset requestedAt,
+        DestructiveCommandSafety safety,
+        CancellationToken cancellationToken)
+    {
+        RequireDestructiveSafety(safety, "Terminate");
+        return RequiredCommandProcessor().ProcessAsync(
+            new TerminateWorkflowCommand
+            {
+                CommandId = CommandId.New(),
+                InstanceId = instanceId,
+                RequestedAt = requestedAt
+            },
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads the committed durable event history for one instance.
+    /// </summary>
+    public Task<IReadOnlyList<WorkflowEvent>> GetHistoryAsync(
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
+    {
+        return RequiredWorkflowEventStore()
+            .LoadTailAsync(new WorkflowStreamId(instanceId), StreamVersion.Empty, cancellationToken);
     }
 
     /// <summary>
@@ -117,6 +213,19 @@ public sealed class DurableManagement(
     /// </summary>
     public Task<PurgeResult> PurgeAsync(RetentionPolicy policy, CancellationToken cancellationToken)
     {
+        throw new WorkflowLifecycleException(
+            "Durable Purge requires explicit destructive safety confirmation.");
+    }
+
+    /// <summary>
+    /// Purges retained durable data according to an explicit retention policy after destructive safety confirmation.
+    /// </summary>
+    public Task<PurgeResult> PurgeAsync(
+        RetentionPolicy policy,
+        DestructiveCommandSafety safety,
+        CancellationToken cancellationToken)
+    {
+        RequireDestructiveSafety(safety, "Purge");
         return RequiredRetentionStore().PurgeAsync(policy, cancellationToken);
     }
 
@@ -127,18 +236,23 @@ public sealed class DurableManagement(
         InstanceId rootInstanceId,
         CancellationToken cancellationToken)
     {
-        var rootEvents = await RequiredWorkflowEventStore()
-            .LoadTailAsync(new WorkflowStreamId(rootInstanceId), StreamVersion.Empty, cancellationToken)
+        var eventStore = RequiredWorkflowEventStore();
+        var checkpoint = await eventStore
+            .LoadCheckpointAsync(rootInstanceId, cancellationToken)
             .ConfigureAwait(false);
-        var childNodes = rootEvents
-            .OfType<WorkflowChildrenScheduledEvent>()
-            .SelectMany(group => group.Children.Select(child => new
-            {
-                NodeId = child.ItemSnapshot,
-                child.ChildInstanceId,
-                StartedAt = group.OccurredAt
-            }))
-            .ToArray();
+        var afterVersion = checkpoint.HasValue
+            ? checkpoint.Value.StreamVersion
+            : StreamVersion.Empty;
+        var rootEvents = await eventStore
+            .LoadTailAsync(new WorkflowStreamId(rootInstanceId), afterVersion, cancellationToken)
+            .ConfigureAwait(false);
+        var childNodes = new List<DagNodeDraft>();
+        if (checkpoint.HasValue)
+        {
+            childNodes.AddRange(ChildNodesFromCheckpoint(checkpoint.Value));
+        }
+
+        childNodes.AddRange(rootEvents.SelectMany(ChildNodesFromEvent));
         var childProjections = await projectionStore
             .ListAsync(new WorkflowProjectionQuery { RootInstanceId = rootInstanceId }, cancellationToken)
             .ConfigureAwait(false);
@@ -161,6 +275,62 @@ public sealed class DurableManagement(
         return new DagRunSnapshot(rootInstanceId, nodes);
     }
 
+    private static IEnumerable<DagNodeDraft> ChildNodesFromCheckpoint(CheckpointWrite checkpoint)
+    {
+        foreach (var child in checkpoint.RuntimeState.ActiveChildren)
+        {
+            yield return new DagNodeDraft(
+                NodeId(child.ItemSnapshot, child.ChildInstanceId),
+                child.ChildInstanceId,
+                DateTimeOffset.MinValue);
+        }
+
+        foreach (var group in checkpoint.RuntimeState.ActiveChildGroups)
+        {
+            foreach (var child in group.Children)
+            {
+                yield return new DagNodeDraft(
+                    NodeId(child.ItemSnapshot, child.ChildInstanceId),
+                    child.ChildInstanceId,
+                    DateTimeOffset.MinValue);
+            }
+        }
+    }
+
+    private static IEnumerable<DagNodeDraft> ChildNodesFromEvent(WorkflowEvent workflowEvent)
+    {
+        return workflowEvent switch
+        {
+            WorkflowChildrenScheduledEvent scheduled => scheduled.Children.Select(child =>
+                new DagNodeDraft(
+                    NodeId(child.ItemSnapshot, child.ChildInstanceId),
+                    child.ChildInstanceId,
+                    scheduled.OccurredAt)),
+            WorkflowChildrenDispatchedEvent dispatched => dispatched.Children.Select(child =>
+                new DagNodeDraft(
+                    NodeId(child.ItemSnapshot, child.ChildInstanceId),
+                    child.ChildInstanceId,
+                    dispatched.OccurredAt)),
+            _ => []
+        };
+    }
+
+    private static string NodeId(string? itemSnapshot, InstanceId childInstanceId)
+    {
+        return string.IsNullOrWhiteSpace(itemSnapshot)
+            ? childInstanceId.Value.ToString("N")
+            : itemSnapshot;
+    }
+
+    private static void RequireDestructiveSafety(DestructiveCommandSafety safety, string operation)
+    {
+        if (safety != DestructiveCommandSafety.Confirmed)
+        {
+            throw new WorkflowLifecycleException(
+                $"Durable {operation} requires explicit destructive safety confirmation.");
+        }
+    }
+
     private IResourcePoolStore RequiredResourcePoolStore()
     {
         return resourcePoolStore ?? throw new InvalidOperationException(
@@ -173,12 +343,33 @@ public sealed class DurableManagement(
             "DAG run reconstruction requires an event-store-capable provider.");
     }
 
+    private DurableCommandProcessor RequiredCommandProcessor()
+    {
+        return new DurableCommandProcessor(RequiredWorkflowEventStore(), resourcePoolStore);
+    }
+
     private IWorkflowRetentionStore RequiredRetentionStore()
     {
         return retentionStore ?? throw new InvalidOperationException(
             "Durable retention management requires a retention-capable provider.");
     }
 }
+
+/// <summary>
+/// Explicit confirmation token for durable destructive management commands.
+/// </summary>
+public enum DestructiveCommandSafety
+{
+    /// <summary>
+    /// Caller explicitly confirmed the destructive breadth and host-side authorization requirements.
+    /// </summary>
+    Confirmed
+}
+
+internal sealed record DagNodeDraft(
+    string NodeId,
+    InstanceId ChildInstanceId,
+    DateTimeOffset StartedAt);
 
 /// <summary>
 /// Immutable reconstruction of a DAG run from durable workflow metadata.
