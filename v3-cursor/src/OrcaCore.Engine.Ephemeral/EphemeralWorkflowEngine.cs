@@ -15,6 +15,7 @@ public sealed class EphemeralWorkflowEngine
 {
     private readonly ConcurrentDictionary<DefinitionId, object> definitions = new();
     private readonly IInstanceRegistry registry;
+    private readonly InstanceExecutionLane executionLane = new();
     private readonly TimeProvider timeProvider;
 
     public EphemeralWorkflowEngine()
@@ -60,9 +61,15 @@ public sealed class EphemeralWorkflowEngine
         }
 
         var instanceId = InstanceId.New();
-        var interpreter = new Interpreter<TState>(timeProvider);
-        var instance = await interpreter.RunAsync(definition, input, instanceId, cancellationToken).ConfigureAwait(false);
-        registry.Save(instanceId, instance);
-        return instance.ToSnapshot();
+        return await executionLane.RunAsync(
+            instanceId,
+            async ct =>
+            {
+                var interpreter = new Interpreter<TState>(timeProvider);
+                var instance = await interpreter.RunAsync(definition, input, instanceId, ct).ConfigureAwait(false);
+                registry.Save(instanceId, instance);
+                return instance.ToSnapshot();
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 }

@@ -51,6 +51,12 @@ internal sealed class WorkflowInstance<TState>
     internal string? EndOutcomeName { get; private set; }
 
     /// <summary>
+    /// Per-<see cref="WhileNode"/> iteration counters so each loop body entry gets a distinct
+    /// <see cref="Frame.LoopIteration"/> (EV-043). Owned by the interpreter; not part of snapshots.
+    /// </summary>
+    internal Dictionary<WhileNode, int> LoopIterationCounters { get; } = [];
+
+    /// <summary>
     /// The single seam every runtime-state mutation flows through (position, status, error,
     /// end outcome). T1-06 wraps calls to this method with the per-instance execution lane
     /// (CR-040/041) without the interpreter needing to change.
