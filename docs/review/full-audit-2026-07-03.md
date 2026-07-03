@@ -82,6 +82,12 @@ Follow-up implementation verification, 2026-07-03:
   loop with `-warnaserror`, the full non-integration `v3-gpt/tests` sweep, and
   `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 81, skipped 18, failed
   0.
+- Durable commit-materializer extraction pass added focused
+  `DurableCommitMaterializer` tests and reran focused command-pipeline tests
+  before broader verification. Broader verification passed the non-integration
+  analyzer build loop with `-warnaserror`, the full non-integration
+  `v3-gpt/tests` sweep, and `v3-gpt/tests/OrcaCore.Integration.Tests` with
+  passed 81, skipped 18, failed 0.
 - Durable wait-state extraction pass added focused `DurableWaitState` tests and
   reran the durable analyzer build and full durable test project before broader
   verification.
@@ -297,6 +303,13 @@ Refactoring candidate: split internal Modules for `DurableCommitPipeline`,
 `OutboxMaterializer`, `TimerScheduleMaterializer`,
 `LifecycleProjectionMaterializer`, and `ResourcePoolCoordinator`. The external
 Interface should stay a small "process durable command" Seam.
+
+Implementation update:
+- 2026-07-03: extracted `DurableCommitMaterializer` for provider commit-batch
+  materialization, including inbox operations, lifecycle/child/residual/external
+  job outbox writes, timer schedules, start-idempotency writes, and projection
+  writes. `DurableCommandProcessor` still owns command routing, rehydration,
+  lane execution, append result handling, and resource-pool side effects.
 
 ### DurableWorkflowAggregate is a feature sink
 
@@ -544,7 +557,7 @@ Implementation update:
 | Module | Current shape | Refactoring direction |
 | --- | --- | --- |
 | `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs` | About 2,603 lines before decomposition; one aggregate owns timers, projections, lifecycle transitions, and replay orchestration. Saga compensation state has been extracted to `DurableSagaState`; active-wait and buffered-delivery state has been extracted to `DurableWaitState`; external-job state has been extracted to `DurableExternalJobState`; child workflow state has been extracted to `DurableChildWorkflowState`; resource-pool state has been extracted to `DurableResourcePoolState`. | Keep the aggregate Interface. Further extraction should target timers or projection/replay orchestration only when it creates behavior-testable Locality rather than pass-through glue. |
-| `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` | About 979 lines; one processor handles command overloads, rehydration, commit, outbox/timer/projection/idempotency materialization, and resource-pool side effects. | Create `DurableCommandRuntime` and `DurableCommitPipeline`; materializers become internal Modules behind small Interfaces. |
+| `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` | About 979 lines before decomposition; one processor handles command overloads, rehydration, append result handling, and resource-pool side effects. `DurableCommandRuntime` owns per-instance lanes, and `DurableCommitMaterializer` owns provider commit-batch materialization. | Continue toward `DurableCommitPipeline`; move append result handling and resource-pool commit side effects only where the new Module creates behavior-testable Locality. |
 | `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs` | About 1,515 lines; event codec switches at `:1363`, `:1419`, and `:1464`; projection operation switch at `:979`. | Move event mapping into `WorkflowEventCodec`; move projection writes into a projection store Module; keep this Adapter focused on PostgreSQL SQL and transaction shape. |
 | `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs` | About 1,369 lines; event codec switches at `:1194`, `:1207`, and `:1220`; projection operation switch at `:949`; resource pools are in-memory inside the same store. | Share `WorkflowEventCodec`; split durable event store, projection store, timer store, outbox store, and resource pool Adapter responsibilities. |
 
