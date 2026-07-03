@@ -14,6 +14,31 @@ public abstract class RetentionCertificationTests
 
     [Fact]
     [Trait("AC", "AC-314")]
+    public async Task ArchivePolicy_InactiveInstance_MarksProjectionArchived()
+    {
+        var fixture = CreateFixture();
+        var instanceId = InstanceIdValue(4);
+        await SeedInstanceAsync(fixture, instanceId, WorkflowStatus.Completed);
+
+        var result = await fixture.RetentionStore.ArchiveAsync(
+            new RetentionPolicy
+            {
+                InstanceId = instanceId,
+                RequestedAt = Timestamp(7),
+                Reason = "retention elapsed"
+            },
+            TestContext.Current.CancellationToken);
+        var snapshots = await fixture.ProjectionStore.ListAsync(
+            new WorkflowProjectionQuery { InstanceId = instanceId },
+            TestContext.Current.CancellationToken);
+
+        result.Archived.Should().BeTrue();
+        snapshots.Should().ContainSingle()
+            .Which.ArchivedAt.Should().Be(Timestamp(7));
+    }
+
+    [Fact]
+    [Trait("AC", "AC-314")]
     public async Task ArchivePolicy_ActiveInstance_IsRejectedWithoutDeletingState()
     {
         var fixture = CreateFixture();

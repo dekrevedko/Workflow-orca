@@ -21,6 +21,7 @@ public sealed class SqlServerWorkflowStore :
     IWorkflowStartIdempotencyStore,
     IWorkflowOutboxStore,
     IWorkflowProjectionStore,
+    IWorkflowRetentionStore,
     ITimerScheduler,
     IResourcePoolStore,
     IAsyncDisposable
@@ -29,6 +30,7 @@ public sealed class SqlServerWorkflowStore :
     private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
 
     private readonly string connectionString;
+    private readonly SqlServerRetentionStore retentionStore;
     private readonly SqlServerResourcePoolStore resourcePoolStore;
 
     /// <summary>
@@ -38,6 +40,7 @@ public sealed class SqlServerWorkflowStore :
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         this.connectionString = connectionString;
+        retentionStore = new SqlServerRetentionStore(connectionString);
         resourcePoolStore = new SqlServerResourcePoolStore(connectionString);
     }
 
@@ -187,6 +190,18 @@ public sealed class SqlServerWorkflowStore :
         cancellationToken.ThrowIfCancellationRequested();
 
         return GetStatisticsCoreAsync(query, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<ArchiveResult> ArchiveAsync(RetentionPolicy policy, CancellationToken cancellationToken)
+    {
+        return retentionStore.ArchiveAsync(policy, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<PurgeResult> PurgeAsync(RetentionPolicy policy, CancellationToken cancellationToken)
+    {
+        return retentionStore.PurgeAsync(policy, cancellationToken);
     }
 
     /// <inheritdoc />

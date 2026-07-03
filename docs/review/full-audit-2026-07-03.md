@@ -51,6 +51,11 @@ Follow-up implementation verification, 2026-07-03:
   analyzer build loop with `-warnaserror`, the full SQL Server provider suite,
   and the full `v3-gpt/tests` sweep including integration tests. Integration
   coverage is now passed 73, skipped 26, failed 0.
+- SQL Server retention certification pass added table-backed
+  `IWorkflowRetentionStore` behavior and reran focused SQL Server, PostgreSQL,
+  and in-memory retention certification. Successful archive now has shared
+  certification coverage in addition to active-instance and in-flight outbox
+  safety checks.
 
 ## Completed In This Pass
 
@@ -488,8 +493,8 @@ Module Interface and keep source-text checks explicitly named as guard tests.
    Modules before expanding clustered durable execution.
 3. Completed 2026-07-03: create `WorkflowEventCodec` and complete SQL Server
    event coverage.
-4. Completed 2026-07-03 for PostgreSQL start idempotency. Persist SQL Server
-   resource pools, or remove that durable-provider claim until true.
+4. Completed 2026-07-03: PostgreSQL start idempotency, SQL Server resource-pool
+   persistence, and SQL Server retention certification parity.
 5. Extract internal durable aggregate slices for waits, children, resource pools,
    external jobs, and saga compensation.
 6. Introduce a shared `InstanceLane` Module to remove duplicated channel-lane
@@ -500,8 +505,9 @@ Module Interface and keep source-text checks explicitly named as guard tests.
 
 ## Current Risk Summary
 
-The R8 quality issues and immediate channel-substrate drift are addressed. The
-remaining high-risk items are not analyzer warnings; they are durable execution
-and provider semantics. The next refactoring pass should prioritize provider
-parity, especially SQL Server durable resource pools, before adding more
-composition features.
+The R8 quality issues, immediate channel-substrate drift, timer/outbox claim
+leases, PostgreSQL start idempotency, SQL Server event coverage, SQL Server
+resource-pool persistence, and SQL Server retention certification parity are
+addressed. The next refactoring pass should prioritize durable aggregate,
+durable command-processor, and interpreter decomposition without weakening the
+provider certification surface.
