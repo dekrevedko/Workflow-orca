@@ -20,6 +20,18 @@ public sealed class EphemeralWorkflowEngine
     private readonly InstanceExecutionLane executionLane;
     private readonly TimeProvider timeProvider;
 
+    /// <summary>
+    /// EV-011 correlation index over active waits, engine-owned (spans instances, so it
+    /// cannot live on <see cref="WorkflowInstance{TState}"/>). Guarded by <see cref="indexLock"/>
+    /// since routing calls for different instances run concurrently on independent lanes.
+    /// </summary>
+    private readonly CorrelationIndex correlationIndex = new();
+
+    /// <summary>Definition-targeted fanout scoping (EV-010): which instances belong to which definition.</summary>
+    private readonly ConcurrentDictionary<DefinitionId, ConcurrentDictionary<InstanceId, byte>> instancesByDefinition = new();
+
+    private readonly Lock indexLock = new();
+
     public EphemeralWorkflowEngine()
         : this(TimeProvider.System)
     {
@@ -65,12 +77,15 @@ public sealed class EphemeralWorkflowEngine
         var instance = new WorkflowInstance<TState>(InstanceId.New(), definitionId, definition.DefinitionVersion, state, createdAt);
 
         instanceRegistry.Add(instance);
+        instancesByDefinition.GetOrAdd(definitionId, static _ => new ConcurrentDictionary<InstanceId, byte>())[instance.InstanceId] = 0;
 
         var interpreter = new Interpreter<TState>();
         await executionLane.RunAsync(
             instance.InstanceId,
             () => interpreter.RunAsync(instance, definition, timeProvider, cancellationToken),
             cancellationToken).ConfigureAwait(false);
+
+        SyncCorrelationIndex(instance);
 
         return ToSnapshot(instance);
     }
@@ -110,10 +125,97 @@ public sealed class EphemeralWorkflowEngine
                 var interpreter = new Interpreter<TState>();
                 outcome = await interpreter.TryResumeAsync(instance, definition, envelope, timeProvider, cancellationToken)
                     .ConfigureAwait(false);
+
+                SyncCorrelationIndex(instance);
             },
             cancellationToken).ConfigureAwait(false);
 
         return outcome;
+    }
+
+    /// <summary>
+    /// Correlation-targeted delivery (EV-010 mode 2): resolves the target instance via the
+    /// EV-011 correlation index by <paramref name="envelope"/>'s <c>EventName</c>/
+    /// <c>CorrelationId</c> and delivers to it through the same instance-targeted path as
+    /// <see cref="RaiseEventAsync{TState}"/>, so it still routes through that instance's
+    /// execution lane. EV-012: throws <see cref="WorkflowRoutingException"/> when zero or more
+    /// than one instance currently has a matching active wait — uniqueness is checked here, at
+    /// routing time, never at wait-registration time.
+    /// </summary>
+    public async Task<RaiseEventOutcome> RaiseByCorrelationAsync<TState>(
+        EventEnvelope envelope,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyCollection<InstanceId> matches;
+        lock (indexLock)
+        {
+            matches = correlationIndex.Resolve(envelope.EventName, envelope.CorrelationId);
+        }
+
+        switch (matches.Count)
+        {
+            case 0:
+                throw new WorkflowRoutingException(
+                    $"No active wait matches event '{envelope.EventName}' with correlation '{envelope.CorrelationId}'. " +
+                    "Deliver later once a matching Wait is registered, or use instance-targeted routing if the target is known.");
+
+            case > 1:
+                throw new WorkflowRoutingException(
+                    $"{matches.Count} instances have an active wait matching event '{envelope.EventName}' with " +
+                    $"correlation '{envelope.CorrelationId}'. Correlation-targeted delivery requires exactly one match " +
+                    "(EV-012) - use instance-targeted or definition-targeted fanout routing instead.");
+        }
+
+        var targetInstanceId = matches.Single();
+        return await RaiseEventAsync<TState>(targetInstanceId, envelope, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Definition-targeted fanout delivery (EV-010 mode 3): delivers <paramref name="envelope"/>
+    /// to every currently-registered instance of <paramref name="definitionId"/> and only that
+    /// definition - never other definitions, never engine-wide. Each targeted instance gets its
+    /// own execution-lane call (never one lane call spanning several instances), run
+    /// independently so one instance's outcome cannot block another's.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<InstanceId, RaiseEventOutcome>> RaiseByDefinitionAsync<TState>(
+        DefinitionId definitionId,
+        EventEnvelope envelope,
+        CancellationToken cancellationToken)
+    {
+        if (!instancesByDefinition.TryGetValue(definitionId, out var targetInstanceIds) || targetInstanceIds.IsEmpty)
+        {
+            return new Dictionary<InstanceId, RaiseEventOutcome>();
+        }
+
+        var targets = targetInstanceIds.Keys.ToArray();
+        var outcomes = await Task.WhenAll(
+            targets.Select(async instanceId =>
+            {
+                var outcome = await RaiseEventAsync<TState>(instanceId, envelope, cancellationToken).ConfigureAwait(false);
+                return (InstanceId: instanceId, Outcome: outcome);
+            })).ConfigureAwait(false);
+
+        return outcomes.ToDictionary(pair => pair.InstanceId, pair => pair.Outcome);
+    }
+
+    /// <summary>
+    /// Reconciles the EV-011 correlation index for one instance against its current runtime
+    /// state after a lane-guarded mutation (start, resume). Removes any stale entry first, then
+    /// re-registers if the instance is <c>Waiting</c> with a still-<c>Active</c> wait — covers
+    /// registration, match/resume, and terminal cleanup in one place, since all three collapse
+    /// to "what does this instance's active wait look like right now".
+    /// </summary>
+    private void SyncCorrelationIndex<TState>(WorkflowInstance<TState> instance)
+    {
+        lock (indexLock)
+        {
+            correlationIndex.Remove(instance.InstanceId);
+
+            if (instance.Status == WorkflowStatus.Waiting && instance.ActiveWait is { Status: WaitStatus.Active } wait)
+            {
+                correlationIndex.Register(instance.InstanceId, wait.EventName, wait.CorrelationId);
+            }
+        }
     }
 
     private static WorkflowInstanceSnapshot ToSnapshot<TState>(WorkflowInstance<TState> instance) =>
