@@ -12,6 +12,7 @@ public sealed class DurableCommandProcessor
     private readonly DurableCommandRuntime runtime;
     private readonly IWorkflowEventStore eventStore;
     private readonly DurableCommitMaterializer commitMaterializer = new();
+    private readonly DurableResourcePoolCommitEffects resourcePoolCommitEffects;
     private readonly IResourcePoolStore? resourcePoolStore;
     private readonly IWorkflowInboxStore? inboxStore;
     private readonly IWorkflowStartIdempotencyStore? startIdempotencyStore;
@@ -37,6 +38,7 @@ public sealed class DurableCommandProcessor
         this.runtime = runtime;
         eventStore = runtime.EventStore;
         resourcePoolStore = runtime.ResourcePoolStore;
+        resourcePoolCommitEffects = new DurableResourcePoolCommitEffects(resourcePoolStore);
         inboxStore = eventStore as IWorkflowInboxStore;
         startIdempotencyStore = eventStore as IWorkflowStartIdempotencyStore;
     }
@@ -536,14 +538,14 @@ public sealed class DurableCommandProcessor
 
         if (appendResult.IsFailure)
         {
-            await RollBackResourcePoolAcquiresAsync(decision.Events, cancellationToken).ConfigureAwait(false);
+            await resourcePoolCommitEffects.RollBackAcquiresAsync(decision.Events, cancellationToken).ConfigureAwait(false);
             return new DurableCommandResult(
                 DurableCommandOutcome.Conflict,
                 appendResult.Error.Message,
                 aggregate.StreamVersion);
         }
 
-        await ReleaseResourcePoolTicketsAsync(decision.Events, cancellationToken).ConfigureAwait(false);
+        await resourcePoolCommitEffects.ReleaseCommittedTicketsAsync(decision.Events, cancellationToken).ConfigureAwait(false);
         return new DurableCommandResult(
             DurableCommandOutcome.Committed,
             null,
@@ -673,53 +675,6 @@ public sealed class DurableCommandProcessor
             "Durable resource-pool acquisition requires a resource-pool-capable provider.");
     }
 
-    private async Task ReleaseResourcePoolTicketsAsync(
-        IReadOnlyList<WorkflowEvent> events,
-        CancellationToken cancellationToken)
-    {
-        foreach (var released in events.OfType<WorkflowResourcePoolReleasedEvent>())
-        {
-            await ReleaseWithRetryAsync(
-                new ResourcePoolReleaseRequest(released.InstanceId, released.HolderKey, released.OccurredAt),
-                cancellationToken)
-                .ConfigureAwait(false);
-        }
-    }
-
-    private async Task RollBackResourcePoolAcquiresAsync(
-        IReadOnlyList<WorkflowEvent> events,
-        CancellationToken cancellationToken)
-    {
-        foreach (var acquired in events.OfType<WorkflowResourcePoolAcquiredEvent>())
-        {
-            await RequiredResourcePoolStore()
-                .ReleaseAsync(
-                    new ResourcePoolReleaseRequest(acquired.InstanceId, acquired.HolderKey, acquired.OccurredAt),
-                    cancellationToken)
-                .ConfigureAwait(false);
-        }
-    }
-
-    private async Task ReleaseWithRetryAsync(
-        ResourcePoolReleaseRequest request,
-        CancellationToken cancellationToken)
-    {
-        const int maxAttempts = 3;
-        for (var attempt = 1; ; attempt++)
-        {
-            try
-            {
-                await RequiredResourcePoolStore()
-                    .ReleaseAsync(request, cancellationToken)
-                    .ConfigureAwait(false);
-                return;
-            }
-            catch when (attempt < maxAttempts && !cancellationToken.IsCancellationRequested)
-            {
-                await Task.Yield();
-            }
-        }
-    }
 }
 
 public enum DurableCommandOutcome
