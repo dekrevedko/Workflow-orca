@@ -98,6 +98,12 @@ Follow-up implementation verification, 2026-07-03:
   non-integration `v3-gpt/tests` sweep after replacing a wall-clock test yield
   flagged by repository guards, and `v3-gpt/tests/OrcaCore.Integration.Tests`
   with passed 83, skipped 16, failed 0.
+- Durable checkpoint-mapper extraction pass added focused
+  `DurableCheckpointMapper` tests for provider checkpoint runtime-state
+  projection and payload copying. Focused mapper coverage, the full durable
+  test project, the non-integration analyzer build loop with `-warnaserror`,
+  and `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 83, skipped 16,
+  failed 0 passed.
 - Durable commit-materializer extraction pass added focused
   `DurableCommitMaterializer` tests and reran focused command-pipeline tests
   before broader verification. Broader verification passed the non-integration
@@ -371,6 +377,10 @@ Implementation update:
   commit-success/failure resource-pool effect routing. `DurableCommandProcessor`
   still owns command routing, rehydration, lane execution, inbox preflight, and
   resource-pool acquire command planning.
+- 2026-07-03: extracted `DurableCheckpointMapper` for provider checkpoint to
+  aggregate checkpoint projection, including runtime-state collections and
+  payload copying. `DurableCommandProcessor` still owns command routing,
+  per-instance lane execution, inbox preflight, and commit pipeline invocation.
 
 ### DurableWorkflowAggregate is a feature sink
 
@@ -630,7 +640,7 @@ Implementation update:
 | Module | Current shape | Refactoring direction |
 | --- | --- | --- |
 | `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs` | About 2,603 lines before decomposition; one aggregate owned timers, projections, lifecycle transitions, and replay orchestration. Saga compensation state has been extracted to `DurableSagaState`; active-wait and buffered-delivery state has been extracted to `DurableWaitState`; external-job state has been extracted to `DurableExternalJobState`; child workflow state has been extracted to `DurableChildWorkflowState`; resource-pool state has been extracted to `DurableResourcePoolState`; timer state has been extracted to `DurableTimerState`. | Keep the aggregate Interface. Further extraction should target projection/replay orchestration only when it creates behavior-testable Locality rather than pass-through glue. |
-| `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` | About 979 lines before decomposition; one processor handled command overloads, rehydration, and append result branching. `DurableCommandRuntime` owns per-instance lanes, `DurableCommitMaterializer` owns provider commit-batch materialization, `DurableResourcePoolCommitEffects` owns resource-pool commit side effects, and `DurableCommitPipeline` owns no-op/poison/append-result behavior. | Continue only where another behavior can become testable Locality; avoid splitting command overloads into pass-through classes. |
+| `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` | About 979 lines before decomposition; one processor handled command overloads, rehydration, and append result branching. `DurableCommandRuntime` owns per-instance lanes, `DurableCommitMaterializer` owns provider commit-batch materialization, `DurableResourcePoolCommitEffects` owns resource-pool commit side effects, `DurableCommitPipeline` owns no-op/poison/append-result behavior, and `DurableCheckpointMapper` owns provider checkpoint projection. | Continue only where another behavior can become testable Locality; avoid splitting command overloads into pass-through classes. |
 | `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs` | About 1,515 lines; event codec switches at `:1363`, `:1419`, and `:1464`; projection operation switch at `:979`. | Move event mapping into `WorkflowEventCodec`; move projection writes into a projection store Module; keep this Adapter focused on PostgreSQL SQL and transaction shape. |
 | `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs` | About 1,369 lines; event codec switches at `:1194`, `:1207`, and `:1220`; projection operation switch at `:949`; resource pools are in-memory inside the same store. | Share `WorkflowEventCodec`; split durable event store, projection store, timer store, outbox store, and resource pool Adapter responsibilities. |
 
