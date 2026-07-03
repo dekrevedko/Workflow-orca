@@ -16,6 +16,7 @@ public sealed class EphemeralWorkflowEngine
 {
     private readonly ConcurrentDictionary<DefinitionId, object> definitions = new();
     private readonly IInstanceRegistry instanceRegistry;
+    private readonly InstanceExecutionLane executionLane;
     private readonly TimeProvider timeProvider;
 
     public EphemeralWorkflowEngine()
@@ -27,6 +28,7 @@ public sealed class EphemeralWorkflowEngine
     {
         this.timeProvider = timeProvider;
         instanceRegistry = new InstanceRegistry();
+        executionLane = new InstanceExecutionLane();
     }
 
     /// <summary>Registers a built, validated definition (CR-002) for later starts.</summary>
@@ -64,7 +66,10 @@ public sealed class EphemeralWorkflowEngine
         instanceRegistry.Add(instance);
 
         var interpreter = new Interpreter<TState>();
-        await interpreter.RunAsync(instance, definition, timeProvider, cancellationToken).ConfigureAwait(false);
+        await executionLane.RunAsync(
+            instance.InstanceId,
+            () => interpreter.RunAsync(instance, definition, timeProvider, cancellationToken),
+            cancellationToken).ConfigureAwait(false);
 
         return ToSnapshot(instance);
     }
