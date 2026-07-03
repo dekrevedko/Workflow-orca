@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="OrcaCore.Core.Tests" />
+    <InternalsVisibleTo Include="OrcaCore.Engine.Ephemeral" />
   </ItemGroup>
 
 </Project>

@@ -20,3 +20,4 @@ Local progress log for the `v3-cursor/` workspace. Phase task specs live under
 | T1-03 | done | 2026-07-02 | definition model (CR-003/015); public nodes + WorkflowDefinition/ExecutionPointer |
 | T1-04 | done | 2026-07-02 | builder + validation (CR-001/002/005/008, AC-008) |
 | T1-02 | done | 2026-07-02 | lifecycle state machine (CR-030); table-driven LifecycleMachine + 4 tests |
+| T1-05 | done | 2026-07-02 | straight-line interpreter (AC-001, AC-004); internal `WorkflowInstance<TState>`/`Interpreter<TState>` + `IInstanceRegistry` seam; public `EphemeralWorkflowEngine` facade (`RegisterDefinition`, `StartAsync`); `WaitForEvent`/`Yield` throw `NotSupportedException` naming T1-08/T1-15; removed Ephemeral/Acceptance `SkeletonTests` |
