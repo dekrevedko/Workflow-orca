@@ -80,8 +80,16 @@ prior findings are fixed in code, adds the previously missing [R1](R1-abstractio
 7. ~~**DAG transitively-blocked nodes invisible**~~ — **FIXED.** `GetBlockedByFailures` computes
    the transitive closure; `WorkflowDagPlan.IsComplete` / `WorkflowDagRunner.IsComplete` expose
    the terminal-run check. Tests in `DagBuilderTests`.
-8. **File-size watch items growing** — open (`PostgreSqlResourcePoolStore` 930,
-   `WorkflowInstance` 887, `SqlServerResourcePoolStore` 873; split when they next grow).
+8. **File-size watch items** — open, **deliberately deferred** (`PostgreSqlResourcePoolStore` 930,
+   `SqlServerResourcePoolStore` 873, `WorkflowInstance` 887 — all under the 1000 hard limit).
+   Assessed 2026-07-04: the resource-pool stores are already cleanly layered (public methods
+   orchestrate a transaction and delegate to focused private SQL helpers), so the god-class risk
+   is line count, not tangled logic. Concrete split when they cross 1000: extract the
+   `(connection, transaction, …)` helpers into three stateless companions per provider —
+   `*ResourcePoolTickets` (insert/delete/held-counts), `*ResourcePoolWaiters` (upsert/grant-queued),
+   `*ResourcePoolExpiry` (expire/force-release/audit). This is behavior-preserving but only
+   verifiable via the ~5-min-per-provider container suites, so it is not worth the regression
+   surface while under the hard limit. Defer per standing guidance.
 9. **Aggregate encapsulation loosened by decomposition** — open (internal-only, low urgency).
 
 ### P3
