@@ -29,22 +29,29 @@ public sealed class PostgreSqlWorkflowStore :
     private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
 
     private readonly NpgsqlDataSource dataSource;
+    private readonly bool ownsDataSource;
 
     /// <summary>
     /// Initializes a PostgreSQL workflow store from a connection string.
     /// </summary>
     public PostgreSqlWorkflowStore(string connectionString)
-        : this(CreateDataSource(connectionString))
+        : this(CreateDataSource(connectionString), ownsDataSource: true)
     {
     }
 
     /// <summary>
-    /// Initializes a PostgreSQL workflow store from an existing data source.
+    /// Initializes a PostgreSQL workflow store from an existing caller-owned data source.
     /// </summary>
     public PostgreSqlWorkflowStore(NpgsqlDataSource dataSource)
+        : this(dataSource, ownsDataSource: false)
+    {
+    }
+
+    private PostgreSqlWorkflowStore(NpgsqlDataSource dataSource, bool ownsDataSource)
     {
         ArgumentNullException.ThrowIfNull(dataSource);
         this.dataSource = dataSource;
+        this.ownsDataSource = ownsDataSource;
     }
 
     /// <summary>
@@ -811,7 +818,9 @@ public sealed class PostgreSqlWorkflowStore :
     /// <inheritdoc />
     public ValueTask DisposeAsync()
     {
-        return dataSource.DisposeAsync();
+        return ownsDataSource
+            ? dataSource.DisposeAsync()
+            : ValueTask.CompletedTask;
     }
 
     private static NpgsqlDataSource CreateDataSource(string connectionString)

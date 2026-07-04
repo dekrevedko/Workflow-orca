@@ -16,22 +16,29 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 
     private readonly NpgsqlDataSource dataSource;
+    private readonly bool ownsDataSource;
 
     /// <summary>
     /// Initializes a PostgreSQL resource-pool store from a connection string.
     /// </summary>
     public PostgreSqlResourcePoolStore(string connectionString)
-        : this(CreateDataSource(connectionString))
+        : this(CreateDataSource(connectionString), ownsDataSource: true)
     {
     }
 
     /// <summary>
-    /// Initializes a PostgreSQL resource-pool store from an existing data source.
+    /// Initializes a PostgreSQL resource-pool store from an existing caller-owned data source.
     /// </summary>
     public PostgreSqlResourcePoolStore(NpgsqlDataSource dataSource)
+        : this(dataSource, ownsDataSource: false)
+    {
+    }
+
+    private PostgreSqlResourcePoolStore(NpgsqlDataSource dataSource, bool ownsDataSource)
     {
         ArgumentNullException.ThrowIfNull(dataSource);
         this.dataSource = dataSource;
+        this.ownsDataSource = ownsDataSource;
     }
 
     /// <summary>
@@ -316,7 +323,10 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-        await dataSource.DisposeAsync().ConfigureAwait(false);
+        if (ownsDataSource)
+        {
+            await dataSource.DisposeAsync().ConfigureAwait(false);
+        }
     }
 
     private static NpgsqlDataSource CreateDataSource(string connectionString)

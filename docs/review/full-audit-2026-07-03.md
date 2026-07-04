@@ -632,6 +632,15 @@ Risk: disposing one store can tear down a host-owned or shared pool.
 Recommendation: split owned-data-source and borrowed-data-source Adapters, or
 track ownership explicitly.
 
+Implementation update:
+- 2026-07-03: PostgreSQL workflow and resource-pool stores now track data-source
+  ownership explicitly. Connection-string constructors own and dispose their
+  internally-created `NpgsqlDataSource`; `NpgsqlDataSource` constructors borrow
+  caller-owned pools and leave disposal to the caller or container owner.
+- PostgreSQL service-collection tests now cover direct borrowed-store disposal
+  and borrowed-data-source DI provider disposal without tearing down the
+  caller-owned source.
+
 ## Large Module And Switch Hotspots
 
 This is the first refactoring lens to apply after the P0/P1 correctness fixes.
@@ -761,6 +770,8 @@ resource-pool persistence, SQL Server retention certification parity, SQL
 Server history-projection parity, and hosted-service transient-failure
 boundaries are addressed. The scheduler-yield negative assertion audit item now
 has deterministic lane/governance probes, and Redis projection updates now use
-one optimistic transaction for snapshot/index movement. The next refactoring
-pass should prioritize durable aggregate, durable command-processor, and
-interpreter decomposition without weakening the provider certification surface.
+one optimistic transaction for snapshot/index movement. PostgreSQL
+data-source ownership is explicit for direct and DI-created stores. The next
+refactoring pass should prioritize durable aggregate, durable command-processor,
+and interpreter decomposition without weakening the provider certification
+surface.
