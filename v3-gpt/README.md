@@ -9,6 +9,7 @@ Start with:
 - [Ephemeral Engine Developer Guide](docs/ephemeral-engine-developer-guide.md)
 - [v3-gpt Documentation Index](docs/README.md)
 - [Production Readiness Notes](docs/production-readiness.md)
+- [Integration Gates](tests/OrcaCore.Integration.Tests/README.md)
 
 Build and test from this folder:
 

@@ -101,7 +101,10 @@ Tasks:
 Exit criteria:
 
 - The current `E2E` namespace remains green with only deliberate skips.
-- The docs identify which commands are smoke, e2e, provider, and full-stack.
+- `tests/OrcaCore.Integration.Tests/README.md` identifies smoke, focused,
+  observability, and full-stack integration commands.
+- The observability filter is executable before Workstream 3 by carrying skipped
+  backlog tests for `OB-AC-001` through `OB-AC-007`.
 
 ## Workstream 2: Host-Level Durable E2E
 
