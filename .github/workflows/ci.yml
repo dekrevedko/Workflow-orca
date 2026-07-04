@@ -2,12 +2,93 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, "feature/**"]
   pull_request:
     branches: [main, master]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
+  unit:
+    name: build + unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: v3-gpt/global.json
+
+      - name: Restore
+        run: dotnet restore v3-gpt/OrcaCore.slnx
+
+      - name: Build
+        run: dotnet build v3-gpt/OrcaCore.slnx --no-restore -c Release -warnaserror
+
+      - name: Build benchmarks
+        run: dotnet build v3-gpt/benchmarks/OrcaCore.Benchmarks/OrcaCore.Benchmarks.csproj --no-restore -c Release
+
+      - name: Unit tests with coverage
+        run: >
+          dotnet test
+          v3-gpt/tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj
+          --no-build -c Release --logger trx
+          --collect:"XPlat Code Coverage" --results-directory TestResults &&
+          dotnet test
+          v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj
+          --no-build -c Release --logger trx
+          --collect:"XPlat Code Coverage" --results-directory TestResults &&
+          dotnet test
+          v3-gpt/tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj
+          --no-build -c Release --logger trx
+          --collect:"XPlat Code Coverage" --results-directory TestResults &&
+          dotnet test
+          v3-gpt/tests/OrcaCore.Acceptance.Tests/OrcaCore.Acceptance.Tests.csproj
+          --no-build -c Release --logger trx
+          --collect:"XPlat Code Coverage" --results-directory TestResults &&
+          dotnet test
+          v3-gpt/tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj
+          --no-build -c Release --logger trx
+          --collect:"XPlat Code Coverage" --results-directory TestResults &&
+          dotnet test
+          v3-gpt/tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj
+          --no-build -c Release --logger trx
+          --collect:"XPlat Code Coverage" --results-directory TestResults &&
+          dotnet test
+          v3-gpt/tests/OrcaCore.Providers.ZeroMq.Tests/OrcaCore.Providers.ZeroMq.Tests.csproj
+          --no-build -c Release --logger trx
+          --collect:"XPlat Code Coverage" --results-directory TestResults
+
+      - name: Install ReportGenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
+      - name: Generate core engine coverage report
+        run: ~/.dotnet/tools/reportgenerator -reports:"TestResults/**/coverage.cobertura.xml" -targetdir:"TestResults/CoverageReport" -reporttypes:"Cobertura;MarkdownSummaryGithub" -assemblyfilters:"+OrcaCore.Engine.*"
+
+      - name: Enforce core engine coverage baseline
+        shell: pwsh
+        env:
+          MIN_CORE_ENGINE_LINE_RATE: "0.80"
+        run: |
+          [xml]$coverage = Get-Content "TestResults/CoverageReport/Cobertura.xml"
+          $lineRate = [double]$coverage.coverage.'line-rate'
+          $minimum = [double]$env:MIN_CORE_ENGINE_LINE_RATE
+          if ($lineRate -lt $minimum) {
+            throw "Core engine line coverage $lineRate is below baseline $minimum."
+          }
+
+      - name: Upload unit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-results
+          path: TestResults
+
+  providers:
+    name: container + integration tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,8 +104,27 @@ jobs:
       - name: Build
         run: dotnet build v3-gpt/OrcaCore.slnx --no-restore -c Release
 
-      - name: Build benchmarks
-        run: dotnet build v3-gpt/benchmarks/OrcaCore.Benchmarks/OrcaCore.Benchmarks.csproj --no-restore -c Release
+      - name: Provider and integration tests
+        run: >
+          dotnet test
+          v3-gpt/tests/OrcaCore.Providers.PostgreSql.Tests/OrcaCore.Providers.PostgreSql.Tests.csproj
+          --no-build -c Release --logger trx --results-directory TestResults &&
+          dotnet test
+          v3-gpt/tests/OrcaCore.Providers.SqlServer.Tests/OrcaCore.Providers.SqlServer.Tests.csproj
+          --no-build -c Release --logger trx --results-directory TestResults &&
+          dotnet test
+          v3-gpt/tests/OrcaCore.Providers.RabbitMq.Tests/OrcaCore.Providers.RabbitMq.Tests.csproj
+          --no-build -c Release --logger trx --results-directory TestResults &&
+          dotnet test
+          v3-gpt/tests/OrcaCore.Providers.Redis.Tests/OrcaCore.Providers.Redis.Tests.csproj
+          --no-build -c Release --logger trx --results-directory TestResults &&
+          dotnet test
+          v3-gpt/tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj
+          --no-build -c Release --logger trx --results-directory TestResults
 
-      - name: Test
-        run: dotnet test v3-gpt/OrcaCore.slnx --no-build -c Release --verbosity normal
+      - name: Upload provider results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: provider-results
+          path: TestResults
