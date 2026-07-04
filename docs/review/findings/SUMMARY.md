@@ -138,7 +138,19 @@ The original gap table is kept for history:
   the two-lane `ci.yml` with the 0.80 engine coverage floor is the single pipeline.
 
 What remains open before a "ship" call: the bulk of the negative/edge scenario backlog
-(§3 item 2 — re-baseline the catalog statuses first; several are stale), the two file-size
-watch items (§3 item 8), and a fresh audit phase for the newly added surfaces
-(`DurableDagRunner`, durable saga/yield command paths, definition facade, observability —
-spec 15's `OB-` requirements have no findings phase yet).
+(§3 item 2), the two file-size watch items (§3 item 8), and the observability gaps below.
+
+### 6. Post-cycle audits (2026-07-04)
+
+- **[R11](R11-new-surfaces.md)** — new-surfaces audit (DAG runner, durable saga/yield, definition
+  facade, telemetry observer). One P1 fixed (DAG re-drive idempotency); yield/saga/observer/registry
+  clean.
+- **[R12](R12-observability-dashboard.md)** — spec-15 `OB-*` observability + `OrcaCore.Dashboard`.
+  **Two P1s open:** (1) `orca.instances.active` is a process-static command-side tally, not
+  projection-backed, so it can't match `Statistics()` after restart/across hosts (OB-021/OB-080);
+  (2) `AddOrcaCoreOpenTelemetry` (OB-070, the central §15.8 hosting deliverable) is absent — OTel
+  wiring is inlined in the dashboard app. **One P2 decision:** `OrcaCore.Dashboard` ships a Blazor
+  web dashboard, contradicting the §15.10 "no built-in dashboard" non-goal — reposition as a sample
+  or amend the spec. Instrument/span coverage is ~20% of the OB catalog (tracks the spec's own
+  phasing). All 7 `OB-AC` tests pass for the implemented subset. Observability is **not ship-blocking
+  for correctness** (telemetry is best-effort, OB-004), but the fleet-dashboard goal is not yet met.
