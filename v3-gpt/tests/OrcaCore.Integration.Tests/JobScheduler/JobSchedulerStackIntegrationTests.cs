@@ -372,10 +372,35 @@ public sealed class JobSchedulerStackIntegrationTests(OrcaStackFixture fixture)
     [Fact]
     [Trait(Traits.Scenario, "INT-JS-013")]
     [Trait("AC", "JS-AC-008")]
-    public async Task INT_JS_013_ScheduledStartIdempotent_BlockedUntilCronHost()
+    public async Task INT_JS_013_ScheduledStartIdempotent_OnPostgreSql()
     {
-        await Task.CompletedTask;
-        Assert.Skip("Host cron simulation for scheduled starts not implemented.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        const string occurrenceKey =
+            "eks-scheduler/v1/tenant/tenant-a/dag/daily-import/schedule/nightly/occurrence/20260703T120000Z";
+        StartOrGetResult first;
+        await using (var store = await fixture.PostgreSql.CreateStoreAsync())
+        {
+            var starter = new DurableStartService(new DurableCommandProcessor(store));
+            first = await starter.StartOrGetAsync(
+                ScheduledStart(occurrenceKey, 1),
+                TestContext.Current.CancellationToken);
+        }
+
+        await using var restarted = await fixture.PostgreSql.CreateStoreAsync();
+        var restartedStarter = new DurableStartService(new DurableCommandProcessor(restarted));
+        var second = await restartedStarter.StartOrGetAsync(
+            ScheduledStart(occurrenceKey, 2),
+            TestContext.Current.CancellationToken);
+        var events = await restarted.LoadTailAsync(
+            new WorkflowStreamId(first.InstanceId),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+
+        first.Created.Should().BeTrue();
+        second.Created.Should().BeFalse();
+        second.InstanceId.Should().Be(first.InstanceId);
+        events.OfType<WorkflowStartedEvent>().Should().ContainSingle()
+            .Which.IdempotencyKey.Should().Be(occurrenceKey);
     }
 
     [Fact]
@@ -584,6 +609,16 @@ public sealed class JobSchedulerStackIntegrationTests(OrcaStackFixture fixture)
             InstanceId = IntegrationIds.Instance(instance),
             RequestedAt = IntegrationIds.Timestamp(command)
         };
+    }
+
+    private static StartOrGetRequest ScheduledStart(string idempotencyKey, int requestedAt)
+    {
+        return new StartOrGetRequest(
+            idempotencyKey,
+            IntegrationIds.Definition(1),
+            DefinitionVersion.Initial,
+            null,
+            IntegrationIds.Timestamp(requestedAt));
     }
 
     private static async Task SeedProjectionAsync(

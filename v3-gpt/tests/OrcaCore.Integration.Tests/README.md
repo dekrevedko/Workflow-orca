@@ -47,6 +47,5 @@ Existing skipped tests are named backlog items. Do not delete or retag them just
 to make the full gate look cleaner; unskip each one only when its blocker is
 implemented and verified.
 
-Current expected result: 106 passed, 2 skipped, 0 failed. The remaining skips are
-`INT_JS_013` for scheduler-app owned cron triggering and `INT_JS_018` for the
-one-hour slow soak.
+Current expected result: 107 passed, 1 skipped, 0 failed. The remaining skip is
+`INT_JS_018` for the one-hour slow soak.

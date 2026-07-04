@@ -39,10 +39,11 @@ The original skipped `E2E` scenarios are now implemented:
   reconstructs node status.
 - `INT_E2E_015`: durable yield persists progress across processor restart.
 
-The broader integration suite still contains deliberate skips for
-cron/scheduled-start simulation, the slow scheduler soak, and provider
-failure-injection hooks. Those are backlog or ownership markers, not flaky tests.
-The current full integration project gate is 106 passed, 2 skipped, 0 failed.
+The broader integration suite still contains a deliberate skip for the slow
+scheduler soak. Cron triggering remains scheduler-app owned, but OrcaCore now
+covers the durable `StartOrGet` idempotency primitive used by scheduled
+occurrence keys. The current full integration project gate is expected to be 107
+passed, 1 skipped, 0 failed.
 
 Structured logging and runtime metrics are introduced in Workstream 3. The
 current code now has source-generated command/outbox logs, BCL `Meter`
@@ -305,9 +306,8 @@ Current implemented slice:
 
 Remaining gap:
 
-- `INT_JS_013` remains skipped because cron/scheduled-start triggering belongs
-  to the scheduler application, which should call OrcaCore `StartOrGet` with a
-  canonical occurrence key.
+- Cron/scheduled-start triggering belongs to the scheduler application, which
+  should call OrcaCore `StartOrGet` with a canonical occurrence key.
 - `INT_JS_018` remains skipped because the one-hour fake-clock soak belongs in a
   slow or nightly gate, not the default integration gate.
 
@@ -317,8 +317,9 @@ Implementation note:
   `DurableRunChildrenCommand` commits.
 - `INT_E2E_013` now runs against PostgreSQL by scheduling DAG children through
   the runner and reconstructing node status through durable management.
-- The JobScheduler focused gate now passes with only the scheduler-app owned
-  scheduled-start test and the slow soak skipped.
+- `INT_JS_013` now proves that a canonical scheduler occurrence key maps to one
+  durable run through `StartOrGet`, including after processor restart.
+- The JobScheduler focused gate now passes with only the slow soak skipped.
 
 Tasks:
 
