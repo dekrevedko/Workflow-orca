@@ -154,6 +154,14 @@ Follow-up implementation verification, 2026-07-03:
   non-integration `v3-gpt/tests` sweep, and
   `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 83, skipped 16,
   failed 0 passed.
+- Workflow event codec hardening pass replaced repeated event-type switches
+  with one typed descriptor table and added focused `WorkflowEventCodec` tests
+  that round-trip every supported durable event type. Focused codec,
+  PostgreSQL event-store, and SQL Server event-store coverage passed before the
+  non-integration analyzer build loop with `-warnaserror`, the full
+  non-integration `v3-gpt/tests` sweep, and
+  `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 83, skipped 16,
+  failed 0 passed.
 
 ## Completed In This Pass
 
@@ -668,8 +676,8 @@ Implementation update:
 | --- | --- | --- |
 | `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs` | About 2,603 lines before decomposition; one aggregate owned timers, projections, lifecycle transitions, and replay orchestration. Saga compensation state has been extracted to `DurableSagaState`; active-wait and buffered-delivery state has been extracted to `DurableWaitState`; external-job state has been extracted to `DurableExternalJobState`; child workflow state has been extracted to `DurableChildWorkflowState`; resource-pool state has been extracted to `DurableResourcePoolState`; timer state has been extracted to `DurableTimerState`. | Keep the aggregate Interface. Further extraction should target projection/replay orchestration only when it creates behavior-testable Locality rather than pass-through glue. |
 | `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` | About 979 lines before decomposition; one processor handled command overloads, rehydration, and append result branching. `DurableCommandRuntime` owns per-instance lanes, `DurableCommitMaterializer` owns provider commit-batch materialization, `DurableResourcePoolCommitEffects` owns resource-pool commit side effects, `DurableCommitPipeline` owns no-op/poison/append-result behavior, `DurableCheckpointMapper` owns provider checkpoint projection, and `DurableInboxPreflight` owns inbound idempotency short-circuit decisions. | Continue only where another behavior can become testable Locality; avoid splitting command overloads into pass-through classes. |
-| `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs` | About 1,515 lines; event codec switches at `:1363`, `:1419`, and `:1464`; projection operation switch at `:979`. | Move event mapping into `WorkflowEventCodec`; move projection writes into a projection store Module; keep this Adapter focused on PostgreSQL SQL and transaction shape. |
-| `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs` | About 1,369 lines; event codec switches at `:1194`, `:1207`, and `:1220`; projection operation switch at `:949`; resource pools are in-memory inside the same store. | Share `WorkflowEventCodec`; split durable event store, projection store, timer store, outbox store, and resource pool Adapter responsibilities. |
+| `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs` | About 1,515 lines; event mapping now routes through shared `WorkflowEventCodec`, which uses a single descriptor table for type names, serialization, and deserialization. Projection operation switching remains in the store Adapter. | Move projection writes into a projection store Module; keep this Adapter focused on PostgreSQL SQL and transaction shape. |
+| `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs` | About 1,369 lines; event mapping now routes through shared `WorkflowEventCodec`, which uses a single descriptor table for type names, serialization, and deserialization. Projection operation switching remains in the store Adapter. | Split durable event store, projection store, timer store, outbox store, and resource pool Adapter responsibilities. |
 
 Avoid replacing these switches with many tiny pass-through classes. A new Module
 only earns its keep when deleting it would push real invariants and branching
