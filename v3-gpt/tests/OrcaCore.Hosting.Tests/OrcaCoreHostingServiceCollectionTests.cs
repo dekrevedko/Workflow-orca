@@ -188,7 +188,7 @@ public sealed class OrcaCoreHostingServiceCollectionTests
         await service.StartAsync(TestContext.Current.CancellationToken);
         await workflowStore.OutboxClaimFailed.Task.WaitAsync(TestContext.Current.CancellationToken);
         var retry = workflowStore.OutboxClaimRetried.Task;
-        await AdvanceUntilObservedAsync(clock, retry);
+        await AdvanceUntilObservedAsync(clock, retry, TestContext.Current.CancellationToken);
         var attempts = await retry.WaitAsync(TestContext.Current.CancellationToken);
         await service.StopAsync(TestContext.Current.CancellationToken);
 
@@ -212,7 +212,7 @@ public sealed class OrcaCoreHostingServiceCollectionTests
         await service.StartAsync(TestContext.Current.CancellationToken);
         await workflowStore.TimerClaimFailed.Task.WaitAsync(TestContext.Current.CancellationToken);
         var retry = workflowStore.TimerClaimRetried.Task;
-        await AdvanceUntilObservedAsync(clock, retry);
+        await AdvanceUntilObservedAsync(clock, retry, TestContext.Current.CancellationToken);
         var attempts = await retry.WaitAsync(TestContext.Current.CancellationToken);
         await service.StopAsync(TestContext.Current.CancellationToken);
 
@@ -235,7 +235,7 @@ public sealed class OrcaCoreHostingServiceCollectionTests
         await service.StartAsync(TestContext.Current.CancellationToken);
         await resourcePoolStore.ExpiryFailed.Task.WaitAsync(TestContext.Current.CancellationToken);
         var retry = resourcePoolStore.ExpiryRetried.Task;
-        await AdvanceUntilObservedAsync(clock, retry);
+        await AdvanceUntilObservedAsync(clock, retry, TestContext.Current.CancellationToken);
         var attempts = await retry.WaitAsync(TestContext.Current.CancellationToken);
         await service.StopAsync(TestContext.Current.CancellationToken);
 
@@ -295,23 +295,27 @@ public sealed class OrcaCoreHostingServiceCollectionTests
         return options;
     }
 
-    private static async Task AdvanceUntilObservedAsync(FakeTimeProvider clock, Task observed)
+    private static async Task AdvanceUntilObservedAsync(
+        FakeTimeProvider clock,
+        Task observed,
+        CancellationToken cancellationToken)
     {
-        // Task.Yield alone is not enough between advances: under full-suite thread-pool
-        // saturation the hosted service may not have scheduled its fake-clock delay yet when
-        // the advance fires, so the loop needs real scheduling time. The bounded waits below
-        // are a liveness budget (~5 s worst case), not a timing assertion — the loop exits as
-        // soon as the observation completes.
-        for (var attempt = 0; attempt < 100 && !observed.IsCompleted; attempt++)
+        // Loop until the observation completes rather than for a fixed iteration count. The
+        // earlier fixed cap could burn out under full-suite thread-pool saturation before the
+        // hosted service scheduled its fake-clock backoff/timer, tripping a false failure.
+        // Each Task.Yield returns the thread to the pool so the service's continuation can run;
+        // the clock advances only pace the fake-time backoff and periodic-timer waits. A genuine
+        // hang is bounded by the test's own cancellation timeout, not a wall-clock delay here.
+        while (!observed.IsCompleted)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await Task.Yield();
             clock.Advance(FailureBackoff);
-            await Task.WhenAny(observed, Task.Delay(25));
+            await Task.Yield();
             clock.Advance(HostedInterval);
-            await Task.WhenAny(observed, Task.Delay(25));
         }
 
-        observed.IsCompleted.Should().BeTrue("the hosted-service retry window should have elapsed under fake time");
+        await observed;
     }
 
     private static StartWorkflowCommand Start(InstanceId instanceId)
