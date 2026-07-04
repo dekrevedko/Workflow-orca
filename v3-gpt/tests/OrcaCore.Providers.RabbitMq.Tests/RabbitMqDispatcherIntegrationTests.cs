@@ -7,6 +7,7 @@ using Xunit;
 
 namespace OrcaCore.Providers.RabbitMq.Tests;
 
+[Trait("Container", "RabbitMq")]
 public sealed class RabbitMqDispatcherIntegrationTests : IAsyncLifetime
 {
     private const string ExchangeName = "orca.dispatch";

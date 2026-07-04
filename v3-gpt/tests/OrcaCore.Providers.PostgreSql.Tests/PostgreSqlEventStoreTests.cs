@@ -4,11 +4,13 @@ using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Providers.PostgreSql;
+using OrcaCore.TestSupport;
 using Testcontainers.PostgreSql;
 using Xunit;
 
 namespace OrcaCore.Providers.PostgreSql.Tests;
 
+[Trait(Traits.Container, "PostgreSql")]
 public sealed class PostgreSqlEventStoreTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainer container = new PostgreSqlBuilder("postgres:17-alpine")

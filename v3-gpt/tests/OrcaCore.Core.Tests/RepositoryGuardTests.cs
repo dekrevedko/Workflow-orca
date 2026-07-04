@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using AwesomeAssertions;
+using OrcaCore.TestSupport;
 using Xunit;
 
 namespace OrcaCore.Core.Tests;
@@ -38,6 +39,30 @@ public sealed partial class RepositoryGuardTests
             .Except(taggedIds, StringComparer.Ordinal)
             .Should()
             .BeEmpty();
+    }
+
+    [Fact]
+    public void TestcontainerBackedTestClasses_HaveContainerTrait()
+    {
+        var repoRoot = FindRepoRoot();
+        var testcontainersUsing = string.Concat("using Testcontainers", ".");
+        var untaggedContainerTests = Directory
+            .EnumerateFiles(Path.Combine(repoRoot, "v3-gpt", "tests"), "*.cs", SearchOption.AllDirectories)
+            .Where(file => !IsBuildOutput(file))
+            .Select(file => new
+            {
+                File = Path.GetRelativePath(repoRoot, file),
+                Source = File.ReadAllText(file)
+            })
+            .Where(candidate => candidate.Source.Contains(testcontainersUsing, StringComparison.Ordinal))
+            .Where(candidate => TestClassRegex().IsMatch(candidate.Source))
+            .Where(candidate =>
+                !candidate.Source.Contains($"Trait({nameof(Traits)}.{nameof(Traits.Container)},", StringComparison.Ordinal) &&
+                !candidate.Source.Contains("Trait(\"Container\",", StringComparison.Ordinal))
+            .Select(candidate => candidate.File)
+            .ToArray();
+
+        untaggedContainerTests.Should().BeEmpty();
     }
 
     [Fact]
@@ -282,6 +307,13 @@ public sealed partial class RepositoryGuardTests
         throw new DirectoryNotFoundException("Could not find repository root.");
     }
 
+    private static bool IsBuildOutput(string path)
+    {
+        var parts = path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return parts.Contains("bin", StringComparer.OrdinalIgnoreCase) ||
+            parts.Contains("obj", StringComparer.OrdinalIgnoreCase);
+    }
+
     [GeneratedRegex(@"\*\*((?:AC|JS-AC)-\d{3})\*\*", RegexOptions.CultureInvariant)]
     private static partial Regex AcceptanceCatalogRegex();
 
@@ -293,4 +325,7 @@ public sealed partial class RepositoryGuardTests
 
     [GeneratedRegex(@"Trait\(Traits\.Scenario,\s*""(INT-[A-Z0-9]+-\d{3})""\)", RegexOptions.CultureInvariant)]
     private static partial Regex IntegrationScenarioTraitRegex();
+
+    [GeneratedRegex(@"\bclass\s+\w+Tests\b", RegexOptions.CultureInvariant)]
+    private static partial Regex TestClassRegex();
 }

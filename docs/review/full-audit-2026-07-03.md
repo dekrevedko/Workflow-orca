@@ -592,6 +592,13 @@ Recommendation: tag container tests consistently, split default unit tests from
   infrastructure jobs, and keep active integration tests out of default solution
   runs until stable.
 
+Implementation update:
+- 2026-07-03: provider tests that directly use Testcontainers now carry a
+  `Traits.Container` value for their required infrastructure, and a repository
+  guard prevents new Testcontainers-backed test classes from being added without
+  that trait. Root CI lane splitting remains deferred because `.github/workflows`
+  has unrelated dirty work outside the requested `v3-gpt` scope.
+
 ### Some concurrency tests use scheduler-yield negative assertions
 
 Evidence:

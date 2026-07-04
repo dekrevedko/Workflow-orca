@@ -62,6 +62,7 @@ public sealed class RedisProjectionProviderTests
     }
 
     [Fact]
+    [Trait("Container", "Redis")]
     public async Task AdapterBackedStore_PersistsSnapshotsAcrossStoreInstances()
     {
         await using var container = new RedisBuilder("redis:7-alpine")
@@ -107,6 +108,7 @@ public sealed class RedisProjectionProviderTests
     }
 
     [Fact]
+    [Trait("Container", "Redis")]
     public async Task AdapterBackedStore_UpdatedSnapshotMovesBetweenMetadataIndexes()
     {
         await using var container = new RedisBuilder("redis:7-alpine")
@@ -146,6 +148,7 @@ public sealed class RedisProjectionProviderTests
     }
 
     [Fact]
+    [Trait("Container", "Redis")]
     public async Task AdapterBackedStore_SkipsTamperedProjectionPayloads()
     {
         await using var container = new RedisBuilder("redis:7-alpine")

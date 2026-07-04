@@ -5,11 +5,13 @@ using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Providers.SqlServer;
+using OrcaCore.TestSupport;
 using Testcontainers.MsSql;
 using Xunit;
 
 namespace OrcaCore.Providers.SqlServer.Tests;
 
+[Trait(Traits.Container, "SqlServer")]
 public sealed class SqlServerEventStoreTests : IAsyncLifetime
 {
     private readonly MsSqlContainer container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")

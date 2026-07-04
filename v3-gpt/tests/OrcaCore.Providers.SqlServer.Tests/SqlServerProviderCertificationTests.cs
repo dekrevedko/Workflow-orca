@@ -1,11 +1,13 @@
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.ProviderCertification;
 using OrcaCore.Providers.SqlServer;
+using OrcaCore.TestSupport;
 using Testcontainers.MsSql;
 using Xunit;
 
 namespace OrcaCore.Providers.SqlServer.Tests;
 
+[Trait(Traits.Container, "SqlServer")]
 public sealed class SqlServerProviderCertificationTests : ContinueAsNewCertificationTests, IAsyncLifetime
 {
     private readonly MsSqlContainer container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")

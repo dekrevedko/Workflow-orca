@@ -1,11 +1,13 @@
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.ProviderCertification;
 using OrcaCore.Providers.PostgreSql;
+using OrcaCore.TestSupport;
 using Testcontainers.PostgreSql;
 using Xunit;
 
 namespace OrcaCore.Providers.PostgreSql.Tests;
 
+[Trait(Traits.Container, "PostgreSql")]
 public sealed class PostgreSqlRetentionCertificationTests : RetentionCertificationTests, IAsyncLifetime
 {
     private readonly PostgreSqlContainer container = new PostgreSqlBuilder("postgres:17-alpine")
