@@ -297,24 +297,21 @@ public sealed class OrcaCoreHostingServiceCollectionTests
 
     private static async Task AdvanceUntilObservedAsync(FakeTimeProvider clock, Task observed)
     {
-        for (var attempt = 0; attempt < 50 && !observed.IsCompleted; attempt++)
+        // Task.Yield alone is not enough between advances: under full-suite thread-pool
+        // saturation the hosted service may not have scheduled its fake-clock delay yet when
+        // the advance fires, so the loop needs real scheduling time. The bounded waits below
+        // are a liveness budget (~5 s worst case), not a timing assertion — the loop exits as
+        // soon as the observation completes.
+        for (var attempt = 0; attempt < 100 && !observed.IsCompleted; attempt++)
         {
             await Task.Yield();
             clock.Advance(FailureBackoff);
-            await WaitBrieflyAsync(observed);
+            await Task.WhenAny(observed, Task.Delay(25));
             clock.Advance(HostedInterval);
-            await WaitBrieflyAsync(observed);
+            await Task.WhenAny(observed, Task.Delay(25));
         }
 
         observed.IsCompleted.Should().BeTrue("the hosted-service retry window should have elapsed under fake time");
-    }
-
-    private static async Task WaitBrieflyAsync(Task observed)
-    {
-        for (var attempt = 0; attempt < 4 && !observed.IsCompleted; attempt++)
-        {
-            await Task.Yield();
-        }
     }
 
     private static StartWorkflowCommand Start(InstanceId instanceId)

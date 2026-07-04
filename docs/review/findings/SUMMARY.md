@@ -64,10 +64,15 @@ prior findings are fixed in code, adds the previously missing [R1](R1-abstractio
    `EventStoreCertificationTests.ProjectionUpsert_RoundTripsStreamVersion` enforces round-trip on
    every provider; the TestSupport fake projection store gained real upsert/list fidelity to
    participate. Ephemeral snapshots report null (the in-process lane is the ephemeral guarantee).
-5. **Flaky hosting test under full-suite load** — **MITIGATED.** The hosting tests were verified
-   already deterministic (FakeTimeProvider + TCS waits); the flake was load-induced with the name
-   lost to output filtering. CI now runs `--logger trx` and uploads results, so a recurrence is
-   identifiable. No code defect found to fix.
+5. **Flaky hosting test under full-suite load** — **FIXED (root cause found 2026-07-04).** It
+   recurred in a second full-suite run (2 of 3 full runs, never in isolation), which localized
+   it: `AdvanceUntilObservedAsync` in `OrcaCoreHostingServiceCollectionTests` gave the hosted
+   service only `Task.Yield()`s between fake-clock advances, so under thread-pool saturation
+   the service could fail to schedule its backoff delay before all 50 advance iterations were
+   spent — tripping the helper's assertion. The helper now waits with
+   `Task.WhenAny(observed, Task.Delay(25))` (a bounded ~5 s liveness budget, exits immediately
+   on observation; no-load duration unchanged at ~300 ms). Verified 6× isolated + 8× under
+   four concurrent heavy suites.
 6. ~~**CI single lane, token coverage gate**~~ — **FIXED.** `ci.yml` now has a `unit` job (7 fast
    projects, coverage, engine floor raised 0.20 → **0.80**, trx) and a `providers` job
    (PostgreSQL/SQL Server/RabbitMQ/Redis + integration, trx). Duplicate `ci-v3.yml` and dead
