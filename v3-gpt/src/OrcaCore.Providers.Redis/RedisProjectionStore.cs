@@ -59,7 +59,11 @@ public sealed class RedisProjectionStore : IWorkflowProjectionStore
                     continue;
                 }
 
-                await UpsertRedisAsync(database, operation.InstanceId, snapshot).ConfigureAwait(false);
+                await UpsertRedisAsync(
+                    database,
+                    operation.InstanceId,
+                    snapshot,
+                    cancellationToken).ConfigureAwait(false);
             }
 
             return;
@@ -239,53 +243,81 @@ public sealed class RedisProjectionStore : IWorkflowProjectionStore
     private static async Task UpsertRedisAsync(
         IDatabase database,
         InstanceId instanceId,
-        WorkflowInstanceSnapshot snapshot)
+        WorkflowInstanceSnapshot snapshot,
+        CancellationToken cancellationToken)
     {
         var snapshotKey = SnapshotKey(instanceId);
-        var oldValue = await database.StringGetAsync(snapshotKey).ConfigureAwait(false);
-        if (TryDeserializeSnapshot(oldValue) is { } oldSnapshot)
-        {
-            await RemoveIndexMembershipsAsync(database, oldSnapshot).ConfigureAwait(false);
-        }
 
-        await database.StringSetAsync(snapshotKey, SerializeSnapshot(snapshot)).ConfigureAwait(false);
-        await database.SetAddAsync(InstanceIndexKey, InstanceMember(instanceId)).ConfigureAwait(false);
-        await AddIndexMembershipsAsync(database, snapshot).ConfigureAwait(false);
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var oldValue = await database.StringGetAsync(snapshotKey).ConfigureAwait(false);
+            var transaction = database.CreateTransaction();
+            if (oldValue.HasValue)
+            {
+                transaction.AddCondition(Condition.StringEqual(snapshotKey, oldValue));
+            }
+            else
+            {
+                transaction.AddCondition(Condition.KeyNotExists(snapshotKey));
+            }
+
+            var queuedOperations = new List<Task>();
+            if (TryDeserializeSnapshot(oldValue) is { } oldSnapshot)
+            {
+                QueueRemoveIndexMemberships(transaction, queuedOperations, oldSnapshot);
+            }
+
+            queuedOperations.Add(transaction.StringSetAsync(snapshotKey, SerializeSnapshot(snapshot)));
+            queuedOperations.Add(transaction.SetAddAsync(InstanceIndexKey, InstanceMember(instanceId)));
+            QueueAddIndexMemberships(transaction, queuedOperations, snapshot);
+
+            var committed = await transaction.ExecuteAsync().ConfigureAwait(false);
+            await Task.WhenAll(queuedOperations).ConfigureAwait(false);
+            if (committed)
+            {
+                return;
+            }
+        }
     }
 
-    private static async Task AddIndexMembershipsAsync(
-        IDatabase database,
+    private static void QueueAddIndexMemberships(
+        ITransaction transaction,
+        ICollection<Task> queuedOperations,
         WorkflowInstanceSnapshot snapshot)
     {
         var member = InstanceMember(snapshot.InstanceId);
-        await database.SetAddAsync(DefinitionIndexKey(snapshot.DefinitionId), member).ConfigureAwait(false);
-        await database.SetAddAsync(StatusIndexKey(snapshot.Status), member).ConfigureAwait(false);
+        foreach (var indexKey in IndexKeys(snapshot))
+        {
+            queuedOperations.Add(transaction.SetAddAsync(indexKey, member));
+        }
+    }
+
+    private static void QueueRemoveIndexMemberships(
+        ITransaction transaction,
+        ICollection<Task> queuedOperations,
+        WorkflowInstanceSnapshot snapshot)
+    {
+        var member = InstanceMember(snapshot.InstanceId);
+        foreach (var indexKey in IndexKeys(snapshot))
+        {
+            queuedOperations.Add(transaction.SetRemoveAsync(indexKey, member));
+        }
+    }
+
+    private static IEnumerable<RedisKey> IndexKeys(WorkflowInstanceSnapshot snapshot)
+    {
+        yield return DefinitionIndexKey(snapshot.DefinitionId);
+        yield return StatusIndexKey(snapshot.Status);
+
         if (snapshot.RootInstanceId is { } rootInstanceId)
         {
-            await database.SetAddAsync(RootIndexKey(rootInstanceId), member).ConfigureAwait(false);
+            yield return RootIndexKey(rootInstanceId);
         }
 
         if (snapshot.ParentInstanceId is { } parentInstanceId)
         {
-            await database.SetAddAsync(ParentIndexKey(parentInstanceId), member).ConfigureAwait(false);
-        }
-    }
-
-    private static async Task RemoveIndexMembershipsAsync(
-        IDatabase database,
-        WorkflowInstanceSnapshot snapshot)
-    {
-        var member = InstanceMember(snapshot.InstanceId);
-        await database.SetRemoveAsync(DefinitionIndexKey(snapshot.DefinitionId), member).ConfigureAwait(false);
-        await database.SetRemoveAsync(StatusIndexKey(snapshot.Status), member).ConfigureAwait(false);
-        if (snapshot.RootInstanceId is { } rootInstanceId)
-        {
-            await database.SetRemoveAsync(RootIndexKey(rootInstanceId), member).ConfigureAwait(false);
-        }
-
-        if (snapshot.ParentInstanceId is { } parentInstanceId)
-        {
-            await database.SetRemoveAsync(ParentIndexKey(parentInstanceId), member).ConfigureAwait(false);
+            yield return ParentIndexKey(parentInstanceId);
         }
     }
 

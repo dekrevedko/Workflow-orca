@@ -21,3 +21,5 @@ Operational notes:
   tampered blobs are ignored by list/get paths instead of being surfaced as projections.
 - Metadata filters use secondary Redis sets for definition, status, root, and parent
   candidates before reading snapshot payloads.
+- Snapshot and secondary-index changes are committed through an optimistic Redis
+  transaction, so a projection upsert does not expose a partially moved index.

@@ -614,6 +614,13 @@ missing or stale.
 Recommendation: use a Redis transaction or Lua script Adapter for projection
 upsert.
 
+Implementation update:
+- 2026-07-03: Redis projection upserts now use an optimistic Redis transaction
+  with snapshot-key conditions. Snapshot writes and secondary-index removals/adds
+  commit together, and contended writers retry against the winning envelope.
+- Redis provider tests now cover metadata-index movement after an update and
+  guard the Adapter's transaction boundary.
+
 ### PostgreSQL shared data-source ownership is unclear
 
 Evidence:
@@ -753,6 +760,7 @@ leases, PostgreSQL start idempotency, SQL Server event coverage, SQL Server
 resource-pool persistence, SQL Server retention certification parity, SQL
 Server history-projection parity, and hosted-service transient-failure
 boundaries are addressed. The scheduler-yield negative assertion audit item now
-has deterministic lane/governance probes. The next refactoring pass should
-prioritize durable aggregate, durable command-processor, and interpreter
-decomposition without weakening the provider certification surface.
+has deterministic lane/governance probes, and Redis projection updates now use
+one optimistic transaction for snapshot/index movement. The next refactoring
+pass should prioritize durable aggregate, durable command-processor, and
+interpreter decomposition without weakening the provider certification surface.

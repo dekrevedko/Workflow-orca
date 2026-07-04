@@ -107,6 +107,45 @@ public sealed class RedisProjectionProviderTests
     }
 
     [Fact]
+    public async Task AdapterBackedStore_UpdatedSnapshotMovesBetweenMetadataIndexes()
+    {
+        await using var container = new RedisBuilder("redis:7-alpine")
+            .Build();
+        await container.StartAsync(TestContext.Current.CancellationToken);
+        using var connection = await ConnectionMultiplexer.ConnectAsync(container.GetConnectionString());
+        var store = new RedisProjectionStore(connection.GetDatabase());
+        var instanceId = InstanceIdValue(5);
+        var oldDefinition = DefinitionIdValue(50);
+        var newDefinition = DefinitionIdValue(51);
+
+        await store.ApplyAsync(
+            [Upsert(instanceId, oldDefinition, WorkflowStatus.Running)],
+            TestContext.Current.CancellationToken);
+        await store.ApplyAsync(
+            [Upsert(instanceId, newDefinition, WorkflowStatus.Completed)],
+            TestContext.Current.CancellationToken);
+
+        var oldIndexResults = await store.ListAsync(
+            new WorkflowProjectionQuery
+            {
+                DefinitionId = oldDefinition,
+                Status = WorkflowStatus.Running
+            },
+            TestContext.Current.CancellationToken);
+        var newIndexResults = await store.ListAsync(
+            new WorkflowProjectionQuery
+            {
+                DefinitionId = newDefinition,
+                Status = WorkflowStatus.Completed
+            },
+            TestContext.Current.CancellationToken);
+
+        oldIndexResults.Should().BeEmpty();
+        newIndexResults.Should().ContainSingle()
+            .Which.InstanceId.Should().Be(instanceId);
+    }
+
+    [Fact]
     public async Task AdapterBackedStore_SkipsTamperedProjectionPayloads()
     {
         await using var container = new RedisBuilder("redis:7-alpine")
@@ -139,6 +178,17 @@ public sealed class RedisProjectionProviderTests
         source.Should().Contain("SetCombineAsync");
         source.Should().Contain("DefinitionIndexKey");
         source.Should().Contain("StatusIndexKey");
+    }
+
+    [Fact]
+    public void RedisProjectionStore_SourceUsesOptimisticTransactionForProjectionUpserts()
+    {
+        var source = File.ReadAllText(FindRepoFile("src/OrcaCore.Providers.Redis/RedisProjectionStore.cs"));
+
+        source.Should().Contain("CreateTransaction");
+        source.Should().Contain("Condition.StringEqual");
+        source.Should().Contain("Condition.KeyNotExists");
+        source.Should().Contain("ExecuteAsync");
     }
 
     private static ProjectionWrite Upsert(
