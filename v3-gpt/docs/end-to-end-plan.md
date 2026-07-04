@@ -28,12 +28,12 @@ Observed current baseline:
 dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build --filter "FullyQualifiedName~OrcaCore.Integration.Tests.E2E"
 ```
 
-Result on the current tree: 14 passed, 4 skipped, 0 failed.
+Result after Workstream 4's first facade slice: 15 passed, 3 skipped, 0
+failed.
 
 The skipped `E2E` scenarios identify real missing product surfaces:
 
 - `INT_E2E_008`: durable saga interpreter is not available yet.
-- `INT_E2E_011`: durable definition registry / version binding integration is not available yet.
 - `INT_E2E_013`: engine-integrated DAG runner is not available yet.
 - `INT_E2E_015`: durable yield command path is not available yet.
 
@@ -226,11 +226,21 @@ definition-driven e2e.
 
 Current gap:
 
-- The ephemeral engine can register a `WorkflowDefinition<TState>` and start it.
-- The durable implementation mostly exposes durable commands and aggregate
-  decisions.
-- A durable definition registry, version binding, and workflow-node execution
-  facade are not yet available.
+- The ephemeral engine can register a `WorkflowDefinition<TState>` and execute
+  the node graph inline.
+- The durable runtime now exposes a public definition registry and version-bound
+  `StartOrGet` facade over the durable command path.
+- Full durable workflow-node execution is not yet available.
+
+Implementation note:
+
+- `DurableDefinitionRegistry` registers immutable definition versions by
+  `DefinitionId` and `DefinitionVersion`.
+- `DurableWorkflowRuntime` exposes public version-bound `StartOrGet` over the
+  existing durable start/idempotency implementation.
+- `INT_E2E_011` now simulates deployment on PostgreSQL: an instance started on
+  version 1 remains bound to version 1 after version 2 is registered, and a
+  same-key start under version 2 fails explicitly.
 
 Tasks:
 
@@ -240,7 +250,7 @@ Tasks:
    - bind a running instance to its original definition version;
    - deliver events and timers through the durable runtime.
 2. Add a durable definition registry that can resolve the bound definition after
-   restart.
+   restart. (Initial registry/facade slice complete for `INT_E2E_011`.)
 3. Translate durable-capable workflow nodes into existing durable commands:
    - start;
    - step completed or failed;
@@ -250,7 +260,7 @@ Tasks:
    - external job commands;
    - terminal commands.
 4. Add version-compatibility diagnostics for incompatible resumed definitions.
-5. Unskip and implement `INT_E2E_011`.
+5. Unskip and implement `INT_E2E_011`. (Complete.)
 
 Exit criteria:
 

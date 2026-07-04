@@ -9,6 +9,7 @@ using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.Engine.Durable.Definitions;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Engine.Durable.Management;
 using OrcaCore.Engine.Durable.Outbox;
@@ -37,6 +38,8 @@ public sealed class OrcaCoreHostingServiceCollectionTests
         provider.GetRequiredService<EphemeralWorkflowEngine>().Should().NotBeNull();
         provider.GetRequiredService<DurableCommandRuntime>().Should().NotBeNull();
         provider.GetRequiredService<DurableCommandProcessor>().Should().NotBeNull();
+        provider.GetRequiredService<DurableDefinitionRegistry>().Should().NotBeNull();
+        provider.GetRequiredService<DurableWorkflowRuntime>().Should().NotBeNull();
         provider.GetRequiredService<DurableOutboxPump>().Should().NotBeNull();
         provider.GetRequiredService<DurableManagement>().Should().NotBeNull();
         provider.GetRequiredService<IWorkflowEventStore>().Should().BeOfType<InMemoryWorkflowProvider>();

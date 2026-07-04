@@ -1,9 +1,13 @@
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Durable;
+using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.Core.Building;
+using OrcaCore.Core.Definitions;
 using OrcaCore.Engine.Durable.Aggregates;
+using OrcaCore.Engine.Durable.Definitions;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Engine.Durable.Management;
 using OrcaCore.Integration.Tests.Fixtures;
@@ -275,10 +279,57 @@ public sealed class DurableWorkflowPostgreSqlIntegrationTests(PostgreSqlOrcaFixt
     [Fact]
     [Trait(Traits.Scenario, "INT-E2E-011")]
     [Trait("AC", "AC-306")]
-    public async Task INT_E2E_011_VersionBindingDeploySimulation_BlockedUntilApiExists()
+    public async Task INT_E2E_011_VersionBindingDeploySimulationOnPostgreSql()
     {
-        await Task.CompletedTask;
-        Assert.Skip("Version binding deploy simulation requires durable definition registry integration.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        await using var store = await fixture.CreateStoreAsync();
+        var definitionId = DefinitionId.New();
+        var versionOne = DeployDefinition(definitionId, DefinitionVersion.Initial);
+        var versionTwo = DeployDefinition(definitionId, new DefinitionVersion(2));
+        var registry = new DurableDefinitionRegistry();
+        var runtime = new DurableWorkflowRuntime(
+            new DurableCommandProcessor(store),
+            registry,
+            TimeProvider.System);
+
+        registry.Register(versionOne);
+        var first = await runtime.StartOrGetAsync<string, DeployState>(
+            "order-int-e2e-011",
+            definitionId,
+            DefinitionVersion.Initial,
+            "input-v1",
+            TestContext.Current.CancellationToken);
+        registry.Register(versionTwo);
+        var management = fixture.CreateManagement(store);
+        var snapshot = await management.Instance(first.InstanceId)
+            .GetAsync(TestContext.Current.CancellationToken);
+        var bound = registry.ResolveBound<DeployState>(snapshot);
+
+        bound.Should().BeSameAs(versionOne);
+        registry.Resolve<DeployState>(definitionId, new DefinitionVersion(2))
+            .Should().BeSameAs(versionTwo);
+
+        await using var restartedStore = await fixture.CreateStoreAsync();
+        var restartedRuntime = new DurableWorkflowRuntime(
+            new DurableCommandProcessor(restartedStore),
+            registry,
+            TimeProvider.System);
+        var second = await restartedRuntime.StartOrGetAsync<string, DeployState>(
+            "order-int-e2e-011",
+            definitionId,
+            DefinitionVersion.Initial,
+            "input-v1",
+            TestContext.Current.CancellationToken);
+        var incompatibleStart = async () => await restartedRuntime.StartOrGetAsync<string, DeployState>(
+            "order-int-e2e-011",
+            definitionId,
+            new DefinitionVersion(2),
+            "input-v2",
+            TestContext.Current.CancellationToken);
+
+        second.Created.Should().BeFalse();
+        second.InstanceId.Should().Be(first.InstanceId);
+        await incompatibleStart.Should().ThrowAsync<WorkflowVersionException>();
     }
 
     [Fact]
@@ -436,4 +487,16 @@ public sealed class DurableWorkflowPostgreSqlIntegrationTests(PostgreSqlOrcaFixt
         outbox.Select(record => record.Kind).Should().Contain("child-start");
         outbox.Select(record => record.Kind).Should().Contain("external-job-start");
     }
+
+    private static WorkflowDefinition<DeployState> DeployDefinition(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion)
+    {
+        return new WorkflowBuilder<DeployState>()
+            .Init<string>(input => new DeployState(input))
+            .End()
+            .Build(definitionId, definitionVersion);
+    }
+
+    private sealed record DeployState(string Value);
 }

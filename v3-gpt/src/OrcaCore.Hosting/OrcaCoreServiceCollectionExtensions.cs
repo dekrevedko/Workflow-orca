@@ -4,6 +4,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.Engine.Durable.Definitions;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Engine.Durable.Management;
 using OrcaCore.Engine.Durable.Outbox;
@@ -32,6 +33,7 @@ public static class OrcaCoreServiceCollectionExtensions
         services.TryAddSingleton<EphemeralWorkflowEngine>();
         services.TryAddSingleton<InMemoryWorkflowProvider>();
         services.TryAddSingleton<InMemoryResourcePoolStore>();
+        services.TryAddSingleton<DurableDefinitionRegistry>();
         services.TryAddSingleton<IWorkflowEventStore>(provider =>
             provider.GetRequiredService<InMemoryWorkflowProvider>());
         services.TryAddSingleton<IWorkflowInboxStore>(provider =>
@@ -59,6 +61,7 @@ public static class OrcaCoreServiceCollectionExtensions
         services.TryAddSingleton(provider => new DurableCommandProcessor(
             provider.GetRequiredService<DurableCommandRuntime>(),
             provider.GetService<IWorkflowRuntimeObserver>()));
+        services.TryAddSingleton<DurableWorkflowRuntime>();
         services.TryAddSingleton(provider => new DurableOutboxPump(
             provider.GetRequiredService<IWorkflowOutboxStore>(),
             provider.GetRequiredService<IMessageDispatcher>(),
