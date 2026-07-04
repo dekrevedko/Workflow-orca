@@ -20,7 +20,7 @@ public sealed class DurableDagRunner(DurableCommandProcessor commandProcessor)
         ArgumentNullException.ThrowIfNull(request);
 
         var batches = new WorkflowDagRunner(request.Plan, request.MaxConcurrency)
-            .GetNextBatches(request.CompletedNodeIds, request.FailedNodeIds);
+            .GetNextBatches(request.CompletedNodeIds, request.FailedNodeIds, request.ScheduledNodeIds);
         if (batches.Count == 0)
         {
             return [];
@@ -50,7 +50,10 @@ public sealed class DurableDagRunner(DurableCommandProcessor commandProcessor)
 }
 
 /// <summary>
-/// Request to schedule currently runnable DAG nodes.
+/// Request to schedule currently runnable DAG nodes. <see cref="ScheduledNodeIds"/> carries nodes
+/// already dispatched but not yet completed or failed; supplying it (reconstructed from the root's
+/// children-scheduled events) makes re-invocation idempotent — a crash-restart or per-completion
+/// drive loop will not re-schedule still-in-flight nodes.
 /// </summary>
 public sealed record DurableDagScheduleRequest(
     InstanceId RootInstanceId,
@@ -58,7 +61,8 @@ public sealed record DurableDagScheduleRequest(
     IReadOnlyCollection<string> CompletedNodeIds,
     IReadOnlyCollection<string> FailedNodeIds,
     DateTimeOffset RequestedAt,
-    int? MaxConcurrency = null);
+    int? MaxConcurrency = null,
+    IReadOnlyCollection<string>? ScheduledNodeIds = null);
 
 /// <summary>
 /// Result for one DAG child batch submitted to durable execution.

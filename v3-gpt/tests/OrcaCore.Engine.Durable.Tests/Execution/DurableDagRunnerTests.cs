@@ -51,6 +51,43 @@ public sealed class DurableDagRunnerTests
         scheduled.Should().Equal("A", "B", "C");
     }
 
+    [Fact]
+    [Trait("AC", "JS-AC-001")]
+    public async Task ScheduleReadyAsync_WhenNodesAreMarkedScheduled_DoesNotReDispatchInFlightWork()
+    {
+        var rootId = InstanceIdValue(11);
+        var store = new InMemoryWorkflowProvider();
+        var processor = new DurableCommandProcessor(store);
+        var runner = new DurableDagRunner(processor);
+        var plan = new WorkflowDagBuilder()
+            .Node("A", DefinitionIdValue(2), DefinitionVersion.Initial)
+            .Node("B", DefinitionIdValue(2), DefinitionVersion.Initial)
+            .DependsOn("B", "A")
+            .BuildValidated()
+            .Value;
+        await processor.ProcessAsync(Start(rootId), TestContext.Current.CancellationToken);
+
+        // A completes, B is dispatched.
+        await runner.ScheduleReadyAsync(
+            new DurableDagScheduleRequest(rootId, plan, ["A"], [], Timestamp(2)),
+            TestContext.Current.CancellationToken);
+        // A re-drive (e.g. crash-restart) with B reconstructed as in-flight must not re-dispatch B.
+        var reDrive = await runner.ScheduleReadyAsync(
+            new DurableDagScheduleRequest(rootId, plan, ["A"], [], Timestamp(3), ScheduledNodeIds: ["B"]),
+            TestContext.Current.CancellationToken);
+
+        var scheduled = (await store.LoadTailAsync(
+                new WorkflowStreamId(rootId),
+                StreamVersion.Empty,
+                TestContext.Current.CancellationToken))
+            .OfType<WorkflowChildrenScheduledEvent>()
+            .SelectMany(group => group.Children.Select(child => child.ItemSnapshot))
+            .ToArray();
+
+        reDrive.Should().BeEmpty();
+        scheduled.Should().ContainSingle().Which.Should().Be("B");
+    }
+
     private static DurableDagScheduleRequest Request(
         InstanceId rootId,
         WorkflowDagPlan plan,

@@ -184,16 +184,24 @@ public sealed record WorkflowDagPlan(
 
     /// <summary>
     /// Gets nodes whose dependencies have completed and whose failed prerequisites do not block them.
+    /// Nodes named in <paramref name="scheduledNodeIds"/> are excluded so an already-dispatched but
+    /// not-yet-terminal node is never returned again — this is what lets a driver re-invoke the
+    /// runner (after a crash or on every completion) without re-scheduling in-flight work.
     /// </summary>
     public IReadOnlyList<WorkflowDagNode> GetRunnableNodes(
         IReadOnlyCollection<string> completedNodeIds,
-        IReadOnlyCollection<string> failedNodeIds)
+        IReadOnlyCollection<string> failedNodeIds,
+        IReadOnlyCollection<string>? scheduledNodeIds = null)
     {
         var completed = completedNodeIds.ToHashSet(StringComparer.Ordinal);
         var failed = failedNodeIds.ToHashSet(StringComparer.Ordinal);
+        var scheduled = scheduledNodeIds is null
+            ? []
+            : scheduledNodeIds.ToHashSet(StringComparer.Ordinal);
         return Nodes
             .Where(node => !completed.Contains(node.NodeId))
             .Where(node => !failed.Contains(node.NodeId))
+            .Where(node => !scheduled.Contains(node.NodeId))
             .Where(node => node.Dependencies.All(completed.Contains))
             .Where(node => node.Dependencies.All(dependency => !failed.Contains(dependency)))
             .OrderBy(node => node.NodeId, StringComparer.Ordinal)
@@ -336,12 +344,13 @@ public sealed class WorkflowDagRunner(WorkflowDagPlan plan, int? maxConcurrency 
     /// </summary>
     public IReadOnlyList<WorkflowDagChildBatch> GetNextBatches(
         IReadOnlyCollection<string> completedNodeIds,
-        IReadOnlyCollection<string> failedNodeIds)
+        IReadOnlyCollection<string> failedNodeIds,
+        IReadOnlyCollection<string>? scheduledNodeIds = null)
     {
         ArgumentNullException.ThrowIfNull(completedNodeIds);
         ArgumentNullException.ThrowIfNull(failedNodeIds);
 
-        var runnableNodes = plan.GetRunnableNodes(completedNodeIds, failedNodeIds);
+        var runnableNodes = plan.GetRunnableNodes(completedNodeIds, failedNodeIds, scheduledNodeIds);
         return plan.CreateChildBatches(runnableNodes, maxConcurrency);
     }
 

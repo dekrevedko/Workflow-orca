@@ -96,6 +96,18 @@ public sealed class DagBuilderTests
     }
 
     [Fact]
+    public void GetRunnableNodes_ExcludesScheduledButNotYetTerminalNodes()
+    {
+        var plan = Diamond().BuildValidated().Value;
+
+        // A completed, B and C already scheduled (in-flight): neither B, C, nor D is runnable.
+        plan.GetRunnableNodes(["A"], [], scheduledNodeIds: ["B", "C"]).Should().BeEmpty();
+
+        // Without the scheduled set, B and C would be re-returned — the double-scheduling hazard.
+        plan.GetRunnableNodes(["A"], []).Select(node => node.NodeId).Should().Equal("B", "C");
+    }
+
+    [Fact]
     public void IsComplete_WhenRemainingNodesAreTransitivelyBlocked_ReportsTerminalRun()
     {
         var plan = new WorkflowDagBuilder()
