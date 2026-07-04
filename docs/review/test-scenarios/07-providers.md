@@ -33,7 +33,7 @@ timers, resource pools, message dispatchers. Requirements: PR-*, DU-030…033, A
 - **Then** reads same data — **expect fail today**
 
 ### NEG-PR-003 — Append empty batch
-- **Priority:** P1 | **AC:** PR-010 | **Status:** Missing
+- **Priority:** P1 | **AC:** PR-010 | **Status:** Covered
 - **When** `AppendAsync` empty events and no side effects
 - **Then** reject or no-op per contract
 
@@ -48,17 +48,17 @@ timers, resource pools, message dispatchers. Requirements: PR-*, DU-030…033, A
 - **Then** not found; not throw
 
 ### NEG-PR-006 — Outbox claim with zero due records
-- **Priority:** P2 | **AC:** DU-032 | **Status:** Missing
+- **Priority:** P2 | **AC:** DU-032 | **Status:** Covered
 - **When** `ClaimDueAsync`
 - **Then** empty batch; no lock leak
 
 ### NEG-PR-007 — Outbox mark dispatched unknown id
-- **Priority:** P1 | **AC:** DU-032 | **Status:** Missing
+- **Priority:** P1 | **AC:** DU-032 | **Status:** Covered
 - **When** mark dispatched orphan id
 - **Then** error or no-op
 
 ### NEG-PR-008 — Double mark dispatched same outbox row
-- **Priority:** P1 | **AC:** DU-032 | **Status:** Missing
+- **Priority:** P1 | **AC:** DU-032 | **Status:** Covered
 - **Then** idempotent second call
 
 ### NEG-PR-009 — RabbitMQ publish without confirm wait
@@ -111,7 +111,7 @@ timers, resource pools, message dispatchers. Requirements: PR-*, DU-030…033, A
 - **Then** safe failure
 
 ### NEG-PR-018 — SQL injection via pool name / correlation (parameterized)
-- **Priority:** P0 | **AC:** NF-040 | **Status:** Missing
+- **Priority:** P0 | **AC:** NF-040 | **Status:** Covered
 - **Given** malicious string in pool id field
 - **When** query
 - **Then** parameterized; no execution

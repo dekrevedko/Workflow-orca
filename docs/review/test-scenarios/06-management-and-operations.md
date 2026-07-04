@@ -21,7 +21,7 @@ resource pools, destructive safety. Requirements: MG-*, AC-5xx.
 ## Missed negative tests
 
 ### NEG-MG-001 — Query empty registry
-- **Priority:** P2 | **AC:** MG-001 | **Status:** Missing
+- **Priority:** P2 | **AC:** MG-001 | **Status:** Covered
 - **Given** no instances
 - **When** `All().List()`
 - **Then** empty list; not null
@@ -32,7 +32,7 @@ resource pools, destructive safety. Requirements: MG-*, AC-5xx.
 - **Then** empty; count 0
 
 ### NEG-MG-003 — Command on empty selection
-- **Priority:** P1 | **AC:** AC-502 | **Status:** Missing
+- **Priority:** P1 | **AC:** AC-502 | **Status:** Covered
 - **Given** `Where(_ => false)`
 - **When** `TerminateAsync` with confirm
 - **Then** zero affected; no error
@@ -77,23 +77,23 @@ resource pools, destructive safety. Requirements: MG-*, AC-5xx.
 - **Then** not stuck
 
 ### NEG-MG-011 — Pool acquire on unknown pool name
-- **Priority:** P1 | **AC:** MG-062 | **Status:** Missing
+- **Priority:** P1 | **AC:** MG-062 | **Status:** Covered
 - **When** acquire `pool-does-not-exist`
 - **Then** clear error; no ticket
 
 ### NEG-MG-012 — Pool acquire capacity zero
-- **Priority:** P1 | **AC:** AC-518 | **Status:** Missing
+- **Priority:** P1 | **AC:** AC-518 | **Status:** Covered
 - **Given** pool capacity 0
 - **When** acquire
 - **Then** suspend or reject per policy; never grant
 
 ### NEG-MG-013 — Release ticket not held
-- **Priority:** P1 | **AC:** AC-520 | **Status:** Missing
+- **Priority:** P1 | **AC:** AC-520 | **Status:** Covered
 - **When** release unknown ticket id
 - **Then** no-op or error; capacity unchanged
 
 ### NEG-MG-014 — Double release same ticket
-- **Priority:** P0 | **AC:** AC-520 | **Status:** Missing
+- **Priority:** P0 | **AC:** AC-520 | **Status:** Covered
 - **Given** ticket released on success
 - **When** second release same ticket
 - **Then** capacity not incremented twice
@@ -126,7 +126,7 @@ resource pools, destructive safety. Requirements: MG-*, AC-5xx.
 - **Then** empty selection
 
 ### NEG-MG-020 — Instance scope wrong id
-- **Priority:** P1 | **AC:** MG-002 | **Status:** Missing
+- **Priority:** P1 | **AC:** MG-002 | **Status:** Covered
 - **When** `Instance(randomId).CancelAsync()`
 - **Then** not-found
 

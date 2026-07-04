@@ -5,6 +5,14 @@ Companion to [R9-test-coverage-gaps.md](../findings/R9-test-coverage-gaps.md). E
 scenarios (boundary values, races, ordering, restart mid-state) that the `v3-gpt/tests` suite does
 not yet cover or covers only shallowly.
 
+> **Re-baseline 2026-07-04.** Statuses were re-checked against the current suite: every scenario
+> whose ID a test references via `[Trait("Scenario", …)]` is now marked `Covered` (was stale at
+> `Missing`/`Partial`). Current totals across the nine files: **~275 scenarios — 187 Missing,
+> 56 Partial, 32 Covered.** `Covered` here means a behavioral test cites the scenario ID; a few
+> `Partial` entries with thin assertions were not individually re-deepened. This backlog (chiefly
+> the 187 Missing) is the largest outstanding pre-ship item; work it by area file, highest
+> `Priority` first.
+
 ## How to read each file
 
 | Column | Meaning |

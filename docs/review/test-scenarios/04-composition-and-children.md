@@ -21,13 +21,13 @@ lineage, throttling. Requirements: CP-*, AC-2xx, AC-6xx.
 ## Missed negative tests
 
 ### NEG-CP-001 — Parallel with single branch
-- **Priority:** P2 | **AC:** CP-001 | **Status:** Missing
+- **Priority:** P2 | **AC:** CP-001 | **Status:** Covered
 - **Given** `Parallel` with one tuple
 - **When** build
 - **Then** validation error or degenerate pass-through documented
 
 ### NEG-CP-002 — Parallel with zero branches
-- **Priority:** P1 | **AC:** CP-001 | **Status:** Missing
+- **Priority:** P1 | **AC:** CP-001 | **Status:** Covered
 - **When** build empty parallel
 - **Then** validation error
 
@@ -50,7 +50,7 @@ lineage, throttling. Requirements: CP-*, AC-2xx, AC-6xx.
 - **Then** immediate join success (0 work items)
 
 ### NEG-CP-006 — ForEach batch size zero / negative
-- **Priority:** P1 | **AC:** AC-601 | **Status:** Missing
+- **Priority:** P1 | **AC:** AC-601 | **Status:** Covered
 - **When** configure `batchSize = 0`
 - **Then** build validation error
 

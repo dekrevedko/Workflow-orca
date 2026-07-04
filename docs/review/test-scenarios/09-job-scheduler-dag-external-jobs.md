@@ -43,7 +43,7 @@ resource pools bound to jobs, cancellation propagation. Requirements: JS-*, JS-A
 - **Then** job fails per policy; ticket released
 
 ### NEG-JS-005 — Completion event wrong correlation
-- **Priority:** P1 | **AC:** JS-AC-004 | **Status:** Missing
+- **Priority:** P1 | **AC:** JS-AC-004 | **Status:** Covered
 - **Given** job waiting on `job-1`
 - **When** completion for `job-2`
 - **Then** no resume; job-1 still waiting

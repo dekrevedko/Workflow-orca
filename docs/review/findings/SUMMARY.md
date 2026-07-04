@@ -44,12 +44,12 @@ prior findings are fixed in code, adds the previously missing [R1](R1-abstractio
    `WorkflowBuilderTests.Build_With*RequiresDurableEngine*`,
    `CoreRuntimeScenarioTests.NEG_CR_017_*` (scenario NEG-CR-017 added to the catalog). The
    interpreter's runtime failure remains as defense-in-depth.
-2. **Negative/edge-case scenario backlog** — **STILL OPEN (started).** This fix pass added
-   EDGE-EV-008 (concurrent duplicate `RaiseEventAsync`, exactly-once resume) and NEG-CR-017,
-   and corrected stale statuses (NEG-EV-014 is Covered — the R4 early-event fix landed and its
-   tests were inverted). The bulk of the 274-scenario catalog remains the largest outstanding
-   work item; statuses in the catalog are partially stale and should be re-baselined before
-   planning the work.
+2. **Negative/edge-case scenario backlog** — **STILL OPEN; catalog re-baselined 2026-07-04.**
+   The catalog was re-checked against the suite: all 22 scenario IDs that tests reference are now
+   `Covered` (20 were stale at `Missing`). Corrected totals: **~275 scenarios — 187 Missing,
+   56 Partial, 32 Covered**. The 187 Missing (chiefly rejection/race/restart depth) remain the
+   largest pre-ship work item; plan by area file, highest `Priority` first. This pass also added
+   EDGE-EV-008 (concurrent duplicate `RaiseEventAsync`, exactly-once resume) and NEG-CR-017.
 
 ### P2
 3. ~~**Durable event discriminators derive from CLR type names**~~ — **FIXED.** Codec entries

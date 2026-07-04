@@ -19,7 +19,7 @@ control flow. Requirements: CR-001…044, AC-0xx.
 ## Missed negative tests
 
 ### NEG-CR-001 — Start unknown definition
-- **Priority:** P1 | **AC:** — | **Status:** Missing
+- **Priority:** P1 | **AC:** — | **Status:** Covered
 - **Given** engine with no registered definition
 - **When** `StartAsync(unknownDefinitionId, …)`
 - **Then** clear `WorkflowDefinitionException` (not null ref / generic failure)
@@ -37,7 +37,7 @@ control flow. Requirements: CR-001…044, AC-0xx.
 - **Then** each path rejected; snapshot unchanged
 
 ### NEG-CR-004 — Completion bridge on non-terminal workflow
-- **Priority:** P1 | **AC:** AC-011 | **Status:** Missing
+- **Priority:** P1 | **AC:** AC-011 | **Status:** Covered
 - **Given** workflow blocked on `Wait`
 - **When** `AwaitCompletionAsync` with short timeout
 - **Then** timeout/cancellation with clear outcome (not hang, not return `Waiting` as success)

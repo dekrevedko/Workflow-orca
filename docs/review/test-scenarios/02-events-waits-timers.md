@@ -20,7 +20,7 @@ Requirements: EV-*, AC-1xx.
 ## Missed negative tests
 
 ### NEG-EV-001 — Deliver to unknown InstanceId
-- **Priority:** P1 | **AC:** EV-010 | **Status:** Missing
+- **Priority:** P1 | **AC:** EV-010 | **Status:** Covered
 - **Given** random instance id
 - **When** `RaiseEventAsync(instanceId, envelope)`
 - **Then** not-found / routing error; no silent no-op
@@ -168,7 +168,7 @@ Requirements: EV-*, AC-1xx.
 - **Then** exactly one resume; one no-op/conflict
 
 ### EDGE-EV-009 — Correlation fan-in: N instances, one event
-- **Priority:** P1 | **AC:** EV-010 | **Status:** Missing
+- **Priority:** P1 | **AC:** EV-010 | **Status:** Covered
 - **Given** fanout mode delivers to all matching waits
 - **When** single broadcast event
 - **Then** each instance resumes once (if API supports fanout)
