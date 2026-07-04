@@ -162,6 +162,14 @@ Follow-up implementation verification, 2026-07-03:
   non-integration `v3-gpt/tests` sweep, and
   `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 83, skipped 16,
   failed 0 passed.
+- SQL Server history-projection parity pass added table-backed
+  `AppendHistory` projection writes through migration `004_history_projections`
+  and purges history rows during retention cleanup. Focused SQL Server
+  projection, migration-journal, and retention certification checks passed
+  before the non-integration analyzer build loop with `-warnaserror`, the full
+  non-integration `v3-gpt/tests` sweep, and
+  `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 83, skipped 16,
+  failed 0.
 
 ## Completed In This Pass
 
@@ -677,7 +685,7 @@ Implementation update:
 | `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs` | About 2,603 lines before decomposition; one aggregate owned timers, projections, lifecycle transitions, and replay orchestration. Saga compensation state has been extracted to `DurableSagaState`; active-wait and buffered-delivery state has been extracted to `DurableWaitState`; external-job state has been extracted to `DurableExternalJobState`; child workflow state has been extracted to `DurableChildWorkflowState`; resource-pool state has been extracted to `DurableResourcePoolState`; timer state has been extracted to `DurableTimerState`. | Keep the aggregate Interface. Further extraction should target projection/replay orchestration only when it creates behavior-testable Locality rather than pass-through glue. |
 | `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` | About 979 lines before decomposition; one processor handled command overloads, rehydration, and append result branching. `DurableCommandRuntime` owns per-instance lanes, `DurableCommitMaterializer` owns provider commit-batch materialization, `DurableResourcePoolCommitEffects` owns resource-pool commit side effects, `DurableCommitPipeline` owns no-op/poison/append-result behavior, `DurableCheckpointMapper` owns provider checkpoint projection, and `DurableInboxPreflight` owns inbound idempotency short-circuit decisions. | Continue only where another behavior can become testable Locality; avoid splitting command overloads into pass-through classes. |
 | `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs` | About 1,515 lines; event mapping now routes through shared `WorkflowEventCodec`, which uses a single descriptor table for type names, serialization, and deserialization. Projection operation switching remains in the store Adapter. | Move projection writes into a projection store Module; keep this Adapter focused on PostgreSQL SQL and transaction shape. |
-| `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs` | About 1,369 lines; event mapping now routes through shared `WorkflowEventCodec`, which uses a single descriptor table for type names, serialization, and deserialization. Projection operation switching remains in the store Adapter. | Split durable event store, projection store, timer store, outbox store, and resource pool Adapter responsibilities. |
+| `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs` | About 1,369 lines; event mapping now routes through shared `WorkflowEventCodec`, which uses a single descriptor table for type names, serialization, and deserialization. Projection operation switching remains in the store Adapter, with `AppendHistory` now covered by a table-backed projection. | Split durable event store, projection store, timer store, outbox store, and resource pool Adapter responsibilities. |
 
 Avoid replacing these switches with many tiny pass-through classes. A new Module
 only earns its keep when deleting it would push real invariants and branching
@@ -709,7 +717,8 @@ Module Interface and keep source-text checks explicitly named as guard tests.
 3. Completed 2026-07-03: create `WorkflowEventCodec` and complete SQL Server
    event coverage.
 4. Completed 2026-07-03: PostgreSQL start idempotency, SQL Server resource-pool
-   persistence, and SQL Server retention certification parity.
+   persistence, SQL Server retention certification parity, and SQL Server
+   history-projection parity.
 5. Continue behavior-preserving `Interpreter<TState>` decomposition only where
    it adds locality or testability.
 6. Completed 2026-07-03: internal durable aggregate slices for wait state, saga
@@ -725,7 +734,8 @@ Module Interface and keep source-text checks explicitly named as guard tests.
 
 The R8 quality issues, immediate channel-substrate drift, timer/outbox claim
 leases, PostgreSQL start idempotency, SQL Server event coverage, SQL Server
-resource-pool persistence, SQL Server retention certification parity, and
-hosted-service transient-failure boundaries are addressed. The next refactoring
-pass should prioritize durable aggregate, durable command-processor, and
-interpreter decomposition without weakening the provider certification surface.
+resource-pool persistence, SQL Server retention certification parity, SQL
+Server history-projection parity, and hosted-service transient-failure
+boundaries are addressed. The next refactoring pass should prioritize durable
+aggregate, durable command-processor, and interpreter decomposition without
+weakening the provider certification surface.

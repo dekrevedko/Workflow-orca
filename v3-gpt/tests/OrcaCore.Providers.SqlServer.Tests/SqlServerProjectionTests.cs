@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using Microsoft.Data.SqlClient;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
@@ -55,6 +56,45 @@ public sealed class SqlServerProjectionTests : IAsyncLifetime
             .Which.InstanceId.Should().Be(InstanceIdValue(1));
     }
 
+    [Fact]
+    [Trait("AC", "DU-071")]
+    public async Task AppendHistoryProjection_PersistsHistoryRow()
+    {
+        var instanceId = InstanceIdValue(4);
+        await RequiredStore().ApplyAsync(
+            [
+                new ProjectionWrite(instanceId, ProjectionOperationKind.AppendHistory)
+                {
+                    History = new ProjectionHistoryWrite(
+                        GuidValue(4),
+                        Timestamp(4),
+                        "operator-note",
+                        """{"message":"created"}""")
+                }
+            ],
+            TestContext.Current.CancellationToken);
+
+        var count = await CountHistoryRowsAsync(instanceId);
+
+        count.Should().Be(1);
+    }
+
+    private async Task<int> CountHistoryRowsAsync(InstanceId instanceId)
+    {
+        await using var connection = new SqlConnection(container.GetConnectionString());
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var command = new SqlCommand(
+            """
+            select count(*)
+            from dbo.orcacore_history_projections
+            where instance_id = @instance_id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("@instance_id", instanceId.Value);
+
+        return Convert.ToInt32(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken));
+    }
+
     private SqlServerWorkflowStore RequiredStore()
     {
         return store ?? throw new InvalidOperationException("SQL Server projection store is not initialized.");
@@ -93,5 +133,10 @@ public sealed class SqlServerProjectionTests : IAsyncLifetime
     private static DefinitionId DefinitionIdValue(int value)
     {
         return new DefinitionId(Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}"));
+    }
+
+    private static Guid GuidValue(int value)
+    {
+        return Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}");
     }
 }

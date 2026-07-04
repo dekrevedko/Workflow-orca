@@ -977,8 +977,48 @@ public sealed class SqlServerWorkflowStore :
                     }
 
                     break;
+                case ProjectionOperationKind.AppendHistory:
+                    if (operation.History is { } history)
+                    {
+                        await AppendHistoryProjectionAsync(
+                            connection,
+                            transaction,
+                            operation.InstanceId,
+                            history,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+
+                    break;
             }
         }
+    }
+
+    private static async Task AppendHistoryProjectionAsync(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        InstanceId instanceId,
+        ProjectionHistoryWrite history,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new SqlCommand(
+            """
+            if not exists (
+                select 1 from dbo.orcacore_history_projections where history_id = @history_id)
+            begin
+                insert into dbo.orcacore_history_projections (
+                    history_id, instance_id, recorded_at, kind, payload)
+                values (
+                    @history_id, @instance_id, @recorded_at, @kind, @payload);
+            end;
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("@history_id", history.HistoryId);
+        command.Parameters.AddWithValue("@instance_id", instanceId.Value);
+        command.Parameters.AddWithValue("@recorded_at", history.RecordedAt);
+        command.Parameters.AddWithValue("@kind", history.Kind);
+        command.Parameters.AddWithValue("@payload", history.PayloadJson);
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task UpsertSummaryProjectionAsync(

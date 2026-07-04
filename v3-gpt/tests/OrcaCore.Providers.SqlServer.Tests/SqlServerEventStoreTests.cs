@@ -43,14 +43,14 @@ public sealed class SqlServerEventStoreTests : IAsyncLifetime
             """
             select count(*)
             from dbo.orcacore_schema_migrations
-            where migration_id in ('001_initial', '002_claim_leases', '003_resource_pools');
+            where migration_id in ('001_initial', '002_claim_leases', '003_resource_pools', '004_history_projections');
             """,
             connection);
 
         var migrationCount = (int)(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken)
             ?? throw new InvalidOperationException());
 
-        migrationCount.Should().Be(3);
+        migrationCount.Should().Be(4);
     }
 
     [Fact]

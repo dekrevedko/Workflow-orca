@@ -159,6 +159,7 @@ internal sealed class SqlServerRetentionStore
         foreach (var sql in new[]
         {
             "delete from dbo.orcacore_active_wait_projections where instance_id = @instance_id;",
+            "delete from dbo.orcacore_history_projections where instance_id = @instance_id;",
             "delete from dbo.orcacore_instance_projections where instance_id = @instance_id;",
             "delete from dbo.orcacore_checkpoints where instance_id = @instance_id;",
             "delete from dbo.orcacore_timers where instance_id = @instance_id;",

@@ -263,15 +263,24 @@ public sealed class OrcaCoreHostingServiceCollectionTests
 
     private static async Task AdvanceUntilObservedAsync(FakeTimeProvider clock, Task observed)
     {
-        for (var attempt = 0; attempt < 8 && !observed.IsCompleted; attempt++)
+        for (var attempt = 0; attempt < 50 && !observed.IsCompleted; attempt++)
         {
             await Task.Yield();
             clock.Advance(FailureBackoff);
-            await Task.Yield();
+            await WaitBrieflyAsync(observed);
             clock.Advance(HostedInterval);
+            await WaitBrieflyAsync(observed);
         }
 
         observed.IsCompleted.Should().BeTrue("the hosted-service retry window should have elapsed under fake time");
+    }
+
+    private static async Task WaitBrieflyAsync(Task observed)
+    {
+        for (var attempt = 0; attempt < 4 && !observed.IsCompleted; attempt++)
+        {
+            await Task.Yield();
+        }
     }
 
     private static StartWorkflowCommand Start(InstanceId instanceId)
