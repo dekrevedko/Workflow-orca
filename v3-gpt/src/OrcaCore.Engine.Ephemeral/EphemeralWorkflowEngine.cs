@@ -18,13 +18,12 @@ namespace OrcaCore.Engine.Ephemeral;
 public sealed class EphemeralWorkflowEngine
 {
     private readonly ConcurrentDictionary<DefinitionId, object> definitions = [];
-    private readonly ConcurrentDictionary<InstanceId, IReadOnlyList<WaitRoutingKey>> indexedInstanceWaits = [];
     private readonly ConcurrentDictionary<InstanceId, object> sagaRuntimeStates = [];
-    private readonly ConcurrentDictionary<WaitRoutingKey, ConcurrentDictionary<InstanceId, byte>> waitIndex = [];
     private readonly InstanceExecutionLane executionLane;
     private readonly ResourceGovernanceCoordinator governance;
     private readonly IInstanceRegistry instanceRegistry;
     private readonly EphemeralWorkflowEngineOptions options;
+    private readonly EphemeralRoutingIndex routingIndex = new();
     private readonly EphemeralTimerService timerService;
     private readonly TimeProvider timeProvider;
     private readonly YieldContinuationScheduler yieldContinuationScheduler;
@@ -538,14 +537,14 @@ public sealed class EphemeralWorkflowEngine
         ArgumentNullException.ThrowIfNull(envelope);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var key = WaitRoutingKey.From(envelope);
-        if (!waitIndex.TryGetValue(key, out var indexedInstances) || indexedInstances.IsEmpty)
+        var candidateIds = routingIndex.FindCandidates(envelope);
+        if (candidateIds.Count == 0)
         {
             throw new WorkflowRoutingException(
                 $"No active wait exists for event '{envelope.EventName}' and correlation '{envelope.CorrelationId}'.");
         }
 
-        var matches = instanceRegistry.GetMany(indexedInstances.Keys.ToArray())
+        var matches = instanceRegistry.GetMany(candidateIds)
             .OfType<WorkflowInstance<TState>>()
             .Where(instance => instance.HasActiveWait(envelope.EventName, envelope.CorrelationId))
             .ToArray();
@@ -571,33 +570,7 @@ public sealed class EphemeralWorkflowEngine
 
     private void IndexSnapshot(WorkflowInstanceSnapshot snapshot)
     {
-        ArgumentNullException.ThrowIfNull(snapshot);
-
-        if (indexedInstanceWaits.TryRemove(snapshot.InstanceId, out var previousKeys))
-        {
-            foreach (var previousKey in previousKeys)
-            {
-                if (waitIndex.TryGetValue(previousKey, out var instances))
-                {
-                    instances.TryRemove(snapshot.InstanceId, out _);
-                }
-            }
-        }
-
-        var activeKeys = snapshot.ActiveWaits
-            .Select(wait => new WaitRoutingKey(wait.EventName, wait.CorrelationId))
-            .Distinct()
-            .ToArray();
-        if (activeKeys.Length == 0)
-        {
-            return;
-        }
-
-        indexedInstanceWaits[snapshot.InstanceId] = activeKeys;
-        foreach (var key in activeKeys)
-        {
-            waitIndex.GetOrAdd(key, _ => new ConcurrentDictionary<InstanceId, byte>())[snapshot.InstanceId] = 0;
-        }
+        routingIndex.IndexSnapshot(snapshot);
     }
 
     /// <summary>
@@ -642,13 +615,5 @@ public sealed class EphemeralWorkflowEngine
         internal List<SagaForwardAction<TState>> CompletedActions { get; } = [];
 
         internal bool CompensationRequested { get; set; }
-    }
-
-    private readonly record struct WaitRoutingKey(string EventName, CorrelationId CorrelationId)
-    {
-        internal static WaitRoutingKey From(EventEnvelope envelope)
-        {
-            return new WaitRoutingKey(envelope.EventName, envelope.CorrelationId);
-        }
     }
 }

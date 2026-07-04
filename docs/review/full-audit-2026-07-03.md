@@ -573,6 +573,12 @@ Recommendation: introduce internal Modules for `EphemeralRoutingIndex`,
 `TimerCoordinator`, `SagaRuntime`, and node execution. Avoid class-per-node
 ceremony; choose Interfaces that express behavior and concentrate Locality.
 
+Implementation update:
+- 2026-07-03: extracted `EphemeralRoutingIndex` for active-wait route indexing,
+  stale wait-key replacement, and correlation candidate lookup. The engine still
+  owns public delivery and instance-type validation, while routing-index tests
+  cover stale-key removal and duplicate-key deduplication.
+
 ### Container/infrastructure tests are not isolated
 
 Evidence:
