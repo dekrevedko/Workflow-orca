@@ -28,13 +28,12 @@ Observed current baseline:
 dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build --filter "FullyQualifiedName~OrcaCore.Integration.Tests.E2E"
 ```
 
-Result after Workstream 4's first facade slice: 15 passed, 3 skipped, 0
+Result after Workstream 5's first DAG runner slice: 16 passed, 2 skipped, 0
 failed.
 
 The skipped `E2E` scenarios identify real missing product surfaces:
 
 - `INT_E2E_008`: durable saga interpreter is not available yet.
-- `INT_E2E_013`: engine-integrated DAG runner is not available yet.
 - `INT_E2E_015`: durable yield command path is not available yet.
 
 The broader integration suite also contains deliberate skips for DAG/scheduler
@@ -283,11 +282,23 @@ Current useful code:
 
 Current gap:
 
-- Several `INT-JS-*` tests are skipped because there is no integrated DAG runner.
+- The durable runtime now has an initial `DurableDagRunner` that schedules ready
+  `WorkflowDagPlan` batches through durable child workflow commands.
+- Several advanced `INT-JS-*` tests remain skipped because cancellation,
+  pause/continue-as-new, failure policy, queue quota, and heterogeneous-runner
+  behaviors are not yet integrated.
+
+Implementation note:
+
+- `DurableDagRunner.ScheduleReadyAsync(...)` turns ready DAG batches into
+  `DurableRunChildrenCommand` commits.
+- `INT_E2E_013` now runs against PostgreSQL by scheduling DAG children through
+  the runner and reconstructing node status through durable management.
 
 Tasks:
 
-1. Add a runner that turns a DAG plan into durable execution commands.
+1. Add a runner that turns a DAG plan into durable execution commands. (Initial
+   ready-batch runner complete for `INT_E2E_013`.)
 2. Schedule ready nodes only when dependencies are satisfied.
 3. Use durable resource pools for external jobs.
 4. Emit normalized outbox records for job start and job stop.

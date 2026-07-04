@@ -357,10 +357,55 @@ public sealed class DurableWorkflowPostgreSqlIntegrationTests(PostgreSqlOrcaFixt
     [Fact]
     [Trait(Traits.Scenario, "INT-E2E-013")]
     [Trait("AC", "JS-AC-005")]
-    public async Task INT_E2E_013_DagReconstructOnPostgreSql_BlockedUntilRunnerExists()
+    public async Task INT_E2E_013_DagRunnerReconstructsNodeStatusOnPostgreSql()
     {
-        await Task.CompletedTask;
-        Assert.Skip("Engine-integrated DAG runner required for reconstruct E2E.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        await using var store = await fixture.CreateStoreAsync();
+        var processor = await fixture.CreateProcessorAsync(store);
+        var runner = new DurableDagRunner(processor);
+        var rootId = IntegrationIds.Instance(1);
+        var plan = new WorkflowDagBuilder()
+            .Node("extract", IntegrationIds.Definition(2), DefinitionVersion.Initial)
+            .Node("load", IntegrationIds.Definition(2), DefinitionVersion.Initial)
+            .BuildValidated()
+            .Value;
+        await processor.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+
+        var scheduledBatches = await runner.ScheduleReadyAsync(
+            new DurableDagScheduleRequest(
+                rootId,
+                plan,
+                CompletedNodeIds: [],
+                FailedNodeIds: [],
+                RequestedAt: IntegrationIds.Timestamp(2)),
+            TestContext.Current.CancellationToken);
+        var scheduled = (await store.LoadTailAsync(
+                new WorkflowStreamId(rootId),
+                StreamVersion.Empty,
+                TestContext.Current.CancellationToken))
+            .OfType<WorkflowChildrenScheduledEvent>()
+            .Single();
+        var extract = scheduled.Children.Single(child => child.ItemSnapshot == "extract").ChildInstanceId;
+        var load = scheduled.Children.Single(child => child.ItemSnapshot == "load").ChildInstanceId;
+        await SeedProjectionAsync(
+            store,
+            DagNodeSnapshot(extract, rootId, WorkflowStatus.Completed, 11, 15));
+        await SeedProjectionAsync(
+            store,
+            DagNodeSnapshot(load, rootId, WorkflowStatus.Failed, 12, 16, "load failed"));
+
+        var dag = await fixture.CreateManagement(store)
+            .ReconstructDagRunAsync(rootId, TestContext.Current.CancellationToken);
+
+        scheduledBatches.Should().ContainSingle()
+            .Which.Batch.ItemSnapshots.Should().Equal("extract", "load");
+        dag.RootInstanceId.Should().Be(rootId);
+        dag.Nodes.Select(node => node.NodeId).Should().Equal("extract", "load");
+        dag.Nodes.Single(node => node.NodeId == "extract").Status.Should().Be(WorkflowStatus.Completed);
+        dag.Nodes.Single(node => node.NodeId == "extract").StartedAt.Should().Be(IntegrationIds.Timestamp(11));
+        dag.Nodes.Single(node => node.NodeId == "extract").UpdatedAt.Should().Be(IntegrationIds.Timestamp(15));
+        dag.Nodes.Single(node => node.NodeId == "load").Status.Should().Be(WorkflowStatus.Failed);
+        dag.Nodes.Single(node => node.NodeId == "load").ErrorSummary.Should().Be("load failed");
     }
 
     [Fact]
@@ -496,6 +541,48 @@ public sealed class DurableWorkflowPostgreSqlIntegrationTests(PostgreSqlOrcaFixt
             .Init<string>(input => new DeployState(input))
             .End()
             .Build(definitionId, definitionVersion);
+    }
+
+    private static async Task SeedProjectionAsync(
+        IWorkflowEventStore store,
+        WorkflowInstanceSnapshot snapshot)
+    {
+        await store.AppendAsync(
+            new ProviderCommitBatch
+            {
+                StreamId = new WorkflowStreamId(snapshot.InstanceId),
+                ExpectedVersion = StreamVersion.Empty,
+                ProjectionOperations =
+                [
+                    new ProjectionWrite(snapshot.InstanceId, ProjectionOperationKind.UpsertSummary)
+                    {
+                        InstanceSnapshot = snapshot
+                    }
+                ]
+            },
+            TestContext.Current.CancellationToken);
+    }
+
+    private static WorkflowInstanceSnapshot DagNodeSnapshot(
+        InstanceId instanceId,
+        InstanceId rootId,
+        WorkflowStatus status,
+        int createdAt,
+        int updatedAt,
+        string? errorSummary = null)
+    {
+        return new WorkflowInstanceSnapshot
+        {
+            InstanceId = instanceId,
+            ParentInstanceId = rootId,
+            RootInstanceId = rootId,
+            DefinitionId = IntegrationIds.Definition(2),
+            DefinitionVersion = DefinitionVersion.Initial,
+            Status = status,
+            CreatedAt = IntegrationIds.Timestamp(createdAt),
+            UpdatedAt = IntegrationIds.Timestamp(updatedAt),
+            ErrorSummary = errorSummary
+        };
     }
 
     private sealed record DeployState(string Value);

@@ -40,6 +40,7 @@ public sealed class OrcaCoreHostingServiceCollectionTests
         provider.GetRequiredService<DurableCommandProcessor>().Should().NotBeNull();
         provider.GetRequiredService<DurableDefinitionRegistry>().Should().NotBeNull();
         provider.GetRequiredService<DurableWorkflowRuntime>().Should().NotBeNull();
+        provider.GetRequiredService<DurableDagRunner>().Should().NotBeNull();
         provider.GetRequiredService<DurableOutboxPump>().Should().NotBeNull();
         provider.GetRequiredService<DurableManagement>().Should().NotBeNull();
         provider.GetRequiredService<IWorkflowEventStore>().Should().BeOfType<InMemoryWorkflowProvider>();
