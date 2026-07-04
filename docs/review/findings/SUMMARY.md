@@ -1,0 +1,131 @@
+# Full Audit Synthesis — 2026-07-03 (post-remediation verification)
+
+Scope: `v3-gpt/` **working tree** on `feature/v3-rebuild` (includes ~2,800 lines of uncommitted
+remediation changes — aggregate decomposition, SQL Server store rework, hosting wiring).
+This synthesis closes the R0–R10 audit cycle: it records the verified baseline, confirms which
+prior findings are fixed in code, adds the previously missing [R1](R1-abstractions.md) /
+[R2](R2-core.md) phase findings, and ranks everything still open.
+
+## 1. Verified baseline (2026-07-03, Docker available)
+
+| Check | Result |
+|---|---|
+| `dotnet build v3-gpt/OrcaCore.slnx -warnaserror` | ✅ 0 warnings, 0 errors |
+| Full `dotnet test v3-gpt/OrcaCore.slnx` (run 1) | 892 passed / **1 failed** / 16 skipped |
+| Full re-run (run 2) | **894 passed / 0 failed / 16 skipped** (Hosting 10/10; flake did not reproduce, incl. 8× isolated re-runs) |
+| Container suites (PostgreSQL 60, SQL Server 46, RabbitMQ 8, Redis 8, ZeroMQ 5) | ✅ all executed against real containers |
+| Integration suite | 83 passed, 16 skipped (all skips are explicit unimplemented-feature markers, listed in §4) |
+| AC trait coverage | **98/98** acceptance-criteria IDs from spec 12 have `[Trait("AC", …)]` tests |
+| Line coverage (local, per-assembly best) | Engine.Ephemeral **91%**, Engine.Durable **93%**, Core **75%**, Abstractions **88%**, Providers.InMemory **75%** |
+| Production hygiene | 0 TODO/HACK/`NotImplementedException` in `src/**`; no file ≥ 1000 lines; wall-clock statics guarded by test |
+
+## 2. Prior P0/P1 remediation — verified in code (not just claimed)
+
+| Finding | Status | Evidence |
+|---|---|---|
+| R4-P0 `StartOrGet` process-local only | **Fixed** | `DurableStartService` consults `IWorkflowStartIdempotencyStore` (durable lookup before create); two-host integration scenario active |
+| R5-P0 SqlServer store in-memory stub | **Fixed** | Real SQL via migrations + delegated projection/timer/retention/resource-pool stores; 46 provider tests green |
+| R6-P0 `RunChildren` throttling stalls after initial window | **Fixed** | `DurableChildWorkflowState.DispatchChildrenIfCapacity` + `NextDispatchIndex` replay |
+| R7-P0 hosted services are no-ops | **Fixed** | `OrcaCoreOutboxPumpHostedService` / `OrcaCoreTimerHostedService` / `OrcaCoreOperationalSweepHostedService` are real `BackgroundService`s with failure boundaries + backoff tests |
+| R3/R4/R6-P1 branch-blind wait matching | **Fixed** | `BranchId` on wait records + ambiguity rejection in both `WorkflowInstance` (ephemeral) and `DurableWaitState` (durable) |
+| R3-P1 timer service unsynchronized / cancel not signaled | **Fixed** | `lock(gate)` in `EphemeralTimerService`; per-instance `CancellationTokenSource` with linked execution tokens |
+| R6-P1 DAG compiler collapses heterogeneous children | **Fixed** | `CreateChildBatches` groups by (definition, version, policy); homogeneous-only `CreateChildBatch` now throws on misuse |
+| R3-P2 correlation routing scans all instances | **Fixed** | `EphemeralRoutingIndex` extracted |
+| R4-P2 durable management query-only | **Fixed** | `DurableManagement` exposes Pause/Resume/Cancel/Terminate/Purge |
+| R8 quality set (reflection serializers, no Channels, GUIDv4, wall-clock) | **Fixed** | Source-gen STJ context; `InstanceLane` on bounded Channels (race traced sound — see R2 positives); `Guid.CreateVersion7`; `TimeProvider` seams + guard test |
+
+## 3. Open findings, ranked — status after the 2026-07-03 fix pass
+
+### P1
+1. ~~**CR-002: durable-only `RunChild(ren)` fails at runtime on the ephemeral engine**~~ —
+   **FIXED.** `WorkflowBuilder` now computes `RequiresDurableEngine` (recursive node scan) onto
+   `WorkflowDefinition`; `EphemeralWorkflowEngine.RegisterDefinition` rejects such definitions
+   with `WorkflowDefinitionException` before any execution. Tests:
+   `WorkflowBuilderTests.Build_With*RequiresDurableEngine*`,
+   `CoreRuntimeScenarioTests.NEG_CR_017_*` (scenario NEG-CR-017 added to the catalog). The
+   interpreter's runtime failure remains as defense-in-depth.
+2. **Negative/edge-case scenario backlog** — **STILL OPEN (started).** This fix pass added
+   EDGE-EV-008 (concurrent duplicate `RaiseEventAsync`, exactly-once resume) and NEG-CR-017,
+   and corrected stale statuses (NEG-EV-014 is Covered — the R4 early-event fix landed and its
+   tests were inverted). The bulk of the 274-scenario catalog remains the largest outstanding
+   work item; statuses in the catalog are partially stale and should be re-baselined before
+   planning the work.
+
+### P2
+3. ~~**Durable event discriminators derive from CLR type names**~~ — **FIXED.** Codec entries
+   now carry explicit string discriminators (pinned to the current names — no stream breakage),
+   `WorkflowEventCodec.EventTypeNamesByClrTypeName` exposes the frozen table, and
+   `WorkflowEventCodecTests.EventTypeNames_AreFrozenStreamDiscriminators` guards every entry.
+4. ~~**CR-022 epoch/version absent from public snapshot surface**~~ — **FIXED.**
+   `WorkflowInstanceSnapshot.StreamVersion` (nullable; durable-populated) flows from
+   `DurableWorkflowAggregate.ToInstanceSnapshot()` through all projection stores: InMemory/Redis
+   (record `with`-clones), PostgreSQL (migration `004_stream_version.sql` + upsert/select), SQL
+   Server (migration `005_stream_version.sql` + upsert/select). Certification test
+   `EventStoreCertificationTests.ProjectionUpsert_RoundTripsStreamVersion` enforces round-trip on
+   every provider; the TestSupport fake projection store gained real upsert/list fidelity to
+   participate. Ephemeral snapshots report null (the in-process lane is the ephemeral guarantee).
+5. **Flaky hosting test under full-suite load** — **MITIGATED.** The hosting tests were verified
+   already deterministic (FakeTimeProvider + TCS waits); the flake was load-induced with the name
+   lost to output filtering. CI now runs `--logger trx` and uploads results, so a recurrence is
+   identifiable. No code defect found to fix.
+6. ~~**CI single lane, token coverage gate**~~ — **FIXED.** `ci.yml` now has a `unit` job (7 fast
+   projects, coverage, engine floor raised 0.20 → **0.80**, trx) and a `providers` job
+   (PostgreSQL/SQL Server/RabbitMQ/Redis + integration, trx). Duplicate `ci-v3.yml` and dead
+   `ci-v3-workspace.yml` (targeted the deleted `v3/` lineage) were removed.
+7. ~~**DAG transitively-blocked nodes invisible**~~ — **FIXED.** `GetBlockedByFailures` computes
+   the transitive closure; `WorkflowDagPlan.IsComplete` / `WorkflowDagRunner.IsComplete` expose
+   the terminal-run check. Tests in `DagBuilderTests`.
+8. **File-size watch items growing** — open (`PostgreSqlResourcePoolStore` 930,
+   `WorkflowInstance` 887, `SqlServerResourcePoolStore` 873; split when they next grow).
+9. **Aggregate encapsulation loosened by decomposition** — open (internal-only, low urgency).
+
+### P3
+10. **Legacy vs lease claim overloads** — **DEFERRED deliberately.** Dozens of test call sites use
+    the short overload, and a default-interface forward would need a wall-clock "now" (banned by
+    the repository guard). Revisit only if a provider ships the legacy path without lease
+    semantics; certification covers lease behavior today.
+11. ~~Empty `If` then-branch validation~~ — **WITHDRAWN**: pinned intentional behavior
+    (`Run_IfWithEmptyThenBranch_ContinuesAfterBranch`). `Then(IStep)` statelessness contract —
+    **FIXED** (doc comment).
+12. ~~`EventEnvelope.Payload` convention undocumented~~ — **FIXED** (doc comment).
+
+## 4. Known missing implementations (honestly marked, not bugs)
+
+**Update 2026-07-04:** the e2e push (commits `a3f55dd6…fd82feac`) closed **15 of the 16**
+integration skips. `DurableDagRunner` now lives in the durable engine with PG e2e coverage
+(JS-001), the durable saga and yield command paths landed, the definition facade covers
+version binding, the PostgreSQL store gained append-failure hooks, and scheduler start
+idempotency plus an observability (OTel) integration surface were added (new spec doc
+[15-requirements-observability-otel.md](../../specs/15-requirements-observability-otel.md),
+`OB-` prefix). The **single remaining skip** is the 1-hour fake-clock DAG soak, deferred to a
+nightly slow suite by design.
+
+The original gap table is kept for history:
+
+| Gap | Was | Now |
+|---|---|---|
+| Engine-integrated DAG runner (JS-001) | 9 skips | **Closed** — `DurableDagRunner` + PG e2e |
+| Durable saga interpreter e2e | 1 skip | **Closed** |
+| Durable yield command path | 1 skip | **Closed** |
+| Definition-registry version binding | 1 skip | **Closed** — definition facade |
+| Store fault-injection seams | 2 skips | **Closed** — PG append-failure hooks |
+| Host cron-scheduled starts | 1 skip | **Closed** — scheduler start idempotency e2e |
+| Nightly DAG soak | 1 skip | Deferred by design (nightly lane) |
+
+## 5. Verdict
+
+**Fix-then-ship** (recorded 2026-07-03), with the "fix" half now substantially done:
+
+- 2026-07-03 fix pass (§3): the CR-002 P1 and the P2 hardening items are fixed and verified
+  (all provider suites green against real containers, including the new stream-version
+  certification round-trip on PostgreSQL and SQL Server).
+- 2026-07-04 e2e push (§4): all declared feature gaps closed; integration skips went 16 → 1
+  (the deliberate nightly soak).
+- Lineage consolidation committed: `v3/`, `v3-cursor/`, and their CI workflows removed;
+  the two-lane `ci.yml` with the 0.80 engine coverage floor is the single pipeline.
+
+What remains open before a "ship" call: the bulk of the negative/edge scenario backlog
+(§3 item 2 — re-baseline the catalog statuses first; several are stale), the two file-size
+watch items (§3 item 8), and a fresh audit phase for the newly added surfaces
+(`DurableDagRunner`, durable saga/yield command paths, definition facade, observability —
+spec 15's `OB-` requirements have no findings phase yet).

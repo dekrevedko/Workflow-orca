@@ -40,7 +40,11 @@ Every phase looks through all seven lenses, weighted per the phase's nature (§4
    (serialized execution CR-040, exactly-once resume EV-023, no event loss EV-032,
    committed-state-only DU-020, join-once CP-002). This lens is never skipped.
 3. **Architecture & pluggability** — dependency directions (01 §1/§3), provider boundary
-   (PR-002), interface-first design ("program to interfaces"), no god-classes.
+   (PR-002), interface-first design ("program to interfaces"), no god-classes, and
+   natural GoF pattern fit. Look for Strategy, Chain of Responsibility, State, Command,
+   Observer, Adapter, Facade, and Template Method where they reduce coupling or improve
+   locality. Do not pattern-hunt: a pattern is useful only when it makes the interface
+   smaller or concentrates behavior that is currently scattered.
 4. **Security** (NF-040) — deserialization safety (no untrusted polymorphic type
    resolution), no injected SQL in provider plugins, destructive-breadth guards (MG-004).
 5. **Performance traps** (NF-030) — unbounded history loads, per-query payload
@@ -95,7 +99,7 @@ Rank findings most-severe first. One entry each:
 - **Requirement/convention:** <e.g. EV-032 / 02 §5 / NF-020>  (or "none — general")
 - **Evidence:** <the specific code fact — quote the ≤5 lines that show it>
 - **Failure scenario:** <concrete inputs/state → wrong output, crash, race, or data loss>
-- **Recommendation:** <the smallest change that fixes it>
+- **Recommendation:** <the smallest change that fixes it; mention a GoF pattern only when it is a natural fit>
 - **Confidence:** CONFIRMED (traced the path) | PLAUSIBLE (needs author check)
 ```
 
@@ -103,6 +107,11 @@ Severity: **P0** spec-violating correctness — data loss, broken serialized-exe
 exactly-once/crash-safety invariant, security hole. **P1** functional bug or a spec
 requirement in scope that is unmet/untested. **P2** architecture, maintainability, or
 test-quality weakness. **P3** nit/style.
+
+Module size rule for production implementation files: **500+ lines** is a review warning
+and refactor trigger; **1000+ lines** is a hard finding unless there is an explicit,
+temporary waiver. Public closed-family contract files may be excepted only when the
+exception is documented and the grouping improves readability.
 
 Rules: cite `file:line` for every finding (clickable). Prefer CONFIRMED — trace the code
 path before asserting a race. A missing acceptance test for an in-scope AC is at least P1.
