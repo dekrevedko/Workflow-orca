@@ -9,11 +9,15 @@ internal sealed class InstanceLane
     private const int LaneCapacity = 1024;
 
     private readonly ConcurrentDictionary<InstanceId, Lane> lanes = [];
+    private readonly Action<InstanceId>? onLaneEvicted;
     private readonly Action<InstanceId>? onWorkItemEnqueued;
 
-    internal InstanceLane(Action<InstanceId>? onWorkItemEnqueued = null)
+    internal InstanceLane(
+        Action<InstanceId>? onWorkItemEnqueued = null,
+        Action<InstanceId>? onLaneEvicted = null)
     {
         this.onWorkItemEnqueued = onWorkItemEnqueued;
+        this.onLaneEvicted = onLaneEvicted;
     }
 
     internal int ActiveLaneCount => lanes.Count;
@@ -53,8 +57,19 @@ internal sealed class InstanceLane
                 return await workItem.Completion.Task.ConfigureAwait(false);
             }
 
-            lanes.TryRemove(new KeyValuePair<InstanceId, Lane>(instanceId, lane));
+            TryRemoveLane(instanceId, lane);
         }
+    }
+
+    private bool TryRemoveLane(InstanceId instanceId, Lane lane)
+    {
+        var removed = lanes.TryRemove(new KeyValuePair<InstanceId, Lane>(instanceId, lane));
+        if (removed)
+        {
+            onLaneEvicted?.Invoke(instanceId);
+        }
+
+        return removed;
     }
 
     private sealed class Lane
@@ -117,7 +132,7 @@ internal sealed class InstanceLane
             }
             finally
             {
-                owner.lanes.TryRemove(new KeyValuePair<InstanceId, Lane>(instanceId, this));
+                owner.TryRemoveLane(instanceId, this);
             }
         }
 

@@ -8,6 +8,7 @@ using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Aggregates;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Providers.InMemory;
+using OrcaCore.TestSupport;
 using Xunit;
 
 namespace OrcaCore.Engine.Durable.Tests.Execution;
@@ -132,14 +133,17 @@ public sealed class DurableCommandPipelineTests
     public async Task ProcessCommand_WhenBatchDrains_EvictsIdleLane()
     {
         var instanceId = InstanceIdValue(1);
+        var evicted = new AsyncSignalCounter();
         var store = new RecordingEventStore
         {
             Tail = [Started(instanceId)]
         };
-        var processor = new DurableCommandProcessor(store);
+        var runtime = new DurableCommandRuntime(store, resourcePoolStore: null, onLaneEvicted: _ => evicted.Signal());
+        var processor = new DurableCommandProcessor(runtime);
 
         await processor.ProcessAsync(StepCompletedCommand(instanceId, 2), TestContext.Current.CancellationToken);
 
+        await evicted.WaitForCountAsync(1, TestContext.Current.CancellationToken);
         processor.ActiveLaneCount.Should().Be(0);
     }
 
@@ -151,7 +155,8 @@ public sealed class DurableCommandPipelineTests
         {
             Tail = [Started(instanceId)]
         };
-        var runtime = new DurableCommandRuntime(store);
+        var evicted = new AsyncSignalCounter();
+        var runtime = new DurableCommandRuntime(store, resourcePoolStore: null, onLaneEvicted: _ => evicted.Signal());
         var firstProcessor = new DurableCommandProcessor(runtime);
         var secondProcessor = new DurableCommandProcessor(runtime);
         var first = firstProcessor.ProcessAsync(
@@ -170,6 +175,7 @@ public sealed class DurableCommandPipelineTests
         await Task.WhenAll(first, second).WaitAsync(TestContext.Current.CancellationToken);
 
         store.MaxConcurrentAppends.Should().Be(1);
+        await evicted.WaitForCountAsync(1, TestContext.Current.CancellationToken);
         secondProcessor.ActiveLaneCount.Should().Be(0);
     }
 

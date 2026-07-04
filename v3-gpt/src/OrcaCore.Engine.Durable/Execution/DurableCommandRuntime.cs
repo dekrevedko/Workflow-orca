@@ -1,5 +1,6 @@
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.Core.Concurrency;
 
 namespace OrcaCore.Engine.Durable.Execution;
 
@@ -8,7 +9,7 @@ namespace OrcaCore.Engine.Durable.Execution;
 /// </summary>
 public sealed class DurableCommandRuntime
 {
-    private readonly DurableInstanceCommandLane lanes = new();
+    private readonly InstanceLane lanes;
 
     /// <summary>
     /// Initializes a new durable command runtime.
@@ -16,9 +17,18 @@ public sealed class DurableCommandRuntime
     /// <param name="eventStore">The durable event store used by command processors.</param>
     /// <param name="resourcePoolStore">The optional durable resource-pool store used by resource commands.</param>
     public DurableCommandRuntime(IWorkflowEventStore eventStore, IResourcePoolStore? resourcePoolStore = null)
+        : this(eventStore, resourcePoolStore, onLaneEvicted: null)
+    {
+    }
+
+    internal DurableCommandRuntime(
+        IWorkflowEventStore eventStore,
+        IResourcePoolStore? resourcePoolStore,
+        Action<InstanceId>? onLaneEvicted)
     {
         ArgumentNullException.ThrowIfNull(eventStore);
 
+        lanes = new InstanceLane(onLaneEvicted: onLaneEvicted);
         EventStore = eventStore;
         ResourcePoolStore = resourcePoolStore;
     }
@@ -29,11 +39,11 @@ public sealed class DurableCommandRuntime
 
     internal int ActiveLaneCount => lanes.ActiveLaneCount;
 
-    internal Task<T> RunAsync<T>(
+    internal async Task<T> RunAsync<T>(
         InstanceId instanceId,
         Func<CancellationToken, Task<T>> operation,
         CancellationToken cancellationToken)
     {
-        return lanes.RunAsync(instanceId, operation, cancellationToken);
+        return await lanes.RunAsync(instanceId, operation, cancellationToken).ConfigureAwait(false);
     }
 }

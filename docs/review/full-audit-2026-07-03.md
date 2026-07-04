@@ -772,8 +772,9 @@ Module Interface and keep source-text checks explicitly named as guard tests.
 6. Completed 2026-07-03: internal durable aggregate slices for wait state, saga
    compensation state, external-job state, child workflow state, and
    resource-pool state.
-7. Introduce a shared `InstanceLane` Module to remove duplicated channel-lane
-   Implementation.
+7. Completed 2026-07-03: shared `InstanceLane` Module is used by durable and
+   ephemeral execution lanes, and durable command runtime now depends on it
+   directly instead of a pass-through command-lane wrapper.
 8. Split test execution into unit, container, and active integration lanes in CI.
 9. Completed 2026-07-03: replace scheduler-yield negative assertions with
    deterministic test-support probes for lane/governance tests and keep public
@@ -788,7 +789,8 @@ Server history-projection parity, and hosted-service transient-failure
 boundaries are addressed. The scheduler-yield negative assertion audit item now
 has deterministic lane/governance probes, and Redis projection updates now use
 one optimistic transaction for snapshot/index movement. PostgreSQL
-data-source ownership is explicit for direct and DI-created stores. The next
+data-source ownership is explicit for direct and DI-created stores. The shared
+per-instance lane substrate is consolidated in `InstanceLane`. The next
 refactoring pass should prioritize durable aggregate, durable command-processor,
 and interpreter decomposition without weakening the provider certification
 surface.
