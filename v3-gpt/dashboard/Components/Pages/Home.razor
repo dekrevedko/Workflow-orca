@@ -1,0 +1,323 @@
+@page "/"
+@rendermode InteractiveServer
+@inject DashboardReadModel ReadModel
+@inject DashboardDemoSeeder DemoSeeder
+
+<PageTitle>OrcaCore Dashboard</PageTitle>
+
+<section class="dashboard-title">
+    <div>
+        <p class="eyebrow">Live operations</p>
+        <h1>OrcaCore runtime state</h1>
+        @if (snapshot is not null)
+        {
+            <p class="timestamp">Snapshot @FormatTime(snapshot.GeneratedAt)</p>
+        }
+    </div>
+    <div class="toolbar" role="group" aria-label="Dashboard actions">
+        <button class="tool-button" @onclick="RefreshAsync" disabled="@busy">Refresh</button>
+        <button class="tool-button primary" @onclick="SeedDemoAsync" disabled="@busy">Seed demo</button>
+        <button class="tool-button" @onclick="PumpOutboxAsync" disabled="@busy">Pump outbox</button>
+    </div>
+</section>
+
+@if (snapshot is null)
+{
+    <section class="empty-state">Loading dashboard state...</section>
+}
+else
+{
+    <section class="status-strip status-@Css(snapshot.Status)">
+        <div>
+            <span class="status-label">System</span>
+            <strong>@snapshot.Status</strong>
+        </div>
+        <div>
+            <span class="status-label">Workflows</span>
+            <strong>@snapshot.Workflows.Count</strong>
+        </div>
+        <div>
+            <span class="status-label">Issues</span>
+            <strong>@snapshot.Issues.Count</strong>
+        </div>
+        <div>
+            <span class="status-label">Spans</span>
+            <strong>@snapshot.Spans.Count</strong>
+        </div>
+    </section>
+
+    <section class="tile-grid" aria-label="System statistics">
+        @foreach (var tile in snapshot.Tiles)
+        {
+            <article class="stat-tile tile-@Css(tile.State)">
+                <span>@tile.Label</span>
+                <strong>@tile.Value</strong>
+                <small>@tile.Detail</small>
+            </article>
+        }
+    </section>
+
+    <section class="panel">
+        <div class="panel-heading">
+            <h2>Issues</h2>
+            <span>@snapshot.Issues.Count visible</span>
+        </div>
+        <div class="issue-list">
+            @foreach (var issue in snapshot.Issues)
+            {
+                <article class="issue issue-@Css(issue.Severity)">
+                    <div class="issue-head">
+                        <span class="severity">@issue.Severity</span>
+                        <strong>@issue.Title</strong>
+                        <time>@FormatTime(issue.LastSeen)</time>
+                    </div>
+                    <div class="issue-grid">
+                        <div>
+                            <span>Area</span>
+                            <strong>@issue.Area</strong>
+                        </div>
+                        <div>
+                            <span>Impact</span>
+                            <p>@issue.Impact</p>
+                        </div>
+                        <div>
+                            <span>Evidence</span>
+                            <p>@issue.Evidence</p>
+                        </div>
+                        <div>
+                            <span>Action</span>
+                            <p>@issue.RecommendedAction</p>
+                        </div>
+                    </div>
+                    <code>@issue.Correlation</code>
+                </article>
+            }
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-heading">
+            <h2>Workflows</h2>
+            <span>@snapshot.Workflows.Count instances</span>
+        </div>
+        <div class="workflow-list">
+            @foreach (var workflow in snapshot.Workflows)
+            {
+                <article class="workflow">
+                    <div class="workflow-summary">
+                        <div>
+                            <span class="severity issue-@Css(workflow.Severity)">@workflow.Status</span>
+                            <strong>@ShortId(workflow.InstanceId)</strong>
+                            <small>@workflow.DefinitionId v@workflow.DefinitionVersion</small>
+                        </div>
+                        <div>
+                            <span>Updated</span>
+                            <strong>@FormatTime(workflow.UpdatedAt)</strong>
+                            <small>@FormatDuration(workflow.Duration)</small>
+                        </div>
+                        <div>
+                            <span>Waits</span>
+                            <strong>@workflow.ActiveWaits.Count</strong>
+                            <small>@(workflow.ErrorSummary ?? "No error summary")</small>
+                        </div>
+                    </div>
+
+                    @if (workflow.ActiveWaits.Count > 0)
+                    {
+                        <div class="wait-row">
+                            @foreach (var wait in workflow.ActiveWaits)
+                            {
+                                <span>@wait.EventName / @wait.CorrelationId / @wait.Mode</span>
+                            }
+                        </div>
+                    }
+
+                    <div class="timeline">
+                        @foreach (var step in workflow.Steps)
+                        {
+                            <div class="timeline-row severity-@Css(step.Severity)">
+                                <time>@FormatTime(step.Time)</time>
+                                <strong>@step.Name</strong>
+                                <span>@step.Status</span>
+                                <p>@step.Detail</p>
+                                <code>@(step.Correlation ?? step.EventId)</code>
+                            </div>
+                        }
+                    </div>
+                </article>
+            }
+        </div>
+    </section>
+
+    <section class="two-column">
+        <div class="panel">
+            <div class="panel-heading">
+                <h2>Metrics</h2>
+                <span>@snapshot.Metrics.Count series</span>
+            </div>
+            <div class="data-table">
+                <div class="data-row header">
+                    <span>Name</span>
+                    <span>Tags</span>
+                    <span>Value</span>
+                    <span>Last</span>
+                </div>
+                @foreach (var metric in snapshot.Metrics)
+                {
+                    <div class="data-row">
+                        <strong>@metric.Name</strong>
+                        <code>@metric.Tags</code>
+                        <span>@metric.Sum.ToString("0.###")</span>
+                        <time>@FormatTime(metric.LastSeen)</time>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-heading">
+                <h2>Traces</h2>
+                <span>@snapshot.Spans.Count spans</span>
+            </div>
+            <div class="data-table compact">
+                <div class="data-row header">
+                    <span>Span</span>
+                    <span>Duration</span>
+                    <span>Trace</span>
+                </div>
+                @foreach (var span in snapshot.Spans)
+                {
+                    <div class="data-row">
+                        <strong>@span.Name</strong>
+                        <span>@span.Duration.TotalMilliseconds.ToString("0.#") ms</span>
+                        <code>@span.TraceId</code>
+                    </div>
+                }
+            </div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-heading">
+            <h2>Logs</h2>
+            <span>@snapshot.Logs.Count recent</span>
+        </div>
+        <div class="log-list">
+            @foreach (var log in snapshot.Logs)
+            {
+                <article class="log-entry severity-@Css(ToSeverity(log.Level))">
+                    <div>
+                        <span>@log.Level</span>
+                        <strong>@log.Message</strong>
+                    </div>
+                    <time>@FormatTime(log.Timestamp)</time>
+                    <code>@log.Category #@log.EventId</code>
+                    @if (!string.IsNullOrWhiteSpace(FormatProperties(log.Properties)))
+                    {
+                        <p>@FormatProperties(log.Properties)</p>
+                    }
+                </article>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    private DashboardSnapshot? snapshot;
+    private bool busy;
+
+    protected override Task OnInitializedAsync()
+    {
+        return RefreshAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        busy = true;
+        try
+        {
+            snapshot = await ReadModel.GetSnapshotAsync(CancellationToken.None);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task SeedDemoAsync()
+    {
+        busy = true;
+        try
+        {
+            await DemoSeeder.SeedAsync(CancellationToken.None);
+            snapshot = await ReadModel.GetSnapshotAsync(CancellationToken.None);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task PumpOutboxAsync()
+    {
+        busy = true;
+        try
+        {
+            await DemoSeeder.PumpOutboxAsync(CancellationToken.None);
+            snapshot = await ReadModel.GetSnapshotAsync(CancellationToken.None);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private static string Css<T>(T value)
+    {
+        return value?.ToString()?.ToLowerInvariant() ?? "neutral";
+    }
+
+    private static IssueSeverity ToSeverity(LogLevel level)
+    {
+        return level switch
+        {
+            LogLevel.Critical => IssueSeverity.Critical,
+            LogLevel.Error => IssueSeverity.Error,
+            LogLevel.Warning => IssueSeverity.Warning,
+            _ => IssueSeverity.Info
+        };
+    }
+
+    private static string FormatTime(DateTimeOffset value)
+    {
+        return value.ToLocalTime().ToString("HH:mm:ss");
+    }
+
+    private static string FormatDuration(TimeSpan value)
+    {
+        if (value.TotalHours >= 1)
+        {
+            return $"{value.TotalHours:0.#}h";
+        }
+
+        if (value.TotalMinutes >= 1)
+        {
+            return $"{value.TotalMinutes:0.#}m";
+        }
+
+        return $"{value.TotalSeconds:0.#}s";
+    }
+
+    private static string ShortId(string value)
+    {
+        return value.Length <= 12 ? value : value[..8];
+    }
+
+    private static string FormatProperties(IReadOnlyDictionary<string, object?> properties)
+    {
+        return string.Join(", ", properties
+            .Where(property => property.Key != "{OriginalFormat}")
+            .OrderBy(property => property.Key)
+            .Select(property => $"{property.Key}={property.Value}"));
+    }
+}

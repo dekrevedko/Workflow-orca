@@ -19,6 +19,8 @@
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
     <PackageVersion Include="NetMQ" Version="4.0.4.2" />
     <PackageVersion Include="Npgsql" Version="10.0.3" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
+    <PackageVersion Include="prometheus-net.AspNetCore" Version="8.2.1" />
     <PackageVersion Include="RabbitMQ.Client" Version="7.2.1" />
     <PackageVersion Include="StackExchange.Redis" Version="2.9.32" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.12.0" />
