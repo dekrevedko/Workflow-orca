@@ -97,21 +97,31 @@ public sealed class DurableOutboxPump(
             }
         }
 
+        activity?.SetTag("orcacore.outbox.dispatched_count", dispatched);
         if (observer is not null)
         {
-            await observer
-                .OnPumpCompletedAsync(
-                    new OutboxPumpObservation(
-                        records.Count,
-                        dispatchAttempts,
-                        successes,
-                        retryableFailures,
-                        permanentFailures),
-                    cancellationToken)
-                .ConfigureAwait(false);
+            try
+            {
+                await observer
+                    .OnPumpCompletedAsync(
+                        new OutboxPumpObservation(
+                            records.Count,
+                            dispatchAttempts,
+                            successes,
+                            retryableFailures,
+                            permanentFailures),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+            }
         }
 
-        activity?.SetTag("orcacore.outbox.dispatched_count", dispatched);
         return dispatched;
     }
 

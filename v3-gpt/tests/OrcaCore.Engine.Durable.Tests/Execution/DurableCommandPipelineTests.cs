@@ -110,17 +110,21 @@ public sealed class DurableCommandPipelineTests
 
         await processor.ProcessAsync(StepCompletedCommand(instanceId, 2), TestContext.Current.CancellationToken);
 
-        observer.Observations.Should().ContainSingle().Which.Should().Be(
-            new WorkflowRuntimeObservation(
-                WorkflowRuntimeObservationKind.CommandCommitted,
-                instanceId,
-                DurableCommandOutcome.Committed,
-                new StreamVersion(2),
-                EventCount: 1,
-                CheckpointWritten: true,
-                Evicted: false,
-                InboxEventId: null,
-                Message: null));
+        var observation = observer.Observations.Should().ContainSingle().Subject;
+        observation.Kind.Should().Be(WorkflowRuntimeObservationKind.CommandCommitted);
+        observation.InstanceId.Should().Be(instanceId);
+        observation.Outcome.Should().Be(DurableCommandOutcome.Committed);
+        observation.StreamVersion.Should().Be(new StreamVersion(2));
+        observation.EventCount.Should().Be(1);
+        observation.CheckpointWritten.Should().BeTrue();
+        observation.Evicted.Should().BeFalse();
+        observation.InboxEventId.Should().BeNull();
+        observation.Message.Should().BeNull();
+        observation.CommandType.Should().Be("DurableCommand");
+        observation.DefinitionId.Should().Be(DefinitionIdValue(1));
+        observation.DefinitionVersion.Should().Be(DefinitionVersion.Initial);
+        observation.Status.Should().Be(WorkflowStatus.Running);
+        observation.Duration.Should().BeGreaterThan(TimeSpan.Zero);
     }
 
     [Fact]

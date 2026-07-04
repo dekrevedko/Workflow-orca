@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using OrcaCore.Abstractions.Diagnostics;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
@@ -75,7 +76,8 @@ public sealed class DurableCommandProcessor
         return RunInLaneAsync(
             command.InstanceId,
             aggregate => aggregate.DecideStart(command),
-            cancellationToken);
+            cancellationToken,
+            commandType: nameof(StartWorkflowCommand));
     }
 
     internal Task<DurableCommandResult> ProcessAsync(
@@ -446,24 +448,27 @@ public sealed class DurableCommandProcessor
         InstanceId instanceId,
         Func<DurableWorkflowAggregate, DurableDecision> decide,
         CancellationToken cancellationToken,
-        EventId? inboxEventId = null)
+        EventId? inboxEventId = null,
+        string commandType = "DurableCommand")
     {
         return await RunInLaneAsync(
             instanceId,
             (aggregate, _) => Task.FromResult(decide(aggregate)),
             cancellationToken,
-            inboxEventId).ConfigureAwait(false);
+            inboxEventId,
+            commandType).ConfigureAwait(false);
     }
 
     private async Task<DurableCommandResult> RunInLaneAsync(
         InstanceId instanceId,
         Func<DurableWorkflowAggregate, CancellationToken, Task<DurableDecision>> decide,
         CancellationToken cancellationToken,
-        EventId? inboxEventId = null)
+        EventId? inboxEventId = null,
+        string commandType = "DurableCommand")
     {
         return await runtime.RunAsync(
             instanceId,
-            token => ProcessCoreAsync(instanceId, decide, token, inboxEventId),
+            token => ProcessCoreAsync(instanceId, decide, token, inboxEventId, commandType),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -471,18 +476,31 @@ public sealed class DurableCommandProcessor
         InstanceId instanceId,
         Func<DurableWorkflowAggregate, CancellationToken, Task<DurableDecision>> decide,
         CancellationToken cancellationToken,
-        EventId? inboxEventId)
+        EventId? inboxEventId,
+        string commandType)
     {
+        var stopwatch = Stopwatch.StartNew();
+        using var activity = OrcaCoreDiagnostics.ActivitySource.StartActivity("orca.command.process");
+        activity?.SetTag("orca.command.type", commandType);
+        activity?.SetTag("orca.instance.id", instanceId.ToString());
+
         var inboxState = await LoadInboxStateAsync(inboxEventId, cancellationToken).ConfigureAwait(false);
         if (DurableInboxPreflight.TryCreateResult(inboxState) is { } preflightResult)
         {
+            stopwatch.Stop();
+            activity?.SetTag("outcome", preflightResult.Outcome.ToString());
             return await ObserveCommandCompletedAsync(
                 instanceId,
                 preflightResult,
                 eventCount: 0,
                 checkpointWritten: false,
                 inboxEventId,
-                cancellationToken)
+                cancellationToken,
+                commandType,
+                definitionId: null,
+                definitionVersion: null,
+                status: null,
+                stopwatch.Elapsed)
                 .ConfigureAwait(false);
         }
 
@@ -492,13 +510,47 @@ public sealed class DurableCommandProcessor
         var result = await commitPipeline
             .CommitAsync(instanceId, aggregate, decision, inboxEventId, cancellationToken)
             .ConfigureAwait(false);
+        stopwatch.Stop();
+        activity?.SetTag("outcome", result.Outcome.ToString());
+        activity?.SetTag("stream.version", result.StreamVersion.Value);
+        var aggregateSnapshot = aggregate.Snapshot;
+        var committedSnapshot = result.Outcome == DurableCommandOutcome.Committed
+            ? aggregate
+                .CreateProjectionWrites(decision.Events)
+                .Select(write => write.InstanceSnapshot)
+                .FirstOrDefault(snapshot => snapshot is not null)
+            : null;
+        var observedDefinitionId = committedSnapshot?.DefinitionId ?? aggregateSnapshot.DefinitionId;
+        var observedDefinitionVersion = committedSnapshot?.DefinitionVersion ?? aggregateSnapshot.DefinitionVersion;
+        var observedStatus = committedSnapshot?.Status ?? aggregateSnapshot.Status;
+
+        if (observedDefinitionId is { } definitionId)
+        {
+            activity?.SetTag("orca.definition.id", definitionId.ToString());
+        }
+
+        if (observedDefinitionVersion is { } definitionVersion)
+        {
+            activity?.SetTag("orca.definition.version", definitionVersion.ToString());
+        }
+
+        if (observedStatus is { } status)
+        {
+            activity?.SetTag("orca.status", status.ToString());
+        }
+
         return await ObserveCommandCompletedAsync(
             instanceId,
             result,
             decision.Events.Count,
             decision.Checkpoint is not null,
             inboxEventId,
-            cancellationToken)
+            cancellationToken,
+            commandType,
+            observedDefinitionId,
+            observedDefinitionVersion,
+            observedStatus,
+            stopwatch.Elapsed)
             .ConfigureAwait(false);
     }
 
@@ -508,7 +560,12 @@ public sealed class DurableCommandProcessor
         int eventCount,
         bool checkpointWritten,
         EventId? inboxEventId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string commandType,
+        DefinitionId? definitionId,
+        DefinitionVersion? definitionVersion,
+        WorkflowStatus? status,
+        TimeSpan duration)
     {
         try
         {
@@ -523,7 +580,12 @@ public sealed class DurableCommandProcessor
                         checkpointWritten,
                         result.Evicted,
                         inboxEventId,
-                        result.Message),
+                        result.Message,
+                        commandType,
+                        definitionId,
+                        definitionVersion,
+                        status,
+                        duration),
                     cancellationToken)
                 .ConfigureAwait(false);
         }

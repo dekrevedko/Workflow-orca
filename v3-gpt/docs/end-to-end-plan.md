@@ -164,6 +164,15 @@ Current gap:
 - No opt-in hosting extension wires OpenTelemetry exporters for OrcaCore
   meters, traces, and logs.
 
+Implementation note:
+
+- The first telemetry slice introduces source-generated structured logs and BCL
+  metrics at the durable command and outbox pump boundaries, plus an
+  `ActivitySource` span for durable command processing. The executable
+  `Observability` integration gate now covers `OB-AC-001` through `OB-AC-007`.
+  Provider-commit, wait/timer, resource-pool, and OpenTelemetry exporter wiring
+  remain in this workstream's remaining task list.
+
 Tasks:
 
 1. Add structured logging on the high-value runtime boundaries:

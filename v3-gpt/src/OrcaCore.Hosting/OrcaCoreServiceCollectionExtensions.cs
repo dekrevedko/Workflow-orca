@@ -9,6 +9,7 @@ using OrcaCore.Engine.Durable.Management;
 using OrcaCore.Engine.Durable.Outbox;
 using OrcaCore.Engine.Ephemeral;
 using OrcaCore.Hosting.Services;
+using OrcaCore.Hosting.Telemetry;
 using OrcaCore.Providers.InMemory;
 
 namespace OrcaCore.Hosting;
@@ -26,6 +27,8 @@ public static class OrcaCoreServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton<ILoggerFactory>(_ => NullLoggerFactory.Instance);
+        services.TryAddSingleton(typeof(ILogger<>), typeof(Logger<>));
         services.TryAddSingleton<EphemeralWorkflowEngine>();
         services.TryAddSingleton<InMemoryWorkflowProvider>();
         services.TryAddSingleton<InMemoryResourcePoolStore>();
@@ -45,6 +48,11 @@ public static class OrcaCoreServiceCollectionExtensions
             provider.GetRequiredService<InMemoryWorkflowProvider>());
         services.TryAddSingleton<IResourcePoolStore>(provider =>
             provider.GetRequiredService<InMemoryResourcePoolStore>());
+        services.TryAddSingleton<OrcaCoreTelemetryObserver>();
+        services.TryAddSingleton<IWorkflowRuntimeObserver>(provider =>
+            provider.GetRequiredService<OrcaCoreTelemetryObserver>());
+        services.TryAddSingleton<IOutboxPumpObserver>(provider =>
+            provider.GetRequiredService<OrcaCoreTelemetryObserver>());
         services.TryAddSingleton(provider => new DurableCommandRuntime(
             provider.GetRequiredService<IWorkflowEventStore>(),
             provider.GetService<IResourcePoolStore>()));
@@ -74,8 +82,6 @@ public static class OrcaCoreServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddOptions<OrcaCoreHostedServiceOptions>();
-        services.TryAddSingleton<ILoggerFactory>(_ => NullLoggerFactory.Instance);
-        services.TryAddSingleton(typeof(ILogger<>), typeof(Logger<>));
         if (configure is not null)
         {
             services.Configure(configure);

@@ -164,6 +164,25 @@ public sealed class DurableOutboxTests
     }
 
     [Fact]
+    [Trait("AC", "OB-011")]
+    public async Task OutboxPump_ObserverThrows_DoesNotChangeDispatchOutcome()
+    {
+        var recordId = OutboxRecordId.New();
+        var store = new InMemoryWorkflowProvider();
+        await store.AppendAsync(Batch(recordId), TestContext.Current.CancellationToken);
+        var pump = new DurableOutboxPump(
+            store,
+            new FakeMessageDispatcher(),
+            new ThrowingOutboxObserver());
+
+        var count = await pump.PumpOnceAsync(10, TestContext.Current.CancellationToken);
+        var state = await store.GetStateAsync(recordId, TestContext.Current.CancellationToken);
+
+        count.Should().Be(1);
+        state.Value.Should().Be(OutboxRecordState.Dispatched);
+    }
+
+    [Fact]
     [Trait("AC", "DU-033")]
     public async Task OutboxKindMessageDispatcher_DispatchesByKind()
     {
@@ -256,6 +275,16 @@ public sealed class DurableOutboxTests
         {
             Observations.Add(observation);
             return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class ThrowingOutboxObserver : IOutboxPumpObserver
+    {
+        public ValueTask OnPumpCompletedAsync(
+            OutboxPumpObservation observation,
+            CancellationToken cancellationToken)
+        {
+            throw new InvalidOperationException("telemetry sink unavailable");
         }
     }
 

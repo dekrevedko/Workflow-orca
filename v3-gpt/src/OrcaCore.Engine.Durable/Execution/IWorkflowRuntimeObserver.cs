@@ -1,4 +1,5 @@
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Instances;
 
 namespace OrcaCore.Engine.Durable.Execution;
 
@@ -27,7 +28,12 @@ public sealed record WorkflowRuntimeObservation(
     bool CheckpointWritten,
     bool Evicted,
     EventId? InboxEventId,
-    string? Message);
+    string? Message,
+    string CommandType = "DurableCommand",
+    DefinitionId? DefinitionId = null,
+    DefinitionVersion? DefinitionVersion = null,
+    WorkflowStatus? Status = null,
+    TimeSpan Duration = default);
 
 /// <summary>
 /// Categorizes durable runtime observations without requiring callers to parse command result text.

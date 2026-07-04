@@ -32,9 +32,10 @@ dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj -
 dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build --filter "FullyQualifiedName~OrcaCore.Integration.Tests.Observability"
 ```
 
-The observability gate is intentionally present before the telemetry workstream
-is implemented. Its current tests are skipped backlog markers for `OB-AC-001`
-through `OB-AC-007`.
+The observability gate covers `OB-AC-001` through `OB-AC-007`: command metrics,
+structured command logs with trace correlation, outbox dispatch health,
+activity tags, management/statistics parity, default pump metrics, and the
+OpenTelemetry package-boundary guard.
 
 ## Full Integration Gate
 
