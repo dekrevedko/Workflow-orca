@@ -28,8 +28,8 @@ Observed current baseline:
 dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build --filter "FullyQualifiedName~OrcaCore.Integration.Tests.E2E"
 ```
 
-Result after Workstream 6's saga/yield slice: 18 passed, 0 skipped, 0
-failed.
+Result after Workstream 6 and the current scheduler slice: 18 passed, 0
+skipped, 0 failed.
 
 The original skipped `E2E` scenarios are now implemented:
 
@@ -39,17 +39,18 @@ The original skipped `E2E` scenarios are now implemented:
   reconstructs node status.
 - `INT_E2E_015`: durable yield persists progress across processor restart.
 
-The broader integration suite also contains deliberate skips for DAG/scheduler
-runner behavior, cron/scheduled-start simulation, and provider failure-injection
-hooks. Those are backlog markers, not flaky tests.
+The broader integration suite still contains deliberate skips for
+cron/scheduled-start simulation, the slow scheduler soak, and provider
+failure-injection hooks. Those are backlog or ownership markers, not flaky tests.
+The current full integration project gate is 104 passed, 4 skipped, 0 failed.
 
-Actual structured logging and runtime metrics are not yet a first-class e2e
-surface in this plan's baseline. The current code has observer-style diagnostic
-hooks for durable command outcomes and outbox pump summaries, plus management
-statistics and pressure metrics. It still needs the product telemetry surface
-from `docs/specs/15-requirements-observability-otel.md`: source-generated
-structured logs, BCL `Meter` instruments, `ActivitySource` spans for correlation,
-and opt-in OpenTelemetry wiring in hosting.
+Structured logging and runtime metrics are introduced in Workstream 3. The
+current code now has source-generated command/outbox logs, BCL `Meter`
+instruments at durable command and outbox pump boundaries, and `ActivitySource`
+spans for durable command processing. Remaining telemetry breadth still follows
+`docs/specs/15-requirements-observability-otel.md`: provider commit spans,
+wait/timer/resource-pool metrics, and opt-in OpenTelemetry exporter wiring in
+hosting.
 
 ## E2E Definition
 
@@ -105,8 +106,8 @@ Exit criteria:
 - The current `E2E` namespace remains green with only deliberate skips.
 - `tests/OrcaCore.Integration.Tests/README.md` identifies smoke, focused,
   observability, and full-stack integration commands.
-- The observability filter is executable before Workstream 3 by carrying skipped
-  backlog tests for `OB-AC-001` through `OB-AC-007`.
+- The observability filter is executable and covers `OB-AC-001` through
+  `OB-AC-007`.
 
 ## Workstream 2: Host-Level Durable E2E
 
@@ -158,13 +159,21 @@ Current useful code:
 - management `Statistics()` / durable projection statistics
 - hosted outbox, timer, and operational sweep services
 
-Current gap:
+Current implemented slice:
 
-- No source-generated structured `ILogger` calls are part of the e2e gate.
-- No BCL `Meter` instruments are asserted by integration tests.
-- No `ActivitySource` spans or log scope correlation are asserted.
-- No opt-in hosting extension wires OpenTelemetry exporters for OrcaCore
-  meters, traces, and logs.
+- Source-generated structured `ILogger` calls are part of the e2e gate for
+  durable command outcomes and outbox pump summaries.
+- BCL `Meter` instruments are asserted by integration tests for durable command
+  throughput/duration, active instances, and outbox dispatch health.
+- `ActivitySource` spans are asserted for durable command processing and trace
+  correlation on command logs.
+
+Remaining gap:
+
+- Provider append/commit, wait/timer, and resource-pool telemetry is not yet as
+  broad as the command/outbox telemetry surface.
+- No opt-in hosting extension wires OpenTelemetry exporters for OrcaCore meters,
+  traces, and logs.
 
 Implementation note:
 
@@ -178,29 +187,31 @@ Implementation note:
 Tasks:
 
 1. Add structured logging on the high-value runtime boundaries:
-   - durable command accepted, completed, no-op, conflict, poisoned, or failed;
+   - durable command accepted, completed, no-op, conflict, poisoned, or failed
+     (initial command-completed slice complete);
    - provider append/commit success and conflict;
    - wait registered and matched;
    - timer scheduled and fired;
-   - outbox pump cycle summary;
+   - outbox pump cycle summary (initial slice complete);
    - outbox record dispatched, retryable, or poisoned;
    - resource-pool acquire, wait, release, and expiry.
 2. Use source-generated `[LoggerMessage]` partial methods on hot paths and keep
    log calls structured. Do not log business payloads or workflow state by
    default.
 3. Add BCL `Meter` instruments for the required operator signals:
-   - active instances by status and definition;
+   - active instances by status and definition (initial slice complete);
    - active waits by event name;
-   - commands processed and command duration;
+   - commands processed and command duration (initial slice complete);
    - provider commit duration;
    - outbox pending/retryable/claimed counts;
-   - outbox dispatch attempts and dispatch duration;
+   - outbox dispatch attempts and dispatch duration (initial slice complete);
    - resource-pool waiters and tickets.
 4. Back observable gauges with the same projections used by management
    statistics where possible, so metrics and management answers stay aligned.
-5. Add `ActivitySource` spans for command processing, provider commit, step
-   execution, outbox dispatch, and pump cycles. Logs emitted inside those spans
-   must carry trace correlation through logging scopes.
+5. Add `ActivitySource` spans for command processing (initial slice complete),
+   provider commit, step execution, outbox dispatch, and pump cycles. Logs
+   emitted inside those spans must carry trace correlation through logging
+   scopes.
 6. Add opt-in hosting wiring such as `AddOrcaCoreOpenTelemetry(...)` in
    `OrcaCore.Hosting`. OpenTelemetry SDK package references belong in hosting
    only; engines, providers, core, and abstractions stay on BCL diagnostics.
@@ -283,13 +294,22 @@ Current useful code:
 - Resource-pool stores and certification tests.
 - Outbox kind dispatching.
 
-Current gap:
+Current implemented slice:
 
 - The durable runtime now has an initial `DurableDagRunner` that schedules ready
   `WorkflowDagPlan` batches through durable child workflow commands.
-- Several advanced `INT-JS-*` tests remain skipped because cancellation,
-  pause/continue-as-new, failure policy, queue quota, and heterogeneous-runner
-  behaviors are not yet integrated.
+- Core-owned `INT-JS-*` tests now cover diamond DAG scheduling, failure-blocked
+  dependents, queue quota, restart mid-job, cancellation stop outbox, pause with
+  in-flight jobs, continue-as-new mid-DAG, heterogeneous node definitions, and
+  duplicate completion deduplication.
+
+Remaining gap:
+
+- `INT_JS_013` remains skipped because cron/scheduled-start triggering belongs
+  to the scheduler application, which should call OrcaCore `StartOrGet` with a
+  canonical occurrence key.
+- `INT_JS_018` remains skipped because the one-hour fake-clock soak belongs in a
+  slow or nightly gate, not the default integration gate.
 
 Implementation note:
 
@@ -297,23 +317,30 @@ Implementation note:
   `DurableRunChildrenCommand` commits.
 - `INT_E2E_013` now runs against PostgreSQL by scheduling DAG children through
   the runner and reconstructing node status through durable management.
+- The JobScheduler focused gate now passes with only the scheduler-app owned
+  scheduled-start test and the slow soak skipped.
 
 Tasks:
 
 1. Add a runner that turns a DAG plan into durable execution commands. (Initial
-   ready-batch runner complete for `INT_E2E_013`.)
-2. Schedule ready nodes only when dependencies are satisfied.
-3. Use durable resource pools for external jobs.
-4. Emit normalized outbox records for job start and job stop.
+   ready-batch runner complete for `INT_E2E_013` and `INT-JS-001`.)
+2. Schedule ready nodes only when dependencies are satisfied. (Complete for the
+   focused core gate.)
+3. Use durable resource pools for external jobs. (Complete for the focused core
+   gate.)
+4. Emit normalized outbox records for job start and job stop. (Complete for the
+   focused core gate.)
 5. Consume normalized completion events with stable event IDs for inbox dedup.
+   (Complete for the focused core gate.)
 6. Preserve management visibility for node state, blocked dependents, active
-   jobs, queued jobs, and completed nodes.
+   jobs, queued jobs, and completed nodes. (Complete for the focused core gate.)
 7. Unskip DAG runner scenarios incrementally:
    - diamond DAG happy path;
    - failure blocks dependents;
    - restart mid-job;
    - queue quota across definitions;
    - cancel or pause with in-flight jobs where the durable API supports it.
+     (Complete for the focused core gate.)
 
 Exit criteria:
 

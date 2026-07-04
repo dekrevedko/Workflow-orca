@@ -3,6 +3,7 @@ using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.Core.Building;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Engine.Durable.Outbox;
 using OrcaCore.Integration.Tests.Fixtures;
@@ -110,16 +111,50 @@ public sealed class JobSchedulerStackIntegrationTests(OrcaStackFixture fixture)
     [Trait("AC", "JS-AC-001")]
     public async Task INT_JS_001_DiamondDag_ManualWaves_OnPostgreSql()
     {
-        Assert.Skip("Engine-integrated DAG runner not available; use DagAcceptanceTests manual waves until JS-001 runner lands.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        await using var store = await fixture.PostgreSql.CreateStoreAsync();
+        var processor = new DurableCommandProcessor(store);
+        var runner = new DurableDagRunner(processor);
+        var rootId = IntegrationIds.Instance(1);
+        var plan = DiamondDag();
+        await processor.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+
+        await runner.ScheduleReadyAsync(Request(rootId, plan, completed: [], failed: [], 2), TestContext.Current.CancellationToken);
+        await runner.ScheduleReadyAsync(Request(rootId, plan, completed: ["A"], failed: [], 3), TestContext.Current.CancellationToken);
+        await runner.ScheduleReadyAsync(Request(rootId, plan, completed: ["A", "B", "C"], failed: [], 4), TestContext.Current.CancellationToken);
+        var scheduled = await ScheduledItemSnapshotsAsync(store, rootId);
+
+        scheduled.Should().Equal("A", "B", "C", "D");
     }
 
     [Fact]
     [Trait(Traits.Scenario, "INT-JS-002")]
     [Trait("AC", "JS-AC-003")]
-    public async Task INT_JS_002_DagFailureBlocksDependents_BlockedUntilRunnerExists()
+    public async Task INT_JS_002_DagFailureBlocksDependents_OnPostgreSql()
     {
-        await Task.CompletedTask;
-        Assert.Skip("Integrated DAG failure policy requires engine DAG runner.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        await using var store = await fixture.PostgreSql.CreateStoreAsync();
+        var processor = new DurableCommandProcessor(store);
+        var runner = new DurableDagRunner(processor);
+        var rootId = IntegrationIds.Instance(1);
+        var plan = new WorkflowDagBuilder()
+            .Node("A", IntegrationIds.Definition(2), DefinitionVersion.Initial)
+            .Node("B", IntegrationIds.Definition(2), DefinitionVersion.Initial)
+            .Node("C", IntegrationIds.Definition(2), DefinitionVersion.Initial)
+            .Node("D", IntegrationIds.Definition(2), DefinitionVersion.Initial)
+            .DependsOn("B", "A")
+            .DependsOn("C", "A")
+            .DependsOn("D", "B")
+            .BuildValidated()
+            .Value;
+        await processor.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+
+        await runner.ScheduleReadyAsync(Request(rootId, plan, completed: [], failed: [], 2), TestContext.Current.CancellationToken);
+        await runner.ScheduleReadyAsync(Request(rootId, plan, completed: ["A"], failed: ["B"], 3), TestContext.Current.CancellationToken);
+        var scheduled = await ScheduledItemSnapshotsAsync(store, rootId);
+
+        scheduled.Should().Equal("A", "C");
+        plan.GetBlockedByFailures(["B"]).Select(node => node.NodeId).Should().Equal("D");
     }
 
     [Fact]
@@ -150,10 +185,32 @@ public sealed class JobSchedulerStackIntegrationTests(OrcaStackFixture fixture)
     [Fact]
     [Trait(Traits.Scenario, "INT-JS-006")]
     [Trait("AC", "JS-AC-007")]
-    public async Task INT_JS_006_QueueQuotaAcrossDefinitions_BlockedUntilDagRunner()
+    public async Task INT_JS_006_QueueQuotaAcrossDefinitions_OnPostgreSql()
     {
-        await Task.CompletedTask;
-        Assert.Skip("Integrated queue quota scenario requires DAG runner with shared pool.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        await using var store = await fixture.PostgreSql.CreateStoreAsync();
+        await using var pools = await fixture.PostgreSql.CreatePoolStoreAsync();
+        await pools.UpsertPoolAsync(IntegrationCommands.Pool("db", 1), TestContext.Current.CancellationToken);
+        var processor = new DurableCommandProcessor(store, pools);
+        await processor.ProcessAsync(
+            Start(1, 1, IntegrationIds.Definition(1)),
+            TestContext.Current.CancellationToken);
+        await processor.ProcessAsync(
+            Start(2, 10, IntegrationIds.Definition(2)),
+            TestContext.Current.CancellationToken);
+        await processor.ProcessAsync(
+            IntegrationCommands.RunExternalJob(1, 2, "job-a", IntegrationCommands.Requirement("db")),
+            TestContext.Current.CancellationToken);
+        await processor.ProcessAsync(
+            IntegrationCommands.RunExternalJob(2, 11, "job-b", IntegrationCommands.Requirement("db")),
+            TestContext.Current.CancellationToken);
+
+        var pool = await pools.GetPoolAsync("db", TestContext.Current.CancellationToken);
+        var outbox = await store.ClaimAsync(10, TestContext.Current.CancellationToken);
+
+        pool.Value.HeldTickets.Should().ContainSingle(ticket => ticket.HolderKey == "job-a");
+        pool.Value.QueuedWaiters.Should().ContainSingle(waiter => waiter.HolderKey == "job-b");
+        outbox.Where(record => record.Kind == "external-job-start").Should().ContainSingle();
     }
 
     [Fact]
@@ -237,19 +294,79 @@ public sealed class JobSchedulerStackIntegrationTests(OrcaStackFixture fixture)
     [Fact]
     [Trait(Traits.Scenario, "INT-JS-011")]
     [Trait("AC", "JS-AC-009")]
-    public async Task INT_JS_011_CancelRunPropagatesStop_BlockedUntilDagRunner()
+    public async Task INT_JS_011_CancelRunPropagatesStop_OnPostgreSql()
     {
-        await Task.CompletedTask;
-        Assert.Skip("Cancel run with in-flight jobs requires integrated DAG runner.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        await using var store = await fixture.PostgreSql.CreateStoreAsync();
+        await using var pools = await fixture.PostgreSql.CreatePoolStoreAsync();
+        await pools.UpsertPoolAsync(IntegrationCommands.Pool("db", 2), TestContext.Current.CancellationToken);
+        var processor = new DurableCommandProcessor(store, pools);
+        await processor.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+        await processor.ProcessAsync(
+            IntegrationCommands.RunExternalJob(1, 2, "job-a", IntegrationCommands.Requirement("db")),
+            TestContext.Current.CancellationToken);
+        await processor.ProcessAsync(
+            IntegrationCommands.RunExternalJob(1, 3, "job-b", IntegrationCommands.Requirement("db")),
+            TestContext.Current.CancellationToken);
+        await store.ClaimAsync(10, TestContext.Current.CancellationToken);
+
+        var cancelled = await processor.ProcessAsync(Cancel(1, 4), TestContext.Current.CancellationToken);
+        var outbox = await store.ClaimAsync(10, TestContext.Current.CancellationToken);
+        var events = (await store.LoadTailAsync(
+                new WorkflowStreamId(IntegrationIds.Instance(1)),
+                StreamVersion.Empty,
+                TestContext.Current.CancellationToken))
+            .ToList();
+        var pool = await pools.GetPoolAsync("db", TestContext.Current.CancellationToken);
+
+        cancelled.Outcome.Should().Be(DurableCommandOutcome.Committed);
+        outbox.Where(record => record.Kind == "external-job-stop").Should().HaveCount(2);
+        events.OfType<WorkflowExternalJobStopRequestedEvent>()
+            .Select(stop => stop.ExternalJobId)
+            .Should().BeEquivalentTo(["job-a", "job-b"]);
+        events.FindLastIndex(workflowEvent => workflowEvent is WorkflowExternalJobStopRequestedEvent)
+            .Should().BeLessThan(events.FindIndex(workflowEvent =>
+                workflowEvent is WorkflowTerminalEvent { Status: WorkflowStatus.Cancelled }));
+        pool.Value.HeldTickets.Should().BeEmpty();
     }
 
     [Fact]
     [Trait(Traits.Scenario, "INT-JS-012")]
     [Trait("AC", "JS-AC-005")]
-    public async Task INT_JS_012_DagObservabilityUnderLoad_BlockedUntilRunnerExists()
+    public async Task INT_JS_012_DagObservabilityUnderLoad_OnPostgreSql()
     {
-        await Task.CompletedTask;
-        Assert.Skip("20-node DAG observability requires engine DAG runner.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        await using var store = await fixture.PostgreSql.CreateStoreAsync();
+        var processor = new DurableCommandProcessor(store);
+        var runner = new DurableDagRunner(processor);
+        var rootId = IntegrationIds.Instance(1);
+        var builder = new WorkflowDagBuilder();
+        foreach (var nodeId in Enumerable.Range(1, 20).Select(value => $"node-{value:00}"))
+        {
+            builder.Node(nodeId, IntegrationIds.Definition(2), DefinitionVersion.Initial);
+        }
+
+        var plan = builder.BuildValidated().Value;
+        await processor.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+        await runner.ScheduleReadyAsync(Request(rootId, plan, completed: [], failed: [], 2), TestContext.Current.CancellationToken);
+        var scheduled = (await store.LoadTailAsync(
+                new WorkflowStreamId(rootId),
+                StreamVersion.Empty,
+                TestContext.Current.CancellationToken))
+            .OfType<WorkflowChildrenScheduledEvent>()
+            .Single();
+        foreach (var child in scheduled.Children)
+        {
+            await SeedProjectionAsync(
+                store,
+                Snapshot(child.ChildInstanceId, rootId, child.ItemSnapshot, WorkflowStatus.Completed));
+        }
+
+        var dag = await fixture.PostgreSql.CreateManagement(store)
+            .ReconstructDagRunAsync(rootId, TestContext.Current.CancellationToken);
+
+        dag.Nodes.Should().HaveCount(20);
+        dag.Nodes.Should().OnlyContain(node => node.Status == WorkflowStatus.Completed);
     }
 
     [Fact]
@@ -264,28 +381,108 @@ public sealed class JobSchedulerStackIntegrationTests(OrcaStackFixture fixture)
     [Fact]
     [Trait(Traits.Scenario, "INT-JS-014")]
     [Trait("AC", "MG-013")]
-    public async Task INT_JS_014_PauseRunWithInFlightJobs_BlockedUntilDagRunner()
+    public async Task INT_JS_014_PauseRunWithInFlightJobs_OnPostgreSql()
     {
-        await Task.CompletedTask;
-        Assert.Skip("Pause run with in-flight jobs requires integrated DAG runner.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        await using var store = await fixture.PostgreSql.CreateStoreAsync();
+        await using var pools = await fixture.PostgreSql.CreatePoolStoreAsync();
+        await pools.UpsertPoolAsync(IntegrationCommands.Pool("db", 1), TestContext.Current.CancellationToken);
+        var processor = new DurableCommandProcessor(store, pools);
+        await processor.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+        await processor.ProcessAsync(
+            IntegrationCommands.RunExternalJob(1, 2, "job-1", IntegrationCommands.Requirement("db")),
+            TestContext.Current.CancellationToken);
+        await store.ClaimAsync(10, TestContext.Current.CancellationToken);
+
+        var paused = await processor.ProcessAsync(IntegrationCommands.Pause(1, 3), TestContext.Current.CancellationToken);
+        var snapshot = await fixture.PostgreSql.CreateManagement(store, pools)
+            .Instance(IntegrationIds.Instance(1))
+            .GetAsync(TestContext.Current.CancellationToken);
+        var outbox = await store.ClaimAsync(10, TestContext.Current.CancellationToken);
+        var events = await store.LoadTailAsync(
+            new WorkflowStreamId(IntegrationIds.Instance(1)),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+        var pool = await pools.GetPoolAsync("db", TestContext.Current.CancellationToken);
+
+        paused.Outcome.Should().Be(DurableCommandOutcome.Committed);
+        snapshot.Status.Should().Be(WorkflowStatus.Paused);
+        snapshot.ActiveWaits.Should().ContainSingle(wait => wait.CorrelationId == new CorrelationId("job-1"));
+        events.OfType<WorkflowExternalJobStopRequestedEvent>().Should().BeEmpty();
+        outbox.Where(record => record.Kind == "external-job-stop").Should().BeEmpty();
+        pool.Value.HeldTickets.Should().ContainSingle(ticket => ticket.HolderKey == "job-1");
     }
 
     [Fact]
     [Trait(Traits.Scenario, "INT-JS-015")]
     [Trait("AC", "AC-313")]
-    public async Task INT_JS_015_ContinueAsNewOnSchedulerRun_BlockedUntilDagRunner()
+    public async Task INT_JS_015_ContinueAsNewOnSchedulerRun_OnPostgreSql()
     {
-        await Task.CompletedTask;
-        Assert.Skip("Continue-as-new mid-DAG requires scheduler runner integration.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        await using var store = await fixture.PostgreSql.CreateStoreAsync();
+        var processor = new DurableCommandProcessor(store);
+        var runner = new DurableDagRunner(processor);
+        var rootId = IntegrationIds.Instance(1);
+        var plan = DiamondDag();
+        await processor.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+        await runner.ScheduleReadyAsync(Request(rootId, plan, completed: [], failed: [], 2), TestContext.Current.CancellationToken);
+
+        var continued = await processor.ProcessAsync(
+            IntegrationCommands.ContinueAsNew(1, 3),
+            TestContext.Current.CancellationToken);
+        var nextWave = await runner.ScheduleReadyAsync(
+            Request(rootId, plan, completed: ["A"], failed: [], 4),
+            TestContext.Current.CancellationToken);
+        var snapshot = await fixture.PostgreSql.CreateManagement(store)
+            .Instance(rootId)
+            .GetAsync(TestContext.Current.CancellationToken);
+        var scheduled = await ScheduledItemSnapshotsAsync(store, rootId);
+        var events = await store.LoadTailAsync(
+            new WorkflowStreamId(rootId),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+
+        continued.Outcome.Should().Be(DurableCommandOutcome.Committed);
+        nextWave.Should().ContainSingle();
+        scheduled.Should().Equal("A", "B", "C");
+        snapshot.ContinueAsNewGeneration.Should().Be(1);
+        snapshot.Status.Should().Be(WorkflowStatus.Waiting);
+        events.OfType<WorkflowContinuedAsNewEvent>().Should().ContainSingle()
+            .Which.Generation.Should().Be(1);
     }
 
     [Fact]
     [Trait(Traits.Scenario, "INT-JS-016")]
     [Trait("AC", "JS-AC-001")]
-    public async Task INT_JS_016_HeterogeneousDagDefinitions_BlockedUntilRunnerExists()
+    public async Task INT_JS_016_HeterogeneousDagDefinitions_OnPostgreSql()
     {
-        await Task.CompletedTask;
-        Assert.Skip("Heterogeneous DAG definitions require engine DAG runner.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        await using var store = await fixture.PostgreSql.CreateStoreAsync();
+        var processor = new DurableCommandProcessor(store);
+        var runner = new DurableDagRunner(processor);
+        var rootId = IntegrationIds.Instance(1);
+        var plan = new WorkflowDagBuilder()
+            .Node("A", IntegrationIds.Definition(2), DefinitionVersion.Initial)
+            .Node("B", IntegrationIds.Definition(3), DefinitionVersion.Initial)
+            .BuildValidated()
+            .Value;
+        await processor.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+
+        var results = await runner.ScheduleReadyAsync(
+            Request(rootId, plan, completed: [], failed: [], 2),
+            TestContext.Current.CancellationToken);
+        var scheduled = (await store.LoadTailAsync(
+                new WorkflowStreamId(rootId),
+                StreamVersion.Empty,
+                TestContext.Current.CancellationToken))
+            .OfType<WorkflowChildrenScheduledEvent>()
+            .ToArray();
+
+        results.Should().HaveCount(2);
+        scheduled.SelectMany(group => group.Children.Select(child => child.ItemSnapshot))
+            .Should().Equal("A", "B");
+        scheduled.Select(group => group.ChildDefinitionId)
+            .Should().BeEquivalentTo([IntegrationIds.Definition(2), IntegrationIds.Definition(3)]);
     }
 
     [Fact]
@@ -322,5 +519,110 @@ public sealed class JobSchedulerStackIntegrationTests(OrcaStackFixture fixture)
     {
         await Task.CompletedTask;
         Assert.Skip("1-hour fake-clock DAG soak deferred to nightly slow suite.");
+    }
+
+    private static WorkflowDagPlan DiamondDag()
+    {
+        return new WorkflowDagBuilder()
+            .Node("A", IntegrationIds.Definition(2), DefinitionVersion.Initial)
+            .Node("B", IntegrationIds.Definition(2), DefinitionVersion.Initial)
+            .Node("C", IntegrationIds.Definition(2), DefinitionVersion.Initial)
+            .Node("D", IntegrationIds.Definition(2), DefinitionVersion.Initial)
+            .DependsOn("B", "A")
+            .DependsOn("C", "A")
+            .DependsOn("D", "B")
+            .DependsOn("D", "C")
+            .BuildValidated()
+            .Value;
+    }
+
+    private static DurableDagScheduleRequest Request(
+        InstanceId rootId,
+        WorkflowDagPlan plan,
+        IReadOnlyCollection<string> completed,
+        IReadOnlyCollection<string> failed,
+        int requestedAt)
+    {
+        return new DurableDagScheduleRequest(
+            rootId,
+            plan,
+            completed,
+            failed,
+            IntegrationIds.Timestamp(requestedAt));
+    }
+
+    private static async Task<IReadOnlyList<string>> ScheduledItemSnapshotsAsync(
+        IWorkflowEventStore store,
+        InstanceId rootId)
+    {
+        return (await store.LoadTailAsync(
+                new WorkflowStreamId(rootId),
+                StreamVersion.Empty,
+                TestContext.Current.CancellationToken))
+            .OfType<WorkflowChildrenScheduledEvent>()
+            .SelectMany(group => group.Children.Select(child => child.ItemSnapshot))
+            .ToArray();
+    }
+
+    private static StartWorkflowCommand Start(int instance, int command, DefinitionId definitionId)
+    {
+        return new StartWorkflowCommand
+        {
+            CommandId = IntegrationIds.Command(command),
+            InstanceId = IntegrationIds.Instance(instance),
+            RequestedAt = IntegrationIds.Timestamp(command),
+            DefinitionId = definitionId,
+            DefinitionVersion = DefinitionVersion.Initial
+        };
+    }
+
+    private static CancelWorkflowCommand Cancel(int instance, int command)
+    {
+        return new CancelWorkflowCommand
+        {
+            CommandId = IntegrationIds.Command(command),
+            InstanceId = IntegrationIds.Instance(instance),
+            RequestedAt = IntegrationIds.Timestamp(command)
+        };
+    }
+
+    private static async Task SeedProjectionAsync(
+        IWorkflowEventStore store,
+        WorkflowInstanceSnapshot snapshot)
+    {
+        await store.AppendAsync(
+            new ProviderCommitBatch
+            {
+                StreamId = new WorkflowStreamId(snapshot.InstanceId),
+                ExpectedVersion = StreamVersion.Empty,
+                ProjectionOperations =
+                [
+                    new ProjectionWrite(snapshot.InstanceId, ProjectionOperationKind.UpsertSummary)
+                    {
+                        InstanceSnapshot = snapshot
+                    }
+                ]
+            },
+            TestContext.Current.CancellationToken);
+    }
+
+    private static WorkflowInstanceSnapshot Snapshot(
+        InstanceId instanceId,
+        InstanceId rootId,
+        string nodeId,
+        WorkflowStatus status)
+    {
+        return new WorkflowInstanceSnapshot
+        {
+            InstanceId = instanceId,
+            ParentInstanceId = rootId,
+            RootInstanceId = rootId,
+            DefinitionId = IntegrationIds.Definition(2),
+            DefinitionVersion = DefinitionVersion.Initial,
+            Status = status,
+            CreatedAt = IntegrationIds.Timestamp(3),
+            UpdatedAt = IntegrationIds.Timestamp(4),
+            ErrorSummary = status == WorkflowStatus.Failed ? $"{nodeId} failed" : null
+        };
     }
 }
