@@ -364,6 +364,90 @@ public sealed class HostingPostgreSqlIntegrationTests(PostgreSqlOrcaFixture fixt
                 PermanentFailureCount: 0));
     }
 
+    [Fact]
+    [Trait(Traits.Scenario, "INT-HO-016")]
+    [Trait("AC", "AC-001")]
+    public async Task INT_HO_016_HostResolvedDurableProcessor_CompletesWorkflow()
+    {
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        var dispatcher = new RecordingMessageDispatcher();
+        using var host = OrcaIntegrationHost.Build(
+            fixture.ConnectionString,
+            new Microsoft.Extensions.Time.Testing.FakeTimeProvider(IntegrationIds.Timestamp(0)),
+            dispatcher);
+        await host.StartAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            var processor = host.Services.GetRequiredService<DurableCommandProcessor>();
+            await processor.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+            await processor.ProcessAsync(
+                IntegrationCommands.StepCompleted(1, 2),
+                TestContext.Current.CancellationToken);
+            await processor.ProcessAsync(
+                IntegrationCommands.Complete(1, 3),
+                TestContext.Current.CancellationToken);
+
+            var snapshot = await host.Services.GetRequiredService<DurableManagement>()
+                .Instance(IntegrationIds.Instance(1))
+                .GetAsync(TestContext.Current.CancellationToken);
+            var events = await host.Services.GetRequiredService<IWorkflowEventStore>()
+                .LoadTailAsync(
+                    new WorkflowStreamId(IntegrationIds.Instance(1)),
+                    StreamVersion.Empty,
+                    TestContext.Current.CancellationToken);
+
+            snapshot.Status.Should().Be(WorkflowStatus.Completed);
+            events.OfType<WorkflowCompletedEvent>().Should().ContainSingle();
+        }
+        finally
+        {
+            await host.StopAsync(TestContext.Current.CancellationToken);
+        }
+    }
+
+    [Fact]
+    [Trait(Traits.Scenario, "INT-HO-017")]
+    [Trait("AC", "AC-314")]
+    public async Task INT_HO_017_HostResolvedManagement_ArchivesTerminalWorkflow()
+    {
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        var dispatcher = new RecordingMessageDispatcher();
+        using var host = OrcaIntegrationHost.Build(
+            fixture.ConnectionString,
+            new Microsoft.Extensions.Time.Testing.FakeTimeProvider(IntegrationIds.Timestamp(0)),
+            dispatcher);
+        await host.StartAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            var processor = host.Services.GetRequiredService<DurableCommandProcessor>();
+            var management = host.Services.GetRequiredService<DurableManagement>();
+            await processor.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+            await management.TerminateAsync(
+                IntegrationIds.Instance(1),
+                IntegrationIds.Timestamp(2),
+                OrcaCore.Engine.Durable.Management.DestructiveCommandSafety.Confirmed,
+                TestContext.Current.CancellationToken);
+
+            var archived = await management.ArchiveAsync(
+                new RetentionPolicy
+                {
+                    InstanceId = IntegrationIds.Instance(1),
+                    RequestedAt = IntegrationIds.Timestamp(3),
+                    Reason = "host-level-retention"
+                },
+                TestContext.Current.CancellationToken);
+
+            archived.Archived.Should().BeTrue();
+            var snapshot = await management.Instance(IntegrationIds.Instance(1))
+                .GetAsync(TestContext.Current.CancellationToken);
+            snapshot.Status.Should().Be(WorkflowStatus.Terminated);
+        }
+        finally
+        {
+            await host.StopAsync(TestContext.Current.CancellationToken);
+        }
+    }
+
     private sealed class TestState
     {
         public string Value { get; set; } = string.Empty;
