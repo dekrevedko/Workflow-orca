@@ -6,6 +6,7 @@ using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
 using OrcaCore.Engine.Ephemeral;
+using OrcaCore.TestSupport;
 using Xunit;
 
 namespace OrcaCore.Engine.Ephemeral.Tests.Governance;
@@ -16,11 +17,13 @@ public sealed class ResourceGovernanceTests
     public async Task StepConcurrencyLimit_AllowsOnlyConfiguredConcurrentSteps()
     {
         var gate = new StepGate();
+        var governanceAttempts = new AsyncSignalCounter();
         var engine = new EphemeralWorkflowEngine(
             TimeProvider.System,
             new EphemeralWorkflowEngineOptions
             {
-                MaxConcurrentSteps = 1
+                MaxConcurrentSteps = 1,
+                GovernanceWaitStarting = governanceAttempts.Signal
             });
         var definition = BlockingDefinition(gate);
         engine.RegisterDefinition(definition);
@@ -36,7 +39,7 @@ public sealed class ResourceGovernanceTests
             TestContext.Current.CancellationToken);
 
         var secondEntry = gate.WaitForEnteredCountAsync(2, TestContext.Current.CancellationToken);
-        await Task.Yield();
+        await governanceAttempts.WaitForCountAsync(2, TestContext.Current.CancellationToken);
         var secondEnteredBeforeRelease = secondEntry.IsCompleted;
         gate.ReleaseOne();
         await secondEntry;
@@ -52,11 +55,13 @@ public sealed class ResourceGovernanceTests
     public async Task NamedPoolLimit_SharedAcrossDefinitions_BoundsConcurrentExecution()
     {
         var gate = new StepGate();
+        var governanceAttempts = new AsyncSignalCounter();
         var engine = new EphemeralWorkflowEngine(
             TimeProvider.System,
             new EphemeralWorkflowEngineOptions
             {
-                NamedPools = { ["db"] = 1 }
+                NamedPools = { ["db"] = 1 },
+                GovernanceWaitStarting = governanceAttempts.Signal
             });
         var firstDefinition = BlockingDefinition(gate, "db");
         var secondDefinition = BlockingDefinition(gate, "db");
@@ -74,7 +79,7 @@ public sealed class ResourceGovernanceTests
             TestContext.Current.CancellationToken);
 
         var secondEntry = gate.WaitForEnteredCountAsync(2, TestContext.Current.CancellationToken);
-        await Task.Yield();
+        await governanceAttempts.WaitForCountAsync(2, TestContext.Current.CancellationToken);
         var secondEnteredBeforeRelease = secondEntry.IsCompleted;
         gate.ReleaseOne();
         await secondEntry;
@@ -89,11 +94,13 @@ public sealed class ResourceGovernanceTests
     public async Task Governance_DoesNotBreakPerInstanceSerialization()
     {
         var gate = new StepGate();
+        var laneEnqueues = new AsyncSignalCounter();
         var engine = new EphemeralWorkflowEngine(
             TimeProvider.System,
             new EphemeralWorkflowEngineOptions
             {
-                MaxConcurrentSteps = 4
+                MaxConcurrentSteps = 4,
+                LaneWorkItemEnqueued = _ => laneEnqueues.Signal()
             });
         var definition = new WorkflowBuilder<TestState>()
             .Init<string>(_ => new TestState(gate))
@@ -117,7 +124,7 @@ public sealed class ResourceGovernanceTests
             Event(EventId.New()),
             TestContext.Current.CancellationToken);
 
-        await Task.Yield();
+        await laneEnqueues.WaitForCountAsync(3, TestContext.Current.CancellationToken);
         var secondCompletedBeforeRelease = second.IsCompleted;
         gate.ReleaseOne();
         await first.WaitAsync(TestContext.Current.CancellationToken);

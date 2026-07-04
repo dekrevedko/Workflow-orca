@@ -11,7 +11,8 @@ public sealed class InstanceLaneTests
     [Fact]
     public async Task RunAsync_ConcurrentCallsForSameInstance_DoNotOverlap()
     {
-        var lane = new InstanceLane();
+        var enqueued = new AsyncSignalCounter();
+        var lane = new InstanceLane(_ => enqueued.Signal());
         var instanceId = InstanceId.New();
         var firstEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var releaseFirst = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -37,7 +38,7 @@ public sealed class InstanceLaneTests
             },
             TestContext.Current.CancellationToken);
 
-        await Task.Yield();
+        await enqueued.WaitForCountAsync(2, TestContext.Current.CancellationToken);
         var startedBeforeRelease = secondEntered.Task.IsCompleted;
         releaseFirst.SetResult();
 

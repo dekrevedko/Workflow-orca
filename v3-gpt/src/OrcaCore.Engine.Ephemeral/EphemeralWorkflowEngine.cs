@@ -52,7 +52,7 @@ public sealed class EphemeralWorkflowEngine
     public EphemeralWorkflowEngine(
         TimeProvider timeProvider,
         EphemeralWorkflowEngineOptions options)
-        : this(timeProvider, options, new InMemoryInstanceRegistry(), new InstanceExecutionLane())
+        : this(timeProvider, options, new InMemoryInstanceRegistry(), CreateExecutionLane(options))
     {
     }
 
@@ -89,6 +89,13 @@ public sealed class EphemeralWorkflowEngine
             yieldContinuationScheduler,
             options.StuckStepThreshold);
         Management = new EphemeralManagement(this, instanceRegistry);
+    }
+
+    private static InstanceExecutionLane CreateExecutionLane(EphemeralWorkflowEngineOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        return new InstanceExecutionLane(options.LaneWorkItemEnqueued);
     }
 
     /// <summary>

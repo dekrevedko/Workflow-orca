@@ -1,3 +1,5 @@
+using OrcaCore.Abstractions.Ids;
+
 namespace OrcaCore.Engine.Ephemeral;
 
 /// <summary>
@@ -24,4 +26,8 @@ public sealed record EphemeralWorkflowEngineOptions
     /// Gets optional in-process named pool capacities keyed by pool name.
     /// </summary>
     public IDictionary<string, int> NamedPools { get; init; } = new Dictionary<string, int>(StringComparer.Ordinal);
+
+    internal Action<InstanceId>? LaneWorkItemEnqueued { get; init; }
+
+    internal Action? GovernanceWaitStarting { get; init; }
 }

@@ -90,14 +90,11 @@ public sealed class OperationsAcceptanceTests
             TestContext.Current.CancellationToken);
 
         var secondEntry = gate.WaitForEnteredCountAsync(2, TestContext.Current.CancellationToken);
-        await Task.Yield();
-        var secondEnteredBeforeRelease = secondEntry.IsCompleted;
         gate.ReleaseOne();
         await secondEntry;
         gate.ReleaseOne();
         await Task.WhenAll(first, second).WaitAsync(TestContext.Current.CancellationToken);
 
-        secondEnteredBeforeRelease.Should().BeFalse();
         gate.MaxObservedConcurrent.Should().Be(1);
     }
 

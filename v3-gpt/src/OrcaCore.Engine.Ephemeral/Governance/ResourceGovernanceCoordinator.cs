@@ -5,6 +5,7 @@ namespace OrcaCore.Engine.Ephemeral.Governance;
 internal sealed class ResourceGovernanceCoordinator
 {
     private readonly SemaphoreSlim? advancementSemaphore;
+    private readonly Action? governanceWaitStarting;
     private readonly ConcurrentDictionary<string, SemaphoreSlim> namedPools;
     private readonly SemaphoreSlim? stepSemaphore;
 
@@ -13,6 +14,7 @@ internal sealed class ResourceGovernanceCoordinator
         ArgumentNullException.ThrowIfNull(options);
 
         advancementSemaphore = CreateSemaphore(options.MaxConcurrentAdvancements, nameof(options.MaxConcurrentAdvancements));
+        governanceWaitStarting = options.GovernanceWaitStarting;
         stepSemaphore = CreateSemaphore(options.MaxConcurrentSteps, nameof(options.MaxConcurrentSteps));
         namedPools = new ConcurrentDictionary<string, SemaphoreSlim>(
             options.NamedPools.Select(pair =>
@@ -34,14 +36,16 @@ internal sealed class ResourceGovernanceCoordinator
 
     internal async ValueTask<GovernanceLease> EnterAdvancementAsync(CancellationToken cancellationToken)
     {
-        return await EnterAsync(advancementSemaphore, null, cancellationToken).ConfigureAwait(false);
+        return await EnterAsync(advancementSemaphore, null, governanceWaitStarting, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     internal async ValueTask<GovernanceLease> EnterStepAsync(
         string? poolKey,
         CancellationToken cancellationToken)
     {
-        var stepLease = await EnterAsync(stepSemaphore, null, cancellationToken).ConfigureAwait(false);
+        var stepLease = await EnterAsync(stepSemaphore, null, governanceWaitStarting, cancellationToken)
+            .ConfigureAwait(false);
         if (poolKey is null || !namedPools.TryGetValue(poolKey, out var pool))
         {
             return stepLease;
@@ -49,7 +53,8 @@ internal sealed class ResourceGovernanceCoordinator
 
         try
         {
-            var poolLease = await EnterAsync(pool, null, cancellationToken).ConfigureAwait(false);
+            var poolLease = await EnterAsync(pool, null, governanceWaitStarting, cancellationToken)
+                .ConfigureAwait(false);
             return new GovernanceLease([stepLease, poolLease]);
         }
         catch
@@ -77,6 +82,7 @@ internal sealed class ResourceGovernanceCoordinator
     private static async ValueTask<GovernanceLease> EnterAsync(
         SemaphoreSlim? semaphore,
         string? poolKey,
+        Action? governanceWaitStarting,
         CancellationToken cancellationToken)
     {
         if (semaphore is null)
@@ -84,6 +90,7 @@ internal sealed class ResourceGovernanceCoordinator
             return GovernanceLease.Empty;
         }
 
+        governanceWaitStarting?.Invoke();
         await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         return new GovernanceLease(semaphore, poolKey);
     }

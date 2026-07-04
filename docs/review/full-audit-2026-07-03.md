@@ -170,6 +170,14 @@ Follow-up implementation verification, 2026-07-03:
   non-integration `v3-gpt/tests` sweep, and
   `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 83, skipped 16,
   failed 0.
+- Deterministic concurrency-test probe pass added `AsyncSignalCounter` in test
+  support and internal lane/governance observer hooks so tests can prove a
+  contender reached the contested Seam before making negative assertions.
+  Focused core, ephemeral, and acceptance slices passed before the
+  non-integration analyzer build loop with `-warnaserror`, the full
+  non-integration `v3-gpt/tests` sweep, and
+  `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 83, skipped 16,
+  failed 0.
 
 ## Completed In This Pass
 
@@ -586,6 +594,13 @@ Seam.
 Recommendation: add deterministic "attempted enter" probes to test-support
 helpers or expose a test-only observer on the lane/governance Module.
 
+Implementation update:
+- 2026-07-03: added `AsyncSignalCounter` to test support plus internal
+  lane/governance observer hooks. Core instance-lane, ephemeral execution-lane,
+  and governance tests now wait for explicit contender signals before asserting
+  protected work has not entered. The operations acceptance test now asserts
+  observable max concurrency rather than scheduler timing.
+
 ### Redis projection updates are non-atomic
 
 Evidence:
@@ -727,8 +742,9 @@ Module Interface and keep source-text checks explicitly named as guard tests.
 7. Introduce a shared `InstanceLane` Module to remove duplicated channel-lane
    Implementation.
 8. Split test execution into unit, container, and active integration lanes in CI.
-9. Replace scheduler-yield negative assertions with deterministic test-support
-   probes.
+9. Completed 2026-07-03: replace scheduler-yield negative assertions with
+   deterministic test-support probes for lane/governance tests and keep public
+   acceptance coverage on observable concurrency.
 
 ## Current Risk Summary
 
@@ -736,6 +752,7 @@ The R8 quality issues, immediate channel-substrate drift, timer/outbox claim
 leases, PostgreSQL start idempotency, SQL Server event coverage, SQL Server
 resource-pool persistence, SQL Server retention certification parity, SQL
 Server history-projection parity, and hosted-service transient-failure
-boundaries are addressed. The next refactoring pass should prioritize durable
-aggregate, durable command-processor, and interpreter decomposition without
-weakening the provider certification surface.
+boundaries are addressed. The scheduler-yield negative assertion audit item now
+has deterministic lane/governance probes. The next refactoring pass should
+prioritize durable aggregate, durable command-processor, and interpreter
+decomposition without weakening the provider certification surface.

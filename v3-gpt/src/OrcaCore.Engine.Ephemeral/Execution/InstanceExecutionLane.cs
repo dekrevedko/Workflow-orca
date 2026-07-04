@@ -5,7 +5,12 @@ namespace OrcaCore.Engine.Ephemeral.Execution;
 
 internal sealed class InstanceExecutionLane
 {
-    private readonly InstanceLane lane = new();
+    private readonly InstanceLane lane;
+
+    internal InstanceExecutionLane(Action<InstanceId>? onWorkItemEnqueued = null)
+    {
+        lane = new InstanceLane(onWorkItemEnqueued);
+    }
 
     internal int ActiveLaneCount => lane.ActiveLaneCount;
 

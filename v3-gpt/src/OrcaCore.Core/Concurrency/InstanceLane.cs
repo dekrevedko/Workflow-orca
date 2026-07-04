@@ -9,6 +9,12 @@ internal sealed class InstanceLane
     private const int LaneCapacity = 1024;
 
     private readonly ConcurrentDictionary<InstanceId, Lane> lanes = [];
+    private readonly Action<InstanceId>? onWorkItemEnqueued;
+
+    internal InstanceLane(Action<InstanceId>? onWorkItemEnqueued = null)
+    {
+        this.onWorkItemEnqueued = onWorkItemEnqueued;
+    }
 
     internal int ActiveLaneCount => lanes.Count;
 
@@ -43,6 +49,7 @@ internal sealed class InstanceLane
             var lane = lanes.GetOrAdd(instanceId, static (id, owner) => new Lane(id, owner), this);
             if (await lane.TryEnqueueAsync(workItem, cancellationToken).ConfigureAwait(false))
             {
+                onWorkItemEnqueued?.Invoke(instanceId);
                 return await workItem.Completion.Task.ConfigureAwait(false);
             }
 
