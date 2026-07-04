@@ -15,6 +15,7 @@ using OrcaCore.Hosting;
 using OrcaCore.Hosting.Services;
 using OrcaCore.Integration.Tests.Fixtures;
 using OrcaCore.Integration.Tests.Support;
+using OrcaCore.Providers.PostgreSql;
 using OrcaCore.SampleHost;
 using OrcaCore.TestSupport;
 using Xunit;
@@ -175,10 +176,54 @@ public sealed class HostingPostgreSqlIntegrationTests(PostgreSqlOrcaFixture fixt
     [Fact]
     [Trait(Traits.Scenario, "INT-HO-005")]
     [Trait("AC", "AC-316")]
-    public async Task INT_HO_005_HostShutdownMidProcessorCommand_BlockedWithoutInjectHook()
+    public async Task INT_HO_005_HostShutdownMidProcessorCommand_RollsBackCleanly()
     {
-        await Task.CompletedTask;
-        Assert.Skip("Requires injectable slow-append hook on PostgreSqlWorkflowStore.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        var appendEntered = new TaskCompletionSource<PostgreSqlAppendContext>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseAppend = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var options = new PostgreSqlWorkflowStoreOptions
+        {
+            BeforeCommitAsync = async (context, cancellationToken) =>
+            {
+                appendEntered.TrySetResult(context);
+                await releaseAppend.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+        };
+        var dispatcher = new RecordingMessageDispatcher();
+        using var host = OrcaIntegrationHost.Build(
+            fixture.ConnectionString,
+            new Microsoft.Extensions.Time.Testing.FakeTimeProvider(IntegrationIds.Timestamp(0)),
+            dispatcher,
+            configureServices: services => services.AddSingleton(options));
+        await host.StartAsync(TestContext.Current.CancellationToken);
+        using var commandCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+            TestContext.Current.CancellationToken);
+        var processor = host.Services.GetRequiredService<DurableCommandProcessor>();
+        var command = processor.ProcessAsync(IntegrationCommands.Start(), commandCancellation.Token);
+
+        var context = await appendEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
+        await commandCancellation.CancelAsync();
+        releaseAppend.TrySetResult();
+        var act = async () => await command;
+
+        context.EventCount.Should().Be(1);
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        await host.StopAsync(TestContext.Current.CancellationToken);
+
+        await using var restarted = await fixture.CreateStoreAsync();
+        var events = await restarted.LoadTailAsync(
+            new WorkflowStreamId(IntegrationIds.Instance(1)),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+        var checkpoint = await restarted.LoadCheckpointAsync(
+            IntegrationIds.Instance(1),
+            TestContext.Current.CancellationToken);
+        var outbox = await restarted.ClaimAsync(10, TestContext.Current.CancellationToken);
+
+        events.Should().BeEmpty();
+        checkpoint.HasValue.Should().BeFalse();
+        outbox.Should().BeEmpty();
     }
 
     [Fact]

@@ -34,29 +34,41 @@ public sealed class PostgreSqlWorkflowStore :
     private readonly PostgreSqlProjectionStore projectionStore;
     private readonly PostgreSqlTimerScheduler timerScheduler;
     private readonly PostgreSqlWorkflowRetentionStore retentionStore;
+    private readonly PostgreSqlWorkflowStoreOptions options;
 
     /// <summary>
     /// Initializes a PostgreSQL workflow store from a connection string.
     /// </summary>
-    public PostgreSqlWorkflowStore(string connectionString, TimeProvider? timeProvider = null)
-        : this(CreateDataSource(connectionString), ownsDataSource: true, timeProvider)
+    public PostgreSqlWorkflowStore(
+        string connectionString,
+        TimeProvider? timeProvider = null,
+        PostgreSqlWorkflowStoreOptions? options = null)
+        : this(CreateDataSource(connectionString), ownsDataSource: true, timeProvider, options)
     {
     }
 
     /// <summary>
     /// Initializes a PostgreSQL workflow store from an existing caller-owned data source.
     /// </summary>
-    public PostgreSqlWorkflowStore(NpgsqlDataSource dataSource, TimeProvider? timeProvider = null)
-        : this(dataSource, ownsDataSource: false, timeProvider)
+    public PostgreSqlWorkflowStore(
+        NpgsqlDataSource dataSource,
+        TimeProvider? timeProvider = null,
+        PostgreSqlWorkflowStoreOptions? options = null)
+        : this(dataSource, ownsDataSource: false, timeProvider, options)
     {
     }
 
-    private PostgreSqlWorkflowStore(NpgsqlDataSource dataSource, bool ownsDataSource, TimeProvider? timeProvider)
+    private PostgreSqlWorkflowStore(
+        NpgsqlDataSource dataSource,
+        bool ownsDataSource,
+        TimeProvider? timeProvider,
+        PostgreSqlWorkflowStoreOptions? options)
     {
         ArgumentNullException.ThrowIfNull(dataSource);
         this.dataSource = dataSource;
         this.ownsDataSource = ownsDataSource;
         this.timeProvider = timeProvider ?? TimeProvider.System;
+        this.options = options ?? new PostgreSqlWorkflowStoreOptions();
         projectionStore = new PostgreSqlProjectionStore(dataSource);
         timerScheduler = new PostgreSqlTimerScheduler(dataSource);
         retentionStore = new PostgreSqlWorkflowRetentionStore(dataSource);
@@ -187,6 +199,9 @@ public sealed class PostgreSqlWorkflowStore :
                     cancellationToken)
                 .ConfigureAwait(false);
 
+            await options
+                .InvokeBeforeCommitAsync(CreateAppendContext(batch, new StreamVersion(nextVersion)), cancellationToken)
+                .ConfigureAwait(false);
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
             return Result<AppendEventsResult>.Success(new AppendEventsResult(new StreamVersion(nextVersion)));
         }
@@ -516,6 +531,21 @@ public sealed class PostgreSqlWorkflowStore :
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         return NpgsqlDataSource.Create(connectionString);
+    }
+
+    private static PostgreSqlAppendContext CreateAppendContext(
+        ProviderCommitBatch batch,
+        StreamVersion newVersion)
+    {
+        return new PostgreSqlAppendContext(
+            batch.StreamId,
+            batch.ExpectedVersion,
+            newVersion,
+            batch.Events.Count,
+            batch.InboxOperations.Count,
+            batch.OutboxRecords.Count,
+            batch.ProjectionOperations.Count,
+            batch.TimerSchedules.Count);
     }
 
     private static async Task<StreamVersion> LoadActualVersionAsync(

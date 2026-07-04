@@ -8,6 +8,7 @@ using OrcaCore.Engine.Durable.Management;
 using OrcaCore.Engine.Durable.Outbox;
 using OrcaCore.Integration.Tests.Fixtures;
 using OrcaCore.Integration.Tests.Support;
+using OrcaCore.Providers.PostgreSql;
 using OrcaCore.TestSupport;
 using Xunit;
 
@@ -226,10 +227,47 @@ public sealed class EnginePostgreSqlIntegrationTests(PostgreSqlOrcaFixture fixtu
     [Fact]
     [Trait(Traits.Scenario, "INT-EP-002")]
     [Trait("AC", "AC-114")]
-    public async Task INT_EP_002_CrashBeforeCommit_BlockedWithoutInjectHook()
+    public async Task INT_EP_002_CrashBeforeCommit_RollsBackAppend()
     {
-        await Task.CompletedTask;
-        Assert.Skip("PostgreSqlWorkflowStore does not expose commit-failure injection yet.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        var observedContexts = new List<PostgreSqlAppendContext>();
+        var options = new PostgreSqlWorkflowStoreOptions
+        {
+            BeforeCommitAsync = (context, _) =>
+            {
+                observedContexts.Add(context);
+                throw new InvalidOperationException("crash before commit");
+            }
+        };
+        await using var store = await fixture.CreateStoreAsync(options);
+        var processor = await fixture.CreateProcessorAsync(store);
+
+        var act = async () => await processor.ProcessAsync(
+            IntegrationCommands.Start(),
+            TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("crash before commit");
+        observedContexts.Should().ContainSingle()
+            .Which.EventCount.Should().Be(1);
+
+        await using var restarted = await fixture.CreateStoreAsync();
+        var events = await restarted.LoadTailAsync(
+            new WorkflowStreamId(IntegrationIds.Instance(1)),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+        var checkpoint = await restarted.LoadCheckpointAsync(
+            IntegrationIds.Instance(1),
+            TestContext.Current.CancellationToken);
+        var outbox = await restarted.ClaimAsync(10, TestContext.Current.CancellationToken);
+        var projectedCount = await fixture.CreateManagement(restarted)
+            .All()
+            .CountAsync(TestContext.Current.CancellationToken);
+
+        events.Should().BeEmpty();
+        checkpoint.HasValue.Should().BeFalse();
+        outbox.Should().BeEmpty();
+        projectedCount.Should().Be(0);
     }
 
     [Fact]

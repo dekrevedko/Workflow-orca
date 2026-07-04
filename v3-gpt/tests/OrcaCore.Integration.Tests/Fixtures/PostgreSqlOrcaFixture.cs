@@ -62,9 +62,14 @@ public sealed class PostgreSqlOrcaFixture : IAsyncLifetime
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    public async Task<PostgreSqlWorkflowStore> CreateStoreAsync()
+    public Task<PostgreSqlWorkflowStore> CreateStoreAsync()
     {
-        var store = new PostgreSqlWorkflowStore(ConnectionString);
+        return CreateStoreAsync(null);
+    }
+
+    public async Task<PostgreSqlWorkflowStore> CreateStoreAsync(PostgreSqlWorkflowStoreOptions? options)
+    {
+        var store = new PostgreSqlWorkflowStore(ConnectionString, options: options);
         await store.InitializeAsync(TestContext.Current.CancellationToken);
         return store;
     }

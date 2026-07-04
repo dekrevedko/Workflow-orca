@@ -42,7 +42,7 @@ The original skipped `E2E` scenarios are now implemented:
 The broader integration suite still contains deliberate skips for
 cron/scheduled-start simulation, the slow scheduler soak, and provider
 failure-injection hooks. Those are backlog or ownership markers, not flaky tests.
-The current full integration project gate is 104 passed, 4 skipped, 0 failed.
+The current full integration project gate is 106 passed, 2 skipped, 0 failed.
 
 Structured logging and runtime metrics are introduced in Workstream 3. The
 current code now has source-generated command/outbox logs, BCL `Meter`
@@ -388,17 +388,27 @@ Exit criteria:
 Goal: prove crash, cancellation, transient failure, and retry behavior at the
 boundaries where production failures happen.
 
-Current gaps:
+Current implemented slice:
 
-- Some tests are skipped because PostgreSQL append or provider operations do not
-  expose test hooks for controlled failure.
-- Several resilience scenarios are currently approximated through direct class
-  calls.
+- `PostgreSqlWorkflowStoreOptions.BeforeCommitAsync` exposes a deterministic
+  hook inside the PostgreSQL append transaction after writes are staged and
+  before commit.
+- `INT_EP_002` proves a pre-commit failure leaves no events, checkpoint,
+  projection, or outbox rows.
+- `INT_HO_005` proves cancellation during an in-flight host command rolls back
+  cleanly without relying on sleeps or process killing.
+
+Remaining gap:
+
+- Additional hooks for after-commit/before-return, outbox claim, timer claim,
+  and resource-pool acquire/release would broaden provider failure testing.
+- Several resilience scenarios remain covered by direct class tests rather than
+  full provider-backed e2e tests.
 
 Tasks:
 
 1. Add test-only or internal injectable hooks around:
-   - append before commit;
+   - append before commit; (Complete for PostgreSQL.)
    - append after commit before return;
    - outbox claim;
    - outbox dispatch;
@@ -406,18 +416,19 @@ Tasks:
    - resource-pool acquire and release.
 2. Use those hooks to prove:
    - no outbox dispatch before commit is visible;
-   - no partial append;
+   - no partial append; (Complete for PostgreSQL pre-commit failure.)
    - no timer leak on failed commit;
    - claimed outbox rows can be retried after cancellation;
    - host shutdown during a pump cycle does not lose rows;
    - host shutdown during a command leaves either a committed or cleanly absent
-     state.
+     state. (Complete for cancellation before PostgreSQL append commit.)
 3. Unskip host and engine failure-injection tests only after the hook exists.
+   (Complete for `INT_EP_002` and `INT_HO_005`.)
 
 Exit criteria:
 
 - Failure-path e2e tests are deterministic and do not rely on sleeps or process
-  killing.
+  killing. (Complete for the default integration gate.)
 - Provider invariants remain covered by certification tests.
 
 ## Workstream 8: Provider Matrix E2E
