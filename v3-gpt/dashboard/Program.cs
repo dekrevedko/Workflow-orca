@@ -1,9 +1,7 @@
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using OrcaCore.Abstractions.Diagnostics;
-using OrcaCore.Abstractions.Providers;
 using OrcaCore.Dashboard.Components;
 using OrcaCore.Dashboard.Telemetry;
 using OrcaCore.Dashboard.Workflows;
@@ -23,7 +21,7 @@ builder.Logging.AddProvider(telemetryStore);
 builder.Services.AddSingleton(timeProvider);
 builder.Services.AddSingleton(telemetryStore);
 builder.Services.AddSingleton<DashboardReadModel>();
-builder.Services.AddSingleton<DashboardDemoSeeder>();
+builder.Services.AddHttpClient();
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddRazorComponents()
@@ -38,7 +36,6 @@ builder.Services
         options.TimerSweepInterval = TimeSpan.FromSeconds(2);
         options.OperationalSweepInterval = TimeSpan.FromSeconds(15);
     });
-builder.Services.Replace(ServiceDescriptor.Singleton<IMessageDispatcher, DashboardDemoDispatcher>());
 
 builder.Services.AddOpenTelemetry()
     .WithMetrics(metrics => metrics.AddMeter(OrcaCoreDiagnostics.SourceName))
@@ -63,14 +60,6 @@ app.MapGet(
     "/api/dashboard/snapshot",
     async (DashboardReadModel readModel, CancellationToken cancellationToken) =>
         await readModel.GetSnapshotAsync(cancellationToken).ConfigureAwait(false));
-app.MapPost(
-    "/api/dashboard/demo",
-    async (DashboardDemoSeeder seeder, CancellationToken cancellationToken) =>
-        Results.Accepted(value: await seeder.SeedAsync(cancellationToken).ConfigureAwait(false)));
-app.MapPost(
-    "/api/dashboard/outbox/pump",
-    async (DashboardDemoSeeder seeder, CancellationToken cancellationToken) =>
-        Results.Ok(new { dispatched = await seeder.PumpOutboxAsync(cancellationToken).ConfigureAwait(false) }));
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()

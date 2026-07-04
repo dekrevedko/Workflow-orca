@@ -1,7 +1,9 @@
 @page "/"
 @rendermode InteractiveServer
-@inject DashboardReadModel ReadModel
-@inject DashboardDemoSeeder DemoSeeder
+@using System.Text.Json
+@using System.Text.Json.Serialization
+@inject IHttpClientFactory HttpClientFactory
+@inject NavigationManager Navigation
 
 <PageTitle>OrcaCore Dashboard</PageTitle>
 
@@ -16,14 +18,46 @@
     </div>
     <div class="toolbar" role="group" aria-label="Dashboard actions">
         <button class="tool-button" @onclick="RefreshAsync" disabled="@busy">Refresh</button>
-        <button class="tool-button primary" @onclick="SeedDemoAsync" disabled="@busy">Seed demo</button>
-        <button class="tool-button" @onclick="PumpOutboxAsync" disabled="@busy">Pump outbox</button>
     </div>
 </section>
 
+@if (!string.IsNullOrWhiteSpace(loadError))
+{
+    <section class="panel">
+        <div class="issue-list">
+            <article class="issue issue-error">
+                <div class="issue-head">
+                    <span class="severity">Error</span>
+                    <strong>Dashboard API request failed.</strong>
+                    <time>@DateTimeOffset.Now.ToString("HH:mm:ss")</time>
+                </div>
+                <div class="issue-grid">
+                    <div>
+                        <span>Area</span>
+                        <strong>API</strong>
+                    </div>
+                    <div>
+                        <span>Impact</span>
+                        <p>The UI could not refresh runtime state.</p>
+                    </div>
+                    <div>
+                        <span>Evidence</span>
+                        <p>@loadError</p>
+                    </div>
+                    <div>
+                        <span>Action</span>
+                        <p>Check the dashboard host logs and retry the snapshot endpoint.</p>
+                    </div>
+                </div>
+                <code>/api/dashboard/snapshot</code>
+            </article>
+        </div>
+    </section>
+}
+
 @if (snapshot is null)
 {
-    <section class="empty-state">Loading dashboard state...</section>
+    <section class="empty-state">Loading dashboard state from API...</section>
 }
 else
 {
@@ -223,8 +257,14 @@ else
 }
 
 @code {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
+
     private DashboardSnapshot? snapshot;
     private bool busy;
+    private string? loadError;
 
     protected override Task OnInitializedAsync()
     {
@@ -234,37 +274,18 @@ else
     private async Task RefreshAsync()
     {
         busy = true;
+        loadError = null;
         try
         {
-            snapshot = await ReadModel.GetSnapshotAsync(CancellationToken.None);
+            using var client = HttpClientFactory.CreateClient();
+            snapshot = await client.GetFromJsonAsync<DashboardSnapshot>(
+                Navigation.ToAbsoluteUri("/api/dashboard/snapshot"),
+                JsonOptions,
+                CancellationToken.None);
         }
-        finally
+        catch (Exception ex)
         {
-            busy = false;
-        }
-    }
-
-    private async Task SeedDemoAsync()
-    {
-        busy = true;
-        try
-        {
-            await DemoSeeder.SeedAsync(CancellationToken.None);
-            snapshot = await ReadModel.GetSnapshotAsync(CancellationToken.None);
-        }
-        finally
-        {
-            busy = false;
-        }
-    }
-
-    private async Task PumpOutboxAsync()
-    {
-        busy = true;
-        try
-        {
-            await DemoSeeder.PumpOutboxAsync(CancellationToken.None);
-            snapshot = await ReadModel.GetSnapshotAsync(CancellationToken.None);
+            loadError = ex.Message;
         }
         finally
         {
