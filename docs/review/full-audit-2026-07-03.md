@@ -432,6 +432,10 @@ Implementation update:
   idempotency decisions before aggregate hydration. `DurableCommandProcessor`
   still owns command routing, per-instance lane execution, rehydration, and
   commit pipeline invocation.
+- 2026-07-03: extracted `DurableAggregateLoader` for checkpoint/tail provider
+  read sequencing and aggregate rehydration. `DurableCommandProcessor` still
+  owns command routing, per-instance lane execution, inbox preflight, and commit
+  pipeline invocation.
 
 ### DurableWorkflowAggregate is a feature sink
 
@@ -714,7 +718,7 @@ Implementation update:
 | Module | Current shape | Refactoring direction |
 | --- | --- | --- |
 | `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs` | About 2,603 lines before decomposition; one aggregate owned timers, projections, lifecycle transitions, and replay orchestration. Saga compensation state has been extracted to `DurableSagaState`; active-wait and buffered-delivery state has been extracted to `DurableWaitState`; external-job state has been extracted to `DurableExternalJobState`; child workflow state has been extracted to `DurableChildWorkflowState`; resource-pool state has been extracted to `DurableResourcePoolState`; timer state has been extracted to `DurableTimerState`. | Keep the aggregate Interface. Further extraction should target projection/replay orchestration only when it creates behavior-testable Locality rather than pass-through glue. |
-| `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` | About 979 lines before decomposition; one processor handled command overloads, rehydration, and append result branching. `DurableCommandRuntime` owns per-instance lanes, `DurableCommitMaterializer` owns provider commit-batch materialization, `DurableResourcePoolCommitEffects` owns resource-pool commit side effects, `DurableCommitPipeline` owns no-op/poison/append-result behavior, `DurableCheckpointMapper` owns provider checkpoint projection, and `DurableInboxPreflight` owns inbound idempotency short-circuit decisions. | Continue only where another behavior can become testable Locality; avoid splitting command overloads into pass-through classes. |
+| `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` | About 979 lines before decomposition; one processor handled command overloads, rehydration, and append result branching. `DurableCommandRuntime` owns per-instance lanes, `DurableCommitMaterializer` owns provider commit-batch materialization, `DurableResourcePoolCommitEffects` owns resource-pool commit side effects, `DurableCommitPipeline` owns no-op/poison/append-result behavior, `DurableCheckpointMapper` owns provider checkpoint projection, `DurableInboxPreflight` owns inbound idempotency short-circuit decisions, and `DurableAggregateLoader` owns checkpoint/tail read sequencing plus aggregate rehydration. | Continue only where another behavior can become testable Locality; avoid splitting command overloads into pass-through classes. |
 | `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs` | About 1,515 lines; event mapping now routes through shared `WorkflowEventCodec`, which uses a single descriptor table for type names, serialization, and deserialization. Projection operation switching remains in the store Adapter. | Move projection writes into a projection store Module; keep this Adapter focused on PostgreSQL SQL and transaction shape. |
 | `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs` | About 1,369 lines; event mapping now routes through shared `WorkflowEventCodec`, which uses a single descriptor table for type names, serialization, and deserialization. Projection operation switching remains in the store Adapter, with `AppendHistory` now covered by a table-backed projection. | Split durable event store, projection store, timer store, outbox store, and resource pool Adapter responsibilities. |
 

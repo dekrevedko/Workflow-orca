@@ -11,6 +11,7 @@ public sealed class DurableCommandProcessor
 {
     private readonly DurableCommandRuntime runtime;
     private readonly IWorkflowEventStore eventStore;
+    private readonly DurableAggregateLoader aggregateLoader;
     private readonly DurableCommitPipeline commitPipeline;
     private readonly IResourcePoolStore? resourcePoolStore;
     private readonly IWorkflowInboxStore? inboxStore;
@@ -36,6 +37,7 @@ public sealed class DurableCommandProcessor
 
         this.runtime = runtime;
         eventStore = runtime.EventStore;
+        aggregateLoader = new DurableAggregateLoader(eventStore);
         resourcePoolStore = runtime.ResourcePoolStore;
         commitPipeline = new DurableCommitPipeline(
             eventStore,
@@ -469,18 +471,7 @@ public sealed class DurableCommandProcessor
             return preflightResult;
         }
 
-        var checkpointOption = await eventStore
-            .LoadCheckpointAsync(instanceId, cancellationToken)
-            .ConfigureAwait(false);
-        var checkpointVersion = checkpointOption.HasValue
-            ? checkpointOption.Value.StreamVersion
-            : StreamVersion.Empty;
-        var tail = await eventStore
-            .LoadTailAsync(new WorkflowStreamId(instanceId), checkpointVersion, cancellationToken)
-            .ConfigureAwait(false);
-        var aggregate = DurableWorkflowAggregate.Rehydrate(
-            checkpointOption.HasValue ? DurableCheckpointMapper.ToAggregateCheckpoint(checkpointOption.Value) : null,
-            tail);
+        var aggregate = await aggregateLoader.LoadAsync(instanceId, cancellationToken).ConfigureAwait(false);
         var decision = await decide(aggregate, cancellationToken).ConfigureAwait(false);
 
         return await commitPipeline
