@@ -36,7 +36,9 @@ public sealed class WorkflowBuilder<TState>
     }
 
     /// <summary>
-    /// Adds an explicitly configured business step instance.
+    /// Adds an explicitly configured business step instance. The instance is shared across all
+    /// workflow instances and executions, so it must be stateless or thread-safe; use the
+    /// factory overload for steps that carry per-execution state.
     /// </summary>
     public WorkflowBuilder<TState> Then(IStep<TState>? step)
     {
@@ -345,7 +347,40 @@ public sealed class WorkflowBuilder<TState>
 
         var root = new SequenceNode<TState>("root", BuildNodes(nodes, "root"));
         return Validation<WorkflowDefinition<TState>>.Valid(
-            new WorkflowDefinition<TState>(definitionId, definitionVersion, root, definitionPolicies));
+            new WorkflowDefinition<TState>(
+                definitionId,
+                definitionVersion,
+                root,
+                definitionPolicies,
+                ContainsDurableOnlyNodes(nodes)));
+    }
+
+    private static bool ContainsDurableOnlyNodes(IEnumerable<BuilderNode> candidateNodes)
+    {
+        foreach (var node in candidateNodes)
+        {
+            switch (node)
+            {
+                case RunChildBuilderNode:
+                case RunChildrenBuilderNode:
+                    return true;
+                case IfBuilderNode ifNode
+                    when ContainsDurableOnlyNodes(ifNode.ThenNodes) || ContainsDurableOnlyNodes(ifNode.ElseNodes):
+                    return true;
+                case WhileBuilderNode whileNode when ContainsDurableOnlyNodes(whileNode.BodyNodes):
+                    return true;
+                case ParallelBuilderNode parallelNode
+                    when parallelNode.Branches.Any(branch => ContainsDurableOnlyNodes(branch.Nodes)):
+                    return true;
+                case WhenFirstBuilderNode whenFirstNode
+                    when whenFirstNode.Branches.Any(branch => ContainsDurableOnlyNodes(branch.Nodes)):
+                    return true;
+                case IForEachBuilderNode forEachNode when ContainsDurableOnlyNodes(forEachNode.BodyNodes):
+                    return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool ContainsEnd(IEnumerable<BuilderNode> candidateNodes)

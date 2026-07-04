@@ -32,16 +32,22 @@ public sealed class SqlServerWorkflowStore :
     private readonly string connectionString;
     private readonly SqlServerRetentionStore retentionStore;
     private readonly SqlServerResourcePoolStore resourcePoolStore;
+    private readonly SqlServerProjectionStore projectionStore;
+    private readonly SqlServerTimerScheduler timerScheduler;
+    private readonly TimeProvider timeProvider;
 
     /// <summary>
     /// Initializes the SQL Server workflow store from a connection string.
     /// </summary>
-    public SqlServerWorkflowStore(string connectionString)
+    public SqlServerWorkflowStore(string connectionString, TimeProvider? timeProvider = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         this.connectionString = connectionString;
+        this.timeProvider = timeProvider ?? TimeProvider.System;
         retentionStore = new SqlServerRetentionStore(connectionString);
         resourcePoolStore = new SqlServerResourcePoolStore(connectionString);
+        projectionStore = new SqlServerProjectionStore(connectionString);
+        timerScheduler = new SqlServerTimerScheduler(connectionString);
     }
 
     /// <summary>
@@ -56,7 +62,8 @@ public sealed class SqlServerWorkflowStore :
                 connection,
                 SqlServerWorkflowStoreMigrations.Journal,
                 SqlServerWorkflowStoreMigrations.All,
-                cancellationToken)
+                cancellationToken,
+                timeProvider)
             .ConfigureAwait(false);
     }
 
@@ -105,7 +112,7 @@ public sealed class SqlServerWorkflowStore :
     public Task<IReadOnlyList<OutboxWrite>> ClaimAsync(int maxCount, CancellationToken cancellationToken)
     {
         return ClaimAsync(
-            new OutboxClaimRequest(maxCount, DateTimeOffset.UtcNow, DefaultLeaseDuration),
+            new OutboxClaimRequest(maxCount, timeProvider.GetUtcNow(), DefaultLeaseDuration),
             cancellationToken);
     }
 
@@ -147,7 +154,7 @@ public sealed class SqlServerWorkflowStore :
     public Task ApplyAsync(IReadOnlyList<ProjectionWrite> operations, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(operations);
-        return ApplyCoreAsync(operations, cancellationToken);
+        return projectionStore.ApplyAsync(operations, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -158,7 +165,7 @@ public sealed class SqlServerWorkflowStore :
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
 
-        return ListCoreAsync(query, cancellationToken);
+        return projectionStore.ListAsync(query, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -167,7 +174,7 @@ public sealed class SqlServerWorkflowStore :
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
 
-        return CountCoreAsync(query, cancellationToken);
+        return projectionStore.CountAsync(query, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -178,7 +185,7 @@ public sealed class SqlServerWorkflowStore :
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
 
-        return ListActiveWaitsCoreAsync(query, cancellationToken);
+        return projectionStore.ListActiveWaitsAsync(query, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -189,7 +196,7 @@ public sealed class SqlServerWorkflowStore :
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
 
-        return GetStatisticsCoreAsync(query, cancellationToken);
+        return projectionStore.GetStatisticsAsync(query, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -210,7 +217,7 @@ public sealed class SqlServerWorkflowStore :
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        return ScheduleCoreAsync(request, cancellationToken);
+        return timerScheduler.ScheduleAsync(request, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -219,9 +226,7 @@ public sealed class SqlServerWorkflowStore :
         int maxCount,
         CancellationToken cancellationToken)
     {
-        return ClaimDueAsync(
-            new TimerClaimRequest(dueAtOrBefore, maxCount, dueAtOrBefore, DefaultLeaseDuration),
-            cancellationToken);
+        return timerScheduler.ClaimDueAsync(dueAtOrBefore, maxCount, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -231,22 +236,21 @@ public sealed class SqlServerWorkflowStore :
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentOutOfRangeException.ThrowIfNegative(request.MaxCount);
-        ThrowIfInvalidLease(request.LeaseDuration);
         cancellationToken.ThrowIfCancellationRequested();
 
-        return ClaimDueCoreAsync(request, cancellationToken);
+        return timerScheduler.ClaimDueAsync(request, cancellationToken);
     }
 
     /// <inheritdoc />
     public Task CompleteAsync(TimerId timerId, CancellationToken cancellationToken)
     {
-        return CompleteTimerCoreAsync(timerId, cancellationToken);
+        return timerScheduler.CompleteAsync(timerId, cancellationToken);
     }
 
     /// <inheritdoc />
     public Task ReleaseAsync(TimerId timerId, CancellationToken cancellationToken)
     {
-        return ReleaseTimerCoreAsync(timerId, cancellationToken);
+        return timerScheduler.ReleaseAsync(timerId, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -385,9 +389,17 @@ public sealed class SqlServerWorkflowStore :
                 .ConfigureAwait(false);
             await InsertOutboxRecordsAsync(connection, transaction, batch.StreamId.InstanceId, batch.OutboxRecords, cancellationToken)
                 .ConfigureAwait(false);
-            await ApplyProjectionOperationsAsync(connection, transaction, batch.ProjectionOperations, cancellationToken)
+            await SqlServerProjectionStore.ApplyProjectionOperationsAsync(
+                    connection,
+                    transaction,
+                    batch.ProjectionOperations,
+                    cancellationToken)
                 .ConfigureAwait(false);
-            await UpsertTimerSchedulesAsync(connection, transaction, batch.TimerSchedules, cancellationToken)
+            await SqlServerTimerScheduler.UpsertTimerSchedulesAsync(
+                    connection,
+                    transaction,
+                    batch.TimerSchedules,
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
@@ -571,192 +583,6 @@ public sealed class SqlServerWorkflowStore :
         command.Parameters.AddWithValue("@outbox_record_id", outboxRecordId.Value);
         command.Parameters.AddWithValue("@retryable", OutboxRecordState.Retryable.ToString());
         command.Parameters.AddWithValue("@claimed", OutboxRecordState.Claimed.ToString());
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task ApplyCoreAsync(IReadOnlyList<ProjectionWrite> operations, CancellationToken cancellationToken)
-    {
-        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var transaction = (SqlTransaction)await connection
-            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
-            .ConfigureAwait(false);
-        await ApplyProjectionOperationsAsync(connection, transaction, operations, cancellationToken).ConfigureAwait(false);
-        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task<IReadOnlyList<WorkflowInstanceSnapshot>> ListCoreAsync(
-        WorkflowProjectionQuery query,
-        CancellationToken cancellationToken)
-    {
-        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqlCommand(
-            """
-            select instance_id, parent_instance_id, root_instance_id, definition_id, definition_version,
-                   status, created_at, updated_at, error_summary, outcome_name,
-                   continue_as_new_generation, archived_at, saga_audits
-            from dbo.orcacore_instance_projections
-            order by instance_id;
-            """,
-            connection);
-
-        var snapshots = new List<WorkflowInstanceSnapshot>();
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-        {
-            snapshots.Add(new WorkflowInstanceSnapshot
-            {
-                InstanceId = new InstanceId(reader.GetGuid(0)),
-                ParentInstanceId = reader.IsDBNull(1) ? null : new InstanceId(reader.GetGuid(1)),
-                RootInstanceId = reader.IsDBNull(2) ? null : new InstanceId(reader.GetGuid(2)),
-                DefinitionId = new DefinitionId(reader.GetGuid(3)),
-                DefinitionVersion = new DefinitionVersion(reader.GetInt32(4)),
-                Status = Enum.Parse<WorkflowStatus>(reader.GetString(5)),
-                CreatedAt = reader.GetFieldValue<DateTimeOffset>(6),
-                UpdatedAt = reader.GetFieldValue<DateTimeOffset>(7),
-                ErrorSummary = reader.IsDBNull(8) ? null : reader.GetString(8),
-                EndOutcomeName = reader.IsDBNull(9) ? null : reader.GetString(9),
-                ContinueAsNewGeneration = reader.GetInt32(10),
-                ArchivedAt = reader.IsDBNull(11) ? null : reader.GetFieldValue<DateTimeOffset>(11),
-                SagaAudits = reader.IsDBNull(12)
-                    ? []
-                    : JsonSerializer.Deserialize<IReadOnlyList<SagaAuditScopeSnapshot>>(reader.GetString(12), JsonOptions) ?? []
-            });
-        }
-
-        await reader.DisposeAsync().ConfigureAwait(false);
-        var waits = await LoadActiveWaitsAsync(connection, snapshots.Select(snapshot => snapshot.InstanceId).ToArray(), cancellationToken)
-            .ConfigureAwait(false);
-        return snapshots
-            .Select(snapshot => snapshot with
-            {
-                ActiveWaits = waits.TryGetValue(snapshot.InstanceId, out var activeWaits) ? activeWaits : []
-            })
-            .Where(snapshot => Matches(snapshot, query))
-            .Select(CloneSnapshot)
-            .ToArray();
-    }
-
-    private async Task<int> CountCoreAsync(WorkflowProjectionQuery query, CancellationToken cancellationToken)
-    {
-        var snapshots = await ListCoreAsync(query, cancellationToken).ConfigureAwait(false);
-        return snapshots.Count;
-    }
-
-    private async Task<IReadOnlyList<ActiveWaitSnapshot>> ListActiveWaitsCoreAsync(
-        WorkflowProjectionQuery query,
-        CancellationToken cancellationToken)
-    {
-        var snapshots = await ListCoreAsync(query, cancellationToken).ConfigureAwait(false);
-        return snapshots.SelectMany(snapshot => snapshot.ActiveWaits).ToArray();
-    }
-
-    private async Task<WorkflowStatistics> GetStatisticsCoreAsync(
-        WorkflowProjectionQuery query,
-        CancellationToken cancellationToken)
-    {
-        var snapshots = await ListCoreAsync(query, cancellationToken).ConfigureAwait(false);
-        return new WorkflowStatistics
-        {
-            Groups = snapshots
-                .GroupBy(snapshot => new
-                {
-                    snapshot.DefinitionId,
-                    snapshot.DefinitionVersion,
-                    snapshot.Status
-                })
-                .Select(group => new WorkflowStatisticsGroup
-                {
-                    DefinitionId = group.Key.DefinitionId,
-                    DefinitionVersion = group.Key.DefinitionVersion,
-                    Status = group.Key.Status,
-                    Count = group.Count()
-                })
-                .ToArray()
-        };
-    }
-
-    private async Task ScheduleCoreAsync(TimerScheduleRequest request, CancellationToken cancellationToken)
-    {
-        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var transaction = (SqlTransaction)await connection
-            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
-            .ConfigureAwait(false);
-        await UpsertTimerScheduleAsync(connection, transaction, request, cancellationToken).ConfigureAwait(false);
-        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task<IReadOnlyList<FireTimerCommand>> ClaimDueCoreAsync(
-        TimerClaimRequest request,
-        CancellationToken cancellationToken)
-    {
-        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var transaction = (SqlTransaction)await connection
-            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
-            .ConfigureAwait(false);
-        await using var command = new SqlCommand(
-            """
-            ;with due as (
-                select top (@max_count) timer_id
-                from dbo.orcacore_timers with (updlock, readpast, rowlock)
-                where fire_at <= @due_at
-                  and (claimed = 0 or claimed_until is null or claimed_until <= @claimed_at)
-                order by fire_at, timer_id
-            )
-            update dbo.orcacore_timers
-            set
-                claimed = 1,
-                claimed_until = @claimed_until
-            output inserted.timer_id, inserted.instance_id, inserted.command_id
-            where timer_id in (select timer_id from due);
-            """,
-            connection,
-            transaction);
-        command.Parameters.AddWithValue("@max_count", request.MaxCount);
-        command.Parameters.AddWithValue("@due_at", request.DueAtOrBefore);
-        command.Parameters.AddWithValue("@claimed_at", request.ClaimedAt);
-        command.Parameters.AddWithValue("@claimed_until", request.ClaimedAt.Add(request.LeaseDuration));
-
-        var commands = new List<FireTimerCommand>();
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-        {
-            commands.Add(new FireTimerCommand
-            {
-                TimerId = new TimerId(reader.GetGuid(0)),
-                InstanceId = new InstanceId(reader.GetGuid(1)),
-                CommandId = new CommandId(reader.GetGuid(2)),
-                RequestedAt = request.ClaimedAt
-            });
-        }
-
-        await reader.DisposeAsync().ConfigureAwait(false);
-        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-        return commands;
-    }
-
-    private async Task CompleteTimerCoreAsync(TimerId timerId, CancellationToken cancellationToken)
-    {
-        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqlCommand(
-            "delete from dbo.orcacore_timers where timer_id = @timer_id;",
-            connection);
-        command.Parameters.AddWithValue("@timer_id", timerId.Value);
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task ReleaseTimerCoreAsync(TimerId timerId, CancellationToken cancellationToken)
-    {
-        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqlCommand(
-            """
-            update dbo.orcacore_timers
-            set
-                claimed = 0,
-                claimed_until = null
-            where timer_id = @timer_id;
-            """,
-            connection);
-        command.Parameters.AddWithValue("@timer_id", timerId.Value);
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -948,282 +774,6 @@ public sealed class SqlServerWorkflowStore :
         }
     }
 
-    private static async Task ApplyProjectionOperationsAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
-        IEnumerable<ProjectionWrite> operations,
-        CancellationToken cancellationToken)
-    {
-        foreach (var operation in operations)
-        {
-            switch (operation.Kind)
-            {
-                case ProjectionOperationKind.UpsertSummary when operation.InstanceSnapshot is { } snapshot:
-                    await UpsertSummaryProjectionAsync(connection, transaction, snapshot, cancellationToken)
-                        .ConfigureAwait(false);
-                    break;
-                case ProjectionOperationKind.UpsertActiveWait when operation.ActiveWait is { } activeWait:
-                    await UpsertActiveWaitProjectionAsync(connection, transaction, operation.InstanceId, activeWait, cancellationToken)
-                        .ConfigureAwait(false);
-                    break;
-                case ProjectionOperationKind.RemoveActiveWait when operation.WaitId is { } waitId:
-                    await using (var command = new SqlCommand(
-                        "delete from dbo.orcacore_active_wait_projections where wait_id = @wait_id;",
-                        connection,
-                        transaction))
-                    {
-                        command.Parameters.AddWithValue("@wait_id", waitId.Value);
-                        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-                    }
-
-                    break;
-                case ProjectionOperationKind.AppendHistory:
-                    if (operation.History is { } history)
-                    {
-                        await AppendHistoryProjectionAsync(
-                            connection,
-                            transaction,
-                            operation.InstanceId,
-                            history,
-                            cancellationToken).ConfigureAwait(false);
-                    }
-
-                    break;
-            }
-        }
-    }
-
-    private static async Task AppendHistoryProjectionAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
-        InstanceId instanceId,
-        ProjectionHistoryWrite history,
-        CancellationToken cancellationToken)
-    {
-        await using var command = new SqlCommand(
-            """
-            if not exists (
-                select 1 from dbo.orcacore_history_projections where history_id = @history_id)
-            begin
-                insert into dbo.orcacore_history_projections (
-                    history_id, instance_id, recorded_at, kind, payload)
-                values (
-                    @history_id, @instance_id, @recorded_at, @kind, @payload);
-            end;
-            """,
-            connection,
-            transaction);
-        command.Parameters.AddWithValue("@history_id", history.HistoryId);
-        command.Parameters.AddWithValue("@instance_id", instanceId.Value);
-        command.Parameters.AddWithValue("@recorded_at", history.RecordedAt);
-        command.Parameters.AddWithValue("@kind", history.Kind);
-        command.Parameters.AddWithValue("@payload", history.PayloadJson);
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private static async Task UpsertSummaryProjectionAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
-        WorkflowInstanceSnapshot snapshot,
-        CancellationToken cancellationToken)
-    {
-        await using var command = new SqlCommand(
-            """
-            update dbo.orcacore_instance_projections
-            set parent_instance_id = @parent_instance_id,
-                root_instance_id = @root_instance_id,
-                definition_id = @definition_id,
-                definition_version = @definition_version,
-                status = @status,
-                created_at = @created_at,
-                updated_at = @updated_at,
-                error_summary = @error_summary,
-                outcome_name = @outcome_name,
-                continue_as_new_generation = @continue_as_new_generation,
-                archived_at = @archived_at,
-                saga_audits = @saga_audits
-            where instance_id = @instance_id;
-            if @@rowcount = 0
-            begin
-                insert into dbo.orcacore_instance_projections (
-                    instance_id, parent_instance_id, root_instance_id, definition_id, definition_version,
-                    status, created_at, updated_at, error_summary, outcome_name,
-                    continue_as_new_generation, archived_at, saga_audits)
-                values (
-                    @instance_id, @parent_instance_id, @root_instance_id, @definition_id, @definition_version,
-                    @status, @created_at, @updated_at, @error_summary, @outcome_name,
-                    @continue_as_new_generation, @archived_at, @saga_audits);
-            end;
-            delete from dbo.orcacore_active_wait_projections where instance_id = @instance_id;
-            """,
-            connection,
-            transaction);
-        command.Parameters.AddWithValue("@instance_id", snapshot.InstanceId.Value);
-        AddNullable(command, "@parent_instance_id", snapshot.ParentInstanceId?.Value);
-        AddNullable(command, "@root_instance_id", snapshot.RootInstanceId?.Value);
-        command.Parameters.AddWithValue("@definition_id", snapshot.DefinitionId.Value);
-        command.Parameters.AddWithValue("@definition_version", snapshot.DefinitionVersion.Value);
-        command.Parameters.AddWithValue("@status", snapshot.Status.ToString());
-        command.Parameters.AddWithValue("@created_at", snapshot.CreatedAt);
-        command.Parameters.AddWithValue("@updated_at", snapshot.UpdatedAt);
-        AddNullable(command, "@error_summary", snapshot.ErrorSummary);
-        AddNullable(command, "@outcome_name", snapshot.EndOutcomeName);
-        command.Parameters.AddWithValue("@continue_as_new_generation", snapshot.ContinueAsNewGeneration);
-        AddNullable(command, "@archived_at", snapshot.ArchivedAt);
-        command.Parameters.AddWithValue("@saga_audits", JsonSerializer.Serialize(snapshot.SagaAudits, JsonOptions));
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-
-        foreach (var wait in snapshot.ActiveWaits)
-        {
-            await UpsertActiveWaitProjectionAsync(connection, transaction, snapshot.InstanceId, wait, cancellationToken)
-                .ConfigureAwait(false);
-        }
-    }
-
-    private static async Task UpsertActiveWaitProjectionAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
-        InstanceId instanceId,
-        ActiveWaitSnapshot wait,
-        CancellationToken cancellationToken)
-    {
-        await using var command = new SqlCommand(
-            """
-            update dbo.orcacore_active_wait_projections
-            set instance_id = @instance_id,
-                event_name = @event_name,
-                correlation_id = @correlation_id,
-                registered_at = @registered_at,
-                status = @status,
-                mode = @mode
-            where wait_id = @wait_id;
-            if @@rowcount = 0
-            begin
-                insert into dbo.orcacore_active_wait_projections (
-                    wait_id, instance_id, event_name, correlation_id, registered_at, status, mode)
-                values (
-                    @wait_id, @instance_id, @event_name, @correlation_id, @registered_at, @status, @mode);
-            end;
-            """,
-            connection,
-            transaction);
-        command.Parameters.AddWithValue("@wait_id", wait.WaitId.Value);
-        command.Parameters.AddWithValue("@instance_id", instanceId.Value);
-        command.Parameters.AddWithValue("@event_name", wait.EventName);
-        command.Parameters.AddWithValue("@correlation_id", wait.CorrelationId.Value);
-        command.Parameters.AddWithValue("@registered_at", wait.RegisteredAt);
-        command.Parameters.AddWithValue("@status", wait.Status);
-        command.Parameters.AddWithValue("@mode", wait.Mode);
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private static async Task UpsertTimerSchedulesAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
-        IEnumerable<TimerScheduleRequest> requests,
-        CancellationToken cancellationToken)
-    {
-        foreach (var request in requests)
-        {
-            await UpsertTimerScheduleAsync(connection, transaction, request, cancellationToken).ConfigureAwait(false);
-        }
-    }
-
-    private static async Task UpsertTimerScheduleAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
-        TimerScheduleRequest request,
-        CancellationToken cancellationToken)
-    {
-        await using var command = new SqlCommand(
-            """
-            update dbo.orcacore_timers
-            set instance_id = @instance_id,
-                command_id = @command_id,
-                fire_at = @fire_at,
-                wakeup_name = @wakeup_name,
-                claimed = 0,
-                claimed_until = null
-            where timer_id = @timer_id;
-            if @@rowcount = 0
-            begin
-                insert into dbo.orcacore_timers (
-                    timer_id,
-                    instance_id,
-                    command_id,
-                    fire_at,
-                    wakeup_name,
-                    claimed,
-                    claimed_until)
-                values (
-                    @timer_id,
-                    @instance_id,
-                    @command_id,
-                    @fire_at,
-                    @wakeup_name,
-                    0,
-                    null);
-            end;
-            """,
-            connection,
-            transaction);
-        command.Parameters.AddWithValue("@timer_id", request.TimerId.Value);
-        command.Parameters.AddWithValue("@instance_id", request.InstanceId.Value);
-        command.Parameters.AddWithValue("@command_id", request.CommandId.Value);
-        command.Parameters.AddWithValue("@fire_at", request.FireAt);
-        command.Parameters.AddWithValue("@wakeup_name", request.WakeupName);
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private static async Task<IReadOnlyDictionary<InstanceId, IReadOnlyList<ActiveWaitSnapshot>>> LoadActiveWaitsAsync(
-        SqlConnection connection,
-        IReadOnlyList<InstanceId> instanceIds,
-        CancellationToken cancellationToken)
-    {
-        if (instanceIds.Count == 0)
-        {
-            return new Dictionary<InstanceId, IReadOnlyList<ActiveWaitSnapshot>>();
-        }
-
-        var parameterNames = instanceIds.Select((_, index) => $"@instance_id_{index}").ToArray();
-        await using var command = new SqlCommand(
-            $"""
-            select instance_id, wait_id, event_name, correlation_id, registered_at, status, mode
-            from dbo.orcacore_active_wait_projections
-            where instance_id in ({string.Join(", ", parameterNames)})
-            order by instance_id, registered_at, wait_id;
-            """,
-            connection);
-        for (var index = 0; index < instanceIds.Count; index++)
-        {
-            command.Parameters.AddWithValue(parameterNames[index], instanceIds[index].Value);
-        }
-
-        var waits = new Dictionary<InstanceId, List<ActiveWaitSnapshot>>();
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-        {
-            var instanceId = new InstanceId(reader.GetGuid(0));
-            if (!waits.TryGetValue(instanceId, out var instanceWaits))
-            {
-                instanceWaits = [];
-                waits.Add(instanceId, instanceWaits);
-            }
-
-            instanceWaits.Add(new ActiveWaitSnapshot
-            {
-                WaitId = new WaitId(reader.GetGuid(1)),
-                EventName = reader.GetString(2),
-                CorrelationId = new CorrelationId(reader.GetString(3)),
-                RegisteredAt = reader.GetFieldValue<DateTimeOffset>(4),
-                Status = reader.GetString(5),
-                Mode = reader.GetString(6)
-            });
-        }
-
-        return waits.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<ActiveWaitSnapshot>)pair.Value);
-    }
-
     private static void AddNullable(SqlCommand command, string name, object? value)
     {
         command.Parameters.AddWithValue(name, value ?? DBNull.Value);
@@ -1235,34 +785,6 @@ public sealed class SqlServerWorkflowStore :
         {
             throw new ArgumentOutOfRangeException(nameof(leaseDuration), leaseDuration, "Lease duration must be positive.");
         }
-    }
-
-    private static bool Matches(WorkflowInstanceSnapshot snapshot, WorkflowProjectionQuery query)
-    {
-        return (query.InstanceId is null || snapshot.InstanceId == query.InstanceId) &&
-            (query.ParentInstanceId is null || snapshot.ParentInstanceId == query.ParentInstanceId) &&
-            (query.RootInstanceId is null || snapshot.RootInstanceId == query.RootInstanceId) &&
-            (query.DefinitionId is null || snapshot.DefinitionId == query.DefinitionId) &&
-            (query.DefinitionVersion is null || snapshot.DefinitionVersion == query.DefinitionVersion) &&
-            (query.Status is null || snapshot.Status == query.Status) &&
-            (query.ActiveWaitEventName is null || snapshot.ActiveWaits.Any(wait =>
-                string.Equals(wait.EventName, query.ActiveWaitEventName, StringComparison.Ordinal))) &&
-            (query.ActiveWaitCorrelationId is null || snapshot.ActiveWaits.Any(wait =>
-                wait.CorrelationId == query.ActiveWaitCorrelationId));
-    }
-
-    private static WorkflowInstanceSnapshot CloneSnapshot(WorkflowInstanceSnapshot snapshot)
-    {
-        return snapshot with
-        {
-            ActiveWaits = snapshot.ActiveWaits.Select(wait => wait with { }).ToArray(),
-            SagaAudits = snapshot.SagaAudits.Select(scope => scope with
-            {
-                ForwardActions = scope.ForwardActions.Select(action => action with { }).ToArray(),
-                CompensationActions = scope.CompensationActions.Select(action => action with { }).ToArray(),
-                RecoveryInterventions = scope.RecoveryInterventions.Select(intervention => intervention with { }).ToArray()
-            }).ToArray()
-        };
     }
 
     private sealed record SqlServerOutboxRecord(OutboxWrite Write, OutboxRecordState State);

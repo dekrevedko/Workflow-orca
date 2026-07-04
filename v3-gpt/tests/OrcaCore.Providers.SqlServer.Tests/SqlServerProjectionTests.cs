@@ -59,6 +59,90 @@ public sealed class SqlServerProjectionTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ProjectionQueries_AllStructuredFilters_PushIntoListCountWaitsAndStatistics()
+    {
+        var definitionId = DefinitionIdValue(10);
+        var parentId = InstanceIdValue(100);
+        var rootId = InstanceIdValue(200);
+        var target = InstanceIdValue(300);
+        var targetWait = ActiveWait(1, "approval-requested", "target-correlation");
+        await RequiredStore().ApplyAsync(
+            [
+                Upsert(
+                    target,
+                    definitionId,
+                    WorkflowStatus.Running,
+                    parentId: parentId,
+                    rootId: rootId,
+                    definitionVersion: new DefinitionVersion(2),
+                    activeWaits: [targetWait]),
+                Upsert(
+                    InstanceIdValue(301),
+                    definitionId,
+                    WorkflowStatus.Waiting,
+                    parentId: parentId,
+                    rootId: rootId,
+                    definitionVersion: new DefinitionVersion(2),
+                    activeWaits: [ActiveWait(2, "inventory-updated", "other-correlation")]),
+                Upsert(
+                    InstanceIdValue(302),
+                    definitionId,
+                    WorkflowStatus.Running,
+                    parentId: InstanceIdValue(101),
+                    rootId: rootId,
+                    definitionVersion: new DefinitionVersion(2),
+                    activeWaits: [ActiveWait(3, "approval-requested", "other-correlation")]),
+                Upsert(
+                    InstanceIdValue(303),
+                    DefinitionIdValue(11),
+                    WorkflowStatus.Completed,
+                    parentId: parentId,
+                    rootId: InstanceIdValue(201),
+                    definitionVersion: DefinitionVersion.Initial,
+                    activeWaits: [ActiveWait(4, "approval-requested", "target-correlation")])
+            ],
+            TestContext.Current.CancellationToken);
+        var query = new WorkflowProjectionQuery
+        {
+            ParentInstanceId = parentId,
+            RootInstanceId = rootId,
+            DefinitionId = definitionId,
+            DefinitionVersion = new DefinitionVersion(2),
+            Status = WorkflowStatus.Running,
+            ActiveWaitEventName = "approval-requested",
+            ActiveWaitCorrelationId = new CorrelationId("target-correlation")
+        };
+
+        var byInstance = await RequiredStore().ListAsync(
+            new WorkflowProjectionQuery { InstanceId = target },
+            TestContext.Current.CancellationToken);
+        var filtered = await RequiredStore().ListAsync(query, TestContext.Current.CancellationToken);
+        var count = await RequiredStore().CountAsync(query, TestContext.Current.CancellationToken);
+        var waits = await RequiredStore().ListActiveWaitsAsync(query, TestContext.Current.CancellationToken);
+        var statistics = await RequiredStore().GetStatisticsAsync(
+            new WorkflowProjectionQuery
+            {
+                DefinitionId = definitionId,
+                ActiveWaitEventName = "approval-requested"
+            },
+            TestContext.Current.CancellationToken);
+
+        byInstance.Should().ContainSingle()
+            .Which.InstanceId.Should().Be(target);
+        filtered.Should().ContainSingle()
+            .Which.InstanceId.Should().Be(target);
+        count.Should().Be(1);
+        waits.Should().ContainSingle()
+            .Which.Should().BeEquivalentTo(targetWait);
+        statistics.Groups.Should().ContainSingle(group =>
+            group.DefinitionId == definitionId &&
+            group.DefinitionVersion == new DefinitionVersion(2) &&
+            group.Status == WorkflowStatus.Running &&
+            group.Count == 2);
+        statistics.Pressure.ActiveInstanceCount.Should().Be(3);
+    }
+
+    [Fact]
     [Trait("AC", "DU-071")]
     public async Task AppendHistoryProjection_PersistsHistoryRow()
     {
@@ -105,20 +189,39 @@ public sealed class SqlServerProjectionTests : IAsyncLifetime
     private static ProjectionWrite Upsert(
         InstanceId instanceId,
         DefinitionId definitionId,
-        WorkflowStatus status)
+        WorkflowStatus status,
+        DefinitionVersion? definitionVersion = null,
+        InstanceId? parentId = null,
+        InstanceId? rootId = null,
+        IReadOnlyList<ActiveWaitSnapshot>? activeWaits = null)
     {
         return new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
         {
             InstanceSnapshot = new WorkflowInstanceSnapshot
             {
                 InstanceId = instanceId,
-                RootInstanceId = instanceId,
+                ParentInstanceId = parentId,
+                RootInstanceId = rootId ?? instanceId,
                 DefinitionId = definitionId,
-                DefinitionVersion = DefinitionVersion.Initial,
+                DefinitionVersion = definitionVersion ?? DefinitionVersion.Initial,
                 Status = status,
                 CreatedAt = Timestamp(1),
-                UpdatedAt = Timestamp(1)
+                UpdatedAt = Timestamp(1),
+                ActiveWaits = activeWaits ?? []
             }
+        };
+    }
+
+    private static ActiveWaitSnapshot ActiveWait(int value, string eventName, string correlationId)
+    {
+        return new ActiveWaitSnapshot
+        {
+            WaitId = new WaitId(GuidValue(value)),
+            EventName = eventName,
+            CorrelationId = new CorrelationId(correlationId),
+            RegisteredAt = Timestamp(value),
+            Status = "Waiting",
+            Mode = WaitMode.Resident.ToString()
         };
     }
 

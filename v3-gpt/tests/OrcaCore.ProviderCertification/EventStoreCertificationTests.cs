@@ -260,6 +260,41 @@ public abstract class EventStoreCertificationTests
         tail.Should().BeEquivalentTo(events, options => options.WithStrictOrdering());
     }
 
+    [Fact]
+    [Trait("AC", "PR-013")]
+    public async Task ProjectionUpsert_RoundTripsStreamVersion()
+    {
+        var fixture = CreateFixture();
+        var instanceId = InstanceId.New();
+        var definitionId = DefinitionId.New();
+
+        await fixture.ProjectionStore.ApplyAsync(
+            [
+                new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
+                {
+                    InstanceSnapshot = new WorkflowInstanceSnapshot
+                    {
+                        InstanceId = instanceId,
+                        RootInstanceId = instanceId,
+                        DefinitionId = definitionId,
+                        DefinitionVersion = DefinitionVersion.Initial,
+                        Status = WorkflowStatus.Running,
+                        StreamVersion = 5,
+                        CreatedAt = Timestamp(1),
+                        UpdatedAt = Timestamp(2)
+                    }
+                }
+            ],
+            TestContext.Current.CancellationToken);
+
+        var snapshots = await fixture.ProjectionStore.ListAsync(
+            new WorkflowProjectionQuery { InstanceId = instanceId },
+            TestContext.Current.CancellationToken);
+
+        snapshots.Should().ContainSingle()
+            .Which.StreamVersion.Should().Be(5, "the projected stream version is the optimistic-concurrency token (CR-022)");
+    }
+
     private static ProviderCommitBatch Batch(
         WorkflowStreamId streamId,
         StreamVersion expectedVersion,

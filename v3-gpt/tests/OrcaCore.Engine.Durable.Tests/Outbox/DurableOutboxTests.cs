@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Outbox;
 using OrcaCore.Providers.InMemory;
@@ -41,6 +42,44 @@ public sealed class DurableOutboxTests
         count.Should().Be(1);
         dispatcher.Dispatched.Should().ContainSingle(record => record.OutboxRecordId == recordId);
         state.Value.Should().Be(OutboxRecordState.Dispatched);
+    }
+
+    [Fact]
+    public async Task OutboxPump_DefaultClaimRequest_UsesInjectedTimeProvider()
+    {
+        var now = new DateTimeOffset(2026, 7, 4, 10, 15, 0, TimeSpan.Zero);
+        var store = new CapturingOutboxStore();
+        var pump = new DurableOutboxPump(
+            store,
+            new FakeMessageDispatcher(),
+            timeProvider: new FixedTimeProvider(now));
+
+        await pump.PumpOnceAsync(10, TestContext.Current.CancellationToken);
+
+        store.CapturedRequest.Should().NotBeNull();
+        store.CapturedRequest!.MaxCount.Should().Be(10);
+        store.CapturedRequest.ClaimedAt.Should().Be(now);
+        store.CapturedRequest.LeaseDuration.Should().Be(TimeSpan.FromMinutes(5));
+    }
+
+    [Fact]
+    public async Task InMemoryProvider_DefaultClaimRequest_UsesInjectedTimeProvider()
+    {
+        var initial = new DateTimeOffset(2026, 7, 4, 10, 15, 0, TimeSpan.Zero);
+        var clock = new MutableTimeProvider(initial);
+        var recordId = OutboxRecordId.New();
+        var store = new InMemoryWorkflowProvider(clock);
+        await store.AppendAsync(Batch(recordId), TestContext.Current.CancellationToken);
+
+        var first = await store.ClaimAsync(1, TestContext.Current.CancellationToken);
+        clock.SetUtcNow(initial.AddMinutes(4));
+        var stillLeased = await store.ClaimAsync(1, TestContext.Current.CancellationToken);
+        clock.SetUtcNow(initial.AddMinutes(6));
+        var reclaimed = await store.ClaimAsync(1, TestContext.Current.CancellationToken);
+
+        first.Should().ContainSingle(record => record.OutboxRecordId == recordId);
+        stillLeased.Should().BeEmpty();
+        reclaimed.Should().ContainSingle(record => record.OutboxRecordId == recordId);
     }
 
     [Fact]
@@ -217,6 +256,72 @@ public sealed class DurableOutboxTests
         {
             Observations.Add(observation);
             return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class CapturingOutboxStore : IWorkflowOutboxStore
+    {
+        public OutboxClaimRequest? CapturedRequest { get; private set; }
+
+        public Task<IReadOnlyList<OutboxWrite>> ClaimAsync(int maxCount, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<IReadOnlyList<OutboxWrite>> ClaimAsync(
+            OutboxClaimRequest request,
+            CancellationToken cancellationToken)
+        {
+            CapturedRequest = request;
+            return Task.FromResult<IReadOnlyList<OutboxWrite>>([]);
+        }
+
+        public Task<Option<OutboxRecordState>> GetStateAsync(
+            OutboxRecordId outboxRecordId,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task MarkAsync(
+            OutboxRecordId outboxRecordId,
+            OutboxRecordState state,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task ReleaseAsync(OutboxRecordId outboxRecordId, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow()
+        {
+            return utcNow;
+        }
+    }
+
+    private sealed class MutableTimeProvider : TimeProvider
+    {
+        private DateTimeOffset utcNow;
+
+        public MutableTimeProvider(DateTimeOffset utcNow)
+        {
+            this.utcNow = utcNow;
+        }
+
+        public void SetUtcNow(DateTimeOffset value)
+        {
+            utcNow = value;
+        }
+
+        public override DateTimeOffset GetUtcNow()
+        {
+            return utcNow;
         }
     }
 }

@@ -38,6 +38,12 @@ public sealed record WorkflowInstanceSnapshot
     public required WorkflowStatus Status { get; init; }
 
     /// <summary>
+    /// Gets the monotonic committed stream version for optimistic concurrency, when the
+    /// engine mode tracks one (durable instances; null on ephemeral snapshots).
+    /// </summary>
+    public long? StreamVersion { get; init; }
+
+    /// <summary>
     /// Gets when the instance was created.
     /// </summary>
     public required DateTimeOffset CreatedAt { get; init; }

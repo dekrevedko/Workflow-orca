@@ -10,6 +10,62 @@ namespace OrcaCore.Core.Tests.Serialization;
 
 public sealed class WorkflowEventCodecTests
 {
+    [Fact]
+    public void EventTypeNames_AreFrozenStreamDiscriminators()
+    {
+        // These names are persisted in durable event streams. An entry may never change or be
+        // removed; renaming a CLR event type must keep its original discriminator here.
+        var frozen = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["WorkflowStartedEvent"] = "WorkflowStartedEvent",
+            ["WorkflowContinuedAsNewEvent"] = "WorkflowContinuedAsNewEvent",
+            ["WorkflowStepCompletedEvent"] = "WorkflowStepCompletedEvent",
+            ["WorkflowStepFailedEvent"] = "WorkflowStepFailedEvent",
+            ["WorkflowWaitRegisteredEvent"] = "WorkflowWaitRegisteredEvent",
+            ["WorkflowWaitMatchedEvent"] = "WorkflowWaitMatchedEvent",
+            ["WorkflowTimerScheduledEvent"] = "WorkflowTimerScheduledEvent",
+            ["WorkflowTimerFiredEvent"] = "WorkflowTimerFiredEvent",
+            ["WorkflowChildScheduledEvent"] = "WorkflowChildScheduledEvent",
+            ["WorkflowChildrenScheduledEvent"] = "WorkflowChildrenScheduledEvent",
+            ["WorkflowChildrenDispatchedEvent"] = "WorkflowChildrenDispatchedEvent",
+            ["WorkflowChildCompletedEvent"] = "WorkflowChildCompletedEvent",
+            ["WorkflowParentResumeTokenRecordedEvent"] = "WorkflowParentResumeTokenRecordedEvent",
+            ["WorkflowParentResumeTokenConsumedEvent"] = "WorkflowParentResumeTokenConsumedEvent",
+            ["WorkflowChildResidualIntentRecordedEvent"] = "WorkflowChildResidualIntentRecordedEvent",
+            ["WorkflowChildCompensationScheduledEvent"] = "WorkflowChildCompensationScheduledEvent",
+            ["WorkflowResourcePoolAcquiredEvent"] = "WorkflowResourcePoolAcquiredEvent",
+            ["WorkflowResourcePoolQueuedEvent"] = "WorkflowResourcePoolQueuedEvent",
+            ["WorkflowResourcePoolReleasedEvent"] = "WorkflowResourcePoolReleasedEvent",
+            ["WorkflowExternalJobStartedEvent"] = "WorkflowExternalJobStartedEvent",
+            ["WorkflowExternalJobCompletedEvent"] = "WorkflowExternalJobCompletedEvent",
+            ["WorkflowExternalJobTimedOutEvent"] = "WorkflowExternalJobTimedOutEvent",
+            ["WorkflowExternalJobStopRequestedEvent"] = "WorkflowExternalJobStopRequestedEvent",
+            ["WorkflowTimerBufferedEvent"] = "WorkflowTimerBufferedEvent",
+            ["WorkflowPausedEvent"] = "WorkflowPausedEvent",
+            ["WorkflowResumedEvent"] = "WorkflowResumedEvent",
+            ["WorkflowDeliveryBufferedEvent"] = "WorkflowDeliveryBufferedEvent",
+            ["WorkflowDeliveryDiscardedEvent"] = "WorkflowDeliveryDiscardedEvent",
+            ["WorkflowCompletedEvent"] = "WorkflowCompletedEvent",
+            ["WorkflowTerminalEvent"] = "WorkflowTerminalEvent",
+            ["SagaForwardActionCompletedEvent"] = "SagaForwardActionCompletedEvent",
+            ["SagaForwardActionTimedOutEvent"] = "SagaForwardActionTimedOutEvent",
+            ["SagaCompensationRequestedEvent"] = "SagaCompensationRequestedEvent",
+            ["SagaCompensationStartedEvent"] = "SagaCompensationStartedEvent",
+            ["SagaCompensationCompletedEvent"] = "SagaCompensationCompletedEvent",
+            ["SagaCompensationFailedEvent"] = "SagaCompensationFailedEvent",
+            ["SagaManualRecoveryRecordedEvent"] = "SagaManualRecoveryRecordedEvent"
+        };
+
+        var actual = WorkflowEventCodec.EventTypeNamesByClrTypeName;
+
+        foreach (var (clrTypeName, eventType) in frozen)
+        {
+            actual.Should().Contain(
+                new KeyValuePair<string, string>(clrTypeName, eventType),
+                $"'{eventType}' is a persisted stream discriminator and may never change");
+        }
+    }
+
     public static TheoryData<WorkflowEvent> SupportedEvents
     {
         get

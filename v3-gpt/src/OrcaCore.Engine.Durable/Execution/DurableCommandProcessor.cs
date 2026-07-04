@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
@@ -16,14 +17,18 @@ public sealed class DurableCommandProcessor
     private readonly IResourcePoolStore? resourcePoolStore;
     private readonly IWorkflowInboxStore? inboxStore;
     private readonly IWorkflowStartIdempotencyStore? startIdempotencyStore;
+    private readonly IWorkflowRuntimeObserver runtimeObserver;
 
     /// <summary>
     /// Initializes a command processor with its own durable command runtime.
     /// </summary>
     /// <param name="eventStore">The durable event store used for command commits.</param>
     /// <param name="resourcePoolStore">The optional durable resource-pool store used by resource commands.</param>
-    public DurableCommandProcessor(IWorkflowEventStore eventStore, IResourcePoolStore? resourcePoolStore = null)
-        : this(new DurableCommandRuntime(eventStore, resourcePoolStore))
+    public DurableCommandProcessor(
+        IWorkflowEventStore eventStore,
+        IResourcePoolStore? resourcePoolStore = null,
+        IWorkflowRuntimeObserver? runtimeObserver = null)
+        : this(new DurableCommandRuntime(eventStore, resourcePoolStore), runtimeObserver)
     {
     }
 
@@ -31,11 +36,14 @@ public sealed class DurableCommandProcessor
     /// Initializes a command processor that uses a shared durable command runtime.
     /// </summary>
     /// <param name="runtime">The shared durable command runtime for the host process.</param>
-    public DurableCommandProcessor(DurableCommandRuntime runtime)
+    public DurableCommandProcessor(
+        DurableCommandRuntime runtime,
+        IWorkflowRuntimeObserver? runtimeObserver = null)
     {
         ArgumentNullException.ThrowIfNull(runtime);
 
         this.runtime = runtime;
+        this.runtimeObserver = runtimeObserver ?? NullWorkflowRuntimeObserver.Instance;
         eventStore = runtime.EventStore;
         aggregateLoader = new DurableAggregateLoader(eventStore);
         resourcePoolStore = runtime.ResourcePoolStore;
@@ -468,15 +476,76 @@ public sealed class DurableCommandProcessor
         var inboxState = await LoadInboxStateAsync(inboxEventId, cancellationToken).ConfigureAwait(false);
         if (DurableInboxPreflight.TryCreateResult(inboxState) is { } preflightResult)
         {
-            return preflightResult;
+            return await ObserveCommandCompletedAsync(
+                instanceId,
+                preflightResult,
+                eventCount: 0,
+                checkpointWritten: false,
+                inboxEventId,
+                cancellationToken)
+                .ConfigureAwait(false);
         }
 
         var aggregate = await aggregateLoader.LoadAsync(instanceId, cancellationToken).ConfigureAwait(false);
         var decision = await decide(aggregate, cancellationToken).ConfigureAwait(false);
 
-        return await commitPipeline
+        var result = await commitPipeline
             .CommitAsync(instanceId, aggregate, decision, inboxEventId, cancellationToken)
             .ConfigureAwait(false);
+        return await ObserveCommandCompletedAsync(
+            instanceId,
+            result,
+            decision.Events.Count,
+            decision.Checkpoint is not null,
+            inboxEventId,
+            cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private async Task<DurableCommandResult> ObserveCommandCompletedAsync(
+        InstanceId instanceId,
+        DurableCommandResult result,
+        int eventCount,
+        bool checkpointWritten,
+        EventId? inboxEventId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await runtimeObserver
+                .OnCommandCompletedAsync(
+                    new WorkflowRuntimeObservation(
+                        ToObservationKind(result.Outcome),
+                        instanceId,
+                        result.Outcome,
+                        result.StreamVersion,
+                        eventCount,
+                        checkpointWritten,
+                        result.Evicted,
+                        inboxEventId,
+                        result.Message),
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // Runtime observations are diagnostics; observer failures must not change command results.
+        }
+
+        return result;
+    }
+
+    private static WorkflowRuntimeObservationKind ToObservationKind(DurableCommandOutcome outcome)
+    {
+        return outcome switch
+        {
+            DurableCommandOutcome.Committed => WorkflowRuntimeObservationKind.CommandCommitted,
+            DurableCommandOutcome.Conflict => WorkflowRuntimeObservationKind.CommandConflict,
+            DurableCommandOutcome.Evicted => WorkflowRuntimeObservationKind.CommandEvicted,
+            DurableCommandOutcome.Poisoned => WorkflowRuntimeObservationKind.CommandPoisoned,
+            DurableCommandOutcome.NoOp => WorkflowRuntimeObservationKind.CommandNoOp,
+            _ => throw new UnreachableException()
+        };
     }
 
     private async Task<Option<InboxRecordState>> LoadInboxStateAsync(

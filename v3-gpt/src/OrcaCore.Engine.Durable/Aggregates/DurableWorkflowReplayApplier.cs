@@ -1,0 +1,251 @@
+using OrcaCore.Abstractions.Durable;
+using OrcaCore.Abstractions.Instances;
+
+namespace OrcaCore.Engine.Durable.Aggregates;
+
+internal static class DurableWorkflowReplayApplier
+{
+    private static readonly ReplayHandler[] ReplayHandlers =
+    [
+        TryApplyLifecycle,
+        TryApplyWaitsAndTimers,
+        TryApplyChildWorkflow,
+        TryApplyResourcePool,
+        TryApplyExternalJob,
+        TryApplySaga
+    ];
+
+    internal static void Apply(DurableWorkflowAggregate aggregate, WorkflowEvent workflowEvent)
+    {
+        ArgumentNullException.ThrowIfNull(aggregate);
+        ArgumentNullException.ThrowIfNull(workflowEvent);
+
+        BeginReplay(aggregate, workflowEvent);
+        foreach (var handler in ReplayHandlers)
+        {
+            if (handler(aggregate, workflowEvent))
+            {
+                return;
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"Workflow event '{workflowEvent.GetType().Name}' is not supported by durable aggregate replay.");
+    }
+
+    private static void BeginReplay(DurableWorkflowAggregate aggregate, WorkflowEvent workflowEvent)
+    {
+        if (aggregate.InstanceId == default)
+        {
+            aggregate.InstanceId = workflowEvent.InstanceId;
+        }
+
+        aggregate.CreatedAt ??= workflowEvent.OccurredAt;
+        aggregate.UpdatedAt = workflowEvent.OccurredAt;
+        aggregate.StreamVersion = aggregate.StreamVersion.Next();
+    }
+
+    private static bool TryApplyLifecycle(DurableWorkflowAggregate aggregate, WorkflowEvent workflowEvent)
+    {
+        switch (workflowEvent)
+        {
+            case WorkflowStartedEvent started:
+                aggregate.ParentInstanceId = started.ParentInstanceId;
+                aggregate.RootInstanceId = started.RootInstanceId ?? started.InstanceId;
+                aggregate.DefinitionId = started.DefinitionId;
+                aggregate.DefinitionVersion = started.DefinitionVersion;
+                aggregate.Status = WorkflowStatus.Running;
+                return true;
+            case WorkflowContinuedAsNewEvent continuedAsNew:
+                aggregate.ContinueAsNewGeneration = continuedAsNew.Generation;
+                aggregate.Status = WorkflowStatus.Running;
+                aggregate.ErrorSummary = null;
+                aggregate.OutcomeName = null;
+                aggregate.TimerState.Clear();
+                aggregate.WaitState.Clear();
+                aggregate.ChildState.ClearActiveChildren();
+                aggregate.ResourcePoolState.Clear();
+                aggregate.ExternalJobState.Clear();
+                return true;
+            case WorkflowStepCompletedEvent stepCompleted:
+                aggregate.LastStepPath = stepCompleted.StepPath;
+                if (aggregate.Status is not WorkflowStatus.Waiting)
+                {
+                    aggregate.Status = WorkflowStatus.Running;
+                }
+
+                return true;
+            case WorkflowStepFailedEvent stepFailed:
+                aggregate.LastStepPath = stepFailed.StepPath;
+                aggregate.ErrorSummary = stepFailed.ErrorSummary;
+                aggregate.Status = WorkflowStatus.Failed;
+                aggregate.TimerState.Clear();
+                aggregate.WaitState.Clear();
+                aggregate.ChildState.ClearActiveChildren();
+                return true;
+            case WorkflowPausedEvent:
+                aggregate.Status = WorkflowStatus.Paused;
+                return true;
+            case WorkflowResumedEvent:
+                aggregate.Status = aggregate.WaitState.HasActiveWaits ? WorkflowStatus.Waiting : WorkflowStatus.Running;
+                return true;
+            case WorkflowCompletedEvent completed:
+                aggregate.OutcomeName = completed.OutcomeName;
+                aggregate.Status = WorkflowStatus.Completed;
+                ClearActiveWork(aggregate);
+                return true;
+            case WorkflowTerminalEvent terminal:
+                aggregate.Status = terminal.Status;
+                if (aggregate.IsTerminal)
+                {
+                    ClearActiveWork(aggregate);
+                }
+
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryApplyWaitsAndTimers(DurableWorkflowAggregate aggregate, WorkflowEvent workflowEvent)
+    {
+        switch (workflowEvent)
+        {
+            case WorkflowWaitRegisteredEvent waitRegistered:
+                aggregate.WaitState.Apply(waitRegistered);
+                aggregate.Status = WorkflowStatus.Waiting;
+                return true;
+            case WorkflowWaitMatchedEvent waitMatched:
+                aggregate.WaitState.Apply(waitMatched);
+                aggregate.Status = aggregate.WaitState.HasActiveWaits ? WorkflowStatus.Waiting : WorkflowStatus.Running;
+                return true;
+            case WorkflowTimerScheduledEvent timerScheduled:
+                aggregate.TimerState.Apply(timerScheduled);
+                aggregate.Status = WorkflowStatus.Waiting;
+                return true;
+            case WorkflowTimerFiredEvent timerFired:
+                aggregate.TimerState.Apply(timerFired);
+                aggregate.Status = !aggregate.WaitState.HasActiveWaits && !aggregate.TimerState.HasActiveTimers
+                    ? WorkflowStatus.Running
+                    : WorkflowStatus.Waiting;
+                return true;
+            case WorkflowTimerBufferedEvent timerBuffered:
+                aggregate.TimerState.Apply(timerBuffered);
+                aggregate.Status = WorkflowStatus.Paused;
+                return true;
+            case WorkflowDeliveryBufferedEvent deliveryBuffered:
+                aggregate.WaitState.Apply(deliveryBuffered);
+                return true;
+            case WorkflowDeliveryDiscardedEvent deliveryDiscarded:
+                aggregate.WaitState.Apply(deliveryDiscarded);
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryApplyChildWorkflow(DurableWorkflowAggregate aggregate, WorkflowEvent workflowEvent)
+    {
+        switch (workflowEvent)
+        {
+            case WorkflowChildScheduledEvent childScheduled:
+                aggregate.ApplyChildReplayEffects(aggregate.ChildState.Apply(childScheduled));
+                aggregate.Status = WorkflowStatus.Waiting;
+                return true;
+            case WorkflowChildrenScheduledEvent childrenScheduled:
+                aggregate.ApplyChildReplayEffects(aggregate.ChildState.Apply(childrenScheduled));
+                aggregate.Status = WorkflowStatus.Waiting;
+                return true;
+            case WorkflowChildrenDispatchedEvent childrenDispatched:
+                aggregate.ApplyChildReplayEffects(aggregate.ChildState.Apply(childrenDispatched));
+                aggregate.Status = WorkflowStatus.Waiting;
+                return true;
+            case WorkflowChildCompletedEvent childCompleted:
+                aggregate.ApplyChildReplayEffects(aggregate.ChildState.Apply(childCompleted));
+                return true;
+            case WorkflowChildCompensationScheduledEvent childCompensationScheduled:
+                aggregate.ChildState.Apply(childCompensationScheduled);
+                return true;
+            case WorkflowChildResidualIntentRecordedEvent residualIntent:
+                aggregate.ApplyChildReplayEffects(aggregate.ChildState.Apply(residualIntent));
+                return true;
+            case WorkflowParentResumeTokenRecordedEvent parentResumeToken:
+                aggregate.ChildState.Apply(parentResumeToken);
+                return true;
+            case WorkflowParentResumeTokenConsumedEvent parentResumeTokenConsumed:
+                aggregate.ChildState.Apply(parentResumeTokenConsumed);
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryApplyResourcePool(DurableWorkflowAggregate aggregate, WorkflowEvent workflowEvent)
+    {
+        switch (workflowEvent)
+        {
+            case WorkflowResourcePoolAcquiredEvent resourcePoolAcquired:
+                aggregate.ResourcePoolState.Apply(resourcePoolAcquired);
+                aggregate.Status = WorkflowStatus.Running;
+                return true;
+            case WorkflowResourcePoolQueuedEvent resourcePoolQueued:
+                aggregate.ApplyResourcePoolReplayEffects(aggregate.ResourcePoolState.Apply(resourcePoolQueued));
+                aggregate.Status = WorkflowStatus.Waiting;
+                return true;
+            case WorkflowResourcePoolReleasedEvent resourcePoolReleased:
+                aggregate.ResourcePoolState.Apply(resourcePoolReleased);
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryApplyExternalJob(DurableWorkflowAggregate aggregate, WorkflowEvent workflowEvent)
+    {
+        switch (workflowEvent)
+        {
+            case WorkflowExternalJobStartedEvent externalJobStarted:
+                aggregate.ExternalJobState.Apply(externalJobStarted);
+                return true;
+            case WorkflowExternalJobCompletedEvent externalJobCompleted:
+                aggregate.ExternalJobState.Apply(externalJobCompleted);
+                return true;
+            case WorkflowExternalJobTimedOutEvent externalJobTimedOut:
+                aggregate.ExternalJobState.Apply(externalJobTimedOut);
+                return true;
+            case WorkflowExternalJobStopRequestedEvent:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryApplySaga(DurableWorkflowAggregate aggregate, WorkflowEvent workflowEvent)
+    {
+        switch (workflowEvent)
+        {
+            case SagaForwardActionCompletedEvent:
+            case SagaForwardActionTimedOutEvent:
+            case SagaCompensationRequestedEvent:
+            case SagaCompensationStartedEvent:
+            case SagaCompensationCompletedEvent:
+            case SagaCompensationFailedEvent:
+            case SagaManualRecoveryRecordedEvent:
+                aggregate.SagaState.Apply(workflowEvent, aggregate.UpdatedAt);
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static void ClearActiveWork(DurableWorkflowAggregate aggregate)
+    {
+        aggregate.TimerState.Clear();
+        aggregate.WaitState.Clear();
+        aggregate.ChildState.ClearActiveChildren();
+        aggregate.ResourcePoolState.Clear();
+        aggregate.ExternalJobState.Clear();
+    }
+
+    private delegate bool ReplayHandler(DurableWorkflowAggregate aggregate, WorkflowEvent workflowEvent);
+}

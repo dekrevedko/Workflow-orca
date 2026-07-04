@@ -11,7 +11,8 @@ public sealed record WorkflowDefinition<TState>
         DefinitionId definitionId,
         DefinitionVersion definitionVersion,
         SequenceNode<TState> rootSequence,
-        WorkflowPolicySet? policies = null)
+        WorkflowPolicySet? policies = null,
+        bool requiresDurableEngine = false)
     {
         ArgumentNullException.ThrowIfNull(rootSequence);
 
@@ -19,6 +20,7 @@ public sealed record WorkflowDefinition<TState>
         DefinitionVersion = definitionVersion;
         RootSequence = rootSequence;
         Policies = policies ?? WorkflowPolicySet.Empty;
+        RequiresDurableEngine = requiresDurableEngine;
     }
 
     /// <summary>
@@ -30,6 +32,12 @@ public sealed record WorkflowDefinition<TState>
     /// Gets the immutable version represented by this definition.
     /// </summary>
     public DefinitionVersion DefinitionVersion { get; }
+
+    /// <summary>
+    /// Gets whether the definition contains durable-only primitives (RunChild/RunChildren)
+    /// and therefore cannot execute on the ephemeral engine.
+    /// </summary>
+    public bool RequiresDurableEngine { get; }
 
     internal SequenceNode<TState> RootSequence { get; }
 

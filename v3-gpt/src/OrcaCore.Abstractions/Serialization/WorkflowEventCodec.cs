@@ -11,43 +11,43 @@ public static class WorkflowEventCodec
 {
     private static readonly WorkflowEventCodecEntry[] Entries =
     [
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowStartedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowContinuedAsNewEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowStepCompletedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowStepFailedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowWaitRegisteredEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowWaitMatchedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowTimerScheduledEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowTimerFiredEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowChildScheduledEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowChildrenScheduledEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowChildrenDispatchedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowChildCompletedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowParentResumeTokenRecordedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowParentResumeTokenConsumedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowChildResidualIntentRecordedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowChildCompensationScheduledEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowResourcePoolAcquiredEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowResourcePoolQueuedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowResourcePoolReleasedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowExternalJobStartedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowExternalJobCompletedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowExternalJobTimedOutEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowExternalJobStopRequestedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowTimerBufferedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowPausedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowResumedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowDeliveryBufferedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowDeliveryDiscardedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowCompletedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowTerminalEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.SagaForwardActionCompletedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.SagaForwardActionTimedOutEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.SagaCompensationRequestedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.SagaCompensationStartedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.SagaCompensationCompletedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.SagaCompensationFailedEvent),
-        Entry(OrcaCoreJsonSerializerContext.Default.SagaManualRecoveryRecordedEvent)
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowStartedEvent, "WorkflowStartedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowContinuedAsNewEvent, "WorkflowContinuedAsNewEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowStepCompletedEvent, "WorkflowStepCompletedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowStepFailedEvent, "WorkflowStepFailedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowWaitRegisteredEvent, "WorkflowWaitRegisteredEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowWaitMatchedEvent, "WorkflowWaitMatchedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowTimerScheduledEvent, "WorkflowTimerScheduledEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowTimerFiredEvent, "WorkflowTimerFiredEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowChildScheduledEvent, "WorkflowChildScheduledEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowChildrenScheduledEvent, "WorkflowChildrenScheduledEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowChildrenDispatchedEvent, "WorkflowChildrenDispatchedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowChildCompletedEvent, "WorkflowChildCompletedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowParentResumeTokenRecordedEvent, "WorkflowParentResumeTokenRecordedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowParentResumeTokenConsumedEvent, "WorkflowParentResumeTokenConsumedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowChildResidualIntentRecordedEvent, "WorkflowChildResidualIntentRecordedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowChildCompensationScheduledEvent, "WorkflowChildCompensationScheduledEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowResourcePoolAcquiredEvent, "WorkflowResourcePoolAcquiredEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowResourcePoolQueuedEvent, "WorkflowResourcePoolQueuedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowResourcePoolReleasedEvent, "WorkflowResourcePoolReleasedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowExternalJobStartedEvent, "WorkflowExternalJobStartedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowExternalJobCompletedEvent, "WorkflowExternalJobCompletedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowExternalJobTimedOutEvent, "WorkflowExternalJobTimedOutEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowExternalJobStopRequestedEvent, "WorkflowExternalJobStopRequestedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowTimerBufferedEvent, "WorkflowTimerBufferedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowPausedEvent, "WorkflowPausedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowResumedEvent, "WorkflowResumedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowDeliveryBufferedEvent, "WorkflowDeliveryBufferedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowDeliveryDiscardedEvent, "WorkflowDeliveryDiscardedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowCompletedEvent, "WorkflowCompletedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowTerminalEvent, "WorkflowTerminalEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.SagaForwardActionCompletedEvent, "SagaForwardActionCompletedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.SagaForwardActionTimedOutEvent, "SagaForwardActionTimedOutEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.SagaCompensationRequestedEvent, "SagaCompensationRequestedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.SagaCompensationStartedEvent, "SagaCompensationStartedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.SagaCompensationCompletedEvent, "SagaCompensationCompletedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.SagaCompensationFailedEvent, "SagaCompensationFailedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.SagaManualRecoveryRecordedEvent, "SagaManualRecoveryRecordedEvent")
     ];
 
     private static readonly IReadOnlyDictionary<Type, WorkflowEventCodecEntry> EntriesByClrType =
@@ -88,10 +88,17 @@ public static class WorkflowEventCodec
                 $"Workflow event '{workflowEvent.GetType().Name}' is not supported.");
     }
 
-    private static WorkflowEventCodecEntry Entry<TEvent>(JsonTypeInfo<TEvent> jsonTypeInfo)
+    /// <summary>
+    /// Gets the frozen event-type name table. Names are persisted stream discriminators and
+    /// must never change for an existing entry; a CLR type rename must keep its original name.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> EventTypeNamesByClrTypeName =>
+        Entries.ToDictionary(entry => entry.ClrType.Name, entry => entry.EventType, StringComparer.Ordinal);
+
+    private static WorkflowEventCodecEntry Entry<TEvent>(JsonTypeInfo<TEvent> jsonTypeInfo, string eventType)
         where TEvent : WorkflowEvent
     {
-        return new WorkflowEventCodecEntry<TEvent>(jsonTypeInfo);
+        return new WorkflowEventCodecEntry<TEvent>(jsonTypeInfo, eventType);
     }
 
     private static TEvent Required<TEvent>(TEvent? workflowEvent)
@@ -112,7 +119,8 @@ public static class WorkflowEventCodec
     }
 
     private sealed class WorkflowEventCodecEntry<TEvent>(
-        JsonTypeInfo<TEvent> jsonTypeInfo) : WorkflowEventCodecEntry(typeof(TEvent), typeof(TEvent).Name)
+        JsonTypeInfo<TEvent> jsonTypeInfo,
+        string eventType) : WorkflowEventCodecEntry(typeof(TEvent), eventType)
         where TEvent : WorkflowEvent
     {
         internal override string Serialize(WorkflowEvent workflowEvent)

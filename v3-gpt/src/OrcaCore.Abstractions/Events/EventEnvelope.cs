@@ -28,7 +28,9 @@ public sealed record EventEnvelope
     public string? BranchId { get; init; }
 
     /// <summary>
-    /// Gets the business payload carried by the event.
+    /// Gets the business payload carried by the event. Ephemeral delivery passes this live
+    /// object through unchanged; durable delivery serializes it at the provider boundary, so
+    /// reference identity does not survive a durable wait.
     /// </summary>
     public object? Payload { get; init; }
 

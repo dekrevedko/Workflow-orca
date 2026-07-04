@@ -133,6 +133,24 @@ public sealed class CoreRuntimeScenarioTests
             .WithMessage($"*{unknownInstanceId}*");
     }
 
+    [Fact]
+    [Trait("Scenario", "NEG-CR-017")]
+    [Trait("AC", "AC-001")]
+    public void NEG_CR_017_RegisterDefinitionWithDurableOnlyNodes_ThrowsDefinitionException()
+    {
+        var engine = new EphemeralWorkflowEngine();
+        var definition = new WorkflowBuilder<TestState>()
+            .Init<string>(input => new TestState { CorrelationId = input })
+            .RunChild(DefinitionId.New(), DefinitionVersion.Initial)
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+
+        var act = () => engine.RegisterDefinition(definition);
+
+        act.Should().Throw<WorkflowDefinitionException>()
+            .WithMessage("*durable-only*");
+    }
+
     private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> WaitingDefinition()
     {
         return new WorkflowBuilder<TestState>()

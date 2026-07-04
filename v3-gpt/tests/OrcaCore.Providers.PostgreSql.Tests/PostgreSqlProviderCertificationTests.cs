@@ -25,7 +25,9 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
     public async ValueTask InitializeAsync()
     {
         await container.StartAsync(TestContext.Current.CancellationToken);
-        certificationStore = new PostgreSqlWorkflowStore(container.GetConnectionString());
+        certificationStore = new PostgreSqlWorkflowStore(
+            container.GetConnectionString(),
+            new FixedTimeProvider(MigrationAppliedAt()));
         await certificationStore.InitializeAsync(TestContext.Current.CancellationToken);
     }
 
@@ -61,6 +63,26 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         initialMigrationId.Should().Be("001_initial");
         leaseMigrationId.Should().Be("002_claim_leases");
         startIdempotencyMigrationId.Should().Be("003_start_idempotency");
+    }
+
+    [Fact]
+    public async Task InitializeAsync_UsesTimeProviderForMigrationJournalTimestamps()
+    {
+        await using var connection = new NpgsqlConnection(container.GetConnectionString());
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var command = new NpgsqlCommand(
+            """
+            select count(*)
+            from orcacore_schema_migrations
+            where applied_at = @applied_at;
+            """,
+            connection);
+        command.Parameters.AddWithValue("applied_at", MigrationAppliedAt());
+
+        var count = (long)(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken)
+            ?? throw new InvalidOperationException());
+
+        count.Should().BeGreaterThan(0);
     }
 
     [Fact]
@@ -623,6 +645,11 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         return new DateTimeOffset(2026, 7, 2, 15, 0, seconds, TimeSpan.Zero);
     }
 
+    private static DateTimeOffset MigrationAppliedAt()
+    {
+        return new DateTimeOffset(2026, 7, 4, 11, 30, 0, TimeSpan.Zero);
+    }
+
     private static InstanceId InstanceIdValue(int value)
     {
         return new InstanceId(GuidValue(value));
@@ -678,5 +705,13 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
     private static Guid GuidValue(int value)
     {
         return Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}");
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow()
+        {
+            return utcNow;
+        }
     }
 }

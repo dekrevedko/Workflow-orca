@@ -109,6 +109,36 @@ public sealed class MailboxTests
     }
 
     [Fact]
+    [Trait("Scenario", "EDGE-EV-008")]
+    [Trait("AC", "AC-105")]
+    public async Task EDGE_EV_008_ConcurrentDuplicateRaiseEvent_SameEventId_ResumesExactlyOnce()
+    {
+        var state = new TestState();
+        var engine = new EphemeralWorkflowEngine();
+        var definition = OneWaitDefinition(state);
+        engine.RegisterDefinition(definition);
+        var waiting = await StartAsync(engine, definition);
+        var envelope = Event(EventId.New(), "First", FirstCorrelation, "first");
+
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var deliveries = Enumerable.Range(0, 8)
+            .Select(async _ =>
+            {
+                await gate.Task;
+                return await engine.RaiseEventAsync<TestState>(
+                    waiting.InstanceId,
+                    envelope,
+                    TestContext.Current.CancellationToken);
+            })
+            .ToArray();
+        gate.SetResult();
+        var snapshots = await Task.WhenAll(deliveries);
+
+        snapshots.Should().OnlyContain(snapshot => snapshot.Status == WorkflowStatus.Completed);
+        state.Payloads.Should().Equal(["first"], "exactly-once resume (EV-023) must hold under concurrent duplicate delivery");
+    }
+
+    [Fact]
     public async Task RaiseEventAsync_ResumeTransitionFails_EventRemainsAvailable()
     {
         var state = new TestState();

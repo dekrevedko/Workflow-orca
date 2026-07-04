@@ -80,6 +80,42 @@ public sealed class DagBuilderTests
         batches.SelectMany(batch => batch.ItemSnapshots).Should().BeEquivalentTo("B", "C");
     }
 
+    [Fact]
+    public void GetBlockedByFailures_ReportsTransitivelyBlockedNodes()
+    {
+        var plan = new WorkflowDagBuilder()
+            .Node("A", DefinitionIdValue(1), DefinitionVersion.Initial)
+            .Node("B", DefinitionIdValue(2), DefinitionVersion.Initial)
+            .Node("C", DefinitionIdValue(3), DefinitionVersion.Initial)
+            .DependsOn("B", "A")
+            .DependsOn("C", "B")
+            .BuildValidated()
+            .Value;
+
+        plan.GetBlockedByFailures(["A"]).Select(node => node.NodeId).Should().Equal("B", "C");
+    }
+
+    [Fact]
+    public void IsComplete_WhenRemainingNodesAreTransitivelyBlocked_ReportsTerminalRun()
+    {
+        var plan = new WorkflowDagBuilder()
+            .Node("A", DefinitionIdValue(1), DefinitionVersion.Initial)
+            .Node("B", DefinitionIdValue(2), DefinitionVersion.Initial)
+            .Node("C", DefinitionIdValue(3), DefinitionVersion.Initial)
+            .Node("D", DefinitionIdValue(4), DefinitionVersion.Initial)
+            .DependsOn("B", "A")
+            .DependsOn("C", "B")
+            .BuildValidated()
+            .Value;
+
+        plan.IsComplete(["D"], ["A"]).Should().BeTrue();
+        plan.IsComplete(["D"], []).Should().BeFalse();
+
+        var runner = new WorkflowDagRunner(plan);
+        runner.GetNextBatches(["D"], ["A"]).Should().BeEmpty();
+        runner.IsComplete(["D"], ["A"]).Should().BeTrue();
+    }
+
     public static WorkflowDagBuilder Diamond()
     {
         return new WorkflowDagBuilder()

@@ -108,6 +108,12 @@ public sealed class EphemeralWorkflowEngine
     public void RegisterDefinition<TState>(WorkflowDefinition<TState> definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
+        if (definition.RequiresDurableEngine)
+        {
+            throw new WorkflowDefinitionException(
+                $"Workflow definition '{definition.DefinitionId}' contains durable-only nodes " +
+                "(RunChild/RunChildren) and cannot be registered on the ephemeral engine.");
+        }
 
         definitions[definition.DefinitionId] = definition;
     }

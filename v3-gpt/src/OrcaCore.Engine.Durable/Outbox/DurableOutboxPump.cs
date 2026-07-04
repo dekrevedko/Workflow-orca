@@ -10,9 +10,11 @@ namespace OrcaCore.Engine.Durable.Outbox;
 public sealed class DurableOutboxPump(
     IWorkflowOutboxStore outboxStore,
     IMessageDispatcher dispatcher,
-    IOutboxPumpObserver? observer = null)
+    IOutboxPumpObserver? observer = null,
+    TimeProvider? timeProvider = null)
 {
     private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
+    private readonly TimeProvider timeProvider = timeProvider ?? TimeProvider.System;
 
     /// <summary>
     /// Claims and dispatches at most <paramref name="maxCount"/> outbox records.
@@ -20,7 +22,7 @@ public sealed class DurableOutboxPump(
     public async Task<int> PumpOnceAsync(int maxCount, CancellationToken cancellationToken)
     {
         return await PumpOnceAsync(
-            new OutboxClaimRequest(maxCount, DateTimeOffset.UtcNow, DefaultLeaseDuration),
+            new OutboxClaimRequest(maxCount, timeProvider.GetUtcNow(), DefaultLeaseDuration),
             cancellationToken)
             .ConfigureAwait(false);
     }

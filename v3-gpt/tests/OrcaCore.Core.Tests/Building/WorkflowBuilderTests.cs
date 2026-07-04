@@ -296,6 +296,49 @@ public sealed class WorkflowBuilderTests
     }
 
     [Fact]
+    public void Build_WithoutDurableOnlyNodes_DoesNotRequireDurableEngine()
+    {
+        var definition = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("created"))
+            .Then<TestStep>()
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+
+        definition.RequiresDurableEngine.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Build_WithTopLevelRunChild_RequiresDurableEngine()
+    {
+        var definition = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("created"))
+            .RunChild(DefinitionIdValue(2), DefinitionVersion.Initial)
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+
+        definition.RequiresDurableEngine.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Build_WithRunChildrenNestedInsideControlFlow_RequiresDurableEngine()
+    {
+        var definition = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("created"))
+            .If(
+                _ => true,
+                then => then.While(
+                    _ => false,
+                    body => body.RunChildren(
+                        DefinitionIdValue(2),
+                        DefinitionVersion.Initial,
+                        state => [state.CorrelationId])))
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+
+        definition.RequiresDurableEngine.Should().BeTrue();
+    }
+
+    [Fact]
     public void WorkflowBuilder_DoesNotExposeCompensationMethods()
     {
         var publicMethodNames = typeof(WorkflowBuilder<TestState>)

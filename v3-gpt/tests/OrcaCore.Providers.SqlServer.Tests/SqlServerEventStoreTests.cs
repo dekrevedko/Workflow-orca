@@ -22,7 +22,9 @@ public sealed class SqlServerEventStoreTests : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         await container.StartAsync(TestContext.Current.CancellationToken);
-        store = new SqlServerWorkflowStore(container.GetConnectionString());
+        store = new SqlServerWorkflowStore(
+            container.GetConnectionString(),
+            new FixedTimeProvider(MigrationAppliedAt()));
         await store.InitializeAsync(TestContext.Current.CancellationToken);
     }
 
@@ -53,6 +55,26 @@ public sealed class SqlServerEventStoreTests : IAsyncLifetime
             ?? throw new InvalidOperationException());
 
         migrationCount.Should().Be(4);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_UsesTimeProviderForMigrationJournalTimestamps()
+    {
+        await using var connection = new SqlConnection(container.GetConnectionString());
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var command = new SqlCommand(
+            """
+            select count(*)
+            from dbo.orcacore_schema_migrations
+            where applied_at = @applied_at;
+            """,
+            connection);
+        command.Parameters.AddWithValue("applied_at", MigrationAppliedAt());
+
+        var count = (int)(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken)
+            ?? throw new InvalidOperationException());
+
+        count.Should().BeGreaterThan(0);
     }
 
     [Fact]
@@ -213,6 +235,11 @@ public sealed class SqlServerEventStoreTests : IAsyncLifetime
         return new DateTimeOffset(2026, 7, 2, 12, 0, seconds, TimeSpan.Zero);
     }
 
+    private static DateTimeOffset MigrationAppliedAt()
+    {
+        return new DateTimeOffset(2026, 7, 4, 11, 30, 0, TimeSpan.Zero);
+    }
+
     private static EventId EventIdValue(int value)
     {
         return new EventId(GuidValue(value));
@@ -251,5 +278,13 @@ public sealed class SqlServerEventStoreTests : IAsyncLifetime
     private static Guid GuidValue(int value)
     {
         return Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}");
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow()
+        {
+            return utcNow;
+        }
     }
 }

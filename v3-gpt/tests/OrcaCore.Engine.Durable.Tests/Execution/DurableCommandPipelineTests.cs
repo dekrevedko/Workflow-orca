@@ -98,6 +98,54 @@ public sealed class DurableCommandPipelineTests
     }
 
     [Fact]
+    public async Task ProcessCommand_NotifiesRuntimeObserverAfterCommit()
+    {
+        var instanceId = InstanceIdValue(1);
+        var observer = new RecordingRuntimeObserver();
+        var store = new RecordingEventStore
+        {
+            Tail = [Started(instanceId)]
+        };
+        var processor = new DurableCommandProcessor(store, runtimeObserver: observer);
+
+        await processor.ProcessAsync(StepCompletedCommand(instanceId, 2), TestContext.Current.CancellationToken);
+
+        observer.Observations.Should().ContainSingle().Which.Should().Be(
+            new WorkflowRuntimeObservation(
+                WorkflowRuntimeObservationKind.CommandCommitted,
+                instanceId,
+                DurableCommandOutcome.Committed,
+                new StreamVersion(2),
+                EventCount: 1,
+                CheckpointWritten: true,
+                Evicted: false,
+                InboxEventId: null,
+                Message: null));
+    }
+
+    [Fact]
+    public async Task ProcessCommand_WhenRuntimeObserverThrows_StillReturnsCommittedResult()
+    {
+        var instanceId = InstanceIdValue(1);
+        var store = new RecordingEventStore
+        {
+            Tail = [Started(instanceId)]
+        };
+        var processor = new DurableCommandProcessor(
+            store,
+            runtimeObserver: new ThrowingRuntimeObserver());
+
+        var result = await processor.ProcessAsync(
+            StepCompletedCommand(instanceId, 2),
+            TestContext.Current.CancellationToken);
+
+        result.Outcome.Should().Be(DurableCommandOutcome.Committed);
+        store.AppendedBatch.Should().NotBeNull();
+        store.AppendedBatch!.Events.Should().ContainSingle()
+            .Which.Should().BeOfType<WorkflowStepCompletedEvent>();
+    }
+
+    [Fact]
     [Trait("AC", "AC-309")]
     public async Task ConcurrentResumeAttempts_CommitExactlyOneOutcome()
     {
@@ -333,6 +381,30 @@ public sealed class DurableCommandPipelineTests
             cancellationToken.ThrowIfCancellationRequested();
             LoadedTailAfterVersion = afterVersion;
             return Task.FromResult(Tail);
+        }
+    }
+
+    private sealed class RecordingRuntimeObserver : IWorkflowRuntimeObserver
+    {
+        public List<WorkflowRuntimeObservation> Observations { get; } = [];
+
+        public ValueTask OnCommandCompletedAsync(
+            WorkflowRuntimeObservation observation,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Observations.Add(observation);
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class ThrowingRuntimeObserver : IWorkflowRuntimeObserver
+    {
+        public ValueTask OnCommandCompletedAsync(
+            WorkflowRuntimeObservation observation,
+            CancellationToken cancellationToken)
+        {
+            throw new InvalidOperationException("observer failure");
         }
     }
 

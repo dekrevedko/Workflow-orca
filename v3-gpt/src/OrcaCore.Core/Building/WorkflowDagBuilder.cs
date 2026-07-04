@@ -201,15 +201,55 @@ public sealed record WorkflowDagPlan(
     }
 
     /// <summary>
-    /// Gets nodes blocked by failed prerequisites.
+    /// Gets nodes blocked by failed prerequisites, including nodes blocked transitively
+    /// through other blocked nodes.
     /// </summary>
     public IReadOnlyList<WorkflowDagNode> GetBlockedByFailures(IReadOnlyCollection<string> failedNodeIds)
     {
         var failed = failedNodeIds.ToHashSet(StringComparer.Ordinal);
+        var blocked = new HashSet<string>(StringComparer.Ordinal);
+        var changed = true;
+        while (changed)
+        {
+            changed = false;
+            foreach (var node in Nodes)
+            {
+                if (failed.Contains(node.NodeId) || blocked.Contains(node.NodeId))
+                {
+                    continue;
+                }
+
+                if (node.Dependencies.Any(dependency =>
+                    failed.Contains(dependency) || blocked.Contains(dependency)))
+                {
+                    blocked.Add(node.NodeId);
+                    changed = true;
+                }
+            }
+        }
+
         return Nodes
-            .Where(node => node.Dependencies.Any(failed.Contains))
+            .Where(node => blocked.Contains(node.NodeId))
             .OrderBy(node => node.NodeId, StringComparer.Ordinal)
             .ToArray();
+    }
+
+    /// <summary>
+    /// Gets whether every node is completed, failed, or blocked by failures — no further
+    /// progress is possible.
+    /// </summary>
+    public bool IsComplete(
+        IReadOnlyCollection<string> completedNodeIds,
+        IReadOnlyCollection<string> failedNodeIds)
+    {
+        var completed = completedNodeIds.ToHashSet(StringComparer.Ordinal);
+        var failed = failedNodeIds.ToHashSet(StringComparer.Ordinal);
+        var blocked = GetBlockedByFailures(failedNodeIds).Select(node => node.NodeId)
+            .ToHashSet(StringComparer.Ordinal);
+        return Nodes.All(node =>
+            completed.Contains(node.NodeId) ||
+            failed.Contains(node.NodeId) ||
+            blocked.Contains(node.NodeId));
     }
 
     /// <summary>
@@ -303,6 +343,20 @@ public sealed class WorkflowDagRunner(WorkflowDagPlan plan, int? maxConcurrency 
 
         var runnableNodes = plan.GetRunnableNodes(completedNodeIds, failedNodeIds);
         return plan.CreateChildBatches(runnableNodes, maxConcurrency);
+    }
+
+    /// <summary>
+    /// Gets whether the run has reached a terminal state: no runnable work remains and every
+    /// node is completed, failed, or transitively blocked by failures.
+    /// </summary>
+    public bool IsComplete(
+        IReadOnlyCollection<string> completedNodeIds,
+        IReadOnlyCollection<string> failedNodeIds)
+    {
+        ArgumentNullException.ThrowIfNull(completedNodeIds);
+        ArgumentNullException.ThrowIfNull(failedNodeIds);
+
+        return plan.IsComplete(completedNodeIds, failedNodeIds);
     }
 }
 

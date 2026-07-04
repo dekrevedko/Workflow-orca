@@ -24,7 +24,7 @@ public sealed class InMemoryWorkflowProvider :
     private const string JsonContentType = "application/json";
     private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
 
-    private readonly object gate = new();
+    private readonly Lock gate = new();
     private readonly Dictionary<EventId, InboxRecordState> inbox = [];
     private readonly Dictionary<string, StartedWorkflowIdempotencyRecord> startIdempotency = new(StringComparer.Ordinal);
     private readonly Dictionary<OutboxRecordId, InMemoryOutboxRecord> outbox = [];
@@ -35,6 +35,15 @@ public sealed class InMemoryWorkflowProvider :
     private readonly Dictionary<InstanceId, CheckpointWrite> checkpoints = [];
     private readonly Dictionary<WorkflowStreamId, List<WorkflowEvent>> streams = [];
     private readonly Dictionary<TimerId, InMemoryTimerSchedule> timers = [];
+    private readonly TimeProvider timeProvider;
+
+    /// <summary>
+    /// Initializes the in-memory workflow provider.
+    /// </summary>
+    public InMemoryWorkflowProvider(TimeProvider? timeProvider = null)
+    {
+        this.timeProvider = timeProvider ?? TimeProvider.System;
+    }
 
     /// <inheritdoc />
     public Task<Option<CheckpointWrite>> LoadCheckpointAsync(
@@ -147,7 +156,7 @@ public sealed class InMemoryWorkflowProvider :
     public Task<IReadOnlyList<OutboxWrite>> ClaimAsync(int maxCount, CancellationToken cancellationToken)
     {
         return ClaimAsync(
-            new OutboxClaimRequest(maxCount, DateTimeOffset.UtcNow, DefaultLeaseDuration),
+            new OutboxClaimRequest(maxCount, timeProvider.GetUtcNow(), DefaultLeaseDuration),
             cancellationToken);
     }
 

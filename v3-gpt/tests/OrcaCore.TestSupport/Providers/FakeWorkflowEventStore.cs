@@ -20,6 +20,7 @@ public sealed class FakeWorkflowEventStore :
     private readonly ConcurrentDictionary<OutboxRecordId, FakeOutboxRecord> outbox = [];
     private readonly ConcurrentDictionary<InstanceId, CheckpointWrite> checkpoints = [];
     private readonly ConcurrentDictionary<WorkflowStreamId, List<WorkflowEvent>> streams = [];
+    private readonly ConcurrentDictionary<InstanceId, WorkflowInstanceSnapshot> projectedSummaries = [];
     private readonly List<ProviderCommitBatch> committedBatches = [];
     private int failNextCommitBeforeApply;
 
@@ -206,6 +207,14 @@ public sealed class FakeWorkflowEventStore :
     public Task ApplyAsync(IReadOnlyList<ProjectionWrite> operations, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        foreach (var operation in operations)
+        {
+            if (operation is { Kind: ProjectionOperationKind.UpsertSummary, InstanceSnapshot: { } snapshot })
+            {
+                projectedSummaries[operation.InstanceId] = snapshot;
+            }
+        }
+
         return Task.CompletedTask;
     }
 
@@ -214,13 +223,19 @@ public sealed class FakeWorkflowEventStore :
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult<IReadOnlyList<WorkflowInstanceSnapshot>>([]);
+        return Task.FromResult<IReadOnlyList<WorkflowInstanceSnapshot>>(
+            projectedSummaries.Values
+                .Where(snapshot => query.InstanceId is not { } instanceId || snapshot.InstanceId == instanceId)
+                .OrderBy(snapshot => snapshot.InstanceId.Value)
+                .ToArray());
     }
 
     public Task<int> CountAsync(WorkflowProjectionQuery query, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(0);
+        return Task.FromResult(
+            projectedSummaries.Values
+                .Count(snapshot => query.InstanceId is not { } instanceId || snapshot.InstanceId == instanceId));
     }
 
     public Task<IReadOnlyList<ActiveWaitSnapshot>> ListActiveWaitsAsync(

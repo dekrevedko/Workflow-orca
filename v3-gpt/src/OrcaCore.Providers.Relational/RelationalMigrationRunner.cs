@@ -13,11 +13,13 @@ public static class RelationalMigrationRunner
         DbConnection connection,
         RelationalMigrationJournal journal,
         IReadOnlyList<RelationalMigration> migrations,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(connection);
         ArgumentNullException.ThrowIfNull(journal);
         ArgumentNullException.ThrowIfNull(migrations);
+        var clock = timeProvider ?? TimeProvider.System;
 
         if (connection.State != ConnectionState.Open)
         {
@@ -47,7 +49,7 @@ public static class RelationalMigrationRunner
                 new
                 {
                     migration.MigrationId,
-                    AppliedAt = DateTimeOffset.UtcNow
+                    AppliedAt = clock.GetUtcNow()
                 },
                 transaction,
                 cancellationToken: cancellationToken)).ConfigureAwait(false);

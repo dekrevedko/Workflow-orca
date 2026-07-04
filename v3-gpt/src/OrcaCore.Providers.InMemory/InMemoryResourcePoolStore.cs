@@ -9,7 +9,7 @@ namespace OrcaCore.Providers.InMemory;
 /// </summary>
 public sealed class InMemoryResourcePoolStore : IResourcePoolStore
 {
-    private readonly object gate = new();
+    private readonly Lock gate = new();
     private readonly Dictionary<string, ResourcePoolDefinition> pools = new(StringComparer.Ordinal);
     private readonly List<ResourcePoolTicket> tickets = [];
     private readonly List<ResourcePoolWaiter> waiters = [];

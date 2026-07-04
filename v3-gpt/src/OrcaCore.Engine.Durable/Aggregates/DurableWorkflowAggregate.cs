@@ -75,31 +75,43 @@ internal sealed class DurableWorkflowAggregate
             requestedSagaCompensationScopes);
     }
 
-    internal InstanceId InstanceId { get; private set; }
+    internal InstanceId InstanceId { get; set; }
 
-    internal StreamVersion StreamVersion { get; private set; }
+    internal StreamVersion StreamVersion { get; set; }
 
-    internal InstanceId? ParentInstanceId { get; private set; }
+    internal InstanceId? ParentInstanceId { get; set; }
 
-    internal InstanceId? RootInstanceId { get; private set; }
+    internal InstanceId? RootInstanceId { get; set; }
 
-    internal DefinitionId? DefinitionId { get; private set; }
+    internal DefinitionId? DefinitionId { get; set; }
 
-    internal DefinitionVersion? DefinitionVersion { get; private set; }
+    internal DefinitionVersion? DefinitionVersion { get; set; }
 
-    internal WorkflowStatus? Status { get; private set; }
+    internal WorkflowStatus? Status { get; set; }
 
-    internal DateTimeOffset? CreatedAt { get; private set; }
+    internal DateTimeOffset? CreatedAt { get; set; }
 
-    internal DateTimeOffset? UpdatedAt { get; private set; }
+    internal DateTimeOffset? UpdatedAt { get; set; }
 
-    internal string? LastStepPath { get; private set; }
+    internal string? LastStepPath { get; set; }
 
-    internal string? ErrorSummary { get; private set; }
+    internal string? ErrorSummary { get; set; }
 
-    internal string? OutcomeName { get; private set; }
+    internal string? OutcomeName { get; set; }
 
-    internal int ContinueAsNewGeneration { get; private set; }
+    internal int ContinueAsNewGeneration { get; set; }
+
+    internal DurableChildWorkflowState ChildState => childState;
+
+    internal DurableExternalJobState ExternalJobState => externalJobState;
+
+    internal DurableResourcePoolState ResourcePoolState => resourcePoolState;
+
+    internal DurableTimerState TimerState => timerState;
+
+    internal DurableWaitState WaitState => waitState;
+
+    internal DurableSagaState SagaState => sagaState;
 
     internal DurableAggregateSnapshot Snapshot => new(
         InstanceId,
@@ -126,6 +138,14 @@ internal sealed class DurableWorkflowAggregate
         sagaState.CompensationActions,
         sagaState.RecoveryInterventions,
         sagaState.RequestedCompensationScopes);
+
+    internal bool IsTerminal =>
+        Status is WorkflowStatus.Completed
+            or WorkflowStatus.Failed
+            or WorkflowStatus.Cancelled
+            or WorkflowStatus.Terminated
+            or WorkflowStatus.Compensated
+            or WorkflowStatus.CompensationFailed;
 
     internal static DurableWorkflowAggregate Empty(InstanceId instanceId)
     {
@@ -235,1022 +255,100 @@ internal sealed class DurableWorkflowAggregate
             [.. payload]);
     }
 
-    internal DurableDecision DecideStart(StartWorkflowCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (Status is not null)
-        {
-            return DurableDecision.Empty;
-        }
+    internal DurableDecision DecideStart(StartWorkflowCommand command) =>
+        DurableLifecycleCommandHandler.Handle(this, command);
 
-        return new DurableDecision([
-            new WorkflowStartedEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                ParentInstanceId = command.ParentInstanceId,
-                RootInstanceId = command.RootInstanceId ?? command.InstanceId,
-                DefinitionId = command.DefinitionId,
-                DefinitionVersion = command.DefinitionVersion,
-                IdempotencyKey = command.IdempotencyKey
-            }
-        ]);
-    }
+    internal DurableDecision DecideStepCompleted(DurableStepCompletedCommand command) =>
+        DurableLifecycleCommandHandler.Handle(this, command);
 
-    internal DurableDecision DecideStepCompleted(DurableStepCompletedCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal)
-        {
-            return DurableDecision.Empty;
-        }
+    internal DurableDecision DecideContinueAsNew(ContinueAsNewCommand command) =>
+        DurableLifecycleCommandHandler.Handle(this, command);
 
-        var checkpoint = new CheckpointWrite(
-            command.InstanceId,
-            StreamVersion.Next(),
-            command.StateContentType,
-            [.. command.StatePayload])
-        {
-            DefinitionId = DefinitionId,
-            ParentInstanceId = ParentInstanceId,
-            RootInstanceId = RootInstanceId,
-            DefinitionVersion = DefinitionVersion,
-            Status = WorkflowStatus.Running,
-            LastStepPath = command.StepPath,
-            ErrorSummary = null,
-            OutcomeName = null,
-            ContinueAsNewGeneration = ContinueAsNewGeneration,
-            RuntimeState = ToCheckpointRuntimeState()
-        };
+    internal DurableDecision DecideStepFailed(DurableStepFailedCommand command) =>
+        DurableLifecycleCommandHandler.Handle(this, command);
 
-        return new DurableDecision(
-            [
-                new WorkflowStepCompletedEvent
-                {
-                    EventId = EventId.New(),
-                    InstanceId = command.InstanceId,
-                    CommandId = command.CommandId,
-                    CausationId = ToCausationId(command.CommandId),
-                    OccurredAt = command.RequestedAt,
-                    StepPath = command.StepPath
-                }
-            ],
-            checkpoint);
-    }
+    internal DurableDecision DecideWaitRegistered(DurableWaitRegisteredCommand command) =>
+        DurableWaitTimerCommandHandler.Handle(this, command);
 
-    internal DurableDecision DecideContinueAsNew(ContinueAsNewCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        ArgumentException.ThrowIfNullOrWhiteSpace(command.StateContentType);
-        ArgumentNullException.ThrowIfNull(command.StatePayload);
-        if (Status is null || IsTerminal)
-        {
-            return DurableDecision.Empty;
-        }
+    internal DurableDecision DecideCancel(CancelWorkflowCommand command) =>
+        DurableLifecycleCommandHandler.Handle(this, command);
 
-        var generation = ContinueAsNewGeneration + 1;
-        var checkpoint = new CheckpointWrite(
-            command.InstanceId,
-            StreamVersion.Next(),
-            command.StateContentType,
-            [.. command.StatePayload])
-        {
-            DefinitionId = DefinitionId,
-            ParentInstanceId = ParentInstanceId,
-            RootInstanceId = RootInstanceId,
-            DefinitionVersion = DefinitionVersion,
-            Status = WorkflowStatus.Running,
-            LastStepPath = LastStepPath,
-            ErrorSummary = null,
-            OutcomeName = null,
-            ContinueAsNewGeneration = generation
-        };
+    internal DurableDecision DecideConsumeParentResumeToken(ConsumeParentResumeTokenCommand command) =>
+        DurableChildWorkflowCommandHandler.Handle(this, command);
 
-        return new DurableDecision(
-            [
-                new WorkflowContinuedAsNewEvent
-                {
-                    EventId = EventId.New(),
-                    InstanceId = command.InstanceId,
-                    CommandId = command.CommandId,
-                    CausationId = ToCausationId(command.CommandId),
-                    OccurredAt = command.RequestedAt,
-                    ParentInstanceId = ParentInstanceId,
-                    RootInstanceId = RootInstanceId ?? InstanceId,
-                    PreviousStreamVersion = StreamVersion,
-                    Generation = generation
-                }
-            ],
-            checkpoint);
-    }
+    internal DurableDecision DecideWaitMatched(DurableWaitMatchedCommand command) =>
+        DurableWaitTimerCommandHandler.Handle(this, command);
 
-    internal DurableDecision DecideRunChild(DurableRunChildCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal)
-        {
-            return DurableDecision.Empty;
-        }
+    internal DurableDecision DecideTimerScheduled(ScheduleTimerCommand command) =>
+        DurableWaitTimerCommandHandler.Handle(this, command);
 
-        var waitId = WaitId.New();
-        return new DurableDecision([
-            new WorkflowChildScheduledEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                ChildInstanceId = command.ChildInstanceId,
-                ChildDefinitionId = command.ChildDefinitionId,
-                ChildDefinitionVersion = command.ChildDefinitionVersion,
-                WaitId = waitId,
-                FailurePolicy = command.FailurePolicy
-            }
-        ]);
-    }
+    internal DurableDecision DecideTimerFired(FireTimerCommand command) =>
+        DurableWaitTimerCommandHandler.Handle(this, command);
 
-    internal DurableDecision DecideChildCompleted(DurableChildCompletedCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal)
-        {
-            return DurableDecision.Empty;
-        }
+    internal DurableDecision DecideDeliverEvent(DeliverEventCommand command) =>
+        DurableWaitTimerCommandHandler.Handle(this, command);
 
-        var plan = childState.PlanChildCompletion(
-            CreateChildWorkflowEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
-            command);
-        if (plan is null)
-        {
-            return DurableDecision.Empty;
-        }
+    internal DurableDecision DecidePause(DurablePauseCommand command) =>
+        DurableLifecycleCommandHandler.Handle(this, command);
 
-        if (plan.ShouldFailParent)
-        {
-            return new DurableDecision([
-                .. plan.Events,
-                new WorkflowTerminalEvent
-                {
-                    EventId = EventId.New(),
-                    InstanceId = command.InstanceId,
-                    CommandId = command.CommandId,
-                    CausationId = ToCausationId(command.CommandId),
-                    OccurredAt = command.RequestedAt,
-                    ParentInstanceId = ParentInstanceId,
-                    RootInstanceId = RootInstanceId ?? InstanceId,
-                    Status = WorkflowStatus.Failed
-                }
-            ]);
-        }
+    internal DurableDecision DecideResume(DurableResumeCommand command) =>
+        DurableLifecycleCommandHandler.Handle(this, command);
 
-        return new DurableDecision(plan.Events);
-    }
+    internal DurableDecision DecideComplete(DurableCompleteCommand command) =>
+        DurableLifecycleCommandHandler.Handle(this, command);
 
-    internal DurableDecision DecideRunChildren(DurableRunChildrenCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal)
-        {
-            return DurableDecision.Empty;
-        }
+    internal DurableDecision DecideFail(DurableFailCommand command) =>
+        DurableLifecycleCommandHandler.Handle(this, command);
 
-        var groupId = command.CommandId.Value.ToString("D");
-        if (childState.HasActiveChildInGroup(groupId))
-        {
-            return DurableDecision.Empty;
-        }
+    internal DurableDecision DecideTerminate(TerminateWorkflowCommand command) =>
+        DurableLifecycleCommandHandler.Handle(this, command);
 
-        var children = command.ItemSnapshots
-            .Select((itemSnapshot, index) => new WorkflowChildMaterialization
-            {
-                Index = index,
-                ChildInstanceId = DurableChildWorkflowState.DeterministicChildId(command.InstanceId, command.CommandId, index),
-                ChildDefinitionId = command.ChildDefinitionId,
-                ChildDefinitionVersion = command.ChildDefinitionVersion,
-                ItemSnapshot = itemSnapshot
-            })
-            .ToArray();
-        var maxConcurrency = Math.Min(command.MaxConcurrency ?? children.Length, children.Length);
-        var initialDispatchCount = Math.Min(maxConcurrency, children.Length);
-        return new DurableDecision([
-            new WorkflowChildrenScheduledEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                GroupId = groupId,
-                ChildDefinitionId = command.ChildDefinitionId,
-                ChildDefinitionVersion = command.ChildDefinitionVersion,
-                FailurePolicy = command.FailurePolicy,
-                JoinPolicy = command.JoinPolicy,
-                ResidualPolicy = command.ResidualPolicy,
-                TotalItemCount = children.Length,
-                InitialDispatchCount = initialDispatchCount,
-                NextDispatchIndex = initialDispatchCount,
-                MaxConcurrency = maxConcurrency,
-                Children = children
-            }
-        ]);
-    }
+    internal DurableDecision DecideRunChild(DurableRunChildCommand command) =>
+        DurableChildWorkflowCommandHandler.Handle(this, command);
 
-    internal DurableDecision DecideCompensateChildGroup(CompensateChildGroupCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal)
-        {
-            return DurableDecision.Empty;
-        }
+    internal DurableDecision DecideChildCompleted(DurableChildCompletedCommand command) =>
+        DurableChildWorkflowCommandHandler.Handle(this, command);
 
-        var compensation = childState.PlanChildGroupCompensation(
-            CreateChildWorkflowEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
-            command.GroupId,
-            command.CompensationDefinitionId,
-            command.CompensationDefinitionVersion);
-        return compensation is null ? DurableDecision.Empty : new DurableDecision([compensation]);
-    }
+    internal DurableDecision DecideRunChildren(DurableRunChildrenCommand command) =>
+        DurableChildWorkflowCommandHandler.Handle(this, command);
 
-    internal DurableDecision DecideStepFailed(DurableStepFailedCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal)
-        {
-            return DurableDecision.Empty;
-        }
-
-        return new DurableDecision([
-            .. ReleaseEvents(command.CommandId, command.InstanceId, command.RequestedAt),
-            new WorkflowStepFailedEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                StepPath = command.StepPath,
-                ErrorSummary = command.ErrorSummary
-            },
-            new WorkflowTerminalEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                Status = WorkflowStatus.Failed
-            }
-        ], null, true);
-    }
-
-    internal DurableDecision DecideWaitRegistered(DurableWaitRegisteredCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal)
-        {
-            return DurableDecision.Empty;
-        }
-
-        var decision = new DurableDecision([
-            new WorkflowWaitRegisteredEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                WaitId = command.WaitId,
-                EventName = command.EventName,
-                CorrelationId = command.CorrelationId,
-                Mode = command.Mode,
-                BranchId = command.BranchId
-            }
-        ]);
-
-        var matched = waitState.FindBufferedDelivery(command.EventName, command.CorrelationId, command.BranchId);
-        if (matched is null)
-        {
-            return new DurableDecision(
-                decision.Events,
-                null,
-                command.Mode == WaitMode.Cold);
-        }
-
-        return new DurableDecision(
-            [
-                .. decision.Events,
-                new WorkflowWaitMatchedEvent
-                {
-                    EventId = EventId.New(),
-                    InstanceId = command.InstanceId,
-                    CommandId = command.CommandId,
-                    CausationId = ToCausationId(command.CommandId),
-                    OccurredAt = command.RequestedAt,
-                    WaitId = command.WaitId,
-                    MatchedEventId = matched.EventId
-                }
-            ],
-            null,
-            false,
-            [new InboxWrite(matched.EventId, InboxRecordState.Applied)]);
-    }
+    internal DurableDecision DecideCompensateChildGroup(CompensateChildGroupCommand command) =>
+        DurableChildWorkflowCommandHandler.Handle(this, command);
 
     internal DurableDecision DecideResourcePoolAcquire(
         AcquireResourcePoolCommand command,
-        ResourcePoolAcquireResult acquireResult)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        ArgumentNullException.ThrowIfNull(acquireResult);
-        if (IsTerminal)
-        {
-            return DurableDecision.Empty;
-        }
-
-        var plan = resourcePoolState.PlanAcquire(
-            CreateResourcePoolEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
-            command.HolderKey,
-            command.Requirements,
-            command.ExpiresAt,
-            acquireResult);
-        return plan.Events.Count == 0
-            ? DurableDecision.Empty
-            : new DurableDecision(plan.Events, null, plan.EvictAfterCommit);
-    }
+        ResourcePoolAcquireResult acquireResult) =>
+        DurableResourcePoolCommandHandler.Handle(this, command, acquireResult);
 
     internal DurableDecision DecideRunExternalJob(
         RunExternalJobCommand command,
-        ResourcePoolAcquireResult? acquireResult)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal || externalJobState.Find(command.ExternalJobId) is not null)
-        {
-            return DurableDecision.Empty;
-        }
+        ResourcePoolAcquireResult? acquireResult) =>
+        DurableExternalJobCommandHandler.Handle(this, command, acquireResult);
 
-        if (acquireResult is { Status: ResourcePoolAcquireStatus.Rejected })
-        {
-            return DurableDecision.Empty;
-        }
+    internal DurableDecision DecideExternalJobCompleted(CompleteExternalJobCommand command) =>
+        DurableExternalJobCommandHandler.Handle(this, command);
 
-        var resourcePoolAcquirePlan = acquireResult is null
-            ? DurableResourcePoolAcquirePlan.Empty
-            : resourcePoolState.PlanAcquire(
-                CreateResourcePoolEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
-                command.ExternalJobId,
-                command.Requirements,
-                command.TimeoutAt,
-                acquireResult);
-        if (resourcePoolAcquirePlan.EvictAfterCommit)
-        {
-            return new DurableDecision(resourcePoolAcquirePlan.Events, null, true);
-        }
-
-        var waitId = WaitId.New();
-        TimerId? timeoutTimerId = command.TimeoutAt is null ? null : TimerId.New();
-        var events = new List<WorkflowEvent>(resourcePoolAcquirePlan.Events);
-
-        events.Add(new WorkflowExternalJobStartedEvent
-        {
-            EventId = EventId.New(),
-            InstanceId = command.InstanceId,
-            CommandId = command.CommandId,
-            CausationId = ToCausationId(command.CommandId),
-            OccurredAt = command.RequestedAt,
-            ParentInstanceId = ParentInstanceId,
-            RootInstanceId = RootInstanceId ?? InstanceId,
-            ExternalJobId = command.ExternalJobId,
-            Payload = [.. command.Payload],
-            WaitId = waitId,
-            TimeoutTimerId = timeoutTimerId,
-            TimeoutAt = command.TimeoutAt
-        });
-        events.Add(new WorkflowWaitRegisteredEvent
-        {
-            EventId = EventId.New(),
-            InstanceId = command.InstanceId,
-            CommandId = command.CommandId,
-            CausationId = ToCausationId(command.CommandId),
-            OccurredAt = command.RequestedAt,
-            ParentInstanceId = ParentInstanceId,
-            RootInstanceId = RootInstanceId ?? InstanceId,
-            WaitId = waitId,
-            EventName = "ExternalJobCompleted",
-            CorrelationId = new CorrelationId(command.ExternalJobId),
-            Mode = WaitMode.Cold
-        });
-
-        if (timeoutTimerId is { } timerId && command.TimeoutAt is { } timeoutAt)
-        {
-            events.Add(new WorkflowTimerScheduledEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                TimerId = timerId,
-                FireAt = timeoutAt,
-                WakeupName = $"ExternalJobTimeout:{command.ExternalJobId}"
-            });
-        }
-
-        return new DurableDecision(events, null, true);
-    }
-
-    internal DurableDecision DecideExternalJobCompleted(CompleteExternalJobCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        var job = externalJobState.Find(command.ExternalJobId);
-        if (IsTerminal || job is null)
-        {
-            return DurableDecision.Empty;
-        }
-
-        return new DurableDecision([
-            new WorkflowExternalJobCompletedEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                ExternalJobId = command.ExternalJobId,
-                CompletionEventId = command.CompletionEventId
-            },
-            .. ReleaseEvents(command.CommandId, command.InstanceId, command.RequestedAt, command.ExternalJobId),
-            new WorkflowWaitMatchedEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                WaitId = job.WaitId,
-                MatchedEventId = command.CompletionEventId
-            }
-        ]);
-    }
-
-    internal DurableDecision DecideExternalJobTimedOut(TimeoutExternalJobCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        var job = externalJobState.Find(command.ExternalJobId);
-        if (IsTerminal || job is null)
-        {
-            return DurableDecision.Empty;
-        }
-
-        return new DurableDecision([
-            new WorkflowExternalJobTimedOutEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                ExternalJobId = command.ExternalJobId
-            },
-            new WorkflowExternalJobStopRequestedEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                ExternalJobId = command.ExternalJobId
-            },
-            .. ReleaseEvents(command.CommandId, command.InstanceId, command.RequestedAt, command.ExternalJobId),
-            new WorkflowTerminalEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                Status = WorkflowStatus.Failed
-            }
-        ], null, true);
-    }
-
-    internal DurableDecision DecideCancel(CancelWorkflowCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal)
-        {
-            return DurableDecision.Empty;
-        }
-
-        var events = new List<WorkflowEvent>(externalJobState.CreateStopRequestedEvents(
-            CreateExternalJobEventContext(command.CommandId, command.InstanceId, command.RequestedAt)));
-
-        events.AddRange(ReleaseEvents(command.CommandId, command.InstanceId, command.RequestedAt));
-        events.Add(new WorkflowTerminalEvent
-        {
-            EventId = EventId.New(),
-            InstanceId = command.InstanceId,
-            CommandId = command.CommandId,
-            CausationId = ToCausationId(command.CommandId),
-            OccurredAt = command.RequestedAt,
-            ParentInstanceId = ParentInstanceId,
-            RootInstanceId = RootInstanceId ?? InstanceId,
-            Status = WorkflowStatus.Cancelled
-        });
-        return new DurableDecision(events, null, true);
-    }
-
-    internal DurableDecision DecideConsumeParentResumeToken(ConsumeParentResumeTokenCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        ArgumentException.ThrowIfNullOrWhiteSpace(command.GroupId);
-        var consumed = childState.PlanResumeTokenConsumption(
-            CreateChildWorkflowEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
-            command.GroupId,
-            command.ResumeTokenId);
-        return consumed is null ? DurableDecision.Empty : new DurableDecision([consumed]);
-    }
+    internal DurableDecision DecideExternalJobTimedOut(TimeoutExternalJobCommand command) =>
+        DurableExternalJobCommandHandler.Handle(this, command);
 
     internal DurableDecision DecideRecordSagaForwardActionCompleted(
-        RecordSagaForwardActionCompletedCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal || sagaState.HasForwardAction(command.ScopeId, command.ActionKey))
-        {
-            return DurableDecision.Empty;
-        }
+        RecordSagaForwardActionCompletedCommand command) =>
+        DurableSagaCommandHandler.Handle(this, command);
 
-        return new DurableDecision([
-            new SagaForwardActionCompletedEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                ScopeId = command.ScopeId,
-                ActionKey = command.ActionKey,
-                CompensationKey = command.CompensationKey
-            }
-        ]);
-    }
+    internal DurableDecision DecideRequestSagaCompensation(RequestSagaCompensationCommand command) =>
+        DurableSagaCommandHandler.Handle(this, command);
 
-    internal DurableDecision DecideRequestSagaCompensation(RequestSagaCompensationCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal || sagaState.HasRequestedCompensation(command.ScopeId))
-        {
-            return DurableDecision.Empty;
-        }
+    internal DurableDecision DecideSagaForwardActionTimedOut(SagaForwardActionTimedOutCommand command) =>
+        DurableSagaCommandHandler.Handle(this, command);
 
-        return new DurableDecision(sagaState.PlanCompensation(
-            CreateSagaEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
-            command.ScopeId,
-            command.Reason));
-    }
+    internal DurableDecision DecideCompleteSagaCompensation(CompleteSagaCompensationCommand command) =>
+        DurableSagaCommandHandler.Handle(this, command);
 
-    internal DurableDecision DecideSagaForwardActionTimedOut(SagaForwardActionTimedOutCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal)
-        {
-            return DurableDecision.Empty;
-        }
+    internal DurableDecision DecideFailSagaCompensation(FailSagaCompensationCommand command) =>
+        DurableSagaCommandHandler.Handle(this, command);
 
-        var events = new List<WorkflowEvent>
-        {
-            new SagaForwardActionTimedOutEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                ScopeId = command.ScopeId,
-                ActionKey = command.ActionKey,
-                CompensateScope = command.CompensateScope
-            }
-        };
-
-        if (command.CompensateScope && !sagaState.HasRequestedCompensation(command.ScopeId))
-        {
-            events.AddRange(sagaState.PlanCompensation(
-                CreateSagaEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
-                command.ScopeId,
-                "timeout"));
-        }
-
-        return new DurableDecision(events);
-    }
-
-    internal DurableDecision DecideCompleteSagaCompensation(CompleteSagaCompensationCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal)
-        {
-            return DurableDecision.Empty;
-        }
-
-        var events = new List<WorkflowEvent>
-        {
-            new SagaCompensationCompletedEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                ScopeId = command.ScopeId,
-                ActionKey = command.ActionKey
-            }
-        };
-
-        if (sagaState.AllCompensationsCompleteAfter(command.ScopeId, command.ActionKey))
-        {
-            events.Add(new WorkflowTerminalEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                Status = WorkflowStatus.Compensated
-            });
-        }
-
-        return new DurableDecision(events, null, events.Any(workflowEvent => workflowEvent is WorkflowTerminalEvent));
-    }
-
-    internal DurableDecision DecideFailSagaCompensation(FailSagaCompensationCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal)
-        {
-            return DurableDecision.Empty;
-        }
-
-        return new DurableDecision([
-            new SagaCompensationFailedEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                ScopeId = command.ScopeId,
-                ActionKey = command.ActionKey,
-                ErrorSummary = command.ErrorSummary
-            },
-            new WorkflowTerminalEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                Status = WorkflowStatus.CompensationFailed
-            }
-        ], null, true);
-    }
-
-    internal DurableDecision DecideRecordSagaManualRecovery(RecordSagaManualRecoveryCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (Status is not WorkflowStatus.CompensationFailed)
-        {
-            return DurableDecision.Empty;
-        }
-
-        return new DurableDecision([
-            new SagaManualRecoveryRecordedEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                ScopeId = command.ScopeId,
-                ActionKey = command.ActionKey,
-                OperatorId = command.OperatorId,
-                RecoveryAction = command.RecoveryAction,
-                Reason = command.Reason,
-                TargetStatus = command.TargetStatus
-            },
-            new WorkflowTerminalEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                ParentInstanceId = ParentInstanceId,
-                RootInstanceId = RootInstanceId ?? InstanceId,
-                Status = command.TargetStatus
-            }
-        ], null, true);
-    }
-
-    internal DurableDecision DecideWaitMatched(DurableWaitMatchedCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal || !waitState.HasWait(command.WaitId))
-        {
-            return DurableDecision.Empty;
-        }
-
-        return new DurableDecision([
-            new WorkflowWaitMatchedEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                WaitId = command.WaitId,
-                MatchedEventId = command.MatchedEventId
-            }
-        ]);
-    }
-
-    internal DurableDecision DecideTimerScheduled(ScheduleTimerCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal)
-        {
-            return DurableDecision.Empty;
-        }
-
-        return new DurableDecision([
-            new WorkflowTimerScheduledEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                TimerId = command.TimerId,
-                FireAt = command.FireAt,
-                WakeupName = command.WakeupName
-            }
-        ]);
-    }
-
-    internal DurableDecision DecideTimerFired(FireTimerCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        var timer = timerState.FindActive(command.TimerId);
-        if (IsTerminal || timer is null)
-        {
-            return DurableDecision.Empty;
-        }
-
-        if (Status == WorkflowStatus.Paused)
-        {
-            return new DurableDecision([
-                new WorkflowTimerBufferedEvent
-                {
-                    EventId = EventId.New(),
-                    InstanceId = command.InstanceId,
-                    CommandId = command.CommandId,
-                    CausationId = ToCausationId(command.CommandId),
-                    OccurredAt = command.RequestedAt,
-                    TimerId = command.TimerId,
-                    WakeupName = timer.WakeupName
-                }
-            ]);
-        }
-
-        return new DurableDecision([
-            new WorkflowTimerFiredEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                TimerId = command.TimerId
-            }
-        ]);
-    }
-
-    internal DurableDecision DecideDeliverEvent(DeliverEventCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal)
-        {
-            return DurableDecision.Empty;
-        }
-
-        if (Status == WorkflowStatus.Paused)
-        {
-            return new DurableDecision([
-                new WorkflowDeliveryBufferedEvent
-                {
-                    EventId = EventId.New(),
-                    InstanceId = command.InstanceId,
-                    CommandId = command.CommandId,
-                    CausationId = ToCausationId(command.CommandId),
-                    OccurredAt = command.RequestedAt,
-                    BufferedEventId = command.Envelope.EventId,
-                    EventName = command.Envelope.EventName,
-                    CorrelationId = command.Envelope.CorrelationId,
-                    BranchId = command.Envelope.BranchId
-                }
-            ]);
-        }
-
-        var wait = waitState.FindActiveWait(command.Envelope);
-        if (wait is null)
-        {
-            return new DurableDecision([
-                new WorkflowDeliveryBufferedEvent
-                {
-                    EventId = EventId.New(),
-                    InstanceId = command.InstanceId,
-                    CommandId = command.CommandId,
-                    CausationId = ToCausationId(command.CommandId),
-                    OccurredAt = command.RequestedAt,
-                    BufferedEventId = command.Envelope.EventId,
-                    EventName = command.Envelope.EventName,
-                    CorrelationId = command.Envelope.CorrelationId,
-                    BranchId = command.Envelope.BranchId
-                }
-            ]);
-        }
-
-        return new DurableDecision([
-            new WorkflowWaitMatchedEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                WaitId = wait.WaitId,
-                MatchedEventId = command.Envelope.EventId
-            }
-        ]);
-    }
-
-    internal DurableDecision DecidePause(DurablePauseCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal || Status is null or WorkflowStatus.Paused)
-        {
-            return DurableDecision.Empty;
-        }
-
-        return new DurableDecision([
-            new WorkflowPausedEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt
-            }
-        ]);
-    }
-
-    internal DurableDecision DecideResume(DurableResumeCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (Status != WorkflowStatus.Paused)
-        {
-            return DurableDecision.Empty;
-        }
-
-        var events = new List<WorkflowEvent>
-        {
-            new WorkflowResumedEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                BufferHandling = command.BufferedDeliveries.ToString()
-            }
-        };
-
-        events.AddRange(timerState.PlanBufferedReplay(
-            CreateTimerEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
-            command.BufferedDeliveries));
-
-        var replayPlan = waitState.PlanBufferedDeliveryReplay(
-            CreateWaitEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
-            command.BufferedDeliveries);
-        events.AddRange(replayPlan.Events);
-
-        return new DurableDecision(events, null, false, replayPlan.InboxWrites);
-    }
-
-    internal DurableDecision DecideComplete(DurableCompleteCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal)
-        {
-            return DurableDecision.Empty;
-        }
-
-        return new DurableDecision([
-            .. ReleaseEvents(command.CommandId, command.InstanceId, command.RequestedAt),
-            new WorkflowCompletedEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                OutcomeName = command.OutcomeName
-            },
-            new WorkflowTerminalEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                Status = WorkflowStatus.Completed
-            }
-        ], null, true);
-    }
-
-    internal DurableDecision DecideFail(DurableFailCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal)
-        {
-            return DurableDecision.Empty;
-        }
-
-        return new DurableDecision([
-            .. ReleaseEvents(command.CommandId, command.InstanceId, command.RequestedAt),
-            new WorkflowTerminalEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                Status = WorkflowStatus.Failed
-            }
-        ], null, true);
-    }
-
-    internal DurableDecision DecideTerminate(TerminateWorkflowCommand command)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        if (IsTerminal)
-        {
-            return DurableDecision.Empty;
-        }
-
-        return new DurableDecision([
-            .. ReleaseEvents(command.CommandId, command.InstanceId, command.RequestedAt),
-            new WorkflowTerminalEvent
-            {
-                EventId = EventId.New(),
-                InstanceId = command.InstanceId,
-                CommandId = command.CommandId,
-                CausationId = ToCausationId(command.CommandId),
-                OccurredAt = command.RequestedAt,
-                Status = WorkflowStatus.Terminated
-            }
-        ], null, true);
-    }
+    internal DurableDecision DecideRecordSagaManualRecovery(RecordSagaManualRecoveryCommand command) =>
+        DurableSagaCommandHandler.Handle(this, command);
 
     internal IReadOnlyList<ProjectionWrite> CreateProjectionWrites(IReadOnlyList<WorkflowEvent> events)
     {
@@ -1304,187 +402,17 @@ internal sealed class DurableWorkflowAggregate
             }];
     }
 
-    private bool IsTerminal =>
-        Status is WorkflowStatus.Completed
-            or WorkflowStatus.Failed
-            or WorkflowStatus.Cancelled
-            or WorkflowStatus.Terminated
-            or WorkflowStatus.Compensated
-            or WorkflowStatus.CompensationFailed;
-
     private void Apply(WorkflowEvent workflowEvent)
     {
-        ArgumentNullException.ThrowIfNull(workflowEvent);
-
-        if (InstanceId == default)
-        {
-            InstanceId = workflowEvent.InstanceId;
-        }
-
-        CreatedAt ??= workflowEvent.OccurredAt;
-        UpdatedAt = workflowEvent.OccurredAt;
-        StreamVersion = StreamVersion.Next();
-        switch (workflowEvent)
-        {
-            case WorkflowStartedEvent started:
-                ParentInstanceId = started.ParentInstanceId;
-                RootInstanceId = started.RootInstanceId ?? started.InstanceId;
-                DefinitionId = started.DefinitionId;
-                DefinitionVersion = started.DefinitionVersion;
-                Status = WorkflowStatus.Running;
-                break;
-            case WorkflowContinuedAsNewEvent continuedAsNew:
-                ContinueAsNewGeneration = continuedAsNew.Generation;
-                Status = WorkflowStatus.Running;
-                ErrorSummary = null;
-                OutcomeName = null;
-                timerState.Clear();
-                waitState.Clear();
-                childState.ClearActiveChildren();
-                resourcePoolState.Clear();
-                externalJobState.Clear();
-                break;
-            case WorkflowStepCompletedEvent stepCompleted:
-                LastStepPath = stepCompleted.StepPath;
-                if (Status is not WorkflowStatus.Waiting)
-                {
-                    Status = WorkflowStatus.Running;
-                }
-
-                break;
-            case WorkflowStepFailedEvent stepFailed:
-                LastStepPath = stepFailed.StepPath;
-                ErrorSummary = stepFailed.ErrorSummary;
-                Status = WorkflowStatus.Failed;
-                timerState.Clear();
-                waitState.Clear();
-                childState.ClearActiveChildren();
-                break;
-            case WorkflowWaitRegisteredEvent waitRegistered:
-                waitState.Apply(waitRegistered);
-                Status = WorkflowStatus.Waiting;
-                break;
-            case WorkflowWaitMatchedEvent waitMatched:
-                waitState.Apply(waitMatched);
-                Status = waitState.HasActiveWaits ? WorkflowStatus.Waiting : WorkflowStatus.Running;
-                break;
-            case WorkflowTimerScheduledEvent timerScheduled:
-                timerState.Apply(timerScheduled);
-                Status = WorkflowStatus.Waiting;
-                break;
-            case WorkflowTimerFiredEvent timerFired:
-                timerState.Apply(timerFired);
-                Status = !waitState.HasActiveWaits && !timerState.HasActiveTimers
-                    ? WorkflowStatus.Running
-                    : WorkflowStatus.Waiting;
-                break;
-            case WorkflowChildScheduledEvent childScheduled:
-                ApplyChildReplayEffects(childState.Apply(childScheduled));
-                Status = WorkflowStatus.Waiting;
-                break;
-            case WorkflowChildrenScheduledEvent childrenScheduled:
-                ApplyChildReplayEffects(childState.Apply(childrenScheduled));
-                Status = WorkflowStatus.Waiting;
-                break;
-            case WorkflowChildrenDispatchedEvent childrenDispatched:
-                ApplyChildReplayEffects(childState.Apply(childrenDispatched));
-                Status = WorkflowStatus.Waiting;
-                break;
-            case WorkflowChildCompletedEvent childCompleted:
-                ApplyChildReplayEffects(childState.Apply(childCompleted));
-                break;
-            case WorkflowChildCompensationScheduledEvent childCompensationScheduled:
-                childState.Apply(childCompensationScheduled);
-                break;
-            case WorkflowChildResidualIntentRecordedEvent residualIntent:
-                ApplyChildReplayEffects(childState.Apply(residualIntent));
-                break;
-            case WorkflowParentResumeTokenRecordedEvent parentResumeToken:
-                childState.Apply(parentResumeToken);
-                break;
-            case WorkflowParentResumeTokenConsumedEvent parentResumeTokenConsumed:
-                childState.Apply(parentResumeTokenConsumed);
-                break;
-            case WorkflowResourcePoolAcquiredEvent resourcePoolAcquired:
-                resourcePoolState.Apply(resourcePoolAcquired);
-                Status = WorkflowStatus.Running;
-                break;
-            case WorkflowResourcePoolQueuedEvent resourcePoolQueued:
-                ApplyResourcePoolReplayEffects(resourcePoolState.Apply(resourcePoolQueued));
-                Status = WorkflowStatus.Waiting;
-                break;
-            case WorkflowResourcePoolReleasedEvent resourcePoolReleased:
-                resourcePoolState.Apply(resourcePoolReleased);
-                break;
-            case WorkflowExternalJobStartedEvent externalJobStarted:
-                externalJobState.Apply(externalJobStarted);
-                break;
-            case WorkflowExternalJobCompletedEvent externalJobCompleted:
-                externalJobState.Apply(externalJobCompleted);
-                break;
-            case WorkflowExternalJobTimedOutEvent externalJobTimedOut:
-                externalJobState.Apply(externalJobTimedOut);
-                break;
-            case WorkflowExternalJobStopRequestedEvent:
-                break;
-            case SagaForwardActionCompletedEvent:
-            case SagaForwardActionTimedOutEvent:
-            case SagaCompensationRequestedEvent:
-            case SagaCompensationStartedEvent:
-            case SagaCompensationCompletedEvent:
-            case SagaCompensationFailedEvent:
-            case SagaManualRecoveryRecordedEvent:
-                sagaState.Apply(workflowEvent, UpdatedAt);
-                break;
-            case WorkflowTimerBufferedEvent timerBuffered:
-                timerState.Apply(timerBuffered);
-                Status = WorkflowStatus.Paused;
-                break;
-            case WorkflowPausedEvent:
-                Status = WorkflowStatus.Paused;
-                break;
-            case WorkflowResumedEvent:
-                Status = waitState.HasActiveWaits ? WorkflowStatus.Waiting : WorkflowStatus.Running;
-                break;
-            case WorkflowDeliveryBufferedEvent deliveryBuffered:
-                waitState.Apply(deliveryBuffered);
-                break;
-            case WorkflowDeliveryDiscardedEvent deliveryDiscarded:
-                waitState.Apply(deliveryDiscarded);
-                break;
-            case WorkflowCompletedEvent completed:
-                OutcomeName = completed.OutcomeName;
-                Status = WorkflowStatus.Completed;
-                timerState.Clear();
-                waitState.Clear();
-                childState.ClearActiveChildren();
-                resourcePoolState.Clear();
-                externalJobState.Clear();
-                break;
-            case WorkflowTerminalEvent terminal:
-                Status = terminal.Status;
-                if (IsTerminal)
-                {
-                    timerState.Clear();
-                    waitState.Clear();
-                    childState.ClearActiveChildren();
-                    resourcePoolState.Clear();
-                    externalJobState.Clear();
-                }
-
-                break;
-            default:
-                throw new InvalidOperationException(
-                    $"Workflow event '{workflowEvent.GetType().Name}' is not supported by durable aggregate replay.");
-        }
+        DurableWorkflowReplayApplier.Apply(this, workflowEvent);
     }
 
-    private static CausationId ToCausationId(CommandId commandId)
+    internal static CausationId ToCausationId(CommandId commandId)
     {
         return new CausationId(commandId.Value);
     }
 
-    private static DurableWaitEventContext CreateWaitEventContext(
+    internal static DurableWaitEventContext CreateWaitEventContext(
         CommandId commandId,
         InstanceId instanceId,
         DateTimeOffset requestedAt)
@@ -1492,7 +420,7 @@ internal sealed class DurableWorkflowAggregate
         return new DurableWaitEventContext(commandId, instanceId, requestedAt);
     }
 
-    private static DurableTimerEventContext CreateTimerEventContext(
+    internal static DurableTimerEventContext CreateTimerEventContext(
         CommandId commandId,
         InstanceId instanceId,
         DateTimeOffset requestedAt)
@@ -1500,7 +428,7 @@ internal sealed class DurableWorkflowAggregate
         return new DurableTimerEventContext(commandId, instanceId, requestedAt);
     }
 
-    private DurableExternalJobEventContext CreateExternalJobEventContext(
+    internal DurableExternalJobEventContext CreateExternalJobEventContext(
         CommandId commandId,
         InstanceId instanceId,
         DateTimeOffset requestedAt)
@@ -1513,7 +441,7 @@ internal sealed class DurableWorkflowAggregate
             RootInstanceId ?? InstanceId);
     }
 
-    private DurableResourcePoolEventContext CreateResourcePoolEventContext(
+    internal DurableResourcePoolEventContext CreateResourcePoolEventContext(
         CommandId commandId,
         InstanceId instanceId,
         DateTimeOffset requestedAt)
@@ -1526,7 +454,7 @@ internal sealed class DurableWorkflowAggregate
             RootInstanceId ?? InstanceId);
     }
 
-    private DurableChildWorkflowEventContext CreateChildWorkflowEventContext(
+    internal DurableChildWorkflowEventContext CreateChildWorkflowEventContext(
         CommandId commandId,
         InstanceId instanceId,
         DateTimeOffset requestedAt)
@@ -1539,7 +467,7 @@ internal sealed class DurableWorkflowAggregate
             RootInstanceId ?? InstanceId);
     }
 
-    private DurableSagaEventContext CreateSagaEventContext(
+    internal DurableSagaEventContext CreateSagaEventContext(
         CommandId commandId,
         InstanceId instanceId,
         DateTimeOffset requestedAt)
@@ -1552,7 +480,7 @@ internal sealed class DurableWorkflowAggregate
             RootInstanceId ?? InstanceId);
     }
 
-    private IReadOnlyList<WorkflowResourcePoolReleasedEvent> ReleaseEvents(
+    internal IReadOnlyList<WorkflowResourcePoolReleasedEvent> ReleaseEvents(
         CommandId commandId,
         InstanceId instanceId,
         DateTimeOffset occurredAt,
@@ -1561,6 +489,21 @@ internal sealed class DurableWorkflowAggregate
         return resourcePoolState.CreateReleaseEvents(
             CreateResourcePoolEventContext(commandId, instanceId, occurredAt),
             holderKey);
+    }
+
+    internal WorkflowRuntimeCheckpointState ToCheckpointRuntimeState()
+    {
+        return new WorkflowRuntimeCheckpointState
+        {
+            ActiveTimers = timerState.CreateCheckpointActiveTimers(),
+            ActiveWaits = waitState.CreateCheckpointActiveWaits(),
+            BufferedDeliveries = waitState.CreateCheckpointBufferedDeliveries(),
+            BufferedTimers = timerState.CreateCheckpointBufferedTimers(),
+            ActiveChildren = childState.CreateCheckpointActiveChildren(),
+            ActiveChildGroups = childState.CreateCheckpointActiveChildGroups(),
+            ActiveResourceTickets = resourcePoolState.CreateCheckpointActiveResourceTickets(),
+            ActiveExternalJobs = externalJobState.CreateCheckpointActiveExternalJobs()
+        };
     }
 
     private WorkflowInstanceSnapshot? ToInstanceSnapshot()
@@ -1582,6 +525,7 @@ internal sealed class DurableWorkflowAggregate
             DefinitionId = definitionId,
             DefinitionVersion = definitionVersion,
             Status = status,
+            StreamVersion = StreamVersion.Value,
             CreatedAt = createdAt,
             UpdatedAt = updatedAt,
             ErrorSummary = ErrorSummary,
@@ -1592,22 +536,7 @@ internal sealed class DurableWorkflowAggregate
         };
     }
 
-    private WorkflowRuntimeCheckpointState ToCheckpointRuntimeState()
-    {
-        return new WorkflowRuntimeCheckpointState
-        {
-            ActiveTimers = timerState.CreateCheckpointActiveTimers(),
-            ActiveWaits = waitState.CreateCheckpointActiveWaits(),
-            BufferedDeliveries = waitState.CreateCheckpointBufferedDeliveries(),
-            BufferedTimers = timerState.CreateCheckpointBufferedTimers(),
-            ActiveChildren = childState.CreateCheckpointActiveChildren(),
-            ActiveChildGroups = childState.CreateCheckpointActiveChildGroups(),
-            ActiveResourceTickets = resourcePoolState.CreateCheckpointActiveResourceTickets(),
-            ActiveExternalJobs = externalJobState.CreateCheckpointActiveExternalJobs()
-        };
-    }
-
-    private void ApplyChildReplayEffects(DurableChildReplayEffects effects)
+    internal void ApplyChildReplayEffects(DurableChildReplayEffects effects)
     {
         foreach (var wait in effects.WaitsToRegister)
         {
@@ -1622,7 +551,7 @@ internal sealed class DurableWorkflowAggregate
         ErrorSummary = effects.PropagatedFailureErrorSummary ?? ErrorSummary;
     }
 
-    private void ApplyResourcePoolReplayEffects(DurableResourcePoolReplayEffects effects)
+    internal void ApplyResourcePoolReplayEffects(DurableResourcePoolReplayEffects effects)
     {
         foreach (var wait in effects.WaitsToRegister)
         {
@@ -1630,248 +559,3 @@ internal sealed class DurableWorkflowAggregate
         }
     }
 }
-
-internal sealed record DurableDecision
-{
-    internal DurableDecision(
-        IReadOnlyList<WorkflowEvent> events,
-        CheckpointWrite? checkpoint = null,
-        bool evictAfterCommit = false,
-        IReadOnlyList<InboxWrite>? inboxOperations = null)
-    {
-        Events = events;
-        Checkpoint = checkpoint;
-        EvictAfterCommit = evictAfterCommit;
-        InboxOperations = inboxOperations ?? [];
-    }
-
-    internal IReadOnlyList<WorkflowEvent> Events { get; }
-
-    internal CheckpointWrite? Checkpoint { get; }
-
-    internal bool EvictAfterCommit { get; }
-
-    internal IReadOnlyList<InboxWrite> InboxOperations { get; }
-
-    internal static DurableDecision Empty { get; } = new([]);
-}
-
-internal sealed record DurableAggregateSnapshot(
-    InstanceId InstanceId,
-    DefinitionId? DefinitionId,
-    DefinitionVersion? DefinitionVersion,
-    InstanceId? ParentInstanceId,
-    InstanceId? RootInstanceId,
-    WorkflowStatus? Status,
-    DateTimeOffset? CreatedAt,
-    DateTimeOffset? UpdatedAt,
-    string? LastStepPath,
-    string? ErrorSummary,
-    string? OutcomeName,
-    int ContinueAsNewGeneration,
-    IReadOnlyList<DurableActiveTimer> ActiveTimers,
-    IReadOnlyList<DurableActiveWait> ActiveWaits,
-    IReadOnlyList<DurableBufferedDelivery> BufferedDeliveries,
-    IReadOnlyList<DurableBufferedTimer> BufferedTimers,
-    IReadOnlyList<DurableActiveChild> ActiveChildren,
-    IReadOnlyList<DurableActiveChildGroup> ActiveChildGroups,
-    IReadOnlyList<ResourcePoolTicket> ActiveResourceTickets,
-    IReadOnlyList<DurableActiveExternalJob> ActiveExternalJobs,
-    IReadOnlyList<DurableSagaForwardAction> CompletedSagaForwardActions,
-    IReadOnlyList<DurableSagaCompensationAction> SagaCompensationActions,
-    IReadOnlyList<DurableSagaRecoveryIntervention> SagaRecoveryInterventions,
-    IReadOnlyList<string> RequestedSagaCompensationScopes);
-
-internal sealed record DurableAggregateCheckpoint(
-    InstanceId InstanceId,
-    StreamVersion StreamVersion,
-    InstanceId? ParentInstanceId,
-    InstanceId? RootInstanceId,
-    DefinitionId? DefinitionId,
-    DefinitionVersion? DefinitionVersion,
-    WorkflowStatus? Status,
-    DateTimeOffset? CreatedAt,
-    DateTimeOffset? UpdatedAt,
-    string? LastStepPath,
-    string? ErrorSummary,
-    string? OutcomeName,
-    int ContinueAsNewGeneration,
-    IReadOnlyList<DurableActiveTimer> ActiveTimers,
-    IReadOnlyList<DurableActiveWait> ActiveWaits,
-    IReadOnlyList<DurableBufferedDelivery> BufferedDeliveries,
-    IReadOnlyList<DurableBufferedTimer> BufferedTimers,
-    IReadOnlyList<DurableActiveChild> ActiveChildren,
-    IReadOnlyList<DurableActiveChildGroup> ActiveChildGroups,
-    IReadOnlyList<ResourcePoolTicket> ActiveResourceTickets,
-    IReadOnlyList<DurableActiveExternalJob> ActiveExternalJobs,
-    string ContentType,
-    byte[] Payload);
-
-internal sealed record DurableActiveTimer(
-    TimerId TimerId,
-    DateTimeOffset FireAt,
-    string WakeupName,
-    DateTimeOffset RegisteredAt);
-
-internal sealed record DurableActiveWait(
-    WaitId WaitId,
-    string EventName,
-    CorrelationId CorrelationId,
-    DateTimeOffset RegisteredAt,
-    WaitMode Mode = WaitMode.Resident,
-    string? BranchId = null);
-
-internal sealed record DurableBufferedDelivery(
-    EventId EventId,
-    string EventName,
-    CorrelationId CorrelationId,
-    string? BranchId);
-
-internal sealed record DurableBufferedTimer(
-    TimerId TimerId,
-    string WakeupName,
-    DateTimeOffset BufferedAt);
-
-internal sealed record DurableActiveChild(
-    string GroupId,
-    InstanceId ChildInstanceId,
-    WaitId WaitId,
-    RunChildFailurePolicy FailurePolicy,
-    RunChildrenJoinPolicy JoinPolicy,
-    RunChildrenResidualPolicy ResidualPolicy,
-    string? ItemSnapshot);
-
-internal sealed record DurableActiveChildGroup(
-    string GroupId,
-    RunChildFailurePolicy FailurePolicy,
-    RunChildrenJoinPolicy JoinPolicy,
-    RunChildrenResidualPolicy ResidualPolicy,
-    int MaxConcurrency,
-    int NextDispatchIndex,
-    IReadOnlyList<WorkflowChildMaterialization> Children);
-
-internal sealed record DurableCompletedChild(
-    string GroupId,
-    InstanceId ChildInstanceId,
-    string? ItemSnapshot,
-    DateTimeOffset CompletedAt);
-
-internal sealed record DurableActiveExternalJob(
-    string ExternalJobId,
-    WaitId WaitId,
-    TimerId? TimeoutTimerId);
-
-internal sealed record DurableSagaForwardAction(
-    string ScopeId,
-    string ActionKey,
-    string CompensationKey,
-    DateTimeOffset CompletedAt);
-
-internal sealed record DurableSagaCompensationAction(
-    string ScopeId,
-    string ActionKey,
-    int Order,
-    DateTimeOffset StartedAt,
-    DateTimeOffset? CompletedAt,
-    DateTimeOffset? FailedAt,
-    string? ErrorSummary,
-    SagaCompensationActionStatus Status);
-
-internal sealed record DurableSagaRecoveryIntervention(
-    string ScopeId,
-    string ActionKey,
-    string OperatorId,
-    string RecoveryAction,
-    string? Reason,
-    DateTimeOffset RecordedAt,
-    WorkflowStatus TargetStatus);
-
-internal sealed record DurableStepCompletedCommand(
-    CommandId CommandId,
-    InstanceId InstanceId,
-    DateTimeOffset RequestedAt,
-    string StepPath,
-    string StateContentType,
-    byte[] StatePayload);
-
-internal sealed record DurableStepFailedCommand(
-    CommandId CommandId,
-    InstanceId InstanceId,
-    DateTimeOffset RequestedAt,
-    string StepPath,
-    string ErrorSummary);
-
-public sealed record DurableRunChildCommand(
-    CommandId CommandId,
-    InstanceId InstanceId,
-    DateTimeOffset RequestedAt,
-    InstanceId ChildInstanceId,
-    DefinitionId ChildDefinitionId,
-    DefinitionVersion ChildDefinitionVersion,
-    RunChildFailurePolicy FailurePolicy);
-
-public sealed record DurableChildCompletedCommand(
-    CommandId CommandId,
-    InstanceId InstanceId,
-    DateTimeOffset RequestedAt,
-    InstanceId ChildInstanceId,
-    WorkflowStatus ChildStatus,
-    string? ErrorSummary);
-
-public sealed record DurableRunChildrenCommand(
-    CommandId CommandId,
-    InstanceId InstanceId,
-    DateTimeOffset RequestedAt,
-    DefinitionId ChildDefinitionId,
-    DefinitionVersion ChildDefinitionVersion,
-    IReadOnlyList<string> ItemSnapshots,
-    RunChildFailurePolicy FailurePolicy,
-    int? MaxConcurrency = null,
-    RunChildrenJoinPolicy JoinPolicy = RunChildrenJoinPolicy.WhenAll,
-    RunChildrenResidualPolicy ResidualPolicy = RunChildrenResidualPolicy.CancelRemaining);
-
-internal sealed record DurableWaitRegisteredCommand(
-    CommandId CommandId,
-    InstanceId InstanceId,
-    DateTimeOffset RequestedAt,
-    WaitId WaitId,
-    string EventName,
-    CorrelationId CorrelationId,
-    WaitMode Mode = WaitMode.Resident,
-    string? BranchId = null);
-
-internal sealed record DurableWaitMatchedCommand(
-    CommandId CommandId,
-    InstanceId InstanceId,
-    DateTimeOffset RequestedAt,
-    WaitId WaitId,
-    EventId MatchedEventId);
-
-internal sealed record DurablePauseCommand(
-    CommandId CommandId,
-    InstanceId InstanceId,
-    DateTimeOffset RequestedAt);
-
-internal sealed record DurableResumeCommand(
-    CommandId CommandId,
-    InstanceId InstanceId,
-    DateTimeOffset RequestedAt,
-    ResumeBufferedDeliveries BufferedDeliveries = ResumeBufferedDeliveries.Replay);
-
-internal enum ResumeBufferedDeliveries
-{
-    Replay,
-    Discard
-}
-
-internal sealed record DurableCompleteCommand(
-    CommandId CommandId,
-    InstanceId InstanceId,
-    DateTimeOffset RequestedAt,
-    string? OutcomeName);
-
-internal sealed record DurableFailCommand(
-    CommandId CommandId,
-    InstanceId InstanceId,
-    DateTimeOffset RequestedAt,
-    string ErrorSummary);

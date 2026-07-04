@@ -108,6 +108,76 @@ public sealed partial class RepositoryGuardTests
     }
 
     [Fact]
+    public void ProductionSources_DoNotUseWallClockStatics()
+    {
+        var repoRoot = FindRepoRoot();
+        var bannedTokens = new[]
+        {
+            string.Concat("DateTimeOffset", ".UtcNow"),
+            string.Concat("DateTimeOffset", ".Now"),
+            string.Concat("DateTime", ".UtcNow"),
+            string.Concat("DateTime", ".Now")
+        };
+        var bannedCalls = Directory
+            .EnumerateFiles(Path.Combine(repoRoot, "v3-gpt", "src"), "*.cs", SearchOption.AllDirectories)
+            .Where(file => !IsBuildOutput(file))
+            .SelectMany(file => File.ReadLines(file).Select((line, index) => new
+            {
+                File = Path.GetRelativePath(repoRoot, file),
+                Line = index + 1,
+                Text = line.Trim()
+            }))
+            .Where(candidate => bannedTokens.Any(token => candidate.Text.Contains(token, StringComparison.Ordinal)))
+            .Select(candidate => $"{candidate.File}:{candidate.Line}: {candidate.Text}")
+            .ToArray();
+
+        bannedCalls.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void SqlServerProjectionQueries_DoNotFilterOrCountByMaterializingAllSnapshots()
+    {
+        var repoRoot = FindRepoRoot();
+        var source = File.ReadAllText(Path.Combine(
+            repoRoot,
+            "v3-gpt",
+            "src",
+            "OrcaCore.Providers.SqlServer",
+            "SqlServerWorkflowStore.Projections.cs"));
+
+        source.Should().Contain("SqlServerProjectionQueryBuilder.SummaryWhereClause");
+        source.Should().NotContain(".Where(snapshot => Matches(snapshot, query))");
+        source.Should().NotContain("var snapshots = await ListCoreAsync(query");
+    }
+
+    [Fact]
+    public void ProductionImplementationFiles_AboveThousandLines_HaveExplicitReviewWaiver()
+    {
+        var repoRoot = FindRepoRoot();
+        var waiverDocument = File.ReadAllText(Path.Combine(
+            repoRoot,
+            "docs",
+            "review",
+            "code-quality-remediation-summary-2026-07-04.md"));
+        var oversizedFiles = Directory
+            .EnumerateFiles(Path.Combine(repoRoot, "v3-gpt", "src"), "*.cs", SearchOption.AllDirectories)
+            .Where(file => !IsBuildOutput(file))
+            .Select(file => new
+            {
+                File = Path.GetRelativePath(repoRoot, file),
+                Lines = File.ReadLines(file).Count()
+            })
+            .Where(candidate => candidate.Lines > 1000)
+            .Where(candidate => !waiverDocument.Contains(
+                candidate.File.Replace('\\', '/'),
+                StringComparison.Ordinal))
+            .Select(candidate => $"{candidate.File}: {candidate.Lines} lines")
+            .ToArray();
+
+        oversizedFiles.Should().BeEmpty();
+    }
+
+    [Fact]
     public void PostgreSqlStringConstructors_ValidateConnectionStringBeforeCreatingDataSource()
     {
         var repoRoot = FindRepoRoot();

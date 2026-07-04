@@ -46,6 +46,36 @@ public sealed class OrcaCoreHostingServiceCollectionTests
 
     [Fact]
     [Trait("AC", "PR-040")]
+    public async Task AddOrcaCore_WiresRegisteredRuntimeObserverIntoDurableProcessor()
+    {
+        var services = new ServiceCollection();
+        var observer = new RecordingRuntimeObserver();
+        services.AddSingleton<IWorkflowRuntimeObserver>(observer);
+        services.AddOrcaCore();
+        using var provider = services.BuildServiceProvider();
+        var instanceId = InstanceIdValue(40);
+
+        await provider
+            .GetRequiredService<DurableCommandProcessor>()
+            .ProcessAsync(Start(instanceId), TestContext.Current.CancellationToken);
+
+        observer.Observations.Should().ContainSingle().Which.Should().BeEquivalentTo(
+            new
+            {
+                Kind = WorkflowRuntimeObservationKind.CommandCommitted,
+                InstanceId = instanceId,
+                Outcome = DurableCommandOutcome.Committed,
+                StreamVersion = new StreamVersion(1),
+                EventCount = 1,
+                CheckpointWritten = false,
+                Evicted = false,
+                InboxEventId = (EventId?)null,
+                Message = (string?)null
+            });
+    }
+
+    [Fact]
+    [Trait("AC", "PR-040")]
     public void AddOrcaCoreHostedServices_RegistersPumpTimerAndSweepServices()
     {
         var services = new ServiceCollection();
@@ -549,6 +579,20 @@ public sealed class OrcaCoreHostingServiceCollectionTests
         public TPayload Deserialize<TPayload>(SerializedPayload payload)
         {
             return inner.Deserialize<TPayload>(payload);
+        }
+    }
+
+    private sealed class RecordingRuntimeObserver : IWorkflowRuntimeObserver
+    {
+        internal List<WorkflowRuntimeObservation> Observations { get; } = [];
+
+        public ValueTask OnCommandCompletedAsync(
+            WorkflowRuntimeObservation observation,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Observations.Add(observation);
+            return ValueTask.CompletedTask;
         }
     }
 
