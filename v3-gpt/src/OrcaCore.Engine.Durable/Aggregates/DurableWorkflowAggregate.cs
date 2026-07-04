@@ -267,6 +267,9 @@ internal sealed class DurableWorkflowAggregate
     internal DurableDecision DecideStepFailed(DurableStepFailedCommand command) =>
         DurableLifecycleCommandHandler.Handle(this, command);
 
+    internal DurableDecision DecideYield(DurableYieldCommand command) =>
+        DurableLifecycleCommandHandler.Handle(this, command);
+
     internal DurableDecision DecideWaitRegistered(DurableWaitRegisteredCommand command) =>
         DurableWaitTimerCommandHandler.Handle(this, command);
 

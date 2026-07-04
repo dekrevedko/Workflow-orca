@@ -74,6 +74,29 @@ public sealed class DurableAggregateTests
     }
 
     [Fact]
+    [Trait("AC", "AC-519")]
+    public void DecideYield_WritesCheckpointWithoutCompletingStep()
+    {
+        var aggregate = DurableWorkflowAggregate.Rehydrate(null, [Started()]);
+        var command = new DurableYieldCommand(
+            CommandIdValue(2),
+            InstanceIdValue(1),
+            Timestamp(2),
+            "root/1",
+            "application/json",
+            [1, 2, 3]);
+
+        var decision = aggregate.DecideYield(command);
+
+        decision.Events.Should().BeEmpty();
+        decision.Checkpoint.Should().NotBeNull();
+        decision.Checkpoint!.StreamVersion.Should().Be(new StreamVersion(1));
+        decision.Checkpoint.LastStepPath.Should().Be("root/1");
+        decision.Checkpoint.ContentType.Should().Be("application/json");
+        decision.Checkpoint.Payload.Should().Equal(1, 2, 3);
+    }
+
+    [Fact]
     public void DecideStepFailed_EmitsFailedAndStopsFurtherDecisions()
     {
         var aggregate = DurableWorkflowAggregate.Rehydrate(null, [Started()]);

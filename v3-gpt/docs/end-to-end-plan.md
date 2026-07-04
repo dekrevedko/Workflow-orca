@@ -28,13 +28,16 @@ Observed current baseline:
 dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build --filter "FullyQualifiedName~OrcaCore.Integration.Tests.E2E"
 ```
 
-Result after Workstream 5's first DAG runner slice: 16 passed, 2 skipped, 0
+Result after Workstream 6's saga/yield slice: 18 passed, 0 skipped, 0
 failed.
 
-The skipped `E2E` scenarios identify real missing product surfaces:
+The original skipped `E2E` scenarios are now implemented:
 
-- `INT_E2E_008`: durable saga interpreter is not available yet.
-- `INT_E2E_015`: durable yield command path is not available yet.
+- `INT_E2E_008`: durable saga compensation survives restart on PostgreSQL.
+- `INT_E2E_011`: durable definition version binding survives deployment.
+- `INT_E2E_013`: durable DAG runner schedules children and management
+  reconstructs node status.
+- `INT_E2E_015`: durable yield persists progress across processor restart.
 
 The broader integration suite also contains deliberate skips for DAG/scheduler
 runner behavior, cron/scheduled-start simulation, and provider failure-injection
@@ -322,6 +325,16 @@ Exit criteria:
 Goal: close the remaining `E2E` skips that require restart-safe advanced runtime
 behavior.
 
+Implementation note:
+
+- `INT_E2E_008` now uses the durable saga command adapter against PostgreSQL to
+  prove compensation is restart-safe and idempotent.
+- `DurableYieldCommand` commits a checkpoint without appending a
+  `WorkflowStepCompletedEvent`, allowing a restarted processor to complete the
+  same logical step once.
+- `INT_E2E_015` now proves yield checkpoint recovery and exactly-once step
+  completion across PostgreSQL-backed processor restart.
+
 Tasks:
 
 1. Durable saga:
@@ -335,13 +348,13 @@ Tasks:
    - prevent duplicate side effects on retry;
    - expose progress in history/projections where required.
 3. Unskip and implement:
-   - `INT_E2E_008`;
-   - `INT_E2E_015`.
+   - `INT_E2E_008`; (Complete.)
+   - `INT_E2E_015`. (Complete.)
 
 Exit criteria:
 
 - Durable saga and yield scenarios pass through the same provider and host-level
-  harness as other e2e tests.
+  harness as other e2e tests. (Complete for the E2E gate.)
 
 ## Workstream 7: Failure Injection And Resilience E2E
 

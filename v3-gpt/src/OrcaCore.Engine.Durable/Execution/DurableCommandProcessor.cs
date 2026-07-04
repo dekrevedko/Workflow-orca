@@ -103,6 +103,18 @@ public sealed class DurableCommandProcessor
     }
 
     public Task<DurableCommandResult> ProcessAsync(
+        DurableYieldCommand command,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        return RunInLaneAsync(
+            command.InstanceId,
+            aggregate => aggregate.DecideYield(command),
+            cancellationToken,
+            commandType: nameof(DurableYieldCommand));
+    }
+
+    public Task<DurableCommandResult> ProcessAsync(
         DurableRunChildCommand command,
         CancellationToken cancellationToken)
     {

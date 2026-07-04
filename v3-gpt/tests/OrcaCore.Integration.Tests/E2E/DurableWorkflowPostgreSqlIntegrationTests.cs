@@ -4,6 +4,7 @@ using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Engine.Durable.Aggregates;
@@ -270,10 +271,79 @@ public sealed class DurableWorkflowPostgreSqlIntegrationTests(PostgreSqlOrcaFixt
     [Fact]
     [Trait(Traits.Scenario, "INT-E2E-008")]
     [Trait("AC", "AC-406")]
-    public async Task INT_E2E_008_SagaDurableE2E_BlockedUntilInterpreterExists()
+    public async Task INT_E2E_008_SagaDurableCompensationSurvivesRestartOnPostgreSql()
     {
-        await Task.CompletedTask;
-        Assert.Skip("Durable saga interpreter E2E not available yet.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        await using var store = await fixture.CreateStoreAsync();
+        var adapter = new DurableSagaCommandAdapter<E2ESagaState>(SagaDefinition());
+        var instanceId = IntegrationIds.Instance(1);
+        var beforeRestart = await fixture.CreateProcessorAsync(store);
+        await beforeRestart.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+        await beforeRestart.ProcessAsync(
+            adapter.ForwardActionCompleted(
+                IntegrationIds.Command(2),
+                instanceId,
+                IntegrationIds.Timestamp(2),
+                "root/actions/0"),
+            TestContext.Current.CancellationToken);
+        await beforeRestart.ProcessAsync(
+            adapter.ForwardActionCompleted(
+                IntegrationIds.Command(3),
+                instanceId,
+                IntegrationIds.Timestamp(3),
+                "root/actions/1"),
+            TestContext.Current.CancellationToken);
+        await beforeRestart.ProcessAsync(
+            adapter.RequestCompensation(
+                IntegrationIds.Command(4),
+                instanceId,
+                IntegrationIds.Timestamp(4),
+                "checkout",
+                "forward failed"),
+            TestContext.Current.CancellationToken);
+
+        var afterRestart = await fixture.CreateProcessorAsync(store);
+        await afterRestart.ProcessAsync(
+            adapter.RequestCompensation(
+                IntegrationIds.Command(5),
+                instanceId,
+                IntegrationIds.Timestamp(5),
+                "checkout",
+                "duplicate replay"),
+            TestContext.Current.CancellationToken);
+        await afterRestart.ProcessAsync(
+            adapter.CompensationCompleted(
+                IntegrationIds.Command(6),
+                instanceId,
+                IntegrationIds.Timestamp(6),
+                "root/actions/1/compensation"),
+            TestContext.Current.CancellationToken);
+        await afterRestart.ProcessAsync(
+            adapter.CompensationCompleted(
+                IntegrationIds.Command(7),
+                instanceId,
+                IntegrationIds.Timestamp(7),
+                "root/actions/0/compensation"),
+            TestContext.Current.CancellationToken);
+        var events = await store.LoadTailAsync(
+            new WorkflowStreamId(instanceId),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+        var audit = await fixture.CreateManagement(store)
+            .GetSagaAuditAsync(instanceId, TestContext.Current.CancellationToken);
+
+        events.OfType<SagaForwardActionCompletedEvent>()
+            .Select(workflowEvent => workflowEvent.ActionKey)
+            .Should().Equal("root/actions/0", "root/actions/1");
+        events.OfType<SagaCompensationStartedEvent>()
+            .Select(workflowEvent => workflowEvent.ActionKey)
+            .Should().Equal("root/actions/1/compensation", "root/actions/0/compensation");
+        events.OfType<SagaCompensationStartedEvent>().Should().HaveCount(2);
+        events.OfType<SagaCompensationCompletedEvent>().Should().HaveCount(2);
+        events.OfType<WorkflowTerminalEvent>().Should().ContainSingle()
+            .Which.Status.Should().Be(WorkflowStatus.Compensated);
+        audit.Scopes.Should().ContainSingle()
+            .Which.Outcome.Should().Be(WorkflowStatus.Compensated);
     }
 
     [Fact]
@@ -434,10 +504,67 @@ public sealed class DurableWorkflowPostgreSqlIntegrationTests(PostgreSqlOrcaFixt
     [Fact]
     [Trait(Traits.Scenario, "INT-E2E-015")]
     [Trait("AC", "AC-013")]
-    public async Task INT_E2E_015_YieldCrashRecovery_BlockedUntilDurableYieldExists()
+    public async Task INT_E2E_015_YieldCrashRecoveryOnPostgreSql()
     {
-        await Task.CompletedTask;
-        Assert.Skip("Durable yield command path not implemented yet.");
+        await fixture.ResetAsync(TestContext.Current.CancellationToken);
+        await using (var firstStore = await fixture.CreateStoreAsync())
+        {
+            var first = await fixture.CreateProcessorAsync(firstStore);
+            await first.ProcessAsync(IntegrationCommands.Start(), TestContext.Current.CancellationToken);
+            var yielded = await first.ProcessAsync(
+                new DurableYieldCommand(
+                    IntegrationIds.Command(2),
+                    IntegrationIds.Instance(1),
+                    IntegrationIds.Timestamp(2),
+                    "root/1",
+                    "application/json",
+                    [1]),
+                TestContext.Current.CancellationToken);
+            var checkpoint = await firstStore.LoadCheckpointAsync(
+                IntegrationIds.Instance(1),
+                TestContext.Current.CancellationToken);
+            var yieldedEvents = await firstStore.LoadTailAsync(
+                new WorkflowStreamId(IntegrationIds.Instance(1)),
+                StreamVersion.Empty,
+                TestContext.Current.CancellationToken);
+
+            yielded.Outcome.Should().Be(DurableCommandOutcome.Committed);
+            yielded.StreamVersion.Should().Be(new StreamVersion(1));
+            checkpoint.HasValue.Should().BeTrue();
+            checkpoint.Value.StreamVersion.Should().Be(new StreamVersion(1));
+            checkpoint.Value.Payload.Should().Equal(1);
+            yieldedEvents.OfType<WorkflowStepCompletedEvent>().Should().BeEmpty();
+        }
+
+        await using var restartedStore = await fixture.CreateStoreAsync();
+        var restarted = await fixture.CreateProcessorAsync(restartedStore);
+        await restarted.ProcessAsync(
+            new DurableStepCompletedCommand(
+                IntegrationIds.Command(3),
+                IntegrationIds.Instance(1),
+                IntegrationIds.Timestamp(3),
+                "root/1",
+                "application/json",
+                [2]),
+            TestContext.Current.CancellationToken);
+        await restarted.ProcessAsync(IntegrationCommands.Complete(1, 4), TestContext.Current.CancellationToken);
+        var finalCheckpoint = await restartedStore.LoadCheckpointAsync(
+            IntegrationIds.Instance(1),
+            TestContext.Current.CancellationToken);
+        var events = await restartedStore.LoadTailAsync(
+            new WorkflowStreamId(IntegrationIds.Instance(1)),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+        var snapshot = await fixture.CreateManagement(restartedStore)
+            .Instance(IntegrationIds.Instance(1))
+            .GetAsync(TestContext.Current.CancellationToken);
+
+        finalCheckpoint.HasValue.Should().BeTrue();
+        finalCheckpoint.Value.StreamVersion.Should().Be(new StreamVersion(2));
+        finalCheckpoint.Value.Payload.Should().Equal(2);
+        events.OfType<WorkflowStepCompletedEvent>().Should().ContainSingle()
+            .Which.StepPath.Should().Be("root/1");
+        snapshot.Status.Should().Be(WorkflowStatus.Completed);
     }
 
     [Fact]
@@ -543,6 +670,19 @@ public sealed class DurableWorkflowPostgreSqlIntegrationTests(PostgreSqlOrcaFixt
             .Build(definitionId, definitionVersion);
     }
 
+    private static SagaDefinition<E2ESagaState> SagaDefinition()
+    {
+        return new SagaBuilder<E2ESagaState>()
+            .Init<string>(_ => new E2ESagaState())
+            .CompensationScope("checkout", scope => scope
+                .Then<ReserveInventoryStep>()
+                .CompensateBy<ReleaseInventoryStep>()
+                .Then<AuthorizePaymentStep>()
+                .CompensateBy<RefundPaymentStep>())
+            .End()
+            .Build(IntegrationIds.Definition(1), DefinitionVersion.Initial);
+    }
+
     private static async Task SeedProjectionAsync(
         IWorkflowEventStore store,
         WorkflowInstanceSnapshot snapshot)
@@ -586,4 +726,46 @@ public sealed class DurableWorkflowPostgreSqlIntegrationTests(PostgreSqlOrcaFixt
     }
 
     private sealed record DeployState(string Value);
+
+    private sealed record E2ESagaState;
+
+    private sealed class ReserveInventoryStep : IStep<E2ESagaState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<E2ESagaState> context,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed class ReleaseInventoryStep : IStep<E2ESagaState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<E2ESagaState> context,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed class AuthorizePaymentStep : IStep<E2ESagaState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<E2ESagaState> context,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed class RefundPaymentStep : IStep<E2ESagaState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<E2ESagaState> context,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
 }

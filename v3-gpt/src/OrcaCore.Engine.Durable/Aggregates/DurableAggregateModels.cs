@@ -175,6 +175,14 @@ internal sealed record DurableStepFailedCommand(
     string StepPath,
     string ErrorSummary);
 
+public sealed record DurableYieldCommand(
+    CommandId CommandId,
+    InstanceId InstanceId,
+    DateTimeOffset RequestedAt,
+    string StepPath,
+    string StateContentType,
+    byte[] StatePayload);
+
 public sealed record DurableRunChildCommand(
     CommandId CommandId,
     InstanceId InstanceId,

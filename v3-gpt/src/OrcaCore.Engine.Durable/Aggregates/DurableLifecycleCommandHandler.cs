@@ -73,6 +73,38 @@ internal static class DurableLifecycleCommandHandler
             checkpoint);
     }
 
+    internal static DurableDecision Handle(DurableWorkflowAggregate aggregate, DurableYieldCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        ArgumentException.ThrowIfNullOrWhiteSpace(command.StepPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(command.StateContentType);
+        ArgumentNullException.ThrowIfNull(command.StatePayload);
+        if (aggregate.Status is null || aggregate.IsTerminal)
+        {
+            return DurableDecision.Empty;
+        }
+
+        return new DurableDecision(
+            [],
+            new CheckpointWrite(
+                command.InstanceId,
+                aggregate.StreamVersion,
+                command.StateContentType,
+                [.. command.StatePayload])
+            {
+                DefinitionId = aggregate.DefinitionId,
+                ParentInstanceId = aggregate.ParentInstanceId,
+                RootInstanceId = aggregate.RootInstanceId,
+                DefinitionVersion = aggregate.DefinitionVersion,
+                Status = WorkflowStatus.Running,
+                LastStepPath = command.StepPath,
+                ErrorSummary = null,
+                OutcomeName = null,
+                ContinueAsNewGeneration = aggregate.ContinueAsNewGeneration,
+                RuntimeState = aggregate.ToCheckpointRuntimeState()
+            });
+    }
+
     internal static DurableDecision Handle(DurableWorkflowAggregate aggregate, ContinueAsNewCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
