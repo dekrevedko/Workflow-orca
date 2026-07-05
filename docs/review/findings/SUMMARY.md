@@ -145,6 +145,14 @@ What remains open before a "ship" call: the bulk of the negative/edge scenario b
 - **[R11](R11-new-surfaces.md)** — new-surfaces audit (DAG runner, durable saga/yield, definition
   facade, telemetry observer). One P1 fixed (DAG re-drive idempotency); yield/saga/observer/registry
   clean.
+- **[R13](R13-samples.md)** — `samples/` examples audit. The dashboard was relocated under
+  `samples/` (resolving R12's §15.10 scope decision toward "reference sample"). Two P2 example
+  fixes applied (business failures used `WorkflowDefinitionException` → `OrcaCoreException`; the
+  ForEach fanout body taught item identity via a mutable counter that only works for synchronous
+  steps). Surfaced two open **API recommendations** — a ForEach per-item accessor and a
+  business-failure exception type — both would remove the fragile patterns the examples worked
+  around. The kubectl-shelling K8s sample is injection-safe. Examples build `-warnaserror` clean
+  and run end-to-end.
 - **[R12](R12-observability-dashboard.md)** — spec-15 `OB-*` observability + `OrcaCore.Dashboard`.
   **Two P1s open:** (1) `orca.instances.active` is a process-static command-side tally, not
   projection-backed, so it can't match `Statistics()` after restart/across hosts (OB-021/OB-080);
