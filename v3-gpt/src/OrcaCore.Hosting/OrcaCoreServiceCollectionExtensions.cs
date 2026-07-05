@@ -50,6 +50,7 @@ public static class OrcaCoreServiceCollectionExtensions
             provider.GetRequiredService<InMemoryWorkflowProvider>());
         services.TryAddSingleton<IResourcePoolStore>(provider =>
             provider.GetRequiredService<InMemoryResourcePoolStore>());
+        services.TryAddSingleton<OrcaCoreTelemetryInstruments>();
         services.TryAddSingleton<OrcaCoreTelemetryObserver>();
         services.TryAddSingleton<IWorkflowRuntimeObserver>(provider =>
             provider.GetRequiredService<OrcaCoreTelemetryObserver>());

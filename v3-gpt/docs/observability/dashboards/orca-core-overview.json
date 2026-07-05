@@ -1,0 +1,54 @@
+{
+  "title": "OrcaCore Overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "tags": ["orcacore", "observability"],
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Active workflows by status",
+      "targets": [
+        {
+          "expr": "sum by (orca_status, orca_definition_id) (orca_instances_active)"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Command throughput",
+      "targets": [
+        {
+          "expr": "sum by (orca_command_type, outcome) (rate(orca_commands_processed[5m]))"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Command latency p95",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, orca_command_type) (rate(orca_commands_duration_bucket[5m])))"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Outbox dispatch failures",
+      "targets": [
+        {
+          "expr": "sum by (orca_outbox_kind, result) (rate(orca_outbox_dispatched{result!=\"success\"}[5m]))"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Outbox dispatch latency p95",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, orca_outbox_kind, result) (rate(orca_outbox_dispatch_duration_bucket[5m])))"
+        }
+      ]
+    }
+  ]
+}

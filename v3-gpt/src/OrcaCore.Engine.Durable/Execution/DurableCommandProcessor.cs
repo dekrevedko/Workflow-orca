@@ -6,6 +6,7 @@ using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Aggregates;
+using OrcaCore.Engine.Durable.Diagnostics;
 
 namespace OrcaCore.Engine.Durable.Execution;
 
@@ -492,78 +493,91 @@ public sealed class DurableCommandProcessor
         string commandType)
     {
         var stopwatch = Stopwatch.StartNew();
-        using var activity = OrcaCoreDiagnostics.ActivitySource.StartActivity("orca.command.process");
-        activity?.SetTag("orca.command.type", commandType);
-        activity?.SetTag("orca.instance.id", instanceId.ToString());
+        using var activity = OrcaCoreDurableDiagnostics.ActivitySource.StartActivity("orca.command.process");
+        activity?.SetTag(OrcaCoreDiagnostics.CommandTypeKey, commandType);
+        activity?.SetTag(OrcaCoreDiagnostics.InstanceIdKey, instanceId.ToString());
 
-        var inboxState = await LoadInboxStateAsync(inboxEventId, cancellationToken).ConfigureAwait(false);
-        if (DurableInboxPreflight.TryCreateResult(inboxState) is { } preflightResult)
+        try
         {
+            var inboxState = await LoadInboxStateAsync(inboxEventId, cancellationToken).ConfigureAwait(false);
+            if (DurableInboxPreflight.TryCreateResult(inboxState) is { } preflightResult)
+            {
+                stopwatch.Stop();
+                activity?.SetTag(OrcaCoreDiagnostics.CommandOutcomeKey, preflightResult.Outcome.ToString());
+                return await ObserveCommandCompletedAsync(
+                    instanceId,
+                    preflightResult,
+                    eventCount: 0,
+                    checkpointWritten: false,
+                    inboxEventId,
+                    cancellationToken,
+                    commandType,
+                    definitionId: null,
+                    definitionVersion: null,
+                    status: null,
+                    stopwatch.Elapsed)
+                    .ConfigureAwait(false);
+            }
+
+            var aggregate = await aggregateLoader.LoadAsync(instanceId, cancellationToken).ConfigureAwait(false);
+            var decision = await decide(aggregate, cancellationToken).ConfigureAwait(false);
+
+            var result = await commitPipeline
+                .CommitAsync(instanceId, aggregate, decision, inboxEventId, cancellationToken)
+                .ConfigureAwait(false);
             stopwatch.Stop();
-            activity?.SetTag("outcome", preflightResult.Outcome.ToString());
+            activity?.SetTag(OrcaCoreDiagnostics.CommandOutcomeKey, result.Outcome.ToString());
+            activity?.SetTag("stream.version", result.StreamVersion.Value);
+            var aggregateSnapshot = aggregate.Snapshot;
+            var committedSnapshot = result.Outcome == DurableCommandOutcome.Committed
+                ? aggregate
+                    .CreateProjectionWrites(decision.Events)
+                    .Select(write => write.InstanceSnapshot)
+                    .FirstOrDefault(snapshot => snapshot is not null)
+                : null;
+            var observedDefinitionId = committedSnapshot?.DefinitionId ?? aggregateSnapshot.DefinitionId;
+            var observedDefinitionVersion = committedSnapshot?.DefinitionVersion ?? aggregateSnapshot.DefinitionVersion;
+            var observedStatus = committedSnapshot?.Status ?? aggregateSnapshot.Status;
+
+            if (observedDefinitionId is { } definitionId)
+            {
+                activity?.SetTag(OrcaCoreDiagnostics.DefinitionIdKey, definitionId.ToString());
+            }
+
+            if (observedDefinitionVersion is { } definitionVersion)
+            {
+                activity?.SetTag(OrcaCoreDiagnostics.DefinitionVersionKey, definitionVersion.ToString());
+            }
+
+            if (observedStatus is { } status)
+            {
+                activity?.SetTag(OrcaCoreDiagnostics.StatusKey, status.ToString());
+            }
+
             return await ObserveCommandCompletedAsync(
                 instanceId,
-                preflightResult,
-                eventCount: 0,
-                checkpointWritten: false,
+                result,
+                decision.Events.Count,
+                decision.Checkpoint is not null,
                 inboxEventId,
                 cancellationToken,
                 commandType,
-                definitionId: null,
-                definitionVersion: null,
-                status: null,
+                observedDefinitionId,
+                observedDefinitionVersion,
+                observedStatus,
                 stopwatch.Elapsed)
                 .ConfigureAwait(false);
         }
-
-        var aggregate = await aggregateLoader.LoadAsync(instanceId, cancellationToken).ConfigureAwait(false);
-        var decision = await decide(aggregate, cancellationToken).ConfigureAwait(false);
-
-        var result = await commitPipeline
-            .CommitAsync(instanceId, aggregate, decision, inboxEventId, cancellationToken)
-            .ConfigureAwait(false);
-        stopwatch.Stop();
-        activity?.SetTag("outcome", result.Outcome.ToString());
-        activity?.SetTag("stream.version", result.StreamVersion.Value);
-        var aggregateSnapshot = aggregate.Snapshot;
-        var committedSnapshot = result.Outcome == DurableCommandOutcome.Committed
-            ? aggregate
-                .CreateProjectionWrites(decision.Events)
-                .Select(write => write.InstanceSnapshot)
-                .FirstOrDefault(snapshot => snapshot is not null)
-            : null;
-        var observedDefinitionId = committedSnapshot?.DefinitionId ?? aggregateSnapshot.DefinitionId;
-        var observedDefinitionVersion = committedSnapshot?.DefinitionVersion ?? aggregateSnapshot.DefinitionVersion;
-        var observedStatus = committedSnapshot?.Status ?? aggregateSnapshot.Status;
-
-        if (observedDefinitionId is { } definitionId)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            activity?.SetTag("orca.definition.id", definitionId.ToString());
+            throw;
         }
-
-        if (observedDefinitionVersion is { } definitionVersion)
+        catch (Exception ex)
         {
-            activity?.SetTag("orca.definition.version", definitionVersion.ToString());
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            activity?.AddException(ex);
+            throw;
         }
-
-        if (observedStatus is { } status)
-        {
-            activity?.SetTag("orca.status", status.ToString());
-        }
-
-        return await ObserveCommandCompletedAsync(
-            instanceId,
-            result,
-            decision.Events.Count,
-            decision.Checkpoint is not null,
-            inboxEventId,
-            cancellationToken,
-            commandType,
-            observedDefinitionId,
-            observedDefinitionVersion,
-            observedStatus,
-            stopwatch.Elapsed)
-            .ConfigureAwait(false);
     }
 
     private async Task<DurableCommandResult> ObserveCommandCompletedAsync(

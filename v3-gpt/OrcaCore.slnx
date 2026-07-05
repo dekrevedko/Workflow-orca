@@ -2,10 +2,8 @@
   <Folder Name="/benchmarks/">
     <Project Path="benchmarks/OrcaCore.Benchmarks/OrcaCore.Benchmarks.csproj" />
   </Folder>
-  <Folder Name="/dashboard/">
-    <Project Path="dashboard/OrcaCore.Dashboard.csproj" />
-  </Folder>
   <Folder Name="/samples/">
+    <Project Path="samples/OrcaCore.Dashboard/OrcaCore.Dashboard.csproj" />
     <Project Path="samples/OrcaCore.SampleHost/OrcaCore.SampleHost.csproj" />
   </Folder>
   <Folder Name="/src/">

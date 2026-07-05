@@ -2,8 +2,10 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using AwesomeAssertions;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OrcaCore.Abstractions.Diagnostics;
 using OrcaCore.Abstractions.Durable;
@@ -11,10 +13,12 @@ using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Execution;
+using OrcaCore.Engine.Durable.Diagnostics;
 using OrcaCore.Engine.Durable.Management;
 using OrcaCore.Engine.Durable.Outbox;
 using OrcaCore.Hosting;
 using OrcaCore.Integration.Tests.Support;
+using OrcaCore.Providers.InMemory;
 using OrcaCore.TestSupport;
 using OrcaCore.TestSupport.Providers;
 
@@ -84,11 +88,12 @@ public sealed class ObservabilityIntegrationTests
         metrics.Measurements.Should().Contain(measurement =>
             measurement.Name == OrcaCoreMetrics.OutboxDispatchedName &&
             measurement.Value == 1 &&
+            HasTag(measurement.Tags, "orca.outbox.kind", "workflow.completed") &&
             HasTag(measurement.Tags, "result", "permanent"));
         logs.Records.Should().Contain(record =>
-            record.EventId == 1102 &&
+            record.EventId == 1103 &&
             record.Level == LogLevel.Error &&
-            HasProperty(record.Properties, "PermanentFailureCount", 1));
+            HasProperty(record.Properties, "orca.outbox.kind", "workflow.completed"));
     }
 
     [Fact]
@@ -119,7 +124,7 @@ public sealed class ObservabilityIntegrationTests
     {
         using var metrics = new MetricRecorder();
         using var logs = new RecordingLoggerProvider();
-        using var provider = BuildTelemetryProvider(logs);
+        using var provider = BuildTelemetryProvider(logs, enableOpenTelemetry: true);
         var definitionId = DefinitionId.New();
         var definitionVersion = DefinitionVersion.Initial;
         await provider.GetRequiredService<DurableCommandProcessor>()
@@ -134,7 +139,6 @@ public sealed class ObservabilityIntegrationTests
                 },
                 TestContext.Current.CancellationToken);
 
-        metrics.CollectObservableInstruments();
         var stats = await provider.GetRequiredService<DurableManagement>()
             .All()
             .StatisticsAsync(TestContext.Current.CancellationToken);
@@ -142,6 +146,25 @@ public sealed class ObservabilityIntegrationTests
             group.DefinitionId == definitionId &&
             group.DefinitionVersion == definitionVersion &&
             group.Status == WorkflowStatus.Running).Count;
+        var gaugeCollector = GetGaugeCollector(provider);
+
+        await gaugeCollector.StartAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            await WaitForMetricAsync(
+                metrics,
+                measurement =>
+                    measurement.Name == OrcaCoreMetrics.InstancesActiveName &&
+                    HasTag(measurement.Tags, "orca.definition.id", definitionId.ToString()) &&
+                    HasTag(measurement.Tags, "orca.definition.version", definitionVersion.ToString()) &&
+                    HasTag(measurement.Tags, "orca.status", WorkflowStatus.Running.ToString()),
+                TestContext.Current.CancellationToken);
+        }
+        finally
+        {
+            await gaugeCollector.StopAsync(CancellationToken.None);
+        }
+
         var metricCount = metrics.Measurements
             .Where(measurement =>
                 measurement.Name == OrcaCoreMetrics.InstancesActiveName &&
@@ -177,6 +200,7 @@ public sealed class ObservabilityIntegrationTests
         metrics.Measurements.Should().Contain(measurement =>
             measurement.Name == OrcaCoreMetrics.OutboxDispatchedName &&
             measurement.Value == 1 &&
+            HasTag(measurement.Tags, "orca.outbox.kind", "workflow.completed") &&
             HasTag(measurement.Tags, "result", "success"));
     }
 
@@ -198,9 +222,142 @@ public sealed class ObservabilityIntegrationTests
         }
     }
 
+    [Fact]
+    [Trait(Traits.Scenario, "INT-OB-008")]
+    [Trait(Traits.AcceptanceCriteria, "OB-070")]
+    public void INT_OB_008_HostingExtensionRegistersOpenTelemetryBridge()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["OrcaCore:OpenTelemetry:EnableConsoleExporter"] = "false",
+                ["OrcaCore:OpenTelemetry:TraceSamplingRatio"] = "1",
+                ["OrcaCore:OpenTelemetry:ServiceName"] = "orca-test-host"
+            })
+            .Build();
+        var services = new ServiceCollection();
+
+        services.AddOrcaCore();
+        services.AddOrcaCoreOpenTelemetry(configuration);
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IWorkflowRuntimeObserver>().Should().NotBeNull();
+        provider.GetServices<IHostedService>()
+            .Should()
+            .Contain(service => service.GetType().Name == "OrcaCoreTelemetryGaugeCollector");
+    }
+
+    [Fact]
+    [Trait(Traits.Scenario, "INT-OB-009")]
+    [Trait(Traits.AcceptanceCriteria, "OB-080")]
+    public async Task INT_OB_009_ActiveGauge_IsProjectionBackedWithoutCommandTally()
+    {
+        var store = new InMemoryWorkflowProvider();
+        var definitionId = DefinitionId.New();
+        var instanceId = InstanceId.New();
+        await store.ApplyAsync(
+            [
+                new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
+                {
+                    InstanceSnapshot = new WorkflowInstanceSnapshot
+                    {
+                        InstanceId = instanceId,
+                        DefinitionId = definitionId,
+                        DefinitionVersion = DefinitionVersion.Initial,
+                        Status = WorkflowStatus.Waiting,
+                        CreatedAt = IntegrationIds.Timestamp(1),
+                        UpdatedAt = IntegrationIds.Timestamp(2)
+                    }
+                }
+            ],
+            TestContext.Current.CancellationToken);
+        using var metrics = new MetricRecorder();
+        using var logs = new RecordingLoggerProvider();
+        using var provider = BuildTelemetryProvider(logs, workflowProvider: store, enableOpenTelemetry: true);
+        provider.GetRequiredService<IWorkflowRuntimeObserver>().Should().NotBeNull();
+        var gaugeCollector = GetGaugeCollector(provider);
+
+        await gaugeCollector.StartAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            await WaitForMetricAsync(
+                metrics,
+                measurement =>
+                    measurement.Name == OrcaCoreMetrics.InstancesActiveName &&
+                    measurement.Value == 1 &&
+                    HasTag(measurement.Tags, "orca.definition.id", definitionId.ToString()) &&
+                    HasTag(measurement.Tags, "orca.status", WorkflowStatus.Waiting.ToString()),
+                TestContext.Current.CancellationToken);
+        }
+        finally
+        {
+            await gaugeCollector.StopAsync(CancellationToken.None);
+        }
+
+        metrics.Measurements.Should().Contain(measurement =>
+            measurement.Name == OrcaCoreMetrics.InstancesActiveName &&
+            measurement.Value == 1 &&
+            HasTag(measurement.Tags, "orca.definition.id", definitionId.ToString()) &&
+            HasTag(measurement.Tags, "orca.status", WorkflowStatus.Waiting.ToString()));
+        metrics.Measurements.Should().NotContain(measurement =>
+            measurement.Name == OrcaCoreMetrics.CommandsProcessedName &&
+            HasTag(measurement.Tags, "orca.definition.id", definitionId.ToString()));
+    }
+
+    [Fact]
+    [Trait(Traits.Scenario, "INT-OB-010")]
+    [Trait(Traits.AcceptanceCriteria, "OB-050")]
+    public async Task INT_OB_010_OutboxSpansUseCatalogNamesAndAttributes()
+    {
+        using var activities = new ActivityRecorder();
+        using var logs = new RecordingLoggerProvider();
+        using var provider = BuildTelemetryProvider(logs, new FakeMessageDispatcher());
+        await provider.GetRequiredService<IWorkflowEventStore>()
+            .AppendAsync(
+                IntegrationCommands.OutboxOnlyBatch(
+                    101,
+                    new OutboxWrite(IntegrationIds.Outbox(101), "workflow.completed", [10])),
+                TestContext.Current.CancellationToken);
+
+        await provider.GetRequiredService<DurableOutboxPump>()
+            .PumpOnceAsync(10, TestContext.Current.CancellationToken);
+
+        activities.Records.Should().Contain(record =>
+            record.Name == "orca.outbox.pump_cycle" &&
+            record.Tags.ContainsKey("orca.outbox.max_count") &&
+            record.Tags.ContainsKey("orca.outbox.claimed_count"));
+        activities.Records.Should().Contain(record =>
+            record.Name == "orca.outbox.dispatch" &&
+            HasTag(record.Tags, "orca.outbox.kind", "workflow.completed") &&
+            HasTag(record.Tags, "result", "success"));
+    }
+
+    [Fact]
+    [Trait(Traits.Scenario, "INT-OB-011")]
+    [Trait(Traits.AcceptanceCriteria, "OB-072")]
+    public void INT_OB_011_DashboardIsReferenceSampleAndGrafanaArtifactExists()
+    {
+        var root = FindV3Root();
+
+        File.Exists(Path.Combine(root.FullName, "dashboard", "OrcaCore.Dashboard.csproj"))
+            .Should().BeFalse("OrcaCore should not ship a built-in dashboard app");
+        var sampleReadme = Path.Combine(root.FullName, "samples", "OrcaCore.Dashboard", "README.md");
+        File.Exists(sampleReadme).Should().BeTrue();
+        File.ReadAllText(sampleReadme).Should().Contain("not a built-in OrcaCore product dashboard");
+        File.Exists(Path.Combine(
+                root.FullName,
+                "docs",
+                "observability",
+                "dashboards",
+                "orca-core-overview.json"))
+            .Should().BeTrue();
+    }
+
     private static ServiceProvider BuildTelemetryProvider(
         RecordingLoggerProvider logs,
-        IMessageDispatcher? dispatcher = null)
+        IMessageDispatcher? dispatcher = null,
+        InMemoryWorkflowProvider? workflowProvider = null,
+        bool enableOpenTelemetry = false)
     {
         var services = new ServiceCollection();
         services.AddLogging(builder =>
@@ -209,13 +366,47 @@ public sealed class ObservabilityIntegrationTests
             builder.SetMinimumLevel(LogLevel.Debug);
             builder.AddProvider(logs);
         });
+        if (workflowProvider is not null)
+        {
+            services.AddSingleton(workflowProvider);
+        }
+
         services.AddOrcaCore();
+        if (enableOpenTelemetry)
+        {
+            services.AddOrcaCoreOpenTelemetry(options =>
+                options.GaugeCollectionInterval = TimeSpan.FromMilliseconds(50));
+        }
+
         if (dispatcher is not null)
         {
             services.Replace(ServiceDescriptor.Singleton<IMessageDispatcher>(dispatcher));
         }
 
         return services.BuildServiceProvider();
+    }
+
+    private static async Task WaitForMetricAsync(
+        MetricRecorder metrics,
+        Func<MetricMeasurement, bool> predicate,
+        CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            metrics.CollectObservableInstruments();
+            if (metrics.Measurements.Any(predicate))
+            {
+                return;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(50), cancellationToken);
+        }
+    }
+
+    private static IHostedService GetGaugeCollector(IServiceProvider provider)
+    {
+        return provider.GetServices<IHostedService>()
+            .Single(service => service.GetType().Name == "OrcaCoreTelemetryGaugeCollector");
     }
 
     private static DirectoryInfo FindV3Root()
@@ -243,7 +434,7 @@ public sealed class ObservabilityIntegrationTests
         {
             listener.InstrumentPublished = (instrument, meterListener) =>
             {
-                if (instrument.Meter.Name == OrcaCoreDiagnostics.SourceName)
+                if (OrcaCoreDiagnostics.MeterNames.Contains(instrument.Meter.Name))
                 {
                     meterListener.EnableMeasurementEvents(instrument);
                 }
@@ -287,7 +478,7 @@ public sealed class ObservabilityIntegrationTests
         {
             listener = new ActivityListener
             {
-                ShouldListenTo = source => source.Name == OrcaCoreDiagnostics.SourceName,
+                ShouldListenTo = source => OrcaCoreDiagnostics.ActivitySourceNames.Contains(source.Name),
                 Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
                     ActivitySamplingResult.AllDataAndRecorded,
                 ActivityStopped = activity => Records.Enqueue(new ActivityRecord(

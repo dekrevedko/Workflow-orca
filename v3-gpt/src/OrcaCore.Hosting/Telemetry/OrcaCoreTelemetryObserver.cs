@@ -1,13 +1,15 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using OrcaCore.Abstractions.Diagnostics;
+using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Engine.Durable.Outbox;
 
 namespace OrcaCore.Hosting.Telemetry;
 
 internal sealed class OrcaCoreTelemetryObserver(
-    ILogger<OrcaCoreTelemetryObserver> logger) : IWorkflowRuntimeObserver, IOutboxPumpObserver
+    ILogger<OrcaCoreTelemetryObserver> logger,
+    OrcaCoreTelemetryInstruments instruments) : IWorkflowRuntimeObserver, IOutboxPumpObserver
 {
     public ValueTask OnCommandCompletedAsync(
         WorkflowRuntimeObservation observation,
@@ -15,8 +17,7 @@ internal sealed class OrcaCoreTelemetryObserver(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        OrcaCoreMetrics.RecordCommandProcessed(
-            observation.InstanceId,
+        instruments.RecordCommandProcessed(
             observation.CommandType,
             observation.Outcome.ToString(),
             observation.DefinitionId,
@@ -36,16 +37,51 @@ internal sealed class OrcaCoreTelemetryObserver(
         return ValueTask.CompletedTask;
     }
 
+    public ValueTask OnDispatchCompletedAsync(
+        OutboxDispatchObservation observation,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var result = ToResultTag(observation.Result);
+        using var scope = logger.BeginScope(new Dictionary<string, object?>
+        {
+            [OrcaCoreDiagnostics.OutboxKindKey] = observation.Kind,
+            [OrcaCoreDiagnostics.OutboxRecordIdKey] = observation.OutboxRecordId.ToString(),
+            [OrcaCoreDiagnostics.OutboxResultKey] = result
+        });
+        instruments.RecordOutboxDispatch(
+            observation.Kind,
+            result,
+            observation.Duration);
+
+        if (observation.Result is DispatchResult.PermanentFailure)
+        {
+            OrcaCoreTelemetryLog.OutboxRecordPermanentFailure(
+                logger,
+                observation.Kind,
+                observation.OutboxRecordId.ToString(),
+                observation.Duration.TotalMilliseconds);
+        }
+
+        if (observation.Exception is not null)
+        {
+            OrcaCoreTelemetryLog.OutboxRecordDispatchException(
+                logger,
+                observation.Kind,
+                observation.OutboxRecordId.ToString(),
+                observation.Exception.GetType().Name,
+                observation.Exception.Message);
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
     public ValueTask OnPumpCompletedAsync(
         OutboxPumpObservation observation,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-
-        OrcaCoreMetrics.RecordOutboxDispatches(
-            observation.SuccessCount,
-            observation.RetryableFailureCount,
-            observation.PermanentFailureCount);
 
         OrcaCoreTelemetryLog.OutboxPumpCompleted(
             logger,
@@ -98,6 +134,17 @@ internal sealed class OrcaCoreTelemetryObserver(
 
         return scope;
     }
+
+    private static string ToResultTag(DispatchResult result)
+    {
+        return result switch
+        {
+            DispatchResult.Success => "success",
+            DispatchResult.RetryableFailure => "retryable",
+            DispatchResult.PermanentFailure => "permanent",
+            _ => throw new UnreachableException()
+        };
+    }
 }
 
 internal static partial class OrcaCoreTelemetryLog
@@ -135,4 +182,25 @@ internal static partial class OrcaCoreTelemetryLog
         ILogger logger,
         int permanentFailureCount,
         int dispatchAttemptCount);
+
+    [LoggerMessage(
+        EventId = 1103,
+        Level = LogLevel.Error,
+        Message = "Outbox record {OutboxRecordId} of kind {OutboxKind} was marked as a permanent failure after {DurationMs} ms.")]
+    internal static partial void OutboxRecordPermanentFailure(
+        ILogger logger,
+        string outboxKind,
+        string outboxRecordId,
+        double durationMs);
+
+    [LoggerMessage(
+        EventId = 1104,
+        Level = LogLevel.Error,
+        Message = "Outbox record {OutboxRecordId} of kind {OutboxKind} threw {ExceptionType}: {ExceptionMessage}")]
+    internal static partial void OutboxRecordDispatchException(
+        ILogger logger,
+        string outboxKind,
+        string outboxRecordId,
+        string exceptionType,
+        string exceptionMessage);
 }

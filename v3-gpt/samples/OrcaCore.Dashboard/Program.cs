@@ -1,12 +1,8 @@
 using System.Text.Json.Serialization;
-using OpenTelemetry.Metrics;
-using OpenTelemetry.Trace;
-using OrcaCore.Abstractions.Diagnostics;
 using OrcaCore.Dashboard.Components;
 using OrcaCore.Dashboard.Telemetry;
 using OrcaCore.Dashboard.Workflows;
 using OrcaCore.Hosting;
-using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
 var timeProvider = TimeProvider.System;
@@ -30,16 +26,13 @@ builder.Services.AddHealthChecks();
 
 builder.Services
     .AddOrcaCore()
+    .AddOrcaCoreOpenTelemetry(builder.Configuration)
     .AddOrcaCoreHostedServices(options =>
     {
         options.OutboxPumpInterval = TimeSpan.FromSeconds(2);
         options.TimerSweepInterval = TimeSpan.FromSeconds(2);
         options.OperationalSweepInterval = TimeSpan.FromSeconds(15);
     });
-
-builder.Services.AddOpenTelemetry()
-    .WithMetrics(metrics => metrics.AddMeter(OrcaCoreDiagnostics.SourceName))
-    .WithTracing(tracing => tracing.AddSource(OrcaCoreDiagnostics.SourceName));
 
 var app = builder.Build();
 
@@ -48,14 +41,13 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
-app.UseHttpMetrics();
 app.UseAntiforgery();
 
 app.MapHealthChecks("/health/ready");
 app.MapGet(
     "/health/live",
     () => Results.Ok(new { status = "Healthy", checkedAt = timeProvider.GetUtcNow() }));
-app.MapMetrics("/metrics");
+app.MapPrometheusScrapingEndpoint("/metrics");
 app.MapGet(
     "/api/dashboard/snapshot",
     async (DashboardReadModel readModel, CancellationToken cancellationToken) =>

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\OrcaCore.Hosting\OrcaCore.Hosting.csproj" />
+    <ProjectReference Include="..\..\src\OrcaCore.Abstractions\OrcaCore.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\OrcaCore.Engine.Durable\OrcaCore.Engine.Durable.csproj" />
+  </ItemGroup>
+
+</Project>

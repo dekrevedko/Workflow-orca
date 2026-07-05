@@ -30,7 +30,7 @@ public sealed class DashboardTelemetryStore : ILoggerProvider, IDisposable
         this.timeProvider = timeProvider;
         activityListener = new ActivityListener
         {
-            ShouldListenTo = source => source.Name == OrcaCoreDiagnostics.SourceName,
+            ShouldListenTo = source => OrcaCoreDiagnostics.ActivitySourceNames.Contains(source.Name),
             Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
                 ActivitySamplingResult.AllDataAndRecorded,
             ActivityStopped = RecordSpan
@@ -42,7 +42,7 @@ public sealed class DashboardTelemetryStore : ILoggerProvider, IDisposable
     {
         meterListener.InstrumentPublished = (instrument, listener) =>
         {
-            if (instrument.Meter.Name == OrcaCoreDiagnostics.SourceName)
+            if (OrcaCoreDiagnostics.MeterNames.Contains(instrument.Meter.Name))
             {
                 listener.EnableMeasurementEvents(instrument);
             }
