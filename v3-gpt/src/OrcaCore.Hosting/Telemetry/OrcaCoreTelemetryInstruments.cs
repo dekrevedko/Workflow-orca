@@ -11,15 +11,10 @@ namespace OrcaCore.Hosting.Telemetry;
 
 internal sealed class OrcaCoreTelemetryInstruments
 {
-    private Measurement<long>[] activeInstanceMeasurements = [];
-    private Measurement<long>[] stuckInstanceMeasurements = [];
-    private Measurement<long>[] activeWaitMeasurements = [];
-    private Measurement<long>[] outboxStateMeasurements = [];
-    private Measurement<long>[] streamEventMeasurements = [];
-    private Measurement<long>[] checkpointCountMeasurements = [];
-    private Measurement<long>[] checkpointLagMeasurements = [];
-    private Measurement<long>[] resourcePoolWaiterMeasurements = [];
-    private Measurement<long>[] resourcePoolTicketMeasurements = [];
+    // All fleet gauges are published as one immutable snapshot written with a single atomic
+    // reference swap, so a metric scrape never observes a partially-updated set (e.g. new waiters
+    // with stale tickets).
+    private FleetGaugeSnapshot fleetGauges = FleetGaugeSnapshot.Empty;
 
     private readonly Counter<long> commandsProcessed =
         OrcaCoreDurableDiagnostics.Meter.CreateCounter<long>(OrcaCoreMetrics.CommandsProcessedName);
@@ -69,31 +64,31 @@ internal sealed class OrcaCoreTelemetryInstruments
         [
             OrcaCoreDurableDiagnostics.Meter.CreateObservableGauge<long>(
                 OrcaCoreMetrics.InstancesActiveName,
-                () => Volatile.Read(ref activeInstanceMeasurements)),
+                () => Volatile.Read(ref fleetGauges).ActiveInstances),
             OrcaCoreDurableDiagnostics.Meter.CreateObservableGauge<long>(
                 OrcaCoreMetrics.InstancesStuckName,
-                () => Volatile.Read(ref stuckInstanceMeasurements)),
+                () => Volatile.Read(ref fleetGauges).StuckInstances),
             OrcaCoreDurableDiagnostics.Meter.CreateObservableGauge<long>(
                 OrcaCoreMetrics.WaitsActiveName,
-                () => Volatile.Read(ref activeWaitMeasurements)),
+                () => Volatile.Read(ref fleetGauges).ActiveWaits),
             OrcaCoreDurableDiagnostics.Meter.CreateObservableGauge<long>(
                 OrcaCoreMetrics.OutboxPendingName,
-                () => Volatile.Read(ref outboxStateMeasurements)),
+                () => Volatile.Read(ref fleetGauges).OutboxStates),
             OrcaCoreDurableDiagnostics.Meter.CreateObservableGauge<long>(
                 OrcaCoreMetrics.StreamEventsName,
-                () => Volatile.Read(ref streamEventMeasurements)),
+                () => Volatile.Read(ref fleetGauges).StreamEvents),
             OrcaCoreDurableDiagnostics.Meter.CreateObservableGauge<long>(
                 OrcaCoreMetrics.CheckpointsCountName,
-                () => Volatile.Read(ref checkpointCountMeasurements)),
+                () => Volatile.Read(ref fleetGauges).CheckpointCounts),
             OrcaCoreDurableDiagnostics.Meter.CreateObservableGauge<long>(
                 OrcaCoreMetrics.CheckpointsLagName,
-                () => Volatile.Read(ref checkpointLagMeasurements)),
+                () => Volatile.Read(ref fleetGauges).CheckpointLag),
             OrcaCoreDurableDiagnostics.Meter.CreateObservableGauge<long>(
                 OrcaCoreMetrics.ResourcePoolWaitersName,
-                () => Volatile.Read(ref resourcePoolWaiterMeasurements)),
+                () => Volatile.Read(ref fleetGauges).ResourcePoolWaiters),
             OrcaCoreDurableDiagnostics.Meter.CreateObservableGauge<long>(
                 OrcaCoreMetrics.ResourcePoolTicketsName,
-                () => Volatile.Read(ref resourcePoolTicketMeasurements))
+                () => Volatile.Read(ref fleetGauges).ResourcePoolTickets)
         ];
     }
 
@@ -192,15 +187,33 @@ internal sealed class OrcaCoreTelemetryInstruments
         ArgumentNullException.ThrowIfNull(resourcePools);
         ArgumentException.ThrowIfNullOrWhiteSpace(providerName);
 
-        Volatile.Write(ref activeInstanceMeasurements, ActiveInstanceMeasurements(statistics));
-        Volatile.Write(ref stuckInstanceMeasurements, StuckInstanceMeasurements(instances));
-        Volatile.Write(ref activeWaitMeasurements, ActiveWaitMeasurements(instances));
-        Volatile.Write(ref outboxStateMeasurements, OutboxStateMeasurements(statistics));
-        Volatile.Write(ref streamEventMeasurements, ProviderGauge(providerName, statistics.Pressure.TotalStreamEvents));
-        Volatile.Write(ref checkpointCountMeasurements, ProviderGauge(providerName, statistics.Pressure.CheckpointCount));
-        Volatile.Write(ref checkpointLagMeasurements, ProviderGauge(providerName, statistics.Pressure.CheckpointLag));
-        Volatile.Write(ref resourcePoolWaiterMeasurements, ResourcePoolWaiterMeasurements(resourcePools));
-        Volatile.Write(ref resourcePoolTicketMeasurements, ResourcePoolTicketMeasurements(resourcePools));
+        Volatile.Write(
+            ref fleetGauges,
+            new FleetGaugeSnapshot(
+                ActiveInstanceMeasurements(statistics),
+                StuckInstanceMeasurements(instances),
+                ActiveWaitMeasurements(instances),
+                OutboxStateMeasurements(statistics),
+                ProviderGauge(providerName, statistics.Pressure.TotalStreamEvents),
+                ProviderGauge(providerName, statistics.Pressure.CheckpointCount),
+                ProviderGauge(providerName, statistics.Pressure.CheckpointLag),
+                ResourcePoolWaiterMeasurements(resourcePools),
+                ResourcePoolTicketMeasurements(resourcePools)));
+    }
+
+    private sealed record FleetGaugeSnapshot(
+        Measurement<long>[] ActiveInstances,
+        Measurement<long>[] StuckInstances,
+        Measurement<long>[] ActiveWaits,
+        Measurement<long>[] OutboxStates,
+        Measurement<long>[] StreamEvents,
+        Measurement<long>[] CheckpointCounts,
+        Measurement<long>[] CheckpointLag,
+        Measurement<long>[] ResourcePoolWaiters,
+        Measurement<long>[] ResourcePoolTickets)
+    {
+        internal static readonly FleetGaugeSnapshot Empty =
+            new([], [], [], [], [], [], [], [], []);
     }
 
     private static Measurement<long>[] ActiveInstanceMeasurements(WorkflowStatistics statistics)

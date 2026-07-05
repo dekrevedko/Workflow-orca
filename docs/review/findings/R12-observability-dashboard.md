@@ -8,6 +8,15 @@
 > `OrcaCore.Hosting/Telemetry/OrcaCoreTelemetryObserver.cs`, `Engine.Durable/Execution/DurableCommandProcessor.cs`
 > + `Outbox/DurableOutboxPump.cs` (spans), `v3-gpt/dashboard/**`.
 
+> **Addendum 2026-07-05:** a follow-up (the parallel observability work) added
+> `OrcaCoreTelemetryGaugeCollector` + `OrcaCoreTelemetryInstruments` (a projection-backed fleet
+> gauge collector), partially addressing findings P1/P2 below. While making its test suite
+> guard-compliant, one further defect was found and fixed: `UpdateFleetGauges` published its nine
+> gauges via nine sequential `Volatile.Write`s, so a scrape landing mid-update saw a partial
+> snapshot (new waiters, stale tickets). Fixed by publishing all fleet gauges as one immutable
+> `FleetGaugeSnapshot` swapped atomically. A wall-clock `Task.Delay` in the gauge test
+> (`WaitForMetricAsync`) was replaced with a yield-until-observed loop (repo guard compliance).
+
 ## Findings
 
 ### [P1] `orca.instances.active` gauge is a process-static command-side tally, not projection-backed — `v3-gpt/src/OrcaCore.Abstractions/Diagnostics/OrcaCoreMetrics.cs:19`

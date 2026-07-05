@@ -647,15 +647,20 @@ public sealed class ObservabilityIntegrationTests
         Func<MetricMeasurement, bool> predicate,
         CancellationToken cancellationToken)
     {
-        for (var attempt = 0; attempt < 20; attempt++)
+        // The gauge collector performs its first collection immediately on StartAsync (before its
+        // periodic timer), reading in-memory projections. Yield until that async collection surfaces
+        // the metric rather than sleeping on the wall clock; a genuine miss is bounded by the test's
+        // own cancellation timeout.
+        while (true)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             metrics.CollectObservableInstruments();
             if (metrics.Measurements.Any(predicate))
             {
                 return;
             }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(50), cancellationToken);
+            await Task.Yield();
         }
     }
 
