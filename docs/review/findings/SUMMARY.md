@@ -149,10 +149,11 @@ What remains open before a "ship" call: the bulk of the negative/edge scenario b
   `samples/` (resolving R12's §15.10 scope decision toward "reference sample"). Two P2 example
   fixes applied (business failures used `WorkflowDefinitionException` → `OrcaCoreException`; the
   ForEach fanout body taught item identity via a mutable counter that only works for synchronous
-  steps). Surfaced two open **API recommendations** — a ForEach per-item accessor and a
-  business-failure exception type — both would remove the fragile patterns the examples worked
-  around. The kubectl-shelling K8s sample is injection-safe. Examples build `-warnaserror` clean
-  and run end-to-end.
+  steps). Of the two API recommendations, the **ForEach per-item accessor is now implemented**
+  (`StepContext.ForEachItem` / `ForEachItemContext` — a stable index + typed `Item<T>()`/`Items<T>()`,
+  correct across interleaved suspension/resume; the example uses it). A **business-failure exception
+  type** remains an open recommendation. The kubectl-shelling K8s sample is injection-safe. Examples
+  build `-warnaserror` clean and run end-to-end.
 - **[R12](R12-observability-dashboard.md)** — spec-15 `OB-*` observability + `OrcaCore.Dashboard`.
   **Two P1s open:** (1) `orca.instances.active` is a process-static command-side tally, not
   projection-backed, so it can't match `Statistics()` after restart/across hosts (OB-021/OB-080);

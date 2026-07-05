@@ -476,12 +476,12 @@ public static class ExampleRunner
             StepContext<OrderState> context,
             CancellationToken cancellationToken)
         {
-            // NOTE: a ForEach body currently has no per-item accessor on StepContext, so this
-            // counts completed items rather than identifying "which item am I". That is safe only
-            // because this step is synchronous; a body that suspends (I/O) under maxConcurrency>1
-            // could interleave, so do not rely on a mutable counter to map back to a specific item.
+            // context.ForEachItem identifies the specific item this branch is processing. Its Index
+            // is stable and unique per item, so this is correct even when branches run concurrently
+            // and suspend on I/O — unlike a shared counter, which would misattribute items on resume.
+            var item = context.ForEachItem!.Item<string>();
             context.State.ProcessedItemCount++;
-            context.State.Log.Add("processed a fanout item");
+            context.State.Log.Add($"processed {item}");
 
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
         }

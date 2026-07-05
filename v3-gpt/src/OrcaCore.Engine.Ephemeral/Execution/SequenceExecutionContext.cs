@@ -1,4 +1,5 @@
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Definitions;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
@@ -44,6 +45,13 @@ internal sealed record SequenceExecutionContext<TState, TInput>
     internal DefinitionVersion DefinitionVersion { get; init; }
 
     internal BranchId? BranchId { get; init; }
+
+    /// <summary>
+    /// The ForEach work item this sequence is executing under, if any. Propagates to nested
+    /// sequences (If/While/Parallel inside a ForEach body) via <see cref="CreateNested"/>; a nested
+    /// ForEach overrides it with its own item.
+    /// </summary>
+    internal ForEachItemContext? ForEachItem { get; init; }
 
     internal ResumeEventSlot ResumeEvent { get; init; }
 

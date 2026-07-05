@@ -1,5 +1,6 @@
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
+using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Definitions;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
@@ -23,13 +24,16 @@ internal sealed class ForEachWorkScheduler<TState, TInput>(
 
     internal async Task DispatchAvailableAsync(CancellationToken dispatchToken)
     {
-        while (TryReserveNext(out var workItemIndex))
+        while (TryReserveNext(out var workItemIndex, out var partitionItems))
         {
             var itemContext = parentContext.CreateNested(
                 forEachNode.Body,
                 new BranchId(workItemIndex, $"item-{workItemIndex}"),
                 parentContext.ResumeEvent,
-                itemToken => ItemCompletedAsync(workItemIndex, itemToken));
+                itemToken => ItemCompletedAsync(workItemIndex, itemToken)) with
+            {
+                ForEachItem = new ForEachItemContext(workItemIndex, partitionItems)
+            };
             var completed = await sequenceExecution.RunSequenceAsync(
                 itemContext,
                 startIndex: 0,
@@ -60,7 +64,7 @@ internal sealed class ForEachWorkScheduler<TState, TInput>(
         }
     }
 
-    private bool TryReserveNext(out int workItemIndex)
+    private bool TryReserveNext(out int workItemIndex, out IReadOnlyList<object?> partitionItems)
     {
         lock (gate)
         {
@@ -71,10 +75,13 @@ internal sealed class ForEachWorkScheduler<TState, TInput>(
                     Interlocked.CompareExchange(ref continued, 0, 0) == 1))
             {
                 workItemIndex = -1;
+                partitionItems = [];
                 return false;
             }
 
-            workItemIndex = workItems[nextOrdinal].Index;
+            var reserved = workItems[nextOrdinal];
+            workItemIndex = reserved.Index;
+            partitionItems = reserved.Items;
             nextOrdinal++;
             activeCount++;
             parentContext.RunState.Instance.StartForEachWorkItem(

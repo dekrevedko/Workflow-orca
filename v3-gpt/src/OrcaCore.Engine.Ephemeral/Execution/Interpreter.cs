@@ -213,6 +213,7 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
             stepNode,
             nodeId,
             context.ResumeEvent.Take(),
+            context.ForEachItem,
             cancellationToken,
             deferStepFailures).ConfigureAwait(false);
 

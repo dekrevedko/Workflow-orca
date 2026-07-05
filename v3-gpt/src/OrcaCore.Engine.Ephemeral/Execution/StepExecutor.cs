@@ -31,6 +31,7 @@ internal sealed class StepExecutor<TState>
         BusinessStepNode<TState> stepNode,
         string stepPath,
         EventEnvelope? resumedEvent,
+        ForEachItemContext? forEachItem,
         CancellationToken cancellationToken,
         bool deferFailures)
     {
@@ -62,7 +63,7 @@ internal sealed class StepExecutor<TState>
             instance.StartStep(stepPath, stepStartedAt, stepNode.Policies.Timeout?.Duration);
             try
             {
-                var context = new StepContext<TState>(instance.State, resumedEvent, timeProvider);
+                var context = new StepContext<TState>(instance.State, resumedEvent, timeProvider, forEachItem);
                 var result = await step.ExecuteAsync(context, executionToken).ConfigureAwait(false);
                 instance.CompleteStep(stepPath, timeProvider.GetUtcNow());
                 RecordStuckStepIfNeeded(instance, stepPath, stepStartedAt);
