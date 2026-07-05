@@ -50,6 +50,29 @@ public abstract class ResourcePoolStoreCertificationTests
     }
 
     [Fact]
+    public async Task ListPoolsAsync_ReturnsAllPoolSnapshotsWithTicketsAndWaiters()
+    {
+        var store = CreateStore();
+        await store.UpsertPoolAsync(Pool("db", 1), TestContext.Current.CancellationToken);
+        await store.UpsertPoolAsync(Pool("cpu", 2), TestContext.Current.CancellationToken);
+        await store.AcquireAsync(Request(1, Requirement("db")), TestContext.Current.CancellationToken);
+        await store.AcquireAsync(Request(2, Requirement("db")), TestContext.Current.CancellationToken);
+
+        var snapshots = await store.ListPoolsAsync(TestContext.Current.CancellationToken);
+
+        snapshots.Select(pool => pool.Name).Should().BeEquivalentTo("db", "cpu");
+        var db = snapshots.Single(pool => pool.Name == "db");
+        db.Capacity.Should().Be(1);
+        db.AvailableCapacity.Should().Be(0);
+        db.HeldTickets.Should().ContainSingle()
+            .Which.HolderInstanceId.Should().Be(InstanceIdValue(1));
+        db.QueuedWaiters.Should().ContainSingle()
+            .Which.HolderInstanceId.Should().Be(InstanceIdValue(2));
+        snapshots.Single(pool => pool.Name == "cpu")
+            .AvailableCapacity.Should().Be(2);
+    }
+
+    [Fact]
     [Trait("AC", "AC-518")]
     [Trait("AC", "AC-519")]
     public async Task AcquireAsync_ConcurrentRequestsForLastSlot_GrantsOneAndQueuesOne()

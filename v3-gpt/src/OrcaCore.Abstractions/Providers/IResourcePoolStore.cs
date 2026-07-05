@@ -32,6 +32,14 @@ public interface IResourcePoolStore
     Task<Option<ResourcePoolSnapshot>> GetPoolAsync(string poolName, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Lists all pool snapshots visible to this store for telemetry and management summaries.
+    /// </summary>
+    Task<IReadOnlyList<ResourcePoolSnapshot>> ListPoolsAsync(CancellationToken cancellationToken)
+    {
+        return Task.FromResult<IReadOnlyList<ResourcePoolSnapshot>>([]);
+    }
+
+    /// <summary>
     /// Resizes a pool without revoking held tickets.
     /// </summary>
     Task ResizePoolAsync(string poolName, int capacity, CancellationToken cancellationToken);

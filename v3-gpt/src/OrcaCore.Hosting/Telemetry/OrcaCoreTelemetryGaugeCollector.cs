@@ -6,6 +6,7 @@ namespace OrcaCore.Hosting.Telemetry;
 
 internal sealed class OrcaCoreTelemetryGaugeCollector(
     IWorkflowProjectionStore projectionStore,
+    IResourcePoolStore resourcePoolStore,
     OrcaCoreTelemetryInstruments instruments,
     OrcaCoreOpenTelemetryOptions options,
     ILogger<OrcaCoreTelemetryGaugeCollector> logger) : BackgroundService
@@ -30,7 +31,17 @@ internal sealed class OrcaCoreTelemetryGaugeCollector(
             var statistics = await projectionStore
                 .GetStatisticsAsync(WorkflowProjectionQuery.All, cancellationToken)
                 .ConfigureAwait(false);
-            instruments.UpdateActiveInstances(statistics);
+            var instances = await projectionStore
+                .ListAsync(WorkflowProjectionQuery.All, cancellationToken)
+                .ConfigureAwait(false);
+            var resourcePools = await resourcePoolStore
+                .ListPoolsAsync(cancellationToken)
+                .ConfigureAwait(false);
+            instruments.UpdateFleetGauges(
+                statistics,
+                instances,
+                resourcePools,
+                ProviderName(projectionStore));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -44,5 +55,14 @@ internal sealed class OrcaCoreTelemetryGaugeCollector(
     private static TimeSpan NormalizeInterval(TimeSpan configured)
     {
         return configured > TimeSpan.Zero ? configured : TimeSpan.FromSeconds(15);
+    }
+
+    private static string ProviderName(object provider)
+    {
+        var name = provider.GetType().Name;
+        return name
+            .Replace("WorkflowProvider", string.Empty, StringComparison.Ordinal)
+            .Replace("WorkflowStore", string.Empty, StringComparison.Ordinal)
+            .Replace("ProjectionStore", string.Empty, StringComparison.Ordinal);
     }
 }

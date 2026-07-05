@@ -33,7 +33,34 @@ public sealed record WorkflowRuntimeObservation(
     DefinitionId? DefinitionId = null,
     DefinitionVersion? DefinitionVersion = null,
     WorkflowStatus? Status = null,
-    TimeSpan Duration = default);
+    TimeSpan Duration = default)
+{
+    public IReadOnlyList<WorkflowRuntimeEventObservation> Events { get; init; } = [];
+
+    public bool InboxDuplicate { get; init; }
+
+    public bool ProviderCommitAttempted { get; init; }
+
+    public string ProviderName { get; init; } = "unknown";
+
+    public string ProviderOperation { get; init; } = "append";
+
+    public TimeSpan ProviderCommitDuration { get; init; }
+}
+
+/// <summary>
+/// Describes a telemetry-safe durable event summary.
+/// </summary>
+public sealed record WorkflowRuntimeEventObservation(
+    string EventType,
+    DefinitionId? DefinitionId = null,
+    string? StepPath = null,
+    string? ErrorKind = null,
+    string? LifecycleEventName = null,
+    bool DurableLifecycle = true,
+    string? WaitEventName = null,
+    TimeSpan? WaitDuration = null,
+    TimeSpan? StepDuration = null);
 
 /// <summary>
 /// Categorizes durable runtime observations without requiring callers to parse command result text.

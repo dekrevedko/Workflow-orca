@@ -234,6 +234,42 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<ResourcePoolSnapshot>> ListPoolsAsync(CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        var pools = await LoadPoolDefinitionsAsync(connection, null, cancellationToken).ConfigureAwait(false);
+        var waiters = await LoadWaitersAsync(connection, null, cancellationToken).ConfigureAwait(false);
+        var snapshots = new List<ResourcePoolSnapshot>(pools.Count);
+
+        foreach (var definition in pools.Values.OrderBy(pool => pool.Name, StringComparer.Ordinal))
+        {
+            var tickets = await LoadTicketsAsync(connection, null, definition.Name, cancellationToken)
+                .ConfigureAwait(false);
+            var expiredTickets = await LoadExpiredTicketsAsync(connection, null, definition.Name, cancellationToken)
+                .ConfigureAwait(false);
+            var auditRecords = await LoadAuditRecordsAsync(connection, null, definition.Name, cancellationToken)
+                .ConfigureAwait(false);
+            var poolWaiters = waiters
+                .Where(waiter => waiter.Requirements.Any(requirement =>
+                    string.Equals(requirement.PoolName, definition.Name, StringComparison.Ordinal)))
+                .ToArray();
+
+            snapshots.Add(new ResourcePoolSnapshot(
+                definition.Name,
+                definition.Capacity,
+                Math.Max(0, definition.Capacity - tickets.Sum(ticket => ticket.Count)),
+                tickets,
+                poolWaiters)
+            {
+                ExpiredTickets = expiredTickets,
+                AuditRecords = auditRecords
+            });
+        }
+
+        return snapshots;
+    }
+
+    /// <inheritdoc />
     public async Task ResizePoolAsync(string poolName, int capacity, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(poolName);

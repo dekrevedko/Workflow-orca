@@ -177,12 +177,24 @@ internal sealed class SqlServerProjectionStore(string connectionString)
                 (select count(*) from dbo.orcacore_events) as stream_events,
                 (select count(*) from dbo.orcacore_checkpoints) as checkpoints,
                 (select count(*) from dbo.orcacore_outbox where state in (@pending, @retryable)) as pending_outbox,
+                (select count(*) from dbo.orcacore_outbox where state = @pending) as outbox_pending,
+                (select count(*) from dbo.orcacore_outbox where state = @retryable) as outbox_retryable,
+                (select count(*) from dbo.orcacore_outbox where state = @claimed) as outbox_claimed,
+                (select isnull(max(events.max_version - isnull(checkpoints.stream_version, 0)), 0)
+                    from (
+                        select stream_id, max(version) as max_version
+                        from dbo.orcacore_events
+                        group by stream_id
+                    ) events
+                    left join dbo.orcacore_checkpoints checkpoints on checkpoints.instance_id = events.stream_id)
+                    as checkpoint_lag,
                 (select count(*) from dbo.orcacore_instance_projections
                     where status in (@running, @waiting, @paused)) as active_instances;
             """,
             connection);
         command.Parameters.AddWithValue("@pending", OutboxRecordState.Pending.ToString());
         command.Parameters.AddWithValue("@retryable", OutboxRecordState.Retryable.ToString());
+        command.Parameters.AddWithValue("@claimed", OutboxRecordState.Claimed.ToString());
         command.Parameters.AddWithValue("@running", WorkflowStatus.Running.ToString());
         command.Parameters.AddWithValue("@waiting", WorkflowStatus.Waiting.ToString());
         command.Parameters.AddWithValue("@paused", WorkflowStatus.Paused.ToString());
@@ -198,7 +210,11 @@ internal sealed class SqlServerProjectionStore(string connectionString)
             TotalStreamEvents = Convert.ToInt64(reader.GetValue(0)),
             CheckpointCount = Convert.ToInt32(reader.GetValue(1)),
             PendingOutboxCount = Convert.ToInt32(reader.GetValue(2)),
-            ActiveInstanceCount = Convert.ToInt32(reader.GetValue(3))
+            OutboxPendingCount = Convert.ToInt32(reader.GetValue(3)),
+            OutboxRetryableCount = Convert.ToInt32(reader.GetValue(4)),
+            OutboxClaimedCount = Convert.ToInt32(reader.GetValue(5)),
+            CheckpointLag = Convert.ToInt64(reader.GetValue(6)),
+            ActiveInstanceCount = Convert.ToInt32(reader.GetValue(7))
         };
     }
 

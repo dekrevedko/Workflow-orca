@@ -24,6 +24,7 @@ internal sealed class OrcaCoreTelemetryObserver(
             observation.DefinitionVersion,
             observation.Status,
             observation.Duration);
+        instruments.RecordRuntimeSignals(observation);
 
         using var scope = logger.BeginScope(CreateCommandScope(observation));
         OrcaCoreTelemetryLog.CommandCompleted(

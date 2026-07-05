@@ -49,6 +49,120 @@
           "expr": "histogram_quantile(0.95, sum by (le, orca_outbox_kind, result) (rate(orca_outbox_dispatch_duration_bucket[5m])))"
         }
       ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Stuck workflows",
+      "targets": [
+        {
+          "expr": "sum by (orca_definition_id) (orca_instances_stuck)"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Active waits by event",
+      "targets": [
+        {
+          "expr": "sum by (orca_wait_event_name, orca_definition_id) (orca_waits_active)"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Outbox pressure by state",
+      "targets": [
+        {
+          "expr": "sum by (state) (orca_outbox_pending)"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Provider stream pressure",
+      "targets": [
+        {
+          "expr": "sum by (orca_provider_name) (orca_stream_events)"
+        },
+        {
+          "expr": "sum by (orca_provider_name) (orca_checkpoints_count)"
+        },
+        {
+          "expr": "sum by (orca_provider_name) (orca_checkpoints_lag)"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Resource pool pressure",
+      "targets": [
+        {
+          "expr": "sum by (pool_name) (orca_resource_pool_waiters)"
+        },
+        {
+          "expr": "sum by (pool_name) (orca_resource_pool_tickets)"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Workflow event rate",
+      "targets": [
+        {
+          "expr": "sum by (orca_event_type, orca_definition_id) (rate(orca_events_applied[5m]))"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Step outcomes",
+      "targets": [
+        {
+          "expr": "sum by (orca_step_path, orca_definition_id) (rate(orca_steps_completed[5m]))"
+        },
+        {
+          "expr": "sum by (orca_step_path, error_kind, orca_definition_id) (rate(orca_steps_failed[5m]))"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Step latency p95",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, orca_step_path, orca_definition_id) (rate(orca_steps_duration_bucket[5m])))"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Provider commit latency p95",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, orca_provider_name, operation) (rate(orca_provider_commit_duration_bucket[5m])))"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Wait latency p95",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, orca_wait_event_name, orca_definition_id) (rate(orca_waits_duration_bucket[5m])))"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Lifecycle and inbox issues",
+      "targets": [
+        {
+          "expr": "sum by (event_name, durable) (rate(orca_lifecycle_events[5m]))"
+        },
+        {
+          "expr": "sum by (orca_execution_mode) (rate(orca_inbox_duplicates[5m]))"
+        }
+      ]
     }
   ]
 }

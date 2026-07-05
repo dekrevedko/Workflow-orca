@@ -346,8 +346,21 @@ public sealed class InMemoryWorkflowProvider :
                 {
                     TotalStreamEvents = streams.Values.Sum(stream => (long)stream.Count),
                     CheckpointCount = checkpoints.Count,
+                    CheckpointLag = streams
+                        .Select(stream =>
+                        {
+                            var checkpointVersion = checkpoints.TryGetValue(stream.Key.InstanceId, out var checkpoint)
+                                ? checkpoint.StreamVersion.Value
+                                : 0;
+                            return Math.Max(0, stream.Value.Count - checkpointVersion);
+                        })
+                        .DefaultIfEmpty(0)
+                        .Max(),
                     PendingOutboxCount = outbox.Values.Count(record =>
                         record.State is OutboxRecordState.Pending or OutboxRecordState.Retryable),
+                    OutboxPendingCount = outbox.Values.Count(record => record.State is OutboxRecordState.Pending),
+                    OutboxRetryableCount = outbox.Values.Count(record => record.State is OutboxRecordState.Retryable),
+                    OutboxClaimedCount = outbox.Values.Count(record => record.State is OutboxRecordState.Claimed),
                     ActiveInstanceCount = summaries.Values.Count(snapshot =>
                         snapshot.Status is WorkflowStatus.Running or WorkflowStatus.Waiting or WorkflowStatus.Paused)
                 }

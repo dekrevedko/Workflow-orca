@@ -5,6 +5,7 @@ using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.Abstractions.Serialization;
 using OrcaCore.Engine.Durable.Aggregates;
 using OrcaCore.Engine.Durable.Diagnostics;
 
@@ -515,16 +516,29 @@ public sealed class DurableCommandProcessor
                     definitionId: null,
                     definitionVersion: null,
                     status: null,
-                    stopwatch.Elapsed)
+                    stopwatch.Elapsed,
+                    inboxDuplicate: IsInboxDuplicate(inboxState))
                     .ConfigureAwait(false);
             }
 
             var aggregate = await aggregateLoader.LoadAsync(instanceId, cancellationToken).ConfigureAwait(false);
+            var preDecisionSnapshot = aggregate.Snapshot;
+            var activeWaitsById = preDecisionSnapshot.ActiveWaits.ToDictionary(wait => wait.WaitId);
             var decision = await decide(aggregate, cancellationToken).ConfigureAwait(false);
 
-            var result = await commitPipeline
-                .CommitAsync(instanceId, aggregate, decision, inboxEventId, cancellationToken)
+            var providerCommitAttempted = HasProviderCommit(decision, inboxEventId);
+            var providerName = ProviderName(eventStore);
+            var providerCommitStopwatch = Stopwatch.StartNew();
+            var result = await CommitWithTelemetryAsync(
+                    instanceId,
+                    aggregate,
+                    decision,
+                    inboxEventId,
+                    providerCommitAttempted,
+                    providerName,
+                    cancellationToken)
                 .ConfigureAwait(false);
+            providerCommitStopwatch.Stop();
             stopwatch.Stop();
             activity?.SetTag(OrcaCoreDiagnostics.CommandOutcomeKey, result.Outcome.ToString());
             activity?.SetTag("stream.version", result.StreamVersion.Value);
@@ -554,6 +568,16 @@ public sealed class DurableCommandProcessor
                 activity?.SetTag(OrcaCoreDiagnostics.StatusKey, status.ToString());
             }
 
+            var eventObservations = result.Outcome is DurableCommandOutcome.Committed
+                ? CreateEventObservations(
+                    decision.Events,
+                    observedDefinitionId,
+                    activeWaitsById,
+                    stopwatch.Elapsed)
+                : [];
+            RecordEventSpans(eventObservations, instanceId);
+            RecordStepSpans(eventObservations, instanceId);
+
             return await ObserveCommandCompletedAsync(
                 instanceId,
                 result,
@@ -565,12 +589,60 @@ public sealed class DurableCommandProcessor
                 observedDefinitionId,
                 observedDefinitionVersion,
                 observedStatus,
-                stopwatch.Elapsed)
+                stopwatch.Elapsed,
+                eventObservations,
+                providerCommitAttempted,
+                providerName,
+                providerCommitStopwatch.Elapsed,
+                inboxDuplicate: false)
                 .ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
+        }
+        catch (Exception ex)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            activity?.AddException(ex);
+            throw;
+        }
+    }
+
+    private async Task<DurableCommandResult> CommitWithTelemetryAsync(
+        InstanceId instanceId,
+        DurableWorkflowAggregate aggregate,
+        DurableDecision decision,
+        EventId? inboxEventId,
+        bool providerCommitAttempted,
+        string providerName,
+        CancellationToken cancellationToken)
+    {
+        if (!providerCommitAttempted)
+        {
+            return await commitPipeline
+                .CommitAsync(instanceId, aggregate, decision, inboxEventId, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        using var activity = OrcaCoreDurableDiagnostics.ActivitySource.StartActivity("orca.provider.commit");
+        activity?.SetTag(OrcaCoreDiagnostics.ProviderNameKey, providerName);
+        activity?.SetTag(OrcaCoreDiagnostics.ProviderOperationKey, "append");
+        activity?.SetTag(OrcaCoreDiagnostics.InstanceIdKey, instanceId.ToString());
+
+        try
+        {
+            var result = await commitPipeline
+                .CommitAsync(instanceId, aggregate, decision, inboxEventId, cancellationToken)
+                .ConfigureAwait(false);
+            activity?.SetTag(OrcaCoreDiagnostics.CommandOutcomeKey, result.Outcome.ToString());
+            activity?.SetTag(OrcaCoreDiagnostics.StreamVersionKey, result.StreamVersion.Value);
+            if (result.Outcome is DurableCommandOutcome.Conflict)
+            {
+                activity?.SetStatus(ActivityStatusCode.Error, result.Message);
+            }
+
+            return result;
         }
         catch (Exception ex)
         {
@@ -591,7 +663,12 @@ public sealed class DurableCommandProcessor
         DefinitionId? definitionId,
         DefinitionVersion? definitionVersion,
         WorkflowStatus? status,
-        TimeSpan duration)
+        TimeSpan duration,
+        IReadOnlyList<WorkflowRuntimeEventObservation>? events = null,
+        bool providerCommitAttempted = false,
+        string providerName = "unknown",
+        TimeSpan providerCommitDuration = default,
+        bool inboxDuplicate = false)
     {
         try
         {
@@ -611,7 +688,14 @@ public sealed class DurableCommandProcessor
                         definitionId,
                         definitionVersion,
                         status,
-                        duration),
+                        duration)
+                    {
+                        Events = events ?? [],
+                        InboxDuplicate = inboxDuplicate,
+                        ProviderCommitAttempted = providerCommitAttempted,
+                        ProviderName = providerName,
+                        ProviderCommitDuration = providerCommitDuration
+                    },
                     cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -621,6 +705,139 @@ public sealed class DurableCommandProcessor
         }
 
         return result;
+    }
+
+    private static bool HasProviderCommit(DurableDecision decision, EventId? inboxEventId)
+    {
+        return decision.Events.Count > 0 || decision.Checkpoint is not null || inboxEventId is not null;
+    }
+
+    private static bool IsInboxDuplicate(Option<InboxRecordState> inboxState)
+    {
+        return inboxState.HasValue &&
+            inboxState.Value is InboxRecordState.Applied
+                or InboxRecordState.DuplicateIgnored
+                or InboxRecordState.DiscardedOnResume;
+    }
+
+    private static IReadOnlyList<WorkflowRuntimeEventObservation> CreateEventObservations(
+        IReadOnlyList<WorkflowEvent> events,
+        DefinitionId? definitionId,
+        IReadOnlyDictionary<WaitId, DurableActiveWait> activeWaitsById,
+        TimeSpan stepDuration)
+    {
+        return events
+            .Select(workflowEvent =>
+            {
+                var eventDefinitionId = workflowEvent is WorkflowStartedEvent started
+                    ? started.DefinitionId
+                    : definitionId;
+                var eventType = WorkflowEventCodec.ToEventType(workflowEvent);
+                return workflowEvent switch
+                {
+                    WorkflowStepCompletedEvent stepCompleted => new WorkflowRuntimeEventObservation(
+                        eventType,
+                        eventDefinitionId,
+                        StepPath: stepCompleted.StepPath,
+                        LifecycleEventName: "StepCompleted",
+                        StepDuration: stepDuration),
+                    WorkflowStepFailedEvent stepFailed => new WorkflowRuntimeEventObservation(
+                        eventType,
+                        eventDefinitionId,
+                        StepPath: stepFailed.StepPath,
+                        ErrorKind: nameof(WorkflowStepFailedEvent),
+                        LifecycleEventName: "StepFailed",
+                        StepDuration: stepDuration),
+                    WorkflowWaitMatchedEvent waitMatched => new WorkflowRuntimeEventObservation(
+                        eventType,
+                        eventDefinitionId,
+                        LifecycleEventName: "InstanceResumed",
+                        WaitEventName: activeWaitsById.TryGetValue(waitMatched.WaitId, out var wait)
+                            ? wait.EventName
+                            : null,
+                        WaitDuration: activeWaitsById.TryGetValue(waitMatched.WaitId, out wait)
+                            ? PositiveDuration(waitMatched.OccurredAt - wait.RegisteredAt)
+                            : null),
+                    _ => new WorkflowRuntimeEventObservation(
+                        eventType,
+                        eventDefinitionId,
+                        LifecycleEventName: ToLifecycleEventName(workflowEvent))
+                };
+            })
+            .ToArray();
+    }
+
+    private static void RecordEventSpans(
+        IReadOnlyList<WorkflowRuntimeEventObservation> events,
+        InstanceId instanceId)
+    {
+        foreach (var workflowEvent in events)
+        {
+            using var activity = OrcaCoreDurableDiagnostics.ActivitySource.StartActivity("orca.event.apply");
+            activity?.SetTag(OrcaCoreDiagnostics.EventTypeKey, workflowEvent.EventType);
+            activity?.SetTag(OrcaCoreDiagnostics.InstanceIdKey, instanceId.ToString());
+            if (workflowEvent.DefinitionId is { } definitionId)
+            {
+                activity?.SetTag(OrcaCoreDiagnostics.DefinitionIdKey, definitionId.ToString());
+            }
+        }
+    }
+
+    private static void RecordStepSpans(
+        IReadOnlyList<WorkflowRuntimeEventObservation> events,
+        InstanceId instanceId)
+    {
+        foreach (var workflowEvent in events.Where(workflowEvent => workflowEvent.StepPath is not null))
+        {
+            using var activity = OrcaCoreDurableDiagnostics.ActivitySource.StartActivity("orca.step.execute");
+            activity?.SetTag(OrcaCoreDiagnostics.StepPathKey, workflowEvent.StepPath);
+            activity?.SetTag(OrcaCoreDiagnostics.InstanceIdKey, instanceId.ToString());
+            if (workflowEvent.DefinitionId is { } definitionId)
+            {
+                activity?.SetTag(OrcaCoreDiagnostics.DefinitionIdKey, definitionId.ToString());
+            }
+
+            if (workflowEvent.ErrorKind is { } errorKind)
+            {
+                activity?.SetTag(OrcaCoreDiagnostics.ErrorKindKey, errorKind);
+                activity?.SetStatus(ActivityStatusCode.Error, errorKind);
+            }
+        }
+    }
+
+    private static string? ToLifecycleEventName(WorkflowEvent workflowEvent)
+    {
+        return workflowEvent switch
+        {
+            WorkflowStartedEvent => "InstanceStarted",
+            WorkflowContinuedAsNewEvent => "InstanceContinuedAsNew",
+            WorkflowWaitRegisteredEvent => "InstanceSuspended",
+            WorkflowTimerScheduledEvent => "InstanceSuspended",
+            WorkflowTimerFiredEvent => "InstanceResumed",
+            WorkflowPausedEvent => "InstancePaused",
+            WorkflowResumedEvent => "InstanceResumed",
+            WorkflowCompletedEvent => "InstanceCompleted",
+            WorkflowTerminalEvent { Status: WorkflowStatus.Failed } => "InstanceFailed",
+            WorkflowTerminalEvent { Status: WorkflowStatus.Cancelled } => "InstanceCancelled",
+            WorkflowTerminalEvent { Status: WorkflowStatus.Terminated } => "InstanceTerminated",
+            WorkflowTerminalEvent { Status: WorkflowStatus.Compensated } => "InstanceCompensated",
+            WorkflowTerminalEvent { Status: WorkflowStatus.CompensationFailed } => "InstanceCompensationFailed",
+            _ => null
+        };
+    }
+
+    private static TimeSpan PositiveDuration(TimeSpan duration)
+    {
+        return duration < TimeSpan.Zero ? TimeSpan.Zero : duration;
+    }
+
+    private static string ProviderName(object provider)
+    {
+        var name = provider.GetType().Name;
+        return name
+            .Replace("WorkflowProvider", string.Empty, StringComparison.Ordinal)
+            .Replace("WorkflowStore", string.Empty, StringComparison.Ordinal)
+            .Replace("EventStore", string.Empty, StringComparison.Ordinal);
     }
 
     private static WorkflowRuntimeObservationKind ToObservationKind(DurableCommandOutcome outcome)

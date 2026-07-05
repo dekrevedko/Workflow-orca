@@ -197,12 +197,24 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
                 (select count(*) from orcacore_events) as stream_events,
                 (select count(*) from orcacore_checkpoints) as checkpoints,
                 (select count(*) from orcacore_outbox where state in (@pending, @retryable)) as pending_outbox,
+                (select count(*) from orcacore_outbox where state = @pending) as outbox_pending,
+                (select count(*) from orcacore_outbox where state = @retryable) as outbox_retryable,
+                (select count(*) from orcacore_outbox where state = @claimed) as outbox_claimed,
+                (select coalesce(max(events.max_version - coalesce(checkpoints.stream_version, 0)), 0)
+                    from (
+                        select stream_id, max(version) as max_version
+                        from orcacore_events
+                        group by stream_id
+                    ) events
+                    left join orcacore_checkpoints checkpoints on checkpoints.instance_id = events.stream_id)
+                    as checkpoint_lag,
                 (select count(*) from orcacore_instance_projections
                     where status in (@running, @waiting, @paused)) as active_instances;
             """,
             connection);
         command.Parameters.AddWithValue("pending", OutboxRecordState.Pending.ToString());
         command.Parameters.AddWithValue("retryable", OutboxRecordState.Retryable.ToString());
+        command.Parameters.AddWithValue("claimed", OutboxRecordState.Claimed.ToString());
         command.Parameters.AddWithValue("running", WorkflowStatus.Running.ToString());
         command.Parameters.AddWithValue("waiting", WorkflowStatus.Waiting.ToString());
         command.Parameters.AddWithValue("paused", WorkflowStatus.Paused.ToString());
@@ -218,7 +230,11 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
             TotalStreamEvents = reader.GetInt64(0),
             CheckpointCount = checked((int)reader.GetInt64(1)),
             PendingOutboxCount = checked((int)reader.GetInt64(2)),
-            ActiveInstanceCount = checked((int)reader.GetInt64(3))
+            OutboxPendingCount = checked((int)reader.GetInt64(3)),
+            OutboxRetryableCount = checked((int)reader.GetInt64(4)),
+            OutboxClaimedCount = checked((int)reader.GetInt64(5)),
+            CheckpointLag = reader.GetInt64(6),
+            ActiveInstanceCount = checked((int)reader.GetInt64(7))
         };
     }
 

@@ -111,6 +111,21 @@ public sealed class InMemoryResourcePoolStore : IResourcePoolStore
     }
 
     /// <inheritdoc />
+    public Task<IReadOnlyList<ResourcePoolSnapshot>> ListPoolsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            return Task.FromResult<IReadOnlyList<ResourcePoolSnapshot>>(
+                pools.Values
+                    .OrderBy(pool => pool.Name, StringComparer.Ordinal)
+                    .Select(Snapshot)
+                    .ToArray());
+        }
+    }
+
+    /// <inheritdoc />
     public Task ResizePoolAsync(string poolName, int capacity, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(poolName);

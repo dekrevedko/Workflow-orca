@@ -282,6 +282,12 @@ public sealed class SqlServerWorkflowStore :
     }
 
     /// <inheritdoc />
+    public Task<IReadOnlyList<ResourcePoolSnapshot>> ListPoolsAsync(CancellationToken cancellationToken)
+    {
+        return resourcePoolStore.ListPoolsAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
     public Task ResizePoolAsync(string poolName, int capacity, CancellationToken cancellationToken)
     {
         return resourcePoolStore.ResizePoolAsync(poolName, capacity, cancellationToken);

@@ -21,6 +21,26 @@ public sealed record WorkflowPressureMetrics
     public int PendingOutboxCount { get; init; }
 
     /// <summary>
+    /// Gets the number of outbox records currently in the pending state.
+    /// </summary>
+    public int OutboxPendingCount { get; init; }
+
+    /// <summary>
+    /// Gets the number of outbox records currently in the retryable state.
+    /// </summary>
+    public int OutboxRetryableCount { get; init; }
+
+    /// <summary>
+    /// Gets the number of outbox records currently claimed by dispatchers.
+    /// </summary>
+    public int OutboxClaimedCount { get; init; }
+
+    /// <summary>
+    /// Gets the largest observed difference between stream version and checkpoint version.
+    /// </summary>
+    public long CheckpointLag { get; init; }
+
+    /// <summary>
     /// Gets the number of projected non-terminal instances.
     /// </summary>
     public int ActiveInstanceCount { get; init; }

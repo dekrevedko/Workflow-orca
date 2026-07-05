@@ -12,6 +12,7 @@ using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.Engine.Durable.Aggregates;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Engine.Durable.Diagnostics;
 using OrcaCore.Engine.Durable.Management;
@@ -62,7 +63,8 @@ public sealed class ObservabilityIntegrationTests
             HasProperty(record.Properties, "orca.command.type", nameof(StartWorkflowCommand))).Subject;
         commandLog.Properties.Should().ContainKey("orca.instance.id");
         commandLog.Properties.Should().ContainKey("trace_id")
-            .WhoseValue.Should().Be(activities.Records.Should().ContainSingle().Subject.TraceId);
+            .WhoseValue.Should().Be(activities.Records.Should().Contain(record =>
+                record.Name == "orca.command.process").Subject.TraceId);
     }
 
     [Fact]
@@ -353,10 +355,161 @@ public sealed class ObservabilityIntegrationTests
             .Should().BeTrue();
     }
 
+    [Fact]
+    [Trait(Traits.Scenario, "INT-OB-012")]
+    [Trait(Traits.AcceptanceCriteria, "OB-021;OB-022;OB-023;OB-050")]
+    public async Task INT_OB_012_CatalogSignalsUseDurableRuntimeObservations()
+    {
+        using var metrics = new MetricRecorder();
+        using var activities = new ActivityRecorder();
+        using var logs = new RecordingLoggerProvider();
+        using var provider = BuildTelemetryProvider(logs);
+        var processor = provider.GetRequiredService<DurableCommandProcessor>();
+        var token = TestContext.Current.CancellationToken;
+
+        await processor.ProcessAsync(IntegrationCommands.Start(instance: 1201, command: 1201), token);
+        await processor.ProcessAsync(
+            IntegrationCommands.StepCompleted(instance: 1201, command: 1202, stepPath: "root/approve"),
+            token);
+
+        await processor.ProcessAsync(IntegrationCommands.Start(instance: 1202, command: 1203), token);
+        await processor.ProcessAsync(
+            new DurableStepFailedCommand(
+                IntegrationIds.Command(1204),
+                IntegrationIds.Instance(1202),
+                IntegrationIds.Timestamp(1204),
+                "root/fail",
+                "boom"),
+            token);
+
+        await processor.ProcessAsync(IntegrationCommands.Start(instance: 1203, command: 1205), token);
+        await processor.ProcessAsync(IntegrationCommands.WaitRegistered(1203, 1206, 1206), token);
+        await processor.ProcessAsync(IntegrationCommands.Deliver(1203, 1207, 1207), token);
+        await processor.ProcessAsync(IntegrationCommands.Deliver(1203, 1207, 1208), token);
+
+        metrics.Measurements.Should().Contain(measurement =>
+            measurement.Name == OrcaCoreMetrics.EventsAppliedName &&
+            HasTag(measurement.Tags, "orca.event.type", nameof(WorkflowStepCompletedEvent)));
+        metrics.Measurements.Should().Contain(measurement =>
+            measurement.Name == OrcaCoreMetrics.StepsCompletedName &&
+            HasTag(measurement.Tags, "orca.step.path", "root/approve"));
+        metrics.Measurements.Should().Contain(measurement =>
+            measurement.Name == OrcaCoreMetrics.StepsFailedName &&
+            HasTag(measurement.Tags, "orca.step.path", "root/fail") &&
+            HasTag(measurement.Tags, "error.kind", nameof(WorkflowStepFailedEvent)));
+        metrics.Measurements.Should().Contain(measurement =>
+            measurement.Name == OrcaCoreMetrics.LifecycleEventsName &&
+            HasTag(measurement.Tags, "event.name", "StepCompleted") &&
+            HasTag(measurement.Tags, "durable", bool.TrueString));
+        metrics.Measurements.Should().Contain(measurement =>
+            measurement.Name == OrcaCoreMetrics.InboxDuplicatesName &&
+            HasTag(measurement.Tags, "orca.execution.mode", "durable"));
+        metrics.Measurements.Should().Contain(measurement =>
+            measurement.Name == OrcaCoreMetrics.ProviderCommitDurationName &&
+            HasTag(measurement.Tags, "orca.provider.name", "InMemory") &&
+            HasTag(measurement.Tags, "operation", "append"));
+        metrics.Measurements.Should().Contain(measurement =>
+            measurement.Name == OrcaCoreMetrics.StepsDurationName &&
+            HasTag(measurement.Tags, "orca.step.path", "root/approve"));
+        metrics.Measurements.Should().Contain(measurement =>
+            measurement.Name == OrcaCoreMetrics.WaitsDurationName &&
+            HasTag(measurement.Tags, "orca.wait.event_name", "Approved"));
+
+        activities.Records.Should().Contain(record =>
+            record.Name == "orca.provider.commit" &&
+            HasTag(record.Tags, "orca.provider.name", "InMemory") &&
+            HasTag(record.Tags, "operation", "append"));
+        activities.Records.Should().Contain(record =>
+            record.Name == "orca.event.apply" &&
+            HasTag(record.Tags, "orca.event.type", nameof(WorkflowStepCompletedEvent)));
+        activities.Records.Should().Contain(record =>
+            record.Name == "orca.step.execute" &&
+            HasTag(record.Tags, "orca.step.path", "root/approve"));
+    }
+
+    [Fact]
+    [Trait(Traits.Scenario, "INT-OB-013")]
+    [Trait(Traits.AcceptanceCriteria, "OB-020;OB-021;OB-080")]
+    public async Task INT_OB_013_CatalogGaugesUseProviderAndResourcePoolState()
+    {
+        var workflowProvider = new InMemoryWorkflowProvider();
+        var resourcePools = new InMemoryResourcePoolStore();
+        var definitionId = IntegrationIds.Definition(1301);
+        var instanceId = IntegrationIds.Instance(1301);
+        var token = TestContext.Current.CancellationToken;
+        await SeedProviderPressureAsync(workflowProvider, definitionId, instanceId, token);
+        await SeedResourcePoolPressureAsync(resourcePools, token);
+
+        using var metrics = new MetricRecorder();
+        using var logs = new RecordingLoggerProvider();
+        using var provider = BuildTelemetryProvider(
+            logs,
+            workflowProvider: workflowProvider,
+            resourcePoolStore: resourcePools,
+            enableOpenTelemetry: true);
+        var gaugeCollector = GetGaugeCollector(provider);
+
+        await gaugeCollector.StartAsync(token);
+        try
+        {
+            await WaitForMetricAsync(
+                metrics,
+                measurement =>
+                    measurement.Name == OrcaCoreMetrics.ResourcePoolWaitersName &&
+                    measurement.Value == 1 &&
+                    HasTag(measurement.Tags, "pool.name", "db"),
+                token);
+        }
+        finally
+        {
+            await gaugeCollector.StopAsync(CancellationToken.None);
+        }
+
+        metrics.Measurements.Should().Contain(measurement =>
+            measurement.Name == OrcaCoreMetrics.InstancesStuckName &&
+            measurement.Value == 1 &&
+            HasTag(measurement.Tags, "orca.definition.id", definitionId.ToString()));
+        metrics.Measurements.Should().Contain(measurement =>
+            measurement.Name == OrcaCoreMetrics.WaitsActiveName &&
+            measurement.Value == 1 &&
+            HasTag(measurement.Tags, "orca.wait.event_name", "approval.received"));
+        metrics.Measurements.Should().Contain(measurement =>
+            measurement.Name == OrcaCoreMetrics.OutboxPendingName &&
+            measurement.Value == 1 &&
+            HasTag(measurement.Tags, "state", "pending"));
+        metrics.Measurements.Should().Contain(measurement =>
+            measurement.Name == OrcaCoreMetrics.OutboxPendingName &&
+            measurement.Value == 1 &&
+            HasTag(measurement.Tags, "state", "retryable"));
+        metrics.Measurements.Should().Contain(measurement =>
+            measurement.Name == OrcaCoreMetrics.OutboxPendingName &&
+            measurement.Value == 1 &&
+            HasTag(measurement.Tags, "state", "claimed"));
+        metrics.Measurements.Should().Contain(measurement =>
+            measurement.Name == OrcaCoreMetrics.StreamEventsName &&
+            measurement.Value == 1 &&
+            HasTag(measurement.Tags, "orca.provider.name", "InMemory"));
+        metrics.Measurements.Should().Contain(measurement =>
+            measurement.Name == OrcaCoreMetrics.CheckpointsCountName &&
+            measurement.Value == 1 &&
+            HasTag(measurement.Tags, "orca.provider.name", "InMemory"));
+        metrics.Measurements.Should().Contain(measurement =>
+            measurement.Name == OrcaCoreMetrics.CheckpointsLagName &&
+            measurement.Value == 1 &&
+            HasTag(measurement.Tags, "orca.provider.name", "InMemory"));
+        metrics.Measurements.Should().Contain(measurement =>
+            measurement.Name == OrcaCoreMetrics.ResourcePoolTicketsName &&
+            measurement.Value == 1 &&
+            HasTag(measurement.Tags, "pool.name", "db"));
+        OrcaCoreDiagnostics.MeterNames.Should().Contain(OrcaCoreDiagnostics.InMemoryProviderSourceName);
+        OrcaCoreDiagnostics.ActivitySourceNames.Should().Contain(OrcaCoreDiagnostics.SqlServerProviderSourceName);
+    }
+
     private static ServiceProvider BuildTelemetryProvider(
         RecordingLoggerProvider logs,
         IMessageDispatcher? dispatcher = null,
         InMemoryWorkflowProvider? workflowProvider = null,
+        InMemoryResourcePoolStore? resourcePoolStore = null,
         bool enableOpenTelemetry = false)
     {
         var services = new ServiceCollection();
@@ -369,6 +522,11 @@ public sealed class ObservabilityIntegrationTests
         if (workflowProvider is not null)
         {
             services.AddSingleton(workflowProvider);
+        }
+
+        if (resourcePoolStore is not null)
+        {
+            services.AddSingleton(resourcePoolStore);
         }
 
         services.AddOrcaCore();
@@ -384,6 +542,104 @@ public sealed class ObservabilityIntegrationTests
         }
 
         return services.BuildServiceProvider();
+    }
+
+    private static async Task SeedProviderPressureAsync(
+        InMemoryWorkflowProvider workflowProvider,
+        DefinitionId definitionId,
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
+    {
+        var activeWait = new ActiveWaitSnapshot
+        {
+            WaitId = IntegrationIds.Wait(1301),
+            EventName = "approval.received",
+            CorrelationId = new CorrelationId("order-1301"),
+            RegisteredAt = IntegrationIds.Timestamp(1301),
+            Status = "Active",
+            Mode = WaitMode.Resident.ToString()
+        };
+
+        await workflowProvider.ApplyAsync(
+            [
+                new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
+                {
+                    InstanceSnapshot = new WorkflowInstanceSnapshot
+                    {
+                        InstanceId = instanceId,
+                        DefinitionId = definitionId,
+                        DefinitionVersion = DefinitionVersion.Initial,
+                        Status = WorkflowStatus.Waiting,
+                        CreatedAt = IntegrationIds.Timestamp(1301),
+                        UpdatedAt = IntegrationIds.Timestamp(1302),
+                        IsStuck = true,
+                        ActiveWaits = [activeWait]
+                    }
+                }
+            ],
+            cancellationToken);
+
+        var pending = IntegrationIds.Outbox(1301);
+        var retryable = IntegrationIds.Outbox(1302);
+        var claimed = IntegrationIds.Outbox(1303);
+        var append = await workflowProvider.AppendAsync(
+            new ProviderCommitBatch
+            {
+                StreamId = new WorkflowStreamId(instanceId),
+                ExpectedVersion = StreamVersion.Empty,
+                Events =
+                [
+                    new WorkflowStartedEvent
+                    {
+                        EventId = IntegrationIds.Event(1301),
+                        InstanceId = instanceId,
+                        CommandId = IntegrationIds.Command(1301),
+                        CausationId = IntegrationIds.Causation(1301),
+                        OccurredAt = IntegrationIds.Timestamp(1301),
+                        DefinitionId = definitionId,
+                        DefinitionVersion = DefinitionVersion.Initial
+                    }
+                ],
+                Checkpoint = new CheckpointWrite(
+                    instanceId,
+                    StreamVersion.Empty,
+                    "application/json",
+                    []),
+                OutboxRecords =
+                [
+                    new OutboxWrite(pending, "pending-kind", []),
+                    new OutboxWrite(retryable, "retryable-kind", []),
+                    new OutboxWrite(claimed, "claimed-kind", [])
+                ]
+            },
+            cancellationToken);
+        append.IsSuccess.Should().BeTrue();
+
+        await workflowProvider.MarkAsync(retryable, OutboxRecordState.Retryable, cancellationToken);
+        await workflowProvider.MarkAsync(claimed, OutboxRecordState.Claimed, cancellationToken);
+    }
+
+    private static async Task SeedResourcePoolPressureAsync(
+        InMemoryResourcePoolStore resourcePools,
+        CancellationToken cancellationToken)
+    {
+        await resourcePools.UpsertPoolAsync(IntegrationCommands.Pool("db", 1), cancellationToken);
+        await resourcePools.AcquireAsync(
+            new ResourcePoolAcquireRequest(
+                IntegrationIds.Instance(1311),
+                "node-1",
+                [IntegrationCommands.Requirement("db")],
+                IntegrationIds.Timestamp(1311),
+                IntegrationIds.Timestamp(1341)),
+            cancellationToken);
+        await resourcePools.AcquireAsync(
+            new ResourcePoolAcquireRequest(
+                IntegrationIds.Instance(1312),
+                "node-2",
+                [IntegrationCommands.Requirement("db")],
+                IntegrationIds.Timestamp(1312),
+                IntegrationIds.Timestamp(1342)),
+            cancellationToken);
     }
 
     private static async Task WaitForMetricAsync(
