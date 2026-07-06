@@ -107,7 +107,8 @@ public sealed class PostgreSqlWorkflowStore :
                    last_step_path,
                    error_summary,
                    outcome_name,
-                   continue_as_new_generation
+                   continue_as_new_generation,
+                   runtime_state
             from orcacore_checkpoints
             where instance_id = @instance_id;
             """,
@@ -132,8 +133,22 @@ public sealed class PostgreSqlWorkflowStore :
             LastStepPath = reader.IsDBNull(6) ? null : reader.GetString(6),
             ErrorSummary = reader.IsDBNull(7) ? null : reader.GetString(7),
             OutcomeName = reader.IsDBNull(8) ? null : reader.GetString(8),
-            ContinueAsNewGeneration = reader.GetInt32(9)
+            ContinueAsNewGeneration = reader.GetInt32(9),
+            RuntimeState = ReadRuntimeState(reader, 10)
         });
+    }
+
+    private static WorkflowRuntimeCheckpointState ReadRuntimeState(NpgsqlDataReader reader, int ordinal)
+    {
+        if (reader.IsDBNull(ordinal))
+        {
+            return WorkflowRuntimeCheckpointState.Empty;
+        }
+
+        return JsonSerializer.Deserialize(
+            reader.GetString(ordinal),
+            OrcaCoreJsonSerializerContext.Default.WorkflowRuntimeCheckpointState)
+            ?? WorkflowRuntimeCheckpointState.Empty;
     }
 
     /// <inheritdoc />
@@ -640,7 +655,8 @@ public sealed class PostgreSqlWorkflowStore :
                 last_step_path,
                 error_summary,
                 outcome_name,
-                continue_as_new_generation)
+                continue_as_new_generation,
+                runtime_state)
             values (
                 @instance_id,
                 @stream_version,
@@ -652,7 +668,8 @@ public sealed class PostgreSqlWorkflowStore :
                 @last_step_path,
                 @error_summary,
                 @outcome_name,
-                @continue_as_new_generation)
+                @continue_as_new_generation,
+                @runtime_state)
             on conflict (instance_id) do update set
                 stream_version = excluded.stream_version,
                 content_type = excluded.content_type,
@@ -663,7 +680,8 @@ public sealed class PostgreSqlWorkflowStore :
                 last_step_path = excluded.last_step_path,
                 error_summary = excluded.error_summary,
                 outcome_name = excluded.outcome_name,
-                continue_as_new_generation = excluded.continue_as_new_generation;
+                continue_as_new_generation = excluded.continue_as_new_generation,
+                runtime_state = excluded.runtime_state;
             """,
             connection,
             transaction);
@@ -679,6 +697,9 @@ public sealed class PostgreSqlWorkflowStore :
         command.Parameters.AddWithValue("error_summary", (object?)checkpoint.ErrorSummary ?? DBNull.Value);
         command.Parameters.AddWithValue("outcome_name", (object?)checkpoint.OutcomeName ?? DBNull.Value);
         command.Parameters.AddWithValue("continue_as_new_generation", checkpoint.ContinueAsNewGeneration);
+        command.Parameters.Add("runtime_state", NpgsqlDbType.Jsonb).Value = JsonSerializer.Serialize(
+            checkpoint.RuntimeState,
+            OrcaCoreJsonSerializerContext.Default.WorkflowRuntimeCheckpointState);
 
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }

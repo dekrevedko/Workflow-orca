@@ -1,6 +1,7 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
+using OrcaCore.Abstractions.Providers;
 
 namespace OrcaCore.Engine.Durable.Aggregates;
 
@@ -52,6 +53,46 @@ internal sealed class DurableSagaState
             compensationActions,
             recoveryInterventions,
             requestedCompensationScopes);
+    }
+
+    internal IReadOnlyList<CheckpointSagaForwardAction> CreateCheckpointForwardActions()
+    {
+        return completedForwardActions
+            .Select(action => new CheckpointSagaForwardAction(
+                action.ScopeId,
+                action.ActionKey,
+                action.CompensationKey,
+                action.CompletedAt))
+            .ToArray();
+    }
+
+    internal IReadOnlyList<CheckpointSagaCompensationAction> CreateCheckpointCompensationActions()
+    {
+        return compensationActions
+            .Select(action => new CheckpointSagaCompensationAction(
+                action.ScopeId,
+                action.ActionKey,
+                action.Order,
+                action.StartedAt,
+                action.CompletedAt,
+                action.FailedAt,
+                action.ErrorSummary,
+                action.Status))
+            .ToArray();
+    }
+
+    internal IReadOnlyList<CheckpointSagaRecoveryIntervention> CreateCheckpointRecoveryInterventions()
+    {
+        return recoveryInterventions
+            .Select(intervention => new CheckpointSagaRecoveryIntervention(
+                intervention.ScopeId,
+                intervention.ActionKey,
+                intervention.OperatorId,
+                intervention.RecoveryAction,
+                intervention.Reason,
+                intervention.RecordedAt,
+                intervention.TargetStatus))
+            .ToArray();
     }
 
     internal bool HasForwardAction(string scopeId, string actionKey)

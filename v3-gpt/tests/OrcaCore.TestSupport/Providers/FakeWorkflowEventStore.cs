@@ -276,7 +276,13 @@ public sealed class FakeWorkflowEventStore :
                     Children = group.Children.Select(child => child with { }).ToArray()
                 }).ToArray(),
                 ActiveResourceTickets = checkpoint.RuntimeState.ActiveResourceTickets.Select(ticket => ticket with { }).ToArray(),
-                ActiveExternalJobs = checkpoint.RuntimeState.ActiveExternalJobs.Select(job => job with { }).ToArray()
+                ActiveExternalJobs = checkpoint.RuntimeState.ActiveExternalJobs.Select(job => job with { }).ToArray(),
+                CompletedSagaForwardActions = checkpoint.RuntimeState.CompletedSagaForwardActions.Select(action => action with { }).ToArray(),
+                SagaCompensationActions = checkpoint.RuntimeState.SagaCompensationActions.Select(action => action with { }).ToArray(),
+                SagaRecoveryInterventions = checkpoint.RuntimeState.SagaRecoveryInterventions.Select(intervention => intervention with { }).ToArray(),
+                RequestedSagaCompensationScopes = [.. checkpoint.RuntimeState.RequestedSagaCompensationScopes],
+                RecordedParentResumeTokens = [.. checkpoint.RuntimeState.RecordedParentResumeTokens],
+                ConsumedParentResumeTokens = [.. checkpoint.RuntimeState.ConsumedParentResumeTokens]
             }
         };
     }

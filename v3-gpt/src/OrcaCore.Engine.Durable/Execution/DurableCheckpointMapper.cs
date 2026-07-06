@@ -79,6 +79,37 @@ internal static class DurableCheckpointMapper
                     job.WaitId,
                     job.TimeoutTimerId))
                 .ToArray(),
+            checkpoint.RuntimeState.CompletedSagaForwardActions
+                .Select(action => new DurableSagaForwardAction(
+                    action.ScopeId,
+                    action.ActionKey,
+                    action.CompensationKey,
+                    action.CompletedAt))
+                .ToArray(),
+            checkpoint.RuntimeState.SagaCompensationActions
+                .Select(action => new DurableSagaCompensationAction(
+                    action.ScopeId,
+                    action.ActionKey,
+                    action.Order,
+                    action.StartedAt,
+                    action.CompletedAt,
+                    action.FailedAt,
+                    action.ErrorSummary,
+                    action.Status))
+                .ToArray(),
+            checkpoint.RuntimeState.SagaRecoveryInterventions
+                .Select(intervention => new DurableSagaRecoveryIntervention(
+                    intervention.ScopeId,
+                    intervention.ActionKey,
+                    intervention.OperatorId,
+                    intervention.RecoveryAction,
+                    intervention.Reason,
+                    intervention.RecordedAt,
+                    intervention.TargetStatus))
+                .ToArray(),
+            checkpoint.RuntimeState.RequestedSagaCompensationScopes,
+            checkpoint.RuntimeState.RecordedParentResumeTokens,
+            checkpoint.RuntimeState.ConsumedParentResumeTokens,
             checkpoint.ContentType,
             [.. checkpoint.Payload]);
     }

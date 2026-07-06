@@ -130,7 +130,8 @@ internal static class DurableLifecycleCommandHandler
             LastStepPath = aggregate.LastStepPath,
             ErrorSummary = null,
             OutcomeName = null,
-            ContinueAsNewGeneration = generation
+            ContinueAsNewGeneration = generation,
+            RuntimeState = aggregate.ToContinueAsNewCheckpointRuntimeState()
         };
 
         return new DurableDecision(

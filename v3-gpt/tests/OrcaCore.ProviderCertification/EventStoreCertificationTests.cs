@@ -295,6 +295,152 @@ public abstract class EventStoreCertificationTests
             .Which.StreamVersion.Should().Be(5, "the projected stream version is the optimistic-concurrency token (CR-022)");
     }
 
+    [Fact]
+    [Trait("AC", "PR-010")]
+    public async Task CheckpointUpsert_RoundTripsFullRuntimeState()
+    {
+        var fixture = CreateFixture();
+        var instanceId = InstanceId.New();
+        var runtimeState = FullyPopulatedRuntimeState(instanceId);
+
+        var result = await fixture.EventStore.AppendAsync(
+            new ProviderCommitBatch
+            {
+                StreamId = new WorkflowStreamId(instanceId),
+                ExpectedVersion = StreamVersion.Empty,
+                Events =
+                [
+                    new WorkflowStartedEvent
+                    {
+                        EventId = EventId.New(),
+                        InstanceId = instanceId,
+                        CommandId = CommandId.New(),
+                        CausationId = CausationId.New(),
+                        OccurredAt = Timestamp(1),
+                        DefinitionId = DefinitionId.New(),
+                        DefinitionVersion = DefinitionVersion.Initial
+                    }
+                ],
+                Checkpoint = new CheckpointWrite(instanceId, new StreamVersion(1), "application/json", [1])
+                {
+                    Status = WorkflowStatus.Running,
+                    RuntimeState = runtimeState
+                }
+            },
+            TestContext.Current.CancellationToken);
+        var checkpoint = await fixture.EventStore.LoadCheckpointAsync(
+            instanceId,
+            TestContext.Current.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
+        checkpoint.HasValue.Should().BeTrue();
+        checkpoint.Value.RuntimeState.Should().BeEquivalentTo(
+            runtimeState,
+            "every runtime collection — including saga records and resume-token facts — must survive " +
+            "checkpoint compaction, or rehydrated aggregates silently lose in-flight state");
+    }
+
+    private static WorkflowRuntimeCheckpointState FullyPopulatedRuntimeState(InstanceId instanceId)
+    {
+        var waitId = WaitId.New();
+        var timerId = TimerId.New();
+        var childInstanceId = InstanceId.New();
+        var childDefinitionId = DefinitionId.New();
+
+        return new WorkflowRuntimeCheckpointState
+        {
+            ActiveTimers = [new CheckpointActiveTimer(timerId, Timestamp(40), "timeout", Timestamp(2))],
+            ActiveWaits =
+            [
+                new CheckpointActiveWait(
+                    waitId,
+                    "approved",
+                    new CorrelationId("order-1"),
+                    Timestamp(3),
+                    WaitMode.Cold,
+                    "branch-a")
+            ],
+            BufferedDeliveries =
+            [
+                new CheckpointBufferedDelivery(EventId.New(), "approved", new CorrelationId("order-2"), "branch-b")
+            ],
+            BufferedTimers = [new CheckpointBufferedTimer(TimerId.New(), "paused-timeout", Timestamp(5))],
+            ActiveChildren =
+            [
+                new CheckpointActiveChild(
+                    "group-1",
+                    childInstanceId,
+                    WaitId.New(),
+                    RunChildFailurePolicy.PropagateFailure,
+                    RunChildrenJoinPolicy.WhenAll,
+                    RunChildrenResidualPolicy.CancelRemaining,
+                    """{"id":1}""")
+            ],
+            ActiveChildGroups =
+            [
+                new CheckpointActiveChildGroup(
+                    "group-1",
+                    RunChildFailurePolicy.PropagateFailure,
+                    RunChildrenJoinPolicy.WhenAll,
+                    RunChildrenResidualPolicy.CancelRemaining,
+                    2,
+                    1,
+                    [
+                        new WorkflowChildMaterialization
+                        {
+                            Index = 0,
+                            ChildInstanceId = childInstanceId,
+                            ChildDefinitionId = childDefinitionId,
+                            ChildDefinitionVersion = DefinitionVersion.Initial,
+                            ItemSnapshot = """{"id":1}"""
+                        }
+                    ])
+            ],
+            ActiveResourceTickets =
+            [
+                new ResourcePoolTicket(
+                    Guid.Parse("00000000-0000-0000-0000-000000000901"),
+                    "cpu",
+                    2,
+                    instanceId,
+                    "holder-1",
+                    Timestamp(4),
+                    Timestamp(44))
+            ],
+            ActiveExternalJobs = [new CheckpointActiveExternalJob("job-1", WaitId.New(), TimerId.New())],
+            CompletedSagaForwardActions =
+            [
+                new CheckpointSagaForwardAction("scope-1", "reserve-stock", "release-stock", Timestamp(6))
+            ],
+            SagaCompensationActions =
+            [
+                new CheckpointSagaCompensationAction(
+                    "scope-1",
+                    "release-stock",
+                    0,
+                    Timestamp(7),
+                    Timestamp(8),
+                    null,
+                    null,
+                    SagaCompensationActionStatus.Completed)
+            ],
+            SagaRecoveryInterventions =
+            [
+                new CheckpointSagaRecoveryIntervention(
+                    "scope-1",
+                    "refund",
+                    "operator-1",
+                    "mark-complete",
+                    "resolved",
+                    Timestamp(9),
+                    WorkflowStatus.Completed)
+            ],
+            RequestedSagaCompensationScopes = ["scope-1"],
+            RecordedParentResumeTokens = [EventId.New()],
+            ConsumedParentResumeTokens = [EventId.New()]
+        };
+    }
+
     private static ProviderCommitBatch Batch(
         WorkflowStreamId streamId,
         StreamVersion expectedVersion,

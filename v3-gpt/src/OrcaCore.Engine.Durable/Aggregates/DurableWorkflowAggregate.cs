@@ -209,12 +209,12 @@ internal sealed class DurableWorkflowAggregate
                 checkpoint.ActiveChildGroups,
                 checkpoint.ActiveResourceTickets,
                 checkpoint.ActiveExternalJobs,
-                [],
-                [],
-                [],
-                [],
-                [],
-                []);
+                checkpoint.CompletedSagaForwardActions,
+                checkpoint.SagaCompensationActions,
+                checkpoint.SagaRecoveryInterventions,
+                checkpoint.RequestedSagaCompensationScopes,
+                checkpoint.RecordedParentResumeTokens,
+                checkpoint.ConsumedParentResumeTokens);
 
         foreach (var workflowEvent in tail)
         {
@@ -251,6 +251,12 @@ internal sealed class DurableWorkflowAggregate
             childState.ActiveChildGroups,
             resourcePoolState.ActiveTickets,
             externalJobState.ActiveJobs,
+            sagaState.CompletedForwardActions,
+            sagaState.CompensationActions,
+            sagaState.RecoveryInterventions,
+            sagaState.RequestedCompensationScopes,
+            childState.RecordedParentResumeTokens,
+            childState.ConsumedParentResumeTokens,
             contentType,
             [.. payload]);
     }
@@ -505,7 +511,30 @@ internal sealed class DurableWorkflowAggregate
             ActiveChildren = childState.CreateCheckpointActiveChildren(),
             ActiveChildGroups = childState.CreateCheckpointActiveChildGroups(),
             ActiveResourceTickets = resourcePoolState.CreateCheckpointActiveResourceTickets(),
-            ActiveExternalJobs = externalJobState.CreateCheckpointActiveExternalJobs()
+            ActiveExternalJobs = externalJobState.CreateCheckpointActiveExternalJobs(),
+            CompletedSagaForwardActions = sagaState.CreateCheckpointForwardActions(),
+            SagaCompensationActions = sagaState.CreateCheckpointCompensationActions(),
+            SagaRecoveryInterventions = sagaState.CreateCheckpointRecoveryInterventions(),
+            RequestedSagaCompensationScopes = sagaState.RequestedCompensationScopes,
+            RecordedParentResumeTokens = childState.RecordedParentResumeTokens,
+            ConsumedParentResumeTokens = childState.ConsumedParentResumeTokens
+        };
+    }
+
+    /// <summary>
+    /// Creates checkpoint runtime state carrying only the collections continue-as-new preserves:
+    /// replay clears active work but keeps saga records and resume-token consumption facts.
+    /// </summary>
+    internal WorkflowRuntimeCheckpointState ToContinueAsNewCheckpointRuntimeState()
+    {
+        return new WorkflowRuntimeCheckpointState
+        {
+            CompletedSagaForwardActions = sagaState.CreateCheckpointForwardActions(),
+            SagaCompensationActions = sagaState.CreateCheckpointCompensationActions(),
+            SagaRecoveryInterventions = sagaState.CreateCheckpointRecoveryInterventions(),
+            RequestedSagaCompensationScopes = sagaState.RequestedCompensationScopes,
+            RecordedParentResumeTokens = childState.RecordedParentResumeTokens,
+            ConsumedParentResumeTokens = childState.ConsumedParentResumeTokens
         };
     }
 

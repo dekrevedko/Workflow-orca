@@ -672,7 +672,13 @@ public sealed class InMemoryWorkflowProvider :
                 Children = group.Children.Select(child => child with { }).ToArray()
             }).ToArray(),
             ActiveResourceTickets = state.ActiveResourceTickets.Select(ticket => ticket with { }).ToArray(),
-            ActiveExternalJobs = state.ActiveExternalJobs.Select(job => job with { }).ToArray()
+            ActiveExternalJobs = state.ActiveExternalJobs.Select(job => job with { }).ToArray(),
+            CompletedSagaForwardActions = state.CompletedSagaForwardActions.Select(action => action with { }).ToArray(),
+            SagaCompensationActions = state.SagaCompensationActions.Select(action => action with { }).ToArray(),
+            SagaRecoveryInterventions = state.SagaRecoveryInterventions.Select(intervention => intervention with { }).ToArray(),
+            RequestedSagaCompensationScopes = [.. state.RequestedSagaCompensationScopes],
+            RecordedParentResumeTokens = [.. state.RecordedParentResumeTokens],
+            ConsumedParentResumeTokens = [.. state.ConsumedParentResumeTokens]
         };
     }
 

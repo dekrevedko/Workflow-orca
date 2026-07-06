@@ -200,6 +200,36 @@ public sealed record WorkflowRuntimeCheckpointState
     /// Gets active external jobs.
     /// </summary>
     public IReadOnlyList<CheckpointActiveExternalJob> ActiveExternalJobs { get; init; } = [];
+
+    /// <summary>
+    /// Gets completed saga forward actions eligible for later compensation.
+    /// </summary>
+    public IReadOnlyList<CheckpointSagaForwardAction> CompletedSagaForwardActions { get; init; } = [];
+
+    /// <summary>
+    /// Gets saga compensation actions and their progress.
+    /// </summary>
+    public IReadOnlyList<CheckpointSagaCompensationAction> SagaCompensationActions { get; init; } = [];
+
+    /// <summary>
+    /// Gets recorded saga manual-recovery interventions.
+    /// </summary>
+    public IReadOnlyList<CheckpointSagaRecoveryIntervention> SagaRecoveryInterventions { get; init; } = [];
+
+    /// <summary>
+    /// Gets saga scopes whose compensation has already been requested.
+    /// </summary>
+    public IReadOnlyList<string> RequestedSagaCompensationScopes { get; init; } = [];
+
+    /// <summary>
+    /// Gets parent resume tokens recorded by completed child groups.
+    /// </summary>
+    public IReadOnlyList<EventId> RecordedParentResumeTokens { get; init; } = [];
+
+    /// <summary>
+    /// Gets parent resume tokens already consumed exactly once.
+    /// </summary>
+    public IReadOnlyList<EventId> ConsumedParentResumeTokens { get; init; } = [];
 }
 
 /// <summary>
@@ -270,6 +300,40 @@ public sealed record CheckpointActiveExternalJob(
     string ExternalJobId,
     WaitId WaitId,
     TimerId? TimeoutTimerId);
+
+/// <summary>
+/// Checkpoint materialization of one completed saga forward action.
+/// </summary>
+public sealed record CheckpointSagaForwardAction(
+    string ScopeId,
+    string ActionKey,
+    string CompensationKey,
+    DateTimeOffset CompletedAt);
+
+/// <summary>
+/// Checkpoint materialization of one saga compensation action.
+/// </summary>
+public sealed record CheckpointSagaCompensationAction(
+    string ScopeId,
+    string ActionKey,
+    int Order,
+    DateTimeOffset StartedAt,
+    DateTimeOffset? CompletedAt,
+    DateTimeOffset? FailedAt,
+    string? ErrorSummary,
+    SagaCompensationActionStatus Status);
+
+/// <summary>
+/// Checkpoint materialization of one saga manual-recovery intervention.
+/// </summary>
+public sealed record CheckpointSagaRecoveryIntervention(
+    string ScopeId,
+    string ActionKey,
+    string OperatorId,
+    string RecoveryAction,
+    string? Reason,
+    DateTimeOffset RecordedAt,
+    WorkflowStatus TargetStatus);
 
 /// <summary>
 /// Describes an inbox state write.

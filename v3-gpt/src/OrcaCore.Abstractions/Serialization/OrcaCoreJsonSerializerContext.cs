@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using OrcaCore.Abstractions.Durable;
+using OrcaCore.Abstractions.Providers;
 
 namespace OrcaCore.Abstractions.Serialization;
 
@@ -42,4 +43,5 @@ namespace OrcaCore.Abstractions.Serialization;
 [JsonSerializable(typeof(SagaCompensationCompletedEvent))]
 [JsonSerializable(typeof(SagaCompensationFailedEvent))]
 [JsonSerializable(typeof(SagaManualRecoveryRecordedEvent))]
+[JsonSerializable(typeof(WorkflowRuntimeCheckpointState))]
 public sealed partial class OrcaCoreJsonSerializerContext : JsonSerializerContext;

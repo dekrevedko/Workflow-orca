@@ -78,6 +78,12 @@ internal sealed record DurableAggregateCheckpoint(
     IReadOnlyList<DurableActiveChildGroup> ActiveChildGroups,
     IReadOnlyList<ResourcePoolTicket> ActiveResourceTickets,
     IReadOnlyList<DurableActiveExternalJob> ActiveExternalJobs,
+    IReadOnlyList<DurableSagaForwardAction> CompletedSagaForwardActions,
+    IReadOnlyList<DurableSagaCompensationAction> SagaCompensationActions,
+    IReadOnlyList<DurableSagaRecoveryIntervention> SagaRecoveryInterventions,
+    IReadOnlyList<string> RequestedSagaCompensationScopes,
+    IReadOnlyList<EventId> RecordedParentResumeTokens,
+    IReadOnlyList<EventId> ConsumedParentResumeTokens,
     string ContentType,
     byte[] Payload);
 
