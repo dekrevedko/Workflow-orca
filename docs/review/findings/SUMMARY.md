@@ -163,3 +163,13 @@ What remains open before a "ship" call: the bulk of the negative/edge scenario b
   or amend the spec. Instrument/span coverage is ~20% of the OB catalog (tracks the spec's own
   phasing). All 7 `OB-AC` tests pass for the implemented subset. Observability is **not ship-blocking
   for correctness** (telemetry is best-effort, OB-004), but the fleet-dashboard goal is not yet met.
+- **[R14](R14-scrutiny.md)** (2026-07-05) — fresh scrutiny of the durable kernel, ephemeral engine,
+  providers, and uncommitted samples. **Found and fixed same day:** (P1, reproduced) the checkpoint
+  schema dropped saga state and resume-token dedup — and PG/SQL Server persisted **no** checkpoint
+  `RuntimeState` at all, losing waits/timers/children/tickets across checkpoint rehydration on SQL
+  providers; fixed via schema extension + migrations (PG 005, SqlServer 006) + a certification
+  round-trip gate on every provider. (P1) ephemeral engine retained terminal instances forever —
+  `Management.Evict`/`EvictTerminal` added. (P2) post-commit ticket-release failures masked
+  committed results; the k8s sample used an unstable random `DefinitionId`. (P3) resume replay
+  ignored pending timers; guard scans included `obj/`. R12's two P1s verified fixed. Remaining open
+  items are feature surfaces (durable definition driver → Orleans plan, RMQ consumer bridge, cron).
