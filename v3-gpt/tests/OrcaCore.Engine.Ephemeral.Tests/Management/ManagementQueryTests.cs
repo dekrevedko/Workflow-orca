@@ -446,6 +446,11 @@ public sealed class ManagementQueryTests
             return instances.Values.ToArray();
         }
 
+        public bool Remove(InstanceId instanceId)
+        {
+            return instances.Remove(instanceId);
+        }
+
         internal void ResetCounts()
         {
             GetManyCount = 0;

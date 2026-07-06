@@ -422,6 +422,63 @@ public sealed class EphemeralWorkflowEngine
             cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Removes one terminal instance and its saga runtime state from process memory.
+    /// Returns false when the instance is unknown; throws when it is still active.
+    /// </summary>
+    internal bool EvictInstance(InstanceId instanceId)
+    {
+        if (!instanceRegistry.TryGet(instanceId, out var registeredInstance) ||
+            registeredInstance is not IWorkflowInstance instance)
+        {
+            return false;
+        }
+
+        var snapshot = instance.ToSnapshot();
+        if (!LifecycleMachine.TerminalStatuses.Contains(snapshot.Status))
+        {
+            throw new WorkflowLifecycleException(
+                $"Workflow instance '{instanceId}' is '{snapshot.Status}' and cannot be evicted before " +
+                "reaching a terminal status.");
+        }
+
+        var removed = instanceRegistry.Remove(instanceId);
+        sagaRuntimeStates.TryRemove(instanceId, out _);
+        IndexSnapshot(snapshot);
+        return removed;
+    }
+
+    /// <summary>
+    /// Removes every terminal instance and its saga runtime state from process memory.
+    /// </summary>
+    internal int EvictTerminalInstances()
+    {
+        var purged = 0;
+        foreach (var registered in instanceRegistry.List())
+        {
+            if (registered is not IWorkflowInstance instance)
+            {
+                continue;
+            }
+
+            var snapshot = instance.ToSnapshot();
+            if (!LifecycleMachine.TerminalStatuses.Contains(snapshot.Status))
+            {
+                continue;
+            }
+
+            if (instanceRegistry.Remove(instance.InstanceId))
+            {
+                purged++;
+            }
+
+            sagaRuntimeStates.TryRemove(instance.InstanceId, out _);
+            IndexSnapshot(snapshot);
+        }
+
+        return purged;
+    }
+
     private async Task<WorkflowInstanceSnapshot> RunTerminalCommandAsync(
         InstanceId instanceId,
         Func<IWorkflowInstance, WorkflowInstanceSnapshot> command,

@@ -729,6 +729,23 @@ Step paths are definition node paths such as `root/1` or
 `root/2/branches/0/1`. They are useful for diagnostics and tests, but should not
 be treated as stable business identifiers across definition rewrites.
 
+Memory retention and eviction:
+
+```csharp
+// Remove one terminal instance from process memory (throws while it is active).
+bool evicted = management.Evict(instanceId);
+
+// Remove every terminal instance; returns how many were evicted.
+int count = management.EvictTerminal();
+```
+
+Terminal instances stay queryable until evicted or the process exits — that is
+the ephemeral queryability guarantee, but it also means a long-lived host that
+never evicts grows memory without bound. Call `EvictTerminal()` periodically (or
+`Evict(id)` after consuming an instance's outcome) in services that run many
+workflows. Eviction also releases saga runtime state; evicted instances are no
+longer visible to management queries or event routing.
+
 ## Ephemeral Saga Mode
 
 Ephemeral saga support is intentionally reduced-guarantee. It runs forward

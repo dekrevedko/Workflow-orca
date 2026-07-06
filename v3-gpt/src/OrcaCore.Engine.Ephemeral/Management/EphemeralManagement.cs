@@ -59,6 +59,26 @@ public sealed class EphemeralManagement
         var ids = instanceIds.ToArray();
         return new EphemeralManagementQuery(engine, () => registry.GetMany(ids), requiresDestructiveSafety: false);
     }
+
+    /// <summary>
+    /// Evicts one terminal instance from process memory, ending its queryability. Returns false when
+    /// the instance is unknown; throws <see cref="WorkflowLifecycleException"/> while it is still active.
+    /// Eviction is a memory-retention operation, not durable retention purge — nothing durable exists here.
+    /// </summary>
+    public bool Evict(InstanceId instanceId)
+    {
+        return engine.EvictInstance(instanceId);
+    }
+
+    /// <summary>
+    /// Evicts every terminal instance from process memory and returns how many were evicted.
+    /// Long-lived hosts should call this (or <see cref="Evict"/>) periodically: the ephemeral engine
+    /// otherwise retains completed instances for querying until the process exits.
+    /// </summary>
+    public int EvictTerminal()
+    {
+        return engine.EvictTerminalInstances();
+    }
 }
 
 /// <summary>

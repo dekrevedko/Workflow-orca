@@ -33,4 +33,9 @@ internal sealed class InMemoryInstanceRegistry : IInstanceRegistry
     {
         return instances.Values.ToArray();
     }
+
+    public bool Remove(InstanceId instanceId)
+    {
+        return instances.TryRemove(instanceId, out _);
+    }
 }

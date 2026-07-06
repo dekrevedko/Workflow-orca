@@ -11,4 +11,6 @@ internal interface IInstanceRegistry
     bool TryGet(InstanceId instanceId, out object? instance);
 
     IReadOnlyCollection<object> List();
+
+    bool Remove(InstanceId instanceId);
 }
