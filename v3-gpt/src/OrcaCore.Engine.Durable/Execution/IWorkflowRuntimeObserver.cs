@@ -50,6 +50,9 @@ public sealed record WorkflowRuntimeObservation(
 
 /// <summary>
 /// Describes a telemetry-safe durable event summary.
+/// <see cref="StepDuration"/> measures processing of the step-completion command inside the durable
+/// kernel (decide + commit), not the wall time of the business step itself — step code executes
+/// outside the kernel, which never observes when it started.
 /// </summary>
 public sealed record WorkflowRuntimeEventObservation(
     string EventType,

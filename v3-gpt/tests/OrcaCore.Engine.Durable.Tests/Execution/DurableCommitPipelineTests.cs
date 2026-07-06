@@ -140,6 +140,31 @@ public sealed class DurableCommitPipelineTests
         snapshot.Value.HeldTickets.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task CommitAsync_WhenPostCommitReleaseFails_StillReturnsCommitted()
+    {
+        var instanceId = InstanceIdValue(1);
+        var aggregate = DurableWorkflowAggregate.Rehydrate(null, [Started(instanceId)]);
+        var pools = new InMemoryResourcePoolStore();
+        await pools.UpsertPoolAsync(Pool("db", 1), TestContext.Current.CancellationToken);
+        var acquire = await pools.AcquireAsync(
+            AcquireRequest(instanceId, "root/1"),
+            TestContext.Current.CancellationToken);
+        var pipeline = CreatePipeline(new RecordingEventStore(), new ReleaseThrowingResourcePoolStore(pools));
+
+        var result = await pipeline.CommitAsync(
+            instanceId,
+            aggregate,
+            new DurableDecision([Released(instanceId, "root/1", acquire.Tickets)]),
+            inboxEventId: null,
+            TestContext.Current.CancellationToken);
+
+        result.Outcome.Should().Be(
+            DurableCommandOutcome.Committed,
+            "the append already succeeded; a ticket-release failure is recovered by lease expiry " +
+            "and must not make the committed command look failed");
+    }
+
     private static DurableCommitPipeline CreatePipeline(
         RecordingEventStore eventStore,
         IResourcePoolStore? resourcePoolStore = null)
@@ -259,6 +284,54 @@ public sealed class DurableCommitPipelineTests
     private static Guid GuidValue(int value)
     {
         return Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}");
+    }
+
+    private sealed class ReleaseThrowingResourcePoolStore(IResourcePoolStore inner) : IResourcePoolStore
+    {
+        public Task UpsertPoolAsync(ResourcePoolDefinition definition, CancellationToken cancellationToken)
+        {
+            return inner.UpsertPoolAsync(definition, cancellationToken);
+        }
+
+        public Task<ResourcePoolAcquireResult> AcquireAsync(
+            ResourcePoolAcquireRequest request,
+            CancellationToken cancellationToken)
+        {
+            return inner.AcquireAsync(request, cancellationToken);
+        }
+
+        public Task<ResourcePoolReleaseResult> ReleaseAsync(
+            ResourcePoolReleaseRequest request,
+            CancellationToken cancellationToken)
+        {
+            throw new InvalidOperationException("release transport failure");
+        }
+
+        public Task<Option<ResourcePoolSnapshot>> GetPoolAsync(string poolName, CancellationToken cancellationToken)
+        {
+            return inner.GetPoolAsync(poolName, cancellationToken);
+        }
+
+        public Task ResizePoolAsync(string poolName, int capacity, CancellationToken cancellationToken)
+        {
+            return inner.ResizePoolAsync(poolName, capacity, cancellationToken);
+        }
+
+        public Task<ResourcePoolExpiryResult> ExpireTicketsAsync(
+            DateTimeOffset expiredAt,
+            CancellationToken cancellationToken)
+        {
+            return inner.ExpireTicketsAsync(expiredAt, cancellationToken);
+        }
+
+        public Task<ResourcePoolForceReleaseResult> ForceReleaseTicketAsync(
+            Guid ticketId,
+            string operatorId,
+            DateTimeOffset releasedAt,
+            CancellationToken cancellationToken)
+        {
+            return inner.ForceReleaseTicketAsync(ticketId, operatorId, releasedAt, cancellationToken);
+        }
     }
 
     private sealed class RecordingEventStore : IWorkflowEventStore

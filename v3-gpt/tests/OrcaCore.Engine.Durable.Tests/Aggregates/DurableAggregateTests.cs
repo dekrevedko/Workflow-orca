@@ -121,6 +121,48 @@ public sealed class DurableAggregateTests
     }
 
     [Fact]
+    public void Replay_ResumeWithOnlyActiveTimerPending_ReportsWaiting()
+    {
+        var aggregate = DurableWorkflowAggregate.Rehydrate(
+            null,
+            [
+                Started(),
+                new WorkflowTimerScheduledEvent
+                {
+                    EventId = EventIdValue(5),
+                    InstanceId = InstanceIdValue(1),
+                    CommandId = CommandIdValue(5),
+                    CausationId = CausationIdValue(5),
+                    OccurredAt = Timestamp(5),
+                    TimerId = new TimerId(GuidValue(50)),
+                    FireAt = Timestamp(40),
+                    WakeupName = "timeout"
+                },
+                new WorkflowPausedEvent
+                {
+                    EventId = EventIdValue(6),
+                    InstanceId = InstanceIdValue(1),
+                    CommandId = CommandIdValue(6),
+                    CausationId = CausationIdValue(6),
+                    OccurredAt = Timestamp(6)
+                },
+                new WorkflowResumedEvent
+                {
+                    EventId = EventIdValue(7),
+                    InstanceId = InstanceIdValue(1),
+                    CommandId = CommandIdValue(7),
+                    CausationId = CausationIdValue(7),
+                    OccurredAt = Timestamp(7),
+                    BufferHandling = "replay"
+                }
+            ]);
+
+        aggregate.Status.Should().Be(
+            WorkflowStatus.Waiting,
+            "an instance resumed while a timer is still pending is waiting on that timer, not runnable");
+    }
+
+    [Fact]
     public void Replay_SameEventsTwice_IsDeterministic()
     {
         var events = new WorkflowEvent[]

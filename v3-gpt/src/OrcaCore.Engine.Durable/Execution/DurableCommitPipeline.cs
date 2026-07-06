@@ -52,7 +52,17 @@ internal sealed class DurableCommitPipeline(
                 aggregate.StreamVersion);
         }
 
-        await resourcePoolCommitEffects.ReleaseCommittedTicketsAsync(decision.Events, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await resourcePoolCommitEffects.ReleaseCommittedTicketsAsync(decision.Events, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // The events are already durably committed; surfacing a release failure here would make a
+            // committed command look failed and provoke conflicting retries. The unreleased ticket is
+            // recovered by lease expiry via the operational sweep.
+        }
+
         return new DurableCommandResult(
             DurableCommandOutcome.Committed,
             null,

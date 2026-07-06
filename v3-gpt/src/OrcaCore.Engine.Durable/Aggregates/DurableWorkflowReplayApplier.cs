@@ -87,7 +87,9 @@ internal static class DurableWorkflowReplayApplier
                 aggregate.Status = WorkflowStatus.Paused;
                 return true;
             case WorkflowResumedEvent:
-                aggregate.Status = aggregate.WaitState.HasActiveWaits ? WorkflowStatus.Waiting : WorkflowStatus.Running;
+                aggregate.Status = aggregate.WaitState.HasActiveWaits || aggregate.TimerState.HasActiveTimers
+                    ? WorkflowStatus.Waiting
+                    : WorkflowStatus.Running;
                 return true;
             case WorkflowCompletedEvent completed:
                 aggregate.OutcomeName = completed.OutcomeName;

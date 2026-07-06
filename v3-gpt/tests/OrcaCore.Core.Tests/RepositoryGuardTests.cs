@@ -72,6 +72,7 @@ public sealed partial class RepositoryGuardTests
         var taskDelayCall = string.Concat("Task", ".Delay(");
         var bannedDelays = Directory
             .EnumerateFiles(Path.Combine(repoRoot, "v3-gpt", "tests"), "*.cs", SearchOption.AllDirectories)
+            .Where(file => !IsBuildOutput(file))
             .SelectMany(file => File.ReadLines(file).Select((line, index) => new
             {
                 File = Path.GetRelativePath(repoRoot, file),
@@ -94,6 +95,7 @@ public sealed partial class RepositoryGuardTests
         var guidNewGuidCall = string.Concat("Guid", ".NewGuid(");
         var bannedCalls = Directory
             .EnumerateFiles(Path.Combine(repoRoot, "v3-gpt", "src"), "*.cs", SearchOption.AllDirectories)
+            .Where(file => !IsBuildOutput(file))
             .SelectMany(file => File.ReadLines(file).Select((line, index) => new
             {
                 File = Path.GetRelativePath(repoRoot, file),
@@ -207,6 +209,7 @@ public sealed partial class RepositoryGuardTests
         var repoRoot = FindRepoRoot();
         var providerLocalConverters = Directory
             .EnumerateFiles(Path.Combine(repoRoot, "v3-gpt", "src"), "*.cs", SearchOption.AllDirectories)
+            .Where(file => !IsBuildOutput(file))
             .Where(file => Path.GetRelativePath(repoRoot, file).Contains("OrcaCore.Providers.", StringComparison.Ordinal))
             .SelectMany(file => File.ReadLines(file).Select((line, index) => new
             {
@@ -335,6 +338,7 @@ public sealed partial class RepositoryGuardTests
     {
         return Directory
             .EnumerateFiles(Path.Combine(repoRoot, "v3-gpt", "tests"), "*.cs", SearchOption.AllDirectories)
+            .Where(file => !IsBuildOutput(file))
             .Select(File.ReadAllText)
             .SelectMany(source => AcceptanceTraitRegex().Matches(source))
             .Select(match => match.Groups[1].Value)
@@ -355,6 +359,7 @@ public sealed partial class RepositoryGuardTests
     {
         return Directory
             .EnumerateFiles(Path.Combine(repoRoot, "v3-gpt", "tests", "OrcaCore.Integration.Tests"), "*.cs", SearchOption.AllDirectories)
+            .Where(file => !IsBuildOutput(file))
             .Select(File.ReadAllText)
             .SelectMany(source => IntegrationScenarioTraitRegex().Matches(source))
             .Select(match => match.Groups[1].Value)
