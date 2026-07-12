@@ -538,55 +538,39 @@ public sealed class DurableCommandProcessor
 
         try
         {
+            // Stage 1: inbox preflight — a duplicate or discarded delivery completes without
+            // touching the aggregate.
             var inboxState = await LoadInboxStateAsync(inboxEventId, cancellationToken).ConfigureAwait(false);
             if (DurableInboxPreflight.TryCreateResult(inboxState) is { } preflightResult)
             {
-                stopwatch.Stop();
-                activity?.SetTag(OrcaCoreDiagnostics.CommandOutcomeKey, preflightResult.Outcome.ToString());
-                return await telemetry.ObserveCommandCompletedAsync(
+                return await CompleteWithoutCommitAsync(
                     instanceId,
                     preflightResult,
-                    eventCount: 0,
-                    checkpointWritten: false,
                     inboxEventId,
-                    cancellationToken,
                     commandType,
-                    definitionId: null,
-                    definitionVersion: null,
-                    status: null,
-                    stopwatch.Elapsed,
-                    inboxDuplicate: IsInboxDuplicate(inboxState))
-                    .ConfigureAwait(false);
+                    stopwatch,
+                    activity,
+                    IsInboxDuplicate(inboxState),
+                    cancellationToken).ConfigureAwait(false);
             }
 
+            // Stage 2: load and guard the optimistic stream version.
             var aggregate = await aggregateLoader.LoadAsync(instanceId, cancellationToken).ConfigureAwait(false);
-            if (expectedVersion is { } requiredVersion && aggregate.StreamVersion != requiredVersion)
+            if (GuardExpectedVersion(aggregate, expectedVersion) is { } conflictResult)
             {
-                // The driver decided this advancement against a stale read; another mutator moved
-                // the stream. Rejecting here keeps committed transitions exactly-once (DU-022).
-                stopwatch.Stop();
-                var conflictResult = new DurableCommandResult(
-                    DurableCommandOutcome.Conflict,
-                    $"Expected stream version {requiredVersion.Value} but found {aggregate.StreamVersion.Value}.",
-                    aggregate.StreamVersion);
-                activity?.SetTag(OrcaCoreDiagnostics.CommandOutcomeKey, conflictResult.Outcome.ToString());
-                return await telemetry.ObserveCommandCompletedAsync(
+                return await CompleteWithoutCommitAsync(
                     instanceId,
                     conflictResult,
-                    eventCount: 0,
-                    checkpointWritten: false,
                     inboxEventId,
-                    cancellationToken,
                     commandType,
-                    definitionId: null,
-                    definitionVersion: null,
-                    status: null,
-                    stopwatch.Elapsed)
-                    .ConfigureAwait(false);
+                    stopwatch,
+                    activity,
+                    inboxDuplicate: false,
+                    cancellationToken).ConfigureAwait(false);
             }
 
-            var preDecisionSnapshot = aggregate.Snapshot;
-            var activeWaitsById = preDecisionSnapshot.ActiveWaits.ToDictionary(wait => wait.WaitId);
+            // Stage 3: decide and commit (one atomic durable commit per command).
+            var activeWaitsById = aggregate.Snapshot.ActiveWaits.ToDictionary(wait => wait.WaitId);
             var decision = await decide(aggregate, cancellationToken).ConfigureAwait(false);
 
             var providerCommitAttempted = HasProviderCommit(decision, inboxEventId);
@@ -605,36 +589,13 @@ public sealed class DurableCommandProcessor
             stopwatch.Stop();
             activity?.SetTag(OrcaCoreDiagnostics.CommandOutcomeKey, result.Outcome.ToString());
             activity?.SetTag("stream.version", result.StreamVersion.Value);
-            var aggregateSnapshot = aggregate.Snapshot;
-            var committedSnapshot = result.Outcome == DurableCommandOutcome.Committed
-                ? aggregate
-                    .CreateProjectionWrites(decision.Events)
-                    .Select(write => write.InstanceSnapshot)
-                    .FirstOrDefault(snapshot => snapshot is not null)
-                : null;
-            var observedDefinitionId = committedSnapshot?.DefinitionId ?? aggregateSnapshot.DefinitionId;
-            var observedDefinitionVersion = committedSnapshot?.DefinitionVersion ?? aggregateSnapshot.DefinitionVersion;
-            var observedStatus = committedSnapshot?.Status ?? aggregateSnapshot.Status;
 
-            if (observedDefinitionId is { } definitionId)
-            {
-                activity?.SetTag(OrcaCoreDiagnostics.DefinitionIdKey, definitionId.ToString());
-            }
-
-            if (observedDefinitionVersion is { } definitionVersion)
-            {
-                activity?.SetTag(OrcaCoreDiagnostics.DefinitionVersionKey, definitionVersion.ToString());
-            }
-
-            if (observedStatus is { } status)
-            {
-                activity?.SetTag(OrcaCoreDiagnostics.StatusKey, status.ToString());
-            }
-
+            // Stage 4: derive post-commit observed state and emit observations.
+            var observed = DeriveObservedState(aggregate, decision, result, activity);
             var eventObservations = result.Outcome is DurableCommandOutcome.Committed
                 ? DurableCommandTelemetry.CreateEventObservations(
                     decision.Events,
-                    observedDefinitionId,
+                    observed.DefinitionId,
                     activeWaitsById,
                     stopwatch.Elapsed)
                 : [];
@@ -649,9 +610,9 @@ public sealed class DurableCommandProcessor
                 inboxEventId,
                 cancellationToken,
                 commandType,
-                observedDefinitionId,
-                observedDefinitionVersion,
-                observedStatus,
+                observed.DefinitionId,
+                observed.DefinitionVersion,
+                observed.Status,
                 stopwatch.Elapsed,
                 eventObservations,
                 providerCommitAttempted,
@@ -671,6 +632,105 @@ public sealed class DurableCommandProcessor
             throw;
         }
     }
+
+    /// <summary>
+    /// Completes a command that never reached the commit stage (inbox preflight hit or
+    /// optimistic-version conflict): stops timing, tags the outcome, and observes it with
+    /// zero events and no checkpoint.
+    /// </summary>
+    private async Task<DurableCommandResult> CompleteWithoutCommitAsync(
+        InstanceId instanceId,
+        DurableCommandResult result,
+        EventId? inboxEventId,
+        string commandType,
+        Stopwatch stopwatch,
+        Activity? activity,
+        bool inboxDuplicate,
+        CancellationToken cancellationToken)
+    {
+        stopwatch.Stop();
+        activity?.SetTag(OrcaCoreDiagnostics.CommandOutcomeKey, result.Outcome.ToString());
+        return await telemetry.ObserveCommandCompletedAsync(
+            instanceId,
+            result,
+            eventCount: 0,
+            checkpointWritten: false,
+            inboxEventId,
+            cancellationToken,
+            commandType,
+            definitionId: null,
+            definitionVersion: null,
+            status: null,
+            stopwatch.Elapsed,
+            inboxDuplicate: inboxDuplicate)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Rejects a command decided against a stale read: another mutator moved the stream past
+    /// the version the driver observed. Rejecting here keeps committed transitions
+    /// exactly-once (DU-022). Returns null when the stream is at the expected version.
+    /// </summary>
+    private static DurableCommandResult? GuardExpectedVersion(
+        DurableWorkflowAggregate aggregate,
+        StreamVersion? expectedVersion)
+    {
+        if (expectedVersion is not { } requiredVersion || aggregate.StreamVersion == requiredVersion)
+        {
+            return null;
+        }
+
+        return new DurableCommandResult(
+            DurableCommandOutcome.Conflict,
+            $"Expected stream version {requiredVersion.Value} but found {aggregate.StreamVersion.Value}.",
+            aggregate.StreamVersion);
+    }
+
+    /// <summary>
+    /// Derives the definition/status the observer should see: the committed projection
+    /// snapshot when the commit landed, otherwise the aggregate's decision-time view; tags
+    /// the command activity with whichever won.
+    /// </summary>
+    private static ObservedInstanceState DeriveObservedState(
+        DurableWorkflowAggregate aggregate,
+        DurableDecision decision,
+        DurableCommandResult result,
+        Activity? activity)
+    {
+        var aggregateSnapshot = aggregate.Snapshot;
+        var committedSnapshot = result.Outcome == DurableCommandOutcome.Committed
+            ? aggregate
+                .CreateProjectionWrites(decision.Events)
+                .Select(write => write.InstanceSnapshot)
+                .FirstOrDefault(snapshot => snapshot is not null)
+            : null;
+        var observed = new ObservedInstanceState(
+            committedSnapshot?.DefinitionId ?? aggregateSnapshot.DefinitionId,
+            committedSnapshot?.DefinitionVersion ?? aggregateSnapshot.DefinitionVersion,
+            committedSnapshot?.Status ?? aggregateSnapshot.Status);
+
+        if (observed.DefinitionId is { } definitionId)
+        {
+            activity?.SetTag(OrcaCoreDiagnostics.DefinitionIdKey, definitionId.ToString());
+        }
+
+        if (observed.DefinitionVersion is { } definitionVersion)
+        {
+            activity?.SetTag(OrcaCoreDiagnostics.DefinitionVersionKey, definitionVersion.ToString());
+        }
+
+        if (observed.Status is { } status)
+        {
+            activity?.SetTag(OrcaCoreDiagnostics.StatusKey, status.ToString());
+        }
+
+        return observed;
+    }
+
+    private readonly record struct ObservedInstanceState(
+        DefinitionId? DefinitionId,
+        DefinitionVersion? DefinitionVersion,
+        WorkflowStatus? Status);
 
     private async Task<DurableCommandResult> CommitWithTelemetryAsync(
         InstanceId instanceId,
