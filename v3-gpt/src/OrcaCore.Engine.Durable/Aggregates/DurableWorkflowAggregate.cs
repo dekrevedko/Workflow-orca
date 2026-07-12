@@ -15,64 +15,40 @@ internal sealed class DurableWorkflowAggregate
     private readonly DurableWaitState waitState;
     private readonly DurableSagaState sagaState;
 
-    private DurableWorkflowAggregate(
-        InstanceId instanceId,
-        StreamVersion streamVersion,
-        InstanceId? parentInstanceId,
-        InstanceId? rootInstanceId,
-        DefinitionId? definitionId,
-        DefinitionVersion? definitionVersion,
-        WorkflowStatus? status,
-        DateTimeOffset? createdAt,
-        DateTimeOffset? updatedAt,
-        string? lastStepPath,
-        string? errorSummary,
-        string? outcomeName,
-        int continueAsNewGeneration,
-        IEnumerable<DurableActiveTimer> activeTimers,
-        IEnumerable<DurableActiveWait> activeWaits,
-        IEnumerable<DurableBufferedDelivery> bufferedDeliveries,
-        IEnumerable<DurableBufferedTimer> bufferedTimers,
-        IEnumerable<DurableActiveChild> activeChildren,
-        IEnumerable<DurableActiveChildGroup> activeChildGroups,
-        IEnumerable<ResourcePoolTicket> activeResourceTickets,
-        IEnumerable<DurableActiveExternalJob> activeExternalJobs,
-        IEnumerable<DurableSagaForwardAction> completedSagaForwardActions,
-        IEnumerable<DurableSagaCompensationAction> sagaCompensationActions,
-        IEnumerable<DurableSagaRecoveryIntervention> sagaRecoveryInterventions,
-        IEnumerable<string> requestedSagaCompensationScopes,
-        IEnumerable<EventId> recordedParentResumeTokens,
-        IEnumerable<EventId> consumedParentResumeTokens)
+    private DurableWorkflowAggregate(DurableAggregateState state)
     {
-        InstanceId = instanceId;
-        StreamVersion = streamVersion;
-        ParentInstanceId = parentInstanceId;
-        RootInstanceId = rootInstanceId;
-        DefinitionId = definitionId;
-        DefinitionVersion = definitionVersion;
-        Status = status;
-        CreatedAt = createdAt;
-        UpdatedAt = updatedAt;
-        LastStepPath = lastStepPath;
-        ErrorSummary = errorSummary;
-        OutcomeName = outcomeName;
-        ContinueAsNewGeneration = continueAsNewGeneration;
-        timerState = DurableTimerState.FromSnapshot(activeTimers, bufferedTimers);
-        waitState = DurableWaitState.FromSnapshot(activeWaits, bufferedDeliveries);
+        InstanceId = state.InstanceId;
+        StreamVersion = state.StreamVersion;
+        ParentInstanceId = state.ParentInstanceId;
+        RootInstanceId = state.RootInstanceId;
+        DefinitionId = state.DefinitionId;
+        DefinitionVersion = state.DefinitionVersion;
+        Status = state.Status;
+        CreatedAt = state.CreatedAt;
+        UpdatedAt = state.UpdatedAt;
+        LastStepPath = state.LastStepPath;
+        ErrorSummary = state.ErrorSummary;
+        OutcomeName = state.OutcomeName;
+        ContinueAsNewGeneration = state.ContinueAsNewGeneration;
+        StartInputContentType = state.StartInputContentType;
+        StartInputPayload = state.StartInputPayload;
+        ParkReason = state.ParkReason;
+        timerState = DurableTimerState.FromSnapshot(state.ActiveTimers, state.BufferedTimers);
+        waitState = DurableWaitState.FromSnapshot(state.ActiveWaits, state.BufferedDeliveries, state.PendingResumes);
         childState = DurableChildWorkflowState.FromSnapshot(
-            activeChildren,
-            activeChildGroups,
+            state.ActiveChildren,
+            state.ActiveChildGroups,
             [],
             [],
-            recordedParentResumeTokens,
-            consumedParentResumeTokens);
-        resourcePoolState = DurableResourcePoolState.FromSnapshot(activeResourceTickets);
-        externalJobState = DurableExternalJobState.FromSnapshot(activeExternalJobs);
+            state.RecordedParentResumeTokens,
+            state.ConsumedParentResumeTokens);
+        resourcePoolState = DurableResourcePoolState.FromSnapshot(state.ActiveResourceTickets);
+        externalJobState = DurableExternalJobState.FromSnapshot(state.ActiveExternalJobs);
         sagaState = DurableSagaState.FromSnapshot(
-            completedSagaForwardActions,
-            sagaCompensationActions,
-            sagaRecoveryInterventions,
-            requestedSagaCompensationScopes);
+            state.CompletedSagaForwardActions,
+            state.SagaCompensationActions,
+            state.SagaRecoveryInterventions,
+            state.RequestedSagaCompensationScopes);
     }
 
     internal InstanceId InstanceId { get; set; }
@@ -100,6 +76,21 @@ internal sealed class DurableWorkflowAggregate
     internal string? OutcomeName { get; set; }
 
     internal int ContinueAsNewGeneration { get; set; }
+
+    /// <summary>
+    /// Gets or sets the serialized start input content type recorded by the start fact.
+    /// </summary>
+    internal string? StartInputContentType { get; set; }
+
+    /// <summary>
+    /// Gets or sets the serialized start input recorded by the start fact.
+    /// </summary>
+    internal byte[]? StartInputPayload { get; set; }
+
+    /// <summary>
+    /// Gets or sets the park reason while the instance status is Parked.
+    /// </summary>
+    internal DurableParkReason? ParkReason { get; set; }
 
     internal DurableChildWorkflowState ChildState => childState;
 
@@ -137,7 +128,13 @@ internal sealed class DurableWorkflowAggregate
         sagaState.CompletedForwardActions,
         sagaState.CompensationActions,
         sagaState.RecoveryInterventions,
-        sagaState.RequestedCompensationScopes);
+        sagaState.RequestedCompensationScopes)
+    {
+        PendingResumes = waitState.PendingResumes,
+        StartInputContentType = StartInputContentType,
+        StartInputPayload = StartInputPayload,
+        ParkReason = ParkReason
+    };
 
     internal bool IsTerminal =>
         Status is WorkflowStatus.Completed
@@ -149,34 +146,7 @@ internal sealed class DurableWorkflowAggregate
 
     internal static DurableWorkflowAggregate Empty(InstanceId instanceId)
     {
-        return new DurableWorkflowAggregate(
-            instanceId,
-            StreamVersion.Empty,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            0,
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            []);
+        return new DurableWorkflowAggregate(new DurableAggregateState { InstanceId = instanceId });
     }
 
     internal static DurableWorkflowAggregate Rehydrate(
@@ -187,34 +157,7 @@ internal sealed class DurableWorkflowAggregate
 
         var aggregate = checkpoint is null
             ? Empty(default)
-            : new DurableWorkflowAggregate(
-                checkpoint.InstanceId,
-                checkpoint.StreamVersion,
-                checkpoint.ParentInstanceId,
-                checkpoint.RootInstanceId,
-                checkpoint.DefinitionId,
-                checkpoint.DefinitionVersion,
-                checkpoint.Status,
-                checkpoint.CreatedAt,
-                checkpoint.UpdatedAt,
-                checkpoint.LastStepPath,
-                checkpoint.ErrorSummary,
-                checkpoint.OutcomeName,
-                checkpoint.ContinueAsNewGeneration,
-                checkpoint.ActiveTimers,
-                checkpoint.ActiveWaits,
-                checkpoint.BufferedDeliveries,
-                checkpoint.BufferedTimers,
-                checkpoint.ActiveChildren,
-                checkpoint.ActiveChildGroups,
-                checkpoint.ActiveResourceTickets,
-                checkpoint.ActiveExternalJobs,
-                checkpoint.CompletedSagaForwardActions,
-                checkpoint.SagaCompensationActions,
-                checkpoint.SagaRecoveryInterventions,
-                checkpoint.RequestedSagaCompensationScopes,
-                checkpoint.RecordedParentResumeTokens,
-                checkpoint.ConsumedParentResumeTokens);
+            : new DurableWorkflowAggregate(ToState(checkpoint));
 
         foreach (var workflowEvent in tail)
         {
@@ -222,6 +165,87 @@ internal sealed class DurableWorkflowAggregate
         }
 
         return aggregate;
+    }
+
+    /// <summary>
+    /// Maps a persisted checkpoint onto the construction memento. Start input and park reason
+    /// are intentionally absent: checkpoints do not carry them; only replay restores them.
+    /// </summary>
+    private static DurableAggregateState ToState(DurableAggregateCheckpoint checkpoint)
+    {
+        return new DurableAggregateState
+        {
+            InstanceId = checkpoint.InstanceId,
+            StreamVersion = checkpoint.StreamVersion,
+            ParentInstanceId = checkpoint.ParentInstanceId,
+            RootInstanceId = checkpoint.RootInstanceId,
+            DefinitionId = checkpoint.DefinitionId,
+            DefinitionVersion = checkpoint.DefinitionVersion,
+            Status = checkpoint.Status,
+            CreatedAt = checkpoint.CreatedAt,
+            UpdatedAt = checkpoint.UpdatedAt,
+            LastStepPath = checkpoint.LastStepPath,
+            ErrorSummary = checkpoint.ErrorSummary,
+            OutcomeName = checkpoint.OutcomeName,
+            ContinueAsNewGeneration = checkpoint.ContinueAsNewGeneration,
+            ActiveTimers = checkpoint.ActiveTimers,
+            ActiveWaits = checkpoint.ActiveWaits,
+            BufferedDeliveries = checkpoint.BufferedDeliveries,
+            BufferedTimers = checkpoint.BufferedTimers,
+            ActiveChildren = checkpoint.ActiveChildren,
+            ActiveChildGroups = checkpoint.ActiveChildGroups,
+            ActiveResourceTickets = checkpoint.ActiveResourceTickets,
+            ActiveExternalJobs = checkpoint.ActiveExternalJobs,
+            CompletedSagaForwardActions = checkpoint.CompletedSagaForwardActions,
+            SagaCompensationActions = checkpoint.SagaCompensationActions,
+            SagaRecoveryInterventions = checkpoint.SagaRecoveryInterventions,
+            RequestedSagaCompensationScopes = checkpoint.RequestedSagaCompensationScopes,
+            RecordedParentResumeTokens = checkpoint.RecordedParentResumeTokens,
+            ConsumedParentResumeTokens = checkpoint.ConsumedParentResumeTokens,
+            PendingResumes = checkpoint.PendingResumes
+        };
+    }
+
+    /// <summary>
+    /// Captures the aggregate's current state as a construction memento (including replay-only
+    /// facts: start input and park reason), so a detached copy is field-complete.
+    /// </summary>
+    private DurableAggregateState CaptureState()
+    {
+        return new DurableAggregateState
+        {
+            InstanceId = InstanceId,
+            StreamVersion = StreamVersion,
+            ParentInstanceId = ParentInstanceId,
+            RootInstanceId = RootInstanceId,
+            DefinitionId = DefinitionId,
+            DefinitionVersion = DefinitionVersion,
+            Status = Status,
+            CreatedAt = CreatedAt,
+            UpdatedAt = UpdatedAt,
+            LastStepPath = LastStepPath,
+            ErrorSummary = ErrorSummary,
+            OutcomeName = OutcomeName,
+            ContinueAsNewGeneration = ContinueAsNewGeneration,
+            ActiveTimers = timerState.ActiveTimers,
+            ActiveWaits = waitState.ActiveWaits,
+            BufferedDeliveries = waitState.BufferedDeliveries,
+            BufferedTimers = timerState.BufferedTimers,
+            ActiveChildren = childState.ActiveChildren,
+            ActiveChildGroups = childState.ActiveChildGroups,
+            ActiveResourceTickets = resourcePoolState.ActiveTickets,
+            ActiveExternalJobs = externalJobState.ActiveJobs,
+            CompletedSagaForwardActions = sagaState.CompletedForwardActions,
+            SagaCompensationActions = sagaState.CompensationActions,
+            SagaRecoveryInterventions = sagaState.RecoveryInterventions,
+            RequestedSagaCompensationScopes = sagaState.RequestedCompensationScopes,
+            RecordedParentResumeTokens = childState.RecordedParentResumeTokens,
+            ConsumedParentResumeTokens = childState.ConsumedParentResumeTokens,
+            PendingResumes = waitState.PendingResumes,
+            StartInputContentType = StartInputContentType,
+            StartInputPayload = StartInputPayload,
+            ParkReason = ParkReason
+        };
     }
 
     internal DurableAggregateCheckpoint CreateCheckpoint(string contentType, byte[] payload)
@@ -258,7 +282,10 @@ internal sealed class DurableWorkflowAggregate
             childState.RecordedParentResumeTokens,
             childState.ConsumedParentResumeTokens,
             contentType,
-            [.. payload]);
+            [.. payload])
+        {
+            PendingResumes = waitState.PendingResumes
+        };
     }
 
     internal DurableDecision DecideStart(StartWorkflowCommand command) =>
@@ -307,6 +334,12 @@ internal sealed class DurableWorkflowAggregate
         DurableLifecycleCommandHandler.Handle(this, command);
 
     internal DurableDecision DecideFail(DurableFailCommand command) =>
+        DurableLifecycleCommandHandler.Handle(this, command);
+
+    internal DurableDecision DecidePark(DurableParkCommand command) =>
+        DurableLifecycleCommandHandler.Handle(this, command);
+
+    internal DurableDecision DecideUnpark(DurableUnparkCommand command) =>
         DurableLifecycleCommandHandler.Handle(this, command);
 
     internal DurableDecision DecideTerminate(TerminateWorkflowCommand command) =>
@@ -359,6 +392,25 @@ internal sealed class DurableWorkflowAggregate
     internal DurableDecision DecideRecordSagaManualRecovery(RecordSagaManualRecoveryCommand command) =>
         DurableSagaCommandHandler.Handle(this, command);
 
+    /// <summary>
+    /// Creates a detached copy of this aggregate and applies the supplied uncommitted events to
+    /// it, so decisions can materialize post-commit state (checkpoints, projections) without
+    /// mutating the decision-time aggregate.
+    /// </summary>
+    internal DurableWorkflowAggregate ProjectEvents(IReadOnlyList<WorkflowEvent> events)
+    {
+        ArgumentNullException.ThrowIfNull(events);
+
+        var projected = new DurableWorkflowAggregate(CaptureState());
+
+        foreach (var workflowEvent in events)
+        {
+            projected.Apply(workflowEvent);
+        }
+
+        return projected;
+    }
+
     internal IReadOnlyList<ProjectionWrite> CreateProjectionWrites(IReadOnlyList<WorkflowEvent> events)
     {
         ArgumentNullException.ThrowIfNull(events);
@@ -368,39 +420,7 @@ internal sealed class DurableWorkflowAggregate
             return [];
         }
 
-        var projected = new DurableWorkflowAggregate(
-            InstanceId,
-            StreamVersion,
-            ParentInstanceId,
-            RootInstanceId,
-            DefinitionId,
-            DefinitionVersion,
-            Status,
-            CreatedAt,
-            UpdatedAt,
-            LastStepPath,
-            ErrorSummary,
-            OutcomeName,
-            ContinueAsNewGeneration,
-            timerState.ActiveTimers,
-            waitState.ActiveWaits,
-            waitState.BufferedDeliveries,
-            timerState.BufferedTimers,
-            childState.ActiveChildren,
-            childState.ActiveChildGroups,
-            resourcePoolState.ActiveTickets,
-            externalJobState.ActiveJobs,
-            sagaState.CompletedForwardActions,
-            sagaState.CompensationActions,
-            sagaState.RecoveryInterventions,
-            sagaState.RequestedCompensationScopes,
-            childState.RecordedParentResumeTokens,
-            childState.ConsumedParentResumeTokens);
-
-        foreach (var workflowEvent in events)
-        {
-            projected.Apply(workflowEvent);
-        }
+        var projected = ProjectEvents(events);
 
         var snapshot = projected.ToInstanceSnapshot();
         return snapshot is null
@@ -517,7 +537,8 @@ internal sealed class DurableWorkflowAggregate
             SagaRecoveryInterventions = sagaState.CreateCheckpointRecoveryInterventions(),
             RequestedSagaCompensationScopes = sagaState.RequestedCompensationScopes,
             RecordedParentResumeTokens = childState.RecordedParentResumeTokens,
-            ConsumedParentResumeTokens = childState.ConsumedParentResumeTokens
+            ConsumedParentResumeTokens = childState.ConsumedParentResumeTokens,
+            PendingResumes = waitState.CreateCheckpointPendingResumes()
         };
     }
 

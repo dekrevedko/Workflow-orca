@@ -5,7 +5,6 @@ using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
-using OrcaCore.Abstractions.Serialization;
 using OrcaCore.Engine.Durable.Aggregates;
 using OrcaCore.Engine.Durable.Diagnostics;
 
@@ -20,7 +19,7 @@ public sealed class DurableCommandProcessor
     private readonly IResourcePoolStore? resourcePoolStore;
     private readonly IWorkflowInboxStore? inboxStore;
     private readonly IWorkflowStartIdempotencyStore? startIdempotencyStore;
-    private readonly IWorkflowRuntimeObserver runtimeObserver;
+    private readonly DurableCommandTelemetry telemetry;
 
     /// <summary>
     /// Initializes a command processor with its own durable command runtime.
@@ -46,7 +45,7 @@ public sealed class DurableCommandProcessor
         ArgumentNullException.ThrowIfNull(runtime);
 
         this.runtime = runtime;
-        this.runtimeObserver = runtimeObserver ?? NullWorkflowRuntimeObserver.Instance;
+        telemetry = new DurableCommandTelemetry(runtimeObserver ?? NullWorkflowRuntimeObserver.Instance);
         eventStore = runtime.EventStore;
         aggregateLoader = new DurableAggregateLoader(eventStore);
         resourcePoolStore = runtime.ResourcePoolStore;
@@ -59,6 +58,8 @@ public sealed class DurableCommandProcessor
     }
 
     internal int ActiveLaneCount => runtime.ActiveLaneCount;
+
+    internal IWorkflowEventStore EventStore => eventStore;
 
     internal async Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedAsync(
         string idempotencyKey,
@@ -90,7 +91,8 @@ public sealed class DurableCommandProcessor
         return RunInLaneAsync(
             command.InstanceId,
             aggregate => aggregate.DecideStepCompleted(command),
-            cancellationToken);
+            cancellationToken,
+            expectedVersion: command.ExpectedStreamVersion);
     }
 
     internal Task<DurableCommandResult> ProcessAsync(
@@ -101,6 +103,29 @@ public sealed class DurableCommandProcessor
         return RunInLaneAsync(
             command.InstanceId,
             aggregate => aggregate.DecideStepFailed(command),
+            cancellationToken,
+            expectedVersion: command.ExpectedStreamVersion);
+    }
+
+    internal Task<DurableCommandResult> ProcessAsync(
+        DurableParkCommand command,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        return RunInLaneAsync(
+            command.InstanceId,
+            aggregate => aggregate.DecidePark(command),
+            cancellationToken);
+    }
+
+    internal Task<DurableCommandResult> ProcessAsync(
+        DurableUnparkCommand command,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        return RunInLaneAsync(
+            command.InstanceId,
+            aggregate => aggregate.DecideUnpark(command),
             cancellationToken);
     }
 
@@ -113,7 +138,8 @@ public sealed class DurableCommandProcessor
             command.InstanceId,
             aggregate => aggregate.DecideYield(command),
             cancellationToken,
-            commandType: nameof(DurableYieldCommand));
+            commandType: nameof(DurableYieldCommand),
+            expectedVersion: command.ExpectedStreamVersion);
     }
 
     public Task<DurableCommandResult> ProcessAsync(
@@ -124,7 +150,8 @@ public sealed class DurableCommandProcessor
         return RunInLaneAsync(
             command.InstanceId,
             aggregate => aggregate.DecideRunChild(command),
-            cancellationToken);
+            cancellationToken,
+            expectedVersion: command.ExpectedStreamVersion);
     }
 
     public Task<DurableCommandResult> ProcessAsync(
@@ -146,7 +173,8 @@ public sealed class DurableCommandProcessor
         return RunInLaneAsync(
             command.InstanceId,
             aggregate => aggregate.DecideRunChildren(command),
-            cancellationToken);
+            cancellationToken,
+            expectedVersion: command.ExpectedStreamVersion);
     }
 
     internal Task<DurableCommandResult> ProcessAsync(
@@ -157,7 +185,8 @@ public sealed class DurableCommandProcessor
         return RunInLaneAsync(
             command.InstanceId,
             aggregate => aggregate.DecideWaitRegistered(command),
-            cancellationToken);
+            cancellationToken,
+            expectedVersion: command.ExpectedStreamVersion);
     }
 
     internal Task<DurableCommandResult> ProcessAsync(
@@ -179,7 +208,8 @@ public sealed class DurableCommandProcessor
         return RunInLaneAsync(
             command.InstanceId,
             aggregate => aggregate.DecideTimerScheduled(command),
-            cancellationToken);
+            cancellationToken,
+            expectedVersion: command.ExpectedStreamVersion);
     }
 
     public Task<DurableCommandResult> ProcessAsync(
@@ -214,7 +244,8 @@ public sealed class DurableCommandProcessor
                     .ConfigureAwait(false);
                 return aggregate.DecideResourcePoolAcquire(command, acquireResult);
             },
-            cancellationToken);
+            cancellationToken,
+            expectedVersion: command.ExpectedStreamVersion);
     }
 
     public Task<DurableCommandResult> ProcessAsync(
@@ -243,7 +274,8 @@ public sealed class DurableCommandProcessor
 
                 return aggregate.DecideRunExternalJob(command, acquireResult);
             },
-            cancellationToken);
+            cancellationToken,
+            expectedVersion: command.ExpectedStreamVersion);
     }
 
     public Task<DurableCommandResult> ProcessAsync(
@@ -410,7 +442,8 @@ public sealed class DurableCommandProcessor
         return RunInLaneAsync(
             command.InstanceId,
             aggregate => aggregate.DecideComplete(command),
-            cancellationToken);
+            cancellationToken,
+            expectedVersion: command.ExpectedStreamVersion);
     }
 
     internal Task<DurableCommandResult> ProcessAsync(
@@ -421,7 +454,8 @@ public sealed class DurableCommandProcessor
         return RunInLaneAsync(
             command.InstanceId,
             aggregate => aggregate.DecideFail(command),
-            cancellationToken);
+            cancellationToken,
+            expectedVersion: command.ExpectedStreamVersion);
     }
 
     public Task<DurableCommandResult> ProcessAsync(
@@ -463,14 +497,16 @@ public sealed class DurableCommandProcessor
         Func<DurableWorkflowAggregate, DurableDecision> decide,
         CancellationToken cancellationToken,
         EventId? inboxEventId = null,
-        string commandType = "DurableCommand")
+        string commandType = "DurableCommand",
+        StreamVersion? expectedVersion = null)
     {
         return await RunInLaneAsync(
             instanceId,
             (aggregate, _) => Task.FromResult(decide(aggregate)),
             cancellationToken,
             inboxEventId,
-            commandType).ConfigureAwait(false);
+            commandType,
+            expectedVersion).ConfigureAwait(false);
     }
 
     private async Task<DurableCommandResult> RunInLaneAsync(
@@ -478,11 +514,12 @@ public sealed class DurableCommandProcessor
         Func<DurableWorkflowAggregate, CancellationToken, Task<DurableDecision>> decide,
         CancellationToken cancellationToken,
         EventId? inboxEventId = null,
-        string commandType = "DurableCommand")
+        string commandType = "DurableCommand",
+        StreamVersion? expectedVersion = null)
     {
         return await runtime.RunAsync(
             instanceId,
-            token => ProcessCoreAsync(instanceId, decide, token, inboxEventId, commandType),
+            token => ProcessCoreAsync(instanceId, decide, token, inboxEventId, commandType, expectedVersion),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -491,7 +528,8 @@ public sealed class DurableCommandProcessor
         Func<DurableWorkflowAggregate, CancellationToken, Task<DurableDecision>> decide,
         CancellationToken cancellationToken,
         EventId? inboxEventId,
-        string commandType)
+        string commandType,
+        StreamVersion? expectedVersion = null)
     {
         var stopwatch = Stopwatch.StartNew();
         using var activity = OrcaCoreDurableDiagnostics.ActivitySource.StartActivity("orca.command.process");
@@ -505,7 +543,7 @@ public sealed class DurableCommandProcessor
             {
                 stopwatch.Stop();
                 activity?.SetTag(OrcaCoreDiagnostics.CommandOutcomeKey, preflightResult.Outcome.ToString());
-                return await ObserveCommandCompletedAsync(
+                return await telemetry.ObserveCommandCompletedAsync(
                     instanceId,
                     preflightResult,
                     eventCount: 0,
@@ -522,12 +560,37 @@ public sealed class DurableCommandProcessor
             }
 
             var aggregate = await aggregateLoader.LoadAsync(instanceId, cancellationToken).ConfigureAwait(false);
+            if (expectedVersion is { } requiredVersion && aggregate.StreamVersion != requiredVersion)
+            {
+                // The driver decided this advancement against a stale read; another mutator moved
+                // the stream. Rejecting here keeps committed transitions exactly-once (DU-022).
+                stopwatch.Stop();
+                var conflictResult = new DurableCommandResult(
+                    DurableCommandOutcome.Conflict,
+                    $"Expected stream version {requiredVersion.Value} but found {aggregate.StreamVersion.Value}.",
+                    aggregate.StreamVersion);
+                activity?.SetTag(OrcaCoreDiagnostics.CommandOutcomeKey, conflictResult.Outcome.ToString());
+                return await telemetry.ObserveCommandCompletedAsync(
+                    instanceId,
+                    conflictResult,
+                    eventCount: 0,
+                    checkpointWritten: false,
+                    inboxEventId,
+                    cancellationToken,
+                    commandType,
+                    definitionId: null,
+                    definitionVersion: null,
+                    status: null,
+                    stopwatch.Elapsed)
+                    .ConfigureAwait(false);
+            }
+
             var preDecisionSnapshot = aggregate.Snapshot;
             var activeWaitsById = preDecisionSnapshot.ActiveWaits.ToDictionary(wait => wait.WaitId);
             var decision = await decide(aggregate, cancellationToken).ConfigureAwait(false);
 
             var providerCommitAttempted = HasProviderCommit(decision, inboxEventId);
-            var providerName = ProviderName(eventStore);
+            var providerName = DurableCommandTelemetry.ProviderName(eventStore);
             var providerCommitStopwatch = Stopwatch.StartNew();
             var result = await CommitWithTelemetryAsync(
                     instanceId,
@@ -569,16 +632,16 @@ public sealed class DurableCommandProcessor
             }
 
             var eventObservations = result.Outcome is DurableCommandOutcome.Committed
-                ? CreateEventObservations(
+                ? DurableCommandTelemetry.CreateEventObservations(
                     decision.Events,
                     observedDefinitionId,
                     activeWaitsById,
                     stopwatch.Elapsed)
                 : [];
-            RecordEventSpans(eventObservations, instanceId);
-            RecordStepSpans(eventObservations, instanceId);
+            DurableCommandTelemetry.RecordEventSpans(eventObservations, instanceId);
+            DurableCommandTelemetry.RecordStepSpans(eventObservations, instanceId);
 
-            return await ObserveCommandCompletedAsync(
+            return await telemetry.ObserveCommandCompletedAsync(
                 instanceId,
                 result,
                 decision.Events.Count,
@@ -652,61 +715,6 @@ public sealed class DurableCommandProcessor
         }
     }
 
-    private async Task<DurableCommandResult> ObserveCommandCompletedAsync(
-        InstanceId instanceId,
-        DurableCommandResult result,
-        int eventCount,
-        bool checkpointWritten,
-        EventId? inboxEventId,
-        CancellationToken cancellationToken,
-        string commandType,
-        DefinitionId? definitionId,
-        DefinitionVersion? definitionVersion,
-        WorkflowStatus? status,
-        TimeSpan duration,
-        IReadOnlyList<WorkflowRuntimeEventObservation>? events = null,
-        bool providerCommitAttempted = false,
-        string providerName = "unknown",
-        TimeSpan providerCommitDuration = default,
-        bool inboxDuplicate = false)
-    {
-        try
-        {
-            await runtimeObserver
-                .OnCommandCompletedAsync(
-                    new WorkflowRuntimeObservation(
-                        ToObservationKind(result.Outcome),
-                        instanceId,
-                        result.Outcome,
-                        result.StreamVersion,
-                        eventCount,
-                        checkpointWritten,
-                        result.Evicted,
-                        inboxEventId,
-                        result.Message,
-                        commandType,
-                        definitionId,
-                        definitionVersion,
-                        status,
-                        duration)
-                    {
-                        Events = events ?? [],
-                        InboxDuplicate = inboxDuplicate,
-                        ProviderCommitAttempted = providerCommitAttempted,
-                        ProviderName = providerName,
-                        ProviderCommitDuration = providerCommitDuration
-                    },
-                    cancellationToken)
-                .ConfigureAwait(false);
-        }
-        catch (Exception)
-        {
-            // Runtime observations are diagnostics; observer failures must not change command results.
-        }
-
-        return result;
-    }
-
     private static bool HasProviderCommit(DurableDecision decision, EventId? inboxEventId)
     {
         return decision.Events.Count > 0 || decision.Checkpoint is not null || inboxEventId is not null;
@@ -718,139 +726,6 @@ public sealed class DurableCommandProcessor
             inboxState.Value is InboxRecordState.Applied
                 or InboxRecordState.DuplicateIgnored
                 or InboxRecordState.DiscardedOnResume;
-    }
-
-    private static IReadOnlyList<WorkflowRuntimeEventObservation> CreateEventObservations(
-        IReadOnlyList<WorkflowEvent> events,
-        DefinitionId? definitionId,
-        IReadOnlyDictionary<WaitId, DurableActiveWait> activeWaitsById,
-        TimeSpan stepDuration)
-    {
-        return events
-            .Select(workflowEvent =>
-            {
-                var eventDefinitionId = workflowEvent is WorkflowStartedEvent started
-                    ? started.DefinitionId
-                    : definitionId;
-                var eventType = WorkflowEventCodec.ToEventType(workflowEvent);
-                return workflowEvent switch
-                {
-                    WorkflowStepCompletedEvent stepCompleted => new WorkflowRuntimeEventObservation(
-                        eventType,
-                        eventDefinitionId,
-                        StepPath: stepCompleted.StepPath,
-                        LifecycleEventName: "StepCompleted",
-                        StepDuration: stepDuration),
-                    WorkflowStepFailedEvent stepFailed => new WorkflowRuntimeEventObservation(
-                        eventType,
-                        eventDefinitionId,
-                        StepPath: stepFailed.StepPath,
-                        ErrorKind: nameof(WorkflowStepFailedEvent),
-                        LifecycleEventName: "StepFailed",
-                        StepDuration: stepDuration),
-                    WorkflowWaitMatchedEvent waitMatched => new WorkflowRuntimeEventObservation(
-                        eventType,
-                        eventDefinitionId,
-                        LifecycleEventName: "InstanceResumed",
-                        WaitEventName: activeWaitsById.TryGetValue(waitMatched.WaitId, out var wait)
-                            ? wait.EventName
-                            : null,
-                        WaitDuration: activeWaitsById.TryGetValue(waitMatched.WaitId, out wait)
-                            ? PositiveDuration(waitMatched.OccurredAt - wait.RegisteredAt)
-                            : null),
-                    _ => new WorkflowRuntimeEventObservation(
-                        eventType,
-                        eventDefinitionId,
-                        LifecycleEventName: ToLifecycleEventName(workflowEvent))
-                };
-            })
-            .ToArray();
-    }
-
-    private static void RecordEventSpans(
-        IReadOnlyList<WorkflowRuntimeEventObservation> events,
-        InstanceId instanceId)
-    {
-        foreach (var workflowEvent in events)
-        {
-            using var activity = OrcaCoreDurableDiagnostics.ActivitySource.StartActivity("orca.event.apply");
-            activity?.SetTag(OrcaCoreDiagnostics.EventTypeKey, workflowEvent.EventType);
-            activity?.SetTag(OrcaCoreDiagnostics.InstanceIdKey, instanceId.ToString());
-            if (workflowEvent.DefinitionId is { } definitionId)
-            {
-                activity?.SetTag(OrcaCoreDiagnostics.DefinitionIdKey, definitionId.ToString());
-            }
-        }
-    }
-
-    private static void RecordStepSpans(
-        IReadOnlyList<WorkflowRuntimeEventObservation> events,
-        InstanceId instanceId)
-    {
-        foreach (var workflowEvent in events.Where(workflowEvent => workflowEvent.StepPath is not null))
-        {
-            using var activity = OrcaCoreDurableDiagnostics.ActivitySource.StartActivity("orca.step.execute");
-            activity?.SetTag(OrcaCoreDiagnostics.StepPathKey, workflowEvent.StepPath);
-            activity?.SetTag(OrcaCoreDiagnostics.InstanceIdKey, instanceId.ToString());
-            if (workflowEvent.DefinitionId is { } definitionId)
-            {
-                activity?.SetTag(OrcaCoreDiagnostics.DefinitionIdKey, definitionId.ToString());
-            }
-
-            if (workflowEvent.ErrorKind is { } errorKind)
-            {
-                activity?.SetTag(OrcaCoreDiagnostics.ErrorKindKey, errorKind);
-                activity?.SetStatus(ActivityStatusCode.Error, errorKind);
-            }
-        }
-    }
-
-    private static string? ToLifecycleEventName(WorkflowEvent workflowEvent)
-    {
-        return workflowEvent switch
-        {
-            WorkflowStartedEvent => "InstanceStarted",
-            WorkflowContinuedAsNewEvent => "InstanceContinuedAsNew",
-            WorkflowWaitRegisteredEvent => "InstanceSuspended",
-            WorkflowTimerScheduledEvent => "InstanceSuspended",
-            WorkflowTimerFiredEvent => "InstanceResumed",
-            WorkflowPausedEvent => "InstancePaused",
-            WorkflowResumedEvent => "InstanceResumed",
-            WorkflowCompletedEvent => "InstanceCompleted",
-            WorkflowTerminalEvent { Status: WorkflowStatus.Failed } => "InstanceFailed",
-            WorkflowTerminalEvent { Status: WorkflowStatus.Cancelled } => "InstanceCancelled",
-            WorkflowTerminalEvent { Status: WorkflowStatus.Terminated } => "InstanceTerminated",
-            WorkflowTerminalEvent { Status: WorkflowStatus.Compensated } => "InstanceCompensated",
-            WorkflowTerminalEvent { Status: WorkflowStatus.CompensationFailed } => "InstanceCompensationFailed",
-            _ => null
-        };
-    }
-
-    private static TimeSpan PositiveDuration(TimeSpan duration)
-    {
-        return duration < TimeSpan.Zero ? TimeSpan.Zero : duration;
-    }
-
-    private static string ProviderName(object provider)
-    {
-        var name = provider.GetType().Name;
-        return name
-            .Replace("WorkflowProvider", string.Empty, StringComparison.Ordinal)
-            .Replace("WorkflowStore", string.Empty, StringComparison.Ordinal)
-            .Replace("EventStore", string.Empty, StringComparison.Ordinal);
-    }
-
-    private static WorkflowRuntimeObservationKind ToObservationKind(DurableCommandOutcome outcome)
-    {
-        return outcome switch
-        {
-            DurableCommandOutcome.Committed => WorkflowRuntimeObservationKind.CommandCommitted,
-            DurableCommandOutcome.Conflict => WorkflowRuntimeObservationKind.CommandConflict,
-            DurableCommandOutcome.Evicted => WorkflowRuntimeObservationKind.CommandEvicted,
-            DurableCommandOutcome.Poisoned => WorkflowRuntimeObservationKind.CommandPoisoned,
-            DurableCommandOutcome.NoOp => WorkflowRuntimeObservationKind.CommandNoOp,
-            _ => throw new UnreachableException()
-        };
     }
 
     private async Task<Option<InboxRecordState>> LoadInboxStateAsync(

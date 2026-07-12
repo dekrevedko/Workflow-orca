@@ -20,6 +20,7 @@ internal sealed class DurableCommitMaterializer
         ArgumentNullException.ThrowIfNull(decision);
         ArgumentNullException.ThrowIfNull(aggregate);
 
+        var projectionOperations = aggregate.CreateProjectionWrites(decision.Events);
         return new ProviderCommitBatch
         {
             StreamId = new WorkflowStreamId(instanceId),
@@ -27,8 +28,8 @@ internal sealed class DurableCommitMaterializer
             Events = decision.Events,
             Checkpoint = decision.Checkpoint,
             InboxOperations = CreateInboxOperations(inboxEventId, decision),
-            OutboxRecords = CreateOutboxRecords(decision.Events),
-            ProjectionOperations = aggregate.CreateProjectionWrites(decision.Events),
+            OutboxRecords = CreateOutboxRecords(decision, aggregate, projectionOperations),
+            ProjectionOperations = projectionOperations,
             StartIdempotencyOperations = CreateStartIdempotencyWrites(decision.Events),
             TimerSchedules = CreateTimerSchedules(decision.Events)
         };
@@ -61,13 +62,102 @@ internal sealed class DurableCommitMaterializer
             .ToArray();
     }
 
-    private static IReadOnlyList<OutboxWrite> CreateOutboxRecords(IReadOnlyList<WorkflowEvent> events)
+    private static IReadOnlyList<OutboxWrite> CreateOutboxRecords(
+        DurableDecision decision,
+        DurableWorkflowAggregate aggregate,
+        IReadOnlyList<ProjectionWrite> projectionOperations)
     {
+        var events = decision.Events;
         return CreateLifecycleOutboxRecords(events)
             .Concat(CreateChildStartOutboxRecords(events))
             .Concat(CreateResidualOutboxRecords(events))
             .Concat(CreateExternalJobOutboxRecords(events))
+            .Concat(CreateContinuationOutboxRecords(decision, aggregate, projectionOperations))
             .ToArray();
+    }
+
+    /// <summary>
+    /// DR-034: every commit that leaves the instance runnable carries an internal
+    /// <c>continue</c> record inside the same commit boundary, so a host crash between commit
+    /// and continuation never strands the instance. Runnability is judged from the committed
+    /// facts: the projected status, an unblocking event in the batch (a wait matched or timer
+    /// fired can leave the status Waiting while the unblocked branch is runnable), or a
+    /// runnable cursor in the committed position envelope (a branch can suspend while a
+    /// sibling still has work). Over-emission is harmless — a stale claim reloads the
+    /// committed position and no-ops (DR-034 idempotence); under-emission strands.
+    /// </summary>
+    private static IReadOnlyList<OutboxWrite> CreateContinuationOutboxRecords(
+        DurableDecision decision,
+        DurableWorkflowAggregate aggregate,
+        IReadOnlyList<ProjectionWrite> projectionOperations)
+    {
+        if (decision.Events.Count == 0)
+        {
+            return [];
+        }
+
+        var status = projectionOperations
+            .Select(write => write.InstanceSnapshot?.Status)
+            .FirstOrDefault(candidate => candidate is not null)
+            ?? aggregate.Snapshot.Status;
+        if (status is null
+            or WorkflowStatus.Completed
+            or WorkflowStatus.Failed
+            or WorkflowStatus.Cancelled
+            or WorkflowStatus.Terminated
+            or WorkflowStatus.Compensated
+            or WorkflowStatus.CompensationFailed
+            or WorkflowStatus.Paused
+            or WorkflowStatus.Parked)
+        {
+            return [];
+        }
+
+        if (status != WorkflowStatus.Running
+            && !decision.Events.Any(IsUnblockingEvent)
+            && !HasRunnableEnvelopeCursor(decision.Checkpoint))
+        {
+            return [];
+        }
+
+        var lastEvent = decision.Events[^1];
+        var signal = new DurableContinuationSignal
+        {
+            InstanceId = lastEvent.InstanceId,
+            OccurredAt = lastEvent.OccurredAt
+        };
+        return [new OutboxWrite(OutboxRecordId.New(), OutboxKinds.Continue, signal.Serialize())];
+    }
+
+    private static bool IsUnblockingEvent(WorkflowEvent workflowEvent)
+    {
+        return workflowEvent
+            is WorkflowWaitMatchedEvent
+            or WorkflowTimerFiredEvent
+            or WorkflowUnparkedEvent
+            or WorkflowResumedEvent
+            or WorkflowExternalJobCompletedEvent
+            or WorkflowResourcePoolAcquiredEvent
+            or WorkflowParentResumeTokenRecordedEvent;
+    }
+
+    private static bool HasRunnableEnvelopeCursor(CheckpointWrite? checkpoint)
+    {
+        if (checkpoint is null || checkpoint.ContentType != DurableExecutionEnvelope.ContentType)
+        {
+            return false;
+        }
+
+        try
+        {
+            var envelope = DurableExecutionEnvelope.Deserialize(checkpoint.Payload);
+            return envelope.Position.Cursors.Any(cursor =>
+                cursor.Phase is DurableCursorPhase.AtNode or DurableCursorPhase.Yielded);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     private static IReadOnlyList<TimerScheduleRequest> CreateTimerSchedules(IReadOnlyList<WorkflowEvent> events)
@@ -116,70 +206,80 @@ internal sealed class DurableCommitMaterializer
     {
         var singleChildren = events
             .OfType<WorkflowChildScheduledEvent>()
-            .Select(child => new OutboxWrite(
-                OutboxRecordId.New(),
+            .Select(child => ChildStartOutboxRecord(
                 "child-start",
-                JsonSerializer.SerializeToUtf8Bytes(new StartWorkflowCommand
-                {
-                    CommandId = new CommandId(child.EventId.Value),
-                    InstanceId = child.ChildInstanceId,
-                    RequestedAt = child.OccurredAt,
-                    ParentInstanceId = child.InstanceId,
-                    RootInstanceId = child.RootInstanceId ?? child.InstanceId,
-                    DefinitionId = child.ChildDefinitionId,
-                    DefinitionVersion = child.ChildDefinitionVersion
-                })))
-            .ToArray();
+                new CommandId(child.EventId.Value),
+                child.ChildInstanceId,
+                child.OccurredAt,
+                child.InstanceId,
+                child.RootInstanceId,
+                child.ChildDefinitionId,
+                child.ChildDefinitionVersion));
         var childGroups = events
             .OfType<WorkflowChildrenScheduledEvent>()
-            .SelectMany(group => group.Children.Take(group.InitialDispatchCount).Select(child => new OutboxWrite(
-                OutboxRecordId.New(),
-                "child-start",
-                JsonSerializer.SerializeToUtf8Bytes(new StartWorkflowCommand
-                {
-                    CommandId = new CommandId(child.ChildInstanceId.Value),
-                    InstanceId = child.ChildInstanceId,
-                    RequestedAt = group.OccurredAt,
-                    ParentInstanceId = group.InstanceId,
-                    RootInstanceId = group.RootInstanceId ?? group.InstanceId,
-                    DefinitionId = child.ChildDefinitionId,
-                    DefinitionVersion = child.ChildDefinitionVersion
-                }))))
-            .ToArray();
+            .SelectMany(group => group.Children.Take(group.InitialDispatchCount).Select(child =>
+                ChildStartOutboxRecord(
+                    "child-start",
+                    new CommandId(child.ChildInstanceId.Value),
+                    child.ChildInstanceId,
+                    group.OccurredAt,
+                    group.InstanceId,
+                    group.RootInstanceId,
+                    child.ChildDefinitionId,
+                    child.ChildDefinitionVersion)));
         var dispatchedChildren = events
             .OfType<WorkflowChildrenDispatchedEvent>()
-            .SelectMany(group => group.Children.Select(child => new OutboxWrite(
-                OutboxRecordId.New(),
+            .SelectMany(group => group.Children.Select(child => ChildStartOutboxRecord(
                 "child-start",
-                JsonSerializer.SerializeToUtf8Bytes(new StartWorkflowCommand
-                {
-                    CommandId = new CommandId(child.ChildInstanceId.Value),
-                    InstanceId = child.ChildInstanceId,
-                    RequestedAt = group.OccurredAt,
-                    ParentInstanceId = group.InstanceId,
-                    RootInstanceId = group.RootInstanceId ?? group.InstanceId,
-                    DefinitionId = child.ChildDefinitionId,
-                    DefinitionVersion = child.ChildDefinitionVersion
-                }))))
-            .ToArray();
+                new CommandId(child.ChildInstanceId.Value),
+                child.ChildInstanceId,
+                group.OccurredAt,
+                group.InstanceId,
+                group.RootInstanceId,
+                child.ChildDefinitionId,
+                child.ChildDefinitionVersion)));
         var childCompensations = events
             .OfType<WorkflowChildCompensationScheduledEvent>()
-            .SelectMany(group => group.Compensations.Select(compensation => new OutboxWrite(
-                OutboxRecordId.New(),
+            .SelectMany(group => group.Compensations.Select(compensation => ChildStartOutboxRecord(
                 "child-compensation-start",
-                JsonSerializer.SerializeToUtf8Bytes(new StartWorkflowCommand
-                {
-                    CommandId = new CommandId(compensation.CompensationInstanceId.Value),
-                    InstanceId = compensation.CompensationInstanceId,
-                    RequestedAt = group.OccurredAt,
-                    ParentInstanceId = group.InstanceId,
-                    RootInstanceId = group.RootInstanceId ?? group.InstanceId,
-                    DefinitionId = group.CompensationDefinitionId,
-                    DefinitionVersion = group.CompensationDefinitionVersion
-                }))))
-            .ToArray();
+                new CommandId(compensation.CompensationInstanceId.Value),
+                compensation.CompensationInstanceId,
+                group.OccurredAt,
+                group.InstanceId,
+                group.RootInstanceId,
+                group.CompensationDefinitionId,
+                group.CompensationDefinitionVersion)));
 
         return [.. singleChildren, .. childGroups, .. dispatchedChildren, .. childCompensations];
+    }
+
+    /// <summary>
+    /// Materializes one child-start outbox record: a serialized <see cref="StartWorkflowCommand"/>
+    /// dispatching <paramref name="childInstanceId"/> under the parent's lineage.
+    /// </summary>
+    private static OutboxWrite ChildStartOutboxRecord(
+        string kind,
+        CommandId commandId,
+        InstanceId childInstanceId,
+        DateTimeOffset occurredAt,
+        InstanceId parentInstanceId,
+        InstanceId? rootInstanceId,
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion)
+    {
+        return new OutboxWrite(
+            OutboxRecordId.New(),
+            kind,
+            JsonSerializer.SerializeToUtf8Bytes(new StartWorkflowCommand
+            {
+                CommandId = commandId,
+                InstanceId = childInstanceId,
+                RequestedAt = occurredAt,
+                ParentInstanceId = parentInstanceId,
+                RootInstanceId = rootInstanceId ?? parentInstanceId,
+                DefinitionId = definitionId,
+                DefinitionVersion = definitionVersion
+            }));
     }
 
     private static IReadOnlyList<OutboxWrite> CreateResidualOutboxRecords(IReadOnlyList<WorkflowEvent> events)
@@ -255,6 +355,14 @@ internal sealed class DurableCommitMaterializer
             WorkflowPausedEvent paused =>
             [
                 DurableLifecycleEvent(paused, "InstancePaused", null, WorkflowStatus.Paused)
+            ],
+            WorkflowParkedEvent parked =>
+            [
+                DurableLifecycleEvent(parked, "InstanceParked", null, WorkflowStatus.Parked)
+            ],
+            WorkflowUnparkedEvent unparked =>
+            [
+                DurableLifecycleEvent(unparked, "InstanceUnparked", null, WorkflowStatus.Running)
             ],
             WorkflowResumedEvent resumed =>
             [
