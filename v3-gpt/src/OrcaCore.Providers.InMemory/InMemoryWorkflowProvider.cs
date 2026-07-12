@@ -1,4 +1,3 @@
-using System.Text.Json;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
@@ -18,10 +17,8 @@ public sealed class InMemoryWorkflowProvider :
     IWorkflowProjectionStore,
     IWorkflowRetentionStore,
     ITimerScheduler,
-    IMessageDispatcher,
-    IWorkflowPayloadSerializer
+    IMessageDispatcher
 {
-    private const string JsonContentType = "application/json";
     private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
 
     private readonly Lock gate = new();
@@ -471,29 +468,6 @@ public sealed class InMemoryWorkflowProvider :
         }
 
         return Task.FromResult(DispatchResult.Success);
-    }
-
-    /// <inheritdoc />
-    public SerializedPayload Serialize<TPayload>(TPayload payload)
-    {
-        return new SerializedPayload(
-            JsonContentType,
-            JsonSerializer.SerializeToUtf8Bytes(payload));
-    }
-
-    /// <inheritdoc />
-    public TPayload Deserialize<TPayload>(SerializedPayload payload)
-    {
-        ArgumentNullException.ThrowIfNull(payload);
-        if (!string.Equals(payload.ContentType, JsonContentType, StringComparison.Ordinal))
-        {
-            throw new ArgumentException(
-                $"Payload content type '{payload.ContentType}' is not supported.",
-                nameof(payload));
-        }
-
-        return JsonSerializer.Deserialize<TPayload>(payload.Payload)
-            ?? throw new JsonException($"Payload could not be deserialized as '{typeof(TPayload).Name}'.");
     }
 
     /// <inheritdoc />

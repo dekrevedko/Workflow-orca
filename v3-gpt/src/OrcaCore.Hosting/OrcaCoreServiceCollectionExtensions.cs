@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Definitions;
 using OrcaCore.Engine.Durable.Execution;
@@ -30,6 +31,7 @@ public static class OrcaCoreServiceCollectionExtensions
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<ILoggerFactory>(_ => NullLoggerFactory.Instance);
         services.TryAddSingleton(typeof(ILogger<>), typeof(Logger<>));
+        services.AddOptions<WorkflowPayloadSerializationOptions>();
         services.TryAddSingleton<EphemeralWorkflowEngine>();
         services.TryAddSingleton<InMemoryWorkflowProvider>();
         services.TryAddSingleton<InMemoryResourcePoolStore>();
@@ -46,8 +48,12 @@ public static class OrcaCoreServiceCollectionExtensions
             provider.GetRequiredService<InMemoryWorkflowProvider>());
         services.TryAddSingleton<IMessageDispatcher>(provider =>
             provider.GetRequiredService<InMemoryWorkflowProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IWorkflowPayloadCodec, JsonWorkflowPayloadSerializer>());
         services.TryAddSingleton<IWorkflowPayloadSerializer>(provider =>
-            provider.GetRequiredService<InMemoryWorkflowProvider>());
+            new ContentTypeWorkflowPayloadSerializer(
+                provider.GetServices<IWorkflowPayloadCodec>(),
+                provider.GetRequiredService<IOptions<WorkflowPayloadSerializationOptions>>().Value.WriteContentType));
         services.TryAddSingleton<IResourcePoolStore>(provider =>
             provider.GetRequiredService<InMemoryResourcePoolStore>());
         services.TryAddSingleton<OrcaCoreTelemetryInstruments>();

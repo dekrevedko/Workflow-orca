@@ -367,6 +367,7 @@ public sealed class OrcaCoreHostingServiceCollectionTests
         IWorkflowPayloadSerializer
     {
         private readonly InMemoryWorkflowProvider inner = new();
+        private readonly JsonWorkflowPayloadSerializer serializer = new();
         private Exception? outboxClaimFailure;
         private Exception? timerClaimFailure;
         private int outboxClaimAttempts;
@@ -578,12 +579,12 @@ public sealed class OrcaCoreHostingServiceCollectionTests
 
         public SerializedPayload Serialize<TPayload>(TPayload payload)
         {
-            return inner.Serialize(payload);
+            return serializer.Serialize(payload);
         }
 
         public TPayload Deserialize<TPayload>(SerializedPayload payload)
         {
-            return inner.Deserialize<TPayload>(payload);
+            return serializer.Deserialize<TPayload>(payload);
         }
     }
 
