@@ -7,9 +7,11 @@ internal sealed class InstanceExecutionLane
 {
     private readonly InstanceLane lane;
 
-    internal InstanceExecutionLane(Action<InstanceId>? onWorkItemEnqueued = null)
+    internal InstanceExecutionLane(
+        Action<InstanceId>? onWorkItemEnqueued = null,
+        Action<InstanceId>? onLaneEvicted = null)
     {
-        lane = new InstanceLane(onWorkItemEnqueued);
+        lane = new InstanceLane(onWorkItemEnqueued, onLaneEvicted);
     }
 
     internal int ActiveLaneCount => lane.ActiveLaneCount;

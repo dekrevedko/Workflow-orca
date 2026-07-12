@@ -6,6 +6,7 @@ namespace OrcaCore.Engine.Ephemeral.Timers;
 internal sealed class EphemeralTimerService(TimeProvider timeProvider)
 {
     private readonly List<ScheduledTimer> scheduledTimers = [];
+    private readonly HashSet<Guid> claimedTimerTokens = [];
     private readonly object gate = new();
 
     internal ScheduledTimer Schedule(
@@ -33,6 +34,24 @@ internal sealed class EphemeralTimerService(TimeProvider timeProvider)
         lock (gate)
         {
             scheduledTimers.RemoveAll(timer => timer.Token == scheduledTimer.Token);
+            claimedTimerTokens.Remove(scheduledTimer.Token);
+        }
+    }
+
+    internal void Complete(ScheduledTimer scheduledTimer)
+    {
+        lock (gate)
+        {
+            scheduledTimers.RemoveAll(timer => timer.Token == scheduledTimer.Token);
+            claimedTimerTokens.Remove(scheduledTimer.Token);
+        }
+    }
+
+    internal void Release(ScheduledTimer scheduledTimer)
+    {
+        lock (gate)
+        {
+            claimedTimerTokens.Remove(scheduledTimer.Token);
         }
     }
 
@@ -42,7 +61,7 @@ internal sealed class EphemeralTimerService(TimeProvider timeProvider)
         lock (gate)
         {
             var due = scheduledTimers
-                .Where(timer => timer.FireAt <= now)
+                .Where(timer => timer.FireAt <= now && !claimedTimerTokens.Contains(timer.Token))
                 .OrderBy(timer => timer.FireAt)
                 .ToArray();
 
@@ -51,7 +70,11 @@ internal sealed class EphemeralTimerService(TimeProvider timeProvider)
                 return [];
             }
 
-            scheduledTimers.RemoveAll(timer => due.Contains(timer));
+            foreach (var timer in due)
+            {
+                claimedTimerTokens.Add(timer.Token);
+            }
+
             return due;
         }
     }

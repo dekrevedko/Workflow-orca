@@ -62,7 +62,7 @@ public sealed class TimerEventRaceTests
 
     [Fact]
     [Trait("AC", "AC-112")]
-    public async Task TimeoutBeforeLateEvent_ConsumesTimedOutWaitSignature()
+    public async Task TimeoutBeforeFreshEvent_AllowsReusedWaitSignature()
     {
         var clock = new Clock(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
         var engine = new EphemeralWorkflowEngine(clock.TimeProvider);
@@ -76,13 +76,13 @@ public sealed class TimerEventRaceTests
         clock.Advance(TimeSpan.FromMinutes(5));
         await engine.FireDueTimersAsync(TestContext.Current.CancellationToken);
 
-        var late = await engine.RaiseEventAsync<RaceState>(
+        var fresh = await engine.RaiseEventAsync<RaceState>(
             engine.Management.All().Get().InstanceId,
-            Event(clock.Now, "late"),
+            Event(clock.Now, "fresh"),
             TestContext.Current.CancellationToken);
 
-        late.Status.Should().Be(WorkflowStatus.Waiting);
-        state.Outcomes.Should().Equal(["timeout"]);
+        fresh.Status.Should().Be(WorkflowStatus.Completed);
+        state.Outcomes.Should().Equal(["timeout", "event:fresh"]);
     }
 
     private static OrcaCore.Core.Definitions.WorkflowDefinition<RaceState> Definition(

@@ -21,6 +21,9 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
     private readonly WhenFirstNodeRunner<TState> whenFirstRunner;
     private readonly ForEachNodeRunner<TState> forEachRunner;
     private readonly YieldContinuationScheduler yieldContinuationScheduler;
+    private readonly int maxConsumedEventIds;
+    private readonly int maxLifecycleEvents;
+    private readonly int maxPendingEvents;
 
     internal Interpreter(
         TimeProvider timeProvider,
@@ -33,7 +36,8 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
         ParallelNodeRunner<TState> parallelRunner,
         WhenFirstNodeRunner<TState> whenFirstRunner,
         ForEachNodeRunner<TState> forEachRunner,
-        YieldContinuationScheduler yieldContinuationScheduler)
+        YieldContinuationScheduler yieldContinuationScheduler,
+        EphemeralWorkflowEngineOptions options)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(stepExecutor);
@@ -46,6 +50,7 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
         ArgumentNullException.ThrowIfNull(whenFirstRunner);
         ArgumentNullException.ThrowIfNull(forEachRunner);
         ArgumentNullException.ThrowIfNull(yieldContinuationScheduler);
+        ArgumentNullException.ThrowIfNull(options);
 
         this.timeProvider = timeProvider;
         this.stepExecutor = stepExecutor;
@@ -58,17 +63,22 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
         this.whenFirstRunner = whenFirstRunner;
         this.forEachRunner = forEachRunner;
         this.yieldContinuationScheduler = yieldContinuationScheduler;
+        maxPendingEvents = options.MaxPendingEventsPerInstance;
+        maxConsumedEventIds = options.MaxConsumedEventIdsPerInstance;
+        maxLifecycleEvents = options.MaxLifecycleEventsPerInstance;
     }
 
     internal async Task<WorkflowInstance<TState>> RunAsync<TInput>(
         WorkflowDefinition<TState> definition,
         TInput input,
         InstanceId instanceId,
+        Action<WorkflowInstance<TState>> onInitialized,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(onInitialized);
 
-        var runState = new InterpreterRunState<TState>();
+        var runState = new InterpreterRunState<TState> { OnInitialized = onInitialized };
         var context = new SequenceExecutionContext<TState, TInput>(
             definition.RootSequence,
             runState,
@@ -92,6 +102,12 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
         CancellationToken cancellationToken,
         bool deferStepFailures = false)
     {
+        deferStepFailures |= context.DeferFailures;
+        if (deferStepFailures && !context.DeferFailures)
+        {
+            context = context with { DeferFailures = true };
+        }
+
         for (var index = startIndex; index < context.Sequence.Children.Count; index++)
         {
             var node = context.Sequence.Children[index];
@@ -101,12 +117,32 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
             {
                 case InitNode<TState> initNode:
                     context.RunState.Initialized = true;
+                    TState state;
+                    try
+                    {
+                        state = initNode.CreateState(context.Input);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception exception)
+                    {
+                        throw new WorkflowDefinitionException(
+                            $"Workflow definition '{context.DefinitionId}' Init failed while creating state.",
+                            exception);
+                    }
+
                     context.RunState.Instance = new WorkflowInstance<TState>(
                         context.InstanceId,
                         context.DefinitionId,
                         context.DefinitionVersion,
-                        initNode.CreateState(context.Input),
-                        timeProvider.GetUtcNow());
+                        state,
+                        timeProvider.GetUtcNow(),
+                        maxPendingEvents,
+                        maxConsumedEventIds,
+                        maxLifecycleEvents);
+                    context.RunState.OnInitialized(context.RunState.Instance);
                     break;
 
                 case BusinessStepNode<TState> stepNode:
@@ -166,7 +202,8 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
                             context,
                             index,
                             this,
-                            cancellationToken)
+                            cancellationToken,
+                            deferStepFailures)
                         .ConfigureAwait(false);
                     return false;
 
@@ -278,7 +315,13 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
         CancellationToken cancellationToken)
     {
         var instance = EnsureInitialized(context.RunState);
-        if (!conditionEvaluator.TryEvaluate(instance, ifNode.Condition, nodeId, out var ifResult))
+        if (!conditionEvaluator.TryEvaluate(
+                instance,
+                context.RunState,
+                ifNode.Condition,
+                nodeId,
+                context.DeferFailures,
+                out var ifResult))
         {
             return false;
         }
@@ -289,7 +332,11 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
             context.ResumeEvent,
             continuationToken => ContinueSequenceAsync(context, ifIndex + 1, continuationToken));
 
-        return await RunSequenceAsync(childContext, startIndex: 0, cancellationToken).ConfigureAwait(false);
+        return await RunSequenceAsync(
+            childContext,
+            startIndex: 0,
+            cancellationToken,
+            context.DeferFailures).ConfigureAwait(false);
     }
 
     private static WorkflowInstance<TState> EnsureInitialized(InterpreterRunState<TState> runState)

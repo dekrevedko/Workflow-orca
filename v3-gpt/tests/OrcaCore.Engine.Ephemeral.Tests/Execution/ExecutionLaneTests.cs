@@ -123,12 +123,14 @@ public sealed class ExecutionLaneTests
     [Fact]
     public async Task RunAsync_WhenBatchDrains_EvictsIdleLane()
     {
-        var lane = new InstanceExecutionLane();
+        var evicted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var lane = new InstanceExecutionLane(onLaneEvicted: _ => evicted.TrySetResult());
 
         await lane.RunAsync(
             InstanceId.New(),
             _ => Task.CompletedTask,
             TestContext.Current.CancellationToken);
+        await evicted.Task.WaitAsync(TestContext.Current.CancellationToken);
 
         lane.ActiveLaneCount.Should().Be(0);
     }

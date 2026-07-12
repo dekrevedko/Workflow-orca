@@ -48,7 +48,9 @@ internal sealed class YieldContinuationScheduler(
 
                         using var linkedCancellation = instance.CreateLinkedExecutionToken(laneCancellationToken);
                         await continuation!(linkedCancellation.Token).ConfigureAwait(false);
-                        return new YieldDrainResult(instance.ToSnapshot(), true);
+                        var committedSnapshot = instance.ToSnapshot();
+                        onSnapshotCommitted(committedSnapshot);
+                        return new YieldDrainResult(committedSnapshot, true);
                     },
                     cancellationToken).ConfigureAwait(false);
 
@@ -57,7 +59,6 @@ internal sealed class YieldContinuationScheduler(
                     return result.Snapshot;
                 }
 
-                onSnapshotCommitted(result.Snapshot);
             }
         }
     }

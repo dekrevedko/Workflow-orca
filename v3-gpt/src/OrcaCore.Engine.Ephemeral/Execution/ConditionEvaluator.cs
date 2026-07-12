@@ -4,8 +4,10 @@ internal sealed class ConditionEvaluator<TState>(WorkflowFailureHandler<TState> 
 {
     internal bool TryEvaluate(
         WorkflowInstance<TState> instance,
+        InterpreterRunState<TState> runState,
         Func<TState, bool> condition,
         string nodePath,
+        bool deferFailures,
         out bool result)
     {
         try
@@ -15,7 +17,15 @@ internal sealed class ConditionEvaluator<TState>(WorkflowFailureHandler<TState> 
         }
         catch (Exception exception) when (exception is not OperationCanceledException and not NotSupportedException)
         {
-            failureHandler.Fail(instance, exception, nodePath);
+            if (deferFailures)
+            {
+                runState.DeferredFailure = exception;
+            }
+            else
+            {
+                failureHandler.Fail(instance, exception, nodePath);
+            }
+
             result = false;
             return false;
         }

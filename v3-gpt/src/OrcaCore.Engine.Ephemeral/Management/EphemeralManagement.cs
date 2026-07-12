@@ -1,5 +1,4 @@
 using System.Linq.Expressions;
-using System.Text.Json;
 using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
@@ -181,7 +180,7 @@ public sealed class EphemeralManagementQuery
         var marked = new List<WorkflowInstanceSnapshot>();
         foreach (var instance in loadInstances().OfType<IWorkflowInstance>())
         {
-            var snapshot = instance.ToSnapshot();
+            var snapshot = instance.GetPublishedSnapshot();
             if (compiledFilters.Any(filter => !filter(WorkflowInstanceQueryModel.From(snapshot))))
             {
                 continue;
@@ -261,7 +260,9 @@ public sealed class EphemeralManagementQuery
         var snapshots = List()
             .Where(snapshot => snapshot.ActiveWaits.Any(wait =>
                 string.Equals(wait.EventName, envelope.EventName, StringComparison.Ordinal) &&
-                wait.CorrelationId == envelope.CorrelationId))
+                wait.CorrelationId == envelope.CorrelationId &&
+                (string.IsNullOrWhiteSpace(envelope.BranchId) ||
+                    string.Equals(wait.BranchId, envelope.BranchId, StringComparison.Ordinal))))
             .ToArray();
         var results = new List<WorkflowInstanceSnapshot>(snapshots.Length);
 
@@ -343,7 +344,7 @@ public sealed class EphemeralManagementQuery
     {
         return loadInstances()
             .OfType<IWorkflowInstance>()
-            .Select(instance => instance.ToSnapshot())
+            .Select(instance => instance.GetPublishedSnapshot())
             .ToArray();
     }
 
@@ -352,7 +353,9 @@ public sealed class EphemeralManagementQuery
         return status is WorkflowStatus.Completed or
             WorkflowStatus.Failed or
             WorkflowStatus.Cancelled or
-            WorkflowStatus.Terminated;
+            WorkflowStatus.Terminated or
+            WorkflowStatus.Compensated or
+            WorkflowStatus.CompensationFailed;
     }
 }
 
@@ -380,7 +383,7 @@ public sealed class EphemeralInstanceManagement
     /// </summary>
     public WorkflowInstanceSnapshot Get()
     {
-        return GetInstance().ToSnapshot();
+        return GetInstance().GetPublishedSnapshot();
     }
 
     /// <summary>
@@ -395,7 +398,13 @@ public sealed class EphemeralInstanceManagement
                 $"Workflow instance '{instanceId}' state type is '{instance.StateType.Name}', not requested state type '{typeof(TState).Name}'.");
         }
 
-        return CopyState((TState)instance.StateObject);
+        if (!instance.HasPublishedState && instance.GetPublishedSnapshot().ActiveStep is not null)
+        {
+            throw new WorkflowLifecycleException(
+                $"Workflow instance '{instanceId}' state cannot be copied while user step code is running.");
+        }
+
+        return (TState)instance.CopyState(engine.StateSnapshotter);
     }
 
     /// <summary>
@@ -441,7 +450,7 @@ public sealed class EphemeralInstanceManagement
     }
 
     /// <summary>
-    /// Forcibly terminates the selected instance.
+    /// Cooperatively interrupts in-flight user code and terminates the selected instance.
     /// </summary>
     public Task<WorkflowInstanceSnapshot> TerminateAsync(CancellationToken cancellationToken)
     {
@@ -460,13 +469,6 @@ public sealed class EphemeralInstanceManagement
         return workflowInstance;
     }
 
-    private static TState CopyState<TState>(TState state)
-    {
-        var serialized = JsonSerializer.Serialize(state);
-        return JsonSerializer.Deserialize<TState>(serialized)
-            ?? throw new WorkflowDefinitionException(
-                $"Workflow state type '{typeof(TState).Name}' could not be copied.");
-    }
 }
 
 /// <summary>

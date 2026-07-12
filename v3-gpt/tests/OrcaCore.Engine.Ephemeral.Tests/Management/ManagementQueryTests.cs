@@ -169,6 +169,56 @@ public sealed class ManagementQueryTests
     }
 
     [Fact]
+    public async Task InitialStep_IsQueryableAndStateCopyUsesLastCommittedState()
+    {
+        var step = new BlockingStep();
+        var engine = new EphemeralWorkflowEngine();
+        var definition = new WorkflowBuilder<TestState>()
+            .Init<string>(input => new TestState { Name = input })
+            .Then(() => step)
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+        engine.RegisterDefinition(definition);
+        var start = engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "running",
+            TestContext.Current.CancellationToken);
+        await step.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
+
+        var running = engine.Management.All().List().Should().ContainSingle().Subject;
+        var copy = engine.Management.Instance(running.InstanceId).GetState<TestState>();
+
+        running.Status.Should().Be(WorkflowStatus.Running);
+        running.ActiveStep.Should().NotBeNull();
+        copy.Name.Should().Be("running");
+
+        step.Release();
+        (await start.WaitAsync(TestContext.Current.CancellationToken)).Status
+            .Should().Be(WorkflowStatus.Completed);
+    }
+
+    [Fact]
+    public async Task GetState_UsesConfiguredSnapshotStrategy()
+    {
+        var snapshotter = new TestStateSnapshotter();
+        var engine = new EphemeralWorkflowEngine(TimeProvider.System, new EphemeralWorkflowEngineOptions
+        {
+            StateSnapshotter = snapshotter
+        });
+        var definition = CompletedDefinition();
+        engine.RegisterDefinition(definition);
+        var started = await engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "original",
+            TestContext.Current.CancellationToken);
+
+        var state = engine.Management.Instance(started.InstanceId).GetState<TestState>();
+
+        snapshotter.Calls.Should().Be(3, "state is published at initial/final commits and copied for the caller");
+        state.Name.Should().Be("custom-copy");
+    }
+
+    [Fact]
     public async Task GetActiveWaits_ReturnsActiveWaitSnapshotsOnly()
     {
         var engine = new EphemeralWorkflowEngine();
@@ -456,6 +506,22 @@ public sealed class ManagementQueryTests
             GetManyCount = 0;
             ListCount = 0;
             TryGetCount = 0;
+        }
+    }
+
+    private sealed class TestStateSnapshotter : IEphemeralStateSnapshotter
+    {
+        internal int Calls { get; private set; }
+
+        public TState Snapshot<TState>(TState state)
+        {
+            Calls++;
+            if (state is TestState)
+            {
+                return (TState)(object)new TestState { Name = "custom-copy" };
+            }
+
+            throw new NotSupportedException();
         }
     }
 }

@@ -8,7 +8,7 @@ internal sealed class InterpreterFactory(
     EphemeralTimerService timerService,
     ResourceGovernanceCoordinator governance,
     YieldContinuationScheduler yieldContinuationScheduler,
-    TimeSpan? stuckStepThreshold)
+    EphemeralWorkflowEngineOptions options)
 {
     internal Interpreter<TState> Create<TState>()
     {
@@ -17,7 +17,7 @@ internal sealed class InterpreterFactory(
         var suspensionScheduler = new SuspensionScheduler<TState>(timeProvider, timerService);
         return new Interpreter<TState>(
             timeProvider,
-            new StepExecutor<TState>(timeProvider, governance, stuckStepThreshold),
+            new StepExecutor<TState>(timeProvider, governance, options.StuckStepThreshold),
             failureHandler,
             conditionEvaluator,
             suspensionScheduler,
@@ -26,6 +26,7 @@ internal sealed class InterpreterFactory(
             new ParallelNodeRunner<TState>(),
             new WhenFirstNodeRunner<TState>(timeProvider),
             new ForEachNodeRunner<TState>(timeProvider),
-            yieldContinuationScheduler);
+            yieldContinuationScheduler,
+            options);
     }
 }

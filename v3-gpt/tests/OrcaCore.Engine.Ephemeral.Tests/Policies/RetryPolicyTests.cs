@@ -12,6 +12,47 @@ namespace OrcaCore.Engine.Ephemeral.Tests.Policies;
 public sealed class RetryPolicyTests
 {
     [Fact]
+    public void DefinitionRetry_IsRejectedInsteadOfSilentlyIgnored()
+    {
+        var definition = new WorkflowBuilder<RetryState>()
+            .Init<string>(_ => new RetryState())
+            .WithDefinitionRetry(maxAttempts: 2)
+            .Then(() => new AlwaysFailsStep())
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+        var engine = new EphemeralWorkflowEngine();
+
+        var act = () => engine.RegisterDefinition(definition);
+
+        act.Should().Throw<WorkflowDefinitionException>()
+            .WithMessage("*Definition-level retry*individual steps*");
+    }
+
+    [Fact]
+    public async Task StepFactoryFailure_IsCapturedAndRetriedByStepPolicy()
+    {
+        var factoryAttempts = 0;
+        var definition = new WorkflowBuilder<RetryState>()
+            .Init<string>(_ => new RetryState())
+            .WithRetry(maxAttempts: 2)
+            .Then(() => Interlocked.Increment(ref factoryAttempts) == 1
+                ? throw new InvalidOperationException("factory unavailable")
+                : new FlakyStep(failuresBeforeSuccess: 0))
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+        var engine = new EphemeralWorkflowEngine();
+        engine.RegisterDefinition(definition);
+
+        var snapshot = await engine.StartAsync<string, RetryState>(
+            definition.DefinitionId,
+            "start",
+            TestContext.Current.CancellationToken);
+
+        snapshot.Status.Should().Be(WorkflowStatus.Completed);
+        factoryAttempts.Should().Be(2);
+    }
+
+    [Fact]
     public async Task RetryPolicy_TransientFailures_RetriesUntilSuccess()
     {
         var state = new RetryState();

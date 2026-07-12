@@ -91,6 +91,49 @@ public sealed class ResourceGovernanceTests
     }
 
     [Fact]
+    public async Task StepTimeout_DoesNotRunWhileWaitingForGovernancePermit()
+    {
+        var clock = new Clock(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
+        var gate = new StepGate();
+        var governanceAttempts = new AsyncSignalCounter();
+        var engine = new EphemeralWorkflowEngine(
+            clock.TimeProvider,
+            new EphemeralWorkflowEngineOptions
+            {
+                MaxConcurrentSteps = 1,
+                GovernanceWaitStarting = governanceAttempts.Signal
+            });
+        var blocking = BlockingDefinition(gate);
+        var timed = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState(gate))
+            .WithTimeout(TimeSpan.FromSeconds(30))
+            .Then(() => new CompletedStep())
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+        engine.RegisterDefinition(blocking);
+        engine.RegisterDefinition(timed);
+
+        var first = engine.StartAsync<string, TestState>(
+            blocking.DefinitionId,
+            "first",
+            TestContext.Current.CancellationToken);
+        await gate.WaitForEnteredCountAsync(1, TestContext.Current.CancellationToken);
+        var second = engine.StartAsync<string, TestState>(
+            timed.DefinitionId,
+            "second",
+            TestContext.Current.CancellationToken);
+        await governanceAttempts.WaitForCountAsync(2, TestContext.Current.CancellationToken);
+        clock.Advance(TimeSpan.FromMinutes(1));
+
+        var completedWhileQueued = second.IsCompleted;
+        gate.ReleaseOne();
+        var snapshots = await Task.WhenAll(first, second).WaitAsync(TestContext.Current.CancellationToken);
+
+        completedWhileQueued.Should().BeFalse();
+        snapshots.Should().OnlyContain(snapshot => snapshot.Status == WorkflowStatus.Completed);
+    }
+
+    [Fact]
     public async Task Governance_DoesNotBreakPerInstanceSerialization()
     {
         var gate = new StepGate();
@@ -174,6 +217,16 @@ public sealed class ResourceGovernanceTests
         {
             await context.State.Gate.EnterAndWaitAsync(cancellationToken).ConfigureAwait(false);
             return new StepResult.Completed();
+        }
+    }
+
+    private sealed class CompletedStep : IStep<TestState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<TestState> context,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
         }
     }
 

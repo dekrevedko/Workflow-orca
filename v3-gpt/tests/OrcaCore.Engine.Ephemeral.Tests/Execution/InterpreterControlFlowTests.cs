@@ -12,6 +12,26 @@ namespace OrcaCore.Engine.Ephemeral.Tests.Execution;
 public sealed class InterpreterControlFlowTests
 {
     [Fact]
+    public async Task Start_InitFailure_IsReportedAsDefinitionFailure()
+    {
+        var definition = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => throw new InvalidOperationException("bad input"))
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+        var engine = new EphemeralWorkflowEngine();
+        engine.RegisterDefinition(definition);
+
+        var act = () => engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "start",
+            TestContext.Current.CancellationToken);
+
+        var failure = await act.Should().ThrowAsync<WorkflowDefinitionException>()
+            .WithMessage("*Init failed*");
+        failure.Which.InnerException.Should().BeOfType<InvalidOperationException>();
+    }
+
+    [Fact]
     public async Task Run_IfConditionTrue_ExecutesThenBranchOnly()
     {
         var state = new TestState { Flag = true };
@@ -205,6 +225,31 @@ public sealed class InterpreterControlFlowTests
             TestContext.Current.CancellationToken);
 
         snapshot.Status.Should().Be(WorkflowStatus.Failed);
+        snapshot.ErrorSummary.Should().Contain("boom");
+        state.Values.Should().NotContain("after");
+    }
+
+    [Fact]
+    public async Task Run_ParallelFailureAfterAnotherBranchWaits_FailsAndReleasesRuntimeWork()
+    {
+        var state = new TestState();
+        var engine = new EphemeralWorkflowEngine();
+        var definition = Definition(new WorkflowBuilder<TestState>()
+            .Init<string>(_ => state)
+            .Parallel(
+                ("waiting", branch => branch.Wait("Ready", _ => new CorrelationId("waiting"))),
+                ("failing", branch => branch.Then(() => new FailingStep())))
+            .Then(() => new AppendStep("after"))
+            .End());
+        engine.RegisterDefinition(definition);
+
+        var snapshot = await engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "start",
+            TestContext.Current.CancellationToken);
+
+        snapshot.Status.Should().Be(WorkflowStatus.Failed);
+        snapshot.ActiveWaits.Should().BeEmpty();
         snapshot.ErrorSummary.Should().Contain("boom");
         state.Values.Should().NotContain("after");
     }

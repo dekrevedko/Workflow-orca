@@ -83,6 +83,35 @@ public sealed class ForEachPolicyTests
             .ContainInOrder("ForEachCancellationIntentRecorded", "StepCompleted", "InstanceCompleted");
     }
 
+    [Fact]
+    public async Task ForEach_ContinueWithPartialFailures_AppliesToNestedConditionFailures()
+    {
+        var state = new TestState([1, 2]);
+        var engine = new EphemeralWorkflowEngine();
+        var definition = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => state)
+            .ForEach(
+                current => current.Items,
+                WorkflowPartitioner<int>.Items(),
+                item => item.If(
+                    _ => throw new OrcaCoreException("condition failed"),
+                    then => then.Then(() => new CountContinuationStep())),
+                failurePolicy: ForEachFailurePolicy.ContinueWithPartialFailures)
+            .Then(() => new CountContinuationStep())
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+        engine.RegisterDefinition(definition);
+
+        var snapshot = await engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "start",
+            TestContext.Current.CancellationToken);
+
+        snapshot.Status.Should().Be(WorkflowStatus.Completed);
+        snapshot.ForEachGroups.Single().FailedCount.Should().Be(2);
+        state.ContinuationCount.Should().Be(1);
+    }
+
     private static Task<WorkflowInstanceSnapshot> RaiseItemAsync(
         EphemeralWorkflowEngine engine,
         WorkflowInstanceSnapshot snapshot,

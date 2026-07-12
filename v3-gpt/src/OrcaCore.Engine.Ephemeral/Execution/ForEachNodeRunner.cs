@@ -19,7 +19,15 @@ internal sealed class ForEachNodeRunner<TState>(TimeProvider timeProvider)
         }
         catch (Exception exception) when (exception is not OperationCanceledException and not NotSupportedException)
         {
-            sequenceExecution.Fail(parentContext.RunState.Instance!, exception, forEachNode.NodeId);
+            if (parentContext.DeferFailures)
+            {
+                parentContext.RunState.DeferredFailure = exception;
+            }
+            else
+            {
+                sequenceExecution.Fail(parentContext.RunState.Instance!, exception, forEachNode.NodeId);
+            }
+
             return;
         }
 

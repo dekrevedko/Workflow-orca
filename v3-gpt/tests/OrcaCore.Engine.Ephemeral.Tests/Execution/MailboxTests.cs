@@ -85,6 +85,56 @@ public sealed class MailboxTests
     }
 
     [Fact]
+    public async Task RaiseEventAsync_WhenMailboxLimitReached_RejectsAdditionalUnmatchedEvent()
+    {
+        var state = new TestState();
+        var engine = new EphemeralWorkflowEngine(TimeProvider.System, new EphemeralWorkflowEngineOptions
+        {
+            MaxPendingEventsPerInstance = 1
+        });
+        var definition = OneWaitDefinition(state);
+        engine.RegisterDefinition(definition);
+        var waiting = await StartAsync(engine, definition);
+        await engine.RaiseEventAsync<TestState>(
+            waiting.InstanceId,
+            Event(EventId.New(), "Unmatched", new CorrelationId("one"), "first"),
+            TestContext.Current.CancellationToken);
+
+        var second = () => engine.RaiseEventAsync<TestState>(
+            waiting.InstanceId,
+            Event(EventId.New(), "Unmatched", new CorrelationId("two"), "second"),
+            TestContext.Current.CancellationToken);
+
+        await second.Should().ThrowAsync<OrcaCore.Abstractions.Errors.WorkflowRoutingException>()
+            .WithMessage("*mailbox*limit*1*");
+    }
+
+    [Fact]
+    public async Task RaiseEventAsync_InvalidEnvelope_IsRejectedBeforeMutation()
+    {
+        var state = new TestState();
+        var engine = new EphemeralWorkflowEngine();
+        var definition = OneWaitDefinition(state);
+        engine.RegisterDefinition(definition);
+        var waiting = await StartAsync(engine, definition);
+        var invalid = new EventEnvelope
+        {
+            EventId = default,
+            EventName = "First",
+            CorrelationId = FirstCorrelation,
+            OccurredAt = DateTimeOffset.UtcNow
+        };
+
+        var act = () => engine.RaiseEventAsync<TestState>(
+            waiting.InstanceId,
+            invalid,
+            TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*EventId*");
+        engine.Management.Instance(waiting.InstanceId).Get().ActiveWaits.Should().ContainSingle();
+    }
+
+    [Fact]
     public async Task RaiseEventAsync_DuplicateConsumedEvent_DoesNotContinueAgain()
     {
         var state = new TestState();
@@ -147,7 +197,7 @@ public sealed class MailboxTests
         var definition = new WorkflowBuilder<TestState>()
             .Init<string>(_ => state)
             .Wait("First", _ => FirstCorrelation)
-            .Then(() => new UnsupportedResultStep())
+            .Then(() => new UnsupportedOnceResultStep())
             .End()
             .Build(DefinitionId.New(), DefinitionVersion.Initial);
         engine.RegisterDefinition(definition);
@@ -165,6 +215,14 @@ public sealed class MailboxTests
         var snapshot = ((WorkflowInstance<TestState>)instance!).ToSnapshot();
         snapshot.Status.Should().Be(WorkflowStatus.Waiting);
         snapshot.ActiveWaits.Should().ContainSingle();
+
+        var completed = await engine.RaiseEventAsync<TestState>(
+            waiting.InstanceId,
+            envelope,
+            TestContext.Current.CancellationToken);
+
+        completed.Status.Should().Be(WorkflowStatus.Completed);
+        state.Payloads.Should().Equal(["first"]);
     }
 
     [Fact]
@@ -236,6 +294,8 @@ public sealed class MailboxTests
     private sealed class TestState
     {
         public List<string> Payloads { get; } = [];
+
+        public int ResumeAttempts { get; set; }
     }
 
     private sealed class CapturePayloadStep : IStep<TestState>
@@ -253,13 +313,24 @@ public sealed class MailboxTests
         }
     }
 
-    private sealed class UnsupportedResultStep : IStep<TestState>
+    private sealed class UnsupportedOnceResultStep : IStep<TestState>
     {
         public ValueTask<StepResult> ExecuteAsync(
             StepContext<TestState> context,
             CancellationToken cancellationToken)
         {
-            return ValueTask.FromResult<StepResult>(new UnsupportedResult());
+            context.State.ResumeAttempts++;
+            if (context.State.ResumeAttempts == 1)
+            {
+                return ValueTask.FromResult<StepResult>(new UnsupportedResult());
+            }
+
+            if (context.ResumedEvent?.Payload is string payload)
+            {
+                context.State.Payloads.Add(payload);
+            }
+
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
         }
     }
 

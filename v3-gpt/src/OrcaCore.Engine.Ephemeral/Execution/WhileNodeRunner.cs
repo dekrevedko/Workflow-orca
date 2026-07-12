@@ -16,8 +16,10 @@ internal sealed class WhileNodeRunner<TState>(ConditionEvaluator<TState> conditi
             cancellationToken.ThrowIfCancellationRequested();
             if (!conditionEvaluator.TryEvaluate(
                     parentContext.RunState.Instance!,
+                    parentContext.RunState,
                     whileNode.Condition,
                     whileNode.NodeId,
+                    parentContext.DeferFailures,
                     out var whileResult))
             {
                 return;
@@ -45,7 +47,8 @@ internal sealed class WhileNodeRunner<TState>(ConditionEvaluator<TState> conditi
             var completedBody = await sequenceExecution.RunSequenceAsync(
                 bodyContext,
                 startIndex: 0,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                parentContext.DeferFailures).ConfigureAwait(false);
             if (!completedBody)
             {
                 return;

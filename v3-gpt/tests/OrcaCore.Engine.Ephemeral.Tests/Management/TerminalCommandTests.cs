@@ -102,6 +102,41 @@ public sealed class TerminalCommandTests
     }
 
     [Fact]
+    public async Task CancelAsync_AfterCancellationSignal_CommitsTerminalTransition()
+    {
+        using var commandCancellation = new CancellationTokenSource();
+        var step = new CancellableStep(() => commandCancellation.Cancel());
+        var engine = new EphemeralWorkflowEngine(TimeProvider.System, new EphemeralWorkflowEngineOptions
+        {
+            MaxConcurrentAdvancements = 1
+        });
+        var definition = new WorkflowBuilder<TestState>()
+            .Init<string>(input => new TestState { Name = input })
+            .Wait("Ready", state => new CorrelationId(state.Name))
+            .Then(() => step)
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+        engine.RegisterDefinition(definition);
+        var started = await engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "wait",
+            TestContext.Current.CancellationToken);
+        var delivery = engine.RaiseEventAsync<TestState>(
+            started.InstanceId,
+            Event("Ready", "wait"),
+            TestContext.Current.CancellationToken);
+        await step.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
+
+        var cancelled = await engine.Management.Instance(started.InstanceId)
+            .CancelAsync(commandCancellation.Token);
+
+        cancelled.Status.Should().Be(WorkflowStatus.Cancelled);
+        commandCancellation.IsCancellationRequested.Should().BeTrue();
+        await delivery.Invoking(task => task.WaitAsync(TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
     public async Task TerminateAsync_RunningInstance_TransitionsToTerminatedAndStopsAdvancement()
     {
         var engine = new EphemeralWorkflowEngine();
@@ -123,6 +158,37 @@ public sealed class TerminalCommandTests
         terminated.ActiveWaits.Should().BeEmpty();
         await act.Should().ThrowAsync<WorkflowLifecycleException>()
             .WithMessage("*terminal*");
+    }
+
+    [Fact]
+    public async Task TerminateAsync_InFlightStep_SignalsStepCancellationToken()
+    {
+        var step = new CancellableStep();
+        var engine = new EphemeralWorkflowEngine();
+        var definition = new WorkflowBuilder<TestState>()
+            .Init<string>(input => new TestState { Name = input })
+            .Wait("Ready", state => new CorrelationId(state.Name))
+            .Then(() => step)
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+        engine.RegisterDefinition(definition);
+        var started = await engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "wait",
+            TestContext.Current.CancellationToken);
+        var delivery = engine.RaiseEventAsync<TestState>(
+            started.InstanceId,
+            Event("Ready", "wait"),
+            TestContext.Current.CancellationToken);
+        await step.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
+
+        var terminated = await engine.Management.Instance(started.InstanceId)
+            .TerminateAsync(TestContext.Current.CancellationToken);
+
+        terminated.Status.Should().Be(WorkflowStatus.Terminated);
+        step.ObservedCancellation.Task.IsCompletedSuccessfully.Should().BeTrue();
+        await delivery.Invoking(task => task.WaitAsync(TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<OperationCanceledException>();
     }
 
     [Fact]
@@ -238,7 +304,7 @@ public sealed class TerminalCommandTests
         }
     }
 
-    private sealed class CancellableStep : IStep<TestState>
+    private sealed class CancellableStep(Action? onCancellation = null) : IStep<TestState>
     {
         internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -257,6 +323,7 @@ public sealed class TerminalCommandTests
             catch (OperationCanceledException)
             {
                 ObservedCancellation.TrySetResult();
+                onCancellation?.Invoke();
                 throw;
             }
 

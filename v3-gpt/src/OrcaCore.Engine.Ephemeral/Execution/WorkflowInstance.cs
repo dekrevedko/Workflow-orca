@@ -11,30 +11,49 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 {
     private readonly List<RuntimeWaitRecord> activeWaits = [];
     private readonly HashSet<EventId> consumedEventIds = [];
+    private readonly Queue<EventId> consumedEventOrder = [];
     private readonly HashSet<WaitSignature> consumedWaits = [];
-    private readonly HashSet<WaitSignature> timedOutWaits = [];
+    private readonly Dictionary<WaitSignature, DateTimeOffset> timedOutWaits = [];
     private readonly List<CompositionBranchOutcomeSnapshot> compositionOutcomes = [];
     private readonly List<ForEachGroupRecord> forEachGroups = [];
     private readonly List<LifecycleEventSnapshot> lifecycleEvents = [];
     private readonly List<EventEnvelope> pendingEvents = [];
     private readonly List<RuntimeTimerRecord> activeTimers = [];
     private readonly CancellationTokenSource cancellationSource = new();
+    private readonly object snapshotGate = new();
+    private readonly SemaphoreSlim stateAccess = new(1, 1);
+    private readonly int maxConsumedEventIds;
+    private readonly int maxLifecycleEvents;
+    private readonly int maxPendingEvents;
     private ActiveStepSnapshot? activeStep;
-    private Func<CancellationToken, Task>? yieldContinuation;
+    private readonly Queue<Func<CancellationToken, Task>> yieldContinuations = [];
     private bool hasStuckStep;
     private bool isStuck;
     private DateTimeOffset currentStatusEnteredAt;
     private DateTimeOffset lastActiveAt;
     private DateTimeOffset? stuckDetectedAt;
     private string? stuckStepPath;
+    private WorkflowInstanceSnapshot? publishedSnapshot;
+    private TState? publishedState;
+    private bool hasPublishedState;
 
     internal WorkflowInstance(
         InstanceId instanceId,
         DefinitionId definitionId,
         DefinitionVersion definitionVersion,
         TState state,
-        DateTimeOffset createdAt)
+        DateTimeOffset createdAt,
+        int maxPendingEvents = 1_024,
+        int maxConsumedEventIds = 10_000,
+        int maxLifecycleEvents = 10_000)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxPendingEvents);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxConsumedEventIds);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxLifecycleEvents);
+
+        this.maxPendingEvents = maxPendingEvents;
+        this.maxConsumedEventIds = maxConsumedEventIds;
+        this.maxLifecycleEvents = maxLifecycleEvents;
         InstanceId = instanceId;
         DefinitionId = definitionId;
         DefinitionVersion = definitionVersion;
@@ -45,6 +64,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         LastActiveAt = createdAt;
         Status = WorkflowStatus.Running;
         RecordLifecycleEvent("InstanceStarted", null, WorkflowStatus.Running, createdAt);
+        ToSnapshot();
     }
 
     internal InstanceId InstanceId { get; }
@@ -77,13 +97,16 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
     internal string? EndOutcomeName { get; private set; }
 
-    internal bool HasUnresolvedRuntimeWork => activeWaits.Count > 0 || pendingEvents.Count > 0 || activeTimers.Count > 0;
+    internal bool HasUnresolvedRuntimeWork =>
+        activeWaits.Count > 0 ||
+        pendingEvents.Count > 0 ||
+        activeTimers.Count > 0 ||
+        yieldContinuations.Count > 0;
 
-    internal bool HasActiveWait(string eventName, CorrelationId correlationId)
+    internal bool HasActiveWait(EventEnvelope envelope)
     {
-        return activeWaits.Any(wait =>
-            string.Equals(wait.EventName, eventName, StringComparison.Ordinal) &&
-            wait.CorrelationId == correlationId);
+        ArgumentNullException.ThrowIfNull(envelope);
+        return activeWaits.Any(wait => wait.Matches(envelope));
     }
 
     internal RuntimeWaitRecord EnterWait(
@@ -103,6 +126,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
     internal async Task<WorkflowInstanceSnapshot> RaiseEventAsync(
         EventEnvelope envelope,
+        DateTimeOffset processedAt,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(envelope);
@@ -143,16 +167,24 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
                 return ToSnapshot();
             }
 
+            if (pendingEvents.Count >= maxPendingEvents)
+            {
+                throw new WorkflowRoutingException(
+                    $"Workflow instance '{InstanceId}' pending-event mailbox reached its configured limit " +
+                    $"of {maxPendingEvents} events.");
+            }
+
             pendingEvents.Add(envelope);
             return ToSnapshot();
         }
 
-        return await ResumeWaitAsync(wait, envelope, removePendingAfterCommit: false, cancellationToken)
+        return await ResumeWaitAsync(wait, envelope, processedAt, removePendingAfterCommit: false, cancellationToken)
             .ConfigureAwait(false);
     }
 
     internal async Task<WorkflowInstanceSnapshot> MatchPendingEventAsync(
         RuntimeWaitRecord wait,
+        DateTimeOffset processedAt,
         CancellationToken cancellationToken)
     {
         var envelope = pendingEvents.FirstOrDefault(wait.Matches);
@@ -161,7 +193,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
             return ToSnapshot();
         }
 
-        return await ResumeWaitAsync(wait, envelope, removePendingAfterCommit: true, cancellationToken)
+        return await ResumeWaitAsync(wait, envelope, processedAt, removePendingAfterCommit: true, cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -236,9 +268,14 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         }
 
         wait.MarkMatched();
-        consumedWaits.Add(new WaitSignature(wait.EventName, wait.CorrelationId, wait.BranchId));
-        timedOutWaits.Add(new WaitSignature(wait.EventName, wait.CorrelationId, wait.BranchId));
-        pendingEvents.RemoveAll(candidate => WaitSignature.From(candidate) == new WaitSignature(wait.EventName, wait.CorrelationId, wait.BranchId));
+        var signature = new WaitSignature(wait.EventName, wait.CorrelationId, wait.BranchId);
+        var consumedWaitAdded = consumedWaits.Add(signature);
+        var hadPreviousTimeout = timedOutWaits.TryGetValue(signature, out var previousTimeout);
+        timedOutWaits[signature] = firedAt;
+        var removedPendingEvents = pendingEvents
+            .Where(candidate => WaitSignature.From(candidate) == signature)
+            .ToArray();
+        pendingEvents.RemoveAll(candidate => WaitSignature.From(candidate) == signature);
         FireOrThrow(LifecycleTrigger.MatchWait);
         Status = WorkflowStatus.Running;
         UpdatedAt = firedAt;
@@ -253,6 +290,28 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         {
             wait.MarkActive();
             activeWaits.Add(wait);
+            if (consumedWaitAdded)
+            {
+                consumedWaits.Remove(signature);
+            }
+
+            if (hadPreviousTimeout)
+            {
+                timedOutWaits[signature] = previousTimeout;
+            }
+            else
+            {
+                timedOutWaits.Remove(signature);
+            }
+
+            foreach (var pendingEvent in removedPendingEvents)
+            {
+                if (pendingEvents.All(candidate => candidate.EventId != pendingEvent.EventId))
+                {
+                    pendingEvents.Add(pendingEvent);
+                }
+            }
+
             Status = WorkflowStatus.Waiting;
             UpdatedAt = wait.RegisteredAt;
             CurrentStatusEnteredAt = wait.RegisteredAt;
@@ -271,23 +330,20 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     private async Task<WorkflowInstanceSnapshot> ResumeWaitAsync(
         RuntimeWaitRecord wait,
         EventEnvelope envelope,
+        DateTimeOffset processedAt,
         bool removePendingAfterCommit,
         CancellationToken cancellationToken)
     {
         wait.MarkMatched();
         activeWaits.Remove(wait);
-        wait.CancelLoser();
         FireOrThrow(LifecycleTrigger.MatchWait);
         Status = WorkflowStatus.Running;
-        UpdatedAt = envelope.OccurredAt;
-        CurrentStatusEnteredAt = envelope.OccurredAt;
-        LastActiveAt = envelope.OccurredAt;
+        UpdatedAt = processedAt;
+        CurrentStatusEnteredAt = processedAt;
+        LastActiveAt = processedAt;
 
-        var removedPendingEvent = false;
-        if (removePendingAfterCommit)
-        {
-            removedPendingEvent = pendingEvents.RemoveAll(candidate => candidate.EventId == envelope.EventId) > 0;
-        }
+        var removedPendingEvent = removePendingAfterCommit &&
+            pendingEvents.RemoveAll(candidate => candidate.EventId == envelope.EventId) > 0;
 
         try
         {
@@ -301,11 +357,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
                 activeWaits.Add(wait);
             }
 
-            if (!HasSeen(envelope.EventId))
-            {
-                pendingEvents.Add(envelope);
-            }
-            else if (removedPendingEvent && pendingEvents.All(candidate => candidate.EventId != envelope.EventId))
+            if (removedPendingEvent && pendingEvents.All(candidate => candidate.EventId != envelope.EventId))
             {
                 pendingEvents.Add(envelope);
             }
@@ -316,12 +368,13 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
             throw;
         }
 
-        consumedEventIds.Add(envelope.EventId);
+        wait.CancelLoser();
+        RecordConsumedEvent(envelope.EventId);
         consumedWaits.Add(new WaitSignature(wait.EventName, wait.CorrelationId, wait.BranchId));
         if (Status == WorkflowStatus.Running && (activeWaits.Count > 0 || activeTimers.Count > 0))
         {
             Status = WorkflowStatus.Waiting;
-            CurrentStatusEnteredAt = envelope.OccurredAt;
+            CurrentStatusEnteredAt = processedAt;
         }
 
         return ToSnapshot();
@@ -419,16 +472,20 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     internal void MarkStuckStep(string stepPath, DateTimeOffset detectedAt)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(stepPath);
-        if (hasStuckStep && string.Equals(stuckStepPath, stepPath, StringComparison.Ordinal))
+        lock (snapshotGate)
         {
-            return;
-        }
+            if (hasStuckStep && string.Equals(stuckStepPath, stepPath, StringComparison.Ordinal))
+            {
+                return;
+            }
 
-        hasStuckStep = true;
-        isStuck = true;
-        stuckStepPath = stepPath;
-        stuckDetectedAt = detectedAt;
-        RecordLifecycleEvent("StepStuckDetected", stepPath, Status, detectedAt);
+            hasStuckStep = true;
+            isStuck = true;
+            stuckStepPath = stepPath;
+            stuckDetectedAt = detectedAt;
+            RecordLifecycleEvent("StepStuckDetected", stepPath, Status, detectedAt);
+            ToSnapshot();
+        }
     }
 
     internal WorkflowInstanceSnapshot MarkStuckIfNoProgress(DateTimeOffset now, TimeSpan threshold)
@@ -477,40 +534,56 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
 
-        lifecycleEvents.Add(new LifecycleEventSnapshot
+        lock (snapshotGate)
         {
-            InstanceId = InstanceId,
-            EventName = eventName,
-            StepPath = stepPath,
-            Status = status,
-            OccurredAt = occurredAt,
-            Durable = false
-        });
+            if (lifecycleEvents.Count == maxLifecycleEvents)
+            {
+                lifecycleEvents.RemoveAt(0);
+            }
+
+            lifecycleEvents.Add(new LifecycleEventSnapshot
+            {
+                InstanceId = InstanceId,
+                EventName = eventName,
+                StepPath = stepPath,
+                Status = status,
+                OccurredAt = occurredAt,
+                Durable = false
+            });
+        }
     }
 
     internal void StartStep(string stepPath, DateTimeOffset startedAt, TimeSpan? expectedTimeout)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(stepPath);
 
-        activeStep = new ActiveStepSnapshot
+        lock (snapshotGate)
         {
-            StepPath = stepPath,
-            StartedAt = startedAt,
-            ExpectedTimeout = expectedTimeout
-        };
-        UpdatedAt = startedAt;
-        LastActiveAt = startedAt;
+            activeStep = new ActiveStepSnapshot
+            {
+                StepPath = stepPath,
+                StartedAt = startedAt,
+                ExpectedTimeout = expectedTimeout
+            };
+            UpdatedAt = startedAt;
+            LastActiveAt = startedAt;
+            PublishStepSnapshot();
+        }
     }
 
     internal void CompleteStep(string stepPath, DateTimeOffset completedAt)
     {
-        if (activeStep is not null && string.Equals(activeStep.StepPath, stepPath, StringComparison.Ordinal))
+        lock (snapshotGate)
         {
-            activeStep = null;
-        }
+            if (activeStep is not null && string.Equals(activeStep.StepPath, stepPath, StringComparison.Ordinal))
+            {
+                activeStep = null;
+            }
 
-        UpdatedAt = completedAt;
-        LastActiveAt = completedAt;
+            UpdatedAt = completedAt;
+            LastActiveAt = completedAt;
+            PublishStepSnapshot();
+        }
     }
 
     internal void Complete(string? outcomeName, DateTimeOffset updatedAt)
@@ -525,16 +598,37 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
     internal void Fail(WorkflowErrorDetails errorDetails)
     {
+        if (Status is not WorkflowStatus.Running and not WorkflowStatus.Waiting)
+        {
+            throw new WorkflowLifecycleException(
+                $"Lifecycle trigger '{LifecycleTrigger.Fail}' is not valid from workflow status '{Status}'.");
+        }
+
         Status = WorkflowStatus.Failed;
         ErrorDetails = errorDetails;
         UpdatedAt = errorDetails.OccurredAt;
         CurrentStatusEnteredAt = errorDetails.OccurredAt;
         LastActiveAt = errorDetails.OccurredAt;
         RecordLifecycleEvent("InstanceFailed", null, WorkflowStatus.Failed, errorDetails.OccurredAt);
+        ClearRuntimeWork();
     }
 
     internal void Compensate(DateTimeOffset updatedAt)
     {
+        // Explicit operator compensation is allowed after a saga has completed.
+        // The shared lifecycle machine models only forward-execution compensation,
+        // so keep this ephemeral-only transition local to the saga runtime.
+        if (Status == WorkflowStatus.Completed)
+        {
+            Status = WorkflowStatus.Compensated;
+            UpdatedAt = updatedAt;
+            CurrentStatusEnteredAt = updatedAt;
+            LastActiveAt = updatedAt;
+            RecordLifecycleEvent("InstanceCompensated", null, WorkflowStatus.Compensated, updatedAt);
+            ClearRuntimeWork();
+            return;
+        }
+
         ApplyTerminalTrigger(LifecycleTrigger.Compensate, updatedAt);
     }
 
@@ -576,19 +670,30 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
                 $"Cannot yield workflow instance '{InstanceId}' because status '{Status}' is terminal.");
         }
 
-        yieldContinuation = continueAsync;
+        yieldContinuations.Enqueue(continueAsync);
     }
 
     internal bool TryTakeYieldContinuation(out Func<CancellationToken, Task>? continuation)
     {
-        continuation = yieldContinuation;
-        yieldContinuation = null;
-        return continuation is not null;
+        if (yieldContinuations.Count == 0)
+        {
+            continuation = null;
+            return false;
+        }
+
+        continuation = yieldContinuations.Dequeue();
+        return true;
     }
 
     internal CancellationTokenSource CreateLinkedExecutionToken(CancellationToken cancellationToken)
     {
         return CancellationTokenSource.CreateLinkedTokenSource(cancellationSource.Token, cancellationToken);
+    }
+
+    internal async ValueTask<IDisposable> EnterStateAccessAsync(CancellationToken cancellationToken)
+    {
+        await stateAccess.WaitAsync(cancellationToken).ConfigureAwait(false);
+        return new StateAccessLease(stateAccess);
     }
 
     internal void SignalCancellation()
@@ -601,28 +706,33 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
     internal WorkflowInstanceSnapshot ToSnapshot()
     {
-        return new WorkflowInstanceSnapshot
+        lock (snapshotGate)
         {
-            InstanceId = InstanceId,
-            DefinitionId = DefinitionId,
-            DefinitionVersion = DefinitionVersion,
-            Status = Status,
-            CreatedAt = CreatedAt,
-            UpdatedAt = UpdatedAt,
-            CurrentStatusEnteredAt = CurrentStatusEnteredAt,
-            LastActiveAt = LastActiveAt,
-            IsStuck = isStuck,
-            HasStuckStep = hasStuckStep,
-            StuckStepPath = stuckStepPath,
-            StuckDetectedAt = stuckDetectedAt,
-            ErrorSummary = ErrorDetails?.Summary,
-            EndOutcomeName = EndOutcomeName,
-            ActiveWaits = activeWaits.Select(wait => wait.ToSnapshot()).ToArray(),
-            ActiveStep = activeStep,
-            CompositionOutcomes = compositionOutcomes.ToArray(),
-            ForEachGroups = forEachGroups.Select(group => group.ToSnapshot()).ToArray(),
-            LifecycleEvents = lifecycleEvents.ToArray()
-        };
+            var snapshot = new WorkflowInstanceSnapshot
+            {
+                InstanceId = InstanceId,
+                DefinitionId = DefinitionId,
+                DefinitionVersion = DefinitionVersion,
+                Status = Status,
+                CreatedAt = CreatedAt,
+                UpdatedAt = UpdatedAt,
+                CurrentStatusEnteredAt = CurrentStatusEnteredAt,
+                LastActiveAt = LastActiveAt,
+                IsStuck = isStuck,
+                HasStuckStep = hasStuckStep,
+                StuckStepPath = stuckStepPath,
+                StuckDetectedAt = stuckDetectedAt,
+                ErrorSummary = ErrorDetails?.Summary,
+                EndOutcomeName = EndOutcomeName,
+                ActiveWaits = activeWaits.Select(wait => wait.ToSnapshot()).ToArray(),
+                ActiveStep = activeStep,
+                CompositionOutcomes = compositionOutcomes.ToArray(),
+                ForEachGroups = forEachGroups.Select(group => group.ToSnapshot()).ToArray(),
+                LifecycleEvents = lifecycleEvents.ToArray()
+            };
+            Volatile.Write(ref publishedSnapshot, snapshot);
+            return snapshot;
+        }
     }
 
     InstanceId IWorkflowInstance.InstanceId => InstanceId;
@@ -631,9 +741,57 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
     object IWorkflowInstance.StateObject => State!;
 
+    object IWorkflowInstance.CopyState(IEphemeralStateSnapshotter snapshotter)
+    {
+        ArgumentNullException.ThrowIfNull(snapshotter);
+        if (Volatile.Read(ref hasPublishedState))
+        {
+            lock (snapshotGate)
+            {
+                return snapshotter.Snapshot(publishedState!)!;
+            }
+        }
+
+        stateAccess.Wait();
+        try
+        {
+            return snapshotter.Snapshot(State)!;
+        }
+        finally
+        {
+            stateAccess.Release();
+        }
+    }
+
+    bool IWorkflowInstance.HasPublishedState => Volatile.Read(ref hasPublishedState);
+
+    void IWorkflowInstance.PublishState(IEphemeralStateSnapshotter snapshotter)
+    {
+        ArgumentNullException.ThrowIfNull(snapshotter);
+        stateAccess.Wait();
+        try
+        {
+            var snapshot = snapshotter.Snapshot(State);
+            lock (snapshotGate)
+            {
+                publishedState = snapshot;
+                Volatile.Write(ref hasPublishedState, true);
+            }
+        }
+        finally
+        {
+            stateAccess.Release();
+        }
+    }
+
     WorkflowInstanceSnapshot IWorkflowInstance.ToSnapshot()
     {
         return ToSnapshot();
+    }
+
+    WorkflowInstanceSnapshot IWorkflowInstance.GetPublishedSnapshot()
+    {
+        return Volatile.Read(ref publishedSnapshot) ?? ToSnapshot();
     }
 
     WorkflowInstanceSnapshot IWorkflowInstance.Cancel(DateTimeOffset updatedAt)
@@ -679,6 +837,11 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         CurrentStatusEnteredAt = updatedAt;
         LastActiveAt = updatedAt;
         RecordLifecycleEvent($"Instance{Status}", null, Status, updatedAt);
+        ClearRuntimeWork();
+    }
+
+    private void ClearRuntimeWork()
+    {
         foreach (var wait in activeWaits)
         {
             wait.CancelLoser();
@@ -692,6 +855,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         activeWaits.Clear();
         activeTimers.Clear();
         pendingEvents.Clear();
+        yieldContinuations.Clear();
         activeStep = null;
     }
 
@@ -709,6 +873,45 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         return consumedEventIds.Contains(eventId) || pendingEvents.Any(envelope => envelope.EventId == eventId);
     }
 
+    private void RecordConsumedEvent(EventId eventId)
+    {
+        if (!consumedEventIds.Add(eventId))
+        {
+            return;
+        }
+
+        consumedEventOrder.Enqueue(eventId);
+        if (consumedEventOrder.Count > maxConsumedEventIds)
+        {
+            consumedEventIds.Remove(consumedEventOrder.Dequeue());
+        }
+    }
+
+    private void PublishStepSnapshot()
+    {
+        var current = Volatile.Read(ref publishedSnapshot);
+        if (current is null)
+        {
+            ToSnapshot();
+            return;
+        }
+
+        Volatile.Write(ref publishedSnapshot, current with
+        {
+            UpdatedAt = UpdatedAt,
+            LastActiveAt = LastActiveAt,
+            ActiveStep = activeStep
+        });
+    }
+
+    private sealed class StateAccessLease(SemaphoreSlim semaphore) : IDisposable
+    {
+        public void Dispose()
+        {
+            semaphore.Release();
+        }
+    }
+
     private bool HasConsumedWait(EventEnvelope envelope)
     {
         var signature = WaitSignature.From(envelope);
@@ -722,11 +925,17 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     private bool HasTimedOutWait(EventEnvelope envelope)
     {
         var signature = WaitSignature.From(envelope);
-        return timedOutWaits.Contains(signature) ||
+        return IsStaleForTimedOutWait(signature, envelope.OccurredAt) ||
             (string.IsNullOrWhiteSpace(envelope.BranchId) && timedOutWaits.Any(wait =>
-                string.Equals(wait.EventName, envelope.EventName, StringComparison.Ordinal) &&
-                wait.CorrelationId == envelope.CorrelationId &&
-                wait.BranchId is null));
+                string.Equals(wait.Key.EventName, envelope.EventName, StringComparison.Ordinal) &&
+                wait.Key.CorrelationId == envelope.CorrelationId &&
+                wait.Key.BranchId is null &&
+                envelope.OccurredAt < wait.Value));
+    }
+
+    private bool IsStaleForTimedOutWait(WaitSignature signature, DateTimeOffset occurredAt)
+    {
+        return timedOutWaits.TryGetValue(signature, out var timedOutAt) && occurredAt < timedOutAt;
     }
 
     private readonly record struct WaitSignature(string EventName, CorrelationId CorrelationId, BranchId? BranchId)

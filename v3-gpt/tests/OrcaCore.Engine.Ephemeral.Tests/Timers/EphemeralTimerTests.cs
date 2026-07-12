@@ -86,6 +86,42 @@ public sealed class EphemeralTimerTests
     }
 
     [Fact]
+    public async Task FireDueTimersAsync_WhenOneContinuationThrows_RetriesItAndPreservesLaterTimers()
+    {
+        var clock = new Clock(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
+        var engine = new EphemeralWorkflowEngine(clock.TimeProvider);
+        var retryingState = new RetryingTimerState();
+        var retrying = new WorkflowBuilder<RetryingTimerState>()
+            .Init<string>(_ => retryingState)
+            .Delay(TimeSpan.FromMinutes(5))
+            .Then(() => new UnsupportedOnceStep())
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+        var laterSink = new List<string>();
+        var later = CreateDelayedDefinition(laterSink, TimeSpan.FromMinutes(5));
+        engine.RegisterDefinition(retrying);
+        engine.RegisterDefinition(later);
+        await engine.StartAsync<string, RetryingTimerState>(
+            retrying.DefinitionId,
+            "retrying",
+            TestContext.Current.CancellationToken);
+        await engine.StartAsync<string, TimerState>(
+            later.DefinitionId,
+            "later",
+            TestContext.Current.CancellationToken);
+        clock.Advance(TimeSpan.FromMinutes(5));
+
+        var firstFire = () => engine.FireDueTimersAsync(TestContext.Current.CancellationToken);
+        await firstFire.Should().ThrowAsync<NotSupportedException>();
+        var retried = await engine.FireDueTimersAsync(TestContext.Current.CancellationToken);
+
+        retried.Should().HaveCount(2);
+        retried.Should().OnlyContain(snapshot => snapshot.Status == WorkflowStatus.Completed);
+        retryingState.Attempts.Should().Be(2);
+        laterSink.Should().Equal(["after-delay"]);
+    }
+
+    [Fact]
     public async Task TimerService_ConcurrentScheduleCancelAndClaim_DoesNotCorruptDueTimers()
     {
         var service = new EphemeralTimerService(TimeProvider.System);
@@ -163,6 +199,27 @@ public sealed class EphemeralTimerTests
                 context.State.Attempts == 1
                     ? new StepResult.Yield()
                     : new StepResult.Completed());
+        }
+    }
+
+    private sealed class RetryingTimerState
+    {
+        public int Attempts { get; set; }
+    }
+
+    private sealed class UnsupportedOnceStep : IStep<RetryingTimerState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<RetryingTimerState> context,
+            CancellationToken cancellationToken)
+        {
+            context.State.Attempts++;
+            if (context.State.Attempts == 1)
+            {
+                throw new NotSupportedException("first timer continuation fails");
+            }
+
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
         }
     }
 }

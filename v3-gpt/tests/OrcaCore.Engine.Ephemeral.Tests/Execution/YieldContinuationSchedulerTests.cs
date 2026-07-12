@@ -68,6 +68,17 @@ public sealed class YieldContinuationSchedulerTests
 
         public object StateObject { get; } = new();
 
+        public object CopyState(IEphemeralStateSnapshotter snapshotter)
+        {
+            return StateObject;
+        }
+
+        public bool HasPublishedState => true;
+
+        public void PublishState(IEphemeralStateSnapshotter snapshotter)
+        {
+        }
+
         public int SnapshotCalls { get; private set; }
 
         public WorkflowInstanceSnapshot Cancel(DateTimeOffset updatedAt)
@@ -112,6 +123,11 @@ public sealed class YieldContinuationSchedulerTests
                 CreatedAt = DateTimeOffset.UnixEpoch,
                 UpdatedAt = DateTimeOffset.UnixEpoch
             };
+        }
+
+        public WorkflowInstanceSnapshot GetPublishedSnapshot()
+        {
+            return ToSnapshot();
         }
     }
 }

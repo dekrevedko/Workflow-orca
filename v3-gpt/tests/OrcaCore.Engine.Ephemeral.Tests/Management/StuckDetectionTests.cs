@@ -43,6 +43,37 @@ public sealed class StuckDetectionTests
     }
 
     [Fact]
+    public async Task RunningStep_IsMarkedStuckBeforeItReturns()
+    {
+        var clock = new Clock(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
+        var step = new BlockingStep();
+        var engine = new EphemeralWorkflowEngine(
+            clock.TimeProvider,
+            new EphemeralWorkflowEngineOptions { StuckStepThreshold = TimeSpan.FromSeconds(5) });
+        var definition = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState())
+            .Then(() => step)
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+        engine.RegisterDefinition(definition);
+        var start = engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "start",
+            TestContext.Current.CancellationToken);
+        await step.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
+
+        clock.Advance(TimeSpan.FromSeconds(6));
+        var running = engine.Management.All().Get();
+
+        running.Status.Should().Be(WorkflowStatus.Running);
+        running.HasStuckStep.Should().BeTrue();
+        running.LifecycleEvents.Should().ContainSingle(item => item.EventName == "StepStuckDetected");
+
+        step.Release();
+        await start.WaitAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
     public async Task InstanceWithoutProgressBeyondThreshold_EmitsStuckInstanceEventAndSetsFlag()
     {
         var clock = new Clock(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
@@ -77,6 +108,24 @@ public sealed class StuckDetectionTests
         {
             clock.Advance(duration);
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed class BlockingStep : IStep<TestState>
+    {
+        private readonly TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal void Release() => release.TrySetResult();
+
+        public async ValueTask<StepResult> ExecuteAsync(
+            StepContext<TestState> context,
+            CancellationToken cancellationToken)
+        {
+            Started.TrySetResult();
+            await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            return new StepResult.Completed();
         }
     }
 }

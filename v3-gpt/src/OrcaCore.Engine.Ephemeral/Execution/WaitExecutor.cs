@@ -14,7 +14,8 @@ internal sealed class WaitExecutor<TState>(
         SequenceExecutionContext<TState, TInput> context,
         int waitIndex,
         ISequenceExecutionEngine<TState> sequenceExecution,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool deferFailures)
     {
         ArgumentNullException.ThrowIfNull(waitNode);
         ArgumentNullException.ThrowIfNull(instance);
@@ -29,7 +30,15 @@ internal sealed class WaitExecutor<TState>(
         catch (Exception exception)
             when (exception is not OperationCanceledException and not NotSupportedException)
         {
-            failureHandler.Fail(instance, exception, nodeId);
+            if (deferFailures)
+            {
+                context.RunState.DeferredFailure = exception;
+            }
+            else
+            {
+                failureHandler.Fail(instance, exception, nodeId);
+            }
+
             return;
         }
 

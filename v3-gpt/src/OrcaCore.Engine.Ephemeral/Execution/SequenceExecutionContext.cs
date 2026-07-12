@@ -57,6 +57,8 @@ internal sealed record SequenceExecutionContext<TState, TInput>
 
     internal Func<CancellationToken, Task>? AfterSequence { get; init; }
 
+    internal bool DeferFailures { get; init; }
+
     internal SequenceExecutionContext<TState, TInput> CreateNested(
         SequenceNode<TState> sequence,
         BranchId? branchId,

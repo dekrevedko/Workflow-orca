@@ -2,7 +2,6 @@ using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Definitions;
-using OrcaCore.Core.Lifecycle;
 using OrcaCore.Engine.Ephemeral.Governance;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
@@ -35,13 +34,17 @@ internal sealed class StepExecutor<TState>
         CancellationToken cancellationToken,
         bool deferFailures)
     {
-        var timedOut = false;
+        await using var governanceLease = await governance
+            .EnterStepAsync(stepNode.Policies.PoolKey, cancellationToken)
+            .ConfigureAwait(false);
+        using var stateAccess = await instance.EnterStateAccessAsync(cancellationToken).ConfigureAwait(false);
+        var timedOut = 0;
         using var timeoutCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         using var timeoutTimer = stepNode.Policies.Timeout is { } timeout
             ? timeProvider.CreateTimer(
                 _ =>
                 {
-                    timedOut = true;
+                    Interlocked.Exchange(ref timedOut, 1);
                     timeoutCancellation.Cancel();
                 },
                 null,
@@ -51,18 +54,22 @@ internal sealed class StepExecutor<TState>
         var executionToken = timeoutTimer is null
             ? cancellationToken
             : timeoutCancellation.Token;
-        await using var governanceLease = await governance
-            .EnterStepAsync(stepNode.Policies.PoolKey, executionToken)
-            .ConfigureAwait(false);
         var maxAttempts = stepNode.Policies.Retry?.MaxAttempts ?? 1;
-        var step = stepNode.StepFactory();
 
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
             var stepStartedAt = timeProvider.GetUtcNow();
             instance.StartStep(stepPath, stepStartedAt, stepNode.Policies.Timeout?.Duration);
+            using var stuckTimer = stuckStepThreshold is { } threshold
+                ? timeProvider.CreateTimer(
+                    _ => instance.MarkStuckStep(stepPath, timeProvider.GetUtcNow()),
+                    null,
+                    threshold,
+                    Timeout.InfiniteTimeSpan)
+                : null;
             try
             {
+                var step = stepNode.StepFactory();
                 var context = new StepContext<TState>(instance.State, resumedEvent, timeProvider, forEachItem);
                 var result = await step.ExecuteAsync(context, executionToken).ConfigureAwait(false);
                 instance.CompleteStep(stepPath, timeProvider.GetUtcNow());
@@ -74,7 +81,9 @@ internal sealed class StepExecutor<TState>
 
                 return ApplyResult(instance, result, stepPath, deferFailures);
             }
-            catch (OperationCanceledException) when (timedOut && !cancellationToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (
+                Volatile.Read(ref timedOut) == 1 &&
+                !cancellationToken.IsCancellationRequested)
             {
                 instance.CompleteStep(stepPath, timeProvider.GetUtcNow());
                 var timeoutException = new TimeoutException(
@@ -150,7 +159,8 @@ internal sealed class StepExecutor<TState>
             case StepResult.Yield:
                 return StepExecutionResult.Yield();
             default:
-                throw new NotSupportedException($"Step result '{result.GetType().Name}' is not supported.");
+                throw new NotSupportedException(
+                    $"Step result '{result.GetType().Name}' is not supported by the ephemeral engine.");
         }
     }
 
@@ -158,7 +168,6 @@ internal sealed class StepExecutor<TState>
     {
         var occurredAt = timeProvider.GetUtcNow();
         instance.RecordLifecycleEvent("StepFailed", stepPath, WorkflowStatus.Failed, occurredAt);
-        WorkflowLifecycleTransition.FireOrThrow(instance, LifecycleTrigger.Fail);
         instance.Fail(new WorkflowErrorDetails(
             exception.GetType().Name,
             exception.Message,

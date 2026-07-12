@@ -41,6 +41,31 @@ public sealed class ForEachTests
     }
 
     [Fact]
+    public async Task ForEach_ManySynchronousItems_UsesIterativeDispatchPump()
+    {
+        var state = new TestState(Enumerable.Range(1, 2_000).ToArray());
+        var engine = new EphemeralWorkflowEngine();
+        var definition = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => state)
+            .ForEach(
+                current => current.Items,
+                WorkflowPartitioner<int>.Items(),
+                item => item.Then(() => new CountBodyStep()),
+                maxConcurrency: 1)
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+        engine.RegisterDefinition(definition);
+
+        var snapshot = await engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "start",
+            TestContext.Current.CancellationToken);
+
+        snapshot.Status.Should().Be(WorkflowStatus.Completed);
+        state.BodyRuns.Should().Be(2_000);
+    }
+
+    [Fact]
     [Trait("AC", "AC-602")]
     public async Task ForEach_WhenAll_ParentContinuesAfterAllItemsComplete()
     {

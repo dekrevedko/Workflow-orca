@@ -20,47 +20,61 @@ internal sealed class ForEachWorkScheduler<TState, TInput>(
     private int activeCount;
     private int nextOrdinal;
     private int continued;
+    private int dispatching;
     private Exception? firstFailure;
 
     internal async Task DispatchAvailableAsync(CancellationToken dispatchToken)
     {
-        while (TryReserveNext(out var workItemIndex, out var partitionItems))
+        if (Interlocked.Exchange(ref dispatching, 1) == 1)
         {
-            var itemContext = parentContext.CreateNested(
-                forEachNode.Body,
-                new BranchId(workItemIndex, $"item-{workItemIndex}"),
-                parentContext.ResumeEvent,
-                itemToken => ItemCompletedAsync(workItemIndex, itemToken)) with
-            {
-                ForEachItem = new ForEachItemContext(workItemIndex, partitionItems)
-            };
-            var completed = await sequenceExecution.RunSequenceAsync(
-                itemContext,
-                startIndex: 0,
-                dispatchToken,
-                deferStepFailures: true).ConfigureAwait(false);
+            return;
+        }
 
-            var itemFailure = parentContext.RunState.TakeDeferredFailure();
-            if (itemFailure is not null)
+        try
+        {
+            while (TryReserveNext(out var workItemIndex, out var partitionItems))
             {
-                await ItemFailedAsync(workItemIndex, itemFailure, dispatchToken).ConfigureAwait(false);
+                var itemContext = parentContext.CreateNested(
+                    forEachNode.Body,
+                    new BranchId(workItemIndex, $"item-{workItemIndex}"),
+                    parentContext.ResumeEvent,
+                    itemToken => ItemCompletedAsync(workItemIndex, itemToken)) with
+                {
+                    ForEachItem = new ForEachItemContext(workItemIndex, partitionItems),
+                    DeferFailures = true
+                };
+                var completed = await sequenceExecution.RunSequenceAsync(
+                    itemContext,
+                    startIndex: 0,
+                    dispatchToken,
+                    deferStepFailures: true).ConfigureAwait(false);
+
+                var itemFailure = parentContext.RunState.TakeDeferredFailure();
+                if (itemFailure is not null)
+                {
+                    await ItemFailedAsync(workItemIndex, itemFailure, dispatchToken).ConfigureAwait(false);
+                    if (parentContext.RunState.Instance!.Status == WorkflowStatus.Failed)
+                    {
+                        return;
+                    }
+
+                    continue;
+                }
+
                 if (parentContext.RunState.Instance!.Status == WorkflowStatus.Failed)
                 {
                     return;
                 }
 
-                continue;
+                if (completed)
+                {
+                    await ItemCompletedAsync(workItemIndex, dispatchToken).ConfigureAwait(false);
+                }
             }
-
-            if (parentContext.RunState.Instance!.Status == WorkflowStatus.Failed)
-            {
-                return;
-            }
-
-            if (completed)
-            {
-                await ItemCompletedAsync(workItemIndex, dispatchToken).ConfigureAwait(false);
-            }
+        }
+        finally
+        {
+            Volatile.Write(ref dispatching, 0);
         }
     }
 

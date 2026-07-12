@@ -49,7 +49,7 @@ internal sealed class SuspensionScheduler<TState>(
             wait.SetCancelLoser(() => timerService.Cancel(timeoutTimer));
         }
 
-        await instance.MatchPendingEventAsync(wait, cancellationToken).ConfigureAwait(false);
+        await instance.MatchPendingEventAsync(wait, timeProvider.GetUtcNow(), cancellationToken).ConfigureAwait(false);
     }
 
     internal void RegisterDelay<TInput>(

@@ -95,6 +95,31 @@ public sealed class ParallelTests
     }
 
     [Fact]
+    public async Task Run_ParallelBranchesThatYield_ResumeEveryBranchBeforeContinuation()
+    {
+        var state = new TestState();
+        var engine = new EphemeralWorkflowEngine();
+        var definition = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => state)
+            .Parallel(
+                ("a", branch => branch.Then(() => new YieldOnceStep("a"))),
+                ("b", branch => branch.Then(() => new YieldOnceStep("b"))))
+            .Then(() => new CountContinuationStep())
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+        engine.RegisterDefinition(definition);
+
+        var snapshot = await engine.StartAsync<string, TestState>(
+            definition.DefinitionId,
+            "start",
+            TestContext.Current.CancellationToken);
+
+        snapshot.Status.Should().Be(WorkflowStatus.Completed);
+        state.Values.Should().BeEquivalentTo(["a", "b"]);
+        state.ContinuationCount.Should().Be(1);
+    }
+
+    [Fact]
     public async Task RaiseEventAsync_ParallelBranchWait_ResumesOnlyMatchingBranch()
     {
         var state = new TestState();
@@ -310,6 +335,8 @@ public sealed class ParallelTests
     {
         public List<string> Values { get; } = [];
 
+        public HashSet<string> YieldedBranches { get; } = [];
+
         public int ContinuationCount { get; set; }
     }
 
@@ -346,6 +373,22 @@ public sealed class ParallelTests
             CancellationToken cancellationToken)
         {
             context.State.ContinuationCount++;
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed class YieldOnceStep(string branch) : IStep<TestState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<TestState> context,
+            CancellationToken cancellationToken)
+        {
+            if (context.State.YieldedBranches.Add(branch))
+            {
+                return ValueTask.FromResult<StepResult>(new StepResult.Yield());
+            }
+
+            context.State.Values.Add(branch);
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
         }
     }

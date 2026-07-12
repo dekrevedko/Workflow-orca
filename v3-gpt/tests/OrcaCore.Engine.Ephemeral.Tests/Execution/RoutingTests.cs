@@ -69,6 +69,28 @@ public sealed class RoutingTests
     }
 
     [Fact]
+    public async Task RaiseByCorrelationAsync_BranchTarget_SelectsOnlyMatchingInstance()
+    {
+        var firstState = new TestState();
+        var secondState = new TestState();
+        var engine = new EphemeralWorkflowEngine();
+        var first = ParallelDefinition(firstState, "target", "other-a");
+        var second = ParallelDefinition(secondState, "other", "other-b");
+        engine.RegisterDefinition(first);
+        engine.RegisterDefinition(second);
+        await StartAsync(engine, first);
+        await StartAsync(engine, second);
+
+        var snapshot = await engine.RaiseEventByCorrelationAsync<TestState>(
+            Event("Approved", Correlation, "payload", branchId: "0:target"),
+            TestContext.Current.CancellationToken);
+
+        snapshot.DefinitionId.Should().Be(first.DefinitionId);
+        firstState.Payloads.Should().Equal(["payload"]);
+        secondState.Payloads.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task RaiseByDefinitionAsync_MultipleDefinitions_DeliversOnlyTargetDefinition()
     {
         var targetState = new TestState();
@@ -172,13 +194,34 @@ public sealed class RoutingTests
             .Build(DefinitionId.New(), DefinitionVersion.Initial);
     }
 
-    private static EventEnvelope Event(string name, CorrelationId correlationId, object? payload)
+    private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> ParallelDefinition(
+        TestState state,
+        string matchingBranchName,
+        string otherEventName)
+    {
+        return new WorkflowBuilder<TestState>()
+            .Init<string>(_ => state)
+            .Parallel(
+                (matchingBranchName, branch => branch
+                    .Wait("Approved", _ => Correlation)
+                    .Then(() => new CapturePayloadStep())),
+                ("residual", branch => branch.Wait(otherEventName, _ => new CorrelationId(otherEventName))))
+            .End()
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+    }
+
+    private static EventEnvelope Event(
+        string name,
+        CorrelationId correlationId,
+        object? payload,
+        string? branchId = null)
     {
         return new EventEnvelope
         {
             EventId = EventId.New(),
             EventName = name,
             CorrelationId = correlationId,
+            BranchId = branchId,
             Payload = payload,
             OccurredAt = DateTimeOffset.UtcNow
         };

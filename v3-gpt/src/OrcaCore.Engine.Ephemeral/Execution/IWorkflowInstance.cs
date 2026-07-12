@@ -11,6 +11,12 @@ internal interface IWorkflowInstance
 
     object StateObject { get; }
 
+    object CopyState(IEphemeralStateSnapshotter snapshotter);
+
+    bool HasPublishedState { get; }
+
+    void PublishState(IEphemeralStateSnapshotter snapshotter);
+
     WorkflowInstanceSnapshot Cancel(DateTimeOffset updatedAt);
 
     WorkflowInstanceSnapshot Terminate(DateTimeOffset updatedAt);
@@ -24,4 +30,6 @@ internal interface IWorkflowInstance
     void SignalCancellation();
 
     WorkflowInstanceSnapshot ToSnapshot();
+
+    WorkflowInstanceSnapshot GetPublishedSnapshot();
 }

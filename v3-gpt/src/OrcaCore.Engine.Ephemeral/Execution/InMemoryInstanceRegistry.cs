@@ -23,10 +23,16 @@ internal sealed class InMemoryInstanceRegistry : IInstanceRegistry
     {
         ArgumentNullException.ThrowIfNull(instanceIds);
 
-        return instanceIds
-            .Where(instances.ContainsKey)
-            .Select(instanceId => instances[instanceId])
-            .ToArray();
+        var found = new List<object>(instanceIds.Count);
+        foreach (var instanceId in instanceIds)
+        {
+            if (instances.TryGetValue(instanceId, out var instance))
+            {
+                found.Add(instance);
+            }
+        }
+
+        return found;
     }
 
     public IReadOnlyCollection<object> List()

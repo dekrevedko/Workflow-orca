@@ -78,6 +78,7 @@ public sealed class EphemeralSagaTests
 
         snapshot.Status.Should().Be(WorkflowStatus.CompensationFailed);
         snapshot.ErrorSummary.Should().Contain("release failed");
+        engine.Management.All().Statistics().OldestActiveInstanceAge.Should().BeNull();
     }
 
     [Fact]
@@ -103,6 +104,87 @@ public sealed class EphemeralSagaTests
 
         repeated.Status.Should().Be(WorkflowStatus.Compensated);
         state.Values.Should().Equal("reserve", "release");
+    }
+
+    [Fact]
+    public async Task EphemeralSagaExplicitCompensation_AfterSuccess_CompensatesCompletedActions()
+    {
+        var state = new SagaState();
+        var engine = new EphemeralWorkflowEngine();
+        var definition = Definition(new SagaBuilder<SagaState>()
+            .Init<string>(_ => state)
+            .Then(() => new RecordingStep("reserve"))
+            .CompensateBy(() => new RecordingStep("release"))
+            .End());
+        var completed = await engine.StartSagaAsync<string, SagaState>(
+            definition,
+            "start",
+            TestContext.Current.CancellationToken);
+
+        var compensated = await engine.RequestSagaCompensationAsync<SagaState>(
+            completed.InstanceId,
+            TestContext.Current.CancellationToken);
+
+        compensated.Status.Should().Be(WorkflowStatus.Compensated);
+        state.Values.Should().Equal("reserve", "release");
+        engine.Management.All().Statistics().OldestActiveInstanceAge.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task EphemeralSagaCancelledCompensation_CanBeRetried()
+    {
+        var state = new SagaState();
+        var compensation = new CancelOnceStep("release");
+        var engine = new EphemeralWorkflowEngine();
+        var definition = Definition(new SagaBuilder<SagaState>()
+            .Init<string>(_ => state)
+            .Then(() => new RecordingStep("reserve"))
+            .CompensateBy(() => compensation)
+            .End());
+        var completed = await engine.StartSagaAsync<string, SagaState>(
+            definition,
+            "start",
+            TestContext.Current.CancellationToken);
+
+        var firstAttempt = () => engine.RequestSagaCompensationAsync<SagaState>(
+            completed.InstanceId,
+            TestContext.Current.CancellationToken);
+
+        await firstAttempt.Should().ThrowAsync<OperationCanceledException>();
+        var retried = await engine.RequestSagaCompensationAsync<SagaState>(
+            completed.InstanceId,
+            TestContext.Current.CancellationToken);
+
+        retried.Status.Should().Be(WorkflowStatus.Compensated);
+        state.Values.Should().Equal("reserve", "release");
+    }
+
+    [Fact]
+    public async Task EphemeralSagaScopedCompensation_OnlyCompensatesRequestedScope()
+    {
+        var state = new SagaState();
+        var engine = new EphemeralWorkflowEngine();
+        var definition = Definition(new SagaBuilder<SagaState>()
+            .Init<string>(_ => state)
+            .CompensationScope("inventory", scope => scope
+                .Then(() => new RecordingStep("reserve"))
+                .CompensateBy(() => new RecordingStep("release")))
+            .CompensationScope("payment", scope => scope
+                .Then(() => new RecordingStep("authorize"))
+                .CompensateBy(() => new RecordingStep("refund")))
+            .End());
+        var completed = await engine.StartSagaAsync<string, SagaState>(
+            definition,
+            "start",
+            TestContext.Current.CancellationToken);
+
+        var compensated = await engine.RequestSagaCompensationAsync<SagaState>(
+            completed.InstanceId,
+            "payment",
+            TestContext.Current.CancellationToken);
+
+        compensated.Status.Should().Be(WorkflowStatus.Compensated);
+        state.Values.Should().Equal("reserve", "authorize", "refund");
     }
 
     [Fact]
@@ -162,6 +244,24 @@ public sealed class EphemeralSagaTests
         {
             return ValueTask.FromResult<StepResult>(
                 new StepResult.Failed(new WorkflowDefinitionException(message)));
+        }
+    }
+
+    private sealed class CancelOnceStep(string value) : IStep<SagaState>
+    {
+        private int attempts;
+
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<SagaState> context,
+            CancellationToken cancellationToken)
+        {
+            if (Interlocked.Increment(ref attempts) == 1)
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
+
+            context.State.Values.Add(value);
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
         }
     }
 }
