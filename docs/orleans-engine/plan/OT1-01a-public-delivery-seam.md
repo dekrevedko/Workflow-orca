@@ -13,7 +13,7 @@ review gate — no more.
 ## Read first
 - `docs/orleans-engine/plan/SEAMS.md` — the approved seam shape (promote overloads to
   `public` vs a new public dispatch facade type; the gate decided which)
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` — the
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` — the
   `internal` overloads at ~lines 83–94, 150–161, 368–425 (resume, deliver, complete, fail)
 - The `Engine.Durable.Tests` file(s) exercising `DeliverEventCommand` via internals
   (locate by searching the test project for `DeliverEventCommand`; read 1 file)
@@ -27,7 +27,7 @@ Per the SEAMS.md decision, one of:
 Plus: XML-doc on every newly public member; no behavior change; no new overloads.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/` (extend the existing delivery test file):
+In `tests/OrcaCore.Engine.Durable.Tests/` (extend the existing delivery test file):
 1. `PublicSeam_DeliverEvent_MatchesInternalBehavior` — the same deliver scenario driven
    through the new public surface produces identical facts/inbox state as the existing
    internal-path test (parity pin).

@@ -12,9 +12,9 @@ the provider's existing start-commit transaction.
 ## Read first
 - The port/materialization shape landed by OT1-03a (its PROGRESS.md line names the files;
   read the port + materializer, ≤2 files)
-- `v3-gpt/src/OrcaCore.Providers.PostgreSql/` — the event-store commit transaction (locate
+- `src/OrcaCore.Providers.PostgreSql/` — the event-store commit transaction (locate
   the append/commit implementation; read ≤2 files)
-- `v3-gpt/tests/OrcaCore.Providers.PostgreSql.Tests/` — how the certification suite is
+- `tests/OrcaCore.Providers.PostgreSql.Tests/` — how the certification suite is
   inherited (read the suite-inheriting class, 1 file)
 
 ## Deliverables

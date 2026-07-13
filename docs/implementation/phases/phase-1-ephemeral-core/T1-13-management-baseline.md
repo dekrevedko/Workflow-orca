@@ -9,10 +9,10 @@ metadata filters, snapshot queries, typed state reads, active wait inspection, a
 statistics. Public results are immutable snapshots or copies, never live runtime objects.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Abstractions/Instances/WorkflowInstanceSnapshot.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/IInstanceRegistry.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
+- `src/OrcaCore.Abstractions/Instances/WorkflowInstanceSnapshot.cs`
+- `src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/IInstanceRegistry.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
 - Spec: `docs/specs/09-requirements-management-operations.md` sections 9.1 and 9.2
 
 ## Deliverables
@@ -24,7 +24,7 @@ statistics. Public results are immutable snapshots or copies, never live runtime
 - Immutable snapshot/copy behavior for every public query result.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Management/ManagementQueryTests.cs`:
+In `tests/OrcaCore.Engine.Ephemeral.Tests/Management/ManagementQueryTests.cs`:
 1. `Where_StatusFilter_ListAndCountReturnSameSelection`
 2. `Get_ReturnsSnapshotCopy_NotLiveInstance`
 3. `GetState_ReturnsCopy_ExternalMutationDoesNotAffectEngineState`
@@ -33,7 +33,7 @@ In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Management/ManagementQueryTests
 6. `Statistics_GroupsByDefinitionVersionAndStatus`
 7. `BulkGet_ByIdsOrFilter_UsesSingleRegistryOperation`
 
-In `v3-gpt/tests/OrcaCore.Acceptance.Tests/ManagementAcceptanceTests.cs`:
+In `tests/OrcaCore.Acceptance.Tests/ManagementAcceptanceTests.cs`:
 8. `[Trait("AC","AC-501")] WhereOverSnapshots_ListsAndCountsMatchingInstances`
 9. `[Trait("AC","AC-502")] SameSelection_DrivesListAndSupportedCommand`
 10. `[Trait("AC","AC-503")] Statistics_GroupCountsByDefinitionAndStatus`
@@ -52,7 +52,7 @@ Cancel, Terminate, Pause/Resume, Retry, history, archive, purge, durable provide
 
 ## Definition of done
 - [ ] All new tests green; full affected suites green
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] No public result exposes mutable live runtime state
 - [ ] AC-009, AC-115, and AC-501 through AC-503 are green in `OrcaCore.Acceptance.Tests`
 - [ ] PROGRESS.md updated; committed as "T1-13: management query baseline (AC-009, AC-115, AC-501-503)"

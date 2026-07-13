@@ -20,45 +20,45 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          global-json-file: v3-gpt/global.json
+          global-json-file: global.json
 
       - name: Restore
-        run: dotnet restore v3-gpt/OrcaCore.slnx
+        run: dotnet restore OrcaCore.slnx
 
       - name: Build
-        run: dotnet build v3-gpt/OrcaCore.slnx --no-restore -c Release -warnaserror
+        run: dotnet build OrcaCore.slnx --no-restore -c Release -warnaserror
 
       - name: Build benchmarks
-        run: dotnet build v3-gpt/benchmarks/OrcaCore.Benchmarks/OrcaCore.Benchmarks.csproj --no-restore -c Release
+        run: dotnet build benchmarks/OrcaCore.Benchmarks/OrcaCore.Benchmarks.csproj --no-restore -c Release
 
       - name: Unit tests with coverage
         run: >
           dotnet test
-          v3-gpt/tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj
+          tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj
           --no-build -c Release --logger trx
           --collect:"XPlat Code Coverage" --results-directory TestResults &&
           dotnet test
-          v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj
+          tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj
           --no-build -c Release --logger trx
           --collect:"XPlat Code Coverage" --results-directory TestResults &&
           dotnet test
-          v3-gpt/tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj
+          tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj
           --no-build -c Release --logger trx
           --collect:"XPlat Code Coverage" --results-directory TestResults &&
           dotnet test
-          v3-gpt/tests/OrcaCore.Acceptance.Tests/OrcaCore.Acceptance.Tests.csproj
+          tests/OrcaCore.Acceptance.Tests/OrcaCore.Acceptance.Tests.csproj
           --no-build -c Release --logger trx
           --collect:"XPlat Code Coverage" --results-directory TestResults &&
           dotnet test
-          v3-gpt/tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj
+          tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj
           --no-build -c Release --logger trx
           --collect:"XPlat Code Coverage" --results-directory TestResults &&
           dotnet test
-          v3-gpt/tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj
+          tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj
           --no-build -c Release --logger trx
           --collect:"XPlat Code Coverage" --results-directory TestResults &&
           dotnet test
-          v3-gpt/tests/OrcaCore.Providers.ZeroMq.Tests/OrcaCore.Providers.ZeroMq.Tests.csproj
+          tests/OrcaCore.Providers.ZeroMq.Tests/OrcaCore.Providers.ZeroMq.Tests.csproj
           --no-build -c Release --logger trx
           --collect:"XPlat Code Coverage" --results-directory TestResults
 
@@ -96,30 +96,30 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          global-json-file: v3-gpt/global.json
+          global-json-file: global.json
 
       - name: Restore
-        run: dotnet restore v3-gpt/OrcaCore.slnx
+        run: dotnet restore OrcaCore.slnx
 
       - name: Build
-        run: dotnet build v3-gpt/OrcaCore.slnx --no-restore -c Release
+        run: dotnet build OrcaCore.slnx --no-restore -c Release
 
       - name: Provider and integration tests
         run: >
           dotnet test
-          v3-gpt/tests/OrcaCore.Providers.PostgreSql.Tests/OrcaCore.Providers.PostgreSql.Tests.csproj
+          tests/OrcaCore.Providers.PostgreSql.Tests/OrcaCore.Providers.PostgreSql.Tests.csproj
           --no-build -c Release --logger trx --results-directory TestResults &&
           dotnet test
-          v3-gpt/tests/OrcaCore.Providers.SqlServer.Tests/OrcaCore.Providers.SqlServer.Tests.csproj
+          tests/OrcaCore.Providers.SqlServer.Tests/OrcaCore.Providers.SqlServer.Tests.csproj
           --no-build -c Release --logger trx --results-directory TestResults &&
           dotnet test
-          v3-gpt/tests/OrcaCore.Providers.RabbitMq.Tests/OrcaCore.Providers.RabbitMq.Tests.csproj
+          tests/OrcaCore.Providers.RabbitMq.Tests/OrcaCore.Providers.RabbitMq.Tests.csproj
           --no-build -c Release --logger trx --results-directory TestResults &&
           dotnet test
-          v3-gpt/tests/OrcaCore.Providers.Redis.Tests/OrcaCore.Providers.Redis.Tests.csproj
+          tests/OrcaCore.Providers.Redis.Tests/OrcaCore.Providers.Redis.Tests.csproj
           --no-build -c Release --logger trx --results-directory TestResults &&
           dotnet test
-          v3-gpt/tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj
+          tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj
           --no-build -c Release --logger trx --results-directory TestResults
 
       - name: Upload provider results

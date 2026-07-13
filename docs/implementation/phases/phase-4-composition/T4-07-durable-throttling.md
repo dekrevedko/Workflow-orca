@@ -8,10 +8,10 @@ Enforce durable `RunChildren` max-concurrency from persisted scheduler state. Re
 reconstruct the active window from group records.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
-- `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/Composition/RunChildrenTests.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs`
+- `src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
+- `tests/OrcaCore.Engine.Durable.Tests/Composition/RunChildrenTests.cs`
+- `src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs`
 - Spec: `docs/specs/08-requirements-composition.md`
 - Spec: `docs/specs/12-acceptance-criteria.md`
 
@@ -21,9 +21,9 @@ reconstruct the active window from group records.
 - Child-start outbox enqueue when capacity frees
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/Composition/DurableChildThrottlingTests.cs`:
+In `tests/OrcaCore.Engine.Durable.Tests/Composition/DurableChildThrottlingTests.cs`:
 1. `[Trait("AC","AC-609")] RunChildren_MaxConcurrency_HoldsAcrossRestart`
-In `v3-gpt/tests/OrcaCore.Acceptance.Tests/ChildWorkflowAcceptanceTests.cs`:
+In `tests/OrcaCore.Acceptance.Tests/ChildWorkflowAcceptanceTests.cs`:
 2. `[Trait("AC","AC-609")] RunChildren_DurableThrottlingSurvivesRestart`
 
 ## Implementation notes
@@ -34,6 +34,6 @@ Barrier resume tokens, residual cancellation, and durable resource pools.
 
 ## Definition of done
 - [ ] New tests fail before implementation and pass after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "DurableChildThrottling|AC=AC-609"` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "DurableChildThrottling|AC=AC-609"` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T4-07: durable child throttling (CP-023, AC-609)"

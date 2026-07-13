@@ -15,7 +15,7 @@ version), the membership DB artifacts to provision, and the client configuration
 - The existing outbox pump and its hosting registration (locate under `Engine.Durable`
   `Outbox/` and `Hosting`; read ≤3 files)
 - The durable management operations surface (`Engine.Durable/Management/`; read ≤2 files)
-- `v3-gpt/tests/OrcaCore.Engine.Orleans.Tests/Testing/OrleansClusterFixture.cs` — extend to
+- `tests/OrcaCore.Engine.Orleans.Tests/Testing/OrleansClusterFixture.cs` — extend to
   2-silo clusters here if not already parameterized
 
 ## Deliverables

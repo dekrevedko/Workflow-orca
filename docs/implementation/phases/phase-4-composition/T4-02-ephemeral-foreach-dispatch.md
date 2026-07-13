@@ -8,11 +8,11 @@ Add ephemeral `ForEach` as an in-instance composition primitive. The parent inst
 group and item state, dispatches items in deterministic order, and honors max concurrency.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Core/Building/WorkflowBuilder.cs`
-- `v3-gpt/src/OrcaCore.Core/Definitions/Nodes.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
-- `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Execution/ParallelTests.cs`
+- `src/OrcaCore.Core/Building/WorkflowBuilder.cs`
+- `src/OrcaCore.Core/Definitions/Nodes.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
+- `tests/OrcaCore.Engine.Ephemeral.Tests/Execution/ParallelTests.cs`
 - Spec: `docs/specs/08-requirements-composition.md`
 - Spec: `docs/specs/12-acceptance-criteria.md`
 
@@ -22,11 +22,11 @@ group and item state, dispatches items in deterministic order, and honors max co
 - Queryable group/item snapshots if required for tests
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Execution/ForEachTests.cs`:
+In `tests/OrcaCore.Engine.Ephemeral.Tests/Execution/ForEachTests.cs`:
 1. `[Trait("AC","AC-601")] ForEach_BatchSize_CreatesExpectedWorkItems`
 2. `[Trait("AC","AC-602")] ForEach_WhenAll_ParentContinuesAfterAllItemsComplete`
 3. `[Trait("AC","AC-603")] ForEach_MaxConcurrency_BoundsActiveItems`
-In `v3-gpt/tests/OrcaCore.Acceptance.Tests/ForEachAcceptanceTests.cs`:
+In `tests/OrcaCore.Acceptance.Tests/ForEachAcceptanceTests.cs`:
 4. `[Trait("AC","AC-601")] ForEach_RuntimeBatchingCreatesExpectedItems`
 5. `[Trait("AC","AC-602")] ForEach_WhenAllCompletesParent`
 6. `[Trait("AC","AC-603")] ForEach_HonorsMaxConcurrency`
@@ -40,6 +40,6 @@ Failure policies, `WhenAny`, residual cancellation, durable children, and compen
 
 ## Definition of done
 - [ ] New tests fail before implementation and pass after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "ForEach|AC=AC-601|AC=AC-602|AC=AC-603"` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "ForEach|AC=AC-601|AC=AC-602|AC=AC-603"` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T4-02: ephemeral ForEach dispatch (CP-010, AC-601, AC-602, AC-603)"

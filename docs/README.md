@@ -1,52 +1,45 @@
 # Documentation map
 
-This folder holds **requirements**, **architecture**, **plans**, and **research**. Treat **`src/`** and **`tests/`** as the source of truth for behavior; docs explain intent and history and are updated when the model shifts.
+The repository root is the active implementation. This folder contains the
+requirements, architecture, implementation plans, research, review history, and
+developer guides that explain it.
 
 ## Start here
 
-1. [Project README](../README.md) — audience, **two engines**, build/test, roadmap.
-2. [Project technical overview](project-technical-overview.md) — durable notes, concepts, **code map**, and links to the full doc tree.
+1. [Project README](../README.md) — public orientation, build/test commands, and samples.
+2. [Active implementation index](active-implementation-index.md) — current runtime guides,
+   durable-driver notes, operations, and handoffs.
+3. [Project technical overview](project-technical-overview.md) — architecture and code map.
+4. [Current roadmap](plans/current-roadmap.md) — implemented features and planned scope.
 
-3. [Current roadmap](plans/current-roadmap.md) - implemented features, in-progress tracks, and planned scope.
+## Active source layout
 
-## Source layout (aligned with the solution)
-
-The solution file at the repo root is **`OrcaCore.slnx`**. Projects:
+The solution file is [`OrcaCore.slnx`](../OrcaCore.slnx). The main projects are:
 
 | Project | Purpose |
 |---------|---------|
-| [OrcaCore.Abstractions](../src/OrcaCore.Abstractions) | Shared contracts and models: `IStep`, `StepContext`, `StepResult`, `EventEnvelope`, `WaitRecord`, `WaitStatus`, `WaitMode`, `WorkflowStatus`, etc. |
-| [OrcaCore.Runtime](../src/OrcaCore.Runtime) | **State-driven** orchestration: `WorkflowEngine` + `InMemoryInstanceStore` (ephemeral), `DurableWorkflowEngine` + `IWorkflowStore` (durable), builders, nodes, routing, durable outbox. |
-| [OrcaCore.EventDrivenPrototype](../src/OrcaCore.EventDrivenPrototype) | **Event-driven** prototype: `EventDrivenWorkflowEngine`, append-only stream types, checkpoints, projections, in-memory prototype store. |
-| [OrcaCore.Tests](../tests/OrcaCore.Tests) | Main test suite (acceptance + durable + unit). |
-| [OrcaCore.EventDrivenPrototype.Tests](../tests/OrcaCore.EventDrivenPrototype.Tests) | Prototype tests. |
+| [`OrcaCore.Abstractions`](../src/OrcaCore.Abstractions) | Public contracts, identifiers, workflow events, snapshots, provider ports, and serialization. |
+| [`OrcaCore.Core`](../src/OrcaCore.Core) | Workflow builders, immutable definitions, lifecycle, policies, and composition nodes. |
+| [`OrcaCore.Engine.Ephemeral`](../src/OrcaCore.Engine.Ephemeral) | In-process execution, waits, timers, management, governance, and ephemeral saga behavior. |
+| [`OrcaCore.Engine.Durable`](../src/OrcaCore.Engine.Durable) | Event-sourced durable aggregate, replay, checkpointing, outbox, driver, and continuation execution. |
+| [`OrcaCore.Hosting`](../src/OrcaCore.Hosting) | Dependency-injection registration, hosted pumps, lifecycle sweeps, and telemetry. |
+| [`OrcaCore.Providers.InMemory`](../src/OrcaCore.Providers.InMemory) | In-memory provider implementation used by tests and local runs. |
+| [`OrcaCore.Providers.PostgreSql`](../src/OrcaCore.Providers.PostgreSql) | PostgreSQL event, projection, timer, resource-pool, and outbox persistence. |
+| [`OrcaCore.Providers.SqlServer`](../src/OrcaCore.Providers.SqlServer) | SQL Server provider implementation and migrations. |
+| [`tests/`](../tests) | Core, engine, hosting, provider certification, integration, and support test projects. |
+| [`samples/`](../samples) | Runnable console, generic-host, and Blazor dashboard examples. |
+| [`benchmarks/`](../benchmarks) | BenchmarkDotNet scenarios for execution, providers, management, and scheduling. |
 
-There are **no** separate `OrcaCore.Persistence` or `OrcaCore.Messaging` packages today; persistence abstractions for the durable **state-driven** path live under `OrcaCore.Runtime` (e.g. `Durable/Persistence`).
+## Documentation areas
 
-## Architecture docs tied to current code
+- [`specs/`](specs/README.md) — consolidated product requirements and acceptance criteria.
+- [`implementation/`](implementation/README.md) — agent-executable implementation guide.
+- [`orleans-engine/`](orleans-engine/README.md) — planned Orleans-hosted durable engine.
+- [`architecture/`](architecture) — design decisions and runtime diagrams.
+- [`durable/`](durable) — durable-runtime plans and historical implementation notes.
+- [`plans/`](plans) — roadmaps, acceptance matrices, and planning documents.
+- [`research/`](research) — prior-art and competitor studies.
+- [`reviews/`](reviews) and [`review/`](review) — review findings and verification records.
 
-- [Event-driven prototype status](architecture/event-driven-prototype-status.md) — what the prototype implements and what is missing.
-- [Quick vs durable event-driven engine — feature matrix](architecture/quick-vs-durable-engine-feature-matrix.md) — compares “quick” vs event-driven durable positioning.
-- [Project foundation](architecture/project-foundation.md) — problem statement, ephemeral vs durable modes (conceptual).
-
-## Folder index
-
-- `specs/` — **consolidated product requirements & specifications** (self-contained package for a from-scratch implementation; see [specs/README.md](specs/README.md)).
-- `implementation/` — **agent-executable implementation guide** (stack decisions, conventions, TDD workflow, phased task files sized for small-context LLM agents; see [implementation/README.md](implementation/README.md)).
-- `orleans-engine/` — **Orleans engine package**: self-contained specs (`OE-`/`OE-AC-`), architecture, and phased implementation plan for `OrcaCore.Engine.Orleans` — durable workflows hosted on Orleans grains, reusing the durable core and provider ports (see [orleans-engine/README.md](orleans-engine/README.md)).
-- `architecture/` — design decisions, runtime shape, lifecycle, identity, event-driven notes.
-- `durable/` — durable-runtime plans, remediation, component inventory.
-- `plans/` — implementation plans, acceptance matrix, requirements draft.
-- `research/` — pattern studies, competitor analysis, backlog.
-- `reviews/` — consolidated review findings.
-- `requirements/` — capability requirements and acceptance criteria.
-
-## Suggested reading order
-
-1. [requirements/README.md](requirements/README.md)
-2. [project-technical-overview.md](project-technical-overview.md) (especially **Code map** and **Concepts vs code**)
-3. [architecture/project-foundation.md](architecture/project-foundation.md)
-4. [architecture/design-proposal-minimal-core.md](architecture/design-proposal-minimal-core.md)
-5. [plans/implementation-plan-minimal-core.md](plans/implementation-plan-minimal-core.md)
-6. [durable/durable-implementation-plan.md](durable/durable-implementation-plan.md)
-7. [durable/durable-review-remediation-plan.md](durable/durable-review-remediation-plan.md)
+The superseded prototype and its original root solution metadata are preserved
+under [`../archive/legacy-poc/`](../archive/legacy-poc/).

@@ -8,27 +8,27 @@ Publish first-class instance and step lifecycle events with documented durabilit
 Durable lifecycle events that must survive restart flow through committed outbox records.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Core/Lifecycle/LifecycleMachine.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/ProviderCommitContracts.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Outbox/DurableOutboxPump.cs`
+- `src/OrcaCore.Core/Lifecycle/LifecycleMachine.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
+- `src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
+- `src/OrcaCore.Abstractions/Providers/ProviderCommitContracts.cs`
+- `src/OrcaCore.Engine.Durable/Outbox/DurableOutboxPump.cs`
 - Spec: `docs/specs/09-requirements-management-operations.md`
 - Spec: `docs/specs/13-phasing-and-open-questions.md`
 
 ## Deliverables
-- Lifecycle event contracts/snapshots in `v3-gpt/src/OrcaCore.Abstractions/`
+- Lifecycle event contracts/snapshots in `src/OrcaCore.Abstractions/`
 - In-process lifecycle publication for ephemeral mode
 - Durable outbox-backed lifecycle publication for durable terminal and significant events
 - Query surface for lifecycle events if needed by AC-509
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Lifecycle/LifecycleEventTests.cs`:
+In `tests/OrcaCore.Engine.Ephemeral.Tests/Lifecycle/LifecycleEventTests.cs`:
 1. `WorkflowCompletion_PublishesCompletionLifecycleEvent`
 2. `StepFailure_PublishesStepFailedLifecycleEvent`
-In `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/Lifecycle/DurableLifecycleEventTests.cs`:
+In `tests/OrcaCore.Engine.Durable.Tests/Lifecycle/DurableLifecycleEventTests.cs`:
 3. `DurableTerminalTransition_CommitsLifecycleOutboxRecordWithState`
-In `v3-gpt/tests/OrcaCore.Acceptance.Tests/LifecycleAcceptanceTests.cs`:
+In `tests/OrcaCore.Acceptance.Tests/LifecycleAcceptanceTests.cs`:
 4. `[Trait("AC","AC-509")] LifecycleEvents_FollowDocumentedDurabilityGuarantees`
 
 ## Implementation notes
@@ -43,6 +43,6 @@ pool ticket events.
 ## Definition of done
 - [ ] New tests fail before implementation and pass after
 - [ ] Spec open question 9 is resolved and documented
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "LifecycleEvent|AC=AC-509"` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "LifecycleEvent|AC=AC-509"` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T3-10: lifecycle event publication (MG-020, AC-509)"

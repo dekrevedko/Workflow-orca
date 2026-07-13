@@ -19,7 +19,7 @@ have a stable observability boundary.
 - `docs/implementation/phases/phase-3-time-policies-operations/PROGRESS.md`
 - `docs/implementation/phases/phase-3-time-policies-operations/T3-01-*.md` through `T3-13-*.md`
 - `docs/implementation/00-stack-decisions.md` updated for IOQ-5
-- All paths in generated tasks use `v3-gpt/`.
+- All paths in generated tasks use ``.
 
 ## Tests to write FIRST
 No product tests. Review the generated task files for path safety, dependency order, AC
@@ -38,6 +38,6 @@ Any source code, product tests, package additions, or Phase 3 runtime implementa
 - [ ] T3-01 through T3-13 task files exist
 - [ ] Phase 3 PROGRESS.md created and updated
 - [ ] IOQ-5 removed from the open-question register
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx` passes
 - [ ] PROGRESS.md updated; committed as "T3-00: expand phase-3 task index"

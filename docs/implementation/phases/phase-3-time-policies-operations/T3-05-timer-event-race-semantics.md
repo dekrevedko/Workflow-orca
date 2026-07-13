@@ -9,25 +9,25 @@ eligible. Exactly one winner advances the workflow and the loser is cancelled or
 explicit policy.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
-- `v3-gpt/tests/OrcaCore.TestSupport/RaceCoordinator.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
+- `src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
+- `tests/OrcaCore.TestSupport/RaceCoordinator.cs`
 - Spec: `docs/specs/05-requirements-events-waits-timers.md`
 - Spec: `docs/specs/12-acceptance-criteria.md`
 
 ## Deliverables
-- Race policy model if needed under `v3-gpt/src/OrcaCore.Core/Definitions/`
+- Race policy model if needed under `src/OrcaCore.Core/Definitions/`
 - Ephemeral and durable race handling
 - Deterministic race tests in engine test projects
 - Acceptance coverage for AC-112
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Timers/TimerEventRaceTests.cs`:
+In `tests/OrcaCore.Engine.Ephemeral.Tests/Timers/TimerEventRaceTests.cs`:
 1. `EventAndTimerBecomeEligible_EventPolicyWinner_ConsumesEventCancelsTimer`
 2. `EventAndTimerBecomeEligible_TimerPolicyWinner_CancelsWait`
-In `v3-gpt/tests/OrcaCore.Acceptance.Tests/TimerAcceptanceTests.cs`:
+In `tests/OrcaCore.Acceptance.Tests/TimerAcceptanceTests.cs`:
 3. `[Trait("AC","AC-112")] TimerEventRace_SelectsOneWinnerDeterministically`
 
 ## Implementation notes
@@ -40,6 +40,6 @@ compensation.
 
 ## Definition of done
 - [ ] New tests fail before implementation and pass after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "TimerEventRace|AC=AC-112"` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "TimerEventRace|AC=AC-112"` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T3-05: timer event race semantics (EV-051, AC-112)"

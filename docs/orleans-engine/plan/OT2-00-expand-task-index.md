@@ -12,13 +12,13 @@ against the code that now exists.
 ## Read first
 - [plan/README.md](README.md) Phase O2 index
 - `docs/orleans-engine/plan/SEAMS.md` — the pump-hosting seam decision from OT1-00
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/ProviderPorts.cs` — `ITimerScheduler`
+- `src/OrcaCore.Abstractions/Providers/ProviderPorts.cs` — `ITimerScheduler`
   claim contract
-- `v3-gpt/src/OrcaCore.Hosting/Services/OrcaCoreTimerHostedService.cs` — the
+- `src/OrcaCore.Hosting/Services/OrcaCoreTimerHostedService.cs` — the
   `BackgroundService` hosting that must NOT be reused as-is (OE-072): wrap the pump loop
   internals in an `ILifecycleParticipant<ISiloLifecycle>` starting at
   `ServiceLifecycleStage.Active`
-- `v3-gpt/src/OrcaCore.Engine.Orleans/Hosting/OrcaCoreOrleansSiloExtensions.cs`
+- `src/OrcaCore.Engine.Orleans/Hosting/OrcaCoreOrleansSiloExtensions.cs`
 
 ## Deliverables
 - `OT2-01…OT2-04` task files in this folder, each obeying sizing rules (split any entry

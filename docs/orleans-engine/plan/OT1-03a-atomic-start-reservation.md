@@ -13,11 +13,11 @@ facts** inside the start commit boundary, and the port expresses reserve-or-retu
 
 ## Read first
 - `docs/orleans-engine/plan/SEAMS.md` — the approved reservation port shape
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/ProviderPorts.cs` —
+- `src/OrcaCore.Abstractions/Providers/ProviderPorts.cs` —
   `IWorkflowStartIdempotencyStore` (lookup-only today, ~line 50)
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommitMaterializer.cs` — where
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommitMaterializer.cs` — where
   commit effects are materialized (~line 51); the reservation joins this boundary
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableStartService.cs` — current
+- `src/OrcaCore.Engine.Durable/Execution/DurableStartService.cs` — current
   lookup/record flow being replaced
 
 ## Deliverables

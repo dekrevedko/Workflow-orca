@@ -1,6 +1,6 @@
 # R9 — Test Coverage & Quality Gaps
 
-> Scope: `v3-gpt/tests/**` meta-review against `docs/specs/12-acceptance-criteria.md`,
+> Scope: `tests/**` meta-review against `docs/specs/12-acceptance-criteria.md`,
 > `docs/specs/14-driving-scenario-eks-job-scheduler.md` (JS-AC), `docs/specs/15-requirements-observability-otel.md` (OB),
 > `docs/implementation/03-tdd-workflow.md`, and cross-references from R3–R8 code-review findings.
 > This document records **what tests exist, what they actually prove, and what is missing** —

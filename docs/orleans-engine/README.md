@@ -11,7 +11,7 @@ multi-silo cluster backed by PostgreSQL.
 **Current-state prerequisite (read before estimating):** the durable runtime today
 publicly exposes registration and `StartOrGetAsync`; delivery/resume/complete/fail command
 processing is `internal` to `Engine.Durable`
-([DurableCommandProcessor.cs:391](../../v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs)),
+([DurableCommandProcessor.cs:391](../../src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs)),
 and the start-idempotency port is lookup-only. An external engine therefore **cannot yet**
 drive full wait/resume flows through public surfaces. Phase O1 closes exactly this gap with
 two review-gated seam additions (OT1-01a public delivery dispatch, OT1-03a atomic start
@@ -42,9 +42,9 @@ Repo-wide inputs that still apply verbatim (do not re-derive):
 
 ## Workspace rule
 
-All implementation work happens under **`v3-gpt/`** (the sole active lineage — the
-`v3/` naming in older protocol text reads as `v3-gpt/`). Task files write explicit
-`v3-gpt/...` paths. Never read, copy from, or modify the legacy root `src/` / `tests/`.
+All implementation work happens at the **repository root** (the sole active
+lineage). Task files write explicit root-relative paths. Never read, copy from,
+or modify `archive/legacy-poc/` for active behavior.
 
 ## Execution instruction (kickoff prompt)
 

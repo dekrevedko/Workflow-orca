@@ -9,23 +9,23 @@ compensation. Timeout follows explicit compensation policy; cancellation never i
 compensation.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Core/Definitions/WorkflowPolicySet.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Durable/WorkflowCommand.cs`
-- `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/ExternalJobs/ExternalJobCancellationTests.cs`
+- `src/OrcaCore.Core/Definitions/WorkflowPolicySet.cs`
+- `src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
+- `src/OrcaCore.Abstractions/Durable/WorkflowCommand.cs`
+- `tests/OrcaCore.Engine.Durable.Tests/ExternalJobs/ExternalJobCancellationTests.cs`
 - Spec: `docs/specs/07-requirements-saga.md` sections SG-011 and SG-014
 - Spec: `docs/specs/12-acceptance-criteria.md` AC-405
 
 ## Deliverables
-- Saga timeout policy metadata as needed under `v3-gpt/src/OrcaCore.Core/Definitions/`
+- Saga timeout policy metadata as needed under `src/OrcaCore.Core/Definitions/`
 - Durable decisions for timeout-triggered compensation policy
 - Cancellation path tests proving no implicit compensation
-- Tests in `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/Sagas/SagaPolicyInteractionTests.cs`
-- Acceptance coverage in `v3-gpt/tests/OrcaCore.Acceptance.Tests/SagaAcceptanceTests.cs`
+- Tests in `tests/OrcaCore.Engine.Durable.Tests/Sagas/SagaPolicyInteractionTests.cs`
+- Acceptance coverage in `tests/OrcaCore.Acceptance.Tests/SagaAcceptanceTests.cs`
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/Sagas/SagaPolicyInteractionTests.cs`:
+In `tests/OrcaCore.Engine.Durable.Tests/Sagas/SagaPolicyInteractionTests.cs`:
 1. `ForwardTimeout_WhenPolicyRequiresCompensation_RecordsCompensationPlan` - timeout applies compensation policy. Trait AC-405.
 2. `SagaCancellation_NeverTriggersCompensation` - cancellation records cancellation without compensation facts. Trait AC-405.
 
@@ -40,6 +40,6 @@ mode.
 
 ## Definition of done
 - [ ] New tests are red before implementation and green after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "AC=AC-405"` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "AC=AC-405"` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T5-05: saga timeout and cancellation policy (SG-014)"

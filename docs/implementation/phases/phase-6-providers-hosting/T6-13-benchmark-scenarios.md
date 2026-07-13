@@ -9,17 +9,17 @@ provider serialization/materialization, management query/projection path, resour
 timer scheduling, and provider commit path.
 
 ## Read first
-- `v3-gpt/benchmarks/OrcaCore.Benchmarks/OrcaCore.Benchmarks.csproj`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Management/ProjectionPredicateTranslator.cs`
-- `v3-gpt/src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs`
-- `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs`
+- `benchmarks/OrcaCore.Benchmarks/OrcaCore.Benchmarks.csproj`
+- `src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
+- `src/OrcaCore.Engine.Durable/Management/ProjectionPredicateTranslator.cs`
+- `src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs`
+- `src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs`
 - Spec: `docs/specs/11-non-functional-requirements.md` section 11.4
 
 ## Deliverables
-- Add benchmark classes under `v3-gpt/benchmarks/OrcaCore.Benchmarks/Scenarios/`
-- Add deterministic benchmark fixture builders under `v3-gpt/benchmarks/OrcaCore.Benchmarks/Fixtures/`
-- Update `v3-gpt/benchmarks/OrcaCore.Benchmarks/README.md` with run instructions and scenario list
+- Add benchmark classes under `benchmarks/OrcaCore.Benchmarks/Scenarios/`
+- Add deterministic benchmark fixture builders under `benchmarks/OrcaCore.Benchmarks/Fixtures/`
+- Update `benchmarks/OrcaCore.Benchmarks/README.md` with run instructions and scenario list
 
 ## Tests to write FIRST
 No product tests. Benchmark compile and smoke-run are the verification surface.
@@ -34,7 +34,7 @@ Hard performance thresholds, CI benchmark execution, and broad refactoring to op
 benchmarks.
 
 ## Definition of done
-- [ ] `dotnet build v3-gpt/benchmarks/OrcaCore.Benchmarks/OrcaCore.Benchmarks.csproj` passes with zero warnings
+- [ ] `dotnet build benchmarks/OrcaCore.Benchmarks/OrcaCore.Benchmarks.csproj` passes with zero warnings
 - [ ] A short local smoke run of the benchmark project succeeds
 - [ ] Benchmark README documents the five IOQ-8 hot-path groups
 - [ ] PROGRESS.md updated; committed as "T6-13: benchmark hot path scenarios (NF-030)"

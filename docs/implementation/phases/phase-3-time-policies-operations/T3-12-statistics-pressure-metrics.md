@@ -9,11 +9,11 @@ can detect stream, checkpoint, outbox, and active-instance pressure through supp
 statistics.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Abstractions/Instances/WorkflowStatistics.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/ProviderPorts.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Management/DurableManagement.cs`
-- `v3-gpt/src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs`
-- `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs`
+- `src/OrcaCore.Abstractions/Instances/WorkflowStatistics.cs`
+- `src/OrcaCore.Abstractions/Providers/ProviderPorts.cs`
+- `src/OrcaCore.Engine.Durable/Management/DurableManagement.cs`
+- `src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs`
+- `src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs`
 - Spec: `docs/specs/09-requirements-management-operations.md`
 - Spec: `docs/specs/06-requirements-durable-execution.md`
 
@@ -23,10 +23,10 @@ statistics.
 - Management query tests and acceptance coverage for AC-312
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/Management/DurableStatisticsTests.cs`:
+In `tests/OrcaCore.Engine.Durable.Tests/Management/DurableStatisticsTests.cs`:
 1. `Statistics_GroupsCountsByDefinitionVersionAndStatus`
 2. `Statistics_IncludesHistoryCheckpointAndOutboxPressure`
-In `v3-gpt/tests/OrcaCore.Acceptance.Tests/ManagementAcceptanceTests.cs`:
+In `tests/OrcaCore.Acceptance.Tests/ManagementAcceptanceTests.cs`:
 3. `[Trait("AC","AC-503")] Statistics_GroupsByDefinitionAndStatus`
 4. `[Trait("AC","AC-312")] Statistics_ShowHistoryPressure`
 
@@ -39,6 +39,6 @@ BenchmarkDotNet, CI coverage gates, continue-as-new, and retention policy tuning
 
 ## Definition of done
 - [ ] New tests fail before implementation and pass after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "Statistics|AC=AC-312|AC=AC-503"` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "Statistics|AC=AC-312|AC=AC-503"` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T3-12: statistics and pressure metrics (MG-030, AC-312)"

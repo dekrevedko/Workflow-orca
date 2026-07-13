@@ -1,15 +1,15 @@
 # R1 — Abstractions / Contracts — Findings
 
-> **Baseline:** `dotnet build v3-gpt/OrcaCore.slnx -warnaserror` → passed, 0 warnings (2026-07-03,
+> **Baseline:** `dotnet build OrcaCore.slnx -warnaserror` → passed, 0 warnings (2026-07-03,
 > working tree on `feature/v3-rebuild` incl. uncommitted remediation changes).
-> Full `dotnet test v3-gpt/OrcaCore.slnx` → 892 passed / 1 failed (flaky hosting test, see
+> Full `dotnet test OrcaCore.slnx` → 892 passed / 1 failed (flaky hosting test, see
 > SUMMARY) / 16 skipped, all container suites executed against Docker.
-> Scope: `v3-gpt/src/OrcaCore.Abstractions/**` against 03 (glossary), 04 CR-011/013/015/020/021/022,
+> Scope: `src/OrcaCore.Abstractions/**` against 03 (glossary), 04 CR-011/013/015/020/021/022,
 > 05 EV-001/002/021, 06 DU-011/012, 10 PR-010…016/PR-050.
 
 ## Findings
 
-### [P2] Durable event type names derive from CLR type names — rename breaks stored streams — `v3-gpt/src/OrcaCore.Abstractions/Serialization/WorkflowEventCodec.cs:115`
+### [P2] Durable event type names derive from CLR type names — rename breaks stored streams — `src/OrcaCore.Abstractions/Serialization/WorkflowEventCodec.cs:115`
 > **FIXED 2026-07-03:** explicit string discriminators per entry (pinned to current names),
 > frozen-table guard test `WorkflowEventCodecTests.EventTypeNames_AreFrozenStreamDiscriminators`.
 - **Requirement/convention:** DU-011/DU-012 (durable engine facts must replay from committed streams); codec doc-comment itself promises "stable provider event type names"
@@ -18,7 +18,7 @@
 - **Recommendation:** Give each codec entry an explicit string constant (`Entry(context.X, "workflow.child.completed.v1")`) and add a repository-guard test asserting the name table never changes for existing entries. Small change; the descriptor table already centralizes the mapping.
 - **Confidence:** CONFIRMED (traced serialize/deserialize path; no alias mechanism exists)
 
-### [P2] CR-022 monotonic version/epoch absent from the public instance surface — `v3-gpt/src/OrcaCore.Abstractions/Instances/WorkflowInstanceSnapshot.cs:8`
+### [P2] CR-022 monotonic version/epoch absent from the public instance surface — `src/OrcaCore.Abstractions/Instances/WorkflowInstanceSnapshot.cs:8`
 > **FIXED 2026-07-03:** `WorkflowInstanceSnapshot.StreamVersion` added, populated by the durable
 > aggregate and persisted by all projection stores (PG migration 004, SQL Server migration 005);
 > certification-enforced round-trip. Ephemeral snapshots report null by design.
@@ -28,7 +28,7 @@
 - **Recommendation:** Add `StreamVersion`/`Epoch` (and optional `StartIdempotencyKey`) to the snapshot, populated by durable projections; ephemeral can expose its per-instance mutation counter. Additive, no breaking change.
 - **Confidence:** CONFIRMED
 
-### [P3] Legacy + lease claim overload pairs on outbox/timer ports — `v3-gpt/src/OrcaCore.Abstractions/Providers/ProviderPorts.cs:77`
+### [P3] Legacy + lease claim overload pairs on outbox/timer ports — `src/OrcaCore.Abstractions/Providers/ProviderPorts.cs:77`
 > **DEFERRED 2026-07-03:** dozens of test call sites use the short overload and a default-interface
 > forward would need a wall-clock (banned by the repository guard). Certification covers lease
 > semantics; revisit only if a provider ships legacy-only claims.
@@ -38,7 +38,7 @@
 - **Recommendation:** Delete the non-lease overloads (all shipped providers already implement the lease form) or default-interface-forward legacy → lease with an infinite lease.
 - **Confidence:** CONFIRMED
 
-### [P3] `EventEnvelope.Payload` is `object?` on the shared surface while the durable boundary uses `byte[]` — `v3-gpt/src/OrcaCore.Abstractions/Events/EventEnvelope.cs:33`
+### [P3] `EventEnvelope.Payload` is `object?` on the shared surface while the durable boundary uses `byte[]` — `src/OrcaCore.Abstractions/Events/EventEnvelope.cs:33`
 > **FIXED 2026-07-03:** convention documented on the property.
 - **Requirement/convention:** EV-001 (canonical envelope), PR-016 (serialization ports)
 - **Evidence:** Ephemeral delivery carries the live `object?`; durable events carry `byte[] Payload` (`WorkflowEvent.cs:372`) via `IWorkflowPayloadSerializer`. The dual convention is real but undocumented on the envelope.

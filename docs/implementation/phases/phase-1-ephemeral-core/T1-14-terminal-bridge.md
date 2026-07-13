@@ -9,10 +9,10 @@ cancel, forced terminate, named `End` outcome metadata, a synchronous completion
 short workflows, and explicit safety semantics for broad destructive selections.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Abstractions/Instances/WorkflowStatus.cs`
-- `v3-gpt/src/OrcaCore.Core/Lifecycle/LifecycleMachine.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
+- `src/OrcaCore.Abstractions/Instances/WorkflowStatus.cs`
+- `src/OrcaCore.Core/Lifecycle/LifecycleMachine.cs`
+- `src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
 - Spec: `docs/specs/04-requirements-core-runtime.md` sections 4.1, 4.2, and 4.4
 
 ## Deliverables
@@ -24,7 +24,7 @@ short workflows, and explicit safety semantics for broad destructive selections.
 - Clear lifecycle rejection for triggers against terminal instances.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Management/TerminalCommandTests.cs`:
+In `tests/OrcaCore.Engine.Ephemeral.Tests/Management/TerminalCommandTests.cs`:
 1. `AwaitCompletionAsync_ImmediateWorkflow_ReturnsTerminalSnapshot`
 2. `End_WithOutcomeName_RecordsOutcomeInSnapshotAndQueries`
 3. `CancelAsync_RunningInstance_TransitionsToCancelledAndCancelsWaits`
@@ -33,7 +33,7 @@ In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Management/TerminalCommandTests
 6. `AllTerminate_WithoutExplicitSafety_IsRejected`
 7. `AllTerminate_WithExplicitSafety_ReturnsAffectedCounts`
 
-In `v3-gpt/tests/OrcaCore.Acceptance.Tests/TerminalAcceptanceTests.cs`:
+In `tests/OrcaCore.Acceptance.Tests/TerminalAcceptanceTests.cs`:
 8. `[Trait("AC","AC-011")] CompletionBridge_ReturnsTerminalSnapshotWithoutLiveState`
 9. `[Trait("AC","AC-012")] NamedEndOutcome_IsRecordedAndQueryable`
 10. `[Trait("AC","AC-014")] GracefulCancel_CancelsInFlightWorkAndActiveWaits`
@@ -53,7 +53,7 @@ Durable lifecycle event publication, retry, archive, purge, pause/resume, compen
 
 ## Definition of done
 - [ ] All new tests green; full affected suites green
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] Ephemeral public API has no Pause, Resume, Retry, History, Archive, or Purge commands
 - [ ] AC-005, AC-011, AC-012, AC-014, AC-015, and AC-516 are green in `OrcaCore.Acceptance.Tests`
 - [ ] PROGRESS.md updated; committed as "T1-14: terminal commands and bridge (AC-005, AC-011-012, AC-014-015, AC-516)"

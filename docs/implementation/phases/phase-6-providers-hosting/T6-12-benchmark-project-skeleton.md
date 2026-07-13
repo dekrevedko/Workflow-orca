@@ -9,19 +9,19 @@ running benchmarks on normal PRs. This creates the benchmark surface but not the
 scenario suite.
 
 ## Read first
-- `v3-gpt/OrcaCore.slnx`
-- `v3-gpt/Directory.Packages.props`
-- `v3-gpt/Directory.Build.props`
+- `OrcaCore.slnx`
+- `Directory.Packages.props`
+- `Directory.Build.props`
 - `.github/workflows/ci.yml`
 - `docs/implementation/00-stack-decisions.md`
 - Spec: `docs/specs/11-non-functional-requirements.md` section 11.4
 
 ## Deliverables
-- Add `v3-gpt/benchmarks/OrcaCore.Benchmarks/OrcaCore.Benchmarks.csproj`
-- Add `v3-gpt/benchmarks/OrcaCore.Benchmarks/Program.cs`
-- Add `v3-gpt/benchmarks/OrcaCore.Benchmarks/README.md`
-- Update `v3-gpt/Directory.Packages.props`
-- Update `v3-gpt/OrcaCore.slnx`
+- Add `benchmarks/OrcaCore.Benchmarks/OrcaCore.Benchmarks.csproj`
+- Add `benchmarks/OrcaCore.Benchmarks/Program.cs`
+- Add `benchmarks/OrcaCore.Benchmarks/README.md`
+- Update `Directory.Packages.props`
+- Update `OrcaCore.slnx`
 - Update CI so PRs build the benchmark project but do not run benchmarks
 
 ## Tests to write FIRST
@@ -36,7 +36,7 @@ Benchmark scenario implementation, performance thresholds, package publishing, a
 automation.
 
 ## Definition of done
-- [ ] `dotnet build v3-gpt/benchmarks/OrcaCore.Benchmarks/OrcaCore.Benchmarks.csproj` passes with zero warnings
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` passes with zero warnings
+- [ ] `dotnet build benchmarks/OrcaCore.Benchmarks/OrcaCore.Benchmarks.csproj` passes with zero warnings
+- [ ] `dotnet build OrcaCore.slnx` passes with zero warnings
 - [ ] CI builds benchmark project and does not run benchmarks in normal PR flow
 - [ ] PROGRESS.md updated; committed as "T6-12: benchmark project skeleton (NF-030)"

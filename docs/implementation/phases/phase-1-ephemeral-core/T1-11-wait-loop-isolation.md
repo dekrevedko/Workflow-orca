@@ -9,10 +9,10 @@ resume a later iteration. Loop waits remain normal resident waits, but their run
 includes enough iteration context to prevent accidental reuse.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Core/Definitions/ExecutionPointer.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
-- `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Execution/WaitMatchingTests.cs`
+- `src/OrcaCore.Core/Definitions/ExecutionPointer.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
+- `tests/OrcaCore.Engine.Ephemeral.Tests/Execution/WaitMatchingTests.cs`
 - Spec: `docs/specs/05-requirements-events-waits-timers.md` section 5.5
 
 ## Deliverables
@@ -22,13 +22,13 @@ includes enough iteration context to prevent accidental reuse.
 - Acceptance coverage for AC-109.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Execution/LoopWaitTests.cs`:
+In `tests/OrcaCore.Engine.Ephemeral.Tests/Execution/LoopWaitTests.cs`:
 1. `Run_WhileRegistersWaitEachIteration_CreatesFreshWaitIds`
 2. `RaiseEventAsync_EventForPreviousIteration_DoesNotResumeLaterIteration`
 3. `RaiseEventAsync_CurrentIterationEvent_ResumesCurrentWait`
 4. `Mailbox_PreviousIterationEvent_RemainsStaleForLaterWait`
 
-In `v3-gpt/tests/OrcaCore.Acceptance.Tests/LoopWaitAcceptanceTests.cs`:
+In `tests/OrcaCore.Acceptance.Tests/LoopWaitAcceptanceTests.cs`:
 5. `[Trait("AC","AC-109")] WaitInLoop_PreviousIterationEvent_CannotResumeLaterIteration`
 
 Use AwesomeAssertions for assertions.
@@ -43,6 +43,6 @@ Parallel branch wait isolation, timers, durable replay of loop waits.
 
 ## Definition of done
 - [ ] All new tests green; full affected suites green
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] AC-109 is green in `OrcaCore.Acceptance.Tests`
 - [ ] PROGRESS.md updated; committed as "T1-11: wait-in-loop isolation (AC-109)"

@@ -1,7 +1,7 @@
 # R5 — Providers & Certification — Findings
 
-> Phase scope: `v3-gpt/src/OrcaCore.Providers.*` (InMemory, PostgreSql, SqlServer,
-> RabbitMq, Redis, ZeroMq) and `v3-gpt/tests/OrcaCore.ProviderCertification` plus
+> Phase scope: `src/OrcaCore.Providers.*` (InMemory, PostgreSql, SqlServer,
+> RabbitMq, Redis, ZeroMq) and `tests/OrcaCore.ProviderCertification` plus
 > per-provider test projects. Reviewed against PR-020…024, PR-030, PR-050, DU-030…033,
 > and `docs/implementation/00-stack-decisions.md` plugin banlist. Primary lenses:
 > correctness/concurrency, security, pluggability. Code review only.

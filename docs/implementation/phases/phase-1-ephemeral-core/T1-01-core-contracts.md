@@ -10,10 +10,10 @@ results, the event envelope, statuses, strongly-typed IDs, and the metadata-only
 ## Read first
 - Spec: [specs/03-domain-model-and-glossary.md](../../../specs/03-domain-model-and-glossary.md) §3.2
 - Spec: [specs/04-requirements-core-runtime.md](../../../specs/04-requirements-core-runtime.md) §4.2–4.3
-- `v3/src/OrcaCore.Abstractions/Primitives/` (from T0-03)
+- `src/OrcaCore.Abstractions/Primitives/` (from T0-03)
 
 ## Deliverables
-In `v3/src/OrcaCore.Abstractions/` (folders: `Steps/`, `Events/`, `Instances/`, `Ids/`):
+In `src/OrcaCore.Abstractions/` (folders: `Steps/`, `Events/`, `Instances/`, `Ids/`):
 - IDs: `InstanceId`, `EventId`, `WaitId`, `DefinitionId`, `DefinitionVersion`,
   `CorrelationId` — readonly record structs, `New()` factories using `Guid.CreateVersion7()`
   where GUID-based; `CorrelationId` wraps `string`.
@@ -38,7 +38,7 @@ In `v3/src/OrcaCore.Abstractions/` (folders: `Steps/`, `Events/`, `Instances/`, 
 - Exception taxonomy per conventions §5 (base exists from T0-03; add the derived types).
 
 ## Tests to write FIRST
-In `v3/tests/OrcaCore.Core.Tests/Contracts/`:
+In `tests/OrcaCore.Core.Tests/Contracts/`:
 1. `Ids_New_AreUniqueAndVersion7Ordered` — two `New()` ids differ; creation order is
    reflected in byte order (V7 property)
 2. `StepResult_Variants_HaveValueEquality`

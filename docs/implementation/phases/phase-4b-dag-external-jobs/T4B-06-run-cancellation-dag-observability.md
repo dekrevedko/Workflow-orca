@@ -9,11 +9,11 @@ records stop intent for every in-flight external job before the run reaches `Can
 and operators can reconstruct DAG node status from lineage, projections, and history.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Engine.Durable/Management/DurableManagement.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Management/WorkflowInstanceQueryModel.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
-- `v3-gpt/tests/OrcaCore.Acceptance.Tests/ExternalJobAcceptanceTests.cs`
+- `src/OrcaCore.Engine.Durable/Management/DurableManagement.cs`
+- `src/OrcaCore.Engine.Durable/Management/WorkflowInstanceQueryModel.cs`
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
+- `src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
+- `tests/OrcaCore.Acceptance.Tests/ExternalJobAcceptanceTests.cs`
 - Spec: `docs/specs/14-driving-scenario-eks-job-scheduler.md` sections 14.3 and 14.4
 - Spec: `docs/specs/12-acceptance-criteria.md` durable and management criteria
 
@@ -21,8 +21,8 @@ and operators can reconstruct DAG node status from lineage, projections, and his
 - Durable cancellation handling for active external-job waits
 - Stop-command outbox records for all in-flight jobs before final cancellation
 - DAG run reconstruction snapshot/query model
-- `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/ExternalJobs/ExternalJobCancellationTests.cs`
-- Acceptance coverage in `v3-gpt/tests/OrcaCore.Acceptance.Tests/DagObservabilityAcceptanceTests.cs`
+- `tests/OrcaCore.Engine.Durable.Tests/ExternalJobs/ExternalJobCancellationTests.cs`
+- Acceptance coverage in `tests/OrcaCore.Acceptance.Tests/DagObservabilityAcceptanceTests.cs`
 
 ## Tests to write FIRST
 In `ExternalJobCancellationTests.cs`:
@@ -41,7 +41,7 @@ Scheduler UI, cron recurrence, real Kubernetes deletion, and multi-host lease wo
 
 ## Definition of done
 - [ ] New tests are red before implementation and green after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "AC=JS-AC-005|AC=JS-AC-009"` passes
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "AC=JS-AC-001|AC=JS-AC-002|AC=JS-AC-003|AC=JS-AC-004|AC=JS-AC-005|AC=JS-AC-006|AC=JS-AC-007|AC=JS-AC-009|AC=JS-AC-010|AC=JS-AC-011|AC=JS-AC-012|AC=JS-AC-013|AC=AC-518|AC=AC-519|AC=AC-520|AC=AC-521|AC=AC-522"` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "AC=JS-AC-005|AC=JS-AC-009"` passes
+- [ ] `dotnet test OrcaCore.slnx --filter "AC=JS-AC-001|AC=JS-AC-002|AC=JS-AC-003|AC=JS-AC-004|AC=JS-AC-005|AC=JS-AC-006|AC=JS-AC-007|AC=JS-AC-009|AC=JS-AC-010|AC=JS-AC-011|AC=JS-AC-012|AC=JS-AC-013|AC=AC-518|AC=AC-519|AC=AC-520|AC=AC-521|AC=AC-522"` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T4B-06: run cancellation and dag observability (JS-005)"

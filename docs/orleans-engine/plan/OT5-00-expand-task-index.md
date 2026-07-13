@@ -10,9 +10,9 @@ OE-081 parity subset (engine-observable semantics only).
 
 ## Read first
 - [plan/README.md](README.md) Phase O5 index
-- `v3-gpt/tests/OrcaCore.Acceptance.Tests/` — how AC trait tests and shared fixtures are
+- `tests/OrcaCore.Acceptance.Tests/` — how AC trait tests and shared fixtures are
   organized (read the fixture + 1 representative test file)
-- `v3-gpt/tests/OrcaCore.Integration.Tests/` — Testcontainers PostgreSQL pattern (read 1 file)
+- `tests/OrcaCore.Integration.Tests/` — Testcontainers PostgreSQL pattern (read 1 file)
 - [03-acceptance-criteria.md](../03-acceptance-criteria.md) OE-AC-050 and OE-AC-051
 
 ## Deliverables

@@ -12,14 +12,14 @@ serialization comes from a grain keyed by the idempotency key.
 
 ## Read first
 - `docs/orleans-engine/plan/SEAMS.md` (from OT1-00) — the start-reservation seam decision
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableStartService.cs` — the process-local
+- `src/OrcaCore.Engine.Durable/Execution/DurableStartService.cs` — the process-local
   pattern being replaced, and the `IWorkflowStartIdempotencyStore` interaction to preserve
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableWorkflowRuntime.cs` — the
+- `src/OrcaCore.Engine.Durable/Execution/DurableWorkflowRuntime.cs` — the
   StartOrGet contract to mirror (result type, parameter shape)
-- `v3-gpt/src/OrcaCore.Engine.Orleans/Grains/IWorkflowInstanceGrain.cs`
+- `src/OrcaCore.Engine.Orleans/Grains/IWorkflowInstanceGrain.cs`
 
 ## Deliverables
-In `v3-gpt/src/OrcaCore.Engine.Orleans/`:
+In `src/OrcaCore.Engine.Orleans/`:
 - `Grains/IStartIdempotencyGrain : IGrainWithStringKey` (key = idempotency key) —
   `Task<WorkflowCommandResultEnvelope> StartOrGetAsync(StartRequestEnvelope, CancellationToken)`.
   Turn logic: query the reservation → if a winner exists, return its `InstanceId` → else
@@ -36,7 +36,7 @@ In `v3-gpt/src/OrcaCore.Engine.Orleans/`:
   `UseOrcaCoreOrleans()`.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Orleans.Tests/Facade/StartOrGetTests.cs`:
+In `tests/OrcaCore.Engine.Orleans.Tests/Facade/StartOrGetTests.cs`:
 1. `StartOrGet_NewKey_StartsInstance` — fresh instance id; facts committed.
 2. `StartOrGet_SameKey_ReturnsSameInstance` — second call → same `InstanceId`; one stream.
 3. `StartOrGet_ConcurrentCallers_Converge` — `[Trait("AC","OE-AC-013")]` — N parallel

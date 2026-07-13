@@ -9,26 +9,26 @@ commit path. This task proves the core durable mutation invariants before adding
 timers, and resource pools.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/ProviderPorts.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/ProviderCommitContracts.cs`
-- `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs`
-- `v3-gpt/tests/OrcaCore.ProviderCertification/EventStoreCertificationTests.cs`
-- `v3-gpt/Directory.Packages.props`
+- `src/OrcaCore.Abstractions/Providers/ProviderPorts.cs`
+- `src/OrcaCore.Abstractions/Providers/ProviderCommitContracts.cs`
+- `src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs`
+- `tests/OrcaCore.ProviderCertification/EventStoreCertificationTests.cs`
+- `Directory.Packages.props`
 - Spec: `docs/specs/10-provider-model-and-extensibility.md` PR-010 through PR-024
 - Spec: `docs/specs/12-acceptance-criteria.md` AC-305, AC-309, AC-310
 
 ## Deliverables
-- Add `v3-gpt/src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj`
+- Add `src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj`
 - Add SQL Server event/checkpoint/inbox/outbox store files
-- Add `v3-gpt/tests/OrcaCore.Providers.SqlServer.Tests/OrcaCore.Providers.SqlServer.Tests.csproj`
+- Add `tests/OrcaCore.Providers.SqlServer.Tests/OrcaCore.Providers.SqlServer.Tests.csproj`
 - Add SQL Server certification fixture for event store tests
-- Update `v3-gpt/Directory.Packages.props` and `v3-gpt/OrcaCore.slnx`
+- Update `Directory.Packages.props` and `OrcaCore.slnx`
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderCertificationTests.cs`:
+In `tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderCertificationTests.cs`:
 1. Inherit the provider certification event-store tests and run them against SQL Server.
 
-In `v3-gpt/tests/OrcaCore.Providers.SqlServer.Tests/SqlServerEventStoreTests.cs`:
+In `tests/OrcaCore.Providers.SqlServer.Tests/SqlServerEventStoreTests.cs`:
 1. `AppendAsync_ProjectionCommitFails_RollsBackEventsInboxAndOutbox` - the SQL transaction preserves PR-020.
 
 ## Implementation notes
@@ -41,6 +41,6 @@ Projection queries, timers, resource pools, archival policy, and hosting registr
 
 ## Definition of done
 - [ ] New tests are red before implementation and green after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter FullyQualifiedName~SqlServerProviderCertificationTests` passes when containers are enabled
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter FullyQualifiedName~SqlServerProviderCertificationTests` passes when containers are enabled
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T6-08: sql server event store slice (PR-010)"

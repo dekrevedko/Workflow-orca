@@ -9,12 +9,12 @@ xUnit fixture, a trivial grain round-trips a call, and Orleans codegen provably 
 the test assembly.
 
 ## Read first
-- `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj` (test csproj template)
-- `v3-gpt/tests/OrcaCore.TestSupport/` (skim folder listing only — reuse conventions, not code)
+- `tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj` (test csproj template)
+- `tests/OrcaCore.TestSupport/` (skim folder listing only — reuse conventions, not code)
 - [01-architecture.md](../01-architecture.md) §4 note on `global::Orleans`
 
 ## Deliverables
-- `v3-gpt/tests/OrcaCore.Engine.Orleans.Tests/OrcaCore.Engine.Orleans.Tests.csproj` —
+- `tests/OrcaCore.Engine.Orleans.Tests/OrcaCore.Engine.Orleans.Tests.csproj` —
   references `OrcaCore.Engine.Orleans`, `OrcaCore.TestSupport`,
   `Microsoft.Orleans.TestingHost`; xUnit v3 per repo conventions; added to slnx.
 - `Testing/OrleansClusterFixture.cs` — xUnit collection fixture building a 1-silo
@@ -24,7 +24,7 @@ the test assembly.
   `Task<string> EchoAsync(string value)`; implementation returns input.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Orleans.Tests/Testing/ClusterSmokeTests.cs`:
+In `tests/OrcaCore.Engine.Orleans.Tests/Testing/ClusterSmokeTests.cs`:
 1. `Cluster_Starts_AndStops` — fixture yields a deployed cluster; `Cluster.Client` non-null.
 2. `EchoGrain_RoundTrips` — grain call returns the sent value (proves codegen + messaging).
 3. `OrleansReferences_AreConfinedToWhitelist` — `[Trait("AC","OE-AC-040")]` — scan
@@ -41,6 +41,6 @@ In `v3-gpt/tests/OrcaCore.Engine.Orleans.Tests/Testing/ClusterSmokeTests.cs`:
 Workflow grains, providers, envelopes.
 
 ## Definition of done
-- [ ] Both tests green: `dotnet test v3-gpt/tests/OrcaCore.Engine.Orleans.Tests`
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` — zero warnings
+- [ ] Both tests green: `dotnet test tests/OrcaCore.Engine.Orleans.Tests`
+- [ ] `dotnet build OrcaCore.slnx` — zero warnings
 - [ ] PROGRESS.md updated; committed as "OT0-02: TestingHost smoke (OE-080)"

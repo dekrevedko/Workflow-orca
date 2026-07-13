@@ -1,6 +1,6 @@
 # Code Quality Rescan - 2026-07-04
 
-Scope: `v3-gpt/src/**` production C# files, excluding `bin/` and `obj/`.
+Scope: `src/**` production C# files, excluding `bin/` and `obj/`.
 
 This is a delta review after the latest code update. The review accepts the
 current Dapper plus migrations direction for relational setup; it does not
@@ -9,7 +9,7 @@ testable seams, and provider parity.
 
 ## Verification
 
-- `dotnet build .\OrcaCore.slnx --no-restore` from `v3-gpt/`: passed, 0 warnings.
+- `dotnet build .\OrcaCore.slnx --no-restore` from ``: passed, 0 warnings.
 - `dotnet test .\tests\OrcaCore.Core.Tests\OrcaCore.Core.Tests.csproj --no-build`: passed, 254 tests.
 - `dotnet test .\tests\OrcaCore.Engine.Durable.Tests\OrcaCore.Engine.Durable.Tests.csproj --no-build`: passed, 172 tests.
 - `dotnet test .\tests\OrcaCore.Engine.Ephemeral.Tests\OrcaCore.Engine.Ephemeral.Tests.csproj --no-build`: passed, 125 tests.
@@ -28,17 +28,17 @@ Current large files:
 
 | File | Lines | Status |
 | --- | ---: | --- |
-| `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs` | 1714 | hard finding |
-| `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs` | 1405 | hard finding |
-| `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs` | 1167 | hard finding |
-| `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlResourcePoolStore.cs` | 833 | warning |
-| `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerResourcePoolStore.cs` | 783 | warning |
-| `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs` | 752 | warning |
-| `v3-gpt/src/OrcaCore.Core/Building/WorkflowBuilder.cs` | 637 | warning |
-| `v3-gpt/src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs` | 629 | warning |
-| `v3-gpt/src/OrcaCore.Engine.Ephemeral/Management/EphemeralManagement.cs` | 568 | warning |
-| `v3-gpt/src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs` | 543 | warning |
-| `v3-gpt/src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs` | 528 | warning or documented contract exception |
+| `src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs` | 1714 | hard finding |
+| `src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs` | 1405 | hard finding |
+| `src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs` | 1167 | hard finding |
+| `src/OrcaCore.Providers.PostgreSql/PostgreSqlResourcePoolStore.cs` | 833 | warning |
+| `src/OrcaCore.Providers.SqlServer/SqlServerResourcePoolStore.cs` | 783 | warning |
+| `src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs` | 752 | warning |
+| `src/OrcaCore.Core/Building/WorkflowBuilder.cs` | 637 | warning |
+| `src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs` | 629 | warning |
+| `src/OrcaCore.Engine.Ephemeral/Management/EphemeralManagement.cs` | 568 | warning |
+| `src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs` | 543 | warning |
+| `src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs` | 528 | warning or documented contract exception |
 
 ## What Improved
 
@@ -64,7 +64,7 @@ Current large files:
 
 ## Remaining Findings
 
-### [P2] Durable aggregate is still a god aggregate - `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs:9`
+### [P2] Durable aggregate is still a god aggregate - `src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs:9`
 
 Evidence:
 - The aggregate remains 1714 lines.
@@ -86,7 +86,7 @@ Acceptance target:
 - Then decide whether the remaining facade is cohesive enough to keep above 500
   with a documented temporary exception.
 
-### [P2] Relational workflow stores remain oversized provider facades - `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs:18`, `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:18`
+### [P2] Relational workflow stores remain oversized provider facades - `src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs:18`, `src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:18`
 
 Evidence:
 - PostgreSQL workflow store is 1405 lines.
@@ -111,7 +111,7 @@ Acceptance target:
 - Commit atomicity around `ProviderCommitBatch` remains covered by provider
   certification tests.
 
-### [P2] SQL Server projection queries still materialize and filter in memory - `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:587`
+### [P2] SQL Server projection queries still materialize and filter in memory - `src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:587`
 
 Evidence:
 - `ListCoreAsync` selects all instance projections ordered by instance id.
@@ -138,11 +138,11 @@ Natural pattern fit:
 
 Remaining wall-clock statics:
 
-- `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:108`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Outbox/DurableOutboxPump.cs:23`
-- `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs:267`
-- `v3-gpt/src/OrcaCore.Providers.Relational/RelationalMigrationRunner.cs:50`
-- `v3-gpt/src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs:150`
+- `src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:108`
+- `src/OrcaCore.Engine.Durable/Outbox/DurableOutboxPump.cs:23`
+- `src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs:267`
+- `src/OrcaCore.Providers.Relational/RelationalMigrationRunner.cs:50`
+- `src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs:150`
 
 Recommendation:
 - Inject optional `TimeProvider` with `TimeProvider.System` defaults.
@@ -150,7 +150,7 @@ Recommendation:
   timestamps.
 - Add a guard test for production wall-clock static usage.
 
-### [P3] SQL Server still lacks service registration parity - `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:18`
+### [P3] SQL Server still lacks service registration parity - `src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:18`
 
 Evidence:
 - Search found no `AddOrcaCoreSqlServer` service registration extension.

@@ -8,10 +8,10 @@ Implement durable inbox recording for inbound event deliveries with restart-safe
 Events must remain re-matchable if a crash occurs after match but before commit.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/`
-- `v3-gpt/tests/OrcaCore.ProviderCertification/`
-- `v3-gpt/tests/OrcaCore.TestSupport/Providers/`
+- `src/OrcaCore.Abstractions/Providers/`
+- `src/OrcaCore.Engine.Durable/Execution/`
+- `tests/OrcaCore.ProviderCertification/`
+- `tests/OrcaCore.TestSupport/Providers/`
 - Spec: `docs/specs/06-requirements-durable-execution.md` section 6.4
 
 ## Deliverables
@@ -20,7 +20,7 @@ Events must remain re-matchable if a crash occurs after match but before commit.
 - Certification/acceptance coverage for no lost events and restart-safe dedup.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/Events/DurableInboxTests.cs`:
+In `tests/OrcaCore.Engine.Durable.Tests/Events/DurableInboxTests.cs`:
 1. `[Trait("AC","AC-305")] DuplicateEvent_BeforeAndAfterRestart_ProducesOneOutcome`
 2. `[Trait("AC","AC-114")] CrashAfterMatchBeforeCommit_LeavesWaitActiveAndEventAvailable`
 3. `InboxRecord_AppliedOnlyAfterStateCommitSucceeds`
@@ -34,6 +34,6 @@ Pause buffering, outbox pump, timers, retention.
 
 ## Definition of done
 - [ ] All new tests green; full affected suites green
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] AC-305 and AC-114 are green
 - [ ] PROGRESS.md updated; committed as "T2-09: durable inbox dedup (AC-305, AC-114)"

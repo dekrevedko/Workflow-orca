@@ -1,46 +1,80 @@
 namespace OrcaCore.Abstractions.Primitives;
 
-public readonly struct Option<T> : IEquatable<Option<T>>
+/// <summary>
+/// Represents a value that may be present without treating absence as failure.
+/// </summary>
+public readonly record struct Option<T>
 {
-    private readonly bool _hasValue;
-    private readonly T? _value;
+    private readonly T? value;
+    private readonly bool hasValue;
 
-    private Option(bool hasValue, T? value)
+    private Option(T value)
     {
-        _hasValue = hasValue;
-        _value = value;
+        this.value = value;
+        hasValue = true;
     }
 
-    public bool HasValue => _hasValue;
+    /// <summary>
+    /// Gets an absent option.
+    /// </summary>
+    public static Option<T> None => default;
 
-    public T Value => _hasValue
-        ? _value!
-        : throw new InvalidOperationException("Option has no value.");
+    /// <summary>
+    /// Gets whether the option contains a value.
+    /// </summary>
+    public bool HasValue => hasValue;
 
-    public static Option<T> Some(T value) => new(true, value);
+    /// <summary>
+    /// Gets the present value, or throws when this option is none.
+    /// </summary>
+    public T Value => HasValue
+        ? value!
+        : throw new InvalidOperationException("An empty option does not contain a value.");
 
-    public static Option<T> None => new(false, default);
+    /// <summary>
+    /// Creates a present option.
+    /// </summary>
+    public static Option<T> Some(T value)
+    {
+        return new Option<T>(value);
+    }
 
-    public Option<TResult> Map<TResult>(Func<T, TResult> mapper) =>
-        _hasValue ? Option<TResult>.Some(mapper(_value!)) : Option<TResult>.None;
+    /// <summary>
+    /// Transforms a present value while preserving absence.
+    /// </summary>
+    public Option<TResult> Map<TResult>(Func<T, TResult> map)
+    {
+        ArgumentNullException.ThrowIfNull(map);
 
-    public Option<TResult> Bind<TResult>(Func<T, Option<TResult>> binder) =>
-        _hasValue ? binder(_value!) : Option<TResult>.None;
+        return HasValue ? Option<TResult>.Some(map(Value)) : Option<TResult>.None;
+    }
 
-    public TResult Match<TResult>(Func<TResult> onNone, Func<T, TResult> onSome) =>
-        _hasValue ? onSome(_value!) : onNone();
+    /// <summary>
+    /// Chains an option-producing operation while preserving absence.
+    /// </summary>
+    public Option<TResult> Bind<TResult>(Func<T, Option<TResult>> bind)
+    {
+        ArgumentNullException.ThrowIfNull(bind);
 
-    public T GetValueOrDefault(T defaultValue = default!) =>
-        _hasValue ? _value! : defaultValue;
+        return HasValue ? bind(Value) : Option<TResult>.None;
+    }
 
-    public bool Equals(Option<T> other) =>
-        _hasValue == other._hasValue && EqualityComparer<T>.Default.Equals(_value, other._value);
+    /// <summary>
+    /// Projects exactly one branch based on presence or absence.
+    /// </summary>
+    public TResult Match<TResult>(Func<T, TResult> onSome, Func<TResult> onNone)
+    {
+        ArgumentNullException.ThrowIfNull(onSome);
+        ArgumentNullException.ThrowIfNull(onNone);
 
-    public override bool Equals(object? obj) => obj is Option<T> other && Equals(other);
+        return HasValue ? onSome(Value) : onNone();
+    }
 
-    public override int GetHashCode() => _hasValue ? HashCode.Combine(true, _value) : HashCode.Combine(false, 0);
-
-    public static bool operator ==(Option<T> left, Option<T> right) => left.Equals(right);
-
-    public static bool operator !=(Option<T> left, Option<T> right) => !left.Equals(right);
+    /// <summary>
+    /// Returns the present value or the supplied fallback when absent.
+    /// </summary>
+    public T GetValueOrDefault(T fallback)
+    {
+        return HasValue ? Value : fallback;
+    }
 }

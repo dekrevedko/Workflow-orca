@@ -8,11 +8,11 @@ Make expired durable-pool tickets observable and operable. Operators can inspect
 resize capacity, and force-release tickets through an audited management surface.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/IResourcePoolStore.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Management/DurableManagement.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Management/DurableManagementQuery.cs`
-- `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/Management/DurableManagementTests.cs`
-- `v3-gpt/tests/OrcaCore.ProviderCertification/ResourcePoolStoreCertificationTests.cs`
+- `src/OrcaCore.Abstractions/Providers/IResourcePoolStore.cs`
+- `src/OrcaCore.Engine.Durable/Management/DurableManagement.cs`
+- `src/OrcaCore.Engine.Durable/Management/DurableManagementQuery.cs`
+- `tests/OrcaCore.Engine.Durable.Tests/Management/DurableManagementTests.cs`
+- `tests/OrcaCore.ProviderCertification/ResourcePoolStoreCertificationTests.cs`
 - Spec: `docs/specs/09-requirements-management-operations.md` section 9.7
 - Spec: `docs/specs/12-acceptance-criteria.md` AC-521
 
@@ -20,7 +20,7 @@ resize capacity, and force-release tickets through an audited management surface
 - Pool inspection snapshots in Abstractions
 - Durable management methods for pool inspect, resize, expiry scan, and force release
 - Provider certification additions for expiry and resize semantics
-- `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/ResourcePools/PoolOperationsTests.cs`
+- `tests/OrcaCore.Engine.Durable.Tests/ResourcePools/PoolOperationsTests.cs`
 
 ## Tests to write FIRST
 In `PoolOperationsTests.cs`:
@@ -41,6 +41,6 @@ Rate-based pools, priority queues, external arbiters, and Kubernetes adapters.
 
 ## Definition of done
 - [ ] New tests are red before implementation and green after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "AC=AC-521|ResourcePool"` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "AC=AC-521|ResourcePool"` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T4B-03: ticket expiry and pool operations (MG-064)"

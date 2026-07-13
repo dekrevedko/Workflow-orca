@@ -1,8 +1,8 @@
 # R7 — Hosting & Cross-Cutting — Findings
 
-> Phase scope: `v3-gpt/src/OrcaCore.Hosting/**`, `v3-gpt/samples/OrcaCore.SampleHost`,
-> `v3-gpt/docs/production-readiness.md`, `v3-gpt/benchmarks/OrcaCore.Benchmarks`, CI workflow,
-> and a meta-review of `v3-gpt/tests/**` for NF-040/NF-030, MG-004, TDD discipline (03), and
+> Phase scope: `src/OrcaCore.Hosting/**`, `samples/OrcaCore.SampleHost`,
+> `docs/production-readiness.md`, `benchmarks/OrcaCore.Benchmarks`, CI workflow,
+> and a meta-review of `tests/**` for NF-040/NF-030, MG-004, TDD discipline (03), and
 > AC-trait coverage vs `docs/specs/12-acceptance-criteria.md`. Primary lenses: security,
 > performance, test quality. Code review only. Prior phase findings (R3–R6) are referenced where
 > they remain the authoritative defect record.
@@ -51,7 +51,7 @@
 - **Recommendation:** Replace with `FakeTimeProvider` + `TaskCompletionSource` gates (pattern already used in `YieldTests`, `TimerEventRaceTests`).
 - **Confidence:** CONFIRMED
 
-### [P2] AC trait coverage is partial — many behavioral tests untagged — `v3-gpt/tests/**`
+### [P2] AC trait coverage is partial — many behavioral tests untagged — `tests/**`
 - **Requirement/convention:** NF-012 / 03 §2
 - **Evidence:** Spec lists 100+ behavioral ACs in `docs/specs/12-acceptance-criteria.md`. Tagged tests exist across acceptance, durable, ephemeral, and certification projects (~200 trait annotations, but many ACs have no tagged test). Examples with **no** `[Trait("AC",…)]` in tests: `AC-315` (multi-node mutator, advanced), large swaths of ephemeral unit tests (`MailboxTests`, `RoutingTests`, `LoopWaitTests`), and provider-sensitive ACs exercised only indirectly. `OrcaCore.Hosting.Tests` has zero AC traits.
 - **Failure scenario:** Regression of a spec AC ships without CI traceability; coverage matrix cannot be automated.
@@ -100,9 +100,9 @@
 - **Recommendation:** Move `AddOrcaCoreRabbitMq` to `OrcaCore.Providers.RabbitMq` extension class (pattern used elsewhere in .NET ecosystem).
 - **Confidence:** CONFIRMED
 
-### [P3] Local SDK pin blocked audit-time test execution — `v3-gpt/global.json`
+### [P3] Local SDK pin blocked audit-time test execution — `global.json`
 - **Requirement/convention:** R0 baseline (review README §3)
-- **Evidence:** `dotnet test v3-gpt/OrcaCore.slnx` failed: SDK `10.0.200` required, `10.0.301` installed message (environment mismatch). R0 findings file was not produced in this audit series.
+- **Evidence:** `dotnet test OrcaCore.slnx` failed: SDK `10.0.200` required, `10.0.301` installed message (environment mismatch). R0 findings file was not produced in this audit series.
 - **Failure scenario:** Reviewers cannot confirm green build locally without SDK alignment.
 - **Recommendation:** Complete R0 with build/test baseline recorded in `findings/R0-foundations.md`; align `global.json` with CI SDK or document roll-forward.
 - **Confidence:** CONFIRMED (command output this session)
@@ -140,7 +140,7 @@
 
 **AC coverage (spot-check gaps):** `AC-315` untested; `AC-609` tagged but behavior not verified (R6); many ephemeral unit tests lack traits despite proving AC-adjacent behavior. Acceptance project has strong AC discipline for core flows (wait, parallel, foreach, terminal, management).
 
-**Build/test baseline:** Not executed successfully in this session (SDK resolution). CI workflow builds and tests `v3-gpt/OrcaCore.slnx` on `ubuntu-latest` — assumed green unless CI proves otherwise.
+**Build/test baseline:** Not executed successfully in this session (SDK resolution). CI workflow builds and tests `OrcaCore.slnx` on `ubuntu-latest` — assumed green unless CI proves otherwise.
 
 **Stopped at:** End of R7 scope. **R0 (foundations/banlist/csproj graph)** was not executed as a dedicated session; recommend a follow-up R0 pass for `Directory.Build.props`, solution reference graph, and banlist grep across all projects.
 

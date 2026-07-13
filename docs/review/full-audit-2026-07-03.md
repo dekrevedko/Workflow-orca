@@ -1,14 +1,14 @@
 # Full Audit - 2026-07-03
 
-Scope: `v3-gpt/` after addressing the R8 .NET/C# quality findings and the
+Scope: `` after addressing the R8 .NET/C# quality findings and the
 initial channel-substrate migration. The active
-`v3-gpt/tests/OrcaCore.Integration.Tests/` folder was intentionally excluded.
+`tests/OrcaCore.Integration.Tests/` folder was intentionally excluded.
 
 Audit method:
 - Read the implementation guidance, especially stack decisions, engineering
   conventions, and TDD workflow.
 - Compared the old channel proof of concept under `src/` with the current
-  `v3-gpt` execution lanes.
+  `current implementation` execution lanes.
 - Ran focused verification for R8 fixes, channel lanes, timeout determinism,
   analyzer output, and non-integration tests.
 - Used parallel read-only audit agents for architecture/channel seams,
@@ -29,27 +29,27 @@ Commands run from repository root:
 | PostgreSQL service-collection test | Passed, 1 test |
 
 Not run to completion:
-- Full `v3-gpt/OrcaCore.slnx` test/build with integration tests included,
-  because `v3-gpt/tests/OrcaCore.Integration.Tests/` is active development.
+- Full `OrcaCore.slnx` test/build with integration tests included,
+  because `tests/OrcaCore.Integration.Tests/` is active development.
 - Full PostgreSQL provider Testcontainers suite. A previous all-project test
   loop hung in provider/infrastructure tests before the timeout-test race was
   fixed. The audit recommends tagging container tests and isolating them in CI.
 
 Follow-up implementation verification, 2026-07-03:
-- Timer/outbox lease implementation pass ran all non-integration `v3-gpt/tests`
-  projects plus `v3-gpt/tests/OrcaCore.Integration.Tests`.
-- Analyzer build loop with `-warnaserror` passed for every `v3-gpt` project,
+- Timer/outbox lease implementation pass ran all non-integration `tests`
+  projects plus `tests/OrcaCore.Integration.Tests`.
+- Analyzer build loop with `-warnaserror` passed for every `current implementation` project,
   including integration tests.
 - Integration tests are now honored for implementation verification: passed 68,
   skipped 31, failed 0.
 - PostgreSQL start-idempotency implementation pass reran the analyzer build
-  loop for every `v3-gpt` project with `-warnaserror` and the full
-  `v3-gpt/tests` sweep, including integration tests. Integration coverage is now
+  loop for every `current implementation` project with `-warnaserror` and the full
+  `tests` sweep, including integration tests. Integration coverage is now
   passed 70, skipped 29, failed 0 because the PostgreSQL restart and two-host
   `StartOrGet` scenarios are active.
 - SQL Server resource-pool implementation pass reran the non-integration
   analyzer build loop with `-warnaserror`, the full SQL Server provider suite,
-  and the full `v3-gpt/tests` sweep including integration tests. Integration
+  and the full `tests` sweep including integration tests. Integration
   coverage is now passed 73, skipped 26, failed 0.
 - SQL Server retention certification pass added table-backed
   `IWorkflowRetentionStore` behavior and reran focused SQL Server, PostgreSQL,
@@ -59,71 +59,71 @@ Follow-up implementation verification, 2026-07-03:
 - Outbox observer and interpreter-runner decomposition pass reran focused
   durable outbox tests, focused ephemeral interpreter/control-flow tests, the
   non-integration analyzer build loop with `-warnaserror`, and the full
-  `v3-gpt/tests/OrcaCore.Integration.Tests` project. Integration coverage is
+  `tests/OrcaCore.Integration.Tests` project. Integration coverage is
   now passed 81, skipped 18, failed 0.
 - Yield continuation scheduler pass reran focused yield/wait/timer tests, full
   `OrcaCore.Engine.Ephemeral.Tests`, filtered acceptance yield/wait/timer
   coverage, the non-integration analyzer build loop with `-warnaserror`, the
-  full integration project, and all non-integration `v3-gpt/tests` projects.
+  full integration project, and all non-integration `tests` projects.
 - Durable saga-state extraction pass added focused `DurableSagaState` tests and
   reran the saga, aggregate, and full durable test slices before broader
   verification.
 - Durable child-workflow state extraction pass added focused
   `DurableChildWorkflowState` tests and reran focused child-state and full
   durable test slices. Broader verification passed the non-integration analyzer
-  build loop with `-warnaserror`, the full non-integration `v3-gpt/tests`
-  sweep, and `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 81, skipped
+  build loop with `-warnaserror`, the full non-integration `tests`
+  sweep, and `tests/OrcaCore.Integration.Tests` with passed 81, skipped
   18, failed 0.
 - Durable resource-pool state extraction pass added focused
   `DurableResourcePoolState` tests and reran focused resource-pool/external-job
   tests plus the full durable test project before broader verification. The
   pass also fixed guarded resource tickets not being released when a durable
   step fails. Broader verification passed the non-integration analyzer build
-  loop with `-warnaserror`, the full non-integration `v3-gpt/tests` sweep, and
-  `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 81, skipped 18, failed
+  loop with `-warnaserror`, the full non-integration `tests` sweep, and
+  `tests/OrcaCore.Integration.Tests` with passed 81, skipped 18, failed
   0.
 - Durable timer-state extraction pass added focused `DurableTimerState` tests
   for active timer tracking, buffered timer replacement, buffered replay
   planning, discard behavior, clearing, and checkpoint projection. Focused
   durable timer aggregate coverage passed before broader verification. Broader
   verification passed the non-integration analyzer build loop with
-  `-warnaserror`, the full non-integration `v3-gpt/tests` sweep, and
-  `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 83, skipped 16, failed
+  `-warnaserror`, the full non-integration `tests` sweep, and
+  `tests/OrcaCore.Integration.Tests` with passed 83, skipped 16, failed
   0.
 - Hosted-service transient-failure boundary pass added shared retry/backoff
   handling with source-generated logging for outbox pump, timer sweep, and
   operational sweep loops. Focused hosting tests cover first-cycle failures and
   subsequent retry cycles for all three hosted services. Broader verification
   passed the non-integration analyzer build loop with `-warnaserror`, the
-  non-integration `v3-gpt/tests` sweep after replacing a wall-clock test yield
-  flagged by repository guards, and `v3-gpt/tests/OrcaCore.Integration.Tests`
+  non-integration `tests` sweep after replacing a wall-clock test yield
+  flagged by repository guards, and `tests/OrcaCore.Integration.Tests`
   with passed 83, skipped 16, failed 0.
 - Durable checkpoint-mapper extraction pass added focused
   `DurableCheckpointMapper` tests for provider checkpoint runtime-state
   projection and payload copying. Focused mapper coverage, the full durable
   test project, the non-integration analyzer build loop with `-warnaserror`,
-  and `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 83, skipped 16,
+  and `tests/OrcaCore.Integration.Tests` with passed 83, skipped 16,
   failed 0 passed.
 - Durable commit-materializer extraction pass added focused
   `DurableCommitMaterializer` tests and reran focused command-pipeline tests
   before broader verification. Broader verification passed the non-integration
   analyzer build loop with `-warnaserror`, the full non-integration
-  `v3-gpt/tests` sweep, and `v3-gpt/tests/OrcaCore.Integration.Tests` with
+  `tests` sweep, and `tests/OrcaCore.Integration.Tests` with
   passed 81, skipped 18, failed 0.
 - Durable resource-pool commit-effects extraction pass added focused
   `DurableResourcePoolCommitEffects` tests and reran the existing R4
   rollback/retry resource-pool tests before broader verification. Broader
   verification passed the non-integration analyzer build loop with
-  `-warnaserror`, the full non-integration `v3-gpt/tests` sweep, and
-  `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 81, skipped 18, failed
+  `-warnaserror`, the full non-integration `tests` sweep, and
+  `tests/OrcaCore.Integration.Tests` with passed 81, skipped 18, failed
   0.
 - Durable commit-pipeline extraction pass added focused
   `DurableCommitPipeline` tests for inbox-only poison commits, no-append
   eviction, append conflicts, and resource-pool side effects routed by append
   success or failure. Focused durable execution coverage passed before broader
   verification. Broader verification passed the non-integration analyzer build
-  loop with `-warnaserror`, the full non-integration `v3-gpt/tests` sweep, and
-  `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 81, skipped 18, failed
+  loop with `-warnaserror`, the full non-integration `tests` sweep, and
+  `tests/OrcaCore.Integration.Tests` with passed 81, skipped 18, failed
   0.
 - Ephemeral wait-executor extraction pass added a focused public regression for
   wait correlation selector failure, then fixed a yield-drain snapshot race
@@ -131,8 +131,8 @@ Follow-up implementation verification, 2026-07-03:
   per-instance lane. Focused wait/interpreter/loop/timer-race and yield/parallel
   coverage passed before broader verification. Broader verification passed the
   non-integration analyzer build loop with `-warnaserror`, the full
-  non-integration `v3-gpt/tests` sweep, and
-  `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 81, skipped 18, failed
+  non-integration `tests` sweep, and
+  `tests/OrcaCore.Integration.Tests` with passed 81, skipped 18, failed
   0.
 - Durable wait-state extraction pass added focused `DurableWaitState` tests and
   reran the durable analyzer build and full durable test project before broader
@@ -144,39 +144,39 @@ Follow-up implementation verification, 2026-07-03:
   `DurableInboxPreflight` tests for absent, received, already-resolved, and
   poisoned inbox states. Focused inbox/commit-pipeline coverage, the full
   durable test project, the non-integration analyzer build loop with
-  `-warnaserror`, the full non-integration `v3-gpt/tests` sweep, and
-  `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 83, skipped 16,
+  `-warnaserror`, the full non-integration `tests` sweep, and
+  `tests/OrcaCore.Integration.Tests` with passed 83, skipped 16,
   failed 0 passed.
 - Shared instance-lane extraction pass added focused `InstanceLane` tests for
   serialization, cross-instance overlap, exception release, cancellation, and
   idle eviction. Focused core/ephemeral/durable lane coverage, the
   non-integration analyzer build loop with `-warnaserror`, the full
-  non-integration `v3-gpt/tests` sweep, and
-  `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 83, skipped 16,
+  non-integration `tests` sweep, and
+  `tests/OrcaCore.Integration.Tests` with passed 83, skipped 16,
   failed 0 passed.
 - Workflow event codec hardening pass replaced repeated event-type switches
   with one typed descriptor table and added focused `WorkflowEventCodec` tests
   that round-trip every supported durable event type. Focused codec,
   PostgreSQL event-store, and SQL Server event-store coverage passed before the
   non-integration analyzer build loop with `-warnaserror`, the full
-  non-integration `v3-gpt/tests` sweep, and
-  `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 83, skipped 16,
+  non-integration `tests` sweep, and
+  `tests/OrcaCore.Integration.Tests` with passed 83, skipped 16,
   failed 0 passed.
 - SQL Server history-projection parity pass added table-backed
   `AppendHistory` projection writes through migration `004_history_projections`
   and purges history rows during retention cleanup. Focused SQL Server
   projection, migration-journal, and retention certification checks passed
   before the non-integration analyzer build loop with `-warnaserror`, the full
-  non-integration `v3-gpt/tests` sweep, and
-  `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 83, skipped 16,
+  non-integration `tests` sweep, and
+  `tests/OrcaCore.Integration.Tests` with passed 83, skipped 16,
   failed 0.
 - Deterministic concurrency-test probe pass added `AsyncSignalCounter` in test
   support and internal lane/governance observer hooks so tests can prove a
   contender reached the contested Seam before making negative assertions.
   Focused core, ephemeral, and acceptance slices passed before the
   non-integration analyzer build loop with `-warnaserror`, the full
-  non-integration `v3-gpt/tests` sweep, and
-  `v3-gpt/tests/OrcaCore.Integration.Tests` with passed 83, skipped 16,
+  non-integration `tests` sweep, and
+  `tests/OrcaCore.Integration.Tests` with passed 83, skipped 16,
   failed 0.
 
 ## Completed In This Pass
@@ -216,10 +216,10 @@ The PoC used an unbounded channel, `Task.Run(ProcessAsync)`, and a lane that
 lived until disposal. That proved the mailbox shape but did not provide
 backpressure or lane eviction.
 
-Current `v3-gpt`:
-- `v3-gpt/src/OrcaCore.Core/Concurrency/InstanceLane.cs:7`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/InstanceExecutionLane.cs:6`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableInstanceCommandLane.cs:6`
+Current `current implementation`:
+- `src/OrcaCore.Core/Concurrency/InstanceLane.cs:7`
+- `src/OrcaCore.Engine.Ephemeral/Execution/InstanceExecutionLane.cs:6`
+- `src/OrcaCore.Engine.Durable/Execution/DurableInstanceCommandLane.cs:6`
 
 The current Implementation uses bounded channels with `FullMode = Wait`,
 `SingleReader = true`, and self-eviction through the shared
@@ -244,9 +244,9 @@ Implementation update:
 ### Durable per-instance serialization is not process-wide
 
 Evidence:
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs:13`
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs:13`
   owns `new DurableInstanceCommandLane()`.
-- `v3-gpt/src/OrcaCore.Engine.Durable/Management/DurableManagement.cs:348`
+- `src/OrcaCore.Engine.Durable/Management/DurableManagement.cs:348`
   creates a fresh `DurableCommandProcessor` for management commands.
 
 Risk: pause, resume, cancel, terminate, timer, and outbox-driven durable
@@ -276,7 +276,7 @@ Implementation update:
 ### SQL Server provider cannot persist most durable events
 
 Evidence:
-- `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:1194`
+- `src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:1194`
   maps only started, continued-as-new, timer scheduled, and timer fired events.
 - `SerializeEvent` and `DeserializeEvent` throw for common events such as step
   completion, waits, child workflows, resource pools, external jobs, pause/resume,
@@ -301,11 +301,11 @@ Implementation update:
 
 Evidence:
 - PostgreSQL deletes due timers in
-  `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs:603`.
+  `src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs:603`.
 - SQL Server deletes due timers in
-  `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:726`.
+  `src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:726`.
 - The hosted timer service claims first and processes later at
-  `v3-gpt/src/OrcaCore.Hosting/Services/OrcaCoreTimerHostedService.cs:36`.
+  `src/OrcaCore.Hosting/Services/OrcaCoreTimerHostedService.cs:36`.
 
 Risk: crash, cancellation, append conflict, or transient provider failure after
 claim permanently loses the wake-up.
@@ -333,12 +333,12 @@ Implementation update:
 ### Outbox records can remain claimed forever
 
 Evidence:
-- `v3-gpt/src/OrcaCore.Engine.Durable/Outbox/DurableOutboxPump.cs:25` claims
+- `src/OrcaCore.Engine.Durable/Outbox/DurableOutboxPump.cs:25` claims
   records and dispatches them.
 - PostgreSQL marks records claimed at
-  `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs:270`.
+  `src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs:270`.
 - SQL Server marks records claimed at
-  `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:552`.
+  `src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:552`.
 
 Risk: dispatcher exception, host crash, or mark-failed failure can strand a
 record in `Claimed` until manual repair.
@@ -365,9 +365,9 @@ Implementation update:
 ### Hosted services lack transient-failure boundaries
 
 Evidence:
-- `v3-gpt/src/OrcaCore.Hosting/Services/OrcaCoreOutboxPumpHostedService.cs:21`
-- `v3-gpt/src/OrcaCore.Hosting/Services/OrcaCoreTimerHostedService.cs:23`
-- `v3-gpt/src/OrcaCore.Hosting/Services/OrcaCoreOperationalSweepHostedService.cs:21`
+- `src/OrcaCore.Hosting/Services/OrcaCoreOutboxPumpHostedService.cs:21`
+- `src/OrcaCore.Hosting/Services/OrcaCoreTimerHostedService.cs:23`
+- `src/OrcaCore.Hosting/Services/OrcaCoreOperationalSweepHostedService.cs:21`
 
 Risk: one provider or transport exception can terminate background processing
 without structured diagnostics.
@@ -390,13 +390,13 @@ Implementation update:
 ### DurableCommandProcessor is too shallow for its current responsibility
 
 Evidence:
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs:29`
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs:29`
   begins a long overload list.
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs:510`
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs:510`
   adds start idempotency writes.
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs:676`
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs:676`
   starts child workflow outbox materialization.
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs:789`
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs:789`
   starts lifecycle projection mapping.
 
 Risk: command routing, rehydration, commit, materialization, idempotency,
@@ -440,7 +440,7 @@ Implementation update:
 ### DurableWorkflowAggregate is a feature sink
 
 Evidence:
-- `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
+- `src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
   contains wait, timer, child workflow, resource pool, external job, saga,
   projection, and replay behavior.
 
@@ -486,9 +486,9 @@ Implementation update:
 ### PostgreSQL start idempotency is not durable
 
 Evidence:
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs:15`
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs:15`
   uses `IWorkflowStartIdempotencyStore` only when the event store implements it.
-- `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs:18`
+- `src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs:18`
   does not implement that port.
 
 Risk: `StartOrGet` can duplicate workflow starts across restarts or nodes when
@@ -511,13 +511,13 @@ Implementation update:
 
 ### SQL Server resource pools were in-memory
 
-Status: fixed 2026-07-03 in `v3-gpt` after PostgreSQL start-idempotency parity.
+Status: fixed 2026-07-03 in `current implementation` after PostgreSQL start-idempotency parity.
 
 Evidence:
-- `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:25`
+- `src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:25`
   implements `IResourcePoolStore`.
 - The store keeps pool state in private in-memory collections near
-  `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:37`.
+  `src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:37`.
 
 Risk: resource tickets disappear on restart and split across store instances.
 
@@ -544,12 +544,12 @@ Follow-up result:
 
 Evidence:
 - PostgreSQL has event constants and switches in
-  `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs:29`,
+  `src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs:29`,
   `:1363`, `:1419`, and `:1464`.
 - SQL Server has separate switches in
-  `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:1194`.
+  `src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:1194`.
 - Source generation context lives at
-  `v3-gpt/src/OrcaCore.Abstractions/Serialization/OrcaCoreJsonSerializerContext.cs:8`.
+  `src/OrcaCore.Abstractions/Serialization/OrcaCoreJsonSerializerContext.cs:8`.
 
 Recommendation: create `WorkflowEventCodec` and make provider Adapters depend
 on that Interface. This is a high-Leverage Module because every new event type
@@ -563,10 +563,10 @@ Implementation update:
 ### Ephemeral runtime is facade-heavy
 
 Evidence:
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs` owns
+- `src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs` owns
   definition registration, waits, correlation routing, saga runtime state,
   governance, registry, timers, and management behavior.
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs:766` handles
+- `src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs:766` handles
   timeout/retry/governance in the same step execution path.
 
 Recommendation: introduce internal Modules for `EphemeralRoutingIndex`,
@@ -582,7 +582,7 @@ Implementation update:
 ### Container/infrastructure tests are not isolated
 
 Evidence:
-- `v3-gpt/OrcaCore.slnx` includes the active integration project.
+- `OrcaCore.slnx` includes the active integration project.
 - Provider test projects contain Testcontainers-backed tests without consistent
   category isolation.
 - PostgreSQL provider tests use `Testcontainers.PostgreSql` across multiple
@@ -597,7 +597,7 @@ Implementation update:
   `Traits.Container` value for their required infrastructure, and a repository
   guard prevents new Testcontainers-backed test classes from being added without
   that trait. Root CI lane splitting remains deferred because `.github/workflows`
-  has unrelated dirty work outside the requested `v3-gpt` scope.
+  has unrelated dirty work outside the requested `current implementation` scope.
 
 ### Some concurrency tests use scheduler-yield negative assertions
 
@@ -621,7 +621,7 @@ Implementation update:
 ### Redis projection updates are non-atomic
 
 Evidence:
-- `v3-gpt/src/OrcaCore.Providers.Redis/RedisProjectionStore.cs` removes old
+- `src/OrcaCore.Providers.Redis/RedisProjectionStore.cs` removes old
   index memberships, writes the snapshot, and adds new index memberships as
   separate operations.
 
@@ -668,14 +668,14 @@ branches, or a long list of operation modes to use the Module safely.
 ### `Interpreter<TState>` should be treated as a priority decomposition target
 
 Evidence:
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs:13` declares
+- `src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs:13` declares
   `internal sealed class Interpreter<TState>`.
 - The file is currently about 1,215 lines.
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs:82` starts a
+- `src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs:82` starts a
   large node-dispatch switch over `InitNode`, `BusinessStepNode`, `EndNode`,
   `IfNode`, `WhileNode`, `ParallelNode`, `WhenFirstNode`, `ForEachNode`,
   child-workflow nodes, `WaitNode`, and `DelayNode`.
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs:766` starts
+- `src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs:766` starts
   step execution, combining timeout, retry, governance, step factory, result
   handling, stuck-step detection, and failure deferral.
 
@@ -730,10 +730,10 @@ Implementation update:
 
 | Module | Current shape | Refactoring direction |
 | --- | --- | --- |
-| `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs` | About 2,603 lines before decomposition; one aggregate owned timers, projections, lifecycle transitions, and replay orchestration. Saga compensation state has been extracted to `DurableSagaState`; active-wait and buffered-delivery state has been extracted to `DurableWaitState`; external-job state has been extracted to `DurableExternalJobState`; child workflow state has been extracted to `DurableChildWorkflowState`; resource-pool state has been extracted to `DurableResourcePoolState`; timer state has been extracted to `DurableTimerState`. | Keep the aggregate Interface. Further extraction should target projection/replay orchestration only when it creates behavior-testable Locality rather than pass-through glue. |
-| `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` | About 979 lines before decomposition; one processor handled command overloads, rehydration, and append result branching. `DurableCommandRuntime` owns per-instance lanes, `DurableCommitMaterializer` owns provider commit-batch materialization, `DurableResourcePoolCommitEffects` owns resource-pool commit side effects, `DurableCommitPipeline` owns no-op/poison/append-result behavior, `DurableCheckpointMapper` owns provider checkpoint projection, `DurableInboxPreflight` owns inbound idempotency short-circuit decisions, and `DurableAggregateLoader` owns checkpoint/tail read sequencing plus aggregate rehydration. | Continue only where another behavior can become testable Locality; avoid splitting command overloads into pass-through classes. |
-| `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs` | About 1,515 lines; event mapping now routes through shared `WorkflowEventCodec`, which uses a single descriptor table for type names, serialization, and deserialization. Projection operation switching remains in the store Adapter. | Move projection writes into a projection store Module; keep this Adapter focused on PostgreSQL SQL and transaction shape. |
-| `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs` | About 1,369 lines; event mapping now routes through shared `WorkflowEventCodec`, which uses a single descriptor table for type names, serialization, and deserialization. Projection operation switching remains in the store Adapter, with `AppendHistory` now covered by a table-backed projection. | Split durable event store, projection store, timer store, outbox store, and resource pool Adapter responsibilities. |
+| `src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs` | About 2,603 lines before decomposition; one aggregate owned timers, projections, lifecycle transitions, and replay orchestration. Saga compensation state has been extracted to `DurableSagaState`; active-wait and buffered-delivery state has been extracted to `DurableWaitState`; external-job state has been extracted to `DurableExternalJobState`; child workflow state has been extracted to `DurableChildWorkflowState`; resource-pool state has been extracted to `DurableResourcePoolState`; timer state has been extracted to `DurableTimerState`. | Keep the aggregate Interface. Further extraction should target projection/replay orchestration only when it creates behavior-testable Locality rather than pass-through glue. |
+| `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` | About 979 lines before decomposition; one processor handled command overloads, rehydration, and append result branching. `DurableCommandRuntime` owns per-instance lanes, `DurableCommitMaterializer` owns provider commit-batch materialization, `DurableResourcePoolCommitEffects` owns resource-pool commit side effects, `DurableCommitPipeline` owns no-op/poison/append-result behavior, `DurableCheckpointMapper` owns provider checkpoint projection, `DurableInboxPreflight` owns inbound idempotency short-circuit decisions, and `DurableAggregateLoader` owns checkpoint/tail read sequencing plus aggregate rehydration. | Continue only where another behavior can become testable Locality; avoid splitting command overloads into pass-through classes. |
+| `src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs` | About 1,515 lines; event mapping now routes through shared `WorkflowEventCodec`, which uses a single descriptor table for type names, serialization, and deserialization. Projection operation switching remains in the store Adapter. | Move projection writes into a projection store Module; keep this Adapter focused on PostgreSQL SQL and transaction shape. |
+| `src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs` | About 1,369 lines; event mapping now routes through shared `WorkflowEventCodec`, which uses a single descriptor table for type names, serialization, and deserialization. Projection operation switching remains in the store Adapter, with `AppendHistory` now covered by a table-backed projection. | Split durable event store, projection store, timer store, outbox store, and resource pool Adapter responsibilities. |
 
 Avoid replacing these switches with many tiny pass-through classes. A new Module
 only earns its keep when deleting it would push real invariants and branching

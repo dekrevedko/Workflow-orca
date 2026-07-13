@@ -8,7 +8,7 @@ Prove "memory is a cache": a deactivated waiting instance resumes correctly from
 state on the next call, and management queries never wake grains up.
 
 ## Read first
-- `v3-gpt/tests/OrcaCore.Engine.Orleans.Tests/Grains/WaitResumeTests.cs`
+- `tests/OrcaCore.Engine.Orleans.Tests/Grains/WaitResumeTests.cs`
 - Orleans deactivation API surface: `IGrainManagementExtension`/`DeactivateOnIdle` via
   TestingHost (no repo file; use the TestingHost docs pattern already proven in fixtures)
 - [02-requirements.md](../02-requirements.md) §2.6
@@ -21,7 +21,7 @@ state on the next call, and management queries never wake grains up.
   used by both tests.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Orleans.Tests/Grains/RehydrationTests.cs`:
+In `tests/OrcaCore.Engine.Orleans.Tests/Grains/RehydrationTests.cs`:
 1. `DeactivatedWaitingInstance_ResumesOnEvent` — `[Trait("AC","OE-AC-020")]` — start →
    Waiting → force deactivation of the activation → `RaiseEventAsync` → completes; stream
    shows a single continuous history (no re-run of pre-wait steps).
@@ -43,6 +43,6 @@ Silo restart (OT2-02), activation-collection tuning (OT4-01).
 - [ ] All listed tests green; solution builds zero-warning
 - [ ] Phase O1 exit check: OE-AC-001, OE-AC-002, OE-AC-003, OE-AC-010, OE-AC-011,
       OE-AC-012, OE-AC-013, OE-AC-020 all green
-      (`dotnet test v3-gpt --filter "AC~OE-AC"` or trait-filtered run)
+      (`dotnet test --filter "AC~OE-AC"` or trait-filtered run)
 - [ ] Record OOQ-2 recommendation (keep or bypass lane) in PROGRESS.md for the phase gate
 - [ ] PROGRESS.md updated; committed as "OT1-06: rehydration + grain-free queries (OE-AC-020, OE-AC-003)"

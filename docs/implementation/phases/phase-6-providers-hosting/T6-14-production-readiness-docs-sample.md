@@ -12,14 +12,14 @@ uses the hosting registrations.
 - `docs/specs/11-non-functional-requirements.md`
 - `docs/specs/13-phasing-and-open-questions.md`
 - `docs/implementation/00-stack-decisions.md`
-- `v3-gpt/src/OrcaCore.Hosting/OrcaCore.Hosting.csproj`
-- `v3-gpt/benchmarks/OrcaCore.Benchmarks/README.md`
+- `src/OrcaCore.Hosting/OrcaCore.Hosting.csproj`
+- `benchmarks/OrcaCore.Benchmarks/README.md`
 - Spec: `docs/specs/10-provider-model-and-extensibility.md` PR-040
 
 ## Deliverables
-- Add production readiness docs under `v3-gpt/docs/`
-- Add sample host project under `v3-gpt/samples/OrcaCore.SampleHost/`
-- Update `v3-gpt/OrcaCore.slnx`
+- Add production readiness docs under `docs/`
+- Add sample host project under `samples/OrcaCore.SampleHost/`
+- Update `OrcaCore.slnx`
 - Add sample host tests or smoke checks if the sample contains executable behavior
 
 ## Tests to write FIRST
@@ -37,6 +37,6 @@ provider ports.
 
 ## Definition of done
 - [ ] Sample host builds with zero warnings
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` passes with zero warnings
+- [ ] `dotnet build OrcaCore.slnx` passes with zero warnings
 - [ ] Production docs cover delivery guarantees, security checklist, versioning policy, and benchmark execution
 - [ ] PROGRESS.md updated; committed as "T6-14: production readiness docs and sample host"

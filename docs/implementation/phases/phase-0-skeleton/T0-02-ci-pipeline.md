@@ -11,9 +11,9 @@ projects with coverage collection, on Linux.
 - [00-stack-decisions.md](../../00-stack-decisions.md) §2 (coverage default)
 
 ## Deliverables
-- `.github/workflows/ci-v3.yml`: checkout → setup .NET 10 → `dotnet build v3/OrcaCore.slnx`
-  → `dotnet test v3/OrcaCore.slnx --collect:"XPlat Code Coverage"` → upload coverage
-  artifact. Named `ci-v3` and path-filtered to `v3/**` so it does not collide with any
+- `.github/workflows/ci-v3.yml`: checkout → setup .NET 10 → `dotnet build OrcaCore.slnx`
+  → `dotnet test OrcaCore.slnx --collect:"XPlat Code Coverage"` → upload coverage
+  artifact. Named `ci-v3` and path-filtered to `**` so it does not collide with any
   legacy workflow building the root solution.
 - Concurrency group cancelling superseded runs on the same ref.
 - A `docker` service note: Testcontainers-based provider tests (Phase 2+) run on the same

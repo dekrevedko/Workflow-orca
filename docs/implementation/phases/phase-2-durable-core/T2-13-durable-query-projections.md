@@ -8,10 +8,10 @@ Back durable management queries from provider projections so hot and cold instan
 Queries must cover status, definition, version, wait state, correlation, and timestamps.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Engine.Durable/Management/`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Management/EphemeralManagement.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/`
-- `v3-gpt/src/OrcaCore.Abstractions/Instances/WorkflowInstanceSnapshot.cs`
+- `src/OrcaCore.Engine.Durable/Management/`
+- `src/OrcaCore.Engine.Ephemeral/Management/EphemeralManagement.cs`
+- `src/OrcaCore.Abstractions/Providers/`
+- `src/OrcaCore.Abstractions/Instances/WorkflowInstanceSnapshot.cs`
 - Spec: `docs/specs/06-requirements-durable-execution.md` section 6.9
 
 ## Deliverables
@@ -20,7 +20,7 @@ Queries must cover status, definition, version, wait state, correlation, and tim
 - Active wait and pending-event projection updates.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/Management/DurableQueryTests.cs`:
+In `tests/OrcaCore.Engine.Durable.Tests/Management/DurableQueryTests.cs`:
 1. `[Trait("AC","AC-308")] QueryColdInstances_ByMetadata_DoesNotLoadBusinessPayload`
 2. `Where_StatusAndDefinition_UsesProjectionStoreFilter`
 3. `GetActiveWaits_ReturnsProjectedColdWaits`
@@ -34,6 +34,6 @@ History timeline, stuck detection, history pressure metrics.
 
 ## Definition of done
 - [ ] All new tests green; full affected suites green
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] AC-308 is green
 - [ ] PROGRESS.md updated; committed as "T2-13: durable query projections (AC-308)"

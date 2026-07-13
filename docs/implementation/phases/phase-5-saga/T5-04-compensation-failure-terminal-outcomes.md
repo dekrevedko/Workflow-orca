@@ -9,22 +9,22 @@ A failed compensating action must end the saga as `CompensationFailed`, while re
 compensation requests must not duplicate compensation effects.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Durable/WorkflowCommand.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs`
-- `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/Sagas/CompensationDecisionTests.cs`
+- `src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
+- `src/OrcaCore.Abstractions/Durable/WorkflowCommand.cs`
+- `src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs`
+- `tests/OrcaCore.Engine.Durable.Tests/Sagas/CompensationDecisionTests.cs`
 - Spec: `docs/specs/07-requirements-saga.md` section 7.2
 - Spec: `docs/specs/12-acceptance-criteria.md` AC-404 and AC-409
 
 ## Deliverables
 - Compensation completion/failure decisions in durable aggregate
 - Public command processor entry points for compensation completion/failure commands
-- Tests in `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/Sagas/CompensationFailureTests.cs`
-- Acceptance coverage in `v3-gpt/tests/OrcaCore.Acceptance.Tests/SagaAcceptanceTests.cs`
+- Tests in `tests/OrcaCore.Engine.Durable.Tests/Sagas/CompensationFailureTests.cs`
+- Acceptance coverage in `tests/OrcaCore.Acceptance.Tests/SagaAcceptanceTests.cs`
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/Sagas/CompensationFailureTests.cs`:
+In `tests/OrcaCore.Engine.Durable.Tests/Sagas/CompensationFailureTests.cs`:
 1. `CompensationFailure_EndsSagaAsCompensationFailed` - failed compensating action records distinct terminal status. Trait AC-404.
 2. `RepeatedCompensationRequest_DoesNotDuplicateCompensationFacts` - duplicate request is idempotent. Trait AC-409.
 
@@ -38,6 +38,6 @@ schema optimization.
 
 ## Definition of done
 - [ ] New tests are red before implementation and green after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "AC=AC-404|AC=AC-409"` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "AC=AC-404|AC=AC-409"` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T5-04: compensation failure outcomes (SG-013)"

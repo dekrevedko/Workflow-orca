@@ -10,13 +10,13 @@ One extension method composes the Orleans engine into a silo: ports from DI, one
 single wiring point.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` (constructors only)
-- `v3-gpt/src/OrcaCore.Providers.InMemory/` — locate the in-memory event store registration
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` (constructors only)
+- `src/OrcaCore.Providers.InMemory/` — locate the in-memory event store registration
   pattern (read the DI extension file if one exists, else the store type)
 - [01-architecture.md](../01-architecture.md) §3, §5
 
 ## Deliverables
-In `v3-gpt/src/OrcaCore.Engine.Orleans/Hosting/`:
+In `src/OrcaCore.Engine.Orleans/Hosting/`:
 - `OrcaCoreOrleansOptions` — plain record: placeholders for pump intervals and
   activation-collection idle age (defaults only; hardening is OT4-01).
 - `OrcaCoreOrleansSiloExtensions.UseOrcaCoreOrleans(this ISiloBuilder, Action<OrcaCoreOrleansOptions>? configure = null)` —
@@ -30,7 +30,7 @@ In `v3-gpt/src/OrcaCore.Engine.Orleans/Hosting/`:
   error surfaced by version binding, not something the engine papers over).
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Orleans.Tests/Hosting/SiloCompositionTests.cs`:
+In `tests/OrcaCore.Engine.Orleans.Tests/Hosting/SiloCompositionTests.cs`:
 1. `UseOrcaCoreOrleans_ResolvesProcessor` — `[Trait("AC","OE-AC-042")]` — TestingHost silo configured with in-memory
    event store + `UseOrcaCoreOrleans()`; a probe (test grain or `IServiceProvider` check via
    silo services) resolves the singleton `DurableCommandProcessor`.

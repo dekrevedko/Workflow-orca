@@ -10,21 +10,21 @@ order. This task installs the lane and proves non-reentrant advancement without 
 wait/event resume yet.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
-- `v3-gpt/tests/OrcaCore.TestSupport/RaceCoordinator.cs`
+- `src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
+- `tests/OrcaCore.TestSupport/RaceCoordinator.cs`
 - Spec: `docs/specs/04-requirements-core-runtime.md` section 4.5
 
 ## Deliverables
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/InstanceExecutionLane.cs` internal async
+- `src/OrcaCore.Engine.Ephemeral/Execution/InstanceExecutionLane.cs` internal async
   serializer keyed by `InstanceId`.
 - Updates to the ephemeral engine/registry so start and future advancement operations enter
   through the lane.
 - No public concurrency policy surface yet; rejection/queue behavior remains internal.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Execution/ExecutionLaneTests.cs`:
+In `tests/OrcaCore.Engine.Ephemeral.Tests/Execution/ExecutionLaneTests.cs`:
 1. `RunAsync_ConcurrentCallsForSameInstance_DoNotOverlap` - given two blocked operations,
    when both are submitted, then the second starts only after the first exits.
 2. `RunAsync_OperationsForDifferentInstances_CanOverlap` - given two instance IDs, then
@@ -47,6 +47,6 @@ Wait records, event routing, mailbox buffering, deduplication, parallel branch c
 
 ## Definition of done
 - [ ] All new tests green; full affected suites green
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] No public API exposes the lane or live instance objects
 - [ ] PROGRESS.md updated; committed as "T1-06: per-instance execution lane (CR-040/042)"

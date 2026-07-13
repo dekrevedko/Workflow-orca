@@ -1,6 +1,6 @@
 # OT0-01: Create the Orleans engine project skeleton
 
-**Difficulty**: Sonnet        **Depends on**: none (green v3-gpt build)
+**Difficulty**: Sonnet        **Depends on**: none (green root build)
 **Spec**: OE-001, OE-003        **AC**: none directly
 
 ## Goal
@@ -8,24 +8,24 @@
 packages, and the dependency rules are locked in before any behavior lands.
 
 ## Read first
-- `v3-gpt/Directory.Packages.props`
-- `v3-gpt/Directory.Build.props`
-- `v3-gpt/src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj` (as csproj template)
+- `Directory.Packages.props`
+- `Directory.Build.props`
+- `src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj` (as csproj template)
 - [01-architecture.md](../01-architecture.md) §5–6
 
 ## Deliverables
-- `v3-gpt/Directory.Packages.props`: pin the **exact reviewed Orleans 10.x version**
+- `Directory.Packages.props`: pin the **exact reviewed Orleans 10.x version**
   (10.2.1 as of 2026-07-04 — verify current patch on NuGet at execution time and record the
   chosen pin in PROGRESS.md) for `Microsoft.Orleans.Server`, `Microsoft.Orleans.Sdk`,
   `Microsoft.Orleans.Serialization.SystemTextJson`, `Microsoft.Orleans.TestingHost`
   (versions only here — CPM). Never a floating/"latest" version.
-- `v3-gpt/src/OrcaCore.Engine.Orleans/OrcaCore.Engine.Orleans.csproj` — references:
+- `src/OrcaCore.Engine.Orleans/OrcaCore.Engine.Orleans.csproj` — references:
   `OrcaCore.Abstractions`, `OrcaCore.Core`, `OrcaCore.Engine.Durable` (projects);
   `Microsoft.Orleans.Server`, `Microsoft.Orleans.Sdk`,
   `Microsoft.Orleans.Serialization.SystemTextJson` (packages).
 - Root namespace `OrcaCore.Engine.Orleans`; one placeholder public type
   `OrleansEngineMarker` (internal-empty, XML-doc'd) so the project is non-empty.
-- Add project to `v3-gpt/OrcaCore.slnx`.
+- Add project to `OrcaCore.slnx`.
 - Ensure `docs/orleans-engine/plan/PROGRESS.md` exists with its header line.
 
 ## Tests to write FIRST
@@ -43,7 +43,7 @@ project here; that is OT0-02.
 Grains, envelopes, DI, tests — later tasks.
 
 ## Definition of done
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` — zero warnings
+- [ ] `dotnet build OrcaCore.slnx` — zero warnings
 - [ ] `Microsoft.Orleans.*` referenced ONLY by `OrcaCore.Engine.Orleans`
-      (verify: `grep -r "Microsoft.Orleans" v3-gpt/src --include=*.csproj`)
+      (verify: `grep -r "Microsoft.Orleans" src --include=*.csproj`)
 - [ ] PROGRESS.md exists and is updated; committed as "OT0-01: Orleans engine skeleton (OE-001, OE-003)"

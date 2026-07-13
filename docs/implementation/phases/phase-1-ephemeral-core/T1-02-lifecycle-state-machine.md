@@ -11,10 +11,10 @@ the runtime, not a framework.
 
 ## Read first
 - Spec: [specs/04-requirements-core-runtime.md](../../../specs/04-requirements-core-runtime.md) §4.4
-- `v3/src/OrcaCore.Abstractions/Instances/WorkflowStatus.cs` (T1-01)
+- `src/OrcaCore.Abstractions/Instances/WorkflowStatus.cs` (T1-01)
 
 ## Deliverables
-In `v3/src/OrcaCore.Core/Lifecycle/` (all internal):
+In `src/OrcaCore.Core/Lifecycle/` (all internal):
 - `LifecycleTrigger` enum — named triggers: `Start`, `EnterWait`, `MatchWait`, `Complete`,
   `Fail`, `Cancel`, `Terminate`, `Pause`, `Resume`. The `Pause`/`Resume` rows are part of
   the shared transition table (spec CR-030 defines one table for both modes); they are
@@ -28,7 +28,7 @@ In `v3/src/OrcaCore.Core/Lifecycle/` (all internal):
   by tests — not `if` chains.
 
 ## Tests to write FIRST
-In `v3/tests/OrcaCore.Core.Tests/Lifecycle/LifecycleMachineTests.cs`:
+In `tests/OrcaCore.Core.Tests/Lifecycle/LifecycleMachineTests.cs`:
 1. `Fire_LegalTransitions_ReturnTargetStatus` — `[Theory]` over the full legal set:
    Running→Waiting (EnterWait), Waiting→Running (MatchWait), Running→Completed,
    Running→Failed, Running/Waiting→Cancelled (Cancel), Running/Waiting→Terminated,

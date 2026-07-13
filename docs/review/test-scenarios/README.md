@@ -2,7 +2,7 @@
 
 Companion to [R9-test-coverage-gaps.md](../findings/R9-test-coverage-gaps.md). Each file lists
 **negative** scenarios (invalid input, rejection, failure paths, safety guards) and **edge-case**
-scenarios (boundary values, races, ordering, restart mid-state) that the `v3-gpt/tests` suite does
+scenarios (boundary values, races, ordering, restart mid-state) that the `tests` suite does
 not yet cover or covers only shallowly.
 
 > **Re-baseline 2026-07-04.** Statuses were re-checked against the current suite: every scenario

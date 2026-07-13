@@ -29,7 +29,7 @@
 > durable engine (the Orleans package re-hosts the same interpreter) — and the RMQ consumer
 > bridge and cron scheduling surface.
 
-Scope: `v3-gpt/` working tree on `feature/v3-rebuild`, one day after the R11–R13 post-cycle
+Scope: `` working tree on `feature/v3-rebuild`, one day after the R11–R13 post-cycle
 audits. Method: independent re-read of the durable kernel (command processor, aggregate,
 checkpoint/rehydrate, commit pipeline, outbox, timers), the ephemeral engine, the concurrency
 lane, the messaging providers, and the **uncommitted** dashboard/Kubernetes sample work; plus
@@ -67,12 +67,12 @@ buffered deliveries, children, groups, resource tickets, and external jobs — b
 `DurableSagaState` (completed forward actions, compensation actions, recovery interventions,
 requested scopes) and **not** `DurableChildWorkflowState`'s
 `RecordedParentResumeTokens`/`ConsumedParentResumeTokens`
-([DurableWorkflowAggregate.cs:497](../../v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs),
+([DurableWorkflowAggregate.cs:497](../../src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs),
 `Rehydrate` passes `[]` for all six at
-[DurableWorkflowAggregate.cs:212](../../v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs)).
+[DurableWorkflowAggregate.cs:212](../../src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs)).
 
 Checkpoints are written on **every** `DurableStepCompletedCommand` at `StreamVersion.Next()`
-([DurableLifecycleCommandHandler.cs:43](../../v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableLifecycleCommandHandler.cs)),
+([DurableLifecycleCommandHandler.cs:43](../../src/OrcaCore.Engine.Durable/Aggregates/DurableLifecycleCommandHandler.cs)),
 and `DurableAggregateLoader.LoadAsync` replays only the tail **after** the checkpoint version.
 Because `DurableCommandProcessor.ProcessCoreAsync` reloads the aggregate per command, the loss
 does **not** require a restart or eviction — it happens mid-flight in a single process the
@@ -138,7 +138,7 @@ parity note: WC has persistence-backed cleanup; an in-memory engine needs its ow
 
 `DurableCommitPipeline.CommitAsync` → `ReleaseCommittedTicketsAsync` retries 3× then
 **throws after the events were already appended**
-([DurableResourcePoolCommitEffects.cs](../../v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableResourcePoolCommitEffects.cs)).
+([DurableResourcePoolCommitEffects.cs](../../src/OrcaCore.Engine.Durable/Execution/DurableResourcePoolCommitEffects.cs)).
 The caller observes an exception for a command that durably committed; a retrying caller then
 gets `Conflict`. The orphaned ticket is bounded by lease expiry + operational sweep — but only
 when the ticket carries `ExpiresAt`; a null-expiry ticket orphaned this way (or by a crash
@@ -148,7 +148,7 @@ default ticket expiries.
 
 ### P2-2 (uncommitted sample): Kubernetes sample teaches unstable definition identity and bypasses the DAG machinery
 
-[KubernetesWorkflowSampleService.cs](../../v3-gpt/samples/OrcaCore.Dashboard/Workflows/KubernetesWorkflowSampleService.cs)
+[KubernetesWorkflowSampleService.cs](../../samples/OrcaCore.Dashboard/Workflows/KubernetesWorkflowSampleService.cs)
 (uncommitted): (a) `static readonly Definition = … .Build(DefinitionId.New(), …)` — a fresh
 random `DefinitionId` every process start, so durable instances persisted by previous runs
 reference definitions that no longer exist; start-idempotency records span restarts while the

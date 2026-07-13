@@ -10,11 +10,11 @@ ALL errors together via `Validation<T>`.
 
 ## Read first
 - Spec: [specs/04-requirements-core-runtime.md](../../../specs/04-requirements-core-runtime.md) §4.1
-- `v3/src/OrcaCore.Core/Definitions/` (T1-03)
-- `v3/src/OrcaCore.Abstractions/Primitives/Validation.cs` (T0-03)
+- `src/OrcaCore.Core/Definitions/` (T1-03)
+- `src/OrcaCore.Abstractions/Primitives/Validation.cs` (T0-03)
 
 ## Deliverables
-In `v3/src/OrcaCore.Core/Building/` (builder public; validators internal):
+In `src/OrcaCore.Core/Building/` (builder public; validators internal):
 - `WorkflowBuilder<TState>` fluent surface for Slice 1 primitives:
   `Init(Func<TInput,TState>)` … `Then<TStep>()` for parameterless steps,
   `Then(IStep<TState>)` for explicitly configured instances, `Then(stepFactory)` for factory
@@ -31,7 +31,7 @@ In `v3/src/OrcaCore.Core/Building/` (builder public; validators internal):
   null delegates. Each error: stable `Code`, human message, `Path` into the tree.
 
 ## Tests to write FIRST
-In `v3/tests/OrcaCore.Core.Tests/Building/WorkflowBuilderTests.cs`:
+In `tests/OrcaCore.Core.Tests/Building/WorkflowBuilderTests.cs`:
 1. `Build_MinimalWorkflow_ProducesInitStepEndTree`
 2. `Build_NestedStructures_ProduceExpectedTree` (If→Parallel→Wait shape)
 3. `BuildValidated_MissingInit_ReportsError`
@@ -43,7 +43,7 @@ In `v3/tests/OrcaCore.Core.Tests/Building/WorkflowBuilderTests.cs`:
 8. `Then_GenericParameterlessStep_UsesTypedStepFactory`
 9. `Then_ConfiguredStepInstance_StoresExplicitFactory` — e.g. `Then(new MutatingStep("x"))`
    without reflection or constructor-argument magic
-In `v3/tests/OrcaCore.Acceptance.Tests/BuilderAcceptanceTests.cs`:
+In `tests/OrcaCore.Acceptance.Tests/BuilderAcceptanceTests.cs`:
 10. `[Trait("AC","AC-008")] Build_AccumulatesAllValidationErrors`
 
 ## Implementation notes

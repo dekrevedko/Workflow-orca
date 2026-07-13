@@ -9,14 +9,14 @@ task files per the protocol template.
 
 ## Read first
 - [plan/README.md](README.md) Phase O4 index
-- `v3-gpt/src/OrcaCore.Engine.Orleans/Hosting/` (options + extension as they now exist)
+- `src/OrcaCore.Engine.Orleans/Hosting/` (options + extension as they now exist)
 - Existing diagnostics conventions: the `ActivitySource`/`Meter` naming used by
   `Engine.Durable` (locate under `Abstractions/Diagnostics` or engine diagnostics; read ≤2 files)
 - `docs/architecture/quick-vs-durable-engine-feature-matrix.md` (for OT4-04)
 
 ## Deliverables
 - `OT4-01…OT4-04` task files, sized within protocol limits. OT4-04 is docs-only and must
-  list the exact docs to touch (engine README under `v3-gpt/src/OrcaCore.Engine.Orleans/`,
+  list the exact docs to touch (engine README under `src/OrcaCore.Engine.Orleans/`,
   feature-matrix column, `docs/README.md` code-map row).
 
 ## Implementation notes

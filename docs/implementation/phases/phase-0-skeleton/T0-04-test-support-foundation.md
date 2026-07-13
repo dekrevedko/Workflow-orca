@@ -13,7 +13,7 @@ harness, a two-caller race coordinator, and the trait/category conventions — i
 - [02-engineering-conventions.md](../../02-engineering-conventions.md) §3 (time rules)
 
 ## Deliverables
-In `v3/tests/OrcaCore.TestSupport/`:
+In `tests/OrcaCore.TestSupport/`:
 - `Clock` helper wrapping `FakeTimeProvider` (from
   `Microsoft.Extensions.TimeProvider.Testing`): construct-at-known-instant, `Advance(...)`,
   and an assert-friendly `Now` accessor.
@@ -26,7 +26,7 @@ In `v3/tests/OrcaCore.TestSupport/`:
   and what never does (assertions helpers, production logic).
 
 ## Tests to write FIRST
-In `v3/tests/OrcaCore.Core.Tests/TestSupport/`:
+In `tests/OrcaCore.Core.Tests/TestSupport/`:
 1. `Clock_Advance_MovesTimeExactly`
 2. `RaceCoordinator_TwoCallers_BothReachGateBeforeEitherProceeds`
 3. `RaceCoordinator_OneCallerNeverArrives_FailsWithTimeoutNotHang`

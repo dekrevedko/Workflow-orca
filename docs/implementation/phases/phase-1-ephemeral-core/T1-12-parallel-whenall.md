@@ -9,10 +9,10 @@ Branches may execute concurrently, but every branch-state commit and join check 
 the per-instance lane. Waits inside branches stay branch-scoped.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Core/Definitions/Nodes.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
-- `v3-gpt/tests/OrcaCore.TestSupport/RaceCoordinator.cs`
+- `src/OrcaCore.Core/Definitions/Nodes.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
+- `tests/OrcaCore.TestSupport/RaceCoordinator.cs`
 - Spec: `docs/specs/08-requirements-composition.md` section 8.1
 
 ## Deliverables
@@ -22,7 +22,7 @@ the per-instance lane. Waits inside branches stay branch-scoped.
 - Acceptance coverage for parallel join, deterministic branch order, and branch-scoped waits.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Execution/ParallelTests.cs`:
+In `tests/OrcaCore.Engine.Ephemeral.Tests/Execution/ParallelTests.cs`:
 1. `Run_ParallelBranches_AllBranchesExecuteBeforeContinuation`
 2. `Run_ParallelBranchesCompletingTogether_ContinuationRunsOnce`
 3. `Run_ParallelBranchesDifferentOrders_FinalStateIsDeterministic`
@@ -30,7 +30,7 @@ In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Execution/ParallelTests.cs`:
 5. `RaiseEventAsync_ParallelBranchWait_ResumesOnlyMatchingBranch`
 6. `Run_ParallelBranchCommits_RouteThroughInstanceLane`
 
-In `v3-gpt/tests/OrcaCore.Acceptance.Tests/ParallelAcceptanceTests.cs`:
+In `tests/OrcaCore.Acceptance.Tests/ParallelAcceptanceTests.cs`:
 7. `[Trait("AC","AC-201")] ParallelWhenAll_ContinuationRunsExactlyOnce`
 8. `[Trait("AC","AC-202")] ParallelWhenAll_OrderInsensitiveOutcome`
 9. `[Trait("AC","AC-203")] ParallelWhenAll_GraphShapeInsensitive`
@@ -49,6 +49,6 @@ before implementation.
 
 ## Definition of done
 - [ ] All new tests green; full affected suites green
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] AC-007, AC-110, and AC-201 through AC-203 are green in `OrcaCore.Acceptance.Tests`
 - [ ] PROGRESS.md updated; committed as "T1-12: Parallel WhenAll (AC-007, AC-110, AC-201-203)"

@@ -1,3 +1,6 @@
 namespace OrcaCore.Abstractions.Primitives;
 
-public readonly record struct ValidationError(string Code, string Message, string? Member = null);
+/// <summary>
+/// Describes one build-time validation error.
+/// </summary>
+public sealed record ValidationError(string Code, string Message, string? Path = null);

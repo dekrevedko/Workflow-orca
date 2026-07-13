@@ -1,6 +1,6 @@
 # Phase 4 Progress
 
-T4-00 | done | 2026-07-02 | deviations: generated task files use v3-gpt paths per this run's workspace override
+T4-00 | done | 2026-07-02 | deviations: generated task files use current implementation paths per this run's workspace override
 T4-01 | done | 2026-07-02 | deviations: partitioner helpers are public Core definition contracts for later builder use
 T4-02 | done | 2026-07-02 | deviations: ForEach body uses the existing TState step context; item data is observable through work-item snapshots
 T4-03 | done | 2026-07-02 | deviations: WaitAllThenFail defers item failures inside ForEach while preserving fail-fast behavior outside ForEach

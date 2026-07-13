@@ -10,10 +10,10 @@ instances of one definition. The correlation index is a multi-map and uniqueness
 at routing time, not wait registration time.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Abstractions/Events/EventEnvelope.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/IInstanceRegistry.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
+- `src/OrcaCore.Abstractions/Events/EventEnvelope.cs`
+- `src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/IInstanceRegistry.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
 - Spec: `docs/specs/05-requirements-events-waits-timers.md` section 5.2
 
 ## Deliverables
@@ -25,7 +25,7 @@ at routing time, not wait registration time.
   ambiguous correlation outcomes.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Execution/RoutingTests.cs`:
+In `tests/OrcaCore.Engine.Ephemeral.Tests/Execution/RoutingTests.cs`:
 1. `RaiseByCorrelationAsync_OneActiveWait_ResumesThatInstance`
 2. `RaiseByCorrelationAsync_ZeroActiveWaits_ReturnsNoActiveWait`
 3. `RaiseByCorrelationAsync_MultipleActiveWaits_ReturnsAmbiguousWithoutDelivery`
@@ -33,7 +33,7 @@ In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Execution/RoutingTests.cs`:
 5. `WaitRegistration_DuplicateCorrelationAcrossInstances_Succeeds`
 6. `WaitMatch_RemovesWaitFromCorrelationIndex`
 
-In `v3-gpt/tests/OrcaCore.Acceptance.Tests/RoutingAcceptanceTests.cs`:
+In `tests/OrcaCore.Acceptance.Tests/RoutingAcceptanceTests.cs`:
 7. `[Trait("AC","AC-106")] CorrelationTargetedEvent_ResumesExactlyOne`
 8. `[Trait("AC","AC-107")] CorrelationTargetedEvent_RejectsMissingOrAmbiguous`
 9. `[Trait("AC","AC-108")] DefinitionFanout_IsScopedToTargetDefinition`
@@ -49,6 +49,6 @@ Durable projections, external subscriptions, provider-backed indexes, pause-wind
 
 ## Definition of done
 - [ ] All new tests green; full affected suites green
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] AC-106 through AC-108 are green in `OrcaCore.Acceptance.Tests`
 - [ ] PROGRESS.md updated; committed as "T1-10: correlation routing (AC-106-108)"

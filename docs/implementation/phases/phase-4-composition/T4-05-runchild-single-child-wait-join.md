@@ -8,11 +8,11 @@ Add durable `RunChild` for a single child workflow. The parent persists a synthe
 emits a child-start outbox record, and resumes when the child completion is delivered.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Durable/WorkflowCommand.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/ProviderCommitContracts.cs`
+- `src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
+- `src/OrcaCore.Abstractions/Durable/WorkflowCommand.cs`
+- `src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs`
+- `src/OrcaCore.Abstractions/Providers/ProviderCommitContracts.cs`
 - Spec: `docs/specs/08-requirements-composition.md`
 - Spec: `docs/specs/12-acceptance-criteria.md`
 
@@ -22,10 +22,10 @@ emits a child-start outbox record, and resumes when the child completion is deli
 - Child completion/failure propagation decisions
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/Composition/RunChildTests.cs`:
+In `tests/OrcaCore.Engine.Durable.Tests/Composition/RunChildTests.cs`:
 1. `[Trait("AC","AC-606")] RunChild_WaitJoin_ParentContinuesAfterChildCompletion`
 2. `[Trait("AC","AC-615")] RunChild_ChildFailurePropagatesByPolicy`
-In `v3-gpt/tests/OrcaCore.Acceptance.Tests/ChildWorkflowAcceptanceTests.cs`:
+In `tests/OrcaCore.Acceptance.Tests/ChildWorkflowAcceptanceTests.cs`:
 3. `[Trait("AC","AC-606")] RunChild_WaitJoinCompletesParent`
 4. `[Trait("AC","AC-615")] RunChild_CompletionFailurePolicyIsDeterministic`
 
@@ -38,6 +38,6 @@ Dynamic fanout, child throttling, barrier tokens, and compensation.
 
 ## Definition of done
 - [ ] New tests fail before implementation and pass after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "RunChild|AC=AC-606|AC=AC-615"` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "RunChild|AC=AC-606|AC=AC-615"` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T4-05: RunChild wait join (CP-021, AC-606, AC-615)"

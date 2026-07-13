@@ -8,10 +8,10 @@ Implement all durable provider ports in `OrcaCore.Providers.InMemory` as the exe
 The implementation must pass the provider certification suite unchanged.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Providers.InMemory/`
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/`
-- `v3-gpt/tests/OrcaCore.ProviderCertification/`
-- `v3-gpt/tests/OrcaCore.TestSupport/Providers/`
+- `src/OrcaCore.Providers.InMemory/`
+- `src/OrcaCore.Abstractions/Providers/`
+- `tests/OrcaCore.ProviderCertification/`
+- `tests/OrcaCore.TestSupport/Providers/`
 - Spec: `docs/specs/10-provider-model-and-extensibility.md` sections 10.3 and 10.4
 
 ## Deliverables
@@ -20,7 +20,7 @@ The implementation must pass the provider certification suite unchanged.
 - Internal synchronization preserving expected-version behavior.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.ProviderCertification/InMemoryProviderCertificationTests.cs`:
+In `tests/OrcaCore.ProviderCertification/InMemoryProviderCertificationTests.cs`:
 1. `InMemoryEventStore_PassesEventStoreCertification`
 2. `InMemoryInboxStore_PassesInboxCertification`
 3. `InMemoryOutboxStore_PassesOutboxCertification`
@@ -34,6 +34,6 @@ Durable engine aggregate, PostgreSQL, background pumps, timers firing.
 
 ## Definition of done
 - [ ] Certification suite passes for InMemory provider
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] Providers.InMemory references only Abstractions
 - [ ] PROGRESS.md updated; committed as "T2-04: in-memory durable ports (PR-030)"

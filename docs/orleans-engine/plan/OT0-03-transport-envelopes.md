@@ -9,17 +9,17 @@ command (and its result) across a grain call as STJ JSON, keeping Orleans attrib
 domain assemblies.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` — only the
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` — only the
   `StartWorkflowCommand` and `DeliverEventCommand` overloads and those two command types
   (the processor has ~30 overloads — the codec covers ONLY the v1 kinds below; later
   phases add kinds as they need them)
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/ProviderPorts.cs` — `IWorkflowPayloadSerializer`
+- `src/OrcaCore.Abstractions/Providers/ProviderPorts.cs` — `IWorkflowPayloadSerializer`
 - Existing STJ setup: the serializer/context types used by `Engine.Durable` for event
   payloads (locate from DurableCommandProcessor's usings; read at most 2 files)
 - [01-architecture.md](../01-architecture.md) §4
 
 ## Deliverables
-In `v3-gpt/src/OrcaCore.Engine.Orleans/Transport/`:
+In `src/OrcaCore.Engine.Orleans/Transport/`:
 - `WorkflowCommandEnvelope` — `[GenerateSerializer]` record with explicit `[Id(n)]` on
   EVERY member (stable forever; add-only evolution): `[Id(0)] InstanceId (Guid)`,
   `[Id(1)] SchemaVersion (int)`, `[Id(2)] CommandKind (string discriminator)`,
@@ -35,7 +35,7 @@ In `v3-gpt/src/OrcaCore.Engine.Orleans/Transport/`:
   kind AND on `SchemaVersion` newer than supported.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Orleans.Tests/Transport/CommandCodecTests.cs`:
+In `tests/OrcaCore.Engine.Orleans.Tests/Transport/CommandCodecTests.cs`:
 1. `EveryCommandKind_RoundTrips` — for each v1 command kind: encode → decode →
    value-equal (or field-equal) to the original. (Later phases append their kinds here.)
 2. `Result_RoundTrips` — a representative `DurableCommandResult` round-trips.
@@ -62,5 +62,5 @@ Grain interfaces/implementations (OT1-01), management commands not yet accepted 
 
 ## Definition of done
 - [ ] All listed tests green; solution builds zero-warning
-- [ ] No Orleans attribute outside `v3-gpt/src/OrcaCore.Engine.Orleans/`
+- [ ] No Orleans attribute outside `src/OrcaCore.Engine.Orleans/`
 - [ ] PROGRESS.md updated; committed as "OT0-03: transport envelopes (OE-060)"

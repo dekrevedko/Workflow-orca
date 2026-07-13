@@ -10,13 +10,13 @@ X:\Projects\GitHub\Workflow-orca
 
 Objective:
 Remediate the actionable findings in
-docs/review/code-quality-rescan-2026-07-04.md for the v3-gpt implementation.
+docs/review/code-quality-rescan-2026-07-04.md for the current implementation implementation.
 Work until the remediation is complete, verified, and documented. Do not stop at
 analysis or a proposal unless a hard external blocker prevents further progress.
 
 Primary scope:
-- v3-gpt/src/**
-- v3-gpt/tests/**
+- src/**
+- tests/**
 - docs/review/**
 - docs/implementation/** only when documenting an intentional convention or
   exception required by the remediation.
@@ -30,11 +30,11 @@ Out of scope unless explicitly required by the active fix:
 Required first steps:
 1. Read docs/review/README.md.
 2. Read docs/review/code-quality-rescan-2026-07-04.md.
-3. Run a fresh source-only size scan for v3-gpt/src/**/*.cs excluding bin/ and
+3. Run a fresh source-only size scan for src/**/*.cs excluding bin/ and
    obj/. Do not trust stale line counts.
 4. Run:
    dotnet build .\OrcaCore.slnx --no-restore
-   from v3-gpt/ and record the result.
+   from  and record the result.
 5. Inspect git status before editing. Preserve unrelated user changes.
 
 Remediation rules:
@@ -137,7 +137,7 @@ Verification gates:
   and continue with targeted verification.
 
 Completion criteria:
-- No v3-gpt production implementation file remains above 1000 lines without an
+- No current implementation production implementation file remains above 1000 lines without an
   explicit temporary waiver in docs/review.
 - Every production source file above 500 lines is either reduced, justified, or
   scheduled in docs/review.

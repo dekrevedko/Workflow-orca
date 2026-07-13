@@ -16,9 +16,9 @@ SHALL be able to answer, without ad-hoc host instrumentation:
 
 ---
 
-## 15.0 v3-gpt implementation review (2026-07-03)
+## 15.0 active implementation review (2026-07-03)
 
-Assessment of `v3-gpt/` against IOQ-5 (`docs/implementation/00-stack-decisions.md`) and
+Assessment of `` against IOQ-5 (`docs/implementation/00-stack-decisions.md`) and
 MG/DU observability requirements. This section is **provenance only**; normative requirements
 follow in §15.1+.
 
@@ -37,17 +37,17 @@ follow in §15.1+.
 
 | Area | Status | Gap |
 |------|--------|-----|
-| `ILogger` / `[LoggerMessage]` | **Absent** | Zero usages under `v3-gpt/src/` (R8 P2). Only `OrcaCore.Hosting` references `Logging.Abstractions`; no log calls. |
+| `ILogger` / `[LoggerMessage]` | **Absent** | Zero usages under `src/` (R8 P2). Only `OrcaCore.Hosting` references `Logging.Abstractions`; no log calls. |
 | `ActivitySource` (traces) | **Absent** | No spans on command processing, commits, outbox dispatch, or step execution. |
 | `Meter` (metrics) | **Absent** | No runtime instruments; dashboard consumers cannot scrape OrcaCore-native signals. |
 | OpenTelemetry SDK | **Absent** | No OTel packages in `Directory.Packages.props`; hosting does not wire exporters. |
-| Outbox pump observability hooks | **Absent** | `DurableOutboxPump` has no `IOutboxPumpObserver`-equivalent (required by DU-032/PR-014). Prior `src/OrcaCore.Runtime` had observer interface; v3-gpt does not. |
+| Outbox pump observability hooks | **Absent** | `DurableOutboxPump` has no `IOutboxPumpObserver`-equivalent (required by DU-032/PR-014). Prior `src/OrcaCore.Runtime` had observer interface; current implementation does not. |
 | Hosted pump/timer services | **Stub** | `OrcaCoreOutboxPumpHostedService` is a no-op (R7 P0) — even if metrics existed, background paths are not live in sample host. |
 | Log ↔ metric correlation | **Absent** | No shared attribute model, trace context propagation, or exemplars. |
 
 ### Conclusion
 
-v3-gpt delivers **queryable workflow state** suitable for management APIs and application-level
+current implementation delivers **queryable workflow state** suitable for management APIs and application-level
 dashboards built on `Statistics()` / projections, but **does not yet emit OTel logs or metrics**.
 Hosts cannot populate a system dashboard from OrcaCore instrumentation alone. Implementation
 of this document closes that gap while preserving the IOQ-5 boundary: BCL diagnostics in

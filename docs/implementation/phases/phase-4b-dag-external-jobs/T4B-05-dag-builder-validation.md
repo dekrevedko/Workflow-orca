@@ -10,11 +10,11 @@ question 15. Diamond joins and node failure policy use the existing child workfl
 join semantics.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Core/Building/WorkflowBuilder.cs`
-- `v3-gpt/src/OrcaCore.Core/Building/BuilderValidationCodes.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Building/DurableWorkflowBuilder.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Durable/RunChildrenPolicies.cs`
-- `v3-gpt/tests/OrcaCore.Acceptance.Tests/ChildWorkflowAcceptanceTests.cs`
+- `src/OrcaCore.Core/Building/WorkflowBuilder.cs`
+- `src/OrcaCore.Core/Building/BuilderValidationCodes.cs`
+- `src/OrcaCore.Engine.Durable/Building/DurableWorkflowBuilder.cs`
+- `src/OrcaCore.Abstractions/Durable/RunChildrenPolicies.cs`
+- `tests/OrcaCore.Acceptance.Tests/ChildWorkflowAcceptanceTests.cs`
 - Spec: `docs/specs/14-driving-scenario-eks-job-scheduler.md` sections 14.3 and 14.4
 - Spec: `docs/specs/13-phasing-and-open-questions.md` section 13.2
 
@@ -24,8 +24,8 @@ join semantics.
 - Validation diagnostics for missing nodes, duplicate ids, and cycles
 - Compile output that schedules runnable root nodes and dependency joins through durable
   child orchestration
-- `v3-gpt/tests/OrcaCore.Core.Tests/Building/DagBuilderTests.cs`
-- `v3-gpt/tests/OrcaCore.Acceptance.Tests/DagAcceptanceTests.cs`
+- `tests/OrcaCore.Core.Tests/Building/DagBuilderTests.cs`
+- `tests/OrcaCore.Acceptance.Tests/DagAcceptanceTests.cs`
 
 ## Tests to write FIRST
 In `DagBuilderTests.cs`:
@@ -49,6 +49,6 @@ Visual DAG tooling, cron/scheduled starts, and provider adapters.
 
 ## Definition of done
 - [ ] New tests are red before implementation and green after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "AC=JS-AC-001|AC=JS-AC-002|AC=JS-AC-003"` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "AC=JS-AC-001|AC=JS-AC-002|AC=JS-AC-003"` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T4B-05: dag builder validation (JS-001)"

@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/OrcaCore.Abstractions/OrcaCore.Abstractions.csproj" />
+    <Project Path="src/OrcaCore.EventDrivenPrototype/OrcaCore.EventDrivenPrototype.csproj" />
+    <Project Path="src/OrcaCore.Runtime/OrcaCore.Runtime.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OrcaCore.EventDrivenPrototype.Tests/OrcaCore.EventDrivenPrototype.Tests.csproj" />
+    <Project Path="tests/OrcaCore.Tests/OrcaCore.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -10,17 +10,17 @@ The first executing slice: an internal interpreter that walks `Init → business
 
 ## Read first
 - Spec: [specs/04-requirements-core-runtime.md](../../../specs/04-requirements-core-runtime.md) §4.2–4.3
-- `v3/src/OrcaCore.Core/Definitions/` and `Lifecycle/` (T1-02/03)
-- `v3/src/OrcaCore.Abstractions/Steps/` (T1-01)
+- `src/OrcaCore.Core/Definitions/` and `Lifecycle/` (T1-02/03)
+- `src/OrcaCore.Abstractions/Steps/` (T1-01)
 
 ## Deliverables
-- `v3/src/OrcaCore.Engine.Ephemeral/Execution/` (internal): `WorkflowInstance<TState>`
+- `src/OrcaCore.Engine.Ephemeral/Execution/` (internal): `WorkflowInstance<TState>`
   (runtime state: status, pointer, error details, timestamps, end outcome; plus `TState`),
   `Interpreter<TState>` — loop: current node → execute → apply `StepResult` via
   `LifecycleMachine` → advance pointer; exhaustive switch over `StepResult` variants
   (only `Completed`/`Failed` handled now; `WaitForEvent`/`Yield` throw
   `NotSupportedException` with the owning task id in the message).
-- `v3/src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine` (public):
+- `src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine` (public):
   `RegisterDefinition(definition)`, `Task<WorkflowInstanceSnapshot>
   StartAsync<TInput,TState>(definitionId, input, ct)`; in-memory instance registry
   (`ConcurrentDictionary`) behind an internal `IInstanceRegistry` seam.
@@ -28,14 +28,14 @@ The first executing slice: an internal interpreter that walks `Init → business
   `Failed`, error captured (type, message, step path, timestamp), later nodes untouched.
 
 ## Tests to write FIRST
-Unit — `v3/tests/OrcaCore.Engine.Ephemeral.Tests/Execution/InterpreterTests.cs`:
+Unit — `tests/OrcaCore.Engine.Ephemeral.Tests/Execution/InterpreterTests.cs`:
 1. `Run_InitStepEnd_CompletesAndMutatesState`
 2. `Run_TwoSteps_ExecuteInOrder_SharedState`
 3. `Run_StepReturnsFailed_InstanceFailed_LaterStepsSkipped`
 4. `Run_StepThrows_InstanceFailed_ErrorDetailsCaptured`
 5. `Run_EndWithOutcome_RecordsOutcomeName` (data only; AC-012 finishes in T1-14)
 6. `Run_UnsupportedResult_ThrowsNamingOwnerTask`
-Acceptance — `v3/tests/OrcaCore.Acceptance.Tests/StraightLineAcceptanceTests.cs`:
+Acceptance — `tests/OrcaCore.Acceptance.Tests/StraightLineAcceptanceTests.cs`:
 7. `[Trait("AC","AC-001")] StraightLine_Completes_StateReflectsSteps` — via public engine +
    a temporary internal-free state read (full `GetState` arrives in T1-13; assert here via
    a step that records into a test-owned sink)

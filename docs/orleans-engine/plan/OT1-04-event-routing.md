@@ -14,7 +14,7 @@ buffering semantics stay byte-identical to the durable engine.
 - `docs/orleans-engine/plan/SEAMS.md` (from OT1-00) — the public dispatch/matching seam
   decision, incl. whether correlation-targeted and fanout are separate durable surfaces
 - The durable routing/matching component named in SEAMS.md (read the files it lists, ≤2)
-- `v3-gpt/src/OrcaCore.Engine.Orleans/OrleansWorkflowEngine.cs`
+- `src/OrcaCore.Engine.Orleans/OrleansWorkflowEngine.cs`
 - The `Engine.Durable.Tests` dedup test (duplicate `EventId` → `DuplicateIgnored`; read 1 file)
 
 ## Deliverables
@@ -29,7 +29,7 @@ buffering semantics stay byte-identical to the durable engine.
 - Reuse the durable routing/matching component; wrap, don't fork.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Orleans.Tests/Facade/EventRoutingTests.cs`:
+In `tests/OrcaCore.Engine.Orleans.Tests/Facade/EventRoutingTests.cs`:
 1. `RaiseEvent_MatchingWait_ResumesInstance` — completes the OT1-02 scenario through the
    facade instead of direct grain delivery (upgrades OE-AC-002 to fully green).
 2. `RaiseEvent_DuplicateEventId_Ignored` — `[Trait("AC","OE-AC-010")]` — same envelope

@@ -9,7 +9,7 @@ expected-version append remains the correctness backstop when serialization is b
 (the duplicate-activation scenario).
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Core/Concurrency/InstanceLane.cs` (context only — what currently serializes)
+- `src/OrcaCore.Core/Concurrency/InstanceLane.cs` (context only — what currently serializes)
 - The `Engine.Durable.Tests` expected-version conflict test (search `AppendOutcome`/version
   conflict; read 1 file) — the conflict result shape to assert
 - [01-architecture.md](../01-architecture.md) §3 duplicate-activation note
@@ -20,7 +20,7 @@ grain caller in an unclear shape, add minimal mapping in `WorkflowCommandCodec`
 result encoding — nothing else.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Orleans.Tests/Grains/ConcurrencyDefenseTests.cs`:
+In `tests/OrcaCore.Engine.Orleans.Tests/Grains/ConcurrencyDefenseTests.cs`:
 1. `ConcurrentDeliveries_SingleSerialOrder` — `[Trait("AC","OE-AC-011")]` — N parallel
    `RaiseEventAsync`/grain calls against one waiting instance (mixed matching + duplicate
    envelopes) → committed stream shows one serial order; exactly one resume; no partial facts.

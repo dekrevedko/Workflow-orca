@@ -80,14 +80,14 @@ jobs:
   unit:
     runs-on: ubuntu-latest
     steps:
-      - run: dotnet test v3-gpt/OrcaCore.slnx --filter "Category!=Integration" -c Release
+      - run: dotnet test OrcaCore.slnx --filter "Category!=Integration" -c Release
 
   integration:
     runs-on: ubuntu-latest
     # Docker available on ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - run: dotnet test v3-gpt/OrcaCore.slnx --filter "Category=Integration" -c Release
+      - run: dotnet test OrcaCore.slnx --filter "Category=Integration" -c Release
 ```
 
 **PR strategy:** Unit + acceptance only (fast). **Main + nightly:** full integration.

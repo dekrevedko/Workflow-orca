@@ -8,11 +8,11 @@ Enforce bounded retry policies for failed steps without producing duplicate comm
 outcomes. Attempts, terminal retry exhaustion, and retry lifecycle events are observable.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Abstractions/Steps/StepResult.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs`
-- `v3-gpt/tests/OrcaCore.Acceptance.Tests/PolicyAcceptanceTests.cs`
+- `src/OrcaCore.Abstractions/Steps/StepResult.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
+- `src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
+- `src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs`
+- `tests/OrcaCore.Acceptance.Tests/PolicyAcceptanceTests.cs`
 - Spec: `docs/specs/04-requirements-core-runtime.md`
 - Spec: `docs/specs/12-acceptance-criteria.md`
 
@@ -22,10 +22,10 @@ outcomes. Attempts, terminal retry exhaustion, and retry lifecycle events are ob
 - Unit and acceptance tests for bounded idempotent retry
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Policies/RetryPolicyTests.cs`:
+In `tests/OrcaCore.Engine.Ephemeral.Tests/Policies/RetryPolicyTests.cs`:
 1. `RetryPolicy_TransientFailures_RetriesUntilSuccess`
 2. `RetryPolicy_ExhaustedAttempts_FailsOnceWithoutDuplicateCommit`
-In `v3-gpt/tests/OrcaCore.Acceptance.Tests/PolicyAcceptanceTests.cs`:
+In `tests/OrcaCore.Acceptance.Tests/PolicyAcceptanceTests.cs`:
 3. `[Trait("AC","AC-510")] RetryPolicy_IsBoundedAndIdempotent`
 
 ## Implementation notes
@@ -38,6 +38,6 @@ distributed retry scheduling outside durable timers.
 
 ## Definition of done
 - [ ] New tests fail before implementation and pass after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "RetryPolicy|AC=AC-510"` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "RetryPolicy|AC=AC-510"` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T3-08: retry policy enforcement (CR-006, AC-510)"

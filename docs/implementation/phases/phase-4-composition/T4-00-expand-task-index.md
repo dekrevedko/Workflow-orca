@@ -5,7 +5,7 @@
 
 ## Goal
 Expand the Phase 4 README index into executable task files. Each task must fit the task
-protocol and use `v3-gpt/` source and test paths.
+protocol and use `` source and test paths.
 
 ## Read first
 - `docs/implementation/phases/phase-4-composition/README.md`
@@ -29,13 +29,13 @@ protocol and use `v3-gpt/` source and test paths.
 No product tests. Validate the generated files against the task protocol by inspection.
 
 ## Implementation notes
-Use current `v3-gpt/` project layout and existing composition, durable aggregate, command
+Use current `` project layout and existing composition, durable aggregate, command
 processor, provider, and acceptance test locations in each task's "Read first" list.
 
 ## Out of scope
-Any code changes under `v3-gpt/`.
+Any code changes under ``.
 
 ## Definition of done
 - [ ] Task files T4-01 through T4-09 exist
-- [ ] Each task uses explicit `v3-gpt/` paths
+- [ ] Each task uses explicit `` paths
 - [ ] PROGRESS.md updated; committed as "T4-00: expand composition task index"

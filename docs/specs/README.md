@@ -50,7 +50,7 @@ Every requirement has a stable ID. Prefixes:
 12. [12-acceptance-criteria.md](12-acceptance-criteria.md) — consolidated, numbered acceptance criteria catalog (`AC-xxx`; the scenario criteria `JS-AC-xxx` live in document 14 and are part of the catalog by reference).
 13. [13-phasing-and-open-questions.md](13-phasing-and-open-questions.md) — recommended delivery slices and the decisions intentionally left open.
 14. [14-driving-scenario-eks-job-scheduler.md](14-driving-scenario-eks-job-scheduler.md) — target application (EKS job scheduler with DAG runs): fit assessment, derived `JS-` requirements, library/application boundary.
-15. [15-requirements-observability-otel.md](15-requirements-observability-otel.md) — OTel metrics and logs for system dashboards, log↔metric↔trace correlation, v3-gpt implementation gap review.
+15. [15-requirements-observability-otel.md](15-requirements-observability-otel.md) — OTel metrics and logs for system dashboards, log↔metric↔trace correlation, active implementation gap review.
 16. [16-requirements-durable-driver.md](16-requirements-durable-driver.md) — the durable interpreter (run-to-suspension executor) and the default in-process lane host (`DR-xxx`, `DR-AC-xxx`); positions the Orleans engine as an alternative host of the same driver contract; closes the R14 "kernel without a driver" gap.
 
 ## Provenance

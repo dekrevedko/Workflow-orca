@@ -12,8 +12,8 @@ future adapter, not to choose a concrete table design now.
 - `docs/implementation/00-stack-decisions.md`
 - `docs/implementation/04-task-protocol.md`
 - `docs/implementation/phases/phase-6-providers-hosting/README.md`
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/ProviderPorts.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/ProviderCommitContracts.cs`
+- `src/OrcaCore.Abstractions/Providers/ProviderPorts.cs`
+- `src/OrcaCore.Abstractions/Providers/ProviderCommitContracts.cs`
 - Spec: `docs/specs/10-provider-model-and-extensibility.md` PR-010, PR-020, PR-021
 
 ## Deliverables
@@ -39,5 +39,5 @@ concrete DynamoDB table design.
 ## Definition of done
 - [ ] IOQ-10 is resolved or a blocker is recorded in PROGRESS.md
 - [ ] Phase 6 task guidance states DynamoDB implementation is deferred for this run
-- [ ] No `v3-gpt/` code is changed
+- [ ] No `` code is changed
 - [ ] PROGRESS.md updated; committed as "T6-10: resolve dynamodb implementation deferral"

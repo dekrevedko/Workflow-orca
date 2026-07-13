@@ -137,11 +137,11 @@ C# note: inside namespace `OrcaCore.Engine.Orleans`, qualify framework types as
 ## 5. Project layout and dependency rules
 
 ```text
-v3-gpt/src/OrcaCore.Engine.Orleans        ← grains, transport envelopes, OrleansWorkflowEngine,
+src/OrcaCore.Engine.Orleans        ← grains, transport envelopes, OrleansWorkflowEngine,
                                             TimerPumpService, silo builder extension
-v3-gpt/tests/OrcaCore.Engine.Orleans.Tests ← TestingHost-based unit/behavior tests
-v3-gpt/tests/OrcaCore.Acceptance.Tests     ← gains OE-AC trait tests (Phase O5)
-v3-gpt/tests/OrcaCore.Integration.Tests    ← gains Postgres multi-silo e2e (Phase O5)
+tests/OrcaCore.Engine.Orleans.Tests ← TestingHost-based unit/behavior tests
+tests/OrcaCore.Acceptance.Tests     ← gains OE-AC trait tests (Phase O5)
+tests/OrcaCore.Integration.Tests    ← gains Postgres multi-silo e2e (Phase O5)
 ```
 
 Dependency rules (violations fail review):
@@ -167,7 +167,7 @@ Engine.Orleans  ← Engine.Durable, Core, Abstractions, Microsoft.Orleans.* (ser
 | `Microsoft.Orleans.Clustering.AdoNet` | Integration/e2e only (OOQ-4) | production-shaped clustering over PostgreSQL (`Npgsql` invariant; Orleans 10 ADO.NET guidance uses `Microsoft.Data.SqlClient` only for SQL Server) |
 
 Version: **Orleans 10.x — pin the exact reviewed version (10.2.1 as of 2026-07-04) in
-`v3-gpt/Directory.Packages.props`; never “latest”.** Version bumps go through the
+`Directory.Packages.props`; never “latest”.** Version bumps go through the
 new-dependency review gate. Dev/test clustering: TestingHost / localhost clustering — no
 infrastructure needed. Production requires ≥2 silos and reliable clustering with the
 provider's DB artifacts provisioned (membership tables) and matching client configuration —

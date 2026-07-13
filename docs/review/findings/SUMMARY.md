@@ -1,6 +1,6 @@
 # Full Audit Synthesis — 2026-07-03 (post-remediation verification)
 
-Scope: `v3-gpt/` **working tree** on `feature/v3-rebuild` (includes ~2,800 lines of uncommitted
+Scope: `` **working tree** on `feature/v3-rebuild` (includes ~2,800 lines of uncommitted
 remediation changes — aggregate decomposition, SQL Server store rework, hosting wiring).
 This synthesis closes the R0–R10 audit cycle: it records the verified baseline, confirms which
 prior findings are fixed in code, adds the previously missing [R1](R1-abstractions.md) /
@@ -10,8 +10,8 @@ prior findings are fixed in code, adds the previously missing [R1](R1-abstractio
 
 | Check | Result |
 |---|---|
-| `dotnet build v3-gpt/OrcaCore.slnx -warnaserror` | ✅ 0 warnings, 0 errors |
-| Full `dotnet test v3-gpt/OrcaCore.slnx` (run 1) | 892 passed / **1 failed** / 16 skipped |
+| `dotnet build OrcaCore.slnx -warnaserror` | ✅ 0 warnings, 0 errors |
+| Full `dotnet test OrcaCore.slnx` (run 1) | 892 passed / **1 failed** / 16 skipped |
 | Full re-run (run 2) | **894 passed / 0 failed / 16 skipped** (Hosting 10/10; flake did not reproduce, incl. 8× isolated re-runs) |
 | Container suites (PostgreSQL 60, SQL Server 46, RabbitMQ 8, Redis 8, ZeroMQ 5) | ✅ all executed against real containers |
 | Integration suite | 83 passed, 16 skipped (all skips are explicit unimplemented-feature markers, listed in §4) |

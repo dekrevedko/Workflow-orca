@@ -12,12 +12,12 @@ cover Kubernetes dispatcher/watcher adapter contracts, scheduled occurrence idem
 - `docs/specs/14-driving-scenario-eks-job-scheduler.md`
 - `docs/specs/10-provider-model-and-extensibility.md`
 - `docs/specs/06-requirements-durable-execution.md`
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/ProviderPorts.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableStartService.cs`
+- `src/OrcaCore.Abstractions/Providers/ProviderPorts.cs`
+- `src/OrcaCore.Engine.Durable/Execution/DurableStartService.cs`
 - Spec: `docs/specs/12-acceptance-criteria.md` JS-AC-008
 
 ## Deliverables
-- Add `v3-gpt/docs/eks-scheduler-handoff.md`
+- Add `docs/eks-scheduler-handoff.md`
 - Add or update public XML docs only if existing public APIs need clearer `StartOrGet` occurrence-key guidance
 - Add documentation tests if the repo already has a docs-check pattern
 
@@ -35,5 +35,5 @@ Implementing Kubernetes adapters, adding a cron engine, and changing durable poo
 ## Definition of done
 - [ ] Handoff doc explains JS-003 and JS-004 boundaries
 - [ ] Handoff doc specifies deterministic occurrence-key shape for JS-AC-008
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` passes with zero warnings if XML docs changed
+- [ ] `dotnet build OrcaCore.slnx` passes with zero warnings if XML docs changed
 - [ ] PROGRESS.md updated; committed as "T6-15: eks scheduler enablement handoff"

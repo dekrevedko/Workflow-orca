@@ -9,11 +9,11 @@ pool tickets before dispatch, emits a start outbox command, waits cold for corre
 completion/failure, and emits a stop command on timeout or cancellation.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Abstractions/Durable/WorkflowCommand.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
-- `v3-gpt/tests/OrcaCore.TestSupport/Providers/FakeMessageDispatcher.cs`
+- `src/OrcaCore.Abstractions/Durable/WorkflowCommand.cs`
+- `src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs`
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
+- `src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
+- `tests/OrcaCore.TestSupport/Providers/FakeMessageDispatcher.cs`
 - Spec: `docs/specs/14-driving-scenario-eks-job-scheduler.md` sections 14.3 and 14.4
 - Spec: `docs/specs/09-requirements-management-operations.md` section 9.7
 
@@ -22,8 +22,8 @@ completion/failure, and emits a stop command on timeout or cancellation.
   cancelling external jobs
 - Outbox records for external job start and stop commands
 - Durable wait matching for correlated job completion/failure
-- `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/ExternalJobs/RunExternalJobTests.cs`
-- Acceptance coverage in `v3-gpt/tests/OrcaCore.Acceptance.Tests/ExternalJobAcceptanceTests.cs`
+- `tests/OrcaCore.Engine.Durable.Tests/ExternalJobs/RunExternalJobTests.cs`
+- Acceptance coverage in `tests/OrcaCore.Acceptance.Tests/ExternalJobAcceptanceTests.cs`
 
 ## Tests to write FIRST
 In `RunExternalJobTests.cs`:
@@ -46,7 +46,7 @@ Real EKS adapters, scheduled starts, and DAG syntax.
 
 ## Definition of done
 - [ ] New tests are red before implementation and green after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "AC=JS-AC-004|AC=JS-AC-006|AC=JS-AC-010|AC=JS-AC-011|AC=JS-AC-012|AC=JS-AC-013"` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "AC=JS-AC-004|AC=JS-AC-006|AC=JS-AC-010|AC=JS-AC-011|AC=JS-AC-012|AC=JS-AC-013"` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] No Kubernetes-specific terms in public workflow contracts
 - [ ] PROGRESS.md updated; committed as "T4B-04: run external job composite (JS-002)"

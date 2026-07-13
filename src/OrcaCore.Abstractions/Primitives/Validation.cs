@@ -1,50 +1,92 @@
 namespace OrcaCore.Abstractions.Primitives;
 
-public readonly record struct Validation<T>(T? Value, IReadOnlyList<ValidationError> Errors)
+/// <summary>
+/// Represents build-time validation that may accumulate multiple errors.
+/// </summary>
+public sealed record Validation<T>
 {
+    private readonly T? value;
+
+    private Validation(T value)
+    {
+        this.value = value;
+        Errors = [];
+    }
+
+    private Validation(IReadOnlyList<ValidationError> errors)
+    {
+        value = default;
+        Errors = errors;
+    }
+
+    /// <summary>
+    /// Gets whether validation succeeded.
+    /// </summary>
     public bool IsValid => Errors.Count == 0;
 
-    public static Validation<T> Valid(T value) => new(value, []);
+    /// <summary>
+    /// Gets the valid value, or throws when validation failed.
+    /// </summary>
+    public T Value => IsValid
+        ? value!
+        : throw new InvalidOperationException("An invalid validation result does not contain a value.");
 
-    public static Validation<T> Invalid(params ValidationError[] errors) => new(default, errors);
+    /// <summary>
+    /// Gets validation errors in deterministic discovery order.
+    /// </summary>
+    public IReadOnlyList<ValidationError> Errors { get; }
 
-    public static Validation<T> Invalid(IReadOnlyList<ValidationError> errors) => new(default, errors);
-
-    /// <summary>Merges validation outcomes: all errors are concatenated; valid only if both are valid. When both valid, <paramref name="second"/>'s value is kept.</summary>
-    public static Validation<T> Merge(Validation<T> first, Validation<T> second)
+    /// <summary>
+    /// Creates a valid validation result.
+    /// </summary>
+    public static Validation<T> Valid(T value)
     {
-        if (first.IsValid && second.IsValid)
-        {
-            if (EqualityComparer<T>.Default.Equals(first.Value, second.Value))
-                return Valid(first.Value!);
+        return new Validation<T>(value);
+    }
 
-            return Invalid(new ValidationError(
-                "VALIDATION_MERGE_CONFLICT",
-                "Cannot merge two valid validation values with different payloads."));
+    /// <summary>
+    /// Creates an invalid validation result with one or more errors.
+    /// </summary>
+    public static Validation<T> Invalid(IEnumerable<ValidationError> errors)
+    {
+        ArgumentNullException.ThrowIfNull(errors);
+
+        var collectedErrors = errors.ToArray();
+        if (collectedErrors.Length == 0)
+        {
+            throw new ArgumentException("Invalid validation requires at least one error.", nameof(errors));
         }
 
-        var list = new List<ValidationError>(first.Errors.Count + second.Errors.Count);
-        list.AddRange(first.Errors);
-        list.AddRange(second.Errors);
-        return Invalid(list);
+        return new Validation<T>(collectedErrors);
     }
 
-    public Validation<TResult> Map<TResult>(Func<T, TResult> mapper)
+    /// <summary>
+    /// Combines two validation results, preserving all errors when either side is invalid.
+    /// </summary>
+    public Validation<TResult> Combine<TOther, TResult>(
+        Validation<TOther> other,
+        Func<T, TOther, TResult> combine)
     {
-        if (!IsValid)
-            return Validation<TResult>.Invalid([.. Errors]);
+        ArgumentNullException.ThrowIfNull(other);
+        ArgumentNullException.ThrowIfNull(combine);
 
-        return Validation<TResult>.Valid(mapper(Value!));
+        if (IsValid && other.IsValid)
+        {
+            return Validation<TResult>.Valid(combine(Value, other.Value));
+        }
+
+        var errors = new List<ValidationError>(Errors.Count + other.Errors.Count);
+        errors.AddRange(Errors);
+        errors.AddRange(other.Errors);
+
+        return Validation<TResult>.Invalid(errors);
     }
 
-    public Validation<TResult> Bind<TResult>(Func<T, Validation<TResult>> binder)
+    /// <summary>
+    /// Merges two validation results of the same value type.
+    /// </summary>
+    public Validation<T> Merge(Validation<T> other, Func<T, T, T> merge)
     {
-        if (!IsValid)
-            return Validation<TResult>.Invalid([.. Errors]);
-
-        return binder(Value!);
+        return Combine(other, merge);
     }
-
-    public TResult Match<TResult>(Func<IReadOnlyList<ValidationError>, TResult> onInvalid, Func<T, TResult> onValid) =>
-        IsValid ? onValid(Value!) : onInvalid(Errors);
 }

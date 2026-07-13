@@ -2,12 +2,12 @@
 
 > **Baseline:** same as [R1](R1-abstractions.md) (build green `-warnaserror`; full suite
 > 892 passed / 1 flaky / 16 skipped).
-> Scope: `v3-gpt/src/OrcaCore.Core/**` against 04 CR-001…008, CR-030, CR-040…044 (for the shared
+> Scope: `src/OrcaCore.Core/**` against 04 CR-001…008, CR-030, CR-040…044 (for the shared
 > `InstanceLane`), 08 CP-040.
 
 ## Findings
 
-### [P1] Durable-only primitives are not rejected at build time for ephemeral use — runtime failure instead — `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs:152`
+### [P1] Durable-only primitives are not rejected at build time for ephemeral use — runtime failure instead — `src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs:152`
 > **FIXED 2026-07-03:** `WorkflowDefinition.RequiresDurableEngine` computed at `Build()`;
 > `EphemeralWorkflowEngine.RegisterDefinition` rejects durable-only definitions before any
 > execution (scenario NEG-CR-017). Runtime interpreter failure kept as defense-in-depth.
@@ -17,7 +17,7 @@
 - **Recommendation:** Either (a) split the authoring axis per CR-001 — an ephemeral builder type without `RunChild(ren)` and a durable builder that adds them (Template Method / interface segregation, matches the spec's "builders exist per axis combination"), or minimally (b) tag definitions containing durable-only nodes and have ephemeral registration/start reject them before execution.
 - **Confidence:** CONFIRMED
 
-### [P2] Transitively blocked DAG nodes are invisible — a DAG run can stall with no runnable and no blocked-reported nodes — `v3-gpt/src/OrcaCore.Core/Building/WorkflowDagBuilder.cs:206`
+### [P2] Transitively blocked DAG nodes are invisible — a DAG run can stall with no runnable and no blocked-reported nodes — `src/OrcaCore.Core/Building/WorkflowDagBuilder.cs:206`
 > **FIXED 2026-07-03:** `GetBlockedByFailures` computes the transitive closure;
 > `WorkflowDagPlan.IsComplete` / `WorkflowDagRunner.IsComplete` added with tests.
 - **Requirement/convention:** 14 JS-* (DAG driving scenario), CP composition semantics
@@ -31,7 +31,7 @@
   `InterpreterControlFlowTests.Run_IfWithEmptyThenBranch_ContinuesAfterBranch` asserts an empty
   branch is a supported no-op that continues after the `If`. Not a defect; no change made.
 
-### [P3] `Then(IStep)` shares one step instance across all workflow instances — statelessness contract undocumented — `v3-gpt/src/OrcaCore.Core/Building/WorkflowBuilder.cs:41`
+### [P3] `Then(IStep)` shares one step instance across all workflow instances — statelessness contract undocumented — `src/OrcaCore.Core/Building/WorkflowBuilder.cs:41`
 > **FIXED 2026-07-03:** contract documented on the overload (stateless/thread-safe required;
 > factory overload for per-execution state).
 - **Requirement/convention:** CR-012 authoring contract, 02 conventions

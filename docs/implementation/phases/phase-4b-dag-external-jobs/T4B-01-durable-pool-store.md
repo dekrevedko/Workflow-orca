@@ -9,25 +9,25 @@ PostgreSQL providers. The store owns pool definitions, held tickets, FIFO waiter
 atomic all-or-nothing grants.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/ProviderPorts.cs`
-- `v3-gpt/src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs`
-- `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs`
-- `v3-gpt/tests/OrcaCore.ProviderCertification/EventStoreCertificationTests.cs`
-- `v3-gpt/tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlProviderCertificationTests.cs`
+- `src/OrcaCore.Abstractions/Providers/ProviderPorts.cs`
+- `src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs`
+- `src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs`
+- `tests/OrcaCore.ProviderCertification/EventStoreCertificationTests.cs`
+- `tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlProviderCertificationTests.cs`
 - Spec: `docs/specs/09-requirements-management-operations.md` section 9.7
 - Spec: `docs/specs/14-driving-scenario-eks-job-scheduler.md` sections 14.3 and 14.4
 
 ## Deliverables
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/IResourcePoolStore.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/ResourcePoolModels.cs`
-- `v3-gpt/src/OrcaCore.Providers.InMemory/InMemoryResourcePoolStore.cs`
-- `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlResourcePoolStore.cs`
-- `v3-gpt/tests/OrcaCore.ProviderCertification/ResourcePoolStoreCertificationTests.cs`
-- Provider wiring updates as needed in `v3-gpt/src/OrcaCore.Providers.InMemory/` and
-  `v3-gpt/src/OrcaCore.Providers.PostgreSql/`
+- `src/OrcaCore.Abstractions/Providers/IResourcePoolStore.cs`
+- `src/OrcaCore.Abstractions/Providers/ResourcePoolModels.cs`
+- `src/OrcaCore.Providers.InMemory/InMemoryResourcePoolStore.cs`
+- `src/OrcaCore.Providers.PostgreSql/PostgreSqlResourcePoolStore.cs`
+- `tests/OrcaCore.ProviderCertification/ResourcePoolStoreCertificationTests.cs`
+- Provider wiring updates as needed in `src/OrcaCore.Providers.InMemory/` and
+  `src/OrcaCore.Providers.PostgreSql/`
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.ProviderCertification/ResourcePoolStoreCertificationTests.cs`:
+In `tests/OrcaCore.ProviderCertification/ResourcePoolStoreCertificationTests.cs`:
 1. `AcquireAsync_WhenPoolHasCapacity_GrantsTicketAndReducesAvailableCapacity` - given a
    pool with capacity, acquiring one requirement creates one held ticket.
 2. `AcquireAsync_WhenPoolIsExhausted_QueuesWaiterWithoutGrantingTicket` - given no
@@ -48,7 +48,7 @@ dispatch.
 
 ## Definition of done
 - [ ] New certification tests are red before implementation and green after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter ResourcePool` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter ResourcePool` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] Providers.InMemory references only Abstractions
 - [ ] PROGRESS.md updated; committed as "T4B-01: durable pool store port (MG-062)"

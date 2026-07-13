@@ -1,7 +1,7 @@
 # R3 — Ephemeral Engine — Findings
 
-> Phase scope: `v3-gpt/src/OrcaCore.Engine.Ephemeral/**` and matching tests in
-> `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/**`. Reviewed against CR-010…044, EV (all),
+> Phase scope: `src/OrcaCore.Engine.Ephemeral/**` and matching tests in
+> `tests/OrcaCore.Engine.Ephemeral.Tests/**`. Reviewed against CR-010…044, EV (all),
 > CP-001…013, MG-001…005/010/060/061. Primary lenses: correctness/concurrency, spec
 > conformance. Code review only — no build run in this session (see R0 baseline placeholder).
 

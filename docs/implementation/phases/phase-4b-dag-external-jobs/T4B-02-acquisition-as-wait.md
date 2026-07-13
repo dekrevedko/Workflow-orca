@@ -9,11 +9,11 @@ cold instead of starting guarded work. Granted tickets are held across the wait 
 symmetrically on every guarded terminal path.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/IResourcePoolStore.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Durable/WorkflowCommand.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
+- `src/OrcaCore.Abstractions/Providers/IResourcePoolStore.cs`
+- `src/OrcaCore.Abstractions/Durable/WorkflowCommand.cs`
+- `src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs`
+- `src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
 - Spec: `docs/specs/09-requirements-management-operations.md` section 9.7
 - Spec: `docs/specs/14-driving-scenario-eks-job-scheduler.md` section 14.3
 
@@ -21,8 +21,8 @@ symmetrically on every guarded terminal path.
 - Durable command/event contracts for pool acquisition, grant, and release
 - Aggregate state for held tickets and queued acquisition waits
 - Command processor integration with `IResourcePoolStore`
-- `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/ResourcePools/PoolAcquisitionTests.cs`
-- Acceptance coverage in `v3-gpt/tests/OrcaCore.Acceptance.Tests/ResourcePoolAcceptanceTests.cs`
+- `tests/OrcaCore.Engine.Durable.Tests/ResourcePools/PoolAcquisitionTests.cs`
+- Acceptance coverage in `tests/OrcaCore.Acceptance.Tests/ResourcePoolAcceptanceTests.cs`
 
 ## Tests to write FIRST
 In `PoolAcquisitionTests.cs`:
@@ -45,7 +45,7 @@ syntax.
 
 ## Definition of done
 - [ ] New durable and acceptance tests are red before implementation and green after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "AC=AC-519|AC=AC-520|AC=AC-522|AC=JS-AC-013"` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "AC=AC-519|AC=AC-520|AC=AC-522|AC=JS-AC-013"` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] Core and Providers.InMemory still reference only Abstractions
 - [ ] PROGRESS.md updated; committed as "T4B-02: acquisition as wait (MG-062)"

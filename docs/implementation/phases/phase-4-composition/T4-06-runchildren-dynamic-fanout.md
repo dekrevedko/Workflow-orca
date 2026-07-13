@@ -8,11 +8,11 @@ Add durable `RunChildren` group materialization for dynamic child fanout. Child 
 item snapshots, and partitioning must be deterministic across restart.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
-- `v3-gpt/src/OrcaCore.Core/Definitions/`
-- `v3-gpt/src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs`
-- `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/Composition/RunChildTests.cs`
+- `src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
+- `src/OrcaCore.Core/Definitions/`
+- `src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs`
+- `tests/OrcaCore.Engine.Durable.Tests/Composition/RunChildTests.cs`
 - Spec: `docs/specs/08-requirements-composition.md`
 - Spec: `docs/specs/12-acceptance-criteria.md`
 
@@ -23,10 +23,10 @@ item snapshots, and partitioning must be deterministic across restart.
 - Initial child-start window enqueue
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/Composition/RunChildrenTests.cs`:
+In `tests/OrcaCore.Engine.Durable.Tests/Composition/RunChildrenTests.cs`:
 1. `[Trait("AC","AC-607")] RunChildren_RestartDoesNotDuplicateChildIds`
 2. `[Trait("AC","AC-608")] RunChildren_ItemSnapshotsRemainStableAcrossRestart`
-In `v3-gpt/tests/OrcaCore.Acceptance.Tests/ChildWorkflowAcceptanceTests.cs`:
+In `tests/OrcaCore.Acceptance.Tests/ChildWorkflowAcceptanceTests.cs`:
 3. `[Trait("AC","AC-607")] RunChildren_ChildIdsAreDeterministic`
 4. `[Trait("AC","AC-608")] RunChildren_ItemSnapshotsAreStable`
 
@@ -40,6 +40,6 @@ compensation.
 
 ## Definition of done
 - [ ] New tests fail before implementation and pass after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "RunChildren|AC=AC-607|AC=AC-608"` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "RunChildren|AC=AC-607|AC=AC-608"` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T4-06: RunChildren deterministic fanout (CP-025, AC-607, AC-608)"

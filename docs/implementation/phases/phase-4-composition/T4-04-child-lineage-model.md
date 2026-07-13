@@ -8,11 +8,11 @@ Add durable lineage metadata for parent, child, and root instance relationships.
 must be visible in snapshots and projections without loading business payloads.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Abstractions/Instances/WorkflowInstanceSnapshot.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/ProviderCommitContracts.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
-- `v3-gpt/src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs`
-- `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs`
+- `src/OrcaCore.Abstractions/Instances/WorkflowInstanceSnapshot.cs`
+- `src/OrcaCore.Abstractions/Providers/ProviderCommitContracts.cs`
+- `src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs`
+- `src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs`
+- `src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs`
 - Spec: `docs/specs/08-requirements-composition.md`
 - Spec: `docs/specs/12-acceptance-criteria.md`
 
@@ -22,10 +22,10 @@ must be visible in snapshots and projections without loading business payloads.
 - Durable management query support for lineage
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/Composition/ChildLineageTests.cs`:
+In `tests/OrcaCore.Engine.Durable.Tests/Composition/ChildLineageTests.cs`:
 1. `ChildLineage_ProjectionCarriesParentAndRootIds`
 2. `[Trait("AC","AC-614")] ChildLineage_QueryReturnsTree`
-In `v3-gpt/tests/OrcaCore.Acceptance.Tests/ChildWorkflowAcceptanceTests.cs`:
+In `tests/OrcaCore.Acceptance.Tests/ChildWorkflowAcceptanceTests.cs`:
 3. `[Trait("AC","AC-614")] ChildWorkflow_LineageQueriesTraverseTree`
 
 ## Implementation notes
@@ -36,6 +36,6 @@ Starting children, completion propagation, throttling, and compensation.
 
 ## Definition of done
 - [ ] New tests fail before implementation and pass after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "ChildLineage|AC=AC-614"` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "ChildLineage|AC=AC-614"` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T4-04: child lineage model (CP-020, AC-614)"

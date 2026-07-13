@@ -10,27 +10,27 @@ statuses, and saga command/event types must exist without changing regular workf
 builder semantics.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Abstractions/Instances/WorkflowStatus.cs`
-- `v3-gpt/src/OrcaCore.Core/Lifecycle/LifecycleMachine.cs`
-- `v3-gpt/src/OrcaCore.Core/Lifecycle/LifecycleTrigger.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Durable/WorkflowCommand.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs`
+- `src/OrcaCore.Abstractions/Instances/WorkflowStatus.cs`
+- `src/OrcaCore.Core/Lifecycle/LifecycleMachine.cs`
+- `src/OrcaCore.Core/Lifecycle/LifecycleTrigger.cs`
+- `src/OrcaCore.Abstractions/Durable/WorkflowCommand.cs`
+- `src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs`
 - Spec: `docs/specs/07-requirements-saga.md` sections 7.1 and 7.2
 - Spec: `docs/specs/12-acceptance-criteria.md` AC-401 and AC-404
 
 ## Deliverables
-- Update `v3-gpt/src/OrcaCore.Abstractions/Instances/WorkflowStatus.cs`
-- Update `v3-gpt/src/OrcaCore.Core/Lifecycle/LifecycleMachine.cs`
-- Update `v3-gpt/src/OrcaCore.Core/Lifecycle/LifecycleTrigger.cs`
-- Add or update saga command/event contracts under `v3-gpt/src/OrcaCore.Abstractions/Durable/`
-- Tests in `v3-gpt/tests/OrcaCore.Core.Tests/Lifecycle/SagaLifecycleTests.cs`
-- Tests in `v3-gpt/tests/OrcaCore.Core.Tests/Durable/SagaContractTests.cs`
+- Update `src/OrcaCore.Abstractions/Instances/WorkflowStatus.cs`
+- Update `src/OrcaCore.Core/Lifecycle/LifecycleMachine.cs`
+- Update `src/OrcaCore.Core/Lifecycle/LifecycleTrigger.cs`
+- Add or update saga command/event contracts under `src/OrcaCore.Abstractions/Durable/`
+- Tests in `tests/OrcaCore.Core.Tests/Lifecycle/SagaLifecycleTests.cs`
+- Tests in `tests/OrcaCore.Core.Tests/Durable/SagaContractTests.cs`
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Core.Tests/Lifecycle/SagaLifecycleTests.cs`:
+In `tests/OrcaCore.Core.Tests/Lifecycle/SagaLifecycleTests.cs`:
 1. `SagaLifecycle_CompensatedAndCompensationFailed_AreTerminal` - the lifecycle machine treats both statuses as terminal. Traits: AC-401, AC-404.
 
-In `v3-gpt/tests/OrcaCore.Core.Tests/Durable/SagaContractTests.cs`:
+In `tests/OrcaCore.Core.Tests/Durable/SagaContractTests.cs`:
 1. `SagaCommandAndEventCatalog_ExposesCompensationFacts` - public durable contracts represent compensation requested, started, completed, and failed facts.
 
 ## Implementation notes
@@ -44,6 +44,6 @@ command processing.
 
 ## Definition of done
 - [ ] New tests are red before implementation and green after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "AC=AC-401|AC=AC-404"` passes for tests introduced in this task
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "AC=AC-401|AC=AC-404"` passes for tests introduced in this task
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T5-01: saga contracts and lifecycle states (SG-001, SG-013)"

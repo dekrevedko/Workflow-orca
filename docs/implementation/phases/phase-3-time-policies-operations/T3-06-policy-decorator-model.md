@@ -8,22 +8,22 @@ Add declarative policy metadata attachable to steps, scopes, and definitions. Th
 introduces the model and builder surface only; enforcement is split into later tasks.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Core/Building/WorkflowBuilder.cs`
-- `v3-gpt/src/OrcaCore.Core/Definitions/Nodes.cs`
-- `v3-gpt/tests/OrcaCore.Core.Tests/Definitions/DefinitionModelTests.cs`
-- `v3-gpt/tests/OrcaCore.Core.Tests/Building/WorkflowBuilderTests.cs`
+- `src/OrcaCore.Core/Building/WorkflowBuilder.cs`
+- `src/OrcaCore.Core/Definitions/Nodes.cs`
+- `tests/OrcaCore.Core.Tests/Definitions/DefinitionModelTests.cs`
+- `tests/OrcaCore.Core.Tests/Building/WorkflowBuilderTests.cs`
 - `docs/implementation/02-engineering-conventions.md`
 - Spec: `docs/specs/04-requirements-core-runtime.md`
 - Spec: `docs/specs/13-phasing-and-open-questions.md`
 
 ## Deliverables
-- Policy metadata records under `v3-gpt/src/OrcaCore.Core/Definitions/`
+- Policy metadata records under `src/OrcaCore.Core/Definitions/`
 - Fluent builder methods for timeout, retry, cancellation, and pool-key hints
 - Validation errors for invalid policy combinations
 - Unit tests for policy metadata and validation
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Core.Tests/Building/WorkflowPolicyBuilderTests.cs`:
+In `tests/OrcaCore.Core.Tests/Building/WorkflowPolicyBuilderTests.cs`:
 1. `StepPolicy_WithRetryAndTimeout_AttachesMetadataToNextStep`
 2. `DefinitionPolicy_AppliesToRootMetadata`
 3. `InvalidRetryPolicy_ReportsValidationError`
@@ -38,6 +38,6 @@ Runtime enforcement, saga compensation policies, durable pools, and serialized D
 ## Definition of done
 - [ ] New tests fail before implementation and pass after
 - [ ] Spec open question 6 resolution logged if the task needs to close it
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter WorkflowPolicyBuilder` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter WorkflowPolicyBuilder` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T3-06: policy decorator model (CR-006)"

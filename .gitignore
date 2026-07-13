@@ -35,20 +35,5 @@ _NCrunch_*
 *.ncrunch*
 .*crunch*.local.xml
 
-# v3-gpt rebuild workspace
-v3-gpt/**/bin/
-v3-gpt/**/obj/
-v3-gpt/TestResults/
-v3-gpt/**/TestResults/
-
-# v3 rebuild workspace
-v3/**/bin/
-v3/**/obj/
-v3/TestResults/
-v3/**/TestResults/
-
-# v3-cursor rebuild workspace
-v3-cursor/**/bin/
-v3-cursor/**/obj/
-v3-cursor/TestResults/
-v3-cursor/**/TestResults/
+# Agent-run and local dashboard logs
+.codex-run/

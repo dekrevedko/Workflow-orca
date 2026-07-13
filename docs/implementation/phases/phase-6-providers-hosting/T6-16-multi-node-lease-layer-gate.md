@@ -12,12 +12,12 @@ before any code changes.
 - `docs/specs/06-requirements-durable-execution.md`
 - `docs/specs/12-acceptance-criteria.md`
 - `docs/implementation/01-solution-architecture.md`
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/ProviderPorts.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
+- `src/OrcaCore.Abstractions/Providers/ProviderPorts.cs`
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
 - Spec: `docs/specs/12-acceptance-criteria.md` AC-315
 
 ## Deliverables
-- If pursued, add a design note under `v3-gpt/docs/multi-node-leases.md`
+- If pursued, add a design note under `docs/multi-node-leases.md`
 - If pursued, add follow-up implementation task files under `docs/implementation/phases/phase-6-providers-hosting/`
 - If not pursued, append a PROGRESS.md line recording that AC-315 is out of scope for this run
 

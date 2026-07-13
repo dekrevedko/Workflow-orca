@@ -9,11 +9,11 @@ durable resource pool ticket storage. The full provider certification suite must
 the ports SQL Server implements.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj`
-- `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlResourcePoolStore.cs`
-- `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs`
-- `v3-gpt/tests/OrcaCore.ProviderCertification/TimerSchedulerCertificationTests.cs`
-- `v3-gpt/tests/OrcaCore.ProviderCertification/ResourcePoolStoreCertificationTests.cs`
+- `src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj`
+- `src/OrcaCore.Providers.PostgreSql/PostgreSqlResourcePoolStore.cs`
+- `src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs`
+- `tests/OrcaCore.ProviderCertification/TimerSchedulerCertificationTests.cs`
+- `tests/OrcaCore.ProviderCertification/ResourcePoolStoreCertificationTests.cs`
 - Spec: `docs/specs/09-requirements-management-operations.md` section 9.7
 - Spec: `docs/specs/14-driving-scenario-eks-job-scheduler.md` JS-007 acceptance criteria
 
@@ -22,7 +22,7 @@ the ports SQL Server implements.
 - Add SQL Server durable timer scheduler implementation
 - Add SQL Server resource pool store implementation
 - Add SQL Server certification tests for projections, timers, and resource pools
-- Update `v3-gpt/src/OrcaCore.Providers.SqlServer/README.md`
+- Update `src/OrcaCore.Providers.SqlServer/README.md`
 
 ## Tests to write FIRST
 In SQL Server provider tests:
@@ -39,6 +39,6 @@ RabbitMQ, Redis, DynamoDB, package publishing, and multi-node lease ownership.
 
 ## Definition of done
 - [ ] New tests are red before implementation and green after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "FullyQualifiedName~SqlServer&Category=Certification"` passes when containers are enabled
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "FullyQualifiedName~SqlServer&Category=Certification"` passes when containers are enabled
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T6-09: sql server projections timers pools (PR-013, PR-014)"

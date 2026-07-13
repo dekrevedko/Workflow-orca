@@ -8,11 +8,11 @@ Enforce configured step timeout policies through the timer primitive. A timed-ou
 the configured outcome deterministically and records lifecycle/statistics-visible state.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
-- `v3-gpt/src/OrcaCore.Core/Definitions/Nodes.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs`
-- `v3-gpt/tests/OrcaCore.Acceptance.Tests/TimerAcceptanceTests.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
+- `src/OrcaCore.Core/Definitions/Nodes.cs`
+- `src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs`
+- `tests/OrcaCore.Acceptance.Tests/TimerAcceptanceTests.cs`
 - Spec: `docs/specs/05-requirements-events-waits-timers.md`
 - Spec: `docs/specs/09-requirements-management-operations.md`
 
@@ -22,10 +22,10 @@ the configured outcome deterministically and records lifecycle/statistics-visibl
 - Acceptance test coverage for AC-113
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Policies/TimeoutPolicyTests.cs`:
+In `tests/OrcaCore.Engine.Ephemeral.Tests/Policies/TimeoutPolicyTests.cs`:
 1. `StepTimeout_FailInstance_MarksFailedWithTimeoutDetails`
 2. `StepTimeout_CancelBranchAndContinue_ContinuesAfterBranch`
-In `v3-gpt/tests/OrcaCore.Acceptance.Tests/PolicyAcceptanceTests.cs`:
+In `tests/OrcaCore.Acceptance.Tests/PolicyAcceptanceTests.cs`:
 3. `[Trait("AC","AC-113")] StepTimeoutPolicy_TriggersConfiguredAction`
 
 ## Implementation notes
@@ -39,6 +39,6 @@ timeouts.
 
 ## Definition of done
 - [ ] New tests fail before implementation and pass after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "TimeoutPolicy|AC=AC-113"` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "TimeoutPolicy|AC=AC-113"` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T3-07: timeout policy enforcement (EV-052, AC-113)"

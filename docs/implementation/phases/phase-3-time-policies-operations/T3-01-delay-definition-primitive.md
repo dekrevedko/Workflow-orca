@@ -9,21 +9,21 @@ model. This task is structural only: it records delay intent and validation, but
 schedule or fire timers.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Core/Building/WorkflowBuilder.cs`
-- `v3-gpt/src/OrcaCore.Core/Definitions/Nodes.cs`
-- `v3-gpt/tests/OrcaCore.Core.Tests/Definitions/DefinitionModelTests.cs`
-- `v3-gpt/tests/OrcaCore.Core.Tests/Building/WorkflowBuilderTests.cs`
+- `src/OrcaCore.Core/Building/WorkflowBuilder.cs`
+- `src/OrcaCore.Core/Definitions/Nodes.cs`
+- `tests/OrcaCore.Core.Tests/Definitions/DefinitionModelTests.cs`
+- `tests/OrcaCore.Core.Tests/Building/WorkflowBuilderTests.cs`
 - Spec: `docs/specs/05-requirements-events-waits-timers.md`
 - Spec: `docs/specs/04-requirements-core-runtime.md`
 
 ## Deliverables
-- `v3-gpt/src/OrcaCore.Core/Definitions/Nodes.cs`
-- `v3-gpt/src/OrcaCore.Core/Building/WorkflowBuilder.cs`
-- Any small supporting definition type needed under `v3-gpt/src/OrcaCore.Core/Definitions/`
-- Unit tests in `v3-gpt/tests/OrcaCore.Core.Tests/Building/WorkflowBuilderTests.cs`
+- `src/OrcaCore.Core/Definitions/Nodes.cs`
+- `src/OrcaCore.Core/Building/WorkflowBuilder.cs`
+- Any small supporting definition type needed under `src/OrcaCore.Core/Definitions/`
+- Unit tests in `tests/OrcaCore.Core.Tests/Building/WorkflowBuilderTests.cs`
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Core.Tests/Building/WorkflowBuilderTests.cs`:
+In `tests/OrcaCore.Core.Tests/Building/WorkflowBuilderTests.cs`:
 1. `Delay_WithPositiveDuration_AddsTimerNode` - built definition contains one delay node with the requested duration.
 2. `Delay_WithNonPositiveDuration_ReportsValidationError` - build validation reports a stable error code.
 3. `Build_DelayBeforeEnd_DoesNotCountAsEnd` - delay remains runtime work and does not satisfy completion.
@@ -38,6 +38,6 @@ events.
 
 ## Definition of done
 - [ ] New tests fail before implementation and pass after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter Delay` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter Delay` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T3-01: delay definition primitive (EV-050)"

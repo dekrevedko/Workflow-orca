@@ -14,7 +14,7 @@ their contracts must be boringly solid.
 - [02-engineering-conventions.md](../../02-engineering-conventions.md) §2
 
 ## Deliverables
-In `v3/src/OrcaCore.Abstractions/Primitives/`:
+In `src/OrcaCore.Abstractions/Primitives/`:
 - `Result<T>` — `readonly record struct`; factories `Success(value)` / `Failure(error)`
   where error is `OrcaCoreException`; members `IsSuccess`, `IsFailure`, `Value` (throws
   `InvalidOperationException` when failure), `Error`; combinators `Map`, `Bind`, `Match`.
@@ -23,10 +23,10 @@ In `v3/src/OrcaCore.Abstractions/Primitives/`:
 - `Validation<T>` — `sealed record` with `Value` and `IReadOnlyList<ValidationError>`;
   `Valid(value)` / `Invalid(errors)`; `IsValid`; combine/merge; `ValidationError`
   (`Code`, `Message`, optional `Path`).
-- `OrcaCoreException` base type in `v3/src/OrcaCore.Abstractions/Errors/`.
+- `OrcaCoreException` base type in `src/OrcaCore.Abstractions/Errors/`.
 
 ## Tests to write FIRST
-In `v3/tests/OrcaCore.Core.Tests/Primitives/` (referencing Abstractions):
+In `tests/OrcaCore.Core.Tests/Primitives/` (referencing Abstractions):
 1. `Success_ExposesValue_AndIsSuccess`
 2. `Failure_ExposesError_AndValueThrows`
 3. `Map_OnSuccess_Transforms` / `Map_OnFailure_PropagatesError`
@@ -49,5 +49,5 @@ In `v3/tests/OrcaCore.Core.Tests/Primitives/` (referencing Abstractions):
 
 ## Definition of done
 - [ ] All listed tests green; placeholder SkeletonTests removed from touched projects
-- [ ] `dotnet build v3/OrcaCore.slnx` — zero warnings; Abstractions still references nothing
+- [ ] `dotnet build OrcaCore.slnx` — zero warnings; Abstractions still references nothing
 - [ ] PROGRESS.md updated; committed as "T0-03: functional primitives (PR-050)"

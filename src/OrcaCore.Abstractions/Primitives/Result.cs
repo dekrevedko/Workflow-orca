@@ -1,42 +1,100 @@
+using OrcaCore.Abstractions.Errors;
+
 namespace OrcaCore.Abstractions.Primitives;
 
-public readonly struct Result<T> : IEquatable<Result<T>>
+/// <summary>
+/// Represents an expected success or failure at a contract boundary.
+/// </summary>
+public readonly record struct Result<T>
 {
-    public bool IsSuccess { get; }
-    public bool IsFailure => !IsSuccess;
-    public T? Value { get; }
-    public Exception? Error { get; }
+    private readonly T? value;
+    private readonly OrcaCoreException? error;
+    private readonly bool isSuccess;
 
-    private Result(bool isSuccess, T? value, Exception? error)
+    private Result(T value)
     {
-        IsSuccess = isSuccess;
-        Value = value;
-        Error = error;
+        this.value = value;
+        error = null;
+        isSuccess = true;
     }
 
-    public static Result<T> Success(T value) => new(true, value, null);
+    private Result(OrcaCoreException error)
+    {
+        value = default;
+        this.error = error;
+        isSuccess = false;
+    }
 
-    public static Result<T> Failure(Exception error) => new(false, default, error);
+    /// <summary>
+    /// Gets whether the result contains a successful value.
+    /// </summary>
+    public bool IsSuccess => isSuccess;
 
-    public Result<TResult> Map<TResult>(Func<T, TResult> mapper) =>
-        IsSuccess ? Result<TResult>.Success(mapper(Value!)) : Result<TResult>.Failure(Error!);
+    /// <summary>
+    /// Gets whether the result contains an expected failure.
+    /// </summary>
+    public bool IsFailure => !isSuccess;
 
-    public Result<TResult> Bind<TResult>(Func<T, Result<TResult>> binder) =>
-        IsSuccess ? binder(Value!) : Result<TResult>.Failure(Error!);
+    /// <summary>
+    /// Gets the successful value, or throws when this result is a failure.
+    /// </summary>
+    public T Value => IsSuccess
+        ? value!
+        : throw new InvalidOperationException("A failed result does not contain a value.");
 
-    public TResult Match<TResult>(Func<Exception, TResult> onFailure, Func<T, TResult> onSuccess) =>
-        IsSuccess ? onSuccess(Value!) : onFailure(Error!);
+    /// <summary>
+    /// Gets the expected failure error.
+    /// </summary>
+    public OrcaCoreException Error => IsFailure
+        ? error ?? new OrcaCoreException("The default Result<T> value represents failure without a specific error.")
+        : throw new InvalidOperationException("A successful result does not contain an error.");
 
-    public bool Equals(Result<T> other) =>
-        IsSuccess == other.IsSuccess &&
-        EqualityComparer<T>.Default.Equals(Value, other.Value) &&
-        Equals(Error, other.Error);
+    /// <summary>
+    /// Creates a successful result.
+    /// </summary>
+    public static Result<T> Success(T value)
+    {
+        return new Result<T>(value);
+    }
 
-    public override bool Equals(object? obj) => obj is Result<T> other && Equals(other);
+    /// <summary>
+    /// Creates a failed result.
+    /// </summary>
+    public static Result<T> Failure(OrcaCoreException error)
+    {
+        ArgumentNullException.ThrowIfNull(error);
 
-    public override int GetHashCode() => HashCode.Combine(IsSuccess, Value, Error);
+        return new Result<T>(error);
+    }
 
-    public static bool operator ==(Result<T> left, Result<T> right) => left.Equals(right);
+    /// <summary>
+    /// Transforms a successful value while preserving failures.
+    /// </summary>
+    public Result<TResult> Map<TResult>(Func<T, TResult> map)
+    {
+        ArgumentNullException.ThrowIfNull(map);
 
-    public static bool operator !=(Result<T> left, Result<T> right) => !left.Equals(right);
+        return IsSuccess ? Result<TResult>.Success(map(Value)) : Result<TResult>.Failure(Error);
+    }
+
+    /// <summary>
+    /// Chains a result-producing operation while short-circuiting failures.
+    /// </summary>
+    public Result<TResult> Bind<TResult>(Func<T, Result<TResult>> bind)
+    {
+        ArgumentNullException.ThrowIfNull(bind);
+
+        return IsSuccess ? bind(Value) : Result<TResult>.Failure(Error);
+    }
+
+    /// <summary>
+    /// Projects exactly one branch based on success or failure.
+    /// </summary>
+    public TResult Match<TResult>(Func<T, TResult> onSuccess, Func<OrcaCoreException, TResult> onFailure)
+    {
+        ArgumentNullException.ThrowIfNull(onSuccess);
+        ArgumentNullException.ThrowIfNull(onFailure);
+
+        return IsSuccess ? onSuccess(Value) : onFailure(Error);
+    }
 }

@@ -11,13 +11,13 @@ now exists after T1-01…T1-05.
 ## Read first
 - [04-task-protocol.md](../../04-task-protocol.md) (template + sizing rules)
 - [README.md](README.md) of this phase (index rows T1-06…T1-15, guardrails, exit criteria)
-- The current `v3/src/` tree layout (folder names and public types only — no deep dives)
+- The current `src/` tree layout (folder names and public types only — no deep dives)
 - Spec sections cited by each index row (one at a time, while writing that row's file)
 
 ## Deliverables
 - One task file per index row: `T1-06-execution-lane.md` … `T1-15-yield.md`, each following
   the template exactly: Difficulty, Depends-on, Spec/AC refs copied from the index row,
-  Goal, **Read first with real current paths (all under `v3/`)**, Deliverables, **Tests to
+  Goal, **Read first with real current paths (all under ``)**, Deliverables, **Tests to
   write FIRST** (enumerated test names incl. the AC-trait acceptance tests), Implementation
   notes, Out of scope, Definition of done.
 - Any index row that cannot fit the sizing rules (≤10 files, ≤500 lines) is split into
@@ -30,7 +30,7 @@ now exists after T1-01…T1-05.
 - "Read first" lists ≤5 real files that exist right now; if a needed file doesn't exist,
   the dependency order is wrong — fix the index, don't hand-wave.
 - Keep each task file under ~120 lines.
-- Do NOT implement anything in `v3/src` or `v3/tests` in this task.
+- Do NOT implement anything in `src` or `tests` in this task.
 
 ## Definition of done
 - [ ] Ten (or more, if split) task files exist and follow the template

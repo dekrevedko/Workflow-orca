@@ -11,15 +11,15 @@ facts to the event store. Later document-16 work reuses the same grain as the ho
 advancement segments driven by the durable interpreter.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Engine.Orleans/Transport/` (from OT0-03)
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` — `ProcessAsync`
+- `src/OrcaCore.Engine.Orleans/Transport/` (from OT0-03)
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` — `ProcessAsync`
   overloads and `StartWorkflowCommand` handling
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableWorkflowRuntime.cs` — how a start
+- `src/OrcaCore.Engine.Durable/Execution/DurableWorkflowRuntime.cs` — how a start
   command is built from a definition (registration, input state)
 - [01-architecture.md](../01-architecture.md) §2–3
 
 ## Deliverables
-In `v3-gpt/src/OrcaCore.Engine.Orleans/Grains/`:
+In `src/OrcaCore.Engine.Orleans/Grains/`:
 - `IWorkflowInstanceGrain : IGrainWithGuidKey` —
   `Task<WorkflowCommandResultEnvelope> ExecuteAsync(WorkflowCommandEnvelope envelope,
   CancellationToken cancellationToken)` (OE-014 — Orleans flows caller cancellation to
@@ -30,7 +30,7 @@ In `v3-gpt/src/OrcaCore.Engine.Orleans/Grains/`:
   fields beyond injected services. NOT `[Reentrant]`. `OnActivateAsync` does nothing beyond base.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Orleans.Tests/Grains/InstanceGrainStartTests.cs`
+In `tests/OrcaCore.Engine.Orleans.Tests/Grains/InstanceGrainStartTests.cs`
 (TestingHost + in-memory event store; register a minimal one-step durable definition the way
 `Engine.Durable.Tests` does):
 1. `Start_ThroughGrain_CommitsStartedFacts` — `[Trait("AC","OE-AC-001")]` — ExecuteAsync

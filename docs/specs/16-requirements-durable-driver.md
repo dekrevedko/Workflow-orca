@@ -22,11 +22,11 @@ Positioning against the engine family (normative):
   that segment.
 - The **ephemeral engine** is unaffected; parity expectations are stated in DR-060.
 
-## 16.0 Audit baseline (2026-07-05, v3-gpt)
+## 16.0 Audit baseline (2026-07-05, current implementation)
 
 This section is a historical baseline, not a current implementation ledger. Subsequent
 implementation evidence and remaining gaps are tracked in
-[`v3-gpt/docs/durable-driver-audit.md`](../../v3-gpt/docs/durable-driver-audit.md).
+[`docs/durable-driver-audit.md`](../../docs/durable-driver-audit.md).
 
 What exists and is reused. The kernel processor, aggregate, persistence, wake-up
 sources, facade, and DAG runner are reused without behavioral forks. The kernel

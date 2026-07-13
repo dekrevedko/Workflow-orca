@@ -1,7 +1,7 @@
 # R4 — Durable Engine — Findings
 
-> Phase scope: `v3-gpt/src/OrcaCore.Engine.Durable/**` and matching tests in
-> `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/**`. Reviewed against DU (all), EV under
+> Phase scope: `src/OrcaCore.Engine.Durable/**` and matching tests in
+> `tests/OrcaCore.Engine.Durable.Tests/**`. Reviewed against DU (all), EV under
 > durability, MG-011…013/030…032/062…064. Primary lenses: correctness/concurrency, spec
 > conformance. Code review only. Cross-reference: R3 findings (ephemeral branch-wait bugs)
 > apply to the shared wait-matching model in `DurableWorkflowAggregate`.

@@ -8,11 +8,11 @@ Extend ephemeral `ForEach` with join, failure, and residual policies. `WhenAny` 
 intent must be recorded before the parent continues.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Core/Building/WorkflowBuilder.cs`
-- `v3-gpt/src/OrcaCore.Core/Definitions/Nodes.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
-- `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Execution/ForEachTests.cs`
+- `src/OrcaCore.Core/Building/WorkflowBuilder.cs`
+- `src/OrcaCore.Core/Definitions/Nodes.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
+- `tests/OrcaCore.Engine.Ephemeral.Tests/Execution/ForEachTests.cs`
 - Spec: `docs/specs/08-requirements-composition.md`
 - Spec: `docs/specs/12-acceptance-criteria.md`
 
@@ -23,10 +23,10 @@ intent must be recorded before the parent continues.
 - Observable group outcomes
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Execution/ForEachPolicyTests.cs`:
+In `tests/OrcaCore.Engine.Ephemeral.Tests/Execution/ForEachPolicyTests.cs`:
 1. `[Trait("AC","AC-604")] ForEach_WaitAllThenFail_FailsAfterAllItemsFinish`
 2. `[Trait("AC","AC-605")] ForEach_WhenAny_RecordsCancellationIntentBeforeParentContinuation`
-In `v3-gpt/tests/OrcaCore.Acceptance.Tests/ForEachAcceptanceTests.cs`:
+In `tests/OrcaCore.Acceptance.Tests/ForEachAcceptanceTests.cs`:
 3. `[Trait("AC","AC-604")] ForEach_WaitAllThenFailIsObservable`
 4. `[Trait("AC","AC-605")] ForEach_WhenAnyCancellationIntentPrecedesContinuation`
 
@@ -38,6 +38,6 @@ Durable children, child cancellation, and saga compensation.
 
 ## Definition of done
 - [ ] New tests fail before implementation and pass after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "ForEach|AC=AC-604|AC=AC-605"` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "ForEach|AC=AC-604|AC=AC-605"` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T4-03: ForEach join and failure policies (CP-011, AC-604, AC-605)"

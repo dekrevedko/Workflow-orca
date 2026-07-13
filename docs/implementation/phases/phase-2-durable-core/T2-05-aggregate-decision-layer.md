@@ -8,19 +8,19 @@ Create a deterministic durable aggregate that rebuilds from checkpoint plus stre
 The layer is pure decision logic and does not perform provider I/O.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Abstractions/Durable/`
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/`
-- `v3-gpt/src/OrcaCore.Engine.Durable/`
-- `v3-gpt/src/OrcaCore.Core/Definitions/`
+- `src/OrcaCore.Abstractions/Durable/`
+- `src/OrcaCore.Abstractions/Providers/`
+- `src/OrcaCore.Engine.Durable/`
+- `src/OrcaCore.Core/Definitions/`
 - Spec: `docs/specs/06-requirements-durable-execution.md` sections 6.2 and 6.3
 
 ## Deliverables
-- Aggregate state and replay logic in `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/`
+- Aggregate state and replay logic in `src/OrcaCore.Engine.Durable/Aggregates/`
 - Command decision functions for start, step success/failure, wait registration/match, complete, and fail
 - Unit tests proving deterministic replay and event decisions.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/Aggregates/DurableAggregateTests.cs`:
+In `tests/OrcaCore.Engine.Durable.Tests/Aggregates/DurableAggregateTests.cs`:
 1. `Rehydrate_CheckpointPlusTail_RestoresSameStateAsFullReplay`
 2. `DecideStart_EmitsStartedAndVersionBoundEvents`
 3. `DecideStepCompleted_EmitsStepAndStateCheckpointFacts`
@@ -35,6 +35,6 @@ Command pipeline, expected-version append, actual workflow interpreter integrati
 
 ## Definition of done
 - [ ] All new tests green; full affected suites green
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] Decision layer has no provider implementation dependency
 - [ ] PROGRESS.md updated; committed as "T2-05: durable aggregate decisions (DU-010-013)"

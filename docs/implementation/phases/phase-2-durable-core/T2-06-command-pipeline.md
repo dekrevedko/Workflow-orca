@@ -8,20 +8,20 @@ Wire durable commands through a per-instance command lane, aggregate rehydration
 Concurrent durable commands must serialize to one committed winner or a clear conflict/retry result.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/`
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/InstanceExecutionLane.cs`
-- `v3-gpt/tests/OrcaCore.ProviderCertification/`
+- `src/OrcaCore.Engine.Durable/Aggregates/`
+- `src/OrcaCore.Abstractions/Providers/`
+- `src/OrcaCore.Engine.Ephemeral/Execution/InstanceExecutionLane.cs`
+- `tests/OrcaCore.ProviderCertification/`
 - Spec: `docs/specs/06-requirements-durable-execution.md` sections 6.2 and 6.3
 
 ## Deliverables
-- Durable command processor in `v3-gpt/src/OrcaCore.Engine.Durable/Execution/`
+- Durable command processor in `src/OrcaCore.Engine.Durable/Execution/`
 - Expected-version append path using provider ports
 - Conflict outcome policy for racing commands
 - Acceptance coverage for concurrent durable resume serialization.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/Execution/DurableCommandPipelineTests.cs`:
+In `tests/OrcaCore.Engine.Durable.Tests/Execution/DurableCommandPipelineTests.cs`:
 1. `ProcessCommand_LoadsCheckpointAndTailBeforeDecision`
 2. `ProcessCommand_AppendsWithExpectedVersionFromAggregate`
 3. `ProcessCommand_VersionConflict_ReturnsClearConflict`
@@ -35,6 +35,6 @@ Checkpoints policy, cold waits, inbox/outbox pump, PostgreSQL.
 
 ## Definition of done
 - [ ] All new tests green; full affected suites green
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] AC-309 green in durable/certification coverage
 - [ ] PROGRESS.md updated; committed as "T2-06: durable command pipeline (AC-309)"

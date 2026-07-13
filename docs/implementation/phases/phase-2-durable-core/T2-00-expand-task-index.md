@@ -17,7 +17,7 @@ Each task must fit the protocol sizing limits or be split before execution.
 ## Deliverables
 - `docs/implementation/phases/phase-2-durable-core/PROGRESS.md`
 - `docs/implementation/phases/phase-2-durable-core/T2-01-*.md` through `T2-15-*.md`
-- All paths in generated tasks use `v3-gpt/`.
+- All paths in generated tasks use ``.
 
 ## Tests to write FIRST
 No product tests. Review the generated task files for path safety, dependency order, AC ownership, and sizing.
@@ -31,6 +31,6 @@ Any source code, tests, provider implementation, package additions, or durable A
 ## Definition of done
 - [ ] T2-01 through T2-15 task files exist
 - [ ] Phase 2 PROGRESS.md created and updated
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx` passes
 - [ ] PROGRESS.md updated; committed as "T2-00: expand phase-2 task index"

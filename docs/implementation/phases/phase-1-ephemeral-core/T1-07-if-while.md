@@ -9,10 +9,10 @@ Extend the interpreter beyond straight-line sequences to handle conditional and 
 condition before each iteration and exits cleanly when false.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Core/Definitions/Nodes.cs`
-- `v3-gpt/src/OrcaCore.Core/Definitions/ExecutionPointer.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
-- `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Execution/InterpreterTests.cs`
+- `src/OrcaCore.Core/Definitions/Nodes.cs`
+- `src/OrcaCore.Core/Definitions/ExecutionPointer.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
+- `tests/OrcaCore.Engine.Ephemeral.Tests/Execution/InterpreterTests.cs`
 - Spec: `docs/specs/04-requirements-core-runtime.md` section 4.2
 
 ## Deliverables
@@ -21,14 +21,14 @@ condition before each iteration and exits cleanly when false.
 - Acceptance tests for AC-002 and AC-003.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Execution/InterpreterControlFlowTests.cs`:
+In `tests/OrcaCore.Engine.Ephemeral.Tests/Execution/InterpreterControlFlowTests.cs`:
 1. `Run_IfConditionTrue_ExecutesThenBranchOnly`
 2. `Run_IfConditionFalse_ExecutesElseBranchOnly`
 3. `Run_IfWithoutElse_ContinuesAfterSkippedBranch`
 4. `Run_WhileConditionTrueThenFalse_ReevaluatesConditionEachIteration`
 5. `Run_NestedIfInsideWhile_MaintainsCorrectPosition`
 
-In `v3-gpt/tests/OrcaCore.Acceptance.Tests/ControlFlowAcceptanceTests.cs`:
+In `tests/OrcaCore.Acceptance.Tests/ControlFlowAcceptanceTests.cs`:
 6. `[Trait("AC","AC-002")] If_ExecutesExactlyOneBranch_ThenContinues`
 7. `[Trait("AC","AC-003")] While_RunsThreeIterations_CompletesAfterFourthCheck`
 
@@ -44,6 +44,6 @@ Waits inside loops, loop-scoped wait isolation, parallel branches, Yield fairnes
 
 ## Definition of done
 - [ ] All new tests green; full affected suites green
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] AC-002 and AC-003 are green in `OrcaCore.Acceptance.Tests`
 - [ ] PROGRESS.md updated; committed as "T1-07: If and While (AC-002, AC-003)"

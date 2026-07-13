@@ -58,22 +58,21 @@ desynchronize from reality as earlier phases evolve, and expansion-at-start keep
 detailed instruction consistent with the code that actually exists. `Tn-00` tasks are
 Sonnet-level; most execution tasks are Haiku-level (marked per task).
 
-## Workspace: the `v3/` rule
+## Workspace: the repository-root rule
 
-The from-scratch implementation lives in the **`v3/` subfolder** on the
-**`feature/v3-rebuild`** branch. The repository root also contains the **legacy
-implementation** (`src/`, `tests/`, `OrcaCore.slnx` at root) kept for reference.
+The active implementation lives at the **repository root** on the
+**`feature/v3-rebuild`** branch. The superseded prototype is preserved under
+`archive/legacy-poc/`.
 
 **Hard rules for every agent session:**
 
-- All implementation work happens under `v3/`: `v3/OrcaCore.slnx`, `v3/src/`, `v3/tests/`,
-  `v3/Directory.Build.props`, `v3/Directory.Packages.props`.
-- **Never read, reference, copy from, or modify** the legacy root `src/`, `tests/`, or root
-  `OrcaCore.slnx` — not even "for inspiration". The spec package is the only source of
-  truth; legacy code embodies superseded designs.
+- All implementation work happens at the repository root: `OrcaCore.slnx`, `src/`, `tests/`,
+  `Directory.Build.props`, and `Directory.Packages.props`.
+- **Never read, reference, copy from, or modify** `archive/legacy-poc/` for active behavior.
+  The spec package and current root implementation are the sources of truth.
 - `docs/specs/` and `docs/implementation/` are read-only inputs (task files update only
   their phase `PROGRESS.md`).
-- Where any task file says "repo root", read it as **`v3/`**.
+- Where any task file says "repo root", use the repository root.
 
 The very first task is **[T0-01](phases/phase-0-skeleton/T0-01-solution-skeleton.md)**
 (solution skeleton).

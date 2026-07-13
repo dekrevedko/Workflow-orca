@@ -15,17 +15,17 @@ and OT1-01a; seam (4)'s answer feeds the OT2-00 expansion; this task changes **n
 production behavior** itself.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableStartService.cs` — confirm the
+- `src/OrcaCore.Engine.Durable/Execution/DurableStartService.cs` — confirm the
   process-local lock/cache; identify what a cluster-wide reservation needs from
   `IWorkflowStartIdempotencyStore` (atomic reserve-or-return-winner? already atomic?)
 - The durable event routing/matching component used by `Engine.Durable` for
   `RaiseEvent`-style delivery (locate from `DurableWorkflowRuntime` usings; read ≤2 files) —
   determine whether correlation-targeted resolution and definition-targeted fanout are
   separate public surfaces the Orleans facade can call, or internal
-- `v3-gpt/src/OrcaCore.Hosting/Services/OrcaCoreTimerHostedService.cs` — confirm
+- `src/OrcaCore.Hosting/Services/OrcaCoreTimerHostedService.cs` — confirm
   `BackgroundService` hosting; identify whether the pump *loop internals* are separable
   from the hosting shell for `ILifecycleParticipant<ISiloLifecycle>` wrapping (OE-072)
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/ProviderPorts.cs` — `ITimerScheduler`
+- `src/OrcaCore.Abstractions/Providers/ProviderPorts.cs` — `ITimerScheduler`
   claim contract, plus the provider implementation of claim state (locate in
   `Providers.InMemory` or `Providers.PostgreSql`; read 1 file) — answer seam (4)
 

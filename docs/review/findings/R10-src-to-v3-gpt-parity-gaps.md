@@ -1,8 +1,8 @@
-# R10 — Old `src/` → `v3-gpt` Parity Gaps
+# R10 — Old `src/` → `current implementation` Parity Gaps
 
 > Comparative review of the legacy implementation (`src/` + `tests/`) against the
-> from-scratch rewrite (`v3-gpt/`). Primary lens: **what the old code proved in tests** that
-> v3-gpt has not yet matched in implementation or test coverage.
+> from-scratch rewrite (``). Primary lens: **what the old code proved in tests** that
+> current implementation has not yet matched in implementation or test coverage.
 >
 > Cross-references: [R3](R3-ephemeral-engine.md)–[R9](R9-test-coverage-gaps.md) for
 > v3-internal defect and test-depth findings. This document is the **src → v3 migration
@@ -10,7 +10,7 @@
 
 **Baseline (2026-07-03):**
 
-| Area | Old (`src/` + `tests/`) | New (`v3-gpt/`) |
+| Area | Old (`src/` + `tests/`) | New (``) |
 |------|-------------------------|-----------------|
 | Source projects | 3 (`Abstractions`, `Runtime`, `EventDrivenPrototype`) | 12+ (split engines, providers, hosting) |
 | Test projects | 2 (`OrcaCore.Tests`, `EventDrivenPrototype.Tests`) | 12 + `TestSupport` + `ProviderCertification` |
@@ -22,7 +22,7 @@
 
 ## 1. Executive summary
 
-v3-gpt is a **spec-driven rewrite**, not a line-by-line port. It **exceeds** the old
+current implementation is a **spec-driven rewrite**, not a line-by-line port. It **exceeds** the old
 `src/` scope in several areas (sagas, ForEach, child workflows, DAG, external jobs, resource
 pools, Continue-as-new, provider certification, hosting). Most **MC_AT-001–019** ephemeral
 scenarios have AC-tagged equivalents.
@@ -46,7 +46,7 @@ Gaps fall into four buckets:
 ## 2. MC_AT acceptance parity matrix
 
 Old tests: `tests/OrcaCore.Tests/Acceptance/MC_AT_*.cs` (19 files).  
-New mapping: `v3-gpt/tests/OrcaCore.Acceptance.Tests/` + engine unit tests.
+New mapping: `tests/OrcaCore.Acceptance.Tests/` + engine unit tests.
 
 | Old ID | Scenario | v3 equivalent | Parity |
 |--------|----------|---------------|--------|
@@ -252,9 +252,9 @@ that codify wrong behavior.
 ## 9. Traceability quick reference
 
 ```
-Old ephemeral acceptance     → v3-gpt/tests/OrcaCore.Acceptance.Tests/
-Old execution edge cases     → v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Execution/
-Old durable engine/store     → v3-gpt/tests/OrcaCore.Engine.Durable.Tests/ + ProviderCertification/
+Old ephemeral acceptance     → tests/OrcaCore.Acceptance.Tests/
+Old execution edge cases     → tests/OrcaCore.Engine.Ephemeral.Tests/Execution/
+Old durable engine/store     → tests/OrcaCore.Engine.Durable.Tests/ + ProviderCertification/
 Old prototype                → (no direct successor)
 Old MC_AT IDs                → docs/specs/12-acceptance-criteria.md AC-xxx
 Implementation defects       → docs/review/findings/R3–R8
@@ -276,7 +276,7 @@ Test depth gaps (v3-internal)→ docs/review/findings/R9-test-coverage-gaps.md
 | Prototype | 14 | 0% | N/A (removed) |
 | New spec features (saga, DAG, etc.) | 0 | Extensive | v3 ahead |
 
-**Bottom line:** v3-gpt **matches or exceeds** the old `src/` feature set at the spec level and
+**Bottom line:** current implementation **matches or exceeds** the old `src/` feature set at the spec level and
 covers most MC_AT acceptance scenarios under AC tags. The largest **parity risk** is not
 missing acceptance files — it is **shallow edge-case and negative testing**, **known
 implementation bugs** in wait/routing/durable paths the old suite would have caught, and

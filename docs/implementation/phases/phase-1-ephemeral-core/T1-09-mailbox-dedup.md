@@ -9,10 +9,10 @@ before their wait are stored in the instance mailbox, duplicate `EventId`s do no
 duplicate effects, and mailbox removal happens only after the resumed transition commits.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Abstractions/Events/EventEnvelope.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs`
+- `src/OrcaCore.Abstractions/Events/EventEnvelope.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
+- `src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs`
 - Spec: `docs/specs/05-requirements-events-waits-timers.md` section 5.4
 
 ## Deliverables
@@ -23,7 +23,7 @@ duplicate effects, and mailbox removal happens only after the resumed transition
 - Completion guard for unresolved runtime-owned waits/events per CR-032.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Execution/MailboxTests.cs`:
+In `tests/OrcaCore.Engine.Ephemeral.Tests/Execution/MailboxTests.cs`:
 1. `RaiseEventAsync_BeforeWait_BuffersEvent`
 2. `Run_RegisteringMatchingWait_ConsumesBufferedEventAndContinues`
 3. `RaiseEventAsync_DuplicatePendingEvent_BuffersOnlyOnce`
@@ -31,7 +31,7 @@ In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Execution/MailboxTests.cs`:
 5. `RaiseEventAsync_ResumeTransitionFails_EventRemainsAvailable`
 6. `Run_EndWithActiveWait_FailsOrCancelsByExplicitPolicy`
 
-In `v3-gpt/tests/OrcaCore.Acceptance.Tests/MailboxAcceptanceTests.cs`:
+In `tests/OrcaCore.Acceptance.Tests/MailboxAcceptanceTests.cs`:
 7. `[Trait("AC","AC-104")] OutOfOrderEvent_IsBufferedThenConsumed`
 8. `[Trait("AC","AC-105")] DuplicateEventId_ProducesOneConsumptionAndContinuation`
 9. `[Trait("AC","AC-010")] CompletionBlockedByUnresolvedRuntimeWork`
@@ -48,6 +48,6 @@ Durable inbox/outbox, cross-process crash recovery, correlation-targeted routing
 
 ## Definition of done
 - [ ] All new tests green; full affected suites green
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] AC-010, AC-104, and AC-105 are green in `OrcaCore.Acceptance.Tests`
 - [ ] PROGRESS.md updated; committed as "T1-09: mailbox buffering and dedup (AC-010, AC-104-105)"

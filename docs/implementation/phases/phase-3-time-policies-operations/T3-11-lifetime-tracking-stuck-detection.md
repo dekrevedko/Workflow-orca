@@ -8,11 +8,11 @@ Track instance and step lifetime timestamps and detect apparently stuck steps/in
 Detection emits lifecycle events and exposes queryable stuck flags.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Abstractions/Instances/WorkflowInstanceSnapshot.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Management/EphemeralManagement.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Management/DurableManagementQuery.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Management/WorkflowInstanceQueryModel.cs`
-- `v3-gpt/tests/OrcaCore.TestSupport/Clock.cs`
+- `src/OrcaCore.Abstractions/Instances/WorkflowInstanceSnapshot.cs`
+- `src/OrcaCore.Engine.Ephemeral/Management/EphemeralManagement.cs`
+- `src/OrcaCore.Engine.Durable/Management/DurableManagementQuery.cs`
+- `src/OrcaCore.Engine.Durable/Management/WorkflowInstanceQueryModel.cs`
+- `tests/OrcaCore.TestSupport/Clock.cs`
 - Spec: `docs/specs/09-requirements-management-operations.md`
 - Spec: `docs/specs/12-acceptance-criteria.md`
 
@@ -23,10 +23,10 @@ Detection emits lifecycle events and exposes queryable stuck flags.
 - Acceptance tests for AC-507 and AC-508
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Management/StuckDetectionTests.cs`:
+In `tests/OrcaCore.Engine.Ephemeral.Tests/Management/StuckDetectionTests.cs`:
 1. `StepBeyondThreshold_EmitsStuckStepEventAndSetsFlag`
 2. `InstanceWithoutProgressBeyondThreshold_EmitsStuckInstanceEventAndSetsFlag`
-In `v3-gpt/tests/OrcaCore.Acceptance.Tests/OperationsAcceptanceTests.cs`:
+In `tests/OrcaCore.Acceptance.Tests/OperationsAcceptanceTests.cs`:
 3. `[Trait("AC","AC-507")] StuckStep_IsSignalledAndQueryable`
 4. `[Trait("AC","AC-508")] StuckInstance_IsSignalledAndQueryable`
 
@@ -39,6 +39,6 @@ Distributed stuck reconciliation after crash and durable ticket expiry.
 
 ## Definition of done
 - [ ] New tests fail before implementation and pass after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "Stuck|AC=AC-507|AC=AC-508"` passes
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "Stuck|AC=AC-507|AC=AC-508"` passes
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] PROGRESS.md updated; committed as "T3-11: lifetime tracking and stuck detection (MG-040, AC-507, AC-508)"

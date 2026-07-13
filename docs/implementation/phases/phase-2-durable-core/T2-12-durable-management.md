@@ -8,10 +8,10 @@ Add durable-only pause/resume, retry, delete/purge, and retention baseline manag
 Pause buffers events durably and resume can replay or discard the pause-window buffer.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Engine.Durable/`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Management/EphemeralManagement.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/`
-- `v3-gpt/src/OrcaCore.Abstractions/Instances/WorkflowStatus.cs`
+- `src/OrcaCore.Engine.Durable/`
+- `src/OrcaCore.Engine.Ephemeral/Management/EphemeralManagement.cs`
+- `src/OrcaCore.Abstractions/Providers/`
+- `src/OrcaCore.Abstractions/Instances/WorkflowStatus.cs`
 - Spec: `docs/specs/09-requirements-management-operations.md` sections 9.2 and 9.6
 
 ## Deliverables
@@ -20,7 +20,7 @@ Pause buffers events durably and resume can replay or discard the pause-window b
 - Retention-safe command guards.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/Management/DurableManagementTests.cs`:
+In `tests/OrcaCore.Engine.Durable.Tests/Management/DurableManagementTests.cs`:
 1. `[Trait("AC","AC-512")] Pause_RunningInstance_StopsAfterSafeBoundary`
 2. `[Trait("AC","AC-513")] EventsDuringPause_AreBufferedAndDoNotResume`
 3. `[Trait("AC","AC-514")] ResumeReplay_ProcessesBufferedDeliveriesInOrder`
@@ -36,6 +36,6 @@ Durable timers, history-pressure statistics, archive storage plugin details.
 
 ## Definition of done
 - [ ] All new tests green; full affected suites green
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] AC-512 through AC-515 and AC-517 are green
 - [ ] PROGRESS.md updated; committed as "T2-12: durable management commands (AC-512-515, AC-517)"

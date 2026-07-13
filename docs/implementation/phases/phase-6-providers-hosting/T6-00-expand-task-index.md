@@ -25,16 +25,16 @@ and built-only in PR CI, while public package publishing is deferred for this ru
 No product tests. This is a task-expansion and decision-recording task.
 
 ## Implementation notes
-All generated task files must use `v3-gpt/` implementation paths. Do not add production
+All generated task files must use `` implementation paths. Do not add production
 code, test code, package references, or solution entries in this task.
 
 ## Out of scope
-Starting T6-01, adding benchmarks, adding providers, changing `v3-gpt/` code, or publishing
+Starting T6-01, adding benchmarks, adding providers, changing `` code, or publishing
 packages.
 
 ## Definition of done
 - [ ] IOQ-8 is resolved in `docs/implementation/00-stack-decisions.md`
 - [ ] IOQ-9 is resolved as deferred in `docs/implementation/00-stack-decisions.md`
 - [ ] Every Phase 6 index item has a full task file or an explicit optional gate task
-- [ ] Source/test path check over Phase 6 task files shows paths only under `v3-gpt/` or docs paths
+- [ ] Source/test path check over Phase 6 task files shows paths only under `` or docs paths
 - [ ] PROGRESS.md updated; committed as "T6-00: expand providers hosting phase tasks"

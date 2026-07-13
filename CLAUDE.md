@@ -4,15 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Active implementation track
 
-`v3-gpt/` is the sole active codebase. The root `src/` and `OrcaCore.slnx` are a legacy prototype — do not modify them. All build, test, and source work targets `v3-gpt/OrcaCore.slnx`.
+The repository root is the sole active codebase. The superseded root prototype is
+preserved under `archive/legacy-poc/`. All build, test, and source work targets
+the root `OrcaCore.slnx`, `src/`, and `tests/`.
 
 ## Build and test commands
 
-All commands run from `v3-gpt/` so the SDK pin in `global.json` is respected.
+All commands run from the repository root so the SDK pin in `global.json` is respected.
 
 ```powershell
-cd v3-gpt
-
 # Build everything
 dotnet build OrcaCore.slnx
 
@@ -57,7 +57,7 @@ OrcaCore provides two runtime engines that share the same workflow definition AP
 | Ephemeral | `OrcaCore.Engine.Ephemeral` | In-memory only; lost on restart | Development, testing, short-lived coordination |
 | Durable | `OrcaCore.Engine.Durable` | Pluggable `IWorkflowStore` (PostgreSQL, SQL Server) | Production, long-running, crash-tolerant |
 
-### Project structure (v3-gpt/src/)
+### Project structure (`src/`)
 
 ```
 OrcaCore.Abstractions      — IStep, StepContext, StepResult, EventEnvelope, WaitRecord/Status/Mode,
@@ -95,16 +95,16 @@ The `WaitLong` node (durable-only) parks execution until an external event arriv
 
 ## Key conventions
 
-- Target framework: `net10.0`; SDK pinned in `v3-gpt/global.json` (10.0.301, `rollForward: latestFeature`)
+- Target framework: `net10.0`; SDK pinned in `global.json` (10.0.301, `rollForward: latestFeature`)
 - C#: file-scoped namespaces, `Nullable=enable`, `LangVersion=latest`, `TreatWarningsAsErrors=true`
-- Package versions: centrally managed in `v3-gpt/Directory.Packages.props` — never use floating versions
+- Package versions: centrally managed in `Directory.Packages.props` — never use floating versions
 - Test framework: xunit.v3
 - Integration tests use Testcontainers — Docker must be running
 - CRLF line endings, 4-space indentation (`.editorconfig`)
 
 ## Documentation
 
-- `v3-gpt/docs/ephemeral-engine-developer-guide.md` — complete API walkthrough with examples
-- `v3-gpt/docs/durable-driver-lane-host.md` — durable segment execution model and multi-host contention
+- `docs/ephemeral-engine-developer-guide.md` — complete API walkthrough with examples
+- `docs/durable-driver-lane-host.md` — durable segment execution model and multi-host contention
 - `docs/specs/` — consolidated product requirements (source of truth for intended behavior)
 - `docs/orleans-engine/` — self-contained specs for a planned Orleans-hosted durable engine variant

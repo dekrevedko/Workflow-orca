@@ -11,7 +11,7 @@
 
 ## Findings
 
-### [P1 — latent] `DurableDagRunner.ScheduleReadyAsync` re-schedules in-flight nodes on re-drive — `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableDagRunner.cs:22`
+### [P1 — latent] `DurableDagRunner.ScheduleReadyAsync` re-schedules in-flight nodes on re-drive — `src/OrcaCore.Engine.Durable/Execution/DurableDagRunner.cs:22`
 - **Requirement/convention:** JS-* DAG driving scenario crash-safety; CR-040/043 (exactly-once, no duplicate committed work)
 - **Evidence:** The runner recomputed the ready set purely from `CompletedNodeIds`/`FailedNodeIds`. `WorkflowDagPlan.GetRunnableNodes` returns any node whose deps are complete and which is not itself completed/failed — so a **scheduled-but-not-yet-terminal** node is returned again. Each call also mints `CommandId.New()` per batch, so `groupId = command.CommandId` differs every call and the `DurableChildWorkflowState.HasActiveChildInGroup(groupId)` dedup guard (`DurableChildWorkflowCommandHandler.cs:94`) can never fire across runner calls; `DeterministicChildId(instanceId, commandId, index)` then produces *different* child ids for the same node.
 - **Failure scenario:** a durable driver loop (or crash-restart) reconstructs `completed`/`failed` from child-completion events — in-flight nodes appear in neither set. Node A completes → wave schedules B, C. C completes, B still running → driver reconstructs `completed={A,C}` → `GetRunnableNodes` returns B again → **B is scheduled a second time** as a duplicate child workflow. Same on crash-restart mid-run.
@@ -19,7 +19,7 @@
 - **Fix applied (2026-07-04):** added an optional in-flight exclusion set — `WorkflowDagPlan.GetRunnableNodes(..., scheduledNodeIds)`, `WorkflowDagRunner.GetNextBatches(..., scheduledNodeIds)`, and `DurableDagScheduleRequest.ScheduledNodeIds` (reconstructed from the root's `WorkflowChildrenScheduledEvent` item snapshots minus completed/failed). Supplying it makes re-invocation idempotent. Tests: `DagBuilderTests.GetRunnableNodes_ExcludesScheduledButNotYetTerminalNodes`, `DurableDagRunnerTests.ScheduleReadyAsync_WhenNodesAreMarkedScheduled_DoesNotReDispatchInFlightWork`. The per-command `HasActiveChildInGroup` guard is unchanged (it correctly dedups *command-level* retries).
 - **Confidence:** CONFIRMED (traced the guard-key and the runnable-set recomputation).
 
-### [P3] Hosted-service retry test helper regressed the wall-clock guard — `v3-gpt/tests/OrcaCore.Hosting.Tests/OrcaCoreHostingServiceCollectionTests.cs:298`
+### [P3] Hosted-service retry test helper regressed the wall-clock guard — `tests/OrcaCore.Hosting.Tests/OrcaCoreHostingServiceCollectionTests.cs:298`
 - **Requirement/convention:** NF-020 / `RepositoryGuardTests.TestSources_DoNotUseWallClockTaskDelay`
 - **Evidence:** the prior flake fix (commit `cbe821b5`) used `Task.Delay(25)` as a liveness budget in `AdvanceUntilObservedAsync`, tripping the wall-clock-delay guard (caught here, not before, because that commit re-ran only the Hosting suite, not the Core guard suite).
 - **Fix applied:** replaced the fixed 100-iteration + real-delay loop with a `while (!observed.IsCompleted)` loop that yields and advances the fake clock, bounded by the test's own `CancellationToken`. Guard-compliant, deterministic (can't burn out early), verified 8× under 4 concurrent heavy suites. The original flake root cause was the *fixed iteration cap* burning out under saturation, not the absence of a real delay.

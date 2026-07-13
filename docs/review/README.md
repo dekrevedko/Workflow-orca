@@ -5,8 +5,8 @@ requirements. It is split into **bounded review phases run bottom-up by dependen
 each phase fits an agent's context window and a defect found in a lower layer explains
 failures in the layers above it before you waste effort reviewing them.
 
-- **Current target:** `v3-gpt/` (the furthest-along lineage — all providers, saga, DAG,
-  hosting). To review a different lineage, swap `v3-gpt` for `v3` or `v3-cursor` everywhere;
+- **Current target:** `` (the furthest-along lineage — all providers, saga, DAG,
+  hosting). To review a different lineage, swap `current implementation` for `v3` or `v3-cursor` everywhere;
   earlier lineages simply have fewer review phases (skip phases whose projects don't exist).
 - **Deliverable of each phase:** a findings file under
   [`findings/`](findings/) named `R<n>-<area>.md`, using the finding format in §5.
@@ -61,8 +61,8 @@ Every phase looks through all seven lenses, weighted per the phase's nature (§4
 A review of code you haven't proven builds/tests is guesswork. In the **first phase (R0)**:
 
 ```
-dotnet build v3-gpt/OrcaCore.slnx
-dotnet test  v3-gpt/OrcaCore.slnx    # note pass/fail counts; provider tests may need Docker/Testcontainers
+dotnet build OrcaCore.slnx
+dotnet test  OrcaCore.slnx    # note pass/fail counts; provider tests may need Docker/Testcontainers
 ```
 
 Record the result at the top of `findings/R0-foundations.md`. If the build is red, that is
@@ -74,7 +74,7 @@ Each phase is one agent session. Read the listed spec sections **first**, then t
 Keep to the phase's project/file scope so the session fits context. "Primary lenses" get the
 deepest scrutiny; correctness is always in scope.
 
-| Phase | Scope (v3-gpt projects/areas) | Spec & convention refs | Primary lenses |
+| Phase | Scope (current implementation projects/areas) | Spec & convention refs | Primary lenses |
 |-------|-------------------------------|------------------------|----------------|
 | **R0 — Foundations & architecture** | Solution layout, `Directory.Build.props`/`.Packages.props`, every `.csproj` reference graph, banlist compliance across all projects; `OrcaCore.slnx` | 00 (banlist, defaults, resolved IOQ), 01, 10 (PR-001…003), NF-001/002/010 | Architecture, pluggability |
 | **R1 — Abstractions/contracts** | `OrcaCore.Abstractions/**` (Ids, Steps, Events, Instances, Providers ports, Primitives, Durable command/event, Errors) | 03 glossary, 04 CR-011/015/020/021/022, 05 EV-001/002/021, 06 DU-011/012, 10 PR-010…016, PR-050 | Spec conformance, API design |
@@ -124,7 +124,7 @@ you verified, and any you could not reach.
 Swap `R3` / the phase row for the phase you're running.
 
 ```text
-You are a senior .NET reviewer auditing the OrcaCore implementation in v3-gpt/.
+You are a senior .NET reviewer auditing the OrcaCore implementation in .
 This is a comprehensive, evidence-based code review — one phase per session.
 
 1. Read docs/review/README.md in full (method, lenses, finding format, severity).
@@ -156,4 +156,4 @@ When R0…R7 findings files exist, run one final synthesis session: collate all 
 ranked remediation list, note cross-phase patterns (e.g. one wrong invariant repeated across
 engines), and record the overall verdict (ship / fix-then-ship / rework) in
 `findings/SUMMARY.md`. If later comparing lineages, keep each lineage's findings under a
-subfolder (`findings/v3-gpt/…`).
+subfolder (`findings/…`).

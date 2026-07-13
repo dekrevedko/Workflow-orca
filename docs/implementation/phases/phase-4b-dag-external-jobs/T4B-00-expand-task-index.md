@@ -31,16 +31,16 @@ No product tests. Validate the generated task files against the task protocol by
 and by searching for legacy workspace paths.
 
 ## Implementation notes
-Use `v3-gpt/` paths throughout this run. Log the spec open question 15 resolution in
+Use `` paths throughout this run. Log the spec open question 15 resolution in
 `docs/implementation/00-stack-decisions.md` and mark it resolved in
 `docs/specs/13-phasing-and-open-questions.md`.
 
 ## Out of scope
-Any code changes under `v3-gpt/`.
+Any code changes under ``.
 
 ## Definition of done
 - [ ] Task files T4B-01 through T4B-06 exist
 - [ ] Spec open question 15 is marked resolved in spec document 13
 - [ ] Decision is logged in `docs/implementation/00-stack-decisions.md`
-- [ ] Each task uses explicit `v3-gpt/` paths
+- [ ] Each task uses explicit `` paths
 - [ ] PROGRESS.md updated; committed as "T4B-00: expand dag external jobs task index"

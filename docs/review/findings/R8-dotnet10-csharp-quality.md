@@ -1,7 +1,7 @@
 # R8 — .NET 10 / C# Standards & Feature Usage — Findings
 
-> Specialty review (outside the R0–R7 phase table). Scope: all `v3-gpt/src/**`,
-> `v3-gpt/tests/**` (TDD/async discipline only), `Directory.Build.props`, `.editorconfig`,
+> Specialty review (outside the R0–R7 phase table). Scope: all `src/**`,
+> `tests/**` (TDD/async discipline only), `Directory.Build.props`, `.editorconfig`,
 > `global.json`, and `benchmarks/OrcaCore.Benchmarks`. Authority:
 > [02-engineering-conventions](../implementation/02-engineering-conventions.md) §1–§6,
 > [00-stack-decisions](../implementation/00-stack-decisions.md) §1–§3 (IDs, serialization,
@@ -12,9 +12,9 @@
 
 | Check | Result |
 |-------|--------|
-| `dotnet build v3-gpt/OrcaCore.slnx` (from `v3-gpt/`) | **Succeeded**, 0 warnings, 0 errors |
+| `dotnet build OrcaCore.slnx` (from ``) | **Succeeded**, 0 warnings, 0 errors |
 | `dotnet build` from repo root | **Fails** — root `global.json` pins SDK `10.0.200`; installed `10.0.301` |
-| `v3-gpt/global.json` | Pins `10.0.301` (overrides root when cwd is `v3-gpt/`) |
+| `global.json` | Pins `10.0.301` (overrides root when cwd is ``) |
 
 ## Findings
 
@@ -47,7 +47,7 @@
 - **Recommendation:** Centralize converters in Abstractions (or a small `OrcaCore.Serialization` project) and register once in shared `JsonSerializerOptions` / source context.
 - **Confidence:** CONFIRMED
 
-### [P2] No logging or BCL diagnostics despite stack decision — `v3-gpt/src/**`
+### [P2] No logging or BCL diagnostics despite stack decision — `src/**`
 - **Requirement/convention:** 02 §5 / 00 IOQ-5 observability
 - **Evidence:** Zero `ILogger`, `[LoggerMessage]`, `ActivitySource`, or `Meter` usages under `src/`. `DurableOutboxPump`, `InstanceExecutionLane`, and provider commit paths emit no structured diagnostics.
 - **Failure scenario:** Production hosts must reinvent observability; pump failures, lane contention, and provider retries are invisible without wrapping every port.
@@ -56,7 +56,7 @@
 
 ### [P2] Documented Channels substrate not used — concurrency uses locks and semaphores — `InstanceExecutionLane.cs:8`
 - **Requirement/convention:** 00 §1 Concurrency substrate
-- **Evidence:** No `System.Threading.Channels` references in `v3-gpt/`. Per-instance serialization uses `ConcurrentDictionary` + `SemaphoreSlim` (`InstanceExecutionLane.cs:8–17`). In-memory stores and interpreter parallel paths use `lock (gate)` with `object` (`InMemoryWorkflowProvider.cs:45`, `Interpreter.cs:503`).
+- **Evidence:** No `System.Threading.Channels` references in ``. Per-instance serialization uses `ConcurrentDictionary` + `SemaphoreSlim` (`InstanceExecutionLane.cs:8–17`). In-memory stores and interpreter parallel paths use `lock (gate)` with `object` (`InMemoryWorkflowProvider.cs:45`, `Interpreter.cs:503`).
 - **Failure scenario:** Architectural drift from documented design; future mailbox/outbox work may duplicate channel patterns ad hoc; `SemaphoreSlim` entries in `InstanceExecutionLane` are never removed (unbounded dictionary growth for long-lived hosts).
 - **Recommendation:** Either update 00 to reflect the SemaphoreSlim model, or migrate mailboxes/outbox/timer queues to bounded channels as specified; add lane eviction or weak-reference policy for completed instances.
 - **Confidence:** CONFIRMED
@@ -85,7 +85,7 @@
 
 ### [P2] `.editorconfig` enforces naming only — modern C# analyzer rules absent — `.editorconfig:1`
 - **Requirement/convention:** 02 §1 / `AnalysisLevel=latest`
-- **Evidence:** `v3-gpt/.editorconfig` sets file-scoped namespaces and interface naming; no `dotnet_diagnostic` entries for async (`CA2007`), exception quality, or JSON source-gen (`CA1869`). Build is clean with `TreatWarningsAsErrors=true`, so gaps are policy gaps, not latent warnings.
+- **Evidence:** `.editorconfig` sets file-scoped namespaces and interface naming; no `dotnet_diagnostic` entries for async (`CA2007`), exception quality, or JSON source-gen (`CA1869`). Build is clean with `TreatWarningsAsErrors=true`, so gaps are policy gaps, not latent warnings.
 - **Failure scenario:** Regressions (missing `ConfigureAwait`, new reflection serializers, `Task.Delay` in `src/`) compile without friction.
 - **Recommendation:** Add `EnableNETAnalyzers` + targeted warnings as errors for CA2007 in `src/`, ban `Task.Delay` in production projects via analyzer or arch test, and document allowed exceptions.
 - **Confidence:** CONFIRMED
@@ -125,11 +125,11 @@
 - **Recommendation:** Replace with `ReadOnlyCollection<T>` or expose arrays directly from definition builders.
 - **Confidence:** CONFIRMED
 
-### [P3] Root vs `v3-gpt` SDK pins diverge — `global.json` (repo root) vs `v3-gpt/global.json`
+### [P3] Root vs `current implementation` SDK pins diverge — `global.json` (repo root) vs `global.json`
 - **Requirement/convention:** NF-001 / developer ergonomics
-- **Evidence:** Root: `"version": "10.0.200", "rollForward": "latestPatch"`. `v3-gpt/`: `"version": "10.0.301"` only. Build from root fails on machines with 10.0.301 but not 10.0.200.
+- **Evidence:** Root: `"version": "10.0.200", "rollForward": "latestPatch"`. ``: `"version": "10.0.301"` only. Build from root fails on machines with 10.0.301 but not 10.0.200.
 - **Failure scenario:** Contributors and agents run `dotnet` from repo root and get SDK resolution errors (seen in R7).
-- **Recommendation:** Single `global.json` at repo root aligned with CI and local SDK, or document that all commands must run from `v3-gpt/`.
+- **Recommendation:** Single `global.json` at repo root aligned with CI and local SDK, or document that all commands must run from ``.
 - **Confidence:** CONFIRMED
 
 ## Strengths (what is already in good shape)

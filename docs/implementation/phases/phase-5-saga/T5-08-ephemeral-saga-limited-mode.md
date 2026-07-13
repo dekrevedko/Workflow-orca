@@ -10,23 +10,23 @@ ephemeral saga provides no durable recovery, no durable compensation audit, and 
 post-restart operator remediation guarantees.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
-- `v3-gpt/src/OrcaCore.Core/Building/SagaBuilder.cs`
-- `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Execution/InterpreterTests.cs`
+- `src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
+- `src/OrcaCore.Core/Building/SagaBuilder.cs`
+- `tests/OrcaCore.Engine.Ephemeral.Tests/Execution/InterpreterTests.cs`
 - Spec: `docs/specs/07-requirements-saga.md` SG-030
 - Spec: `docs/specs/13-phasing-and-open-questions.md` resolved question 13
 
 ## Deliverables
-- Ephemeral saga execution support in `v3-gpt/src/OrcaCore.Engine.Ephemeral/`
+- Ephemeral saga execution support in `src/OrcaCore.Engine.Ephemeral/`
 - Public XML documentation on ephemeral saga APIs describing in-process-only limits
 - Implementation docs update if a new public surface is introduced
-- Tests in `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Sagas/EphemeralSagaTests.cs`
-- Acceptance coverage in `v3-gpt/tests/OrcaCore.Acceptance.Tests/SagaAcceptanceTests.cs`
+- Tests in `tests/OrcaCore.Engine.Ephemeral.Tests/Sagas/EphemeralSagaTests.cs`
+- Acceptance coverage in `tests/OrcaCore.Acceptance.Tests/SagaAcceptanceTests.cs`
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Sagas/EphemeralSagaTests.cs`:
+In `tests/OrcaCore.Engine.Ephemeral.Tests/Sagas/EphemeralSagaTests.cs`:
 1. `EphemeralSagaFailure_CompensatesCompletedActionsInReverseOrder` - in-process compensation follows durable semantics. Traits AC-402, AC-403.
 2. `EphemeralSagaCompensationFailure_IsObservableInSnapshot` - failed compensation yields `CompensationFailed`. Trait AC-404.
 3. `EphemeralSagaRepeatedCompensation_IsIdempotentWithinProcess` - duplicate requests do not duplicate effects. Trait AC-409.
@@ -41,7 +41,7 @@ Durable audit, provider projections, operator recovery, and post-restart behavio
 
 ## Definition of done
 - [ ] New tests are red before implementation and green after
-- [ ] `dotnet test v3-gpt/OrcaCore.slnx --filter "AC=AC-401|AC=AC-402|AC=AC-403|AC=AC-404|AC=AC-409"` passes for ephemeral saga tests
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet test OrcaCore.slnx --filter "AC=AC-401|AC=AC-402|AC=AC-403|AC=AC-404|AC=AC-409"` passes for ephemeral saga tests
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] XML documentation and implementation docs clearly state in-process-only limits
 - [ ] PROGRESS.md updated; committed as "T5-08: ephemeral saga limited mode (SG-030)"

@@ -7,10 +7,10 @@ path for later sessions. Branch: `feature/v3-rebuild`.
 You are implementing the OrcaCore workflow engine from scratch, one task per session.
 
 Rules of engagement:
-1. Read docs/implementation/README.md fully and obey its ground rules and the "v3/ rule":
-   ALL code lives under v3/ (v3/OrcaCore.slnx, v3/src, v3/tests). The legacy code at the
-   repository root (src/, tests/, OrcaCore.slnx) is OFF-LIMITS: never read, copy from,
-   reference, or modify it. Where a task says "repo root", it means v3/.
+1. Read docs/implementation/README.md fully and obey its ground rules and the
+   repository-root rule: ALL active code lives at the repository root
+   (OrcaCore.slnx, src, tests). The superseded code under archive/legacy-poc/ is
+   OFF-LIMITS for active work. Where a task says "repo root", it means the repository root.
 2. Read docs/implementation/02-engineering-conventions.md and
    docs/implementation/03-tdd-workflow.md.
 3. Execute EXACTLY ONE task, following docs/implementation/04-task-protocol.md:

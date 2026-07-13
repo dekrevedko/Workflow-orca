@@ -10,10 +10,10 @@ instance-targeted matching event resumes exactly once through the execution lane
 the payload to the next step.
 
 ## Read first
-- `v3-gpt/src/OrcaCore.Abstractions/Events/EventEnvelope.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Steps/StepContext.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs`
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
+- `src/OrcaCore.Abstractions/Events/EventEnvelope.cs`
+- `src/OrcaCore.Abstractions/Steps/StepContext.cs`
+- `src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
 - Spec: `docs/specs/05-requirements-events-waits-timers.md` sections 5.3 and 5.5
 
 ## Deliverables
@@ -24,14 +24,14 @@ the payload to the next step.
 - Active-wait snapshot projection sufficient for management and acceptance inspection.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Ephemeral.Tests/Execution/WaitMatchingTests.cs`:
+In `tests/OrcaCore.Engine.Ephemeral.Tests/Execution/WaitMatchingTests.cs`:
 1. `Run_WaitResult_RegistersActiveWaitAndSetsWaiting`
 2. `RaiseEventAsync_MatchingEvent_ResumesAndClearsWait`
 3. `RaiseEventAsync_MatchingEvent_ProvidesPayloadToNextStepOnly`
 4. `RaiseEventAsync_WrongNameOrCorrelation_LeavesInstanceWaiting`
 5. `RaiseEventAsync_TwoConcurrentMatches_OnlyOneContinuationCommits`
 
-In `v3-gpt/tests/OrcaCore.Acceptance.Tests/WaitAcceptanceTests.cs`:
+In `tests/OrcaCore.Acceptance.Tests/WaitAcceptanceTests.cs`:
 6. `[Trait("AC","AC-101")] Wait_EntersWaiting_WithInspectableActiveWait`
 7. `[Trait("AC","AC-102")] MatchingEvent_ResumesExactlyOnce_WithPayload`
 8. `[Trait("AC","AC-103")] NonMatchingEvent_DoesNotResume`
@@ -50,6 +50,6 @@ iteration wait isolation, parallel branch identity enforcement.
 
 ## Definition of done
 - [ ] All new tests green; full affected suites green
-- [ ] `dotnet build v3-gpt/OrcaCore.slnx` - zero warnings
+- [ ] `dotnet build OrcaCore.slnx` - zero warnings
 - [ ] AC-006 and AC-101 through AC-103 are green in `OrcaCore.Acceptance.Tests`
 - [ ] PROGRESS.md updated; committed as "T1-08: resident waits and matching (AC-006, AC-101-103)"

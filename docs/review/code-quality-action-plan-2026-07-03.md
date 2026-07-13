@@ -1,6 +1,6 @@
 # Code Quality Action Plan - 2026-07-03
 
-Scope: `v3-gpt/src/**` implementation review for code quality, readability,
+Scope: `src/**` implementation review for code quality, readability,
 SOLID, GoF fit, .NET 10/C# usage, and large-module risk.
 
 Context:
@@ -10,7 +10,7 @@ Context:
   the point where a maintainer can safely reason about one workflow capability
   without loading unrelated capabilities.
 - Verification during review: `dotnet build .\OrcaCore.slnx --no-restore`
-  passed from `v3-gpt/`; `dotnet test
+  passed from ``; `dotnet test
   .\tests\OrcaCore.Core.Tests\OrcaCore.Core.Tests.csproj --no-build` passed
   170 tests.
 
@@ -26,10 +26,10 @@ currently over 1000 lines:
 
 | File | Current size | Main risk |
 | --- | ---: | --- |
-| `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs` | 2603 lines | One aggregate owns decisions, replay, checkpoints, projections, waits, timers, child workflows, resource pools, external jobs, and saga state. |
-| `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs` | 1520 lines | One provider adapter owns event store, checkpoints, inbox, outbox, projections, timers, retention, SQL mapping, and query logic. |
-| `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs` | 1229 lines | Same multi-port concentration as PostgreSQL, plus incomplete provider registration parity. |
-| `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` | 1006 lines | Command facade, lane execution, rehydration, commit-batch assembly, outbox materialization, timer scheduling, and resource-pool side effects are coupled. |
+| `src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs` | 2603 lines | One aggregate owns decisions, replay, checkpoints, projections, waits, timers, child workflows, resource pools, external jobs, and saga state. |
+| `src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs` | 1520 lines | One provider adapter owns event store, checkpoints, inbox, outbox, projections, timers, retention, SQL mapping, and query logic. |
+| `src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs` | 1229 lines | Same multi-port concentration as PostgreSQL, plus incomplete provider registration parity. |
+| `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs` | 1006 lines | Command facade, lane execution, rehydration, commit-batch assembly, outbox materialization, timer scheduling, and resource-pool side effects are coupled. |
 
 Treat these as refactoring targets before adding more durable/provider features.
 
@@ -54,8 +54,8 @@ Pattern policy:
 
 Priority: P2  
 Target files:
-- `v3-gpt/src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs:10`
-- Supporting tests under `v3-gpt/tests/OrcaCore.Engine.Durable.Tests/**`
+- `src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs:10`
+- Supporting tests under `tests/OrcaCore.Engine.Durable.Tests/**`
 
 Problem:
 `DurableWorkflowAggregate` has one large state bag starting at line 12, command
@@ -104,9 +104,9 @@ Acceptance criteria:
 
 Priority: P2  
 Target files:
-- `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs:18`
-- `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:18`
-- `v3-gpt/src/OrcaCore.Providers.Relational/**`
+- `src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs:18`
+- `src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:18`
+- `src/OrcaCore.Providers.Relational/**`
 
 Problem:
 The public ports are good seams, but the concrete provider classes are still
@@ -154,7 +154,7 @@ Acceptance criteria:
 
 Priority: P2  
 Target file:
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs:11`
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs:11`
 
 Problem:
 `DurableCommandProcessor` is now both command facade and commit materializer. It
@@ -197,7 +197,7 @@ Acceptance criteria:
 
 Priority: P2  
 Target file:
-- `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:587`
+- `src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:587`
 
 Problem:
 SQL Server `ListCoreAsync` loads all instance projection rows, loads active
@@ -232,11 +232,11 @@ Acceptance criteria:
 
 Priority: P3  
 Target files:
-- `v3-gpt/src/OrcaCore.Engine.Durable/Outbox/DurableOutboxPump.cs:23`
-- `v3-gpt/src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs:260`
-- `v3-gpt/src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:108`
-- `v3-gpt/src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs:150`
-- `v3-gpt/src/OrcaCore.Providers.Relational/RelationalMigrationRunner.cs:50`
+- `src/OrcaCore.Engine.Durable/Outbox/DurableOutboxPump.cs:23`
+- `src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs:260`
+- `src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs:108`
+- `src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs:150`
+- `src/OrcaCore.Providers.Relational/RelationalMigrationRunner.cs:50`
 
 Problem:
 Most runtime code uses `TimeProvider`, but a few production paths still use
@@ -271,7 +271,7 @@ Acceptance criteria:
 
 Priority: P3  
 Target project:
-- `v3-gpt/src/OrcaCore.Providers.SqlServer`
+- `src/OrcaCore.Providers.SqlServer`
 
 Problem:
 PostgreSQL, Redis, and RabbitMQ expose `IServiceCollection` registration
@@ -305,10 +305,10 @@ Acceptance criteria:
 
 Priority: P3  
 Target areas:
-- `v3-gpt/src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
-- `v3-gpt/src/OrcaCore.Engine.Durable/Outbox/IOutboxPumpObserver.cs`
-- `v3-gpt/src/OrcaCore.Abstractions/Diagnostics/OrcaCoreDiagnostics.cs`
+- `src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs`
+- `src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs`
+- `src/OrcaCore.Engine.Durable/Outbox/IOutboxPumpObserver.cs`
+- `src/OrcaCore.Abstractions/Diagnostics/OrcaCoreDiagnostics.cs`
 
 Problem:
 The outbox pump has an observer seam, but lifecycle/runtime observations are
@@ -347,9 +347,9 @@ Acceptance criteria:
 
 Priority: P3  
 Target files:
-- `v3-gpt/src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs:10`
-- `v3-gpt/src/OrcaCore.Abstractions/Durable/WorkflowCommand.cs:11`
-- `v3-gpt/src/OrcaCore.Abstractions/Providers/ProviderCommitContracts.cs:32`
+- `src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs:10`
+- `src/OrcaCore.Abstractions/Durable/WorkflowCommand.cs:11`
+- `src/OrcaCore.Abstractions/Providers/ProviderCommitContracts.cs:32`
 
 Problem:
 The contract files contain many public types: 40 workflow-event types, 20 command
@@ -388,7 +388,7 @@ Acceptance criteria:
 Add guard tests after the first large-file decomposition so the codebase does
 not regress.
 
-Suggested tests in `v3-gpt/tests/OrcaCore.Core.Tests/RepositoryGuardTests.cs`:
+Suggested tests in `tests/OrcaCore.Core.Tests/RepositoryGuardTests.cs`:
 
 1. `ProductionSources_DoNotExceedLineBudget`
    - Warn or report when a production implementation file exceeds 500 lines.
@@ -400,7 +400,7 @@ Suggested tests in `v3-gpt/tests/OrcaCore.Core.Tests/RepositoryGuardTests.cs`:
 
 2. `ProductionSources_DoNotUseWallClockStatics`
    - Fail on `DateTimeOffset.UtcNow`, `DateTime.UtcNow`, `DateTimeOffset.Now`,
-     and `DateTime.Now` under `v3-gpt/src`.
+     and `DateTime.Now` under `src`.
    - Allow explicitly documented migration exceptions only if Action 5 is not
      done yet.
 

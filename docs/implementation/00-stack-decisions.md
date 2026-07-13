@@ -36,7 +36,7 @@ IOQ-2.
 | SQL plugin query helpers | **Raw Npgsql only; no Dapper** (resolved 2026-07-02, IOQ-4) | The PostgreSQL provider needs full control of SQL, transactions, and append/projection commit boundaries; no read-query complexity currently justifies adding Dapper. |
 | Snapshot/approval testing | **No Verify dependency; use behavior-first AwesomeAssertions checks** (resolved 2026-07-02, IOQ-7) | Builder diagnostics and history projections remain asserted through stable codes, fields, and targeted message fragments; snapshot approval testing can be revisited only if broad text/layout churn becomes a real maintenance cost. |
 | Lifecycle event durability split | **Ephemeral lifecycle events are in-process/queryable only; durable terminal and significant operator lifecycle events are outbox-backed in the same commit as state** (resolved 2026-07-02, spec open question 9) | Product lifecycle events are first-class records, not telemetry spans. Durable mode must commit terminal, pause/resume, wait-suspension/resume, timer, and step-failure/completion publications with the state transition; ephemeral mode exposes them from the active instance and does not promise restart survival. |
-| Benchmarks | **BenchmarkDotNet in `v3-gpt/benchmarks/OrcaCore.Benchmarks`; PR CI builds only** (resolved 2026-07-02, IOQ-8) | Benchmarks cover the ephemeral execution loop, provider serialization/materialization, management query/projection path, resource pool and timer scheduling, and provider commit path. Normal PR CI builds the benchmark project but does not run benchmarks. |
+| Benchmarks | **BenchmarkDotNet in `benchmarks/OrcaCore.Benchmarks`; PR CI builds only** (resolved 2026-07-02, IOQ-8) | Benchmarks cover the ephemeral execution loop, provider serialization/materialization, management query/projection path, resource pool and timer scheduling, and provider commit path. Normal PR CI builds the benchmark project but does not run benchmarks. |
 | Public packaging | **Deferred for this run** (resolved 2026-07-02, IOQ-9) | Package IDs, signing, SourceLink release configuration, README-per-package publishing work, and package publish workflows are intentionally skipped until the owner reopens packaging. Phase 6 may still complete provider, hosting, benchmark, sample, and readiness documentation work without publishing packages. |
 | Management query predicates | **Expression facade over structured internal query model** (resolved 2026-07-02, IOQ-6) | Public APIs expose LINQ-like `Where(...)`; the durable engine translates the supported equality/`&&` subset into `WorkflowProjectionQuery` instead of compiling arbitrary delegates against payloads. |
 | Test internals visibility | **Public-API-first; matching unit-test internals only** (resolved 2026-07-02, IOQ-11) | Acceptance tests use public surfaces only. `InternalsVisibleTo` is allowed only for a matching unit-test project when a module boundary requires internal model inspection. |
@@ -128,7 +128,7 @@ task; if a task cannot proceed without a resolution, stop and surface it.
   compensation-heavy saga track first. A process-manager-style, message-driven saga without
   compensation is not a prerequisite track for the current implementation program.
 - 2026-07-02: **Spec open question 10 resolved** - Continue-as-new belongs with the durable
-  core and AC-313 gates Slice 2. Since the current `v3-gpt` implementation reached Phase 6
+  core and AC-313 gates Slice 2. Since the current root implementation reached Phase 6
   without DU-042, T6-04 is a corrective backfill of an early durable requirement, not a
   decision to defer continue-as-new to production readiness.
 - 2026-07-02: **IOQ-6 resolved** - Management `Where(...)` uses a public expression facade
@@ -141,7 +141,7 @@ task; if a task cannot proceed without a resolution, stop and surface it.
 - 2026-07-02: **IOQ-8 resolved** - BenchmarkDotNet coverage is limited to the ephemeral
   execution loop, provider serialization/materialization, management query/projection path,
   resource pool and timer scheduling, and provider commit path. The benchmark project lives
-  at `v3-gpt/benchmarks/OrcaCore.Benchmarks`. Normal PR CI builds it but does not run it.
+  at `benchmarks/OrcaCore.Benchmarks`. Normal PR CI builds it but does not run it.
 - 2026-07-02: **IOQ-9 resolved** - Public package publishing is skipped for now by owner
   decision. Do not create package IDs, signing policy, package publish workflows, or
   per-package release README work unless the owner reopens packaging explicitly.

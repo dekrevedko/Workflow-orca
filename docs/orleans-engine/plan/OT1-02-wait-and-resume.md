@@ -9,7 +9,7 @@ Prove the turn model: a workflow reaching `Wait` returns its grain call with sta
 resumes and completes it.
 
 ## Read first
-- `v3-gpt/tests/OrcaCore.Engine.Orleans.Tests/Grains/InstanceGrainStartTests.cs` (fixture pattern)
+- `tests/OrcaCore.Engine.Orleans.Tests/Grains/InstanceGrainStartTests.cs` (fixture pattern)
 - The `Engine.Durable.Tests` test that exercises wait-then-resume through
   `DurableCommandProcessor` (locate by searching that test project for the deliver/raise
   command type name; read 1 file) — mirror its definition and assertions
@@ -23,7 +23,7 @@ resumes and completes it.
   an `internal` `Engine.Durable` member, this task is blocked, not creative.
 
 ## Tests to write FIRST
-In `v3-gpt/tests/OrcaCore.Engine.Orleans.Tests/Grains/WaitResumeTests.cs`:
+In `tests/OrcaCore.Engine.Orleans.Tests/Grains/WaitResumeTests.cs`:
 1. `Wait_ReturnsTurn_StatusWaiting` — `[Trait("AC","OE-AC-002")]` — start via grain; call
    completes (bounded time, e.g. seconds) with Waiting; active-wait projection row exists.
 2. `MatchingEvent_Resumes_Completes` — deliver the correlated event command to the same
