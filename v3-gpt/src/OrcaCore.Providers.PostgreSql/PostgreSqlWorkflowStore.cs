@@ -223,6 +223,16 @@ public sealed class PostgreSqlWorkflowStore :
         catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.UniqueViolation)
         {
             await RollbackQuietlyAsync(transaction, cancellationToken).ConfigureAwait(false);
+            if (batch.StartIdempotencyOperations.FirstOrDefault() is { } startWrite)
+            {
+                var existingStart = await GetStartedAsync(startWrite.IdempotencyKey, cancellationToken)
+                    .ConfigureAwait(false);
+                if (existingStart.HasValue)
+                {
+                    return EventStoreConflict.StartIdempotencyKeyAlreadyExists(startWrite.IdempotencyKey);
+                }
+            }
+
             var actualVersion = await LoadActualVersionAsync(connection, null, batch.StreamId, cancellationToken)
                 .ConfigureAwait(false);
             return EventStoreConflict.ExpectedVersionMismatch(batch.ExpectedVersion, actualVersion);

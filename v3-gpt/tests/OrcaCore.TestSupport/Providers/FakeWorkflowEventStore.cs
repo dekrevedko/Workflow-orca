@@ -10,6 +10,7 @@ namespace OrcaCore.TestSupport.Providers;
 public sealed class FakeWorkflowEventStore :
     IWorkflowEventStore,
     IWorkflowInboxStore,
+    IWorkflowStartIdempotencyStore,
     IWorkflowOutboxStore,
     IWorkflowProjectionStore
 {
@@ -17,6 +18,8 @@ public sealed class FakeWorkflowEventStore :
 
     private readonly object gate = new();
     private readonly ConcurrentDictionary<EventId, InboxRecordState> inbox = [];
+    private readonly ConcurrentDictionary<string, StartedWorkflowIdempotencyRecord> startIdempotency =
+        new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<OutboxRecordId, FakeOutboxRecord> outbox = [];
     private readonly ConcurrentDictionary<InstanceId, CheckpointWrite> checkpoints = [];
     private readonly ConcurrentDictionary<WorkflowStreamId, List<WorkflowEvent>> streams = [];
@@ -71,10 +74,25 @@ public sealed class FakeWorkflowEventStore :
                     actualVersion));
             }
 
+            if (HasStartIdempotencyConflict(batch.StartIdempotencyOperations))
+            {
+                return Task.FromResult(EventStoreConflict.StartIdempotencyKeyAlreadyExists(
+                    batch.StartIdempotencyOperations[0].IdempotencyKey));
+            }
+
             stream.AddRange(batch.Events);
             foreach (var operation in batch.InboxOperations)
             {
                 inbox[operation.EventId] = operation.State;
+            }
+
+            foreach (var operation in batch.StartIdempotencyOperations)
+            {
+                startIdempotency[operation.IdempotencyKey] = new StartedWorkflowIdempotencyRecord(
+                    operation.IdempotencyKey,
+                    operation.InstanceId,
+                    operation.DefinitionId,
+                    operation.DefinitionVersion);
             }
 
             foreach (var record in batch.OutboxRecords)
@@ -119,6 +137,26 @@ public sealed class FakeWorkflowEventStore :
         return Task.FromResult(inbox.TryGetValue(eventId, out var state)
             ? Option<InboxRecordState>.Some(state)
             : Option<InboxRecordState>.None);
+    }
+
+    public Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.FromResult(startIdempotency.TryGetValue(idempotencyKey, out var record)
+            ? Option<StartedWorkflowIdempotencyRecord>.Some(record)
+            : Option<StartedWorkflowIdempotencyRecord>.None);
+    }
+
+    private bool HasStartIdempotencyConflict(IReadOnlyList<StartIdempotencyWrite> operations)
+    {
+        return operations
+            .Select(operation => operation.IdempotencyKey)
+            .GroupBy(key => key, StringComparer.Ordinal)
+            .Any(group => group.Count() > 1 || startIdempotency.ContainsKey(group.Key));
     }
 
     public Task<IReadOnlyList<OutboxWrite>> ClaimAsync(int maxCount, CancellationToken cancellationToken)
@@ -222,36 +260,91 @@ public sealed class FakeWorkflowEventStore :
         WorkflowProjectionQuery query,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult<IReadOnlyList<WorkflowInstanceSnapshot>>(
             projectedSummaries.Values
-                .Where(snapshot => query.InstanceId is not { } instanceId || snapshot.InstanceId == instanceId)
+                .Where(snapshot => Matches(snapshot, query))
                 .OrderBy(snapshot => snapshot.InstanceId.Value)
                 .ToArray());
     }
 
     public Task<int> CountAsync(WorkflowProjectionQuery query, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(
-            projectedSummaries.Values
-                .Count(snapshot => query.InstanceId is not { } instanceId || snapshot.InstanceId == instanceId));
+        return Task.FromResult(projectedSummaries.Values.Count(snapshot => Matches(snapshot, query)));
     }
 
     public Task<IReadOnlyList<ActiveWaitSnapshot>> ListActiveWaitsAsync(
         WorkflowProjectionQuery query,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult<IReadOnlyList<ActiveWaitSnapshot>>([]);
+        return Task.FromResult<IReadOnlyList<ActiveWaitSnapshot>>(
+            projectedSummaries.Values
+                .Where(snapshot => Matches(snapshot, query))
+                .SelectMany(snapshot => snapshot.ActiveWaits)
+                .ToArray());
     }
 
     public Task<WorkflowStatistics> GetStatisticsAsync(
         WorkflowProjectionQuery query,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(new WorkflowStatistics { Groups = [] });
+        var matches = projectedSummaries.Values.Where(snapshot => Matches(snapshot, query)).ToArray();
+        return Task.FromResult(new WorkflowStatistics
+        {
+            Groups = matches
+                .GroupBy(snapshot => new
+                {
+                    snapshot.DefinitionId,
+                    snapshot.DefinitionVersion,
+                    snapshot.Status
+                })
+                .Select(group => new WorkflowStatisticsGroup
+                {
+                    DefinitionId = group.Key.DefinitionId,
+                    DefinitionVersion = group.Key.DefinitionVersion,
+                    Status = group.Key.Status,
+                    Count = group.Count()
+                })
+                .ToArray(),
+            Pressure = new WorkflowPressureMetrics
+            {
+                ActiveInstanceCount = projectedSummaries.Values.Count(snapshot =>
+                    snapshot.Status is WorkflowStatus.Running or WorkflowStatus.Waiting or WorkflowStatus.Paused)
+            }
+        });
+    }
+
+    private static bool Matches(WorkflowInstanceSnapshot snapshot, WorkflowProjectionQuery query)
+    {
+        return (query.InstanceId is null || snapshot.InstanceId == query.InstanceId) &&
+            (query.ParentInstanceId is null || snapshot.ParentInstanceId == query.ParentInstanceId) &&
+            (query.RootInstanceId is null || snapshot.RootInstanceId == query.RootInstanceId) &&
+            (query.DefinitionId is null || snapshot.DefinitionId == query.DefinitionId) &&
+            (query.DefinitionVersion is null || snapshot.DefinitionVersion == query.DefinitionVersion) &&
+            (query.Status is null || snapshot.Status == query.Status) &&
+            MatchesActiveWait(snapshot.ActiveWaits, query);
+    }
+
+    private static bool MatchesActiveWait(
+        IReadOnlyList<ActiveWaitSnapshot> activeWaits,
+        WorkflowProjectionQuery query)
+    {
+        if (query.ActiveWaitEventName is null && query.ActiveWaitCorrelationId is null)
+        {
+            return true;
+        }
+
+        return activeWaits.Any(wait =>
+            (query.ActiveWaitEventName is null ||
+                string.Equals(wait.EventName, query.ActiveWaitEventName, StringComparison.Ordinal)) &&
+            (query.ActiveWaitCorrelationId is null || wait.CorrelationId == query.ActiveWaitCorrelationId));
     }
 
     public void FailNextCommitBeforeApply()

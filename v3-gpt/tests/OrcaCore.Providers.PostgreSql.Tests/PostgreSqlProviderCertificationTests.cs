@@ -697,6 +697,8 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
 
         public IWorkflowInboxStore InboxStore => store;
 
+        public IWorkflowStartIdempotencyStore StartIdempotencyStore => store;
+
         public IWorkflowOutboxStore OutboxStore => store;
 
         public IWorkflowProjectionStore ProjectionStore => store;

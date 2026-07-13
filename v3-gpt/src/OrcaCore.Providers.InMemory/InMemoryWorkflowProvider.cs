@@ -76,6 +76,12 @@ public sealed class InMemoryWorkflowProvider :
                     actualVersion));
             }
 
+            var conflictingStartKey = FindConflictingStartIdempotencyKey(batch.StartIdempotencyOperations);
+            if (conflictingStartKey is not null)
+            {
+                return Task.FromResult(EventStoreConflict.StartIdempotencyKeyAlreadyExists(conflictingStartKey));
+            }
+
             stream.AddRange(batch.Events);
             ApplyInboxOperations(batch.InboxOperations);
             ApplyStartIdempotencyOperations(batch.StartIdempotencyOperations);
@@ -563,6 +569,15 @@ public sealed class InMemoryWorkflowProvider :
         }
     }
 
+    private string? FindConflictingStartIdempotencyKey(IReadOnlyList<StartIdempotencyWrite> operations)
+    {
+        return operations
+            .Select(operation => operation.IdempotencyKey)
+            .GroupBy(key => key, StringComparer.Ordinal)
+            .FirstOrDefault(group => group.Count() > 1 || startIdempotency.ContainsKey(group.Key))
+            ?.Key;
+    }
+
     private void ApplyProjectionOperations(IEnumerable<ProjectionWrite> operations)
     {
         foreach (var operation in operations)
@@ -588,10 +603,22 @@ public sealed class InMemoryWorkflowProvider :
             (query.DefinitionId is null || snapshot.DefinitionId == query.DefinitionId) &&
             (query.DefinitionVersion is null || snapshot.DefinitionVersion == query.DefinitionVersion) &&
             (query.Status is null || snapshot.Status == query.Status) &&
-            (query.ActiveWaitEventName is null || snapshot.ActiveWaits.Any(wait =>
-                string.Equals(wait.EventName, query.ActiveWaitEventName, StringComparison.Ordinal))) &&
-            (query.ActiveWaitCorrelationId is null || snapshot.ActiveWaits.Any(wait =>
-                wait.CorrelationId == query.ActiveWaitCorrelationId));
+            MatchesActiveWait(snapshot.ActiveWaits, query);
+    }
+
+    private static bool MatchesActiveWait(
+        IReadOnlyList<ActiveWaitSnapshot> activeWaits,
+        WorkflowProjectionQuery query)
+    {
+        if (query.ActiveWaitEventName is null && query.ActiveWaitCorrelationId is null)
+        {
+            return true;
+        }
+
+        return activeWaits.Any(wait =>
+            (query.ActiveWaitEventName is null ||
+                string.Equals(wait.EventName, query.ActiveWaitEventName, StringComparison.Ordinal)) &&
+            (query.ActiveWaitCorrelationId is null || wait.CorrelationId == query.ActiveWaitCorrelationId));
     }
 
     private static WorkflowInstanceSnapshot CloneSnapshot(WorkflowInstanceSnapshot snapshot)

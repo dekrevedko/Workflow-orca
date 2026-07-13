@@ -16,16 +16,12 @@ internal static class SqlServerProjectionQueryBuilder
           and (@definition_id is null or summary.definition_id = @definition_id)
           and (@definition_version is null or summary.definition_version = @definition_version)
           and (@status is null or summary.status = @status)
-          and (@wait_event_name is null or exists (
+          and ((@wait_event_name is null and @wait_correlation_id is null) or exists (
               select 1
               from dbo.orcacore_active_wait_projections matched_wait
               where matched_wait.instance_id = summary.instance_id
-                and matched_wait.event_name = @wait_event_name))
-          and (@wait_correlation_id is null or exists (
-              select 1
-              from dbo.orcacore_active_wait_projections matched_wait
-              where matched_wait.instance_id = summary.instance_id
-                and matched_wait.correlation_id = @wait_correlation_id))
+                and (@wait_event_name is null or matched_wait.event_name = @wait_event_name)
+                and (@wait_correlation_id is null or matched_wait.correlation_id = @wait_correlation_id)))
         """;
 
     public static void AddParameters(SqlCommand command, WorkflowProjectionQuery query)

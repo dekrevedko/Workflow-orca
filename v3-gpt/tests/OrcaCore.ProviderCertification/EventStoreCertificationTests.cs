@@ -89,6 +89,85 @@ public abstract class EventStoreCertificationTests
     }
 
     [Fact]
+    [Trait("AC", "AC-311")]
+    public async Task StartIdempotencyWrite_CommittedWithStart_RoundTripsMapping()
+    {
+        var fixture = CreateFixture();
+        var instanceId = InstanceId.New();
+        var definitionId = DefinitionId.New();
+        var definitionVersion = new DefinitionVersion(7);
+        const string IdempotencyKey = "certification-start-1";
+        var batch = Batch(new WorkflowStreamId(instanceId), StreamVersion.Empty) with
+        {
+            StartIdempotencyOperations =
+            [
+                new StartIdempotencyWrite(
+                    IdempotencyKey,
+                    instanceId,
+                    definitionId,
+                    definitionVersion)
+            ]
+        };
+
+        var result = await fixture.EventStore.AppendAsync(
+            batch,
+            TestContext.Current.CancellationToken);
+        var mapping = await fixture.StartIdempotencyStore.GetStartedAsync(
+            IdempotencyKey,
+            TestContext.Current.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
+        mapping.HasValue.Should().BeTrue();
+        mapping.Value.Should().Be(new StartedWorkflowIdempotencyRecord(
+            IdempotencyKey,
+            instanceId,
+            definitionId,
+            definitionVersion));
+    }
+
+    [Fact]
+    [Trait("AC", "AC-311")]
+    public async Task DuplicateStartIdempotencyKey_RejectsAndRollsBackEntireCommit()
+    {
+        var fixture = CreateFixture();
+        var winnerId = InstanceId.New();
+        var duplicateId = InstanceId.New();
+        var definitionId = DefinitionId.New();
+        const string IdempotencyKey = "certification-start-duplicate";
+        ProviderCommitBatch startBatch(InstanceId instanceId) =>
+            Batch(new WorkflowStreamId(instanceId), StreamVersion.Empty) with
+            {
+                StartIdempotencyOperations =
+                [
+                    new StartIdempotencyWrite(
+                        IdempotencyKey,
+                        instanceId,
+                        definitionId,
+                        DefinitionVersion.Initial)
+                ]
+            };
+
+        var winner = await fixture.EventStore.AppendAsync(
+            startBatch(winnerId),
+            TestContext.Current.CancellationToken);
+        var duplicate = await fixture.EventStore.AppendAsync(
+            startBatch(duplicateId),
+            TestContext.Current.CancellationToken);
+        var duplicateTail = await fixture.EventStore.LoadTailAsync(
+            new WorkflowStreamId(duplicateId),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+        var mapping = await fixture.StartIdempotencyStore.GetStartedAsync(
+            IdempotencyKey,
+            TestContext.Current.CancellationToken);
+
+        winner.IsSuccess.Should().BeTrue();
+        duplicate.IsFailure.Should().BeTrue();
+        duplicateTail.Should().BeEmpty("a rejected idempotent start must not partially append its event");
+        mapping.Value.InstanceId.Should().Be(winnerId);
+    }
+
+    [Fact]
     [Trait("Scenario", "NEG-PR-003")]
     [Trait("AC", "PR-010")]
     public async Task NEG_PR_003_AppendAsync_EmptyBatchIsNoOpAndDoesNotAdvanceStream()
@@ -296,6 +375,43 @@ public abstract class EventStoreCertificationTests
     }
 
     [Fact]
+    [Trait("AC", "AC-501")]
+    [Trait("AC", "PR-013")]
+    public async Task ProjectionQuery_EventAndCorrelationMustMatchTheSameActiveWait()
+    {
+        var fixture = CreateFixture();
+        var definitionId = DefinitionId.New();
+        var targetId = InstanceId.New();
+        var splitMatchId = InstanceId.New();
+        var targetWait = ActiveWait("approved", "order-1");
+        await fixture.ProjectionStore.ApplyAsync(
+            [
+                Projection(targetId, definitionId, [targetWait]),
+                Projection(
+                    splitMatchId,
+                    definitionId,
+                    [ActiveWait("approved", "order-2"), ActiveWait("rejected", "order-1")])
+            ],
+            TestContext.Current.CancellationToken);
+        var query = new WorkflowProjectionQuery
+        {
+            DefinitionId = definitionId,
+            ActiveWaitEventName = "approved",
+            ActiveWaitCorrelationId = new CorrelationId("order-1")
+        };
+
+        var listed = await fixture.ProjectionStore.ListAsync(query, TestContext.Current.CancellationToken);
+        var count = await fixture.ProjectionStore.CountAsync(query, TestContext.Current.CancellationToken);
+        var waits = await fixture.ProjectionStore.ListActiveWaitsAsync(query, TestContext.Current.CancellationToken);
+        var statistics = await fixture.ProjectionStore.GetStatisticsAsync(query, TestContext.Current.CancellationToken);
+
+        listed.Should().ContainSingle().Which.InstanceId.Should().Be(targetId);
+        count.Should().Be(1);
+        waits.Should().ContainSingle().Which.Should().BeEquivalentTo(targetWait);
+        statistics.Groups.Should().ContainSingle().Which.Count.Should().Be(1);
+    }
+
+    [Fact]
     [Trait("AC", "PR-010")]
     public async Task CheckpointUpsert_RoundTripsFullRuntimeState()
     {
@@ -470,6 +586,40 @@ public abstract class EventStoreCertificationTests
             OutboxRecords = outboxRecordId is { } recordId
                 ? [new OutboxWrite(recordId, "status", [1])]
                 : []
+        };
+    }
+
+    private static ProjectionWrite Projection(
+        InstanceId instanceId,
+        DefinitionId definitionId,
+        IReadOnlyList<ActiveWaitSnapshot> activeWaits)
+    {
+        return new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
+        {
+            InstanceSnapshot = new WorkflowInstanceSnapshot
+            {
+                InstanceId = instanceId,
+                RootInstanceId = instanceId,
+                DefinitionId = definitionId,
+                DefinitionVersion = DefinitionVersion.Initial,
+                Status = WorkflowStatus.Waiting,
+                CreatedAt = Timestamp(1),
+                UpdatedAt = Timestamp(2),
+                ActiveWaits = activeWaits
+            }
+        };
+    }
+
+    private static ActiveWaitSnapshot ActiveWait(string eventName, string correlationId)
+    {
+        return new ActiveWaitSnapshot
+        {
+            WaitId = WaitId.New(),
+            EventName = eventName,
+            CorrelationId = new CorrelationId(correlationId),
+            RegisteredAt = Timestamp(1),
+            Status = "active",
+            Mode = "cold"
         };
     }
 
@@ -952,6 +1102,11 @@ public interface IProviderCertificationFixture
     IWorkflowInboxStore InboxStore { get; }
 
     /// <summary>
+    /// Gets the durable start-idempotency store observed by certification tests.
+    /// </summary>
+    IWorkflowStartIdempotencyStore StartIdempotencyStore { get; }
+
+    /// <summary>
     /// Gets the outbox store observed by certification tests.
     /// </summary>
     IWorkflowOutboxStore OutboxStore { get; }
@@ -975,6 +1130,8 @@ public sealed class FakeEventStoreCertificationTests : EventStoreCertificationTe
         public IWorkflowEventStore EventStore => provider;
 
         public IWorkflowInboxStore InboxStore => provider;
+
+        public IWorkflowStartIdempotencyStore StartIdempotencyStore => provider;
 
         public IWorkflowOutboxStore OutboxStore => provider;
 

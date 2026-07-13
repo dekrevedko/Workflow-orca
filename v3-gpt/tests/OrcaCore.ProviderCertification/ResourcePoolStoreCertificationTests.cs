@@ -336,7 +336,7 @@ public abstract class ResourcePoolStoreCertificationTests
     }
 }
 
-public sealed class FakeResourcePoolStoreCertificationTests : ResourcePoolStoreCertificationTests
+public sealed class InMemoryResourcePoolStoreCertificationTests : ResourcePoolStoreCertificationTests
 {
     protected override IResourcePoolStore CreateStore()
     {

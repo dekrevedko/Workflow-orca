@@ -428,6 +428,16 @@ public sealed class SqlServerWorkflowStore :
         catch (SqlException exception) when (exception.Number is 2601 or 2627)
         {
             await RollbackQuietlyAsync(transaction, cancellationToken).ConfigureAwait(false);
+            if (batch.StartIdempotencyOperations.FirstOrDefault() is { } startWrite)
+            {
+                var existingStart = await GetStartedAsync(startWrite.IdempotencyKey, cancellationToken)
+                    .ConfigureAwait(false);
+                if (existingStart.HasValue)
+                {
+                    return EventStoreConflict.StartIdempotencyKeyAlreadyExists(startWrite.IdempotencyKey);
+                }
+            }
+
             var actualVersion = await LoadActualVersionAsync(connection, null, batch.StreamId, cancellationToken)
                 .ConfigureAwait(false);
             return EventStoreConflict.ExpectedVersionMismatch(batch.ExpectedVersion, actualVersion);
@@ -756,14 +766,10 @@ public sealed class SqlServerWorkflowStore :
         {
             await using var command = new SqlCommand(
                 """
-                if not exists (
-                    select 1 from dbo.orcacore_start_idempotency where idempotency_key = @idempotency_key)
-                begin
-                    insert into dbo.orcacore_start_idempotency (
-                        idempotency_key, instance_id, definition_id, definition_version)
-                    values (
-                        @idempotency_key, @instance_id, @definition_id, @definition_version);
-                end;
+                insert into dbo.orcacore_start_idempotency (
+                    idempotency_key, instance_id, definition_id, definition_version)
+                values (
+                    @idempotency_key, @instance_id, @definition_id, @definition_version);
                 """,
                 connection,
                 transaction);

@@ -20,4 +20,16 @@ public static class EventStoreConflict
             new WorkflowConcurrencyException(
                 $"Append expected version '{expectedVersion}' but actual stream version is '{actualVersion}'."));
     }
+
+    /// <summary>
+    /// Creates a conflict result for a durable start idempotency key that is already bound.
+    /// </summary>
+    public static Result<AppendEventsResult> StartIdempotencyKeyAlreadyExists(string idempotencyKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+
+        return Result<AppendEventsResult>.Failure(
+            new WorkflowConcurrencyException(
+                $"Start idempotency key '{idempotencyKey}' is already bound to a workflow instance."));
+    }
 }

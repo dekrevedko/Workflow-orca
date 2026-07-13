@@ -61,16 +61,12 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
               and (@definition_id is null or summary.definition_id = @definition_id)
               and (@definition_version is null or summary.definition_version = @definition_version)
               and (@status is null or summary.status = @status)
-              and (@wait_event_name is null or exists (
+              and ((@wait_event_name is null and @wait_correlation_id is null) or exists (
                   select 1
                   from orcacore_active_wait_projections wait
                   where wait.instance_id = summary.instance_id
-                    and wait.event_name = @wait_event_name))
-              and (@wait_correlation_id is null or exists (
-                  select 1
-                  from orcacore_active_wait_projections wait
-                  where wait.instance_id = summary.instance_id
-                    and wait.correlation_id = @wait_correlation_id))
+                    and (@wait_event_name is null or wait.event_name = @wait_event_name)
+                    and (@wait_correlation_id is null or wait.correlation_id = @wait_correlation_id)))
             order by instance_id;
             """,
             connection);
@@ -132,16 +128,12 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
               and (@definition_id is null or summary.definition_id = @definition_id)
               and (@definition_version is null or summary.definition_version = @definition_version)
               and (@status is null or summary.status = @status)
-              and (@wait_event_name is null or exists (
+              and ((@wait_event_name is null and @wait_correlation_id is null) or exists (
                   select 1
                   from orcacore_active_wait_projections wait
                   where wait.instance_id = summary.instance_id
-                    and wait.event_name = @wait_event_name))
-              and (@wait_correlation_id is null or exists (
-                  select 1
-                  from orcacore_active_wait_projections wait
-                  where wait.instance_id = summary.instance_id
-                    and wait.correlation_id = @wait_correlation_id));
+                    and (@wait_event_name is null or wait.event_name = @wait_event_name)
+                    and (@wait_correlation_id is null or wait.correlation_id = @wait_correlation_id)));
             """,
             connection);
         AddProjectionQueryParameters(command, query);

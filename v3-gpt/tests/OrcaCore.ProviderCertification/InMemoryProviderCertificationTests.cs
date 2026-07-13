@@ -17,6 +17,8 @@ public sealed class InMemoryProviderCertificationTests : ContinueAsNewCertificat
 
         public IWorkflowInboxStore InboxStore => provider;
 
+        public IWorkflowStartIdempotencyStore StartIdempotencyStore => provider;
+
         public IWorkflowOutboxStore OutboxStore => provider;
 
         public IWorkflowProjectionStore ProjectionStore => provider;
