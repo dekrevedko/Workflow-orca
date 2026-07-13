@@ -252,12 +252,89 @@ public sealed record TimerScheduleRequest
 }
 
 /// <summary>
-/// Describes a recoverable durable outbox claim request.
+/// Describes a recoverable durable outbox claim request. The optional kind selector partitions
+/// the outbox so disjoint pumps consume disjoint record kinds (DR-037): the external message
+/// dispatcher excludes the internal <c>continue</c> kind, and the continuation pump includes
+/// only it. When no selector is set, all kinds are claimable (backward-compatible default).
 /// </summary>
 public sealed record OutboxClaimRequest(
     int MaxCount,
     DateTimeOffset ClaimedAt,
-    TimeSpan LeaseDuration);
+    TimeSpan LeaseDuration)
+{
+    /// <summary>
+    /// Gets the kind selector. Null claims any kind; an include set claims only listed kinds;
+    /// an exclude set claims any kind except the listed ones.
+    /// </summary>
+    public OutboxKindSelector? KindSelector { get; init; }
+}
+
+/// <summary>
+/// Selects outbox record kinds for a partitioned claim (DR-037). Exactly one of
+/// <see cref="Include"/> or <see cref="Exclude"/> is set.
+/// </summary>
+public sealed record OutboxKindSelector
+{
+    private OutboxKindSelector(IReadOnlySet<string>? include, IReadOnlySet<string>? exclude)
+    {
+        Include = include;
+        Exclude = exclude;
+    }
+
+    /// <summary>
+    /// Gets the kinds to claim exclusively, when this is an include selector.
+    /// </summary>
+    public IReadOnlySet<string>? Include { get; }
+
+    /// <summary>
+    /// Gets the kinds to skip, when this is an exclude selector.
+    /// </summary>
+    public IReadOnlySet<string>? Exclude { get; }
+
+    /// <summary>
+    /// Creates a selector that claims only the listed kinds.
+    /// </summary>
+    public static OutboxKindSelector Including(params string[] kinds)
+    {
+        ArgumentNullException.ThrowIfNull(kinds);
+        return new OutboxKindSelector(new HashSet<string>(kinds, StringComparer.Ordinal), null);
+    }
+
+    /// <summary>
+    /// Creates a selector that claims any kind except the listed ones.
+    /// </summary>
+    public static OutboxKindSelector Excluding(params string[] kinds)
+    {
+        ArgumentNullException.ThrowIfNull(kinds);
+        return new OutboxKindSelector(null, new HashSet<string>(kinds, StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    /// Returns whether a record of the given kind matches this selector.
+    /// </summary>
+    public bool Matches(string kind)
+    {
+        ArgumentNullException.ThrowIfNull(kind);
+        if (Include is not null)
+        {
+            return Include.Contains(kind);
+        }
+
+        return Exclude is null || !Exclude.Contains(kind);
+    }
+}
+
+/// <summary>
+/// Well-known durable outbox record kinds.
+/// </summary>
+public static class OutboxKinds
+{
+    /// <summary>
+    /// Internal restart-safe continuation signal consumed only by the continuation pump (DR-034).
+    /// External message dispatchers never receive this kind.
+    /// </summary>
+    public const string Continue = "continue";
+}
 
 /// <summary>
 /// Describes a recoverable durable timer claim request.

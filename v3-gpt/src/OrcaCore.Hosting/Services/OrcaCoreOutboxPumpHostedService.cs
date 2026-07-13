@@ -46,7 +46,12 @@ public sealed class OrcaCoreOutboxPumpHostedService(
             new OutboxClaimRequest(
                 value.OutboxPumpBatchSize,
                 timeProvider.GetUtcNow(),
-                value.OutboxClaimLeaseDuration),
+                value.OutboxClaimLeaseDuration)
+            {
+                // DR-037: internal continuation records belong to the continuation pump; the
+                // external dispatcher never delivers them to a transport.
+                KindSelector = OutboxKindSelector.Excluding(OutboxKinds.Continue)
+            },
             stoppingToken);
     }
 }

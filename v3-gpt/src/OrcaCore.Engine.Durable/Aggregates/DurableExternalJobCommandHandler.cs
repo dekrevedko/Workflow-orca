@@ -23,6 +23,7 @@ internal static class DurableExternalJobCommandHandler
             return DurableDecision.Empty;
         }
 
+        var waitId = command.WaitId ?? WaitId.New();
         var resourcePoolAcquirePlan = acquireResult is null
             ? DurableResourcePoolAcquirePlan.Empty
             : aggregate.ResourcePoolState.PlanAcquire(
@@ -30,15 +31,27 @@ internal static class DurableExternalJobCommandHandler
                 command.ExternalJobId,
                 command.Requirements,
                 command.TimeoutAt,
-                acquireResult);
+                acquireResult,
+                command.WaitId);
         if (resourcePoolAcquirePlan.EvictAfterCommit)
         {
-            return new DurableDecision(resourcePoolAcquirePlan.Events, null, true);
+            // Queued: the driver-chosen wait now guards the grant signal; the position that
+            // suspends on it must commit in the same batch (DR-011a).
+            var queuedEvents = new List<WorkflowEvent>();
+            DurableWaitTimerCommandHandler.AddResumeConsumedEvents(
+                queuedEvents, aggregate, command.CommandId, command.InstanceId, command.RequestedAt, command.ConsumedResumeWaitIds);
+            queuedEvents.AddRange(resourcePoolAcquirePlan.Events);
+            return new DurableDecision(
+                queuedEvents,
+                CreateEnvelopeCheckpoint(aggregate, command, queuedEvents),
+                true);
         }
 
-        var waitId = WaitId.New();
         TimerId? timeoutTimerId = command.TimeoutAt is null ? null : TimerId.New();
-        var events = new List<WorkflowEvent>(resourcePoolAcquirePlan.Events);
+        var events = new List<WorkflowEvent>();
+        DurableWaitTimerCommandHandler.AddResumeConsumedEvents(
+            events, aggregate, command.CommandId, command.InstanceId, command.RequestedAt, command.ConsumedResumeWaitIds);
+        events.AddRange(resourcePoolAcquirePlan.Events);
 
         events.Add(new WorkflowExternalJobStartedEvent
         {
@@ -87,7 +100,22 @@ internal static class DurableExternalJobCommandHandler
             });
         }
 
-        return new DurableDecision(events, null, true);
+        return new DurableDecision(events, CreateEnvelopeCheckpoint(aggregate, command, events), true);
+    }
+
+    private static CheckpointWrite? CreateEnvelopeCheckpoint(
+        DurableWorkflowAggregate aggregate,
+        RunExternalJobCommand command,
+        IReadOnlyList<WorkflowEvent> events)
+    {
+        return command.Envelope is { } envelope
+            ? DurableLifecycleCommandHandler.CreateEnvelopeCheckpoint(
+                aggregate,
+                command.InstanceId,
+                events,
+                envelope,
+                aggregate.LastStepPath)
+            : null;
     }
 
     internal static DurableDecision Handle(DurableWorkflowAggregate aggregate, CompleteExternalJobCommand command)

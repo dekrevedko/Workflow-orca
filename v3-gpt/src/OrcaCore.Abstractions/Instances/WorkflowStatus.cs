@@ -48,5 +48,12 @@ public enum WorkflowStatus
     /// <summary>
     /// Durable-only status. The ephemeral engine never produces Paused and no ephemeral API accepts it.
     /// </summary>
-    Paused
+    Paused,
+
+    /// <summary>
+    /// Durable-only, non-terminal status. The instance is held on an unresolved fault (runtime-state
+    /// version mismatch, version-binding failure, or poison) and is not automatically runnable until
+    /// it is explicitly re-armed. The ephemeral engine never produces Parked.
+    /// </summary>
+    Parked
 }

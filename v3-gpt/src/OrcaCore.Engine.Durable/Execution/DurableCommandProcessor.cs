@@ -61,6 +61,11 @@ public sealed class DurableCommandProcessor
 
     internal IWorkflowEventStore EventStore => eventStore;
 
+    internal DurableCommandRuntime.StepCancellationScope EnterStep(
+        InstanceId instanceId,
+        CancellationToken cancellationToken) =>
+        runtime.EnterStep(instanceId, cancellationToken);
+
     internal async Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedAsync(
         string idempotencyKey,
         CancellationToken cancellationToken)
@@ -115,7 +120,8 @@ public sealed class DurableCommandProcessor
         return RunInLaneAsync(
             command.InstanceId,
             aggregate => aggregate.DecidePark(command),
-            cancellationToken);
+            cancellationToken,
+            expectedVersion: command.ExpectedStreamVersion);
     }
 
     internal Task<DurableCommandResult> ProcessAsync(
@@ -126,7 +132,32 @@ public sealed class DurableCommandProcessor
         return RunInLaneAsync(
             command.InstanceId,
             aggregate => aggregate.DecideUnpark(command),
-            cancellationToken);
+            cancellationToken,
+            expectedVersion: command.ExpectedStreamVersion);
+    }
+
+    internal Task<DurableCommandResult> ProcessAsync(
+        DurableContinuationAttemptFailedCommand command,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        return RunInLaneAsync(
+            command.InstanceId,
+            aggregate => aggregate.DecideContinuationAttemptFailed(command),
+            cancellationToken,
+            expectedVersion: command.ExpectedStreamVersion);
+    }
+
+    internal Task<DurableCommandResult> ProcessAsync(
+        DurableContinuationAttemptResetCommand command,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        return RunInLaneAsync(
+            command.InstanceId,
+            aggregate => aggregate.DecideContinuationAttemptReset(command),
+            cancellationToken,
+            expectedVersion: command.ExpectedStreamVersion);
     }
 
     public Task<DurableCommandResult> ProcessAsync(
@@ -306,6 +337,7 @@ public sealed class DurableCommandProcessor
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(command);
+        runtime.RequestStepCancellation(command.InstanceId);
         return RunInLaneAsync(
             command.InstanceId,
             aggregate => aggregate.DecideCancel(command),
@@ -320,7 +352,8 @@ public sealed class DurableCommandProcessor
         return RunInLaneAsync(
             command.InstanceId,
             aggregate => aggregate.DecideConsumeParentResumeToken(command),
-            cancellationToken);
+            cancellationToken,
+            expectedVersion: command.ExpectedStreamVersion);
     }
 
     public Task<DurableCommandResult> ProcessAsync(
@@ -477,7 +510,8 @@ public sealed class DurableCommandProcessor
         return RunInLaneAsync(
             command.InstanceId,
             aggregate => aggregate.DecideContinueAsNew(command),
-            cancellationToken);
+            cancellationToken,
+            expectedVersion: command.ExpectedStreamVersion);
     }
 
     internal Task<DurableCommandResult> EvictIdleAsync(

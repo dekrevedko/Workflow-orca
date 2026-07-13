@@ -1,3 +1,4 @@
+using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 
@@ -63,7 +64,8 @@ public sealed record WorkflowRuntimeEventObservation(
     bool DurableLifecycle = true,
     string? WaitEventName = null,
     TimeSpan? WaitDuration = null,
-    TimeSpan? StepDuration = null);
+    TimeSpan? StepDuration = null,
+    DurableParkReason? ParkReason = null);
 
 /// <summary>
 /// Categorizes durable runtime observations without requiring callers to parse command result text.

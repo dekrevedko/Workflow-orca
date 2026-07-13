@@ -33,6 +33,7 @@ There are **no** separate `OrcaCore.Persistence` or `OrcaCore.Messaging` package
 
 - `specs/` — **consolidated product requirements & specifications** (self-contained package for a from-scratch implementation; see [specs/README.md](specs/README.md)).
 - `implementation/` — **agent-executable implementation guide** (stack decisions, conventions, TDD workflow, phased task files sized for small-context LLM agents; see [implementation/README.md](implementation/README.md)).
+- `orleans-engine/` — **Orleans engine package**: self-contained specs (`OE-`/`OE-AC-`), architecture, and phased implementation plan for `OrcaCore.Engine.Orleans` — durable workflows hosted on Orleans grains, reusing the durable core and provider ports (see [orleans-engine/README.md](orleans-engine/README.md)).
 - `architecture/` — design decisions, runtime shape, lifecycle, identity, event-driven notes.
 - `durable/` — durable-runtime plans, remediation, component inventory.
 - `plans/` — implementation plans, acceptance matrix, requirements draft.

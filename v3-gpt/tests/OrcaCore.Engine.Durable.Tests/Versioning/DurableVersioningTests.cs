@@ -102,7 +102,9 @@ public sealed class DurableVersioningTests
             key,
             definitionId,
             version,
-            input,
+            new Abstractions.Providers.SerializedPayload(
+                "application/json",
+                System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(input)),
             new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
     }
 }

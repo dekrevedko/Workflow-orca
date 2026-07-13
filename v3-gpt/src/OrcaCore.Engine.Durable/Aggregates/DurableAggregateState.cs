@@ -84,4 +84,10 @@ internal sealed record DurableAggregateState
     /// Gets the park reason while the instance status is Parked; restored only by replay.
     /// </summary>
     internal DurableParkReason? ParkReason { get; init; }
+
+    internal int ContinuationFailureCount { get; init; }
+
+    internal StreamVersion? ContinuationFailurePositionStreamVersion { get; init; }
+
+    internal DateTimeOffset? ContinuationRetryNotBefore { get; init; }
 }

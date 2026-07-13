@@ -109,6 +109,11 @@ internal sealed class DurableCommandTelemetry(IWorkflowRuntimeObserver runtimeOb
                         WaitDuration: activeWaitsById.TryGetValue(waitMatched.WaitId, out wait)
                             ? PositiveDuration(waitMatched.OccurredAt - wait.RegisteredAt)
                             : null),
+                    WorkflowParkedEvent parked => new WorkflowRuntimeEventObservation(
+                        eventType,
+                        eventDefinitionId,
+                        LifecycleEventName: "InstanceParked",
+                        ParkReason: parked.Reason),
                     _ => new WorkflowRuntimeEventObservation(
                         eventType,
                         eventDefinitionId,

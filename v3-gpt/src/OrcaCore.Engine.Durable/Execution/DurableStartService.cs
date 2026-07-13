@@ -44,7 +44,9 @@ internal sealed class DurableStartService(DurableCommandProcessor commandProcess
                         RequestedAt = request.RequestedAt,
                         DefinitionId = request.DefinitionId,
                         DefinitionVersion = request.DefinitionVersion,
-                        IdempotencyKey = request.IdempotencyKey
+                        IdempotencyKey = request.IdempotencyKey,
+                        InputContentType = request.Input?.ContentType,
+                        InputPayload = request.Input?.Payload
                     },
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -105,7 +107,7 @@ internal sealed record StartOrGetRequest(
     string IdempotencyKey,
     DefinitionId DefinitionId,
     DefinitionVersion DefinitionVersion,
-    object? Input,
+    Abstractions.Providers.SerializedPayload? Input,
     DateTimeOffset RequestedAt);
 
 internal sealed record StartOrGetResult(InstanceId InstanceId, bool Created);

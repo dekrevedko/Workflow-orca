@@ -31,8 +31,12 @@ The scheduler should implement two adapter sides.
 
 ### Dispatcher
 
-The dispatcher reads OrcaCore outbox records and performs Kubernetes API calls. It should
-support at least:
+The dispatcher reads OrcaCore outbox records and performs Kubernetes API calls. Kubernetes
+job creation/deletion is an external side effect and should not run inline inside a durable
+workflow step or Orleans grain turn. OrcaCore commits normalized outbox/job intent first;
+the scheduler dispatcher performs the Kubernetes call and the watcher/ingestor reports the
+result back through normalized events with stable `EventId` values. It should support at
+least:
 
 - job-start records: create a Kubernetes Job;
 - job-stop records: delete or otherwise terminate a Kubernetes Job;
@@ -85,6 +89,17 @@ Rules:
 JS-AC-008 belongs to the scheduler app acceptance suite: two triggers for the same canonical
 occurrence key must call `StartOrGet` and yield one run. The expected observable result is
 one created instance and subsequent calls returning the existing instance for that key.
+
+
+## Dispatched Long-Work Boundary
+
+Kubernetes work is long external work and must not run inside an OrcaCore workflow step,
+durable lane segment, or Orleans grain turn. The scheduler app should model it as durable
+dispatch: OrcaCore commits a normalized outbox job-start/job-stop record, the scheduler
+dispatcher performs the Kubernetes API call, and the watcher/ingestor raises a normalized
+completion event back into OrcaCore. This keeps document-16 durable-driver continuation
+semantics, outbox at-least-once dispatch, and inbox deduplication as the reliability
+boundary.
 
 ## Scheduler-App Acceptance Ownership
 

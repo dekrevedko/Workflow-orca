@@ -360,7 +360,8 @@ public sealed class DurableWorkflowPostgreSqlIntegrationTests(PostgreSqlOrcaFixt
         var runtime = new DurableWorkflowRuntime(
             new DurableCommandProcessor(store),
             registry,
-            TimeProvider.System);
+            TimeProvider.System,
+            new JsonWorkflowPayloadSerializer());
 
         registry.Register(versionOne);
         var first = await runtime.StartOrGetAsync<string, DeployState>(
@@ -383,7 +384,8 @@ public sealed class DurableWorkflowPostgreSqlIntegrationTests(PostgreSqlOrcaFixt
         var restartedRuntime = new DurableWorkflowRuntime(
             new DurableCommandProcessor(restartedStore),
             registry,
-            TimeProvider.System);
+            TimeProvider.System,
+            new JsonWorkflowPayloadSerializer());
         var second = await restartedRuntime.StartOrGetAsync<string, DeployState>(
             "order-int-e2e-011",
             definitionId,
@@ -517,8 +519,7 @@ public sealed class DurableWorkflowPostgreSqlIntegrationTests(PostgreSqlOrcaFixt
                     IntegrationIds.Instance(1),
                     IntegrationIds.Timestamp(2),
                     "root/1",
-                    "application/json",
-                    [1]),
+                    IntegrationCommands.Envelope("application/json", [1])),
                 TestContext.Current.CancellationToken);
             var checkpoint = await firstStore.LoadCheckpointAsync(
                 IntegrationIds.Instance(1),
@@ -532,7 +533,7 @@ public sealed class DurableWorkflowPostgreSqlIntegrationTests(PostgreSqlOrcaFixt
             yielded.StreamVersion.Should().Be(new StreamVersion(1));
             checkpoint.HasValue.Should().BeTrue();
             checkpoint.Value.StreamVersion.Should().Be(new StreamVersion(1));
-            checkpoint.Value.Payload.Should().Equal(1);
+            DurableExecutionEnvelope.Deserialize(checkpoint.Value.Payload).StatePayload.Should().Equal(1);
             yieldedEvents.OfType<WorkflowStepCompletedEvent>().Should().BeEmpty();
         }
 
@@ -544,8 +545,7 @@ public sealed class DurableWorkflowPostgreSqlIntegrationTests(PostgreSqlOrcaFixt
                 IntegrationIds.Instance(1),
                 IntegrationIds.Timestamp(3),
                 "root/1",
-                "application/json",
-                [2]),
+                IntegrationCommands.Envelope("application/json", [2])),
             TestContext.Current.CancellationToken);
         await restarted.ProcessAsync(IntegrationCommands.Complete(1, 4), TestContext.Current.CancellationToken);
         var finalCheckpoint = await restartedStore.LoadCheckpointAsync(
@@ -561,7 +561,7 @@ public sealed class DurableWorkflowPostgreSqlIntegrationTests(PostgreSqlOrcaFixt
 
         finalCheckpoint.HasValue.Should().BeTrue();
         finalCheckpoint.Value.StreamVersion.Should().Be(new StreamVersion(2));
-        finalCheckpoint.Value.Payload.Should().Equal(2);
+        DurableExecutionEnvelope.Deserialize(finalCheckpoint.Value.Payload).StatePayload.Should().Equal(2);
         events.OfType<WorkflowStepCompletedEvent>().Should().ContainSingle()
             .Which.StepPath.Should().Be("root/1");
         snapshot.Status.Should().Be(WorkflowStatus.Completed);

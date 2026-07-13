@@ -3,6 +3,7 @@ using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Primitives;
+using OrcaCore.Abstractions.Providers;
 using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Definitions;
 
@@ -22,7 +23,10 @@ public sealed class WorkflowBuilder<TState>
     /// </summary>
     public WorkflowBuilder<TState> Init<TInput>(Func<TInput, TState>? createState)
     {
-        nodes.Add(new InitBuilderNode(input => createState!((TInput)input!), createState is null));
+        nodes.Add(new InitBuilderNode(
+            input => createState!((TInput)input!),
+            createState is null,
+            (payload, serializer) => serializer.Deserialize<TInput>(payload)));
         return this;
     }
 
@@ -61,6 +65,16 @@ public sealed class WorkflowBuilder<TState>
     public WorkflowBuilder<TState> WithRetry(int maxAttempts)
     {
         pendingPolicies = pendingPolicies.WithRetry(maxAttempts);
+        return this;
+    }
+
+    /// <summary>
+    /// Adds a retry decorator with a fixed delay between attempts to the next authored step.
+    /// Durable execution persists the delay as a timer so it survives host replacement.
+    /// </summary>
+    public WorkflowBuilder<TState> WithRetry(int maxAttempts, TimeSpan backoff)
+    {
+        pendingPolicies = pendingPolicies.WithRetry(maxAttempts, backoff);
         return this;
     }
 
@@ -568,7 +582,7 @@ public sealed class WorkflowBuilder<TState>
             var nodeId = $"{path}/{index}";
             yield return node switch
             {
-                InitBuilderNode initNode => new InitNode<TState>(nodeId, initNode.CreateState),
+                InitBuilderNode initNode => new InitNode<TState>(nodeId, initNode.CreateState, initNode.RehydrateInput),
                 StepBuilderNode stepNode => new BusinessStepNode<TState>(
                     nodeId,
                     stepNode.StepFactory!,
@@ -633,7 +647,10 @@ public sealed class WorkflowBuilder<TState>
 
     private abstract record BuilderNode;
 
-    private sealed record InitBuilderNode(Func<object?, TState> CreateState, bool HasNullDelegate) : BuilderNode;
+    private sealed record InitBuilderNode(
+        Func<object?, TState> CreateState,
+        bool HasNullDelegate,
+        Func<SerializedPayload, IWorkflowPayloadSerializer, object?>? RehydrateInput = null) : BuilderNode;
 
     private static void ValidatePolicies(WorkflowPolicySet policies, string path, List<ValidationError> errors)
     {
@@ -642,6 +659,14 @@ public sealed class WorkflowBuilder<TState>
             errors.Add(new ValidationError(
                 BuilderValidationCodes.InvalidRetryPolicy,
                 "Retry max attempts must be greater than zero.",
+                path));
+        }
+
+        if (policies.Retry is { Backoff: var backoff } && backoff < TimeSpan.Zero)
+        {
+            errors.Add(new ValidationError(
+                BuilderValidationCodes.InvalidRetryPolicy,
+                "Retry backoff cannot be negative.",
                 path));
         }
     }

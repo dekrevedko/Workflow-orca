@@ -2,15 +2,26 @@
 
 **Goal**: an opt-in third execution engine — `OrcaCore.Engine.Orleans` — that hosts durable
 workflow instances as Orleans virtual-actor grains, reusing the existing durable
-event-sourced core (aggregate, provider ports, inbox/outbox, projections) unchanged.
-Orleans replaces the **concurrency, lifecycle, and distribution** layer (instance lanes),
-never the **persistence** layer. The package ends with the engine **complete and e2e-ready**:
-the driving scenario (customer approval with `WaitLong`, timeout, and restarts) passes on a
+event-sourced core (aggregate, provider ports, inbox/outbox, projections). Orleans replaces
+the **concurrency, lifecycle, and distribution** layer (instance lanes), never the
+**persistence** layer. The package ends with the engine **complete and e2e-ready**: the
+driving scenario (customer approval with `WaitLong`, timeout, and restarts) passes on a
 multi-silo cluster backed by PostgreSQL.
 
-This folder is **self-contained**: an agent executing it needs only the four documents
-below, the task files under [plan/](plan/README.md), and the repo-wide conventions it
-explicitly links. It never explores the repository.
+**Current-state prerequisite (read before estimating):** the durable runtime today
+publicly exposes registration and `StartOrGetAsync`; delivery/resume/complete/fail command
+processing is `internal` to `Engine.Durable`
+([DurableCommandProcessor.cs:391](../../v3-gpt/src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs)),
+and the start-idempotency port is lookup-only. An external engine therefore **cannot yet**
+drive full wait/resume flows through public surfaces. Phase O1 closes exactly this gap with
+two review-gated seam additions (OT1-01a public delivery dispatch, OT1-03a atomic start
+reservation) before any task claims end-to-end behavior. "Reuse" in this package means:
+durable semantics and Module interfaces unchanged, plus those two narrow, explicitly gated seams.
+
+This folder is **self-contained** in the sense that matters for agents: no task requires
+unbounded repository exploration. Every file an agent reads — including the existing durable/hosting
+sources some tasks legitimately study — is explicitly listed in that task's "Read first"
+section; the documents below plus [plan/](plan/README.md) carry everything else.
 
 ## Document map (read in this order, once per session)
 
@@ -19,6 +30,7 @@ explicitly links. It never explores the repository.
 | [01-architecture.md](01-architecture.md) | Scope, grain topology, turn model, port reuse, serialization boundary, project layout, stack delta, decisions & open questions (OOQ) |
 | [02-requirements.md](02-requirements.md) | `OE-xxx` requirements — the normative spec for this engine |
 | [03-acceptance-criteria.md](03-acceptance-criteria.md) | `OE-AC-xxx` catalog incl. the capstone e2e scenario |
+| [04-traceability.md](04-traceability.md) | Requirement to task to acceptance-criterion matrix plus current self-audit notes |
 | [plan/README.md](plan/README.md) | Phases O0–O5, complete task index, exit criteria |
 
 Repo-wide inputs that still apply verbatim (do not re-derive):
@@ -56,7 +68,7 @@ Escalation: ambiguity → task "Assumptions" section → 01-architecture.md §7 
 (OOQ). Never resolve a registered OOQ inside a task; record `blocked` in PROGRESS.md instead.
 ```
 
-To find the next task: open [plan/PROGRESS.md](plan/PROGRESS.md) (created by OT0-01); the
+To find the next task: open [plan/PROGRESS.md](plan/PROGRESS.md) (initialized by OT0-01); the
 next pending entry in the [plan/README.md](plan/README.md) task index is the target. Phases
 O2–O5 each begin with an `OTn-00` expansion task (Sonnet-level) that turns the index entries
 into full task files against the code that exists at that moment.
@@ -71,6 +83,7 @@ into full task files against the code that exists at that moment.
 ## Traceability
 
 Every task cites the `OE-` requirements it implements and the `OE-AC-` criteria it turns
-green; acceptance tests carry `[Trait("AC", "OE-AC-xxx")]`. Where an OE requirement
+green; [04-traceability.md](04-traceability.md) is the review matrix used to catch missing
+links before execution. Acceptance tests carry `[Trait("AC", "OE-AC-xxx")]`. Where an OE requirement
 restates a product-spec guarantee it cites the original (`DU-`, `PR-`, `CR-`, `EV-`) so the
 two catalogs stay consistent.

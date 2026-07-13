@@ -1,11 +1,13 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using OrcaCore.Abstractions.Diagnostics;
+using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Diagnostics;
 using OrcaCore.Engine.Durable.Execution;
+using OrcaCore.Engine.Durable.Driver;
 
 namespace OrcaCore.Hosting.Telemetry;
 
@@ -37,6 +39,15 @@ internal sealed class OrcaCoreTelemetryInstruments
     private readonly Counter<long> inboxDuplicates =
         OrcaCoreDurableDiagnostics.Meter.CreateCounter<long>(OrcaCoreMetrics.InboxDuplicatesName);
 
+    private readonly Counter<long> driverParks =
+        OrcaCoreDurableDiagnostics.Meter.CreateCounter<long>(OrcaCoreMetrics.DriverParkCountName);
+
+    private readonly Counter<long> driverPoisons =
+        OrcaCoreDurableDiagnostics.Meter.CreateCounter<long>(OrcaCoreMetrics.DriverPoisonCountName);
+
+    private readonly Counter<long> versionBindingFailures =
+        OrcaCoreDurableDiagnostics.Meter.CreateCounter<long>(OrcaCoreMetrics.DriverVersionBindingFailureCountName);
+
     private readonly Histogram<double> commandsDuration =
         OrcaCoreDurableDiagnostics.Meter.CreateHistogram<double>(OrcaCoreMetrics.CommandsDurationName, "s");
 
@@ -56,6 +67,12 @@ internal sealed class OrcaCoreTelemetryInstruments
     private readonly Histogram<double> waitsDuration =
         OrcaCoreDurableDiagnostics.Meter.CreateHistogram<double>(OrcaCoreMetrics.WaitsDurationName, "s");
 
+    private readonly Histogram<double> driverSegmentDuration =
+        OrcaCoreDurableDiagnostics.Meter.CreateHistogram<double>(OrcaCoreMetrics.DriverSegmentDurationName, "s");
+
+    private readonly Histogram<double> continuationLag =
+        OrcaCoreDurableDiagnostics.Meter.CreateHistogram<double>(OrcaCoreMetrics.ContinuationLagName, "s");
+
     private readonly ObservableGauge<long>[] gauges;
 
     public OrcaCoreTelemetryInstruments()
@@ -74,6 +91,12 @@ internal sealed class OrcaCoreTelemetryInstruments
             OrcaCoreDurableDiagnostics.Meter.CreateObservableGauge<long>(
                 OrcaCoreMetrics.OutboxPendingName,
                 () => Volatile.Read(ref fleetGauges).OutboxStates),
+            OrcaCoreDurableDiagnostics.Meter.CreateObservableGauge<long>(
+                OrcaCoreMetrics.ContinuationPendingCountName,
+                () => Volatile.Read(ref fleetGauges).ContinuationStates),
+            OrcaCoreDurableDiagnostics.Meter.CreateObservableGauge<long>(
+                OrcaCoreMetrics.OutboxExternalPendingCountName,
+                () => Volatile.Read(ref fleetGauges).ExternalOutboxStates),
             OrcaCoreDurableDiagnostics.Meter.CreateObservableGauge<long>(
                 OrcaCoreMetrics.StreamEventsName,
                 () => Volatile.Read(ref fleetGauges).StreamEvents),
@@ -158,7 +181,46 @@ internal sealed class OrcaCoreTelemetryInstruments
                     waitDuration.TotalSeconds,
                     WaitTags(waitEventName, workflowEvent.DefinitionId ?? observation.DefinitionId));
             }
+
+            if (workflowEvent.ParkReason is { } parkReason)
+            {
+                var tags = ParkTags(observation.DefinitionId, parkReason);
+                driverParks.Add(1, tags);
+                if (parkReason == DurableParkReason.Poison)
+                {
+                    tags.Add(OrcaCoreDiagnostics.DriverFailureSourceKey, "continuation");
+                    driverPoisons.Add(1, tags);
+                }
+
+                if (parkReason == DurableParkReason.VersionBinding)
+                {
+                    versionBindingFailures.Add(
+                        1,
+                        VersionBindingTags(observation.DefinitionId, observation.DefinitionVersion));
+                }
+            }
         }
+    }
+
+    public void RecordDriverSegment(DurableDriverSegmentObservation observation)
+    {
+        var tags = new TagList
+        {
+            { OrcaCoreDiagnostics.DefinitionIdKey, observation.DefinitionId.ToString() },
+            { OrcaCoreDiagnostics.DefinitionVersionKey, observation.DefinitionVersion.ToString() },
+            { OrcaCoreDiagnostics.DriverOutcomeKey, observation.Outcome }
+        };
+        driverSegmentDuration.Record(observation.Duration.TotalSeconds, tags);
+    }
+
+    public void RecordContinuation(DurableContinuationObservation observation)
+    {
+        var tags = new TagList
+        {
+            { OrcaCoreDiagnostics.ProviderNameKey, observation.ProviderName },
+            { OrcaCoreDiagnostics.DriverOutcomeKey, observation.Outcome }
+        };
+        continuationLag.Record(observation.Lag.TotalSeconds, tags);
     }
 
     public void RecordOutboxDispatch(
@@ -194,6 +256,8 @@ internal sealed class OrcaCoreTelemetryInstruments
                 StuckInstanceMeasurements(instances),
                 ActiveWaitMeasurements(instances),
                 OutboxStateMeasurements(statistics),
+                ContinuationStateMeasurements(statistics, providerName),
+                ExternalOutboxStateMeasurements(statistics, providerName),
                 ProviderGauge(providerName, statistics.Pressure.TotalStreamEvents),
                 ProviderGauge(providerName, statistics.Pressure.CheckpointCount),
                 ProviderGauge(providerName, statistics.Pressure.CheckpointLag),
@@ -206,6 +270,8 @@ internal sealed class OrcaCoreTelemetryInstruments
         Measurement<long>[] StuckInstances,
         Measurement<long>[] ActiveWaits,
         Measurement<long>[] OutboxStates,
+        Measurement<long>[] ContinuationStates,
+        Measurement<long>[] ExternalOutboxStates,
         Measurement<long>[] StreamEvents,
         Measurement<long>[] CheckpointCounts,
         Measurement<long>[] CheckpointLag,
@@ -213,7 +279,7 @@ internal sealed class OrcaCoreTelemetryInstruments
         Measurement<long>[] ResourcePoolTickets)
     {
         internal static readonly FleetGaugeSnapshot Empty =
-            new([], [], [], [], [], [], [], [], []);
+            new([], [], [], [], [], [], [], [], [], [], []);
     }
 
     private static Measurement<long>[] ActiveInstanceMeasurements(WorkflowStatistics statistics)
@@ -288,6 +354,40 @@ internal sealed class OrcaCoreTelemetryInstruments
     {
         var tags = new TagList
         {
+            { OrcaCoreDiagnostics.OutboxStateKey, state }
+        };
+        return new Measurement<long>(value, tags);
+    }
+
+    private static Measurement<long>[] ContinuationStateMeasurements(
+        WorkflowStatistics statistics,
+        string providerName)
+    {
+        return
+        [
+            ProviderStateGauge(providerName, "pending", statistics.Pressure.ContinuationPendingCount),
+            ProviderStateGauge(providerName, "retryable", statistics.Pressure.ContinuationRetryableCount),
+            ProviderStateGauge(providerName, "claimed", statistics.Pressure.ContinuationClaimedCount)
+        ];
+    }
+
+    private static Measurement<long>[] ExternalOutboxStateMeasurements(
+        WorkflowStatistics statistics,
+        string providerName)
+    {
+        return
+        [
+            ProviderStateGauge(providerName, "pending", statistics.Pressure.ExternalOutboxPendingCount),
+            ProviderStateGauge(providerName, "retryable", statistics.Pressure.ExternalOutboxRetryableCount),
+            ProviderStateGauge(providerName, "claimed", statistics.Pressure.ExternalOutboxClaimedCount)
+        ];
+    }
+
+    private static Measurement<long> ProviderStateGauge(string providerName, string state, long value)
+    {
+        var tags = new TagList
+        {
+            { OrcaCoreDiagnostics.ProviderNameKey, providerName },
             { OrcaCoreDiagnostics.OutboxStateKey, state }
         };
         return new Measurement<long>(value, tags);
@@ -421,6 +521,38 @@ internal sealed class OrcaCoreTelemetryInstruments
             { OrcaCoreDiagnostics.ProviderNameKey, providerName },
             { OrcaCoreDiagnostics.ProviderOperationKey, operation }
         };
+    }
+
+    private static TagList ParkTags(DefinitionId? definitionId, DurableParkReason reason)
+    {
+        var tags = new TagList
+        {
+            { OrcaCoreDiagnostics.ParkReasonKey, reason.ToString() }
+        };
+        if (definitionId is { } id)
+        {
+            tags.Add(OrcaCoreDiagnostics.DefinitionIdKey, id.ToString());
+        }
+
+        return tags;
+    }
+
+    private static TagList VersionBindingTags(
+        DefinitionId? definitionId,
+        DefinitionVersion? definitionVersion)
+    {
+        var tags = new TagList();
+        if (definitionId is { } id)
+        {
+            tags.Add(OrcaCoreDiagnostics.DefinitionIdKey, id.ToString());
+        }
+
+        if (definitionVersion is { } version)
+        {
+            tags.Add(OrcaCoreDiagnostics.DefinitionVersionKey, version.ToString());
+        }
+
+        return tags;
     }
 
     private static bool IsActive(WorkflowStatus status)

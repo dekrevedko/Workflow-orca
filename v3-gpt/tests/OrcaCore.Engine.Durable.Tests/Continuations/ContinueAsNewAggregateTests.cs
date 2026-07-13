@@ -2,6 +2,7 @@ using AwesomeAssertions;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
+using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Aggregates;
 using Xunit;
 
@@ -37,6 +38,40 @@ public sealed class ContinueAsNewAggregateTests
         decision.Checkpoint.ErrorSummary.Should().BeNull();
         decision.Checkpoint.OutcomeName.Should().BeNull();
         decision.Checkpoint.ContinueAsNewGeneration.Should().Be(1);
+    }
+
+    [Fact]
+    [Trait("AC", "AC-313")]
+    public void ContinueAsNew_CarriesSagaAndResumeTokenRuntimeState()
+    {
+        var recordedTokenId = EventIdValue(5);
+        var consumedTokenId = EventIdValue(6);
+        var aggregate = DurableWorkflowAggregate.Rehydrate(
+            null,
+            [
+                Started(),
+                ForwardActionCompleted(),
+                CompensationRequested(),
+                ParentResumeTokenRecorded(recordedTokenId),
+                ParentResumeTokenConsumed(consumedTokenId)
+            ]);
+
+        var decision = aggregate.DecideContinueAsNew(ContinueAsNew(7));
+
+        decision.Checkpoint.Should().NotBeNull();
+        var runtimeState = decision.Checkpoint!.RuntimeState;
+        runtimeState.CompletedSagaForwardActions.Should().ContainSingle()
+            .Which.Should().Be(new CheckpointSagaForwardAction(
+                "checkout",
+                "reserve-stock",
+                "release-stock",
+                Timestamp(2)));
+        runtimeState.RequestedSagaCompensationScopes.Should().ContainSingle().Which.Should().Be("checkout");
+        runtimeState.RecordedParentResumeTokens.Should().ContainSingle().Which.Should().Be(recordedTokenId);
+        runtimeState.ConsumedParentResumeTokens.Should().ContainSingle().Which.Should().Be(consumedTokenId);
+        runtimeState.ActiveTimers.Should().BeEmpty();
+        runtimeState.ActiveWaits.Should().BeEmpty();
+        runtimeState.ActiveChildren.Should().BeEmpty();
     }
 
     [Fact]
@@ -96,6 +131,63 @@ public sealed class ContinueAsNewAggregateTests
             OccurredAt = Timestamp(1),
             DefinitionId = DefinitionIdValue(1),
             DefinitionVersion = new DefinitionVersion(7)
+        };
+    }
+
+    private static SagaForwardActionCompletedEvent ForwardActionCompleted()
+    {
+        return new SagaForwardActionCompletedEvent
+        {
+            EventId = EventIdValue(2),
+            InstanceId = InstanceIdValue(1),
+            CommandId = CommandIdValue(2),
+            CausationId = CausationIdValue(2),
+            OccurredAt = Timestamp(2),
+            ScopeId = "checkout",
+            ActionKey = "reserve-stock",
+            CompensationKey = "release-stock"
+        };
+    }
+
+    private static SagaCompensationRequestedEvent CompensationRequested()
+    {
+        return new SagaCompensationRequestedEvent
+        {
+            EventId = EventIdValue(3),
+            InstanceId = InstanceIdValue(1),
+            CommandId = CommandIdValue(3),
+            CausationId = CausationIdValue(3),
+            OccurredAt = Timestamp(3),
+            ScopeId = "checkout",
+            Reason = "driver rollover"
+        };
+    }
+
+    private static WorkflowParentResumeTokenRecordedEvent ParentResumeTokenRecorded(EventId resumeTokenId)
+    {
+        return new WorkflowParentResumeTokenRecordedEvent
+        {
+            EventId = EventIdValue(4),
+            InstanceId = InstanceIdValue(1),
+            CommandId = CommandIdValue(4),
+            CausationId = CausationIdValue(4),
+            OccurredAt = Timestamp(4),
+            GroupId = "children",
+            ResumeTokenId = resumeTokenId
+        };
+    }
+
+    private static WorkflowParentResumeTokenConsumedEvent ParentResumeTokenConsumed(EventId resumeTokenId)
+    {
+        return new WorkflowParentResumeTokenConsumedEvent
+        {
+            EventId = EventIdValue(7),
+            InstanceId = InstanceIdValue(1),
+            CommandId = CommandIdValue(7),
+            CausationId = CausationIdValue(7),
+            OccurredAt = Timestamp(7),
+            GroupId = "children",
+            ResumeTokenId = resumeTokenId
         };
     }
 

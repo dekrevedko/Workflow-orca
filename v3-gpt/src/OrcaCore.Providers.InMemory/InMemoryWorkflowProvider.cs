@@ -177,6 +177,7 @@ public sealed class InMemoryWorkflowProvider :
         {
             var claimed = outbox.Values
                 .Where(record => IsOutboxClaimable(record, request.ClaimedAt))
+                .Where(record => request.KindSelector is null || request.KindSelector.Matches(record.Write.Kind))
                 .Take(request.MaxCount)
                 .Select(record => CloneOutboxWrite(record.Write))
                 .ToArray();
@@ -364,6 +365,18 @@ public sealed class InMemoryWorkflowProvider :
                     OutboxPendingCount = outbox.Values.Count(record => record.State is OutboxRecordState.Pending),
                     OutboxRetryableCount = outbox.Values.Count(record => record.State is OutboxRecordState.Retryable),
                     OutboxClaimedCount = outbox.Values.Count(record => record.State is OutboxRecordState.Claimed),
+                    ContinuationPendingCount = outbox.Values.Count(record =>
+                        record.Write.Kind == OutboxKinds.Continue && record.State is OutboxRecordState.Pending),
+                    ContinuationRetryableCount = outbox.Values.Count(record =>
+                        record.Write.Kind == OutboxKinds.Continue && record.State is OutboxRecordState.Retryable),
+                    ContinuationClaimedCount = outbox.Values.Count(record =>
+                        record.Write.Kind == OutboxKinds.Continue && record.State is OutboxRecordState.Claimed),
+                    ExternalOutboxPendingCount = outbox.Values.Count(record =>
+                        record.Write.Kind != OutboxKinds.Continue && record.State is OutboxRecordState.Pending),
+                    ExternalOutboxRetryableCount = outbox.Values.Count(record =>
+                        record.Write.Kind != OutboxKinds.Continue && record.State is OutboxRecordState.Retryable),
+                    ExternalOutboxClaimedCount = outbox.Values.Count(record =>
+                        record.Write.Kind != OutboxKinds.Continue && record.State is OutboxRecordState.Claimed),
                     ActiveInstanceCount = summaries.Values.Count(snapshot =>
                         snapshot.Status is WorkflowStatus.Running or WorkflowStatus.Waiting or WorkflowStatus.Paused)
                 }

@@ -78,6 +78,29 @@ internal static class IntegrationCommands
             }
         };
 
+    internal static DurableExecutionEnvelope Envelope(
+        string stateContentType = "application/octet-stream",
+        byte[]? statePayload = null,
+        int rootIndex = 1) =>
+        new()
+        {
+            EnvelopeVersion = DurableExecutionEnvelope.CurrentVersion,
+            Position = new DurableExecutionPosition
+            {
+                Cursors =
+                [
+                    new DurableExecutionCursor
+                    {
+                        CursorId = "root",
+                        Frames = [new DurableExecutionFrame { SequencePath = "root", SequenceIndex = rootIndex }],
+                        Phase = DurableCursorPhase.AtNode
+                    }
+                ]
+            },
+            StateContentType = stateContentType,
+            StatePayload = statePayload ?? [1]
+        };
+
     internal static DurableStepCompletedCommand StepCompleted(
         int instance,
         int command,
@@ -87,8 +110,7 @@ internal static class IntegrationCommands
             IntegrationIds.Instance(instance),
             IntegrationIds.Timestamp(command),
             stepPath,
-            "application/octet-stream",
-            [(byte)command]);
+            Envelope("application/octet-stream", [(byte)command]));
 
     internal static DurableCompleteCommand Complete(int instance, int command) =>
         new(IntegrationIds.Command(command), IntegrationIds.Instance(instance), IntegrationIds.Timestamp(command), null);

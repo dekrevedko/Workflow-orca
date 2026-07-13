@@ -36,6 +36,36 @@ public sealed record WorkflowPressureMetrics
     public int OutboxClaimedCount { get; init; }
 
     /// <summary>
+    /// Gets internal continuation records currently in the pending state.
+    /// </summary>
+    public int ContinuationPendingCount { get; init; }
+
+    /// <summary>
+    /// Gets internal continuation records currently in the retryable state.
+    /// </summary>
+    public int ContinuationRetryableCount { get; init; }
+
+    /// <summary>
+    /// Gets internal continuation records currently claimed by continuation workers.
+    /// </summary>
+    public int ContinuationClaimedCount { get; init; }
+
+    /// <summary>
+    /// Gets non-continuation outbox records currently in the pending state.
+    /// </summary>
+    public int ExternalOutboxPendingCount { get; init; }
+
+    /// <summary>
+    /// Gets non-continuation outbox records currently in the retryable state.
+    /// </summary>
+    public int ExternalOutboxRetryableCount { get; init; }
+
+    /// <summary>
+    /// Gets non-continuation outbox records currently claimed by external dispatchers.
+    /// </summary>
+    public int ExternalOutboxClaimedCount { get; init; }
+
+    /// <summary>
     /// Gets the largest observed difference between stream version and checkpoint version.
     /// </summary>
     public long CheckpointLag { get; init; }

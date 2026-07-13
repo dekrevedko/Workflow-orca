@@ -231,8 +231,7 @@ public sealed class DurableCheckpointStateSurvivalTests
             instanceId,
             Timestamp(commandValue),
             stepPath,
-            "application/octet-stream",
-            [(byte)commandValue]);
+            TestEnvelopes.Envelope("application/octet-stream", [(byte)commandValue]));
     }
 
     private static DateTimeOffset Timestamp(int seconds)

@@ -425,6 +425,59 @@ code {
     margin-top: 0.8rem;
 }
 
+.node-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: 0.65rem;
+    margin-top: 0.8rem;
+}
+
+.node-card {
+    display: grid;
+    gap: 0.45rem;
+    min-width: 0;
+    min-height: 7rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #f8fafc;
+    padding: 0.7rem;
+}
+
+.node-card > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.node-card strong,
+.node-card code,
+.node-card small {
+    overflow-wrap: anywhere;
+}
+
+.node-card span,
+.node-card small {
+    color: var(--muted);
+    font-size: 0.82rem;
+}
+
+.node-pending {
+    border-top: 4px solid var(--line-strong);
+}
+
+.node-running {
+    border-top: 4px solid var(--warning);
+}
+
+.node-succeeded {
+    border-top: 4px solid var(--good);
+}
+
+.node-failed {
+    border-top: 4px solid var(--error);
+}
+
 .timeline-row {
     display: grid;
     grid-template-columns: 4.5rem minmax(8rem, 1fr) 8rem minmax(14rem, 2fr) minmax(8rem, 1fr);

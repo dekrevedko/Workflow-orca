@@ -144,10 +144,20 @@ duplicate. Ephemeral mode MAY offer a best-effort variant.
 ## 6.8 Multi-node direction (advanced)
 
 ### DU-060 Ownership model
-Single-host correctness relies on optimistic append (DU-022). Multi-node execution, when
-introduced, SHALL define explicit per-instance ownership (time-bound leases or partition
+Single-host correctness relies on optimistic append (DU-022). "Multi-node execution" here
+means concurrent multi-mutator execution of **one** logical instance across hosts; when
+introduced it SHALL define explicit per-instance ownership (time-bound leases or partition
 ownership) preserving one-logical-mutator across hosts, with tests for duplicate-activation
-defense. Until then, multi-node execution is out of scope and SHALL be documented as such.
+defense. Until then, single-instance multi-node execution is out of scope and SHALL be
+documented as such.
+
+Amendment (R14, spec 16 DR-035): **independent-instance distribution** — multiple hosts
+running the same durable lane driver against one store, distributing work across *distinct*
+instances via claim-based pumps (timers, outbox, continuation) with expected-version append
+as the cross-process guard — is permitted and is NOT the out-of-scope case above. It carries
+no per-instance ownership; hot single-instance contention across hosts is resolved by
+conflict-retry, not ownership. Cluster-wide single activation of one instance remains the
+Orleans host's territory.
 
 ## 6.9 Durable inspection
 

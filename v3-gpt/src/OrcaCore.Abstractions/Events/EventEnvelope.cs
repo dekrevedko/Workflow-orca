@@ -35,6 +35,13 @@ public sealed record EventEnvelope
     public object? Payload { get; init; }
 
     /// <summary>
+    /// Gets the content type of <see cref="Payload"/> when it carries serialized bytes. Durable
+    /// delivery requires the payload to already be serialized (byte array) so the matched fact
+    /// can commit it; live objects do not survive the durable boundary.
+    /// </summary>
+    public string? PayloadContentType { get; init; }
+
+    /// <summary>
     /// Gets when the event occurred.
     /// </summary>
     public required DateTimeOffset OccurredAt { get; init; }

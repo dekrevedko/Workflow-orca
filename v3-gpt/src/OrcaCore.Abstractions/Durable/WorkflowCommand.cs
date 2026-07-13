@@ -55,6 +55,18 @@ public sealed record StartWorkflowCommand : WorkflowCommand
     /// Gets an optional caller-supplied key used to make start-or-get durable across restarts.
     /// </summary>
     public string? IdempotencyKey { get; init; }
+
+    /// <summary>
+    /// Gets the content type of the serialized start input, when the driver starts the instance.
+    /// The input is committed with the start fact so a replacement host can run Init after a crash
+    /// that precedes the first checkpoint (DR-031/DR-034).
+    /// </summary>
+    public string? InputContentType { get; init; }
+
+    /// <summary>
+    /// Gets the serialized start input committed with the start fact.
+    /// </summary>
+    public byte[]? InputPayload { get; init; }
 }
 
 /// <summary>
@@ -87,6 +99,19 @@ public sealed record ScheduleTimerCommand : WorkflowCommand
     /// Gets the logical wake-up name.
     /// </summary>
     public required string WakeupName { get; init; }
+
+    /// <summary>
+    /// Gets the execution-position envelope committed with the timer schedule when the durable
+    /// driver suspends an instance on a timer/delay node (DR-011a). Null for timers scheduled
+    /// outside driver advancement.
+    /// </summary>
+    public DurableExecutionEnvelope? Envelope { get; init; }
+
+    /// <summary>
+    /// Gets the stream version the durable driver observed when it decided this command; the
+    /// kernel rejects the command as a conflict when the stream moved past it (DU-022).
+    /// </summary>
+    public StreamVersion? ExpectedStreamVersion { get; init; }
 }
 
 /// <summary>
@@ -119,6 +144,21 @@ public sealed record ConsumeParentResumeTokenCommand : WorkflowCommand
     /// Gets the resume token identity to consume.
     /// </summary>
     public required EventId ResumeTokenId { get; init; }
+
+    /// <summary>
+    /// Gets the driver position checkpointed atomically with token consumption.
+    /// </summary>
+    public DurableExecutionEnvelope? Envelope { get; init; }
+
+    /// <summary>
+    /// Gets matched child-completion resumes consumed by this parent advancement.
+    /// </summary>
+    public IReadOnlyList<WaitId> ConsumedResumeWaitIds { get; init; } = [];
+
+    /// <summary>
+    /// Gets the stream version observed when the driver decided this command.
+    /// </summary>
+    public StreamVersion? ExpectedStreamVersion { get; init; }
 }
 
 /// <summary>
@@ -140,6 +180,17 @@ public sealed record ContinueAsNewCommand : WorkflowCommand
     /// Gets the serialized state payload for the new baseline generation.
     /// </summary>
     public required byte[] StatePayload { get; init; }
+
+    /// <summary>
+    /// Gets the fresh-generation state and execution position committed by the durable driver.
+    /// Null preserves the kernel-level raw-baseline behavior for existing callers.
+    /// </summary>
+    public DurableExecutionEnvelope? Envelope { get; init; }
+
+    /// <summary>
+    /// Gets the stream version observed by the durable driver.
+    /// </summary>
+    public StreamVersion? ExpectedStreamVersion { get; init; }
 }
 
 /// <summary>
@@ -182,6 +233,31 @@ public sealed record AcquireResourcePoolCommand : WorkflowCommand
     /// Gets when granted tickets should expire.
     /// </summary>
     public DateTimeOffset? ExpiresAt { get; init; }
+
+    /// <summary>
+    /// Gets the driver-chosen wait identity used when the acquisition queues, so the persisted
+    /// execution position can reference the queued wait it suspends on (DR-011a). Null lets
+    /// the kernel choose.
+    /// </summary>
+    public WaitId? WaitId { get; init; }
+
+    /// <summary>
+    /// Gets the execution-position envelope committed with the acquisition (DR-011a); null for
+    /// kernel-level callers.
+    /// </summary>
+    public DurableExecutionEnvelope? Envelope { get; init; }
+
+    /// <summary>
+    /// Gets the stream version this command was decided against; the commit is rejected when
+    /// the stream moved (DU-022).
+    /// </summary>
+    public StreamVersion? ExpectedStreamVersion { get; init; }
+
+    /// <summary>
+    /// Gets pending resumes whose matched events fed the step that produced this command;
+    /// their consumption commits atomically with it (DR-011a).
+    /// </summary>
+    public IReadOnlyList<WaitId> ConsumedResumeWaitIds { get; init; } = [];
 }
 
 /// <summary>
@@ -208,6 +284,31 @@ public sealed record RunExternalJobCommand : WorkflowCommand
     /// Gets when the external job times out.
     /// </summary>
     public DateTimeOffset? TimeoutAt { get; init; }
+
+    /// <summary>
+    /// Gets the driver-chosen wait identity for the job's completion wait (or the queued
+    /// acquisition wait), so the persisted execution position can reference the wait it
+    /// suspends on (DR-011a). Null lets the kernel choose.
+    /// </summary>
+    public WaitId? WaitId { get; init; }
+
+    /// <summary>
+    /// Gets the execution-position envelope committed with the dispatch (DR-011a); null for
+    /// kernel-level callers.
+    /// </summary>
+    public DurableExecutionEnvelope? Envelope { get; init; }
+
+    /// <summary>
+    /// Gets the stream version this command was decided against; the commit is rejected when
+    /// the stream moved (DU-022).
+    /// </summary>
+    public StreamVersion? ExpectedStreamVersion { get; init; }
+
+    /// <summary>
+    /// Gets pending resumes whose matched events fed the step that produced this command;
+    /// their consumption commits atomically with it (DR-011a).
+    /// </summary>
+    public IReadOnlyList<WaitId> ConsumedResumeWaitIds { get; init; } = [];
 }
 
 /// <summary>

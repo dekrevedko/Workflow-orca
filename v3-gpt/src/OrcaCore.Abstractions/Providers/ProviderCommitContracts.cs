@@ -230,7 +230,40 @@ public sealed record WorkflowRuntimeCheckpointState
     /// Gets parent resume tokens already consumed exactly once.
     /// </summary>
     public IReadOnlyList<EventId> ConsumedParentResumeTokens { get; init; } = [];
+
+    /// <summary>
+    /// Gets matched-wait resume envelopes not yet consumed by a driver advancement commit.
+    /// </summary>
+    public IReadOnlyList<CheckpointPendingResume> PendingResumes { get; init; } = [];
+
+    /// <summary>
+    /// Gets the consecutive continuation failure count for the unresolved committed position.
+    /// </summary>
+    public int ContinuationFailureCount { get; init; }
+
+    /// <summary>
+    /// Gets the checkpoint position whose continuation attempts are failing.
+    /// </summary>
+    public StreamVersion? ContinuationFailurePositionStreamVersion { get; init; }
+
+    /// <summary>
+    /// Gets when another host may retry the failed continuation.
+    /// </summary>
+    public DateTimeOffset? ContinuationRetryNotBefore { get; init; }
 }
+
+/// <summary>
+/// Checkpoint materialization of one matched-wait resume envelope awaiting driver consumption.
+/// </summary>
+public sealed record CheckpointPendingResume(
+    WaitId WaitId,
+    EventId MatchedEventId,
+    string? EventName,
+    CorrelationId? CorrelationId,
+    string? BranchId,
+    string? PayloadContentType,
+    byte[]? Payload,
+    DateTimeOffset MatchedAt);
 
 /// <summary>
 /// Checkpoint materialization of one active timer.
@@ -250,7 +283,8 @@ public sealed record CheckpointActiveWait(
     CorrelationId CorrelationId,
     DateTimeOffset RegisteredAt,
     WaitMode Mode,
-    string? BranchId);
+    string? BranchId,
+    TimerId? TimeoutTimerId = null);
 
 /// <summary>
 /// Checkpoint materialization of one buffered inbound delivery.
@@ -259,7 +293,9 @@ public sealed record CheckpointBufferedDelivery(
     EventId EventId,
     string EventName,
     CorrelationId CorrelationId,
-    string? BranchId);
+    string? BranchId,
+    string? PayloadContentType = null,
+    byte[]? Payload = null);
 
 /// <summary>
 /// Checkpoint materialization of one buffered timer firing.

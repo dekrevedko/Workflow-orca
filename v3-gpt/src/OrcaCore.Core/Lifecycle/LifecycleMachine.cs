@@ -26,7 +26,12 @@ internal static class LifecycleMachine
             [new(WorkflowStatus.Waiting, LifecycleTrigger.Pause)] = WorkflowStatus.Paused,
             [new(WorkflowStatus.Paused, LifecycleTrigger.Resume)] = WorkflowStatus.Running,
             [new(WorkflowStatus.Paused, LifecycleTrigger.Terminate)] = WorkflowStatus.Terminated,
-            [new(WorkflowStatus.Paused, LifecycleTrigger.Cancel)] = WorkflowStatus.Cancelled
+            [new(WorkflowStatus.Paused, LifecycleTrigger.Cancel)] = WorkflowStatus.Cancelled,
+            [new(WorkflowStatus.Running, LifecycleTrigger.Park)] = WorkflowStatus.Parked,
+            [new(WorkflowStatus.Waiting, LifecycleTrigger.Park)] = WorkflowStatus.Parked,
+            [new(WorkflowStatus.Parked, LifecycleTrigger.Unpark)] = WorkflowStatus.Running,
+            [new(WorkflowStatus.Parked, LifecycleTrigger.Terminate)] = WorkflowStatus.Terminated,
+            [new(WorkflowStatus.Parked, LifecycleTrigger.Cancel)] = WorkflowStatus.Cancelled
         }.ToFrozenDictionary();
 
     internal static readonly FrozenSet<WorkflowStatus> TerminalStatuses =

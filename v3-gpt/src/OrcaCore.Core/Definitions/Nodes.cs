@@ -1,21 +1,32 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
+using OrcaCore.Abstractions.Providers;
 using OrcaCore.Abstractions.Steps;
 
 namespace OrcaCore.Core.Definitions;
 
 internal sealed record InitNode<TState> : WorkflowNode<TState>
 {
-    internal InitNode(string nodeId, Func<object?, TState> createState)
+    internal InitNode(
+        string nodeId,
+        Func<object?, TState> createState,
+        Func<SerializedPayload, IWorkflowPayloadSerializer, object?>? rehydrateInput = null)
         : base(nodeId)
     {
         ArgumentNullException.ThrowIfNull(createState);
 
         CreateState = createState;
+        RehydrateInput = rehydrateInput;
     }
 
     internal Func<object?, TState> CreateState { get; }
+
+    /// <summary>
+    /// Rebuilds the typed start input from its serialized form so a durable host can run
+    /// Init after the starting process is gone. Captured at build time to stay AOT-safe.
+    /// </summary>
+    internal Func<SerializedPayload, IWorkflowPayloadSerializer, object?>? RehydrateInput { get; }
 }
 
 internal sealed record BusinessStepNode<TState> : WorkflowNode<TState>

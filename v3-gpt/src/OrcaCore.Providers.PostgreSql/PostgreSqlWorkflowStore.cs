@@ -347,8 +347,16 @@ public sealed class PostgreSqlWorkflowStore :
         await using var transaction = await connection
             .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
             .ConfigureAwait(false);
+        // DR-037: a kind selector partitions the outbox so disjoint pumps claim disjoint
+        // record kinds; the ix_orcacore_outbox_kind index keeps the partitioned scan cheap.
+        var kindPredicate = request.KindSelector switch
+        {
+            { Include: not null } => " and kind = any(@kinds)",
+            { Exclude: not null } => " and kind <> all(@kinds)",
+            _ => string.Empty
+        };
         await using var command = new NpgsqlCommand(
-            """
+            $"""
             update orcacore_outbox
             set
                 state = @claimed,
@@ -356,8 +364,8 @@ public sealed class PostgreSqlWorkflowStore :
             where outbox_record_id in (
                 select outbox_record_id
                 from orcacore_outbox
-                where state in (@pending, @retryable)
-                   or (state = @claimed and (claimed_until is null or claimed_until <= @claimed_at))
+                where (state in (@pending, @retryable)
+                   or (state = @claimed and (claimed_until is null or claimed_until <= @claimed_at))){kindPredicate}
                 order by outbox_record_id
                 for update skip locked
                 limit @max_count
@@ -372,6 +380,12 @@ public sealed class PostgreSqlWorkflowStore :
         command.Parameters.AddWithValue("claimed_at", request.ClaimedAt);
         command.Parameters.AddWithValue("claimed_until", request.ClaimedAt.Add(request.LeaseDuration));
         command.Parameters.AddWithValue("max_count", request.MaxCount);
+        if (request.KindSelector is { } selector)
+        {
+            command.Parameters.AddWithValue(
+                "kinds",
+                (selector.Include ?? selector.Exclude!).ToArray());
+        }
 
         var records = new List<OutboxWrite>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);

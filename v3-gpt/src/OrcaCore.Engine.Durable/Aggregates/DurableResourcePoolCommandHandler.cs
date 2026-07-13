@@ -22,9 +22,25 @@ internal static class DurableResourcePoolCommandHandler
             command.HolderKey,
             command.Requirements,
             command.ExpiresAt,
-            acquireResult);
-        return plan.Events.Count == 0
-            ? DurableDecision.Empty
-            : new DurableDecision(plan.Events, null, plan.EvictAfterCommit);
+            acquireResult,
+            command.WaitId);
+        if (plan.Events.Count == 0)
+        {
+            return DurableDecision.Empty;
+        }
+
+        var events = new List<WorkflowEvent>();
+        DurableWaitTimerCommandHandler.AddResumeConsumedEvents(
+            events, aggregate, command.CommandId, command.InstanceId, command.RequestedAt, command.ConsumedResumeWaitIds);
+        events.AddRange(plan.Events);
+        var checkpoint = command.Envelope is { } envelope
+            ? DurableLifecycleCommandHandler.CreateEnvelopeCheckpoint(
+                aggregate,
+                command.InstanceId,
+                events,
+                envelope,
+                aggregate.LastStepPath)
+            : null;
+        return new DurableDecision(events, checkpoint, plan.EvictAfterCommit);
     }
 }

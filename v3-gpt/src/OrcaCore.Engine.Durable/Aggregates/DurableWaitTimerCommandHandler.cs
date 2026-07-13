@@ -15,8 +15,44 @@ internal static class DurableWaitTimerCommandHandler
             return DurableDecision.Empty;
         }
 
-        var decision = new DurableDecision([
-            new WorkflowWaitRegisteredEvent
+        var matched = aggregate.WaitState.FindBufferedDelivery(command.EventName, command.CorrelationId, command.BranchId);
+        var registerTimeoutTimer = matched is null && command.TimeoutTimerId is not null;
+        var events = new List<WorkflowEvent>();
+        AddConsumeAndCancelEvents(events, aggregate, command);
+        events.Add(new WorkflowWaitRegisteredEvent
+        {
+            EventId = EventId.New(),
+            InstanceId = command.InstanceId,
+            CommandId = command.CommandId,
+            CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
+            OccurredAt = command.RequestedAt,
+            WaitId = command.WaitId,
+            EventName = command.EventName,
+            CorrelationId = command.CorrelationId,
+            Mode = command.Mode,
+            BranchId = command.BranchId,
+            TimeoutTimerId = registerTimeoutTimer ? command.TimeoutTimerId : null
+        });
+
+        if (registerTimeoutTimer)
+        {
+            events.Add(new WorkflowTimerScheduledEvent
+            {
+                EventId = EventId.New(),
+                InstanceId = command.InstanceId,
+                CommandId = command.CommandId,
+                CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
+                OccurredAt = command.RequestedAt,
+                TimerId = command.TimeoutTimerId!.Value,
+                FireAt = command.TimeoutFireAt ?? command.RequestedAt,
+                WakeupName = $"wait-timeout:{command.WaitId}"
+            });
+        }
+
+        IReadOnlyList<InboxWrite> inboxWrites = [];
+        if (matched is not null)
+        {
+            events.Add(new WorkflowWaitMatchedEvent
             {
                 EventId = EventId.New(),
                 InstanceId = command.InstanceId,
@@ -24,39 +60,106 @@ internal static class DurableWaitTimerCommandHandler
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
                 OccurredAt = command.RequestedAt,
                 WaitId = command.WaitId,
-                EventName = command.EventName,
-                CorrelationId = command.CorrelationId,
-                Mode = command.Mode,
-                BranchId = command.BranchId
-            }
-        ]);
-
-        var matched = aggregate.WaitState.FindBufferedDelivery(command.EventName, command.CorrelationId, command.BranchId);
-        if (matched is null)
-        {
-            return new DurableDecision(
-                decision.Events,
-                null,
-                command.Mode == WaitMode.Cold);
+                MatchedEventId = matched.EventId,
+                EventName = matched.EventName,
+                CorrelationId = matched.CorrelationId,
+                BranchId = matched.BranchId,
+                PayloadContentType = matched.PayloadContentType,
+                Payload = matched.Payload
+            });
+            inboxWrites = [new InboxWrite(matched.EventId, InboxRecordState.Applied)];
         }
 
+        var checkpoint = command.Envelope is { } envelope
+            ? DurableLifecycleCommandHandler.CreateEnvelopeCheckpoint(
+                aggregate,
+                command.InstanceId,
+                events,
+                envelope,
+                aggregate.LastStepPath)
+            : null;
         return new DurableDecision(
-            [
-                .. decision.Events,
-                new WorkflowWaitMatchedEvent
-                {
-                    EventId = EventId.New(),
-                    InstanceId = command.InstanceId,
-                    CommandId = command.CommandId,
-                    CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
-                    OccurredAt = command.RequestedAt,
-                    WaitId = command.WaitId,
-                    MatchedEventId = matched.EventId
-                }
-            ],
-            null,
-            false,
-            [new InboxWrite(matched.EventId, InboxRecordState.Applied)]);
+            events,
+            checkpoint,
+            matched is null && command.Mode == WaitMode.Cold,
+            inboxWrites);
+    }
+
+    internal static void AddResumeConsumedEvents(
+        List<WorkflowEvent> events,
+        DurableWorkflowAggregate aggregate,
+        CommandId commandId,
+        InstanceId instanceId,
+        DateTimeOffset requestedAt,
+        IReadOnlyList<WaitId> consumedResumeWaitIds)
+    {
+        foreach (var waitId in consumedResumeWaitIds)
+        {
+            if (aggregate.WaitState.FindPendingResume(waitId) is null)
+            {
+                continue;
+            }
+
+            events.Add(new WorkflowResumeConsumedEvent
+            {
+                EventId = EventId.New(),
+                InstanceId = instanceId,
+                CommandId = commandId,
+                CausationId = DurableWorkflowAggregate.ToCausationId(commandId),
+                OccurredAt = requestedAt,
+                WaitId = waitId
+            });
+        }
+    }
+
+    private static void AddConsumeAndCancelEvents(
+        List<WorkflowEvent> events,
+        DurableWorkflowAggregate aggregate,
+        DurableWaitRegisteredCommand command)
+    {
+        AddResumeConsumedEvents(
+            events,
+            aggregate,
+            command.CommandId,
+            command.InstanceId,
+            command.RequestedAt,
+            command.ConsumedResumeWaitIds);
+
+        foreach (var waitId in command.CancelWaitIds)
+        {
+            if (!aggregate.WaitState.HasWait(waitId))
+            {
+                continue;
+            }
+
+            events.Add(new WorkflowWaitCancelledEvent
+            {
+                EventId = EventId.New(),
+                InstanceId = command.InstanceId,
+                CommandId = command.CommandId,
+                CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
+                OccurredAt = command.RequestedAt,
+                WaitId = waitId
+            });
+        }
+
+        foreach (var timerId in command.CancelTimerIds)
+        {
+            if (aggregate.TimerState.FindActive(timerId) is null)
+            {
+                continue;
+            }
+
+            events.Add(new WorkflowTimerCancelledEvent
+            {
+                EventId = EventId.New(),
+                InstanceId = command.InstanceId,
+                CommandId = command.CommandId,
+                CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
+                OccurredAt = command.RequestedAt,
+                TimerId = timerId
+            });
+        }
     }
 
     internal static DurableDecision Handle(DurableWorkflowAggregate aggregate, DurableWaitMatchedCommand command)
@@ -89,7 +192,8 @@ internal static class DurableWaitTimerCommandHandler
             return DurableDecision.Empty;
         }
 
-        return new DurableDecision([
+        var events = new List<WorkflowEvent>
+        {
             new WorkflowTimerScheduledEvent
             {
                 EventId = EventId.New(),
@@ -101,7 +205,17 @@ internal static class DurableWaitTimerCommandHandler
                 FireAt = command.FireAt,
                 WakeupName = command.WakeupName
             }
-        ]);
+        };
+
+        var checkpoint = command.Envelope is { } envelope
+            ? DurableLifecycleCommandHandler.CreateEnvelopeCheckpoint(
+                aggregate,
+                command.InstanceId,
+                events,
+                envelope,
+                aggregate.LastStepPath)
+            : null;
+        return new DurableDecision(events, checkpoint);
     }
 
     internal static DurableDecision Handle(DurableWorkflowAggregate aggregate, FireTimerCommand command)
@@ -129,7 +243,8 @@ internal static class DurableWaitTimerCommandHandler
             ]);
         }
 
-        return new DurableDecision([
+        var events = new List<WorkflowEvent>
+        {
             new WorkflowTimerFiredEvent
             {
                 EventId = EventId.New(),
@@ -139,7 +254,24 @@ internal static class DurableWaitTimerCommandHandler
                 OccurredAt = command.RequestedAt,
                 TimerId = command.TimerId
             }
-        ]);
+        };
+
+        // A wait-timeout race is arbitrated atomically: the winning timer cancels its wait in
+        // the same commit, so a late matching event can never double-resume (DR-AC-020).
+        if (aggregate.WaitState.FindByTimeoutTimer(command.TimerId) is { } racedWait)
+        {
+            events.Add(new WorkflowWaitCancelledEvent
+            {
+                EventId = EventId.New(),
+                InstanceId = command.InstanceId,
+                CommandId = command.CommandId,
+                CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
+                OccurredAt = command.RequestedAt,
+                WaitId = racedWait.WaitId
+            });
+        }
+
+        return new DurableDecision(events);
     }
 
     internal static DurableDecision Handle(DurableWorkflowAggregate aggregate, DeliverEventCommand command)
@@ -165,7 +297,8 @@ internal static class DurableWaitTimerCommandHandler
             ]);
         }
 
-        return new DurableDecision([
+        var events = new List<WorkflowEvent>
+        {
             new WorkflowWaitMatchedEvent
             {
                 EventId = EventId.New(),
@@ -174,9 +307,31 @@ internal static class DurableWaitTimerCommandHandler
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
                 OccurredAt = command.RequestedAt,
                 WaitId = wait.WaitId,
-                MatchedEventId = command.Envelope.EventId
+                MatchedEventId = command.Envelope.EventId,
+                EventName = command.Envelope.EventName,
+                CorrelationId = command.Envelope.CorrelationId,
+                BranchId = command.Envelope.BranchId,
+                PayloadContentType = command.Envelope.PayloadContentType,
+                Payload = command.Envelope.Payload as byte[]
             }
-        ]);
+        };
+
+        // The matched wait's timeout timer loses the race and is cancelled in the same commit.
+        if (wait.TimeoutTimerId is { } timeoutTimerId &&
+            aggregate.TimerState.FindActive(timeoutTimerId) is not null)
+        {
+            events.Add(new WorkflowTimerCancelledEvent
+            {
+                EventId = EventId.New(),
+                InstanceId = command.InstanceId,
+                CommandId = command.CommandId,
+                CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
+                OccurredAt = command.RequestedAt,
+                TimerId = timeoutTimerId
+            });
+        }
+
+        return new DurableDecision(events);
     }
 
     private static WorkflowDeliveryBufferedEvent CreateBufferedEvent(DeliverEventCommand command)
@@ -191,7 +346,9 @@ internal static class DurableWaitTimerCommandHandler
             BufferedEventId = command.Envelope.EventId,
             EventName = command.Envelope.EventName,
             CorrelationId = command.Envelope.CorrelationId,
-            BranchId = command.Envelope.BranchId
+            BranchId = command.Envelope.BranchId,
+            PayloadContentType = command.Envelope.PayloadContentType,
+            Payload = command.Envelope.Payload as byte[]
         };
     }
 }

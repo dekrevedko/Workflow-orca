@@ -14,7 +14,7 @@ The repository explores **two engines** with different backing models:
    - **`WorkflowEngine`** with **`InMemoryInstanceStore`** — **ephemeral** instances (lost on process exit); suitable for short-lived orchestration.
    - **`DurableWorkflowEngine`** with **`IWorkflowStore`** — **durable** instances, waits, history/outbox-related persistence, and optional outbox dispatch. Orchestration still advances through **explicit runtime state** persisted as frames and related records (not an append-only domain-event log as the core model).
 
-2. **Event-driven prototype** (`OrcaCore.EventDrivenPrototype`) — **`EventDrivenWorkflowEngine`** appends workflow facts to a **per-instance stream**, maintains **checkpoints** and **projections** (summary, active waits, inbox deduplication). Narrow feature slice; see [Event-driven prototype status](architecture/event-driven-prototype-status.md).
+2. **Event-driven prototype** (`OrcaCore.EventDrivenPrototype`) — **`EventDrivenWorkflowEngine`** appends workflow/ facts to a **per-instance stream**, maintains **checkpoints** and **projections** (summary, active waits, inbox deduplication). Narrow feature slice; see [Event-driven prototype status](architecture/event-driven-prototype-status.md).
 
 See [Quick vs durable event-driven engine — feature matrix](architecture/quick-vs-durable-engine-feature-matrix.md) for a capability-oriented comparison (naming there uses “quick engine” vs “durable event-driven engine”).
 

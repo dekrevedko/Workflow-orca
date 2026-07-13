@@ -57,6 +57,14 @@ internal sealed class DurableTimerState
         bufferedTimers.RemoveAll(timer => timer.TimerId == timerFired.TimerId);
     }
 
+    internal void Apply(WorkflowTimerCancelledEvent timerCancelled)
+    {
+        ArgumentNullException.ThrowIfNull(timerCancelled);
+
+        activeTimers.RemoveAll(timer => timer.TimerId == timerCancelled.TimerId);
+        bufferedTimers.RemoveAll(timer => timer.TimerId == timerCancelled.TimerId);
+    }
+
     internal void Apply(WorkflowTimerBufferedEvent timerBuffered)
     {
         ArgumentNullException.ThrowIfNull(timerBuffered);

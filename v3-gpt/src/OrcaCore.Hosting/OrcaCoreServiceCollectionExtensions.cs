@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Definitions;
+using OrcaCore.Engine.Durable.Driver;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Engine.Durable.Management;
 using OrcaCore.Engine.Durable.Outbox;
@@ -32,6 +33,7 @@ public static class OrcaCoreServiceCollectionExtensions
         services.TryAddSingleton<ILoggerFactory>(_ => NullLoggerFactory.Instance);
         services.TryAddSingleton(typeof(ILogger<>), typeof(Logger<>));
         services.AddOptions<WorkflowPayloadSerializationOptions>();
+        services.AddOptions<OrcaCoreHostedServiceOptions>();
         services.TryAddSingleton<EphemeralWorkflowEngine>();
         services.TryAddSingleton<InMemoryWorkflowProvider>();
         services.TryAddSingleton<InMemoryResourcePoolStore>();
@@ -62,18 +64,45 @@ public static class OrcaCoreServiceCollectionExtensions
             provider.GetRequiredService<OrcaCoreTelemetryObserver>());
         services.TryAddSingleton<IOutboxPumpObserver>(provider =>
             provider.GetRequiredService<OrcaCoreTelemetryObserver>());
+        services.TryAddSingleton<IDurableDriverObserver>(provider =>
+            provider.GetRequiredService<OrcaCoreTelemetryObserver>());
         services.TryAddSingleton(provider => new DurableCommandRuntime(
             provider.GetRequiredService<IWorkflowEventStore>(),
             provider.GetService<IResourcePoolStore>()));
         services.TryAddSingleton(provider => new DurableCommandProcessor(
             provider.GetRequiredService<DurableCommandRuntime>(),
             provider.GetService<IWorkflowRuntimeObserver>()));
-        services.TryAddSingleton<DurableWorkflowRuntime>();
+        services.TryAddSingleton(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<OrcaCoreHostedServiceOptions>>().Value;
+            return new DurableWorkflowRuntime(
+                provider.GetRequiredService<DurableCommandProcessor>(),
+                provider.GetRequiredService<DurableDefinitionRegistry>(),
+                provider.GetRequiredService<TimeProvider>(),
+                provider.GetRequiredService<IWorkflowPayloadSerializer>(),
+                new DurableDriverBudget(options.MaxCommandsPerSegment, options.MaxSegmentDuration),
+                provider.GetRequiredService<IWorkflowProjectionStore>(),
+                provider.GetRequiredService<DurableManagement>(),
+                provider.GetService<IDurableDriverObserver>());
+        });
         services.TryAddSingleton<DurableDagRunner>();
         services.TryAddSingleton(provider => new DurableOutboxPump(
             provider.GetRequiredService<IWorkflowOutboxStore>(),
             provider.GetRequiredService<IMessageDispatcher>(),
             provider.GetService<IOutboxPumpObserver>()));
+        services.TryAddSingleton(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<OrcaCoreHostedServiceOptions>>().Value;
+            return new DurableContinuationPump(
+                provider.GetRequiredService<IWorkflowOutboxStore>(),
+                provider.GetRequiredService<DurableWorkflowRuntime>(),
+                provider.GetRequiredService<DurableCommandProcessor>(),
+                provider.GetRequiredService<TimeProvider>(),
+                options.ContinuationMaxDriveAttemptsBeforePark,
+                options.ContinuationWorkerConcurrency,
+                options.ContinuationInitialFailureBackoff,
+                provider.GetService<IDurableDriverObserver>());
+        });
         services.TryAddSingleton(provider => new DurableManagement(
             provider.GetRequiredService<IWorkflowProjectionStore>(),
             provider.GetRequiredService<IResourcePoolStore>(),
@@ -99,6 +128,7 @@ public static class OrcaCoreServiceCollectionExtensions
         }
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, OrcaCoreOutboxPumpHostedService>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, OrcaCoreContinuationPumpHostedService>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, OrcaCoreTimerHostedService>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, OrcaCoreOperationalSweepHostedService>());
         return services;

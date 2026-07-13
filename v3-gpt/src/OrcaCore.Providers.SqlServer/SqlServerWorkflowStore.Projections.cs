@@ -180,6 +180,18 @@ internal sealed class SqlServerProjectionStore(string connectionString)
                 (select count(*) from dbo.orcacore_outbox where state = @pending) as outbox_pending,
                 (select count(*) from dbo.orcacore_outbox where state = @retryable) as outbox_retryable,
                 (select count(*) from dbo.orcacore_outbox where state = @claimed) as outbox_claimed,
+                (select count(*) from dbo.orcacore_outbox where kind = @continue_kind and state = @pending)
+                    as continuation_pending,
+                (select count(*) from dbo.orcacore_outbox where kind = @continue_kind and state = @retryable)
+                    as continuation_retryable,
+                (select count(*) from dbo.orcacore_outbox where kind = @continue_kind and state = @claimed)
+                    as continuation_claimed,
+                (select count(*) from dbo.orcacore_outbox where kind <> @continue_kind and state = @pending)
+                    as external_pending,
+                (select count(*) from dbo.orcacore_outbox where kind <> @continue_kind and state = @retryable)
+                    as external_retryable,
+                (select count(*) from dbo.orcacore_outbox where kind <> @continue_kind and state = @claimed)
+                    as external_claimed,
                 (select isnull(max(events.max_version - isnull(checkpoints.stream_version, 0)), 0)
                     from (
                         select stream_id, max(version) as max_version
@@ -195,6 +207,7 @@ internal sealed class SqlServerProjectionStore(string connectionString)
         command.Parameters.AddWithValue("@pending", OutboxRecordState.Pending.ToString());
         command.Parameters.AddWithValue("@retryable", OutboxRecordState.Retryable.ToString());
         command.Parameters.AddWithValue("@claimed", OutboxRecordState.Claimed.ToString());
+        command.Parameters.AddWithValue("@continue_kind", OutboxKinds.Continue);
         command.Parameters.AddWithValue("@running", WorkflowStatus.Running.ToString());
         command.Parameters.AddWithValue("@waiting", WorkflowStatus.Waiting.ToString());
         command.Parameters.AddWithValue("@paused", WorkflowStatus.Paused.ToString());
@@ -213,8 +226,14 @@ internal sealed class SqlServerProjectionStore(string connectionString)
             OutboxPendingCount = Convert.ToInt32(reader.GetValue(3)),
             OutboxRetryableCount = Convert.ToInt32(reader.GetValue(4)),
             OutboxClaimedCount = Convert.ToInt32(reader.GetValue(5)),
-            CheckpointLag = Convert.ToInt64(reader.GetValue(6)),
-            ActiveInstanceCount = Convert.ToInt32(reader.GetValue(7))
+            ContinuationPendingCount = Convert.ToInt32(reader.GetValue(6)),
+            ContinuationRetryableCount = Convert.ToInt32(reader.GetValue(7)),
+            ContinuationClaimedCount = Convert.ToInt32(reader.GetValue(8)),
+            ExternalOutboxPendingCount = Convert.ToInt32(reader.GetValue(9)),
+            ExternalOutboxRetryableCount = Convert.ToInt32(reader.GetValue(10)),
+            ExternalOutboxClaimedCount = Convert.ToInt32(reader.GetValue(11)),
+            CheckpointLag = Convert.ToInt64(reader.GetValue(12)),
+            ActiveInstanceCount = Convert.ToInt32(reader.GetValue(13))
         };
     }
 

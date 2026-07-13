@@ -121,10 +121,12 @@ internal sealed class DurableCommitMaterializer
         }
 
         var lastEvent = decision.Events[^1];
+        var failedAttempt = decision.Events.OfType<WorkflowContinuationAttemptFailedEvent>().LastOrDefault();
         var signal = new DurableContinuationSignal
         {
             InstanceId = lastEvent.InstanceId,
-            OccurredAt = lastEvent.OccurredAt
+            OccurredAt = lastEvent.OccurredAt,
+            NotBefore = failedAttempt?.NextEligibleAt
         };
         return [new OutboxWrite(OutboxRecordId.New(), OutboxKinds.Continue, signal.Serialize())];
     }

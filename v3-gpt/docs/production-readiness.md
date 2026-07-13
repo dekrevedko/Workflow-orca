@@ -19,6 +19,11 @@ release automation are deferred until the owner reopens packaging.
   stream history forever, but must preserve the active retention window and essential
   operational facts required for management, recovery, audit, and compliance-oriented
   inspection.
+- Definition-driven durable execution is production-gated on document 16: durable
+  interpreter, execution-position envelope, lane host, restart-safe continuation signal,
+  hard segment budgets, and provider certification. Manual `DurableCommandProcessor` tests
+  are useful lower-level coverage but are not sufficient for a production durable engine
+  claim.
 
 ## Security Checklist
 

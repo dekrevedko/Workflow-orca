@@ -33,6 +33,9 @@ internal sealed class DurableWorkflowAggregate
         StartInputContentType = state.StartInputContentType;
         StartInputPayload = state.StartInputPayload;
         ParkReason = state.ParkReason;
+        ContinuationFailureCount = state.ContinuationFailureCount;
+        ContinuationFailurePositionStreamVersion = state.ContinuationFailurePositionStreamVersion;
+        ContinuationRetryNotBefore = state.ContinuationRetryNotBefore;
         timerState = DurableTimerState.FromSnapshot(state.ActiveTimers, state.BufferedTimers);
         waitState = DurableWaitState.FromSnapshot(state.ActiveWaits, state.BufferedDeliveries, state.PendingResumes);
         childState = DurableChildWorkflowState.FromSnapshot(
@@ -91,6 +94,12 @@ internal sealed class DurableWorkflowAggregate
     /// Gets or sets the park reason while the instance status is Parked.
     /// </summary>
     internal DurableParkReason? ParkReason { get; set; }
+
+    internal int ContinuationFailureCount { get; set; }
+
+    internal StreamVersion? ContinuationFailurePositionStreamVersion { get; set; }
+
+    internal DateTimeOffset? ContinuationRetryNotBefore { get; set; }
 
     internal DurableChildWorkflowState ChildState => childState;
 
@@ -202,7 +211,10 @@ internal sealed class DurableWorkflowAggregate
             RequestedSagaCompensationScopes = checkpoint.RequestedSagaCompensationScopes,
             RecordedParentResumeTokens = checkpoint.RecordedParentResumeTokens,
             ConsumedParentResumeTokens = checkpoint.ConsumedParentResumeTokens,
-            PendingResumes = checkpoint.PendingResumes
+            PendingResumes = checkpoint.PendingResumes,
+            ContinuationFailureCount = checkpoint.ContinuationFailureCount,
+            ContinuationFailurePositionStreamVersion = checkpoint.ContinuationFailurePositionStreamVersion,
+            ContinuationRetryNotBefore = checkpoint.ContinuationRetryNotBefore
         };
     }
 
@@ -244,7 +256,10 @@ internal sealed class DurableWorkflowAggregate
             PendingResumes = waitState.PendingResumes,
             StartInputContentType = StartInputContentType,
             StartInputPayload = StartInputPayload,
-            ParkReason = ParkReason
+            ParkReason = ParkReason,
+            ContinuationFailureCount = ContinuationFailureCount,
+            ContinuationFailurePositionStreamVersion = ContinuationFailurePositionStreamVersion,
+            ContinuationRetryNotBefore = ContinuationRetryNotBefore
         };
     }
 
@@ -340,6 +355,12 @@ internal sealed class DurableWorkflowAggregate
         DurableLifecycleCommandHandler.Handle(this, command);
 
     internal DurableDecision DecideUnpark(DurableUnparkCommand command) =>
+        DurableLifecycleCommandHandler.Handle(this, command);
+
+    internal DurableDecision DecideContinuationAttemptFailed(DurableContinuationAttemptFailedCommand command) =>
+        DurableLifecycleCommandHandler.Handle(this, command);
+
+    internal DurableDecision DecideContinuationAttemptReset(DurableContinuationAttemptResetCommand command) =>
         DurableLifecycleCommandHandler.Handle(this, command);
 
     internal DurableDecision DecideTerminate(TerminateWorkflowCommand command) =>
@@ -538,7 +559,10 @@ internal sealed class DurableWorkflowAggregate
             RequestedSagaCompensationScopes = sagaState.RequestedCompensationScopes,
             RecordedParentResumeTokens = childState.RecordedParentResumeTokens,
             ConsumedParentResumeTokens = childState.ConsumedParentResumeTokens,
-            PendingResumes = waitState.CreateCheckpointPendingResumes()
+            PendingResumes = waitState.CreateCheckpointPendingResumes(),
+            ContinuationFailureCount = ContinuationFailureCount,
+            ContinuationFailurePositionStreamVersion = ContinuationFailurePositionStreamVersion,
+            ContinuationRetryNotBefore = ContinuationRetryNotBefore
         };
     }
 

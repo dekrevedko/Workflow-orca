@@ -305,6 +305,54 @@ public abstract class ResourcePoolStoreCertificationTests
         normalSnapshot.HasValue.Should().BeTrue();
     }
 
+    [Fact]
+    [Trait("AC", "DR-AC-022")]
+    public async Task AcquireAsync_HolderAlreadyGranted_IsIdempotentAndDoesNotQueue()
+    {
+        var store = CreateStore();
+        await store.UpsertPoolAsync(Pool("db", 1), TestContext.Current.CancellationToken);
+        var first = await store.AcquireAsync(Request(1, Requirement("db")), TestContext.Current.CancellationToken);
+
+        var again = await store.AcquireAsync(Request(1, Requirement("db")), TestContext.Current.CancellationToken);
+        var snapshot = await store.GetPoolAsync("db", TestContext.Current.CancellationToken);
+
+        first.Status.Should().Be(ResourcePoolAcquireStatus.Granted);
+        again.Status.Should().Be(
+            ResourcePoolAcquireStatus.Granted,
+            "an at-least-once re-acquire by a granted holder observes its existing tickets");
+        again.Tickets.Select(ticket => ticket.TicketId)
+            .Should().BeEquivalentTo(first.Tickets.Select(ticket => ticket.TicketId));
+        snapshot.Value.HeldTickets.Should().ContainSingle("no second allocation happens");
+        snapshot.Value.QueuedWaiters.Should().BeEmpty("a granted holder never queues behind its own tickets");
+    }
+
+    [Fact]
+    [Trait("AC", "DR-AC-022")]
+    public async Task AcquireAsync_AfterReleaseGrantsQueuedWaiter_ReacquireObservesGrant()
+    {
+        var store = CreateStore();
+        await store.UpsertPoolAsync(Pool("db", 1), TestContext.Current.CancellationToken);
+        await store.AcquireAsync(Request(1, Requirement("db")), TestContext.Current.CancellationToken);
+        var queued = await store.AcquireAsync(Request(2, Requirement("db")), TestContext.Current.CancellationToken);
+        queued.Status.Should().Be(ResourcePoolAcquireStatus.Queued);
+
+        var release = await store.ReleaseAsync(
+            new ResourcePoolReleaseRequest(InstanceIdValue(1), "node-1", Date(20)),
+            TestContext.Current.CancellationToken);
+        var reacquired = await store.AcquireAsync(Request(2, Requirement("db")), TestContext.Current.CancellationToken);
+        var snapshot = await store.GetPoolAsync("db", TestContext.Current.CancellationToken);
+
+        release.GrantedWaiters.Should().ContainSingle(
+            "the released capacity advances the queued waiter");
+        reacquired.Status.Should().Be(
+            ResourcePoolAcquireStatus.Granted,
+            "the grant-signaled holder re-attempts its acquisition and observes the grant");
+        reacquired.Tickets.Should().ContainSingle()
+            .Which.HolderInstanceId.Should().Be(InstanceIdValue(2));
+        snapshot.Value.HeldTickets.Should().ContainSingle();
+        snapshot.Value.QueuedWaiters.Should().BeEmpty();
+    }
+
     private static ResourcePoolDefinition Pool(string name, int capacity)
     {
         return new ResourcePoolDefinition(name, capacity, TimeSpan.FromMinutes(30));

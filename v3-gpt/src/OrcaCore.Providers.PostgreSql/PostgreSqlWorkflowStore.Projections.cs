@@ -192,6 +192,18 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
                 (select count(*) from orcacore_outbox where state = @pending) as outbox_pending,
                 (select count(*) from orcacore_outbox where state = @retryable) as outbox_retryable,
                 (select count(*) from orcacore_outbox where state = @claimed) as outbox_claimed,
+                (select count(*) from orcacore_outbox where kind = @continue_kind and state = @pending)
+                    as continuation_pending,
+                (select count(*) from orcacore_outbox where kind = @continue_kind and state = @retryable)
+                    as continuation_retryable,
+                (select count(*) from orcacore_outbox where kind = @continue_kind and state = @claimed)
+                    as continuation_claimed,
+                (select count(*) from orcacore_outbox where kind <> @continue_kind and state = @pending)
+                    as external_pending,
+                (select count(*) from orcacore_outbox where kind <> @continue_kind and state = @retryable)
+                    as external_retryable,
+                (select count(*) from orcacore_outbox where kind <> @continue_kind and state = @claimed)
+                    as external_claimed,
                 (select coalesce(max(events.max_version - coalesce(checkpoints.stream_version, 0)), 0)
                     from (
                         select stream_id, max(version) as max_version
@@ -207,6 +219,7 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
         command.Parameters.AddWithValue("pending", OutboxRecordState.Pending.ToString());
         command.Parameters.AddWithValue("retryable", OutboxRecordState.Retryable.ToString());
         command.Parameters.AddWithValue("claimed", OutboxRecordState.Claimed.ToString());
+        command.Parameters.AddWithValue("continue_kind", OutboxKinds.Continue);
         command.Parameters.AddWithValue("running", WorkflowStatus.Running.ToString());
         command.Parameters.AddWithValue("waiting", WorkflowStatus.Waiting.ToString());
         command.Parameters.AddWithValue("paused", WorkflowStatus.Paused.ToString());
@@ -225,8 +238,14 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
             OutboxPendingCount = checked((int)reader.GetInt64(3)),
             OutboxRetryableCount = checked((int)reader.GetInt64(4)),
             OutboxClaimedCount = checked((int)reader.GetInt64(5)),
-            CheckpointLag = reader.GetInt64(6),
-            ActiveInstanceCount = checked((int)reader.GetInt64(7))
+            ContinuationPendingCount = checked((int)reader.GetInt64(6)),
+            ContinuationRetryableCount = checked((int)reader.GetInt64(7)),
+            ContinuationClaimedCount = checked((int)reader.GetInt64(8)),
+            ExternalOutboxPendingCount = checked((int)reader.GetInt64(9)),
+            ExternalOutboxRetryableCount = checked((int)reader.GetInt64(10)),
+            ExternalOutboxClaimedCount = checked((int)reader.GetInt64(11)),
+            CheckpointLag = reader.GetInt64(12),
+            ActiveInstanceCount = checked((int)reader.GetInt64(13))
         };
     }
 

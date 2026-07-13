@@ -76,6 +76,11 @@ internal sealed class StepExecutor<TState>
                 RecordStuckStepIfNeeded(instance, stepPath, stepStartedAt);
                 if (result is StepResult.Failed && attempt < maxAttempts)
                 {
+                    if (stepNode.Policies.Retry is { } retry && retry.Backoff > TimeSpan.Zero)
+                    {
+                        await Task.Delay(retry.Backoff, timeProvider, executionToken).ConfigureAwait(false);
+                    }
+
                     continue;
                 }
 
@@ -102,6 +107,11 @@ internal sealed class StepExecutor<TState>
                 RecordStuckStepIfNeeded(instance, stepPath, stepStartedAt);
                 if (attempt < maxAttempts)
                 {
+                    if (stepNode.Policies.Retry is { } retry && retry.Backoff > TimeSpan.Zero)
+                    {
+                        await Task.Delay(retry.Backoff, timeProvider, executionToken).ConfigureAwait(false);
+                    }
+
                     continue;
                 }
 

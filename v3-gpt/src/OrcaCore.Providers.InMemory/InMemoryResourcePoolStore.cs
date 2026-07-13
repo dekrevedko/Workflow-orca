@@ -51,6 +51,22 @@ public sealed class InMemoryResourcePoolStore : IResourcePoolStore
                     "One or more resource pools do not exist."));
             }
 
+            // Idempotent re-acquire: a holder whose queued waiter was already granted on a
+            // release re-attempts the acquisition (at-least-once, DR-014) and must observe
+            // Granted with its existing tickets, never queue behind its own allocation.
+            var heldByHolder = tickets
+                .Where(ticket => ticket.HolderInstanceId == request.HolderInstanceId &&
+                    string.Equals(ticket.HolderKey, request.HolderKey, StringComparison.Ordinal))
+                .ToArray();
+            if (Satisfies(heldByHolder, request.Requirements))
+            {
+                return Task.FromResult(new ResourcePoolAcquireResult(
+                    ResourcePoolAcquireStatus.Granted,
+                    heldByHolder,
+                    null,
+                    null));
+            }
+
             if (CanGrant(request.Requirements))
             {
                 var granted = Grant(request, request.RequestedAt);
@@ -222,6 +238,16 @@ public sealed class InMemoryResourcePoolStore : IResourcePoolStore
     private bool AllPoolsExist(IEnumerable<ResourcePoolRequirement> requirements)
     {
         return requirements.All(requirement => pools.ContainsKey(requirement.PoolName));
+    }
+
+    private static bool Satisfies(
+        IReadOnlyList<ResourcePoolTicket> heldByHolder,
+        IReadOnlyList<ResourcePoolRequirement> requirements)
+    {
+        return heldByHolder.Count > 0 && requirements.All(requirement =>
+            heldByHolder
+                .Where(ticket => string.Equals(ticket.PoolName, requirement.PoolName, StringComparison.Ordinal))
+                .Sum(ticket => ticket.Count) >= requirement.Count);
     }
 
     private bool CanGrant(IEnumerable<ResourcePoolRequirement> requirements)

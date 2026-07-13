@@ -516,13 +516,28 @@ public sealed class SqlServerWorkflowStore :
         await using var transaction = (SqlTransaction)await connection
             .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
             .ConfigureAwait(false);
+        // DR-037: a kind selector partitions the outbox so disjoint pumps claim disjoint
+        // record kinds; the ix_orcacore_outbox_kind index keeps the partitioned scan cheap.
+        if (request.KindSelector is { Include.Count: 0 })
+        {
+            return [];
+        }
+
+        var kinds = (request.KindSelector?.Include ?? request.KindSelector?.Exclude)?.ToArray() ?? [];
+        var kindParameters = string.Join(", ", kinds.Select((_, index) => $"@kind{index}"));
+        var kindPredicate = request.KindSelector switch
+        {
+            { Include: not null } => $" and kind in ({kindParameters})",
+            { Exclude.Count: > 0 } => $" and kind not in ({kindParameters})",
+            _ => string.Empty
+        };
         await using var command = new SqlCommand(
-            """
+            $"""
             ;with claimed as (
                 select top (@max_count) outbox_record_id
                 from dbo.orcacore_outbox with (updlock, readpast, rowlock)
-                where state in (@pending, @retryable)
-                   or (state = @claimed and (claimed_until is null or claimed_until <= @claimed_at))
+                where (state in (@pending, @retryable)
+                   or (state = @claimed and (claimed_until is null or claimed_until <= @claimed_at))){kindPredicate}
                 order by outbox_record_id
             )
             update dbo.orcacore_outbox
@@ -540,6 +555,10 @@ public sealed class SqlServerWorkflowStore :
         command.Parameters.AddWithValue("@claimed", OutboxRecordState.Claimed.ToString());
         command.Parameters.AddWithValue("@claimed_at", request.ClaimedAt);
         command.Parameters.AddWithValue("@claimed_until", request.ClaimedAt.Add(request.LeaseDuration));
+        for (var index = 0; index < kinds.Length; index++)
+        {
+            command.Parameters.AddWithValue($"@kind{index}", kinds[index]);
+        }
 
         var records = new List<OutboxWrite>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);

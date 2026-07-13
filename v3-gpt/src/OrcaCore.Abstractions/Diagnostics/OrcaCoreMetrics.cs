@@ -28,4 +28,12 @@ public static class OrcaCoreMetrics
     public const string ProviderCommitDurationName = "orca.provider.commit.duration";
     public const string OutboxDispatchDurationName = "orca.outbox.dispatch.duration";
     public const string WaitsDurationName = "orca.waits.duration";
+
+    public const string DriverSegmentDurationName = "orca.driver.segment.duration";
+    public const string ContinuationPendingCountName = "orca.continuation.pending.count";
+    public const string ContinuationLagName = "orca.continuation.lag";
+    public const string OutboxExternalPendingCountName = "orca.outbox.external.pending.count";
+    public const string DriverParkCountName = "orca.driver.park.count";
+    public const string DriverPoisonCountName = "orca.driver.poison.count";
+    public const string DriverVersionBindingFailureCountName = "orca.driver.version_binding.failure.count";
 }

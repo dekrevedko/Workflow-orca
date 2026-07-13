@@ -4,6 +4,7 @@
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/OrcaCore.Dashboard/OrcaCore.Dashboard.csproj" />
+    <Project Path="samples/OrcaCore.Examples/OrcaCore.Examples.csproj" />
     <Project Path="samples/OrcaCore.SampleHost/OrcaCore.SampleHost.csproj" />
   </Folder>
   <Folder Name="/src/">

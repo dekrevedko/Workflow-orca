@@ -8,10 +8,13 @@ namespace OrcaCore.Core.Tests;
 
 public sealed partial class RepositoryGuardTests
 {
-    private static readonly HashSet<string> AcceptanceCriterionWaivers = new(StringComparer.Ordinal)
+    private static readonly IReadOnlyDictionary<string, string> AcceptanceCriterionWaivers =
+        new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        "AC-315",
-        "JS-AC-008"
+        ["DR-AC-007"] = "DR-P3 saga driving is still open.",
+        ["DR-AC-008"] = "DR-P3 full DAG driving without manual pumping is still open.",
+        ["DR-AC-012"] = "DR-P4 ephemeral/durable parity is still open.",
+        ["DR-AC-026"] = "All continuation dispositions are not yet covered end to end.",
     };
 
     [Fact]
@@ -23,9 +26,26 @@ public sealed partial class RepositoryGuardTests
 
         catalogIds
             .Except(taggedIds, StringComparer.Ordinal)
-            .Except(AcceptanceCriterionWaivers, StringComparer.Ordinal)
+            .Except(AcceptanceCriterionWaivers.Keys, StringComparer.Ordinal)
             .Should()
             .BeEmpty();
+    }
+
+    [Fact]
+    public void AcceptanceCriterionWaivers_AreCatalogedReasonedAndNotAlreadyCovered()
+    {
+        var repoRoot = FindRepoRoot();
+        var catalogIds = CatalogedAcceptanceCriteria(repoRoot);
+        var taggedIds = TaggedAcceptanceCriteria(repoRoot);
+
+        AcceptanceCriterionWaivers.Keys
+            .Except(catalogIds, StringComparer.Ordinal)
+            .Should().BeEmpty("waivers must reference a real catalog criterion");
+        AcceptanceCriterionWaivers.Keys
+            .Intersect(taggedIds, StringComparer.Ordinal)
+            .Should().BeEmpty("a waiver must be removed when a real trait-tagged test is added");
+        AcceptanceCriterionWaivers.Values
+            .Should().OnlyContain(reason => !string.IsNullOrWhiteSpace(reason));
     }
 
     [Fact]
@@ -321,15 +341,10 @@ public sealed partial class RepositoryGuardTests
 
     private static IReadOnlySet<string> CatalogedAcceptanceCriteria(string repoRoot)
     {
-        var document12 = File.ReadAllText(Path.Combine(repoRoot, "docs", "specs", "12-acceptance-criteria.md"));
-        var document14 = File.ReadAllText(Path.Combine(
-            repoRoot,
-            "docs",
-            "specs",
-            "14-driving-scenario-eks-job-scheduler.md"));
-
-        return AcceptanceCatalogRegex()
-            .Matches(string.Concat(document12, Environment.NewLine, document14))
+        return Directory
+            .EnumerateFiles(Path.Combine(repoRoot, "docs", "specs"), "*.md", SearchOption.TopDirectoryOnly)
+            .Select(File.ReadAllText)
+            .SelectMany(source => AcceptanceCatalogRegex().Matches(source))
             .Select(match => match.Groups[1].Value)
             .ToHashSet(StringComparer.Ordinal);
     }
@@ -389,10 +404,10 @@ public sealed partial class RepositoryGuardTests
             parts.Contains("obj", StringComparer.OrdinalIgnoreCase);
     }
 
-    [GeneratedRegex(@"\*\*((?:AC|JS-AC)-\d{3})\*\*", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\*\*((?:AC|JS-AC|DR-AC)-\d{3})\*\*", RegexOptions.CultureInvariant)]
     private static partial Regex AcceptanceCatalogRegex();
 
-    [GeneratedRegex(@"Trait\(""AC"",\s*""((?:AC|JS-AC)-\d{3})""\)", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"Trait\(""AC"",\s*""((?:AC|JS-AC|DR-AC)-\d{3})""\)", RegexOptions.CultureInvariant)]
     private static partial Regex AcceptanceTraitRegex();
 
     [GeneratedRegex(@"INT-[A-Z0-9]+-\d{3}", RegexOptions.CultureInvariant)]

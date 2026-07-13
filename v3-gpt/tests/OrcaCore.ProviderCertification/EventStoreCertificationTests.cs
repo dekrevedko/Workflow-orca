@@ -557,6 +557,137 @@ public abstract class EventStoreCertificationTests
         };
     }
 
+    [Fact]
+    [Trait("AC", "DR-037")]
+    [Trait("AC", "DR-AC-029")]
+    public async Task ClaimAsync_IncludeSelector_ClaimsOnlyMatchingKinds()
+    {
+        var fixture = CreateFixture();
+        var streamId = new WorkflowStreamId(InstanceId.New());
+        var continueRecordId = OutboxRecordId.New();
+        var statusRecordId = OutboxRecordId.New();
+        await fixture.EventStore.AppendAsync(
+            KindBatch(streamId, (continueRecordId, OutboxKinds.Continue), (statusRecordId, "status")),
+            TestContext.Current.CancellationToken);
+
+        var claimed = await fixture.OutboxStore.ClaimAsync(
+            new OutboxClaimRequest(10, Timestamp(10), TimeSpan.FromMinutes(1))
+            {
+                KindSelector = OutboxKindSelector.Including(OutboxKinds.Continue)
+            },
+            TestContext.Current.CancellationToken);
+
+        claimed.Should().ContainSingle(record => record.OutboxRecordId == continueRecordId);
+    }
+
+    [Fact]
+    [Trait("AC", "DR-037")]
+    [Trait("AC", "DR-AC-029")]
+    public async Task ClaimAsync_ExcludeSelector_SkipsExcludedKindsAndLeavesThemClaimable()
+    {
+        var fixture = CreateFixture();
+        var streamId = new WorkflowStreamId(InstanceId.New());
+        var continueRecordId = OutboxRecordId.New();
+        var statusRecordId = OutboxRecordId.New();
+        await fixture.EventStore.AppendAsync(
+            KindBatch(streamId, (continueRecordId, OutboxKinds.Continue), (statusRecordId, "status")),
+            TestContext.Current.CancellationToken);
+
+        var external = await fixture.OutboxStore.ClaimAsync(
+            new OutboxClaimRequest(10, Timestamp(10), TimeSpan.FromMinutes(1))
+            {
+                KindSelector = OutboxKindSelector.Excluding(OutboxKinds.Continue)
+            },
+            TestContext.Current.CancellationToken);
+        var continuation = await fixture.OutboxStore.ClaimAsync(
+            new OutboxClaimRequest(10, Timestamp(11), TimeSpan.FromMinutes(1))
+            {
+                KindSelector = OutboxKindSelector.Including(OutboxKinds.Continue)
+            },
+            TestContext.Current.CancellationToken);
+
+        external.Should().ContainSingle(record => record.OutboxRecordId == statusRecordId);
+        continuation.Should().ContainSingle(record => record.OutboxRecordId == continueRecordId);
+    }
+
+    [Fact]
+    [Trait("AC", "DR-037")]
+    public async Task ClaimAsync_WithoutSelector_ClaimsAllKinds()
+    {
+        var fixture = CreateFixture();
+        var streamId = new WorkflowStreamId(InstanceId.New());
+        var continueRecordId = OutboxRecordId.New();
+        var statusRecordId = OutboxRecordId.New();
+        await fixture.EventStore.AppendAsync(
+            KindBatch(streamId, (continueRecordId, OutboxKinds.Continue), (statusRecordId, "status")),
+            TestContext.Current.CancellationToken);
+
+        var claimed = await fixture.OutboxStore.ClaimAsync(
+            new OutboxClaimRequest(10, Timestamp(10), TimeSpan.FromMinutes(1)),
+            TestContext.Current.CancellationToken);
+
+        claimed.Select(record => record.OutboxRecordId)
+            .Should().BeEquivalentTo([continueRecordId, statusRecordId]);
+    }
+
+    [Fact]
+    [Trait("AC", "DR-AC-031")]
+    public async Task Statistics_SeparateContinuationAndExternalOutboxCountsByState()
+    {
+        var fixture = CreateFixture();
+        var streamId = new WorkflowStreamId(InstanceId.New());
+        await fixture.EventStore.AppendAsync(
+            KindBatch(
+                streamId,
+                (OutboxRecordId.New(), OutboxKinds.Continue),
+                (OutboxRecordId.New(), OutboxKinds.Continue),
+                (OutboxRecordId.New(), OutboxKinds.Continue),
+                (OutboxRecordId.New(), "status"),
+                (OutboxRecordId.New(), "child-start"),
+                (OutboxRecordId.New(), "lifecycle-event")),
+            TestContext.Current.CancellationToken);
+
+        var claimedContinuation = await fixture.OutboxStore.ClaimAsync(
+            new OutboxClaimRequest(1, Timestamp(10), TimeSpan.FromMinutes(1))
+            {
+                KindSelector = OutboxKindSelector.Including(OutboxKinds.Continue)
+            },
+            TestContext.Current.CancellationToken);
+        await fixture.OutboxStore.ReleaseAsync(
+            claimedContinuation.Should().ContainSingle().Subject.OutboxRecordId,
+            TestContext.Current.CancellationToken);
+        await fixture.OutboxStore.ClaimAsync(
+            new OutboxClaimRequest(1, Timestamp(10), TimeSpan.FromMinutes(1))
+            {
+                KindSelector = OutboxKindSelector.Excluding(OutboxKinds.Continue)
+            },
+            TestContext.Current.CancellationToken);
+
+        var statistics = await fixture.ProjectionStore.GetStatisticsAsync(
+            WorkflowProjectionQuery.All,
+            TestContext.Current.CancellationToken);
+
+        statistics.Pressure.ContinuationPendingCount.Should().Be(2);
+        statistics.Pressure.ContinuationRetryableCount.Should().Be(1);
+        statistics.Pressure.ContinuationClaimedCount.Should().Be(0);
+        statistics.Pressure.ExternalOutboxPendingCount.Should().Be(2);
+        statistics.Pressure.ExternalOutboxRetryableCount.Should().Be(0);
+        statistics.Pressure.ExternalOutboxClaimedCount.Should().Be(1);
+    }
+
+    private static ProviderCommitBatch KindBatch(
+        WorkflowStreamId streamId,
+        params (OutboxRecordId RecordId, string Kind)[] records)
+    {
+        var batch = Batch(streamId, StreamVersion.Empty);
+        return batch with
+        {
+            OutboxRecords = records
+                .Select(record => new OutboxWrite(record.RecordId, record.Kind, [1]))
+                .ToArray()
+        };
+    }
+
     private static ProviderCommitBatch Batch(
         WorkflowStreamId streamId,
         StreamVersion expectedVersion,

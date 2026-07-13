@@ -73,6 +73,18 @@ internal sealed class SqlServerResourcePoolStore
                 "One or more resource pools do not exist.");
         }
 
+        // Idempotent re-acquire: a holder whose queued waiter was already granted on a release
+        // re-attempts the acquisition (at-least-once, DR-014) and must observe Granted with its
+        // existing tickets, never queue behind its own allocation.
+        var heldByHolder = await LoadHolderTicketsAsync(
+            connection, transaction, request.HolderInstanceId, request.HolderKey, cancellationToken)
+            .ConfigureAwait(false);
+        if (SatisfiesRequirements(heldByHolder, request.Requirements))
+        {
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return new ResourcePoolAcquireResult(ResourcePoolAcquireStatus.Granted, heldByHolder, null, null);
+        }
+
         var heldCounts = await LoadHeldCountsAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
         if (CanGrantResourceTickets(request.Requirements, pools, heldCounts))
         {
@@ -381,6 +393,46 @@ internal sealed class SqlServerResourcePoolStore
         }
 
         return counts;
+    }
+
+    private static bool SatisfiesRequirements(
+        IReadOnlyList<ResourcePoolTicket> heldByHolder,
+        IReadOnlyList<ResourcePoolRequirement> requirements)
+    {
+        return heldByHolder.Count > 0 && requirements.All(requirement =>
+            heldByHolder
+                .Where(ticket => string.Equals(ticket.PoolName, requirement.PoolName, StringComparison.Ordinal))
+                .Sum(ticket => ticket.Count) >= requirement.Count);
+    }
+
+    private static async Task<IReadOnlyList<ResourcePoolTicket>> LoadHolderTicketsAsync(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        InstanceId holderInstanceId,
+        string holderKey,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new SqlCommand(
+            """
+            select ticket_id, pool_name, ticket_count, holder_instance_id, holder_key, acquired_at, expires_at
+            from dbo.orcacore_resource_tickets
+            where holder_instance_id = @holder_instance_id
+              and holder_key = @holder_key
+            order by acquired_at, ticket_id;
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("@holder_instance_id", holderInstanceId.Value);
+        command.Parameters.AddWithValue("@holder_key", holderKey);
+
+        var tickets = new List<ResourcePoolTicket>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            tickets.Add(ReadTicket(reader));
+        }
+
+        return tickets;
     }
 
     private static async Task<IReadOnlyList<ResourcePoolTicket>> LoadTicketsAsync(

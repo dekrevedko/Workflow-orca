@@ -54,13 +54,37 @@ internal static class DurableWorkflowReplayApplier
                 aggregate.RootInstanceId = started.RootInstanceId ?? started.InstanceId;
                 aggregate.DefinitionId = started.DefinitionId;
                 aggregate.DefinitionVersion = started.DefinitionVersion;
+                aggregate.StartInputContentType = started.InputContentType;
+                aggregate.StartInputPayload = started.InputPayload;
                 aggregate.Status = WorkflowStatus.Running;
+                return true;
+            case WorkflowParkedEvent parked:
+                aggregate.Status = WorkflowStatus.Parked;
+                aggregate.ParkReason = parked.Reason;
+                aggregate.ErrorSummary = parked.ErrorSummary;
+                return true;
+            case WorkflowUnparkedEvent:
+                aggregate.ParkReason = null;
+                aggregate.ErrorSummary = null;
+                ClearContinuationFailures(aggregate);
+                aggregate.Status = aggregate.WaitState.HasActiveWaits || aggregate.TimerState.HasActiveTimers
+                    ? WorkflowStatus.Waiting
+                    : WorkflowStatus.Running;
+                return true;
+            case WorkflowContinuationAttemptFailedEvent attemptFailed:
+                aggregate.ContinuationFailureCount = attemptFailed.AttemptCount;
+                aggregate.ContinuationFailurePositionStreamVersion = attemptFailed.PositionStreamVersion;
+                aggregate.ContinuationRetryNotBefore = attemptFailed.NextEligibleAt;
+                return true;
+            case WorkflowContinuationAttemptResetEvent:
+                ClearContinuationFailures(aggregate);
                 return true;
             case WorkflowContinuedAsNewEvent continuedAsNew:
                 aggregate.ContinueAsNewGeneration = continuedAsNew.Generation;
                 aggregate.Status = WorkflowStatus.Running;
                 aggregate.ErrorSummary = null;
                 aggregate.OutcomeName = null;
+                ClearContinuationFailures(aggregate);
                 aggregate.TimerState.Clear();
                 aggregate.WaitState.Clear();
                 aggregate.ChildState.ClearActiveChildren();
@@ -120,6 +144,21 @@ internal static class DurableWorkflowReplayApplier
             case WorkflowWaitMatchedEvent waitMatched:
                 aggregate.WaitState.Apply(waitMatched);
                 aggregate.Status = aggregate.WaitState.HasActiveWaits ? WorkflowStatus.Waiting : WorkflowStatus.Running;
+                return true;
+            case WorkflowWaitCancelledEvent waitCancelled:
+                aggregate.WaitState.Apply(waitCancelled);
+                aggregate.Status = aggregate.WaitState.HasActiveWaits || aggregate.TimerState.HasActiveTimers
+                    ? WorkflowStatus.Waiting
+                    : WorkflowStatus.Running;
+                return true;
+            case WorkflowTimerCancelledEvent timerCancelled:
+                aggregate.TimerState.Apply(timerCancelled);
+                aggregate.Status = aggregate.WaitState.HasActiveWaits || aggregate.TimerState.HasActiveTimers
+                    ? WorkflowStatus.Waiting
+                    : WorkflowStatus.Running;
+                return true;
+            case WorkflowResumeConsumedEvent resumeConsumed:
+                aggregate.WaitState.Apply(resumeConsumed);
                 return true;
             case WorkflowTimerScheduledEvent timerScheduled:
                 aggregate.TimerState.Apply(timerScheduled);
@@ -247,6 +286,13 @@ internal static class DurableWorkflowReplayApplier
         aggregate.ChildState.ClearActiveChildren();
         aggregate.ResourcePoolState.Clear();
         aggregate.ExternalJobState.Clear();
+    }
+
+    private static void ClearContinuationFailures(DurableWorkflowAggregate aggregate)
+    {
+        aggregate.ContinuationFailureCount = 0;
+        aggregate.ContinuationFailurePositionStreamVersion = null;
+        aggregate.ContinuationRetryNotBefore = null;
     }
 
     private delegate bool ReplayHandler(DurableWorkflowAggregate aggregate, WorkflowEvent workflowEvent);

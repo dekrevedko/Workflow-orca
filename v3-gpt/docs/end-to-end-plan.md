@@ -233,10 +233,10 @@ Exit criteria:
   custom host instrumentation.
 - Telemetry failures never change workflow command outcomes.
 
-## Workstream 4: Durable Workflow Facade
+## Workstream 4: Durable Workflow Facade And Driver
 
-Goal: add the missing public durable workflow runtime surface needed for true
-definition-driven e2e.
+Goal: add the missing public durable workflow runtime surface and the document-16 durable
+driver pieces needed for true definition-driven e2e.
 
 Current gap:
 
@@ -245,6 +245,10 @@ Current gap:
 - The durable runtime now exposes a public definition registry and version-bound
   `StartOrGet` facade over the durable command path.
 - Full durable workflow-node execution is not yet available.
+- Document 16 (`16-requirements-durable-driver.md`) is now the gate for this gap: the
+  durable interpreter, execution-position envelope, lane host, restart-safe continuation
+  signal, and segment budgets must exist before host-level definition-driven e2e can be
+  claimed complete.
 
 Implementation note:
 
@@ -258,6 +262,13 @@ Implementation note:
 
 Tasks:
 
+0. Complete the document-16 driver prerequisites before claiming full host-level durable
+   workflow execution:
+   - **DR-P1** interpreter + execution-position envelope;
+   - **DR-P2** lane host + restart-safe continuation signal;
+   - DR acceptance coverage for crash-after-runnable-commit, stale continuation no-op,
+     segment-budget yield, stateful wait, durable `ForEach` rejection, and checkpoint
+     envelope migration/parking.
 1. Define the durable public entry point:
    - register definition version;
    - start or start-or-get an instance;
@@ -265,7 +276,8 @@ Tasks:
    - deliver events and timers through the durable runtime.
 2. Add a durable definition registry that can resolve the bound definition after
    restart. (Initial registry/facade slice complete for `INT_E2E_011`.)
-3. Translate durable-capable workflow nodes into existing durable commands:
+3. Translate durable-capable workflow nodes into existing durable commands through the
+   document-16 durable interpreter:
    - start;
    - step completed or failed;
    - waits;
@@ -278,8 +290,11 @@ Tasks:
 
 Exit criteria:
 
-- A workflow definition can be registered, started, suspended, persisted,
-  reloaded after host restart, and resumed through public durable APIs.
+- DR-P1 and DR-P2 gates pass for the in-memory provider and PostgreSQL where required by
+  document 16.
+- A workflow definition can be registered, started, suspended, persisted, reloaded after
+  host restart, and resumed through public durable APIs without tests issuing kernel
+  commands by hand.
 - Version binding is observable and tested.
 
 ## Workstream 5: Integrated DAG And Scheduler Runner
@@ -487,11 +502,14 @@ dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj -
 1. Workstream 1: baseline and gate hygiene.
 2. Workstream 2: host-level durable e2e promotion.
 3. Workstream 3: structured logging, metrics, and telemetry e2e.
-4. Workstream 4: durable workflow facade.
-5. Workstream 5: integrated DAG and scheduler runner.
-6. Workstream 6: durable saga and durable yield.
+4. Workstream 4: durable workflow facade and document-16 DR-P1/DR-P2 driver gates.
+5. Workstream 5: integrated DAG and scheduler runner, after the durable driver can advance
+   registered definitions without manual command pumping.
+6. Workstream 6: durable saga and durable yield, aligned with DR-P3 where saga driving
+   becomes definition-driven.
 7. Workstream 7: failure injection and resilience e2e.
 8. Workstream 8: provider matrix expansion and final e2e gate.
 
-This order gives fast confidence first, then adds missing product surface area,
-then fills advanced durable semantics and hardens resilience/provider breadth.
+This order gives fast confidence first, then adds the missing durable interpreter/driver
+surface area before claiming host-level definition-driven e2e, then fills advanced durable
+semantics and hardens resilience/provider breadth.

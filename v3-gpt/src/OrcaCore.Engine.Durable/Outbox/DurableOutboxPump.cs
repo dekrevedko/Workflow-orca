@@ -29,6 +29,19 @@ public sealed class DurableOutboxPump(
     }
 
     /// <summary>
+    /// DR-037: this pump feeds <see cref="IMessageDispatcher"/>, which never receives internal
+    /// continuation records. A missing selector claims everything except <c>continue</c>; a
+    /// caller-supplied selector is honored but continuation records are still released, never
+    /// dispatched.
+    /// </summary>
+    private static OutboxClaimRequest ExcludeContinuations(OutboxClaimRequest request)
+    {
+        return request.KindSelector is null
+            ? request with { KindSelector = OutboxKindSelector.Excluding(OutboxKinds.Continue) }
+            : request;
+    }
+
+    /// <summary>
     /// Claims and dispatches outbox records using a recoverable lease.
     /// </summary>
     public async Task<int> PumpOnceAsync(
@@ -49,7 +62,7 @@ public sealed class DurableOutboxPump(
         activity?.SetTag(OrcaCoreDiagnostics.OutboxMaxCountKey, request.MaxCount);
 
         var records = await outboxStore
-            .ClaimAsync(request, cancellationToken)
+            .ClaimAsync(ExcludeContinuations(request), cancellationToken)
             .ConfigureAwait(false);
         activity?.SetTag(OrcaCoreDiagnostics.OutboxClaimedCountKey, records.Count);
 
@@ -60,6 +73,14 @@ public sealed class DurableOutboxPump(
         var permanentFailures = 0;
         foreach (var record in records)
         {
+            if (record.Kind == OutboxKinds.Continue)
+            {
+                await outboxStore
+                    .ReleaseAsync(record.OutboxRecordId, cancellationToken)
+                    .ConfigureAwait(false);
+                continue;
+            }
+
             var dispatchStopwatch = Stopwatch.StartNew();
             using var dispatchActivity =
                 OrcaCoreDurableDiagnostics.ActivitySource.StartActivity("orca.outbox.dispatch");

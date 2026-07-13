@@ -80,4 +80,7 @@ public static class OrcaCoreDiagnostics
     public const string OutboxMaxCountKey = "orca.outbox.max_count";
     public const string OutboxClaimedCountKey = "orca.outbox.claimed_count";
     public const string OutboxDispatchedCountKey = "orca.outbox.dispatched_count";
+    public const string DriverOutcomeKey = "outcome";
+    public const string ParkReasonKey = "reason";
+    public const string DriverFailureSourceKey = "source";
 }

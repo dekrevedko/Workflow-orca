@@ -14,7 +14,32 @@ internal static class DurableChildWorkflowCommandHandler
             aggregate.CreateChildWorkflowEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
             command.GroupId,
             command.ResumeTokenId);
-        return consumed is null ? DurableDecision.Empty : new DurableDecision([consumed]);
+        if (consumed is null)
+        {
+            return DurableDecision.Empty;
+        }
+
+        var events = new List<WorkflowEvent>();
+        DurableLifecycleCommandHandler.AddConsumeAndCancelEvents(
+            events,
+            aggregate,
+            command.CommandId,
+            command.InstanceId,
+            command.RequestedAt,
+            command.ConsumedResumeWaitIds,
+            [],
+            []);
+        events.Add(consumed);
+
+        var checkpoint = command.Envelope is { } envelope
+            ? DurableLifecycleCommandHandler.CreateEnvelopeCheckpoint(
+                aggregate,
+                command.InstanceId,
+                events,
+                envelope,
+                aggregate.LastStepPath)
+            : null;
+        return new DurableDecision(events, checkpoint);
     }
 
     internal static DurableDecision Handle(DurableWorkflowAggregate aggregate, DurableRunChildCommand command)
@@ -25,8 +50,9 @@ internal static class DurableChildWorkflowCommandHandler
             return DurableDecision.Empty;
         }
 
-        var waitId = WaitId.New();
-        return new DurableDecision([
+        var waitId = new WaitId(command.ChildInstanceId.Value);
+        var events = new List<WorkflowEvent>
+        {
             new WorkflowChildScheduledEvent
             {
                 EventId = EventId.New(),
@@ -42,7 +68,17 @@ internal static class DurableChildWorkflowCommandHandler
                 WaitId = waitId,
                 FailurePolicy = command.FailurePolicy
             }
-        ]);
+        };
+
+        var checkpoint = command.Envelope is { } envelope
+            ? DurableLifecycleCommandHandler.CreateEnvelopeCheckpoint(
+                aggregate,
+                command.InstanceId,
+                events,
+                envelope,
+                aggregate.LastStepPath)
+            : null;
+        return new DurableDecision(events, checkpoint);
     }
 
     internal static DurableDecision Handle(DurableWorkflowAggregate aggregate, DurableChildCompletedCommand command)
@@ -108,7 +144,8 @@ internal static class DurableChildWorkflowCommandHandler
             .ToArray();
         var maxConcurrency = Math.Min(command.MaxConcurrency ?? children.Length, children.Length);
         var initialDispatchCount = Math.Min(maxConcurrency, children.Length);
-        return new DurableDecision([
+        var events = new List<WorkflowEvent>
+        {
             new WorkflowChildrenScheduledEvent
             {
                 EventId = EventId.New(),
@@ -130,7 +167,17 @@ internal static class DurableChildWorkflowCommandHandler
                 MaxConcurrency = maxConcurrency,
                 Children = children
             }
-        ]);
+        };
+
+        var checkpoint = command.Envelope is { } envelope
+            ? DurableLifecycleCommandHandler.CreateEnvelopeCheckpoint(
+                aggregate,
+                command.InstanceId,
+                events,
+                envelope,
+                aggregate.LastStepPath)
+            : null;
+        return new DurableDecision(events, checkpoint);
     }
 
     internal static DurableDecision Handle(DurableWorkflowAggregate aggregate, CompensateChildGroupCommand command)

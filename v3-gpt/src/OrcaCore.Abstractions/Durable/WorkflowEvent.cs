@@ -64,6 +64,16 @@ public sealed record WorkflowStartedEvent : WorkflowEvent
     /// Gets the durable start-or-get idempotency key when the instance was started that way.
     /// </summary>
     public string? IdempotencyKey { get; init; }
+
+    /// <summary>
+    /// Gets the content type of the serialized start input, when the driver started the instance.
+    /// </summary>
+    public string? InputContentType { get; init; }
+
+    /// <summary>
+    /// Gets the serialized start input, durable until the first driver checkpoint commits.
+    /// </summary>
+    public byte[]? InputPayload { get; init; }
 }
 
 /// <summary>
@@ -138,6 +148,12 @@ public sealed record WorkflowWaitRegisteredEvent : WorkflowEvent
     /// Gets the parallel branch identity when this wait is branch-scoped.
     /// </summary>
     public string? BranchId { get; init; }
+
+    /// <summary>
+    /// Gets the durable timeout timer racing this wait, when the wait was registered with a
+    /// timeout. The kernel cancels the loser when either side wins (DR-010 timeout races).
+    /// </summary>
+    public TimerId? TimeoutTimerId { get; init; }
 }
 
 /// <summary>
@@ -154,7 +170,133 @@ public sealed record WorkflowWaitMatchedEvent : WorkflowEvent
     /// Gets the inbound event identity that matched the wait.
     /// </summary>
     public required EventId MatchedEventId { get; init; }
+
+    /// <summary>
+    /// Gets the matched event name, recorded so the resume envelope survives checkpoint
+    /// compaction between the match and its consumption by the driver.
+    /// </summary>
+    public string? EventName { get; init; }
+
+    /// <summary>
+    /// Gets the matched event correlation identity.
+    /// </summary>
+    public CorrelationId? CorrelationId { get; init; }
+
+    /// <summary>
+    /// Gets the matched event branch scope when branch-targeted.
+    /// </summary>
+    public string? BranchId { get; init; }
+
+    /// <summary>
+    /// Gets the content type of the serialized matched payload, when one was delivered.
+    /// </summary>
+    public string? PayloadContentType { get; init; }
+
+    /// <summary>
+    /// Gets the serialized matched payload, when one was delivered.
+    /// </summary>
+    public byte[]? Payload { get; init; }
 }
+
+/// <summary>
+/// Records that an active wait was cancelled without matching (timeout race loss, losing
+/// WhenFirst branch, or explicit driver release).
+/// </summary>
+public sealed record WorkflowWaitCancelledEvent : WorkflowEvent
+{
+    /// <summary>
+    /// Gets the cancelled wait identity.
+    /// </summary>
+    public required WaitId WaitId { get; init; }
+}
+
+/// <summary>
+/// Records that an active timer was cancelled without firing (timeout race loss, losing
+/// WhenFirst branch, or explicit driver release).
+/// </summary>
+public sealed record WorkflowTimerCancelledEvent : WorkflowEvent
+{
+    /// <summary>
+    /// Gets the cancelled timer identity.
+    /// </summary>
+    public required TimerId TimerId { get; init; }
+}
+
+/// <summary>
+/// Records that the durable driver consumed a pending matched-wait resume envelope; the
+/// consuming advancement committed in the same boundary.
+/// </summary>
+public sealed record WorkflowResumeConsumedEvent : WorkflowEvent
+{
+    /// <summary>
+    /// Gets the wait whose pending resume was consumed.
+    /// </summary>
+    public required WaitId WaitId { get; init; }
+}
+
+/// <summary>
+/// Records that a durable instance was parked on an unresolved fault (DR-017).
+/// </summary>
+public sealed record WorkflowParkedEvent : WorkflowEvent
+{
+    /// <summary>
+    /// Gets the park reason category.
+    /// </summary>
+    public required DurableParkReason Reason { get; init; }
+
+    /// <summary>
+    /// Gets the operator-readable error summary.
+    /// </summary>
+    public required string ErrorSummary { get; init; }
+
+    /// <summary>
+    /// Gets how many failed advancement attempts preceded parking.
+    /// </summary>
+    public required int FailedAttemptCount { get; init; }
+
+    /// <summary>
+    /// Gets the checkpoint stream version whose persisted position the instance parks on;
+    /// null when no driver checkpoint exists yet.
+    /// </summary>
+    public StreamVersion? PositionStreamVersion { get; init; }
+}
+
+/// <summary>
+/// Records that a parked durable instance was explicitly re-armed and resumes from its
+/// persisted position (DR-017).
+/// </summary>
+public sealed record WorkflowUnparkedEvent : WorkflowEvent;
+
+/// <summary>
+/// Records one failed continuation advancement and its durable retry deadline (DR-036).
+/// </summary>
+public sealed record WorkflowContinuationAttemptFailedEvent : WorkflowEvent
+{
+    /// <summary>
+    /// Gets the consecutive failure count for the unresolved committed position.
+    /// </summary>
+    public required int AttemptCount { get; init; }
+
+    /// <summary>
+    /// Gets the failed checkpoint position, when one exists.
+    /// </summary>
+    public StreamVersion? PositionStreamVersion { get; init; }
+
+    /// <summary>
+    /// Gets when another host may retry this continuation.
+    /// </summary>
+    public required DateTimeOffset NextEligibleAt { get; init; }
+
+    /// <summary>
+    /// Gets the latest operator-readable failure summary.
+    /// </summary>
+    public required string ErrorSummary { get; init; }
+}
+
+/// <summary>
+/// Records that continuation advancement recovered and clears its consecutive failure state.
+/// </summary>
+public sealed record WorkflowContinuationAttemptResetEvent : WorkflowEvent;
 
 /// <summary>
 /// Records that a durable timer was scheduled for one workflow instance.
@@ -460,6 +602,16 @@ public sealed record WorkflowDeliveryBufferedEvent : WorkflowEvent
     /// Gets the parallel branch identity when the inbound event is branch-scoped.
     /// </summary>
     public string? BranchId { get; init; }
+
+    /// <summary>
+    /// Gets the content type of the serialized buffered payload, when one was delivered.
+    /// </summary>
+    public string? PayloadContentType { get; init; }
+
+    /// <summary>
+    /// Gets the serialized buffered payload, preserved so a later match resumes with it.
+    /// </summary>
+    public byte[]? Payload { get; init; }
 }
 
 /// <summary>

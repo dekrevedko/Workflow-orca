@@ -10,29 +10,35 @@ internal sealed class DurableWaitState
 {
     private readonly List<DurableActiveWait> activeWaits;
     private readonly List<DurableBufferedDelivery> bufferedDeliveries;
+    private readonly List<DurablePendingResume> pendingResumes;
 
     private DurableWaitState(
         IEnumerable<DurableActiveWait> activeWaits,
-        IEnumerable<DurableBufferedDelivery> bufferedDeliveries)
+        IEnumerable<DurableBufferedDelivery> bufferedDeliveries,
+        IEnumerable<DurablePendingResume> pendingResumes)
     {
         this.activeWaits = [.. activeWaits];
         this.bufferedDeliveries = [.. bufferedDeliveries];
+        this.pendingResumes = [.. pendingResumes];
     }
 
     internal IReadOnlyList<DurableActiveWait> ActiveWaits => [.. activeWaits];
 
     internal IReadOnlyList<DurableBufferedDelivery> BufferedDeliveries => [.. bufferedDeliveries];
 
+    internal IReadOnlyList<DurablePendingResume> PendingResumes => [.. pendingResumes];
+
     internal bool HasActiveWaits => activeWaits.Count > 0;
 
     internal static DurableWaitState FromSnapshot(
         IEnumerable<DurableActiveWait> activeWaits,
-        IEnumerable<DurableBufferedDelivery> bufferedDeliveries)
+        IEnumerable<DurableBufferedDelivery> bufferedDeliveries,
+        IEnumerable<DurablePendingResume>? pendingResumes = null)
     {
         ArgumentNullException.ThrowIfNull(activeWaits);
         ArgumentNullException.ThrowIfNull(bufferedDeliveries);
 
-        return new DurableWaitState(activeWaits, bufferedDeliveries);
+        return new DurableWaitState(activeWaits, bufferedDeliveries, pendingResumes ?? []);
     }
 
     internal bool HasWait(WaitId waitId)
@@ -55,6 +61,17 @@ internal sealed class DurableWaitState
     {
         activeWaits.Clear();
         bufferedDeliveries.Clear();
+        pendingResumes.Clear();
+    }
+
+    internal DurableActiveWait? FindByTimeoutTimer(TimerId timerId)
+    {
+        return activeWaits.FirstOrDefault(wait => wait.TimeoutTimerId == timerId);
+    }
+
+    internal DurablePendingResume? FindPendingResume(WaitId waitId)
+    {
+        return pendingResumes.FirstOrDefault(pending => pending.WaitId == waitId);
     }
 
     internal DurableBufferedDelivery? FindBufferedDelivery(
@@ -123,7 +140,12 @@ internal sealed class DurableWaitState
                 CausationId = context.CausationId,
                 OccurredAt = context.RequestedAt,
                 WaitId = wait.WaitId,
-                MatchedEventId = bufferedDelivery.EventId
+                MatchedEventId = bufferedDelivery.EventId,
+                EventName = bufferedDelivery.EventName,
+                CorrelationId = bufferedDelivery.CorrelationId,
+                BranchId = bufferedDelivery.BranchId,
+                PayloadContentType = bufferedDelivery.PayloadContentType,
+                Payload = bufferedDelivery.Payload
             });
             inboxWrites.Add(new InboxWrite(bufferedDelivery.EventId, InboxRecordState.Applied));
         }
@@ -144,18 +166,42 @@ internal sealed class DurableWaitState
                     waitRegistered.CorrelationId,
                     waitRegistered.OccurredAt,
                     waitRegistered.Mode,
-                    waitRegistered.BranchId));
+                    waitRegistered.BranchId,
+                    waitRegistered.TimeoutTimerId));
                 break;
             case WorkflowWaitMatchedEvent waitMatched:
+                // Kernel-driven matches (external-job completion, direct wait-matched commands)
+                // carry no event context of their own; the resume falls back to the matched
+                // wait's registered name/correlation so the resumed step observes them.
+                var matchedWait = activeWaits.FirstOrDefault(wait => wait.WaitId == waitMatched.WaitId);
                 Remove(waitMatched.WaitId);
                 bufferedDeliveries.RemoveAll(delivery => delivery.EventId == waitMatched.MatchedEventId);
+                pendingResumes.RemoveAll(pending => pending.WaitId == waitMatched.WaitId);
+                pendingResumes.Add(new DurablePendingResume(
+                    waitMatched.WaitId,
+                    waitMatched.MatchedEventId,
+                    waitMatched.EventName ?? matchedWait?.EventName,
+                    waitMatched.CorrelationId ?? matchedWait?.CorrelationId,
+                    waitMatched.BranchId,
+                    waitMatched.PayloadContentType,
+                    waitMatched.Payload,
+                    waitMatched.OccurredAt));
+                break;
+            case WorkflowWaitCancelledEvent waitCancelled:
+                Remove(waitCancelled.WaitId);
+                pendingResumes.RemoveAll(pending => pending.WaitId == waitCancelled.WaitId);
+                break;
+            case WorkflowResumeConsumedEvent resumeConsumed:
+                pendingResumes.RemoveAll(pending => pending.WaitId == resumeConsumed.WaitId);
                 break;
             case WorkflowDeliveryBufferedEvent deliveryBuffered:
                 bufferedDeliveries.Add(new DurableBufferedDelivery(
                     deliveryBuffered.BufferedEventId,
                     deliveryBuffered.EventName,
                     deliveryBuffered.CorrelationId,
-                    deliveryBuffered.BranchId));
+                    deliveryBuffered.BranchId,
+                    deliveryBuffered.PayloadContentType,
+                    deliveryBuffered.Payload));
                 break;
             case WorkflowDeliveryDiscardedEvent deliveryDiscarded:
                 bufferedDeliveries.RemoveAll(delivery => delivery.EventId == deliveryDiscarded.DiscardedEventId);
@@ -188,7 +234,8 @@ internal sealed class DurableWaitState
                 wait.CorrelationId,
                 wait.RegisteredAt,
                 wait.Mode,
-                wait.BranchId))
+                wait.BranchId,
+                wait.TimeoutTimerId))
             .ToArray();
     }
 
@@ -199,7 +246,24 @@ internal sealed class DurableWaitState
                 delivery.EventId,
                 delivery.EventName,
                 delivery.CorrelationId,
-                delivery.BranchId))
+                delivery.BranchId,
+                delivery.PayloadContentType,
+                delivery.Payload))
+            .ToArray();
+    }
+
+    internal IReadOnlyList<CheckpointPendingResume> CreateCheckpointPendingResumes()
+    {
+        return pendingResumes
+            .Select(pending => new CheckpointPendingResume(
+                pending.WaitId,
+                pending.MatchedEventId,
+                pending.EventName,
+                pending.CorrelationId,
+                pending.BranchId,
+                pending.PayloadContentType,
+                pending.Payload,
+                pending.MatchedAt))
             .ToArray();
     }
 

@@ -10,7 +10,12 @@ internal sealed record WorkflowPolicySet(
 
     internal WorkflowPolicySet WithRetry(int maxAttempts)
     {
-        return this with { Retry = new RetryPolicy(maxAttempts) };
+        return WithRetry(maxAttempts, TimeSpan.Zero);
+    }
+
+    internal WorkflowPolicySet WithRetry(int maxAttempts, TimeSpan backoff)
+    {
+        return this with { Retry = new RetryPolicy(maxAttempts, backoff) };
     }
 
     internal WorkflowPolicySet WithTimeout(TimeSpan duration)
@@ -29,6 +34,6 @@ internal sealed record WorkflowPolicySet(
     }
 }
 
-internal sealed record RetryPolicy(int MaxAttempts);
+internal sealed record RetryPolicy(int MaxAttempts, TimeSpan Backoff);
 
 internal sealed record TimeoutPolicy(TimeSpan Duration);

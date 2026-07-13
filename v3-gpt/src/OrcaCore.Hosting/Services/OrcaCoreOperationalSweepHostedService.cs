@@ -28,7 +28,9 @@ public sealed class OrcaCoreOperationalSweepHostedService(
         await failureBoundary
             .RunAsync(RunOnceAsync, value.TransientFailureBackoff, stoppingToken)
             .ConfigureAwait(false);
+
         using var timer = new PeriodicTimer(value.OperationalSweepInterval, timeProvider);
+
         while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false))
         {
             await failureBoundary

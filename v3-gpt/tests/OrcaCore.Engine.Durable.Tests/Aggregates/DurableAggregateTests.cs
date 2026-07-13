@@ -54,13 +54,13 @@ public sealed class DurableAggregateTests
     public void DecideStepCompleted_EmitsStepAndStateCheckpointFacts()
     {
         var aggregate = DurableWorkflowAggregate.Rehydrate(null, [Started()]);
+        var envelope = TestEnvelopes.Envelope("application/octet-stream", [9, 8, 7]);
         var command = new DurableStepCompletedCommand(
             CommandIdValue(2),
             InstanceIdValue(1),
             Timestamp(2),
             "root/1",
-            "application/octet-stream",
-            [9, 8, 7]);
+            envelope);
 
         var decision = aggregate.DecideStepCompleted(command);
 
@@ -69,8 +69,11 @@ public sealed class DurableAggregateTests
             .Which.StepPath.Should().Be("root/1");
         decision.Checkpoint.Should().NotBeNull();
         decision.Checkpoint!.StreamVersion.Should().Be(new StreamVersion(2));
-        decision.Checkpoint.ContentType.Should().Be("application/octet-stream");
-        decision.Checkpoint.Payload.Should().Equal(9, 8, 7);
+        decision.Checkpoint.ContentType.Should().Be(DurableExecutionEnvelope.ContentType);
+        var persisted = DurableExecutionEnvelope.Deserialize(decision.Checkpoint.Payload);
+        persisted.StateContentType.Should().Be("application/octet-stream");
+        persisted.StatePayload.Should().Equal(9, 8, 7);
+        persisted.Position.Cursors.Should().ContainSingle().Which.CursorId.Should().Be("root");
     }
 
     [Fact]
@@ -83,8 +86,7 @@ public sealed class DurableAggregateTests
             InstanceIdValue(1),
             Timestamp(2),
             "root/1",
-            "application/json",
-            [1, 2, 3]);
+            TestEnvelopes.Envelope("application/json", [1, 2, 3]));
 
         var decision = aggregate.DecideYield(command);
 
@@ -92,8 +94,10 @@ public sealed class DurableAggregateTests
         decision.Checkpoint.Should().NotBeNull();
         decision.Checkpoint!.StreamVersion.Should().Be(new StreamVersion(1));
         decision.Checkpoint.LastStepPath.Should().Be("root/1");
-        decision.Checkpoint.ContentType.Should().Be("application/json");
-        decision.Checkpoint.Payload.Should().Equal(1, 2, 3);
+        decision.Checkpoint.ContentType.Should().Be(DurableExecutionEnvelope.ContentType);
+        var persisted = DurableExecutionEnvelope.Deserialize(decision.Checkpoint.Payload);
+        persisted.StateContentType.Should().Be("application/json");
+        persisted.StatePayload.Should().Equal(1, 2, 3);
     }
 
     [Fact]
@@ -116,8 +120,7 @@ public sealed class DurableAggregateTests
             InstanceIdValue(1),
             Timestamp(3),
             "root/2",
-            "application/octet-stream",
-            [1])).Events.Should().BeEmpty();
+            TestEnvelopes.Envelope())).Events.Should().BeEmpty();
     }
 
     [Fact]

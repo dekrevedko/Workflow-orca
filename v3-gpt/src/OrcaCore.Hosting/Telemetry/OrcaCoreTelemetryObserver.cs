@@ -3,13 +3,17 @@ using Microsoft.Extensions.Logging;
 using OrcaCore.Abstractions.Diagnostics;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Execution;
+using OrcaCore.Engine.Durable.Driver;
 using OrcaCore.Engine.Durable.Outbox;
 
 namespace OrcaCore.Hosting.Telemetry;
 
 internal sealed class OrcaCoreTelemetryObserver(
     ILogger<OrcaCoreTelemetryObserver> logger,
-    OrcaCoreTelemetryInstruments instruments) : IWorkflowRuntimeObserver, IOutboxPumpObserver
+    OrcaCoreTelemetryInstruments instruments) :
+    IWorkflowRuntimeObserver,
+    IOutboxPumpObserver,
+    IDurableDriverObserver
 {
     public ValueTask OnCommandCompletedAsync(
         WorkflowRuntimeObservation observation,
@@ -99,6 +103,24 @@ internal sealed class OrcaCoreTelemetryObserver(
                 observation.DispatchAttemptCount);
         }
 
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask OnSegmentCompletedAsync(
+        DurableDriverSegmentObservation observation,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        instruments.RecordDriverSegment(observation);
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask OnContinuationStartedAsync(
+        DurableContinuationObservation observation,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        instruments.RecordContinuation(observation);
         return ValueTask.CompletedTask;
     }
 

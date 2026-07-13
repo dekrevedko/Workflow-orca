@@ -45,6 +45,39 @@ public sealed class DurableOutboxTests
     }
 
     [Fact]
+    [Trait("AC", "DR-AC-029")]
+    public async Task ExternalOutboxPump_NeverDispatchesInternalContinuationRecords()
+    {
+        var continueId = OutboxRecordId.New();
+        var externalId = OutboxRecordId.New();
+        var store = new InMemoryWorkflowProvider();
+        var batch = Batch(externalId, "status") with
+        {
+            OutboxRecords =
+            [
+                new OutboxWrite(continueId, OutboxKinds.Continue, [1]),
+                new OutboxWrite(externalId, "status", [2])
+            ]
+        };
+        await store.AppendAsync(batch, TestContext.Current.CancellationToken);
+        var dispatcher = new FakeMessageDispatcher();
+
+        var count = await new DurableOutboxPump(store, dispatcher)
+            .PumpOnceAsync(10, TestContext.Current.CancellationToken);
+        var continuationClaims = await store.ClaimAsync(
+            new OutboxClaimRequest(10, DateTimeOffset.UtcNow, TimeSpan.FromMinutes(1))
+            {
+                KindSelector = OutboxKindSelector.Including(OutboxKinds.Continue)
+            },
+            TestContext.Current.CancellationToken);
+
+        count.Should().Be(1);
+        dispatcher.Dispatched.Should().ContainSingle().Which.OutboxRecordId.Should().Be(externalId);
+        dispatcher.Dispatched.Should().NotContain(record => record.Kind == OutboxKinds.Continue);
+        continuationClaims.Should().ContainSingle().Which.OutboxRecordId.Should().Be(continueId);
+    }
+
+    [Fact]
     public async Task OutboxPump_DefaultClaimRequest_UsesInjectedTimeProvider()
     {
         var now = new DateTimeOffset(2026, 7, 4, 10, 15, 0, TimeSpan.Zero);

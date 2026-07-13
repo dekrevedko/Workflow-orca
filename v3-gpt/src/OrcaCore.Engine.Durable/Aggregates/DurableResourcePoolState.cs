@@ -7,6 +7,13 @@ namespace OrcaCore.Engine.Durable.Aggregates;
 
 internal sealed class DurableResourcePoolState
 {
+    /// <summary>
+    /// The reserved event name that signals a queued holder to re-attempt its acquisition.
+    /// Delivered like any correlated event (correlation = holder key); the driver re-runs the
+    /// guarded node instead of advancing past it.
+    /// </summary>
+    internal const string GrantedEventName = "ResourcePoolGranted";
+
     private readonly List<ResourcePoolTicket> activeTickets;
 
     private DurableResourcePoolState(IEnumerable<ResourcePoolTicket> activeTickets)
@@ -33,7 +40,8 @@ internal sealed class DurableResourcePoolState
         string holderKey,
         IReadOnlyList<ResourcePoolRequirement> requirements,
         DateTimeOffset? expiresAt,
-        ResourcePoolAcquireResult acquireResult)
+        ResourcePoolAcquireResult acquireResult,
+        WaitId? queuedWaitId = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentException.ThrowIfNullOrWhiteSpace(holderKey);
@@ -73,7 +81,7 @@ internal sealed class DurableResourcePoolState
                         OccurredAt = context.RequestedAt,
                         ParentInstanceId = context.ParentInstanceId,
                         RootInstanceId = context.RootInstanceId,
-                        WaitId = WaitId.New(),
+                        WaitId = queuedWaitId ?? WaitId.New(),
                         HolderKey = holderKey,
                         Requirements = requirements,
                         ExpiresAt = expiresAt
@@ -124,7 +132,7 @@ internal sealed class DurableResourcePoolState
                     [
                         new DurableActiveWait(
                             queued.WaitId,
-                            "ResourcePoolGranted",
+                            GrantedEventName,
                             new CorrelationId(queued.HolderKey),
                             queued.OccurredAt,
                             WaitMode.Cold)

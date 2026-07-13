@@ -37,14 +37,17 @@ internal static class DurableCheckpointMapper
                     wait.CorrelationId,
                     wait.RegisteredAt,
                     wait.Mode,
-                    wait.BranchId))
+                    wait.BranchId,
+                    wait.TimeoutTimerId))
                 .ToArray(),
             checkpoint.RuntimeState.BufferedDeliveries
                 .Select(delivery => new DurableBufferedDelivery(
                     delivery.EventId,
                     delivery.EventName,
                     delivery.CorrelationId,
-                    delivery.BranchId))
+                    delivery.BranchId,
+                    delivery.PayloadContentType,
+                    delivery.Payload))
                 .ToArray(),
             checkpoint.RuntimeState.BufferedTimers
                 .Select(timer => new DurableBufferedTimer(
@@ -111,6 +114,23 @@ internal static class DurableCheckpointMapper
             checkpoint.RuntimeState.RecordedParentResumeTokens,
             checkpoint.RuntimeState.ConsumedParentResumeTokens,
             checkpoint.ContentType,
-            [.. checkpoint.Payload]);
+            [.. checkpoint.Payload])
+        {
+            PendingResumes = checkpoint.RuntimeState.PendingResumes
+                .Select(pending => new DurablePendingResume(
+                    pending.WaitId,
+                    pending.MatchedEventId,
+                    pending.EventName,
+                    pending.CorrelationId,
+                    pending.BranchId,
+                    pending.PayloadContentType,
+                    pending.Payload,
+                    pending.MatchedAt))
+                .ToArray(),
+            ContinuationFailureCount = checkpoint.RuntimeState.ContinuationFailureCount,
+            ContinuationFailurePositionStreamVersion =
+                checkpoint.RuntimeState.ContinuationFailurePositionStreamVersion,
+            ContinuationRetryNotBefore = checkpoint.RuntimeState.ContinuationRetryNotBefore
+        };
     }
 }

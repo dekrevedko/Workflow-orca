@@ -12,5 +12,7 @@ internal enum LifecycleTrigger
     Compensate,
     FailCompensation,
     Pause,
-    Resume
+    Resume,
+    Park,
+    Unpark
 }

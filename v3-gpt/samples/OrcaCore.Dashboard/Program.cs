@@ -26,13 +26,16 @@ builder.Services.AddHealthChecks();
 
 builder.Services
     .AddOrcaCore()
-    .AddOrcaCoreOpenTelemetry(builder.Configuration)
-    .AddOrcaCoreHostedServices(options =>
-    {
-        options.OutboxPumpInterval = TimeSpan.FromSeconds(2);
-        options.TimerSweepInterval = TimeSpan.FromSeconds(2);
-        options.OperationalSweepInterval = TimeSpan.FromSeconds(15);
-    });
+    .AddOrcaCoreOpenTelemetry(builder.Configuration);
+builder.Services.AddHostedService<DashboardScenarioSeeder>();
+builder.Services.AddSingleton<KubernetesWorkflowSampleService>();
+builder.Services.AddHostedService(provider => provider.GetRequiredService<KubernetesWorkflowSampleService>());
+builder.Services.AddOrcaCoreHostedServices(options =>
+{
+    options.OutboxPumpInterval = TimeSpan.FromSeconds(2);
+    options.TimerSweepInterval = TimeSpan.FromSeconds(2);
+    options.OperationalSweepInterval = TimeSpan.FromSeconds(15);
+});
 
 var app = builder.Build();
 
@@ -52,6 +55,21 @@ app.MapGet(
     "/api/dashboard/snapshot",
     async (DashboardReadModel readModel, CancellationToken cancellationToken) =>
         await readModel.GetSnapshotAsync(cancellationToken).ConfigureAwait(false));
+app.MapGet(
+    "/api/kubernetes-sample/snapshot",
+    (KubernetesWorkflowSampleService sample) => sample.GetSnapshot());
+app.MapPost(
+    "/api/kubernetes-sample/scheduled",
+    async (KubernetesWorkflowSampleService sample, CancellationToken cancellationToken) =>
+        await sample.StartScheduledJobAsync(cancellationToken).ConfigureAwait(false));
+app.MapPost(
+    "/api/kubernetes-sample/dependency",
+    async (KubernetesWorkflowSampleService sample, CancellationToken cancellationToken) =>
+        await sample.StartDependencyWorkflowAsync(cancellationToken).ConfigureAwait(false));
+app.MapPost(
+    "/api/kubernetes-sample/dag",
+    async (KubernetesWorkflowSampleService sample, CancellationToken cancellationToken) =>
+        await sample.StartDagWorkflowAsync(cancellationToken).ConfigureAwait(false));
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
