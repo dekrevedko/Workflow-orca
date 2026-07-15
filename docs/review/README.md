@@ -5,9 +5,10 @@ requirements. It is split into **bounded review phases run bottom-up by dependen
 each phase fits an agent's context window and a defect found in a lower layer explains
 failures in the layers above it before you waste effort reviewing them.
 
-- **Current target:** `` (the furthest-along lineage — all providers, saga, DAG,
-  hosting). To review a different lineage, swap `current implementation` for `v3` or `v3-cursor` everywhere;
-  earlier lineages simply have fewer review phases (skip phases whose projects don't exist).
+- **Current target:** the repository-root implementation (the furthest-along lineage — all
+  providers, saga, DAG, hosting). Historical findings may mention former `v3-gpt`, `v3`, or
+  `v3-cursor` lineages; new reviews must target the repository root and must not recreate
+  those workspaces.
 - **Deliverable of each phase:** a findings file under
   [`findings/`](findings/) named `R<n>-<area>.md`, using the finding format in §5.
 
@@ -119,12 +120,23 @@ Do not report "code differs from how I'd write it" without a requirement or conv
 it. End each findings file with a **coverage note**: which in-scope requirement IDs and ACs
 you verified, and any you could not reach.
 
+### Focused decision review prompts
+
+- [Structured Fiber Execution Decision Re-Review Prompt](structured-fiber-execution-review-prompt-2026-07-13.md) -
+  independent review gate for the corrected compiled-plan, fiber, scope,
+  branch-result, dynamic `ForEach`, merge, scheduling, and durable-envelope
+  refactor, including F-01 through F-13 disposition checks.
+- [Structured Fiber Execution Implementation Status](structured-fiber-execution-implementation-status-2026-07-13.md) -
+  preserved pre-refactor commit, Release build and full-suite baseline, and
+  apply progress for `adopt-structured-fiber-execution`.
+
 ## 6. Kickoff prompt (one phase per session)
 
 Swap `R3` / the phase row for the phase you're running.
 
 ```text
-You are a senior .NET reviewer auditing the OrcaCore implementation in .
+You are a senior .NET reviewer auditing the OrcaCore implementation in
+X:\Projects\GitHub\Workflow-orca.
 This is a comprehensive, evidence-based code review — one phase per session.
 
 1. Read docs/review/README.md in full (method, lenses, finding format, severity).

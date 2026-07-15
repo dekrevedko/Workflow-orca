@@ -1,6 +1,7 @@
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Lifecycle;
+using OrcaCore.Core.Definitions;
 using OrcaCore.Engine.Ephemeral.Timers;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
@@ -78,5 +79,31 @@ internal sealed class SuspensionScheduler<TState>(
                     continuationToken),
                 cancellationToken));
         timer.SetCancel(() => timerService.Cancel(scheduledTimer));
+    }
+
+    internal RuntimeTimerRecord RegisterStructuredDelay(
+        WorkflowInstance<TState> instance,
+        TimeSpan duration,
+        BranchId? branchId,
+        Func<CancellationToken, Task> resumeAsync)
+    {
+        ArgumentNullException.ThrowIfNull(instance);
+        ArgumentNullException.ThrowIfNull(resumeAsync);
+        if (instance.Status == WorkflowStatus.Running)
+        {
+            WorkflowLifecycleTransition.FireOrThrow(instance, LifecycleTrigger.EnterWait);
+        }
+
+        var timer = instance.EnterDelay(branchId, timeProvider.GetUtcNow());
+        var scheduledTimer = timerService.Schedule(
+            instance.InstanceId,
+            duration,
+            cancellationToken => instance.FireDelayAsync(
+                timer,
+                timeProvider.GetUtcNow(),
+                resumeAsync,
+                cancellationToken));
+        timer.SetCancel(() => timerService.Cancel(scheduledTimer));
+        return timer;
     }
 }

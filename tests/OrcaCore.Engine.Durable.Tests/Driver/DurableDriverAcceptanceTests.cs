@@ -61,8 +61,8 @@ public sealed class DurableDriverAcceptanceTests
     {
         var checkpoint = await host.Store.LoadCheckpointAsync(instanceId, TestContext.Current.CancellationToken);
         checkpoint.HasValue.Should().BeTrue("a driver commit must have produced a checkpoint");
-        checkpoint.Value.ContentType.Should().Be(DurableExecutionEnvelope.ContentType);
-        var envelope = DurableExecutionEnvelope.Deserialize(checkpoint.Value.Payload);
+        checkpoint.Value.ContentType.Should().Be(DurableExecutionEnvelopeV2.ContentType);
+        var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint.Value.Payload);
         return JsonSerializer.Deserialize<OrderState>(envelope.StatePayload)!;
     }
 
@@ -75,17 +75,30 @@ public sealed class DurableDriverAcceptanceTests
         }
     }
 
+    private sealed record BranchOrderState(string OrderId, List<string> Log);
+
+    private sealed class BranchLogStep(string name) : IStep<BranchOrderState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<BranchOrderState> context,
+            CancellationToken cancellationToken)
+        {
+            context.State.Log.Add(name);
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
     private static WorkflowDefinition<OrderState> StepWaitStepEndDefinition(
         DefinitionId definitionId,
         DefinitionVersion version)
     {
-        return new WorkflowBuilder<OrderState>()
+        return Workflow.Durable<OrderState>(definitionId, version)
             .Init<string>(orderId => new OrderState { OrderId = orderId })
-            .Then(new LogStep("prepare"))
+            .Then(() => new LogStep("prepare"))
             .Wait("Approved", state => new CorrelationId(state.OrderId))
-            .Then(new LogStep("ship"))
+            .Then(() => new LogStep("ship"))
             .End("shipped")
-            .Build(definitionId, version);
+            .Build();
     }
 
     [Fact]
@@ -180,11 +193,11 @@ public sealed class DurableDriverAcceptanceTests
     {
         var store = new InMemoryWorkflowProvider();
         var definitionId = DefinitionId.New();
-        var definition = new WorkflowBuilder<OrderState>()
+        var definition = Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
             .Init<string>(orderId => new OrderState { OrderId = orderId })
             .Then(() => new ChunkedStep())
             .End("chunked")
-            .Build(definitionId, DefinitionVersion.Initial);
+            .Build();
 
         ChunkedStep.CrashOnChunk3 = true;
         var hostA = CreateHost(store);
@@ -225,20 +238,39 @@ public sealed class DurableDriverAcceptanceTests
 
         WorkflowDefinition<OrderState> Definition()
         {
-            return new WorkflowBuilder<OrderState>()
+            return Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
                 .Init<string>(orderId => new OrderState { OrderId = orderId })
                 .If(
                     state => true,
-                    then => then.Parallel(
-                        ("approval", branch => branch
-                            .Then(new LogStep("a1"))
-                            .Wait("EventA", state => new CorrelationId(state.OrderId))
-                            .Then(new LogStep("a2"))),
-                        ("audit", branch => branch
-                            .Then(new LogStep("b1")))))
-                .Then(new LogStep("after"))
+                    then => then.Parallel<IReadOnlyList<string>>(
+                        branches => branches
+                            .Branch<BranchOrderState>(
+                                "approval",
+                                parent => new BranchOrderState(parent.Value.OrderId, []),
+                                branch => branch
+                                    .Then(() => new BranchLogStep("a1"))
+                                    .Wait("EventA", state => new CorrelationId(state.OrderId))
+                                    .Then(() => new BranchLogStep("a2"))
+                                    .Return(state => state.Value.Log))
+                            .Branch<BranchOrderState>(
+                                "audit",
+                                parent => new BranchOrderState(parent.Value.OrderId, []),
+                                branch => branch
+                                    .Then(() => new BranchLogStep("b1"))
+                                    .Return(state => state.Value.Log)),
+                        (parent, results) =>
+                        {
+                            return new OrderState
+                            {
+                                OrderId = parent.Value.OrderId,
+                                Value = parent.Value.Value,
+                                CompletedChunks = [.. parent.Value.CompletedChunks],
+                                Log = results.SelectMany(result => result.Value).ToList()
+                            };
+                        }))
+                .Then(() => new LogStep("after"))
                 .End("joined")
-                .Build(definitionId, DefinitionVersion.Initial);
+                .Build();
         }
 
         var hostA = CreateHost(store);
@@ -266,9 +298,7 @@ public sealed class DurableDriverAcceptanceTests
         state.Log.Count(entry => entry == "b1").Should().Be(1);
         state.Log.Count(entry => entry == "a2").Should().Be(1);
         state.Log.Count(entry => entry == "after").Should().Be(1);
-        state.Log.IndexOf("a2").Should().BeGreaterThan(state.Log.IndexOf("b1"),
-            "the resumed instance continues the waiting branch only; the completed branch never re-runs");
-        state.Log.Last().Should().Be("after");
+        state.Log.Should().Equal("a1", "a2", "b1", "after");
     }
 
     private sealed class MutateAndWaitStep : IStep<OrderState>
@@ -300,12 +330,12 @@ public sealed class DurableDriverAcceptanceTests
 
         WorkflowDefinition<OrderState> Definition()
         {
-            return new WorkflowBuilder<OrderState>()
+            return Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
                 .Init<string>(orderId => new OrderState { OrderId = orderId })
-                .Then(new MutateAndWaitStep())
-                .Then(new ObserveMutationStep())
+                .Then<MutateAndWaitStep>()
+                .Then<ObserveMutationStep>()
                 .End("observed")
-                .Build(definitionId, DefinitionVersion.Initial);
+                .Build();
         }
 
         var hostA = CreateHost(store);
@@ -334,24 +364,32 @@ public sealed class DurableDriverAcceptanceTests
     }
 
     [Fact]
-    [Trait("AC", "DR-AC-016")]
-    public void LightweightForEach_IsRejectedAtDurableRegistration()
+    public async Task RejectedFingerprintDrift_DoesNotReplaceTheRegisteredDriverExecutor()
     {
         var host = CreateHost();
-        var definition = new WorkflowBuilder<OrderState>()
+        var definitionId = DefinitionId.New();
+        var first = Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
             .Init<string>(orderId => new OrderState { OrderId = orderId })
-            .ForEach(
-                state => (IReadOnlyList<string>)state.Log,
-                WorkflowPartitioner<string>.Items(),
-                body => body.Then(new LogStep("item")))
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .End("first")
+            .Build();
+        var drifted = Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
+            .Init<string>(orderId => new OrderState { OrderId = orderId })
+            .End("second")
+            .Build();
+        host.Runtime.RegisterDefinition(first);
 
-        var register = () => host.Runtime.RegisterDefinition(definition);
+        var register = () => host.Runtime.RegisterDefinition(drifted);
 
         register.Should().Throw<WorkflowDefinitionException>()
-            .WithMessage("*ForEach*")
-            .WithMessage("*RunChild*");
+            .Which.Message.Should().Contain("fingerprint");
+        var start = await host.Runtime.StartOrGetAsync<string, OrderState>(
+            "atomic-registration",
+            definitionId,
+            DefinitionVersion.Initial,
+            "order",
+            TestContext.Current.CancellationToken);
+        var completed = await SnapshotAsync(host, start.InstanceId);
+        completed.EndOutcomeName.Should().Be("first");
     }
 
     [Fact]

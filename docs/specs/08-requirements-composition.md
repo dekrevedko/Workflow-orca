@@ -15,10 +15,12 @@ in-process; heavyweight cross-instance orchestration is durable-only.
 ## 8.1 Parallel branches and joins
 
 ### CP-001 Branch model
-`Parallel` SHALL support multiple branches with isolated branch state and branch identity.
-Waits inside different branches remain isolated (branch identity participates in wait
-records). Branches MAY execute concurrently; all branch-state commits and join checks pass
-through the per-instance serialized path (CR-044).
+`Parallel` SHALL support multiple branches as cooperatively scheduled local fibers with
+stable branch identity, isolated serializable input/private state, one declared result type,
+and explicit merge. At most one local branch step body per instance executes at a time.
+Waits and every other residual obligation SHALL carry exact fiber/scope ownership. Branch
+results, joins, merge, and ownership changes pass through the per-instance serialized path
+(CR-044); true concurrent work uses external jobs or child workflow instances.
 
 ### CP-002 `WhenAll` join
 `WhenAll` SHALL fire its continuation exactly once after all branches complete. The join
@@ -31,10 +33,14 @@ sensitive to structurally irrelevant graph changes (adding a no-op step must nev
 join/continuation semantics).
 
 ### CP-004 `WhenFirst`
-`WhenFirst` SHALL define deterministically: which branch wins when completions race (exactly
-one winner per documented policy), and what happens to losing branches via an explicit
-residual policy — cancelled, ignored, or allowed to finish — with the outcome observable.
-Losing-branch waits/timers are resolved per EV-044/CR-032.
+`WhenFirst` SHALL select exactly the first committed terminal branch, with stable authored
+branch order breaking same-commit ties. A successful winner alone is supplied to the winner
+merge; a failed winner fails the scope without merge. Every losing descendant SHALL be
+cancelled, and
+cancellation/release facts for losing waits, timers, jobs, resources, retries, and other
+owned obligations SHALL commit before or atomically with scope completion. Ignore and
+let-remaining-complete residual policies are unsupported and SHALL fail definition
+validation.
 
 ### CP-005 Continuation ordering
 What executes after branch completion and in what order SHALL be formally specified (join
@@ -44,25 +50,35 @@ eligibility, continuation scheduling), not left to implementation accident.
 
 ### CP-010 Purpose and boundaries
 `ForEach` is the data-driven fanout primitive **inside one instance**: runtime item
-discovery, optional batching, bounded in-process concurrency, explicit join/failure behavior.
-It SHALL NOT create child instances, lineage, compensation, or durable records, and SHALL be
-resultless by default (parent observes item/batch completion status, not return values).
+discovery, optional batching, bounded item-fiber admission, isolated item state, and explicit
+join/failure behavior. It SHALL compile only for ephemeral execution as a dynamic execution
+scope over the shared fiber scheduler and scope reducer. It SHALL NOT create child instances,
+lineage, compensation, or durable records. It MAY be resultless, in which case item fibers do
+not mutate parent state and the parent observes ordered item status, or resultful through an
+explicit deterministic merge over typed item outcomes.
 
 ### CP-011 Authoring shape
 `ForEach` SHALL accept: an item selector over business state, a partitioner, a body
-(sub-flow applied per item/batch), a join policy (`WhenAll` | `WhenAny`), a failure policy
-(`FailFast` | `WaitAllThenFail` | `ContinueWithPartialFailures`), an optional residual policy
-for `WhenAny` (`CancelRemaining` | `LetRemainingComplete`), and optional `maxConcurrency`.
+(sub-flow applied per item/batch against item-private state), a common typed item result, a
+join policy (`WhenAll` | `WhenAny`), a failure policy (`FailFast` | `WaitAllThenFail` |
+`ContinueWithPartialFailures`), optional positive `maxConcurrency`, and an optional
+deterministic merge over ordered `ForEachItemOutcome<TResult>` values. `WhenAny` SHALL accept
+only `FailFast`, SHALL cancel every remaining item, and SHALL reject
+`LetRemainingComplete`, `WaitAllThenFail`, and `ContinueWithPartialFailures` combinations.
 
 ### CP-012 Runtime model
-The parent instance SHALL own group state: total items, dispatch index, active/completed/
-failed/cancelled counts, and per-item refs (index, status, error, timestamps) — inspectable
-like any runtime state. `WhenAny` cancellation is cooperative and in-process only;
-cancellation intent is recorded before the parent continues.
+The parent instance SHALL own one dynamic `ForEach` scope containing total descriptors,
+dispatch index, admitted/completed/failed/cancelled counts, ordered item outcomes, and exact
+item-fiber ownership. A first committed terminal `WhenAny` item wins, with item index breaking
+same-commit ties. A failed winner fails without merge; a successful winner supplies one
+outcome to optional winner merge. Cancellation of admitted fibers and pending descriptors is
+recorded before the parent continues. Item outcomes and management state SHALL be ordered by
+stable item index, not completion timing.
 
 ### CP-013 Bounded concurrency
-`maxConcurrency` SHALL limit concurrently active items; completion of an item releases the
-slot to the next dispatch index.
+`maxConcurrency` SHALL limit admitted nonterminal item fibers. Completion of an admitted item
+releases admission for the next stable dispatch index. Local item step bodies remain
+cooperative and SHALL NOT execute concurrently within one instance.
 
 ## 8.3 Child workflows (durable engine): `RunChild` / `RunChildren`
 

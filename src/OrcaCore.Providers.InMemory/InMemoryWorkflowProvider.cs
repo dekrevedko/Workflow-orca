@@ -678,7 +678,10 @@ public sealed class InMemoryWorkflowProvider :
         {
             ActiveTimers = state.ActiveTimers.Select(timer => timer with { }).ToArray(),
             ActiveWaits = state.ActiveWaits.Select(wait => wait with { }).ToArray(),
-            BufferedDeliveries = state.BufferedDeliveries.Select(delivery => delivery with { }).ToArray(),
+            BufferedDeliveries = state.BufferedDeliveries.Select(delivery => delivery with
+            {
+                Payload = delivery.Payload?.ToArray()
+            }).ToArray(),
             BufferedTimers = state.BufferedTimers.Select(timer => timer with { }).ToArray(),
             ActiveChildren = state.ActiveChildren.Select(child => child with { }).ToArray(),
             ActiveChildGroups = state.ActiveChildGroups.Select(group => group with
@@ -692,7 +695,14 @@ public sealed class InMemoryWorkflowProvider :
             SagaRecoveryInterventions = state.SagaRecoveryInterventions.Select(intervention => intervention with { }).ToArray(),
             RequestedSagaCompensationScopes = [.. state.RequestedSagaCompensationScopes],
             RecordedParentResumeTokens = [.. state.RecordedParentResumeTokens],
-            ConsumedParentResumeTokens = [.. state.ConsumedParentResumeTokens]
+            ConsumedParentResumeTokens = [.. state.ConsumedParentResumeTokens],
+            PendingResumes = state.PendingResumes.Select(pending => pending with
+            {
+                Payload = pending.Payload?.ToArray()
+            }).ToArray(),
+            ContinuationFailureCount = state.ContinuationFailureCount,
+            ContinuationFailurePositionStreamVersion = state.ContinuationFailurePositionStreamVersion,
+            ContinuationRetryNotBefore = state.ContinuationRetryNotBefore
         };
     }
 

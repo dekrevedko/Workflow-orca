@@ -18,7 +18,7 @@ public sealed class DurableWaitTests
     [Trait("AC", "AC-303")]
     public async Task WaitLong_DurableSurfaceRegistersColdWait()
     {
-        var wait = new DurableWorkflowBuilder<TestState>()
+        var wait = new OrcaCore.Engine.Durable.Building.DurableWorkflowBuilder<TestState>()
             .WaitLong("Approved", state => new CorrelationId(state.CorrelationId))
             .Waits
             .Should().ContainSingle().Subject;
@@ -129,7 +129,7 @@ public sealed class DurableWaitTests
 
     [Fact]
     [Trait("AC", "AC-110")]
-    public async Task BranchScopedWaits_RequireMatchingBranchId()
+    public async Task BranchScopedWaits_UseDeterministicUnscopedOrderAndHonorExplicitBranchId()
     {
         var instanceId = InstanceIdValue(1);
         var store = new InMemoryWorkflowProvider();
@@ -143,16 +143,16 @@ public sealed class DurableWaitTests
             TestContext.Current.CancellationToken);
 
         await processor.ProcessAsync(Deliver(instanceId, 4, null), TestContext.Current.CancellationToken);
-        await processor.ProcessAsync(Deliver(instanceId, 5, "0:a"), TestContext.Current.CancellationToken);
+        await processor.ProcessAsync(Deliver(instanceId, 5, "1:b"), TestContext.Current.CancellationToken);
         var events = await store.LoadTailAsync(
             new WorkflowStreamId(instanceId),
             StreamVersion.Empty,
             TestContext.Current.CancellationToken);
 
-        events.OfType<WorkflowDeliveryBufferedEvent>().Should().ContainSingle()
-            .Which.BranchId.Should().BeNull();
-        events.OfType<WorkflowWaitMatchedEvent>().Should().ContainSingle()
-            .Which.WaitId.Should().Be(WaitIdValue(1));
+        events.OfType<WorkflowDeliveryBufferedEvent>().Should().BeEmpty();
+        events.OfType<WorkflowWaitMatchedEvent>()
+            .Select(workflowEvent => workflowEvent.WaitId)
+            .Should().Equal(WaitIdValue(1), WaitIdValue(2));
     }
 
     [Fact]
@@ -189,7 +189,10 @@ public sealed class DurableWaitTests
             "Approved",
             new CorrelationId("order-1"),
             waitMode,
-            branchId);
+            branchId)
+        {
+            WaitSequence = commandValue
+        };
     }
 
     private static DeliverEventCommand Deliver(InstanceId instanceId, int commandValue, string? branchId)

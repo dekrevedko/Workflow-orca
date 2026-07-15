@@ -17,7 +17,7 @@ now exists after T1-01…T1-05.
 ## Deliverables
 - One task file per index row: `T1-06-execution-lane.md` … `T1-15-yield.md`, each following
   the template exactly: Difficulty, Depends-on, Spec/AC refs copied from the index row,
-  Goal, **Read first with real current paths (all under ``)**, Deliverables, **Tests to
+  Goal, **Read first with real current paths (all under the repository root)**, Deliverables, **Tests to
   write FIRST** (enumerated test names incl. the AC-trait acceptance tests), Implementation
   notes, Out of scope, Definition of done.
 - Any index row that cannot fit the sizing rules (≤10 files, ≤500 lines) is split into

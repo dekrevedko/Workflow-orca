@@ -270,7 +270,11 @@ public sealed class DurableCommandProcessor
                             command.HolderKey,
                             command.Requirements,
                             command.RequestedAt,
-                            command.ExpiresAt),
+                            command.ExpiresAt)
+                        {
+                            FiberId = command.FiberId,
+                            ScopeId = command.ScopeId
+                        },
                         token)
                     .ConfigureAwait(false);
                 return aggregate.DecideResourcePoolAcquire(command, acquireResult);
@@ -298,7 +302,11 @@ public sealed class DurableCommandProcessor
                                 command.ExternalJobId,
                                 command.Requirements,
                                 command.RequestedAt,
-                                command.TimeoutAt),
+                                command.TimeoutAt)
+                            {
+                                FiberId = command.FiberId,
+                                ScopeId = command.ScopeId
+                            },
                             token)
                         .ConfigureAwait(false);
                 }

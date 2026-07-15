@@ -16,9 +16,20 @@ public sealed class DurableSagaCommandAdapter<TState>(SagaDefinition<TState> def
         CommandId commandId,
         InstanceId instanceId,
         DateTimeOffset requestedAt,
-        string actionKey)
+        string actionKey,
+        FiberId? fiberId = null,
+        ScopeId? owningScopeId = null,
+        string? instructionId = null,
+        long? committedSequence = null,
+        int canonicalBranchOrder = 0,
+        int? canonicalInstructionOrder = null,
+        int? scopeOrderOverride = null)
     {
         var action = FindAction(actionKey);
+        var authoredInstructionOrder = definition.ForwardActions
+            .Select((candidate, index) => (candidate, index))
+            .Single(item => ReferenceEquals(item.candidate, action))
+            .index;
         return new RecordSagaForwardActionCompletedCommand
         {
             CommandId = commandId,
@@ -28,7 +39,14 @@ public sealed class DurableSagaCommandAdapter<TState>(SagaDefinition<TState> def
             ActionKey = action.ActionKey,
             CompensationKey = action.Compensation is null
                 ? string.Empty
-                : $"{action.ActionKey}/compensation"
+                : $"{action.ActionKey}/compensation",
+            FiberId = fiberId,
+            OwningScopeId = owningScopeId,
+            InstructionId = instructionId,
+            CommittedSequence = committedSequence ?? authoredInstructionOrder + 1,
+            CanonicalBranchOrder = canonicalBranchOrder,
+            CanonicalInstructionOrder = canonicalInstructionOrder ?? authoredInstructionOrder,
+            ScopeOrderOverride = scopeOrderOverride
         };
     }
 

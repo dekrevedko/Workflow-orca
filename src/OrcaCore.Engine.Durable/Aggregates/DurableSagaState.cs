@@ -62,7 +62,17 @@ internal sealed class DurableSagaState
                 action.ScopeId,
                 action.ActionKey,
                 action.CompensationKey,
-                action.CompletedAt))
+                action.CompletedAt)
+            {
+                FiberId = action.FiberId,
+                OwningScopeId = action.OwningScopeId,
+                EligibleScopeId = action.EligibleScopeId,
+                InstructionId = action.InstructionId,
+                CommittedSequence = action.CommittedSequence,
+                CanonicalBranchOrder = action.CanonicalBranchOrder,
+                CanonicalInstructionOrder = action.CanonicalInstructionOrder,
+                ScopeOrderOverride = action.ScopeOrderOverride
+            })
             .ToArray();
     }
 
@@ -110,11 +120,63 @@ internal sealed class DurableSagaState
     internal IReadOnlyList<WorkflowEvent> PlanCompensation(
         DurableSagaEventContext context,
         string scopeId,
-        string? reason)
+        string? reason,
+        IReadOnlyCollection<ScopeId>? coveredExecutionScopeIds = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentException.ThrowIfNullOrWhiteSpace(scopeId);
 
+        var coveredScopes = coveredExecutionScopeIds is null
+            ? null
+            : new HashSet<ScopeId>(coveredExecutionScopeIds);
+        var eligibleActions = completedForwardActions
+            .Where(action => string.Equals(action.ScopeId, scopeId, StringComparison.Ordinal))
+            .Where(action => coveredScopes is null ||
+                action.EligibleScopeId is { } eligibleScopeId && coveredScopes.Contains(eligibleScopeId))
+            .Where(action => !string.IsNullOrWhiteSpace(action.CompensationKey))
+            .ToArray();
+        return PlanCompensation(context, scopeId, reason, eligibleActions);
+    }
+
+    internal IReadOnlyList<WorkflowEvent> PlanCompensationForFailure(
+        DurableSagaEventContext context,
+        IReadOnlyCollection<FiberId> terminalFiberIds,
+        IReadOnlyCollection<ScopeId> failedScopeIds,
+        bool coversRootEligibility,
+        string? reason)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(terminalFiberIds);
+        ArgumentNullException.ThrowIfNull(failedScopeIds);
+
+        var terminalFibers = new HashSet<FiberId>(terminalFiberIds);
+        var failedScopes = new HashSet<ScopeId>(failedScopeIds);
+        var affected = completedForwardActions
+            .Where(action =>
+                action.FiberId is { } fiberId && terminalFibers.Contains(fiberId) ||
+                action.EligibleScopeId is { } scopeId && failedScopes.Contains(scopeId) ||
+                coversRootEligibility && action.EligibleScopeId is null)
+            .Where(action => !string.IsNullOrWhiteSpace(action.CompensationKey))
+            .GroupBy(action => action.ScopeId, StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal);
+        var events = new List<WorkflowEvent>();
+        foreach (var group in affected)
+        {
+            if (!HasRequestedCompensation(group.Key))
+            {
+                events.AddRange(PlanCompensation(context, group.Key, reason, group.ToArray()));
+            }
+        }
+
+        return events;
+    }
+
+    private static IReadOnlyList<WorkflowEvent> PlanCompensation(
+        DurableSagaEventContext context,
+        string scopeId,
+        string? reason,
+        DurableSagaForwardAction[] eligibleActions)
+    {
         var events = new List<WorkflowEvent>
         {
             new SagaCompensationRequestedEvent
@@ -130,11 +192,7 @@ internal sealed class DurableSagaState
                 Reason = reason
             }
         };
-        var eligibleActions = completedForwardActions
-            .Where(action => string.Equals(action.ScopeId, scopeId, StringComparison.Ordinal))
-            .Where(action => !string.IsNullOrWhiteSpace(action.CompensationKey))
-            .Reverse()
-            .ToArray();
+        eligibleActions = OrderForCompensation(eligibleActions);
         for (var index = 0; index < eligibleActions.Length; index++)
         {
             events.Add(new SagaCompensationStartedEvent
@@ -169,7 +227,31 @@ internal sealed class DurableSagaState
                     sagaForwardActionCompleted.ScopeId,
                     sagaForwardActionCompleted.ActionKey,
                     sagaForwardActionCompleted.CompensationKey,
-                    sagaForwardActionCompleted.OccurredAt));
+                    sagaForwardActionCompleted.OccurredAt)
+                {
+                    FiberId = sagaForwardActionCompleted.FiberId,
+                    OwningScopeId = sagaForwardActionCompleted.OwningScopeId,
+                    EligibleScopeId = sagaForwardActionCompleted.OwningScopeId,
+                    InstructionId = sagaForwardActionCompleted.InstructionId,
+                    CommittedSequence = sagaForwardActionCompleted.CommittedSequence,
+                    CanonicalBranchOrder = sagaForwardActionCompleted.CanonicalBranchOrder,
+                    CanonicalInstructionOrder = sagaForwardActionCompleted.CanonicalInstructionOrder,
+                    ScopeOrderOverride = sagaForwardActionCompleted.ScopeOrderOverride
+                });
+                break;
+            case SagaForwardActionsTransferredEvent transferred:
+                for (var index = 0; index < completedForwardActions.Count; index++)
+                {
+                    var action = completedForwardActions[index];
+                    if (action.EligibleScopeId == transferred.FromExecutionScopeId)
+                    {
+                        completedForwardActions[index] = action with
+                        {
+                            EligibleScopeId = transferred.ToExecutionScopeId
+                        };
+                    }
+                }
+
                 break;
             case SagaForwardActionTimedOutEvent:
                 break;
@@ -334,6 +416,30 @@ internal sealed class DurableSagaState
             ErrorSummary = errorSummary ?? existing.ErrorSummary,
             Status = status
         });
+    }
+
+    private static DurableSagaForwardAction[] OrderForCompensation(
+        DurableSagaForwardAction[] eligibleActions)
+    {
+        var hasOverride = eligibleActions.Any(action => action.ScopeOrderOverride.HasValue);
+        if (hasOverride && eligibleActions.Any(action => !action.ScopeOrderOverride.HasValue))
+        {
+            throw new InvalidOperationException(
+                "A plan-bound saga compensation order override must cover every eligible action in the scope.");
+        }
+
+        return hasOverride
+            ? eligibleActions
+                .OrderByDescending(action => action.ScopeOrderOverride)
+                .ThenByDescending(action => action.CommittedSequence)
+                .ThenBy(action => action.ActionKey, StringComparer.Ordinal)
+                .ToArray()
+            : eligibleActions
+                .OrderByDescending(action => action.CanonicalBranchOrder)
+                .ThenByDescending(action => action.CanonicalInstructionOrder)
+                .ThenByDescending(action => action.CommittedSequence)
+                .ThenBy(action => action.ActionKey, StringComparer.Ordinal)
+                .ToArray();
     }
 }
 

@@ -137,7 +137,7 @@ public sealed class DurableRecoveryTests
             instanceId,
             Timestamp(commandValue),
             stepPath,
-            TestEnvelopes.Envelope("application/octet-stream", [(byte)commandValue]));
+            TestEnvelopes.Envelope("application/octet-stream", [(byte)commandValue], instanceId: instanceId));
     }
 
     private static DurableWaitRegisteredCommand WaitRegisteredCommand(

@@ -31,7 +31,10 @@ internal static class DurableWaitTimerCommandHandler
             CorrelationId = command.CorrelationId,
             Mode = command.Mode,
             BranchId = command.BranchId,
-            TimeoutTimerId = registerTimeoutTimer ? command.TimeoutTimerId : null
+            TimeoutTimerId = registerTimeoutTimer ? command.TimeoutTimerId : null,
+            WaitSequence = command.WaitSequence,
+            FiberId = command.FiberId,
+            ScopeId = command.ScopeId
         });
 
         if (registerTimeoutTimer)
@@ -45,7 +48,9 @@ internal static class DurableWaitTimerCommandHandler
                 OccurredAt = command.RequestedAt,
                 TimerId = command.TimeoutTimerId!.Value,
                 FireAt = command.TimeoutFireAt ?? command.RequestedAt,
-                WakeupName = $"wait-timeout:{command.WaitId}"
+                WakeupName = $"wait-timeout:{command.WaitId}",
+                FiberId = command.FiberId,
+                ScopeId = command.ScopeId
             });
         }
 
@@ -65,7 +70,10 @@ internal static class DurableWaitTimerCommandHandler
                 CorrelationId = matched.CorrelationId,
                 BranchId = matched.BranchId,
                 PayloadContentType = matched.PayloadContentType,
-                Payload = matched.Payload
+                Payload = matched.Payload,
+                WaitSequence = command.WaitSequence,
+                FiberId = command.FiberId,
+                ScopeId = command.ScopeId
             });
             inboxWrites = [new InboxWrite(matched.EventId, InboxRecordState.Applied)];
         }
@@ -95,7 +103,7 @@ internal static class DurableWaitTimerCommandHandler
     {
         foreach (var waitId in consumedResumeWaitIds)
         {
-            if (aggregate.WaitState.FindPendingResume(waitId) is null)
+            if (aggregate.WaitState.FindPendingResume(waitId) is not { } pending)
             {
                 continue;
             }
@@ -107,7 +115,9 @@ internal static class DurableWaitTimerCommandHandler
                 CommandId = commandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(commandId),
                 OccurredAt = requestedAt,
-                WaitId = waitId
+                WaitId = waitId,
+                FiberId = pending.FiberId,
+                ScopeId = pending.ScopeId
             });
         }
     }
@@ -127,7 +137,7 @@ internal static class DurableWaitTimerCommandHandler
 
         foreach (var waitId in command.CancelWaitIds)
         {
-            if (!aggregate.WaitState.HasWait(waitId))
+            if (aggregate.WaitState.ActiveWaits.FirstOrDefault(wait => wait.WaitId == waitId) is not { } wait)
             {
                 continue;
             }
@@ -139,7 +149,9 @@ internal static class DurableWaitTimerCommandHandler
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
                 OccurredAt = command.RequestedAt,
-                WaitId = waitId
+                WaitId = waitId,
+                FiberId = wait.FiberId,
+                ScopeId = wait.ScopeId
             });
         }
 
@@ -170,6 +182,8 @@ internal static class DurableWaitTimerCommandHandler
             return DurableDecision.Empty;
         }
 
+        var wait = aggregate.WaitState.ActiveWaits
+            .First(candidate => candidate.WaitId == command.WaitId);
         return new DurableDecision([
             new WorkflowWaitMatchedEvent
             {
@@ -179,7 +193,10 @@ internal static class DurableWaitTimerCommandHandler
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
                 OccurredAt = command.RequestedAt,
                 WaitId = command.WaitId,
-                MatchedEventId = command.MatchedEventId
+                MatchedEventId = command.MatchedEventId,
+                WaitSequence = wait.WaitSequence,
+                FiberId = wait.FiberId,
+                ScopeId = wait.ScopeId
             }
         ]);
     }
@@ -203,7 +220,9 @@ internal static class DurableWaitTimerCommandHandler
                 OccurredAt = command.RequestedAt,
                 TimerId = command.TimerId,
                 FireAt = command.FireAt,
-                WakeupName = command.WakeupName
+                WakeupName = command.WakeupName,
+                FiberId = command.FiberId,
+                ScopeId = command.ScopeId
             }
         };
 
@@ -252,7 +271,9 @@ internal static class DurableWaitTimerCommandHandler
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
                 OccurredAt = command.RequestedAt,
-                TimerId = command.TimerId
+                TimerId = command.TimerId,
+                FiberId = timer.FiberId,
+                ScopeId = timer.ScopeId
             }
         };
 
@@ -267,7 +288,9 @@ internal static class DurableWaitTimerCommandHandler
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
                 OccurredAt = command.RequestedAt,
-                WaitId = racedWait.WaitId
+                WaitId = racedWait.WaitId,
+                FiberId = racedWait.FiberId,
+                ScopeId = racedWait.ScopeId
             });
         }
 
@@ -312,7 +335,10 @@ internal static class DurableWaitTimerCommandHandler
                 CorrelationId = command.Envelope.CorrelationId,
                 BranchId = command.Envelope.BranchId,
                 PayloadContentType = command.Envelope.PayloadContentType,
-                Payload = command.Envelope.Payload as byte[]
+                Payload = command.Envelope.Payload as byte[],
+                WaitSequence = wait.WaitSequence,
+                FiberId = wait.FiberId,
+                ScopeId = wait.ScopeId
             }
         };
 
@@ -327,7 +353,9 @@ internal static class DurableWaitTimerCommandHandler
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
                 OccurredAt = command.RequestedAt,
-                TimerId = timeoutTimerId
+                TimerId = timeoutTimerId,
+                FiberId = wait.FiberId,
+                ScopeId = wait.ScopeId
             });
         }
 

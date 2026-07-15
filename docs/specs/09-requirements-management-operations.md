@@ -84,6 +84,13 @@ the deliveries buffered during the pause window:
 The initial contract is all-or-nothing over the pause window's buffer; selective per-event
 discard MAY be added later as an extension.
 
+### MG-014 Application-safe durable remediation
+Poison remediation SHALL be exposed on the durable instance handle through an opaque
+diagnostic ticket or equivalent compare-and-act token. Application-facing signatures SHALL
+NOT expose protocol stream versions. A stale token SHALL return a stable conflict. Raw
+stream-version rearm remains available only through the runtime-protocol seam. Successful
+rearm SHALL use the split-host continuation contract in DU-055.
+
 ## 9.3 Lifecycle events
 
 ### MG-020 Instance and step lifecycle events
@@ -113,6 +120,9 @@ active-instance pressure (DU-052).
 Every instance SHALL track: created, last transition, last active execution, current-status
 entry time, total age, current wait age, terminal time. Every executing step SHALL track:
 start time, optional progress heartbeat, expected timeout, completion time, outcome.
+Application operations SHALL obtain transition timestamps from the runtime `TimeProvider`.
+Caller-supplied timestamps are limited to protocol/custom-host seams and deterministic test
+fixtures.
 
 ## 9.5 Stuck detection and timeouts
 
@@ -155,6 +165,12 @@ The engine SHALL support optional limits on concurrent workflow advancement and 
 step execution, complementing (never replacing) per-instance serialization: serialization is
 correctness; governance is capacity.
 
+The public taxonomy SHALL distinguish: (1) a per-step execution throttle held only around one
+step body, (2) a named cross-instance transient pool that is host-local and re-evaluated after
+restart, and (3) a persisted durable resource lease owned by a fiber/scope. These names and
+lifetimes SHALL NOT be aliases. Mode availability is normative in
+[document 17](17-selected-mode-capability-matrix.md).
+
 ### MG-061 Named shared pools (transient, in-process)
 The engine SHALL support named resource pools shared across unrelated workflows (e.g.,
 "at most 4 concurrent db-backed operations process-wide"). Steps/definitions MAY carry
@@ -163,6 +179,11 @@ directly — hosts enforce pools. Transient pools bound **in-process step execut
 they do not survive restarts and their distributed (cross-process) enforcement is explicitly
 out of scope. Capacity governance of work that outlives a step or a process is the job of
 durable pools (MG-062).
+
+When a local fiber cannot obtain transient capacity, it SHALL record a mode-appropriate owned
+blocked obligation, end its quantum, and release the instance mutation turn. It SHALL NOT
+await capacity while retaining the instance turn. A durable host restart resets transient
+capacity and re-evaluates admission without claiming prior pool ownership survived.
 
 ### MG-062 Durable resource pools (tickets)
 For work that consumes an external capacity-bounded resource for its whole lifetime — the
@@ -183,6 +204,10 @@ cold-waiting — the engine SHALL support **durable named resource pools** with 
 - release is symmetric and automatic at the guarded scope's exit on **every** terminal path
   (success, failure, timeout, cancellation, termination); explicit early release MAY be
   offered.
+
+The ticket owner SHALL be the requesting structured fiber/scope. Deterministic release occurs
+on normal scope exit, losing-branch cancellation, scope failure, or workflow terminal
+transition. Expiry is a crash-recovery backstop, not the normal release mechanism.
 
 ### MG-063 Multi-pool acquisition is all-or-nothing
 A scope requiring tickets from several pools SHALL acquire them atomically: the allocator

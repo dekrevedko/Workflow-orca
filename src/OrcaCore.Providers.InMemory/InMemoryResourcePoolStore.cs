@@ -276,7 +276,11 @@ public sealed class InMemoryResourcePoolStore : IResourcePoolStore
                 request.HolderInstanceId,
                 request.HolderKey,
                 acquiredAt,
-                request.ExpiresAt))
+                request.ExpiresAt)
+            {
+                FiberId = request.FiberId,
+                ScopeId = request.ScopeId
+            })
             .ToArray();
         tickets.AddRange(granted);
         return granted;
@@ -298,7 +302,11 @@ public sealed class InMemoryResourcePoolStore : IResourcePoolStore
                     waiter.HolderKey,
                     waiter.Requirements,
                     waiter.RequestedAt,
-                    waiter.ExpiresAt),
+                    waiter.ExpiresAt)
+                {
+                    FiberId = waiter.FiberId,
+                    ScopeId = waiter.ScopeId
+                },
                 grantedAt);
             waiters.Remove(waiter);
             granted.Add(waiter);
@@ -315,7 +323,11 @@ public sealed class InMemoryResourcePoolStore : IResourcePoolStore
             request.HolderKey,
             request.Requirements.ToArray(),
             request.RequestedAt,
-            request.ExpiresAt);
+            request.ExpiresAt)
+        {
+            FiberId = request.FiberId,
+            ScopeId = request.ScopeId
+        };
         waiters.Add(waiter);
         return waiter;
     }

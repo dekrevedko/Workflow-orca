@@ -87,14 +87,8 @@ internal sealed class DurableWaitState
     {
         ArgumentNullException.ThrowIfNull(envelope);
 
-        var matches = activeWaits.Where(wait => Matches(wait, envelope)).ToArray();
-        if (string.IsNullOrWhiteSpace(envelope.BranchId) &&
-            matches.Count(wait => !string.IsNullOrWhiteSpace(wait.BranchId)) > 1)
-        {
-            return null;
-        }
-
-        return matches.FirstOrDefault();
+        return OrderForMatching(activeWaits.Where(wait => Matches(wait, envelope)))
+            .FirstOrDefault();
     }
 
     internal DurableWaitReplayPlan PlanBufferedDeliveryReplay(
@@ -124,7 +118,9 @@ internal sealed class DurableWaitState
                 continue;
             }
 
-            var wait = replayWaits.FirstOrDefault(candidate => Matches(candidate, bufferedDelivery));
+            var wait = OrderForMatching(
+                    replayWaits.Where(candidate => Matches(candidate, bufferedDelivery)))
+                .FirstOrDefault();
             if (wait is null)
             {
                 inboxWrites.Add(new InboxWrite(bufferedDelivery.EventId, InboxRecordState.Poisoned));
@@ -145,7 +141,10 @@ internal sealed class DurableWaitState
                 CorrelationId = bufferedDelivery.CorrelationId,
                 BranchId = bufferedDelivery.BranchId,
                 PayloadContentType = bufferedDelivery.PayloadContentType,
-                Payload = bufferedDelivery.Payload
+                Payload = bufferedDelivery.Payload,
+                WaitSequence = wait.WaitSequence,
+                FiberId = wait.FiberId,
+                ScopeId = wait.ScopeId
             });
             inboxWrites.Add(new InboxWrite(bufferedDelivery.EventId, InboxRecordState.Applied));
         }
@@ -167,7 +166,12 @@ internal sealed class DurableWaitState
                     waitRegistered.OccurredAt,
                     waitRegistered.Mode,
                     waitRegistered.BranchId,
-                    waitRegistered.TimeoutTimerId));
+                    waitRegistered.TimeoutTimerId)
+                {
+                    WaitSequence = waitRegistered.WaitSequence,
+                    FiberId = waitRegistered.FiberId,
+                    ScopeId = waitRegistered.ScopeId
+                });
                 break;
             case WorkflowWaitMatchedEvent waitMatched:
                 // Kernel-driven matches (external-job completion, direct wait-matched commands)
@@ -185,7 +189,14 @@ internal sealed class DurableWaitState
                     waitMatched.BranchId,
                     waitMatched.PayloadContentType,
                     waitMatched.Payload,
-                    waitMatched.OccurredAt));
+                    waitMatched.OccurredAt)
+                {
+                    WaitSequence = waitMatched.WaitSequence != 0
+                        ? waitMatched.WaitSequence
+                        : matchedWait?.WaitSequence ?? 0,
+                    FiberId = waitMatched.FiberId ?? matchedWait?.FiberId,
+                    ScopeId = waitMatched.ScopeId ?? matchedWait?.ScopeId
+                });
                 break;
             case WorkflowWaitCancelledEvent waitCancelled:
                 Remove(waitCancelled.WaitId);
@@ -220,7 +231,10 @@ internal sealed class DurableWaitState
                 RegisteredAt = wait.RegisteredAt,
                 BranchId = wait.BranchId,
                 Status = "Active",
-                Mode = wait.Mode.ToString()
+                Mode = wait.Mode.ToString(),
+                WaitSequence = wait.WaitSequence,
+                FiberId = wait.FiberId,
+                ScopeId = wait.ScopeId
             })
             .ToArray();
     }
@@ -235,7 +249,12 @@ internal sealed class DurableWaitState
                 wait.RegisteredAt,
                 wait.Mode,
                 wait.BranchId,
-                wait.TimeoutTimerId))
+                wait.TimeoutTimerId)
+            {
+                WaitSequence = wait.WaitSequence,
+                FiberId = wait.FiberId,
+                ScopeId = wait.ScopeId
+            })
             .ToArray();
     }
 
@@ -263,7 +282,12 @@ internal sealed class DurableWaitState
                 pending.BranchId,
                 pending.PayloadContentType,
                 pending.Payload,
-                pending.MatchedAt))
+                pending.MatchedAt)
+            {
+                WaitSequence = pending.WaitSequence,
+                FiberId = pending.FiberId,
+                ScopeId = pending.ScopeId
+            })
             .ToArray();
     }
 
@@ -297,6 +321,15 @@ internal sealed class DurableWaitState
         return string.IsNullOrWhiteSpace(waitBranchId) ||
             string.IsNullOrWhiteSpace(eventBranchId) ||
             string.Equals(waitBranchId, eventBranchId, StringComparison.Ordinal);
+    }
+
+    private static IOrderedEnumerable<DurableActiveWait> OrderForMatching(
+        IEnumerable<DurableActiveWait> waits)
+    {
+        return waits
+            .OrderBy(wait => wait.WaitSequence)
+            .ThenBy(wait => wait.FiberId?.Value ?? string.Empty, StringComparer.Ordinal)
+            .ThenBy(wait => wait.WaitId.Value);
     }
 }
 

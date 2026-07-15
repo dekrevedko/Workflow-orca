@@ -24,7 +24,7 @@ namespace OrcaCore.Examples;
 /// <remarks>
 /// WHAT: six examples that build up from a single in-process workflow to durable, host-integrated
 /// operations. HOW: each example is fully independent — it constructs its own engine/host, authors
-/// a definition with <see cref="WorkflowBuilder{TState}"/>, runs it, and prints the resulting
+/// a mode-selected definition, runs it, and prints the resulting
 /// snapshot so you can see the observable outcome. WHY: the two OrcaCore execution modes are
 /// deliberately different surfaces — the <b>ephemeral</b> engine runs a workflow to a result
 /// in-process (examples 01–05), while the <b>durable</b> path is command-driven and persists every
@@ -62,7 +62,7 @@ public static class ExampleRunner
     }
 
     // WHAT: the smallest useful workflow — validate, do work, finish with a named outcome.
-    // HOW: WorkflowBuilder authors an immutable definition (Init seeds state from input; each Then
+    // HOW: Workflow.Ephemeral authors an immutable definition (Init seeds state from input; each Then
     //   adds a step; End names the terminal outcome). AwaitCompletionAsync runs it to a terminal
     //   snapshot in one call.
     // WHY: use the ephemeral engine + AwaitCompletionAsync for short, synchronous request/response
@@ -70,12 +70,12 @@ public static class ExampleRunner
     private static async Task RunSimpleEphemeralWorkflowAsync(CancellationToken cancellationToken)
     {
         var engine = new EphemeralWorkflowEngine();
-        var definition = new WorkflowBuilder<OrderState>()
+        var definition = Workflow.Ephemeral<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<OrderInput>(OrderState.From)
             .Then<ValidateOrderStep>()
             .Then(() => new RecordOrderStep("reserve inventory"))
             .End("Accepted")
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
 
         // A definition is registered once, then started many times; it is immutable and reusable.
         engine.RegisterDefinition(definition);
@@ -102,12 +102,12 @@ public static class ExampleRunner
     private static async Task RunEventWaitAsync(CancellationToken cancellationToken)
     {
         var engine = new EphemeralWorkflowEngine();
-        var definition = new WorkflowBuilder<OrderState>()
+        var definition = Workflow.Ephemeral<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<OrderInput>(OrderState.From)
             .Wait("PaymentApproved", state => new CorrelationId(state.OrderId))
             .Then<CapturePaymentApprovalStep>()
             .End("Paid")
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
 
         engine.RegisterDefinition(definition);
 
@@ -151,18 +151,24 @@ public static class ExampleRunner
         options.NamedPools["fulfillment"] = 1;
 
         var engine = new EphemeralWorkflowEngine(TimeProvider.System, options);
-        var definition = new WorkflowBuilder<OrderState>()
+        var definition = Workflow.Ephemeral<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<OrderInput>(OrderState.From)
             .WithPoolKey("fulfillment")
             .Then(() => new RecordOrderStep("entered fulfillment pool"))
-            .ForEach(
-                state => state.Items,
+            .ForEach<string, FanoutItemState, string>(
+                parent => parent.Value.Items,
                 WorkflowPartitioner<string>.Items(),
-                branch => branch.Then<CountFanoutItemStep>(),
-                maxConcurrency: 2)
+                item => new FanoutItemState(item.Index, item.Items.Single()),
+                branch => branch
+                    .Then<CountFanoutItemStep>()
+                    .Return(item => item.Value.Item),
+                ForEachJoinPolicy.WhenAll,
+                ForEachFailurePolicy.FailFast,
+                maxConcurrency: 2,
+                merge: MergeFanout)
             .Then(() => new RecordOrderStep("all item work completed"))
             .End("Fulfilled")
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
 
         engine.RegisterDefinition(definition);
         var snapshot = await engine.StartAsync<OrderInput, OrderState>(
@@ -191,12 +197,12 @@ public static class ExampleRunner
     private static async Task RunTimerAsync(CancellationToken cancellationToken)
     {
         var engine = new EphemeralWorkflowEngine();
-        var definition = new WorkflowBuilder<OrderState>()
+        var definition = Workflow.Ephemeral<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<OrderInput>(OrderState.From)
             .Delay(TimeSpan.FromMilliseconds(15))
             .Then(() => new RecordOrderStep("timer fired"))
             .End("ReminderSent")
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
 
         engine.RegisterDefinition(definition);
         var waiting = await engine.StartAsync<OrderInput, OrderState>(
@@ -263,10 +269,10 @@ public static class ExampleRunner
         var management = host.Services.GetRequiredService<DurableManagement>();
         var pools = host.Services.GetRequiredService<InMemoryResourcePoolStore>();
 
-        var definition = new WorkflowBuilder<OrderState>()
+        var definition = Workflow.Durable<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<OrderInput>(OrderState.From)
             .End("DurableStarted")
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
 
         // Same idempotency key twice: the first call creates the instance, the second returns it.
         var firstStart = await runtime.StartOrGetAsync<OrderInput, OrderState>(
@@ -402,6 +408,11 @@ public static class ExampleRunner
 
     private sealed record ExternalJobPayload(string Kind, string OrderId);
 
+    private sealed record FanoutItemState(int Index, string Item)
+    {
+        public bool Processed { get; set; }
+    }
+
     private sealed class OrderState
     {
         public string OrderId { get; set; } = string.Empty;
@@ -470,21 +481,34 @@ public static class ExampleRunner
         }
     }
 
-    private sealed class CountFanoutItemStep : IStep<OrderState>
+    private sealed class CountFanoutItemStep : IStep<FanoutItemState>
     {
         public ValueTask<StepResult> ExecuteAsync(
-            StepContext<OrderState> context,
+            StepContext<FanoutItemState> context,
             CancellationToken cancellationToken)
         {
-            // context.ForEachItem identifies the specific item this branch is processing. Its Index
-            // is stable and unique per item, so this is correct even when branches run concurrently
-            // and suspend on I/O — unlike a shared counter, which would misattribute items on resume.
-            var item = context.ForEachItem!.Item<string>();
-            context.State.ProcessedItemCount++;
-            context.State.Log.Add($"processed {item}");
+            context.State.Processed = true;
 
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
         }
+    }
+
+    private static OrderState MergeFanout(
+        ReadOnlyParentSnapshot<OrderState> parent,
+        IReadOnlyList<ForEachItemOutcome<string>> outcomes)
+    {
+        var processed = outcomes
+            .Where(outcome => outcome.Status == ForEachItemTerminalStatus.Succeeded)
+            .Select(outcome => outcome.Result!)
+            .ToArray();
+        return new OrderState
+        {
+            OrderId = parent.Value.OrderId,
+            Total = parent.Value.Total,
+            Items = [.. parent.Value.Items],
+            ProcessedItemCount = parent.Value.ProcessedItemCount + processed.Length,
+            Log = [.. parent.Value.Log, .. processed.Select(item => $"processed {item}")]
+        };
     }
 
     private sealed class SagaState

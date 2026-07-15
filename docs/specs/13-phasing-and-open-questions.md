@@ -199,8 +199,11 @@ Where source documents disagreed, this package resolved:
 - **Recovery model**: the hybrid event-sourced core (stream + checkpoint + projections) is
   adopted for durable mode, superseding mutable-snapshot-first persistence as the durable
   architecture. The ephemeral engine remains a lightweight in-memory runtime.
-- **`Parallel` concurrency**: branches MAY execute concurrently (with serialized commits);
-  earlier interim behavior (coordinated sequential branches) is not the specified target.
+- **Local branch concurrency**: local `Parallel`, `WhenFirst`, and ephemeral `ForEach`
+  branches execute as deterministic cooperative fibers over isolated input/private state;
+  only one local step body per instance runs at a time. This supersedes the earlier target of
+  concurrently executing local branch bodies. True concurrent work uses external jobs or
+  child workflow instances, while all parent-instance commits remain serialized.
 - **`WhenAll`/`WhenFirst`**: specified as explicit primitives with policies, superseding
   "join semantics only implied by tests."
 - **Child workflows**: the v3 split (ephemeral `ForEach` vs durable `RunChild`/`RunChildren`)

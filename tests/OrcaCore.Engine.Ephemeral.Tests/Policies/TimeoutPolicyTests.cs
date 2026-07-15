@@ -17,12 +17,12 @@ public sealed class TimeoutPolicyTests
         var clock = new Clock(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
         var engine = new EphemeralWorkflowEngine(clock.TimeProvider);
         var step = new NeverCompletesStep();
-        var definition = new WorkflowBuilder<TimeoutState>()
+        var definition = Workflow.Ephemeral<TimeoutState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TimeoutState())
             .WithTimeout(TimeSpan.FromSeconds(30))
             .Then(() => step)
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
         engine.RegisterDefinition(definition);
 
         var startTask = engine.StartAsync<string, TimeoutState>(

@@ -1,3 +1,4 @@
+using OrcaCore.Abstractions.Ids;
 using OrcaCore.Core.Definitions;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
@@ -8,9 +9,12 @@ internal sealed class RuntimeTimerRecord
 
     internal RuntimeTimerRecord(BranchId? branchId, DateTimeOffset registeredAt)
     {
+        TimerId = TimerId.New();
         BranchId = branchId;
         RegisteredAt = registeredAt;
     }
+
+    internal TimerId TimerId { get; }
 
     internal BranchId? BranchId { get; }
 

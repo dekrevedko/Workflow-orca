@@ -69,11 +69,65 @@ public sealed class DurableAggregateTests
             .Which.StepPath.Should().Be("root/1");
         decision.Checkpoint.Should().NotBeNull();
         decision.Checkpoint!.StreamVersion.Should().Be(new StreamVersion(2));
-        decision.Checkpoint.ContentType.Should().Be(DurableExecutionEnvelope.ContentType);
-        var persisted = DurableExecutionEnvelope.Deserialize(decision.Checkpoint.Payload);
+        decision.Checkpoint.ContentType.Should().Be(DurableExecutionEnvelopeV2.ContentType);
+        var persisted = DurableExecutionEnvelopeV2.Deserialize(decision.Checkpoint.Payload);
         persisted.StateContentType.Should().Be("application/octet-stream");
         persisted.StatePayload.Should().Equal(9, 8, 7);
-        persisted.Position.Cursors.Should().ContainSingle().Which.CursorId.Should().Be("root");
+        persisted.Fibers.Should().ContainSingle().Which.FiberId.Should().Be("root");
+    }
+
+    [Fact]
+    public void DecideStepCompleted_CommitsFormat2FiberEnvelopeAtomically()
+    {
+        var aggregate = DurableWorkflowAggregate.Rehydrate(null, [Started()]);
+        var envelope = new DurableExecutionEnvelopeV2
+        {
+            EnvelopeVersion = DurableExecutionEnvelopeV2.CurrentVersion,
+            InstanceId = aggregate.InstanceId,
+            ContinueAsNewGeneration = 0,
+            RootFiberId = "root",
+            PlanBinding = new DurablePlanBinding
+            {
+                DefinitionId = DefinitionIdValue(1),
+                DefinitionVersion = DefinitionVersion.Initial,
+                CompilerFormatVersion = 1,
+                PlanFingerprint = "fingerprint"
+            },
+            StateContentType = "application/json",
+            StatePayload = [7],
+            Fibers =
+            [
+                new DurableFiberState
+                {
+                    FiberId = "root",
+                    InstructionId = "root/2",
+                    Phase = DurableFiberPhase.Runnable,
+                    LoopIteration = 0,
+                    NextScopeEntrySequence = 0
+                }
+            ],
+            Scopes = [],
+            Scheduler = new DurableFiberSchedulerState
+            {
+                RunnableFiberIds = ["root"],
+                NextFiberId = "root"
+            }
+        };
+        var command = new DurableStepCompletedCommand(
+            CommandIdValue(2),
+            aggregate.InstanceId,
+            Timestamp(2),
+            "root/1",
+            envelope);
+
+        var decision = aggregate.DecideStepCompleted(command);
+
+        decision.Events.Should().ContainSingle().Which.Should().BeOfType<WorkflowStepCompletedEvent>();
+        decision.Checkpoint.Should().NotBeNull();
+        decision.Checkpoint!.ContentType.Should().Be(DurableExecutionEnvelopeV2.ContentType);
+        var persisted = DurableExecutionEnvelopeV2.Deserialize(decision.Checkpoint.Payload);
+        persisted.PlanBinding.PlanFingerprint.Should().Be("fingerprint");
+        persisted.Fibers.Single().InstructionId.Should().Be("root/2");
     }
 
     [Fact]
@@ -94,8 +148,8 @@ public sealed class DurableAggregateTests
         decision.Checkpoint.Should().NotBeNull();
         decision.Checkpoint!.StreamVersion.Should().Be(new StreamVersion(1));
         decision.Checkpoint.LastStepPath.Should().Be("root/1");
-        decision.Checkpoint.ContentType.Should().Be(DurableExecutionEnvelope.ContentType);
-        var persisted = DurableExecutionEnvelope.Deserialize(decision.Checkpoint.Payload);
+        decision.Checkpoint.ContentType.Should().Be(DurableExecutionEnvelopeV2.ContentType);
+        var persisted = DurableExecutionEnvelopeV2.Deserialize(decision.Checkpoint.Payload);
         persisted.StateContentType.Should().Be("application/json");
         persisted.StatePayload.Should().Equal(1, 2, 3);
     }

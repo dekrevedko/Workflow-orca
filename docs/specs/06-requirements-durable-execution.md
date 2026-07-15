@@ -13,9 +13,17 @@ durable waits/timers, durable history, and post-restart inspection are unavailab
 absent from ephemeral-facing APIs where practical. Requests for durable-only behavior in
 ephemeral mode SHALL fail fast with clear diagnostics.
 
+An in-memory implementation of durable ports MAY support development, tests, and executable
+documentation, but SHALL be named and documented as non-restart-durable, SHALL emit a clear
+startup diagnostic outside explicitly selected development/test use, and SHALL NOT appear in
+production-readiness examples.
+
 ### DU-002 Feature matrix is explicit
 The product SHALL publish a feature matrix declaring, per feature, its availability in each
 axis combination (ephemeral/durable × workflow/saga). Silent downgrades are non-conforming.
+
+The normative DU-002 matrix and signature baseline is
+[document 17](17-selected-mode-capability-matrix.md).
 
 ## 6.2 Recovery model (accepted architecture)
 
@@ -86,6 +94,10 @@ from committed workflow events as durable outbox records **in the same commit bo
 the events themselves. The engine SHALL never dispatch a message that was not first committed
 as an outbox record.
 
+Every accepted application operation that can make an instance runnable SHALL commit a
+continuation outbox record in the same boundary, including when the accepting host does not
+have the bound definition registered locally.
+
 ### DU-032 Asynchronous at-least-once dispatch
 Outbox dispatch SHALL run after commit: asynchronous, retryable, at-least-once, through the
 pluggable dispatcher port. The dispatch pipeline SHALL support: manual dispatch, automatic
@@ -140,6 +152,27 @@ through operational statistics before they become outages.
 Durable mode SHALL provide an idempotent start (`StartOrGet(key, input)`): retrying a lost
 start with the same idempotency key returns the existing instance instead of creating a
 duplicate. Ephemeral mode MAY offer a best-effort variant.
+
+### DU-054 Explicit host-scoped registration
+Definition registration SHALL be an explicit host-scoped operation and SHALL return a typed
+definition handle whose start methods infer state and input types without phantom generic
+parameters. Starting by identity SHALL NOT register a definition as a side effect. Attempting
+to start an identity not registered on that host SHALL return a stable
+`DefinitionNotRegistered` result or diagnostic without mutating registration state.
+
+### DU-055 Split-host continuation contract
+Every accepted facade operation SHALL commit its protocol outcome with an at-least-once
+continuation handoff. A host MAY drive inline only when the bound definition is registered
+locally. Application results SHALL distinguish `AppliedAndProgressed` from
+`AppliedPendingContinuation`; the latter is successful acceptance and requires a
+definition-owning host pump to progress the instance.
+
+### DU-056 Complete external-job outcomes
+The durable application facade SHALL expose typed, idempotent completion, worker-failure, and
+timeout operations for external jobs. Completion and worker failure SHALL accept a
+caller-stable report identity. Worker failure SHALL carry an application failure reason and
+optional payload, commit a distinct failure fact, and enter the authored failure policy
+without waiting for timeout. Duplicate reports SHALL return a stable duplicate result.
 
 ## 6.8 Multi-node direction (advanced)
 

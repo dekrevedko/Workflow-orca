@@ -34,10 +34,10 @@ public sealed class KubernetesWorkflowSampleService(
     // external-job pattern, where kubectl-driven jobs are attached to the instance through
     // RunExternalJobCommand/CompleteExternalJobCommand rather than executed as workflow steps.
     private static readonly WorkflowDefinition<KubernetesWorkflowState> Definition =
-        new WorkflowBuilder<KubernetesWorkflowState>()
+        Workflow.Durable<KubernetesWorkflowState>(KubernetesDefinitionId, DefinitionVersion.Initial)
             .Init<KubernetesWorkflowInput>(KubernetesWorkflowState.From)
             .End("KubernetesWorkflowTracked")
-            .Build(KubernetesDefinitionId, DefinitionVersion.Initial);
+            .Build();
 
     private readonly object gate = new();
     private readonly List<MutableWorkflowRun> runs = [];

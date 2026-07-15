@@ -34,6 +34,7 @@ public abstract record WorkflowCommand
     /// Gets the root workflow instance for the current workflow tree.
     /// </summary>
     public InstanceId? RootInstanceId { get; init; }
+
 }
 
 /// <summary>
@@ -85,6 +86,10 @@ public sealed record DeliverEventCommand : WorkflowCommand
 /// </summary>
 public sealed record ScheduleTimerCommand : WorkflowCommand
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
     /// <summary>
     /// Gets the durable timer identity.
     /// </summary>
@@ -105,7 +110,7 @@ public sealed record ScheduleTimerCommand : WorkflowCommand
     /// driver suspends an instance on a timer/delay node (DR-011a). Null for timers scheduled
     /// outside driver advancement.
     /// </summary>
-    public DurableExecutionEnvelope? Envelope { get; init; }
+    public DurableCheckpointPayload? Envelope { get; init; }
 
     /// <summary>
     /// Gets the stream version the durable driver observed when it decided this command; the
@@ -148,7 +153,7 @@ public sealed record ConsumeParentResumeTokenCommand : WorkflowCommand
     /// <summary>
     /// Gets the driver position checkpointed atomically with token consumption.
     /// </summary>
-    public DurableExecutionEnvelope? Envelope { get; init; }
+    public DurableCheckpointPayload? Envelope { get; init; }
 
     /// <summary>
     /// Gets matched child-completion resumes consumed by this parent advancement.
@@ -185,7 +190,7 @@ public sealed record ContinueAsNewCommand : WorkflowCommand
     /// Gets the fresh-generation state and execution position committed by the durable driver.
     /// Null preserves the kernel-level raw-baseline behavior for existing callers.
     /// </summary>
-    public DurableExecutionEnvelope? Envelope { get; init; }
+    public DurableCheckpointPayload? Envelope { get; init; }
 
     /// <summary>
     /// Gets the stream version observed by the durable driver.
@@ -219,6 +224,12 @@ public sealed record CompensateChildGroupCommand : WorkflowCommand
 /// </summary>
 public sealed record AcquireResourcePoolCommand : WorkflowCommand
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
+    public long WaitSequence { get; init; }
+
     /// <summary>
     /// Gets the guarded holder key within the workflow instance.
     /// </summary>
@@ -245,7 +256,7 @@ public sealed record AcquireResourcePoolCommand : WorkflowCommand
     /// Gets the execution-position envelope committed with the acquisition (DR-011a); null for
     /// kernel-level callers.
     /// </summary>
-    public DurableExecutionEnvelope? Envelope { get; init; }
+    public DurableCheckpointPayload? Envelope { get; init; }
 
     /// <summary>
     /// Gets the stream version this command was decided against; the commit is rejected when
@@ -265,6 +276,12 @@ public sealed record AcquireResourcePoolCommand : WorkflowCommand
 /// </summary>
 public sealed record RunExternalJobCommand : WorkflowCommand
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
+    public long WaitSequence { get; init; }
+
     /// <summary>
     /// Gets the provider-neutral external job identity.
     /// </summary>
@@ -296,7 +313,7 @@ public sealed record RunExternalJobCommand : WorkflowCommand
     /// Gets the execution-position envelope committed with the dispatch (DR-011a); null for
     /// kernel-level callers.
     /// </summary>
-    public DurableExecutionEnvelope? Envelope { get; init; }
+    public DurableCheckpointPayload? Envelope { get; init; }
 
     /// <summary>
     /// Gets the stream version this command was decided against; the commit is rejected when
@@ -357,6 +374,41 @@ public sealed record RecordSagaForwardActionCompletedCommand : WorkflowCommand
     /// Gets the stable compensation action key to run if this forward action is compensated.
     /// </summary>
     public required string CompensationKey { get; init; }
+
+    /// <summary>
+    /// Gets the structured fiber that committed the forward action.
+    /// </summary>
+    public FiberId? FiberId { get; init; }
+
+    /// <summary>
+    /// Gets the execution scope that owned the forward action at commit time.
+    /// </summary>
+    public OrcaCore.Abstractions.Ids.ScopeId? OwningScopeId { get; init; }
+
+    /// <summary>
+    /// Gets the stable compiled instruction identity of the forward action.
+    /// </summary>
+    public string? InstructionId { get; init; }
+
+    /// <summary>
+    /// Gets the committed per-instance action sequence.
+    /// </summary>
+    public long CommittedSequence { get; init; }
+
+    /// <summary>
+    /// Gets the stable authored branch order used for sibling compensation.
+    /// </summary>
+    public int CanonicalBranchOrder { get; init; }
+
+    /// <summary>
+    /// Gets the stable authored instruction order inside the branch.
+    /// </summary>
+    public int CanonicalInstructionOrder { get; init; }
+
+    /// <summary>
+    /// Gets an optional plan-bound compensation order override.
+    /// </summary>
+    public int? ScopeOrderOverride { get; init; }
 }
 
 /// <summary>

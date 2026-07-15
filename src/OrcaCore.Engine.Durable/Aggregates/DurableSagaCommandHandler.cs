@@ -28,7 +28,14 @@ internal static class DurableSagaCommandHandler
                 RootInstanceId = aggregate.RootInstanceId ?? aggregate.InstanceId,
                 ScopeId = command.ScopeId,
                 ActionKey = command.ActionKey,
-                CompensationKey = command.CompensationKey
+                CompensationKey = command.CompensationKey,
+                FiberId = command.FiberId,
+                OwningScopeId = command.OwningScopeId,
+                InstructionId = command.InstructionId,
+                CommittedSequence = command.CommittedSequence,
+                CanonicalBranchOrder = command.CanonicalBranchOrder,
+                CanonicalInstructionOrder = command.CanonicalInstructionOrder,
+                ScopeOrderOverride = command.ScopeOrderOverride
             }
         ]);
     }

@@ -115,6 +115,7 @@ public sealed class OrcaCoreHostingServiceCollectionTests
 
         await host.StartAsync(TestContext.Current.CancellationToken);
         await workflowStore.Dispatched.Task.WaitAsync(TestContext.Current.CancellationToken);
+        await workflowStore.OutboxMarkedDispatched.Task.WaitAsync(TestContext.Current.CancellationToken);
         await host.StopAsync(TestContext.Current.CancellationToken);
 
         var state = await workflowStore.GetStateAsync(
@@ -376,6 +377,9 @@ public sealed class OrcaCoreHostingServiceCollectionTests
         internal TaskCompletionSource<OutboxWrite> Dispatched { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+        internal TaskCompletionSource OutboxMarkedDispatched { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         internal TaskCompletionSource<WorkflowTimerFiredEvent> TimerFired { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -473,12 +477,16 @@ public sealed class OrcaCoreHostingServiceCollectionTests
             return inner.GetStateAsync(outboxRecordId, cancellationToken);
         }
 
-        public Task MarkAsync(
+        public async Task MarkAsync(
             OutboxRecordId outboxRecordId,
             OutboxRecordState state,
             CancellationToken cancellationToken)
         {
-            return inner.MarkAsync(outboxRecordId, state, cancellationToken);
+            await inner.MarkAsync(outboxRecordId, state, cancellationToken).ConfigureAwait(false);
+            if (state == OutboxRecordState.Dispatched)
+            {
+                OutboxMarkedDispatched.TrySetResult();
+            }
         }
 
         public Task ReleaseAsync(OutboxRecordId outboxRecordId, CancellationToken cancellationToken)

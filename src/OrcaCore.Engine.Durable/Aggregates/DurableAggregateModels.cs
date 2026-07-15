@@ -124,7 +124,12 @@ internal sealed record DurableActiveTimer(
     TimerId TimerId,
     DateTimeOffset FireAt,
     string WakeupName,
-    DateTimeOffset RegisteredAt);
+    DateTimeOffset RegisteredAt)
+{
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+}
 
 internal sealed record DurableActiveWait(
     WaitId WaitId,
@@ -133,7 +138,14 @@ internal sealed record DurableActiveWait(
     DateTimeOffset RegisteredAt,
     WaitMode Mode = WaitMode.Resident,
     string? BranchId = null,
-    TimerId? TimeoutTimerId = null);
+    TimerId? TimeoutTimerId = null)
+{
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
+    public long WaitSequence { get; init; }
+}
 
 internal sealed record DurableBufferedDelivery(
     EventId EventId,
@@ -151,7 +163,14 @@ internal sealed record DurablePendingResume(
     string? BranchId,
     string? PayloadContentType,
     byte[]? Payload,
-    DateTimeOffset MatchedAt);
+    DateTimeOffset MatchedAt)
+{
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
+    public long WaitSequence { get; init; }
+}
 
 internal sealed record DurableBufferedTimer(
     TimerId TimerId,
@@ -165,7 +184,12 @@ internal sealed record DurableActiveChild(
     RunChildFailurePolicy FailurePolicy,
     RunChildrenJoinPolicy JoinPolicy,
     RunChildrenResidualPolicy ResidualPolicy,
-    string? ItemSnapshot);
+    string? ItemSnapshot)
+{
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+}
 
 internal sealed record DurableActiveChildGroup(
     string GroupId,
@@ -174,7 +198,12 @@ internal sealed record DurableActiveChildGroup(
     RunChildrenResidualPolicy ResidualPolicy,
     int MaxConcurrency,
     int NextDispatchIndex,
-    IReadOnlyList<WorkflowChildMaterialization> Children);
+    IReadOnlyList<WorkflowChildMaterialization> Children)
+{
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+}
 
 internal sealed record DurableCompletedChild(
     string GroupId,
@@ -185,13 +214,55 @@ internal sealed record DurableCompletedChild(
 internal sealed record DurableActiveExternalJob(
     string ExternalJobId,
     WaitId WaitId,
-    TimerId? TimeoutTimerId);
+    TimerId? TimeoutTimerId)
+{
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+}
 
 internal sealed record DurableSagaForwardAction(
     string ScopeId,
     string ActionKey,
     string CompensationKey,
-    DateTimeOffset CompletedAt);
+    DateTimeOffset CompletedAt)
+{
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? OwningScopeId { get; init; }
+
+    public ScopeId? EligibleScopeId { get; init; }
+
+    public string? InstructionId { get; init; }
+
+    public long CommittedSequence { get; init; }
+
+    public int CanonicalBranchOrder { get; init; }
+
+    public int CanonicalInstructionOrder { get; init; }
+
+    public int? ScopeOrderOverride { get; init; }
+
+    internal static DurableSagaForwardAction FromCheckpoint(CheckpointSagaForwardAction action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        return new DurableSagaForwardAction(
+            action.ScopeId,
+            action.ActionKey,
+            action.CompensationKey,
+            action.CompletedAt)
+        {
+            FiberId = action.FiberId,
+            OwningScopeId = action.OwningScopeId,
+            EligibleScopeId = action.EligibleScopeId,
+            InstructionId = action.InstructionId,
+            CommittedSequence = action.CommittedSequence,
+            CanonicalBranchOrder = action.CanonicalBranchOrder,
+            CanonicalInstructionOrder = action.CanonicalInstructionOrder,
+            ScopeOrderOverride = action.ScopeOrderOverride
+        };
+    }
+}
 
 internal sealed record DurableSagaCompensationAction(
     string ScopeId,
@@ -217,7 +288,7 @@ internal sealed record DurableStepCompletedCommand(
     InstanceId InstanceId,
     DateTimeOffset RequestedAt,
     string StepPath,
-    DurableExecutionEnvelope Envelope)
+    DurableCheckpointPayload Envelope)
 {
     /// <summary>
     /// Gets the stream version the driver observed when deciding this command; the kernel
@@ -239,7 +310,21 @@ internal sealed record DurableStepCompletedCommand(
     /// Gets active timers released by this advancement.
     /// </summary>
     public IReadOnlyList<TimerId> CancelTimerIds { get; init; } = [];
+
+    /// <summary>
+    /// Gets fibers that became terminal in this advancement. The aggregate releases every
+    /// durable artifact still owned by these fibers in the same commit.
+    /// </summary>
+    public IReadOnlyList<FiberId> TerminalFiberIds { get; init; } = [];
+
+    /// <summary>
+    /// Gets compensation-eligibility transfers committed atomically with successful scope merges.
+    /// A null target denotes the root execution position.
+    /// </summary>
+    public IReadOnlyList<DurableSagaScopeTransfer> SagaScopeTransfers { get; init; } = [];
 }
+
+internal sealed record DurableSagaScopeTransfer(ScopeId FromScopeId, ScopeId? ToScopeId);
 
 internal sealed record DurableStepFailedCommand(
     CommandId CommandId,
@@ -247,9 +332,21 @@ internal sealed record DurableStepFailedCommand(
     DateTimeOffset RequestedAt,
     string StepPath,
     string ErrorSummary,
-    DurableExecutionEnvelope? Envelope = null)
+    DurableCheckpointPayload? Envelope = null)
 {
     public StreamVersion? ExpectedStreamVersion { get; init; }
+
+    public IReadOnlyList<WaitId> ConsumedResumeWaitIds { get; init; } = [];
+
+    public IReadOnlyList<WaitId> CancelWaitIds { get; init; } = [];
+
+    public IReadOnlyList<TimerId> CancelTimerIds { get; init; } = [];
+
+    public IReadOnlyList<FiberId> TerminalFiberIds { get; init; } = [];
+
+    public IReadOnlyList<ScopeId> FailedSagaScopeIds { get; init; } = [];
+
+    public bool CoversRootSagaEligibility { get; init; }
 }
 
 public sealed record DurableYieldCommand(
@@ -257,7 +354,7 @@ public sealed record DurableYieldCommand(
     InstanceId InstanceId,
     DateTimeOffset RequestedAt,
     string StepPath,
-    DurableExecutionEnvelope Envelope)
+    DurableCheckpointPayload Envelope)
 {
     /// <summary>
     /// Gets the stream version the driver observed when deciding this command.
@@ -279,16 +376,22 @@ public sealed record DurableRunChildCommand(
     DefinitionVersion ChildDefinitionVersion,
     RunChildFailurePolicy FailurePolicy)
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
     /// <summary>
     /// Gets the execution-position envelope checkpointed atomically with the child dispatch
     /// (DR-011a); null for kernel-level callers outside driver advancement.
     /// </summary>
-    public DurableExecutionEnvelope? Envelope { get; init; }
+    public DurableCheckpointPayload? Envelope { get; init; }
 
     /// <summary>
     /// Gets the stream version the durable driver observed when it decided this command.
     /// </summary>
     public StreamVersion? ExpectedStreamVersion { get; init; }
+
+    public IReadOnlyList<WaitId> ConsumedResumeWaitIds { get; init; } = [];
 }
 
 public sealed record DurableChildCompletedCommand(
@@ -311,16 +414,22 @@ public sealed record DurableRunChildrenCommand(
     RunChildrenJoinPolicy JoinPolicy = RunChildrenJoinPolicy.WhenAll,
     RunChildrenResidualPolicy ResidualPolicy = RunChildrenResidualPolicy.CancelRemaining)
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
     /// <summary>
     /// Gets the execution-position envelope checkpointed atomically with the group dispatch
     /// (DR-011a); null for kernel-level callers outside driver advancement.
     /// </summary>
-    public DurableExecutionEnvelope? Envelope { get; init; }
+    public DurableCheckpointPayload? Envelope { get; init; }
 
     /// <summary>
     /// Gets the stream version the durable driver observed when it decided this command.
     /// </summary>
     public StreamVersion? ExpectedStreamVersion { get; init; }
+
+    public IReadOnlyList<WaitId> ConsumedResumeWaitIds { get; init; } = [];
 }
 
 internal sealed record DurableWaitRegisteredCommand(
@@ -333,11 +442,17 @@ internal sealed record DurableWaitRegisteredCommand(
     WaitMode Mode = WaitMode.Resident,
     string? BranchId = null)
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
+    public long WaitSequence { get; init; }
+
     /// <summary>
     /// Gets the execution-position envelope checkpointed atomically with the wait registration
     /// (DR-011a); null only for kernel-internal registrations outside driver advancement.
     /// </summary>
-    public DurableExecutionEnvelope? Envelope { get; init; }
+    public DurableCheckpointPayload? Envelope { get; init; }
 
     /// <summary>
     /// Gets the timeout timer registered atomically with the wait for timeout races, when set.
@@ -387,7 +502,7 @@ internal sealed record DurableCompleteCommand(
     InstanceId InstanceId,
     DateTimeOffset RequestedAt,
     string? OutcomeName,
-    DurableExecutionEnvelope? Envelope = null)
+    DurableCheckpointPayload? Envelope = null)
 {
     public StreamVersion? ExpectedStreamVersion { get; init; }
 
@@ -396,6 +511,8 @@ internal sealed record DurableCompleteCommand(
     public IReadOnlyList<WaitId> CancelWaitIds { get; init; } = [];
 
     public IReadOnlyList<TimerId> CancelTimerIds { get; init; } = [];
+
+    public IReadOnlyList<FiberId> TerminalFiberIds { get; init; } = [];
 }
 
 internal sealed record DurableFailCommand(
@@ -403,9 +520,11 @@ internal sealed record DurableFailCommand(
     InstanceId InstanceId,
     DateTimeOffset RequestedAt,
     string ErrorSummary,
-    DurableExecutionEnvelope? Envelope = null)
+    DurableCheckpointPayload? Envelope = null)
 {
     public StreamVersion? ExpectedStreamVersion { get; init; }
+
+    public bool PreserveOwnership { get; init; }
 }
 
 internal sealed record DurableParkCommand(

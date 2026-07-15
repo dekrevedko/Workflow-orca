@@ -78,7 +78,7 @@ should exist.
   tenant policy in the scheduler application.
 - Do not create a parallel e2e harness. Extend `OrcaCore.Integration.Tests` and
   reuse its fixtures.
-- Do not widen scope to the legacy root implementation.
+- Do not widen scope to the archived legacy implementation under `archive/legacy-poc/`.
 - Do not require Docker for unit, acceptance, or provider-certification tests
   that do not need real external services.
 

@@ -68,6 +68,37 @@ internal sealed class DurableChildWorkflowState
         return activeChildren.Any(child => string.Equals(child.GroupId, groupId, StringComparison.Ordinal));
     }
 
+    internal IReadOnlyList<WorkflowChildResidualIntentRecordedEvent> CreateCancellationEvents(
+        DurableChildWorkflowEventContext context,
+        IReadOnlySet<FiberId>? ownerFiberIds = null,
+        IReadOnlySet<InstanceId>? excludedChildIds = null)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        return activeChildren
+            .Where(child => ownerFiberIds is null ||
+                child.FiberId is { } fiberId && ownerFiberIds.Contains(fiberId))
+            .Where(child => excludedChildIds is null || !excludedChildIds.Contains(child.ChildInstanceId))
+            .GroupBy(child => child.GroupId, StringComparer.Ordinal)
+            .Select(group => new WorkflowChildResidualIntentRecordedEvent
+            {
+                EventId = EventId.New(),
+                InstanceId = context.InstanceId,
+                CommandId = context.CommandId,
+                CausationId = context.CausationId,
+                OccurredAt = context.RequestedAt,
+                ParentInstanceId = context.ParentInstanceId,
+                RootInstanceId = context.RootInstanceId,
+                GroupId = group.Key,
+                ResidualPolicy = RunChildrenResidualPolicy.CancelRemaining,
+                ResidualChildInstanceIds = group
+                    .Select(child => child.ChildInstanceId)
+                    .OrderBy(childId => childId.Value)
+                    .ToArray()
+            })
+            .ToArray();
+    }
+
     internal void ClearActiveChildren()
     {
         activeChildren.Clear();
@@ -220,7 +251,11 @@ internal sealed class DurableChildWorkflowState
                     childScheduled.FailurePolicy,
                     RunChildrenJoinPolicy.WhenAll,
                     RunChildrenResidualPolicy.CancelRemaining,
-                    null);
+                    null)
+                {
+                    FiberId = childScheduled.FiberId,
+                    ScopeId = childScheduled.ScopeId
+                };
                 activeChildren.Add(singleChild);
                 return new DurableChildReplayEffects([WaitForChild(singleChild, childScheduled.OccurredAt)], [], null);
             case WorkflowChildrenScheduledEvent childrenScheduled:
@@ -233,14 +268,20 @@ internal sealed class DurableChildWorkflowState
                     childrenScheduled.ResidualPolicy,
                     childrenScheduled.MaxConcurrency,
                     childrenScheduled.NextDispatchIndex,
-                    childrenScheduled.Children));
+                    childrenScheduled.Children)
+                {
+                    FiberId = childrenScheduled.FiberId,
+                    ScopeId = childrenScheduled.ScopeId
+                });
                 return ActivateChildren(
                     childrenScheduled.GroupId,
                     childrenScheduled.FailurePolicy,
                     childrenScheduled.JoinPolicy,
                     childrenScheduled.ResidualPolicy,
                     childrenScheduled.Children.Take(childrenScheduled.InitialDispatchCount),
-                    childrenScheduled.OccurredAt);
+                    childrenScheduled.OccurredAt,
+                    childrenScheduled.FiberId,
+                    childrenScheduled.ScopeId);
             case WorkflowChildrenDispatchedEvent childrenDispatched:
                 var activeGroup = activeChildGroups.FirstOrDefault(group =>
                     string.Equals(group.GroupId, childrenDispatched.GroupId, StringComparison.Ordinal));
@@ -257,7 +298,9 @@ internal sealed class DurableChildWorkflowState
                     activeGroup.JoinPolicy,
                     activeGroup.ResidualPolicy,
                     childrenDispatched.Children,
-                    childrenDispatched.OccurredAt);
+                    childrenDispatched.OccurredAt,
+                    activeGroup.FiberId,
+                    activeGroup.ScopeId);
             case WorkflowChildCompletedEvent childCompleted:
                 return ApplyChildCompleted(childCompleted);
             case WorkflowChildCompensationScheduledEvent childCompensationScheduled:
@@ -288,7 +331,11 @@ internal sealed class DurableChildWorkflowState
                 child.FailurePolicy,
                 child.JoinPolicy,
                 child.ResidualPolicy,
-                child.ItemSnapshot))
+                child.ItemSnapshot)
+            {
+                FiberId = child.FiberId,
+                ScopeId = child.ScopeId
+            })
             .ToArray();
     }
 
@@ -302,7 +349,11 @@ internal sealed class DurableChildWorkflowState
                 group.ResidualPolicy,
                 group.MaxConcurrency,
                 group.NextDispatchIndex,
-                group.Children))
+                group.Children)
+            {
+                FiberId = group.FiberId,
+                ScopeId = group.ScopeId
+            })
             .ToArray();
     }
 
@@ -451,7 +502,9 @@ internal sealed class DurableChildWorkflowState
         RunChildrenJoinPolicy joinPolicy,
         RunChildrenResidualPolicy residualPolicy,
         IEnumerable<WorkflowChildMaterialization> children,
-        DateTimeOffset occurredAt)
+        DateTimeOffset occurredAt,
+        FiberId? fiberId,
+        ScopeId? scopeId)
     {
         var waits = new List<DurableActiveWait>();
         foreach (var child in children)
@@ -463,7 +516,11 @@ internal sealed class DurableChildWorkflowState
                 failurePolicy,
                 joinPolicy,
                 residualPolicy,
-                child.ItemSnapshot);
+                child.ItemSnapshot)
+            {
+                FiberId = fiberId,
+                ScopeId = scopeId
+            };
             activeChildren.Add(activeChild);
             waits.Add(WaitForChild(activeChild, occurredAt));
         }
@@ -510,6 +567,13 @@ internal sealed class DurableChildWorkflowState
             activeChildren.RemoveAll(child => child.ChildInstanceId == residualChildId);
         }
 
+        if (!activeChildren.Any(child =>
+                string.Equals(child.GroupId, residualIntent.GroupId, StringComparison.Ordinal)))
+        {
+            activeChildGroups.RemoveAll(group =>
+                string.Equals(group.GroupId, residualIntent.GroupId, StringComparison.Ordinal));
+        }
+
         return new DurableChildReplayEffects([], waitIdsToRemove, null);
     }
 
@@ -519,7 +583,11 @@ internal sealed class DurableChildWorkflowState
             child.WaitId,
             "ChildCompleted",
             ChildCorrelation(child.ChildInstanceId),
-            registeredAt);
+            registeredAt)
+        {
+            FiberId = child.FiberId,
+            ScopeId = child.ScopeId
+        };
     }
 
     private static CorrelationId ChildCorrelation(InstanceId childInstanceId)

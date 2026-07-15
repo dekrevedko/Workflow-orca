@@ -60,6 +60,34 @@ public sealed class EphemeralTimerTests
     }
 
     [Fact]
+    public async Task SelectedDelay_AfterDueTime_ContinuesExactlyOnce()
+    {
+        var clock = new Clock(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
+        var engine = new EphemeralWorkflowEngine(clock.TimeProvider);
+        var sink = new List<string>();
+        var definition = Workflow.Ephemeral<TimerState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(_ => new TimerState(sink))
+            .Delay(TimeSpan.FromMinutes(5))
+            .Then(() => new RecordingStep("after-selected-delay"))
+            .End()
+            .Build();
+        engine.RegisterDefinition(definition);
+
+        var waiting = await engine.StartAsync<string, TimerState>(
+            definition.DefinitionId,
+            "start",
+            TestContext.Current.CancellationToken);
+        clock.Advance(TimeSpan.FromMinutes(5));
+        var firstFire = await engine.FireDueTimersAsync(TestContext.Current.CancellationToken);
+        var secondFire = await engine.FireDueTimersAsync(TestContext.Current.CancellationToken);
+
+        waiting.Status.Should().Be(WorkflowStatus.Waiting);
+        firstFire.Should().ContainSingle().Which.Status.Should().Be(WorkflowStatus.Completed);
+        secondFire.Should().BeEmpty();
+        sink.Should().Equal("after-selected-delay");
+    }
+
+    [Fact]
     public async Task FireDueTimersAsync_TimerContinuationYields_DrainsYieldContinuation()
     {
         var clock = new Clock(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));

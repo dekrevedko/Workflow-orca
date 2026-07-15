@@ -24,6 +24,8 @@ internal sealed class DurableWorkflowDriver(
     IDurableDriverObserver? observer = null)
 {
     private const int MaxConflictRetries = 5;
+    private const string LegacyEnvelopeContentType =
+        "application/vnd.orcacore.durable-envelope.v1+json";
 
     private readonly DurableDriverBudget budget = budget ?? DurableDriverBudget.Default;
     private readonly DurableAggregateLoader aggregateLoader = new(processor.EventStore);
@@ -83,7 +85,8 @@ internal sealed class DurableWorkflowDriver(
                 // commands also produce continuation records; parking those would break direct
                 // kernel usage, so their claims resolve as no-ops.
                 var driverOwned = checkpointOption.HasValue &&
-                    checkpointOption.Value.ContentType == DurableExecutionEnvelope.ContentType;
+                    checkpointOption.Value.ContentType is
+                        LegacyEnvelopeContentType or DurableExecutionEnvelopeV2.ContentType;
                 if (mode == DurableDriveMode.Opportunistic || !driverOwned)
                 {
                     return new DurableSegmentResult(
@@ -98,17 +101,23 @@ internal sealed class DurableWorkflowDriver(
                     VersionBindingSummary(aggregate));
             }
 
-            DurableExecutionEnvelope? envelope = null;
+            DurableExecutionEnvelopeV2? fiberEnvelope = null;
             if (checkpointOption.HasValue)
             {
                 var checkpoint = checkpointOption.Value;
-                if (checkpoint.ContentType != DurableExecutionEnvelope.ContentType)
+                if (checkpoint.ContentType == DurableExecutionEnvelopeV2.ContentType)
+                {
+                    fiberEnvelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint.Payload);
+                }
+                else
                 {
                     // DR-012/DR-AC-018: a checkpoint without a readable position envelope is
                     // never resumed under a guessed position.
-                    var summary = $"Checkpoint content type '{checkpoint.ContentType}' does not carry a " +
-                        "durable execution-position envelope; explicit migration or operator intervention " +
-                        "is required.";
+                    var summary = checkpoint.ContentType == LegacyEnvelopeContentType
+                        ? "Checkpoint uses retired cursor envelope format 1; reset development fixtures or " +
+                          "apply an explicit migration before re-arming the instance."
+                        : $"Checkpoint content type '{checkpoint.ContentType}' does not carry a durable " +
+                          "execution-position envelope; explicit migration or operator intervention is required.";
                     await ParkAsync(
                         instanceId,
                         DurableParkReason.RuntimeStateVersion,
@@ -118,14 +127,12 @@ internal sealed class DurableWorkflowDriver(
                         cancellationToken).ConfigureAwait(false);
                     return new DurableSegmentResult(DurableSegmentOutcome.Parked, summary);
                 }
-
-                envelope = DurableExecutionEnvelope.Deserialize(checkpoint.Payload);
             }
 
             var context = new DurableDriverContext(
                 instanceId,
                 aggregate,
-                envelope,
+                fiberEnvelope,
                 processor,
                 serializer,
                 timeProvider,
@@ -259,17 +266,19 @@ internal sealed class DurableWorkflowDriver(
                     .LoadCheckpointAsync(aggregate.InstanceId, cancellationToken)
                     .ConfigureAwait(false);
                 if (!checkpoint.HasValue ||
-                    checkpoint.Value.ContentType != DurableExecutionEnvelope.ContentType)
+                    checkpoint.Value.ContentType != DurableExecutionEnvelopeV2.ContentType)
                 {
-                    return "The checkpoint has not been migrated to the current durable execution envelope.";
+                    return "The checkpoint has not been migrated to durable execution envelope format 2.";
                 }
 
                 try
                 {
-                    var envelope = DurableExecutionEnvelope.Deserialize(checkpoint.Value.Payload);
-                    return envelope.EnvelopeVersion == DurableExecutionEnvelope.CurrentVersion
+                    var version = DurableExecutionEnvelopeV2
+                        .Deserialize(checkpoint.Value.Payload)
+                        .EnvelopeVersion;
+                    return version == DurableExecutionEnvelopeV2.CurrentVersion
                         ? null
-                        : $"Checkpoint envelope version {envelope.EnvelopeVersion} is not supported.";
+                        : $"Checkpoint envelope version {version} is not supported.";
                 }
                 catch (Exception exception) when (exception is System.Text.Json.JsonException or NotSupportedException)
                 {

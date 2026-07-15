@@ -209,13 +209,24 @@ public sealed class InterpreterControlFlowTests
     {
         var state = new TestState();
         var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(new WorkflowBuilder<TestState>()
+        var definition = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
-            .Parallel(
-                ("a", branch => branch.Then(() => new AppendStep("a"))),
-                ("b", branch => branch.Then(() => new FailingStep())))
+            .Parallel<string>(
+                branches => branches
+                    .Branch<BranchState>(
+                        "a",
+                        _ => new BranchState("a"),
+                        branch => branch.Return(current => current.Value.Value))
+                    .Branch<BranchState>(
+                        "b",
+                        _ => new BranchState("b"),
+                        branch => branch
+                            .Then<FailingBranchStep>()
+                            .Return(current => current.Value.Value)),
+                (parent, _) => parent.Value)
             .Then(() => new AppendStep("after"))
-            .End());
+            .End()
+            .Build();
 
         engine.RegisterDefinition(definition);
 
@@ -234,13 +245,26 @@ public sealed class InterpreterControlFlowTests
     {
         var state = new TestState();
         var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(new WorkflowBuilder<TestState>()
+        var definition = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
-            .Parallel(
-                ("waiting", branch => branch.Wait("Ready", _ => new CorrelationId("waiting"))),
-                ("failing", branch => branch.Then(() => new FailingStep())))
+            .Parallel<string>(
+                branches => branches
+                    .Branch<BranchState>(
+                        "waiting",
+                        _ => new BranchState("waiting"),
+                        branch => branch
+                            .Wait("Ready", _ => new CorrelationId("waiting"))
+                            .Return(current => current.Value.Value))
+                    .Branch<BranchState>(
+                        "failing",
+                        _ => new BranchState("failing"),
+                        branch => branch
+                            .Then<FailingBranchStep>()
+                            .Return(current => current.Value.Value)),
+                (parent, _) => parent.Value)
             .Then(() => new AppendStep("after"))
-            .End());
+            .End()
+            .Build();
         engine.RegisterDefinition(definition);
 
         var snapshot = await engine.StartAsync<string, TestState>(
@@ -297,6 +321,19 @@ public sealed class InterpreterControlFlowTests
     {
         public ValueTask<StepResult> ExecuteAsync(
             StepContext<TestState> context,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult<StepResult>(
+                new StepResult.Failed(new WorkflowDefinitionException("boom")));
+        }
+    }
+
+    private sealed record BranchState(string Value);
+
+    private sealed class FailingBranchStep : IStep<BranchState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<BranchState> context,
             CancellationToken cancellationToken)
         {
             return ValueTask.FromResult<StepResult>(

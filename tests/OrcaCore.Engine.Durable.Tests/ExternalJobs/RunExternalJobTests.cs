@@ -32,6 +32,11 @@ public sealed class RunExternalJobTests
         var snapshot = (await provider.ListAsync(
             new WorkflowProjectionQuery { InstanceId = InstanceIdValue(1) },
             TestContext.Current.CancellationToken)).Should().ContainSingle().Subject;
+        var events = await provider.LoadTailAsync(
+            new WorkflowStreamId(InstanceIdValue(1)),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+        var pool = await pools.GetPoolAsync("db-a", TestContext.Current.CancellationToken);
 
         outbox.Should().ContainSingle(record => record.Kind == "external-job-start");
         outbox.Where(record => record.Kind == "external-job-start").Should().ContainSingle()
@@ -41,6 +46,13 @@ public sealed class RunExternalJobTests
             wait.EventName == "ExternalJobCompleted" &&
             wait.CorrelationId == new CorrelationId("job-1") &&
             wait.Mode == WaitMode.Cold.ToString());
+        snapshot.ActiveWaits.Single().FiberId.Should().Be(new FiberId("job-fiber"));
+        snapshot.ActiveWaits.Single().ScopeId.Should().Be(new ScopeId("job-scope"));
+        events.OfType<WorkflowExternalJobStartedEvent>().Single().FiberId
+            .Should().Be(new FiberId("job-fiber"));
+        events.OfType<WorkflowTimerScheduledEvent>().Single().ScopeId
+            .Should().Be(new ScopeId("job-scope"));
+        pool.Value.HeldTickets.Single().FiberId.Should().Be(new FiberId("job-fiber"));
     }
 
     [Fact]
@@ -69,8 +81,11 @@ public sealed class RunExternalJobTests
         first.Outcome.Should().Be(DurableCommandOutcome.Committed);
         duplicate.Outcome.Should().Be(DurableCommandOutcome.NoOp);
         events.OfType<WorkflowExternalJobCompletedEvent>().Should().ContainSingle();
-        events.OfType<WorkflowWaitMatchedEvent>().Should().ContainSingle()
-            .Which.MatchedEventId.Should().Be(completionEventId);
+        events.OfType<WorkflowExternalJobCompletedEvent>().Single().FiberId
+            .Should().Be(new FiberId("job-fiber"));
+        var matched = events.OfType<WorkflowWaitMatchedEvent>().Should().ContainSingle().Which;
+        matched.MatchedEventId.Should().Be(completionEventId);
+        matched.FiberId.Should().Be(new FiberId("job-fiber"));
     }
 
     [Fact]
@@ -185,7 +200,9 @@ public sealed class RunExternalJobTests
             ExternalJobId = externalJobId,
             Payload = JsonSerializer.SerializeToUtf8Bytes(new { externalJobId }),
             Requirements = requirements,
-            TimeoutAt = Timestamp(30)
+            TimeoutAt = Timestamp(30),
+            FiberId = new FiberId("job-fiber"),
+            ScopeId = new ScopeId("job-scope")
         };
     }
 

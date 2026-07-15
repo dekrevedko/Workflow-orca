@@ -14,8 +14,10 @@ at the repository root.
 - [Durable Driver Lane Host](durable-driver-lane-host.md) - how registered durable
   definitions advance (segments, restart-safe continuation signal, poison parking) and
   the honest multi-host contention model (DR-030..037).
-- [Durable Driver Status](durable-driver-status.md) - review + continuation handoff:
-  what DR-P1/P2 delivered, latent bugs fixed, and the remaining DR-P3/P4 scope.
+- [Durable Driver Status](durable-driver-status.md) - current structured-fiber
+  implementation, format-2 checkpoint, continuation, ownership, and verification status.
+- [Durable Development Store Reset](durable-development-store-reset.md) - required reset
+  procedure for stale cursor checkpoints and plan-binding changes during active development.
 
 ## Operations And Handoffs
 

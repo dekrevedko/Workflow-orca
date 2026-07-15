@@ -17,10 +17,11 @@ public sealed class DurableTimerStateTests
 
         state.Apply(TimerScheduled(timerId));
 
-        state.FindActive(timerId).Should().Be(
-            new DurableActiveTimer(timerId, Timestamp(30), "approval-timeout", Timestamp(1)));
-        state.CreateCheckpointActiveTimers().Should().ContainSingle().Which.Should().Be(
-            new CheckpointActiveTimer(timerId, Timestamp(30), "approval-timeout", Timestamp(1)));
+        state.FindActive(timerId)!.FiberId.Should().Be(new FiberId("timer-fiber"));
+        state.FindActive(timerId)!.ScopeId.Should().Be(new ScopeId("timer-scope"));
+        var checkpoint = state.CreateCheckpointActiveTimers().Should().ContainSingle().Which;
+        checkpoint.FiberId.Should().Be(new FiberId("timer-fiber"));
+        checkpoint.ScopeId.Should().Be(new ScopeId("timer-scope"));
         state.CreateCheckpointBufferedTimers().Should().BeEmpty();
     }
 
@@ -130,7 +131,9 @@ public sealed class DurableTimerStateTests
             OccurredAt = Timestamp(1),
             TimerId = timerId,
             FireAt = Timestamp(30),
-            WakeupName = "approval-timeout"
+            WakeupName = "approval-timeout",
+            FiberId = new FiberId("timer-fiber"),
+            ScopeId = new ScopeId("timer-scope")
         };
     }
 

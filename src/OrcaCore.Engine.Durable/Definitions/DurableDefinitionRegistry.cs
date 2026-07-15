@@ -3,6 +3,7 @@ using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Definitions;
+using OrcaCore.Engine.Durable.Driver;
 
 namespace OrcaCore.Engine.Durable.Definitions;
 
@@ -21,7 +22,11 @@ public sealed class DurableDefinitionRegistry
         ArgumentNullException.ThrowIfNull(definition);
 
         var key = new DurableDefinitionKey(definition.DefinitionId, definition.DefinitionVersion);
-        var registered = new RegisteredDefinition(definition, typeof(TState));
+        var registered = new RegisteredDefinition(
+            definition,
+            typeof(TState),
+            definition.CompiledPlan.Fingerprint,
+            DurableDriverCatalog.CreateExecutor(definition));
         definitions.AddOrUpdate(
             key,
             registered,
@@ -29,7 +34,8 @@ public sealed class DurableDefinitionRegistry
                 ? existing
                 : throw new WorkflowDefinitionException(
                     $"Workflow definition '{key.DefinitionId}' version '{key.DefinitionVersion}' " +
-                    $"is already registered for state type '{existing.StateType.FullName}'."));
+                    $"is already registered with state type '{existing.StateType.FullName}' and " +
+                    $"fingerprint '{existing.Fingerprint}'. Candidate fingerprint: '{registered.Fingerprint}'."));
     }
 
     /// <summary>
@@ -81,14 +87,30 @@ public sealed class DurableDefinitionRegistry
             .ToArray();
     }
 
+    internal IDurableDriverExecutor? ResolveExecutor(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion)
+    {
+        return definitions.TryGetValue(
+            new DurableDefinitionKey(definitionId, definitionVersion),
+            out var registered)
+            ? registered.Executor
+            : null;
+    }
+
     private static bool SameRegistration(
         RegisteredDefinition existing,
         RegisteredDefinition candidate)
     {
-        return existing.StateType == candidate.StateType;
+        return existing.StateType == candidate.StateType &&
+            string.Equals(existing.Fingerprint, candidate.Fingerprint, StringComparison.Ordinal);
     }
 
-    private sealed record RegisteredDefinition(object Definition, Type StateType);
+    private sealed record RegisteredDefinition(
+        object Definition,
+        Type StateType,
+        string Fingerprint,
+        IDurableDriverExecutor Executor);
 }
 
 /// <summary>

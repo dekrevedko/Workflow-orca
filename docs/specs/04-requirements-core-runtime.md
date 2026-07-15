@@ -8,15 +8,20 @@ guarantee. These requirements apply to **both** engines unless marked otherwise.
 ### CR-001 Code-first fluent builder
 The library SHALL expose a fluent builder as the primary public authoring path for workflow
 definitions. Builders exist per axis combination as needed (regular vs saga; ephemeral vs
-durable) so that durable-only and saga-only constructs are absent from surfaces where they
-are invalid (CR-020).
+durable) so that unsupported constructs are absent from surfaces where they are invalid.
+Authors SHALL select ephemeral or durable mode before mode-specific methods are available,
+and the shared compiler SHALL reject unsupported manually constructed graph nodes. The
+normative capability and signature baseline is
+[document 17](17-selected-mode-capability-matrix.md).
 
 ### CR-002 Immutable, validated definitions
-`Build()` SHALL produce an immutable definition graph. Runtime execution SHALL NOT depend on
-mutable definition state. Build-time validation SHALL verify structural integrity (matching
-`Parallel`/join, no orphan branches, presence of `Init`/`End`, legal policy combinations,
-no durable-only primitives in ephemeral definitions) and SHOULD report **all** validation
-errors together (accumulated validation), not only the first.
+`Build()` SHALL invoke the shared `DefinitionCompiler` and produce an immutable definition
+backed by its compiled plan. `TryBuild()` SHALL invoke the same compiler and return
+`Validation<TDefinition>` with every discoverable graph-wide diagnostic without publishing a
+definition. Runtime execution SHALL NOT depend on mutable definition state. Compilation SHALL
+verify structural integrity, selected-mode capability support, result/merge compatibility,
+serializer availability, configured limits, and complete successful-path termination.
+`Build()` SHALL throw one definition exception containing the same accumulated diagnostics.
 
 ### CR-003 Composite definition structure
 Definitions SHALL form a tree: infrastructure steps and business steps share a common step
@@ -36,10 +41,13 @@ SHALL exist.
 ### CR-006 Policies are decorators, not steps
 Retry, timeout, cancellation, compensation binding, idempotency, visibility/telemetry tags,
 and resource-pool hints SHALL be modeled as declarative decorators attachable to steps,
-scopes, or definitions. The first supported policy set SHOULD be: retry, timeout,
-cancellation, compensation (sagas), idempotency. Retry policies SHALL be structured
+scopes, or definitions where the selected mode implements their semantics. The first
+supported policy set SHOULD be: step/scope retry, timeout, cancellation, compensation
+(sagas), idempotency. Retry policies SHALL be structured
 (`MaxAttempts`, backoff, optional retry predicate, explicit terminal condition), bounded, and
-MUST NOT produce duplicate committed outcomes.
+MUST NOT produce duplicate committed outcomes. Definition-wide retry SHALL NOT be exposed
+until its reset point, state retention, and durable replay semantics are separately specified
+and implemented.
 
 ### CR-007 Serialized definition format is deferred
 No YAML/JSON/DSL definition format SHALL be introduced until code-first semantics are stable.
@@ -47,12 +55,22 @@ If introduced later, DSL semantics SHALL be verified for parity with code-first 
 the same acceptance suite.
 
 ### CR-008 Named End outcomes
-`End` MAY declare a named outcome (e.g. `Approved`, `TimedOut`, `FailedValidation`). The
-outcome name SHALL be recorded in runtime metadata (queryable and filterable through the
-management surface) and SHALL be carried on the completion lifecycle event and any configured
-end-of-life publication (EV-060). Named outcomes do not introduce new statuses: the lifecycle
-status remains the terminal state; the outcome is metadata describing *which* end was
-reached.
+Every workflow SHALL have exactly one root `End`. That `End` MAY declare a static named
+outcome or a deterministic named-outcome selector over final typed business state (e.g.
+`Approved`, `TimedOut`, `FailedValidation`). The selected outcome SHALL be recorded in runtime
+metadata (queryable and filterable through the management surface) and SHALL be carried on
+the completion lifecycle event and any configured end-of-life publication (EV-060). Named
+outcomes do not introduce new statuses or additional structural exits: lifecycle status
+remains `Completed`, and failure, cancellation, termination, poison, or parking paths do not
+execute `End`.
+
+### CR-009 Shared compiler diagnostics
+The mode-first workflow, saga, and DAG builders SHALL share one compiler/validation contract.
+Compiler diagnostics SHALL have stable machine-readable codes and structured authored-node,
+instruction, scope, and branch locations where applicable. Codes and locations are contract;
+human-readable messages MAY improve. Diagnostics SHALL be deterministic and ordered by
+authored graph location and then code. The reserved code families and approved public
+signatures are defined in [document 17](17-selected-mode-capability-matrix.md).
 
 ## 4.2 Execution model
 
@@ -84,10 +102,14 @@ A step that returns `Failed` or throws an unhandled exception SHALL move the ins
 details (type, message, step identity, timestamp) SHALL be captured in runtime state and be
 inspectable through the management surface.
 
-### CR-015 Execution position as a stack
-The runtime SHALL track position in the definition graph as a call-stack of frames (step +
-enclosing containers), not a flat index, so that nested structures (branch inside `Parallel`
-inside `If`) and rehydration are represented exactly.
+### CR-015 Execution position as structured fibers and scopes
+The runtime SHALL track execution through a compiled plan containing stable instruction,
+scope-plan, branch, and merge identities. Each active fiber SHALL carry one linear
+instruction position and fiber-local progress; recursive execution-scope records SHALL carry
+parent preservation, child membership, join/merge state, scheduler position, loop and scope
+entry progress, and owned obligations. A frame-stack or cursor path SHALL NOT be the
+canonical position or ownership model. The complete fiber/scope state SHALL represent nested
+structures and rehydration exactly.
 
 ### CR-016 Synchronous completion bridge
 The product SHALL define how a caller awaits completion of a short-running workflow (e.g., a
@@ -189,6 +211,10 @@ observable state. Concurrency conflicts SHALL produce retry, no-op, or rejection
 policy. After a crash, recovery restores the last committed state only.
 
 ### CR-044 Parallelism composes with serialization
-Parallel branches MAY execute concurrently (real concurrency for I/O), but all branch-state
-mutations and join checks SHALL commit through the per-instance serialized path
-(see CP requirements).
+Local `Parallel`, `WhenAll`, `WhenFirst`, and ephemeral `ForEach` branches SHALL execute as
+deterministically scheduled cooperative fibers: at most one local business-step body per
+instance executes at a time. Branches SHALL use isolated input/private state and communicate
+through typed results and explicit merge, while all fiber, scope, merge, and ownership
+transitions commit through the per-instance serialized path. True concurrent work SHALL use
+external jobs or child workflow instances governed by explicit cross-instance resource
+limits (see CP and MG requirements).

@@ -34,11 +34,15 @@ internal sealed class DurableExternalJobState
     }
 
     internal IReadOnlyList<WorkflowExternalJobStopRequestedEvent> CreateStopRequestedEvents(
-        DurableExternalJobEventContext context)
+        DurableExternalJobEventContext context,
+        IReadOnlySet<FiberId>? ownerFiberIds = null)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        return activeJobs.Select(job => new WorkflowExternalJobStopRequestedEvent
+        return activeJobs
+            .Where(job => ownerFiberIds is null ||
+                job.FiberId is { } fiberId && ownerFiberIds.Contains(fiberId))
+            .Select(job => new WorkflowExternalJobStopRequestedEvent
         {
             EventId = EventId.New(),
             InstanceId = context.InstanceId,
@@ -47,7 +51,9 @@ internal sealed class DurableExternalJobState
             OccurredAt = context.RequestedAt,
             ParentInstanceId = context.ParentInstanceId,
             RootInstanceId = context.RootInstanceId,
-            ExternalJobId = job.ExternalJobId
+            ExternalJobId = job.ExternalJobId,
+            FiberId = job.FiberId,
+            ScopeId = job.ScopeId
         }).ToArray();
     }
 
@@ -63,13 +69,20 @@ internal sealed class DurableExternalJobState
                 activeJobs.Add(new DurableActiveExternalJob(
                     externalJobStarted.ExternalJobId,
                     externalJobStarted.WaitId,
-                    externalJobStarted.TimeoutTimerId));
+                    externalJobStarted.TimeoutTimerId)
+                {
+                    FiberId = externalJobStarted.FiberId,
+                    ScopeId = externalJobStarted.ScopeId
+                });
                 break;
             case WorkflowExternalJobCompletedEvent externalJobCompleted:
                 Remove(externalJobCompleted.ExternalJobId);
                 break;
             case WorkflowExternalJobTimedOutEvent externalJobTimedOut:
                 Remove(externalJobTimedOut.ExternalJobId);
+                break;
+            case WorkflowExternalJobStopRequestedEvent stopRequested:
+                Remove(stopRequested.ExternalJobId);
                 break;
         }
     }
@@ -80,7 +93,11 @@ internal sealed class DurableExternalJobState
             .Select(job => new CheckpointActiveExternalJob(
                 job.ExternalJobId,
                 job.WaitId,
-                job.TimeoutTimerId))
+                job.TimeoutTimerId)
+            {
+                FiberId = job.FiberId,
+                ScopeId = job.ScopeId
+            })
             .ToArray();
     }
 

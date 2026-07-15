@@ -33,6 +33,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     private DateTimeOffset lastActiveAt;
     private DateTimeOffset? stuckDetectedAt;
     private string? stuckStepPath;
+    private long nextWaitSequence;
     private WorkflowInstanceSnapshot? publishedSnapshot;
     private TState? publishedState;
     private bool hasPublishedState;
@@ -73,9 +74,35 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
     internal DefinitionVersion DefinitionVersion { get; }
 
-    internal TState State { get; }
+    internal TState State { get; private set; }
 
     internal WorkflowStatus Status { get; private set; }
+
+    internal void ApplyStructuredStatus(WorkflowStatus status, DateTimeOffset observedAt)
+    {
+        if (status is not (WorkflowStatus.Running or WorkflowStatus.Waiting))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(status),
+                status,
+                "Structured runtime status updates must be nonterminal.");
+        }
+
+        if (Status == status)
+        {
+            return;
+        }
+
+        Status = status;
+        UpdatedAt = observedAt;
+        CurrentStatusEnteredAt = observedAt;
+        ToSnapshot();
+    }
+
+    internal void ReplaceState(TState state)
+    {
+        State = state;
+    }
 
     internal DateTimeOffset CreatedAt { get; }
 
@@ -114,14 +141,35 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         CorrelationId correlationId,
         BranchId? branchId,
         DateTimeOffset registeredAt,
-        Func<EventEnvelope, CancellationToken, Task> resumeAsync)
+        Func<EventEnvelope, CancellationToken, Task> resumeAsync,
+        FiberId? fiberId = null,
+        ScopeId? scopeId = null)
     {
         Status = WorkflowStatus.Waiting;
         UpdatedAt = registeredAt;
         CurrentStatusEnteredAt = registeredAt;
-        var wait = new RuntimeWaitRecord(eventName, correlationId, branchId, registeredAt, resumeAsync);
+        var wait = new RuntimeWaitRecord(
+            eventName,
+            correlationId,
+            branchId,
+            registeredAt,
+            resumeAsync,
+            checked(++nextWaitSequence),
+            fiberId,
+            scopeId);
         activeWaits.Add(wait);
         return wait;
+    }
+
+    internal void CancelWait(RuntimeWaitRecord wait)
+    {
+        ArgumentNullException.ThrowIfNull(wait);
+        if (activeWaits.Remove(wait))
+        {
+            wait.CancelLoser();
+        }
+
+        RestoreRunningWhenRuntimeWorkIsClear();
     }
 
     internal async Task<WorkflowInstanceSnapshot> RaiseEventAsync(
@@ -152,14 +200,11 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
                 $"Cannot raise event for workflow instance '{InstanceId}' because status '{Status}' is terminal.");
         }
 
-        var matchingWaits = activeWaits.Where(candidate => candidate.Matches(envelope)).ToArray();
-        if (matchingWaits.Length > 1 && string.IsNullOrWhiteSpace(envelope.BranchId))
-        {
-            throw new WorkflowRoutingException(
-                $"Event '{envelope.EventName}' with correlation '{envelope.CorrelationId}' matches multiple branch waits; provide BranchId.");
-        }
-
-        var wait = matchingWaits.FirstOrDefault();
+        var wait = activeWaits
+            .Where(candidate => candidate.Matches(envelope))
+            .OrderBy(candidate => candidate.WaitSequence)
+            .ThenBy(candidate => candidate.FiberId?.Value ?? string.Empty, StringComparer.Ordinal)
+            .FirstOrDefault();
         if (wait is null)
         {
             if (HasConsumedWait(envelope))
@@ -205,6 +250,25 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         var timer = new RuntimeTimerRecord(branchId, registeredAt);
         activeTimers.Add(timer);
         return timer;
+    }
+
+    internal void CancelTimer(RuntimeTimerRecord timer)
+    {
+        ArgumentNullException.ThrowIfNull(timer);
+        if (activeTimers.Remove(timer))
+        {
+            timer.Cancel();
+        }
+
+        RestoreRunningWhenRuntimeWorkIsClear();
+    }
+
+    private void RestoreRunningWhenRuntimeWorkIsClear()
+    {
+        if (Status == WorkflowStatus.Waiting && activeWaits.Count == 0 && activeTimers.Count == 0)
+        {
+            Status = WorkflowStatus.Running;
+        }
     }
 
     internal async Task<WorkflowInstanceSnapshot> FireDelayAsync(

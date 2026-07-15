@@ -63,6 +63,17 @@ program and exercised indirectly by many criteria here, without a dedicated AC e
   forcibly resolved, no policies or compensation run, and the instance commits `Terminated`.
   [CR-031]
 
+- **AC-016** *Mode-first authoring and shared compilation* - Ephemeral and durable factories
+  expose only their positive capability allowlists; `Build()` and `TryBuild()` produce the
+  same compiled plan or the same ordered diagnostics, and unsupported manually constructed
+  nodes fail before registration. [CR-001/002/009, DU-002]
+- **AC-017** *Post-fiber signatures compile as approved* - Public compile fixtures use the
+  exact branch-private state, typed return, replacement-state merge, saga, and DAG completion
+  shapes in document 17 without compatibility overloads. [CR-001/009, CP-001]
+- **AC-018** *Package dependency graph is exact* - Architecture tests accept every declared
+  tier edge, including Provider.Abstractions to Runtime.Protocol, and reject the reverse edge,
+  application-to-advanced references, and provider-to-engine references. [PR-004]
+
 ## Events, waits, timers (AC-1xx)
 
 - **AC-101** *Wait enters waiting state* — Executing `Wait` sets status `Waiting` with one
@@ -100,6 +111,11 @@ program and exercised indirectly by many criteria here, without a dedicated AC e
   filter is a single bulk operation returning all matches — no per-instance round-trips and
   no dependency on optional indexing infrastructure. [EV-013]
 
+- **AC-116** *Typed routing and portable dynamic wait* - No-match, ambiguous-match,
+  live-unmatched, and paused-target routing return typed outcomes. Structural `Wait` and
+  dynamic `StepResult.WaitForEvent` both create one correctly owned obligation in each mode.
+  This typed-result rule supersedes the error wording in AC-107. [EV-012, EV-045]
+
 ## Composition (AC-2xx)
 
 - **AC-201** *Join exactly once* — `Parallel` + `WhenAll`: the continuation runs exactly once
@@ -109,9 +125,11 @@ program and exercised indirectly by many criteria here, without a dedicated AC e
 - **AC-203** *Graph-shape insensitivity* — Adding a structurally irrelevant no-op step does
   not change join/continuation behavior. [CP-003]
 - **AC-204** *WhenFirst winner deterministic* — With near-simultaneous branch completions,
-  exactly one winner per documented policy. [CP-004]
-- **AC-205** *Losing-branch policy observable* — Losing branches follow the configured
-  residual policy and the outcome is inspectable. [CP-004]
+  exactly the first committed terminal branch wins; authored order breaks same-commit ties,
+  and a failed winner fails without merge. [CP-004]
+- **AC-205** *Losing branches are cleaned up* — Every losing descendant is cancelled and
+  cancellation/release of all owned obligations is observable before or atomically with the
+  parent continuation; detached residual policies fail validation. [CP-004]
 
 ## Durable execution (AC-3xx)
 
@@ -153,6 +171,20 @@ program and exercised indirectly by many criteria here, without a dedicated AC e
 - **AC-316** *No critical persistence in shutdown hooks* — A host killed before deactivation
   hooks run loses nothing: transitions were committed at safe boundaries. [DU-021]
 
+- **AC-317** *In-memory durable hosting is honest* - Selecting the in-memory durable host
+  outside explicit development/test use emits the required diagnostic, and no restart-
+  durability sample or claim is published for it. [DU-001]
+- **AC-318** *Registration is explicit and inferable* - Registering a definition returns a
+  typed handle whose start call compiles without a phantom state generic; starting an
+  unregistered identity returns `DefinitionNotRegistered` and does not register it. [DU-054]
+- **AC-319** *Split-host outcome progresses exactly once* - A definition-less callback host
+  reports an accepted external-job outcome and receives `AppliedPendingContinuation`; the
+  definition-owning host pump later progresses the instance exactly once. A local definition
+  host that drives inline receives `AppliedAndProgressed`. [DU-031, DU-055]
+- **AC-320** *Worker failure is prompt and idempotent* - A worker failure reported before
+  timeout commits a distinct failure outcome, enters the authored policy immediately, and a
+  duplicate report returns `Duplicate` without applying it twice. [DU-056]
+
 ## Saga (AC-4xx)
 
 - **AC-401** *Success without compensation* — All forward steps succeed → saga `Completed`;
@@ -160,7 +192,9 @@ program and exercised indirectly by many criteria here, without a dedicated AC e
 - **AC-402** *Failure triggers compensation* — A failing step after completed forward steps
   starts compensation for eligible steps. [SG-011]
 - **AC-403** *Deterministic compensation order* — Compensations run in reverse
-  successful-completion order (or the explicit override). [SG-010]
+  committed sequence order for linear actions and reverse canonical authored order for
+  sibling-fiber actions, or a deterministic plan-bound per-scope override. Equivalent
+  completion interleavings produce the same order. [SG-010]
 - **AC-404** *Compensation failure observable* — A failing compensating action yields the
   distinct `CompensationFailed` outcome. [SG-013]
 - **AC-405** *Timeout/compensation interaction* — A forward-step timeout applies the
@@ -235,18 +269,33 @@ program and exercised indirectly by many criteria here, without a dedicated AC e
 - **AC-522** *All-or-nothing multi-pool grant* — A scope requiring tickets from several
   pools never holds a partial set while waiting for the rest. [MG-063]
 
+- **AC-523** *Remediation and time stay application-safe* - A stale opaque remediation token
+  returns a stable conflict, a current acknowledged poison rearms through the continuation
+  contract, application calls expose no stream version, and committed timestamps come from
+  the runtime clock. [MG-014, MG-032]
+- **AC-524** *Three concurrency lifetimes remain distinct* - Compile/API fixtures distinguish
+  per-step throttle, host-local transient pool, and persisted durable lease. A blocked fiber
+  releases the instance turn; every scope terminal path releases its durable lease exactly
+  once, while expiry remains recovery-only. [MG-060/061/062]
+
 ## Child workflows & fanout (AC-6xx)
 
 Ephemeral `ForEach`:
 
-- **AC-601** *Runtime batching* — Batch size 10 over 23 items creates exactly 3 work items.
+- **AC-601** *Runtime batching* — Batch size 10 over 23 items creates exactly 3 stable,
+  index-ordered item descriptors and isolated item fibers as admission permits.
   [CP-011, CP-030]
-- **AC-602** *ForEach WhenAll* — Parent continues only after all work items complete.
+- **AC-602** *ForEach WhenAll* — Parent continues only after all item outcomes required by
+  the failure policy are terminal and any declared ordered merge commits once.
   [CP-011]
-- **AC-603** *ForEach bounded concurrency* — `maxConcurrency` limits active items. [CP-013]
-- **AC-604** *WaitAllThenFail* — All items finish, then the parent fails. [CP-011]
-- **AC-605** *WhenAny cancellation intent first* — Cancellation intent is recorded before the
-  parent continues. [CP-012]
+- **AC-603** *ForEach bounded admission* — `maxConcurrency` limits admitted nonterminal item
+  fibers while local item step bodies execute cooperatively one at a time. [CP-013]
+- **AC-604** *WaitAllThenFail* — All item outcomes become terminal, then the parent fails
+  without merge when any item failed. [CP-011]
+- **AC-605** *WhenAny strict winner and cleanup* — The first committed terminal item wins,
+  item index breaks same-commit ties, a failed winner fails without merge, and cancellation
+  of every remaining item and pending descriptor is recorded before parent continuation.
+  Non-`FailFast` combinations fail validation. [CP-011, CP-012]
 
 Durable `RunChildren`:
 

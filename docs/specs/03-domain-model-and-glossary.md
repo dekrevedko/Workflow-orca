@@ -31,6 +31,25 @@ separation preferred) and rejected fast at runtime otherwise.
 - **Saga definition** — a separate semantic definition kind with compensation scopes,
   compensation handlers, and saga-specific terminal states. Not a flag on a workflow.
 - **Definition identity** — `DefinitionId` + `DefinitionVersion`. Instances bind to both.
+- **Compiled plan** - the immutable, validated instruction/scope graph produced by the
+  `DefinitionCompiler`. Engines execute this plan; they do not rediscover control flow from
+  builder objects at runtime.
+- **Plan fingerprint** - the canonical hash over compiler format, graph structure, policies,
+  types, and configuration. Durable envelopes bind to it so same-version graph drift parks
+  instead of resuming under different semantics.
+- **Fiber** - one linear instruction position with private branch state, lifecycle phase,
+  ownership, and scheduling metadata. A fiber is cooperative work, not an operating-system
+  thread and not an independently addressable workflow instance.
+- **Execution scope** - the runtime-owned parent/child boundary created by `Parallel`,
+  `WhenFirst`, or ephemeral `ForEach`. It owns child fibers, their blocked obligations,
+  committed results, cancellation, join state, and exactly one parent continuation.
+- **Quantum** - one bounded turn of a runnable fiber. It ends after one user-step invocation,
+  suspension, branch return, failure, cooperative yield, or the internal-instruction limit.
+- **Branch return** - the single reachable terminal instruction of a branch fiber. It
+  serializes one typed result for its owning scope; it does not end the workflow.
+- **Merge** - the pure synchronous function evaluated at a scope join over a read-only parent
+  snapshot and canonical committed result input. It returns the complete replacement parent
+  state and runs at most once per committed scope join.
 - **Step** — unit of workflow structure. Two families:
   - *Infrastructure (control-flow) steps*: `Init`, `End`, `If`, `While`, `Parallel`,
     `WhenAll`, `WhenFirst`, `Wait`, `WaitLong` (durable-only), `Delay`/`Timer`, `ForEach`

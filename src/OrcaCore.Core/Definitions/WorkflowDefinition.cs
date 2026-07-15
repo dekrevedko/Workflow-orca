@@ -1,4 +1,5 @@
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Core.Compilation;
 
 namespace OrcaCore.Core.Definitions;
 
@@ -12,7 +13,8 @@ public sealed record WorkflowDefinition<TState>
         DefinitionVersion definitionVersion,
         SequenceNode<TState> rootSequence,
         WorkflowPolicySet? policies = null,
-        bool requiresDurableEngine = false)
+        bool requiresDurableEngine = false,
+        CompiledWorkflowPlan? compiledPlan = null)
     {
         ArgumentNullException.ThrowIfNull(rootSequence);
 
@@ -21,6 +23,11 @@ public sealed record WorkflowDefinition<TState>
         RootSequence = rootSequence;
         Policies = policies ?? WorkflowPolicySet.Empty;
         RequiresDurableEngine = requiresDurableEngine;
+        CompiledPlan = compiledPlan ?? CompiledWorkflowPlan.FromLegacy(
+            definitionId,
+            definitionVersion,
+            rootSequence,
+            requiresDurableEngine);
     }
 
     /// <summary>
@@ -38,6 +45,11 @@ public sealed record WorkflowDefinition<TState>
     /// and therefore cannot execute on the ephemeral engine.
     /// </summary>
     public bool RequiresDurableEngine { get; }
+
+    /// <summary>
+    /// Gets the immutable compiler output bound to this definition.
+    /// </summary>
+    public CompiledWorkflowPlan CompiledPlan { get; }
 
     internal SequenceNode<TState> RootSequence { get; }
 

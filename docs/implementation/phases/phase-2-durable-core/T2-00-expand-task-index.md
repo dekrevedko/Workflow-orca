@@ -17,7 +17,7 @@ Each task must fit the protocol sizing limits or be split before execution.
 ## Deliverables
 - `docs/implementation/phases/phase-2-durable-core/PROGRESS.md`
 - `docs/implementation/phases/phase-2-durable-core/T2-01-*.md` through `T2-15-*.md`
-- All paths in generated tasks use ``.
+- All paths in generated tasks are explicit repository-root paths.
 
 ## Tests to write FIRST
 No product tests. Review the generated task files for path safety, dependency order, AC ownership, and sizing.

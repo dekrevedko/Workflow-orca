@@ -1,5 +1,8 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Instances;
+using OrcaCore.Core.Compilation;
+using OrcaCore.Core.Execution;
+using OrcaCore.Engine.Durable.Driver;
 
 namespace OrcaCore.Engine.Durable.Aggregates;
 
@@ -31,6 +34,24 @@ internal static class DurableWorkflowReplayApplier
 
         throw new InvalidOperationException(
             $"Workflow event '{workflowEvent.GetType().Name}' is not supported by durable aggregate replay.");
+    }
+
+    internal static void ApplyStructuredEnvelopeStatus(
+        DurableWorkflowAggregate aggregate,
+        DurableCheckpointPayload envelope)
+    {
+        ArgumentNullException.ThrowIfNull(aggregate);
+        ArgumentNullException.ThrowIfNull(envelope);
+        if (envelope.ContentType != DurableExecutionEnvelopeV2.ContentType ||
+            aggregate.Status is not (WorkflowStatus.Running or WorkflowStatus.Waiting))
+        {
+            return;
+        }
+
+        var execution = DurableFiberEnvelopeMapper.FromEnvelope(
+            DurableExecutionEnvelopeV2.Deserialize(envelope.Payload));
+        var derived = ExecutionStatusDeriver.Derive(WorkflowExecutionMode.Durable, execution);
+        aggregate.Status = derived.Status ?? WorkflowStatus.Parked;
     }
 
     private static void BeginReplay(DurableWorkflowAggregate aggregate, WorkflowEvent workflowEvent)
@@ -254,7 +275,8 @@ internal static class DurableWorkflowReplayApplier
             case WorkflowExternalJobTimedOutEvent externalJobTimedOut:
                 aggregate.ExternalJobState.Apply(externalJobTimedOut);
                 return true;
-            case WorkflowExternalJobStopRequestedEvent:
+            case WorkflowExternalJobStopRequestedEvent externalJobStopRequested:
+                aggregate.ExternalJobState.Apply(externalJobStopRequested);
                 return true;
             default:
                 return false;
@@ -266,6 +288,7 @@ internal static class DurableWorkflowReplayApplier
         switch (workflowEvent)
         {
             case SagaForwardActionCompletedEvent:
+            case SagaForwardActionsTransferredEvent:
             case SagaForwardActionTimedOutEvent:
             case SagaCompensationRequestedEvent:
             case SagaCompensationStartedEvent:

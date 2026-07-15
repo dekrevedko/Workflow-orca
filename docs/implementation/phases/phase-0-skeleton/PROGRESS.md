@@ -1,9 +1,8 @@
 # Phase 0 Progress
 
-Note: this repository currently carries multiple independent implementation workspaces —
-`` (entries below), ``, and `v3-cursor/`. The `` and `v3-cursor/` workspaces
-track progress in workspace-local `PROGRESS.md` files; do not reconcile or overwrite across
-the logs.
+Note: the active implementation is now the repository root. This append-only log retains
+historical entries from the former parallel workspaces; do not reconcile historical logs or
+write active code under `archive/legacy-poc/`.
 
 ## current implementation
 

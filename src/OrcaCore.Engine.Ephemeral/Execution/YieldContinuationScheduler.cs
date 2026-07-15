@@ -63,6 +63,33 @@ internal sealed class YieldContinuationScheduler(
         }
     }
 
+    internal async Task<WorkflowInstanceSnapshot> ResumeAsync<TState>(
+        WorkflowInstance<TState> instance,
+        InstanceId instanceId,
+        Func<CancellationToken, Task> continuation,
+        Action<WorkflowInstanceSnapshot> onSnapshotCommitted,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(instance);
+        ArgumentNullException.ThrowIfNull(continuation);
+        ArgumentNullException.ThrowIfNull(onSnapshotCommitted);
+
+        await using (await governance.EnterAdvancementAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return await executionLane.RunAsync(
+                instanceId,
+                async laneCancellationToken =>
+                {
+                    using var linkedCancellation = instance.CreateLinkedExecutionToken(laneCancellationToken);
+                    await continuation(linkedCancellation.Token).ConfigureAwait(false);
+                    var snapshot = instance.ToSnapshot();
+                    onSnapshotCommitted(snapshot);
+                    return snapshot;
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     private sealed record YieldDrainResult(
         WorkflowInstanceSnapshot Snapshot,
         bool DrainedContinuation);

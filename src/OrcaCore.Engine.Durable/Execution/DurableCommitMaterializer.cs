@@ -20,7 +20,7 @@ internal sealed class DurableCommitMaterializer
         ArgumentNullException.ThrowIfNull(decision);
         ArgumentNullException.ThrowIfNull(aggregate);
 
-        var projectionOperations = aggregate.CreateProjectionWrites(decision.Events);
+        var projectionOperations = aggregate.CreateProjectionWrites(decision.Events, decision.Checkpoint);
         return new ProviderCommitBatch
         {
             StreamId = new WorkflowStreamId(instanceId),
@@ -91,7 +91,7 @@ internal sealed class DurableCommitMaterializer
         DurableWorkflowAggregate aggregate,
         IReadOnlyList<ProjectionWrite> projectionOperations)
     {
-        if (decision.Events.Count == 0)
+        if (decision.Events.Count == 0 && !HasRunnableEnvelopeWork(decision.Checkpoint))
         {
             return [];
         }
@@ -115,17 +115,17 @@ internal sealed class DurableCommitMaterializer
 
         if (status != WorkflowStatus.Running
             && !decision.Events.Any(IsUnblockingEvent)
-            && !HasRunnableEnvelopeCursor(decision.Checkpoint))
+            && !HasRunnableEnvelopeWork(decision.Checkpoint))
         {
             return [];
         }
 
-        var lastEvent = decision.Events[^1];
+        var lastEvent = decision.Events.LastOrDefault();
         var failedAttempt = decision.Events.OfType<WorkflowContinuationAttemptFailedEvent>().LastOrDefault();
         var signal = new DurableContinuationSignal
         {
-            InstanceId = lastEvent.InstanceId,
-            OccurredAt = lastEvent.OccurredAt,
+            InstanceId = lastEvent?.InstanceId ?? decision.Checkpoint!.InstanceId,
+            OccurredAt = lastEvent?.OccurredAt ?? aggregate.UpdatedAt ?? DateTimeOffset.UnixEpoch,
             NotBefore = failedAttempt?.NextEligibleAt
         };
         return [new OutboxWrite(OutboxRecordId.New(), OutboxKinds.Continue, signal.Serialize())];
@@ -143,18 +143,26 @@ internal sealed class DurableCommitMaterializer
             or WorkflowParentResumeTokenRecordedEvent;
     }
 
-    private static bool HasRunnableEnvelopeCursor(CheckpointWrite? checkpoint)
+    private static bool HasRunnableEnvelopeWork(CheckpointWrite? checkpoint)
     {
-        if (checkpoint is null || checkpoint.ContentType != DurableExecutionEnvelope.ContentType)
+        if (checkpoint is null)
         {
             return false;
         }
 
         try
         {
-            var envelope = DurableExecutionEnvelope.Deserialize(checkpoint.Payload);
-            return envelope.Position.Cursors.Any(cursor =>
-                cursor.Phase is DurableCursorPhase.AtNode or DurableCursorPhase.Yielded);
+            if (checkpoint.ContentType == DurableExecutionEnvelopeV2.ContentType)
+            {
+                var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint.Payload);
+                var runnable = envelope.Fibers
+                    .Where(fiber => fiber.Phase == DurableFiberPhase.Runnable)
+                    .Select(fiber => fiber.FiberId)
+                    .ToHashSet(StringComparer.Ordinal);
+                return envelope.Scheduler.NextFiberId is { } next && runnable.Contains(next);
+            }
+
+            return false;
         }
         catch (JsonException)
         {

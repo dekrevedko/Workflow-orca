@@ -84,9 +84,16 @@ public sealed class RoutingTests
         var snapshot = await engine.RaiseEventByCorrelationAsync<TestState>(
             Event("Approved", Correlation, "payload", branchId: "0:target"),
             TestContext.Current.CancellationToken);
+        snapshot.ActiveWaits.Should().ContainSingle(wait => wait.EventName == "other-a");
+        snapshot = await engine.RaiseEventAsync<TestState>(
+            snapshot.InstanceId,
+            Event("other-a", new CorrelationId("other-a"), null),
+            TestContext.Current.CancellationToken);
+        var firstResult = engine.Management.Instance(snapshot.InstanceId).GetState<TestState>();
 
         snapshot.DefinitionId.Should().Be(first.DefinitionId);
-        firstState.Payloads.Should().Equal(["payload"]);
+        snapshot.Status.Should().Be(WorkflowStatus.Completed);
+        firstResult.Payloads.Should().Equal(["payload"]);
         secondState.Payloads.Should().BeEmpty();
     }
 
@@ -199,15 +206,33 @@ public sealed class RoutingTests
         string matchingBranchName,
         string otherEventName)
     {
-        return new WorkflowBuilder<TestState>()
+        return Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
-            .Parallel(
-                (matchingBranchName, branch => branch
-                    .Wait("Approved", _ => Correlation)
-                    .Then(() => new CapturePayloadStep())),
-                ("residual", branch => branch.Wait(otherEventName, _ => new CorrelationId(otherEventName))))
+            .Parallel<string>(
+                branches => branches
+                    .Branch<BranchPayloadState>(
+                        matchingBranchName,
+                        _ => new BranchPayloadState(),
+                        branch => branch
+                            .Wait("Approved", _ => Correlation)
+                            .Return(_ => "payload"))
+                    .Branch<BranchPayloadState>(
+                        "residual",
+                        _ => new BranchPayloadState(),
+                        branch => branch
+                            .Wait(otherEventName, _ => new CorrelationId(otherEventName))
+                            .Return(_ => string.Empty)),
+                (parent, results) =>
+                {
+                    var merged = new TestState();
+                    merged.Payloads.AddRange(parent.Value.Payloads);
+                    merged.Payloads.AddRange(results
+                        .Select(result => result.Value)
+                        .Where(payload => !string.IsNullOrEmpty(payload)));
+                    return merged;
+                })
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
     }
 
     private static EventEnvelope Event(
@@ -229,7 +254,7 @@ public sealed class RoutingTests
 
     private sealed class TestState
     {
-        public List<string> Payloads { get; } = [];
+        public List<string> Payloads { get; init; } = [];
     }
 
     private sealed class CapturePayloadStep : IStep<TestState>
@@ -246,6 +271,8 @@ public sealed class RoutingTests
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
         }
     }
+
+    private sealed class BranchPayloadState;
 
     private sealed class CountingInstanceRegistry : IInstanceRegistry
     {

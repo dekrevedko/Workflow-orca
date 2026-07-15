@@ -165,6 +165,10 @@ public sealed class DurableChildWorkflowStateTests
 
         children.Should().ContainSingle().Which.ChildInstanceId.Should().Be(ChildId(0));
         groups.Should().ContainSingle().Which.GroupId.Should().Be(GroupId());
+        children.Single().FiberId.Should().Be(new FiberId("child-fiber"));
+        children.Single().ScopeId.Should().Be(new ScopeId("child-scope"));
+        groups.Single().FiberId.Should().Be(new FiberId("child-fiber"));
+        groups.Single().ScopeId.Should().Be(new ScopeId("child-scope"));
     }
 
     private static DurableActiveChildGroup ActiveGroup(
@@ -181,7 +185,11 @@ public sealed class DurableChildWorkflowStateTests
             residualPolicy,
             maxConcurrency,
             nextDispatchIndex,
-            children ?? [Child(0)]);
+            children ?? [Child(0)])
+        {
+            FiberId = new FiberId("child-fiber"),
+            ScopeId = new ScopeId("child-scope")
+        };
     }
 
     private static DurableActiveChild ActiveChild(int index, DurableActiveChildGroup group)
@@ -193,7 +201,11 @@ public sealed class DurableChildWorkflowStateTests
             group.FailurePolicy,
             group.JoinPolicy,
             group.ResidualPolicy,
-            Child(index).ItemSnapshot);
+            Child(index).ItemSnapshot)
+        {
+            FiberId = group.FiberId,
+            ScopeId = group.ScopeId
+        };
     }
 
     private static WorkflowChildMaterialization Child(int index)

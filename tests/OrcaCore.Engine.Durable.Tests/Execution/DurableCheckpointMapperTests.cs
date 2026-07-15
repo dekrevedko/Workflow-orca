@@ -14,6 +14,8 @@ public sealed class DurableCheckpointMapperTests
     [Fact]
     public void ToAggregateCheckpoint_MapsProviderCheckpointRuntimeState()
     {
+        var fiberId = new FiberId("fiber-owner");
+        var scopeId = new ScopeId("scope-owner");
         var child = new WorkflowChildMaterialization
         {
             Index = 0,
@@ -29,7 +31,11 @@ public sealed class DurableCheckpointMapperTests
             InstanceIdValue(1),
             "holder-1",
             Timestamp(2),
-            Timestamp(60));
+            Timestamp(60))
+        {
+            FiberId = fiberId,
+            ScopeId = scopeId
+        };
         var checkpoint = new CheckpointWrite(
             InstanceIdValue(1),
             new StreamVersion(42),
@@ -54,6 +60,10 @@ public sealed class DurableCheckpointMapperTests
                         Timestamp(30),
                         "timeout",
                         Timestamp(3))
+                    {
+                        FiberId = fiberId,
+                        ScopeId = scopeId
+                    }
                 ],
                 ActiveWaits =
                 [
@@ -64,6 +74,10 @@ public sealed class DurableCheckpointMapperTests
                         Timestamp(4),
                         WaitMode.Cold,
                         "branch-a")
+                    {
+                        FiberId = fiberId,
+                        ScopeId = scopeId
+                    }
                 ],
                 BufferedDeliveries =
                 [
@@ -90,6 +104,10 @@ public sealed class DurableCheckpointMapperTests
                         RunChildrenJoinPolicy.WhenAny,
                         RunChildrenResidualPolicy.CancelRemaining,
                         "item-0")
+                    {
+                        FiberId = fiberId,
+                        ScopeId = scopeId
+                    }
                 ],
                 ActiveChildGroups =
                 [
@@ -101,6 +119,10 @@ public sealed class DurableCheckpointMapperTests
                         3,
                         1,
                         [child])
+                    {
+                        FiberId = fiberId,
+                        ScopeId = scopeId
+                    }
                 ],
                 ActiveResourceTickets = [ticket],
                 ActiveExternalJobs =
@@ -109,6 +131,10 @@ public sealed class DurableCheckpointMapperTests
                         "job-1",
                         WaitIdValue(13),
                         TimerIdValue(14))
+                    {
+                        FiberId = fiberId,
+                        ScopeId = scopeId
+                    }
                 ]
             }
         };
@@ -130,21 +156,29 @@ public sealed class DurableCheckpointMapperTests
         aggregate.ContinueAsNewGeneration.Should().Be(6);
         aggregate.ContentType.Should().Be("application/json");
         aggregate.Payload.Should().Equal(1, 2, 3);
-        aggregate.ActiveTimers.Should().ContainSingle().Which.Should().Be(
-            new DurableActiveTimer(TimerIdValue(7), Timestamp(30), "timeout", Timestamp(3)));
-        aggregate.ActiveWaits.Should().ContainSingle().Which.Should().Be(
+        aggregate.ActiveTimers.Should().ContainSingle().Which.Should().BeEquivalentTo(
+            new DurableActiveTimer(TimerIdValue(7), Timestamp(30), "timeout", Timestamp(3))
+            {
+                FiberId = fiberId,
+                ScopeId = scopeId
+            });
+        aggregate.ActiveWaits.Should().ContainSingle().Which.Should().BeEquivalentTo(
             new DurableActiveWait(
                 WaitIdValue(8),
                 "Approved",
                 new CorrelationId("order-1"),
                 Timestamp(4),
                 WaitMode.Cold,
-                "branch-a"));
+                "branch-a")
+            {
+                FiberId = fiberId,
+                ScopeId = scopeId
+            });
         aggregate.BufferedDeliveries.Should().ContainSingle().Which.Should().Be(
             new DurableBufferedDelivery(EventIdValue(9), "Approved", new CorrelationId("order-1"), "branch-a"));
         aggregate.BufferedTimers.Should().ContainSingle().Which.Should().Be(
             new DurableBufferedTimer(TimerIdValue(10), "paused-timeout", Timestamp(5)));
-        aggregate.ActiveChildren.Should().ContainSingle().Which.Should().Be(
+        aggregate.ActiveChildren.Should().ContainSingle().Which.Should().BeEquivalentTo(
             new DurableActiveChild(
                 "group-1",
                 InstanceIdValue(11),
@@ -152,15 +186,25 @@ public sealed class DurableCheckpointMapperTests
                 RunChildFailurePolicy.PropagateFailure,
                 RunChildrenJoinPolicy.WhenAny,
                 RunChildrenResidualPolicy.CancelRemaining,
-                "item-0"));
+                "item-0")
+            {
+                FiberId = fiberId,
+                ScopeId = scopeId
+            });
         var activeGroup = aggregate.ActiveChildGroups.Should().ContainSingle().Which;
         activeGroup.GroupId.Should().Be("group-1");
         activeGroup.MaxConcurrency.Should().Be(3);
         activeGroup.NextDispatchIndex.Should().Be(1);
         activeGroup.Children.Should().ContainSingle().Which.Should().Be(child);
+        activeGroup.FiberId.Should().Be(fiberId);
+        activeGroup.ScopeId.Should().Be(scopeId);
         aggregate.ActiveResourceTickets.Should().ContainSingle().Which.Should().Be(ticket);
-        aggregate.ActiveExternalJobs.Should().ContainSingle().Which.Should().Be(
-            new DurableActiveExternalJob("job-1", WaitIdValue(13), TimerIdValue(14)));
+        aggregate.ActiveExternalJobs.Should().ContainSingle().Which.Should().BeEquivalentTo(
+            new DurableActiveExternalJob("job-1", WaitIdValue(13), TimerIdValue(14))
+            {
+                FiberId = fiberId,
+                ScopeId = scopeId
+            });
     }
 
     [Fact]

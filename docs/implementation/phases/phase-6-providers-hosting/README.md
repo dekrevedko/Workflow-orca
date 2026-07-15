@@ -7,7 +7,7 @@ continue-as-new, archival, and the production-readiness gates.
 **Exit criteria**: AC-315 (if multi-node pursued), all `[Trait("Category","Certification")]`
 suites green against every shipped provider; security/performance gates per spec Slice 6.
 Spec open question 10 is resolved early: AC-313 belongs to Slice 2. Because the current
-`current implementation` track reached Phase 6 without DU-042, T6-04/T6-05 are corrective backfill tasks for
+The root implementation track reached Phase 6 without DU-042, T6-04/T6-05 are corrective backfill tasks for
 that early requirement. Public package publishing is deferred by the IOQ-9 owner decision
 recorded in `docs/implementation/00-stack-decisions.md`.
 

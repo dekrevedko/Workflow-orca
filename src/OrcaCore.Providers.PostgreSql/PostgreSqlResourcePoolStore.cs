@@ -62,7 +62,9 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
                 holder_key text not null,
                 ticket_count integer not null,
                 acquired_at timestamp with time zone not null,
-                expires_at timestamp with time zone null
+                expires_at timestamp with time zone null,
+                fiber_id text null,
+                scope_id text null
             );
 
             create index if not exists ix_orcacore_resource_tickets_pool
@@ -78,8 +80,15 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
                 requirements jsonb not null,
                 requested_at timestamp with time zone not null,
                 expires_at timestamp with time zone null,
+                fiber_id text null,
+                scope_id text null,
                 unique (holder_instance_id, holder_key)
             );
+
+            alter table orcacore_resource_tickets add column if not exists fiber_id text null;
+            alter table orcacore_resource_tickets add column if not exists scope_id text null;
+            alter table orcacore_resource_waiters add column if not exists fiber_id text null;
+            alter table orcacore_resource_waiters add column if not exists scope_id text null;
 
             create index if not exists ix_orcacore_resource_waiters_requested
                 on orcacore_resource_waiters (requested_at, waiter_id);
@@ -177,6 +186,8 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
                 request.Requirements,
                 request.RequestedAt,
                 request.ExpiresAt,
+                request.FiberId,
+                request.ScopeId,
                 cancellationToken).ConfigureAwait(false);
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
             return new ResourcePoolAcquireResult(ResourcePoolAcquireStatus.Granted, tickets, null, null);
@@ -470,7 +481,8 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
     {
         await using var command = new NpgsqlCommand(
             """
-            select ticket_id, pool_name, ticket_count, holder_instance_id, holder_key, acquired_at, expires_at
+            select ticket_id, pool_name, ticket_count, holder_instance_id, holder_key, acquired_at, expires_at,
+                   fiber_id, scope_id
             from orcacore_resource_tickets
             where holder_instance_id = @holder_instance_id
               and holder_key = @holder_key
@@ -499,7 +511,8 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
     {
         await using var command = new NpgsqlCommand(
             """
-            select ticket_id, pool_name, ticket_count, holder_instance_id, holder_key, acquired_at, expires_at
+            select ticket_id, pool_name, ticket_count, holder_instance_id, holder_key, acquired_at, expires_at,
+                   fiber_id, scope_id
             from orcacore_resource_tickets
             where pool_name = @pool_name
             order by acquired_at, ticket_id;
@@ -525,7 +538,8 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
     {
         await using var command = new NpgsqlCommand(
             """
-            select ticket_id, pool_name, ticket_count, holder_instance_id, holder_key, acquired_at, expires_at
+            select ticket_id, pool_name, ticket_count, holder_instance_id, holder_key, acquired_at, expires_at,
+                   fiber_id, scope_id
             from orcacore_resource_tickets
             order by acquired_at, ticket_id;
             """,
@@ -610,7 +624,8 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
     {
         await using var command = new NpgsqlCommand(
             """
-            select waiter_id, holder_instance_id, holder_key, requirements, requested_at, expires_at
+            select waiter_id, holder_instance_id, holder_key, requirements, requested_at, expires_at,
+                   fiber_id, scope_id
             from orcacore_resource_waiters
             order by requested_at, waiter_id;
             """,
@@ -627,7 +642,11 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
                 reader.GetString(2),
                 DeserializeRequirements(reader.GetString(3)),
                 reader.GetFieldValue<DateTimeOffset>(4),
-                reader.IsDBNull(5) ? null : reader.GetFieldValue<DateTimeOffset>(5)));
+                reader.IsDBNull(5) ? null : reader.GetFieldValue<DateTimeOffset>(5))
+            {
+                FiberId = reader.IsDBNull(6) ? null : new FiberId(reader.GetString(6)),
+                ScopeId = reader.IsDBNull(7) ? null : new ScopeId(reader.GetString(7))
+            });
         }
 
         return waiters;
@@ -641,6 +660,8 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
         IReadOnlyList<ResourcePoolRequirement> requirements,
         DateTimeOffset acquiredAt,
         DateTimeOffset? expiresAt,
+        FiberId? fiberId,
+        ScopeId? scopeId,
         CancellationToken cancellationToken)
     {
         var tickets = requirements
@@ -651,7 +672,11 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
                 holderInstanceId,
                 holderKey,
                 acquiredAt,
-                expiresAt))
+                expiresAt)
+            {
+                FiberId = fiberId,
+                ScopeId = scopeId
+            })
             .ToArray();
 
         foreach (var ticket in tickets)
@@ -665,7 +690,9 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
                     holder_key,
                     ticket_count,
                     acquired_at,
-                    expires_at)
+                    expires_at,
+                    fiber_id,
+                    scope_id)
                 values (
                     @ticket_id,
                     @pool_name,
@@ -673,7 +700,9 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
                     @holder_key,
                     @ticket_count,
                     @acquired_at,
-                    @expires_at);
+                    @expires_at,
+                    @fiber_id,
+                    @scope_id);
                 """,
                 connection,
                 transaction);
@@ -704,7 +733,11 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
             request.HolderKey,
             request.Requirements.ToArray(),
             request.RequestedAt,
-            request.ExpiresAt);
+            request.ExpiresAt)
+        {
+            FiberId = request.FiberId,
+            ScopeId = request.ScopeId
+        };
         await using var command = new NpgsqlCommand(
             """
             insert into orcacore_resource_waiters (
@@ -713,14 +746,18 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
                 holder_key,
                 requirements,
                 requested_at,
-                expires_at)
+                expires_at,
+                fiber_id,
+                scope_id)
             values (
                 @waiter_id,
                 @holder_instance_id,
                 @holder_key,
                 @requirements,
                 @requested_at,
-                @expires_at);
+                @expires_at,
+                @fiber_id,
+                @scope_id);
             """,
             connection,
             transaction);
@@ -731,6 +768,10 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
         command.Parameters.AddWithValue("requested_at", waiter.RequestedAt);
         command.Parameters.Add("expires_at", NpgsqlDbType.TimestampTz).Value =
             (object?)waiter.ExpiresAt ?? DBNull.Value;
+        command.Parameters.Add("fiber_id", NpgsqlDbType.Text).Value =
+            (object?)waiter.FiberId?.Value ?? DBNull.Value;
+        command.Parameters.Add("scope_id", NpgsqlDbType.Text).Value =
+            (object?)waiter.ScopeId?.Value ?? DBNull.Value;
 
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         return waiter;
@@ -747,7 +788,8 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
             delete from orcacore_resource_tickets
             where holder_instance_id = @holder_instance_id
               and holder_key = @holder_key
-            returning ticket_id, pool_name, ticket_count, holder_instance_id, holder_key, acquired_at, expires_at;
+            returning ticket_id, pool_name, ticket_count, holder_instance_id, holder_key, acquired_at, expires_at,
+                      fiber_id, scope_id;
             """,
             connection,
             transaction);
@@ -774,7 +816,8 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
             """
             delete from orcacore_resource_tickets
             where ticket_id = @ticket_id
-            returning ticket_id, pool_name, ticket_count, holder_instance_id, holder_key, acquired_at, expires_at;
+            returning ticket_id, pool_name, ticket_count, holder_instance_id, holder_key, acquired_at, expires_at,
+                      fiber_id, scope_id;
             """,
             connection,
             transaction);
@@ -900,6 +943,8 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
                 waiter.Requirements,
                 grantedAt,
                 waiter.ExpiresAt,
+                waiter.FiberId,
+                waiter.ScopeId,
                 cancellationToken).ConfigureAwait(false);
             await DeleteWaiterAsync(connection, transaction, waiter.WaiterId, cancellationToken).ConfigureAwait(false);
 
@@ -954,7 +999,11 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
             new InstanceId(reader.GetGuid(3)),
             reader.GetString(4),
             reader.GetFieldValue<DateTimeOffset>(5),
-            reader.IsDBNull(6) ? null : reader.GetFieldValue<DateTimeOffset>(6));
+            reader.IsDBNull(6) ? null : reader.GetFieldValue<DateTimeOffset>(6))
+        {
+            FiberId = reader.IsDBNull(7) ? null : new FiberId(reader.GetString(7)),
+            ScopeId = reader.IsDBNull(8) ? null : new ScopeId(reader.GetString(8))
+        };
     }
 
     private static void AddTicketParameters(NpgsqlCommand command, ResourcePoolTicket ticket)
@@ -967,6 +1016,10 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
         command.Parameters.AddWithValue("acquired_at", ticket.AcquiredAt);
         command.Parameters.Add("expires_at", NpgsqlDbType.TimestampTz).Value =
             (object?)ticket.ExpiresAt ?? DBNull.Value;
+        command.Parameters.Add("fiber_id", NpgsqlDbType.Text).Value =
+            (object?)ticket.FiberId?.Value ?? DBNull.Value;
+        command.Parameters.Add("scope_id", NpgsqlDbType.Text).Value =
+            (object?)ticket.ScopeId?.Value ?? DBNull.Value;
     }
 
     private static string SerializeRequirements(IReadOnlyList<ResourcePoolRequirement> requirements)

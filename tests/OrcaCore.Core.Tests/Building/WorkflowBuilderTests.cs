@@ -33,18 +33,17 @@ public sealed class WorkflowBuilderTests
             .Init<string>(_ => new TestState("created"))
             .If(
                 state => state.ShouldRoute,
-                then => then.Parallel(("approval", branch => branch.Wait(
-                    "Approved",
-                    state => new CorrelationId(state.CorrelationId)).End("Approved"))),
-                otherwise => otherwise.End("Skipped"))
+                then => then
+                    .Wait("Approved", state => new CorrelationId(state.CorrelationId))
+                    .Then<TestStep>(),
+                otherwise => otherwise.Then<TestStep>())
             .End()
             .Build(DefinitionId.New(), DefinitionVersion.Initial);
 
         var ifNode = definition.RootSequence.Children.OfType<IfNode<TestState>>().Single();
-        var parallel = ifNode.Then.Children.Should().ContainSingle().Which.Should().BeOfType<ParallelNode<TestState>>().Subject;
-
-        parallel.Branches.Should().ContainSingle().Which.BranchId.Name.Should().Be("approval");
-        parallel.Branches.Single().Sequence.Children[0].Should().BeOfType<WaitNode<TestState>>();
+        ifNode.Then.Children.Should().HaveCount(2);
+        ifNode.Then.Children[0].Should().BeOfType<WaitNode<TestState>>();
+        ifNode.Then.Children[1].Should().BeOfType<BusinessStepNode<TestState>>();
     }
 
     [Fact]
@@ -59,10 +58,127 @@ public sealed class WorkflowBuilderTests
     }
 
     [Fact]
+    public void BuildValidated_MultipleRootInitNodes_ReportsStableError()
+    {
+        var validation = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("first"))
+            .Init<string>(_ => new TestState("second"))
+            .End()
+            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+
+        validation.IsValid.Should().BeFalse();
+        validation.Errors.Should().ContainSingle(error => error.Code == "WF017_MULTIPLE_INIT");
+    }
+
+    [Fact]
+    public void BuildValidated_InitAfterExecutableNode_ReportsStableError()
+    {
+        var validation = new WorkflowBuilder<TestState>()
+            .Then<TestStep>()
+            .Init<string>(_ => new TestState("late"))
+            .End()
+            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+
+        validation.IsValid.Should().BeFalse();
+        validation.Errors.Should().Contain(error => error.Code == "WF018_INIT_NOT_FIRST");
+    }
+
+    [Fact]
+    public void BuildValidated_NestedInitNode_ReportsStableError()
+    {
+        var validation = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("root"))
+            .If(_ => true, then => then.Init<string>(_ => new TestState("nested")))
+            .End()
+            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+
+        validation.IsValid.Should().BeFalse();
+        validation.Errors.Should().ContainSingle(error => error.Code == "WF019_NESTED_INIT");
+    }
+
+    [Fact]
+    public void BuildValidated_MultipleRootEndNodes_ReportsStableError()
+    {
+        var validation = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("created"))
+            .End("first")
+            .End("second")
+            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+
+        validation.IsValid.Should().BeFalse();
+        validation.Errors.Should().ContainSingle(error => error.Code == "WF020_MULTIPLE_END");
+    }
+
+    [Fact]
+    public void BuildValidated_NestedEndNode_ReportsStableError()
+    {
+        var validation = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("created"))
+            .If(_ => true, then => then.End("nested"))
+            .End("root")
+            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+
+        validation.IsValid.Should().BeFalse();
+        validation.Errors.Should().ContainSingle(error => error.Code == "WF021_NESTED_END");
+    }
+
+    [Fact]
+    public void BuildValidated_ExecutableNodeAfterRootEnd_ReportsStableError()
+    {
+        var validation = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("created"))
+            .End()
+            .Then<TestStep>()
+            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+
+        validation.IsValid.Should().BeFalse();
+        validation.Errors.Should().ContainSingle(error => error.Code == "WF022_NODE_AFTER_END");
+    }
+
+    [Fact]
+    public void BuildValidated_BranchReturnAtWorkflowRoot_ReportsStableError()
+    {
+        var validation = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("created"))
+            .BranchReturn(state => state.CorrelationId)
+            .End()
+            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+
+        validation.IsValid.Should().BeFalse();
+        validation.Errors.Should().Contain(error => error.Code == "WF026_BRANCH_RETURN_NOT_AT_SCOPE_EXIT");
+    }
+
+    [Fact]
+    public void BuildValidated_RootContinueAsNewInsideConditional_IsValid()
+    {
+        var validation = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("created"))
+            .If(state => state.ShouldRoute, then => then.ContinueAsNew(state => state with { ShouldRoute = false }))
+            .End()
+            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+
+        validation.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void BuildValidated_UnconditionalContinueAsNewBeforeEnd_ReportsUnreachableEnd()
+    {
+        var validation = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("created"))
+            .ContinueAsNew(state => state)
+            .End()
+            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+
+        validation.IsValid.Should().BeFalse();
+        validation.Errors.Should().ContainSingle(error => error.Code == "WF028_UNREACHABLE_NODE");
+    }
+
+    [Fact]
     public void BuildValidated_MultipleProblems_ReportsAllAtOnce()
     {
         var validation = new WorkflowBuilder<TestState>()
-            .If(null!, then => then.Parallel(("empty", _ => { })))
+            .If(null!, _ => { })
+            .Delay(TimeSpan.Zero)
             .End()
             .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
 
@@ -71,7 +187,7 @@ public sealed class WorkflowBuilderTests
             [
                 BuilderValidationCodes.MissingInit,
                 BuilderValidationCodes.NullDelegate,
-                BuilderValidationCodes.EmptyBranch
+                BuilderValidationCodes.NonPositiveDelay
             ]);
     }
 
@@ -79,7 +195,8 @@ public sealed class WorkflowBuilderTests
     public void Build_WithErrors_ThrowsAggregatedDefinitionException()
     {
         var builder = new WorkflowBuilder<TestState>()
-            .If(null!, then => then.Parallel(("empty", _ => { })))
+            .If(null!, _ => { })
+            .Delay(TimeSpan.Zero)
             .End();
 
         var act = () => builder.Build(DefinitionId.New(), DefinitionVersion.Initial);
@@ -87,7 +204,7 @@ public sealed class WorkflowBuilderTests
         act.Should().Throw<WorkflowDefinitionException>()
             .Which.Message.Should().Contain(BuilderValidationCodes.MissingInit)
             .And.Contain(BuilderValidationCodes.NullDelegate)
-            .And.Contain(BuilderValidationCodes.EmptyBranch);
+            .And.Contain(BuilderValidationCodes.NonPositiveDelay);
     }
 
     [Fact]
@@ -119,6 +236,20 @@ public sealed class WorkflowBuilderTests
 
         definition.RootSequence.Children.OfType<EndNode<TestState>>()
             .Single().OutcomeName.Should().Be("Approved");
+    }
+
+    [Fact]
+    public void End_WithOutcomeSelector_ResolvesFromFinalState()
+    {
+        var definition = new WorkflowBuilder<TestState>()
+            .Init<string>(_ => new TestState("created"))
+            .End(state => state.ShouldRoute ? "Approved" : "Rejected")
+            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+
+        var end = definition.RootSequence.Children.OfType<EndNode<TestState>>().Single();
+
+        end.ResolveOutcome(new TestState("accepted", ShouldRoute: true)).Should().Be("Approved");
+        end.ResolveOutcome(new TestState("rejected", ShouldRoute: false)).Should().Be("Rejected");
     }
 
     [Fact]
@@ -241,57 +372,6 @@ public sealed class WorkflowBuilderTests
             .End()
             .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
 
-        validation.Errors.Should().ContainSingle(error => error.Code == BuilderValidationCodes.NonPositiveMaxConcurrency);
-    }
-
-    [Fact]
-    [Trait("Scenario", "NEG-CP-001")]
-    [Trait("AC", "CP-001")]
-    public void NEG_CP_001_ParallelWithSingleBranch_BuildsDocumentedDegenerateBranch()
-    {
-        var definition = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState("created"))
-            .Parallel(("only", branch => branch.Then<TestStep>()))
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-
-        definition.RootSequence.Children.OfType<ParallelNode<TestState>>()
-            .Single()
-            .Branches.Should().ContainSingle()
-            .Which.BranchId.Name.Should().Be("only");
-    }
-
-    [Fact]
-    [Trait("Scenario", "NEG-CP-002")]
-    [Trait("AC", "CP-001")]
-    public void NEG_CP_002_ParallelWithZeroBranches_ReportsValidationError()
-    {
-        var validation = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState("created"))
-            .Parallel()
-            .End()
-            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
-
-        validation.IsValid.Should().BeFalse();
-        validation.Errors.Should().ContainSingle(error => error.Code == BuilderValidationCodes.EmptyParallel);
-    }
-
-    [Fact]
-    [Trait("Scenario", "NEG-CP-006")]
-    [Trait("AC", "AC-601")]
-    public void NEG_CP_006_ForEachNonPositiveMaxConcurrency_ReportsValidationError()
-    {
-        var validation = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState("created"))
-            .ForEach(
-                _ => new[] { 1 },
-                WorkflowPartitioner<int>.Items(),
-                body => body.Then<TestStep>(),
-                maxConcurrency: 0)
-            .End()
-            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
-
-        validation.IsValid.Should().BeFalse();
         validation.Errors.Should().ContainSingle(error => error.Code == BuilderValidationCodes.NonPositiveMaxConcurrency);
     }
 

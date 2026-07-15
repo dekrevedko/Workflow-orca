@@ -1,7 +1,7 @@
 # Kickoff Prompt
 
 Copy-paste this to start an implementation session (Claude Code / Codex). Swap the task
-path for later sessions. Branch: `feature/v3-rebuild`.
+path for later sessions. Run it from the currently checked-out branch.
 
 ```text
 You are implementing the OrcaCore workflow engine from scratch, one task per session.
@@ -9,8 +9,11 @@ You are implementing the OrcaCore workflow engine from scratch, one task per ses
 Rules of engagement:
 1. Read docs/implementation/README.md fully and obey its ground rules and the
    repository-root rule: ALL active code lives at the repository root
-   (OrcaCore.slnx, src, tests). The superseded code under archive/legacy-poc/ is
-   OFF-LIMITS for active work. Where a task says "repo root", it means the repository root.
+   (OrcaCore.slnx, src, tests). The former v3-gpt workspace has been promoted to this root;
+   do not create or use a parallel v3-gpt/ tree. The superseded code under
+   archive/legacy-poc/ is OFF-LIMITS for active work. Where a task says "repo root", it
+   means the repository root. Preserve .agents/, .claude/, .codex/, and .codex-run/ when
+   present because they carry agent/run context.
 2. Read docs/implementation/02-engineering-conventions.md and
    docs/implementation/03-tdd-workflow.md.
 3. Execute EXACTLY ONE task, following docs/implementation/04-task-protocol.md:
@@ -39,6 +42,6 @@ Rules of engagement:
 
 ## Session checklist for the operator
 
-Before starting a session: confirm branch `feature/v3-rebuild` is checked out and clean.
+Before starting a session: confirm the currently checked-out branch is clean.
 After a session: skim the commit + PROGRESS.md line; on `blocked`, resolve the question in
 00-stack-decisions.md (or the spec) before re-running the task.

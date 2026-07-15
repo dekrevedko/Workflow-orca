@@ -26,8 +26,14 @@ only global.
 ## 7.2 Compensation semantics
 
 ### SG-010 Deterministic compensation order
-Default compensation order SHALL be reverse successful-completion order, overridable
-explicitly per scope. The applied order SHALL be deterministic and recorded.
+Committed forward actions SHALL become compensation-eligible immediately in their owning
+scope. Failure or cancellation before merge SHALL cover every committed descendant action;
+successful merge SHALL transfer eligibility to the parent scope without changing stable
+identity. Sequential actions SHALL compensate in reverse committed sequence order. Actions
+from sibling fibers SHALL compensate in reverse stable authored branch/instruction order,
+independent of wall-clock completion. A per-scope override is allowed only when deterministic,
+bound into the compiled-plan fingerprint, and based on stable authored identities. The
+applied order SHALL be recorded.
 
 ### SG-011 Compensation trigger rules
 Compensation SHALL run only when triggered: by a failing forward step per the saga's failure

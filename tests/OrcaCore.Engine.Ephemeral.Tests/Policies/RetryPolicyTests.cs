@@ -32,14 +32,14 @@ public sealed class RetryPolicyTests
     public async Task StepFactoryFailure_IsCapturedAndRetriedByStepPolicy()
     {
         var factoryAttempts = 0;
-        var definition = new WorkflowBuilder<RetryState>()
+        var definition = Workflow.Ephemeral<RetryState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new RetryState())
             .WithRetry(maxAttempts: 2)
             .Then(() => Interlocked.Increment(ref factoryAttempts) == 1
                 ? throw new InvalidOperationException("factory unavailable")
                 : new FlakyStep(failuresBeforeSuccess: 0))
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
         var engine = new EphemeralWorkflowEngine();
         engine.RegisterDefinition(definition);
 
@@ -57,12 +57,12 @@ public sealed class RetryPolicyTests
     {
         var state = new RetryState();
         var engine = new EphemeralWorkflowEngine();
-        var definition = new WorkflowBuilder<RetryState>()
+        var definition = Workflow.Ephemeral<RetryState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .WithRetry(maxAttempts: 3)
             .Then(() => new FlakyStep(failuresBeforeSuccess: 2))
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
         engine.RegisterDefinition(definition);
 
         var snapshot = await engine.StartAsync<string, RetryState>(
@@ -80,13 +80,13 @@ public sealed class RetryPolicyTests
     {
         var state = new RetryState();
         var engine = new EphemeralWorkflowEngine();
-        var definition = new WorkflowBuilder<RetryState>()
+        var definition = Workflow.Ephemeral<RetryState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .WithRetry(maxAttempts: 2)
             .Then(() => new AlwaysFailsStep())
             .Then(() => new ShouldNotRunStep())
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
         engine.RegisterDefinition(definition);
 
         var snapshot = await engine.StartAsync<string, RetryState>(

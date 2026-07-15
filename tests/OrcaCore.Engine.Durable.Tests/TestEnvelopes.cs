@@ -1,4 +1,5 @@
 using OrcaCore.Abstractions.Durable;
+using OrcaCore.Abstractions.Ids;
 
 namespace OrcaCore.Engine.Durable.Tests;
 
@@ -8,36 +9,47 @@ namespace OrcaCore.Engine.Durable.Tests;
 /// </summary>
 internal static class TestEnvelopes
 {
-    internal static DurableExecutionEnvelope Envelope(
+    internal static DurableExecutionEnvelopeV2 Envelope(
         string stateContentType = "application/json",
         byte[]? statePayload = null,
         int rootIndex = 1,
-        DurableCursorPhase phase = DurableCursorPhase.AtNode)
+        InstanceId? instanceId = null)
     {
-        return new DurableExecutionEnvelope
+        var resolvedInstanceId = instanceId ?? new InstanceId(
+            Guid.Parse("00000000-0000-0000-0000-000000000001"));
+        return new DurableExecutionEnvelopeV2
         {
-            EnvelopeVersion = DurableExecutionEnvelope.CurrentVersion,
-            Position = new DurableExecutionPosition
+            EnvelopeVersion = DurableExecutionEnvelopeV2.CurrentVersion,
+            InstanceId = resolvedInstanceId,
+            ContinueAsNewGeneration = 0,
+            RootFiberId = "root",
+            PlanBinding = new DurablePlanBinding
             {
-                Cursors =
-                [
-                    new DurableExecutionCursor
-                    {
-                        CursorId = "root",
-                        Frames =
-                        [
-                            new DurableExecutionFrame
-                            {
-                                SequencePath = "root",
-                                SequenceIndex = rootIndex
-                            }
-                        ],
-                        Phase = phase
-                    }
-                ]
+                DefinitionId = new DefinitionId(
+                    Guid.Parse("00000000-0000-0000-0000-000000000001")),
+                DefinitionVersion = DefinitionVersion.Initial,
+                CompilerFormatVersion = 1,
+                PlanFingerprint = "test-plan"
             },
             StateContentType = stateContentType,
-            StatePayload = statePayload ?? [1, 2, 3]
+            StatePayload = statePayload ?? [1, 2, 3],
+            Fibers =
+            [
+                new DurableFiberState
+                {
+                    FiberId = "root",
+                    InstructionId = $"root/{rootIndex}",
+                    Phase = DurableFiberPhase.Runnable,
+                    LoopIteration = 0,
+                    NextScopeEntrySequence = 0
+                }
+            ],
+            Scopes = [],
+            Scheduler = new DurableFiberSchedulerState
+            {
+                RunnableFiberIds = ["root"],
+                NextFiberId = "root"
+            }
         };
     }
 }

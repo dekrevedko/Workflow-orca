@@ -52,6 +52,29 @@ internal static class DurableLifecycleCommandHandler
             command.ConsumedResumeWaitIds,
             command.CancelWaitIds,
             command.CancelTimerIds);
+        AddTerminalFiberCleanupEvents(
+            events,
+            aggregate,
+            command.CommandId,
+            command.InstanceId,
+            command.RequestedAt,
+            command.TerminalFiberIds);
+        foreach (var transfer in command.SagaScopeTransfers)
+        {
+            events.Add(new SagaForwardActionsTransferredEvent
+            {
+                EventId = EventId.New(),
+                InstanceId = command.InstanceId,
+                CommandId = command.CommandId,
+                CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
+                OccurredAt = command.RequestedAt,
+                ParentInstanceId = aggregate.ParentInstanceId,
+                RootInstanceId = aggregate.RootInstanceId ?? aggregate.InstanceId,
+                FromExecutionScopeId = transfer.FromScopeId,
+                ToExecutionScopeId = transfer.ToScopeId
+            });
+        }
+
         events.Add(new WorkflowStepCompletedEvent
         {
             EventId = EventId.New(),
@@ -148,9 +171,43 @@ internal static class DurableLifecycleCommandHandler
             return DurableDecision.Empty;
         }
 
-        var events = new List<WorkflowEvent>(
-            aggregate.ReleaseEvents(command.CommandId, command.InstanceId, command.RequestedAt))
+        var events = new List<WorkflowEvent>();
+        AddConsumeAndCancelEvents(
+            events,
+            aggregate,
+            command.CommandId,
+            command.InstanceId,
+            command.RequestedAt,
+            command.ConsumedResumeWaitIds,
+            command.CancelWaitIds,
+            command.CancelTimerIds);
+        AddTerminalFiberCleanupEvents(
+            events,
+            aggregate,
+            command.CommandId,
+            command.InstanceId,
+            command.RequestedAt,
+            command.TerminalFiberIds);
+        events.AddRange(aggregate.SagaState.PlanCompensationForFailure(
+            aggregate.CreateSagaEventContext(
+                command.CommandId,
+                command.InstanceId,
+                command.RequestedAt),
+            command.TerminalFiberIds,
+            command.FailedSagaScopeIds,
+            command.CoversRootSagaEligibility,
+            command.ErrorSummary));
+        if (command.TerminalFiberIds.Count == 0)
         {
+            AddAllOwnedCleanupEvents(
+                events,
+                aggregate,
+                command.CommandId,
+                command.InstanceId,
+                command.RequestedAt);
+        }
+        events.AddRange(
+        [
             new WorkflowStepFailedEvent
             {
                 EventId = EventId.New(),
@@ -170,7 +227,7 @@ internal static class DurableLifecycleCommandHandler
                 OccurredAt = command.RequestedAt,
                 Status = WorkflowStatus.Failed
             }
-        };
+        ]);
 
         var checkpoint = command.Envelope is { } envelope
             ? CreateEnvelopeCheckpoint(aggregate, command.InstanceId, events, envelope, command.StepPath)
@@ -186,10 +243,13 @@ internal static class DurableLifecycleCommandHandler
             return DurableDecision.Empty;
         }
 
-        var events = new List<WorkflowEvent>(aggregate.ExternalJobState.CreateStopRequestedEvents(
-            aggregate.CreateExternalJobEventContext(command.CommandId, command.InstanceId, command.RequestedAt)));
-
-        events.AddRange(aggregate.ReleaseEvents(command.CommandId, command.InstanceId, command.RequestedAt));
+        var events = new List<WorkflowEvent>();
+        AddAllOwnedCleanupEvents(
+            events,
+            aggregate,
+            command.CommandId,
+            command.InstanceId,
+            command.RequestedAt);
         events.Add(new WorkflowTerminalEvent
         {
             EventId = EventId.New(),
@@ -275,7 +335,22 @@ internal static class DurableLifecycleCommandHandler
             command.ConsumedResumeWaitIds,
             command.CancelWaitIds,
             command.CancelTimerIds);
-        events.AddRange(aggregate.ReleaseEvents(command.CommandId, command.InstanceId, command.RequestedAt));
+        AddTerminalFiberCleanupEvents(
+            events,
+            aggregate,
+            command.CommandId,
+            command.InstanceId,
+            command.RequestedAt,
+            command.TerminalFiberIds);
+        if (command.TerminalFiberIds.Count == 0)
+        {
+            AddAllOwnedCleanupEvents(
+                events,
+                aggregate,
+                command.CommandId,
+                command.InstanceId,
+                command.RequestedAt);
+        }
         events.Add(new WorkflowCompletedEvent
         {
             EventId = EventId.New(),
@@ -309,9 +384,17 @@ internal static class DurableLifecycleCommandHandler
             return DurableDecision.Empty;
         }
 
-        var events = new List<WorkflowEvent>(
-            aggregate.ReleaseEvents(command.CommandId, command.InstanceId, command.RequestedAt))
+        var events = new List<WorkflowEvent>();
+        if (!command.PreserveOwnership)
         {
+            AddAllOwnedCleanupEvents(
+                events,
+                aggregate,
+                command.CommandId,
+                command.InstanceId,
+                command.RequestedAt);
+        }
+        events.Add(
             new WorkflowTerminalEvent
             {
                 EventId = EventId.New(),
@@ -320,8 +403,7 @@ internal static class DurableLifecycleCommandHandler
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
                 OccurredAt = command.RequestedAt,
                 Status = WorkflowStatus.Failed
-            }
-        };
+            });
 
         var checkpoint = command.Envelope is { } envelope
             ? CreateEnvelopeCheckpoint(
@@ -443,7 +525,7 @@ internal static class DurableLifecycleCommandHandler
     {
         foreach (var waitId in consumedResumeWaitIds)
         {
-            if (aggregate.WaitState.FindPendingResume(waitId) is null)
+            if (aggregate.WaitState.FindPendingResume(waitId) is not { } pending)
             {
                 continue;
             }
@@ -455,13 +537,15 @@ internal static class DurableLifecycleCommandHandler
                 CommandId = commandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(commandId),
                 OccurredAt = requestedAt,
-                WaitId = waitId
+                WaitId = waitId,
+                FiberId = pending.FiberId,
+                ScopeId = pending.ScopeId
             });
         }
 
         foreach (var waitId in cancelWaitIds)
         {
-            if (!aggregate.WaitState.HasWait(waitId))
+            if (aggregate.WaitState.ActiveWaits.FirstOrDefault(wait => wait.WaitId == waitId) is not { } wait)
             {
                 continue;
             }
@@ -473,13 +557,15 @@ internal static class DurableLifecycleCommandHandler
                 CommandId = commandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(commandId),
                 OccurredAt = requestedAt,
-                WaitId = waitId
+                WaitId = waitId,
+                FiberId = wait.FiberId,
+                ScopeId = wait.ScopeId
             });
         }
 
         foreach (var timerId in cancelTimerIds)
         {
-            if (aggregate.TimerState.FindActive(timerId) is null)
+            if (aggregate.TimerState.FindActive(timerId) is not { } timer)
             {
                 continue;
             }
@@ -491,9 +577,87 @@ internal static class DurableLifecycleCommandHandler
                 CommandId = commandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(commandId),
                 OccurredAt = requestedAt,
-                TimerId = timerId
+                TimerId = timerId,
+                FiberId = timer.FiberId,
+                ScopeId = timer.ScopeId
             });
         }
+    }
+
+    private static void AddTerminalFiberCleanupEvents(
+        List<WorkflowEvent> events,
+        DurableWorkflowAggregate aggregate,
+        CommandId commandId,
+        InstanceId instanceId,
+        DateTimeOffset requestedAt,
+        IReadOnlyList<FiberId> terminalFiberIds)
+    {
+        if (terminalFiberIds.Count == 0)
+        {
+            return;
+        }
+
+        var owners = terminalFiberIds.ToHashSet();
+        var cancelledWaitIds = events
+            .OfType<WorkflowWaitCancelledEvent>()
+            .Select(workflowEvent => workflowEvent.WaitId)
+            .ToHashSet();
+        var cancelledTimerIds = events
+            .OfType<WorkflowTimerCancelledEvent>()
+            .Select(workflowEvent => workflowEvent.TimerId)
+            .ToHashSet();
+        var ownedWaitIds = aggregate.WaitState.ActiveWaits
+            .Where(wait => wait.FiberId is { } fiberId && owners.Contains(fiberId))
+            .Select(wait => wait.WaitId)
+            .Where(waitId => !cancelledWaitIds.Contains(waitId))
+            .ToArray();
+        var ownedTimerIds = aggregate.TimerState.ActiveTimers
+            .Where(timer => timer.FiberId is { } fiberId && owners.Contains(fiberId))
+            .Select(timer => timer.TimerId)
+            .Where(timerId => !cancelledTimerIds.Contains(timerId))
+            .ToArray();
+
+        events.AddRange(aggregate.ChildState.CreateCancellationEvents(
+            aggregate.CreateChildWorkflowEventContext(commandId, instanceId, requestedAt),
+            owners));
+        AddConsumeAndCancelEvents(
+            events,
+            aggregate,
+            commandId,
+            instanceId,
+            requestedAt,
+            [],
+            ownedWaitIds,
+            ownedTimerIds);
+        events.AddRange(aggregate.ExternalJobState.CreateStopRequestedEvents(
+            aggregate.CreateExternalJobEventContext(commandId, instanceId, requestedAt),
+            owners));
+        events.AddRange(aggregate.ResourcePoolState.CreateReleaseEvents(
+            aggregate.CreateResourcePoolEventContext(commandId, instanceId, requestedAt),
+            ownerFiberIds: owners));
+    }
+
+    private static void AddAllOwnedCleanupEvents(
+        List<WorkflowEvent> events,
+        DurableWorkflowAggregate aggregate,
+        CommandId commandId,
+        InstanceId instanceId,
+        DateTimeOffset requestedAt)
+    {
+        events.AddRange(aggregate.ChildState.CreateCancellationEvents(
+            aggregate.CreateChildWorkflowEventContext(commandId, instanceId, requestedAt)));
+        AddConsumeAndCancelEvents(
+            events,
+            aggregate,
+            commandId,
+            instanceId,
+            requestedAt,
+            [],
+            aggregate.WaitState.ActiveWaits.Select(wait => wait.WaitId).ToArray(),
+            aggregate.TimerState.ActiveTimers.Select(timer => timer.TimerId).ToArray());
+        events.AddRange(aggregate.ExternalJobState.CreateStopRequestedEvents(
+            aggregate.CreateExternalJobEventContext(commandId, instanceId, requestedAt)));
+        events.AddRange(aggregate.ReleaseEvents(commandId, instanceId, requestedAt));
     }
 
     /// <summary>
@@ -504,16 +668,17 @@ internal static class DurableLifecycleCommandHandler
         DurableWorkflowAggregate aggregate,
         InstanceId instanceId,
         IReadOnlyList<WorkflowEvent> events,
-        DurableExecutionEnvelope envelope,
+        DurableCheckpointPayload envelope,
         string? lastStepPath,
         string? errorSummary = null)
     {
         var projected = aggregate.ProjectEvents(events);
+        DurableWorkflowReplayApplier.ApplyStructuredEnvelopeStatus(projected, envelope);
         return new CheckpointWrite(
             instanceId,
             projected.StreamVersion,
-            DurableExecutionEnvelope.ContentType,
-            envelope.Serialize())
+            envelope.ContentType,
+            envelope.Payload)
         {
             DefinitionId = projected.DefinitionId,
             ParentInstanceId = projected.ParentInstanceId,
@@ -536,9 +701,14 @@ internal static class DurableLifecycleCommandHandler
             return DurableDecision.Empty;
         }
 
-        return new DurableDecision([
-            .. aggregate.ReleaseEvents(command.CommandId, command.InstanceId, command.RequestedAt),
-            new WorkflowTerminalEvent
+        var events = new List<WorkflowEvent>();
+        AddAllOwnedCleanupEvents(
+            events,
+            aggregate,
+            command.CommandId,
+            command.InstanceId,
+            command.RequestedAt);
+        events.Add(new WorkflowTerminalEvent
             {
                 EventId = EventId.New(),
                 InstanceId = command.InstanceId,
@@ -546,7 +716,7 @@ internal static class DurableLifecycleCommandHandler
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
                 OccurredAt = command.RequestedAt,
                 Status = WorkflowStatus.Terminated
-            }
-        ], null, true);
+            });
+        return new DurableDecision(events, null, true);
     }
 }

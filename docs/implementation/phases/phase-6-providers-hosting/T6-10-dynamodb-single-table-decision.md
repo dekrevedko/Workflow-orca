@@ -39,5 +39,5 @@ concrete DynamoDB table design.
 ## Definition of done
 - [ ] IOQ-10 is resolved or a blocker is recorded in PROGRESS.md
 - [ ] Phase 6 task guidance states DynamoDB implementation is deferred for this run
-- [ ] No `` code is changed
+- [ ] No code under `src/` or `tests/` is changed
 - [ ] PROGRESS.md updated; committed as "T6-10: resolve dynamodb implementation deferral"

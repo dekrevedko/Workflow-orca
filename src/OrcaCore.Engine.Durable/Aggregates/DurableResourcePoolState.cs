@@ -62,7 +62,9 @@ internal sealed class DurableResourcePoolState
                         ParentInstanceId = context.ParentInstanceId,
                         RootInstanceId = context.RootInstanceId,
                         HolderKey = holderKey,
-                        Tickets = acquireResult.Tickets
+                        Tickets = acquireResult.Tickets,
+                        FiberId = context.FiberId,
+                        ScopeId = context.ScopeId
                     }
                 ],
                 false);
@@ -84,7 +86,10 @@ internal sealed class DurableResourcePoolState
                         WaitId = queuedWaitId ?? WaitId.New(),
                         HolderKey = holderKey,
                         Requirements = requirements,
-                        ExpiresAt = expiresAt
+                        ExpiresAt = expiresAt,
+                        WaitSequence = context.WaitSequence,
+                        FiberId = context.FiberId,
+                        ScopeId = context.ScopeId
                     }
                 ],
                 true);
@@ -95,12 +100,15 @@ internal sealed class DurableResourcePoolState
 
     internal IReadOnlyList<WorkflowResourcePoolReleasedEvent> CreateReleaseEvents(
         DurableResourcePoolEventContext context,
-        string? holderKey = null)
+        string? holderKey = null,
+        IReadOnlySet<FiberId>? ownerFiberIds = null)
     {
         ArgumentNullException.ThrowIfNull(context);
 
         return activeTickets
             .Where(ticket => holderKey is null || string.Equals(ticket.HolderKey, holderKey, StringComparison.Ordinal))
+            .Where(ticket => ownerFiberIds is null ||
+                ticket.FiberId is { } fiberId && ownerFiberIds.Contains(fiberId))
             .GroupBy(ticket => ticket.HolderKey, StringComparer.Ordinal)
             .Select(group => new WorkflowResourcePoolReleasedEvent
             {
@@ -112,7 +120,9 @@ internal sealed class DurableResourcePoolState
                 ParentInstanceId = context.ParentInstanceId,
                 RootInstanceId = context.RootInstanceId,
                 HolderKey = group.Key,
-                Tickets = group.ToArray()
+                Tickets = group.ToArray(),
+                FiberId = group.First().FiberId,
+                ScopeId = group.First().ScopeId
             })
             .ToArray();
     }
@@ -136,6 +146,11 @@ internal sealed class DurableResourcePoolState
                             new CorrelationId(queued.HolderKey),
                             queued.OccurredAt,
                             WaitMode.Cold)
+                        {
+                            WaitSequence = queued.WaitSequence,
+                            FiberId = queued.FiberId,
+                            ScopeId = queued.ScopeId
+                        }
                     ]);
             case WorkflowResourcePoolReleasedEvent released:
                 RemoveTickets(released.HolderKey);
@@ -174,7 +189,10 @@ internal sealed record DurableResourcePoolEventContext(
     InstanceId InstanceId,
     DateTimeOffset RequestedAt,
     InstanceId? ParentInstanceId,
-    InstanceId RootInstanceId)
+    InstanceId RootInstanceId,
+    FiberId? FiberId = null,
+    ScopeId? ScopeId = null,
+    long WaitSequence = 0)
 {
     internal CausationId CausationId => new(CommandId.Value);
 }

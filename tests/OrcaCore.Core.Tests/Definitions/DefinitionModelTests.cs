@@ -34,21 +34,21 @@ public sealed class DefinitionModelTests
     {
         var businessStep = new BusinessStepNode<TestState>("step", () => new TestStep());
         var wait = new WaitNode<TestState>("wait", "Approved", state => new CorrelationId(state.CorrelationId));
-        var branch = new ParallelBranch<TestState>(
-            new BranchId(0, "approval"),
-            new SequenceNode<TestState>("approval-sequence", [wait]));
-        var parallel = new ParallelNode<TestState>("parallel", [branch]);
+        var nestedLoop = new WhileNode<TestState>(
+            "loop",
+            state => state.ShouldRoute,
+            new SequenceNode<TestState>("loop-body", [wait]));
         var ifNode = new IfNode<TestState>(
             "if",
             state => state.ShouldRoute,
-            new SequenceNode<TestState>("then", [businessStep, parallel]),
+            new SequenceNode<TestState>("then", [businessStep, nestedLoop]),
             new SequenceNode<TestState>("else", [new EndNode<TestState>("else-end", "Skipped")]));
 
         var root = new SequenceNode<TestState>("root", [ifNode]);
 
         root.Children.Should().ContainSingle().Which.Should().Be(ifNode);
-        ifNode.Then.Children.Should().Equal([businessStep, parallel]);
-        parallel.Branches.Should().ContainSingle().Which.Sequence.Children.Should().ContainSingle().Which.Should().Be(wait);
+        ifNode.Then.Children.Should().Equal([businessStep, nestedLoop]);
+        nestedLoop.Body.Children.Should().ContainSingle().Which.Should().Be(wait);
     }
 
     [Fact]

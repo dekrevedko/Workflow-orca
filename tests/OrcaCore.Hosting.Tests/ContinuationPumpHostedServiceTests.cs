@@ -74,12 +74,12 @@ public sealed class ContinuationPumpHostedServiceTests
             new DurableDefinitionRegistry(),
             timeProvider,
             new JsonWorkflowPayloadSerializer());
-        runtime.RegisterDefinition(new WorkflowBuilder<DrainState>()
+        runtime.RegisterDefinition(Workflow.Durable<DrainState>(definitionId, DefinitionVersion.Initial)
             .Init<string>(orderId => new DrainState { OrderId = orderId ?? "order-drain" })
-            .Then(new GatedStep())
-            .Then(new AfterGateStep())
+            .Then<GatedStep>()
+            .Then<AfterGateStep>()
             .End("drained")
-            .Build(definitionId, DefinitionVersion.Initial));
+            .Build());
         var pump = new DurableContinuationPump(store, runtime, processor, timeProvider);
         return new HostHandle(runtime, processor, pump);
     }

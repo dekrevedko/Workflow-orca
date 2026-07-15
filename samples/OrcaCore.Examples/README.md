@@ -11,7 +11,7 @@ dotnet run --project samples\OrcaCore.Examples\OrcaCore.Examples.csproj
 
 The examples cover:
 
-- simple in-process workflow authoring with `WorkflowBuilder<TState>` and
+- mode-selected in-process workflow authoring with `Workflow.Ephemeral<TState>` and
   `EphemeralWorkflowEngine`;
 - event waits, correlation routing, and `EventEnvelope` payloads;
 - `ForEach` fanout with management statistics;

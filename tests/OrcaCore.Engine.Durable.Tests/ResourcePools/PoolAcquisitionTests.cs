@@ -30,9 +30,13 @@ public sealed class PoolAcquisitionTests
             TestContext.Current.CancellationToken);
 
         result.Outcome.Should().Be(DurableCommandOutcome.Committed);
-        events.OfType<WorkflowResourcePoolAcquiredEvent>().Should().ContainSingle()
-            .Which.Tickets.Should().ContainSingle()
-            .Which.PoolName.Should().Be("db");
+        var acquired = events.OfType<WorkflowResourcePoolAcquiredEvent>().Should().ContainSingle().Which;
+        acquired.FiberId.Should().Be(new FiberId("resource-fiber"));
+        acquired.ScopeId.Should().Be(new ScopeId("resource-scope"));
+        var ticket = acquired.Tickets.Should().ContainSingle().Which;
+        ticket.PoolName.Should().Be("db");
+        ticket.FiberId.Should().Be(new FiberId("resource-fiber"));
+        ticket.ScopeId.Should().Be(new ScopeId("resource-scope"));
         events.OfType<WorkflowStepCompletedEvent>().Should().BeEmpty();
     }
 
@@ -65,6 +69,8 @@ public sealed class PoolAcquisitionTests
         snapshot.Status.Should().Be(WorkflowStatus.Waiting);
         snapshot.ActiveWaits.Should().ContainSingle()
             .Which.Mode.Should().Be(WaitMode.Cold.ToString());
+        snapshot.ActiveWaits.Single().FiberId.Should().Be(new FiberId("resource-fiber"));
+        snapshot.ActiveWaits.Single().ScopeId.Should().Be(new ScopeId("resource-scope"));
         outbox.Should().BeEmpty();
     }
 
@@ -187,7 +193,9 @@ public sealed class PoolAcquisitionTests
             RequestedAt = Timestamp(2),
             HolderKey = holderKey,
             Requirements = requirements,
-            ExpiresAt = Timestamp(32)
+            ExpiresAt = Timestamp(32),
+            FiberId = new FiberId("resource-fiber"),
+            ScopeId = new ScopeId("resource-scope")
         };
     }
 

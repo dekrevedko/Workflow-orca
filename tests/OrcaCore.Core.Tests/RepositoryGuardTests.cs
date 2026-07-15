@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using AwesomeAssertions;
 using OrcaCore.TestSupport;
 using Xunit;
@@ -11,11 +12,65 @@ public sealed partial class RepositoryGuardTests
     private static readonly IReadOnlyDictionary<string, string> AcceptanceCriterionWaivers =
         new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        ["AC-018"] = "The exact package-tier graph is implemented and verified by reshape-developer-facing-interfaces tasks 3.1-3.7.",
+        ["AC-116"] = "Typed facade routing outcomes are implemented by reshape-developer-facing-interfaces tasks 6.8 and 7.1-7.3.",
+        ["AC-317"] = "In-memory durable hosting diagnostics are implemented by reshape-developer-facing-interfaces tasks 8.4 and 9.2.",
+        ["AC-318"] = "Explicit typed definition handles are implemented by reshape-developer-facing-interfaces tasks 6.1-6.2.",
+        ["AC-319"] = "Split-host continuation is implemented and tested by reshape-developer-facing-interfaces tasks 2.7 and 6.6.",
+        ["AC-320"] = "Worker-reported external-job failure is implemented by reshape-developer-facing-interfaces tasks 6.3-6.5.",
+        ["AC-523"] = "Application-safe remediation and runtime time ownership are implemented by reshape-developer-facing-interfaces tasks 6.7 and 7.8.",
+        ["AC-524"] = "The three concurrency lifetimes are implemented across the structured-fiber and interface-reshape resource slices.",
         ["DR-AC-007"] = "DR-P3 saga driving is still open.",
         ["DR-AC-008"] = "DR-P3 full DAG driving without manual pumping is still open.",
         ["DR-AC-012"] = "DR-P4 ephemeral/durable parity is still open.",
         ["DR-AC-026"] = "All continuation dispositions are not yet covered end to end.",
     };
+
+    [Fact]
+    public void ActiveWorkspace_UsesRepositoryRootProjectsAndCommands()
+    {
+        var repoRoot = FindRepoRoot();
+        var allowedRoots = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "benchmarks",
+            "samples",
+            "src",
+            "tests"
+        };
+
+        Directory.Exists(Path.Combine(repoRoot, "v3-gpt")).Should().BeFalse();
+
+        var solution = XDocument.Load(Path.Combine(repoRoot, "OrcaCore.slnx"));
+        var projectPaths = solution
+            .Descendants("Project")
+            .Select(element => element.Attribute("Path")?.Value)
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(path => path!.Replace('\\', '/'))
+            .ToArray();
+
+        projectPaths.Should().NotBeEmpty();
+        projectPaths.Should().OnlyContain(path =>
+            allowedRoots.Contains(path.Split('/', StringSplitOptions.RemoveEmptyEntries)[0]));
+        projectPaths.Should().OnlyContain(path =>
+            File.Exists(Path.Combine(repoRoot, path.Replace('/', Path.DirectorySeparatorChar))));
+        projectPaths.Should().NotContain(path =>
+            path.Contains("v3-gpt", StringComparison.OrdinalIgnoreCase));
+
+        var staleCommands = Directory
+            .EnumerateFiles(Path.Combine(repoRoot, "docs", "implementation"), "*.md", SearchOption.AllDirectories)
+            .SelectMany(file => File.ReadLines(file).Select((line, index) => new
+            {
+                File = Path.GetRelativePath(repoRoot, file),
+                Line = index + 1,
+                Text = line.Trim()
+            }))
+            .Where(candidate => IsWorkspaceCommand(candidate.Text))
+            .Where(candidate => candidate.Text.Contains("v3-gpt", StringComparison.OrdinalIgnoreCase))
+            .Select(candidate => $"{candidate.File}:{candidate.Line}: {candidate.Text}")
+            .ToArray();
+
+        staleCommands.Should().BeEmpty();
+    }
 
     [Fact]
     public void AcceptanceCriterionCatalog_HasTraitCoverageOrExplicitWaiver()
@@ -154,6 +209,59 @@ public sealed partial class RepositoryGuardTests
             .ToArray();
 
         bannedCalls.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ProductionSources_DoNotReferenceRetiredCursorExecution()
+    {
+        var repoRoot = FindRepoRoot();
+        var retiredTokens = new[]
+        {
+            string.Concat("DurableDriver", "Cursor"),
+            string.Concat("class DurableDriver", "Executor"),
+            string.Concat("new DurableDriver", "Executor"),
+            string.Concat("DurableDriver", "SegmentRun"),
+            string.Concat("MergeCompleted", "Cursors"),
+            string.Concat("DurableExecution", "Envelope") + ".ContentType"
+        };
+        var references = Directory
+            .EnumerateFiles(Path.Combine(repoRoot, "src"), "*.cs", SearchOption.AllDirectories)
+            .Where(file => !IsBuildOutput(file))
+            .SelectMany(file => File.ReadLines(file).Select((line, index) => new
+            {
+                File = Path.GetRelativePath(repoRoot, file),
+                Line = index + 1,
+                Text = line.Trim()
+            }))
+            .Where(candidate => retiredTokens.Any(token =>
+                candidate.Text.Contains(token, StringComparison.Ordinal)))
+            .Select(candidate => $"{candidate.File}:{candidate.Line}: {candidate.Text}")
+            .ToArray();
+
+        references.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void DurableRuntime_RequiresCompiledCapabilityValidation()
+    {
+        var repoRoot = FindRepoRoot();
+        var catalog = File.ReadAllText(Path.Combine(
+            repoRoot,
+            "src",
+            "OrcaCore.Engine.Durable",
+            "Driver",
+            "DurableDriverCatalog.cs"));
+        var fiberExecutor = File.ReadAllText(Path.Combine(
+            repoRoot,
+            "src",
+            "OrcaCore.Engine.Durable",
+            "Driver",
+            "DurableFiberDriverExecutor.cs"));
+
+        catalog.Should().Contain("definition.CompiledPlan.Instructions.Count == 0");
+        catalog.Should().Contain("definition.CompiledPlan.Mode != WorkflowExecutionMode.Durable");
+        fiberExecutor.Should().NotContain(string.Concat("Unsupported", "Instruction"));
+        fiberExecutor.Should().NotContain("DR-P3");
     }
 
     [Fact]
@@ -401,6 +509,15 @@ public sealed partial class RepositoryGuardTests
         var parts = path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         return parts.Contains("bin", StringComparer.OrdinalIgnoreCase) ||
             parts.Contains("obj", StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static bool IsWorkspaceCommand(string line)
+    {
+        var command = line.TrimStart(' ', '\t', '-', '>');
+        return command.StartsWith("dotnet ", StringComparison.OrdinalIgnoreCase) ||
+            command.StartsWith("cd ", StringComparison.OrdinalIgnoreCase) ||
+            command.StartsWith("Set-Location ", StringComparison.OrdinalIgnoreCase) ||
+            command.StartsWith("Push-Location ", StringComparison.OrdinalIgnoreCase);
     }
 
     [GeneratedRegex(@"\*\*((?:AC|JS-AC|DR-AC)-\d{3})\*\*", RegexOptions.CultureInvariant)]

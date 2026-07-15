@@ -1,6 +1,6 @@
-using System.Collections.Concurrent;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Engine.Durable.Definitions;
 
@@ -12,61 +12,42 @@ namespace OrcaCore.Engine.Durable.Driver;
 /// </summary>
 internal sealed class DurableDriverCatalog
 {
-    private readonly ConcurrentDictionary<DurableDefinitionKey, IDurableDriverExecutor> executors = [];
+    private readonly DurableDefinitionRegistry definitions;
+
+    internal DurableDriverCatalog(DurableDefinitionRegistry definitions)
+    {
+        ArgumentNullException.ThrowIfNull(definitions);
+        this.definitions = definitions;
+    }
 
     internal void Register<TState>(WorkflowDefinition<TState> definition)
     {
-        ArgumentNullException.ThrowIfNull(definition);
-
-        EnsureDurableSupported(definition.RootSequence, definition.DefinitionId, definition.DefinitionVersion);
-        executors[new DurableDefinitionKey(definition.DefinitionId, definition.DefinitionVersion)] =
-            new DurableDriverExecutor<TState>(definition);
+        definitions.Register(definition);
     }
 
     internal IDurableDriverExecutor? Resolve(DefinitionId definitionId, DefinitionVersion definitionVersion)
     {
-        return executors.TryGetValue(new DurableDefinitionKey(definitionId, definitionVersion), out var executor)
-            ? executor
-            : null;
+        return definitions.ResolveExecutor(definitionId, definitionVersion);
     }
 
-    private static void EnsureDurableSupported<TState>(
-        SequenceNode<TState> sequence,
-        DefinitionId definitionId,
-        DefinitionVersion definitionVersion)
+    internal static IDurableDriverExecutor CreateExecutor<TState>(WorkflowDefinition<TState> definition)
     {
-        foreach (var node in sequence.Children)
+        ArgumentNullException.ThrowIfNull(definition);
+
+        if (definition.CompiledPlan.Instructions.Count == 0)
         {
-            switch (node)
-            {
-                case ForEachNode<TState> forEach:
-                    throw new WorkflowDefinitionException(
-                        $"Definition '{definitionId}' version '{definitionVersion}' uses lightweight ForEach " +
-                        $"at '{forEach.NodeId}', which is an ephemeral-only in-instance fanout primitive " +
-                        "(CP-010..013). The durable driver expresses fanout through RunChild/RunChildren; " +
-                        "durable ForEach is not specified (DR-010).");
-                case IfNode<TState> ifNode:
-                    EnsureDurableSupported(ifNode.Then, definitionId, definitionVersion);
-                    EnsureDurableSupported(ifNode.Else, definitionId, definitionVersion);
-                    break;
-                case WhileNode<TState> whileNode:
-                    EnsureDurableSupported(whileNode.Body, definitionId, definitionVersion);
-                    break;
-                case ParallelNode<TState> parallelNode:
-                    foreach (var branch in parallelNode.Branches)
-                    {
-                        EnsureDurableSupported(branch.Sequence, definitionId, definitionVersion);
-                    }
-
-                    break;
-                case WhenFirstNode<TState> whenFirstNode:
-                    foreach (var branch in whenFirstNode.Branches)
-                    {
-                        EnsureDurableSupported(branch.Sequence, definitionId, definitionVersion);
-                    }
-
-                    break;
-            }
+            throw new WorkflowDefinitionException(
+                $"Definition '{definition.DefinitionId}' version '{definition.DefinitionVersion}' has no " +
+                "compiled plan. Durable registration requires Workflow.Durable<TState>(...).Build().");
         }
+
+        if (definition.CompiledPlan.Mode != WorkflowExecutionMode.Durable)
+        {
+            throw new WorkflowDefinitionException(
+                $"Definition '{definition.DefinitionId}' version '{definition.DefinitionVersion}' was compiled " +
+                $"for '{definition.CompiledPlan.Mode}', not durable execution.");
+        }
+
+        return new DurableFiberDriverExecutor<TState>(definition);
     }
 }

@@ -28,7 +28,11 @@ internal static class DurableCheckpointMapper
                     timer.TimerId,
                     timer.FireAt,
                     timer.WakeupName,
-                    timer.RegisteredAt))
+                    timer.RegisteredAt)
+                {
+                    FiberId = timer.FiberId,
+                    ScopeId = timer.ScopeId
+                })
                 .ToArray(),
             checkpoint.RuntimeState.ActiveWaits
                 .Select(wait => new DurableActiveWait(
@@ -38,7 +42,12 @@ internal static class DurableCheckpointMapper
                     wait.RegisteredAt,
                     wait.Mode,
                     wait.BranchId,
-                    wait.TimeoutTimerId))
+                    wait.TimeoutTimerId)
+                {
+                    WaitSequence = wait.WaitSequence,
+                    FiberId = wait.FiberId,
+                    ScopeId = wait.ScopeId
+                })
                 .ToArray(),
             checkpoint.RuntimeState.BufferedDeliveries
                 .Select(delivery => new DurableBufferedDelivery(
@@ -63,7 +72,11 @@ internal static class DurableCheckpointMapper
                     child.FailurePolicy,
                     child.JoinPolicy,
                     child.ResidualPolicy,
-                    child.ItemSnapshot))
+                    child.ItemSnapshot)
+                {
+                    FiberId = child.FiberId,
+                    ScopeId = child.ScopeId
+                })
                 .ToArray(),
             checkpoint.RuntimeState.ActiveChildGroups
                 .Select(group => new DurableActiveChildGroup(
@@ -73,21 +86,25 @@ internal static class DurableCheckpointMapper
                     group.ResidualPolicy,
                     group.MaxConcurrency,
                     group.NextDispatchIndex,
-                    group.Children))
+                    group.Children)
+                {
+                    FiberId = group.FiberId,
+                    ScopeId = group.ScopeId
+                })
                 .ToArray(),
             checkpoint.RuntimeState.ActiveResourceTickets,
             checkpoint.RuntimeState.ActiveExternalJobs
                 .Select(job => new DurableActiveExternalJob(
                     job.ExternalJobId,
                     job.WaitId,
-                    job.TimeoutTimerId))
+                    job.TimeoutTimerId)
+                {
+                    FiberId = job.FiberId,
+                    ScopeId = job.ScopeId
+                })
                 .ToArray(),
             checkpoint.RuntimeState.CompletedSagaForwardActions
-                .Select(action => new DurableSagaForwardAction(
-                    action.ScopeId,
-                    action.ActionKey,
-                    action.CompensationKey,
-                    action.CompletedAt))
+                .Select(DurableSagaForwardAction.FromCheckpoint)
                 .ToArray(),
             checkpoint.RuntimeState.SagaCompensationActions
                 .Select(action => new DurableSagaCompensationAction(
@@ -125,7 +142,12 @@ internal static class DurableCheckpointMapper
                     pending.BranchId,
                     pending.PayloadContentType,
                     pending.Payload,
-                    pending.MatchedAt))
+                    pending.MatchedAt)
+                {
+                    WaitSequence = pending.WaitSequence,
+                    FiberId = pending.FiberId,
+                    ScopeId = pending.ScopeId
+                })
                 .ToArray(),
             ContinuationFailureCount = checkpoint.RuntimeState.ContinuationFailureCount,
             ContinuationFailurePositionStreamVersion =

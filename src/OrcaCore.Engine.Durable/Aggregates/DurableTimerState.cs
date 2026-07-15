@@ -46,7 +46,11 @@ internal sealed class DurableTimerState
             timerScheduled.TimerId,
             timerScheduled.FireAt,
             timerScheduled.WakeupName,
-            timerScheduled.OccurredAt));
+            timerScheduled.OccurredAt)
+        {
+            FiberId = timerScheduled.FiberId,
+            ScopeId = timerScheduled.ScopeId
+        });
     }
 
     internal void Apply(WorkflowTimerFiredEvent timerFired)
@@ -108,7 +112,11 @@ internal sealed class DurableTimerState
                 timer.TimerId,
                 timer.FireAt,
                 timer.WakeupName,
-                timer.RegisteredAt))
+                timer.RegisteredAt)
+            {
+                FiberId = timer.FiberId,
+                ScopeId = timer.ScopeId
+            })
             .ToArray();
     }
 

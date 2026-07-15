@@ -15,7 +15,8 @@ public sealed class DurableExternalJobStateTests
         var state = DurableExternalJobState.FromSnapshot([]);
 
         state.Apply(Started("job-1", WaitIdValue(1), TimerIdValue(1)));
-        state.Find("job-1").Should().Be(new DurableActiveExternalJob("job-1", WaitIdValue(1), TimerIdValue(1)));
+        state.Find("job-1")!.FiberId.Should().Be(new FiberId("job-fiber"));
+        state.Find("job-1")!.ScopeId.Should().Be(new ScopeId("job-scope"));
 
         state.Apply(Completed("job-1"));
         state.Find("job-1").Should().BeNull();
@@ -46,12 +47,17 @@ public sealed class DurableExternalJobStateTests
     public void CreateCheckpointActiveExternalJobs_RoundTripsActiveJobs()
     {
         var state = DurableExternalJobState.FromSnapshot(
-            [new DurableActiveExternalJob("job-1", WaitIdValue(1), TimerIdValue(2))]);
+            [new DurableActiveExternalJob("job-1", WaitIdValue(1), TimerIdValue(2))
+            {
+                FiberId = new FiberId("job-fiber"),
+                ScopeId = new ScopeId("job-scope")
+            }]);
 
         var checkpointJobs = state.CreateCheckpointActiveExternalJobs();
 
-        checkpointJobs.Should().ContainSingle().Which.Should().Be(
-            new CheckpointActiveExternalJob("job-1", WaitIdValue(1), TimerIdValue(2)));
+        var checkpoint = checkpointJobs.Should().ContainSingle().Which;
+        checkpoint.FiberId.Should().Be(new FiberId("job-fiber"));
+        checkpoint.ScopeId.Should().Be(new ScopeId("job-scope"));
     }
 
     private static WorkflowExternalJobStartedEvent Started(
@@ -69,7 +75,9 @@ public sealed class DurableExternalJobStateTests
             ExternalJobId = externalJobId,
             Payload = [],
             WaitId = waitId,
-            TimeoutTimerId = timeoutTimerId
+            TimeoutTimerId = timeoutTimerId,
+            FiberId = new FiberId("job-fiber"),
+            ScopeId = new ScopeId("job-scope")
         };
     }
 

@@ -41,4 +41,19 @@ public sealed record ActiveWaitSnapshot
     /// Gets the wait residency mode name.
     /// </summary>
     public required string Mode { get; init; }
+
+    /// <summary>
+    /// Gets the logical fiber that owns the wait when available.
+    /// </summary>
+    public FiberId? FiberId { get; init; }
+
+    /// <summary>
+    /// Gets the structured scope that owns the wait when available.
+    /// </summary>
+    public ScopeId? ScopeId { get; init; }
+
+    /// <summary>
+    /// Gets the persisted per-instance registration order used for deterministic matching.
+    /// </summary>
+    public long WaitSequence { get; init; }
 }

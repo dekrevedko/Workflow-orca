@@ -98,6 +98,55 @@ public sealed class DurableCommitMaterializerTests
     }
 
     [Fact]
+    public void CreateBatch_WhenFormat2CheckpointHasRunnableSibling_EmitsContinuation()
+    {
+        var instanceId = InstanceIdValue(1);
+        var aggregate = DurableWorkflowAggregate.Rehydrate(null, [Started(instanceId)]);
+        var envelope = RunnableEnvelope(instanceId);
+        var decision = new DurableDecision(
+            [WaitRegistered(instanceId)],
+            new CheckpointWrite(
+                instanceId,
+                new StreamVersion(2),
+                DurableExecutionEnvelopeV2.ContentType,
+                envelope.Serialize()));
+        var materializer = new DurableCommitMaterializer();
+
+        var batch = materializer.CreateBatch(
+            instanceId,
+            new StreamVersion(1),
+            decision,
+            aggregate,
+            inboxEventId: null);
+
+        batch.OutboxRecords.Should().ContainSingle(record => record.Kind == OutboxKinds.Continue);
+    }
+
+    [Fact]
+    public void CreateBatch_WhenCheckpointOnlyDecisionLeavesRunnableFiber_EmitsContinuation()
+    {
+        var instanceId = InstanceIdValue(1);
+        var aggregate = DurableWorkflowAggregate.Rehydrate(null, [Started(instanceId)]);
+        var decision = new DurableDecision(
+            [],
+            new CheckpointWrite(
+                instanceId,
+                new StreamVersion(1),
+                DurableExecutionEnvelopeV2.ContentType,
+                RunnableEnvelope(instanceId).Serialize()));
+        var materializer = new DurableCommitMaterializer();
+
+        var batch = materializer.CreateBatch(
+            instanceId,
+            new StreamVersion(1),
+            decision,
+            aggregate,
+            inboxEventId: null);
+
+        batch.OutboxRecords.Should().ContainSingle(record => record.Kind == OutboxKinds.Continue);
+    }
+
+    [Fact]
     public void CreateInboxOnlyBatch_WritesOnlyInboxOperation()
     {
         var instanceId = InstanceIdValue(1);
@@ -130,6 +179,43 @@ public sealed class DurableCommitMaterializerTests
             DefinitionId = DefinitionIdValue(1),
             DefinitionVersion = DefinitionVersion.Initial,
             IdempotencyKey = idempotencyKey
+        };
+    }
+
+    private static DurableExecutionEnvelopeV2 RunnableEnvelope(InstanceId instanceId)
+    {
+        return new DurableExecutionEnvelopeV2
+        {
+            EnvelopeVersion = DurableExecutionEnvelopeV2.CurrentVersion,
+            InstanceId = instanceId,
+            ContinueAsNewGeneration = 0,
+            RootFiberId = "root",
+            PlanBinding = new DurablePlanBinding
+            {
+                DefinitionId = DefinitionIdValue(1),
+                DefinitionVersion = DefinitionVersion.Initial,
+                CompilerFormatVersion = 1,
+                PlanFingerprint = "fingerprint"
+            },
+            StateContentType = "application/json",
+            StatePayload = "{}"u8.ToArray(),
+            Fibers =
+            [
+                new DurableFiberState
+                {
+                    FiberId = "root",
+                    InstructionId = "step:next",
+                    Phase = DurableFiberPhase.Runnable,
+                    LoopIteration = 0,
+                    NextScopeEntrySequence = 1
+                }
+            ],
+            Scopes = [],
+            Scheduler = new DurableFiberSchedulerState
+            {
+                RunnableFiberIds = ["root"],
+                NextFiberId = "root"
+            }
         };
     }
 
@@ -232,6 +318,21 @@ public sealed class DurableCommitMaterializerTests
             OccurredAt = Timestamp(20),
             BufferedEventId = bufferedEventId,
             EventName = "Approved",
+            CorrelationId = new CorrelationId("order-1")
+        };
+    }
+
+    private static WorkflowWaitRegisteredEvent WaitRegistered(InstanceId instanceId)
+    {
+        return new WorkflowWaitRegisteredEvent
+        {
+            EventId = EventIdValue(21),
+            InstanceId = instanceId,
+            CommandId = CommandIdValue(21),
+            CausationId = CausationIdValue(21),
+            OccurredAt = Timestamp(21),
+            WaitId = WaitIdValue(21),
+            EventName = "Continue",
             CorrelationId = new CorrelationId("order-1")
         };
     }

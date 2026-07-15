@@ -50,6 +50,41 @@ public abstract class ResourcePoolStoreCertificationTests
     }
 
     [Fact]
+    public async Task Ownership_RoundTripsAcrossGrantQueueAndReleaseGrant()
+    {
+        var store = CreateStore();
+        await store.UpsertPoolAsync(Pool("db", 1), TestContext.Current.CancellationToken);
+        var firstRequest = Request(1, Requirement("db")) with
+        {
+            FiberId = new FiberId("fiber-1"),
+            ScopeId = new ScopeId("scope-1")
+        };
+        var secondRequest = Request(2, Requirement("db")) with
+        {
+            FiberId = new FiberId("fiber-2"),
+            ScopeId = new ScopeId("scope-2")
+        };
+
+        var first = await store.AcquireAsync(firstRequest, TestContext.Current.CancellationToken);
+        var queued = await store.AcquireAsync(secondRequest, TestContext.Current.CancellationToken);
+
+        first.Tickets.Single().FiberId.Should().Be(firstRequest.FiberId);
+        first.Tickets.Single().ScopeId.Should().Be(firstRequest.ScopeId);
+        queued.QueuedWaiter!.FiberId.Should().Be(secondRequest.FiberId);
+        queued.QueuedWaiter.ScopeId.Should().Be(secondRequest.ScopeId);
+
+        var release = await store.ReleaseAsync(
+            new ResourcePoolReleaseRequest(InstanceIdValue(1), "node-1", Date(10)),
+            TestContext.Current.CancellationToken);
+        var snapshot = await store.GetPoolAsync("db", TestContext.Current.CancellationToken);
+
+        release.GrantedWaiters.Single().FiberId.Should().Be(secondRequest.FiberId);
+        release.GrantedWaiters.Single().ScopeId.Should().Be(secondRequest.ScopeId);
+        snapshot.Value.HeldTickets.Single().FiberId.Should().Be(secondRequest.FiberId);
+        snapshot.Value.HeldTickets.Single().ScopeId.Should().Be(secondRequest.ScopeId);
+    }
+
+    [Fact]
     public async Task ListPoolsAsync_ReturnsAllPoolSnapshotsWithTicketsAndWaiters()
     {
         var store = CreateStore();

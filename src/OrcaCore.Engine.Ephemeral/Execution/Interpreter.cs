@@ -17,13 +17,12 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
     private readonly SuspensionScheduler<TState> suspensionScheduler;
     private readonly WaitExecutor<TState> waitExecutor;
     private readonly WhileNodeRunner<TState> whileRunner;
-    private readonly ParallelNodeRunner<TState> parallelRunner;
-    private readonly WhenFirstNodeRunner<TState> whenFirstRunner;
-    private readonly ForEachNodeRunner<TState> forEachRunner;
+    private readonly ResourceGovernanceCoordinator governance;
     private readonly YieldContinuationScheduler yieldContinuationScheduler;
     private readonly int maxConsumedEventIds;
     private readonly int maxLifecycleEvents;
     private readonly int maxPendingEvents;
+    private readonly TimeSpan? stuckStepThreshold;
 
     internal Interpreter(
         TimeProvider timeProvider,
@@ -33,9 +32,7 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
         SuspensionScheduler<TState> suspensionScheduler,
         WaitExecutor<TState> waitExecutor,
         WhileNodeRunner<TState> whileRunner,
-        ParallelNodeRunner<TState> parallelRunner,
-        WhenFirstNodeRunner<TState> whenFirstRunner,
-        ForEachNodeRunner<TState> forEachRunner,
+        ResourceGovernanceCoordinator governance,
         YieldContinuationScheduler yieldContinuationScheduler,
         EphemeralWorkflowEngineOptions options)
     {
@@ -46,9 +43,7 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
         ArgumentNullException.ThrowIfNull(suspensionScheduler);
         ArgumentNullException.ThrowIfNull(waitExecutor);
         ArgumentNullException.ThrowIfNull(whileRunner);
-        ArgumentNullException.ThrowIfNull(parallelRunner);
-        ArgumentNullException.ThrowIfNull(whenFirstRunner);
-        ArgumentNullException.ThrowIfNull(forEachRunner);
+        ArgumentNullException.ThrowIfNull(governance);
         ArgumentNullException.ThrowIfNull(yieldContinuationScheduler);
         ArgumentNullException.ThrowIfNull(options);
 
@@ -59,13 +54,12 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
         this.suspensionScheduler = suspensionScheduler;
         this.waitExecutor = waitExecutor;
         this.whileRunner = whileRunner;
-        this.parallelRunner = parallelRunner;
-        this.whenFirstRunner = whenFirstRunner;
-        this.forEachRunner = forEachRunner;
+        this.governance = governance;
         this.yieldContinuationScheduler = yieldContinuationScheduler;
         maxPendingEvents = options.MaxPendingEventsPerInstance;
         maxConsumedEventIds = options.MaxConsumedEventIdsPerInstance;
         maxLifecycleEvents = options.MaxLifecycleEventsPerInstance;
+        stuckStepThreshold = options.StuckStepThreshold;
     }
 
     internal async Task<WorkflowInstance<TState>> RunAsync<TInput>(
@@ -73,10 +67,31 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
         TInput input,
         InstanceId instanceId,
         Action<WorkflowInstance<TState>> onInitialized,
+        Action<WorkflowInstanceSnapshot> onSnapshotCommitted,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(onInitialized);
+
+        if (definition.CompiledPlan.Instructions.Count > 0)
+        {
+            var adapter = new InMemoryExecutionStateAdapter<TState>(
+                timeProvider,
+                suspensionScheduler,
+                governance,
+                yieldContinuationScheduler,
+                onSnapshotCommitted,
+                stuckStepThreshold,
+                maxPendingEvents,
+                maxConsumedEventIds,
+                maxLifecycleEvents);
+            return await adapter.RunAsync(
+                definition,
+                input,
+                instanceId,
+                onInitialized,
+                cancellationToken).ConfigureAwait(false);
+        }
 
         var runState = new InterpreterRunState<TState> { OnInitialized = onInitialized };
         var context = new SequenceExecutionContext<TState, TInput>(
@@ -168,21 +183,6 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
                 case WhileNode<TState> whileNode:
                     EnsureInitialized(context.RunState);
                     await whileRunner.RunAsync(whileNode, context, index, this, cancellationToken).ConfigureAwait(false);
-                    return false;
-
-                case ParallelNode<TState> parallelNode:
-                    EnsureInitialized(context.RunState);
-                    await parallelRunner.RunAsync(parallelNode, context, index, this, cancellationToken).ConfigureAwait(false);
-                    return false;
-
-                case WhenFirstNode<TState> whenFirstNode:
-                    EnsureInitialized(context.RunState);
-                    await whenFirstRunner.RunAsync(whenFirstNode, context, index, this, cancellationToken).ConfigureAwait(false);
-                    return false;
-
-                case ForEachNode<TState> forEachNode:
-                    EnsureInitialized(context.RunState);
-                    await forEachRunner.RunAsync(forEachNode, context, index, this, cancellationToken).ConfigureAwait(false);
                     return false;
 
                 case RunChildNode<TState>:
@@ -303,7 +303,7 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
         }
 
         WorkflowLifecycleTransition.FireOrThrow(instance, LifecycleTrigger.Complete);
-        instance.Complete(endNode.OutcomeName, timeProvider.GetUtcNow());
+        instance.Complete(endNode.ResolveOutcome(instance.State), timeProvider.GetUtcNow());
         return false;
     }
 

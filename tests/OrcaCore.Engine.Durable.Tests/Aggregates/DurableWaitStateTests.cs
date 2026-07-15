@@ -12,12 +12,25 @@ namespace OrcaCore.Engine.Durable.Tests.Aggregates;
 public sealed class DurableWaitStateTests
 {
     [Fact]
-    public void FindActiveWait_WhenUnscopedEventWouldMatchMultipleBranchWaits_ReturnsNoMatch()
+    public void FindActiveWait_WhenOwnersReuseCorrelation_SelectsLowestSequenceThenFiberId()
     {
         var state = DurableWaitState.FromSnapshot(
             [
-                ActiveWait(1, "checkout:a"),
-                ActiveWait(2, "checkout:b")
+                ActiveWait(1, "checkout:a") with
+                {
+                    WaitSequence = 8,
+                    FiberId = new FiberId("fiber-b")
+                },
+                ActiveWait(2, "checkout:b") with
+                {
+                    WaitSequence = 7,
+                    FiberId = new FiberId("fiber-z")
+                },
+                ActiveWait(3, "checkout:c") with
+                {
+                    WaitSequence = 7,
+                    FiberId = new FiberId("fiber-a")
+                }
             ],
             []);
 
@@ -29,7 +42,8 @@ public sealed class DurableWaitStateTests
             OccurredAt = Timestamp(10)
         });
 
-        match.Should().BeNull();
+        match.Should().NotBeNull();
+        match!.WaitId.Should().Be(WaitIdValue(3));
     }
 
     [Fact]

@@ -11,6 +11,8 @@ developer guides that explain it.
    durable-driver notes, operations, and handoffs.
 3. [Project technical overview](project-technical-overview.md) — architecture and code map.
 4. [Current roadmap](plans/current-roadmap.md) — implemented features and planned scope.
+5. [Durable development store reset](durable-development-store-reset.md) - required after
+   provisional cursor checkpoints or incompatible compiled-plan changes.
 
 ## Active source layout
 

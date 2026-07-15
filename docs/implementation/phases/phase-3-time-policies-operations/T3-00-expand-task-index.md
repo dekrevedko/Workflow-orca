@@ -19,7 +19,7 @@ have a stable observability boundary.
 - `docs/implementation/phases/phase-3-time-policies-operations/PROGRESS.md`
 - `docs/implementation/phases/phase-3-time-policies-operations/T3-01-*.md` through `T3-13-*.md`
 - `docs/implementation/00-stack-decisions.md` updated for IOQ-5
-- All paths in generated tasks use ``.
+- All paths in generated tasks are explicit repository-root paths.
 
 ## Tests to write FIRST
 No product tests. Review the generated task files for path safety, dependency order, AC

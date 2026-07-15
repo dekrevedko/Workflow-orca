@@ -143,13 +143,13 @@ public sealed class DurableDriverHostAcceptanceTests
         DefinitionId definitionId,
         DefinitionVersion version)
     {
-        return new WorkflowBuilder<OrderState>()
+        return Workflow.Durable<OrderState>(definitionId, version)
             .Init<string>(orderId => new OrderState { OrderId = orderId ?? "unset" })
-            .Then(new CountingStep("prepare"))
+            .Then(() => new CountingStep("prepare"))
             .Wait("Approved", state => new CorrelationId(state.OrderId))
-            .Then(new CountingStep("ship"))
+            .Then(() => new CountingStep("ship"))
             .End("shipped")
-            .Build(definitionId, version);
+            .Build();
     }
 
     [Fact]
@@ -244,14 +244,14 @@ public sealed class DurableDriverHostAcceptanceTests
 
         WorkflowDefinition<OrderState> Definition()
         {
-            return new WorkflowBuilder<OrderState>()
+            return Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
                 .Init<string>(orderId => new OrderState { OrderId = orderId ?? "unset" })
-                .Then(new CountingStep("s1"))
-                .Then(new CountingStep("s2"))
-                .Then(new CountingStep("s3"))
-                .Then(new CountingStep("s4"))
+                .Then(() => new CountingStep("s1"))
+                .Then(() => new CountingStep("s2"))
+                .Then(() => new CountingStep("s3"))
+                .Then(() => new CountingStep("s4"))
                 .End("done")
-                .Build(definitionId, DefinitionVersion.Initial);
+                .Build();
         }
 
         // A small budget forces every instance through multiple continuation cycles, so both
@@ -310,12 +310,12 @@ public sealed class DurableDriverHostAcceptanceTests
 
         WorkflowDefinition<OrderState> Definition()
         {
-            return new WorkflowBuilder<OrderState>()
+            return Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
                 .Init<string>(orderId => new OrderState { OrderId = orderId ?? "unset" })
-                .Then(new CountingStep("first"))
-                .Then(new CountingStep("second"))
+                .Then(() => new CountingStep("first"))
+                .Then(() => new CountingStep("second"))
                 .End("done")
-                .Build(definitionId, DefinitionVersion.Initial);
+                .Build();
         }
 
         // Budget 1: host A commits the first step (a runnable-leaving commit) and returns —
@@ -393,14 +393,15 @@ public sealed class DurableDriverHostAcceptanceTests
 
         WorkflowDefinition<OrderState> Definition()
         {
-            var builder = new WorkflowBuilder<OrderState>()
+            var builder = Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
                 .Init<string>(orderId => new OrderState { OrderId = orderId ?? "unset" });
             for (var index = 1; index <= 6; index++)
             {
-                builder = builder.Then(new CountingStep($"step-{index}"));
+                var step = index;
+                builder = builder.Then(() => new CountingStep($"step-{step}"));
             }
 
-            return builder.End("budgeted").Build(definitionId, DefinitionVersion.Initial);
+            return builder.End("budgeted").Build();
         }
 
         var host = CreateHost(store, clock, new DurableDriverBudget(2, TimeSpan.FromSeconds(30)));
@@ -442,13 +443,13 @@ public sealed class DurableDriverHostAcceptanceTests
 
         WorkflowDefinition<OrderState> Definition()
         {
-            return new WorkflowBuilder<OrderState>()
+            return Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
                 .Init<string>(orderId => new OrderState { OrderId = orderId ?? "unset" })
-                .Then(new CountingStep("before-delay"))
+                .Then(() => new CountingStep("before-delay"))
                 .Delay(TimeSpan.FromMinutes(5))
-                .Then(new CountingStep("after-delay"))
+                .Then(() => new CountingStep("after-delay"))
                 .End("timed")
-                .Build(definitionId, DefinitionVersion.Initial);
+                .Build();
         }
 
         var hostA = CreateHost(store, clock);
@@ -486,6 +487,8 @@ public sealed class DurableDriverHostAcceptanceTests
         }
     }
 
+    private sealed record TimeoutBranchState(string OrderId);
+
     [Fact]
     [Trait("AC", "DR-AC-020")]
     public async Task WaitLongTimeoutWins_ResumesTimeoutBranchOnce_LateEventIsDeduplicated()
@@ -496,12 +499,30 @@ public sealed class DurableDriverHostAcceptanceTests
 
         WorkflowDefinition<OrderState> Definition()
         {
-            return new WorkflowBuilder<OrderState>()
+            return Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
                 .Init<string>(orderId => new OrderState { OrderId = orderId ?? "unset" })
-                .Wait("Approval", state => new CorrelationId(state.OrderId), TimeSpan.FromMinutes(10))
-                .Then(new TimeoutObservingStep())
+                .WhenFirst<string>(
+                    branches => branches
+                        .Branch<TimeoutBranchState>(
+                            "event",
+                            parent => new TimeoutBranchState(parent.Value.OrderId),
+                            branch => branch
+                                .Wait("Approval", state => new CorrelationId(state.OrderId))
+                                .Return(_ => "event"))
+                        .Branch<TimeoutBranchState>(
+                            "timeout",
+                            parent => new TimeoutBranchState(parent.Value.OrderId),
+                            branch => branch
+                                .Delay(TimeSpan.FromMinutes(10))
+                                .Return(_ => "timeout")),
+                    (parent, winner) => new OrderState
+                    {
+                        OrderId = parent.Value.OrderId,
+                        Log = [.. parent.Value.Log, winner.Value]
+                    })
+                .Then(() => new CountingStep("decide"))
                 .End("decided")
-                .Build(definitionId, DefinitionVersion.Initial);
+                .Build();
         }
 
         var host = CreateHost(store, clock);
@@ -569,12 +590,12 @@ public sealed class DurableDriverHostAcceptanceTests
 
         WorkflowDefinition<OrderState> Definition()
         {
-            return new WorkflowBuilder<OrderState>()
+            return Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
                 .Init<string>(orderId => new OrderState { OrderId = orderId ?? "unset" })
-                .Then(new DispatchJobStep())
-                .Then(new ObserveCompletionStep())
+                .Then<DispatchJobStep>()
+                .Then<ObserveCompletionStep>()
                 .End("job-done")
-                .Build(definitionId, DefinitionVersion.Initial);
+                .Build();
         }
 
         var hostA = CreateHost(store, clock);
@@ -641,13 +662,13 @@ public sealed class DurableDriverHostAcceptanceTests
 
         WorkflowDefinition<OrderState> Definition()
         {
-            return new WorkflowBuilder<OrderState>()
+            return Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
                 .Init<string>(orderId => new OrderState { OrderId = orderId ?? "unset" })
-                .Then(new AcquirePoolStep())
-                .Then(new CountingStep("guarded"))
+                .Then<AcquirePoolStep>()
+                .Then(() => new CountingStep("guarded"))
                 .Wait("Release", state => new CorrelationId(state.OrderId))
                 .End("released")
-                .Build(definitionId, DefinitionVersion.Initial);
+                .Build();
         }
 
         var hostA = CreateHost(store, clock, resourcePoolStore: poolStore);

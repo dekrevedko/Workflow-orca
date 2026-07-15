@@ -66,13 +66,13 @@ public sealed class DurableDriverPostgreSqlIntegrationTests(PostgreSqlOrcaFixtur
 
     private static WorkflowDefinition<OrderState> Definition(DefinitionId definitionId)
     {
-        return new WorkflowBuilder<OrderState>()
+        return Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
             .Init<string>(orderId => new OrderState { OrderId = orderId ?? "unset" })
-            .Then(new CountingStep("prepare"))
+            .Then(() => new CountingStep("prepare"))
             .Wait("Approved", state => new CorrelationId(state.OrderId))
-            .Then(new CountingStep("ship"))
+            .Then(() => new CountingStep("ship"))
             .End("shipped")
-            .Build(definitionId, DefinitionVersion.Initial);
+            .Build();
     }
 
     [Fact]

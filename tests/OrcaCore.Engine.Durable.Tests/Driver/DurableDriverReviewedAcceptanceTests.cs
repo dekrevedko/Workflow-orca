@@ -6,6 +6,7 @@ using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
 using OrcaCore.Core.Definitions;
@@ -50,6 +51,23 @@ public sealed class DurableDriverReviewedAcceptanceTests
             CancellationToken cancellationToken)
         {
             context.State.Log.Add(value);
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed record FailureBranchState(string Value);
+
+    private sealed record RaceBranchState(string Result);
+
+    private sealed record ComposedRaceState(string Name, IReadOnlyList<string> Log);
+
+    private sealed class RecordGenerationStep : IStep<TestState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<TestState> context,
+            CancellationToken cancellationToken)
+        {
+            context.State.Log.Add($"generation-{context.State.Generation}");
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
         }
     }
@@ -159,13 +177,15 @@ public sealed class DurableDriverReviewedAcceptanceTests
         Clock? clock = null,
         IWorkflowPayloadSerializer? serializer = null,
         DurableDriverBudget? budget = null,
-        int maxDriveAttemptsBeforePark = DurableContinuationPump.DefaultMaxDriveAttemptsBeforePark)
+        int maxDriveAttemptsBeforePark = DurableContinuationPump.DefaultMaxDriveAttemptsBeforePark,
+        IWorkflowEventStore? eventStore = null)
     {
         clock ??= new Clock(TestEpoch);
         store ??= new InMemoryWorkflowProvider(clock.TimeProvider);
-        var processor = new DurableCommandProcessor(store);
+        eventStore ??= store;
+        var processor = new DurableCommandProcessor(eventStore);
         serializer ??= new JsonWorkflowPayloadSerializer();
-        var management = new DurableManagement(store, eventStore: store, commandProcessor: processor);
+        var management = new DurableManagement(store, eventStore: eventStore, commandProcessor: processor);
         var runtime = new DurableWorkflowRuntime(
             processor,
             new DurableDefinitionRegistry(),
@@ -188,12 +208,12 @@ public sealed class DurableDriverReviewedAcceptanceTests
         DefinitionId definitionId,
         DefinitionVersion? version = null)
     {
-        return new WorkflowBuilder<TestState>()
+        return Workflow.Durable<TestState>(definitionId, version ?? DefinitionVersion.Initial)
             .Init<string>(orderId => new TestState { OrderId = orderId })
             .Wait("Approved", state => new CorrelationId(state.OrderId))
-            .Then(new AppendStep("approved"))
+            .Then(() => new AppendStep("approved"))
             .End("done")
-            .Build(definitionId, version ?? DefinitionVersion.Initial);
+            .Build();
     }
 
     private static async Task<WorkflowInstanceSnapshot> SnapshotAsync(
@@ -212,10 +232,15 @@ public sealed class DurableDriverReviewedAcceptanceTests
             instanceId,
             TestContext.Current.CancellationToken);
         checkpoint.HasValue.Should().BeTrue();
-        var envelope = DurableExecutionEnvelope.Deserialize(checkpoint.Value.Payload);
+        checkpoint.Value.ContentType.Should().Be(DurableExecutionEnvelopeV2.ContentType);
+        var (contentType, payload) = ReadState(
+            DurableExecutionEnvelopeV2.Deserialize(checkpoint.Value.Payload));
         return harness.Serializer.Deserialize<TestState>(
-            new SerializedPayload(envelope.StateContentType, envelope.StatePayload));
+            new SerializedPayload(contentType, payload));
     }
+
+    private static (string ContentType, byte[] Payload) ReadState(DurableExecutionEnvelopeV2 envelope) =>
+        (envelope.StateContentType, envelope.StatePayload);
 
     private static Task<int> PumpOnceAsync(Harness harness)
     {
@@ -258,15 +283,15 @@ public sealed class DurableDriverReviewedAcceptanceTests
 
         var replacement = CreateHarness(store, clock);
         replacement.Runtime.RegisterDefinition(
-            new WorkflowBuilder<TestState>()
+            Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
                 .Init<StartInput>(value => new TestState
                 {
                     OrderId = value.OrderId,
                     Log = [.. value.Labels]
                 })
-                .Then(new AppendStep("initialized"))
+                .Then(() => new AppendStep("initialized"))
                 .End("done")
-                .Build(definitionId, DefinitionVersion.Initial));
+                .Build());
 
         await replacement.Runtime.DriveAsync(
             start.InstanceId,
@@ -407,12 +432,14 @@ public sealed class DurableDriverReviewedAcceptanceTests
         var clock = new Clock(TestEpoch);
         var store = new InMemoryWorkflowProvider(clock.TimeProvider);
         var definitionId = DefinitionId.New();
-        WorkflowDefinition<TestState> Definition() => new WorkflowBuilder<TestState>()
+        WorkflowDefinition<TestState> Definition() => Workflow.Durable<TestState>(
+                definitionId,
+                DefinitionVersion.Initial)
             .Init<string>(orderId => new TestState { OrderId = orderId })
-            .Then(new AppendStep("committed"))
-            .Then(new AppendStep("failing-checkpoint"))
+            .Then(() => new AppendStep("committed"))
+            .Then(() => new AppendStep("failing-checkpoint"))
             .End("done")
-            .Build(definitionId, DefinitionVersion.Initial);
+            .Build();
 
         var first = CreateHarness(
             store,
@@ -459,11 +486,11 @@ public sealed class DurableDriverReviewedAcceptanceTests
         var harness = CreateHarness(
             budget: new DurableDriverBudget(1, TimeSpan.FromTicks(1)));
         harness.Runtime.RegisterDefinition(
-            new WorkflowBuilder<TestState>()
+            Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
                 .Init<string>(orderId => new TestState { OrderId = orderId })
-                .Then(new AppendStep("never-admitted"))
+                .Then(() => new AppendStep("never-admitted"))
                 .End("done")
-                .Build(definitionId, DefinitionVersion.Initial));
+                .Build());
         var start = await harness.Runtime.StartOrGetAsync<string, TestState>(
             "zero-progress-budget",
             definitionId,
@@ -491,15 +518,27 @@ public sealed class DurableDriverReviewedAcceptanceTests
     public async Task DriveFailureWithoutSuccessorCheckpoint_KeepsClaimedContinuationRetryable()
     {
         var definitionId = DefinitionId.New();
-        WorkflowDefinition<TestState> Definition() => new WorkflowBuilder<TestState>()
+        WorkflowDefinition<TestState> Definition() => Workflow.Durable<TestState>(
+                definitionId,
+                DefinitionVersion.Initial)
             .Init<string>(orderId => new TestState { OrderId = orderId })
-            .Parallel(
-                ("runnable", branch => branch
-                    .Wait("A", _ => new CorrelationId("a"))
-                    .Then(new AppendStep("a"))),
-                ("blocked", branch => branch.Wait("B", _ => new CorrelationId("b"))))
+            .Parallel<string>(
+                branches => branches
+                    .Branch<FailureBranchState>(
+                        "runnable",
+                        _ => new FailureBranchState("a"),
+                        branch => branch
+                            .Wait("A", _ => new CorrelationId("a"))
+                            .Return(state => state.Value.Value))
+                    .Branch<FailureBranchState>(
+                        "blocked",
+                        _ => new FailureBranchState("b"),
+                        branch => branch
+                            .Wait("B", _ => new CorrelationId("b"))
+                            .Return(state => state.Value.Value)),
+                (parent, _) => parent.Value)
             .End("done")
-            .Build(definitionId, DefinitionVersion.Initial);
+            .Build();
         var first = CreateHarness();
         first.Runtime.RegisterDefinition(Definition());
         var start = await first.Runtime.StartOrGetAsync<string, TestState>(
@@ -610,12 +649,14 @@ public sealed class DurableDriverReviewedAcceptanceTests
         var parentDefinitionId = DefinitionId.New();
         var childDefinitionId = DefinitionId.New();
         var first = CreateHarness();
-        WorkflowDefinition<TestState> ParentDefinition() => new WorkflowBuilder<TestState>()
+        WorkflowDefinition<TestState> ParentDefinition() => Workflow.Durable<TestState>(
+                parentDefinitionId,
+                DefinitionVersion.Initial)
             .Init<string>(orderId => new TestState { OrderId = orderId })
             .RunChild(childDefinitionId, DefinitionVersion.Initial)
-            .Then(new AppendStep("after-child"))
+            .Then(() => new AppendStep("after-child"))
             .End("done")
-            .Build(parentDefinitionId, DefinitionVersion.Initial);
+            .Build();
 
         first.Runtime.RegisterDefinition(ParentDefinition());
         var start = await first.Runtime.StartOrGetAsync<string, TestState>(
@@ -660,12 +701,22 @@ public sealed class DurableDriverReviewedAcceptanceTests
     public async Task DriverOwnedContinueAsNew_CommitsFreshEnvelopeAndResumesAfterReplacement()
     {
         var definitionId = DefinitionId.New();
-        WorkflowDefinition<TestState> Definition() => new WorkflowBuilder<TestState>()
+        WorkflowDefinition<TestState> Definition() => Workflow.Durable<TestState>(
+                definitionId,
+                DefinitionVersion.Initial)
             .Init<string>(orderId => new TestState { OrderId = orderId })
-            .Then(new ContinueOnceStep())
-            .Then(new AppendStep("after-rollover"))
+            .Then<RecordGenerationStep>()
+            .If(
+                state => state.Generation == 0,
+                then => then.ContinueAsNew(state => new TestState
+                {
+                    OrderId = state.OrderId,
+                    Generation = 1,
+                    Log = [.. state.Log]
+                }))
+            .Then(() => new AppendStep("after-rollover"))
             .End("done")
-            .Build(definitionId, DefinitionVersion.Initial);
+            .Build();
 
         var first = CreateHarness();
         first.Runtime.RegisterDefinition(Definition());
@@ -688,7 +739,7 @@ public sealed class DurableDriverReviewedAcceptanceTests
         var checkpoint = await first.Store.LoadCheckpointAsync(
             start.InstanceId,
             TestContext.Current.CancellationToken);
-        checkpoint.Value.ContentType.Should().Be(DurableExecutionEnvelope.ContentType);
+        checkpoint.Value.ContentType.Should().Be(DurableExecutionEnvelopeV2.ContentType);
 
         var replacement = CreateHarness(first.Store, first.Clock);
         replacement.Runtime.RegisterDefinition(Definition());
@@ -713,12 +764,12 @@ public sealed class DurableDriverReviewedAcceptanceTests
         var definitionId = DefinitionId.New();
         var harness = CreateHarness();
         harness.Runtime.RegisterDefinition(
-            new WorkflowBuilder<TestState>()
+            Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
                 .Init<string>(orderId => new TestState { OrderId = orderId })
                 .WithTimeout(TimeSpan.FromMinutes(5))
-                .Then(new AppendStep("timed-step"))
+                .Then(() => new AppendStep("timed-step"))
                 .End("done")
-                .Build(definitionId, DefinitionVersion.Initial));
+                .Build());
 
         var start = await harness.Runtime.StartOrGetAsync<string, TestState>(
             "facade-only-policy-boundary",
@@ -737,12 +788,20 @@ public sealed class DurableDriverReviewedAcceptanceTests
         var definitionId = DefinitionId.New();
         var harness = CreateHarness();
         harness.Runtime.RegisterDefinition(
-            new WorkflowBuilder<TestState>()
+            Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
                 .Init<string>(orderId => new TestState { OrderId = orderId })
-                .Then(new ContinueOnceStep())
-                .Then(new AppendStep("after-rollover"))
+                .Then<RecordGenerationStep>()
+                .If(
+                    state => state.Generation == 0,
+                    then => then.ContinueAsNew(state => new TestState
+                    {
+                        OrderId = state.OrderId,
+                        Generation = 1,
+                        Log = [.. state.Log]
+                    }))
+                .Then(() => new AppendStep("after-rollover"))
                 .End("done")
-                .Build(definitionId, DefinitionVersion.Initial));
+                .Build());
 
         var start = await harness.Runtime.StartOrGetAsync<string, TestState>(
             "facade-only-continue-as-new",
@@ -764,13 +823,15 @@ public sealed class DurableDriverReviewedAcceptanceTests
     {
         var definitionId = DefinitionId.New();
         const string orderId = "durable-retry";
-        WorkflowDefinition<TestState> Definition() => new WorkflowBuilder<TestState>()
+        WorkflowDefinition<TestState> Definition() => Workflow.Durable<TestState>(
+                definitionId,
+                DefinitionVersion.Initial)
             .Init<string>(value => new TestState { OrderId = value })
             .WithRetry(maxAttempts: 2, backoff: TimeSpan.FromMinutes(5))
-            .Then(new RetryOnceStep())
-            .Then(new AppendStep("after-retry"))
+            .Then(() => new RetryOnceStep())
+            .Then(() => new AppendStep("after-retry"))
             .End("done")
-            .Build(definitionId, DefinitionVersion.Initial);
+            .Build();
 
         var first = CreateHarness();
         first.Runtime.RegisterDefinition(Definition());
@@ -785,12 +846,13 @@ public sealed class DurableDriverReviewedAcceptanceTests
         var checkpoint = await first.Store.LoadCheckpointAsync(
             start.InstanceId,
             TestContext.Current.CancellationToken);
-        var backoffEnvelope = DurableExecutionEnvelope.Deserialize(checkpoint.Value.Payload);
-        var retryCursor = backoffEnvelope.Position.Cursors.Should().ContainSingle().Subject;
-        retryCursor.Phase.Should().Be(DurableCursorPhase.SuspendedOnRetryBackoff);
-        retryCursor.RetryAttempt.Should().Be(2);
-        retryCursor.RetryNotBefore.Should().Be(TestEpoch.AddMinutes(5));
-        retryCursor.LogicalOperationKey.Should().NotBeNullOrWhiteSpace();
+        var backoffEnvelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint.Value.Payload);
+        var retryFiber = backoffEnvelope.Fibers.Should().ContainSingle().Subject;
+        retryFiber.Phase.Should().Be(DurableFiberPhase.Blocked);
+        retryFiber.Blocked!.Reason.Should().Be(DurableFiberBlockedReason.Retry);
+        retryFiber.RetryAttempt.Should().Be(2);
+        retryFiber.RetryNotBefore.Should().Be(TestEpoch.AddMinutes(5));
+        retryFiber.LogicalOperationKey.Should().NotBeNullOrWhiteSpace();
         var rolledBack = first.Serializer.Deserialize<TestState>(
             new SerializedPayload(backoffEnvelope.StateContentType, backoffEnvelope.StatePayload));
         rolledBack.Log.Should().BeEmpty("failed-attempt mutations must not cross the retry boundary");
@@ -814,7 +876,9 @@ public sealed class DurableDriverReviewedAcceptanceTests
             TestContext.Current.CancellationToken);
         events.OfType<WorkflowTimerScheduledEvent>().Should().ContainSingle();
         events.OfType<WorkflowTimerFiredEvent>().Should().ContainSingle();
-        events.OfType<WorkflowStepCompletedEvent>().Should().HaveCount(2);
+        events.OfType<WorkflowStepCompletedEvent>()
+            .Where(item => item.StepPath != "owned-suspension-recovery")
+            .Should().HaveCount(2);
         events.OfType<WorkflowStepFailedEvent>().Should().BeEmpty();
     }
 
@@ -824,12 +888,14 @@ public sealed class DurableDriverReviewedAcceptanceTests
     {
         var timeoutDefinitionId = DefinitionId.New();
         const string timeoutOrderId = "durable-timeout";
-        WorkflowDefinition<TestState> TimeoutDefinition() => new WorkflowBuilder<TestState>()
+        WorkflowDefinition<TestState> TimeoutDefinition() => Workflow.Durable<TestState>(
+                timeoutDefinitionId,
+                DefinitionVersion.Initial)
             .Init<string>(value => new TestState { OrderId = value })
             .WithTimeout(TimeSpan.FromMinutes(5))
-            .Then(new CancellationAwareStep())
+            .Then(() => new CancellationAwareStep())
             .End("unreachable")
-            .Build(timeoutDefinitionId, DefinitionVersion.Initial);
+            .Build();
 
         var first = CreateHarness();
         first.Runtime.RegisterDefinition(TimeoutDefinition());
@@ -849,9 +915,9 @@ public sealed class DurableDriverReviewedAcceptanceTests
         var admission = await first.Store.LoadCheckpointAsync(
             timeoutStart.InstanceId,
             TestContext.Current.CancellationToken);
-        var admittedCursor = DurableExecutionEnvelope.Deserialize(admission.Value.Payload)
-            .Position.Cursors.Should().ContainSingle().Subject;
-        admittedCursor.TimeoutDeadline.Should().Be(TestEpoch.AddMinutes(5));
+        var admittedFiber = DurableExecutionEnvelopeV2.Deserialize(admission.Value.Payload)
+            .Fibers.Should().ContainSingle().Subject;
+        admittedFiber.TimeoutDeadline.Should().Be(TestEpoch.AddMinutes(5));
         CancellationAwareStep.ExecutionCount(timeoutOrderId).Should().Be(0);
 
         first.Clock.Advance(TimeSpan.FromMinutes(5));
@@ -877,13 +943,15 @@ public sealed class DurableDriverReviewedAcceptanceTests
     {
         var cancelDefinitionId = DefinitionId.New();
         const string cancelOrderId = "durable-operator-cancel";
-        var cancelDefinition = new WorkflowBuilder<TestState>()
+        var cancelDefinition = Workflow.Durable<TestState>(
+                cancelDefinitionId,
+                DefinitionVersion.Initial)
             .Init<string>(value => new TestState { OrderId = value })
             .WithCancellation()
             .WithRetry(maxAttempts: 2)
-            .Then(new CancellationAwareStep())
+            .Then(() => new CancellationAwareStep())
             .End("unreachable")
-            .Build(cancelDefinitionId, DefinitionVersion.Initial);
+            .Build();
         var cancellationHost = CreateHarness();
         cancellationHost.Runtime.RegisterDefinition(cancelDefinition);
         var committedStart = await new DurableStartService(cancellationHost.Processor).StartOrGetAsync(
@@ -929,19 +997,33 @@ public sealed class DurableDriverReviewedAcceptanceTests
     public async Task DurableWhenFirst_ConcurrentMatchesAcrossHostsCommitOneWinner()
     {
         var definitionId = DefinitionId.New();
-        WorkflowDefinition<TestState> Definition() => new WorkflowBuilder<TestState>()
+        WorkflowDefinition<TestState> Definition() => Workflow.Durable<TestState>(
+                definitionId,
+                DefinitionVersion.Initial)
             .Init<string>(orderId => new TestState { OrderId = orderId })
-            .WhenFirst(
-                WhenFirstResidualPolicy.CancelRemaining,
-                ("a", branch => branch
-                    .Wait("A", _ => new CorrelationId("a"))
-                    .Then(new AppendStep("winner-a"))),
-                ("b", branch => branch
-                    .Wait("B", _ => new CorrelationId("b"))
-                    .Then(new AppendStep("winner-b"))))
-            .Then(new AppendStep("after-winner"))
+            .WhenFirst<string>(
+                branches => branches
+                    .Branch<RaceBranchState>(
+                        "a",
+                        _ => new RaceBranchState("winner-a"),
+                        branch => branch
+                            .Wait("A", _ => new CorrelationId("a"))
+                            .Return(state => state.Value.Result))
+                    .Branch<RaceBranchState>(
+                        "b",
+                        _ => new RaceBranchState("winner-b"),
+                        branch => branch
+                            .Wait("B", _ => new CorrelationId("b"))
+                            .Return(state => state.Value.Result)),
+                (parent, winner) => new TestState
+                {
+                    OrderId = parent.Value.OrderId,
+                    Generation = parent.Value.Generation,
+                    Log = [winner.Value]
+                })
+            .Then(() => new AppendStep("after-winner"))
             .End("done")
-            .Build(definitionId, DefinitionVersion.Initial);
+            .Build();
 
         var first = CreateHarness();
         first.Runtime.RegisterDefinition(Definition());
@@ -951,8 +1033,9 @@ public sealed class DurableDriverReviewedAcceptanceTests
             DefinitionVersion.Initial,
             "race",
             TestContext.Current.CancellationToken);
-        var hostA = CreateHarness(first.Store, first.Clock);
-        var hostB = CreateHarness(first.Store, first.Clock);
+        var synchronizedStore = new CoordinatedAppendEventStore(first.Store, participantCount: 2);
+        var hostA = CreateHarness(first.Store, first.Clock, eventStore: synchronizedStore);
+        var hostB = CreateHarness(first.Store, first.Clock, eventStore: synchronizedStore);
         hostA.Runtime.RegisterDefinition(Definition());
         hostB.Runtime.RegisterDefinition(Definition());
 
@@ -1014,20 +1097,43 @@ public sealed class DurableDriverReviewedAcceptanceTests
     public async Task DurableWhenFirst_ReadyJoinIsNotBlockedByDeferredParallelCandidate()
     {
         var definitionId = DefinitionId.New();
-        var definition = new WorkflowBuilder<TestState>()
+        var definition = Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
             .Init<string>(orderId => new TestState { OrderId = orderId })
-            .Parallel(
-                ("quick", branch => branch.Then(new AppendStep("quick"))),
-                ("race", branch => branch.WhenFirst(
-                    WhenFirstResidualPolicy.CancelRemaining,
-                    ("winner", candidate => candidate
-                        .Wait("A", _ => new CorrelationId("a"))
-                        .Then(new AppendStep("winner"))),
-                    ("loser", candidate => candidate
-                        .Wait("B", _ => new CorrelationId("b"))))))
-            .Then(new AppendStep("after-parallel"))
+            .Parallel<IReadOnlyList<string>>(
+                branches => branches
+                    .Branch<ComposedRaceState>(
+                        "quick",
+                        _ => new ComposedRaceState("quick", ["quick"]),
+                        branch => branch.Return(state => state.Value.Log))
+                    .Branch<ComposedRaceState>(
+                        "race",
+                        _ => new ComposedRaceState("race", []),
+                        branch => branch
+                            .WhenFirst<string>(
+                                candidates => candidates
+                                    .Branch<RaceBranchState>(
+                                        "winner",
+                                        _ => new RaceBranchState("winner"),
+                                        candidate => candidate
+                                            .Wait("A", _ => new CorrelationId("a"))
+                                            .Return(state => state.Value.Result))
+                                    .Branch<RaceBranchState>(
+                                        "loser",
+                                        _ => new RaceBranchState("loser"),
+                                        candidate => candidate
+                                            .Wait("B", _ => new CorrelationId("b"))
+                                            .Return(state => state.Value.Result)),
+                                (parent, winner) => parent.Value with { Log = [winner.Value] })
+                            .Return(state => state.Value.Log)),
+                (parent, results) => new TestState
+                {
+                    OrderId = parent.Value.OrderId,
+                    Generation = parent.Value.Generation,
+                    Log = results.SelectMany(result => result.Value).ToList()
+                })
+            .Then(() => new AppendStep("after-parallel"))
             .End("done")
-            .Build(definitionId, DefinitionVersion.Initial);
+            .Build();
         var harness = CreateHarness();
         harness.Runtime.RegisterDefinition(definition);
         var start = await harness.Runtime.StartOrGetAsync<string, TestState>(
@@ -1062,19 +1168,41 @@ public sealed class DurableDriverReviewedAcceptanceTests
     public async Task DurableWhenFirst_NestedLosingBranchCancelsOwnedWaitAndCompletes()
     {
         var definitionId = DefinitionId.New();
-        var definition = new WorkflowBuilder<TestState>()
+        var definition = Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
             .Init<string>(orderId => new TestState { OrderId = orderId })
-            .WhenFirst(
-                WhenFirstResidualPolicy.CancelRemaining,
-                ("winner", branch => branch
-                    .Wait("A", _ => new CorrelationId("a"))
-                    .Then(new AppendStep("winner"))),
-                ("nested-loser", branch => branch.If(
-                    _ => true,
-                    nested => nested.Wait("B", _ => new CorrelationId("b")))))
-            .Then(new AppendStep("after-winner"))
+            .WhenFirst<string>(
+                branches => branches
+                    .Branch<RaceBranchState>(
+                        "winner",
+                        _ => new RaceBranchState("winner"),
+                        branch => branch
+                            .Wait("A", _ => new CorrelationId("a"))
+                            .Return(state => state.Value.Result))
+                    .Branch<RaceBranchState>(
+                        "nested-loser",
+                        _ => new RaceBranchState("loser"),
+                        branch => branch
+                            .WhenFirst<string>(
+                                nested => nested.Branch<RaceBranchState>(
+                                    "nested-wait",
+                                    _ => new RaceBranchState("loser"),
+                                    child => child
+                                        .Wait("B", _ => new CorrelationId("b"))
+                                        .Return(state => state.Value.Result)),
+                                (parent, nestedWinner) => parent.Value with
+                                {
+                                    Result = nestedWinner.Value
+                                })
+                            .Return(state => state.Value.Result)),
+                (parent, winner) => new TestState
+                {
+                    OrderId = parent.Value.OrderId,
+                    Generation = parent.Value.Generation,
+                    Log = [winner.Value]
+                })
+            .Then(() => new AppendStep("after-winner"))
             .End("done")
-            .Build(definitionId, DefinitionVersion.Initial);
+            .Build();
         var harness = CreateHarness();
         harness.Runtime.RegisterDefinition(definition);
         var start = await harness.Runtime.StartOrGetAsync<string, TestState>(
@@ -1102,5 +1230,48 @@ public sealed class DurableDriverReviewedAcceptanceTests
             StreamVersion.Empty,
             TestContext.Current.CancellationToken);
         events.OfType<WorkflowWaitCancelledEvent>().Should().ContainSingle();
+    }
+
+    private sealed class CoordinatedAppendEventStore(
+        InMemoryWorkflowProvider inner,
+        int participantCount) : IWorkflowEventStore, IWorkflowInboxStore
+    {
+        private readonly TaskCompletionSource allParticipantsEntered =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int enteredParticipants;
+
+        public Task<Option<CheckpointWrite>> LoadCheckpointAsync(
+            InstanceId instanceId,
+            CancellationToken cancellationToken) =>
+            inner.LoadCheckpointAsync(instanceId, cancellationToken);
+
+        public async Task<Result<AppendEventsResult>> AppendAsync(
+            ProviderCommitBatch batch,
+            CancellationToken cancellationToken)
+        {
+            var participant = Interlocked.Increment(ref enteredParticipants);
+            if (participant <= participantCount)
+            {
+                if (participant == participantCount)
+                {
+                    allParticipantsEntered.TrySetResult();
+                }
+
+                await allParticipantsEntered.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            return await inner.AppendAsync(batch, cancellationToken).ConfigureAwait(false);
+        }
+
+        public Task<IReadOnlyList<WorkflowEvent>> LoadTailAsync(
+            WorkflowStreamId streamId,
+            StreamVersion afterVersion,
+            CancellationToken cancellationToken) =>
+            inner.LoadTailAsync(streamId, afterVersion, cancellationToken);
+
+        public Task<Option<InboxRecordState>> GetAsync(
+            EventId eventId,
+            CancellationToken cancellationToken) =>
+            inner.GetAsync(eventId, cancellationToken);
     }
 }

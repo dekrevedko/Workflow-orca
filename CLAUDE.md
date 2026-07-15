@@ -8,6 +8,11 @@ The repository root is the sole active codebase. The superseded root prototype i
 preserved under `archive/legacy-poc/`. All build, test, and source work targets
 the root `OrcaCore.slnx`, `src/`, and `tests/`.
 
+The former `v3-gpt` workspace was promoted to the repository root in commit
+`666bc1e6`. Do not recreate or use a parallel `v3-gpt/` implementation tree.
+Preserve agent/run context directories such as `.agents/`, `.claude/`, `.codex/`,
+and `.codex-run/` when they exist; they are operational context, not legacy code.
+
 ## Build and test commands
 
 All commands run from the repository root so the SDK pin in `global.json` is respected.

@@ -23,7 +23,12 @@ public sealed record ResourcePoolAcquireRequest(
     string HolderKey,
     IReadOnlyList<ResourcePoolRequirement> Requirements,
     DateTimeOffset RequestedAt,
-    DateTimeOffset? ExpiresAt);
+    DateTimeOffset? ExpiresAt)
+{
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+}
 
 /// <summary>
 /// Describes a release of all tickets held by one guarded holder.
@@ -43,7 +48,12 @@ public sealed record ResourcePoolTicket(
     InstanceId HolderInstanceId,
     string HolderKey,
     DateTimeOffset AcquiredAt,
-    DateTimeOffset? ExpiresAt);
+    DateTimeOffset? ExpiresAt)
+{
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+}
 
 /// <summary>
 /// Describes a queued acquisition waiter.
@@ -54,7 +64,12 @@ public sealed record ResourcePoolWaiter(
     string HolderKey,
     IReadOnlyList<ResourcePoolRequirement> Requirements,
     DateTimeOffset RequestedAt,
-    DateTimeOffset? ExpiresAt);
+    DateTimeOffset? ExpiresAt)
+{
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+}
 
 /// <summary>
 /// Describes the outcome category for a pool acquisition.

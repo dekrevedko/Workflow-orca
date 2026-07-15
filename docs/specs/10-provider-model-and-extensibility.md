@@ -23,6 +23,17 @@ The library SHALL run with zero external infrastructure (in-memory providers) an
 support relational databases, document databases, and message brokers (RabbitMQ, SQS,
 Kafka, …) through adapters without changing workflow definitions.
 
+### PR-004 Package tiers and dependency direction
+The distributable surface SHALL separate application contracts, authoring/core, engine,
+hosting, provider-authoring, runtime-protocol, and provider Adapter packages, plus a small
+`OrcaCore` meta-package for the documented default application experience.
+`OrcaCore.Runtime.Protocol` owns durable commands, committed facts, checkpoints, and
+envelopes. `OrcaCore.Provider.Abstractions` owns provider ports, commit DTOs, and certification
+contracts and MAY reference Runtime.Protocol because providers persist protocol records. The
+reverse edge is forbidden. Application packages SHALL reference neither advanced package and
+SHALL expose no advanced type in public signatures. Engine/runtime implementations MAY
+reference both advanced packages; provider Adapters SHALL reference no engine implementation.
+
 ## 10.2 Provider ports (durable engine)
 
 The durable persistence boundary SHALL be decomposed into focused ports; a reference provider

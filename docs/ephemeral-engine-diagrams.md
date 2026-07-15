@@ -165,38 +165,32 @@ classDiagram
   direction LR
 
   class Interpreter~TState~ {
-    -stepExecutor: StepExecutor
-    -failureHandler: WorkflowFailureHandler
-    -conditionEvaluator: ConditionEvaluator
-    -suspensionScheduler: SuspensionScheduler
-    -waitExecutor: WaitExecutor
-    -whileRunner: WhileNodeRunner
-    -parallelRunner: ParallelNodeRunner
-    -whenFirstRunner: WhenFirstNodeRunner
-    -forEachRunner: ForEachNodeRunner
-    +RunAsync(definition, input, instanceId)
-    +RunSequenceAsync()
-    +ContinueSequenceAsync()
+    -stateAdapter: InMemoryExecutionStateAdapter
+    +RunAsync(plan, input, instanceId)
   }
 
-  class ISequenceExecutionEngine~TState~ {
-    <<interface>>
-    +RunSequenceAsync()
-    +ContinueSequenceAsync()
-    +Fail()
+  class InMemoryExecutionStateAdapter~TState~ {
+    -execution: StructuredExecutionState
+    -waitsByFiber
+    -timersByFiber
+    +RunAsync()
+    +ResumeWaitAsync()
+    +ResumeTimerAsync()
   }
 
-  class StepExecutor~TState~ {
-    +ExecuteAsync(instance, stepNode, resumeEvent)
+  class FiberScheduler {
+    +SelectNext(state)
+    +CompleteTurn(state, fiberId)
   }
 
-  class SuspensionScheduler~TState~ {
-    +RegisterWaitAsync()
-    +RegisterDelay()
+  class ScopeReducer {
+    +StartScope(state, parent, plan)
+    +CommitChildOutcomes(state, scope, outcomes)
+    +ReturnScope(state, scope)
   }
 
-  class WaitExecutor~TState~ {
-    +ExecuteAsync(waitNode)
+  class ScopeMergeAdapter {
+    +Merge(parentState, scopePlan, results)
   }
 
   class WorkflowInstance~TState~ {
@@ -210,29 +204,29 @@ classDiagram
     +ToSnapshot()
   }
 
-  class SequenceExecutionContext~TState,TInput~ {
-    +Sequence
-    +RunState
-    +BranchId
-    +ResumeEvent
-    +AfterSequence
+  class FiberRecord {
+    +Id: FiberId
+    +OwningScopeId
+    +InstructionIndex
+    +Phase
+    +LocalStatePayload
   }
 
-  class InterpreterRunState~TState~ {
-    +Initialized
-    +Instance
-    +DeferredFailure
+  class ExecutionScopeRecord {
+    +Id: ScopeId
+    +ParentFiberId
+    +ChildFiberIds
+    +WinnerFiberId
+    +CommittedResults
   }
 
-  Interpreter~TState~ ..|> ISequenceExecutionEngine~TState~
-  Interpreter~TState~ --> StepExecutor~TState~
-  Interpreter~TState~ --> SuspensionScheduler~TState~
-  Interpreter~TState~ --> WaitExecutor~TState~
+  Interpreter~TState~ --> InMemoryExecutionStateAdapter~TState~
+  InMemoryExecutionStateAdapter~TState~ --> FiberScheduler
+  InMemoryExecutionStateAdapter~TState~ --> ScopeReducer
+  InMemoryExecutionStateAdapter~TState~ --> ScopeMergeAdapter
+  InMemoryExecutionStateAdapter~TState~ --> FiberRecord
+  InMemoryExecutionStateAdapter~TState~ --> ExecutionScopeRecord
   Interpreter~TState~ --> WorkflowInstance~TState~
-  Interpreter~TState~ --> SequenceExecutionContext~TState,TInput~
-  SequenceExecutionContext~TState,TInput~ --> InterpreterRunState~TState~
-  SuspensionScheduler~TState~ --> WorkflowInstance~TState~
-  StepExecutor~TState~ --> WorkflowInstance~TState~
 ```
 
 ---
@@ -266,14 +260,16 @@ classDiagram
   class RuntimeWaitRecord {
     +EventName
     +CorrelationId
-    +BranchId
+    +FiberId
+    +ScopeId
     +Matches(envelope)
     +ResumeAsync(envelope)
     +CancelLoser()
   }
 
   class RuntimeTimerRecord {
-    +BranchId
+    +FiberId
+    +ScopeId
     +RegisteredAt
     +SetCancel()
   }
@@ -282,7 +278,6 @@ classDiagram
     +EventId
     +EventName
     +CorrelationId
-    +BranchId
     +Payload
     +OccurredAt
   }
@@ -661,40 +656,38 @@ sequenceDiagram
 
 ---
 
-## 14. Control-flow node dispatch (flowchart)
+## 14. Compiled instruction dispatch (flowchart)
 
 ```mermaid
 flowchart TD
-  Start[RunSequenceAsync: next node] --> Switch{node type}
+  Start[Scheduler selects runnable fiber] --> Switch{compiled instruction}
 
-  Switch --> Init[InitNode: create WorkflowInstance + state]
-  Switch --> Step[BusinessStepNode: StepExecutor]
-  Switch --> Wait[WaitNode: WaitExecutor]
-  Switch --> Delay[DelayNode: SuspensionScheduler.RegisterDelay]
-  Switch --> If[IfNode: ConditionEvaluator → nested sequence]
-  Switch --> While[WhileNode: WhileNodeRunner loop]
-  Switch --> Par[ParallelNode: ParallelNodeRunner + ParallelJoin]
-  Switch --> WF[WhenFirstNode: WhenFirstNodeRunner + WhenFirstJoin]
-  Switch --> FE[ForEachNode: ForEachNodeRunner + ForEachWorkScheduler]
-  Switch --> End[EndNode: Complete or fail if unresolved work]
-  Switch --> RC[RunChild / RunChildren: NotSupportedException]
+  Switch --> Step[ExecuteStep: run against fiber-local state]
+  Switch --> Wait[Wait: register ownership by FiberId and ScopeId]
+  Switch --> Delay[Delay: register ownership by FiberId and ScopeId]
+  Switch --> Jump[Jump or conditional jump]
+  Switch --> Enter[ScopeEnter: reducer creates child fibers]
+  Switch --> Return[BranchReturn: commit typed result]
+  Switch --> Join[ScopeJoin: select ordered outcome or winner]
+  Switch --> Merge[ScopeMerge: replace parent state explicitly]
+  Switch --> Exit[ScopeExit: unblock parent fiber]
+  Switch --> End[End: select canonical root outcome]
 
-  Init --> Next
   Step --> StepResult{result}
   StepResult -->|Continue| Next
-  StepResult -->|Wait/Yield/Stop| Suspend[return false — suspended or terminal]
-  StepResult -->|Failed| Fail[WorkflowFailureHandler]
+  StepResult -->|Wait or Yield| Suspend[commit suspension and rotate]
+  StepResult -->|Failed| Fail[fail fiber and reduce owning scope]
 
   Wait --> Suspend
   Delay --> Suspend
-  If --> Next
-  While --> Suspend
-  Par --> Suspend
-  WF --> Suspend
-  FE --> Suspend
-  End --> Done[return false — completed]
+  Enter --> Suspend
+  Return --> Join
+  Join --> Merge
+  Merge --> Exit
+  Exit --> Next
+  End --> Done[derive terminal workflow status]
 
-  Next[continue loop] --> Start
+  Next[advance instruction within quantum] --> Start
 ```
 
 ---
@@ -703,42 +696,46 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-  subgraph Parallel["Parallel (WhenAll join)"]
-    P1[Branch 0 sequence]
-    P2[Branch 1 sequence]
-    P3[Branch N sequence]
-    PJ[ParallelJoin: all branches complete]
-    PC[Continue parent sequence]
+  subgraph Parallel["Parallel (WhenAll scope)"]
+    P1[Child fiber 0 with private state]
+    P2[Child fiber 1 with private state]
+    P3[Child fiber N with private state]
+    PJ[ScopeJoin: authored-order results]
+    PM[Explicit merge replaces parent state]
+    PC[Continue parent fiber]
     P1 --> PJ
     P2 --> PJ
     P3 --> PJ
-    PJ --> PC
+    PJ --> PM --> PC
   end
 
-  subgraph WhenFirst["WhenFirst (first wins)"]
-    W1[Branch 0 sequence]
-    W2[Branch 1 sequence]
-    WJ[WhenFirstJoin: first completion]
-    WR[CancelRemaining residual branches]
-    WC[Continue parent sequence]
+  subgraph WhenFirst["WhenFirst (single-winner scope)"]
+    W1[Child fiber 0 with private state]
+    W2[Child fiber 1 with private state]
+    WJ[ScopeJoin: deterministic first terminal winner]
+    WR[Cancel remaining fibers and owned obligations]
+    WM[Explicit merge replaces parent state]
+    WC[Continue parent fiber]
     W1 --> WJ
     W2 --> WJ
     WJ --> WR
-    WR --> WC
+    WR --> WM --> WC
   end
 
-  subgraph ForEach["ForEach (in-instance fanout)"]
-    F1[Partition items]
-    F2[ForEachWorkScheduler: bounded concurrency]
-    F3[Body sequence per work item]
-    FJ[Join: WhenAll / WhenAny policy]
-    FC[Continue parent sequence]
-    F1 --> F2 --> F3 --> FJ --> FC
+  subgraph ForEach["ForEach (dynamic isolated-item scope)"]
+    F1[Materialize indexed item descriptors]
+    F2[Admit bounded item fibers]
+    F3[Execute item body against private item state]
+    FJ[ScopeJoin: ordered WhenAll or strict WhenAny]
+    FM[Explicit merge replaces parent state]
+    FC[Continue parent fiber]
+    F1 --> F2 --> F3 --> FJ --> FM --> FC
   end
 ```
 
-Branch-scoped waits and timers carry a `BranchId` so events resume only the
-intended branch.
+Fiber-owned waits and timers carry `FiberId` and `ScopeId` so events resume only
+the intended fiber and recursive cancellation removes every obligation owned by
+a losing or failed scope.
 
 ---
 

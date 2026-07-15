@@ -12,7 +12,10 @@ internal sealed class RuntimeWaitRecord
         CorrelationId correlationId,
         BranchId? branchId,
         DateTimeOffset registeredAt,
-        Func<EventEnvelope, CancellationToken, Task> resumeAsync)
+        Func<EventEnvelope, CancellationToken, Task> resumeAsync,
+        long waitSequence,
+        FiberId? fiberId,
+        ScopeId? scopeId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
         ArgumentNullException.ThrowIfNull(resumeAsync);
@@ -23,6 +26,9 @@ internal sealed class RuntimeWaitRecord
         BranchId = branchId;
         RegisteredAt = registeredAt;
         ResumeAsync = resumeAsync;
+        WaitSequence = waitSequence;
+        FiberId = fiberId;
+        ScopeId = scopeId;
     }
 
     internal WaitId WaitId { get; }
@@ -34,6 +40,12 @@ internal sealed class RuntimeWaitRecord
     internal BranchId? BranchId { get; }
 
     internal DateTimeOffset RegisteredAt { get; }
+
+    internal long WaitSequence { get; }
+
+    internal FiberId? FiberId { get; }
+
+    internal ScopeId? ScopeId { get; }
 
     internal string Status { get; private set; } = "Active";
 
@@ -89,7 +101,10 @@ internal sealed class RuntimeWaitRecord
             RegisteredAt = RegisteredAt,
             BranchId = BranchId?.ToString(),
             Status = Status,
-            Mode = Mode
+            Mode = Mode,
+            WaitSequence = WaitSequence,
+            FiberId = FiberId,
+            ScopeId = ScopeId
         };
     }
 }

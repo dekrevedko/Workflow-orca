@@ -43,6 +43,7 @@ public abstract record WorkflowEvent
     /// Gets the root workflow instance for the workflow tree.
     /// </summary>
     public InstanceId? RootInstanceId { get; init; }
+
 }
 
 /// <summary>
@@ -124,6 +125,12 @@ public sealed record WorkflowStepFailedEvent : WorkflowEvent
 /// </summary>
 public sealed record WorkflowWaitRegisteredEvent : WorkflowEvent
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
+    public long WaitSequence { get; init; }
+
     /// <summary>
     /// Gets the wait identity.
     /// </summary>
@@ -161,6 +168,12 @@ public sealed record WorkflowWaitRegisteredEvent : WorkflowEvent
 /// </summary>
 public sealed record WorkflowWaitMatchedEvent : WorkflowEvent
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
+    public long WaitSequence { get; init; }
+
     /// <summary>
     /// Gets the matched wait identity.
     /// </summary>
@@ -204,6 +217,10 @@ public sealed record WorkflowWaitMatchedEvent : WorkflowEvent
 /// </summary>
 public sealed record WorkflowWaitCancelledEvent : WorkflowEvent
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
     /// <summary>
     /// Gets the cancelled wait identity.
     /// </summary>
@@ -216,6 +233,10 @@ public sealed record WorkflowWaitCancelledEvent : WorkflowEvent
 /// </summary>
 public sealed record WorkflowTimerCancelledEvent : WorkflowEvent
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
     /// <summary>
     /// Gets the cancelled timer identity.
     /// </summary>
@@ -228,6 +249,10 @@ public sealed record WorkflowTimerCancelledEvent : WorkflowEvent
 /// </summary>
 public sealed record WorkflowResumeConsumedEvent : WorkflowEvent
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
     /// <summary>
     /// Gets the wait whose pending resume was consumed.
     /// </summary>
@@ -303,6 +328,10 @@ public sealed record WorkflowContinuationAttemptResetEvent : WorkflowEvent;
 /// </summary>
 public sealed record WorkflowTimerScheduledEvent : WorkflowEvent
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
     /// <summary>
     /// Gets the durable timer identity.
     /// </summary>
@@ -324,6 +353,10 @@ public sealed record WorkflowTimerScheduledEvent : WorkflowEvent
 /// </summary>
 public sealed record WorkflowTimerFiredEvent : WorkflowEvent
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
     /// <summary>
     /// Gets the durable timer identity.
     /// </summary>
@@ -335,6 +368,10 @@ public sealed record WorkflowTimerFiredEvent : WorkflowEvent
 /// </summary>
 public sealed record WorkflowChildScheduledEvent : WorkflowEvent
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
     public required InstanceId ChildInstanceId { get; init; }
 
     public required DefinitionId ChildDefinitionId { get; init; }
@@ -351,6 +388,10 @@ public sealed record WorkflowChildScheduledEvent : WorkflowEvent
 /// </summary>
 public sealed record WorkflowChildrenScheduledEvent : WorkflowEvent
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
     public required string GroupId { get; init; }
 
     public required DefinitionId ChildDefinitionId { get; init; }
@@ -475,6 +516,10 @@ public sealed record WorkflowChildCompensationMaterialization
 /// </summary>
 public sealed record WorkflowResourcePoolAcquiredEvent : WorkflowEvent
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
     public required string HolderKey { get; init; }
 
     public required IReadOnlyList<ResourcePoolTicket> Tickets { get; init; }
@@ -485,6 +530,12 @@ public sealed record WorkflowResourcePoolAcquiredEvent : WorkflowEvent
 /// </summary>
 public sealed record WorkflowResourcePoolQueuedEvent : WorkflowEvent
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
+    public long WaitSequence { get; init; }
+
     public required WaitId WaitId { get; init; }
 
     public required string HolderKey { get; init; }
@@ -499,6 +550,10 @@ public sealed record WorkflowResourcePoolQueuedEvent : WorkflowEvent
 /// </summary>
 public sealed record WorkflowResourcePoolReleasedEvent : WorkflowEvent
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
     public required string HolderKey { get; init; }
 
     public required IReadOnlyList<ResourcePoolTicket> Tickets { get; init; }
@@ -509,6 +564,10 @@ public sealed record WorkflowResourcePoolReleasedEvent : WorkflowEvent
 /// </summary>
 public sealed record WorkflowExternalJobStartedEvent : WorkflowEvent
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
     public required string ExternalJobId { get; init; }
 
     public required byte[] Payload { get; init; }
@@ -525,6 +584,10 @@ public sealed record WorkflowExternalJobStartedEvent : WorkflowEvent
 /// </summary>
 public sealed record WorkflowExternalJobCompletedEvent : WorkflowEvent
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
     public required string ExternalJobId { get; init; }
 
     public required EventId CompletionEventId { get; init; }
@@ -535,6 +598,10 @@ public sealed record WorkflowExternalJobCompletedEvent : WorkflowEvent
 /// </summary>
 public sealed record WorkflowExternalJobTimedOutEvent : WorkflowEvent
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
     public required string ExternalJobId { get; init; }
 }
 
@@ -543,6 +610,10 @@ public sealed record WorkflowExternalJobTimedOutEvent : WorkflowEvent
 /// </summary>
 public sealed record WorkflowExternalJobStopRequestedEvent : WorkflowEvent
 {
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
     public required string ExternalJobId { get; init; }
 }
 
@@ -666,6 +737,31 @@ public sealed record SagaForwardActionCompletedEvent : WorkflowEvent
     /// Gets the stable compensation action key to run if this forward action is compensated.
     /// </summary>
     public required string CompensationKey { get; init; }
+
+    public FiberId? FiberId { get; init; }
+
+    public OrcaCore.Abstractions.Ids.ScopeId? OwningScopeId { get; init; }
+
+    public string? InstructionId { get; init; }
+
+    public long CommittedSequence { get; init; }
+
+    public int CanonicalBranchOrder { get; init; }
+
+    public int CanonicalInstructionOrder { get; init; }
+
+    public int? ScopeOrderOverride { get; init; }
+}
+
+/// <summary>
+/// Transfers compensation eligibility after a structured execution scope merges successfully.
+/// Stable action ownership and ordering identities are not rewritten.
+/// </summary>
+public sealed record SagaForwardActionsTransferredEvent : WorkflowEvent
+{
+    public required OrcaCore.Abstractions.Ids.ScopeId FromExecutionScopeId { get; init; }
+
+    public required OrcaCore.Abstractions.Ids.ScopeId? ToExecutionScopeId { get; init; }
 }
 
 /// <summary>

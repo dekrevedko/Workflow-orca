@@ -23,9 +23,7 @@ internal sealed class InterpreterFactory(
             suspensionScheduler,
             new WaitExecutor<TState>(suspensionScheduler, failureHandler),
             new WhileNodeRunner<TState>(conditionEvaluator),
-            new ParallelNodeRunner<TState>(),
-            new WhenFirstNodeRunner<TState>(timeProvider),
-            new ForEachNodeRunner<TState>(timeProvider),
+            governance,
             yieldContinuationScheduler,
             options);
     }

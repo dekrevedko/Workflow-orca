@@ -83,7 +83,7 @@ A regular workflow has three pieces:
 
 - A mutable state object.
 - One or more `IStep<TState>` implementations.
-- A `WorkflowDefinition<TState>` built with `WorkflowBuilder<TState>`.
+- A `WorkflowDefinition<TState>` built with the selected ephemeral builder.
 
 ```csharp
 using OrcaCore.Abstractions.Ids;
@@ -94,14 +94,14 @@ using OrcaCore.Engine.Ephemeral;
 
 var engine = new EphemeralWorkflowEngine();
 
-var definition = new WorkflowBuilder<OrderState>()
+var definition = Workflow.Ephemeral<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
     .Init<OrderInput>(input => new OrderState
     {
         OrderId = input.OrderId
     })
     .Then(() => new ReserveInventoryStep("sku-123", quantity: 2))
     .End("Reserved")
-    .Build(DefinitionId.New(), DefinitionVersion.Initial);
+    .Build();
 
 engine.RegisterDefinition(definition);
 
@@ -194,12 +194,12 @@ The builder creates immutable definition versions.
 var definitionId = DefinitionId.New();
 var version = DefinitionVersion.Initial;
 
-var definition = new WorkflowBuilder<OrderState>()
+var definition = Workflow.Ephemeral<OrderState>(definitionId, version)
     .Init<OrderInput>(input => new OrderState { OrderId = input.OrderId })
     .Then<ValidateOrderStep>()
     .Then(() => new ReserveInventoryStep("sku-123", 2))
     .End("Accepted")
-    .Build(definitionId, version);
+    .Build();
 ```
 
 Step authoring options:
@@ -211,13 +211,13 @@ Step authoring options:
 Prefer factories or explicit instances for configured steps. The builder does
 not infer constructor arguments.
 
-Use `BuildValidated` when a tool or UI should present all definition problems at
+Use `TryBuild` when a tool or UI should present all definition problems at
 once instead of throwing:
 
 ```csharp
-var validation = new WorkflowBuilder<OrderState>()
+var validation = Workflow.Ephemeral<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
     .End()
-    .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+    .TryBuild();
 
 if (!validation.IsValid)
 {
@@ -270,12 +270,12 @@ Use `.Wait(eventName, correlationSelector)` to suspend until a matching
 ```csharp
 var correlation = new CorrelationId("order-001");
 
-var definition = new WorkflowBuilder<OrderState>()
+var definition = Workflow.Ephemeral<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
     .Init<OrderInput>(input => new OrderState { OrderId = input.OrderId })
     .Wait("PaymentApproved", state => new CorrelationId(state.OrderId))
     .Then(() => new CapturePaymentStep())
     .End("Paid")
-    .Build(DefinitionId.New(), DefinitionVersion.Initial);
+    .Build();
 
 engine.RegisterDefinition(definition);
 
@@ -385,12 +385,12 @@ when stale events must not match future iterations.
 Use `.Delay(duration)` for a first-class timer node:
 
 ```csharp
-var definition = new WorkflowBuilder<OrderState>()
+var definition = Workflow.Ephemeral<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
     .Init<OrderInput>(input => new OrderState { OrderId = input.OrderId })
     .Delay(TimeSpan.FromMinutes(5))
     .Then(() => new SendReminderStep())
     .End("ReminderSent")
-    .Build(DefinitionId.New(), DefinitionVersion.Initial);
+    .Build();
 
 var waiting = await engine.StartAsync<OrderInput, OrderState>(
     definition.DefinitionId,
@@ -406,7 +406,7 @@ Use `.Wait(eventName, correlationSelector, timeout)` to race an event against a
 timeout:
 
 ```csharp
-var definition = new WorkflowBuilder<OrderState>()
+var definition = Workflow.Ephemeral<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
     .Init<OrderInput>(input => new OrderState { OrderId = input.OrderId })
     .Wait(
         "PaymentApproved",
@@ -414,7 +414,7 @@ var definition = new WorkflowBuilder<OrderState>()
         TimeSpan.FromMinutes(30))
     .Then(() => new RecordPaymentOrTimeoutStep())
     .End()
-    .Build(DefinitionId.New(), DefinitionVersion.Initial);
+    .Build();
 ```
 
 When a wait timeout fires, the resumed step receives `ResumedEvent == null`.
@@ -428,14 +428,14 @@ timer is gone.
 ### If
 
 ```csharp
-var definition = new WorkflowBuilder<OrderState>()
+var definition = Workflow.Ephemeral<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
     .Init<OrderInput>(input => new OrderState { OrderId = input.OrderId })
     .If(
         state => state.Total >= 100,
         then => then.Then(() => new RequireManualReviewStep()),
         otherwise => otherwise.Then(() => new AutoApproveStep()))
     .End()
-    .Build(DefinitionId.New(), DefinitionVersion.Initial);
+    .Build();
 ```
 
 Exactly one branch executes, then the parent sequence continues.
@@ -443,7 +443,7 @@ Exactly one branch executes, then the parent sequence continues.
 ### While
 
 ```csharp
-var definition = new WorkflowBuilder<OrderState>()
+var definition = Workflow.Ephemeral<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
     .Init<OrderInput>(input => new OrderState { OrderId = input.OrderId })
     .While(
         state => state.RetryCount < 3 && !state.Ready,
@@ -451,76 +451,99 @@ var definition = new WorkflowBuilder<OrderState>()
             .Then(() => new PollStatusStep())
             .Delay(TimeSpan.FromSeconds(10)))
     .End()
-    .Build(DefinitionId.New(), DefinitionVersion.Initial);
+    .Build();
 ```
 
 The condition is re-evaluated before each iteration.
 
 ## Parallel And WhenFirst
 
-`Parallel` runs branch sequences and joins when all branches complete.
+`Parallel` runs isolated branch fibers cooperatively. Branches receive copied private state,
+return one typed result, and cannot mutate parent or sibling state. The parent changes only
+through the explicit merge after all branches complete.
 
 ```csharp
-var definition = new WorkflowBuilder<OrderState>()
-    .Init<OrderInput>(input => new OrderState { OrderId = input.OrderId })
-    .Parallel(
-        ("inventory", branch => branch
-            .Wait("InventoryReserved", state => new CorrelationId(state.OrderId))
-            .Then(() => new CaptureInventoryStep())),
-        ("payment", branch => branch
-            .Wait("PaymentApproved", state => new CorrelationId(state.OrderId))
-            .Then(() => new CapturePaymentStep())))
+var definition = Workflow.Ephemeral<OrderState>(definitionId, DefinitionVersion.Initial)
+    .Init<OrderInput>(input => new OrderState(input.OrderId, []))
+    .Parallel<string>(
+        branches => branches
+            .Branch<ReservationState>(
+                "inventory",
+                parent => new ReservationState(parent.Value.OrderId),
+                branch => branch
+                    .Wait("InventoryReserved", state => new CorrelationId(state.OrderId))
+                    .Then<CaptureInventoryStep>()
+                    .Return(state => state.Value.Result))
+            .Branch<ReservationState>(
+                "payment",
+                parent => new ReservationState(parent.Value.OrderId),
+                branch => branch
+                    .Wait("PaymentApproved", state => new CorrelationId(state.OrderId))
+                    .Then<CapturePaymentStep>()
+                    .Return(state => state.Value.Result)),
+        (parent, results) => parent.Value with
+        {
+            Reservations = results.Select(result => result.Value).ToArray()
+        })
     .Then(() => new FinalizeOrderStep())
     .End("ReadyToShip")
-    .Build(DefinitionId.New(), DefinitionVersion.Initial);
+    .Build();
 ```
 
-Branch waits are scoped so a matching event resumes only its branch. The
-continuation after `Parallel` runs once after all branches complete.
+Results reach the merge in authored order. Branch waits are owned by their fiber, and the
+continuation after the merge runs once.
 
-`WhenFirst` runs branch sequences and continues when the first branch completes:
+`WhenFirst` uses the same isolated-state contract. The first committed terminal branch wins;
+authored order breaks a same-transition tie. A failed winner fails the scope without merge,
+and every losing descendant is cancelled before parent continuation.
 
 ```csharp
-var definition = new WorkflowBuilder<OrderState>()
-    .Init<OrderInput>(input => new OrderState { OrderId = input.OrderId })
-    .WhenFirst(
-        WhenFirstResidualPolicy.CancelRemaining,
-        ("approved", branch => branch.Wait("Approved", state => new CorrelationId(state.OrderId))),
-        ("rejected", branch => branch.Wait("Rejected", state => new CorrelationId(state.OrderId))))
-    .Then(() => new RecordFirstDecisionStep())
+var definition = Workflow.Ephemeral<OrderState>(definitionId, DefinitionVersion.Initial)
+    .Init<OrderInput>(input => new OrderState(input.OrderId, []))
+    .WhenFirst<string>(
+        branches => branches
+            .Branch<DecisionState>("approved", ProjectDecision, branch => branch
+                .Wait("Approved", state => new CorrelationId(state.OrderId))
+                .Return(_ => "approved"))
+            .Branch<DecisionState>("rejected", ProjectDecision, branch => branch
+                .Wait("Rejected", state => new CorrelationId(state.OrderId))
+                .Return(_ => "rejected")),
+        (parent, winner) => parent.Value with
+        {
+            Reservations = [.. parent.Value.Reservations, winner.Value]
+        })
     .End()
-    .Build(DefinitionId.New(), DefinitionVersion.Initial);
+    .Build();
 ```
 
-The default residual policy is `CancelRemaining`. Branch outcomes are visible on
-`WorkflowInstanceSnapshot.CompositionOutcomes`.
+Detached residual policies are not part of the API.
 
 ## ForEach Fanout
 
-`ForEach` is the ephemeral engine's in-instance fanout primitive. It partitions
-items, executes a body for each partition, and joins according to the configured
-policy.
+`ForEach` is an ephemeral-only dynamic scope. Each admitted item fiber receives isolated
+item state and returns a typed result. `maxConcurrency` limits admitted nonterminal item
+fibers; step bodies still run cooperatively one at a time for an instance.
 
 ```csharp
-var definition = new WorkflowBuilder<BatchState>()
-    .Init<BatchInput>(input => new BatchState { Items = input.Items })
-    .ForEach(
-        state => state.Items,
+var definition = Workflow.Ephemeral<BatchState>(definitionId, DefinitionVersion.Initial)
+    .Init<BatchInput>(input => new BatchState(input.Items, []))
+    .ForEach<int, BatchItemState, int>(
+        parent => parent.Value.Items,
         WorkflowPartitioner<int>.Batch(10),
-        body => body.Then(() => new ProcessBatchStep()),
-        maxConcurrency: 2)
+        item => new BatchItemState(item.Index, item.Items),
+        body => body
+            .Then<ProcessBatchStep>()
+            .Return(item => item.Value.Items.Count),
+        ForEachJoinPolicy.WhenAll,
+        ForEachFailurePolicy.FailFast,
+        maxConcurrency: 2,
+        merge: (parent, outcomes) => parent.Value with
+        {
+            PartitionSizes = outcomes.Select(outcome => outcome.Result).ToArray()
+        })
     .Then(() => new MarkBatchCompleteStep())
     .End("Processed")
-    .Build(DefinitionId.New(), DefinitionVersion.Initial);
-
-public sealed record BatchInput(IReadOnlyList<int> Items);
-
-public sealed class BatchState
-{
-    public IReadOnlyList<int> Items { get; set; } = [];
-
-    public int ProcessedPartitions { get; set; }
-}
+    .Build();
 ```
 
 Partitioners:
@@ -533,13 +556,11 @@ Partitioners:
 Policies:
 
 - `ForEachJoinPolicy.WhenAll` waits for all work items.
-- `ForEachJoinPolicy.WhenAny` continues after the first completed work item.
+- `ForEachJoinPolicy.WhenAny` selects the first committed terminal item and cancels every
+  admitted or pending residual item before continuation.
 - `ForEachFailurePolicy.FailFast` fails early.
 - `ForEachFailurePolicy.WaitAllThenFail` observes all work before failing.
-- `ForEachResidualPolicy.CancelRemaining` records cancellation for remaining
-  work when a `WhenAny` join wins.
-
-Fanout state is visible through `WorkflowInstanceSnapshot.ForEachGroups`.
+- `WhenAny` accepts only `FailFast`; incoherent failure-policy combinations fail compilation.
 
 ## Yield
 
@@ -573,14 +594,14 @@ it as a replacement for waiting on external events.
 Policies are decorators on the next authored step:
 
 ```csharp
-var definition = new WorkflowBuilder<OrderState>()
+var definition = Workflow.Ephemeral<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
     .Init<OrderInput>(input => new OrderState { OrderId = input.OrderId })
     .WithRetry(maxAttempts: 3)
     .WithTimeout(TimeSpan.FromSeconds(30))
     .WithPoolKey("payment-gateway")
     .Then(() => new ChargePaymentStep())
     .End()
-    .Build(DefinitionId.New(), DefinitionVersion.Initial);
+    .Build();
 ```
 
 Policy notes:
@@ -782,10 +803,9 @@ operator recovery.
 
 ## Unsupported Or Durable-Only Shapes
 
-The current common `WorkflowBuilder<TState>` includes durable child workflow
-authoring methods such as `RunChild` and `RunChildren`. The ephemeral interpreter
-rejects those nodes with `NotSupportedException` because durable child workflow
-execution requires the durable engine.
+The selected `EphemeralWorkflowBuilder<TState>` exposes only ephemeral capabilities.
+Durable child workflows and `ContinueAsNew` are absent from that authoring surface;
+the compiler also rejects unsupported manually constructed graphs before registration.
 
 Do not expect these capabilities from ephemeral mode:
 
@@ -842,14 +862,14 @@ The repository test support includes a `Clock` helper in
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
 | `No workflow definition is registered` | `RegisterDefinition` was not called for the `DefinitionId`. | Register the exact definition before `StartAsync`. |
-| `Workflow definition ... was not registered for state type ...` | The generic `TState` passed to `StartAsync` does not match the registered definition. | Use the same state type used by `WorkflowBuilder<TState>`. |
+| `Workflow definition ... was not registered for state type ...` | The generic `TState` passed to `StartAsync` does not match the registered definition. | Use the same state type selected by `Workflow.Ephemeral<TState>`. |
 | `AwaitCompletionAsync` throws because the instance did not reach a terminal state | The workflow entered `Waiting` on an event or timer. | Use `StartAsync`, then resume with an event or `FireDueTimersAsync`. |
 | Correlation delivery says no active wait exists | No in-memory active wait matches the event name and correlation. | Check the event name, correlation selector, and whether the instance is still waiting. |
 | Correlation delivery says delivery is ambiguous | More than one active wait matches the same event name and correlation. | Use instance-targeted delivery or make correlations unique. |
 | Timer does not continue the workflow | The host has not pumped due timers, or time has not advanced past the due time. | Call `FireDueTimersAsync`; in tests, advance the injected `TimeProvider`. |
 | Management predicate throws `NotSupportedException` | The predicate used a method call, indexer, object creation, invocation, or conditional expression. | Restrict predicates to metadata property comparisons with `&&` and `||`. |
 | Broad terminate throws explicit safety error | `Management.All().TerminateAsync(...)` was called without `DestructiveCommandSafety.Confirmed`. | Pass the safety token after host-side operator authorization. |
-| Durable child workflow node is rejected | `RunChild` or `RunChildren` was authored and run in the ephemeral engine. | Use durable execution for child workflows, or use ephemeral `ForEach` for in-instance fanout. |
+| Compiler reports an unsupported capability | A durable-only node was introduced into an ephemeral graph outside the selected builder. | Use `Workflow.Durable<TState>` for child workflows, or ephemeral `ForEach` for in-instance fanout. |
 
 ## Design Checklist For New Ephemeral Workflows
 

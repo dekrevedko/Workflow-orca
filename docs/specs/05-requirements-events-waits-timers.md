@@ -41,6 +41,12 @@ Correlation-targeted delivery SHALL require exactly one matching instance:
 - more than one match → fail with a clear ambiguity error directing the caller to
   instance-targeted or fanout routing.
 
+Expected routing states use application results rather than exceptions: zero correlation
+matches return `NoMatch`; multiple matches return `AmbiguousMatch`; a live target without a
+matching wait returns an unmatched result; and a paused target returns `TargetPaused` while
+following MG-013 buffering semantics. Exceptions are reserved for invalid arguments such as
+empty identifiers or blank event names. This paragraph supersedes the error wording above.
+
 ### EV-013 Bulk and efficient retrieval
 Routing and inspection SHALL NOT require N single-instance calls or optional indexing
 infrastructure; efficient lookup of waits and instances is part of the core contract.
@@ -115,6 +121,13 @@ iteration's wait MUST NOT resume a later iteration.
 Wait records SHALL be cancellable (by losing-branch policy, timeout policy, operator
 cancellation, or terminal transitions), moving to `Cancelled` and leaving the correlation
 index. Unresolved waits at completion follow CR-032.
+
+### EV-045 Static and dynamic wait authoring
+Structural `Wait` SHALL be the preferred authoring form when the event name is known while the
+definition is built because it permits compile-time validation and visualization. Portable
+`StepResult.WaitForEvent` SHALL remain available in both engines for event names or
+correlations selected only after business-step execution. Both forms SHALL lower to the same
+owned wait-obligation semantics for the selected mode.
 
 ## 5.6 Timers and time-based waiting
 

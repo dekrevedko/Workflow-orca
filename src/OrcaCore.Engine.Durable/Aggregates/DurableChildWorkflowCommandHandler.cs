@@ -51,8 +51,17 @@ internal static class DurableChildWorkflowCommandHandler
         }
 
         var waitId = new WaitId(command.ChildInstanceId.Value);
-        var events = new List<WorkflowEvent>
-        {
+        var events = new List<WorkflowEvent>();
+        DurableLifecycleCommandHandler.AddConsumeAndCancelEvents(
+            events,
+            aggregate,
+            command.CommandId,
+            command.InstanceId,
+            command.RequestedAt,
+            command.ConsumedResumeWaitIds,
+            [],
+            []);
+        events.Add(
             new WorkflowChildScheduledEvent
             {
                 EventId = EventId.New(),
@@ -66,9 +75,10 @@ internal static class DurableChildWorkflowCommandHandler
                 ChildDefinitionId = command.ChildDefinitionId,
                 ChildDefinitionVersion = command.ChildDefinitionVersion,
                 WaitId = waitId,
-                FailurePolicy = command.FailurePolicy
-            }
-        };
+                FailurePolicy = command.FailurePolicy,
+                FiberId = command.FiberId,
+                ScopeId = command.ScopeId
+            });
 
         var checkpoint = command.Envelope is { } envelope
             ? DurableLifecycleCommandHandler.CreateEnvelopeCheckpoint(
@@ -101,6 +111,12 @@ internal static class DurableChildWorkflowCommandHandler
         {
             return new DurableDecision([
                 .. plan.Events,
+                .. aggregate.ChildState.CreateCancellationEvents(
+                    aggregate.CreateChildWorkflowEventContext(
+                        command.CommandId,
+                        command.InstanceId,
+                        command.RequestedAt),
+                    excludedChildIds: new HashSet<InstanceId> { command.ChildInstanceId }),
                 new WorkflowTerminalEvent
                 {
                     EventId = EventId.New(),
@@ -144,8 +160,17 @@ internal static class DurableChildWorkflowCommandHandler
             .ToArray();
         var maxConcurrency = Math.Min(command.MaxConcurrency ?? children.Length, children.Length);
         var initialDispatchCount = Math.Min(maxConcurrency, children.Length);
-        var events = new List<WorkflowEvent>
-        {
+        var events = new List<WorkflowEvent>();
+        DurableLifecycleCommandHandler.AddConsumeAndCancelEvents(
+            events,
+            aggregate,
+            command.CommandId,
+            command.InstanceId,
+            command.RequestedAt,
+            command.ConsumedResumeWaitIds,
+            [],
+            []);
+        events.Add(
             new WorkflowChildrenScheduledEvent
             {
                 EventId = EventId.New(),
@@ -165,9 +190,10 @@ internal static class DurableChildWorkflowCommandHandler
                 InitialDispatchCount = initialDispatchCount,
                 NextDispatchIndex = initialDispatchCount,
                 MaxConcurrency = maxConcurrency,
-                Children = children
-            }
-        };
+                Children = children,
+                FiberId = command.FiberId,
+                ScopeId = command.ScopeId
+            });
 
         var checkpoint = command.Envelope is { } envelope
             ? DurableLifecycleCommandHandler.CreateEnvelopeCheckpoint(

@@ -1,22 +1,25 @@
 using System.Collections.Concurrent;
+using System.Threading.Channels;
 
 namespace OrcaCore.Engine.Ephemeral.Governance;
 
 internal sealed class ResourceGovernanceCoordinator
 {
-    private readonly SemaphoreSlim? advancementSemaphore;
+    private readonly Channel<byte>? advancementTokens;
     private readonly Action? governanceWaitStarting;
-    private readonly ConcurrentDictionary<string, SemaphoreSlim> namedPools;
-    private readonly SemaphoreSlim? stepSemaphore;
+    private readonly ConcurrentDictionary<string, Channel<byte>> namedPools;
+    private readonly Channel<byte>? stepTokens;
 
     internal ResourceGovernanceCoordinator(EphemeralWorkflowEngineOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        advancementSemaphore = CreateSemaphore(options.MaxConcurrentAdvancements, nameof(options.MaxConcurrentAdvancements));
+        advancementTokens = CreateTokenChannel(
+            options.MaxConcurrentAdvancements,
+            nameof(options.MaxConcurrentAdvancements));
         governanceWaitStarting = options.GovernanceWaitStarting;
-        stepSemaphore = CreateSemaphore(options.MaxConcurrentSteps, nameof(options.MaxConcurrentSteps));
-        namedPools = new ConcurrentDictionary<string, SemaphoreSlim>(
+        stepTokens = CreateTokenChannel(options.MaxConcurrentSteps, nameof(options.MaxConcurrentSteps));
+        namedPools = new ConcurrentDictionary<string, Channel<byte>>(
             options.NamedPools.Select(pair =>
             {
                 if (pair.Value <= 0)
@@ -27,44 +30,74 @@ internal sealed class ResourceGovernanceCoordinator
                         "Named pool limits must be positive.");
                 }
 
-                return new KeyValuePair<string, SemaphoreSlim>(
+                return new KeyValuePair<string, Channel<byte>>(
                     pair.Key,
-                    new SemaphoreSlim(pair.Value, pair.Value));
+                    CreateTokenChannel(pair.Value, nameof(options.NamedPools))!);
             }),
             StringComparer.Ordinal);
     }
 
-    internal async ValueTask<GovernanceLease> EnterAdvancementAsync(CancellationToken cancellationToken)
+    internal ValueTask<GovernanceLease> EnterAdvancementAsync(CancellationToken cancellationToken)
     {
-        return await EnterAsync(advancementSemaphore, null, governanceWaitStarting, cancellationToken)
-            .ConfigureAwait(false);
+        return EnterAsync(advancementTokens, governanceWaitStarting, cancellationToken);
     }
 
     internal async ValueTask<GovernanceLease> EnterStepAsync(
         string? poolKey,
         CancellationToken cancellationToken)
     {
-        var stepLease = await EnterAsync(stepSemaphore, null, governanceWaitStarting, cancellationToken)
-            .ConfigureAwait(false);
-        if (poolKey is null || !namedPools.TryGetValue(poolKey, out var pool))
+        GovernanceLease poolLease = GovernanceLease.Empty;
+        if (poolKey is not null && namedPools.TryGetValue(poolKey, out var pool))
         {
-            return stepLease;
+            poolLease = await EnterAsync(pool, governanceWaitStarting, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         try
         {
-            var poolLease = await EnterAsync(pool, null, governanceWaitStarting, cancellationToken)
+            var stepLease = await EnterAsync(stepTokens, governanceWaitStarting, cancellationToken)
                 .ConfigureAwait(false);
-            return new GovernanceLease([stepLease, poolLease]);
+            return poolLease == GovernanceLease.Empty
+                ? stepLease
+                : new GovernanceLease([poolLease, stepLease]);
         }
         catch
         {
-            await stepLease.DisposeAsync().ConfigureAwait(false);
+            if (poolLease != GovernanceLease.Empty)
+            {
+                await poolLease.DisposeAsync().ConfigureAwait(false);
+            }
             throw;
         }
     }
 
-    private static SemaphoreSlim? CreateSemaphore(int? limit, string parameterName)
+    internal bool TryEnterStep(string? poolKey, out GovernanceLease lease)
+    {
+        GovernanceLease poolLease = GovernanceLease.Empty;
+        if (poolKey is not null && namedPools.TryGetValue(poolKey, out var pool) &&
+            !TryEnter(pool, out poolLease))
+        {
+            lease = GovernanceLease.Empty;
+            return false;
+        }
+
+        if (!TryEnter(stepTokens, out var stepLease))
+        {
+            if (poolLease != GovernanceLease.Empty)
+            {
+                _ = poolLease.DisposeAsync();
+            }
+            lease = GovernanceLease.Empty;
+            return false;
+        }
+
+        lease = poolLease == GovernanceLease.Empty
+            ? stepLease
+            : new GovernanceLease([poolLease, stepLease]);
+        return true;
+    }
+
+    private static Channel<byte>? CreateTokenChannel(int? limit, string parameterName)
     {
         if (limit is null)
         {
@@ -76,38 +109,69 @@ internal sealed class ResourceGovernanceCoordinator
             throw new ArgumentOutOfRangeException(parameterName, limit, "Concurrency limits must be positive.");
         }
 
-        return new SemaphoreSlim(limit.Value, limit.Value);
+        var channel = Channel.CreateBounded<byte>(new BoundedChannelOptions(limit.Value)
+        {
+            AllowSynchronousContinuations = true,
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleReader = false,
+            SingleWriter = false
+        });
+        for (var index = 0; index < limit.Value; index++)
+        {
+            if (!channel.Writer.TryWrite(0))
+            {
+                throw new InvalidOperationException("Could not initialize a governance token channel.");
+            }
+        }
+
+        return channel;
     }
 
     private static async ValueTask<GovernanceLease> EnterAsync(
-        SemaphoreSlim? semaphore,
-        string? poolKey,
+        Channel<byte>? tokens,
         Action? governanceWaitStarting,
         CancellationToken cancellationToken)
     {
-        if (semaphore is null)
+        if (tokens is null)
         {
             return GovernanceLease.Empty;
         }
 
         governanceWaitStarting?.Invoke();
-        await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-        return new GovernanceLease(semaphore, poolKey);
+        _ = await tokens.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+        return new GovernanceLease(tokens.Writer);
+    }
+
+    private static bool TryEnter(Channel<byte>? tokens, out GovernanceLease lease)
+    {
+        if (tokens is null)
+        {
+            lease = GovernanceLease.Empty;
+            return true;
+        }
+
+        if (tokens.Reader.TryRead(out _))
+        {
+            lease = new GovernanceLease(tokens.Writer);
+            return true;
+        }
+
+        lease = GovernanceLease.Empty;
+        return false;
     }
 }
 
 internal sealed class GovernanceLease : IAsyncDisposable
 {
-    internal static GovernanceLease Empty { get; } = new(null, null);
+    internal static GovernanceLease Empty { get; } = new((ChannelWriter<byte>?)null);
 
     private readonly IReadOnlyList<GovernanceLease>? innerLeases;
-    private readonly string? poolKey;
-    private readonly SemaphoreSlim? semaphore;
+    private readonly ChannelWriter<byte>? tokenWriter;
+    private int disposed;
 
-    internal GovernanceLease(SemaphoreSlim? semaphore, string? poolKey)
+    internal GovernanceLease(ChannelWriter<byte>? tokenWriter)
     {
-        this.semaphore = semaphore;
-        this.poolKey = poolKey;
+        this.tokenWriter = tokenWriter;
     }
 
     internal GovernanceLease(IReadOnlyList<GovernanceLease> innerLeases)
@@ -117,6 +181,11 @@ internal sealed class GovernanceLease : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref disposed, 1) != 0)
+        {
+            return;
+        }
+
         if (innerLeases is not null)
         {
             for (var index = innerLeases.Count - 1; index >= 0; index--)
@@ -127,7 +196,9 @@ internal sealed class GovernanceLease : IAsyncDisposable
             return;
         }
 
-        _ = poolKey;
-        semaphore?.Release();
+        if (tokenWriter is not null && !tokenWriter.TryWrite(0))
+        {
+            throw new InvalidOperationException("A governance token could not be returned to its bounded channel.");
+        }
     }
 }

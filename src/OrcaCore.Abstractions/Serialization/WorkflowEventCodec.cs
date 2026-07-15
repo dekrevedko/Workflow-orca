@@ -49,6 +49,7 @@ public static class WorkflowEventCodec
         Entry(OrcaCoreJsonSerializerContext.Default.WorkflowCompletedEvent, "WorkflowCompletedEvent"),
         Entry(OrcaCoreJsonSerializerContext.Default.WorkflowTerminalEvent, "WorkflowTerminalEvent"),
         Entry(OrcaCoreJsonSerializerContext.Default.SagaForwardActionCompletedEvent, "SagaForwardActionCompletedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.SagaForwardActionsTransferredEvent, "SagaForwardActionsTransferredEvent"),
         Entry(OrcaCoreJsonSerializerContext.Default.SagaForwardActionTimedOutEvent, "SagaForwardActionTimedOutEvent"),
         Entry(OrcaCoreJsonSerializerContext.Default.SagaCompensationRequestedEvent, "SagaCompensationRequestedEvent"),
         Entry(OrcaCoreJsonSerializerContext.Default.SagaCompensationStartedEvent, "SagaCompensationStartedEvent"),

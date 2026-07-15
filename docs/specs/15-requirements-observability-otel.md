@@ -18,7 +18,7 @@ SHALL be able to answer, without ad-hoc host instrumentation:
 
 ## 15.0 active implementation review (2026-07-03)
 
-Assessment of `` against IOQ-5 (`docs/implementation/00-stack-decisions.md`) and
+Assessment of the repository-root implementation against IOQ-5 (`docs/implementation/00-stack-decisions.md`) and
 MG/DU observability requirements. This section is **provenance only**; normative requirements
 follow in §15.1+.
 

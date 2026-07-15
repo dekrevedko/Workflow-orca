@@ -24,7 +24,7 @@ public sealed class DurableWorkflowRuntime
     private readonly DurableStartService startService;
     private readonly IWorkflowProjectionStore? projectionStore;
     private readonly DurableManagement? management;
-    private readonly DurableDriverCatalog driverCatalog = new();
+    private readonly DurableDriverCatalog driverCatalog;
     private readonly DurableWorkflowDriver driver;
 
     /// <summary>
@@ -51,6 +51,7 @@ public sealed class DurableWorkflowRuntime
         this.payloadSerializer = payloadSerializer;
         this.projectionStore = projectionStore;
         this.management = management;
+        driverCatalog = new DurableDriverCatalog(definitions);
         startService = new DurableStartService(commandProcessor);
         driver = new DurableWorkflowDriver(
             commandProcessor,
@@ -76,7 +77,6 @@ public sealed class DurableWorkflowRuntime
         ArgumentNullException.ThrowIfNull(definition);
 
         driverCatalog.Register(definition);
-        definitions.Register(definition);
     }
 
     /// <summary>

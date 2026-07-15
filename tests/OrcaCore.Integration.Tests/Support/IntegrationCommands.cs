@@ -78,27 +78,43 @@ internal static class IntegrationCommands
             }
         };
 
-    internal static DurableExecutionEnvelope Envelope(
+    internal static DurableExecutionEnvelopeV2 Envelope(
+        int instance = 1,
         string stateContentType = "application/octet-stream",
         byte[]? statePayload = null,
         int rootIndex = 1) =>
         new()
         {
-            EnvelopeVersion = DurableExecutionEnvelope.CurrentVersion,
-            Position = new DurableExecutionPosition
+            EnvelopeVersion = DurableExecutionEnvelopeV2.CurrentVersion,
+            InstanceId = IntegrationIds.Instance(instance),
+            ContinueAsNewGeneration = 0,
+            RootFiberId = "root",
+            PlanBinding = new DurablePlanBinding
             {
-                Cursors =
-                [
-                    new DurableExecutionCursor
-                    {
-                        CursorId = "root",
-                        Frames = [new DurableExecutionFrame { SequencePath = "root", SequenceIndex = rootIndex }],
-                        Phase = DurableCursorPhase.AtNode
-                    }
-                ]
+                DefinitionId = IntegrationIds.Definition(1),
+                DefinitionVersion = DefinitionVersion.Initial,
+                CompilerFormatVersion = 1,
+                PlanFingerprint = "integration-test-plan"
             },
             StateContentType = stateContentType,
-            StatePayload = statePayload ?? [1]
+            StatePayload = statePayload ?? [1],
+            Fibers =
+            [
+                new DurableFiberState
+                {
+                    FiberId = "root",
+                    InstructionId = $"root/{rootIndex}",
+                    Phase = DurableFiberPhase.Runnable,
+                    LoopIteration = 0,
+                    NextScopeEntrySequence = 0
+                }
+            ],
+            Scopes = [],
+            Scheduler = new DurableFiberSchedulerState
+            {
+                RunnableFiberIds = ["root"],
+                NextFiberId = "root"
+            }
         };
 
     internal static DurableStepCompletedCommand StepCompleted(
@@ -110,7 +126,7 @@ internal static class IntegrationCommands
             IntegrationIds.Instance(instance),
             IntegrationIds.Timestamp(command),
             stepPath,
-            Envelope("application/octet-stream", [(byte)command]));
+            Envelope(instance, "application/octet-stream", [(byte)command]));
 
     internal static DurableCompleteCommand Complete(int instance, int command) =>
         new(IntegrationIds.Command(command), IntegrationIds.Instance(instance), IntegrationIds.Timestamp(command), null);

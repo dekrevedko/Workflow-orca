@@ -20,7 +20,9 @@ public sealed class DurableTimerAggregateTests
             RequestedAt = Timestamp(2),
             TimerId = TimerIdValue(10),
             FireAt = Timestamp(30),
-            WakeupName = "approval-timeout"
+            WakeupName = "approval-timeout",
+            FiberId = new FiberId("timer-fiber"),
+            ScopeId = new ScopeId("timer-scope")
         };
 
         var decision = aggregate.DecideTimerScheduled(command);
@@ -30,6 +32,11 @@ public sealed class DurableTimerAggregateTests
         scheduled.TimerId.Should().Be(command.TimerId);
         scheduled.FireAt.Should().Be(command.FireAt);
         scheduled.WakeupName.Should().Be(command.WakeupName);
+        scheduled.FiberId.Should().Be(command.FiberId);
+        scheduled.ScopeId.Should().Be(command.ScopeId);
+        var replayed = DurableWorkflowAggregate.Rehydrate(null, [Started(), .. decision.Events]);
+        replayed.Snapshot.ActiveTimers.Single().FiberId.Should().Be(command.FiberId);
+        replayed.Snapshot.ActiveTimers.Single().ScopeId.Should().Be(command.ScopeId);
     }
 
     [Fact]

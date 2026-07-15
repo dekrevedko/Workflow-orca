@@ -29,7 +29,7 @@ and ephemeral saga is an in-process-only limited mode.
 No product tests. This is a task-expansion task.
 
 ## Implementation notes
-All task files must use `` source and test paths. Each task must keep compensation
+All task files must use explicit repository-root source and test paths. Each task must keep compensation
 APIs out of regular workflow builders unless it is explicitly introducing saga-specific
 surface. T5-08 must require XML documentation and implementation docs that describe
 ephemeral saga as in-process only.
@@ -40,5 +40,5 @@ Implementing saga code, adding acceptance tests, changing provider ports, or sta
 ## Definition of done
 - [ ] Every Phase 5 index item has a full task file
 - [ ] Legacy workspace path check over `docs/implementation/phases/phase-5-saga` returns no matches
-- [ ] Source/test path check over Phase 5 task files shows paths only under `` or docs paths
+- [ ] Source/test path check over Phase 5 task files shows paths only under the repository root or docs paths
 - [ ] PROGRESS.md updated; committed as "T5-00: expand saga phase tasks"

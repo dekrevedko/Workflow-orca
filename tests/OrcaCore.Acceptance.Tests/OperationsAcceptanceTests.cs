@@ -102,12 +102,12 @@ public sealed class OperationsAcceptanceTests
         StepGate gate,
         string poolKey)
     {
-        return new WorkflowBuilder<TestState>()
+        return Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState { Gate = gate })
             .WithPoolKey(poolKey)
             .Then(() => new BlockingStep())
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
     }
 
     private sealed class TestState

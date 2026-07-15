@@ -1,6 +1,8 @@
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Instances;
+using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Aggregates;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Providers.InMemory;
@@ -23,6 +25,14 @@ public sealed class RunChildrenTests
         await new DurableCommandProcessor(store).ProcessAsync(command, TestContext.Current.CancellationToken);
 
         var scheduled = await ScheduledGroupAsync(store, parentId);
+        var snapshot = (await store.ListAsync(
+            new WorkflowProjectionQuery { InstanceId = parentId },
+            TestContext.Current.CancellationToken)).Single();
+        scheduled.FiberId.Should().Be(new FiberId("child-fiber"));
+        scheduled.ScopeId.Should().Be(new ScopeId("child-scope"));
+        snapshot.ActiveWaits.Should().OnlyContain(wait =>
+            wait.FiberId == new FiberId("child-fiber") &&
+            wait.ScopeId == new ScopeId("child-scope"));
         scheduled.Children.Select(child => child.ChildInstanceId).Should().OnlyHaveUniqueItems();
         scheduled.Children.Should().HaveCount(3);
         (await store.ClaimAsync(10, TestContext.Current.CancellationToken))
@@ -72,7 +82,11 @@ public sealed class RunChildrenTests
             DefinitionVersion.Initial,
             ["alpha", "beta", "gamma"],
             RunChildFailurePolicy.PropagateFailure,
-            3);
+            3)
+        {
+            FiberId = new FiberId("child-fiber"),
+            ScopeId = new ScopeId("child-scope")
+        };
     }
 
     private static StartWorkflowCommand StartCommand(InstanceId instanceId)

@@ -96,6 +96,8 @@ internal sealed class SqlServerResourcePoolStore
                 request.Requirements,
                 request.RequestedAt,
                 request.ExpiresAt,
+                request.FiberId,
+                request.ScopeId,
                 cancellationToken).ConfigureAwait(false);
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
             return new ResourcePoolAcquireResult(ResourcePoolAcquireStatus.Granted, tickets, null, null);
@@ -414,7 +416,8 @@ internal sealed class SqlServerResourcePoolStore
     {
         await using var command = new SqlCommand(
             """
-            select ticket_id, pool_name, ticket_count, holder_instance_id, holder_key, acquired_at, expires_at
+            select ticket_id, pool_name, ticket_count, holder_instance_id, holder_key, acquired_at, expires_at,
+                   fiber_id, scope_id
             from dbo.orcacore_resource_tickets
             where holder_instance_id = @holder_instance_id
               and holder_key = @holder_key
@@ -443,7 +446,8 @@ internal sealed class SqlServerResourcePoolStore
     {
         await using var command = new SqlCommand(
             """
-            select ticket_id, pool_name, ticket_count, holder_instance_id, holder_key, acquired_at, expires_at
+            select ticket_id, pool_name, ticket_count, holder_instance_id, holder_key, acquired_at, expires_at,
+                   fiber_id, scope_id
             from dbo.orcacore_resource_tickets
             where pool_name = @pool_name
             order by acquired_at, ticket_id;
@@ -469,7 +473,8 @@ internal sealed class SqlServerResourcePoolStore
     {
         await using var command = new SqlCommand(
             """
-            select ticket_id, pool_name, ticket_count, holder_instance_id, holder_key, acquired_at, expires_at
+            select ticket_id, pool_name, ticket_count, holder_instance_id, holder_key, acquired_at, expires_at,
+                   fiber_id, scope_id
             from dbo.orcacore_resource_tickets
             order by acquired_at, ticket_id;
             """,
@@ -554,7 +559,8 @@ internal sealed class SqlServerResourcePoolStore
     {
         await using var command = new SqlCommand(
             """
-            select waiter_id, holder_instance_id, holder_key, requirements, requested_at, expires_at
+            select waiter_id, holder_instance_id, holder_key, requirements, requested_at, expires_at,
+                   fiber_id, scope_id
             from dbo.orcacore_resource_waiters
             order by requested_at, waiter_id;
             """,
@@ -571,7 +577,11 @@ internal sealed class SqlServerResourcePoolStore
                 reader.GetString(2),
                 DeserializeRequirements(reader.GetString(3)),
                 reader.GetFieldValue<DateTimeOffset>(4),
-                reader.IsDBNull(5) ? null : reader.GetFieldValue<DateTimeOffset>(5)));
+                reader.IsDBNull(5) ? null : reader.GetFieldValue<DateTimeOffset>(5))
+            {
+                FiberId = reader.IsDBNull(6) ? null : new FiberId(reader.GetString(6)),
+                ScopeId = reader.IsDBNull(7) ? null : new ScopeId(reader.GetString(7))
+            });
         }
 
         return waiters;
@@ -585,6 +595,8 @@ internal sealed class SqlServerResourcePoolStore
         IReadOnlyList<ResourcePoolRequirement> requirements,
         DateTimeOffset acquiredAt,
         DateTimeOffset? expiresAt,
+        FiberId? fiberId,
+        ScopeId? scopeId,
         CancellationToken cancellationToken)
     {
         var tickets = requirements
@@ -595,7 +607,11 @@ internal sealed class SqlServerResourcePoolStore
                 holderInstanceId,
                 holderKey,
                 acquiredAt,
-                expiresAt))
+                expiresAt)
+            {
+                FiberId = fiberId,
+                ScopeId = scopeId
+            })
             .ToArray();
 
         foreach (var ticket in tickets)
@@ -609,7 +625,9 @@ internal sealed class SqlServerResourcePoolStore
                     holder_key,
                     ticket_count,
                     acquired_at,
-                    expires_at)
+                    expires_at,
+                    fiber_id,
+                    scope_id)
                 values (
                     @ticket_id,
                     @pool_name,
@@ -617,7 +635,9 @@ internal sealed class SqlServerResourcePoolStore
                     @holder_key,
                     @ticket_count,
                     @acquired_at,
-                    @expires_at);
+                    @expires_at,
+                    @fiber_id,
+                    @scope_id);
                 """,
                 connection,
                 transaction);
@@ -648,7 +668,11 @@ internal sealed class SqlServerResourcePoolStore
             request.HolderKey,
             request.Requirements.ToArray(),
             request.RequestedAt,
-            request.ExpiresAt);
+            request.ExpiresAt)
+        {
+            FiberId = request.FiberId,
+            ScopeId = request.ScopeId
+        };
         await using var command = new SqlCommand(
             """
             insert into dbo.orcacore_resource_waiters (
@@ -657,14 +681,18 @@ internal sealed class SqlServerResourcePoolStore
                 holder_key,
                 requirements,
                 requested_at,
-                expires_at)
+                expires_at,
+                fiber_id,
+                scope_id)
             values (
                 @waiter_id,
                 @holder_instance_id,
                 @holder_key,
                 @requirements,
                 @requested_at,
-                @expires_at);
+                @expires_at,
+                @fiber_id,
+                @scope_id);
             """,
             connection,
             transaction);
@@ -674,6 +702,8 @@ internal sealed class SqlServerResourcePoolStore
         command.Parameters.AddWithValue("@requirements", SerializeRequirements(waiter.Requirements));
         command.Parameters.AddWithValue("@requested_at", waiter.RequestedAt);
         AddNullable(command, "@expires_at", waiter.ExpiresAt);
+        AddNullable(command, "@fiber_id", waiter.FiberId?.Value);
+        AddNullable(command, "@scope_id", waiter.ScopeId?.Value);
 
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         return waiter;
@@ -689,7 +719,8 @@ internal sealed class SqlServerResourcePoolStore
             """
             delete from dbo.orcacore_resource_tickets
             output deleted.ticket_id, deleted.pool_name, deleted.ticket_count,
-                   deleted.holder_instance_id, deleted.holder_key, deleted.acquired_at, deleted.expires_at
+                   deleted.holder_instance_id, deleted.holder_key, deleted.acquired_at, deleted.expires_at,
+                   deleted.fiber_id, deleted.scope_id
             where holder_instance_id = @holder_instance_id
               and holder_key = @holder_key;
             """,
@@ -718,7 +749,8 @@ internal sealed class SqlServerResourcePoolStore
             """
             delete from dbo.orcacore_resource_tickets
             output deleted.ticket_id, deleted.pool_name, deleted.ticket_count,
-                   deleted.holder_instance_id, deleted.holder_key, deleted.acquired_at, deleted.expires_at
+                   deleted.holder_instance_id, deleted.holder_key, deleted.acquired_at, deleted.expires_at,
+                   deleted.fiber_id, deleted.scope_id
             where ticket_id = @ticket_id;
             """,
             connection,
@@ -845,6 +877,8 @@ internal sealed class SqlServerResourcePoolStore
                 waiter.Requirements,
                 grantedAt,
                 waiter.ExpiresAt,
+                waiter.FiberId,
+                waiter.ScopeId,
                 cancellationToken).ConfigureAwait(false);
             await DeleteWaiterAsync(connection, transaction, waiter.WaiterId, cancellationToken).ConfigureAwait(false);
 
@@ -899,7 +933,11 @@ internal sealed class SqlServerResourcePoolStore
             new InstanceId(reader.GetGuid(3)),
             reader.GetString(4),
             reader.GetFieldValue<DateTimeOffset>(5),
-            reader.IsDBNull(6) ? null : reader.GetFieldValue<DateTimeOffset>(6));
+            reader.IsDBNull(6) ? null : reader.GetFieldValue<DateTimeOffset>(6))
+        {
+            FiberId = reader.IsDBNull(7) ? null : new FiberId(reader.GetString(7)),
+            ScopeId = reader.IsDBNull(8) ? null : new ScopeId(reader.GetString(8))
+        };
     }
 
     private static void AddTicketParameters(SqlCommand command, ResourcePoolTicket ticket)
@@ -911,6 +949,8 @@ internal sealed class SqlServerResourcePoolStore
         command.Parameters.AddWithValue("@ticket_count", ticket.Count);
         command.Parameters.AddWithValue("@acquired_at", ticket.AcquiredAt);
         AddNullable(command, "@expires_at", ticket.ExpiresAt);
+        AddNullable(command, "@fiber_id", ticket.FiberId?.Value);
+        AddNullable(command, "@scope_id", ticket.ScopeId?.Value);
     }
 
     private static string SerializeRequirements(IReadOnlyList<ResourcePoolRequirement> requirements)

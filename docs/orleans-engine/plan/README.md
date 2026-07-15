@@ -2,7 +2,7 @@
 
 Six phases, O0–O5. Task sizing, template, and execution protocol are
 [implementation/04-task-protocol.md](../../implementation/04-task-protocol.md) verbatim,
-with paths under **``**. Phases O0–O1 ship fully detailed task files (they set the
+with paths written explicitly from the **repository root**. Phases O0–O1 ship fully detailed task files (they set the
 patterns); O2–O5 start with an `OTn-00` expansion task that turns this index into full task
 files against the code that exists then. Dependencies point backward only; tasks whose
 dependencies are done may run in any order within a phase.

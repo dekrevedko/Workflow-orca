@@ -2,6 +2,7 @@ using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.Engine.Durable.Execution;
 
 namespace OrcaCore.Engine.Durable.Aggregates;
 
@@ -27,7 +28,13 @@ internal static class DurableExternalJobCommandHandler
         var resourcePoolAcquirePlan = acquireResult is null
             ? DurableResourcePoolAcquirePlan.Empty
             : aggregate.ResourcePoolState.PlanAcquire(
-                aggregate.CreateResourcePoolEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
+                aggregate.CreateResourcePoolEventContext(
+                    command.CommandId,
+                    command.InstanceId,
+                    command.RequestedAt,
+                    command.FiberId,
+                    command.ScopeId,
+                    command.WaitSequence),
                 command.ExternalJobId,
                 command.Requirements,
                 command.TimeoutAt,
@@ -66,7 +73,9 @@ internal static class DurableExternalJobCommandHandler
             Payload = [.. command.Payload],
             WaitId = waitId,
             TimeoutTimerId = timeoutTimerId,
-            TimeoutAt = command.TimeoutAt
+            TimeoutAt = command.TimeoutAt,
+            FiberId = command.FiberId,
+            ScopeId = command.ScopeId
         });
         events.Add(new WorkflowWaitRegisteredEvent
         {
@@ -78,9 +87,12 @@ internal static class DurableExternalJobCommandHandler
             ParentInstanceId = aggregate.ParentInstanceId,
             RootInstanceId = aggregate.RootInstanceId ?? aggregate.InstanceId,
             WaitId = waitId,
-            EventName = "ExternalJobCompleted",
+            EventName = DurableRuntimeEventNames.ExternalJobCompleted,
             CorrelationId = new CorrelationId(command.ExternalJobId),
-            Mode = WaitMode.Cold
+            Mode = WaitMode.Cold,
+            WaitSequence = command.WaitSequence,
+            FiberId = command.FiberId,
+            ScopeId = command.ScopeId
         });
 
         if (timeoutTimerId is { } timerId && command.TimeoutAt is { } timeoutAt)
@@ -96,7 +108,9 @@ internal static class DurableExternalJobCommandHandler
                 RootInstanceId = aggregate.RootInstanceId ?? aggregate.InstanceId,
                 TimerId = timerId,
                 FireAt = timeoutAt,
-                WakeupName = $"ExternalJobTimeout:{command.ExternalJobId}"
+                WakeupName = $"ExternalJobTimeout:{command.ExternalJobId}",
+                FiberId = command.FiberId,
+                ScopeId = command.ScopeId
             });
         }
 
@@ -138,7 +152,9 @@ internal static class DurableExternalJobCommandHandler
                 ParentInstanceId = aggregate.ParentInstanceId,
                 RootInstanceId = aggregate.RootInstanceId ?? aggregate.InstanceId,
                 ExternalJobId = command.ExternalJobId,
-                CompletionEventId = command.CompletionEventId
+                CompletionEventId = command.CompletionEventId,
+                FiberId = job.FiberId,
+                ScopeId = job.ScopeId
             },
             .. aggregate.ReleaseEvents(command.CommandId, command.InstanceId, command.RequestedAt, command.ExternalJobId),
             new WorkflowWaitMatchedEvent
@@ -151,7 +167,9 @@ internal static class DurableExternalJobCommandHandler
                 ParentInstanceId = aggregate.ParentInstanceId,
                 RootInstanceId = aggregate.RootInstanceId ?? aggregate.InstanceId,
                 WaitId = job.WaitId,
-                MatchedEventId = command.CompletionEventId
+                MatchedEventId = command.CompletionEventId,
+                FiberId = job.FiberId,
+                ScopeId = job.ScopeId
             }
         ]);
     }
@@ -175,7 +193,9 @@ internal static class DurableExternalJobCommandHandler
                 OccurredAt = command.RequestedAt,
                 ParentInstanceId = aggregate.ParentInstanceId,
                 RootInstanceId = aggregate.RootInstanceId ?? aggregate.InstanceId,
-                ExternalJobId = command.ExternalJobId
+                ExternalJobId = command.ExternalJobId,
+                FiberId = job.FiberId,
+                ScopeId = job.ScopeId
             },
             new WorkflowExternalJobStopRequestedEvent
             {
@@ -186,7 +206,9 @@ internal static class DurableExternalJobCommandHandler
                 OccurredAt = command.RequestedAt,
                 ParentInstanceId = aggregate.ParentInstanceId,
                 RootInstanceId = aggregate.RootInstanceId ?? aggregate.InstanceId,
-                ExternalJobId = command.ExternalJobId
+                ExternalJobId = command.ExternalJobId,
+                FiberId = job.FiberId,
+                ScopeId = job.ScopeId
             },
             .. aggregate.ReleaseEvents(command.CommandId, command.InstanceId, command.RequestedAt, command.ExternalJobId),
             new WorkflowTerminalEvent

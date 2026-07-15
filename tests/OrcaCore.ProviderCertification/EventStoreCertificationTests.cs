@@ -3,6 +3,12 @@ using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.Abstractions.Steps;
+using OrcaCore.Core.Building;
+using OrcaCore.Core.Definitions;
+using OrcaCore.Engine.Durable.Definitions;
+using OrcaCore.Engine.Durable.Driver;
+using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.TestSupport.Providers;
 using Xunit;
 
@@ -456,7 +462,253 @@ public abstract class EventStoreCertificationTests
             "checkpoint compaction, or rehydrated aggregates silently lose in-flight state");
     }
 
-    private static WorkflowRuntimeCheckpointState FullyPopulatedRuntimeState(InstanceId instanceId)
+    [Fact]
+    [Trait("SFE", "ProviderRecovery")]
+    public async Task NestedFiberCheckpoint_OptimisticReplacementPreservesOwnersAndContinuationClaim()
+    {
+        var fixture = CreateFixture();
+        var instanceId = InstanceId.New();
+        var streamId = new WorkflowStreamId(instanceId);
+        var ownerFiberId = new FiberId("fiber:blocked-child");
+        var ownerScopeId = new ScopeId("scope:nested");
+        var initialEnvelope = NestedEnvelope(instanceId, "fiber:runnable-sibling");
+        var replacedEnvelope = NestedEnvelope(instanceId, ownerFiberId.Value);
+        var runtimeState = FullyPopulatedRuntimeState(instanceId, ownerFiberId, ownerScopeId);
+        var continuationId = OutboxRecordId.New();
+        var started = Batch(streamId, StreamVersion.Empty) with
+        {
+            Checkpoint = new CheckpointWrite(
+                instanceId,
+                new StreamVersion(1),
+                DurableExecutionEnvelopeV2.ContentType,
+                initialEnvelope.Serialize())
+            {
+                Status = WorkflowStatus.Running,
+                RuntimeState = runtimeState
+            }
+        };
+        var replacement = new ProviderCommitBatch
+        {
+            StreamId = streamId,
+            ExpectedVersion = new StreamVersion(1),
+            Events =
+            [
+                new WorkflowStepCompletedEvent
+                {
+                    EventId = EventId.New(),
+                    InstanceId = instanceId,
+                    CommandId = CommandId.New(),
+                    CausationId = CausationId.New(),
+                    OccurredAt = Timestamp(2),
+                    StepPath = "nested/branch-return"
+                }
+            ],
+            Checkpoint = new CheckpointWrite(
+                instanceId,
+                new StreamVersion(2),
+                DurableExecutionEnvelopeV2.ContentType,
+                replacedEnvelope.Serialize())
+            {
+                Status = WorkflowStatus.Running,
+                RuntimeState = runtimeState
+            },
+            OutboxRecords = [new OutboxWrite(continuationId, OutboxKinds.Continue, [1])]
+        };
+
+        (await fixture.EventStore.AppendAsync(started, TestContext.Current.CancellationToken))
+            .IsSuccess.Should().BeTrue();
+        (await fixture.EventStore.AppendAsync(replacement, TestContext.Current.CancellationToken))
+            .IsSuccess.Should().BeTrue();
+        var stale = await fixture.EventStore.AppendAsync(
+            replacement with
+            {
+                Checkpoint = replacement.Checkpoint! with { Payload = initialEnvelope.Serialize() }
+            },
+            TestContext.Current.CancellationToken);
+        var checkpoint = await fixture.EventStore.LoadCheckpointAsync(
+            instanceId,
+            TestContext.Current.CancellationToken);
+        var claimed = await fixture.OutboxStore.ClaimAsync(
+            new OutboxClaimRequest(1, Timestamp(10), TimeSpan.FromMinutes(1))
+            {
+                KindSelector = OutboxKindSelector.Including(OutboxKinds.Continue)
+            },
+            TestContext.Current.CancellationToken);
+
+        stale.IsFailure.Should().BeTrue();
+        checkpoint.Should().NotBeNull();
+        checkpoint.Value.StreamVersion.Should().Be(new StreamVersion(2));
+        DurableExecutionEnvelopeV2.Deserialize(checkpoint.Value.Payload)
+            .Should().BeEquivalentTo(replacedEnvelope);
+        checkpoint.Value.RuntimeState.Should().BeEquivalentTo(runtimeState);
+        checkpoint.Value.RuntimeState.ActiveWaits.Should().OnlyContain(item =>
+            item.FiberId == ownerFiberId && item.ScopeId == ownerScopeId);
+        claimed.Should().ContainSingle().Which.OutboxRecordId.Should().Be(continuationId);
+    }
+
+    [Fact]
+    [Trait("SFE", "ProviderHostReplacement")]
+    public async Task StructuredFibers_HostReplacementPreservesMixedStateAndExactNextFiber()
+    {
+        var fixture = CreateFixture();
+        var definition = HostReplacementDefinition();
+        var budget = new DurableDriverBudget(1, TimeSpan.FromSeconds(30));
+        var workflowKey = $"provider-fiber-{Guid.NewGuid():N}";
+        var started = await Host(fixture, budget, definition).StartOrGetAsync<string, HostState>(
+            workflowKey,
+            definition,
+            "input",
+            TestContext.Current.CancellationToken);
+
+        // Each call below creates a fresh registry, driver, and aggregate loader over the same store.
+        await ResumeExisting(fixture, budget, definition, workflowKey);
+        await ResumeExisting(fixture, budget, definition, workflowKey);
+
+        var mixedCheckpoint = await fixture.EventStore.LoadCheckpointAsync(
+            started.InstanceId,
+            TestContext.Current.CancellationToken);
+        var mixed = DurableExecutionEnvelopeV2.Deserialize(mixedCheckpoint!.Value.Payload);
+        var scope = mixed.Scopes.Should().ContainSingle().Subject;
+        var blocked = mixed.Fibers.Single(fiber => fiber.Phase == DurableFiberPhase.Blocked &&
+            fiber.Blocked?.Reason == DurableFiberBlockedReason.Wait);
+        var completed = mixed.Fibers.Single(fiber => fiber.Phase == DurableFiberPhase.Completed);
+        var runnable = mixed.Fibers.Single(fiber => fiber.Phase == DurableFiberPhase.Runnable);
+
+        scope.CommittedResults.Should().ContainSingle().Which.FiberId.Should().Be(completed.FiberId);
+        mixed.Scheduler.RunnableFiberIds.Should().Equal(runnable.FiberId);
+        mixed.Scheduler.NextFiberId.Should().Be(runnable.FiberId);
+        mixed.OwnedObligations.Should().ContainSingle(item =>
+            item.FiberId == blocked.FiberId && item.ScopeId == scope.ScopeId);
+
+        await ResumeExisting(fixture, budget, definition, workflowKey);
+        var afterYieldCheckpoint = await fixture.EventStore.LoadCheckpointAsync(
+            started.InstanceId,
+            TestContext.Current.CancellationToken);
+        var afterYield = DurableExecutionEnvelopeV2.Deserialize(afterYieldCheckpoint!.Value.Payload);
+        afterYield.Scheduler.NextFiberId.Should().Be(runnable.FiberId);
+
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            await ResumeExisting(fixture, budget, definition, workflowKey);
+        }
+
+        var eventHost = Host(fixture, budget, definition);
+        await eventHost.RaiseEventAsync(
+            started.InstanceId,
+            "ReleaseBlockedFiber",
+            HostCorrelation,
+            cancellationToken: TestContext.Current.CancellationToken);
+        for (var attempt = 0; attempt < 8; attempt++)
+        {
+            await ResumeExisting(fixture, budget, definition, workflowKey);
+        }
+
+        var finalCheckpoint = await fixture.EventStore.LoadCheckpointAsync(
+            started.InstanceId,
+            TestContext.Current.CancellationToken);
+        var finalEnvelope = DurableExecutionEnvelopeV2.Deserialize(finalCheckpoint!.Value.Payload);
+        var events = await fixture.EventStore.LoadTailAsync(
+            new WorkflowStreamId(started.InstanceId),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+
+        events.OfType<WorkflowCompletedEvent>().Should().ContainSingle();
+        finalEnvelope.OwnedObligations.Should().BeEmpty();
+        events.OfType<WorkflowStepCompletedEvent>()
+            .Should().ContainSingle(item => item.StepPath.EndsWith(":merge", StringComparison.Ordinal));
+    }
+
+    private static WorkflowDefinition<HostState> HostReplacementDefinition()
+    {
+        return Workflow.Durable<HostState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(_ => new HostState())
+            .Parallel<string>(
+                branches => branches
+                    .Branch<HostBranchState>(
+                        "blocked",
+                        _ => new HostBranchState { Name = "blocked" },
+                        branch => branch
+                            .Wait("ReleaseBlockedFiber", _ => HostCorrelation)
+                            .Return(state => state.Value.Name))
+                    .Branch<HostBranchState>(
+                        "completed",
+                        _ => new HostBranchState { Name = "completed" },
+                        branch => branch.Return(state => state.Value.Name))
+                    .Branch<HostBranchState>(
+                        "yielding",
+                        _ => new HostBranchState { Name = "yielding" },
+                        branch => branch
+                            .Then<YieldOnceHostStep>()
+                            .Return(state => state.Value.Name)),
+                (_, results) => new HostState
+                {
+                    Results = results.Select(result => result.Value).ToList()
+                })
+            .End("done")
+            .Build();
+    }
+
+    private static DurableWorkflowRuntime Host(
+        IProviderCertificationFixture fixture,
+        DurableDriverBudget budget,
+        WorkflowDefinition<HostState> definition)
+    {
+        var runtime = new DurableWorkflowRuntime(
+            new DurableCommandProcessor(fixture.EventStore),
+            new DurableDefinitionRegistry(),
+            TimeProvider.System,
+            new JsonWorkflowPayloadSerializer(),
+            budget,
+            fixture.ProjectionStore);
+        runtime.RegisterDefinition(definition);
+        return runtime;
+    }
+
+    private static async Task ResumeExisting(
+        IProviderCertificationFixture fixture,
+        DurableDriverBudget budget,
+        WorkflowDefinition<HostState> definition,
+        string workflowKey)
+    {
+        await Host(fixture, budget, definition).StartOrGetAsync<string, HostState>(
+            workflowKey,
+            definition.DefinitionId,
+            definition.DefinitionVersion,
+            "input",
+            TestContext.Current.CancellationToken);
+    }
+
+    private static CorrelationId HostCorrelation => new("provider-host-replacement");
+
+    private sealed class YieldOnceHostStep : IStep<HostBranchState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<HostBranchState> context,
+            CancellationToken cancellationToken)
+        {
+            context.State.Attempts++;
+            return ValueTask.FromResult<StepResult>(context.State.Attempts == 1
+                ? new StepResult.Yield()
+                : new StepResult.Completed());
+        }
+    }
+
+    private sealed class HostState
+    {
+        public List<string> Results { get; set; } = [];
+    }
+
+    private sealed class HostBranchState
+    {
+        public string Name { get; set; } = string.Empty;
+
+        public int Attempts { get; set; }
+    }
+
+    private static WorkflowRuntimeCheckpointState FullyPopulatedRuntimeState(
+        InstanceId instanceId,
+        FiberId? ownerFiberId = null,
+        ScopeId? ownerScopeId = null)
     {
         var waitId = WaitId.New();
         var timerId = TimerId.New();
@@ -465,7 +717,14 @@ public abstract class EventStoreCertificationTests
 
         return new WorkflowRuntimeCheckpointState
         {
-            ActiveTimers = [new CheckpointActiveTimer(timerId, Timestamp(40), "timeout", Timestamp(2))],
+            ActiveTimers =
+            [
+                new CheckpointActiveTimer(timerId, Timestamp(40), "timeout", Timestamp(2))
+                {
+                    FiberId = ownerFiberId,
+                    ScopeId = ownerScopeId
+                }
+            ],
             ActiveWaits =
             [
                 new CheckpointActiveWait(
@@ -475,6 +734,11 @@ public abstract class EventStoreCertificationTests
                     Timestamp(3),
                     WaitMode.Cold,
                     "branch-a")
+                {
+                    FiberId = ownerFiberId,
+                    ScopeId = ownerScopeId,
+                    WaitSequence = 12
+                }
             ],
             BufferedDeliveries =
             [
@@ -491,6 +755,10 @@ public abstract class EventStoreCertificationTests
                     RunChildrenJoinPolicy.WhenAll,
                     RunChildrenResidualPolicy.CancelRemaining,
                     """{"id":1}""")
+                {
+                    FiberId = ownerFiberId,
+                    ScopeId = ownerScopeId
+                }
             ],
             ActiveChildGroups =
             [
@@ -511,6 +779,10 @@ public abstract class EventStoreCertificationTests
                             ItemSnapshot = """{"id":1}"""
                         }
                     ])
+                {
+                    FiberId = ownerFiberId,
+                    ScopeId = ownerScopeId
+                }
             ],
             ActiveResourceTickets =
             [
@@ -522,11 +794,31 @@ public abstract class EventStoreCertificationTests
                     "holder-1",
                     Timestamp(4),
                     Timestamp(44))
+                {
+                    FiberId = ownerFiberId,
+                    ScopeId = ownerScopeId
+                }
             ],
-            ActiveExternalJobs = [new CheckpointActiveExternalJob("job-1", WaitId.New(), TimerId.New())],
+            ActiveExternalJobs =
+            [
+                new CheckpointActiveExternalJob("job-1", WaitId.New(), TimerId.New())
+                {
+                    FiberId = ownerFiberId,
+                    ScopeId = ownerScopeId
+                }
+            ],
             CompletedSagaForwardActions =
             [
                 new CheckpointSagaForwardAction("scope-1", "reserve-stock", "release-stock", Timestamp(6))
+                {
+                    FiberId = ownerFiberId,
+                    OwningScopeId = ownerScopeId,
+                    EligibleScopeId = ownerScopeId,
+                    InstructionId = "instruction:reserve-stock",
+                    CommittedSequence = 8,
+                    CanonicalBranchOrder = 1,
+                    CanonicalInstructionOrder = 2
+                }
             ],
             SagaCompensationActions =
             [
@@ -554,6 +846,139 @@ public abstract class EventStoreCertificationTests
             RequestedSagaCompensationScopes = ["scope-1"],
             RecordedParentResumeTokens = [EventId.New()],
             ConsumedParentResumeTokens = [EventId.New()]
+        };
+    }
+
+    private static DurableExecutionEnvelopeV2 NestedEnvelope(
+        InstanceId instanceId,
+        string nextFiberId)
+    {
+        const string RootFiberId = "fiber:root";
+        const string ParentFiberId = "fiber:parent";
+        const string BlockedFiberId = "fiber:blocked-child";
+        const string SiblingFiberId = "fiber:runnable-sibling";
+        return new DurableExecutionEnvelopeV2
+        {
+            EnvelopeVersion = DurableExecutionEnvelopeV2.CurrentVersion,
+            InstanceId = instanceId,
+            ContinueAsNewGeneration = 2,
+            RootFiberId = RootFiberId,
+            PlanBinding = new DurablePlanBinding
+            {
+                DefinitionId = DefinitionId.New(),
+                DefinitionVersion = DefinitionVersion.Initial,
+                CompilerFormatVersion = 2,
+                PlanFingerprint = "provider-certification-fingerprint"
+            },
+            StateContentType = "application/json",
+            StatePayload = [1, 2, 3],
+            Fibers =
+            [
+                new DurableFiberState
+                {
+                    FiberId = RootFiberId,
+                    InstructionId = "instruction:root",
+                    Phase = DurableFiberPhase.Blocked,
+                    LoopIteration = 0,
+                    NextScopeEntrySequence = 2,
+                    Blocked = new DurableFiberBlock
+                    {
+                        Reason = DurableFiberBlockedReason.Scope,
+                        ObligationId = "scope:outer"
+                    }
+                },
+                new DurableFiberState
+                {
+                    FiberId = ParentFiberId,
+                    OwningScopeId = "scope:outer",
+                    InstructionId = "instruction:parent",
+                    Phase = DurableFiberPhase.Blocked,
+                    LoopIteration = 1,
+                    NextScopeEntrySequence = 1,
+                    Blocked = new DurableFiberBlock
+                    {
+                        Reason = DurableFiberBlockedReason.Scope,
+                        ObligationId = "scope:nested"
+                    }
+                },
+                new DurableFiberState
+                {
+                    FiberId = BlockedFiberId,
+                    OwningScopeId = "scope:nested",
+                    InstructionId = "instruction:wait",
+                    Phase = DurableFiberPhase.Blocked,
+                    LoopIteration = 0,
+                    NextScopeEntrySequence = 0,
+                    Blocked = new DurableFiberBlock
+                    {
+                        Reason = DurableFiberBlockedReason.Wait,
+                        ObligationId = "wait:owned"
+                    }
+                },
+                new DurableFiberState
+                {
+                    FiberId = SiblingFiberId,
+                    OwningScopeId = "scope:nested",
+                    InstructionId = "instruction:return",
+                    Phase = DurableFiberPhase.Runnable,
+                    LoopIteration = 0,
+                    NextScopeEntrySequence = 0,
+                    ResultPayload = [9]
+                }
+            ],
+            Scopes =
+            [
+                new DurableExecutionScopeState
+                {
+                    ScopeId = "scope:outer",
+                    ScopePlanId = "scope-plan:outer",
+                    ScopeEntrySequence = 1,
+                    ParentFiberId = RootFiberId,
+                    Kind = DurableExecutionScopeKind.WhenAll,
+                    Phase = DurableExecutionScopePhase.Running,
+                    ChildFiberIds = [ParentFiberId]
+                },
+                new DurableExecutionScopeState
+                {
+                    ScopeId = "scope:nested",
+                    ScopePlanId = "scope-plan:nested",
+                    ScopeEntrySequence = 0,
+                    ParentScopeId = "scope:outer",
+                    ParentFiberId = ParentFiberId,
+                    Kind = DurableExecutionScopeKind.WhenAll,
+                    Phase = DurableExecutionScopePhase.Running,
+                    ChildFiberIds = [BlockedFiberId, SiblingFiberId],
+                    CommittedResults =
+                    [
+                        new DurableCommittedResult
+                        {
+                            FiberId = SiblingFiberId,
+                            Payload = [9]
+                        }
+                    ]
+                }
+            ],
+            Scheduler = new DurableFiberSchedulerState
+            {
+                RunnableFiberIds = [SiblingFiberId],
+                NextFiberId = nextFiberId
+            },
+            OwnedObligations =
+            [
+                new DurableOwnedObligationState
+                {
+                    Kind = DurableOwnedObligationKind.Wait,
+                    ObligationId = "wait:owned",
+                    FiberId = BlockedFiberId,
+                    ScopeId = "scope:nested",
+                    RegistrationSequence = 12
+                }
+            ],
+            Diagnostics = new DurableExecutionDiagnostics
+            {
+                TotalYields = 4,
+                ForcedRotations = 2
+            }
         };
     }
 

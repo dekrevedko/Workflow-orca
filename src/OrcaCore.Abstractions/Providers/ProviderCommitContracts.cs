@@ -263,7 +263,14 @@ public sealed record CheckpointPendingResume(
     string? BranchId,
     string? PayloadContentType,
     byte[]? Payload,
-    DateTimeOffset MatchedAt);
+    DateTimeOffset MatchedAt)
+{
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
+    public long WaitSequence { get; init; }
+}
 
 /// <summary>
 /// Checkpoint materialization of one active timer.
@@ -272,7 +279,12 @@ public sealed record CheckpointActiveTimer(
     TimerId TimerId,
     DateTimeOffset FireAt,
     string WakeupName,
-    DateTimeOffset RegisteredAt);
+    DateTimeOffset RegisteredAt)
+{
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+}
 
 /// <summary>
 /// Checkpoint materialization of one active wait.
@@ -284,7 +296,14 @@ public sealed record CheckpointActiveWait(
     DateTimeOffset RegisteredAt,
     WaitMode Mode,
     string? BranchId,
-    TimerId? TimeoutTimerId = null);
+    TimerId? TimeoutTimerId = null)
+{
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+
+    public long WaitSequence { get; init; }
+}
 
 /// <summary>
 /// Checkpoint materialization of one buffered inbound delivery.
@@ -315,7 +334,12 @@ public sealed record CheckpointActiveChild(
     RunChildFailurePolicy FailurePolicy,
     RunChildrenJoinPolicy JoinPolicy,
     RunChildrenResidualPolicy ResidualPolicy,
-    string? ItemSnapshot);
+    string? ItemSnapshot)
+{
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+}
 
 /// <summary>
 /// Checkpoint materialization of one active child group.
@@ -327,7 +351,12 @@ public sealed record CheckpointActiveChildGroup(
     RunChildrenResidualPolicy ResidualPolicy,
     int MaxConcurrency,
     int NextDispatchIndex,
-    IReadOnlyList<WorkflowChildMaterialization> Children);
+    IReadOnlyList<WorkflowChildMaterialization> Children)
+{
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+}
 
 /// <summary>
 /// Checkpoint materialization of one active external job.
@@ -335,7 +364,12 @@ public sealed record CheckpointActiveChildGroup(
 public sealed record CheckpointActiveExternalJob(
     string ExternalJobId,
     WaitId WaitId,
-    TimerId? TimeoutTimerId);
+    TimerId? TimeoutTimerId)
+{
+    public FiberId? FiberId { get; init; }
+
+    public ScopeId? ScopeId { get; init; }
+}
 
 /// <summary>
 /// Checkpoint materialization of one completed saga forward action.
@@ -344,7 +378,24 @@ public sealed record CheckpointSagaForwardAction(
     string ScopeId,
     string ActionKey,
     string CompensationKey,
-    DateTimeOffset CompletedAt);
+    DateTimeOffset CompletedAt)
+{
+    public FiberId? FiberId { get; init; }
+
+    public OrcaCore.Abstractions.Ids.ScopeId? OwningScopeId { get; init; }
+
+    public OrcaCore.Abstractions.Ids.ScopeId? EligibleScopeId { get; init; }
+
+    public string? InstructionId { get; init; }
+
+    public long CommittedSequence { get; init; }
+
+    public int CanonicalBranchOrder { get; init; }
+
+    public int CanonicalInstructionOrder { get; init; }
+
+    public int? ScopeOrderOverride { get; init; }
+}
 
 /// <summary>
 /// Checkpoint materialization of one saga compensation action.

@@ -2,9 +2,7 @@ using AwesomeAssertions;
 using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
-using OrcaCore.Core.Definitions;
 using OrcaCore.Engine.Ephemeral;
 using Xunit;
 
@@ -20,25 +18,34 @@ public sealed class WhenFirstAcceptanceTests
         var second = await RunImmediateAsync();
 
         first.State.Values.Should().Equal(second.State.Values);
-        first.Snapshot.CompositionOutcomes.Should().ContainSingle(outcome =>
-            outcome.BranchId == "0:a" && outcome.Status == "Winner");
+        first.State.Values.Should().Equal("a");
+        first.Snapshot.Status.Should().Be(WorkflowStatus.Completed);
     }
 
     [Fact]
     [Trait("AC", "AC-205")]
-    public async Task WhenFirst_LosingBranchPolicyIsObservable()
+    public async Task WhenFirst_LosingBranchWaitIsCancelledBeforeContinuation()
     {
-        var state = new TestState();
         var engine = new EphemeralWorkflowEngine();
-        var definition = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => state)
-            .WhenFirst(
-                WhenFirstResidualPolicy.CancelRemaining,
-                ("a", branch => branch.Wait("A", _ => new CorrelationId("a")).Then(() => new CaptureStep())),
-                ("b", branch => branch.Wait("B", _ => new CorrelationId("b")).Then(() => new CaptureStep())))
-            .Then(() => new AppendStep("after"))
+        var definition = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(_ => new TestState([]))
+            .WhenFirst<string>(
+                branches => branches
+                    .Branch<BranchState>(
+                        "a",
+                        _ => new BranchState("a"),
+                        branch => branch
+                            .Wait("A", _ => new CorrelationId("a"))
+                            .Return(state => state.Value.Name))
+                    .Branch<BranchState>(
+                        "b",
+                        _ => new BranchState("b"),
+                        branch => branch
+                            .Wait("B", _ => new CorrelationId("b"))
+                            .Return(state => state.Value.Name)),
+                MergeWinner)
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
         engine.RegisterDefinition(definition);
         var waiting = await engine.StartAsync<string, TestState>(
             definition.DefinitionId,
@@ -47,27 +54,33 @@ public sealed class WhenFirstAcceptanceTests
 
         var snapshot = await engine.RaiseEventAsync<TestState>(
             waiting.InstanceId,
-            Event("A", new CorrelationId("a"), "a"),
+            Event("A", new CorrelationId("a")),
             TestContext.Current.CancellationToken);
+        var state = engine.Management.Instance(snapshot.InstanceId).GetState<TestState>();
 
         snapshot.Status.Should().Be(WorkflowStatus.Completed);
         snapshot.ActiveWaits.Should().BeEmpty();
-        snapshot.CompositionOutcomes.Should().Contain(outcome =>
-            outcome.BranchId == "1:b" && outcome.Status == "Cancelled");
+        state.Values.Should().Equal("a");
     }
 
     private static async Task<(TestState State, WorkflowInstanceSnapshot Snapshot)> RunImmediateAsync()
     {
-        var state = new TestState();
         var engine = new EphemeralWorkflowEngine();
-        var definition = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => state)
-            .WhenFirst(
-                ("a", branch => branch.Then(() => new AppendStep("a"))),
-                ("b", branch => branch.Then(() => new AppendStep("b"))))
-            .Then(() => new AppendStep("after"))
+        var definition = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(_ => new TestState([]))
+            .WhenFirst<string>(
+                branches => branches
+                    .Branch<BranchState>(
+                        "a",
+                        _ => new BranchState("a"),
+                        branch => branch.Return(state => state.Value.Name))
+                    .Branch<BranchState>(
+                        "b",
+                        _ => new BranchState("b"),
+                        branch => branch.Return(state => state.Value.Name)),
+                MergeWinner)
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
         engine.RegisterDefinition(definition);
 
         var snapshot = await engine.StartAsync<string, TestState>(
@@ -75,49 +88,28 @@ public sealed class WhenFirstAcceptanceTests
             "start",
             TestContext.Current.CancellationToken);
 
-        return (state, snapshot);
+        return (engine.Management.Instance(snapshot.InstanceId).GetState<TestState>(), snapshot);
     }
 
-    private static EventEnvelope Event(string name, CorrelationId correlationId, object? payload)
+    private static TestState MergeWinner(
+        ReadOnlyParentSnapshot<TestState> parent,
+        BranchResult<string> winner)
+    {
+        return new TestState([.. parent.Value.Values, winner.Value]);
+    }
+
+    private static EventEnvelope Event(string name, CorrelationId correlationId)
     {
         return new EventEnvelope
         {
             EventId = EventId.New(),
             EventName = name,
             CorrelationId = correlationId,
-            Payload = payload,
             OccurredAt = DateTimeOffset.UtcNow
         };
     }
 
-    private sealed class TestState
-    {
-        public List<string> Values { get; } = [];
-    }
+    private sealed record TestState(IReadOnlyList<string> Values);
 
-    private sealed class AppendStep(string value) : IStep<TestState>
-    {
-        public ValueTask<StepResult> ExecuteAsync(
-            StepContext<TestState> context,
-            CancellationToken cancellationToken)
-        {
-            context.State.Values.Add(value);
-            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
-        }
-    }
-
-    private sealed class CaptureStep : IStep<TestState>
-    {
-        public ValueTask<StepResult> ExecuteAsync(
-            StepContext<TestState> context,
-            CancellationToken cancellationToken)
-        {
-            if (context.ResumedEvent?.Payload is string payload)
-            {
-                context.State.Values.Add(payload);
-            }
-
-            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
-        }
-    }
+    private sealed record BranchState(string Name);
 }

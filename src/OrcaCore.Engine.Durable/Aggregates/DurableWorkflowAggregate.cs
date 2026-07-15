@@ -432,7 +432,9 @@ internal sealed class DurableWorkflowAggregate
         return projected;
     }
 
-    internal IReadOnlyList<ProjectionWrite> CreateProjectionWrites(IReadOnlyList<WorkflowEvent> events)
+    internal IReadOnlyList<ProjectionWrite> CreateProjectionWrites(
+        IReadOnlyList<WorkflowEvent> events,
+        CheckpointWrite? checkpoint = null)
     {
         ArgumentNullException.ThrowIfNull(events);
 
@@ -442,6 +444,16 @@ internal sealed class DurableWorkflowAggregate
         }
 
         var projected = ProjectEvents(events);
+        if (checkpoint is not null)
+        {
+            DurableWorkflowReplayApplier.ApplyStructuredEnvelopeStatus(
+                projected,
+                new DurableCheckpointPayload
+                {
+                    ContentType = checkpoint.ContentType,
+                    Payload = checkpoint.Payload
+                });
+        }
 
         var snapshot = projected.ToInstanceSnapshot();
         return snapshot is null
@@ -494,14 +506,20 @@ internal sealed class DurableWorkflowAggregate
     internal DurableResourcePoolEventContext CreateResourcePoolEventContext(
         CommandId commandId,
         InstanceId instanceId,
-        DateTimeOffset requestedAt)
+        DateTimeOffset requestedAt,
+        FiberId? fiberId = null,
+        ScopeId? scopeId = null,
+        long waitSequence = 0)
     {
         return new DurableResourcePoolEventContext(
             commandId,
             instanceId,
             requestedAt,
             ParentInstanceId,
-            RootInstanceId ?? InstanceId);
+            RootInstanceId ?? InstanceId,
+            fiberId,
+            scopeId,
+            waitSequence);
     }
 
     internal DurableChildWorkflowEventContext CreateChildWorkflowEventContext(

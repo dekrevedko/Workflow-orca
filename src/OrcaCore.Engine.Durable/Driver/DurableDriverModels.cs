@@ -25,7 +25,7 @@ internal interface IDurableDriverExecutor
 internal sealed record DurableDriverContext(
     InstanceId InstanceId,
     DurableWorkflowAggregate Aggregate,
-    DurableExecutionEnvelope? Envelope,
+    DurableExecutionEnvelopeV2? FiberEnvelope,
     DurableCommandProcessor Processor,
     IWorkflowPayloadSerializer Serializer,
     TimeProvider TimeProvider,

@@ -50,13 +50,68 @@ internal sealed record BusinessStepNode<TState> : WorkflowNode<TState>
 
 internal sealed record EndNode<TState> : WorkflowNode<TState>
 {
-    internal EndNode(string nodeId, string? outcomeName)
+    internal EndNode(
+        string nodeId,
+        string? outcomeName,
+        Func<TState, string?>? outcomeSelector = null)
         : base(nodeId)
     {
         OutcomeName = outcomeName;
+        OutcomeSelector = outcomeSelector;
     }
 
     internal string? OutcomeName { get; }
+
+    private Func<TState, string?>? OutcomeSelector { get; }
+
+    internal string? ResolveOutcome(TState state)
+    {
+        return OutcomeSelector is null ? OutcomeName : OutcomeSelector(state);
+    }
+}
+
+internal sealed record BranchReturnNode<TState> : WorkflowNode<TState>
+{
+    internal BranchReturnNode(
+        string nodeId,
+        Type resultType,
+        Func<TState, object?> resultSelector)
+        : base(nodeId)
+    {
+        ArgumentNullException.ThrowIfNull(resultType);
+        ArgumentNullException.ThrowIfNull(resultSelector);
+
+        ResultType = resultType;
+        ResultSelector = resultSelector;
+    }
+
+    internal Type ResultType { get; }
+
+    internal Func<TState, object?> ResultSelector { get; }
+}
+
+internal sealed record ContinueAsNewNode<TState> : WorkflowNode<TState>
+{
+    internal ContinueAsNewNode(string nodeId, Func<TState, TState> stateSelector)
+        : base(nodeId)
+    {
+        ArgumentNullException.ThrowIfNull(stateSelector);
+        StateSelector = stateSelector;
+    }
+
+    internal Func<TState, TState> StateSelector { get; }
+}
+
+internal sealed record CompiledScopeNode<TState> : WorkflowNode<TState>
+{
+    internal CompiledScopeNode(string nodeId, string scopePlanId)
+        : base(nodeId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(scopePlanId);
+        ScopePlanId = scopePlanId;
+    }
+
+    internal string ScopePlanId { get; }
 }
 
 internal sealed record IfNode<TState> : WorkflowNode<TState>
@@ -99,110 +154,6 @@ internal sealed record WhileNode<TState> : WorkflowNode<TState>
     internal Func<TState, bool> Condition { get; }
 
     internal SequenceNode<TState> Body { get; }
-}
-
-internal sealed record ParallelNode<TState> : WorkflowNode<TState>
-{
-    internal ParallelNode(string nodeId, IEnumerable<ParallelBranch<TState>> branches)
-        : base(nodeId)
-    {
-        ArgumentNullException.ThrowIfNull(branches);
-
-        Branches = new ReadOnlyList<ParallelBranch<TState>>(branches);
-    }
-
-    internal IReadOnlyList<ParallelBranch<TState>> Branches { get; }
-}
-
-internal sealed record WhenFirstNode<TState> : WorkflowNode<TState>
-{
-    internal WhenFirstNode(
-        string nodeId,
-        WhenFirstResidualPolicy residualPolicy,
-        IEnumerable<ParallelBranch<TState>> branches)
-        : base(nodeId)
-    {
-        ArgumentNullException.ThrowIfNull(branches);
-
-        ResidualPolicy = residualPolicy;
-        Branches = new ReadOnlyList<ParallelBranch<TState>>(branches);
-    }
-
-    internal WhenFirstResidualPolicy ResidualPolicy { get; }
-
-    internal IReadOnlyList<ParallelBranch<TState>> Branches { get; }
-}
-
-internal abstract record ForEachNode<TState> : WorkflowNode<TState>
-{
-    protected ForEachNode(
-        string nodeId,
-        SequenceNode<TState> body,
-        int? maxConcurrency,
-        ForEachJoinPolicy joinPolicy,
-        ForEachFailurePolicy failurePolicy,
-        ForEachResidualPolicy residualPolicy)
-        : base(nodeId)
-    {
-        ArgumentNullException.ThrowIfNull(body);
-
-        Body = body;
-        MaxConcurrency = maxConcurrency;
-        JoinPolicy = joinPolicy;
-        FailurePolicy = failurePolicy;
-        ResidualPolicy = residualPolicy;
-    }
-
-    internal SequenceNode<TState> Body { get; }
-
-    internal int? MaxConcurrency { get; }
-
-    internal ForEachJoinPolicy JoinPolicy { get; }
-
-    internal ForEachFailurePolicy FailurePolicy { get; }
-
-    internal ForEachResidualPolicy ResidualPolicy { get; }
-
-    internal abstract IReadOnlyList<ForEachWorkItemSnapshot> MaterializeWorkItems(TState state);
-}
-
-internal sealed record ForEachNode<TState, TItem> : ForEachNode<TState>
-{
-    internal ForEachNode(
-        string nodeId,
-        Func<TState, IReadOnlyList<TItem>> itemSelector,
-        WorkflowPartitioner<TItem> partitioner,
-        SequenceNode<TState> body,
-        int? maxConcurrency,
-        ForEachJoinPolicy joinPolicy,
-        ForEachFailurePolicy failurePolicy,
-        ForEachResidualPolicy residualPolicy)
-        : base(nodeId, body, maxConcurrency, joinPolicy, failurePolicy, residualPolicy)
-    {
-        ArgumentNullException.ThrowIfNull(itemSelector);
-        ArgumentNullException.ThrowIfNull(partitioner);
-
-        ItemSelector = itemSelector;
-        Partitioner = partitioner;
-    }
-
-    private Func<TState, IReadOnlyList<TItem>> ItemSelector { get; }
-
-    private WorkflowPartitioner<TItem> Partitioner { get; }
-
-    internal override IReadOnlyList<ForEachWorkItemSnapshot> MaterializeWorkItems(TState state)
-    {
-        var items = ItemSelector(state);
-        var partitions = Partitioner.Partition(items);
-        return partitions
-            .Select(partition => new ForEachWorkItemSnapshot
-            {
-                Index = partition.Index,
-                Items = partition.Items.Cast<object?>().ToArray(),
-                Status = ForEachWorkItemStatus.Pending
-            })
-            .ToArray();
-    }
 }
 
 internal sealed record RunChildNode<TState> : WorkflowNode<TState>
@@ -263,21 +214,6 @@ internal sealed record RunChildrenNode<TState> : WorkflowNode<TState>
     internal RunChildrenJoinPolicy JoinPolicy { get; }
 
     internal RunChildrenResidualPolicy ResidualPolicy { get; }
-}
-
-internal sealed record ParallelBranch<TState>
-{
-    internal ParallelBranch(BranchId branchId, SequenceNode<TState> sequence)
-    {
-        ArgumentNullException.ThrowIfNull(sequence);
-
-        BranchId = branchId;
-        Sequence = sequence;
-    }
-
-    internal BranchId BranchId { get; }
-
-    internal SequenceNode<TState> Sequence { get; }
 }
 
 internal sealed record WaitNode<TState> : WorkflowNode<TState>

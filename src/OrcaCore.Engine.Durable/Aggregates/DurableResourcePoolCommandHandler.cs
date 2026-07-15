@@ -18,7 +18,13 @@ internal static class DurableResourcePoolCommandHandler
         }
 
         var plan = aggregate.ResourcePoolState.PlanAcquire(
-            aggregate.CreateResourcePoolEventContext(command.CommandId, command.InstanceId, command.RequestedAt),
+            aggregate.CreateResourcePoolEventContext(
+                command.CommandId,
+                command.InstanceId,
+                command.RequestedAt,
+                command.FiberId,
+                command.ScopeId,
+                command.WaitSequence),
             command.HolderKey,
             command.Requirements,
             command.ExpiresAt,

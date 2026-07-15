@@ -4,7 +4,8 @@
 
 **Path rule**: every source/test path in a task file is written explicitly from the repository root
 (e.g. `src/OrcaCore.Core/...`). A task file containing a bare `src/` or `tests/` path is
-a defect — fix the task file, never touch the archived implementation.
+a defect — fix the task file, never touch the archived implementation. The former `v3-gpt`
+workspace name is historical only; do not introduce it into new active paths.
 
 A task MUST fit a small agent session:
 

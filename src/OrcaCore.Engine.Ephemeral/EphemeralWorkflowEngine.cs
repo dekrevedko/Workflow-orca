@@ -18,7 +18,7 @@ namespace OrcaCore.Engine.Ephemeral;
 /// </summary>
 public sealed class EphemeralWorkflowEngine
 {
-    private readonly ConcurrentDictionary<DefinitionId, object> definitions = [];
+    private readonly ConcurrentDictionary<DefinitionId, RegisteredDefinition> definitions = [];
     private readonly ConcurrentDictionary<InstanceId, object> sagaRuntimeStates = [];
     private readonly InstanceExecutionLane executionLane;
     private readonly ResourceGovernanceCoordinator governance;
@@ -129,7 +129,21 @@ public sealed class EphemeralWorkflowEngine
                 "definition could duplicate completed side effects. Apply retry to individual steps instead.");
         }
 
-        definitions[definition.DefinitionId] = definition;
+        var registered = new RegisteredDefinition(
+            definition,
+            definition.DefinitionVersion,
+            typeof(TState),
+            definition.CompiledPlan.Fingerprint);
+        definitions.AddOrUpdate(
+            definition.DefinitionId,
+            registered,
+            (_, existing) => SameRegistration(existing, registered)
+                ? existing
+                : throw new WorkflowDefinitionException(
+                    $"Workflow definition '{definition.DefinitionId}' is already registered with " +
+                    $"version '{existing.DefinitionVersion}', state type '{existing.StateType.FullName}', " +
+                    $"and fingerprint '{existing.Fingerprint}'. Candidate version: " +
+                    $"'{registered.DefinitionVersion}', candidate fingerprint: '{registered.Fingerprint}'."));
     }
 
     /// <summary>
@@ -149,7 +163,7 @@ public sealed class EphemeralWorkflowEngine
                 $"No workflow definition is registered for definition id '{definitionId}'.");
         }
 
-        if (registeredDefinition is not WorkflowDefinition<TState> definition)
+        if (registeredDefinition.Definition is not WorkflowDefinition<TState> definition)
         {
             throw new WorkflowDefinitionException(
                 $"Workflow definition '{definitionId}' was not registered for state type '{typeof(TState).Name}'.");
@@ -174,6 +188,7 @@ public sealed class EphemeralWorkflowEngine
                             instanceRegistry.Save(initializedInstance);
                             CommitSnapshot(initializedInstance.ToSnapshot());
                         },
+                        committed => CommitSnapshot(committed),
                         laneCancellationToken).ConfigureAwait(false);
 
                     return CommitSnapshot(instance.ToSnapshot());
@@ -191,6 +206,21 @@ public sealed class EphemeralWorkflowEngine
         OrcaCoreEphemeralDiagnostics.RecordWorkflowStarted(snapshot.Status);
         return snapshot;
     }
+
+    private static bool SameRegistration(
+        RegisteredDefinition existing,
+        RegisteredDefinition candidate)
+    {
+        return existing.DefinitionVersion == candidate.DefinitionVersion &&
+            existing.StateType == candidate.StateType &&
+            string.Equals(existing.Fingerprint, candidate.Fingerprint, StringComparison.Ordinal);
+    }
+
+    private sealed record RegisteredDefinition(
+        object Definition,
+        DefinitionVersion DefinitionVersion,
+        Type StateType,
+        string Fingerprint);
 
     internal DateTimeOffset GetUtcNow()
     {

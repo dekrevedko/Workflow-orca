@@ -49,8 +49,8 @@ What was missing at the audit baseline (this document's subject):
 1. **No durable interpreter** — nothing maps definition nodes and step results to kernel
    commands (`Interpreter<TState>` exists only in `Engine.Ephemeral`).
 2. **No execution position persistence** — checkpoints carry `LastStepPath` (diagnostic)
-   and an opaque business-state payload, but not the CR-015 frame stack; a rehydrated
-   instance cannot know where to resume.
+   and an opaque business-state payload, but not the CR-015 structured fiber/scope state; a
+   rehydrated instance cannot know where to resume.
 3. **No advancement loop** — after `WorkflowWaitMatchedEvent` or `WorkflowTimerFiredEvent`
    commits, nothing runs the next step.
 4. **No restart-safe continuation signal** — if a host dies between committing a resuming
@@ -100,56 +100,63 @@ runtime.
 ### DR-011 Step results map to kernel commands
 Step outcomes SHALL map onto kernel commands exactly. `StepResult` objects still carry
 control intent only (CR-011); the driver-generated command emitted after step execution
-carries the post-step business state and next durable execution position whenever user step
-code may have mutated state.
+carries the post-step business state and complete versioned structured execution envelope
+whenever user step code may have mutated state. The envelope records fibers, recursive
+scopes, scheduler position, typed results, ownership, and plan binding rather than a
+frame-stack cursor.
 
 | Step result / node | Command(s) |
 |---|---|
-| `Completed` at a commit boundary | `DurableStepCompletedCommand` carrying serialized business state + execution position; produces the checkpoint |
-| `Failed` / unhandled exception after policy exhaustion | `DurableStepFailedCommand` carrying the last committed business state + execution position and failure diagnostics; uncommitted mutations from a failed attempt are discarded; saga scopes enter the compensation path per SG rules instead |
-| `WaitForEvent` / builder `Wait` | `DurableWaitRegisteredCommand` carrying post-step business state + execution position when the wait is produced by step code or follows a state-mutating node |
-| Timer/delay node | `ScheduleTimerCommand` carrying the current execution position; state is checkpointed if the preceding node mutated it |
-| `Yield` | `DurableYieldCommand` carrying post-chunk business state + same-step execution position, plus continuation signal (DR-034) |
-| `RunChild`/`RunChildren` node | `DurableRunChildCommand` / `DurableRunChildrenCommand` carrying parent state + group/join execution position |
-| `End` | `DurableCompleteCommand` carrying terminal state metadata, final business-state checkpoint, and execution position |
-| Continue-as-new | `ContinueAsNewCommand` carrying the replacement state envelope and lineage metadata |
+| `Completed` at a commit boundary | `DurableStepCompletedCommand` carrying serialized business state + structured execution envelope; produces the checkpoint |
+| `Failed` / unhandled exception after policy exhaustion | `DurableStepFailedCommand` carrying the last committed business state + structured execution envelope and failure diagnostics; uncommitted mutations from a failed attempt are discarded; saga scopes enter the compensation path per SG rules instead |
+| `WaitForEvent` / builder `Wait` | `DurableWaitRegisteredCommand` carrying post-step business state + structured execution envelope when the wait is produced by step code or follows a state-mutating node |
+| Timer/delay node | `ScheduleTimerCommand` carrying the current structured execution envelope; state is checkpointed if the preceding node mutated it |
+| `Yield` | `DurableYieldCommand` carrying post-chunk business state + same-instruction fiber position and scheduler rotation, plus continuation signal (DR-034) |
+| `RunChild`/`RunChildren` node | `DurableRunChildCommand` / `DurableRunChildrenCommand` carrying parent state + fiber/scope ownership and group obligation position |
+| `End` | `DurableCompleteCommand` carrying terminal state metadata, final business-state checkpoint, and structured execution envelope |
+| Continue-as-new | `ContinueAsNewCommand` carrying the replacement state envelope, incremented generation, and lineage metadata |
 
 ### DR-011a Required kernel contract changes
-The mapping in DR-011 requires additive fields on command records that did not carry
-post-step business state or execution position at the audit baseline. These contracts SHALL
-be extended (backward-compatibly where a versioned envelope allows), and this document is
-the authority that supersedes any "commands unchanged" reading of 16.0:
+The mapping in DR-011 requires command records to carry post-step business state and the
+format-2 structured execution envelope. These contracts SHALL be replaced or extended as
+needed for the active-development refactor; compatibility with provisional format-1 cursor
+envelopes is not required. This document is the authority that supersedes any "commands
+unchanged" reading of 16.0:
 
 - `StartWorkflowCommand` and `WorkflowStartedEvent` SHALL carry the serialized start input
   and its content type so `Init` can reconstruct input after a crash between the start commit
   and the first interpreter segment (DR-018).
-- `DurableStepCompletedCommand` already carries `StepPath` + serialized state; it SHALL
-  additionally carry the versioned execution-position envelope (DR-012).
+- `DurableStepCompletedCommand` already carries `StepPath` + serialized state; `StepPath`
+  SHALL become descriptive metadata only and the command SHALL carry the versioned
+  structured execution envelope (DR-012).
 - `DurableStepFailedCommand` SHALL carry the last committed business state, execution
-  position, and failure diagnostics after applicable policies are exhausted. Mutations made
+  envelope, and failure diagnostics after applicable policies are exhausted. Mutations made
   by an unsuccessful attempt SHALL NOT become the input to a retry or terminal checkpoint
   unless a future explicitly-authored policy defines different semantics (DR-019).
-- `DurableWaitRegisteredCommand` SHALL carry post-step business state + execution position
+- `DurableWaitRegisteredCommand` SHALL carry post-step business state + execution envelope
   when the wait follows a state-mutating node.
-- `ScheduleTimerCommand` SHALL carry the current execution position (the baseline shape
+- `ScheduleTimerCommand` SHALL carry the current execution envelope (the baseline shape
   carried only `TimerId`, `FireAt`, `WakeupName`), and the preceding node's state checkpoint
   when it mutated state.
 - `DurableCompleteCommand` SHALL carry terminal state metadata + the final business-state
-  checkpoint + execution position (the baseline shape carried only `OutcomeName`).
+  checkpoint + execution envelope (the baseline shape carried only `OutcomeName`).
 - `DurableYieldCommand` and `DurableRunChild`/`DurableRunChildrenCommand` SHALL carry the
-  business state + execution position described in the DR-011 table.
+  business state + structured execution envelope described in the DR-011 table.
 
 The envelope carried by these commands is the same versioned checkpoint payload envelope
 defined in DR-012, so state and position always commit atomically.
 
 ### DR-012 Execution position is durable
-The interpreter SHALL persist the CR-015 execution position (frame stack: current node path
-plus enclosing container frames, branch progress, loop iteration state, child-group join
-state, saga scope/compensation cursor, and continuation/yield cursor) at every commit
-boundary, versioned and serialized alongside the business state inside the checkpoint
-payload envelope. Rehydration SHALL resume from the persisted position without
-re-executing steps whose completion committed. The envelope format SHALL be versioned for
-forward evolution (DU-041 applies).
+The interpreter SHALL persist the complete CR-015 structured execution state at every commit
+boundary, versioned and serialized alongside business state inside the checkpoint payload
+envelope. Format 2 SHALL include plan fingerprint and compiler format, root and child fiber
+records, recursive scope records, scheduler position, loop iteration, next scope-entry
+sequence, scope-plan/entry identity, pending typed results, owned-obligation references, and
+retry/yield diagnostics. Runtime scope/fiber identities SHALL derive from committed
+generation, plan identity, parent fiber, and scope-entry sequence. Rehydration SHALL resume
+without re-executing steps whose completion committed or reconstructing ownership from
+cursor paths. The envelope format SHALL remain versioned for forward evolution (DU-041
+applies).
 
 If a checkpoint without the required execution-position envelope is loaded, the driver SHALL
 NOT guess. It SHALL either migrate the envelope deterministically under an explicitly coded
@@ -554,8 +561,10 @@ Trait format: `[Trait("AC", "DR-AC-0xx")]`, consistent with document 12.
   worker/pump/retry/budget options fail startup, while valid overrides reach the running host
   (DR-033/050/051).
 - **DR-AC-032** Durable `WhenFirst`: two branches race across separate hosts; exactly one
-  deterministic winner commits, the authored residual policy resolves losing waits/timers,
-  and restart cannot select a second winner (DR-010, CP-004, EV-051).
+  first-committed terminal winner commits, authored branch order breaks a same-commit tie,
+  every losing descendant obligation is cancelled/released before scope completion, and
+  restart cannot select a second winner. Detached residual policies fail definition
+  validation (DR-010, CP-004, EV-051).
 - **DR-AC-033** Driver-owned continue-as-new: a registered definition requests
   continue-as-new through its public authoring surface; replacement state, lineage, bound
   definition version, and fresh execution position commit atomically, and a restart resumes

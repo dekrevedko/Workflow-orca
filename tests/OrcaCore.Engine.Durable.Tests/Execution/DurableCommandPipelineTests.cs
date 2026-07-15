@@ -238,7 +238,7 @@ public sealed class DurableCommandPipelineTests
             instanceId,
             Timestamp(commandValue),
             "root/1",
-            TestEnvelopes.Envelope("application/octet-stream", [(byte)commandValue]));
+            TestEnvelopes.Envelope("application/octet-stream", [(byte)commandValue], instanceId: instanceId));
     }
 
     private static DurableWaitMatchedCommand WaitMatchedCommand(

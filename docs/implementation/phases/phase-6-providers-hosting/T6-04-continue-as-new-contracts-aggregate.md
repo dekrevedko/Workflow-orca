@@ -6,7 +6,7 @@
 ## Goal
 Backfill continue-as-new as an early durable history-control operation. Spec open question
 10 is resolved to Slice 2: durable event-sourced execution should have introduced DU-042
-before Phase 6. This task corrects the current `current implementation` implementation by adding the
+before Phase 6. This task corrects the current root implementation by adding the
 rollover command/event facts and aggregate behavior.
 
 ## Read first

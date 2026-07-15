@@ -60,16 +60,21 @@ Sonnet-level; most execution tasks are Haiku-level (marked per task).
 
 ## Workspace: the repository-root rule
 
-The active implementation lives at the **repository root** on the
-**`feature/v3-rebuild`** branch. The superseded prototype is preserved under
-`archive/legacy-poc/`.
+The active implementation lives at the **repository root** on the currently checked-out
+branch. The former `v3-gpt` workspace was promoted here in commit `666bc1e6`; the
+superseded pre-promotion prototype is preserved under `archive/legacy-poc/`.
 
 **Hard rules for every agent session:**
 
 - All implementation work happens at the repository root: `OrcaCore.slnx`, `src/`, `tests/`,
   `Directory.Build.props`, and `Directory.Packages.props`.
+- Do not create or use a parallel `v3-gpt/` workspace. The name is historical; root-relative
+  paths are the only active implementation paths.
 - **Never read, reference, copy from, or modify** `archive/legacy-poc/` for active behavior.
   The spec package and current root implementation are the sources of truth.
+- Preserve operational context directories such as `.agents/`, `.claude/`, `.codex/`, and
+  `.codex-run/` when present. They are agent/run metadata, not implementation artifacts to
+  archive or delete during cleanup.
 - `docs/specs/` and `docs/implementation/` are read-only inputs (task files update only
   their phase `PROGRESS.md`).
 - Where any task file says "repo root", use the repository root.

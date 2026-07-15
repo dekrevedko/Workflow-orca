@@ -53,6 +53,8 @@ Every requirement has a stable ID. Prefixes:
 15. [15-requirements-observability-otel.md](15-requirements-observability-otel.md) — OTel metrics and logs for system dashboards, log↔metric↔trace correlation, active implementation gap review.
 16. [16-requirements-durable-driver.md](16-requirements-durable-driver.md) — the durable interpreter (run-to-suspension executor) and the default in-process lane host (`DR-xxx`, `DR-AC-xxx`); positions the Orleans engine as an alternative host of the same driver contract; closes the R14 "kernel without a driver" gap.
 
+17. [17-selected-mode-capability-matrix.md](17-selected-mode-capability-matrix.md) - normative DU-002 selected-mode capability matrix, approved post-fiber builder signatures, shared compiler/diagnostic contract, concurrency taxonomy, and package/host boundaries.
+
 ## Provenance
 
 This package synthesizes (and supersedes for the purpose of a new implementation):

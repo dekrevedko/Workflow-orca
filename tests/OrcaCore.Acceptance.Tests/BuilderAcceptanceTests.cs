@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Core.Building;
+using OrcaCore.Core.Compilation;
 using Xunit;
 
 namespace OrcaCore.Acceptance.Tests;
@@ -11,17 +12,23 @@ public sealed class BuilderAcceptanceTests
     [Trait("AC", "AC-008")]
     public void Build_AccumulatesAllValidationErrors()
     {
-        var validation = new WorkflowBuilder<BuilderState>()
-            .If(null!, then => then.Parallel(("empty", _ => { })))
+        var validation = Workflow.Ephemeral<BuilderState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .WithCompilerOptions(new DefinitionCompilerOptions
+            {
+                MaxInternalInstructionsPerQuantum = 0,
+                MaxScopeDepth = 0,
+                MaxActiveFibers = 0
+            })
             .End()
-            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+            .TryBuild();
 
         validation.IsValid.Should().BeFalse();
         validation.Errors.Select(error => error.Code).Should().Equal(
             [
-                BuilderValidationCodes.MissingInit,
-                BuilderValidationCodes.NullDelegate,
-                BuilderValidationCodes.EmptyBranch
+                DefinitionCompilerCodes.MaxInternalInstructionsNotPositive,
+                DefinitionCompilerCodes.MaxScopeDepthNotPositive,
+                DefinitionCompilerCodes.MaxActiveFibersNotPositive,
+                DefinitionCompilerCodes.MissingRootInit
             ]);
     }
 

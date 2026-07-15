@@ -48,6 +48,7 @@ namespace OrcaCore.Abstractions.Serialization;
 [JsonSerializable(typeof(WorkflowCompletedEvent))]
 [JsonSerializable(typeof(WorkflowTerminalEvent))]
 [JsonSerializable(typeof(SagaForwardActionCompletedEvent))]
+[JsonSerializable(typeof(SagaForwardActionsTransferredEvent))]
 [JsonSerializable(typeof(SagaForwardActionTimedOutEvent))]
 [JsonSerializable(typeof(SagaCompensationRequestedEvent))]
 [JsonSerializable(typeof(SagaCompensationStartedEvent))]
@@ -55,6 +56,6 @@ namespace OrcaCore.Abstractions.Serialization;
 [JsonSerializable(typeof(SagaCompensationFailedEvent))]
 [JsonSerializable(typeof(SagaManualRecoveryRecordedEvent))]
 [JsonSerializable(typeof(WorkflowRuntimeCheckpointState))]
-[JsonSerializable(typeof(DurableExecutionEnvelope))]
+[JsonSerializable(typeof(DurableExecutionEnvelopeV2))]
 [JsonSerializable(typeof(DurableContinuationSignal))]
 public sealed partial class OrcaCoreJsonSerializerContext : JsonSerializerContext;
