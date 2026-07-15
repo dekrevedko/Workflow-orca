@@ -16,10 +16,10 @@ The shared application contract layer SHALL expose asynchronous portable step ex
 - **THEN** they select a durable authoring capability that can validate payload, placement, and persistence requirements before execution
 
 ### Requirement: Host-facing execution hints remain optional and declarative
-The contract layer SHALL allow definitions or individual steps to carry optional serializable metadata for per-step execution throttles and named cross-instance transient pools without forcing step implementations to acquire synchronization primitives directly, and SHALL model persisted durable resource leases as a separate contract. A selected host SHALL expose only the transient categories it enforces.
+The contract layer SHALL allow host policy to apply per-step execution throttles to all steps or stable authored categories without forcing step implementations to acquire synchronization primitives directly. Named cross-instance transient-pool metadata SHALL be authorable only in a mode where every supported host enforces it, and persisted durable resource leases SHALL remain a separate contract. Host composition SHALL NOT change the methods available on a previously selected static builder type.
 
-#### Scenario: Execution throttle is attached at authoring time
-- **WHEN** an author marks a step with a named host execution-throttle key
+#### Scenario: Execution throttle targets authored work
+- **WHEN** a host policy targets a stable authored step category
 - **THEN** step code remains focused on business outcomes while a compliant selected-mode host enforces the transient limit
 
 #### Scenario: Durable lease is requested
@@ -27,7 +27,7 @@ The contract layer SHALL allow definitions or individual steps to carry optional
 - **THEN** the request uses the durable resource-lease contract rather than the execution-throttle hint
 
 #### Scenario: Cross-instance transient pool is requested
-- **WHEN** a supported host exposes named capacity shared across workflow instances without persistence
+- **WHEN** ephemeral authoring requests named capacity shared across workflow instances without persistence
 - **THEN** the request uses the transient-pool contract and documentation explicitly disclaims restart durability
 
 ## ADDED Requirements

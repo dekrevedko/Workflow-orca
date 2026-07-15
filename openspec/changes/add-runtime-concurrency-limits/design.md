@@ -14,12 +14,19 @@ Operational requirements often need:
 The developer-facing taxonomy has three non-interchangeable categories:
 
 1. **Per-step execution throttle**: host-local capacity held only around one step body.
-2. **Named cross-instance transient pool**: host-local shared capacity across instances, supported by selected ephemeral or durable hosts but reset and re-evaluated after host restart.
+2. **Named cross-instance transient pool**: host-local shared capacity across instances. Ephemeral authoring is delivered; durable authoring remains absent until the durable runtime and every supported durable host enforce reset and re-admission after restart.
 3. **Durable resource lease**: persisted cross-host capacity owned by a fiber/scope with queueing, deterministic release, expiry, and recovery.
 
 This change owns the first two categories. Durable resource leases are a separate durable-runtime contract and are not implemented or implied by an in-process semaphore.
 
 This design defines governance as an optional layer that composes with existing instance serialization.
+
+The current post-fiber baseline is asymmetric by design. Ephemeral options already configure
+maximum concurrent advancements, maximum concurrent step bodies, and named pools; bounded
+token channels and structured blocked obligations enforce them without retaining the instance
+turn. Durable transient governance is not yet an application capability. The remaining work in
+this change is to define and implement the durable equivalent, restart re-admission, cross-mode
+tests, and operator-facing configuration without weakening the static selected-mode API.
 
 ## Goals / Non-Goals
 
@@ -53,7 +60,7 @@ Composition: a step transition still runs under instance serialization rules; go
 - **Named cross-instance transient pools**: multiple independent host-local limits; a step may participate in one or more pools such as `db` and `http`. Durable hosts re-evaluate transient admission after restart and do not claim that pool ownership survived.
 - **Durable resource leases**: excluded from this change; they use persisted cross-host capacity and scope-owned lifecycle rather than these transient gates.
 
-Transient pools are identified by **stable string keys** configured at host startup or definition metadata. Public binding and mode discoverability follow `reshape-developer-facing-interfaces`; no selected-mode builder exposes a transient-pool method unless its host enforces the declared semantics.
+Transient pools are identified by **stable string keys** in definition metadata, with capacities configured at host startup. Public binding and mode discoverability follow `reshape-developer-facing-interfaces`: a static builder exposes a transient-pool method only when every supported host for that mode enforces the declared semantics. Later DI composition cannot add methods to a builder type.
 
 ### 3. Blocking vs reject when saturated
 
@@ -82,14 +89,14 @@ The requirements scenario will assert **deterministic cancellation** when the ho
 - **Cross-process limits** require a distributed semaphore or partition assignment—not covered in v1.
 - **Fairness**: FIFO wait on pools is recommended but not always required; prioritize documented behavior under load tests.
 
-## Migration Plan
+## Greenfield Implementation Plan
 
 1. Land specification and API sketch in workflow/runtime contracts (follow-up implementation change).
-2. Implement in-process throttles and named transient pools for the ephemeral host first; expose them on a durable host only with the same host-local semantics and explicit restart reset behavior.
+2. Treat the delivered ephemeral transient-pool implementation as the first Adapter; implement durable transient pools with the same host-local semantics and explicit restart reset/re-admission behavior before amending the durable builder surface.
 3. Add acceptance tests: pool saturation, cancellation, cross-instance contention, interaction with instance serialization.
 
 ## Open Questions
 
-- Should pool keys be declared on `IStep`, workflow definition metadata, or host configuration only?
+- Pool keys are stable authored definition metadata only in a mode that guarantees enforcement; host configuration supplies capacities and admission policy.
 - Should global instance concurrency count instances in **Waiting** state or only **Running** advancement?
 - Integration with host DI for custom pool factories (testing vs production).

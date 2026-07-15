@@ -63,6 +63,17 @@ A production type SHALL remain public only when an application, provider author,
 - **WHEN** deleting a public profile or one-value abstraction removes complexity without moving it into supported callers
 - **THEN** the type is removed instead of retained as a public compatibility artifact
 
+### Requirement: Structured execution internals are not application contracts
+The application tier SHALL NOT expose executable compiled plans/instructions/scopes/policies, compiler identity indexes, `FiberId`, `ScopeId`, durable format-2 envelopes, raw park reasons, runtime registration sequence, or obligation ownership. Mode-specific application definitions and snapshots SHALL project only stable authored and business concepts.
+
+#### Scenario: Application package is inspected
+- **WHEN** the public-signature guard examines definition, management, and active-wait models
+- **THEN** no public application property or parameter contains a compiled-plan, fiber-routing, checkpoint-envelope, or raw protocol type
+
+#### Scenario: Custom host needs routing ownership
+- **WHEN** a certified custom host needs fiber/scope ownership for protocol diagnostics
+- **THEN** it opts into the runtime-protocol package and uses an advanced observation contract rather than widening the application snapshot
+
 ### Requirement: Optional integrations do not burden base hosting
 Base hosting SHALL expose extension hooks for observability without taking dependencies on every optional exporter; exporter-specific dependencies SHALL be selected through focused integration packages or explicit application references.
 

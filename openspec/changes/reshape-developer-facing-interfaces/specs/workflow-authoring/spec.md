@@ -5,7 +5,7 @@ compiler/diagnostic contract are defined in
 [`docs/specs/17-selected-mode-capability-matrix.md`](../../../../../docs/specs/17-selected-mode-capability-matrix.md).
 
 ### Requirement: Regular workflows are authored fluently
-The system SHALL provide explicit ephemeral and durable fluent workflow-authoring entry points for regular workflows. Each entry point SHALL expose portable infrastructure nodes such as `Init`, `End`, `If`, `While`, supported structured composition, and `Wait` alongside user-defined business steps, plus only the capabilities implemented by the selected execution mode.
+The system SHALL provide explicit ephemeral and durable fluent workflow-authoring entry points for regular workflows. Each entry point SHALL expose portable infrastructure nodes such as `Init`, `End`, `If`, `While`, supported structured composition, and `Wait` alongside user-defined business steps, plus only the capabilities guaranteed by every supported host for the selected execution mode. Later host composition SHALL NOT change which methods are discoverable on the statically selected builder.
 
 #### Scenario: Ephemeral workflow is defined
 - **WHEN** a contributor selects ephemeral workflow authoring
@@ -16,7 +16,11 @@ The system SHALL provide explicit ephemeral and durable fluent workflow-authorin
 - **THEN** they can compose portable control flow, business steps, and implemented durable capabilities without seeing ephemeral-only methods
 
 ### Requirement: Durable workflows have a separate authoring surface
-The system SHALL provide a distinct public durable authoring surface and durable definition type so `WaitLong`, child workflows, external jobs, durable resource leases, continue-as-new, durable DAG/saga execution, and definition versioning are modeled explicitly and validated before execution.
+The system SHALL provide distinct public ephemeral and durable authoring surfaces and immutable `EphemeralWorkflowDefinition<TState>` and `DurableWorkflowDefinition<TState>` application definition types (or equivalently explicit names). `WaitLong`, child workflows, external jobs, durable resource leases, continue-as-new, durable DAG/saga execution, and definition versioning SHALL be modeled explicitly and validated before execution. Normal engine registration SHALL accept only the matching definition family and SHALL NOT infer mode from `RequiresDurableEngine` or a public compiled plan.
+
+#### Scenario: Definition mode is selected
+- **WHEN** an ephemeral or durable workflow is built successfully
+- **THEN** its static definition type records the selected mode and cannot be registered through the other engine's normal registration contract
 
 #### Scenario: Durable-only wait is authored
 - **WHEN** a contributor needs a cold durable wait
@@ -46,9 +50,30 @@ Every public builder method SHALL have implemented semantics for the mode that e
 - **WHEN** no selected engine implements definition-wide retry semantics
 - **THEN** no public builder exposes `WithDefinitionRetry`
 
-#### Scenario: Execution throttle is authored
-- **WHEN** an author applies a host execution-throttle hint
-- **THEN** only a mode that enforces the hint exposes it and the name does not imply a durable resource lease
+#### Scenario: Execution throttle is configured
+- **WHEN** a host applies a per-step execution throttle to all steps or stable authored categories
+- **THEN** the policy is enforced around one business-step body and is not represented as a durable resource lease or a host-dependent builder method
+
+### Requirement: Selected mode is preserved through nested authoring
+Every public structured scope and branch builder SHALL retain the root workflow's selected mode in its static type while sharing implementation internally. A capability absent at the root SHALL remain absent inside `Parallel`, `WhenFirst`, loops, and future nested scopes.
+
+#### Scenario: Durable branch authoring is inspected
+- **WHEN** a developer authors a branch inside a durable `Parallel`
+- **THEN** ephemeral-only transient-pool and `ForEach` methods are absent rather than discoverable and rejected later by the compiler
+
+### Requirement: Application definitions hide executable compiler IR
+Application workflow definitions SHALL expose immutable identity, version, mode, fingerprint, and authored metadata without exposing compiled instructions, scopes, policies, executable delegates, or the executable plan as public application properties. Engines SHALL obtain the retained plan through implementation-only access.
+
+#### Scenario: Application definition surface is inspected
+- **WHEN** the public application baseline inspects both mode-specific definition types
+- **THEN** neither definition exposes `CompiledWorkflowPlan`, `CompiledInstruction`, compiler identity types, or mutable executable metadata
+
+### Requirement: Authoring configuration uses application vocabulary
+Normal mode-first builders SHALL accept domain-facing `WorkflowAuthoringOptions` containing `MaxStructuredDepth`, `MaxActiveExecutionPaths`, `MaxBranchResultPayloadBytes`, payload serializer registration, state copier registration, and deterministic fingerprint contributors. Scheduling-turn and checkpoint-payload limits SHALL remain engine/hosting configuration. Builders SHALL NOT expose compiler-shaped `WithCompilerOptions` or `WithTypeSerializerRegistry` methods or require application code to reference compiled-plan types.
+
+#### Scenario: Custom payload serializer is registered
+- **WHEN** an application needs a supported serializer for branch or state payloads
+- **THEN** it configures the application authoring options without naming compiler implementation contracts
 
 ### Requirement: Builder validation has one consistent completion model
 Workflow, saga, and DAG builders SHALL expose `Build()` as the throwing common path and `TryBuild()` returning the existing `Validation<TDefinition>` as the non-throwing aggregate-diagnostics path. Fluent methods SHALL reject invalid local arguments immediately, while graph-wide structural diagnostics SHALL be aggregated at build time.
@@ -62,7 +87,7 @@ Workflow, saga, and DAG builders SHALL expose `Build()` as the throwing common p
 - **THEN** the non-throwing build reports all graph-wide diagnostics in one result
 
 ### Requirement: Concurrency authoring uses a three-way taxonomy
-Authoring names and contracts SHALL distinguish per-step execution throttles, named cross-instance transient pools, and persisted durable resource leases. A capability SHALL appear only on a selected-mode builder whose host implements its declared lifetime and recovery semantics.
+Authoring names and contracts SHALL distinguish per-step execution throttles, named cross-instance transient pools, and persisted durable resource leases. A builder capability SHALL appear only when every supported host for that selected mode implements its declared lifetime and recovery semantics; host configuration SHALL NOT add builder methods after mode selection.
 
 #### Scenario: Developer selects a pool feature
 - **WHEN** a developer inspects per-step throttle, transient-pool, and durable-lease methods
@@ -70,7 +95,7 @@ Authoring names and contracts SHALL distinguish per-step execution throttles, na
 
 #### Scenario: Durable host lacks transient-pool enforcement
 - **WHEN** a durable host does not implement named cross-instance transient pools
-- **THEN** its selected-mode authoring surface does not expose the transient-pool method or silently ignore its metadata
+- **THEN** durable authoring does not expose the transient-pool method in any host profile and does not silently ignore its metadata
 
 ### Requirement: Continue-as-new is a root structural transition
 Continue-as-new SHALL be authored only as a durable structural node and SHALL execute only as a root-fiber transition after child fibers and scope-owned obligations are quiescent. It SHALL NOT be returnable from portable `StepResult`.

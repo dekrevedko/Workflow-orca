@@ -42,12 +42,16 @@ Durable facade and management operations SHALL return operation-specific applica
 - **WHEN** an application operation cannot apply because the instance is terminal
 - **THEN** the caller receives a stable application-level terminal/already-complete result or exception with actionable context
 
-### Requirement: Definition registration is explicit and host-scoped
-The durable application facade SHALL require definitions to be registered explicitly on each definition-owning host and SHALL return a typed `DurableDefinitionHandle<TState>` (or equivalent) whose start methods infer input types without a phantom state generic. Starting SHALL NOT register a definition as a side effect.
+### Requirement: Definition registration is explicit, host-scoped, and mode-typed
+The durable application facade SHALL require `DurableWorkflowDefinition<TState>` definitions (or an equivalently explicit durable definition type) to be registered explicitly on each definition-owning host and SHALL return a typed `DurableDefinitionHandle<TState>` whose start methods infer input types without a phantom state generic. Starting SHALL NOT register a definition as a side effect. The normal durable registry SHALL NOT accept an ephemeral definition, inspect `RequiresDurableEngine`, or require a public compiled plan.
 
 #### Scenario: Registered definition is started
 - **WHEN** a host registers a durable definition and uses the returned typed handle to call `StartOrGetAsync(key, input, ct)`
 - **THEN** the call compiles without explicit state generic arguments and uses the host's existing registration
+
+#### Scenario: Ephemeral definition is passed to durable registration
+- **WHEN** application code attempts to register an `EphemeralWorkflowDefinition<TState>` with the durable runtime
+- **THEN** the normal call does not compile
 
 #### Scenario: Unregistered definition is started
 - **WHEN** a caller attempts to start a definition identity that is not registered on the host

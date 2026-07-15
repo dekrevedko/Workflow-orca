@@ -14,11 +14,11 @@ Advanced saga behavior SHALL execute through an explicitly registered durable sa
 ## ADDED Requirements
 
 ### Requirement: Saga authoring selects execution mode explicitly
-Saga authoring SHALL select ephemeral or durable execution mode before mode-specific capabilities become available. Ephemeral saga definitions SHALL expose only in-process compensation semantics, while durable saga definitions SHALL expose only capabilities supported by runtime-owned durable progression.
+Saga authoring SHALL select ephemeral or durable execution mode before mode-specific capabilities become available and SHALL produce distinct immutable `EphemeralSagaDefinition<TState>` and `DurableSagaDefinition<TState>` application types. The two types MAY share one internal representation, but normal registration SHALL accept only its matching definition family. Ephemeral saga definitions SHALL expose only in-process compensation semantics, while durable saga definitions SHALL expose only capabilities supported by runtime-owned durable progression.
 
 #### Scenario: Ephemeral saga is authored
 - **WHEN** a developer selects ephemeral saga authoring
-- **THEN** durable audit, restart recovery, and manual durable remediation methods are absent
+- **THEN** durable audit, restart recovery, and manual durable remediation methods are absent and `Build()` returns an `EphemeralSagaDefinition<TState>`
 
 #### Scenario: Durable saga is authored before progression exists
 - **WHEN** runtime-owned durable saga progression is not implemented

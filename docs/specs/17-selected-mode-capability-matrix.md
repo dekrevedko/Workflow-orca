@@ -1,19 +1,20 @@
 # 17. Selected-Mode Capability and Signature Matrix
 
-Status: **normative implementation baseline**, approved 2026-07-13.
+Status: **normative post-fiber implementation baseline**, revised 2026-07-14.
 
 This document is the published matrix required by DU-002. It is also the single
 authoring, compiler, and concurrency contract shared by the active
-`adopt-structured-fiber-execution`, `reshape-developer-facing-interfaces`, and
-`add-runtime-concurrency-limits` changes. An implementation, sample, or compile fixture
-that conflicts with this document is non-conforming.
+`reshape-developer-facing-interfaces` and `add-runtime-concurrency-limits` changes and by
+the archived `adopt-structured-fiber-execution` baseline. An implementation, sample, or
+compile fixture that conflicts with this document is non-conforming.
 
 ## 17.1 Selected-mode capability matrix
 
 `Portable` means one authored concept and one compiled instruction contract with the same
 business semantics in both modes. Different persistence or residency guarantees are stated
-explicitly. `Host-selected` means the method is exposed only by a selected host builder that
-actually enforces the stated transient semantics.
+explicitly. A static mode-first builder exposes only capabilities guaranteed by every
+supported host for that mode. Host configuration may set or tighten limits, but it cannot add
+methods to the compile-time surface selected by `Workflow.Ephemeral` or `Workflow.Durable`.
 
 | Capability | Ephemeral workflow | Durable workflow | Contract |
 |---|---|---|---|
@@ -28,8 +29,8 @@ actually enforces the stated transient semantics.
 | `ContinueAsNew` | Absent | Durable only | Structural node, root fiber only, and only when all descendant scopes and owned obligations are quiescent. |
 | Child workflows / durable fanout | Absent | Durable only | Separate child instances, not local fibers. |
 | External jobs | Absent | Durable only | Structural dispatch/wait node with completion, worker-failure, and timeout outcomes. |
-| Per-step execution throttle | Host-selected | Host-selected | Host-local capacity held only around one step body. |
-| Named cross-instance transient pool | Host-selected | Host-selected | Host-local shared capacity; admission is re-evaluated after restart and ownership is not persisted. |
+| Per-step execution throttle | Host configuration | Host configuration | Host-local capacity held only around one step body. The baseline adds no builder method; host policy may target all steps or stable authored categories. |
+| Named cross-instance transient pool | Ephemeral only | Absent until durable enforcement lands | Host-local shared capacity; admission is re-evaluated after restart and ownership is not persisted. Ephemeral authoring uses the explicit transient-pool name rather than lease vocabulary. |
 | Durable resource lease | Absent | Durable only | Persisted cross-host capacity owned by a fiber/scope with deterministic release, queueing, expiry, and recovery. |
 | Saga | Ephemeral supported | Exposed only with runtime-owned durable progression | Compensation uses the same compiled structured execution plan; no interim command adapter is an application API. |
 | DAG planning | Portable pure plan | Portable pure plan | Planning/visualization is side-effect free. |
@@ -47,85 +48,140 @@ this document; equivalent provisional overloads are not permitted.
 ```csharp
 EphemeralWorkflowBuilder<TState> Workflow.Ephemeral<TState>(
     DefinitionId definitionId,
-    DefinitionVersion definitionVersion);
+    DefinitionVersion definitionVersion,
+    WorkflowAuthoringOptions? options = null);
 
 DurableWorkflowBuilder<TState> Workflow.Durable<TState>(
     DefinitionId definitionId,
-    DefinitionVersion definitionVersion);
+    DefinitionVersion definitionVersion,
+    WorkflowAuthoringOptions? options = null);
 
-TDefinition Build();
-Validation<TDefinition> TryBuild();
+EphemeralWorkflowDefinition<TState> EphemeralWorkflowBuilder<TState>.Build();
+Validation<EphemeralWorkflowDefinition<TState>> EphemeralWorkflowBuilder<TState>.TryBuild();
+
+DurableWorkflowDefinition<TState> DurableWorkflowBuilder<TState>.Build();
+Validation<DurableWorkflowDefinition<TState>> DurableWorkflowBuilder<TState>.TryBuild();
 
 EphemeralSagaBuilder<TState> Saga.Ephemeral<TState>(
     DefinitionId definitionId,
     DefinitionVersion definitionVersion);
 
+EphemeralSagaDefinition<TState> EphemeralSagaBuilder<TState>.Build();
+Validation<EphemeralSagaDefinition<TState>> EphemeralSagaBuilder<TState>.TryBuild();
+
 DurableSagaBuilder<TState> Saga.Durable<TState>(
     DefinitionId definitionId,
     DefinitionVersion definitionVersion);
 
+DurableSagaDefinition<TState> DurableSagaBuilder<TState>.Build();
+Validation<DurableSagaDefinition<TState>> DurableSagaBuilder<TState>.TryBuild();
+
 WorkflowDagBuilder Dag.Plan();
 ```
 
-Workflow and saga `Build()` and `TryBuild()` invoke the same `DefinitionCompiler`. `Build()`
-returns an immutable definition backed by the resulting `CompiledWorkflowPlan`; on failure
-it throws one `WorkflowDefinitionException` containing every discoverable compiler
-diagnostic. `TryBuild()` returns the same diagnostics through `Validation<TDefinition>` and
-publishes no definition. Registration never recompiles into a different plan. DAG planning
-uses the same completion and diagnostic contract, while returning immutable
-`WorkflowDagPlan` rather than a workflow execution plan.
+Workflow and saga `Build()` and `TryBuild()` invoke the same internal definition compiler.
+`Build()` returns an immutable mode-specific application definition; on failure it throws one
+`WorkflowDefinitionException` containing every discoverable compiler diagnostic.
+`TryBuild()` returns the same diagnostics through `Validation<TDefinition>` and publishes no
+definition. Registration never recompiles into a different plan. The compiled plan is retained
+behind an internal engine accessor and is not a public property of either application
+definition. DAG planning uses the same completion and diagnostic contract, while returning
+immutable `WorkflowDagPlan` rather than a workflow execution plan.
+
+`WorkflowAuthoringOptions`, its positive definition limits, payload serializer/copy registry,
+and deterministic fingerprint-contributor contract are application-authoring concepts. The
+builder does not expose compiler-named `WithCompilerOptions` or
+`WithTypeSerializerRegistry` methods. `DefinitionCompilerOptions`, compiled instruction/plan
+types, and compiler-specific serializer/fingerprint interfaces are implementation details.
+
+The initial application option set is explicit:
+
+| Application option | Contract |
+|---|---|
+| `MaxStructuredDepth` | Positive maximum authored/nested scope depth. |
+| `MaxActiveExecutionPaths` | Positive maximum simultaneously materialized root, branch, and item execution paths for one instance. |
+| `MaxBranchResultPayloadBytes` | Positive serialized-size limit for one branch or item result before merge. |
+| `PayloadSerializers` | Registry of supported application payload serializers. |
+| `StateCopiers` | Registry of deterministic deep-copy contracts used for branch input and detached state. |
+| `FingerprintContributors` | Deterministic contributors for opaque authored configuration. |
+
+`MaxStructuralOperationsPerTurn` (the current internal-instruction quantum) and
+`MaxCheckpointPayloadBytes` (the current serialized-envelope limit) are engine/hosting
+configuration, not workflow-authoring options. Their application-facing names do not expose
+instruction-quantum or envelope implementation vocabulary.
 
 Structured branch authoring uses one common serializable result type per scope:
 
 ```csharp
 EphemeralWorkflowBuilder<TParentState> Parallel<TResult>(
-    Action<BranchScopeBuilder<TParentState, TResult>> branches,
+    Action<EphemeralBranchScopeBuilder<TParentState, TResult>> branches,
     Func<ReadOnlyParentSnapshot<TParentState>,
          IReadOnlyList<BranchResult<TResult>>,
          TParentState> merge);
 
 DurableWorkflowBuilder<TParentState> Parallel<TResult>(
-    Action<BranchScopeBuilder<TParentState, TResult>> branches,
+    Action<DurableBranchScopeBuilder<TParentState, TResult>> branches,
     Func<ReadOnlyParentSnapshot<TParentState>,
          IReadOnlyList<BranchResult<TResult>>,
          TParentState> merge);
 
 EphemeralWorkflowBuilder<TParentState> WhenFirst<TResult>(
-    Action<BranchScopeBuilder<TParentState, TResult>> branches,
+    Action<EphemeralBranchScopeBuilder<TParentState, TResult>> branches,
     Func<ReadOnlyParentSnapshot<TParentState>,
          BranchResult<TResult>,
          TParentState> merge);
 
 DurableWorkflowBuilder<TParentState> WhenFirst<TResult>(
-    Action<BranchScopeBuilder<TParentState, TResult>> branches,
+    Action<DurableBranchScopeBuilder<TParentState, TResult>> branches,
     Func<ReadOnlyParentSnapshot<TParentState>,
          BranchResult<TResult>,
          TParentState> merge);
 
-BranchScopeBuilder<TParentState, TResult> Branch<TBranchState>(
+EphemeralBranchScopeBuilder<TParentState, TResult> Branch<TBranchState>(
     string branchId,
     Func<ReadOnlyParentSnapshot<TParentState>, TBranchState> inputProjector,
-    Action<BranchBuilder<TBranchState, TResult>> build);
+    Action<EphemeralBranchBuilder<TBranchState, TResult>> build);
 
-BranchBuilder<TBranchState, TResult> Return(
+DurableBranchScopeBuilder<TParentState, TResult> Branch<TBranchState>(
+    string branchId,
+    Func<ReadOnlyParentSnapshot<TParentState>, TBranchState> inputProjector,
+    Action<DurableBranchBuilder<TBranchState, TResult>> build);
+
+EphemeralBranchBuilder<TBranchState, TResult> Return(
+    Func<ReadOnlyBranchSnapshot<TBranchState>, TResult> resultProjector);
+
+DurableBranchBuilder<TBranchState, TResult> Return(
     Func<ReadOnlyBranchSnapshot<TBranchState>, TResult> resultProjector);
 ```
 
-Each branch has exactly one reachable final `Return`. Branches cannot contain workflow
+The two public branch-builder families share one internal implementation but retain the root
+builder's selected mode in their static type. An ephemeral-only transient-pool decorator is
+therefore absent from durable root and nested branch authoring. Each branch has exactly one
+reachable final `Return`. Branches cannot contain workflow
 `Init`, workflow `End`, or `ContinueAsNew`. Branch input is copied through the configured
 serializer or registered deep-copy contract before child execution. A merge is synchronous,
 pure with respect to runtime services, runs at most once after the join commit boundary, and
 returns the complete replacement parent state. `WhenAll` receives results in authored order;
 `WhenFirst` receives only the selected winner result.
 
+The initial nested capability set is exact. Both ephemeral and durable branch builders expose
+business `Then`, step retry/timeout/cancellation decorators, resident structural `Wait`,
+`Delay`, nested `Parallel`, nested `WhenFirst`, and terminal `Return`. Ephemeral branches also
+expose the named transient-pool decorator. Neither branch family exposes root `Init`/`End`,
+`If`, `While`, in-instance `ForEach`, `WaitLong`, child workflows, external jobs, durable
+resource leases, or `ContinueAsNew`. Adding any nested capability requires a matrix amendment
+and matching runtime plus compile-fixture evidence; root availability alone is insufficient.
+
 Ephemeral `ForEach<TItem, TItemState, TResult>` uses the same item-private builder and return
 contract. Its merge receives `IReadOnlyList<ForEachItemOutcome<TResult>>` in item-index order.
 The durable builder has no `ForEach` member, and the compiler still rejects a manually
 constructed durable node as defense in depth.
 
-Saga authoring follows selected mode and produces `SagaDefinition<TState>` through
-`Build()`/`TryBuild()`. The `Saga.Durable` factory is not shipped until the structured durable
-driver owns forward and compensation progression. DAG planning produces immutable
+Saga authoring follows selected mode and produces `EphemeralSagaDefinition<TState>` or
+`DurableSagaDefinition<TState>` through `Build()`/`TryBuild()`. The two definitions share
+internal representation but cannot cross normal engine registration contracts. The
+`Saga.Durable` factory is not shipped until the structured durable driver owns forward and
+compensation progression. DAG planning produces immutable
 `WorkflowDagPlan` through the same completion pair. Durable DAG execution is an operation on
 the durable runtime over a registered plan, not a caller-driven runner.
 
@@ -136,9 +192,11 @@ deterministic replacement-state selector on the durable root builder. It is not 
 
 ## 17.3 Shared compiler and diagnostic contract
 
-The `DefinitionCompiler` applies a positive instruction allowlist for the selected mode and
-produces one immutable `CompiledWorkflowPlan` with a format version and canonical
-fingerprint. It validates the complete graph before registration, including:
+The internal definition compiler applies a positive instruction allowlist for the selected
+mode and produces one immutable compiled plan with a format version and canonical
+fingerprint. Compiled plan, instruction, scope, branch, policy, and identity types are not
+application public contracts. The compiler validates the complete graph before registration,
+including:
 
 - one root entry and exit and complete successful-path termination;
 - legal structured nesting, reachability, branch identities, branch returns, and merge ownership;
@@ -191,3 +249,26 @@ handle so start calls require no phantom state generic. An accepted operation al
 an at-least-once continuation handoff. It returns `AppliedAndProgressed` only when a locally
 registered definition was driven inline; a definition-less callback host returns
 `AppliedPendingContinuation` and leaves progression to a definition-owning host pump.
+
+## 17.6 Application projections versus runtime ownership
+
+Application definitions expose mode, identity, version, fingerprint, and immutable authored
+metadata, but not the executable compiled plan. `FiberId`, `ScopeId`, runtime registration
+sequence, format-2 envelopes, raw park reasons, and obligation ownership are runtime-protocol
+or implementation concepts.
+
+Application active-wait projections expose stable authored facts such as wait kind, authored
+node/path, event name, correlation, residency, and relevant logical timing. They do not expose
+`FiberId`, `ScopeId`, or `WaitSequence`; an advanced runtime observation may expose those
+fields for certified custom-host diagnostics.
+
+The authored path uses the same immutable `AuthoredLocation` contract as compiler diagnostics
+and remains stable when an unchanged authored graph is recompiled. It identifies definition
+structure, not a runtime execution address. `WaitId` remains application-visible as an opaque
+handle for targeting and diagnostic correlation; it carries no fiber, scope, ordering, or
+checkpoint semantics.
+
+`GetStateAsync<TState>` returns a detached value representing the last committed root workflow
+business state for the registered definition. It never returns branch-private or item-private
+fiber state. Incompatible requested type, missing retained state, archive, and purge remain
+typed application outcomes.

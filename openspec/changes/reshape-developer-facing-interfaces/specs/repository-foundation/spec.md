@@ -44,3 +44,10 @@ Optional observability exporters and provider-native dependencies SHALL live in 
 #### Scenario: Minimal ephemeral application restores dependencies
 - **WHEN** a consumer restores the documented minimal ephemeral project
 - **THEN** durable provider drivers, messaging clients, and unused OpenTelemetry exporters are absent from its dependency closure
+
+### Requirement: Executable compiler IR remains implementation-only
+Compiled workflow plans, instructions, scope/branch/policy models, compiler identity indexes, and engine accessors SHALL remain implementation details even when multiple engine assemblies consume them. Cross-assembly access SHALL use internal/friend boundaries or an implementation-only project and SHALL NOT make those types transitive application contracts.
+
+#### Scenario: Application package graph is packed
+- **WHEN** the authoring/core and engine packages are packed for a clean consumer
+- **THEN** application definitions compile and register without exposing executable compiled-plan types in their public signatures

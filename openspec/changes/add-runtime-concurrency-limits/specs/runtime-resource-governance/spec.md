@@ -16,9 +16,18 @@ The runtime SHALL support asynchronous waiting for cross-instance host admission
 - **WHEN** a durable host restarts while an instance held or awaited a named transient-pool slot
 - **THEN** host-local capacity is reset and the fiber re-evaluates admission without claiming that the previous slot survived restart
 
+## ADDED Requirements
+
 ### Requirement: Transient governance is distinct from durable leasing
 Per-step execution throttles and named cross-instance transient pools SHALL NOT be named, documented, or serialized as durable resource leases. Durable resource leases SHALL use a separate persisted cross-host/fiber/scope contract.
 
 #### Scenario: Developer compares pool capabilities
 - **WHEN** public authoring and operator documentation describe a transient pool and a durable lease
 - **THEN** they distinguish host-local reset semantics from persisted queueing, deterministic scope release, expiry, and recovery
+
+### Requirement: Builder discoverability is mode-guaranteed
+A static mode-first builder SHALL expose transient-pool authoring only when every supported host for that mode enforces host-local admission and restart re-evaluation. Host registration or DI composition SHALL NOT add methods to the builder after mode selection. The initial baseline SHALL keep durable transient-pool authoring absent until durable enforcement and acceptance coverage pass.
+
+#### Scenario: Durable host profile enables transient governance
+- **WHEN** one durable host profile configures transient-pool infrastructure before durable mode has guaranteed support
+- **THEN** `Workflow.Durable<TState>` still does not expose transient-pool authoring and no definition metadata is silently ignored

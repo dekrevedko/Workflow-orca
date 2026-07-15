@@ -29,11 +29,15 @@ The management Interface SHALL expose shared instance commands such as event del
 ## ADDED Requirements
 
 ### Requirement: Typed committed state is queryable in both modes
-Both management Adapters SHALL provide typed detached business-state inspection through `GetStateAsync<TState>`. Durable inspection SHALL deserialize the last committed checkpoint through the configured serializer without exposing checkpoint or provider DTOs.
+Both management Adapters SHALL provide typed detached root business-state inspection through `GetStateAsync<TState>`. Durable inspection SHALL deserialize the last committed root workflow state through the configured serializer without exposing checkpoint or provider DTOs and SHALL never return branch-private or item-private fiber payloads. Ephemeral inspection SHALL create its detached value through the same registered serializer/deep-copy contract used for branch-input isolation; when no compatible contract exists it SHALL return the same typed incompatible-state diagnostic rather than a live state reference.
 
 #### Scenario: Durable business state is inspected
 - **WHEN** a caller requests the registered state type for an active or terminal durable instance whose state is retained
-- **THEN** management returns a detached typed value representing the last committed state
+- **THEN** management returns a detached typed value representing the last committed root workflow business state
+
+#### Scenario: Structured branches contain private state
+- **WHEN** active branch or item fibers hold payloads with the same or a different CLR type as the root workflow state
+- **THEN** `GetStateAsync<TState>` ignores those private payloads and reads only the registered root state slot
 
 #### Scenario: Durable state is unavailable
 - **WHEN** state has been archived, purged, is incompatible, or the requested type does not match the registered definition
@@ -45,6 +49,13 @@ Management mutation handles SHALL be created by the owning runtime and SHALL NOT
 #### Scenario: Management command races runtime work
 - **WHEN** a management mutation and workflow advancement target the same durable instance concurrently
 - **THEN** both operations pass through the configured shared serialization and conflict-handling path
+
+### Requirement: Application wait snapshots expose authored facts
+Application active-wait queries SHALL expose stable authored facts such as wait kind, immutable `AuthoredLocation`, event name, correlation, residency, relevant logical timing, and opaque `WaitId`. `AuthoredLocation` SHALL be the same structured location contract used by compiler diagnostics and SHALL remain stable for an unchanged authored graph. `WaitId` SHALL support application targeting and diagnostic correlation without encoding runtime ownership. Application snapshots SHALL NOT expose `FiberId`, `ScopeId`, `WaitSequence`, or raw obligation ownership; those remain advanced runtime diagnostics.
+
+#### Scenario: Application lists active waits
+- **WHEN** an operator inspects waits for a workflow with nested branches
+- **THEN** the result identifies the authored branch/path and matching information without requiring runtime routing identities
 
 ### Requirement: Shared management models have one canonical declaration
 The application tier SHALL define exactly one canonical `WorkflowInstanceQueryModel`, `WorkflowStatistics`, and `WorkflowStatisticsGroup`, and SHALL replace duplicate engine-local destructive-safety declarations with exactly one non-default application confirmation contract.

@@ -76,8 +76,10 @@ Hand-rolled fakes are part of the product's executable documentation:
 
 ## 6. Coverage & gates
 
-- CI runs `dotnet build` + `dotnet test` (all projects) on every push; coverage collected
-  via coverlet and reported (no hard threshold before Phase 2; from Phase 2: new code in
-  `src/` ≥ 80% line coverage guideline — a *review* signal, not a build break).
+- CI runs `dotnet build` plus the configured test projects on every push and collects coverage
+  via coverlet. The generated report filters `+OrcaCore.Engine.*` and enforces an aggregate
+  line rate of at least 0.80 as a hard build gate. A task that changes production engine code
+  reproduces that CI-equivalent coverage check before phase review. For non-engine `src/`
+  changes, 80% line coverage remains a review guideline unless a stricter project gate applies.
 - The phase exit criterion is always: **all AC traits listed in the phase README are green**
   plus zero build warnings.

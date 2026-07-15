@@ -2,10 +2,11 @@
 
 [`docs/specs/17-selected-mode-capability-matrix.md`](../../../docs/specs/17-selected-mode-capability-matrix.md)
 is the only approved selected-mode capability matrix, public builder/result/merge signature
-baseline, and compiler/diagnostic contract for this change and
-`adopt-structured-fiber-execution`. It also fixes the distinct names and lifetimes shared
-with `add-runtime-concurrency-limits`. Compile fixtures and source implementation SHALL use
-that baseline directly and SHALL NOT preserve legacy overloads or introduce a second
+baseline, and compiler/diagnostic contract for this change. The archived
+`adopt-structured-fiber-execution` change delivered the compiler and structured runtime behind
+that baseline; `add-runtime-concurrency-limits` still shares its distinct transient-governance
+names and lifetimes. Compile fixtures and source implementation SHALL use that baseline
+directly and SHALL NOT preserve superseded provisional overloads, leak compiled IR, or introduce a second
 compiler.
 
 ## Context
@@ -23,13 +24,17 @@ Capability leakage is bidirectional and broader than the submitted findings:
 
 | Current Interface | Current behavior | Disposition |
 |---|---|---|
-| Common `WorkflowBuilder.ForEach` | Durable registration rejects the definition | Confirmed; make ephemeral-only |
-| Common `RunChild` / `RunChildren` | Ephemeral registration rejects the definition | Confirmed; make durable-only |
+| Mode-first root builders | `Workflow.Ephemeral` / `Workflow.Durable` and the shared compiler are delivered, but both return the same `WorkflowDefinition<TState>` | Keep the factories; introduce distinct immutable definition types and delete registration-time mode detection |
+| Superseded mixed-mode `WorkflowBuilder<TState>` | Still coexists with the mode-first factories and exposes mixed capabilities | Delete early; no alias or parallel path |
+| Nested `BranchBuilder.WithPoolKey` | Common branch type makes an ephemeral-only policy discoverable inside durable `Parallel` | Split public nested branch types by selected mode; keep one internal implementation |
 | Common `WithDefinitionRetry` | Ephemeral registration rejects it and the durable engine never reads definition retry | Expanded; remove until specified and implemented |
-| Common `WithPoolKey` | Enforced only by the ephemeral engine and silently ignored by durable execution | Expanded; make it an explicit execution-throttle capability |
+| Root `WithPoolKey` | Mode-first root exposure is now ephemeral-only and durable compilation rejects it, but the name and nested leak remain | Rename to explicit transient-pool vocabulary and preserve mode through every nested builder |
 | Common durable `StepResult` variants | Ephemeral execution throws only after the step returns one | Confirmed; remove from the portable result set |
-| Internal `DurableWorkflowBuilder.WaitLong` | Test-only helper; no public durable authoring path | Confirmed specification violation |
-| `OrcaCore.Abstractions` | 201 top-level public type declarations in the current source scan and 208 when nested public result variants are included; 77 top-level types are durable protocol types and 63 are provider types | Confirmed; split by supported seam rather than count alone |
+| Structural waits, children, and continue-as-new | Public mode-first builders and the structured driver now implement them | Accept delivered baseline; remove superseded helper paths rather than rebuilding them |
+| Structural external jobs and durable leases | Portable `StepResult` variants and durable driver handling remain; structural authoring nodes are missing | Add nodes and direct compiled lowering before deleting the old result variants |
+| `WorkflowDefinition.CompiledPlan` and public compiler IR | Compiled plan, instructions, scope/branch identities, policies, and compiler options are public application-adjacent types | Hide the executable plan behind an internal accessor; retain only domain-facing authoring options and diagnostics |
+| `ActiveWaitSnapshot` | Exposes `FiberId`, `ScopeId`, and `WaitSequence` | Project authored wait metadata for applications; keep routing ownership at the advanced seam |
+| `OrcaCore.Abstractions` | The 2026-07-13 pre-fiber scan found about 200 top-level public declarations; the fiber baseline added more and the current scan is about 219 | Confirmed; split by supported seam and external scenario rather than a numeric target |
 | Durable `Instance(...)` | Returns a list-style query, has no typed state query, and mutations remain root methods requiring timestamps | Confirmed and expanded |
 | Public `DurableManagement` construction | Optional processor causes mutations to create a new command runtime and lane | Expanded correctness trap; construction becomes runtime-owned |
 | Confirmation enums | `Confirmed` is the zero/default value | Confirmed; default must be unconfirmed |
@@ -43,9 +48,9 @@ Capability leakage is bidirectional and broader than the submitted findings:
 | `SagaDefinition` metadata | Public action records expose executable factories and arrays can be downcast and mutated | Expanded; apply the same immutability treatment as workflow definitions |
 | Base hosting dependencies | Pulls every OpenTelemetry exporter into the normal hosting Module | Expanded; split optional observability Adapters |
 
-The baseline OpenSpec already requires a separate durable authoring surface and shared management vocabulary, so the target is an alignment with existing product direction. The active `adopt-structured-fiber-execution` change overlaps authoring, `StepResult`, compiler validation, saga, DAG, and durable execution. Its structured execution model remains behind this change's application seam; both changes must share one selected-mode capability model.
+The baseline OpenSpec already requires a separate durable authoring surface and shared management vocabulary, so the target is an alignment with existing product direction. The archived `adopt-structured-fiber-execution` change now supplies the shared compiler, typed structured scopes, mode-first root builders, scheduler, and durable format-2 execution model. This change must consolidate that delivered substrate behind a smaller application seam rather than retaining its implementation types as public contracts.
 
-There is no external compatibility obligation and no live durable-data migration requirement. Source, test fixtures, samples, and development stores may change together.
+There are no API clients, released package contracts, or retained durable-data contracts. Source, test fixtures, samples, and development stores may change together to reach the best final shape.
 
 ## Goals / Non-Goals
 
@@ -102,6 +107,21 @@ The permitted advanced dependency graph is explicit:
 
 NuGet distribution uses separate explicit packages for contracts, authoring/core, each engine, hosting, provider authoring, and runtime protocol, plus a small `OrcaCore` meta-package for the documented default application experience. Package-consumer tests prove that the meta-package or documented explicit application set is sufficient without direct protocol references. This keeps tier boundaries mechanically enforceable without making the common onboarding path assemble every application package manually.
 
+The post-fiber types are classified explicitly:
+
+| Tier | Types and concepts |
+|---|---|
+| Application authoring | Mode-specific immutable definitions, workflow/saga/DAG builders, read-only parent/branch snapshots, typed branch/item outcomes, validation diagnostics, domain-facing authoring limits, payload serializer/copy registration, deterministic definition-fingerprint contribution |
+| Application inspection | Root workflow snapshots and detached root business state, authored wait/path metadata, lifecycle and statistics models |
+| Runtime protocol | `FiberId`, `ScopeId`, durable format-2 envelopes, raw park reasons, commands/facts, checkpoints, stream versions, obligation ownership, continuation records |
+| Implementation | Compiled workflow plans/instructions/scopes/branches/policies, compiler identity indexes, schedulers, reducers, driver executors, hosted loops, converters, registry internals |
+
+Implementation assemblies use internal accessors or explicit friend-assembly access for the
+compiled plan retained by a definition. Cross-assembly implementation convenience is not a
+reason to publish compiled IR through an application package. If a future plan-inspection
+tool becomes a supported product seam, it receives a separate read-only inspection model;
+it does not expose executable delegates or make the runtime plan an application contract.
+
 Alternative considered: keep one `OrcaCore.Abstractions` assembly and rely on namespaces and documentation. Rejected because IntelliSense, package dependencies, public signatures, and accidental construction still present all seams as equally supported.
 
 Alternative considered: internalize all commands and events. Rejected because provider and custom-host Adapters need a supported wire/protocol contract; those types belong at an explicit advanced seam, not necessarily inside the Implementation.
@@ -125,19 +145,58 @@ var durable = Workflow.Durable<OrderState>(definitionId, definitionVersion)
     .Build();
 ```
 
-The concrete names may be `EphemeralWorkflowBuilder<TState>` and `DurableWorkflowBuilder<TState>` behind these factories, but callers must make the mode choice before IntelliSense exposes mode-specific methods. The two builders share one internal graph/compiler Module for portable nodes, validation codes, identities, and structured execution plans; they do not duplicate implementations.
+The delivered concrete root names are `EphemeralWorkflowBuilder<TState>` and
+`DurableWorkflowBuilder<TState>`. Callers make the mode choice before IntelliSense exposes
+mode-specific methods. The two builders share one internal graph/compiler Module for
+portable nodes, validation codes, identities, and structured execution plans; they do not
+duplicate implementations.
 
-This authoring surface is gated on `adopt-structured-fiber-execution`. Before either change edits source, both changes must publish one joint capability matrix, one compiler/diagnostic contract, and reconciled builder signature baselines using the post-fiber typed result and merge shapes. `Build()` produces a definition backed by that shared compiled plan. Durable `ForEach` is absent from the public builder and the compiler also rejects manually constructed durable `ForEach` nodes as defense in depth. `ContinueAsNew` is authored only as a structural durable node; execution is a root-fiber, quiescent transition and never originates from portable `StepResult`.
+The post-fiber consolidation changes their completion types to
+`EphemeralWorkflowDefinition<TState>` and `DurableWorkflowDefinition<TState>`. Both expose
+immutable identity, version, mode, fingerprint, and authored metadata, but neither exposes a
+public `CompiledPlan`. An ephemeral engine cannot accept a durable definition and a durable
+registry cannot accept an ephemeral definition through its normal static contract; the old
+`RequiresDurableEngine` registration check and `CompiledWorkflowPlan.FromLegacy` fallback are
+deleted with the superseded mixed-mode builder.
+
+Selected mode also survives nested authoring. Public `EphemeralBranchScopeBuilder` /
+`EphemeralBranchBuilder` and `DurableBranchScopeBuilder` / `DurableBranchBuilder` families
+share internal machinery but expose only capabilities guaranteed for their mode. A method
+cannot reappear inside `Parallel` merely because the implementation reused a common branch
+class.
+
+The structured-fiber prerequisite is satisfied and archived. Its compiler and driver are the
+baseline: durable `ForEach` is absent from the public builder and compiler-rejected when
+manually constructed; `ContinueAsNew` is a structural durable node executed only by a
+quiescent root fiber. This change consolidates those delivered paths rather than introducing
+parallel authoring or execution implementations.
 
 Capability assignment begins with a positive allowlist:
 
 - portable: `Init`, business step, `If`, `While`, supported structured composition, `Wait`, `Delay` where semantics are intentionally shared, `End`;
 - ephemeral-only: in-instance `ForEach` and any host-local feature that only the ephemeral engine currently enforces;
 - durable-only: `WaitLong`, children, external jobs, durable resource leases, continue-as-new, durable DAG/saga execution, and any supported definition-wide durable policy;
-- mode-dependent: per-step execution throttles and named cross-instance transient pools are exposed only by a selected host that implements their transient semantics;
+- host policy: per-step execution throttles are configured outside the definition in the initial baseline and apply only around business-step bodies;
+- ephemeral-only for now: named cross-instance transient-pool authoring, because the ephemeral host enforces it and the durable builder cannot vary by later DI host selection;
 - absent: features such as definition-wide retry that neither engine currently implements.
 
-Saga authoring follows the same mode-first rule. Ephemeral saga remains supported because it is an implemented, tested application capability; durable saga authoring is exposed only when runtime-owned durable progression exists. Older architecture notes that say the quick engine has no saga support must be corrected or explicitly superseded.
+Saga authoring follows the same mode-first rule and produces distinct immutable
+`EphemeralSagaDefinition<TState>` and `DurableSagaDefinition<TState>` types over one internal
+representation. Ephemeral saga remains supported because it is an implemented, tested
+application capability; durable saga authoring is exposed only when runtime-owned durable
+progression exists. Older architecture notes that say the quick engine has no saga support
+must be corrected or explicitly superseded.
+
+Normal builders do not expose compiler-shaped `WithCompilerOptions` or
+`WithTypeSerializerRegistry` methods. Optional application configuration is supplied as
+`WorkflowAuthoringOptions` at the mode factory. Its application members are
+`MaxStructuredDepth`, `MaxActiveExecutionPaths`, `MaxBranchResultPayloadBytes`, payload
+serializer registration, state copier registration, and deterministic fingerprint
+contributors. Structural-operations-per-turn and checkpoint-payload limits remain
+engine/hosting settings. Raw
+compiler options, compiler serializer registries, and compiled-plan fingerprint plumbing are
+internal. This preserves legitimate custom serialization without teaching ordinary authors
+the executable IR.
 
 Alternative considered: keep one builder and set a `RequiresDurableEngine` flag. Rejected because it converts a compiler/discoverability problem into a registration failure and already misses ephemeral-only and silently ignored features.
 
@@ -162,11 +221,17 @@ This gives the authoring Module leverage: it validates placement and serializati
 
 `WithPoolKey` and `AcquireResources` are not aliases. The shared taxonomy, coordinated with `add-runtime-concurrency-limits`, has three categories:
 
-1. **Per-step execution throttle**: host-local transient capacity held only around one step execution; portable only for a selected host that enforces it.
-2. **Named cross-instance transient pool**: host-local shared capacity across workflow instances, exposed by supported ephemeral or durable hosts but never described as restart-durable.
+1. **Per-step execution throttle**: host-local transient capacity held only around one step execution; configured as host policy in the initial public baseline, not as a builder capability that appears or disappears according to DI composition.
+2. **Named cross-instance transient pool**: host-local shared capacity across workflow instances. It is authorable on the ephemeral builder because every supported ephemeral host enforces it. It remains absent from durable authoring until the durable implementation and every supported durable host enforce the same reset/re-admission semantics.
 3. **Durable resource lease**: persisted cross-host capacity with queueing, expiry, recovery, and fiber/scope ownership; durable-only.
 
 A durable lease releases deterministically when its owning scope exits normally, its branch is canceled, its scope fails, or the workflow terminates. Expiry is a crash-recovery backstop, not the normal release mechanism. The structured driver records and reconstructs these scope-owned obligations across restart.
+
+Host options configure the capacities for transient throttle/pool keys and may disable a host
+at startup when required configuration is missing. They do not change which methods exist on
+a statically typed workflow builder. Adding durable transient-pool authoring later requires a
+capability-matrix amendment plus durable-host acceptance evidence; it is not unlocked by a
+runtime capability probe after a definition has already compiled.
 
 Alternative considered: create durable subclasses of `StepResult`. Rejected as the default because an `IStep<TState>` returning the base type still permits a durable subtype to reach an ephemeral engine at runtime.
 
@@ -242,7 +307,16 @@ Durable handles add pause/resume, history, archive metadata, and application-saf
 
 All public query methods are asynchronous. The ephemeral Adapter may complete synchronously, but callers can use one shape without sync-over-async when switching to a provider-backed Adapter. A shared model does not exist yet: implementation consolidates the duplicate `WorkflowInstanceQueryModel`, `WorkflowStatistics`, and `WorkflowStatisticsGroup` declarations into one application-tier definition each, replaces the duplicate `DestructiveCommandSafety` declarations with the single `DestructiveOperationConfirmation` contract below, then deletes the engine-local copies. Both engines use those canonical query, snapshot, and statistics contracts unless a capability has intentionally different data.
 
-Typed durable state is read from the committed execution checkpoint through the configured serializer and registered definition metadata. Missing, archived, incompatible, or purged state produces an explicit application diagnostic; it does not expose checkpoint DTOs.
+Typed durable state is read from the committed execution checkpoint through the configured serializer and registered definition metadata. `GetStateAsync<TState>` returns a detached copy of the last committed **root workflow business state**. It never selects or returns branch-private or item-private fiber payloads. Ephemeral management uses the same registered serializer/deep-copy contract used for branch isolation and never returns the live in-memory state reference. Missing copier/serializer support, missing state, archive, incompatibility, or purge produces an explicit application diagnostic; it does not expose checkpoint DTOs.
+
+Application active-wait snapshots describe authored facts: wait kind, immutable
+`AuthoredLocation`, event name and correlation, residency, relevant logical timing, and opaque
+`WaitId`. `AuthoredLocation` is the same structured path used by compiler diagnostics and is
+stable for an unchanged authored graph. `WaitId` is an application targeting/diagnostic handle
+without routing semantics. `FiberId`, `ScopeId`, and `WaitSequence` remain runtime
+routing/ownership facts and are removed from the application projection. A certified custom
+host can obtain them through an advanced runtime observation contract when operational
+diagnosis genuinely requires them.
 
 Normal application mutations own timestamps through the runtime clock. Explicit timestamps remain only on protocol commands and deterministic test fixtures.
 
@@ -328,15 +402,34 @@ The application public baseline additionally asserts that `WorkflowInstanceQuery
 
 Acceptance tests continue to exercise public application entry points. Kernel and provider tests may use advanced seams or matching `InternalsVisibleTo`; they cannot justify promoting an implementation type into the application Interface.
 
-### 11. Gate source work on joint design and canonical requirements
+### 11. Treat archived fibers as the accepted substrate and gate only remaining public decisions
 
-No source implementation begins until this change and `adopt-structured-fiber-execution` both reference the same capability matrix, compiler diagnostic contract, builder signatures, and continue-as-new/ForEach semantics. `add-runtime-concurrency-limits` must also agree on the three-way pool taxonomy before any pool-shaped public member is authored. The gate is satisfied only when all three affected OpenSpec changes pass strict validation.
+`adopt-structured-fiber-execution` is complete, promoted to canonical specs, and archived.
+Its compiler, diagnostic families, typed structured signatures, durable `ForEach` rejection,
+and root-only quiescent continue-as-new behavior are accepted substrate rather than remaining
+tasks. Source work for this change begins after this post-fiber artifact rebase passes strict
+validation and review approves the mode-specific definitions, nested builder split,
+application/IR classification, and application wait/state projections.
 
-Before source changes, update the canonical `docs/specs/` requirements and acceptance criteria for removed definition retry, the three pool categories, portable dynamic waits, durable structural effects, explicit definition registration, split-host continuation, external-job failure, event-routing outcomes, management timestamp ownership, application-safe remediation, and package tiers. Final verification links every changed canonical requirement to its public acceptance, compile, consumer, or architecture test.
+`add-runtime-concurrency-limits` must agree on the three-way taxonomy and mode-guaranteed
+discoverability before transient-governance source work proceeds. That active change blocks
+durable transient-pool exposure, not unrelated authoring consolidation, package splitting, or
+facade work.
+
+Before each source slice, update any affected canonical `docs/specs/` requirement and
+acceptance criteria for removed definition retry, the three pool categories, portable dynamic
+waits, durable structural effects, explicit definition registration, split-host continuation,
+external-job failure, event-routing outcomes, management timestamp ownership,
+application-safe remediation, package tiers, root-state inspection, and application-safe wait
+metadata. Final verification links every changed canonical requirement to its public
+acceptance, compile, consumer, or architecture test.
 
 ## Risks / Trade-offs
 
-- **[Overlap with structured-fiber work]** -> Approve one shared capability matrix and authoring shape before applying either change; update both task graphs so the compiler is implemented once.
+- **[Public refactor accidentally rebuilds structured execution]** -> Treat the archived fiber compiler and driver as fixed substrate; consolidate and hide them without creating a second graph, compiler, or executor.
+- **[One shared definition type preserves mode ambiguity]** -> Return distinct immutable ephemeral and durable definition types and make engine registration accept only its own application definition family.
+- **[Common nested builders reintroduce capability leaks]** -> Preserve selected mode in every public branch/scope builder and compile-test both root and nested method absence.
+- **[Hiding compiler IR removes useful configuration]** -> Replace compiler-shaped methods with domain-facing authoring limits, serializer/copy registration, and deterministic fingerprint contribution; keep executable plans internal.
 - **[Definition-less callback host cannot drive inline]** -> Commit every accepted outcome with an at-least-once continuation outbox record and distinguish inline progression from pending continuation in application results.
 - **[Implicit definition registration creates host-order bugs]** -> Make registration an explicit host-scoped operation that returns a typed definition handle; start never mutates registration state.
 - **[Separate builders drift]** -> Share one internal graph/compiler Module and test portable semantics once against both builder Adapters.
@@ -348,20 +441,42 @@ Before source changes, update the canonical `docs/specs/` requirements and accep
 - **[Removing raw access blocks a legitimate host]** -> Keep certified runtime-protocol and provider-authoring seams in explicit advanced packages; require an executable custom-host scenario before expanding them.
 - **[Public surface count falls but useful extension points disappear]** -> Judge each type by supported external scenario, not a numeric target. Public approval files make removals reviewable.
 
-## Migration Plan
+### 12. Amend canonical requirements immediately before each source section
 
-1. Complete the joint reconciliation gate: capability matrix, post-fiber builder signatures, three-way pool taxonomy, exact dependency graph, split-host continuation contract, closed design questions, canonical requirements, and strict validation of all three affected changes.
+Canonical requirements are not deferred to the documentation sweep. The amendment gate is:
+
+| Source section | Canonical capabilities amended before its first source task |
+|---|---|
+| 4 - authoring and IR | `workflow-authoring`, `workflow-contracts`, `quality-and-verification` |
+| 5 - durable effects and concurrency | `workflow-authoring`, `workflow-contracts`, `durable-runtime`, `runtime-resource-governance` |
+| 6 - tiers and packages | `repository-foundation`, `developer-facing-surface`, `quality-and-verification` |
+| 7 - facade and management | `durable-runtime`, `management-and-querying`, `developer-facing-surface` |
+| 8 - DAG, saga, hosting, providers | `saga-orchestration`, `durable-runtime`, `developer-facing-surface`, provider-role capabilities |
+
+The task graph records this map as a completed design gate. Contributors apply the listed
+canonical amendments before the corresponding source section, not as a bulk retrofit in
+section 9.
+
+## Greenfield Implementation Plan
+
+The executable phase order, verification ladder, report contents, and mandatory independent
+review gate after every phase are defined in
+[`docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md`](../../../docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md).
+The sequence below is the design-level summary; the linked plan controls implementation and
+review boundaries while this task list remains the completion record.
+
+1. Approve this post-fiber rebase: mode-specific definitions, nested mode preservation, compiler/fiber tier placement, root-state/wait projections, mode-guaranteed concurrency discoverability, and strict validation.
 2. Capture the current public surface and add failing architecture, compile, consumer, split-host, and golden-path guards using only the reconciled signatures.
-3. Introduce the application, provider-authoring, and runtime-protocol packages and move contracts without changing behavior.
-4. Complete and validate the prerequisite structured-fiber compiler and driver core owned by `adopt-structured-fiber-execution`.
-5. Add mode-first builders over that compiler, expose `WaitLong`, retain portable dynamic wait, remove unsupported features, and move durable effects out of common `StepResult`.
-6. Deepen `DurableWorkflowRuntime` and management with explicit registration, typed handles, split-host continuation, complete external-job outcomes, typed routing, and shared models.
-7. Move DAG and saga progression behind runtime-owned loops after the structured execution prerequisites are present.
+3. Consolidate delivered authoring first: introduce mode-specific definitions, split nested public builders, replace compiler-shaped options, and delete the superseded mixed-mode `WorkflowBuilder`, `RequiresDurableEngine`, and fallback plan path.
+4. Add structural external-job and durable-lease nodes that lower directly to the archived fiber plan; only then remove durable variants from portable `StepResult`.
+5. Introduce the application, provider-authoring, and runtime-protocol packages and move the already-classified contracts without carrying superseded public paths into new packages.
+6. Deepen `DurableWorkflowRuntime` and management with explicit registration, typed handles, split-host continuation, complete external-job outcomes, typed routing, shared models, root-state inspection, and authored wait projections.
+7. Move DAG and saga progression behind runtime-owned loops over the archived structured driver.
 8. Split engine registration, normalize provider-role extensions, add ZeroMQ registration, internalize hosted loops, and delete shallow/test-only types; this can proceed after facade composition in parallel with DAG/saga closure.
 9. Rewrite successful developer journeys and documentation against the final application surface.
-10. Run public/package/sample guards, link canonical requirements to acceptance evidence, and delete every superseded surface. No compatibility layer remains.
+10. Run public/package/sample guards, link canonical requirements to acceptance evidence, and prove every superseded surface is absent. No compatibility layer remains.
 
-Rollback is source-level only: revert the change and reset development stores/fixtures. There is no released package or durable-instance migration path to preserve.
+Rollback is source-level only: revert the change and reset development stores/fixtures. No released package, external client, or durable-instance compatibility contract exists.
 
 ## Open Questions
 

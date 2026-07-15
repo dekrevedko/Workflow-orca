@@ -14,6 +14,13 @@ The project SHALL verify that each supported storage, projection, and messaging 
 - **WHEN** a new durable store, projection cache, or dispatch Adapter is added
 - **THEN** role-specific certification confirms behavioral parity, registration behavior, ownership semantics, and documented capability limits
 
+### Requirement: Developer-surface reconciliation gates implementation
+The completed and archived structured-fiber baseline SHALL supply the shared compiler/diagnostic contract, typed structured signatures, durable `ForEach` rejection, root-only quiescent continue-as-new behavior, and runtime ownership used by this public-interface refactor. Those delivered behaviors SHALL NOT remain an active prerequisite or be recreated by a second compiler or driver. Transient-governance source work SHALL additionally agree with `add-runtime-concurrency-limits` on the three-way taxonomy and mode-guaranteed discoverability.
+
+#### Scenario: Public-interface implementation begins after rebase review
+- **WHEN** this change passes strict validation and review approves mode-specific definitions, nested builder rules, tier placement, and application projections
+- **THEN** authoring consolidation, package, facade, and management work may proceed while durable transient-pool exposure remains gated by its active change
+
 ## ADDED Requirements
 
 ### Requirement: Public surfaces are approved mechanically
@@ -40,7 +47,15 @@ Verification SHALL prove both the presence of supported methods and the absence 
 
 #### Scenario: Post-fiber signatures are guarded
 - **WHEN** compile fixtures and approval baselines are generated
-- **THEN** they use the reconciled typed result, merge, structural-node, and compiled-plan shapes shared with `adopt-structured-fiber-execution`
+- **THEN** they use the archived typed result, merge, and structural-node shapes while keeping compiled-plan shapes out of the application baseline
+
+#### Scenario: Nested capability fixture compiles
+- **WHEN** positive and negative fixtures author branches inside ephemeral and durable structured scopes
+- **THEN** no nested builder exposes a capability absent from its selected-mode root, and durable branches cannot discover ephemeral transient pools
+
+#### Scenario: Definition type fixture compiles
+- **WHEN** a consumer builds one ephemeral and one durable definition
+- **THEN** each engine registration accepts only its matching mode-specific definition type without reading `RequiresDurableEngine` or public compiled-plan metadata
 
 ### Requirement: Samples assert successful application outcomes
 Runnable samples SHALL use only the documented application Interface for their intended audience and SHALL assert unambiguous successful or expected suspended outcomes instead of printing kernel failure states as demonstration output.
@@ -56,12 +71,12 @@ Verification SHALL build fresh consumer projects from package references or equi
 - **WHEN** the repository packs and restores its documented application packages into a clean consumer project
 - **THEN** the golden path compiles and runs without direct references to internal source projects or advanced packages
 
-### Requirement: Overlapping changes have a strict reconciliation gate
-Source implementation SHALL NOT begin until this change and `adopt-structured-fiber-execution` reference one joint capability matrix, compiler/diagnostic contract, post-fiber builder signatures, durable `ForEach` rejection rule, and root-only quiescent continue-as-new rule, and both changes pass strict OpenSpec validation. Pool-shaped public authoring SHALL additionally agree with `add-runtime-concurrency-limits` on the three-way taxonomy.
+### Requirement: Application projections exclude runtime routing internals
+Verification SHALL prove that application definitions, instance snapshots, active-wait snapshots, and typed state operations do not expose compiled execution IR, fiber/scope identities, wait registration sequence, format-2 envelopes, or branch-private state.
 
-#### Scenario: Apply is requested before reconciliation
-- **WHEN** either change lacks the joint matrix, matching signature baseline, matching structural semantics, or strict validation
-- **THEN** the task graph blocks source edits and directs the contributor to complete the document gate first
+#### Scenario: Projection baseline is inspected
+- **WHEN** public signature and behavior tests inspect application definition and management models
+- **THEN** definitions expose authored metadata, waits expose authored path/matching facts, and typed state returns only detached root business state
 
 ### Requirement: Canonical requirements are updated before source
 Canonical `docs/specs/` requirements and acceptance criteria SHALL be updated before source implementation for every changed public contract, including definition retry removal, concurrency taxonomy, dynamic waits, structural durable effects, registration, continuation, external-job failure, routing results, management time ownership, remediation, and package tiers.

@@ -96,7 +96,9 @@ behavior.
 
 ## Archive-Blocking Review Remediation
 
-The archive-blocking implementation review identified eleven additional correctness gaps.
+The archive-blocking implementation review identified nine additional correctness gaps.
+Editorial correction (2026-07-14): an earlier draft said eleven, while the numbered findings
+and implemented remediations total nine.
 They are now covered by focused regressions and fixed in the production paths:
 
 1. Compiler validation now rejects empty scopes, checks every loop path for a quantum-ending

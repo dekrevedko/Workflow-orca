@@ -1,7 +1,8 @@
-Joint implementation baseline: [`docs/specs/17-selected-mode-capability-matrix.md`](../../../docs/specs/17-selected-mode-capability-matrix.md).
-That document is the single normative selected-mode matrix, post-fiber signature baseline,
-compiler/diagnostic contract, and concurrency taxonomy shared with
-`adopt-structured-fiber-execution` and `add-runtime-concurrency-limits`.
+Post-fiber implementation baseline: [`docs/specs/17-selected-mode-capability-matrix.md`](../../../docs/specs/17-selected-mode-capability-matrix.md).
+That document is the single normative selected-mode matrix, public authoring signature
+baseline, compiler/diagnostic contract, and concurrency taxonomy shared with the archived
+`adopt-structured-fiber-execution` change and the active
+`add-runtime-concurrency-limits` change.
 
 ## Why
 
@@ -9,7 +10,8 @@ OrcaCore's application Interface is currently mixed with durable kernel, provide
 
 ## What Changes
 
-- **BREAKING** Replace the mode-ambiguous authoring surface with explicit ephemeral and durable authoring entry points. A caller selects execution mode before capability-specific methods become discoverable; `WaitLong`, child workflows, external jobs, durable resources, continue-as-new, and durable definition policies are available only on the durable Interface, while ephemeral `ForEach` remains ephemeral-only.
+- **BREAKING** Consolidate the delivered mode-first authoring factories into the only supported workflow-authoring path. Ephemeral and durable builders return distinct immutable definition types, nested branch builders preserve the selected mode, and the superseded mixed-mode `WorkflowBuilder<TState>`, `RequiresDurableEngine`, fallback plan path, and registration-time mode detection are deleted.
+- **BREAKING** Hide the compiled execution IR and fiber-routing identities from the normal application Interface. Application definitions expose immutable authored metadata and validation diagnostics; compiled instructions/plans remain implementation details, while fiber/scope identities and format-2 envelopes live only at the runtime-protocol seam.
 - **BREAKING** Remove durable-only outcomes from the common `StepResult` Interface. Express durable orchestration through durable authoring nodes or an equally capability-safe durable step Interface so unsupported results cannot first fail during ephemeral execution.
 - **BREAKING** Make `DurableWorkflowRuntime` the complete application facade for explicit host-scoped definition registration, typed start-or-get handles, event delivery, external-job completion/failure/timeout, and instance progression. Application operations own time and identifiers where appropriate and return application-level results rather than raw commands or `DurableCommandResult`; a split callback host commits the outcome and guarantees continuation handoff even when it cannot execute the definition locally.
 - **BREAKING** Move `DurableCommandProcessor`, durable commands/events, commit/checkpoint records, driver pumps, observers, DAG scheduling primitives, and provider ports out of the normal application Interface into explicit runtime-protocol and provider-authoring seams. Make implementation-only hosted services, converters, profiles, and adapters internal or delete them when the deletion test shows no supported external use.
@@ -18,7 +20,7 @@ OrcaCore's application Interface is currently mixed with durable kernel, provide
 - Close durable DAG and saga progression behind runtime-owned loops. Keep DAG planning distinct from durable execution and demote the interim saga command adapter and caller-driven DAG scheduler from the application Interface.
 - Replace ambiguous all-in-one hosting registration with explicit engine-mode registration, and standardize provider extensions by provider role (store, projection cache, or dispatcher), including a ZeroMQ dispatcher extension.
 - Publish separate application, engine, hosting, provider-authoring, and runtime-protocol packages plus a small `OrcaCore` meta-package; allow the provider-authoring package to depend on runtime protocol facts it persists while forbidding the reverse edge and every application-to-advanced edge.
-- Define concurrency vocabulary in three distinct classes: per-step execution throttles, named cross-instance transient pools, and persisted durable resource leases with scope-owned release and crash recovery.
+- Define concurrency vocabulary in three distinct classes: per-step execution throttles, named cross-instance transient pools, and persisted durable resource leases with scope-owned release and crash recovery. Static mode-first builders expose only capabilities guaranteed by every supported host for that mode; host configuration may tighten limits but does not add methods to an already compiled builder type.
 - Standardize builder completion and validation behavior: reject local invalid arguments immediately, aggregate graph-wide diagnostics at build time, and use the same completion vocabulary across workflow, saga, and DAG builders.
 - Preserve strong identifier types while rejecting empty/default identifiers at every public construction and operation seam; a default value must never become a valid workflow, command, or stream identity.
 - Move optional OpenTelemetry exporters out of base hosting so a consumer pays for only the observability Adapter it selects.
@@ -43,8 +45,12 @@ OrcaCore's application Interface is currently mixed with durable kernel, provide
 ## Impact
 
 - Affected root projects: `OrcaCore.Abstractions`, `OrcaCore.Core`, both engine projects, `OrcaCore.Hosting`, all provider projects, root samples, and their tests. The root implementation remains authoritative.
-- The change intentionally breaks provisional source and package compatibility; no compatibility shims, obsolete aliases, or migration path are required.
-- The active `adopt-structured-fiber-execution` change also reshapes workflow authoring, `StepResult`, DAG, saga, and durable execution. Its compiler, structured driver, typed merge/result shapes, and root-only quiescent continue-as-new semantics are an explicit prerequisite: both changes must share one capability matrix and signature baseline before source implementation begins.
-- The active `add-runtime-concurrency-limits` change owns named cross-instance transient-pool enforcement. This change owns the developer-facing taxonomy and must not expose that capability in a mode until the selected host implements it.
+- Existing source and package shapes are provisional repository details; the final API is implemented directly, with no compatibility shims, obsolete aliases, or parallel paths.
+- The archived `adopt-structured-fiber-execution` change delivered the shared compiler,
+  mode-first root builders, typed merge/result shapes, structured driver, durable format-2
+  envelope, and root-only quiescent continue-as-new semantics. This change treats those
+  capabilities as the implementation baseline to consolidate, not as future prerequisite
+  work.
+- The active `add-runtime-concurrency-limits` change owns remaining transient-governance enforcement. Ephemeral transient-pool authoring is already delivered; durable transient-pool authoring remains absent until every supported durable host enforces the same host-local semantics.
 - Provider authors retain supported extension contracts, but those contracts move to explicit packages/namespaces and are no longer presented as ordinary application dependencies.
-- Application tests and samples migrate away from `DurableCommandProcessor`, caller-supplied command timestamps, raw command/event records, and manually reconstructed DAG scheduling state.
+- Application tests and samples are rewritten around the final facade instead of `DurableCommandProcessor`, caller-supplied command timestamps, raw command/event records, or manually reconstructed DAG scheduling state.

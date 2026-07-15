@@ -29,6 +29,17 @@ without large context windows.
 | [04-task-protocol.md](04-task-protocol.md) | Task file template, agent execution protocol, progress tracking |
 | [phases/](phases/) | Phase folders: each has a `README.md` (goal, exit criteria, task index) plus one file per task |
 
+## Active change-specific execution plan
+
+The developer-facing API refactor follows the mandatory phased implementation and independent
+review gates in
+[`developer-facing-interface-refactor-phased-plan-2026-07-14.md`](developer-facing-interface-refactor-phased-plan-2026-07-14.md).
+Its OpenSpec task lists remain authoritative; the plan adds dependency ordering, phase exit
+evidence, and a required stop-and-review checkpoint after every phase.
+
+Start Phase 0 with the copy-ready
+[`developer-facing-interface-phase-00-kickoff-prompt-2026-07-15.md`](developer-facing-interface-phase-00-kickoff-prompt-2026-07-15.md).
+
 ## Phases at a glance (mapped to spec slices)
 
 | Phase | Spec slice | Contents | Detail level here |
