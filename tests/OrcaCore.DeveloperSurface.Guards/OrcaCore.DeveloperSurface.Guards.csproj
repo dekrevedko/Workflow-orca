@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" PrivateAssets="all" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="CompileFixtures/**/*.cs" />
+    <None Include="CompileFixtures/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/OrcaCore.Abstractions/OrcaCore.Abstractions.csproj" />
+    <ProjectReference Include="../../src/OrcaCore.Core/OrcaCore.Core.csproj" />
+    <ProjectReference Include="../../src/OrcaCore.Engine.Ephemeral/OrcaCore.Engine.Ephemeral.csproj" />
+    <ProjectReference Include="../../src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj" />
+    <ProjectReference Include="../../src/OrcaCore.Hosting/OrcaCore.Hosting.csproj" />
+    <ProjectReference Include="../../src/OrcaCore.Providers.InMemory/OrcaCore.Providers.InMemory.csproj" />
+    <ProjectReference Include="../../src/OrcaCore.Providers.PostgreSql/OrcaCore.Providers.PostgreSql.csproj" />
+    <ProjectReference Include="../../src/OrcaCore.Providers.RabbitMq/OrcaCore.Providers.RabbitMq.csproj" />
+    <ProjectReference Include="../../src/OrcaCore.Providers.Redis/OrcaCore.Providers.Redis.csproj" />
+    <ProjectReference Include="../../src/OrcaCore.Providers.Relational/OrcaCore.Providers.Relational.csproj" />
+    <ProjectReference Include="../../src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj" />
+    <ProjectReference Include="../../src/OrcaCore.Providers.ZeroMq/OrcaCore.Providers.ZeroMq.csproj" />
+  </ItemGroup>
+</Project>

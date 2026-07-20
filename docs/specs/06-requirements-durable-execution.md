@@ -19,8 +19,9 @@ startup diagnostic outside explicitly selected development/test use, and SHALL N
 production-readiness examples.
 
 ### DU-002 Feature matrix is explicit
-The product SHALL publish a feature matrix declaring, per feature, its availability in each
-axis combination (ephemeral/durable × workflow/saga). Silent downgrades are non-conforming.
+The product SHALL publish a feature matrix declaring, per feature, its availability in
+ephemeral and durable workflow mode. Deferred semantic kinds are not v1 matrix axes and expose
+no placeholder members. Silent downgrades are non-conforming.
 
 The normative DU-002 matrix and signature baseline is
 [document 17](17-selected-mode-capability-matrix.md).
@@ -35,11 +36,11 @@ Durable execution SHALL use a hybrid event-sourced model:
 - **Checkpoints** materialize aggregate state at a stream version; recovery = load checkpoint
   + replay stream tail. Replay-from-genesis is never required for routine operation.
 - **Projections** derived from committed events serve queries and routing (instance
-  summaries, active waits, pending events, history, saga compensation state).
+  summaries, active waits, accepted-event audit, history, typed outputs, and DAG lineage).
 - **Hot memory is a disposable cache** of stream + projections.
 
 Rationale: this satisfies crash safety, restart-safe dedup, queryable metadata, durable wait
-ownership, saga traceability, history-pressure control, and future multi-node ownership
+ownership, DAG lineage, history-pressure control, and future multi-node ownership
 better than mutable-snapshot-only persistence, while checkpoints avoid pure-replay costs.
 
 ### DU-011 Command → events write path
@@ -52,17 +53,18 @@ truth.
 
 ### DU-012 Engine facts, not business event sourcing
 The engine SHALL event-source its own orchestration facts (started, version-bound, step
-entered/succeeded/failed, wait registered/matched, event buffered/consumed/duplicate-
-discarded, timer scheduled/fired, branch started/completed, join satisfied, completed,
-failed, deleted, compensation lifecycle). Business state SHALL remain a typed mutable model
+entered/succeeded/failed, wait registered/matched, event accepted/consumed/duplicate-
+  discarded, timer scheduled/fired, branch started/completed, join satisfied, completed,
+  failed, and deleted). Business state SHALL remain a typed mutable model
 inside the aggregate, persisted materialized in checkpoints. Users SHALL NOT be forced into
 domain event sourcing.
 
 ### DU-013 Deterministic rehydration
 Rehydration SHALL be deterministic for the same durable inputs, require no prior in-memory
 references, and be possible after complete host loss. Inputs: checkpoint, stream tail, wait
-records, definition identity/version. Output: an activation ready to resume from the last
-committed point.
+records, definition identity/version/structural fingerprint, and the fixed codec format. Output:
+an activation ready to resume from the last committed point. Opaque code compatibility is
+established by `DefinitionVersion`, not by fingerprinting code.
 
 ## 6.3 Crash safety and consistency
 
@@ -71,7 +73,7 @@ If a crash occurs mid-transition, recovery SHALL restore the last committed dura
 only; no partial mutation is ever observable (extends CR-043).
 
 ### DU-021 Safe-boundary persistence
-Critical persistence and event publication SHALL happen at safe transition boundaries before
+Critical persistence and runtime-owned outbound-record creation SHALL happen at safe transition boundaries before
 suspension/eviction — never in shutdown or deactivation hooks (best-effort cleanup only).
 
 ### DU-022 Serialized execution across processes
@@ -82,14 +84,17 @@ lease/ownership layer MAY strengthen it for multi-node (DU-060).
 ## 6.4 Inbox / outbox
 
 ### DU-030 Inbox (restart-safe dedup)
-The engine SHALL durably record received external deliveries by `EventId` with states
+After an active wait accepts a delivery, the engine SHALL durably record that accepted external
+delivery by `EventId` with states
 `Received`, `Applied`, `DuplicateIgnored`, `Poisoned`. Duplicate events after restart MUST
 NOT produce duplicate committed outcomes. The inbox also serves operational audit and replay
 defense. This is the transactional-inbox pattern: event ingestion and state mutation commit
-in one logical transaction (EV-032).
+in one logical transaction (EV-032). A delivery for which no active wait exists returns
+`NoActiveWait` and creates no inbox/dedup record or pending-event state.
 
-### DU-031 Outbox (consistent publication)
-Outbound messages (external events, status messages, child-start commands) SHALL be derived
+### DU-031 Outbox (consistent runtime dispatch)
+Runtime-owned outbound records (continuations, lifecycle/status messages, timer work, and
+internal DAG child-start commands) SHALL be derived
 from committed workflow events as durable outbox records **in the same commit boundary** as
 the events themselves. The engine SHALL never dispatch a message that was not first committed
 as an outbox record.
@@ -106,28 +111,42 @@ observability hooks. Consumers are expected to handle at-least-once delivery; th
 SHALL make the guarantee explicit.
 
 ### DU-033 One unified outbox
-A single logical outbox SHALL carry all outbound record kinds (external messages, child-start
-commands, status messages) so ordering/backlog management and operational tooling are
-uniform. Saga compensation dispatch extends the same outbox.
+A single logical outbox SHALL carry all approved runtime record kinds (continuations, internal
+DAG child-start commands, lifecycle/status messages, and host/provider dispatch work) so
+ordering/backlog management and operational tooling are uniform. Internal records do not become
+public workflow nodes, and this requirement does not approve workflow-authored `Publish`.
 
 ## 6.5 Versioning of long-running instances
 
 ### DU-040 Version binding
 Every durable instance SHALL be permanently bound to `DefinitionId` + `DefinitionVersion`,
-recorded as an early durable fact at start. Version SHALL be visible in snapshots,
-projections, and management queries.
+compiled-format version, fixed codec format, and deterministic structural plan fingerprint,
+recorded as early durable facts at start. Version and fingerprint SHALL be visible in snapshots
+and projections.
 
 ### DU-041 No silent corruption
-When a definition changes while instances are active/suspended: compatible versions MAY
-continue per documented rules; incompatible changes SHALL either fail explicitly with
-versioning diagnostics or leave existing instances isolated on their bound version. Silently
-resuming an instance under changed semantics is non-conforming. Zero-downtime deployment
-guidance (side-by-side versions) SHALL be documented.
+When a definition changes while instances are active/suspended, existing instances remain on
+their bound identity/version/fingerprint. Registration of the same identity/version with a
+different **structural** fingerprint SHALL fail with a typed conflict. Selector, projector,
+merge/output body, step configuration, DAG mapping logic, and external-request construction are
+opaque to v1 hashing, so changing any of them SHALL use a new version and side-by-side
+deployment. Silently deploying changed opaque behavior under the same version is
+non-conforming even when the structural fingerprint is unchanged.
+
+### DU-043 Typed output commits with completion
+A successful durable root `End` SHALL serialize and commit its declared typed output, optional
+fixed `WorkflowOutcomeName`, final state checkpoint, and terminal fact atomically. A crash
+cannot expose completion without output or output without completion. Resultless definitions
+have no phantom output payload. Typed outputs are available to typed handles and internal DAG
+dependency mapping without exposing child business state.
 
 ### DU-042 Continue-as-new
-Long-lived instances SHALL have a history-control mechanism (continue-as-new or equivalent
-checkpoint-lineage rollover) that bounds stream growth while preserving logical identity and
-documented continuity semantics.
+Long-lived durable root workflows SHALL expose `ContinueAsNew(replacementState)`. The winning
+commit starts a new generation under the same `InstanceId`, definition identity/version,
+structural fingerprint, original `CompleteWithin` absolute deadline, and documented lineage,
+using the supplied fixed-codec-normalized replacement root state and a fresh execution position.
+It is legal only at a quiescent root after every lexical lease scope has exited; it never clears
+waits, tickets, quarantine, or other owned obligations implicitly.
 
 ## 6.6 Retention and cleanup
 
@@ -137,10 +156,12 @@ deletion. Terminal instances leave memory quickly but remain durably inspectable
 retention policy (e.g., keep failed longer than completed; archive after N days; delete after
 M days).
 
-### DU-051 Safe purge/archive
-Archive and purge operations SHALL follow documented policy, never remove active instances,
-and never break in-flight consumers or lifecycle handling. Application-facing retention uses
-a declarative retention policy; raw cutoff purges remain operator/provider-oriented.
+### DU-051 Safe purge/archive is a deferred public capability
+Provider retention and physical cleanup SHALL never remove active instances, live continuation/
+inbox/outbox references, lease obligations, confirmation tombstones, or required audit state.
+Public `Archive` and `Purge` commands are deferred and have no v1 handle, fluent selection,
+alias, or placeholder. Their future amendment must define reference safety, authorization,
+retention policy, and provider certification before exposing application/operator commands.
 
 ### DU-052 History pressure visibility
 Stream length, checkpoint lag, outbox backlog, and payload-size pressure SHALL be observable
@@ -149,30 +170,59 @@ through operational statistics before they become outages.
 ## 6.7 Idempotent start
 
 ### DU-053 StartOrGet
-Durable mode SHALL provide an idempotent start (`StartOrGet(key, input)`): retrying a lost
-start with the same idempotency key returns the existing instance instead of creating a
-duplicate. Ephemeral mode MAY offer a best-effort variant.
+Both typed definition-handle families SHALL provide
+`StartOrGetAsync(input, StartIdempotencyKey)`: compatible reuse returns the existing instance
+instead of creating a duplicate. `StartIdempotencyKey` is distinct from
+`InstanceId`, `DefinitionId`, and step-operation identities; it is encoded as one scalar string,
+uses exact ordinal case-sensitive equality, and rejects default/whitespace/surrounding
+whitespace. The repository baseline keeps one provider-global key
+namespace across definitions; changing that namespace requires an explicit migration decision.
+Every provider SHALL enforce the same equality even when its default collation is
+case-insensitive. The durable binding also records definition identity/version, structural
+fingerprint, and `PayloadFingerprint` of the exact fixed-codec input bytes. V1 uses the
+nonreplaceable System.Text.Json-based format identifier `orcacore-json-v1`; every host validates
+the supported type graph at registration and the same supported graph/order produces the same
+bytes. Authors SHALL normalize unordered sets/maps before crossing the boundary. Changing the
+codec is a future format migration, not a provider registration option. Reuse through another
+definition/version or with a different structural or payload fingerprint
+returns stable `StartIdempotencyConflict` and never returns an incompatible instance through
+the typed handle. Durable mode persists the binding across restart; ephemeral mode preserves
+the same within-process semantics without claiming restart survival.
 
 ### DU-054 Explicit host-scoped registration
-Definition registration SHALL be an explicit host-scoped operation and SHALL return a typed
-definition handle whose start methods infer state and input types without phantom generic
-parameters. Starting by identity SHALL NOT register a definition as a side effect. Attempting
-to start an identity not registered on that host SHALL return a stable
-`DefinitionNotRegistered` result or diagnostic without mutating registration state.
+Definition registration SHALL be an explicit host-scoped operation through
+`IWorkflowDefinitionRegistry` and SHALL return a typed definition handle whose
+`StartOrGetAsync` method infers input/output types without phantom generic parameters. V1 has no
+start-by-raw-identity overload, so start cannot register a definition as a side effect.
 
 ### DU-055 Split-host continuation contract
-Every accepted facade operation SHALL commit its protocol outcome with an at-least-once
-continuation handoff. A host MAY drive inline only when the bound definition is registered
-locally. Application results SHALL distinguish `AppliedAndProgressed` from
-`AppliedPendingContinuation`; the latter is successful acceptance and requires a
-definition-owning host pump to progress the instance.
+Every accepted event delivery SHALL atomically record deduplication, the delivery outcome, and
+an at-least-once continuation handoff. A definition-owning host MAY progress inline; a
+definition-less callback host records the accepted delivery and leaves progression to a
+definition-owning pump. The application receives the exact `EventDeliveryResult` status from
+EV-012; it does not depend on or observe whether progression happened inline.
 
-### DU-056 Complete external-job outcomes
-The durable application facade SHALL expose typed, idempotent completion, worker-failure, and
-timeout operations for external jobs. Completion and worker failure SHALL accept a
-caller-stable report identity. Worker failure SHALL carry an application failure reason and
-optional payload, commit a distinct failure fact, and enter the authored failure policy
-without waiting for timeout. Duplicate reports SHALL return a stable duplicate result.
+### DU-056 Stable identity for bounded external API calls
+A durable business-step context SHALL expose one runtime-created `StepOperationId` for its
+logical visit and a separate positive `AttemptNumber`. `AttemptNumber` is the ordinal of one
+durable retry-policy attempt, not a count of physical CLR invocations. Before the first physical
+invocation of that attempt, the runtime SHALL commit or deterministically derive the operation ID,
+attempt ordinal, any absolute attempt deadline, and the in-flight dispatch marker. If a host is lost before a winning transition
+commits, recovery re-invokes the same attempt coordinate without consuming another `maxAttempts`
+slot or resetting its deadline. Only a committed retry transition after a retryable failure or
+timeout advances `AttemptNumber`; consequently `maxAttempts = 1` still permits at-least-once crash
+replay of attempt one but permits no second policy attempt. The operation ID survives retry,
+timeout reconciliation, replay, expected-version conflict, process replacement, and competing
+drivers; a new loop visit, item, branch, or continue-as-new generation receives a new ID.
+Application adapters MAY use that ID to implement idempotent create-or-observe calls. OrcaCore
+guarantees stable identity and at-least-once invocation, not exactly-once external effects.
+
+An external watcher reports a normalized event through the ordinary typed event-delivery
+surface and reuses one caller-stable `EventId` for redelivery of the same logical report.
+Inbox deduplication and DU-055 progression apply regardless of which host accepted it. Public
+`RunExternalJob`, `ExternalJobKey`, `ExternalJobId`, job-specific completion/failure methods,
+and job-system policy types are deferred; no v1 runtime facade or protocol placeholder exposes
+them. Kubernetes/AWS/job integration belongs to an outward companion project (PR-005, JS-003).
 
 ## 6.8 Multi-node direction (advanced)
 
@@ -195,15 +245,16 @@ Orleans host's territory.
 ## 6.9 Durable inspection
 
 ### DU-070 Queryable durable metadata
-Operators SHALL be able to query durable instances by status, definition, version, wait
-state, correlation, and timestamps from durable metadata/projections — without
-business-payload deserialization — across hot and cold instances uniformly (see MG
-requirements for the surface).
+Hosts SHALL maintain queryable durable metadata/projections by status, definition, version,
+wait state, correlation, and timestamps without business-payload deserialization, across hot
+and cold instances uniformly. V1 application handles expose the exact per-instance snapshot,
+last committed root state, active waits, and typed successful output from document 17; broad
+list/filter/statistics queries remain a host/operator projection concern until separately
+approved.
 
-### DU-071 Durable history
-Durable mode SHALL provide an operator-facing history/timeline per instance (derived from the
-event stream) sufficient for debugging: what happened, in what order, with what outcome.
-Whether full history retention is mandatory or checkpoint-plus-essential-events is a
-provider/policy choice is tracked as [open question 2](13-phasing-and-open-questions.md#132-open-questions-to-resolve-during-implementation)
-("History retention depth"); the inspection contract itself is mandatory regardless of how
-that question resolves.
+### DU-071 Durable history projection, public query deferred
+The durable stream SHALL retain or project enough ordered facts for host/operator debugging and
+provider certification. The exact retention depth remains provider/host policy as tracked in
+[document 13](13-phasing-and-open-questions.md#132-open-questions-to-resolve-during-implementation).
+A public application `GetHistory` member is deferred and SHALL NOT appear in v1; telemetry and
+advanced operator tooling may consume provider projections without enlarging instance handles.

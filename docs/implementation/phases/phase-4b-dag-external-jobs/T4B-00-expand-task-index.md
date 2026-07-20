@@ -1,5 +1,11 @@
 # T4B-00: Expand Phase 4b task index
 
+> **Superseded historical task (2026-07-18):** do not execute this task or implement its
+> signatures/deliverables. It records provisional Phase 4b work only. Current v1 authority is
+> [document 17](../../../specs/17-selected-mode-capability-matrix.md) and the active
+> `reshape-developer-facing-interfaces` change; public child authoring is deferred and DAG uses
+> the separate `OrcaCore.Dag`/`OrcaCore.Dag.Hosting` contract.
+
 **Difficulty**: Sonnet        **Depends on**: Phase 4 exit
 **Spec**: JS-001, JS-002, JS-005, JS-006, JS-007, MG-062..064        **AC**: none
 

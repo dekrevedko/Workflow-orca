@@ -36,7 +36,7 @@ Transient named pools are in-process only and are lost on restart. Durable ticke
 remain Phase 4b scope.
 
 ## Out of scope
-Durable resource pools, all-or-nothing multi-pool tickets, ticket expiry, and external job
+Durable resource pools, all-or-nothing multi-pool tickets, ticket review/reconciliation, and external job
 capacity governance.
 
 ## Definition of done

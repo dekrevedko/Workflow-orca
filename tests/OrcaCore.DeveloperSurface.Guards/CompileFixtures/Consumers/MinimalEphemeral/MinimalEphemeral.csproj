@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../../../../../src/OrcaCore.Abstractions/OrcaCore.Abstractions.csproj" />
+    <ProjectReference Include="../../../../../src/OrcaCore.Core/OrcaCore.Core.csproj" />
+    <ProjectReference Include="../../../../../src/OrcaCore.Engine.Ephemeral/OrcaCore.Engine.Ephemeral.csproj" />
+    <ProjectReference Include="../../../../../src/OrcaCore.Hosting/OrcaCore.Hosting.csproj" />
+  </ItemGroup>
+</Project>

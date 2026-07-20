@@ -1,6 +1,11 @@
-# Requirements Tree
+# Historical Requirements Tree
 
-This folder is the active requirements baseline for OrcaCore.
+This folder preserves the earlier slice-oriented requirements decomposition. It is no longer
+the active first-release baseline: use [the consolidated specs](../specs/README.md), especially
+[the selected-mode matrix](../specs/17-selected-mode-capability-matrix.md), and the active
+OpenSpec changes. Exact declarations are mirrored in
+[`17-public-authoring-contract.cs`](../specs/17-public-authoring-contract.cs). Superseded names in the files below are retained as design history and must
+not be copied into source or guards without an explicit matrix amendment.
 
 It separates requirements by product track and by maturity:
 
@@ -23,7 +28,7 @@ Why:
 - saga and durable each introduce enough distinct semantics that they need their own requirement and acceptance documents
 - a separate durable track makes it easier to keep durable guarantees explicit and avoid pretending ephemeral mode is durable
 
-Current implementation target:
+Historical implementation target:
 
 - [Regular / Initial requirements](regular/initial/requirements.md)
 - [Regular / Initial acceptance criteria](regular/initial/acceptance-criteria.md)

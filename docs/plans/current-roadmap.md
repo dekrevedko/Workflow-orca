@@ -1,5 +1,9 @@
 # Current Roadmap
 
+> **Historical snapshot:** this file was last validated on April 12, 2026 and describes a
+> pre-refactor source tree. It is preserved rather than rewritten. The current first-release
+> scope and task graph are routed through [this directory's README](README.md).
+
 Last validated on April 12, 2026.
 
 Validation run:

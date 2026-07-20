@@ -1,5 +1,14 @@
 # OrcaCore — technical overview
 
+> **Current-source map, not the approved v1 API:** this document names provisional runtime
+> features that still exist in the pre-release tree. The migration target is
+> [spec 17](specs/17-selected-mode-capability-matrix.md); the active OpenSpec tasks remove or
+> internalize deferred members before the first release.
+
+The exact planned authoring declarations are mirrored in
+[`17-public-authoring-contract.cs`](specs/17-public-authoring-contract.cs). It is normative
+alongside document 17 for signature review; the code map below remains a map of today's tree.
+
 OrcaCore is a .NET workflow engine focused on composable workflow definitions,
 ephemeral in-process execution, durable event-sourced execution, and pluggable
 provider infrastructure. The active solution and all implementation code are at
@@ -21,6 +30,44 @@ model and `OrcaCore.Abstractions` contracts:
 PostgreSQL, SQL Server, and in-memory providers implement the durable persistence
 ports. Hosting packages register the runtime, continuation pump, operational
 services, and telemetry.
+
+## Approved v1 target boundaries
+
+The refactor is converging on this package direction:
+
+```text
+OrcaCore (application contracts/authoring) <- OrcaCore.Core / engines / durable hosting
+OrcaCore <- OrcaCore.Dag <- OrcaCore.Dag.Hosting <- companion scheduler/application
+OrcaCore.Durable.Hosting <- OrcaCore.Dag.Hosting
+
+OrcaCore.Runtime.Protocol <- OrcaCore.Provider.Abstractions <- provider adapters
+```
+
+This is a dependency-direction summary, not a partial package declaration. The exhaustive v1
+manifest is `OrcaCore`, `OrcaCore.Core`, `OrcaCore.Engine.Ephemeral`,
+`OrcaCore.Runtime.Protocol`, `OrcaCore.Provider.Abstractions`, `OrcaCore.Engine.Durable`,
+`OrcaCore.Durable.Hosting`, `OrcaCore.Providers.InMemory`, `OrcaCore.Providers.PostgreSql`,
+`OrcaCore.Dag`, and `OrcaCore.Dag.Hosting`; exact direct edges and CLR namespace ownership are
+normative in [`specs/17-selected-mode-capability-matrix.md`](specs/17-selected-mode-capability-matrix.md#175-package-and-integration-boundary).
+`OrcaCore.Hosting` is a shared CLR namespace, not a PackageId.
+
+`OrcaCore.Dag.Hosting` is the only same-release friend bridge to the versioned internal child
+start/join seam; it is not a public child-management or provider SPI. Kubernetes/AWS/job projects
+depend outward on that bridge and never appear in an OrcaCore signature/dependency closure.
+
+Each step attempt runs on a codec-detached copy of committed state and can replace that copy via
+`StepContext<TState>.ReplaceState`; only the winning attempt commits. The first release fixes the
+certified workflow-state format to `orcacore-json-v1`. Durable event dedup is per target instance
+and event ID, while correlation routing permits exactly one active wait per
+`(DefinitionId, EventName, CorrelationId)`.
+
+Microsoft hosting uses role-specific owners and entry points: `OrcaCore.Engine.Ephemeral` owns
+`AddOrcaCoreEphemeralEngine`; `OrcaCore.Durable.Hosting` owns `AddOrcaCoreDurableEngine` and
+callback-only `AddOrcaCoreDurableEventIngress`; `OrcaCore.Providers.InMemory` owns development/test
+`AddOrcaCoreInMemoryDurableProvider`; `OrcaCore.Providers.PostgreSql` owns production
+`AddOrcaCorePostgreSqlDurableProvider`; and `OrcaCore.Dag.Hosting` owns `AddOrcaCoreDag`. Options
+are programmatically constructed, copied, and validated without a binder facade. There is no v1
+catch-all registration or separate hosted-service switch.
 
 ## Code map
 

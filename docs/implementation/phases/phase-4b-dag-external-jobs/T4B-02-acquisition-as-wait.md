@@ -1,12 +1,25 @@
 # T4B-02: Add acquisition-as-wait
 
+> **Superseded historical task (2026-07-18):** do not execute this task or implement its
+> signatures/deliverables. Current v1 authority is
+> [document 17](../../../specs/17-selected-mode-capability-matrix.md) and the active
+> `reshape-developer-facing-interfaces` change. Durable acquisition is lexical scoped-only
+> `AcquireResources(request, body)` with quarantine and trusted stop/fence confirmation.
+
+> **2026-07-16 follow-up contract:** structural no-author-TTL `AcquireResources` supersedes
+> decorator-only acquisition. One exact owned lease record spans pending and held phases;
+> selector commitment, inclusive fiber-ancestry safety, release-before-parent-resume, and
+> granted-lease continue-as-new rejection are required by reshape task 5.2/DR-038.
+
 **Difficulty**: Sonnet        **Depends on**: T4B-01
 **Spec**: MG-062, MG-063        **AC**: AC-519, AC-520, AC-522, JS-AC-013
 
 ## Goal
-Bind durable pool requirements to workflow execution so exhausted pools suspend instances
-cold instead of starting guarded work. Granted tickets are held across the wait and released
-symmetrically on every guarded terminal path.
+Bind structural durable pool requests to exact workflow fiber occurrences so exhausted pools
+suspend only the requesting fiber cold instead of starting guarded work. Granted tickets are
+held across the wait and released on exact normal/failure/cancellation cleanup; forced
+termination retains capacity in quarantine until protected work is confirmed stopped or
+end-to-end fenced.
 
 ## Read first
 - `src/OrcaCore.Abstractions/Providers/IResourcePoolStore.cs`
@@ -30,14 +43,16 @@ In `PoolAcquisitionTests.cs`:
    state is durable before continuation.
 2. `AcquirePool_WhenExhausted_RecordsColdWaitWithoutOutboxWork` - queued acquisition leaves
    the instance waiting and cold-capable. Traits AC-519 and JS-AC-013.
-3. `CompleteGuardedScope_ReleasesTicketsExactlyOnce` - normal success releases the grant.
-4. `TerminateGuardedScope_ReleasesTicketsExactlyOnce` - forced termination releases held
-   tickets. Trait AC-520.
+3. `CompleteOwningFiber_ReleasesTicketsExactlyOnce` - normal success releases the grant.
+4. `TerminateOwner_WithoutStopProof_QuarantinesReservedTickets` - forced termination fences
+   owner resume but does not release capacity until protected work is proven stopped or
+   end-to-end fenced. Trait AC-520.
 
 ## Implementation notes
-Use acquisition as a durable wait concept, not an explicit workflow graph node. Persist
-enough state to make release idempotent. Do not implement expiry handling here except for
-carrying expiry timestamps from the pool store.
+Use `AcquireResources` as an explicit durable workflow graph node. Persist one normalized
+request and exact owned occurrence across pending and held phases. No author duration or
+renewal exists. Runtime checks pending plus held inclusive ancestry before pool mutation.
+Do not treat an expiry timestamp as validity or automatic release.
 
 ## Out of scope
 Pool management operations, expiry reconciliation, external job dispatch, and DAG builder

@@ -2,8 +2,9 @@
 
 Scope: runtime **telemetry** — structured logs, metrics, and distributed traces — that powers
 operator **system dashboards** with deep insight into **running workflows**. This document
-complements, but does not replace, the **product observability** surface in document 09
-(`Statistics()`, lifecycle events, projections, DAG reconstruction — MG-030/031/032).
+complements, but does not replace, document 09's exact instance-handle snapshots, lifecycle
+events, host/operator projections, and DAG reconstruction (MG-002/020/030/031/032). Public
+`Statistics()` is deferred even though the same internal projections may feed telemetry.
 
 **Primary goal:** an operator viewing a Grafana / Datadog / Azure Monitor / similar dashboard
 SHALL be able to answer, without ad-hoc host instrumentation:
@@ -26,11 +27,11 @@ follow in §15.1+.
 
 | Area | Status | Notes |
 |------|--------|-------|
-| Management statistics | **Partial** | `Statistics()` on ephemeral management; `GetStatisticsAsync` on durable projection store. Grouped counts by definition/version/status. |
+| Management statistics | **Partial, provisional** | Legacy `Statistics()` on ephemeral management and `GetStatisticsAsync` on the durable projection store prove the projection data; neither is an approved v1 application-handle member. |
 | Pressure metrics | **Partial** | `WorkflowPressureMetrics` (stream events, checkpoints, pending outbox, active instances) in PostgreSQL/in-memory providers. Missing checkpoint **lag** and payload-size pressure (DU-052). |
-| Ephemeral statistics richness | **Ahead of abstractions** | Ephemeral `WorkflowStatistics` includes `ActiveWaitsByEventName`, `OldestActiveInstanceAge`, `StuckCount`; durable abstraction type does not — type split in `EphemeralManagement.cs` vs `OrcaCore.Abstractions`. |
+| Ephemeral statistics richness | **Ahead of abstractions** | The legacy ephemeral `WorkflowStatistics` includes `ActiveWaitsByEventName`, `OldestActiveInstanceAge`, and `StuckCount`; the durable abstraction type does not. This is provenance for host/operator projections, not v1 handle approval. |
 | Lifecycle events | **Good** | `LifecycleEventSnapshot` with `Durable` flag; ephemeral in-process; durable committed as outbox `"lifecycle-event"` records in same commit (`DurableCommandProcessor.CreateLifecycleOutboxRecords`). |
-| DAG run inspection | **Good** | `DurableManagement.ReconstructDagRunAsync` — node status/timings from projections + child schedule events (JS-005). Loads full stream tail — scalability concern (R7). |
+| DAG run inspection | **Good** | Historical `DurableManagement.ReconstructDagRunAsync` proves node status/timing reconstruction; v1 places the typed surface in `OrcaCore.Dag` (JS-010). The baseline implementation loads the full stream tail — scalability concern (R7). |
 | Stuck detection | **Good** | Lifecycle events + queryable `IsStuck` / `HasStuckStep` on snapshots. |
 
 ### What is missing (runtime telemetry)
@@ -41,32 +42,35 @@ follow in §15.1+.
 | `ActivitySource` (traces) | **Absent** | No spans on command processing, commits, outbox dispatch, or step execution. |
 | `Meter` (metrics) | **Absent** | No runtime instruments; dashboard consumers cannot scrape OrcaCore-native signals. |
 | OpenTelemetry SDK | **Absent** | No OTel packages in `Directory.Packages.props`; hosting does not wire exporters. |
-| Outbox pump observability hooks | **Absent** | `DurableOutboxPump` has no `IOutboxPumpObserver`-equivalent (required by DU-032/PR-014). Prior `src/OrcaCore.Runtime` had observer interface; current implementation does not. |
+| Outbox pump observability hooks | **Absent** | `DurableOutboxPump` has no `IOutboxPumpObserver`-equivalent (required by DU-032/PR-015). Prior `src/OrcaCore.Runtime` had observer interface; current implementation does not. |
 | Hosted pump/timer services | **Stub** | `OrcaCoreOutboxPumpHostedService` is a no-op (R7 P0) — even if metrics existed, background paths are not live in sample host. |
 | Log ↔ metric correlation | **Absent** | No shared attribute model, trace context propagation, or exemplars. |
 
 ### Conclusion
 
-current implementation delivers **queryable workflow state** suitable for management APIs and application-level
-dashboards built on `Statistics()` / projections, but **does not yet emit OTel logs or metrics**.
+The current implementation delivers **queryable workflow state** suitable for host/operator
+dashboards built on legacy statistics/projections, but **does not yet emit OTel logs or metrics**.
 Hosts cannot populate a system dashboard from OrcaCore instrumentation alone. Implementation
 of this document closes that gap while preserving the IOQ-5 boundary: BCL diagnostics in
-core/engines/providers; OTel SDK wiring only in `OrcaCore.Hosting`.
+core/engines/providers; the host application owns OTel SDK wiring. The exhaustive first-release
+package manifest contains no `OrcaCore.Hosting` or OrcaCore OTel integration package.
 
 ---
 
 ## 15.1 Architecture boundary
 
-### OB-001 BCL instrumentation in library; OTel SDK in hosting
+### OB-001 BCL instrumentation in library; OTel SDK in the host application
 Core (`Abstractions`, `Core`, engines, providers) SHALL emit diagnostics through BCL APIs only:
 `ILogger<T>`, `System.Diagnostics.ActivitySource`, and `System.Diagnostics.Metrics.Meter`.
-No OpenTelemetry NuGet dependency SHALL appear outside `OrcaCore.Hosting` (IOQ-5).
+No OpenTelemetry NuGet dependency SHALL appear in any first-release OrcaCore product package
+(IOQ-5).
 
 ### OB-002 Hosting wires exporters
-`OrcaCore.Hosting` SHALL provide opt-in extension methods (e.g. `AddOrcaCoreOpenTelemetry`)
-that register OTel `MeterProvider`, `TracerProvider`, and `LoggerProvider` exporters
-(OTLP gRPC/HTTP, Prometheus, console) and connect them to the BCL sources/meters/loggers
-emitted by OrcaCore. Host applications MAY override exporter endpoints and sampling.
+The host application MAY use standard OpenTelemetry registration APIs to register
+`MeterProvider`, `TracerProvider`, and `LoggerProvider` exporters (OTLP gRPC/HTTP, Prometheus,
+console) and connect them to OrcaCore's documented BCL sources/meters/loggers. Exporter
+endpoints, sampling, and configuration binding remain host-owned. V1 exposes no
+`AddOrcaCoreOpenTelemetry`, OrcaCore OTel options, or `IConfiguration` overload.
 
 ### OB-003 No logging in Abstractions
 `OrcaCore.Abstractions` SHALL remain free of `ILogger` references (02 §5). Contracts MAY
@@ -98,21 +102,37 @@ work by workflow semantics. Required dimensions (when applicable):
 | `orca.execution.mode` | `ephemeral` \| `durable` | Mode comparison |
 | `orca.definition.id` | `DefinitionId` | Per-workflow-type panels |
 | `orca.definition.version` | `DefinitionVersion` | Version rollout monitoring |
+| `orca.definition.fingerprint` | structural plan fingerprint | Structural drift diagnostics; opaque code changes use `DefinitionVersion` |
 | `orca.instance.id` | `InstanceId` | Drill-down (logs/traces; **avoid** high-cardinality metric labels in aggregate panels) |
 | `orca.root.instance.id` | lineage | DAG/run-level aggregation |
 | `orca.parent.instance.id` | lineage | Child-workflow panels |
-| `orca.status` | `WorkflowStatus` | State funnel |
+| `orca.dag.node.id` | `DagNodeId` | DAG node drill-down; aggregate only where bounded by one plan |
+| `orca.status` | `WorkflowInstanceStatus` | State funnel |
 | `orca.step.path` | active step | Step hot-spots |
+| `orca.step.operation.id` | `StepOperationId` | External-effect/retry correlation (logs/traces only) |
+| `orca.step.attempt` | durable policy `AttemptNumber` ordinal | Retry diagnostics; host-loss replay may repeat the ordinal (logs/traces only) |
+| `orca.workflow.deadline` | runtime-owned absolute workflow deadline | Deadline correlation (logs/traces only) |
+| `orca.wait.deadline` | active wait deadline | Wait-timeout correlation (logs/traces only) |
+| `orca.step.attempt.deadline` | runtime-owned policy-attempt deadline | Attempt-timeout correlation (logs/traces only) |
+| `orca.step.attempt.outcome` | runtime-owned policy-attempt outcome | Retry/timeout reconstruction (logs/traces only) |
 | `orca.wait.event_name` | active wait | Blocked-on-external-event heatmap |
 | `orca.outbox.kind` | outbox record kind | Dispatch breakdown |
 | `orca.command.type` | command discriminant | Command throughput |
 | `orca.event.type` | event discriminant | Event throughput |
 | `orca.provider.name` | provider plugin | Provider health |
 
-`orca.instance.id` MAY appear on **logs and traces** always; on **metrics** it SHALL appear
+`orca.instance.id` and `orca.step.operation.id` MAY appear on **logs and traces** always; on
+**metrics** they SHALL appear
 only on fine-grained instruments explicitly marked `high_cardinality=true` in the catalog
 (e.g. per-instance gauges for management export), not on aggregate counters/histograms used
 for fleet-wide dashboards.
+
+The v1 application-facing snapshot has deliberately narrower fact ownership. A terminal workflow
+timeout is visible on `WorkflowInstanceSnapshot` through its `Status` and `Failure`; the active
+structural wait deadline belongs to `ActiveWaitSnapshot`. The absolute workflow deadline and the
+active policy-attempt ordinal, deadline, and outcome remain runtime/log/trace or advanced
+operational facts rather than new v1 application snapshot/history fields. Lease quarantine and
+protected-work review remain in their separate lease-diagnostics surface.
 
 ### OB-012 Insights the dashboard MUST support
 The combined metrics + logs surface SHALL enable these operator questions:
@@ -153,10 +173,13 @@ with `orca.` prefix, e.g. `orca.instances.active`, `orca.commands.duration`.
 | `orca.checkpoints.count` | ObservableGauge | `provider.name` | DU-052 |
 | `orca.checkpoints.lag` | ObservableGauge | `provider.name` | DU-052 (max stream version − checkpoint version) |
 | `orca.resource_pool.waiters` | ObservableGauge | `pool.name` | MG-062 |
-| `orca.resource_pool.tickets` | ObservableGauge | `pool.name` | MG-062 |
+| `orca.resource_pool.tickets` | ObservableGauge | `pool.name`, `state` (`pending_commit`/`held`/`review_marked`/`ambiguous_held`/`quarantined`) | MG-062/064/065 |
+| `orca.resource_pool.reserved_units` | ObservableGauge | `pool.name`, capacity-reserving `state` | MG-062/065 |
+| `orca.resource_pool.over_capacity_debt` | ObservableGauge | `pool.name` | MG-064/065 |
+| `orca.resource_pool.reconciliation_due` | ObservableGauge | `pool.name` | MG-064 |
 
-Observable gauges SHOULD be backed by the same projection queries that power `Statistics()`
-where possible, so dashboard numbers match management API answers (AC-312).
+Observable gauges SHOULD be backed by the same host/operator projections used for fleet
+statistics, so dashboard numbers match operational answers (AC-312).
 
 ### OB-022 Required counter instruments (throughput)
 | Instrument | Attributes | When incremented |
@@ -166,6 +189,7 @@ where possible, so dashboard numbers match management API answers (AC-312).
 | `orca.steps.completed` | `mode`, `definition.id`, `step.path` | Step success |
 | `orca.steps.failed` | `mode`, `definition.id`, `step.path`, `error.kind` | Step failure |
 | `orca.outbox.dispatched` | `outbox.kind`, `result` (`success`/`retryable`/`permanent`) | After dispatch attempt |
+| `orca.resource_pool.reconciliations` | `pool.name`, `result` (`owner_active`/`recovered_release`/`held_ambiguous`/`lease_lost`/`confirmation_release`/`not_confirmable`) | After exact-owner reconciliation or trusted confirmation |
 | `orca.lifecycle.events` | `event.name`, `durable` | Lifecycle event recorded |
 | `orca.inbox.duplicates` | `mode` | Deduplicated inbound delivery |
 
@@ -212,12 +236,12 @@ Each category SHALL use a stable `EventId` range per assembly (documented in hos
 | Category | Example message intent | Key properties |
 |----------|------------------------|----------------|
 | Command processing | Command accepted/rejected/completed | `orca.command.type`, `orca.instance.id`, `orca.definition.id`, duration_ms, outcome |
-| Step execution | Step started/completed/failed | `orca.step.path`, `orca.instance.id`, error_summary |
+| Step execution | Step started/completed/failed | `orca.step.path`, `orca.instance.id`, `orca.step.operation.id`, `orca.step.attempt`, error_summary |
 | Wait/timer | Wait registered/matched; timer scheduled/fired | `orca.wait.event_name`, `orca.correlation.id`, fire_at |
 | Outbox | Record claimed/dispatched/poisoned | `orca.outbox.record_id`, `orca.outbox.kind`, attempt, exception_type |
 | Provider commit | Append/commit succeeded or conflict | `orca.provider.name`, stream_version, expected_version |
 | Stuck detection | Instance/step marked stuck | threshold, `orca.step.path` |
-| Resource pool | Acquire/release/wait/expiry | `pool.name`, ticket_id, waiters |
+| Resource pool | Acquire/release/wait/review mark/reconciliation | `pool.name`, lease_obligation_id, ticket_id, owner generation, action/result, waiters |
 
 Payloads and business state SHALL NOT be logged by default (NF-040). Logs carry **metadata
 and error summaries** only; hosts MAY opt in to sanitized payload logging via a dangerous
@@ -299,7 +323,7 @@ on traces being exported.
 ## 15.7 Outbox pump observer contract
 
 ### OB-060 Observer port
-DU-032 and PR-014 require observability hooks on the dispatch pipeline. The durable engine
+DU-032 and PR-015 require observability hooks on the dispatch pipeline. The durable engine
 SHALL expose a public `IOutboxPumpObserver` (or equivalent) with callbacks:
 
 - `OnRecordClaimed(OutboxRecord)`
@@ -311,7 +335,7 @@ The default hosting registration SHALL attach an observer that updates OB-021/02
 instruments and writes OB-031 outbox logs. Hosts MAY register additional observers.
 
 ### OB-061 Retry delay strategy
-`IOutboxPumpDelayStrategy` (PR-014) remains separate from observer; both SHALL be
+`IOutboxPumpDelayStrategy` (DU-032/PR-015) remains separate from observer; both SHALL be
 registrable in DI. Metrics SHALL include `orca.outbox.retry.delay` histogram when retries
 occur.
 
@@ -319,8 +343,10 @@ occur.
 
 ## 15.8 Hosting integration
 
-### OB-070 Extension method contract
-`AddOrcaCoreOpenTelemetry(IConfiguration)` (or overload) SHALL:
+### OB-070 First-release host-owned SDK wiring
+No OrcaCore package SHALL expose `AddOrcaCoreOpenTelemetry(IConfiguration)` or another OTel
+registration facade in the first-release manifest. A sample host MAY use standard OTel SDK APIs
+to:
 
 1. Register `MeterProvider` listening to all OrcaCore meters (OB-020).
 2. Register `TracerProvider` listening to all OrcaCore activity sources (OB-050).
@@ -328,7 +354,7 @@ occur.
 4. Register gauge collection hosted service (OB-024).
 5. Wire default `IOutboxPumpObserver` (OB-060).
 
-Configuration keys (example):
+Any configuration keys are owned by that host (example):
 
 ```json
 {
@@ -358,15 +384,21 @@ log links pre-configured for the log backend.
 ## 15.9 Relationship to management API
 
 ### OB-080 Statistics parity
-Where `Statistics()` / `GetStatisticsAsync` returns a value (MG-030/031), the corresponding
+Where a host/operator statistics projection returns a value (MG-030/031), the corresponding
 observable gauge (OB-021) SHOULD match within one scrape interval. Divergence SHALL be
-documented (e.g. ephemeral in-memory vs durable projection lag).
+documented (for example ephemeral memory versus durable projection lag). This does not add a
+public v1 `Statistics()` member.
 
 ### OB-081 Management API remains authoritative for detail
-Telemetry supports **fleet dashboards and alerting**; per-instance deep inspection
-(history, state, lifecycle event list, DAG reconstruction) remains on the management API
-(DU-071, JS-005). Dashboards link to host-owned detail UIs via `orca.instance.id` in
-exemplars/logs — not embedded in OrcaCore.
+Telemetry supports **fleet dashboards and alerting**. V1 application handles expose snapshot,
+committed root state, active waits, typed output, cancellation request, and termination;
+history/lifecycle lists and fleet queries remain host/operator projections. DAG reconstruction
+remains on the separate `OrcaCore.Dag` surface (DU-071, JS-010). Dashboards link to host-owned
+detail UIs via `orca.instance.id` in exemplars/logs — not embedded in OrcaCore.
+
+Kubernetes/AWS/job telemetry belongs to the companion scheduler and may correlate with OrcaCore
+logs/traces through workflow, DAG-node, step-operation, and lease-protection identities. No
+Kubernetes/AWS semantic or SDK dependency is introduced into OrcaCore instrumentation.
 
 ---
 
@@ -383,7 +415,7 @@ exemplars/logs — not embedded in OrcaCore.
 
 These criteria extend document 12; suggested IDs for catalog merge:
 
-- **OB-AC-001** *Metrics emitted* — With hosting OTel enabled, scraping `orca.instances.active`
+- **OB-AC-001** *Metrics emitted* — With host-owned OTel wiring enabled, scraping `orca.instances.active`
   and `orca.outbox.pending` returns non-zero series after starting workflows in integration
   test. [OB-021]
 - **OB-AC-002** *Structured command log* — Processing a command produces a log entry with
@@ -393,12 +425,12 @@ These criteria extend document 12; suggested IDs for catalog merge:
   appears on the `orca.outbox.dispatched{result="permanent"}` counter increment. [OB-042, OB-043]
 - **OB-AC-004** *Exemplar trace link* — A recorded `orca.commands.duration` exemplar
   references a span whose attributes include `orca.instance.id` for that command. [OB-025, OB-050]
-- **OB-AC-005** *Statistics parity* — `Statistics().Groups` counts match
+- **OB-AC-005** *Statistics parity* — Host/operator projection counts match
   `orca.instances.active` sums by `status` and `definition.id` for the same fixture. [OB-080, AC-312]
 - **OB-AC-006** *Pump observer* — Injecting a test `IOutboxPumpObserver` receives
   `OnDispatchCompleted` for each dispatched outbox record in pump integration test. [OB-060, DU-032]
-- **OB-AC-007** *No OTel in core* — `OrcaCore.Engine.Durable` and provider projects have
-  no `OpenTelemetry.*` package references; only BCL diagnostics. [OB-001]
+- **OB-AC-007** *No OTel in product packages* — every first-release OrcaCore package has no
+  `OpenTelemetry.*` package reference and emits only through BCL diagnostics. [OB-001]
 
 ---
 
@@ -409,7 +441,7 @@ These criteria extend document 12; suggested IDs for catalog merge:
 | 1 | `ILogger` + `[LoggerMessage]` on command/outbox/commit paths; `IOutboxPumpObserver` |
 | 2 | `Meter` instruments OB-021/022; gauge collector hosted service |
 | 3 | `ActivitySource` spans OB-050; log scope enrichment |
-| 4 | `AddOrcaCoreOpenTelemetry`; exemplars; sample dashboard JSON |
+| 4 | Host-owned standard OTel wiring example; exemplars; sample dashboard JSON |
 | 5 | OB-AC test suite; statistics parity hardening |
 
 ---
@@ -420,6 +452,6 @@ These criteria extend document 12; suggested IDs for catalog merge:
 - Engineering conventions: `docs/implementation/02-engineering-conventions.md` §5
 - Product observability: `docs/specs/09-requirements-management-operations.md` §9.4
 - Durable pressure: `docs/specs/06-requirements-durable-execution.md` DU-052
-- Outbox hooks: `docs/specs/06-requirements-durable-execution.md` DU-032, `docs/specs/10-provider-model-and-extensibility.md` PR-014
+- Outbox hooks: `docs/specs/06-requirements-durable-execution.md` DU-032, `docs/specs/10-provider-model-and-extensibility.md` PR-015
 - Review findings: `docs/review/findings/R7-hosting-cross-cutting.md`, `docs/review/findings/R8-dotnet10-csharp-quality.md`
 - OpenTelemetry: [Logs data model](https://opentelemetry.io/docs/specs/otel/logs/data-model/), [Metrics exemplars](https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exemplars), [Trace-Log correlation](https://opentelemetry.io/docs/specs/otel/logs/supplementary-guidelines/)

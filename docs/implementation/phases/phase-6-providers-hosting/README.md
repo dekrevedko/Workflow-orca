@@ -18,7 +18,7 @@ recorded in `docs/implementation/00-stack-decisions.md`.
 | T6-00 | Expand index; resolve Phase 6 decisions | Sonnet | Resolve IOQ-8 and IOQ-9, split broad provider/readiness work into executable task files, and stop before T6-01 |
 | T6-01 | RabbitMQ dispatcher project | Sonnet | Add `OrcaCore.Providers.RabbitMq` and its unit tests; map normalized outbox records to `RabbitMQ.Client` publish outcomes without leaking broker concepts into workflow definitions (PR-015) |
 | T6-02 | RabbitMQ integration certification | Sonnet | Add RabbitMQ Testcontainers coverage for publisher confirms, retryable failures, and permanent poison/dead-letter behavior through `IMessageDispatcher` (PR-015, DU-032) |
-| T6-03 | Hosting registration package | Haiku | Fill `OrcaCore.Hosting` with explicit `AddOrcaCore()` and per-plugin registration extensions plus hosted services for outbox pump, timers, and operational sweeps (PR-040) |
+| T6-03 | Historical hosting-registration task | Haiku | Superseded by the exact split-owner engine/ingress/in-memory/PostgreSQL/DAG entry points in spec 17 and reshape task 7.10; no `OrcaCore.Hosting` PackageId or catch-all registration is permitted (PR-040) |
 | T6-04 | Continue-as-new contracts and aggregate backfill | Sonnet | Corrective backfill for early Slice 2 requirement: add rollover command/event facts and durable aggregate behavior that preserves logical identity while bounding history growth (DU-042, AC-313) |
 | T6-05 | Continue-as-new provider projection backfill | Sonnet | Corrective backfill for early Slice 2 requirement: persist/query rollover lineage in in-memory and PostgreSQL providers; acceptance and provider tests prove AC-313 across durable metadata |
 | T6-06 | Archival and retention policy | Sonnet | Introduce declarative archive/purge policy distinct from active eviction; certification additions prove active instances and dispatch are never broken (DU-050/051, AC-314) |
@@ -35,9 +35,10 @@ recorded in `docs/implementation/00-stack-decisions.md`.
 
 ## Phase-wide guardrails
 
-- Every plugin ships with: its certification-suite test project (Testcontainers or
-  equivalent), an `AddOrcaCore<X>()` registration extension, and a README stating which
-  ports it implements and its delivery/consistency envelope.
+- Every plugin ships with its certification-suite test project (Testcontainers or equivalent),
+  its exact spec-17-approved registration extension in the owning assembly, and a README stating
+  which ports it implements and its delivery/consistency envelope. Generic naming patterns do not
+  authorize an unlisted extension.
 - No plugin may require a change to a port to pass certification without a spec-level
   review (03-tdd-workflow section 2).
 - BenchmarkDotNet belongs only under `benchmarks/OrcaCore.Benchmarks`; PR CI builds

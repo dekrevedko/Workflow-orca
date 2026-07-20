@@ -1,5 +1,11 @@
 # T4B-05: Add DAG builder validation
 
+> **Superseded historical task (2026-07-18):** do not execute this task or implement its
+> signatures/deliverables. Current v1 authority is
+> [document 17](../../../specs/17-selected-mode-capability-matrix.md) and the active
+> `reshape-developer-facing-interfaces` change. V1 DAG authoring lives in separate
+> `OrcaCore.Dag`; only `OrcaCore.Dag.Hosting` may use the internal child-instance bridge.
+
 **Difficulty**: Sonnet        **Depends on**: T4B-04
 **Spec**: JS-001, CP-002, CP-003, CP-021        **AC**: JS-AC-001, JS-AC-002, JS-AC-003
 

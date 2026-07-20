@@ -1,5 +1,11 @@
 # T4B-06: Add run cancellation and DAG observability
 
+> **Superseded historical task (2026-07-18):** do not execute this task or implement its
+> signatures/deliverables. Current v1 authority is
+> [document 17](../../../specs/17-selected-mode-capability-matrix.md) and the active
+> `reshape-developer-facing-interfaces` change. V1 DAG management is the exact typed
+> `OrcaCore.Dag` surface; Kubernetes/job stop behavior belongs in the outward companion.
+
 **Difficulty**: Haiku        **Depends on**: T4B-05
 **Spec**: JS-005, JS-006        **AC**: JS-AC-005, JS-AC-009
 

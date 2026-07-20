@@ -1,5 +1,14 @@
 # Kickoff Prompt
 
+> **Superseded bootstrap prompt (2026-07-19):** do not execute the T0-01 instructions below.
+> They are retained only as the historical bootstrap record for the implementation that is
+> already present at the repository root. Start current work from the
+> [developer-facing refactor phased plan](developer-facing-interface-refactor-phased-plan-2026-07-14.md)
+> and the active
+> [`reshape-developer-facing-interfaces` task graph](../../openspec/changes/reshape-developer-facing-interfaces/tasks.md),
+> subject to the gate in the current
+> [remediation status](../review/developer-facing-interface-v1-simplification-review-e-remediation-and-phase-00-status-2026-07-19.md).
+
 Copy-paste this to start an implementation session (Claude Code / Codex). Swap the task
 path for later sessions. Run it from the currently checked-out branch.
 

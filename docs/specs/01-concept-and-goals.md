@@ -18,19 +18,24 @@ correlated external events, timers, or operator action.
 
 OrcaCore is a library (not a platform, not a hosted service) with:
 
-- **Code-first authoring** — workflows are composed from reusable control-flow primitives and
-  user-defined business steps through a fluent builder that produces immutable, validated
-  definitions.
-- **Two orthogonal axes** that define the product matrix:
-  - *Definition semantics*: **regular workflow** vs **saga** (compensation-aware).
-  - *Execution mode*: **ephemeral** (in-memory, lost on restart) vs **durable**
-    (persistence-backed, restart-safe).
-- **First-class waits and events** — suspension, correlation, resume, buffering, and
-  deduplication are core runtime semantics, not conventions layered on a message broker.
-- **Pluggable infrastructure** — persistence, message dispatch, timers, and serialization sit
-  behind provider contracts; no hard dependency on a specific database or broker.
-- **Operational visibility as a product feature** — instance inspection, wait inspection,
-  history, statistics, stuck detection, and lifecycle events are part of the contract.
+- **Typed code-first authoring** — staged `Init`/body/`End` builders compose reusable control
+  flow and business steps into immutable, structurally fingerprinted definitions with typed
+  input, private state, and typed successful output. Opaque code changes require an explicit
+  `DefinitionVersion` bump; v1 does not pretend to hash delegate behavior.
+- **One v1 semantic kind, two explicit modes** — workflow is the first-release definition
+  kind; **ephemeral** is in-memory and **durable** is persistence-backed/restart-safe. Saga is
+  documented future work, not a v1 axis or placeholder API.
+- **First-class waits and events** — suspension, correlation, resume, active-wait matching,
+  accepted-event deduplication, and non-consuming pre-wait rejection are core runtime semantics,
+  not conventions layered on a message broker. V1 does not buffer events that arrive before a
+  matching wait.
+- **Pluggable infrastructure** — persistence, message dispatch, and timers sit behind provider
+  contracts; no hard dependency on a specific database or broker. Payload encoding is the fixed,
+  nonreplaceable v1 codec `orcacore-json-v1`, not a provider choice.
+- **Operational visibility as a product feature** — typed instance snapshots, committed root
+  state, typed output, active waits, cancellation request, termination, lifecycle telemetry, and
+  host/operator projections are explicit contracts. Broad pause/retry/archive/purge management
+  is documented future work rather than provisional v1 surface.
 
 ## 1.3 The two engines
 
@@ -54,9 +59,10 @@ relearning the model.
 
 ## 1.4 Goals
 
-1. **Composable workflows** from control-flow primitives (`Init`, `End`, `If`, `While`,
-   `Parallel`, `WhenAll`, `WhenFirst`, `Wait`, durable-only `WaitLong`, timers, fanout,
-   child workflows) plus user-defined async business steps.
+1. **Composable typed workflows** from staged `Init`/`End`, root and nested `If`, root-sequence-only
+   `While`, root-sequence-only fixed `Parallel` with `WhenAll`/`WhenAllOutcomes`, root-sequence-only
+   bounded `ForEach`, one cold-capable `Wait`, timers, named async business steps, and
+   ephemeral-only lambda bodies.
 2. **Explicit, deterministic semantics** for every feature interaction — branching, joins,
    wait races, cancellation, retries, timeouts. Semantic clarity is prioritized over surface
    area growth.
@@ -65,8 +71,14 @@ relearning the model.
    its limits; durable mode delivers crash safety, rehydration, versioning, and retention.
 5. **Replaceable infrastructure** — providers vary; engine-owned semantics do not.
 6. **Operational excellence** — queryable runtime metadata, lifecycle events, statistics,
-   stuck/timeout detection, and a fluent, composable management API.
-7. **Saga support as a distinct semantic kind** with first-class compensation.
+   stuck/timeout detection, typed instance handles, and advanced host/operator projections
+   without overcommitting the first-release application API.
+7. **Typed DAG scheduling** in separate `OrcaCore.Dag`, using one durable child instance per
+   node, direct-dependency typed output mapping, and runtime-owned progression.
+8. **Safe external capacity governance** through scoped non-empty durable leases with no author
+   TTL/renewal and quarantine until protected-work stop/fence proof.
+9. **Infrastructure-independent core** — Kubernetes, AWS, and job-scheduler integration points
+   outward from a separate companion project and never enter OrcaCore dependencies or types.
 
 ## 1.5 Non-goals
 
@@ -76,6 +88,13 @@ relearning the model.
   stabilize before any serialized definition format is introduced (a second definition format
   is a second semantic contract that must match the first — see prior-art lessons).
 - A broad connector/adapter ecosystem before the core runtime model is stable.
+- A generic v1 external-job or public child-workflow authoring surface. Ordinary typed steps,
+  waits, and the internal DAG child protocol cover the first scheduler use case while those
+  generic contracts remain deferred.
+- Workflow-authored `Publish` or self-`Cancel`, definition-targeted event fanout, public
+  pause/resume, failed-instance retry, history query, archive, or purge in the first release.
+- Saga/compensation, winner-race (`WhenFirst`), nested `Parallel`, nested dynamic `ForEach`,
+  nested `While`, durable lambda steps, and definition-wide retry in the first release.
 - Production-ready multi-node distributed execution in early phases. The design must not
   preclude it (ownership/lease seams are specified), but single-host correctness comes first.
 - Forcing business-domain event sourcing on users. The engine event-sources its own
@@ -88,8 +107,9 @@ These principles resolve design disputes throughout the package:
 1. **Semantics before features.** The biggest risk is not missing features; it is ambiguous
    semantics where features interact. Every primitive ships with explicit interaction rules
    and acceptance tests.
-2. **The runtime owns orchestration; steps own business state.** Steps express intent through
-   result objects; only the runtime mutates orchestration state.
+2. **The runtime owns orchestration; steps own business state.** Structural builders own
+   ordinary control flow; steps return completion/failure or an exceptional post-step dynamic
+   wait. Only the runtime mutates orchestration state.
 3. **One logical mutator per instance.** Committed transitions for an instance form a single
    serial order, whatever concurrency exists around it.
 4. **Memory is a cache; durable state is the truth** (in durable mode). In-memory activations
@@ -100,22 +120,28 @@ These principles resolve design disputes throughout the package:
 7. **Runtime metadata stays queryable.** Never persist the instance as one opaque blob.
 8. **Providers implement capabilities; the engine owns the contract.** Broker- or
    database-specific behavior must not leak into workflow definitions.
-9. **Structure, policy, management, and semantics are separate concerns.** Steps describe
-   structure; decorators describe policy; management commands operate on instances; the
-   workflow/saga split describes meaning; the ephemeral/durable split describes guarantees.
+9. **Structure, policy, management, and integrations are separate concerns.** Nodes describe
+   structure; decorators describe policy; management commands operate on instances; execution
+   mode describes guarantees; companion applications own infrastructure-specific integration.
 
 ## 1.7 Target users and primary scenarios
 
 - **Application developers** embedding orchestration in a .NET service: request/reply with
   external systems, human-in-the-loop approvals, multi-service coordination, batch fanout.
 - **Operators** who need to see what instances exist, what they wait for, why they failed,
-  and to intervene (retry, cancel, terminate, purge) safely.
+  request cooperative cancellation, terminate progression, and diagnose resource quarantine.
+  Reopening terminal instances and public archive/purge are deferred.
 
 Representative scenarios used throughout the acceptance criteria:
 
 - *Price update fanout*: validate, fan out updates to several subsystems in parallel, wait
-  for correlated confirmations, publish a final event.
-- *Customer approval*: send a request, `WaitLong` days for a correlated approval event with a
-  timeout, then branch on the outcome — surviving any number of restarts in between.
-- *Order fulfillment saga*: reserve inventory, authorize payment, create shipment, with
-  compensations (release, refund, cancel) running in reverse order on failure.
+  for correlated confirmations, and commit a typed final output. Workflow-authored publication
+  is deferred.
+- *Customer approval*: send a request, use ordinary durable `Wait` for a correlated approval
+  event with a timeout, then branch on the outcome — surviving restarts and cold eviction.
+- *Kubernetes DAG scheduler*: map typed dependency outputs, acquire the required durable
+  capacity, idempotently create-or-observe a standard Kubernetes Job using `StepOperationId`,
+  wait for a normalized watcher event, and quarantine capacity until stop proof when ambiguous.
+
+Saga compensation remains a documented future scenario in document 07, not a first-release
+acceptance target.

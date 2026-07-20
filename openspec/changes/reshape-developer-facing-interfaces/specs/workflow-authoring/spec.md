@@ -1,105 +1,276 @@
 ## MODIFIED Requirements
 
-The normative selected-mode matrix, exact post-fiber authoring signatures, and shared
-compiler/diagnostic contract are defined in
-[`docs/specs/17-selected-mode-capability-matrix.md`](../../../../../docs/specs/17-selected-mode-capability-matrix.md).
-
 ### Requirement: Regular workflows are authored fluently
-The system SHALL provide explicit ephemeral and durable fluent workflow-authoring entry points for regular workflows. Each entry point SHALL expose portable infrastructure nodes such as `Init`, `End`, `If`, `While`, supported structured composition, and `Wait` alongside user-defined business steps, plus only the capabilities guaranteed by every supported host for the selected execution mode. Later host composition SHALL NOT change which methods are discoverable on the statically selected builder.
+The system SHALL provide explicit ephemeral and durable staged fluent entry points. Each workflow SHALL author exactly one typed `Init`, a sequence composed from the selected-mode v1 capability allowlist, and exactly one root generation terminal. An ephemeral workflow and an ordinarily completing durable workflow SHALL terminate with exactly one typed or resultless `End`; a perpetual durable rollover definition MAY instead terminate its authored generation with unconditional root `ContinueAsNew`. Builders SHALL expose only capabilities guaranteed by every supported host for their statically selected mode.
 
-#### Scenario: Ephemeral workflow is defined
-- **WHEN** a contributor selects ephemeral workflow authoring
-- **THEN** they can compose portable control flow, business steps, and implemented ephemeral capabilities without seeing durable-only methods
+#### Scenario: Regular workflow is defined
+- **WHEN** a contributor builds an ephemeral or durable workflow definition
+- **THEN** they compose typed input, private state, control flow, business steps, and typed completion without constructing node graphs or protocol commands manually
 
-#### Scenario: Durable workflow is defined
-- **WHEN** a contributor selects durable workflow authoring
-- **THEN** they can compose portable control flow, business steps, and implemented durable capabilities without seeing ephemeral-only methods
+#### Scenario: Perpetual durable rollover is defined
+- **WHEN** a durable author selects root `ContinueAsNew` instead of `End`
+- **THEN** that member is the sole generation terminal and returns a completion builder from which the resultless definition can be built
 
 ### Requirement: Durable workflows have a separate authoring surface
-The system SHALL provide distinct public ephemeral and durable authoring surfaces and immutable `EphemeralWorkflowDefinition<TState>` and `DurableWorkflowDefinition<TState>` application definition types (or equivalently explicit names). `WaitLong`, child workflows, external jobs, durable resource leases, continue-as-new, durable DAG/saga execution, and definition versioning SHALL be modeled explicitly and validated before execution. Normal engine registration SHALL accept only the matching definition family and SHALL NOT infer mode from `RequiresDurableEngine` or a public compiled plan.
-
-#### Scenario: Definition mode is selected
-- **WHEN** an ephemeral or durable workflow is built successfully
-- **THEN** its static definition type records the selected mode and cannot be registered through the other engine's normal registration contract
+The system SHALL provide distinct ephemeral and durable init, body, completion, definition, and nested builder families. The common definition registry SHALL accept all four typed definition families but SHALL return a closed host-incompatibility failure before mutation when a definition mode does not match the registered engine role; it SHALL NOT infer mode from a flag or public compiled plan. Durable `Wait` SHALL be cold-capable without a separate `WaitLong` member.
 
 #### Scenario: Durable-only wait is authored
-- **WHEN** a contributor needs a cold durable wait
-- **THEN** `WaitLong` is publicly available from the durable builder and absent from ephemeral authoring
-
-#### Scenario: Ephemeral-only fanout is attempted in durable mode
-- **WHEN** a contributor authors a durable definition
-- **THEN** the ephemeral in-instance `ForEach` capability is absent unless durable semantics for that capability have been separately specified and implemented
-
-#### Scenario: Durable ForEach node is constructed manually
-- **WHEN** a custom or test graph bypasses the public builder and contains an in-instance `ForEach` node in durable mode
-- **THEN** the shared compiler rejects it with the same stable capability diagnostic as other unsupported durable nodes
+- **WHEN** a durable workflow may park long enough to be evicted and rehydrated
+- **THEN** the author uses the same structural `Wait(EventName, ...)` contract and hosting/runtime residency policy remains outside workflow meaning
 
 ### Requirement: Built definitions are immutable
-Workflow, saga, and DAG builders SHALL produce immutable definitions whose public metadata collections cannot be downcast and mutated and whose executable factories are not exposed as mutable application metadata.
+Workflow and DAG builders SHALL produce immutable, identity/version/structural-fingerprint-bound definitions whose public metadata cannot be downcast and mutated and whose executable factories, selectors, delegates, and compiled plans are not exposed as mutable application metadata. The fingerprint SHALL cover only inspectable authored structure and fixed codec format; every opaque delegate, step-construction/configuration, mapping, or external-request behavior change SHALL require a new `DefinitionVersion` and SHALL NOT accept an author fingerprint contributor.
 
 #### Scenario: Definition is registered
 - **WHEN** a completed definition is built and registered with an engine
-- **THEN** later caller mutation cannot change its authored graph, executable factories, policies, or compensation metadata
+- **THEN** later caller mutation cannot change its graph, step registrations, selectors, policies, mapping logic, typed contract, or fingerprint
+
+#### Scenario: Same version has different behavior
+- **WHEN** registration or resume observes a different compiled fingerprint for the same definition identity and version
+- **THEN** it returns a typed conflict before executing changed semantics
+
+### Requirement: Parallel authoring defines deterministic join structure
+Parallel authoring SHALL be exposed only on the selected ephemeral and durable root workflow builders and SHALL declare at least one fixed isolated branch, one common serializable result type, and exactly one explicit `WhenAll` or `WhenAllOutcomes` merge. Nested, branch, item, and leased builders SHALL NOT expose `Parallel`; a hand-built graph that places `Parallel` below another structural body SHALL be rejected. An empty root scope SHALL remain constructible long enough for aggregate graph validation and SHALL report `SFE-AUTH-BRANCH-004` (`EmptyParallelScope`) through identical `Build`/`TryBuild` diagnostics at the root `Parallel` node. `WhenFirst` SHALL be absent in v1.
+
+#### Scenario: Root Parallel workflow is composed
+- **WHEN** a contributor adds fixed branches from a root workflow builder and chooses `WhenAll`
+- **THEN** the definition captures branch inputs, one return per branch, stable authored ordering, and a deterministic merge that runs once only after every branch succeeds
+
+#### Scenario: Parallel outcomes are inspected
+- **WHEN** a contributor chooses `WhenAllOutcomes`
+- **THEN** the merge receives every ordered success or failure outcome, replaces parent state once, and a following `If` can decide business acceptance
+
+#### Scenario: Ancestor terminal transition wins
+- **WHEN** instance cancellation, operator termination, or `CompleteWithin` wins while branches are active
+- **THEN** active work is signalled/fenced, both author merges are suppressed, and no cancellation outcome is fabricated
+
+#### Scenario: Nested Parallel is requested
+- **WHEN** a contributor looks for `Parallel` on a conditional, loop, branch, item, or leased builder
+- **THEN** the member is absent and compiler defense rejects a hand-built nested graph with `SFE-AUTH-CAP-001`
+
+#### Scenario: Root Parallel has no branches
+- **WHEN** an author completes a root `Parallel` scope without declaring a branch
+- **THEN** `Build` and `TryBuild` report `SFE-AUTH-BRANCH-004` at the `Parallel` node rather than throwing an argument exception from the fluent call
+
+#### Scenario: Race join is requested
+- **WHEN** a contributor looks for `WhenFirst`
+- **THEN** no public member or residual-work policy is available until winner, loser cancellation, protected-work, and lease semantics are amended together
+
+### Requirement: Mode-first builders share one compiled plan contract
+Ephemeral and durable authoring SHALL share one internal authored graph and compiler while returning distinct staged typed definitions. `Build()` SHALL throw one `WorkflowDefinitionException` containing the same aggregate graph diagnostics returned by `TryBuild()`. Executable compiled plans SHALL remain implementation-only.
+
+#### Scenario: Durable definition is built
+- **WHEN** an author completes a durable workflow with typed `End` and calls `Build()`
+- **THEN** the returned definition contains immutable application metadata and an implementation-only fingerprinted plan consumable by durable registration
+
+#### Scenario: Definition has multiple graph errors
+- **WHEN** an author calls `TryBuild()` on an invalid mode-specific completion builder
+- **THEN** the result contains all discoverable graph diagnostics without publishing a definition
+
+### Requirement: Durable ForEach has two-layer rejection
+Durable public authoring SHALL expose the approved bounded root-only `ForEach(...).WhenAll*` contract. The shared compiler SHALL accept only a finite selector committed once, positive `ForEachOptions.MaxItems`, optional positive `MaxConcurrency`, stable item-index identity/order, supported item bodies, and one all-items join. It SHALL reject hand-built durable graphs that bypass those bounds or contain nested `ForEach`; nested `ForEach` remains deferred in both modes.
+
+#### Scenario: Durable author uses normal discovery
+- **WHEN** a developer inspects the durable root builder
+- **THEN** bounded `ForEach` is available with `WhenAll` and `WhenAllOutcomes`, while nested item builders do not expose another `ForEach`
+
+#### Scenario: Durable graph bypasses the builder
+- **WHEN** an internal or stale graph contains unbounded, re-enumerated, or nested durable `ForEach`
+- **THEN** compilation rejects it before registration with the selected-mode or limit diagnostic
+
+### Requirement: ContinueAsNew is authored structurally
+Continue-as-new SHALL be an unconditional durable root generation terminal with the exact result shape `DurableWorkflowCompletionBuilder<TInput>`. It SHALL be available only after every lexical resource scope has exited and when the root is the sole nonterminal fiber with no descendant scope or owned obligation. No `End`, business step, decorator, or structural node may follow it, and it SHALL NOT be returnable from portable `StepResult` or available in nested, branch, item, or leased builders. A valid rollover SHALL atomically increment generation, install replacement state, mint distinct occurrence identities, and inherit the original absolute `CompleteWithin` deadline without resetting it. Conditional or finite rollover SHALL be deferred and absent from v1.
+
+#### Scenario: Portable step attempts rollover
+- **WHEN** a portable step implementation is authored
+- **THEN** its result contract contains no continue-as-new variant
+
+#### Scenario: Author continues after rollover
+- **WHEN** an author calls root `ContinueAsNew`
+- **THEN** the returned `DurableWorkflowCompletionBuilder<TInput>` exposes only `Build` and `TryBuild`, so no `End`, step, decorator, or structural node can follow
+
+#### Scenario: Conditional finite rollover is requested
+- **WHEN** an author needs to roll over only when a runtime condition is true and otherwise complete
+- **THEN** no conditional `ContinueAsNew` member or nested placement is available until a separate terminal-path contract is approved
+
+#### Scenario: Lease remains active at rollover
+- **WHEN** a hand-built graph reaches continue-as-new before a lexical lease scope exits
+- **THEN** compilation reports `SFE-AUTH-LEASE-003` with the rollover and acquisition locations, and runtime defense uses `SFE-RUN-001` without rolling the generation
+
+### Requirement: Successful workflow flow has one root entry and exit
+An authored workflow SHALL contain exactly one staged root `Init` and exactly one root generation terminal. Every reachable ordinarily successful root path SHALL converge on exactly one `End`. A perpetual durable rollover definition SHALL instead converge on exactly one unconditional root `ContinueAsNew` and no `End`, which ends that authored generation without completing the workflow. Resultful `End<TOutput>` SHALL select typed output; resultless `End` and `ContinueAsNew` SHALL produce a one-arity definition/reference. Each mode SHALL expose exactly `End()`, `End(WorkflowOutcomeName)`, `End<TOutput>(Func<ReadOnlyStateSnapshot<TState>,TOutput>)`, and `End<TOutput>(Func<ReadOnlyStateSnapshot<TState>,TOutput>, WorkflowOutcomeName)`, with no optional/nullable selector or outcome parameters. Explicit null arguments SHALL throw `ArgumentNullException` immediately. `ContinueAsNew` SHALL carry no outcome and SHALL NOT satisfy an `End` requirement. Dynamic business classification SHALL be encoded in `TOutput`, not selected as a runtime outcome name.
+
+#### Scenario: Workflow has multiple business outcomes
+- **WHEN** alternative paths produce accepted, rejected, or manual-review domain classifications
+- **THEN** they set typed state/output data, converge on one root `End`, and any fixed outcome metadata remains the same declared value
+
+#### Scenario: Root terminal is missing or misplaced
+- **WHEN** a definition has no root generation terminal, more than one root terminal, a nested `Init`, or executable nodes after root `End` or `ContinueAsNew`
+- **THEN** validation reports every detected structural error and does not produce a definition
+
+### Requirement: Every branch has one branch return
+Each root fixed-parallel branch SHALL have one entry and one reachable `Return` of the scope's declared result type. Branches SHALL retain isolated private state and SHALL NOT contain workflow `Init`, workflow `End`, `ContinueAsNew`, `Parallel`, `While`, or `ForEach`. They MAY contain nested `If` and scoped durable acquisition when their selected-mode builder permits it.
+
+#### Scenario: Branch finishes successfully
+- **WHEN** branch execution reaches its return
+- **THEN** it produces the declared serializable result tagged with `AuthoredBranchId` and becomes terminal without mutating parent state
+
+#### Scenario: Branch contains workflow-global control or fan-out
+- **WHEN** a branch contains `Init`, `End`, `ContinueAsNew`, `Parallel`, `While`, or `ForEach`
+- **THEN** static builder absence or definition validation rejects it before registration
+
+### Requirement: Validation covers complete structured reachability
+Definition validation SHALL verify staged root structure, one reachable root `End` or perpetual root `ContinueAsNew` generation terminal, supported root-only fan-out and nesting, at least one root `Parallel` branch, branch and item identity, result/output/merge compatibility, `orcacore-json-v1` round-trip support, deterministic finite root-`ForEach` snapshots, configured item/depth/payload limits, workflow/wait/step/retry arguments, lease ancestry/quiescence, and absence of orphan or cross-scope references. Eager local decorator/deadline errors SHALL throw `WorkflowDefinitionException` with the one catalogued diagnostic at the fluent call; graph-wide errors, including an empty `Parallel`, SHALL accumulate through `TryBuild()`.
+
+#### Scenario: Definition contains multiple invalid scope shapes
+- **WHEN** a definition contains several structural, typing, ownership, timeout, mapping, or limit violations
+- **THEN** `TryBuild()` accumulates actionable diagnostics ordered by authored location and code
+
+### Requirement: Fluent blocks do not require authored closing nodes
+The fluent authoring interface SHALL express nested `If`, root `While`, root fixed `Parallel`, bounded root-only `ForEach`, and scoped durable leasing through typed builders and SHALL NOT require manually balanced closing nodes. Root `End` or terminal `ContinueAsNew`, branch/item `Return`, and the selected join remain explicit because they have output, rollover, result, and state-replacement semantics.
+
+#### Scenario: Author composes an If followed by another step
+- **WHEN** an author completes the nested then and else builders
+- **THEN** the next fluent operation continues after the conditional without an authored closing token
+
+#### Scenario: Nested block is malformed
+- **WHEN** nested builder content has unreachable flow, an invalid terminal, or an unsupported nested capability
+- **THEN** static absence or structural validation reports the definition error without matching opening and closing tokens
+
+### Requirement: ForEach authoring uses the structured scope contract
+Root-only `ForEach` authoring in both modes SHALL declare a selector returning a finite item list, `ForEachOptions` with positive `MaxItems` and optional positive `MaxConcurrency`, an item-state projector receiving only `ForEachItemInput<TItem>` (the detached item plus its zero-based index), a body with one typed `Return`, and one `WhenAll` or `WhenAllOutcomes` merge. The projector SHALL NOT receive or capture a parent-state snapshot as part of the supported contract; shared parent/run data needed by an item SHALL be carried explicitly in `TItem` by the finite-list selector. Results SHALL be ordered by stable item index. Durable mode SHALL normalize and commit the item snapshot before admission and reuse it on replay. Nested `ForEach` SHALL remain deferred and absent from every nested, branch, item, and leased builder.
+
+#### Scenario: Resultful ForEach is authored
+- **WHEN** an author declares a common item result and `WhenAll`
+- **THEN** the merge receives successful `ForEachItemResult<TResult>` values in stable item-index order only after every item succeeds
+
+#### Scenario: Outcome-aware ForEach is authored
+- **WHEN** an author selects `WhenAllOutcomes`
+- **THEN** the merge receives each ordered success or failure outcome exactly once after all items become terminal
+
+#### Scenario: Item bound is exceeded
+- **WHEN** the selected finite snapshot exceeds the authored or host item/payload bound
+- **THEN** the scope fails deterministically before admitting any item
+
+#### Scenario: Item snapshot is empty
+- **WHEN** the detached selected list has zero items
+- **THEN** no item is admitted and the selected merge runs once with an empty ordered list
+
+#### Scenario: Item needs shared parent data
+- **WHEN** an item-state projector needs a value from parent or run state
+- **THEN** the selector includes that detached value in `TItem`, and the projector reads it from `ForEachItemInput<TItem>` rather than receiving hidden parent state
+
+#### Scenario: Nested ForEach is requested
+- **WHEN** an item or other nested builder attempts to author another `ForEach`
+- **THEN** the member is absent and compiler defense rejects a manually constructed nested graph
 
 ## ADDED Requirements
 
-### Requirement: Every authored capability has selected-mode semantics
-Every public builder method SHALL have implemented semantics for the mode that exposes it and SHALL NOT be silently ignored or deferred to a predictable runtime failure.
-
-#### Scenario: Unsupported definition retry is considered
-- **WHEN** no selected engine implements definition-wide retry semantics
-- **THEN** no public builder exposes `WithDefinitionRetry`
-
-#### Scenario: Execution throttle is configured
-- **WHEN** a host applies a per-step execution throttle to all steps or stable authored categories
-- **THEN** the policy is enforced around one business-step body and is not represented as a durable resource lease or a host-dependent builder method
-
 ### Requirement: Selected mode is preserved through nested authoring
-Every public structured scope and branch builder SHALL retain the root workflow's selected mode in its static type while sharing implementation internally. A capability absent at the root SHALL remain absent inside `Parallel`, `WhenFirst`, loops, and future nested scopes.
+Every conditional, loop, root-parallel branch, root-`ForEach` item, and leased-scope builder SHALL retain selected mode and enclosing capability restrictions in its static type while sharing internal machinery. Nested, branch, item, and leased builders SHALL expose sequencing, nested `If`, waits, delays, and decorators where otherwise legal, but SHALL expose no `Parallel`, `ForEach`, or `While`. Durable non-leased builders MAY expose scoped `AcquireResources` at the placements approved by the matrix.
 
 #### Scenario: Durable branch authoring is inspected
-- **WHEN** a developer authors a branch inside a durable `Parallel`
-- **THEN** ephemeral-only transient-pool and `ForEach` methods are absent rather than discoverable and rejected later by the compiler
+- **WHEN** a developer authors a durable branch or item with no active leased ancestor
+- **THEN** nested `If` and scoped `AcquireResources` are available while ephemeral lambdas, transient pools, `Parallel`, `ForEach`, `While`, and public child/job members are absent
+
+#### Scenario: Leased item authoring is inspected
+- **WHEN** a developer inspects a leased item body
+- **THEN** ordinary steps, nested `If`, `Wait`, `Delay`, decorators, and the item `Return` remain available as applicable while `Parallel`, `ForEach`, `While`, nested `AcquireResources`, and `ContinueAsNew` are absent
+
+### Requirement: Lambda business steps are ephemeral only
+Ephemeral builders SHALL expose exactly `Then(Func<StepContext<TState>, ValueTask>)` and `Then(Func<StepContext<TState>, CancellationToken, ValueTask>)` lambda business-step overloads wherever ephemeral business steps are allowed. They SHALL expose no `Action<StepContext<TState>>` overload; synchronous work SHALL return `ValueTask.CompletedTask`. Lambda bodies MAY mutate or replace state but SHALL NOT return `StepResult`. Durable builders SHALL require named `IStep<TState>` implementations and SHALL NOT expose lambda overloads. Host exact-type `StepThrottles` SHALL target named `Then<TStep>()` step types only; lambda bodies have no synthetic or inferred step type for that policy.
+
+#### Scenario: Ephemeral workflow uses a lambda
+- **WHEN** an ephemeral author supplies a one-parameter or cancellation-aware two-parameter lambda returning `ValueTask`
+- **THEN** the runtime observes its completion and exception as one business step through the documented ephemeral `StepContext<TState>`
+
+#### Scenario: Ephemeral lambda performs synchronous work
+- **WHEN** an ephemeral lambda completes its state work synchronously
+- **THEN** it returns `ValueTask.CompletedTask` and cannot bind to a void-return `Action` overload
+
+#### Scenario: Lambda attempts portable orchestration return
+- **WHEN** an ephemeral lambda attempts to return `StepResult.Completed`, `Failed`, or `WaitForEvent`
+- **THEN** no lambda overload accepts that result type; portable `StepResult` remains the contract of named `IStep<TState>` implementations
+
+#### Scenario: Durable author attempts a lambda
+- **WHEN** a durable root or nested builder is inspected
+- **THEN** no lambda `Then` overload is available because persisted code identity, closure capture, and versioning are not part of v1
+
+### Requirement: Workflow, wait, and step timeouts have distinct authoring scopes
+`CompleteWithin(TimeSpan)` SHALL be root-only, appear at most once, and bound the entire workflow from start across every continue-as-new generation. Its second fluent call SHALL eagerly throw `WorkflowDefinitionException` containing `SFE-AUTH-DEADLINE-001` (`DuplicateWorkflowDeadline`), with the second call as primary location, the first as related, and the first configured deadline preserved. Structural `Wait` SHALL offer its approved optional timeout overload with fixed failure semantics and no timeout-callback builder. `WithRetry`, `WithStepTimeout`, and ephemeral `WithTransientPool` SHALL decorate only the immediately preceding eligible business step; applicable decorators SHALL be order-independent and each MAY appear at most once for that step. Misplacement, repetition, or use after a structural node SHALL be rejected eagerly by the fluent call with `WorkflowDefinitionException` containing the one catalogued diagnostic, not described as a C# compile-time error. `WithStepTimeout` SHALL bound one attempt. Workflow/step/wait durations and `Delay` SHALL be positive and finite; retry delay MAY be zero but SHALL NOT be negative.
+
+#### Scenario: Step is retried after timeout
+- **WHEN** a timed business-step attempt reaches its deadline and a retry policy permits another attempt
+- **THEN** the retry keeps the same `StepOperationId`, receives a higher attempt number and a new attempt deadline, and remains bounded by the original workflow deadline
+
+#### Scenario: Timeout decorator follows a structural node
+- **WHEN** an author places `WithStepTimeout` without an immediately preceding business step
+- **THEN** that fluent call eagerly throws `WorkflowDefinitionException` containing the catalogued diagnostic before a definition can be built
+
+#### Scenario: Decorator is repeated for one step
+- **WHEN** an author applies the same retry, timeout, or applicable transient-pool decorator twice to one business step
+- **THEN** the repeated fluent call eagerly throws `WorkflowDefinitionException` containing the corresponding catalogued diagnostic
+
+#### Scenario: Workflow deadline is repeated
+- **WHEN** an author calls `CompleteWithin` twice
+- **THEN** the second call throws `SFE-AUTH-DEADLINE-001`, relates the first call, preserves the first deadline, and produces no partially changed definition
+
+#### Scenario: Wait timeout is authored in an item
+- **WHEN** an item body uses `Wait(EventName, correlation, timeout)` and the timer wins
+- **THEN** the item fails with `WorkflowWaitTimeoutException`, no author timeout callback runs, and an enclosing `WhenAllOutcomes` can observe that failure
+
+#### Scenario: Retry classification is evaluated
+- **WHEN** an attempt returns `StepResult.Failed`, throws an exception normalized to failure, or reaches `StepAttemptTimeoutException` while budget remains
+- **THEN** it retries from the last committed state with the same `StepOperationId`, a larger `AttemptNumber`, and the fixed delay, while cancellation/deadline/termination/definition/runtime-invariant failures never retry
+
+### Requirement: Durable resource acquisition is lexical, atomic, and ancestry safe
+Durable root, conditional, root-parallel-branch, and root-`ForEach` item builders with no active leased ancestor SHALL expose only scoped `AcquireResources(ResourceLeaseRequest, body)` and selector equivalents approved by the matrix. The non-empty duplicate-free request SHALL be granted atomically. Dedicated leased workflow, nested, branch, and item builders SHALL omit every fan-out member, nested acquisition, and `ContinueAsNew`. No ephemeral builder SHALL expose durable leasing.
+
+#### Scenario: Mutually exclusive branches acquire
+- **WHEN** separate `If` arms each contain one complete lexical lease scope
+- **THEN** build succeeds because only one arm executes and each scope releases before its parent continues
+
+#### Scenario: Descendant attempts acquisition under an ancestor
+- **WHEN** a hand-built graph can acquire in a descendant while an ancestor scope is pending or held
+- **THEN** build fails with `SFE-AUTH-LEASE-001` at the descendant and the ancestor acquisition as a related location
+
+#### Scenario: Root loop reacquires sequentially
+- **WHEN** one lexical acquisition scope is fully contained in a root `While` iteration
+- **THEN** build succeeds because exact release occurs before the next iteration and the obsolete point-acquisition loop diagnostic is not retained
+
+#### Scenario: Sibling branches acquire independently
+- **WHEN** sibling branches each request resources with no leased ancestor
+- **THEN** build succeeds and parking one requesting fiber does not prevent a runnable sibling from advancing
+
+#### Scenario: Leased body attempts fan-out
+- **WHEN** a contributor looks for `Parallel` or `ForEach` in a leased workflow, nested, branch, or item body
+- **THEN** the member is absent and compiler defense rejects a hand-built fan-out below the lease with `SFE-AUTH-CAP-001`
+
+### Requirement: Concurrency authoring uses distinct lifetimes
+Authoring and hosting SHALL distinguish exact-named-step execution throttles, ephemeral named transient pools, the host-owned per-instance path ceiling, optional root-`ForEach` node concurrency, DAG-node admission, and persisted durable resource leases. A `StepExecutionThrottle` SHALL target only the exact named `TStep` authored through `Then<TStep>()`; it SHALL NOT target an ephemeral lambda or match an assignable/base type. A host option MAY tighten admission but SHALL NOT add methods to an already selected builder.
+
+#### Scenario: ForEach concurrency is composed
+- **WHEN** `ForEachOptions.MaxConcurrency` is lower or higher than the host per-instance path ceiling
+- **THEN** effective item admission uses the lower value without changing durable lease or transient-pool semantics
+
+#### Scenario: Durable host lacks transient-pool semantics
+- **WHEN** a durable builder is selected
+- **THEN** `WithTransientPool(TransientPoolName)` is absent from root and nested builders rather than ignored at runtime
+
+#### Scenario: Lambda has no exact-type throttle identity
+- **WHEN** an ephemeral lambda body is authored
+- **THEN** host exact-type `StepThrottles` do not infer a synthetic step type for it; named `Then<TStep>()` remains the exact-type throttle boundary
 
 ### Requirement: Application definitions hide executable compiler IR
-Application workflow definitions SHALL expose immutable identity, version, mode, fingerprint, and authored metadata without exposing compiled instructions, scopes, policies, executable delegates, or the executable plan as public application properties. Engines SHALL obtain the retained plan through implementation-only access.
+Application workflow definitions SHALL expose immutable mode, identity, version, fingerprint, typed input/output, and authored metadata without exposing compiled instructions, scopes, policies, executable delegates, or the executable plan in public application signatures.
 
-#### Scenario: Application definition surface is inspected
-- **WHEN** the public application baseline inspects both mode-specific definition types
-- **THEN** neither definition exposes `CompiledWorkflowPlan`, `CompiledInstruction`, compiler identity types, or mutable executable metadata
+#### Scenario: Definition surface is inspected
+- **WHEN** the public application baseline examines both mode-specific definition families
+- **THEN** neither family exposes compiled-plan, compiler identity, fiber, scope, or mutable executable metadata
 
-### Requirement: Authoring configuration uses application vocabulary
-Normal mode-first builders SHALL accept domain-facing `WorkflowAuthoringOptions` containing `MaxStructuredDepth`, `MaxActiveExecutionPaths`, `MaxBranchResultPayloadBytes`, payload serializer registration, state copier registration, and deterministic fingerprint contributors. Scheduling-turn and checkpoint-payload limits SHALL remain engine/hosting configuration. Builders SHALL NOT expose compiler-shaped `WithCompilerOptions` or `WithTypeSerializerRegistry` methods or require application code to reference compiled-plan types.
+### Requirement: Concrete workflow builder declarations are normative
+Every public workflow factory, init/body/nested/branch/item/leased builder, branch scope, join, completion builder, definition, and durable reference SHALL match `docs/specs/17-public-authoring-contract.cs` exactly in name, receiver, generic arity, parameters, return type, and mode/location availability. Inline metavariables in the selected-mode matrix SHALL be semantic indexes only.
 
-#### Scenario: Custom payload serializer is registered
-- **WHEN** an application needs a supported serializer for branch or state payloads
-- **THEN** it configures the application authoring options without naming compiler implementation contracts
-
-### Requirement: Builder validation has one consistent completion model
-Workflow, saga, and DAG builders SHALL expose `Build()` as the throwing common path and `TryBuild()` returning the existing `Validation<TDefinition>` as the non-throwing aggregate-diagnostics path. Fluent methods SHALL reject invalid local arguments immediately, while graph-wide structural diagnostics SHALL be aggregated at build time.
-
-#### Scenario: Local duration is invalid
-- **WHEN** an author supplies a non-positive delay or timeout to a fluent method
-- **THEN** that method rejects the argument at the call site with a stable diagnostic
-
-#### Scenario: Graph has multiple structural errors
-- **WHEN** a definition is missing required terminals and contains duplicate or unreachable structure
-- **THEN** the non-throwing build reports all graph-wide diagnostics in one result
-
-### Requirement: Concurrency authoring uses a three-way taxonomy
-Authoring names and contracts SHALL distinguish per-step execution throttles, named cross-instance transient pools, and persisted durable resource leases. A builder capability SHALL appear only when every supported host for that selected mode implements its declared lifetime and recovery semantics; host configuration SHALL NOT add builder methods after mode selection.
-
-#### Scenario: Developer selects a pool feature
-- **WHEN** a developer inspects per-step throttle, transient-pool, and durable-lease methods
-- **THEN** the Interface, documentation, and result contracts distinguish step-local lifetime, host-local cross-instance lifetime, and persisted cross-host scope lifetime
-
-#### Scenario: Durable host lacks transient-pool enforcement
-- **WHEN** a durable host does not implement named cross-instance transient pools
-- **THEN** durable authoring does not expose the transient-pool method in any host profile and does not silently ignore its metadata
-
-### Requirement: Continue-as-new is a root structural transition
-Continue-as-new SHALL be authored only as a durable structural node and SHALL execute only as a root-fiber transition after child fibers and scope-owned obligations are quiescent. It SHALL NOT be returnable from portable `StepResult`.
-
-#### Scenario: Nested fiber attempts continue-as-new
-- **WHEN** a continue-as-new node is placed in a nested or non-quiescent fiber scope
-- **THEN** the shared compiler or driver rejects the transition with a stable structural diagnostic
+#### Scenario: Guard compiles the companion contract
+- **WHEN** the authoring surface baseline is generated or compared
+- **THEN** every companion declaration resolves to exactly one public product signature and no additional overload or provisional builder type is accepted

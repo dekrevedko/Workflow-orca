@@ -1,5 +1,18 @@
 # OrcaCore — Implementation Guide (agent-executable)
 
+> **First-release refactor routing (2026-07-18):** the historical phase task files record how
+> the current pre-release implementation was assembled; they do not authorize restoring a
+> provisional API that the v1 simplification removed or deferred. For all new work, the
+> normative surface is [spec 17](../specs/17-selected-mode-capability-matrix.md), and the active
+> exact authoring declarations are mirrored in
+> [`17-public-authoring-contract.cs`](../specs/17-public-authoring-contract.cs). The active
+> execution checklist is
+> [`reshape-developer-facing-interfaces`](../../openspec/changes/reshape-developer-facing-interfaces/tasks.md)
+> together with
+> [`add-runtime-concurrency-limits`](../../openspec/changes/add-runtime-concurrency-limits/tasks.md).
+> Preserve completed phase records as history; add new implementation work to those active task
+> graphs.
+
 This folder turns the specification package ([docs/specs/](../specs/README.md)) into an
 **executable implementation program**: short, self-contained tasks that an LLM coding agent
 (Haiku-level for most tasks, Sonnet/Codex-level where marked) can complete one at a time
@@ -9,12 +22,15 @@ without large context windows.
 
 - **TDD first, always.** Every task starts by writing the listed failing tests, then makes
   them pass, then refactors. No production code before its test exists.
-- **Program to interfaces, not implementations.** Consumers depend on contracts in
-  `OrcaCore.Abstractions`; concrete types are `internal` and reached through DI. A task that
-  makes a caller depend on a concrete class is wrong even if tests pass.
-- **No monolith.** The engine is internal modules + plugins. Infrastructure (Postgres,
-  RabbitMQ, Redis, MS SQL, DynamoDB, ZeroMQ) lives in plugin projects that depend only on
-  `OrcaCore.Abstractions`.
+- **Interfaces for behavior seams; concrete values for data and authoring.** Replaceable
+  services/ports are interfaces in their owning application, runtime-protocol, or provider tier.
+  Approved immutable values, staged builders, definitions, outcomes, handles, and exceptions are
+  concrete public contracts. Other implementation collaborators stay internal and are reached
+  through DI.
+- **No monolith.** The engine is internal modules plus explicit provider adapters. Advanced
+  persisted records live in `OrcaCore.Runtime.Protocol`; provider SPIs live in
+  `OrcaCore.Provider.Abstractions`; adapters depend inward on those tiers. Application packages
+  do not reference provider adapters.
 - **Small steps.** One task ≈ one agent session: ≤ ~10 files touched, ≤ ~500 changed lines,
   every task file tells the agent exactly which files to read (never "explore the repo").
 
@@ -37,8 +53,18 @@ review gates in
 Its OpenSpec task lists remain authoritative; the plan adds dependency ordering, phase exit
 evidence, and a required stop-and-review checkpoint after every phase.
 
-Start Phase 0 with the copy-ready
-[`developer-facing-interface-phase-00-kickoff-prompt-2026-07-15.md`](developer-facing-interface-phase-00-kickoff-prompt-2026-07-15.md).
+Review-E planning remediation has been applied and is recorded in the current
+[remediation and Phase 0 status](../review/developer-facing-interface-v1-simplification-review-e-remediation-and-phase-00-status-2026-07-19.md).
+Independent re-review is pending, so all 15 section-3 tasks (3.1-3.10, 3.11a-3.11d, and 3.12)
+remain **NOT READY** for guard retargeting. Task 4.0 and product implementation remain blocked.
+
+The 2026-07-18 simplification amendment/status, 2026-07-19 construction amendment, completed
+reviewer prompt, reviews A-E, their earlier consolidated review, and the root-only owner decision
+are immutable historical inputs. They do not outrank the live
+[matrix](../specs/17-selected-mode-capability-matrix.md),
+[exact companion](../specs/17-public-authoring-contract.cs), canonical requirements, or the two
+active OpenSpec changes. Root-only `Parallel`, `ForEach`, and `While` remain selected, but no
+historical readiness verdict advances the current gate.
 
 ## Phases at a glance (mapped to spec slices)
 
@@ -48,9 +74,9 @@ Start Phase 0 with the copy-ready
 | 1 | Slice 1 | Ephemeral engine core | Fully detailed for T1‑01…05; T1‑06…15 expanded by [T1‑05a](phases/phase-1-ephemeral-core/T1-05a-expand-remaining-tasks.md) |
 | 2 | Slice 2 | Durable event-sourced core + **PostgreSQL plugin** | Task index |
 | 3 | Slice 3 | Timers, policies, lifecycle events, observability, governance | Task index |
-| 4 | Slice 4 | `ForEach`, `RunChild(ren)` | Task index |
-| 4b | Slice 4b | DAG front-end, external-job composite, durable resource pools | Task index |
-| 5 | Slice 5 | Saga | Task index |
+| 4 | Slice 4 | Historical `ForEach` and child-workflow implementation record; v1 public child members are deferred | Historical task index |
+| 4b | Slice 4b | Historical DAG/external-job/resource-pool implementation record; only `OrcaCore.Dag` and scoped leasing remain in the v1 public baseline | Historical task index |
+| 5 | Slice 5 | Historical Saga implementation record; Saga is deferred from the first public release | Historical task index |
 | 6 | Slice 6 | RabbitMQ + remaining plugins, hosting, production readiness | Task index |
 
 Note the deliberate deviation from the spec's slice ordering: the **PostgreSQL plugin lands
@@ -90,17 +116,21 @@ superseded pre-promotion prototype is preserved under `archive/legacy-poc/`.
   their phase `PROGRESS.md`).
 - Where any task file says "repo root", use the repository root.
 
-The very first task is **[T0-01](phases/phase-0-skeleton/T0-01-solution-skeleton.md)**
-(solution skeleton).
+The historical implementation program began with
+**[T0-01](phases/phase-0-skeleton/T0-01-solution-skeleton.md)** (solution skeleton). That
+bootstrap task and its completed phase records are provenance, not an active starting point.
 
-## Entry point — starting implementation
+## Entry point — current implementation work
 
-Kick off a session with the prompt in **[KICKOFF.md](KICKOFF.md)** (kept there so it is
-versioned and copy-pasteable). Every subsequent session uses the same prompt with the task
-path swapped. To find the next task: open the current phase's `PROGRESS.md` — the next
-pending entry in the phase README's task index is the target. When a phase's exit criteria
-are green, the next phase begins with its `Tn-00` expansion task (Sonnet-level). Task order
-within a phase follows the index; tasks whose dependencies are done may run in any order.
+Do not start from the historical **[KICKOFF.md](KICKOFF.md)** prompt or select work from an old
+phase `PROGRESS.md`. Start with the
+[developer-facing refactor phased plan](developer-facing-interface-refactor-phased-plan-2026-07-14.md),
+then execute only an unblocked task from the active
+[`reshape-developer-facing-interfaces`](../../openspec/changes/reshape-developer-facing-interfaces/tasks.md)
+or
+[`add-runtime-concurrency-limits`](../../openspec/changes/add-runtime-concurrency-limits/tasks.md)
+graph. Respect each graph's dependency and independent-review gates; historical completion
+records do not advance them.
 
 Model routing: use the task's **Difficulty** marker — Haiku-class models for `Haiku` tasks,
 Sonnet-class for `Sonnet` tasks and all expansion tasks (`Tn-00`, T1-05a). T0-01 is

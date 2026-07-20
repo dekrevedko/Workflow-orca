@@ -15,27 +15,91 @@ Read this before every task. Deviations require an explicit note in the task's P
 
 ## 2. Types and API design
 
-- **Interfaces first**: every seam a consumer touches is an interface in Abstractions or an
-  internal interface in the owning module. Concrete classes are `internal sealed` unless a
-  documented reason exists. Constructors take interfaces; `new` of a collaborator inside a
-  class body is a smell (factories/DI instead).
-- **Step authoring stays explicit**: builder APIs MAY offer `Then<TStep>()` for parameterless
-  steps and `Then(IStep<TState>)` / `Then(Func<IStep<TState>>)` for configured steps. Do not
-  add reflection-based constructor-argument overloads such as `Then<TStep>(params object[])`;
-  parameterized steps are supplied as explicit instances or factories.
+- **Behavior seams use interfaces**: replaceable services/ports a consumer or host implements
+  are interfaces in the owning public contract tier; module-local seams are internal.
+  Immutable values, staged builders, definitions, outcomes, and exceptions are concrete public
+  contracts when the approved matrix calls for them. Other concrete collaborators are
+  `internal sealed`; constructors take interfaces rather than constructing dependencies.
+- **Step authoring stays explicit**: the portable surface offers `Then<TStep>()`; host DI
+  creates `TStep` and supplies its dependencies. Ephemeral builders additionally offer the
+  approved synchronous and asynchronous lambda bodies. Durable builders do not accept
+  delegates, captures, step instances, service-provider callbacks, or reflection-based
+  constructor arguments because persisted definitions need stable type and fingerprint
+  identity.
 - **Closed hierarchies for results/events**: `abstract record` base + `sealed record`
-  variants (e.g. `StepResult.Completed/Failed/WaitForEvent/Yield`). The consumer `switch`
+  variants (for v1, `StepResult.Completed/Failed/WaitForEvent`). The consumer `switch`
   must be exhaustive — add a `_ => throw new UnreachableException()` arm only where the
   compiler cannot prove exhaustiveness.
-- **Immutability**: contracts, snapshots, envelopes, definitions are immutable records.
-  Mutable state lives only inside engine internals guarded by the instance lane.
+- **Attempt state is detached**: contracts, snapshots, envelopes, definitions, and returned
+  collections are immutable/detached. Each step attempt receives a codec-detached copy of the
+  last committed `TState` through `StepContext<TState>.State`; it may mutate that copy or call
+  `ReplaceState`. Only the successful winning attempt commits its final copy. Failed, timed-out,
+  cancelled, or fenced copies are discarded, and a retry starts from the same committed state.
+- **One fixed workflow-state codec**: v1 uses certified `System.Text.Json` format
+  `orcacore-json-v1`; it is not host/provider replaceable. Registration rejects unsupported,
+  cyclic, or unsafe polymorphic shapes and certifies deterministic bytes plus detached round
+  trips. Persisted/provider envelopes preserve those bytes and format identity.
 - **Functional primitives** (spec PR-050): `Result<T>` for expected operational outcomes
   (routing, command decisions, append outcomes), `Option<T>` for absence-without-failure
   (lookups), `Validation<T>` for accumulated build-time errors. Public happy-path APIs may
   throw `OrcaCore*Exception` types instead — never force `Result` chains on end users.
   Never nest `Task<Result<Option<T>>>`; split the method.
-- IDs are strongly-typed readonly record structs (`InstanceId`, `EventId`, `WaitId`,
-  `CommandId`, `PoolName`…) wrapping `Guid`/`string` — no bare primitives across seams.
+- **Strong values follow construction ownership**: caller-created string-backed values
+  (`EventName`, `WorkflowOutcomeName`, `AuthoredBranchId`, `DagNodeId`, `ResourcePoolName`,
+  `TransientPoolName`, `StartIdempotencyKey`, `CorrelationId`, `EventId`, `StopConfirmationId`,
+  `ResourcePoolOperationId`, `ResourceGovernancePartitionId`) are immutable reference values with
+  private constructors and one public `Create(string)` factory. Runtime-created `InstanceId`,
+  `WaitId`, `StepOperationId`, `LeaseProtectionToken`, and `DagRunId` instead expose canonical
+  `Parse`/`TryParse` paths and no public `Create`. Do not add public constructors, primitive or
+  implicit-conversion overloads, or construction aliases beside either family.
+- **Definitions are staged and fingerprint-bound**: `Init` is required before body authoring;
+  `End` commits typed output and optional fixed outcome metadata before `Build`/`TryBuild`
+  becomes available. Reusing `(DefinitionId, DefinitionVersion)` with different authored
+  inspectable structure, static values, closed types, inspectable selector placement/type metadata,
+  or codec format is a typed conflict, never a silent replacement. The fingerprint does not claim
+  to hash selector/delegate IL, captured values, DI behavior, or external code; changing any opaque
+  behavior requires a new `DefinitionVersion` and does not itself create a fingerprint conflict.
+- **Join outcomes are deliberate**: `WhenAll` merges only all-success results.
+  `WhenAllOutcomes` merges ordered typed success/failure outcomes so a following `If` can decide
+  business acceptance. Neither auto-cancels siblings. Ancestor instance cancellation,
+  termination, or `CompleteWithin` suppresses both joins and their merge. An empty finite
+  `ForEach` snapshot is valid and invokes its merge once with an empty ordered list.
+- **Structured resources are lexical**: durable resources are acquired only through scoped
+  `AcquireResources(request, body)`. No point/fiber-lifetime form, author TTL, renewal,
+  caller-supplied holder, or empty `params` overload is permitted. A nested acquisition is
+  impossible while an ancestor acquisition is pending or held; concurrently needed pools are
+  requested atomically.
+- **Greenfield means one surface**: removed/deferred members have no alias, obsolete tombstone,
+  public placeholder, or compatibility adapter. `WaitLong` and author `Yield` are removed;
+  `WhenFirst`, Saga, public external-job/child members, nested `Parallel`/`While`/`ForEach`,
+  durable lambdas, and definition-wide retry remain documented future work only.
+- **Optional packages point inward**: `OrcaCore.Dag` depends on OrcaCore application contracts;
+  `OrcaCore.Dag.Hosting` is the sole bridge to the named/versioned internal child-start/join
+  seam in `OrcaCore.Durable.Hosting`. Kubernetes, AWS, scheduler, and job-system projects may
+depend outward on `OrcaCore.Dag.Hosting`, but no OrcaCore package depends on or
+  expose their SDK types. `OrcaCore.Runtime.Protocol` and
+  `OrcaCore.Provider.Abstractions` are advanced provider tiers, not application references.
+- **Event identity is target-scoped after acceptance**: delivery before the target wait is active
+  returns non-consuming `NoActiveWait`, writes no mailbox/inbox/dedup state, and permits the same
+  `EventId` to be redelivered as its first accepted event after wait registration. Once accepted,
+  durable inbox dedup is per target `InstanceId` by `EventId`; identical normalized content is a
+  duplicate and changed content is a conflict. Correlation routing selects exactly one active wait by
+  `(DefinitionId, EventName, CorrelationId)` and rejects a second active registration before
+  parking. Definition-targeted fanout is deferred.
+- **Execution-path capacity has one token model**: a runnable root/branch/item owns one host
+  token and releases it on wait, delay, resource request, or join. A parent releases before
+  fan-out admission and reacquires only for merge/continuation. `ForEach.MaxConcurrency`
+  separately counts admitted nonterminal item scopes, including parked items. A timed-out
+  token-ignoring body loses commit authority/logical token but retains each physical
+  step-throttle/transient slot until return.
+- **Hosting roles and owners are explicit**: `OrcaCore.Engine.Ephemeral` owns
+  `AddOrcaCoreEphemeralEngine`; `OrcaCore.Durable.Hosting` owns `AddOrcaCoreDurableEngine` and
+  callback-only `AddOrcaCoreDurableEventIngress`; `OrcaCore.Providers.InMemory` owns development/test
+  `AddOrcaCoreInMemoryDurableProvider`; `OrcaCore.Providers.PostgreSql` owns production
+  `AddOrcaCorePostgreSqlDurableProvider`; and `OrcaCore.Dag.Hosting` owns `AddOrcaCoreDag`. Each
+  accepts only its approved role-specific options. Hosts construct those options programmatically;
+  registration copies and validates them, with no binder-oriented facade. Do not add a catch-all
+  `AddOrcaCore`, separate hosted-service toggle, implicit mode selection, or codec replacement hook.
 
 ## 3. Async rules
 
@@ -46,6 +110,15 @@ Read this before every task. Deviations require an explicit note in the task's P
   library code (the host owns threads); `ConfigureAwait(false)` everywhere in `src/`.
 - Time only via injected `TimeProvider`; delays via `timeProvider`-aware mechanisms so tests
   control the clock. Randomness only via injected seams. (Determinism — spec NF-020.)
+- Workflow `CompleteWithin`, per-attempt `WithStepTimeout`, retry delay, waits, and durable
+  deadlines are orchestration semantics owned by OrcaCore. Polly may be used inside an
+  application/provider call, but it never defines replay, workflow retry, timeout fencing, or
+  terminal state.
+- `WithRetry(int maxAttempts, TimeSpan? fixedDelay = null)` and `WithStepTimeout(TimeSpan)`
+  attach after one authored step and may each appear at most once; `maxAttempts` includes the
+  initial attempt. The original absolute `CompleteWithin` deadline survives
+  `ContinueAsNew` generations and wins as terminal `TimedOut` without waiting for a
+  token-ignoring body.
 
 ## 4. Naming & layout
 

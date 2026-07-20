@@ -2,8 +2,26 @@
 
 This plan is scoped to the current root implementation. It uses the
 existing source, test projects, Testcontainers fixtures, and skipped integration
-tests as the baseline. The root `src` and root `tests` trees are not part of
-this plan.
+tests as the baseline. The root `src` and root `tests` trees are the active
+implementation; `archive/legacy-poc` is not part of this plan.
+
+> **2026-07-18 first-release contract:** existing passing tests for provisional Saga,
+> `Yield`, public child/external-job commands, or the earlier DAG runner are historical
+> implementation evidence, not approval to ship those public members. The active refactor
+> removes `WaitLong`/`Yield`, defers public `RunExternalJob`, `RunChild`/`RunChildren`, Saga,
+> `WhenFirst`, nested `Parallel`, nested `While`, and nested `ForEach`/multilevel dynamic
+> expansion, while retaining fixed root `Parallel`; it adds typed workflows, scoped leases,
+> deadlines, stable `StepOperationId`, bounded durable `ForEach`, and separate
+> `OrcaCore.Dag` plus its `OrcaCore.Dag.Hosting` bridge. This plan's final gate must follow
+> document 17 and [`17-public-authoring-contract.cs`](specs/17-public-authoring-contract.cs)
+> when a historical statement conflicts with them.
+
+The v1 e2e gate also proves codec-detached attempt state and `ReplaceState`, fixed certified
+`orcacore-json-v1` registration, `WithRetry(maxAttempts, fixedDelay)`, per-attempt
+`WithStepTimeout`, the original absolute `CompleteWithin` deadline across continue-as-new,
+instance-targeted event dedup/unique correlation routing, countable execution-path tokens, and the
+role-specific hosting entry points. A catch-all `AddOrcaCore` or separate hosted-service toggle is
+provisional and must not survive the refactor.
 
 ## Current Baseline
 
@@ -41,7 +59,7 @@ The original skipped `E2E` scenarios are now implemented:
 
 The broader integration suite still contains a deliberate skip for the slow
 scheduler soak. Cron triggering remains scheduler-app owned, but OrcaCore now
-covers the durable `StartOrGet` idempotency primitive used by scheduled
+  covers the durable `StartOrGetAsync` idempotency primitive used by scheduled
 occurrence keys. The current full integration project gate is expected to be 107
 passed, 1 skipped, 0 failed.
 
@@ -74,8 +92,9 @@ should exist.
 ## Non-Goals
 
 - Do not put Kubernetes or EKS adapters inside OrcaCore. The current
-  `eks-scheduler-handoff.md` keeps Kubernetes dispatchers, watchers, cron, and
-  tenant policy in the scheduler application.
+  `eks-scheduler-handoff.md` keeps Kubernetes Job API clients, EKS/AWS composition,
+  watchers/reconcilers, cron, and tenant policy in a separate outward-dependent companion
+  project. It may share the solution but is not part of any OrcaCore package.
 - Do not create a parallel e2e harness. Extend `OrcaCore.Integration.Tests` and
   reuse its fixtures.
 - Do not widen scope to the archived legacy implementation under `archive/legacy-poc/`.
@@ -128,12 +147,17 @@ Tasks:
 1. Promote representative command-level durable scenarios to host-level tests:
    - start -> step complete -> complete;
    - start -> wait -> event delivery -> resume;
-   - start -> external job -> outbox dispatch;
+   - start -> typed bounded external create-or-observe step -> durable `Wait` -> normalized
+     event completion, using a fake application adapter rather than a public external-job node;
    - start -> timer scheduled -> hosted timer sweep fires;
-   - terminal instance -> archive or retention operation.
-2. Ensure the tests resolve `DurableCommandProcessor`, `DurableManagement`,
-   `IWorkflowEventStore`, `IResourcePoolStore`, `ITimerScheduler`, and
-   `DurableOutboxPump` from the host service provider.
+   - terminal instance -> typed snapshot/state/output inspection and termination safety;
+     public archive/purge are deferred.
+2. Build ordinary execution hosts through
+   `AddOrcaCoreDurableEngine(DurableEngineHostOptions)` plus one certified provider role. Build
+   callback-only hosts through `AddOrcaCoreDurableEventIngress()` and prove they expose event
+   ingress/continuation handoff without definition/execution/timer/reconciliation/DAG loops.
+   Provider-certification tests, not application journeys, may resolve
+   `IDurableResourceGovernanceStore` and other advanced SPIs.
 3. For scenarios with dispatch, prefer the hosted outbox path where possible;
    use `PumpOnceAsync` only when the scenario intentionally isolates a single
    cycle.
@@ -195,7 +219,7 @@ Tasks:
    - timer scheduled and fired;
    - outbox pump cycle summary (initial slice complete);
    - outbox record dispatched, retryable, or poisoned;
-   - resource-pool acquire, wait, release, and expiry.
+   - resource-pool request, atomic grant, release, review mark, quarantine, and reconciliation.
 2. Use source-generated `[LoggerMessage]` partial methods on hot paths and keep
    log calls structured. Do not log business payloads or workflow state by
    default.
@@ -243,7 +267,7 @@ Current gap:
 - The ephemeral engine can register a `WorkflowDefinition<TState>` and execute
   the node graph inline.
 - The durable runtime now exposes a public definition registry and version-bound
-  `StartOrGet` facade over the durable command path.
+  `StartOrGetAsync` facade over the durable command path.
 - Full durable workflow-node execution is not yet available.
 - Document 16 (`16-requirements-durable-driver.md`) is now the gate for this gap: the
   durable interpreter, execution-position envelope, lane host, restart-safe continuation
@@ -254,7 +278,7 @@ Implementation note:
 
 - `DurableDefinitionRegistry` registers immutable definition versions by
   `DefinitionId` and `DefinitionVersion`.
-- `DurableWorkflowRuntime` exposes public version-bound `StartOrGet` over the
+- `DurableWorkflowRuntime` exposes public version-bound `StartOrGetAsync` over the
   existing durable start/idempotency implementation.
 - `INT_E2E_011` now simulates deployment on PostgreSQL: an instance started on
   version 1 remains bound to version 1 after version 2 is registered, and a
@@ -267,8 +291,8 @@ Tasks:
    - **DR-P1** interpreter + execution-position envelope;
    - **DR-P2** lane host + restart-safe continuation signal;
    - DR acceptance coverage for crash-after-runnable-commit, stale continuation no-op,
-     segment-budget yield, stateful wait, durable `ForEach` rejection, and checkpoint
-     envelope migration/parking.
+     runtime-owned segment checkpointing, stateful wait, bounded durable `ForEach` snapshot/
+     admission/restart, and checkpoint envelope migration/parking.
 1. Define the durable public entry point:
    - register definition version;
    - start or start-or-get an instance;
@@ -282,8 +306,8 @@ Tasks:
    - step completed or failed;
    - waits;
    - timers;
-   - child workflow commands;
-   - external job commands;
+   - internal child workflow commands used only by `OrcaCore.Dag.Hosting`;
+   - ordinary typed step completion plus `Wait` for application-owned external adapters;
    - terminal commands.
 4. Add version-compatibility diagnostics for incompatible resumed definitions.
 5. Unskip and implement `INT_E2E_011`. (Complete.)
@@ -293,20 +317,22 @@ Exit criteria:
 - DR-P1 and DR-P2 gates pass for the in-memory provider and PostgreSQL where required by
   document 16.
 - A workflow definition can be registered, started, suspended, persisted, reloaded after
-  host restart, and resumed through public durable APIs without tests issuing kernel
+   host restart, and resumed through public durable APIs without tests issuing kernel
   commands by hand.
 - Version binding is observable and tested.
 
 ## Workstream 5: Integrated DAG And Scheduler Runner
 
-Goal: turn current DAG/job building blocks into an integrated durable runner for
-the job-scheduler scenario.
+Goal: turn the useful durable child-instance substrate into typed `OrcaCore.Dag` planning plus
+`OrcaCore.Dag.Hosting` execution and
+prove the separate companion-scheduler boundary without adding Kubernetes/AWS dependencies or
+a public external-job composite to OrcaCore.
 
 Current useful code:
 
 - DAG builder and acceptance tests.
 - Durable child workflow command handlers.
-- Durable external job command handlers.
+- Historical durable external-job protocol handlers (internal evidence only in v1).
 - Resource-pool stores and certification tests.
 - Outbox kind dispatching.
 
@@ -319,10 +345,19 @@ Current implemented slice:
   in-flight jobs, continue-as-new mid-DAG, heterogeneous node definitions, and
   duplicate completion deduplication.
 
+These tests describe useful internal behavior. They do not freeze the provisional public
+`WorkflowDagPlan`, `RunChildren`, external-job command, or job-outbox authoring shapes.
+
 Remaining gap:
 
+- `OrcaCore.Dag` must expose typed immutable run input, typed durable workflow references,
+  direct-dependency output mapping, finite validation, and one child instance per node through
+  the sole `OrcaCore.Dag.Hosting` bridge to the named/versioned internal protocol.
+- The companion scheduler must prove Kubernetes create-or-observe with `StepOperationId`,
+  normalized watcher events, and lease stop-confirmation/quarantine while remaining an
+  outward-only solution dependency.
 - Cron/scheduled-start triggering belongs to the scheduler application, which
-  should call OrcaCore `StartOrGet` with a canonical occurrence key.
+   should call OrcaCore `StartOrGetAsync` with a canonical occurrence key.
 - `INT_JS_018` remains skipped because the one-hour fake-clock soak belongs in a
   slow or nightly gate, not the default integration gate.
 
@@ -333,42 +368,45 @@ Implementation note:
 - `INT_E2E_013` now runs against PostgreSQL by scheduling DAG children through
   the runner and reconstructing node status through durable management.
 - `INT_JS_013` now proves that a canonical scheduler occurrence key maps to one
-  durable run through `StartOrGet`, including after processor restart.
+   durable run through `StartOrGetAsync`, including after processor restart.
 - The JobScheduler focused gate now passes with only the slow soak skipped.
 
 Tasks:
 
-1. Add a runner that turns a DAG plan into durable execution commands. (Initial
-   ready-batch runner complete for `INT_E2E_013` and `INT-JS-001`.)
-2. Schedule ready nodes only when dependencies are satisfied. (Complete for the
-   focused core gate.)
-3. Use durable resource pools for external jobs. (Complete for the focused core
-   gate.)
-4. Emit normalized outbox records for job start and job stop. (Complete for the
-   focused core gate.)
-5. Consume normalized completion events with stable event IDs for inbox dedup.
-   (Complete for the focused core gate.)
-6. Preserve management visibility for node state, blocked dependents, active
-   jobs, queued jobs, and completed nodes. (Complete for the focused core gate.)
-7. Unskip DAG runner scenarios incrementally:
+1. Replace the provisional public DAG builder with `OrcaCore.Dag` typed input/output and
+   dependency-mapping contracts; add `OrcaCore.Dag.Hosting` as the only bridge to the existing
+   internal child-instance protocol.
+2. Schedule ready node child instances only after direct dependencies succeed and the mapped
+   node input commits; reconstruct progress without caller-owned ready/completed sets.
+3. Use scoped durable resource leases around protected scheduler capacity. Hold the scope
+   across `Wait` only when the running Kubernetes Job consumes that capacity.
+4. Prove stable `StepOperationId` create-or-observe and generic stop confirmation with a fake
+   companion adapter; do not introduce public job-start/stop authoring.
+5. Consume normalized completion events with stable `EventId` values for inbox deduplication.
+6. Preserve management visibility for node state, blocked dependants, quarantined protected
+   work, queued resource requests, and completed node outputs.
+7. Retarget DAG runner scenarios incrementally:
    - diamond DAG happy path;
    - failure blocks dependents;
    - restart mid-job;
    - queue quota across definitions;
-   - cancel or pause with in-flight jobs where the durable API supports it.
+   - cancellation request with in-flight jobs. Public pause/resume are deferred.
      (Complete for the focused core gate.)
 
 Exit criteria:
 
-- Core JS acceptance criteria that belong to OrcaCore pass without Kubernetes.
-- Scheduler-app responsibilities remain documented in `eks-scheduler-handoff.md`.
+- Typed DAG acceptance criteria that belong to OrcaCore pass without Kubernetes and without a
+  public `RunChildren` or `RunExternalJob` member.
+- Companion scheduler responsibilities and SDK isolation remain documented and proven by its
+  own acceptance boundary.
 
-## Workstream 6: Durable Saga And Durable Yield
+## Workstream 6: Remove Provisional Saga And Yield Surface
 
-Goal: close the remaining `E2E` skips that require restart-safe advanced runtime
-behavior.
+Goal: retain any generally useful restart/compensation evidence while removing the provisional
+public Saga and author-`Yield` surfaces from the first release. Future Saga work remains in the
+deferred registry and requires a new normative amendment.
 
-Implementation note:
+Historical implementation note:
 
 - `INT_E2E_008` now uses the durable saga command adapter against PostgreSQL to
   prove compensation is restart-safe and idempotent.
@@ -378,26 +416,19 @@ Implementation note:
 - `INT_E2E_015` now proves yield checkpoint recovery and exactly-once step
   completion across PostgreSQL-backed processor restart.
 
-Tasks:
+First-release tasks:
 
-1. Durable saga:
-   - persist forward action audit;
-   - persist compensation decisions;
-   - resume compensation after restart;
-   - expose manual recovery state through management.
-2. Durable yield:
-   - commit progress before yielding;
-   - resume the same logical step after restart;
-   - prevent duplicate side effects on retry;
-   - expose progress in history/projections where required.
-3. Unskip and implement:
-   - `INT_E2E_008`; (Complete.)
-   - `INT_E2E_015`. (Complete.)
+1. Delete public Saga builders/definitions/adapters and remove first-release samples or tests
+   that present them as supported APIs.
+2. Delete public/author `Yield`; keep execution quanta and checkpoint scheduling entirely
+   runtime-owned.
+3. Add absence guards and preserve Saga plus yield/checkpoint intent in the future-feature
+   registry so reopening either capability starts with an explicit amendment.
 
 Exit criteria:
 
-- Durable saga and yield scenarios pass through the same provider and host-level
-  harness as other e2e tests. (Complete for the E2E gate.)
+- No public assembly, sample, packed consumer, or reflection-visible placeholder exposes Saga
+  or `Yield`; retained internal tests do not contradict document 17.
 
 ## Workstream 7: Failure Injection And Resilience E2E
 
@@ -505,8 +536,8 @@ dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj -
 4. Workstream 4: durable workflow facade and document-16 DR-P1/DR-P2 driver gates.
 5. Workstream 5: integrated DAG and scheduler runner, after the durable driver can advance
    registered definitions without manual command pumping.
-6. Workstream 6: durable saga and durable yield, aligned with DR-P3 where saga driving
-   becomes definition-driven.
+6. Workstream 6: remove provisional Saga and author-`Yield` surface; preserve future intent in
+   the deferred registry.
 7. Workstream 7: failure injection and resilience e2e.
 8. Workstream 8: provider matrix expansion and final e2e gate.
 

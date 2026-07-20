@@ -24,13 +24,13 @@ Every requirement has a stable ID. Prefixes:
 | `CR-`  | Core runtime & authoring | [04-requirements-core-runtime.md](04-requirements-core-runtime.md) |
 | `EV-`  | Events, waits, timers | [05-requirements-events-waits-timers.md](05-requirements-events-waits-timers.md) |
 | `DU-`  | Durable execution | [06-requirements-durable-execution.md](06-requirements-durable-execution.md) |
-| `SG-`  | Saga semantics | [07-requirements-saga.md](07-requirements-saga.md) |
-| `CP-`  | Composition (parallel, fanout, child workflows) | [08-requirements-composition.md](08-requirements-composition.md) |
+| `SG-`  | Deferred saga design constraints | [07-requirements-saga.md](07-requirements-saga.md) |
+| `CP-`  | Composition (parallel, bounded fanout, typed DAG) | [08-requirements-composition.md](08-requirements-composition.md) |
 | `MG-`  | Management & operations | [09-requirements-management-operations.md](09-requirements-management-operations.md) |
 | `PR-`  | Provider & extensibility model | [10-provider-model-and-extensibility.md](10-provider-model-and-extensibility.md) |
 | `NF-`  | Non-functional requirements | [11-non-functional-requirements.md](11-non-functional-requirements.md) |
 | `AC-`  | Acceptance criteria | [12-acceptance-criteria.md](12-acceptance-criteria.md) |
-| `JS-`  | Job-scheduler driving scenario (DAG, EKS jobs) | [14-driving-scenario-eks-job-scheduler.md](14-driving-scenario-eks-job-scheduler.md) |
+| `JS-`  | Companion scheduler scenario (typed DAG, Kubernetes Jobs) | [14-driving-scenario-eks-job-scheduler.md](14-driving-scenario-eks-job-scheduler.md) |
 | `OB-`  | OpenTelemetry logs, metrics, traces & dashboard correlation | [15-requirements-observability-otel.md](15-requirements-observability-otel.md) |
 | `DR-`  | Durable driver (interpreter + default in-process host) | [16-requirements-durable-driver.md](16-requirements-durable-driver.md) |
 
@@ -38,22 +38,28 @@ Every requirement has a stable ID. Prefixes:
 
 1. [01-concept-and-goals.md](01-concept-and-goals.md) — problem statement, product definition, goals, non-goals, guiding principles.
 2. [02-lessons-from-prior-art.md](02-lessons-from-prior-art.md) — practices adopted from Temporal, Durable Functions, Orleans, Dapr, Elsa, MassTransit, Stateless, and Workflow Core; anti-patterns to avoid.
-3. [03-domain-model-and-glossary.md](03-domain-model-and-glossary.md) — canonical terminology, the two product axes, state model, lifecycle.
+3. [03-domain-model-and-glossary.md](03-domain-model-and-glossary.md) — canonical terminology, typed workflow contracts, execution modes, state, lifecycle, DAG and lease vocabulary.
 4. [04-requirements-core-runtime.md](04-requirements-core-runtime.md) — authoring model, execution model, control flow, state separation, serialized execution.
-5. [05-requirements-events-waits-timers.md](05-requirements-events-waits-timers.md) — event envelope, routing, matching, buffering, deduplication, wait semantics, timers.
+5. [05-requirements-events-waits-timers.md](05-requirements-events-waits-timers.md) — event envelope, routing, active-wait matching, accepted-event deduplication, wait semantics, timers.
 6. [06-requirements-durable-execution.md](06-requirements-durable-execution.md) — persistence, recovery model, rehydration, versioning, inbox/outbox, retention.
-7. [07-requirements-saga.md](07-requirements-saga.md) — compensation semantics, saga lifecycle, operator recovery.
-8. [08-requirements-composition.md](08-requirements-composition.md) — parallel branches and joins, lightweight `ForEach`, durable child workflows.
-9. [09-requirements-management-operations.md](09-requirements-management-operations.md) — fluent management surface, lifecycle events, observability, resource governance.
-10. [10-provider-model-and-extensibility.md](10-provider-model-and-extensibility.md) — provider contracts, capability model, provider invariants.
+7. [07-requirements-saga.md](07-requirements-saga.md) — deferred compensation constraints and the required future amendment gate; not v1 surface.
+8. [08-requirements-composition.md](08-requirements-composition.md) — all-terminal parallel joins, bounded `ForEach` in both modes, and typed `OrcaCore.Dag` execution.
+9. [09-requirements-management-operations.md](09-requirements-management-operations.md) — first-release instance handles, lifecycle/observability requirements, and durable resource governance; deferred bulk management is recorded explicitly.
+10. [10-provider-model-and-extensibility.md](10-provider-model-and-extensibility.md) — provider contracts, the fixed v1 payload codec, the serialized resource-governance store, and provider invariants.
 11. [11-non-functional-requirements.md](11-non-functional-requirements.md) — platform, quality, API design, security, performance posture.
 12. [12-acceptance-criteria.md](12-acceptance-criteria.md) — consolidated, numbered acceptance criteria catalog (`AC-xxx`; the scenario criteria `JS-AC-xxx` live in document 14 and are part of the catalog by reference).
-13. [13-phasing-and-open-questions.md](13-phasing-and-open-questions.md) — recommended delivery slices and the decisions intentionally left open.
-14. [14-driving-scenario-eks-job-scheduler.md](14-driving-scenario-eks-job-scheduler.md) — target application (EKS job scheduler with DAG runs): fit assessment, derived `JS-` requirements, library/application boundary.
-15. [15-requirements-observability-otel.md](15-requirements-observability-otel.md) — OTel metrics and logs for system dashboards, log↔metric↔trace correlation, active implementation gap review.
-16. [16-requirements-durable-driver.md](16-requirements-durable-driver.md) — the durable interpreter (run-to-suspension executor) and the default in-process lane host (`DR-xxx`, `DR-AC-xxx`); positions the Orleans engine as an alternative host of the same driver contract; closes the R14 "kernel without a driver" gap.
+13. [13-phasing-and-open-questions.md](13-phasing-and-open-questions.md) — first-release delivery slices, closed decisions, narrow implementation questions, and deferred registry.
+14. [14-driving-scenario-eks-job-scheduler.md](14-driving-scenario-eks-job-scheduler.md) — outward companion application using typed DAGs and standard Kubernetes Jobs; EKS is one deployment target, not an OrcaCore dependency.
+15. [15-requirements-observability-otel.md](15-requirements-observability-otel.md) — OTel metrics and logs for system dashboards, log↔metric↔trace correlation, and the boundary between v1 handles and host/operator projections.
+16. [16-requirements-durable-driver.md](16-requirements-durable-driver.md) — the durable interpreter (run-to-suspension executor) and default in-process lane host (`DR-xxx`, `DR-AC-xxx`), including detached attempts, exact deadlines, continuation delivery, leasing, and DAG driving.
 
-17. [17-selected-mode-capability-matrix.md](17-selected-mode-capability-matrix.md) - normative DU-002 selected-mode capability matrix, approved post-fiber builder signatures, shared compiler/diagnostic contract, concurrency taxonomy, and package/host boundaries.
+17. [17-selected-mode-capability-matrix.md](17-selected-mode-capability-matrix.md) - authoritative 2026-07-19 v1 capability/signature baseline, compiler/fingerprint contract, concurrency/lease semantics, DAG and integration boundaries, and deferred/removed registry. If another numbered document is less specific or retains historical wording, document 17 wins.
+
+The matrix's normative declaration companion,
+[17-public-authoring-contract.cs](17-public-authoring-contract.cs), supplies compilable C#
+receiver/return types for every approved workflow-authoring member. Use it for exact names and
+generic shapes; it is a declaration artifact, not product source. No deferred or removed member
+may appear there without a coordinated matrix amendment.
 
 ## Provenance
 

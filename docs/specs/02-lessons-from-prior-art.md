@@ -22,23 +22,26 @@ documents turn them into numbered requirements.
 ### From Temporal and Durable Functions
 
 1. **Separate orchestration logic from side effects.** The runtime owns orchestration state
-   changes; steps express intent through results; side effects happen in dedicated execution
-   paths. This is the single most important borrowed rule — it is the prerequisite for safe
-   retries, deduplication, and any replay-based recovery.
+   changes. A durable step may perform one short bounded idempotent create-or-observe call using
+   stable `StepOperationId`; long-running work remains external and reports through events.
+   Stable identity plus at-least-once invocation is honest; exactly-once external effects are
+   not claimed.
 2. **External event waits are a first-class primitive** with payload delivery, correlation,
    and natural composition with timeouts (event/timer races).
 3. **Durable timers are a core primitive**, not a generic sleep; timer wake-up must survive
    process loss in durable mode.
-4. **Fan-out/fan-in is explicit**: branch execution may be concurrent, join semantics are
-   deliberate and acceptance-tested.
+4. **Fan-out/fan-in is explicit**: fixed branches and bounded dynamic items have isolated state,
+   stable ordering, host admission ceilings, and deliberate all-terminal joins. Local fibers
+   are cooperative; true concurrency occurs across instances/external systems.
 5. **Instances are version-bound.** Long-running instances are permanently associated with a
    definition version; incompatible deployments must fail explicitly, never silently corrupt.
 6. **Unresolved runtime-owned work blocks completion.** A workflow must not silently complete
    while runtime-owned waits/timers remain unresolved, unless policy explicitly permits it.
 7. **History/checkpoint growth is an operational concern**: pressure must be observable, and
    a continue-as-new/compaction mechanism must exist for long-lived instances.
-8. **Sub-orchestrations (child workflows)** are the sanctioned way to decompose large
-   workflows and bound history growth.
+8. **Sub-orchestrations are valuable but need a typed boundary.** V1 uses an internal durable
+   child protocol for `OrcaCore.Dag` node instances; this lesson does not justify a provisional
+   public `RunChild`/`RunChildren` API.
 
 ### From Orleans
 
@@ -47,9 +50,9 @@ documents turn them into numbered requirements.
    any time.
 10. **One logical mutator per instance by default**; reentrancy, if ever allowed, is an
     explicit advanced feature.
-11. **Transient vs durable wake-up are different concepts** — this motivates the
-    `Wait` / `WaitLong` split and the explicit statement of what a durable wake-up does and
-    does not replay.
+11. **Transient vs durable wake-up guarantees must be explicit** — one public `Wait` has the
+    same business meaning in both modes; durable mode persists it and may cold-evict/rehydrate
+    under host residency policy. A second `WaitLong` authoring concept is unnecessary.
 12. **Wait subscriptions are engine-owned persisted records** (analogous to Orleans stream
     pub/sub subscription state), not improvised broker subscriptions.
 13. **Never rely on shutdown/deactivation hooks for critical persistence.** Persist at
@@ -61,8 +64,11 @@ documents turn them into numbered requirements.
 
 ### From Dapr, Elsa, MassTransit, Stateless, Workflow Core
 
-16. **A stable, complete management surface** (start, query, raise event, pause/resume,
-    cancel, terminate, retry, archive, purge) is part of the product, not an add-on.
+16. **A stable management boundary is part of the product, not an add-on.** V1 deliberately
+    starts with typed registration/start handles, snapshots, committed-root-state/output reads,
+    active-wait inspection, event delivery, cooperative cancellation, and termination. Public
+    pause/resume, failed-instance retry, archive, purge, and bulk fluent selection remain
+    documented future amendments rather than placeholder members.
 17. **Bookmark-style suspension**: each wait has identity, correlation metadata, cancellation
     semantics, and is indexed for efficient resume.
 18. **Correlation is a first-class request-reply identity** (`CorrelationId`), the same value
@@ -73,6 +79,15 @@ documents turn them into numbered requirements.
     illegal triggers rejected (not ignored), terminal states reject everything.
 21. **Compact, embeddable, code-first authoring** — approachable API shape matters; the
     engine must remain a library.
+22. **Definition code is versioned behavior.** The compiler fingerprints only observable
+    structure and static authored values. Selectors, projectors, merge bodies, step configuration,
+    request construction, and other opaque code are not honestly hashable in v1; changing any of
+    them requires a new `DefinitionVersion` even when the structural fingerprint is unchanged.
+23. **Protected external capacity needs proof, not a clock.** Scoped durable leasing holds
+    across waits when external work consumes the resource, has no author TTL/renewal, and
+    quarantines ambiguous work until causally sufficient stop/fence confirmation.
+24. **Integration dependencies point outward.** Kubernetes/AWS/job-system code belongs to a
+    companion project; provider-neutral OrcaCore types must not expose infrastructure SDKs.
 
 ## 2.3 Anti-patterns to avoid (normative prohibitions)
 
@@ -99,14 +114,28 @@ Drawn primarily from the Workflow Core issue-pattern review and design synthesis
     must be composable (`Where(...)`), not encoded in verb names.
 12. **Start without an idempotency contract.** Callers lose responses; retry-safe initiation
     (`StartOrGet`) is a correctness boundary. (Workflow Core #828.)
-13. **Recovery limited to wait-resume.** Failure retry must be a supported recovery path,
-    distinct from suspend/resume. (Workflow Core #829.)
+13. **Recovery semantics left implicit.** Wait continuation, step retry, terminal-state
+    immutability, and any future failed-instance retry must remain distinct. V1 intentionally
+    never reopens a terminal instance; a later retry feature requires a new-generation contract.
 14. **Unbounded/arbitrary predicates as the public query contract.** In-memory-only
     predicates break the moment a durable provider must translate them.
 15. **Deleting completed instances out from under in-flight consumers or lifecycle hooks**
     without defined provider invariants. (Workflow Core Redis NRE pattern.)
 16. **Introducing a serialized DSL before code-first semantics are stable** — or accepting
     that DSL parity must be exhaustively tested as a second contract.
+17. **Primitive execution identities.** Raw strings, reusable authored locations, fiber IDs, or
+    retry attempt numbers are not stable external-effect identity; use validated domain values
+    and runtime-created `StepOperationId`.
+18. **Time-only lease reclaim.** Elapsed time, terminal workflow status, delete acknowledgement,
+    or infrastructure labels do not prove protected work stopped and must not free capacity.
+19. **Speculative public integration SPIs.** A concrete application integration may stay
+    application-owned until repeated implementations prove a provider-neutral contract.
+20. **Shared mutable attempt state.** A failed, timed-out, or token-ignoring late attempt must
+    not leak mutations into a retry or committed state; every attempt needs a codec-detached copy
+    and only the winning successful attempt may replace committed state.
+21. **Time or per-workflow streams as distributed resource allocation.** Durable multi-pool
+    grants require one serialized resource-governance aggregate per provider partition. A provider
+    that appends only per-workflow streams cannot make an atomic cross-pool grant.
 
 ## 2.4 Cross-cutting conclusions
 
@@ -118,3 +147,6 @@ Drawn primarily from the Workflow Core issue-pattern review and design synthesis
 5. Users often expect a **synchronous completion bridge** for effectively-immediate
    workflows; the product must define how (and whether) a caller can await a short-running
    workflow's completion, distinct from long-running durable execution.
+6. Greenfield simplicity is a correctness tool: removed provisional members disappear, while
+   deferred capabilities remain documented with explicit amendment gates rather than aliases or
+   placeholder APIs.

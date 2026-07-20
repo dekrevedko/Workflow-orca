@@ -1,5 +1,11 @@
 # T4B-04: Add RunExternalJob composite
 
+> **Superseded historical task (2026-07-18):** do not execute this task or implement its
+> signatures/deliverables. Current v1 authority is
+> [document 17](../../../specs/17-selected-mode-capability-matrix.md) and the active
+> `reshape-developer-facing-interfaces` change. Public `RunExternalJob` is deferred and
+> `WaitLong` is removed; v1 uses an ordinary named durable create-or-observe step plus `Wait`.
+
 **Difficulty**: Sonnet        **Depends on**: T4B-03
 **Spec**: JS-002, JS-007, EV-041, EV-051, DU-031        **AC**: JS-AC-004, JS-AC-005, JS-AC-006, JS-AC-010, JS-AC-011, JS-AC-012, JS-AC-013
 

@@ -1,25 +1,39 @@
-## MODIFIED Requirements
+## REMOVED Requirements
+
+### Requirement: Saga workflows use a distinct definition kind
+**Reason**: Saga authoring and definition types are deferred beyond v1; publishing an empty definition kind would create a compatibility promise before compensation semantics are approved.
+
+**Migration**: No released consumer migration exists. Use ordinary typed workflows or `OrcaCore.Dag` where compensation is not required, and wait for the future Saga proposal where it is.
+
+### Requirement: Compensation has explicit scope and reverse ordering
+**Reason**: Compensation ordering, parallel-scope ownership, cancellation, and residual external-work behavior require a separate reviewed state-machine design and acceptance evidence.
+
+**Migration**: Keep compensation application-owned for v1; do not depend on a provisional OrcaCore compensation order.
+
+### Requirement: Saga outcomes include saga-specific terminal semantics
+**Reason**: Saga-specific terminal outcomes depend on the deferred compensation and remediation model and are not part of the first-release workflow outcome contract.
+
+**Migration**: Represent v1 business status in typed workflow output; no Saga terminal API ships.
 
 ### Requirement: Advanced saga support is durable and auditable
-Advanced saga behavior SHALL execute through an explicitly registered durable saga definition and the structured runtime-owned progression loop from `adopt-structured-fiber-execution`, which records forward actions, timeouts, compensation decisions, compensation outcomes, manual intervention, scope-owned obligations, and version-aware evolution. Application callers SHALL NOT construct saga protocol commands or use an interim command adapter to advance normal saga work.
+**Reason**: Durable reverse progression, compensation failure, manual intervention, recovery, audit, and version evolution are deferred together rather than implemented piecemeal.
 
-#### Scenario: Operator reviews a long-running saga incident
-- **WHEN** a durable saga requires investigation or intervention
-- **THEN** the application management Interface exposes committed saga audit and supported remediation without requiring action keys, scope IDs, command IDs, or timestamps to be reconstructed by the caller
+**Migration**: No public Saga builder, definition, adapter, management surface, or placeholder remains in v1.
 
-#### Scenario: Saga step fails
-- **WHEN** a registered durable saga forward action fails after earlier actions committed
-- **THEN** the runtime selects and progresses compensation from definition metadata and committed history
+### Requirement: Saga records are owned by fibers and scopes
+**Reason**: Saga-specific ownership records are unnecessary until the separate Saga proposal defines the complete durable compensation protocol.
+
+**Migration**: The structured-fiber runtime remains available to future implementation, but v1 persists no public Saga record contract.
 
 ## ADDED Requirements
 
-### Requirement: Saga authoring selects execution mode explicitly
-Saga authoring SHALL select ephemeral or durable execution mode before mode-specific capabilities become available and SHALL produce distinct immutable `EphemeralSagaDefinition<TState>` and `DurableSagaDefinition<TState>` application types. The two types MAY share one internal representation, but normal registration SHALL accept only its matching definition family. Ephemeral saga definitions SHALL expose only in-process compensation semantics, while durable saga definitions SHALL expose only capabilities supported by runtime-owned durable progression.
+### Requirement: Saga remains an explicit deferred capability
+The first release SHALL expose no public Saga builder, definition, action, adapter, outcome, management member, or reflection-visible placeholder. Product planning SHALL retain Saga in the future-capability registry with a re-entry gate requiring typed action/result authoring, deterministic compensation ownership/order, durable reverse progression, compensation failure, cancellation/timeout, manual remediation, versioning, audit, and restart acceptance.
 
-#### Scenario: Ephemeral saga is authored
-- **WHEN** a developer selects ephemeral saga authoring
-- **THEN** durable audit, restart recovery, and manual durable remediation methods are absent and `Build()` returns an `EphemeralSagaDefinition<TState>`
+#### Scenario: First-release public surface is inspected
+- **WHEN** source, reflection, package, compile, and sample guards inspect Saga-related names
+- **THEN** no callable Saga contract or obsolete alias is present
 
-#### Scenario: Durable saga is authored before progression exists
-- **WHEN** runtime-owned durable saga progression is not implemented
-- **THEN** the application Interface does not expose a provisional durable saga builder or interim command adapter as a complete feature
+#### Scenario: Future Saga work begins
+- **WHEN** a contributor proposes Saga after v1
+- **THEN** a separate reviewed capability amendment defines the full state machine before any public member is added

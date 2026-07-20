@@ -1,174 +1,287 @@
-# 14. Driving Scenario — EKS Job Scheduler with DAG Support (JS)
+# 14. Driving Scenario — Kubernetes Job Scheduler with Typed DAGs (JS)
 
-A concrete target application built **on top of** the OrcaCore library: a job scheduler
-where each job runs as a Kubernetes Job (EKS), and job runs are organized as **DAGs** of
-dependent jobs (Airflow/Argo-style dependencies). This document maps the scenario onto the
-existing spec, derives the requirements it adds, and fixes the boundary between the library
-and the scheduler application.
+Scope: an advanced scheduler in which every executable DAG node is a durable workflow and may
+submit one standard Kubernetes `batch/v1 Job`. EKS is one possible cluster environment, not the
+product boundary. The scenario proves OrcaCore's typed DAG, durable wait, deadline, operation
+identity, and resource-lease contracts without coupling OrcaCore to Kubernetes, AWS, or a
+generic public external-job protocol.
 
-Requirement prefix: `JS-`. Acceptance prefix: `JS-AC-`.
+## 14.1 Scenario vocabulary and project boundary
 
-## 14.1 Scenario summary
+- A **DAG definition** is an immutable typed `OrcaCore.Dag` plan. Nodes reference typed durable
+  workflows and edges declare direct dependencies.
+- A **DAG run** has one immutable typed run input. Each executable node occurrence is one
+  durable child workflow instance with lineage and a typed successful output.
+- A **Kubernetes Job** is a standard `batch/v1 Job` created through the Kubernetes API. The
+  cluster may be EKS, another managed Kubernetes service, or a self-managed cluster.
+- The **scheduler companion** is a separate outward application/integration project. It may
+  remain in `OrcaCore.slnx`, but it owns Kubernetes clients, manifests, namespaces, cluster
+  targets, authentication/discovery, watchers/reconcilers, job DTOs, and operator policy.
 
-- A **run** is one execution of a DAG definition: nodes are jobs, edges are dependencies
-  (including diamond fan-in: `A → {B, C} → D`).
-- A **job** executes outside the scheduler process as an EKS Job: the scheduler submits it,
-  then waits — minutes to hours — for completion/failure reported back asynchronously.
-- Runs must survive scheduler restarts, support timeouts, retries, quotas (max N concurrent
-  jobs per cluster/queue), operator pause/cancel, and full run observability.
-- Runs may start on a schedule (cron-like recurrence).
+Required dependency direction:
 
-## 14.2 Fit assessment — what the spec already covers
+```text
+scheduler companion -> OrcaCore.Dag -> OrcaCore application contracts
+scheduler companion -> Kubernetes client SDK
+scheduler companion -> AWS SDK only for a concrete AWS-specific capability
 
-The durable engine covers the hard parts of this scenario without change:
+OrcaCore -X-> OrcaCore.Dag / Kubernetes / AWS / scheduler code
+```
 
-| Scheduler need | Covered by |
-|---|---|
-| Submit job then sleep for hours, restart-safe | `WaitLong` cold wait (EV-041), rehydration (DU-013) |
-| Job submission consistent with committed state | Outbox, publish-after-commit (DU-031..033) |
-| Completion/failure reported asynchronously | Correlated events (EV-001/002), routing (EV-010), dedup (EV-031, DU-030) |
-| Job timeout ("kill after 2h") | Timer/event race (EV-051), timeout policies (EV-052) |
-| Job retry with backoff | Structured retry decorator (CR-006) |
-| Fan-out node (map over N inputs) | `RunChildren` + partitioners (CP-021, CP-030) |
-| Max N concurrent jobs per cluster/queue | Durable resource pools with tickets (MG-062…064, bound to jobs by JS-007); `RunChildren` dispatch windows (CP-023) apply only to group-scoped child throttling. Transient in-process pools (MG-061) are unsuitable here — see JS-007 |
-| Exactly-once "all dependencies done" continuation | Resume token barrier (CP-024), joins (CP-002) |
-| Operator pause / resume / cancel of a run | MG-013, CR-031 (cancel is cooperative → job deletion) |
-| Idempotent scheduled starts across scheduler restarts | `StartOrGet` (DU-053) |
-| Run inspection, timings, failure reasons | Lineage (CP-020), history (DU-071), statistics (MG-030) |
-| No K8s specifics in definitions | Provider boundary (PR-002, PR-015) |
+Kubernetes/AWS/job-system types SHALL NOT appear in any OrcaCore public signature or dependency
+closure. The scheduler gateway is application integration code, not an OrcaCore persistence or
+transport provider. Standard Kubernetes API access alone does not justify an AWS dependency.
 
-## 14.3 What the scenario adds — requirements
+## 14.2 Typed DAG requirements
 
-### JS-001 DAG definition input
-The library SHALL support DAG-shaped definitions — nodes plus dependency edges, including
-diamond fan-in — as an **additional authoring input** that compiles onto the standard
-execution semantics: a node becomes runnable when the joins over all its incoming edges are
-satisfied (per-node `WhenAll` over dependency completions); node failure behavior maps to the
-existing failure-policy axis (CP-021: fail-fast vs continue-independent-branches vs
-wait-all-then-fail).
+### JS-001 Typed DAG input and node workflows
+The scheduler SHALL define each DAG with immutable typed run input, unique validated
+`DagNodeId` values, and typed `DurableWorkflowRef<TNodeInput,TNodeOutput>` node references. The
+DAG compiler SHALL reject inspectable structure: cycles, duplicate node/dependency identities,
+self/foreign references, and missing/duplicate `MapInput`. Typed references make wrong/resultless
+output use compile-impossible. Because mapper code is opaque, undeclared/non-direct/foreign
+`OutputOf` access SHALL fail deterministically during mapping as `DAG_INPUT_MAPPING_INVALID`
+before mapped-input commit or child start, not as a fabricated build diagnostic.
 
-Constraints:
-- Cycles SHALL be rejected at build time with accumulated diagnostics (CR-002).
-- The DAG builder is a **compile front-end**, not a second runtime: it lowers to the same
-  plan/primitives the tree builder produces. The fluent tree builder remains the primary
-  authoring path (CR-001); DAG authoring does not change runtime contracts.
-- The compile target (each node as a durable child instance vs in-instance join state) is
-  open question 15 in document 13; child-instance-per-node is the recommended default for
-  isolation, lineage, and per-node retry.
+Each pure node input projector may read only the immutable run input and typed outputs of
+declared direct successful resultful dependencies. It may be reevaluated before one
+fixed-codec-normalized mapped-input commit, which is reused after restart. Resultless nodes may
+be dependencies but cannot be passed to `OutputOf`. Child business state is private. Small
+immutable output DTOs flow through the graph; large datasets, artifacts, and logs use typed
+external references. A node with no dependencies is valid and may map only immutable run input.
 
-### JS-002 External job composite (`RunExternalJob`-style)
-The library SHOULD provide a first-class composite for the submit-and-await-external-work
-pattern: emit a start command through the outbox → durably wait (cold) on completion/failure
-events correlated by job identity → apply timeout, retry, and cancellation policy. Its
-semantics SHALL be fully reducible to existing primitives (`Publish` + `WaitLong` +
-timer race) — the composite is convenience plus a documented contract, not new runtime
-behavior. Cancellation of the composite SHALL emit a compensating "stop external work"
-command (job deletion) through the outbox.
+### JS-002 Child-instance-per-node execution
+Each admitted node occurrence SHALL execute as one durable child workflow instance. Internal
+runtime child-start/join records provide deterministic identity, lineage, recovery, output
+handoff, and cancellation propagation; no public `RunChild`/`RunChildren` member is used or
+shipped. The runtime, not caller code, advances ready nodes and prevents duplicate starts after
+concurrent dependency completions or host replacement.
 
-### JS-003 Kubernetes adapter contracts (provider layer)
-EKS integration SHALL live entirely in the provider layer:
-- a **dispatcher adapter** (PR-015) that turns outbox job-start/job-delete records into
-  Kubernetes API calls (create/delete Job), with the standard dispatch outcomes
-  (success / retryable / permanent failure);
-- a **watcher/ingestor** that observes Job status and raises normalized envelopes
-  (EV-001) — `JobSucceeded` / `JobFailed` with the job's `CorrelationId` — subject to
-  standard inbox dedup on redelivery.
+Without a DAG cancellation request, child failure/timeout/termination/cancellation maps to a
+stable failed-node code and blocks transitive dependants as `DependencyBlocked`; independent
+ready/running nodes continue and the run fails. A DAG cancellation request prevents admission,
+cancels pending/ready nodes, requests running-child cancellation, and completes as `Cancelled`
+after running children terminate. DAG-host `MaxConcurrentNodes` remains separate from workflow
+path tokens and resource pools and counts every started nonterminal child, including one parked
+inside its workflow wait, until terminal. `DagRunHandle.WaitForTerminalAsync` uses notification
+subscribe/recheck without polling; caller cancellation cancels only that local wait.
 
-Kubernetes concepts (namespaces, manifests, backoff limits) MUST NOT leak into workflow
-definitions (PR-002); they are adapter configuration.
+### JS-003 Immutable DAG and workflow versions
+Every DAG and referenced workflow identity/version is bound to a structural fingerprint. Graph
+node/edge/member order, strong values, referenced workflow types, and fixed codec format
+contribute. Mapping/projector/selector bodies, scheduler request construction, and opaque
+configuration do not pretend to be hashed; changing any requires a new definition version.
+Reusing an identity/version with another structural fingerprint returns a typed conflict.
 
-### JS-004 Scheduled starts are a host concern
-Cron/recurrence triggering SHALL be a scheduler-application concern layered on the library:
-each occurrence starts a run via `StartOrGet` with a deterministic occurrence key
-(definition + schedule + occurrence timestamp), making scheduled starts idempotent across
-scheduler restarts and overlapping triggers (DU-053). The core library SHALL NOT embed a
-cron engine.
+## 14.3 Kubernetes Job workflow pattern
 
-### JS-005 DAG run observability
-A DAG run SHALL be reconstructable — nodes, dependency edges, per-node status, timings,
-attempts, failure reasons — from lineage metadata, projections, and history alone (CP-020,
-DU-070/071, MG-030), without scheduler-private bookkeeping storage. Named End outcomes
-(CR-008) SHOULD carry per-node terminal outcomes.
+### JS-004 Bounded idempotent submit step
+The node workflow MAY execute a named durable application step that makes one short,
+`WithStepTimeout`-bounded create-or-observe call through an application-owned Kubernetes
+gateway. It SHALL use `StepExecutionContext.OperationId` as the logical idempotency identity;
+`AttemptNumber` is the durable retry-policy attempt ordinal and is diagnostic only. A host-loss
+replay of an in-flight attempt reuses the same attempt ordinal and persisted attempt deadline and
+does not consume another `maxAttempts` slot; only a committed policy retry advances the ordinal.
+One external effect per durable step occurrence is the v1 authoring rule.
 
-### JS-006 Run cancellation propagates to jobs
-Cancelling a run SHALL cooperatively cancel its in-flight nodes (CR-031): each running
-external job receives a stop command (via JS-002's cancellation path); the run terminates
-`Cancelled` only after cancellation intent for all in-flight jobs is durably recorded.
+The gateway SHALL derive a deterministic Kubernetes name and/or idempotency labels from the
+workflow instance and `StepOperationId`, and record a deterministic desired-spec fingerprint.
+Its retry behavior is:
 
-### JS-007 Global DB-connection budgets across jobs
-Jobs that consume database connections SHALL declare their needs as **durable-pool ticket
-requirements** (MG-062/063) on the external-job composite — e.g. `requires: db-A×1,
-db-B×2`, one pool per database. Semantics:
+1. no matching Job -> create;
+2. matching Job with the same operation/spec fingerprint -> observe/reattach and return the
+   same logical submission result;
+3. same name with another operation or spec fingerprint -> permanent conflict;
+4. ambiguous API response -> query and prove which of the prior outcomes occurred.
 
-- the ticket set is acquired (all-or-nothing) **before** the job-start command is
-  dispatched through the outbox — a job never starts without its budget;
-- with pools exhausted, the node waits cold in the grant queue (FIFO) — a queued job costs
-  no memory or cluster resources;
-- tickets are held for the **entire job lifetime**, across the cold wait and any scheduler
-  restarts (transient in-process pools, MG-061, are unsuitable here by design);
-- release happens on the job's terminal outcome — success, failure, timeout-kill (JS-AC-006)
-  and run cancellation (JS-006) included;
-- ticket expiry SHOULD derive from the job timeout plus a reporting margin, so a job that
-  dies without reporting cannot leak connections silently (MG-064).
+OrcaCore supplies stable operation identity and at-least-once step invocation. It does not
+claim exactly-once Kubernetes API effects. Polly MAY be used inside the gateway for transport
+resilience, but it does not define workflow retry, timeout, replay, or terminal semantics.
 
-This is the global "rate limiter with tickets" across all jobs, all DAGs, and all
-definitions sharing the scheduler's store. Note it is a **concurrency cap** (N connections),
-not a rate (N per second); rate-based token-refill pools are tracked as open question 16.
+### JS-005 Small durable Kubernetes reference
+The node state SHALL persist only application-owned intent and a small reference containing a
+logical cluster target, namespace, name, Kubernetes UID when observed, `StepOperationId`, and
+desired-spec fingerprint, plus normalized terminal outcome/result references. It SHALL NOT
+persist client credentials, complete Kubernetes API objects, Pod lists, logs, or watch state as
+workflow business state.
 
-## 14.4 Acceptance criteria
+Cluster target is a registered logical name, not a kubeconfig path or API URL. Stop/delete
+reconciliation SHALL use the observed Kubernetes UID (or an equivalently strong precondition),
+not object name alone, so deletion/recreation cannot stop a successor Job accidentally.
 
-- **JS-AC-001** *Diamond DAG joins correctly* — Given `A → {B, C} → D`, D starts only after
-  both B and C complete, regardless of their completion order. [JS-001, CP-002/003]
-- **JS-AC-002** *Cycle rejected at build* — A cyclic DAG fails build with accumulated
-  diagnostics naming the cycle. [JS-001, CR-002]
-- **JS-AC-003** *Node failure policy enforced* — Given a failing node, dependents do not
-  start, and the run outcome follows the configured failure policy; independent branches
-  behave per policy. [JS-001, CP-021]
-- **JS-AC-004** *External job completion resumes exactly once* — A correlated completion
-  event resumes the awaiting node exactly once; watcher redelivery is deduplicated.
-  [JS-002, EV-023/031]
-- **JS-AC-005** *Run survives scheduler restart mid-job* — **[provider]** With a job running
-  in EKS and the scheduler restarted, the cold-waiting instance rehydrates and the
-  completion event resumes it. [JS-002, AC-301/304]
-- **JS-AC-006** *Job timeout kills the job* — On timeout, the configured policy fires
-  deterministically and a job-delete command is dispatched through the outbox. [JS-002,
-  EV-051, DU-031]
-- **JS-AC-007** *Queue quota honored durably* — At most N jobs holding tickets of a named
-  durable pool run concurrently — across definitions, DAG runs, and scheduler restarts.
-  Group-scoped child dispatch windows (CP-023) compose with, and never substitute for, the
-  pool cap. [JS-007, MG-062, MG-063]
-- **JS-AC-008** *Scheduled occurrence idempotent* — Two triggers for the same occurrence key
-  yield one run. [JS-004, DU-053]
-- **JS-AC-009** *Run cancel propagates* — Cancelling a run dispatches stop commands for all
-  in-flight jobs and ends the run `Cancelled`. [JS-006, CR-031]
-- **JS-AC-010** *Ticket held across restart* — **[provider]** Given a running job holding a
-  db ticket, after scheduler restart the ticket is still held and capacity is not
-  double-counted. [JS-007, MG-062]
-- **JS-AC-011** *Ticket released on every job outcome* — Job success, job failure,
-  timeout-kill, and run cancellation each release the job's tickets exactly once, freeing
-  capacity for queued jobs. [JS-007, MG-062]
-- **JS-AC-012** *Multi-DB job acquires atomically* — A job requiring db-A and db-B never
-  holds one ticket while waiting for the other; it starts only with the full set. [JS-007,
-  MG-063]
-- **JS-AC-013** *Queued job consumes nothing* — A job waiting for a ticket keeps its
-  instance cold-evictable and creates no EKS resources until granted. [JS-007, MG-062,
-  EV-041]
+### JS-006 Watch and resume
+After submit/observe commits, the workflow uses ordinary structural `Wait` correlated by its
+application job reference. A companion watcher/reconciler observes Kubernetes and reports one
+normalized terminal event through OrcaCore's standard event facade. It creates one caller-stable
+`EventId` per logical report and reuses it unchanged on retry/redelivery. If completion is
+reported before wait registration, delivery returns non-consuming `NoActiveWait`; the companion
+observes the active wait and redelivers the same `EventId` and identical normalized envelope.
+Only acceptance writes durable inbox/dedup state. Watcher disconnect/relist, host loss, and
+duplicate delivery therefore require no pending-event mailbox.
 
-## 14.5 Phasing
+The watcher SHALL not depend on uninterrupted Kubernetes watch history; after disconnect or an
+unavailable resource version it relists/reconciles current state. Automatic Kubernetes
+finished-Job cleanup SHALL not erase the only terminal evidence before OrcaCore durably accepts
+the result.
 
-- JS-001/002/005/006 depend on Slices 2–4 (durable core, timers/policies, `RunChildren` +
-  unified outbox). Recommended landing: a **Slice 4b — DAG front-end & external-job
-  composite**, immediately after Slice 4.
-- JS-003 (EKS adapters) and JS-004 (scheduler host app) are provider/host deliverables in
-  the Slice 6 family; the scheduler application itself is a separate codebase consuming the
-  library — and serves as the first real-world certification consumer (PR-024).
-- Slices 1–3 are unaffected: the scenario validates the existing spec rather than reshaping
-  it.
+### JS-007 Three distinct time bounds
 
-## 14.6 Boundary statement
+- `WithStepTimeout` bounds one submit/query API attempt and fences its late result. It does not
+  prove whether an ambiguous create succeeded and does not stop an already-created Job.
+- Kubernetes `activeDeadlineSeconds` (when used) bounds cluster workload execution under
+  Kubernetes semantics.
+- `CompleteWithin` bounds the node workflow from start, including lease queueing, retries,
+  waits, and cleanup decision; its deadline survives restart.
 
-The **library** owns: DAG compilation, durable orchestration, waits/joins/retries/timeouts,
-outbox dispatch contracts, quotas, lineage/observability. The **scheduler application**
-owns: cron triggering, the K8s adapters' deployment/configuration, UI/API over the
-management surface, and multi-tenant policy. Nothing in this scenario requires weakening
-that boundary — which is the strongest signal the current spec is fit for purpose.
+None of these alone proves protected work stopped or authorizes unsafe resource release.
+
+## 14.4 Mandatory durable resource leasing
+
+### JS-008 Scheduler jobs declare external capacity atomically
+Any Kubernetes Job that may consume capacity governed by the scheduler (for example database
+connection budgets) SHALL run under scoped durable
+`AcquireResources(ResourceLeaseRequest, body)`. The non-empty request names one or more
+`ResourcePoolName` values and positive units; all pools grant atomically before create/observe.
+If unavailable, only the requesting fiber parks and no Kubernetes resource is created.
+
+When the external Job consumes the governed resource for its whole lifetime, submit, `Wait`,
+and the immediate first post-resume outcome-validation step remain inside the lexical lease body;
+the lease intentionally survives the wait and host restart. That step SHALL validate the terminal
+event's operation ID, lease-protection token, Kubernetes Job UID/incarnation, and terminal state
+before the lexical body may complete and release capacity. A malformed, stale, or otherwise
+unproven report cannot release the lease and follows the applicable failure/quarantine path. If
+only a short step needs a resource, its lease scope ends before the long wait; later processing
+opens a new scope only if it needs capacity again. OrcaCore never silently releases and reacquires
+a lease at `Wait`, because capacity and external-work identity could change between the two sides.
+
+Sequential scopes and one fully lexical scope per root-`While` iteration are legal. Independent
+sibling scopes may acquire independently. A descendant cannot acquire while an ancestor scope
+is pending/held; concurrently needed resources belong in one request.
+
+### JS-009 Cancellation and protected-work proof
+The leased step context exposes a runtime-created round-trippable `LeaseProtectionToken`. The
+scheduler SHALL label/record it with every protected Job occurrence. Cancellation, workflow
+deadline, step timeout, ambiguous submit, process loss, or forced termination while protected
+work may exist retains exact capacity. A retryable timeout/ambiguous submit/recovered in-flight
+attempt remains `AmbiguousHeld` while the lexical owner is recoverable, keeping the same
+`StepOperationId`, policy `AttemptNumber`, persisted attempt deadline, `LeaseProtectionToken`,
+tickets, and units. A host-loss replay of that in-flight attempt does not consume retry budget;
+only a committed policy retry advances `AttemptNumber`. A next retry cannot overlap a
+still-running prior body in the same process; host-loss replay may proceed, and success alone does
+not erase ambiguity. Ambiguous scope exit, exhaustion, cancellation, deadline, forced
+termination, or abandonment transfers to `Quarantined` before workflow/DAG progression.
+
+A trusted scheduler reconciler locates the exact Job/owned Pods, requests idempotent stop using
+UID preconditions, and waits until all protected work is terminal, absent under a causally
+sufficient observation, or end-to-end fenced. It then calls the provider-neutral advanced
+`IDurableResourceLeaseRecovery.ConfirmProtectedWorkStoppedAsync(token, confirmationId, ...)`.
+The caller-created `StopConfirmationId` is reused for retry. Confirmation precedence is total: a
+confirmation ID already bound to another token returns `ConfirmationConflict` before the target
+token's lifecycle is evaluated; an ID already accepted for the same token, or a token already
+released by another accepted confirmation, returns `AlreadyConfirmed`; otherwise live lexical
+ownership returns `NotConfirmable`, the first valid quarantine confirmation returns `Released`,
+and a normal-release, unknown, or retention-purged token returns `TokenNotFound`.
+
+A delete acknowledgement, elapsed time, workflow terminal status, Kubernetes label, or pool
+review deadline alone is not proof. Until exact confirmation, capacity stays reserved. The
+author supplies no lease TTL/renewal/holder ID. Pool review marks and audits an obligation, then
+reconciles exact owner/ticket/provider-generation state without time-only reclaim.
+
+## 14.5 Observability and operational reconstruction
+
+### JS-010 DAG and Job inspection
+Operators SHALL reconstruct a DAG run from complete authored-order `DagRunSnapshot`/
+`DagNodeSnapshot` projections: node IDs/ordinals, dependency edges, child instance IDs, closed
+run/node status, ready/start/completion timings, mapped-input fingerprint, output availability,
+and failure. Kubernetes-specific details are joined by the
+scheduler companion using its small job reference and cluster API; OrcaCore management APIs do
+not expose Kubernetes objects.
+
+Operational views SHALL distinguish workflow terminal state from pending protected-work
+cleanup/quarantine, and expose lease pool, units, queue/reconciliation age, protection identity
+(redacted as appropriate), and stop-confirmation outcome. Operators must be able to tell why a
+new Job is not admitted without inspecting business payloads. The companion SHALL discover
+outstanding or crash-before-label obligations through trusted
+`IDurableResourceLeaseDiagnostics`, then correlate by `LeaseProtectionToken`; ordinary workflow
+handles remain free of advanced ownership/ticket facts.
+
+## 14.6 Acceptance criteria
+
+- **JS-AC-001** *Diamond DAG joins typed outputs* — Given `A -> {B,C} -> D`, D starts once
+  only after B/C outputs commit; it maps run input plus those declared direct outputs.
+  [JS-001/002]
+- **JS-AC-002** *Structural build and opaque mapper failures differ* — Cycles, duplicate node/
+  dependency identities, self/foreign references, and missing/duplicate mapping return
+  accumulated build diagnostics. Wrong/resultless output use does not compile; undeclared/
+  non-direct output access hidden in mapper code fails as `DAG_INPUT_MAPPING_INVALID` before
+  input commit/child start, while independent nodes continue. [JS-001]
+- **JS-AC-003** *Node child identity survives restart* — **[provider]** Host replacement at
+  every child-start/output boundary creates no duplicate child and reuses committed mapped
+  input. [JS-001/002]
+- **JS-AC-004** *Failure closure and cancellation are stable* — Without DAG cancellation,
+  every non-success child maps to a stable failed-node code, blocks transitive dependants, and
+  fails the run while independent nodes continue. A DAG cancellation request uses the exact
+  cancellation state progression and waits for running children. Snapshots stay authored-order.
+  [JS-002]
+- **JS-AC-005** *Structural drift conflicts; code drift versions* — Changed graph structure
+  under the same identity/version conflicts. Changed mapping or Kubernetes request-construction
+  code uses a new version because opaque code is intentionally outside the fingerprint.
+  [JS-003]
+- **JS-AC-006** *Create succeeds but response is lost* — The durable step retries with the
+  same `StepOperationId`; the gateway observes the matching Job/spec and no duplicate Job is
+  created. Another occurrence gets another operation ID. [JS-004]
+- **JS-AC-007** *Watcher report is restart-safe* — A Job completes before or after wait
+  registration and across host/watcher replacement. Pre-wait delivery returns `NoActiveWait`;
+  after observing the wait the companion redelivers the same `EventId`, which is accepted once
+  and resumes exactly once.
+  [JS-006]
+- **JS-AC-008** *Three time bounds do not alias* — Submit-attempt timeout, Kubernetes active
+  deadline, and workflow `CompleteWithin` are independently observable and survive their
+  documented boundaries. [JS-007]
+- **JS-AC-009** *Start is idempotent* — Retrying the same `StartIdempotencyKey` and deterministic
+  input returns one DAG run; conflicting input/version/fingerprint returns a conflict.
+  [DU-053, JS-003]
+- **JS-AC-010** *Capacity precedes Kubernetes creation* — A queued node creates no Job; grant
+  of the complete atomic request commits before the bounded create-or-observe step runs.
+  [JS-008]
+- **JS-AC-011** *Lease spans Job lifetime when authored that way* — A running Job holds its
+  exact tickets across ordinary `Wait` and scheduler restart. The immediate first post-resume
+  step remains inside the lease, validates operation ID, protection token, Job UID/incarnation,
+  and terminal state, and only then may release once before the lease body's parent resumes. A
+  malformed, stale, or unproven report cannot release. [JS-008]
+- **JS-AC-012** *Multi-pool acquisition is atomic* — A Job requiring two pools holds neither
+  until both can grant; it never starts with a partial budget. [JS-008]
+- **JS-AC-013** *Timeout/cancel ambiguity and quarantine are safe* — Retryable timeout/process
+  loss with potentially live Job/Pods remains `AmbiguousHeld` under the same operation,
+  policy-attempt ordinal/deadline, token, and tickets; no in-process attempt overlap occurs,
+  host-loss replay consumes no retry slot, and success alone does not
+  release. Ambiguous exit/cancel/deadline/exhaustion transfers to quarantine before progress;
+  delete acknowledgement alone does not release it. [JS-009]
+- **JS-AC-014** *Trusted stop confirmation is exact and idempotent* — **[provider]** Live
+  lexical ownership is `NotConfirmable`; confirmed terminal/absent/fenced quarantine releases
+  once; retry or another confirmation after an accepted release is `AlreadyConfirmed`; and
+  normal-release/unknown token is `TokenNotFound`. A confirmation ID bound to another token wins
+  precedence as `ConfirmationConflict` before target-token lifecycle evaluation and cannot
+  release a successor. [JS-009]
+- **JS-AC-015** *Review deadline never steals live capacity* — **[provider]** A due live or
+  ambiguous owner is marked/audited and remains held without renewal until normal exact release
+  or trusted stop/fence proof. [JS-009]
+- **JS-AC-016** *Dependency isolation is enforced* — Architecture tests prove the primary
+  `OrcaCore` application package and all core packages reference no DAG/Kubernetes/AWS/scheduler
+  SDK; the companion points inward and
+  works against a non-EKS Kubernetes test cluster/fake API. [JS-001, PR-005]
+- **JS-AC-017** *Resultless prerequisite is valid* — A resultless setup/validation node may be
+  a declared dependency and gates its dependant, but exposes no output and rejects `OutputOf`.
+  [JS-001]
+- **JS-AC-018** *Scheduler waits and quarantine discovery are reactive* — DAG terminal waiting
+  and typed workflow output waiting use notification/recheck without polling or casts; caller
+  cancellation is local. Trusted lease diagnostics enumerate a quarantine even when the crash
+  preceded Job-label persistence, allowing token-correlated reconciliation. [JS-002/009/010]
+
+## 14.7 Deferred generic job surface
+
+The companion pattern does not pre-approve public `RunExternalJob`, job-specific runtime facade
+methods, `ExternalJobKey`, or `ExternalJobId`. A future generic composite requires one explicit
+amendment covering typed request/result, dispatch/outbox topology, identity, timeout/stop,
+report deduplication, resource bracket, and provider certification. Until then, the ordinary
+typed step + ordinary `Wait` pattern is the supported v1 scheduler integration.

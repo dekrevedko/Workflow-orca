@@ -35,7 +35,7 @@ Use `TimeProvider` only. Thresholds are definition-level or engine options, not 
 wall-clock sleeps.
 
 ## Out of scope
-Distributed stuck reconciliation after crash and durable ticket expiry.
+Distributed stuck reconciliation after crash and durable ticket review/reconciliation.
 
 ## Definition of done
 - [ ] New tests fail before implementation and pass after

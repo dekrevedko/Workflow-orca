@@ -1,5 +1,16 @@
 # Orleans Engine Package (agent-executable)
 
+> **Deferred-hosting design note:** this folder predates the 2026-07-18 first-release surface
+> decision. References to `WaitLong` describe the old proposal and are not callable v1 API.
+> Before Orleans work starts, amend this plan to the single cold-capable `Wait`, current typed
+> definitions, codec-detached state, scoped leases, unique event routing, role-specific hosting,
+> and the package matrix in [spec 17](../specs/17-selected-mode-capability-matrix.md) plus
+> [`17-public-authoring-contract.cs`](../specs/17-public-authoring-contract.cs). In particular,
+> an Orleans package must not copy the provisional catch-all `AddOrcaCore`/hosted-service-toggle
+> pattern or bypass `OrcaCore.Runtime.Protocol`/`OrcaCore.Provider.Abstractions` provider tiers.
+> The folder is not an active source
+> task graph today.
+
 **Goal**: an opt-in third execution engine — `OrcaCore.Engine.Orleans` — that hosts durable
 workflow instances as Orleans virtual-actor grains, reusing the existing durable
 event-sourced core (aggregate, provider ports, inbox/outbox, projections). Orleans replaces

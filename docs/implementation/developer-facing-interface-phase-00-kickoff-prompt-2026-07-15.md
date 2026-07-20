@@ -1,5 +1,16 @@
 # Developer-facing interface refactor: Phase 0 kickoff prompt
 
+> **Superseded historical prompt (2026-07-19):** do not copy or execute the prompt below.
+> It records the pre-remediation Phase 0 scope, task count, package assumptions, and lease/
+> fan-out expectations. Current authority is
+> [spec 17](../specs/17-selected-mode-capability-matrix.md), its
+> [exact authoring companion](../specs/17-public-authoring-contract.cs), the active
+> [`reshape-developer-facing-interfaces` tasks](../../openspec/changes/reshape-developer-facing-interfaces/tasks.md),
+> and the current
+> [remediation status](../review/developer-facing-interface-v1-simplification-review-e-remediation-and-phase-00-status-2026-07-19.md).
+> All 15 section-3 tasks remain **NOT READY** pending independent re-review. This body is
+> preserved unchanged as historical evidence.
+
 Copy and paste the text below into the implementation agent. Run it from
 `X:\Projects\GitHub\Workflow-orca`.
 

@@ -1,5 +1,35 @@
 # OrcaCore Ephemeral Engine Developer Guide
 
+> **Pre-refactor implementation guide:** examples below describe the currently checked-in
+> engine and may contain provisional `WhenFirst`, Saga, factory, or raw pool-key APIs. They are
+> not the approved first-release contract. Task 9.5 of the active developer-surface change will
+> rewrite this guide after product source reaches
+> [spec 17](specs/17-selected-mode-capability-matrix.md); do not copy these signatures into new
+> compile guards.
+
+> **Approved v1 corrections:** exact declarations are in
+> [`17-public-authoring-contract.cs`](specs/17-public-authoring-contract.cs). V1 uses staged typed
+> `Init`/`End`, `StepContext<TState>.State`/`ReplaceState`, and the fixed certified
+> `orcacore-json-v1` codec. It retains fixed root `Parallel`, supports finite root `ForEach`
+> (including a valid empty snapshot), and offers `WhenAll` plus success/failure-only
+> `WhenAllOutcomes`; an ancestor cancellation/termination/deadline suppresses merge. Retry is
+> `.WithRetry(maxAttempts, fixedDelay)` after a step, step attempts use `.WithStepTimeout`, and
+> the root uses `.CompleteWithin`. Ephemeral transient governance uses strong
+> `TransientPoolName` plus host-owned path tokens, not raw `WithPoolKey`. Caller-created
+> string-backed strong values use private constructors plus the sole public `Create(string)`
+> factory; constructor/factory-shaped examples later in this pre-refactor guide are not the approved
+> surface. The v1 host surface has
+> no independent advancement/general-body ceiling or fail-fast/capacity-wait-timeout policy: it uses
+> `MaxConcurrentExecutionPathsPerInstance`, exact-type `StepThrottles`, and at most one transient
+> pool decorator per step. Event dedup is per target
+> instance/event ID and correlation routing admits one active wait per
+> `(DefinitionId, EventName, CorrelationId)`; definition fanout is deferred. V1 management exposes
+> typed snapshot/state/output, cancellation request, and termination only. `WhenFirst`, Saga,
+> public child/external-job nodes, nested `Parallel`/`While`/`ForEach`, definition retry, public
+> pause/resume/archive/purge, `WaitLong`, and author `Yield` do not ship. Hosting uses
+> `AddOrcaCoreEphemeralEngine(EphemeralEngineHostOptions)`; catch-all `AddOrcaCore` and a separate
+> hosted-service toggle do not ship.
+
 This guide explains how to build and run workflows with the current root implementation
 ephemeral engine.
 

@@ -1,13 +1,20 @@
 # T6-03: Add hosting registration package
 
+> **Superseded historical task (2026-07-19):** do not execute the signatures, project ownership,
+> or toggles below. Current authority is
+> [document 17](../../../specs/17-selected-mode-capability-matrix.md#175-package-and-integration-boundary)
+> plus reshape tasks 3.7 and 7.10. V1 has no `OrcaCore.Hosting` PackageId, catch-all registration,
+> provider default, or separate hosted-service toggle; hosting entry points belong to their exact
+> engine/provider/DAG assemblies.
+
 **Difficulty**: Haiku        **Depends on**: T6-02
 **Spec**: PR-040        **AC**: none
 
 ## Goal
-Fill the existing `OrcaCore.Hosting` project with explicit Microsoft DI registration
-extensions. Hosts should be able to call `AddOrcaCore()` and provider-specific extension
-methods to wire engines, in-memory defaults, outbox pumping, timer scheduling, and
-operational sweeps.
+This file records the pre-simplification hosting proposal only. New implementation follows the
+role-specific `AddOrcaCoreEphemeralEngine`, `AddOrcaCoreDurableEngine`, callback-only
+`AddOrcaCoreDurableEventIngress`, `AddOrcaCoreInMemoryDurableProvider`, production
+`AddOrcaCorePostgreSqlDurableProvider`, and `AddOrcaCoreDag` contracts in the current authority.
 
 ## Read first
 - `src/OrcaCore.Hosting/OrcaCore.Hosting.csproj`
@@ -25,14 +32,15 @@ operational sweeps.
 
 ## Tests to write FIRST
 In `tests/OrcaCore.Hosting.Tests/OrcaCoreHostingServiceCollectionTests.cs`:
-1. `AddOrcaCore_RegistersCoreEnginesAndInMemoryDefaults` - the service collection resolves core engines with in-memory defaults.
-2. `AddOrcaCoreRabbitMq_RegistersDispatcherWithoutScanningAssemblies` - provider registration is explicit and does not rely on reflection scanning.
-3. `AddOrcaCoreHostedServices_RegistersPumpTimerAndSweepServices` - hosted services are registered only when requested.
+1. Replace this historical test list with the exact role-specific registration fixtures required by
+   reshape tasks 3.7 and 7.10.
+2. Prove PostgreSQL supplies one complete production durable role and in-memory remains development/test.
+3. Prove registration copies and validates programmatic options, includes each role's required hosted
+   loops, rejects mixed/conflicting roles, and exposes no catch-all or separate hosted-service toggle.
 
 ## Implementation notes
-Use Microsoft DI abstractions only. Keep registration explicit; do not add assembly scanning
-or a third-party container. Hosted services may be thin adapters over existing engine
-services.
+Use Microsoft DI abstractions only. Keep registration explicit; do not add assembly scanning,
+a third-party container, configuration-binder facade, catch-all method, or implicit provider/default.
 
 ## Out of scope
 ASP.NET endpoints, package publishing, provider implementation changes, and sample apps.
