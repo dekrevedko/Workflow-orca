@@ -2,6 +2,7 @@
   <PropertyGroup>
     <IsPackable>false</IsPackable>
     <OutputType>Exe</OutputType>
+    <RestoreIgnoreFailedSources>true</RestoreIgnoreFailedSources>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="AwesomeAssertions" />
@@ -12,8 +13,12 @@
   <ItemGroup>
     <Compile Remove="CompileFixtures/**/*.cs" />
     <None Include="CompileFixtures/**/*.cs" />
+    <Compile Remove="PackageFixtures/**/*.cs" />
+    <None Include="PackageFixtures/**/*.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../OrcaCore.DeveloperSurface.BehaviorContracts/OrcaCore.DeveloperSurface.BehaviorContracts.csproj" />
+    <ProjectReference Include="../OrcaCore.DeveloperSurface.BehaviorScenarios/OrcaCore.DeveloperSurface.BehaviorScenarios.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="../../src/OrcaCore.Abstractions/OrcaCore.Abstractions.csproj" />
     <ProjectReference Include="../../src/OrcaCore.Core/OrcaCore.Core.csproj" />
     <ProjectReference Include="../../src/OrcaCore.Engine.Ephemeral/OrcaCore.Engine.Ephemeral.csproj" />

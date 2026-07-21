@@ -8,8 +8,7 @@
 
 **Review-E remediation revision:** 2026-07-19
 
-**Status:** Planning remediation applied; independent re-review pending; guard retargeting not
-ready; task 4.0 blocked
+**Status:** Phase 0 guard packet independently approved; stopped before blocked task 4.0
 
 **Primary change:** [`reshape-developer-facing-interfaces`](../../openspec/changes/reshape-developer-facing-interfaces/)
 
@@ -25,9 +24,10 @@ ready; task 4.0 blocked
 
 **Current review state:**
 [`developer-facing-interface-v1-simplification-review-e-remediation-and-phase-00-status-2026-07-19.md`](../review/developer-facing-interface-v1-simplification-review-e-remediation-and-phase-00-status-2026-07-19.md)
-records the applied Review-E remediation and the pending independent re-review. Guard retargeting
-remains **NOT READY** until that review accepts the complete live packet. The root-only owner
-decision remains incorporated, while its earlier readiness verdict is historical evidence.
+records the applied Review-E remediation. The
+[independent planning re-review](../review/developer-facing-interface-review-e-remediation-independent-rereview-2026-07-19.md)
+approved guard retargeting with no P0/P1/P2 findings. The root-only owner decision remains
+incorporated, while its earlier readiness verdict is historical evidence.
 
 **Historical Phase 0 snapshot:** [`developer-facing-interface-phase-00-public-consumer-guards-implementation-status-2026-07-18.md`](../review/developer-facing-interface-phase-00-public-consumer-guards-implementation-status-2026-07-18.md)
 
@@ -495,12 +495,12 @@ matrix, exact companion, canonical requirements, and live OpenSpec changes contr
 
 Current disposition:
 
-- Review-E planning remediation is applied and pending independent re-review;
-- current reshape OpenSpec progress is 15 done / 97 pending / 112 total; coordinated
+- Review-E planning remediation is applied and independently approved for guard retargeting;
+- current reshape OpenSpec progress is 30 done / 82 pending / 112 total; coordinated
   concurrency progress is 7 done / 9 pending / 16 total;
-- historical Phase 0 guard evidence exists, and every task from 3.1 through 3.12 is reopened and
-  remains **NOT READY** to retarget until the independent re-review accepts the complete live
-  planning packet;
-  task 3.12 must execute all retargeted lanes and submit the whole section-3 packet for review;
-- guards/source have not yet been updated for this revision;
-- task 4.0 and all later implementation remain blocked pending Phase 0 re-review.
+- tasks 3.1 through 3.11d are implemented against the complete live planning packet and have
+  clean infrastructure plus intentional-red execution evidence;
+- task 3.12 reconciled the full packet and is closed after the final immutable independent
+  approval recorded no P0-P3 gate findings;
+- task 4.0 and all later implementation remain blocked at the requested next-phase review
+  boundary and by task 4.0's explicit prerequisites.

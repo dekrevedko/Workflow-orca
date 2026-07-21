@@ -1,0 +1,121 @@
+{
+  "packageVersion": "0.0.0-phase0",
+  "packageFeed": "artifacts/phase0-packages",
+  "audienceTiers": ["Application", "Internal", "Engine", "RuntimeProtocol", "ProviderAuthoring", "DurableHosting", "Dag", "DagHosting", "Companion"],
+  "companionFixtures": ["kubernetes-companion"],
+  "companionSha256": "E983EE716BF9C5A2FD5C58FEBA1802664B24BF938176784D1F811B5293C46077",
+  "packages": [
+    { "id": "OrcaCore", "tier":"Application", "dependencies": [] },
+    { "id": "OrcaCore.Core", "tier":"Internal", "dependencies": ["OrcaCore"] },
+    { "id": "OrcaCore.Engine.Ephemeral", "tier":"Engine", "dependencies": ["OrcaCore", "OrcaCore.Core"] },
+    { "id": "OrcaCore.Runtime.Protocol", "tier":"RuntimeProtocol", "dependencies": ["OrcaCore"] },
+    { "id": "OrcaCore.Provider.Abstractions", "tier":"ProviderAuthoring", "dependencies": ["OrcaCore", "OrcaCore.Runtime.Protocol"] },
+    { "id": "OrcaCore.Engine.Durable", "tier":"Engine", "dependencies": ["OrcaCore", "OrcaCore.Core", "OrcaCore.Runtime.Protocol", "OrcaCore.Provider.Abstractions"] },
+    { "id": "OrcaCore.Durable.Hosting", "tier":"DurableHosting", "dependencies": ["OrcaCore", "OrcaCore.Engine.Durable", "OrcaCore.Provider.Abstractions"] },
+    { "id": "OrcaCore.Providers.InMemory", "tier":"ProviderAuthoring", "dependencies": ["OrcaCore", "OrcaCore.Runtime.Protocol", "OrcaCore.Provider.Abstractions"] },
+    { "id": "OrcaCore.Providers.PostgreSql", "tier":"ProviderAuthoring", "dependencies": ["OrcaCore", "OrcaCore.Runtime.Protocol", "OrcaCore.Provider.Abstractions"] },
+    { "id": "OrcaCore.Dag", "tier":"Dag", "dependencies": ["OrcaCore"] },
+    { "id": "OrcaCore.Dag.Hosting", "tier":"DagHosting", "dependencies": ["OrcaCore.Dag", "OrcaCore.Durable.Hosting"] }
+  ],
+  "callerCreatedValues": [
+    "EventName", "WorkflowOutcomeName", "AuthoredBranchId", "DagNodeId", "ResourcePoolName",
+    "TransientPoolName", "StartIdempotencyKey", "CorrelationId", "EventId", "StopConfirmationId",
+    "ResourcePoolOperationId", "ResourceGovernancePartitionId"
+  ],
+  "runtimeCreatedValues": [
+    "InstanceId", "WaitId", "StepOperationId", "LeaseProtectionToken", "DagRunId"
+  ],
+  "workflowDiagnostics": [
+    "SFE-AUTH-ROOT-001", "SFE-AUTH-ROOT-002", "SFE-AUTH-ROOT-003", "SFE-AUTH-ROOT-004",
+    "SFE-AUTH-PATH-001", "SFE-AUTH-CAP-001", "SFE-AUTH-BRANCH-001", "SFE-AUTH-BRANCH-002",
+    "SFE-AUTH-BRANCH-003", "SFE-AUTH-BRANCH-004", "SFE-AUTH-JOIN-001", "SFE-AUTH-JOIN-002",
+    "SFE-AUTH-DECORATOR-001", "SFE-AUTH-DEADLINE-001", "SFE-AUTH-LOOP-001",
+    "SFE-AUTH-LEASE-001", "SFE-AUTH-LEASE-003", "SFE-TYPE-001", "SFE-TYPE-002",
+    "SFE-LIMIT-001", "SFE-RUN-001", "SFE-RUN-002"
+  ],
+  "dagDiagnostics": [
+    "DAG-AUTH-NODE-001", "DAG-AUTH-DEPENDENCY-001", "DAG-AUTH-DEPENDENCY-002",
+    "DAG-AUTH-DEPENDENCY-003", "DAG-AUTH-DEPENDENCY-004", "DAG-AUTH-MAP-001",
+    "DAG-AUTH-MAP-002"
+  ],
+  "failureCodes": [
+    "WF-DEFINITION-INVALID", "WF-WAIT-TIMEOUT", "WF-STEP-TIMEOUT", "WF-DEADLINE-EXCEEDED",
+    "WF-WAIT-AMBIGUOUS", "WF-STATE-TYPE-MISMATCH", "WF-LEASE-LOST",
+    "WF-RESOURCE-POOL-NOT-CONFIGURED", "WF-INSTANCE-NOT-FOUND",
+    "WF-INSTANCE-DEFINITION-MISMATCH", "WF-DEFINITION-HOST-INCOMPATIBLE",
+    "WF-DEFINITION-REGISTRATION-CONFLICT", "WF-START-IDEMPOTENCY-CONFLICT",
+    "WF-OUTPUT-UNAVAILABLE", "WF-STEP-UNHANDLED", "SFE-JOIN-FAILED", "DAG-RUN-NOT-FOUND",
+    "DAG-RUN-DEFINITION-MISMATCH", "DAG-DEFINITION-REGISTRATION-CONFLICT",
+    "DAG-START-IDEMPOTENCY-CONFLICT", "DAG_INPUT_MAPPING_INVALID", "CHILD_FAILED",
+    "CHILD_TIMED_OUT", "CHILD_TERMINATED", "CHILD_CANCELLED"
+  ],
+  "allowedFriends": [
+    "OrcaCore.Durable.Hosting->OrcaCore.Dag.Hosting",
+    "OrcaCore.Engine.Durable->OrcaCore.ProviderCertification"
+  ],
+  "authoredLocationRoots": ["workflow:$", "dag:$"],
+  "authoredLocationTokens": [
+    "n:dddddddd", "if:true", "if:false", "while:body", "parallel:dddddddd",
+    "foreach:body", "lease:body", "dag-node:dddddddd"
+  ],
+  "diagnostics": [
+    {"code":"SFE-AUTH-ROOT-001","name":"MissingRootInit","meaning":"no root initialization exists.","severity":"Error"},
+    {"code":"SFE-AUTH-ROOT-002","name":"MultipleRootInit","meaning":"more than one root initialization exists.","severity":"Error"},
+    {"code":"SFE-AUTH-ROOT-003","name":"MissingRootTerminal","meaning":"no root `End` or approved terminal `ContinueAsNew` exists.","severity":"Error"},
+    {"code":"SFE-AUTH-ROOT-004","name":"MultipleRootTerminal","meaning":"more than one root generation terminal exists.","severity":"Error"},
+    {"code":"SFE-AUTH-PATH-001","name":"IncompleteSuccessfulPath","meaning":"a reachable successful path does not converge on the generation terminal.","severity":"Error"},
+    {"code":"SFE-AUTH-CAP-001","name":"CapabilityNotAvailable","meaning":"a hand-built/stale graph uses a member outside its selected mode/location.","severity":"Error"},
+    {"code":"SFE-AUTH-BRANCH-001","name":"DuplicateBranchIdentity","meaning":"fixed branch identities collide.","severity":"Error"},
+    {"code":"SFE-AUTH-BRANCH-002","name":"MissingBranchReturn","meaning":"a reachable successful branch/item path has no typed return.","severity":"Error"},
+    {"code":"SFE-AUTH-BRANCH-003","name":"MultipleBranchReturn","meaning":"a branch/item has more than one return terminal.","severity":"Error"},
+    {"code":"SFE-AUTH-BRANCH-004","name":"EmptyParallelScope","meaning":"a fixed root `Parallel` contains no authored branch.","severity":"Error"},
+    {"code":"SFE-AUTH-JOIN-001","name":"MissingJoin","meaning":"a fan-out has no selected join.","severity":"Error"},
+    {"code":"SFE-AUTH-JOIN-002","name":"InvalidMergeContract","meaning":"result/state/merge contracts do not agree.","severity":"Error"},
+    {"code":"SFE-AUTH-DECORATOR-001","name":"MisplacedDecorator","meaning":"a retry/timeout/transient decorator is repeated or has no eligible immediately preceding business step.","severity":"Error"},
+    {"code":"SFE-AUTH-DEADLINE-001","name":"DuplicateWorkflowDeadline","meaning":"`CompleteWithin` is selected more than once; the second call is primary and the first is related.","severity":"Error"},
+    {"code":"SFE-AUTH-LOOP-001","name":"NonProgressingLoop","meaning":"a root loop cycle can repeat without business work, suspension, failure, rollover, or exit.","severity":"Error"},
+    {"code":"SFE-AUTH-LEASE-001","name":"LeaseAncestryConflict","meaning":"acquisition is reachable under a live capacity-reserving lexical ancestor; primary/related locations identify both scopes.","severity":"Error"},
+    {"code":"SFE-AUTH-LEASE-003","name":"LeaseBlocksContinueAsNew","meaning":"rollover is reached before a lexical lease scope exits.","severity":"Error"},
+    {"code":"SFE-TYPE-001","name":"IncompatibleStateOrResultType","meaning":"a hand-built graph has incompatible state/result/output contracts.","severity":"Error"},
+    {"code":"SFE-TYPE-002","name":"CodecUnsupportedShape","meaning":"a required persisted/detached value shape cannot use `orcacore-json-v1`.","severity":"Error"},
+    {"code":"SFE-LIMIT-001","name":"InvalidForEachLimit","meaning":"a hand-built fan-out bypasses positive item/concurrency bounds.","severity":"Error"},
+    {"code":"SFE-RUN-001","name":"NonQuiescentContinueAsNew","meaning":"runtime defense rejects rollover while a descendant or owned obligation remains.","severity":"Error"},
+    {"code":"SFE-RUN-002","name":"LeaseAncestryViolation","meaning":"runtime defense terminally fails before queue/pool mutation and suppresses merges/restart loops.","severity":"Error"},
+    {"code":"DAG-AUTH-NODE-001","name":"DuplicateNodeIdentity","meaning":"node identities collide.","severity":"Error"},
+    {"code":"DAG-AUTH-DEPENDENCY-001","name":"DuplicateDependency","meaning":"one node repeats a declared dependency.","severity":"Error"},
+    {"code":"DAG-AUTH-DEPENDENCY-002","name":"SelfDependency","meaning":"a node depends on itself.","severity":"Error"},
+    {"code":"DAG-AUTH-DEPENDENCY-003","name":"Cycle","meaning":"declared edges contain a cycle.","severity":"Error"},
+    {"code":"DAG-AUTH-DEPENDENCY-004","name":"ForeignPlanReference","meaning":"a declared node/dependency reference belongs to another plan.","severity":"Error"},
+    {"code":"DAG-AUTH-MAP-001","name":"MissingMapInput","meaning":"a node has no mapping delegate.","severity":"Error"},
+    {"code":"DAG-AUTH-MAP-002","name":"DuplicateMapInput","meaning":"a node assigns mapping more than once.","severity":"Error"}
+  ],
+  "failures": [
+    {"code":"WF-DEFINITION-INVALID","owner":"`WorkflowDefinitionException`"}, {"code":"WF-WAIT-TIMEOUT","owner":"`WorkflowWaitTimeoutException`"},
+    {"code":"WF-STEP-TIMEOUT","owner":"`StepAttemptTimeoutException`"}, {"code":"WF-DEADLINE-EXCEEDED","owner":"`WorkflowDeadlineExceededException`"},
+    {"code":"WF-WAIT-AMBIGUOUS","owner":"`AmbiguousWaitRegistrationException`"}, {"code":"WF-STATE-TYPE-MISMATCH","owner":"`WorkflowStateTypeMismatchException`"},
+    {"code":"WF-LEASE-LOST","owner":"`LeaseLostException`"}, {"code":"WF-RESOURCE-POOL-NOT-CONFIGURED","owner":"`ResourcePoolNotConfiguredException`"},
+    {"code":"WF-INSTANCE-NOT-FOUND","owner":"`WorkflowInstanceNotFoundException`"}, {"code":"WF-INSTANCE-DEFINITION-MISMATCH","owner":"`WorkflowInstanceDefinitionMismatchException`"},
+    {"code":"WF-DEFINITION-HOST-INCOMPATIBLE","owner":"`WorkflowDefinitionHostCompatibilityException`"}, {"code":"WF-DEFINITION-REGISTRATION-CONFLICT","owner":"`WorkflowDefinitionRegistrationConflictException`"},
+    {"code":"WF-START-IDEMPOTENCY-CONFLICT","owner":"`WorkflowStartIdempotencyConflictException`"}, {"code":"WF-OUTPUT-UNAVAILABLE","owner":"`WorkflowOutputUnavailableException`"},
+    {"code":"WF-STEP-UNHANDLED","owner":"normalized non-`OrcaCoreException` step failure"}, {"code":"SFE-JOIN-FAILED","owner":"ordered multiple-branch/item aggregate failure"},
+    {"code":"DAG-RUN-NOT-FOUND","owner":"`DagRunNotFoundException`"}, {"code":"DAG-RUN-DEFINITION-MISMATCH","owner":"`DagRunDefinitionMismatchException`"},
+    {"code":"DAG-DEFINITION-REGISTRATION-CONFLICT","owner":"`DagDefinitionRegistrationConflictException`"}, {"code":"DAG-START-IDEMPOTENCY-CONFLICT","owner":"`DagStartIdempotencyConflictException`"},
+    {"code":"DAG_INPUT_MAPPING_INVALID","owner":"opaque mapper access/projector failure before child start"},
+    {"code":"CHILD_FAILED","owner":"normalized DAG child terminal failure"}, {"code":"CHILD_TIMED_OUT","owner":"normalized DAG child terminal failure"},
+    {"code":"CHILD_TERMINATED","owner":"normalized DAG child terminal failure"}, {"code":"CHILD_CANCELLED","owner":"normalized DAG child terminal failure"}
+  ],
+  "ownership": [
+    {"family":"Workflow strong values (all §17.2.1 values except `DagNodeId` and `DagRunId`), workflow authoring/definitions/references, ordinary handles/events/results/errors","namespace":"OrcaCore","assembly":"OrcaCore"},
+    {"family":"`DagNodeId`, `DagRunId`, DAG authoring/definitions/references/handles/results/errors","namespace":"OrcaCore.Dag","assembly":"OrcaCore.Dag"},
+    {"family":"`StructuredExecutionHostOptions`, `StepExecutionThrottle`","namespace":"OrcaCore.Hosting","assembly":"OrcaCore"},
+    {"family":"`EphemeralEngineHostOptions`, `TransientPoolDefinition`, ephemeral registration extension","namespace":"OrcaCore.Hosting","assembly":"OrcaCore.Engine.Ephemeral"},
+    {"family":"`DurableEngineHostOptions`, `DurableResourcePoolOptions`, `DurableResourcePoolDefinition`, durable engine/ingress registration extension","namespace":"OrcaCore.Hosting","assembly":"OrcaCore.Durable.Hosting"},
+    {"family":"`DagHostOptions`, DAG registration extension","namespace":"OrcaCore.Dag.Hosting","assembly":"OrcaCore.Dag.Hosting"},
+    {"family":"Lease/pool statuses, snapshots, closed resize result, governance records/stream/append result","namespace":"OrcaCore.Runtime.Protocol.ResourceGovernance","assembly":"OrcaCore.Runtime.Protocol"},
+    {"family":"`IDurableResourcePoolManagement`, `IDurableResourceLeaseRecovery`, `IDurableResourceLeaseDiagnostics`","namespace":"OrcaCore.Hosting.ResourceLeases","assembly":"OrcaCore.Durable.Hosting"},
+    {"family":"`IDurableResourceGovernanceStore`","namespace":"OrcaCore.Provider.Abstractions.ResourceGovernance","assembly":"OrcaCore.Provider.Abstractions"},
+    {"family":"Four barrier enum/fact/gate types","namespace":"OrcaCore.Engine.Durable.ResourceGovernance","assembly":"OrcaCore.Engine.Durable"},
+    {"family":"In-memory provider extension","namespace":"OrcaCore.Providers.InMemory","assembly":"OrcaCore.Providers.InMemory"},
+    {"family":"PostgreSQL options/extension","namespace":"OrcaCore.Providers.PostgreSql","assembly":"OrcaCore.Providers.PostgreSql"}
+  ]
+}

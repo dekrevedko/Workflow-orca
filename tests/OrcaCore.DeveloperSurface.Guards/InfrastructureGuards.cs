@@ -1,6 +1,5 @@
 using AwesomeAssertions;
 using OrcaCore.Core.Compilation;
-using System.Xml.Linq;
 
 namespace OrcaCore.DeveloperSurface.Guards;
 
@@ -9,13 +8,21 @@ namespace OrcaCore.DeveloperSurface.Guards;
 public sealed class InfrastructureGuards
 {
     [Fact]
-    public void ExportedTypeCatalog_ClassifiesEveryLoadedOrcaCoreType()
+    public void FrozenTargetCatalog_ModelsEveryAssemblyAndRequiredAudienceTier()
     {
-        PublicSurfaceCatalog.ExportedTypes.Should().NotBeEmpty();
-        PublicSurfaceCatalog.ExportedTypes.Select(entry => entry.Type).Should().OnlyHaveUniqueItems();
-        PublicSurfaceCatalog.ExportedTypes.GroupBy(entry => entry.Tier)
-            .Select(group => group.Key)
-            .Should().BeEquivalentTo(Enum.GetValues<InterfaceTier>());
+        PublicSurfaceCatalog.TargetAssemblies.Select(x => x.Name).Should().Equal(
+            "OrcaCore", "OrcaCore.Core", "OrcaCore.Engine.Ephemeral", "OrcaCore.Runtime.Protocol",
+            "OrcaCore.Provider.Abstractions", "OrcaCore.Engine.Durable", "OrcaCore.Durable.Hosting",
+            "OrcaCore.Providers.InMemory", "OrcaCore.Providers.PostgreSql", "OrcaCore.Dag", "OrcaCore.Dag.Hosting");
+        PublicSurfaceCatalog.TargetAssemblies.Select(x => x.Tier).Distinct().Should().BeEquivalentTo(new[]
+        {
+            InterfaceTier.Application, InterfaceTier.Internal, InterfaceTier.Engine, InterfaceTier.RuntimeProtocol,
+            InterfaceTier.ProviderAuthoring, InterfaceTier.DurableHosting, InterfaceTier.Dag, InterfaceTier.DagHosting
+        });
+        PublicSurfaceCatalog.TargetAudienceTiers.Should().Equal(Enum.GetValues<InterfaceTier>());
+        PublicSurfaceCatalog.TargetCompanionFixtures.Should().ContainSingle()
+            .Which.Should().BeEquivalentTo(new KeyValuePair<string, InterfaceTier>(
+                "kubernetes-companion", InterfaceTier.Companion));
     }
 
     [Fact]
@@ -27,64 +34,32 @@ public sealed class InfrastructureGuards
     }
 
     [Fact]
-    public void ConsumerFixtures_DefineAllApprovedJourneysWithoutInventingPackages()
-    {
-        var fixtures = FixtureDefinitions.Read<ConsumerFixture[]>(
-            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/consumer-fixtures.json");
-
-        fixtures.Select(x => x.Id).Should().BeEquivalentTo(
-            "minimal-ephemeral", "in-memory-durable", "provider-backed-durable", "meta-package");
-        fixtures.Should().OnlyContain(x => x.CurrentProjectReferences.Length > 0 && x.Assertions.Length > 0);
-        fixtures.Should().OnlyContain(x => File.Exists(Path.Combine(FixtureDefinitions.RepositoryRoot(), x.CompileProject)));
-        fixtures.SelectMany(x => x.CurrentProjectReferences)
-            .Should().OnlyContain(path => File.Exists(Path.Combine(FixtureDefinitions.RepositoryRoot(), path)));
-        fixtures.SelectMany(x => x.FuturePackages).Should().OnlyContain(name => name.StartsWith("OrcaCore", StringComparison.Ordinal));
-        foreach (var fixture in fixtures)
-        {
-            ProjectReferences(fixture.CompileProject).Should().BeEquivalentTo(
-                fixture.CurrentProjectReferences,
-                $"{fixture.Id} must compile against exactly its declared current project closure");
-        }
-    }
-
-    [Fact]
-    public void ProviderAuthorFixture_DeclaresOnlyApprovedAdvancedEdge()
-    {
-        var fixture = FixtureDefinitions.Read<ConsumerFixture>(
-            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/provider-author-fixture.json");
-
-        fixture.FuturePackages.Should().Equal("OrcaCore.Provider.Abstractions", "OrcaCore.Runtime.Protocol");
-        fixture.Assertions.Should().Contain(x => x.Contains("no engine", StringComparison.OrdinalIgnoreCase));
-        fixture.CurrentProjectReferences.Should().OnlyContain(path => File.Exists(Path.Combine(FixtureDefinitions.RepositoryRoot(), path)));
-        ProjectReferences(fixture.CompileProject).Should().Equal(fixture.CurrentProjectReferences);
-        ProjectReferences(fixture.CompileProject).Should().NotContain(reference =>
-            reference.Contains("Engine", StringComparison.Ordinal));
-    }
-
-    [Fact]
     public void ExpectedRedLedger_HasEveryPhaseZeroBehaviorScenario()
     {
         var scenarios = FixtureDefinitions.Read<ExpectedRedScenario[]>(
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/expected-red-scenarios.json");
 
+        scenarios.Select(x => x.Id).Should().BeEquivalentTo(
+            "exact-v1-package-manifest", "packed-package-consumers", "provider-author-store-contract",
+            "exact-authoring-surface", "strong-values-codec-state", "structured-joins-foreach-paths",
+            "registry-events-hosting-management", "typed-application-journeys",
+            "deadline-retry-operation-coordinate", "typed-dag-contract", "lease-authoring-admission",
+            "lease-retry-exit-quarantine", "lease-discovery-confirmation", "governance-provider-accounting");
         scenarios.Select(x => x.Id).Should().OnlyHaveUniqueItems();
-        scenarios.Should().HaveCount(22);
-        var futurePhases = new[] { "Phase 1", "Phase 2", "Phase 3", "Phase 5" };
-        scenarios.Should().OnlyContain(x => futurePhases.Contains(x.FuturePhase));
-    }
-
-    private static string[] ProjectReferences(string relativeProject)
-    {
-        var root = FixtureDefinitions.RepositoryRoot();
-        var projectPath = Path.Combine(root, relativeProject.Replace('/', Path.DirectorySeparatorChar));
-        return XDocument.Load(projectPath)
-            .Descendants("ProjectReference")
-            .Select(reference => reference.Attribute("Include")?.Value)
-            .Where(include => !string.IsNullOrWhiteSpace(include))
-            .Select(include => Path.GetFullPath(Path.Combine(Path.GetDirectoryName(projectPath)!, include!)))
-            .Select(path => Path.GetRelativePath(root, path).Replace(Path.DirectorySeparatorChar, '/'))
-            .OrderBy(path => path, StringComparer.Ordinal)
-            .ToArray();
+        scenarios.Select(x => x.TaskId).Should().OnlyHaveUniqueItems();
+        scenarios.Should().OnlyContain(x =>
+            !string.IsNullOrWhiteSpace(x.TaskId) &&
+            !string.IsNullOrWhiteSpace(x.Contract) &&
+            !string.IsNullOrWhiteSpace(x.ExpectedFailure) &&
+            !string.IsNullOrWhiteSpace(x.TurnsGreenTask));
+        scenarios.Select(x => x.TaskId).Should().BeEquivalentTo(
+            "3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "3.7", "3.8", "3.9", "3.10",
+            "3.11a", "3.11b", "3.11c", "3.11d");
+        scenarios.Should().NotContain(x =>
+            x.Id.Contains("paused", StringComparison.OrdinalIgnoreCase) ||
+            x.Id.Contains("expiry", StringComparison.OrdinalIgnoreCase) ||
+            x.Id.Contains("statistics", StringComparison.OrdinalIgnoreCase) ||
+            x.Contract.Contains("public job", StringComparison.OrdinalIgnoreCase));
     }
 
     private abstract class SyntheticDefinitionBase

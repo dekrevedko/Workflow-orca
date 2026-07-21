@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OrcaCore.DeveloperSurface.BehaviorContracts/OrcaCore.DeveloperSurface.BehaviorContracts.csproj" />
+  </ItemGroup>
+</Project>

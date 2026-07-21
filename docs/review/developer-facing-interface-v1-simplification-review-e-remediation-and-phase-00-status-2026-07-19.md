@@ -2,22 +2,37 @@
 
 **Date:** 2026-07-19
 
-**Nature:** planning-contract remediation and routing status only
+**Nature:** Phase 0 guard-packet implementation and review-gate status
 
 ## Current gate
 
-Review-E planning remediation has been applied to the live planning packet and now requires an
-independent re-review.
+Review-E planning remediation has been applied to the live planning packet and passed the
+[independent planning re-review](developer-facing-interface-review-e-remediation-independent-rereview-2026-07-19.md).
 
-- **Planning state:** remediation applied; independent re-review pending.
-- **Guard-retarget readiness:** **NOT READY** until that independent review accepts the complete
-  live packet.
-- **Phase 0 exit:** not approved.
-- **Product implementation:** task 4.0 and every later product task remain blocked.
+- **Planning state:** remediation applied; independent re-review approved with no P0/P1/P2 findings.
+- **Guard implementation:** tasks 3.1 through 3.12 are complete and independently approved.
+- **Phase 0 exit:** approved by the final immutable independent re-review.
+- **Product implementation:** task 4.0 and every later product task remain blocked at the requested next-phase review boundary and by task 4.0's explicit prerequisites.
 
-This document does not claim that any Phase 0 guard was retargeted, compiled, executed, or made
-green. It records no passing, expected-red, failed, skipped, or blocker count. Those facts may be
-reported only from actual task-3 execution and the task-3.12 evidence gate.
+The first completed packet received an immutable
+[REJECT verdict](developer-facing-interface-phase-00-guard-packet-independent-review-2026-07-19.md).
+All findings from both immutable guard-packet reviews are remediated and submitted through the
+[Phase 0 remediation re-review request](developer-facing-interface-phase-00-guard-packet-remediation-rereview-request-2026-07-19.md).
+The exact frozen packet then received a final immutable
+[APPROVE verdict](developer-facing-interface-phase-00-guard-packet-final-independent-rereview-2026-07-19.md)
+with no P0, P1, P2, or P3 gate findings. Task 3.12 is closed; task 4.0 was not started.
+The infrastructure lane now passes 43/43. The product lane has 28/28 intentional failures: the
+declaration/package gaps plus ten executable behavior-certification theories covering all 95
+scenarios in tasks 3.5 through 3.11d. Each future behavior driver must make runtime-recorded calls
+matching the frozen assembly, declaring type, member, generic arity, parameter, and return
+signature; it must assert every context-owned observation and consume required deterministic
+time/barrier seams from inside an observed product call. Compile-fixture infrastructure packs and
+uses only the fixture-owned `OrcaCore 0.0.0-phase0` package, compiles the exact companion and full
+positive usage, verifies 26 precise negative diagnostics, and rejects an incomplete-package
+mutation. Its real-product fixture remains intentionally red. All eight package journeys remain
+intentionally red only because the exact `0.0.0-phase0` packages do not exist. The full solution
+builds with zero warnings, both coordinated OpenSpec changes pass strict validation,
+`git diff --check` passes, and production `src/` has no Phase 0 edits.
 
 ## Current authority
 
@@ -110,4 +125,6 @@ immutable dated prompt, status, amendments, or reviews. At minimum, the reviewer
 4. task 3.12 still requires actual execution evidence and a subsequent independent guard review;
 5. task 4.0 remains blocked.
 
-Only that independent review may change guard-retarget readiness from **NOT READY** to **READY**.
+The independent planning review changed guard-retarget readiness from **NOT READY** to **READY**.
+Task 3.12 still requires actual execution evidence and a separate independent review of the
+completed guard packet before Phase 0 may exit.

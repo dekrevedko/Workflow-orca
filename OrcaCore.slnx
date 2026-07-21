@@ -24,6 +24,8 @@
   <Folder Name="/tests/">
     <Project Path="tests/OrcaCore.Acceptance.Tests/OrcaCore.Acceptance.Tests.csproj" />
     <Project Path="tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj" />
+    <Project Path="tests/OrcaCore.DeveloperSurface.BehaviorContracts/OrcaCore.DeveloperSurface.BehaviorContracts.csproj" />
+    <Project Path="tests/OrcaCore.DeveloperSurface.BehaviorScenarios/OrcaCore.DeveloperSurface.BehaviorScenarios.csproj" />
     <Project Path="tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj" />
     <Project Path="tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj" />
     <Project Path="tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj" />

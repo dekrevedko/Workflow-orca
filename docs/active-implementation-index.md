@@ -34,9 +34,10 @@ at the repository root.
 - [Developer-Facing Interface Refactor Plan](implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md) -
   the 2026-07-18 simplified first-release phase order, review gates, and removal/defer policy.
 - [Current Review-E Remediation and Phase 0 Status](review/developer-facing-interface-v1-simplification-review-e-remediation-and-phase-00-status-2026-07-19.md) -
-  planning remediation has been applied and awaits independent re-review. Guard retargeting is
-  **NOT READY** until that review accepts the complete live packet; task 4.0 and product work remain
-  blocked.
+  planning remediation passed its independent re-review. After two rejected intermediate guard
+  packets, all findings were remediated and the exact whole packet received a final immutable
+  approval with no P0-P3 findings. Task 3.12 and Phase 0 are complete. Task 4.0 and product work
+  remain blocked at the requested next-phase review boundary and by task 4.0's prerequisites.
 - [Historical Root-Only Fan-Out Decision and Revalidation](review/developer-facing-interface-v1-root-only-fan-out-decision-and-revalidation-2026-07-19.md) -
   immutable owner decision selecting root-only `Parallel`, `ForEach`, and `While`. Its placement
   rule remains incorporated in current authority; its earlier guard-readiness verdict is a

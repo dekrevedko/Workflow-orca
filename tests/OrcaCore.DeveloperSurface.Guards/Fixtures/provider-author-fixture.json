@@ -1,8 +1,0 @@
-{
-  "id": "provider-author",
-  "audience": "provider-authoring",
-  "compileProject": "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/ProviderAuthor/ProviderAuthor.csproj",
-  "currentProjectReferences": ["src/OrcaCore.Abstractions/OrcaCore.Abstractions.csproj"],
-  "futurePackages": ["OrcaCore.Provider.Abstractions", "OrcaCore.Runtime.Protocol"],
-  "assertions": ["provider ports and commit DTOs compile", "protocol facts and checkpoints are available", "no engine implementation reference"]
-}

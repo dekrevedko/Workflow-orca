@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../../../docs/specs/17-public-authoring-contract.cs" Link="NormativeAuthoringContract.cs" />
+    <Compile Include="SupportTypes.cs" />
+    <Compile Include="Authoring.cs" />
+    <Compile Include="PositiveUsage.cs" />
+  </ItemGroup>
+</Project>

@@ -1,50 +1,38 @@
 using System.Reflection;
+using System.Text.Json;
 
 namespace OrcaCore.DeveloperSurface.Guards;
 
 internal enum InterfaceTier
 {
     Application,
-    ProviderAuthoring,
+    Internal,
+    Engine,
     RuntimeProtocol,
-    Internal
+    ProviderAuthoring,
+    DurableHosting,
+    Dag,
+    DagHosting,
+    Companion
 }
 
 internal sealed record ClassifiedPublicType(Type Type, InterfaceTier Tier);
+internal sealed record TargetAssembly(string Name, InterfaceTier Tier);
 
 internal static class PublicSurfaceCatalog
 {
-    private static readonly string[] OrcaCoreAssemblyNames =
-    [
-        "OrcaCore.Abstractions",
-        "OrcaCore.Core",
-        "OrcaCore.Engine.Ephemeral",
-        "OrcaCore.Engine.Durable",
-        "OrcaCore.Hosting",
-        "OrcaCore.Providers.InMemory",
-        "OrcaCore.Providers.PostgreSql",
-        "OrcaCore.Providers.RabbitMq",
-        "OrcaCore.Providers.Redis",
-        "OrcaCore.Providers.Relational",
-        "OrcaCore.Providers.SqlServer",
-        "OrcaCore.Providers.ZeroMq"
-    ];
+    internal static IReadOnlyList<TargetAssembly> TargetAssemblies { get; } = ReadTargets();
+    internal static IReadOnlyList<string> TargetAssemblyNames { get; } = TargetAssemblies.Select(x => x.Name).ToArray();
+    internal static IReadOnlyList<InterfaceTier> TargetAudienceTiers { get; } = ReadAudienceTiers();
+    internal static IReadOnlyDictionary<string, InterfaceTier> TargetCompanionFixtures { get; } =
+        ReadCompanionFixtures().ToDictionary(x => x, _ => InterfaceTier.Companion, StringComparer.Ordinal);
 
-    private static readonly HashSet<string> RuntimeIdentityNames =
-    [
-        "BranchPlanId",
-        "CommandId",
-        "FiberId",
-        "InstructionId",
-        "OutboxRecordId",
-        "ScopeId",
-        "ScopePlanId",
-        "StreamVersion",
-        "TimerId"
-    ];
-
-    internal static IReadOnlyList<Assembly> Assemblies { get; } = OrcaCoreAssemblyNames
-        .Select(Assembly.Load)
+    // Exact future assemblies are located dynamically so task 7.1 can make the Phase 0 packet
+    // green without adding new ProjectReference items to this guard project.
+    internal static IReadOnlyList<Assembly> Assemblies { get; } = TargetAssemblyNames
+        .Select(TryLoadTargetAssembly)
+        .Where(x => x is not null)
+        .Cast<Assembly>()
         .ToArray();
 
     internal static IReadOnlyList<ClassifiedPublicType> ExportedTypes { get; } = Assemblies
@@ -56,52 +44,9 @@ internal static class PublicSurfaceCatalog
 
     internal static InterfaceTier Classify(Type type)
     {
-        type = Normalize(type);
-        var assemblyName = type.Assembly.GetName().Name ?? string.Empty;
-        var ns = type.Namespace ?? string.Empty;
-
-        if (assemblyName.StartsWith("OrcaCore.Providers.", StringComparison.Ordinal))
-        {
-            return InterfaceTier.ProviderAuthoring;
-        }
-
-        return assemblyName switch
-        {
-            "OrcaCore.Abstractions" when ns.StartsWith("OrcaCore.Abstractions.Providers", StringComparison.Ordinal)
-                => InterfaceTier.ProviderAuthoring,
-            "OrcaCore.Abstractions" when ns.StartsWith("OrcaCore.Abstractions.Durable", StringComparison.Ordinal)
-                => InterfaceTier.RuntimeProtocol,
-            "OrcaCore.Abstractions" when RuntimeIdentityNames.Contains(type.Name) ||
-                                               RuntimeIdentityNames.Any(name => type.Name == $"{name}JsonConverter")
-                => InterfaceTier.RuntimeProtocol,
-            "OrcaCore.Abstractions" => InterfaceTier.Application,
-
-            "OrcaCore.Core" when ns.StartsWith("OrcaCore.Core.Compilation", StringComparison.Ordinal)
-                => InterfaceTier.Internal,
-            "OrcaCore.Core" when type.Name.StartsWith("Compiled", StringComparison.Ordinal) ||
-                                  type.Name.EndsWith("Plan", StringComparison.Ordinal) ||
-                                  type.Name.EndsWith("Policy", StringComparison.Ordinal)
-                => InterfaceTier.Internal,
-            "OrcaCore.Core" => InterfaceTier.Application,
-
-            "OrcaCore.Engine.Ephemeral" when ns.StartsWith("OrcaCore.Engine.Ephemeral.Execution", StringComparison.Ordinal)
-                => InterfaceTier.Internal,
-            "OrcaCore.Engine.Ephemeral" => InterfaceTier.Application,
-
-            "OrcaCore.Engine.Durable" when ns.StartsWith("OrcaCore.Engine.Durable.Management", StringComparison.Ordinal)
-                => InterfaceTier.Application,
-            "OrcaCore.Engine.Durable" when type.Name is "DurableWorkflowRuntime" or
-                                                            "DurableWorkflowStartResult" or
-                                                            "DurableEventDeliveryResult" or
-                                                            "DurableRearmRequest"
-                => InterfaceTier.Application,
-            "OrcaCore.Engine.Durable" => InterfaceTier.Internal,
-
-            "OrcaCore.Hosting" when ns.StartsWith("OrcaCore.Hosting.Services", StringComparison.Ordinal)
-                => InterfaceTier.Internal,
-            "OrcaCore.Hosting" => InterfaceTier.Application,
-            _ => throw new InvalidOperationException($"No Interface-tier rule exists for exported type '{type}'.")
-        };
+        var assemblyName = Normalize(type).Assembly.GetName().Name ?? string.Empty;
+        return TargetAssemblies.SingleOrDefault(x => x.Name == assemblyName)?.Tier
+            ?? throw new InvalidOperationException($"Assembly '{assemblyName}' is not in the frozen v1 target inventory.");
     }
 
     internal static IReadOnlyList<string> FindForbiddenSignatureEdges()
@@ -111,26 +56,23 @@ internal static class PublicSurfaceCatalog
         {
             foreach (var referenced in ReferencedPublicSignatureTypes(source.Type))
             {
-                if (!IsOrcaCore(referenced))
-                {
-                    continue;
-                }
+                var targetName = Normalize(referenced).Assembly.GetName().Name ?? string.Empty;
+                var target = TargetAssemblies.SingleOrDefault(x => x.Name == targetName);
+                if (target is null) continue;
 
-                var targetTier = Classify(referenced);
                 var forbidden = source.Tier switch
                 {
-                    InterfaceTier.Application => targetTier is not InterfaceTier.Application,
-                    InterfaceTier.RuntimeProtocol => targetTier == InterfaceTier.ProviderAuthoring,
-                    InterfaceTier.ProviderAuthoring => targetTier == InterfaceTier.Internal,
+                    InterfaceTier.Application => target.Tier is not InterfaceTier.Application,
+                    InterfaceTier.Dag => target.Tier is not InterfaceTier.Application and not InterfaceTier.Dag,
+                    InterfaceTier.RuntimeProtocol => target.Tier == InterfaceTier.ProviderAuthoring,
+                    InterfaceTier.ProviderAuthoring => target.Tier is InterfaceTier.Engine or InterfaceTier.Internal or InterfaceTier.DurableHosting,
+                    InterfaceTier.DagHosting => target.Tier is InterfaceTier.ProviderAuthoring or InterfaceTier.RuntimeProtocol or InterfaceTier.Internal,
                     _ => false
                 };
                 if (forbidden)
-                {
-                    edges.Add($"{source.Tier}:{source.Type.FullName} -> {targetTier}:{Normalize(referenced).FullName}");
-                }
+                    edges.Add($"{source.Tier}:{source.Type.FullName} -> {target.Tier}:{Normalize(referenced).FullName}");
             }
         }
-
         return edges.ToArray();
     }
 
@@ -140,108 +82,114 @@ internal static class PublicSurfaceCatalog
             .OrderBy(type => type.FullName, StringComparer.Ordinal)
             .ToArray();
 
-    private static IEnumerable<Type> ReferencedPublicSignatureTypes(
-        Type declaringType,
-        bool includeInheritedMembers = false)
+    private static IReadOnlyList<TargetAssembly> ReadTargets()
+    {
+        var path = Path.Combine(FixtureDefinitions.RepositoryRoot(), "tests", "OrcaCore.DeveloperSurface.Guards",
+            "Fixtures", "v1-public-contract.json");
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        return document.RootElement.GetProperty("packages").EnumerateArray()
+            .Select(package => new TargetAssembly(
+                package.GetProperty("id").GetString()!,
+                Enum.Parse<InterfaceTier>(package.GetProperty("tier").GetString()!, ignoreCase: false)))
+            .ToArray();
+    }
+
+    private static IReadOnlyList<InterfaceTier> ReadAudienceTiers()
+    {
+        var path = Path.Combine(FixtureDefinitions.RepositoryRoot(), "tests", "OrcaCore.DeveloperSurface.Guards",
+            "Fixtures", "v1-public-contract.json");
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        return document.RootElement.GetProperty("audienceTiers").EnumerateArray()
+            .Select(value => Enum.Parse<InterfaceTier>(value.GetString()!, ignoreCase: false)).ToArray();
+    }
+
+    private static IReadOnlyList<string> ReadCompanionFixtures()
+    {
+        var path = Path.Combine(FixtureDefinitions.RepositoryRoot(), "tests", "OrcaCore.DeveloperSurface.Guards",
+            "Fixtures", "v1-public-contract.json");
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        return document.RootElement.GetProperty("companionFixtures").EnumerateArray()
+            .Select(value => value.GetString()!).ToArray();
+    }
+
+    private static Assembly? TryLoadTargetAssembly(string name)
+    {
+        var loaded = AppDomain.CurrentDomain.GetAssemblies().SingleOrDefault(x => x.GetName().Name == name);
+        if (loaded is not null) return loaded;
+        try { return Assembly.Load(name); }
+        catch (FileNotFoundException) { }
+
+        var project = Directory.GetFiles(Path.Combine(FixtureDefinitions.RepositoryRoot(), "src"), $"{name}.csproj", SearchOption.AllDirectories)
+            .SingleOrDefault();
+        if (project is null) return null;
+        var dll = Directory.GetFiles(Path.GetDirectoryName(project)!, $"{name}.dll", SearchOption.AllDirectories)
+            .Where(path => path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .OrderByDescending(File.GetLastWriteTimeUtc)
+            .FirstOrDefault();
+        return dll is null ? null : Assembly.LoadFrom(dll);
+    }
+
+    private static IEnumerable<Type> ReferencedPublicSignatureTypes(Type declaringType, bool includeInheritedMembers = false)
     {
         var pending = new Stack<Type>();
         var seen = new HashSet<Type>();
-
-        void Add(Type? type)
-        {
-            if (type is not null)
-            {
-                pending.Push(type);
-            }
-        }
+        void Add(Type? type) { if (type is not null) pending.Push(type); }
 
         Add(declaringType.BaseType);
         foreach (var implemented in declaringType.GetInterfaces()) Add(implemented);
         foreach (var generic in declaringType.GetGenericArguments())
-        {
             foreach (var constraint in generic.GetGenericParameterConstraints()) Add(constraint);
-        }
 
         var flags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static;
         flags |= includeInheritedMembers ? BindingFlags.FlattenHierarchy : BindingFlags.DeclaredOnly;
         foreach (var constructor in declaringType.GetConstructors(flags))
-        {
             foreach (var parameter in constructor.GetParameters()) Add(parameter.ParameterType);
-        }
-
         foreach (var method in declaringType.GetMethods(flags))
         {
             Add(method.ReturnType);
             foreach (var parameter in method.GetParameters()) Add(parameter.ParameterType);
             foreach (var generic in method.GetGenericArguments())
-            {
                 foreach (var constraint in generic.GetGenericParameterConstraints()) Add(constraint);
-            }
         }
-
         foreach (var property in declaringType.GetProperties(flags))
         {
             Add(property.PropertyType);
             foreach (var parameter in property.GetIndexParameters()) Add(parameter.ParameterType);
         }
-
         foreach (var field in declaringType.GetFields(flags)) Add(field.FieldType);
         foreach (var eventInfo in declaringType.GetEvents(flags)) Add(eventInfo.EventHandlerType);
 
         while (pending.TryPop(out var current))
         {
-            if (current.IsByRef || current.IsPointer || current.IsArray)
-            {
-                Add(current.GetElementType());
-                continue;
-            }
-
+            if (current.IsByRef || current.IsPointer || current.IsArray) { Add(current.GetElementType()); continue; }
             if (current.IsGenericParameter)
             {
                 foreach (var constraint in current.GetGenericParameterConstraints()) Add(constraint);
                 continue;
             }
-
             var normalized = Normalize(current);
-            if (!seen.Add(normalized))
-            {
-                continue;
-            }
-
+            if (!seen.Add(normalized)) continue;
             yield return normalized;
             if (current.IsGenericType)
-            {
                 foreach (var argument in current.GetGenericArguments()) Add(argument);
-            }
         }
     }
-
-    private static bool IsOrcaCore(Type type) =>
-        (Normalize(type).Assembly.GetName().Name ?? string.Empty).StartsWith("OrcaCore.", StringComparison.Ordinal);
 
     private static bool IsCompilerIr(Type type)
     {
         type = Normalize(type);
-        if (!IsOrcaCore(type))
-        {
-            return false;
-        }
-
         var ns = type.Namespace ?? string.Empty;
-        return ns.StartsWith("OrcaCore.Core.Compilation", StringComparison.Ordinal) ||
-               type.Name.Contains("Compiled", StringComparison.Ordinal) ||
-               type.Name.Contains("Compiler", StringComparison.Ordinal) ||
-               type.Name.EndsWith("Plan", StringComparison.Ordinal);
+        return type.Assembly.GetName().Name == "OrcaCore.Core" &&
+               (ns.StartsWith("OrcaCore.Core.Compilation", StringComparison.Ordinal) ||
+                type.Name.Contains("Compiled", StringComparison.Ordinal) ||
+                type.Name.Contains("Compiler", StringComparison.Ordinal) || type.Name.EndsWith("Plan", StringComparison.Ordinal));
     }
 
     private static Type Normalize(Type type) => type.IsGenericType ? type.GetGenericTypeDefinition() : type;
 
     private static Type[] SafeExportedTypes(Assembly assembly)
     {
-        try
-        {
-            return assembly.GetExportedTypes();
-        }
+        try { return assembly.GetExportedTypes(); }
         catch (ReflectionTypeLoadException exception)
         {
             return exception.Types.OfType<Type>().Where(type => type.IsPublic || type.IsNestedPublic).ToArray();

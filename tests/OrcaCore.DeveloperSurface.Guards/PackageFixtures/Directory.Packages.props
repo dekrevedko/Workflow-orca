@@ -1,0 +1,14 @@
+<Project>
+  <PropertyGroup><ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally></PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="OrcaCore" Version="0.0.0-phase0" />
+    <PackageVersion Include="OrcaCore.Engine.Ephemeral" Version="0.0.0-phase0" />
+    <PackageVersion Include="OrcaCore.Durable.Hosting" Version="0.0.0-phase0" />
+    <PackageVersion Include="OrcaCore.Providers.PostgreSql" Version="0.0.0-phase0" />
+    <PackageVersion Include="OrcaCore.Providers.InMemory" Version="0.0.0-phase0" />
+    <PackageVersion Include="OrcaCore.Dag" Version="0.0.0-phase0" />
+    <PackageVersion Include="OrcaCore.Dag.Hosting" Version="0.0.0-phase0" />
+    <PackageVersion Include="OrcaCore.Runtime.Protocol" Version="0.0.0-phase0" />
+    <PackageVersion Include="OrcaCore.Provider.Abstractions" Version="0.0.0-phase0" />
+  </ItemGroup>
+</Project>

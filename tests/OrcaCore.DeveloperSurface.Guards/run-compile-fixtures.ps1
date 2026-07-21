@@ -5,85 +5,88 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $fixtures = Join-Path $PSScriptRoot 'CompileFixtures'
+$normativeProject = Join-Path $fixtures 'ExactAuthoring/ExactAuthoring.csproj'
+$forbiddenProject = Join-Path $fixtures 'ForbiddenAuthoring/ForbiddenAuthoring.csproj'
+$productProject = Join-Path $fixtures 'ProductAuthoring/ProductAuthoring.csproj'
+$incompleteProject = Join-Path $fixtures 'IncompleteProductPackage/IncompleteProductPackage.csproj'
+$negativeFeed = Join-Path $fixtures 'IncompleteProductPackage/obj/negative-control-feed'
+$productPackageCache = Join-Path $fixtures 'ProductAuthoring/obj/package-cache'
+$source = Get-Content -Raw (Join-Path $fixtures 'ExactAuthoring/Authoring.cs')
 
-function Invoke-RequiredBuild([string] $relativeProject) {
-    $project = Join-Path $fixtures $relativeProject
-    & dotnet build $project --configuration Release --nologo
-    if ($LASTEXITCODE -ne 0) {
-        throw "Compile fixture '$relativeProject' failed unexpectedly."
+$requiredFamilies = @(
+    'EphemeralWorkflowInitBuilder', 'DurableWorkflowInitBuilder',
+    'EphemeralWorkflowBuilder', 'DurableWorkflowBuilder',
+    'EphemeralNestedBuilder', 'DurableNestedBuilder',
+    'EphemeralBranchBuilder', 'DurableBranchBuilder',
+    'EphemeralItemBuilder', 'DurableItemBuilder',
+    'DurableLeaseWorkflowBuilder', 'DurableLeaseNestedBuilder',
+    'DurableLeaseBranchBuilder', 'DurableLeaseItemBuilder',
+    'EphemeralWorkflowParallelBranchScopeBuilder', 'DurableWorkflowParallelBranchScopeBuilder',
+    'EphemeralWorkflowParallelJoinBuilder', 'DurableWorkflowParallelJoinBuilder',
+    'EphemeralForEachJoinBuilder', 'DurableForEachJoinBuilder',
+    'EphemeralWorkflowCompletionBuilder', 'DurableWorkflowCompletionBuilder',
+    'EphemeralWorkflowDefinition', 'DurableWorkflowDefinition', 'DurableWorkflowRef'
+)
+
+foreach ($family in $requiredFamilies) {
+    if ($source -notmatch [regex]::Escape($family)) {
+        throw "Exact authoring compile fixture omits '$family'."
     }
 }
 
-function Assert-CompilerRejection([string] $relativeProject, [string[]] $members) {
-    $project = Join-Path $fixtures $relativeProject
-    $output = & dotnet build $project --configuration Release --nologo 2>&1 | Out-String
-    if ($LASTEXITCODE -eq 0) {
-        throw "Negative compile fixture '$relativeProject' compiled successfully.`n$output"
-    }
-
-    foreach ($member in $members) {
-        if ($output -notmatch "CS1061.*$member") {
-            throw "Negative compile fixture '$relativeProject' did not reject '$member' with CS1061.`n$output"
-        }
-    }
+if ($source -match 'WaitLong|Yield|RunExternalJob|RunChild|RunChildren|WhenFirst|WithPoolKey') {
+    throw 'Exact authoring compile fixture contains a removed, deferred, or superseded member.'
 }
 
 if ($Disposition -eq 'Green') {
-    @(
-        'Consumers/MinimalEphemeral/MinimalEphemeral.csproj',
-        'Consumers/InMemoryDurable/InMemoryDurable.csproj',
-        'Consumers/ProviderBackedDurable/ProviderBackedDurable.csproj',
-        'Consumers/MetaPackage/MetaPackage.csproj',
-        'ProviderAuthor/ProviderAuthor.csproj',
-        'PositiveAuthoring/PositiveAuthoring.csproj'
-    ) | ForEach-Object { Invoke-RequiredBuild $_ }
+    $positive = & dotnet build $normativeProject --configuration Release --nologo --verbosity quiet 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { throw "Normative positive authoring fixture failed.`n$positive" }
 
-    Assert-CompilerRejection 'DurableForEachMustNotCompile/DurableForEachMustNotCompile.csproj' @('ForEach')
-    Assert-CompilerRejection 'EphemeralWaitLongMustNotCompile/EphemeralWaitLongMustNotCompile.csproj' @('WaitLong')
-    Assert-CompilerRejection 'EphemeralContinueAsNewMustNotCompile/EphemeralContinueAsNewMustNotCompile.csproj' @('ContinueAsNew')
-    Assert-CompilerRejection 'DurablePoolMustNotCompile/DurablePoolMustNotCompile.csproj' @('WithPoolKey')
-    Assert-CompilerRejection 'NestedCapabilitiesMustNotCompile/NestedCapabilitiesMustNotCompile.csproj' @(
-        'Init',
-        'End',
-        'If',
-        'While',
-        'ForEach',
-        'WaitLong',
-        'RunChild',
-        'RunChildren',
-        'ContinueAsNew',
-        'RunExternalJob',
-        'AcquireResources'
-    )
+    $negative = & dotnet build $forbiddenProject --configuration Release --nologo --verbosity quiet 2>&1 | Out-String
+    if ($LASTEXITCODE -eq 0) { throw 'Forbidden authoring fixture unexpectedly compiled.' }
+    foreach ($expected in @(
+        'EphemeralNestedBuilder<object, object>', 'DurableNestedBuilder<object, object>',
+        'EphemeralBranchBuilder<object, object>', 'DurableBranchBuilder<object, object>',
+        'EphemeralItemBuilder<object, object>', 'DurableItemBuilder<object, object>',
+        'DurableLeaseWorkflowBuilder<object, object>', 'DurableLeaseNestedBuilder<object, object>',
+        'DurableLeaseBranchBuilder<object, object>', 'DurableLeaseItemBuilder<object, object>',
+        "definition for 'Parallel'", "definition for 'ForEach'", "definition for 'While'",
+        "definition for 'AcquireResources'", "definition for 'ContinueAsNew'",
+        "definition for 'WaitLong'", "definition for 'Yield'", "definition for 'WhenFirst'",
+        "definition for 'RunChild'", "definition for 'RunExternalJob'")) {
+        if ($negative -notmatch [regex]::Escape($expected)) {
+            throw "Forbidden authoring fixture omitted precise CS1061 evidence for '$expected'.`n$negative"
+        }
+    }
 
-    Write-Output 'Green compile fixtures: 11 passed (6 consumer/authoring builds, 5 capability-rejection projects).'
+    if (Test-Path -LiteralPath $productPackageCache) {
+        Remove-Item -LiteralPath $productPackageCache -Recurse -Force
+    }
+    $pack = & dotnet pack $incompleteProject --configuration Release --output $negativeFeed --nologo --verbosity quiet 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { throw "Incomplete negative-control package failed to pack.`n$pack" }
+    $restore = & dotnet restore $productProject --source $negativeFeed --force --no-cache --nologo -p:Phase0PackageVersion=0.0.0-negativecontrol 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { throw "Product authoring negative control failed during restore rather than compilation.`n$restore" }
+    $incomplete = & dotnet build $productProject --configuration Release --no-restore --nologo --verbosity quiet -p:Phase0PackageVersion=0.0.0-negativecontrol 2>&1 | Out-String
+    if ($LASTEXITCODE -eq 0) { throw 'Product-positive authoring source unexpectedly compiled against the incomplete package.' }
+    if ($incomplete -match 'NU1101' -or $incomplete -notmatch 'EphemeralWorkflowBuilder' -or $incomplete -notmatch 'DurableLeaseItemBuilder') {
+        throw "Incomplete package did not fail on the exact missing authoring surface.`n$incomplete"
+    }
+
+    Write-Output "Green compile infrastructure: compiled the exact companion and positive usages; verified 26 precise forbidden-member CS1061 diagnostics; rejected a deliberately incomplete product package."
     exit 0
 }
 
-$productReds = [System.Collections.Generic.List[string]]::new()
-
-$modeProject = Join-Path $fixtures 'ModeSpecificRegistrationExpectedRed/ModeSpecificRegistrationExpectedRed.csproj'
-$modeOutput = & dotnet build $modeProject --configuration Release --nologo 2>&1 | Out-String
-if ($LASTEXITCODE -ne 0) {
-    if ($modeOutput -notmatch 'EphemeralWorkflowDefinition' -or $modeOutput -notmatch 'DurableWorkflowDefinition') {
-        throw "Mode-specific registration fixture failed for an unintended reason.`n$modeOutput"
-    }
-    $productReds.Add('mode-specific definition types and typed durable registration are not implemented')
+if (Test-Path -LiteralPath $productPackageCache) {
+    Remove-Item -LiteralPath $productPackageCache -Recurse -Force
 }
-
-$nestedProject = Join-Path $fixtures 'DurableNestedPoolMustNotCompile/DurableNestedPoolMustNotCompile.csproj'
-$nestedOutput = & dotnet build $nestedProject --configuration Release --nologo 2>&1 | Out-String
+$output = & dotnet build $productProject --configuration Release --nologo --verbosity quiet 2>&1 | Out-String
 if ($LASTEXITCODE -eq 0) {
-    $productReds.Add('durable nested branches still expose WithPoolKey')
+    throw 'Expected-red exact authoring fixture unexpectedly compiled.'
 }
-elseif ($nestedOutput -notmatch 'CS1061.*WithPoolKey') {
-    throw "Nested-pool fixture failed for an unintended reason.`n$nestedOutput"
-}
-
-if ($productReds.Count -gt 0) {
-    Write-Output ("Expected product reds ({0}): {1}" -f $productReds.Count, ($productReds -join '; '))
-    exit 1
+if ($output -notmatch 'NU1101.*OrcaCore' -and
+    ($output -notmatch 'EphemeralWorkflowInitBuilder' -or $output -notmatch 'DurableLeaseItemBuilder')) {
+    throw "Exact authoring fixture failed for an unintended reason.`n$output"
 }
 
-Write-Output 'Expected-red compile fixtures have turned green.'
-exit 0
+Write-Output 'Expected product red (1): the full positive authoring usage fixture does not compile against OrcaCore 0.0.0-phase0.'
+exit 1

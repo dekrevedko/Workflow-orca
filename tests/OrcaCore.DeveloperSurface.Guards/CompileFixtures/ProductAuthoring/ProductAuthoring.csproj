@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Phase0PackageVersion Condition="'$(Phase0PackageVersion)' == ''">0.0.0-phase0</Phase0PackageVersion>
+    <RestoreSources>$(MSBuildThisFileDirectory)..\..\..\..\artifacts\phase0-packages</RestoreSources>
+    <RestorePackagesPath>$(MSBuildThisFileDirectory)obj\package-cache\$(Phase0PackageVersion)</RestorePackagesPath>
+  </PropertyGroup>
+  <ItemGroup><PackageVersion Include="OrcaCore" Version="$(Phase0PackageVersion)" /><PackageReference Include="OrcaCore" /></ItemGroup>
+  <ItemGroup>
+    <Compile Include="../ExactAuthoring/PositiveUsage.cs" Link="PositiveUsage.cs" />
+  </ItemGroup>
+</Project>

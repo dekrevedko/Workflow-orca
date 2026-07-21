@@ -2,15 +2,26 @@ using System.Text.Json;
 
 namespace OrcaCore.DeveloperSurface.Guards;
 
-public sealed record ConsumerFixture(
+public sealed record ExpectedRedScenario(
     string Id,
-    string Audience,
-    string CompileProject,
-    string[] CurrentProjectReferences,
-    string[] FuturePackages,
-    string[] Assertions);
+    string TaskId,
+    string Contract,
+    string ExpectedFailure,
+    string TurnsGreenTask);
 
-public sealed record ExpectedRedScenario(string Id, string Contract, string FuturePhase);
+public sealed record PackageConsumerFixture(
+    string Id,
+    string Project,
+    string[] Packages,
+    string[] TransitivePackages);
+
+public sealed record GuardScenario(
+    string Id,
+    string TaskId,
+    string Setup,
+    string Assertion,
+    string ExpectedRed,
+    string TurnsGreenTask);
 
 internal static class FixtureDefinitions
 {

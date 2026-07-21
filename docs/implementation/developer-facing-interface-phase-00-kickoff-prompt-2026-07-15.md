@@ -8,8 +8,10 @@
 > [`reshape-developer-facing-interfaces` tasks](../../openspec/changes/reshape-developer-facing-interfaces/tasks.md),
 > and the current
 > [remediation status](../review/developer-facing-interface-v1-simplification-review-e-remediation-and-phase-00-status-2026-07-19.md).
-> All 15 section-3 tasks remain **NOT READY** pending independent re-review. This body is
-> preserved unchanged as historical evidence.
+> The independent planning re-review subsequently authorized guard retargeting. Tasks 3.1 through
+> 3.12 are now implemented and independently approved. Phase 0 is complete; task 4.0 remains
+> blocked at the requested next-phase review boundary and by its explicit prerequisites. This body
+> is preserved unchanged as historical evidence and must still not be executed.
 
 Copy and paste the text below into the implementation agent. Run it from
 `X:\Projects\GitHub\Workflow-orca`.
