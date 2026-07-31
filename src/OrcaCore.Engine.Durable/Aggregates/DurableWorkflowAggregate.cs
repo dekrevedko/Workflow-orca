@@ -2,7 +2,10 @@ using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
+using ProjectionWorkflowInstanceSnapshot = global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot;
 using OrcaCore.Abstractions.Providers;
+
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
 
 namespace OrcaCore.Engine.Durable.Aggregates;
 
@@ -151,7 +154,8 @@ internal sealed class DurableWorkflowAggregate
             or WorkflowStatus.Cancelled
             or WorkflowStatus.Terminated
             or WorkflowStatus.Compensated
-            or WorkflowStatus.CompensationFailed;
+            or WorkflowStatus.CompensationFailed
+            or WorkflowStatus.TimedOut;
 
     internal static DurableWorkflowAggregate Empty(InstanceId instanceId)
     {
@@ -160,12 +164,26 @@ internal sealed class DurableWorkflowAggregate
 
     internal static DurableWorkflowAggregate Rehydrate(
         DurableAggregateCheckpoint? checkpoint,
-        IEnumerable<WorkflowEvent> tail)
+        IEnumerable<DurableWorkflowEvent> tail)
     {
+        ArgumentNullException.ThrowIfNull(tail);
+        var tailEvents = tail as IReadOnlyList<DurableWorkflowEvent> ?? tail.ToArray();
+        var instanceId = checkpoint?.InstanceId ?? tailEvents.FirstOrDefault()?.InstanceId ??
+            throw new ArgumentException("A checkpoint or at least one tail event is required.", nameof(tail));
+
+        return Rehydrate(instanceId, checkpoint, tailEvents);
+    }
+
+    internal static DurableWorkflowAggregate Rehydrate(
+        InstanceId instanceId,
+        DurableAggregateCheckpoint? checkpoint,
+        IEnumerable<DurableWorkflowEvent> tail)
+    {
+        ArgumentNullException.ThrowIfNull(instanceId);
         ArgumentNullException.ThrowIfNull(tail);
 
         var aggregate = checkpoint is null
-            ? Empty(default)
+            ? Empty(instanceId)
             : new DurableWorkflowAggregate(ToState(checkpoint));
 
         foreach (var workflowEvent in tail)
@@ -315,6 +333,9 @@ internal sealed class DurableWorkflowAggregate
     internal DurableDecision DecideStepFailed(DurableStepFailedCommand command) =>
         DurableLifecycleCommandHandler.Handle(this, command);
 
+    internal DurableDecision DecideFiberFailed(DurableFiberFailedCommand command) =>
+        DurableLifecycleCommandHandler.Handle(this, command);
+
     internal DurableDecision DecideYield(DurableYieldCommand command) =>
         DurableLifecycleCommandHandler.Handle(this, command);
 
@@ -351,6 +372,9 @@ internal sealed class DurableWorkflowAggregate
     internal DurableDecision DecideFail(DurableFailCommand command) =>
         DurableLifecycleCommandHandler.Handle(this, command);
 
+    internal DurableDecision DecideTimeout(DurableTimeoutCommand command) =>
+        DurableLifecycleCommandHandler.Handle(this, command);
+
     internal DurableDecision DecidePark(DurableParkCommand command) =>
         DurableLifecycleCommandHandler.Handle(this, command);
 
@@ -364,6 +388,9 @@ internal sealed class DurableWorkflowAggregate
         DurableLifecycleCommandHandler.Handle(this, command);
 
     internal DurableDecision DecideTerminate(TerminateWorkflowCommand command) =>
+        DurableLifecycleCommandHandler.Handle(this, command);
+
+    internal DurableDecision DecideTerminalLifecycle(DurableTerminalLifecycleCommand command) =>
         DurableLifecycleCommandHandler.Handle(this, command);
 
     internal DurableDecision DecideRunChild(DurableRunChildCommand command) =>
@@ -382,6 +409,10 @@ internal sealed class DurableWorkflowAggregate
         AcquireResourcePoolCommand command,
         ResourcePoolAcquireResult acquireResult) =>
         DurableResourcePoolCommandHandler.Handle(this, command, acquireResult);
+
+    internal DurableDecision DecideLeaseStopConfirmed(
+        DurableLeaseStopConfirmedCommand command) =>
+        DurableResourcePoolCommandHandler.Handle(this, command);
 
     internal DurableDecision DecideRunExternalJob(
         RunExternalJobCommand command,
@@ -418,7 +449,7 @@ internal sealed class DurableWorkflowAggregate
     /// it, so decisions can materialize post-commit state (checkpoints, projections) without
     /// mutating the decision-time aggregate.
     /// </summary>
-    internal DurableWorkflowAggregate ProjectEvents(IReadOnlyList<WorkflowEvent> events)
+    internal DurableWorkflowAggregate ProjectEvents(IReadOnlyList<DurableWorkflowEvent> events)
     {
         ArgumentNullException.ThrowIfNull(events);
 
@@ -433,12 +464,12 @@ internal sealed class DurableWorkflowAggregate
     }
 
     internal IReadOnlyList<ProjectionWrite> CreateProjectionWrites(
-        IReadOnlyList<WorkflowEvent> events,
+        IReadOnlyList<DurableWorkflowEvent> events,
         CheckpointWrite? checkpoint = null)
     {
         ArgumentNullException.ThrowIfNull(events);
 
-        if (events.Count == 0)
+        if (events.Count == 0 && checkpoint is null)
         {
             return [];
         }
@@ -464,7 +495,7 @@ internal sealed class DurableWorkflowAggregate
             }];
     }
 
-    private void Apply(WorkflowEvent workflowEvent)
+    private void Apply(DurableWorkflowEvent workflowEvent)
     {
         DurableWorkflowReplayApplier.Apply(this, workflowEvent);
     }
@@ -601,7 +632,7 @@ internal sealed class DurableWorkflowAggregate
         };
     }
 
-    private WorkflowInstanceSnapshot? ToInstanceSnapshot()
+    private ProjectionWorkflowInstanceSnapshot? ToInstanceSnapshot()
     {
         if (DefinitionId is not { } definitionId ||
             DefinitionVersion is not { } definitionVersion ||
@@ -612,7 +643,7 @@ internal sealed class DurableWorkflowAggregate
             return null;
         }
 
-        return new WorkflowInstanceSnapshot
+        return new ProjectionWorkflowInstanceSnapshot
         {
             InstanceId = InstanceId,
             ParentInstanceId = ParentInstanceId,

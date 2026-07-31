@@ -93,7 +93,7 @@ public sealed class DurableResourcePoolStateTests
         var wait = effects.WaitsToRegister.Should().ContainSingle().Subject;
         wait.WaitId.Should().Be(WaitIdValue(20));
         wait.EventName.Should().Be("ResourcePoolGranted");
-        wait.CorrelationId.Should().Be(new CorrelationId("node-1"));
+        wait.CorrelationId.Should().Be(CorrelationId.Create("node-1"));
         wait.Mode.Should().Be(WaitMode.Cold);
     }
 
@@ -195,12 +195,12 @@ public sealed class DurableResourcePoolStateTests
 
     private static EventId EventIdValue(int value)
     {
-        return new EventId(GuidValue(value));
+        return EventId.Create(GuidValue(value).ToString());
     }
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -215,7 +215,7 @@ public sealed class DurableResourcePoolStateTests
 
     private static WaitId WaitIdValue(int value)
     {
-        return new WaitId(GuidValue(value));
+        return WaitId.Parse(GuidValue(value).ToString());
     }
 
     private static Guid GuidValue(int value)

@@ -16,7 +16,7 @@ public sealed class DurableCommitMaterializerTests
     public void CreateBatch_WhenStartHasIdempotencyKey_IncludesStartIdempotencyWrite()
     {
         var instanceId = InstanceIdValue(1);
-        var aggregate = DurableWorkflowAggregate.Rehydrate(null, []);
+        var aggregate = DurableWorkflowAggregate.Empty(instanceId);
         var decision = new DurableDecision([Started(instanceId, "start-key")]);
         var materializer = new DurableCommitMaterializer();
 
@@ -46,7 +46,7 @@ public sealed class DurableCommitMaterializerTests
             {
                 TimerId = timerId,
                 InstanceId = instanceId,
-                CommandId = new CommandId(EventIdValue(10).Value),
+                CommandId = new CommandId(Guid.Parse(EventIdValue(10).Value)),
                 FireAt = Timestamp(30),
                 WakeupName = "approval-timeout"
             });
@@ -195,6 +195,7 @@ public sealed class DurableCommitMaterializerTests
                 DefinitionId = DefinitionIdValue(1),
                 DefinitionVersion = DefinitionVersion.Initial,
                 CompilerFormatVersion = 1,
+                CompilerProfileId = "orcacore-compiler-v1;quantum=1024",
                 PlanFingerprint = "fingerprint"
             },
             StateContentType = "application/json",
@@ -318,7 +319,7 @@ public sealed class DurableCommitMaterializerTests
             OccurredAt = Timestamp(20),
             BufferedEventId = bufferedEventId,
             EventName = "Approved",
-            CorrelationId = new CorrelationId("order-1")
+            CorrelationId = CorrelationId.Create("order-1")
         };
     }
 
@@ -333,7 +334,7 @@ public sealed class DurableCommitMaterializerTests
             OccurredAt = Timestamp(21),
             WaitId = WaitIdValue(21),
             EventName = "Continue",
-            CorrelationId = new CorrelationId("order-1")
+            CorrelationId = CorrelationId.Create("order-1")
         };
     }
 
@@ -344,12 +345,12 @@ public sealed class DurableCommitMaterializerTests
 
     private static EventId EventIdValue(int value)
     {
-        return new EventId(GuidValue(value));
+        return EventId.Create(GuidValue(value).ToString());
     }
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -364,7 +365,7 @@ public sealed class DurableCommitMaterializerTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static TimerId TimerIdValue(int value)
@@ -374,7 +375,7 @@ public sealed class DurableCommitMaterializerTests
 
     private static WaitId WaitIdValue(int value)
     {
-        return new WaitId(GuidValue(value));
+        return WaitId.Parse(GuidValue(value).ToString());
     }
 
     private static Guid GuidValue(int value)

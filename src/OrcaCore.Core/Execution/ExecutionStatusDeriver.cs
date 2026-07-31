@@ -3,17 +3,17 @@ using OrcaCore.Core.Compilation;
 
 namespace OrcaCore.Core.Execution;
 
-internal sealed record StructuredRuntimeDiagnostic(string Code, string Message);
+public sealed record StructuredRuntimeDiagnostic(string Code, string Message);
 
-internal sealed record StructuredExecutionFailure(string Code, string Message);
+public sealed record StructuredExecutionFailure(string Code, string Message);
 
-internal sealed record StructuredExecutionStatus(
+public sealed record StructuredExecutionStatus(
     WorkflowStatus? Status,
     StructuredExecutionFailure? Failure);
 
-internal static class ExecutionStatusDeriver
+public static class ExecutionStatusDeriver
 {
-    internal static StructuredExecutionStatus Derive(
+    public static StructuredExecutionStatus Derive(
         WorkflowExecutionMode mode,
         StructuredExecutionState state,
         StructuredRuntimeDiagnostic? blockingDiagnostic = null)
@@ -58,13 +58,15 @@ internal static class ExecutionStatusDeriver
         FiberId? expectedNext = state.Scheduler.RunnableFiberIds.Count == 0
             ? null
             : state.Scheduler.RunnableFiberIds[0];
-        if (!runnable.SetEquals(scheduled) ||
+        if (!scheduled.IsSubsetOf(runnable) ||
+            scheduled.Count != state.Scheduler.RunnableFiberIds.Count ||
+            (runnable.Count > 0 && scheduled.Count == 0) ||
             state.Scheduler.NextFiberId != expectedNext)
         {
             return ReportModeFailure(
                 mode,
                 "SFE-RUN-STATE-002",
-                "Runnable fiber membership and the persisted scheduler queue disagree.");
+                "The admitted scheduler queue is inconsistent with runnable fiber membership.");
         }
 
         if (runnable.Count > 0)

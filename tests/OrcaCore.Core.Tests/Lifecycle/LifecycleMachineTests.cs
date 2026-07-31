@@ -25,6 +25,8 @@ public sealed class LifecycleMachineTests
     [InlineData(WorkflowStatus.Paused, (int)LifecycleTrigger.Resume, WorkflowStatus.Running)]
     [InlineData(WorkflowStatus.Paused, (int)LifecycleTrigger.Terminate, WorkflowStatus.Terminated)]
     [InlineData(WorkflowStatus.Paused, (int)LifecycleTrigger.Cancel, WorkflowStatus.Cancelled)]
+    [InlineData(WorkflowStatus.CancellationRequested, (int)LifecycleTrigger.Cancel, WorkflowStatus.Cancelled)]
+    [InlineData(WorkflowStatus.CancellationRequested, (int)LifecycleTrigger.Terminate, WorkflowStatus.Terminated)]
     public void Fire_LegalTransitions_ReturnTargetStatus(
         WorkflowStatus current,
         int triggerValue,
@@ -73,7 +75,8 @@ public sealed class LifecycleMachineTests
                 WorkflowStatus.Cancelled,
                 WorkflowStatus.Terminated,
                 WorkflowStatus.Compensated,
-                WorkflowStatus.CompensationFailed
+                WorkflowStatus.CompensationFailed,
+                WorkflowStatus.TimedOut
             ]);
     }
 

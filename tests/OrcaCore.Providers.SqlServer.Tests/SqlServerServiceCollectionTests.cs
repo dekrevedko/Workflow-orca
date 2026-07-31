@@ -6,6 +6,8 @@ using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using Xunit;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Providers.SqlServer.Tests;
 
 public sealed class SqlServerServiceCollectionTests
@@ -45,7 +47,7 @@ public sealed class SqlServerServiceCollectionTests
             throw new NotSupportedException();
         }
 
-        public Task<IReadOnlyList<WorkflowEvent>> LoadTailAsync(
+        public Task<IReadOnlyList<DurableWorkflowEvent>> LoadTailAsync(
             WorkflowStreamId streamId,
             StreamVersion afterVersion,
             CancellationToken cancellationToken)

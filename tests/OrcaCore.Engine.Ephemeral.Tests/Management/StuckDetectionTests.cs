@@ -21,11 +21,11 @@ public sealed class StuckDetectionTests
             {
                 StuckStepThreshold = TimeSpan.FromSeconds(5)
             });
-        var definition = new WorkflowBuilder<TestState>()
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
             .Then(() => new SlowStep(clock, TimeSpan.FromSeconds(6)))
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
         engine.RegisterDefinition(definition);
 
         var snapshot = await engine.StartAsync<string, TestState>(
@@ -50,11 +50,11 @@ public sealed class StuckDetectionTests
         var engine = new EphemeralWorkflowEngine(
             clock.TimeProvider,
             new EphemeralWorkflowEngineOptions { StuckStepThreshold = TimeSpan.FromSeconds(5) });
-        var definition = new WorkflowBuilder<TestState>()
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
             .Then(() => step)
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
         engine.RegisterDefinition(definition);
         var start = engine.StartAsync<string, TestState>(
             definition.DefinitionId,
@@ -78,11 +78,11 @@ public sealed class StuckDetectionTests
     {
         var clock = new Clock(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
         var engine = new EphemeralWorkflowEngine(clock.TimeProvider);
-        var definition = new WorkflowBuilder<TestState>()
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
-            .Wait("Ready", _ => new CorrelationId("item-1"))
+            .Wait("Ready", _ => CorrelationId.Create("item-1"))
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
         engine.RegisterDefinition(definition);
         await engine.StartAsync<string, TestState>(
             definition.DefinitionId,

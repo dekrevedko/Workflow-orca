@@ -30,14 +30,14 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<WorkflowInstanceSnapshot>> ListAsync(
+    public async Task<IReadOnlyList<LegacyWorkflowInstanceSnapshot>> ListAsync(
         WorkflowProjectionQuery query,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(query);
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-        var snapshots = new List<WorkflowInstanceSnapshot>();
+        var snapshots = new List<LegacyWorkflowInstanceSnapshot>();
         await using var command = new NpgsqlCommand(
             """
             select instance_id,
@@ -75,15 +75,15 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            var instanceId = new InstanceId(reader.GetGuid(0));
-            snapshots.Add(new WorkflowInstanceSnapshot
+            var instanceId = InstanceId.Parse(reader.GetGuid(0).ToString());
+            snapshots.Add(new LegacyWorkflowInstanceSnapshot
             {
                 InstanceId = instanceId,
-                ParentInstanceId = reader.IsDBNull(1) ? null : new InstanceId(reader.GetGuid(1)),
-                RootInstanceId = reader.IsDBNull(2) ? null : new InstanceId(reader.GetGuid(2)),
-                DefinitionId = new DefinitionId(reader.GetGuid(3)),
+                ParentInstanceId = reader.IsDBNull(1) ? null : InstanceId.Parse(reader.GetGuid(1).ToString()),
+                RootInstanceId = reader.IsDBNull(2) ? null : InstanceId.Parse(reader.GetGuid(2).ToString()),
+                DefinitionId = DefinitionId.Parse(reader.GetGuid(3).ToString()),
                 DefinitionVersion = new DefinitionVersion(reader.GetInt32(4)),
-                Status = Enum.Parse<WorkflowStatus>(reader.GetString(5)),
+                Status = Enum.Parse<LegacyWorkflowStatus>(reader.GetString(5)),
                 CreatedAt = reader.GetFieldValue<DateTimeOffset>(6),
                 UpdatedAt = reader.GetFieldValue<DateTimeOffset>(7),
                 ErrorSummary = reader.IsDBNull(8) ? null : reader.GetString(8),
@@ -143,7 +143,7 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<ActiveWaitSnapshot>> ListActiveWaitsAsync(
+    public async Task<IReadOnlyList<LegacyActiveWaitSnapshot>> ListActiveWaitsAsync(
         WorkflowProjectionQuery query,
         CancellationToken cancellationToken)
     {
@@ -220,9 +220,9 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
         command.Parameters.AddWithValue("retryable", OutboxRecordState.Retryable.ToString());
         command.Parameters.AddWithValue("claimed", OutboxRecordState.Claimed.ToString());
         command.Parameters.AddWithValue("continue_kind", OutboxKinds.Continue);
-        command.Parameters.AddWithValue("running", WorkflowStatus.Running.ToString());
-        command.Parameters.AddWithValue("waiting", WorkflowStatus.Waiting.ToString());
-        command.Parameters.AddWithValue("paused", WorkflowStatus.Paused.ToString());
+        command.Parameters.AddWithValue("running", LegacyWorkflowStatus.Running.ToString());
+        command.Parameters.AddWithValue("waiting", LegacyWorkflowStatus.Waiting.ToString());
+        command.Parameters.AddWithValue("paused", LegacyWorkflowStatus.Paused.ToString());
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -332,7 +332,7 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
     private static async Task UpsertSummaryProjectionAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
-        WorkflowInstanceSnapshot snapshot,
+        LegacyWorkflowInstanceSnapshot snapshot,
         CancellationToken cancellationToken)
     {
         await using var command = new NpgsqlCommand(
@@ -423,7 +423,7 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         InstanceId instanceId,
-        ActiveWaitSnapshot activeWait,
+        LegacyActiveWaitSnapshot activeWait,
         CancellationToken cancellationToken)
     {
         await using var command = new NpgsqlCommand(
@@ -483,14 +483,14 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task<IReadOnlyDictionary<InstanceId, IReadOnlyList<ActiveWaitSnapshot>>> LoadActiveWaitsAsync(
+    private static async Task<IReadOnlyDictionary<InstanceId, IReadOnlyList<LegacyActiveWaitSnapshot>>> LoadActiveWaitsAsync(
         NpgsqlConnection connection,
         IReadOnlyList<InstanceId> instanceIds,
         CancellationToken cancellationToken)
     {
         if (instanceIds.Count == 0)
         {
-            return new Dictionary<InstanceId, IReadOnlyList<ActiveWaitSnapshot>>();
+            return new Dictionary<InstanceId, IReadOnlyList<LegacyActiveWaitSnapshot>>();
         }
 
         await using var command = new NpgsqlCommand(
@@ -510,29 +510,29 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
         command.Parameters.Add("instance_ids", NpgsqlDbType.Array | NpgsqlDbType.Uuid)
             .Value = instanceIds.Select(instanceId => instanceId.Value).ToArray();
 
-        var waits = new Dictionary<InstanceId, List<ActiveWaitSnapshot>>();
+        var waits = new Dictionary<InstanceId, List<LegacyActiveWaitSnapshot>>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            var instanceId = new InstanceId(reader.GetGuid(0));
+            var instanceId = InstanceId.Parse(reader.GetGuid(0).ToString());
             if (!waits.TryGetValue(instanceId, out var instanceWaits))
             {
                 instanceWaits = [];
                 waits.Add(instanceId, instanceWaits);
             }
 
-            instanceWaits.Add(new ActiveWaitSnapshot
+            instanceWaits.Add(new LegacyActiveWaitSnapshot
             {
-                WaitId = new WaitId(reader.GetGuid(1)),
+                WaitId = WaitId.Parse(reader.GetGuid(1).ToString()),
                 EventName = reader.GetString(2),
-                CorrelationId = new CorrelationId(reader.GetString(3)),
+                CorrelationId = CorrelationId.Create(reader.GetString(3)),
                 RegisteredAt = reader.GetFieldValue<DateTimeOffset>(4),
                 Status = reader.GetString(5),
                 Mode = reader.GetString(6)
             });
         }
 
-        return waits.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<ActiveWaitSnapshot>)pair.Value);
+        return waits.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<LegacyActiveWaitSnapshot>)pair.Value);
     }
 
     private static void AddProjectionQueryParameters(NpgsqlCommand command, WorkflowProjectionQuery query)

@@ -6,6 +6,8 @@
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RestoreSources>$(MSBuildThisFileDirectory)..\..\..\artifacts\phase0-packages</RestoreSources>
+    <RestorePackagesPath>$(MSBuildThisFileDirectory)obj\package-cache</RestorePackagesPath>
+    <RestoreFallbackFolders>$(UserProfile)\.nuget\packages</RestoreFallbackFolders>
     <RestoreIgnoreFailedSources>false</RestoreIgnoreFailedSources>
   </PropertyGroup>
 </Project>

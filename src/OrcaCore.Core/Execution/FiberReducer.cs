@@ -1,8 +1,8 @@
 namespace OrcaCore.Core.Execution;
 
-internal static class FiberReducer
+public static class FiberReducer
 {
-    internal static FiberRecord Block(
+    public static FiberRecord Block(
         FiberRecord fiber,
         FiberBlockedReason reason,
         string obligationId)
@@ -18,7 +18,7 @@ internal static class FiberReducer
         };
     }
 
-    internal static FiberRecord Resume(FiberRecord fiber)
+    public static FiberRecord Resume(FiberRecord fiber)
     {
         ArgumentNullException.ThrowIfNull(fiber);
         RequirePhase(fiber, FiberPhase.Blocked);
@@ -30,7 +30,7 @@ internal static class FiberReducer
         };
     }
 
-    internal static FiberRecord Complete(FiberRecord fiber, byte[]? resultPayload = null)
+    public static FiberRecord Complete(FiberRecord fiber, byte[]? resultPayload = null)
     {
         ArgumentNullException.ThrowIfNull(fiber);
         RequirePhase(fiber, FiberPhase.Runnable);
@@ -43,7 +43,7 @@ internal static class FiberReducer
         };
     }
 
-    internal static FiberRecord Fail(FiberRecord fiber, FiberFailure failure)
+    public static FiberRecord Fail(FiberRecord fiber, FiberFailure failure)
     {
         ArgumentNullException.ThrowIfNull(fiber);
         ArgumentNullException.ThrowIfNull(failure);
@@ -57,7 +57,7 @@ internal static class FiberReducer
         };
     }
 
-    internal static FiberRecord Cancel(FiberRecord fiber, string reason)
+    public static FiberRecord Cancel(FiberRecord fiber, string reason)
     {
         ArgumentNullException.ThrowIfNull(fiber);
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);

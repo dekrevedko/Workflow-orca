@@ -8,7 +8,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Durable instances remain bound to definition version
-The durable runtime SHALL bind each instance to its definition identifier, positive authored version, compiler format version, fixed codec format `orcacore-json-v1`, typed input/output contract, and immutable structural fingerprint. Resume SHALL fail with typed diagnostics when the exact binding is unavailable or incompatible. The fingerprint SHALL cover inspectable authored structure only; changing selector/projector/merge/output code, step construction/configuration, DAG mapping, or external-request construction SHALL require a new version and SHALL NOT use an author fingerprint contributor.
+The durable runtime SHALL bind each instance to its definition identifier, positive authored version, workflow mode, compiler format version, fixed codec format `orcacore-json-v1`, typed input/output contract, and immutable structural fingerprint. Resume SHALL fail with typed diagnostics when the exact binding is unavailable or incompatible. The fingerprint SHALL cover inspectable authored structure and codec format only and SHALL exclude the other distinct binding values plus compiler acceptance/fairness limits; changing selector/projector/merge/output code, step construction/configuration, DAG mapping, or external-request construction SHALL require a new version and SHALL NOT use an author fingerprint contributor. A host SHALL retain every compiler format referenced by a nonterminal durable instance until the instance terminalizes or is explicitly migrated. Before a released package or durable-data compatibility contract exists, a format bump MAY be a hard cutover when no supported persisted instance exists.
 
 #### Scenario: New definition version is deployed
 - **WHEN** an older durable instance resumes after a newer version has been registered
@@ -18,6 +18,10 @@ The durable runtime SHALL bind each instance to its definition identifier, posit
 - **WHEN** registration or resume observes a fingerprint different from the fingerprint bound to the identity/version
 - **THEN** the operation fails with a typed fingerprint conflict before executing an instruction
 
+#### Scenario: Bound compiler format remains in use
+- **WHEN** a nonterminal instance references an older supported compiler format after a newer format is deployed
+- **THEN** the host retains or explicitly migrates that format binding rather than retiring it solely because the current compiler changed
+
 ### Requirement: Optional resource governance applies after rehydration
 When resource governance is enabled, the durable runtime SHALL restore per-instance admission state and every persisted durable lease obligation before admitting work. Host-local execution throttles SHALL apply only while a business-step attempt runs. Durable lease queueing, held, marked, ambiguous, and quarantine state SHALL preserve exact cross-host lifetime and SHALL NOT be reconstructed from elapsed time alone.
 
@@ -26,7 +30,7 @@ When resource governance is enabled, the durable runtime SHALL restore per-insta
 - **THEN** host-local step admission and persisted resource admission each apply according to their distinct lifetime without double-granting or losing the obligation
 
 ### Requirement: Durable envelope records the complete structured execution state
-The versioned durable envelope SHALL persist parent/child fibers, scopes, scheduling/path-token state, fixed-codec-detached private payloads, branch/item results awaiting merge, normalized bounded `ForEach` snapshots and item identities, workflow and active step deadlines, `StepOperationId` occurrence coordinates, durable retry-policy `AttemptNumber`, in-flight dispatch marker, owned lease obligations, definition identity/version/structural fingerprint, continue-as-new generation, and compiler/envelope/codec format versions.
+The versioned durable envelope SHALL persist parent/child fibers, the scope hierarchy for accepted root fan-out and lexical resource scopes, scheduling/path-token state, `ForEach` admitted-item and next-admission state, fixed-codec-detached private payloads, branch/item results awaiting merge, normalized bounded `ForEach` snapshots and item identities, workflow and active step deadlines, `StepOperationId` occurrence coordinates, durable retry-policy `AttemptNumber`, in-flight dispatch marker, owned lease obligations, definition identity/version/structural fingerprint, continue-as-new generation, and compiler/envelope/codec format versions. It SHALL NOT persist a branch or live-fiber admission resource.
 
 #### Scenario: Host restarts with nested scopes
 - **WHEN** a host restarts while parent, branch, and item fibers are runnable or parked at different scopes
@@ -74,6 +78,25 @@ Durable `Wait(EventName, correlation[, timeout])` SHALL persist matching state a
 #### Scenario: Wait event races its timeout
 - **WHEN** an event and the optional structural wait timeout race
 - **THEN** one committed winner cancels the losing event/timer obligation and timeout fails the current root, branch, or item with `WorkflowWaitTimeoutException`
+
+### Requirement: Durable structured fan-out reuses committed inputs and results
+Durable root `Parallel` and bounded root `ForEach` SHALL reconstruct scope progress exclusively from committed authored branch definitions, the committed item snapshot, stable branch/item identities, terminal results, and merge state. A `ForEach` selector SHALL commit one finite fixed-codec-detached snapshot before any item admission and SHALL NOT run again after that commit. Every fixed `Parallel` branch fiber SHALL exist at scope start and runnable branches SHALL be selected for tokens in authored order; items SHALL be admitted by index under the lower host/node limit. Host-local execution-path tokens SHALL NOT be persisted as capacity claims; after restart the runtime SHALL restore every unfinished fixed branch and re-admit unfinished items in deterministic order without a live-fiber capacity claim. A merge SHALL commit at most once from the complete persisted ordered inputs.
+
+#### Scenario: Host fails after item snapshot commit
+- **WHEN** a durable host restarts before all selected items are terminal
+- **THEN** it reuses the committed detached snapshot, does not invoke the selector again, and re-admits unfinished item identities in index order
+
+#### Scenario: Host fails after final result before merge
+- **WHEN** every required terminal result committed but the merge transition did not
+- **THEN** replay evaluates one merge from the persisted ordered inputs without rerunning completed branch or item bodies
+
+#### Scenario: Host fails after merge commit
+- **WHEN** the merge transition committed before the host stopped
+- **THEN** replay observes the replacement parent state and does not evaluate the merge again
+
+#### Scenario: Empty item snapshot commits
+- **WHEN** the selected finite item snapshot is empty
+- **THEN** no item fiber is admitted and the selected merge commits once with an empty ordered collection
 
 ### Requirement: Durable runtime is the complete application facade
 The durable runtime SHALL implement the shared ordinary facade of typed definition registration, idempotent typed start/reopen, exact event delivery/continuation, detached snapshot/root-state/output queries, cancellation request, and termination without requiring application callers to construct `DurableCommandProcessor`, raw commands, timestamps, or serialized payloads. It SHALL NOT add bulk selection/list/count/statistics, pause/resume, management retry, archive, purge, or history operations to the v1 application surface.

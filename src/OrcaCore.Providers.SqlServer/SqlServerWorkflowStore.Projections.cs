@@ -50,10 +50,10 @@ internal sealed class SqlServerProjectionStore(string connectionString)
         {
             snapshots.Add(new WorkflowInstanceSnapshot
             {
-                InstanceId = new InstanceId(reader.GetGuid(0)),
-                ParentInstanceId = reader.IsDBNull(1) ? null : new InstanceId(reader.GetGuid(1)),
-                RootInstanceId = reader.IsDBNull(2) ? null : new InstanceId(reader.GetGuid(2)),
-                DefinitionId = new DefinitionId(reader.GetGuid(3)),
+                InstanceId = InstanceId.Parse(reader.GetGuid(0).ToString()),
+                ParentInstanceId = reader.IsDBNull(1) ? null : InstanceId.Parse(reader.GetGuid(1).ToString()),
+                RootInstanceId = reader.IsDBNull(2) ? null : InstanceId.Parse(reader.GetGuid(2).ToString()),
+                DefinitionId = DefinitionId.Parse(reader.GetGuid(3).ToString()),
                 DefinitionVersion = new DefinitionVersion(reader.GetInt32(4)),
                 Status = Enum.Parse<WorkflowStatus>(reader.GetString(5)),
                 CreatedAt = reader.GetFieldValue<DateTimeOffset>(6),
@@ -118,9 +118,9 @@ internal sealed class SqlServerProjectionStore(string connectionString)
         {
             waits.Add(new ActiveWaitSnapshot
             {
-                WaitId = new WaitId(reader.GetGuid(0)),
+                WaitId = WaitId.Parse(reader.GetGuid(0).ToString()),
                 EventName = reader.GetString(1),
-                CorrelationId = new CorrelationId(reader.GetString(2)),
+                CorrelationId = CorrelationId.Create(reader.GetString(2)),
                 RegisteredAt = reader.GetFieldValue<DateTimeOffset>(3),
                 Status = reader.GetString(4),
                 Mode = reader.GetString(5)
@@ -152,7 +152,7 @@ internal sealed class SqlServerProjectionStore(string connectionString)
         {
             groups.Add(new WorkflowStatisticsGroup
             {
-                DefinitionId = new DefinitionId(reader.GetGuid(0)),
+                DefinitionId = DefinitionId.Parse(reader.GetGuid(0).ToString()),
                 DefinitionVersion = new DefinitionVersion(reader.GetInt32(1)),
                 Status = Enum.Parse<WorkflowStatus>(reader.GetString(2)),
                 Count = Convert.ToInt32(reader.GetValue(3))
@@ -436,7 +436,7 @@ internal sealed class SqlServerProjectionStore(string connectionString)
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            var instanceId = new InstanceId(reader.GetGuid(0));
+            var instanceId = InstanceId.Parse(reader.GetGuid(0).ToString());
             if (!waits.TryGetValue(instanceId, out var instanceWaits))
             {
                 instanceWaits = [];
@@ -445,9 +445,9 @@ internal sealed class SqlServerProjectionStore(string connectionString)
 
             instanceWaits.Add(new ActiveWaitSnapshot
             {
-                WaitId = new WaitId(reader.GetGuid(1)),
+                WaitId = WaitId.Parse(reader.GetGuid(1).ToString()),
                 EventName = reader.GetString(2),
-                CorrelationId = new CorrelationId(reader.GetString(3)),
+                CorrelationId = CorrelationId.Create(reader.GetString(3)),
                 RegisteredAt = reader.GetFieldValue<DateTimeOffset>(4),
                 Status = reader.GetString(5),
                 Mode = reader.GetString(6)

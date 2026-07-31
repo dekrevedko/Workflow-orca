@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -73,6 +74,7 @@ public sealed class Phase0ScenarioContext
 {
     private readonly IReadOnlyList<Phase0ExpectedCall> _expectedCalls;
     private readonly HashSet<string> _productAssemblies;
+    private readonly HashSet<string> _harnessBoundaryAssemblies;
     private readonly HashSet<string> _executedCalls = new(StringComparer.Ordinal);
     private readonly AsyncLocal<int> _activeObservationDepth = new();
     private readonly Phase0DeterministicRequirement _requirement;
@@ -80,14 +82,17 @@ public sealed class Phase0ScenarioContext
     private readonly HashSet<object> _asserted = new(ReferenceEqualityComparer.Instance);
     private readonly TrackingTimeProvider _timeProvider;
     private readonly TrackingBarrier _barrier;
+    private readonly ConcurrentQueue<string> _productConsumptionFrames = new();
 
     internal Phase0ScenarioContext(
         IReadOnlyList<Phase0ExpectedCall> expectedCalls,
         IEnumerable<string> productAssemblies,
+        IEnumerable<string> harnessBoundaryAssemblies,
         Phase0DeterministicRequirement requirement)
     {
         _expectedCalls = expectedCalls;
         _productAssemblies = productAssemblies.ToHashSet(StringComparer.Ordinal);
+        _harnessBoundaryAssemblies = harnessBoundaryAssemblies.ToHashSet(StringComparer.Ordinal);
         _requirement = requirement;
         _timeProvider = new TrackingTimeProvider(this);
         _barrier = new TrackingBarrier(this);
@@ -95,6 +100,7 @@ public sealed class Phase0ScenarioContext
     }
 
     public Phase0ScenarioServices Services { get; }
+    internal IReadOnlyCollection<string> ProductConsumptionFrames => _productConsumptionFrames.ToArray();
 
     public Phase0Observation<T> Observe<T>(Expression<Func<Phase0ScenarioServices, T>> call)
     {
@@ -480,19 +486,39 @@ public sealed class Phase0ScenarioContext
         $"({string.Join(",", method.GetParameters().Select(parameter => CanonicalTypeName(parameter.ParameterType)))}) -> " +
         $"{(method is MethodInfo info ? CanonicalTypeName(info.ReturnType) : "System.Void")}";
 
-    private static bool ExceptionCameFromExpectedProduct(Exception exception, Phase0ExpectedCall expected) =>
-        new StackTrace(exception, false).GetFrames()
+    private static bool ExceptionCameFromExpectedProduct(Exception exception, Phase0ExpectedCall expected)
+    {
+        var methods = new StackTrace(exception, false).GetFrames()
             .Select(frame => frame.GetMethod())
-            .Any(method => method?.DeclaringType?.Assembly.GetName().Name == expected.Assembly &&
-                           method.DeclaringType.FullName == expected.Type && method.Name == expected.Member);
+            .Where(method => method is not null)
+            .ToArray();
+        return methods.Any(method =>
+                method!.DeclaringType?.Assembly.GetName().Name == expected.Assembly &&
+                method.DeclaringType.FullName == expected.Type &&
+                method.Name == expected.Member);
+    }
 
     private void EnterObservedCall() => _activeObservationDepth.Value++;
     private void ExitObservedCall() => _activeObservationDepth.Value--;
 
-    private bool IsProductFramePresent() => _activeObservationDepth.Value > 0 && new StackTrace()
-        .GetFrames()
-        .Select(frame => frame.GetMethod()?.DeclaringType?.Assembly.GetName().Name)
-        .Any(name => name is not null && _productAssemblies.Contains(name));
+    private bool IsProductFramePresent()
+    {
+        foreach (var method in new StackTrace().GetFrames().Select(frame => frame.GetMethod()))
+        {
+            var assembly = method?.DeclaringType?.Assembly.GetName().Name;
+            if (assembly is null) continue;
+            if (_productAssemblies.Contains(assembly))
+            {
+                _productConsumptionFrames.Enqueue(
+                    $"{assembly}:{method!.DeclaringType!.FullName}::{method.Name}");
+                return true;
+            }
+
+            if (_harnessBoundaryAssemblies.Contains(assembly)) return false;
+        }
+
+        return false;
+    }
 
     private sealed class TrackingTimeProvider(Phase0ScenarioContext owner) : TimeProvider
     {

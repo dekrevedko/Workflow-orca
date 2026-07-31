@@ -1,3 +1,4 @@
+using System.Text.Json;
 using BenchmarkDotNet.Attributes;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
@@ -12,7 +13,6 @@ namespace OrcaCore.Benchmarks.Scenarios;
 public class ProviderSerializationMaterializationBenchmarks
 {
     private readonly InMemoryWorkflowProvider provider = new();
-    private readonly IWorkflowPayloadSerializer serializer = new JsonWorkflowPayloadSerializer();
     private readonly DefinitionId definitionId = DeterministicIds.Definition(60_001);
     private readonly InstanceId instanceId = DeterministicIds.Instance(60_002);
     private SerializedPayload serializedPayload = null!;
@@ -20,7 +20,7 @@ public class ProviderSerializationMaterializationBenchmarks
     [GlobalSetup]
     public async Task SetupAsync()
     {
-        serializedPayload = serializer.Serialize(ProviderBenchmarkFixtures.Payload(1));
+        serializedPayload = Serialize(ProviderBenchmarkFixtures.Payload(1));
         var streamId = new WorkflowStreamId(instanceId);
         var events = Enumerable.Range(0, 128)
             .Select(index => ProviderBenchmarkFixtures.StartedEvent(index, instanceId, definitionId))
@@ -44,8 +44,8 @@ public class ProviderSerializationMaterializationBenchmarks
     [Benchmark]
     public BenchmarkPayload SerializeAndDeserializePayload()
     {
-        var serialized = serializer.Serialize(ProviderBenchmarkFixtures.Payload(2));
-        return serializer.Deserialize<BenchmarkPayload>(serialized);
+        var serialized = Serialize(ProviderBenchmarkFixtures.Payload(2));
+        return Deserialize<BenchmarkPayload>(serialized);
     }
 
     [Benchmark]
@@ -59,7 +59,7 @@ public class ProviderSerializationMaterializationBenchmarks
     [Benchmark]
     public BenchmarkPayload DeserializeExistingPayload()
     {
-        return serializer.Deserialize<BenchmarkPayload>(serializedPayload);
+        return Deserialize<BenchmarkPayload>(serializedPayload);
     }
 
     [Benchmark]
@@ -84,6 +84,7 @@ public class ProviderSerializationMaterializationBenchmarks
                 DefinitionId = definitionId,
                 DefinitionVersion = DefinitionVersion.Initial,
                 CompilerFormatVersion = 1,
+                CompilerProfileId = "orcacore-compiler-v1;quantum=1024",
                 PlanFingerprint = "provider-materialization-benchmark"
             },
             StateContentType = serializedPayload.ContentType,
@@ -106,5 +107,17 @@ public class ProviderSerializationMaterializationBenchmarks
                 NextFiberId = "benchmark-root"
             }
         };
+    }
+
+    private static SerializedPayload Serialize<TPayload>(TPayload payload)
+    {
+        return new SerializedPayload(
+            "orcacore-json-v1",
+            JsonSerializer.SerializeToUtf8Bytes(payload));
+    }
+
+    private static TPayload Deserialize<TPayload>(SerializedPayload payload)
+    {
+        return JsonSerializer.Deserialize<TPayload>(payload.Payload)!;
     }
 }

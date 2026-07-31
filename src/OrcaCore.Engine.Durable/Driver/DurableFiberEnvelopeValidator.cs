@@ -21,17 +21,22 @@ internal static class DurableFiberEnvelopeValidator
                 $"'{DurableExecutionEnvelopeV2.CurrentVersion}'.");
         }
 
-        if (envelope.PlanBinding.CompilerFormatVersion != plan.FormatVersion)
+        if (envelope.PlanBinding.CompilerFormatVersion != plan.FormatVersion ||
+            !string.Equals(
+                envelope.PlanBinding.CompilerProfileId,
+                plan.CompilerProfileId,
+                StringComparison.Ordinal))
         {
             return Invalid(
                 "SFE-BIND-002",
-                $"Compiler format '{envelope.PlanBinding.CompilerFormatVersion}' does not match " +
-                $"registered format '{plan.FormatVersion}'.");
+                $"Compiler format/profile '{envelope.PlanBinding.CompilerFormatVersion}/" +
+                $"{envelope.PlanBinding.CompilerProfileId}' does not match registered format/profile " +
+                $"'{plan.FormatVersion}/{plan.CompilerProfileId}'.");
         }
 
-        if (envelope.InstanceId != instanceId ||
-            envelope.PlanBinding.DefinitionId != plan.DefinitionId ||
-            envelope.PlanBinding.DefinitionVersion != plan.DefinitionVersion)
+        if (!envelope.InstanceId.Equals(instanceId) ||
+            !envelope.PlanBinding.DefinitionId.Equals(plan.DefinitionId) ||
+            !envelope.PlanBinding.DefinitionVersion.Equals(plan.DefinitionVersion))
         {
             return Invalid(
                 "SFE-BIND-003",

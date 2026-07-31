@@ -13,7 +13,8 @@ public sealed record PackageConsumerFixture(
     string Id,
     string Project,
     string[] Packages,
-    string[] TransitivePackages);
+    string[] TransitivePackages,
+    int TurnsGreenSection);
 
 public sealed record GuardScenario(
     string Id,

@@ -2,6 +2,7 @@ using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Execution;
+using OrcaCore.Core.Internal;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
 
@@ -30,7 +31,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
     {
         if (target is null)
         {
-            throw new WorkflowDefinitionException(
+            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                 $"Instruction '{source.Id}' has no continuation.");
         }
 
@@ -42,18 +43,18 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
     }
 }
 
-internal sealed class StructuredEphemeralValueCodec(IWorkflowTypeSerializerRegistry registry) : IStructuredValueCodec
+internal sealed class StructuredEphemeralValueCodec : IStructuredValueCodec
 {
     public StructuredSerializedValue Serialize(object? value, Type declaredType, string schemaIdentity)
     {
         return new StructuredSerializedValue(
             declaredType,
             schemaIdentity,
-            registry.Serialize(value, declaredType));
+                CoreWorkflowValueCodec.Serialize(value, declaredType));
     }
 
     public object? Deserialize(StructuredSerializedValue value)
     {
-        return registry.Deserialize(value.Payload, value.DeclaredType);
+            return CoreWorkflowValueCodec.Deserialize(value.Payload, value.DeclaredType);
     }
 }

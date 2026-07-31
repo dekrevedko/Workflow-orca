@@ -2,20 +2,20 @@ using OrcaCore.Core.Compilation;
 
 namespace OrcaCore.Core.Execution;
 
-internal sealed class FiberQuantumBudget(int maxInternalInstructions)
+public sealed class FiberQuantumBudget(int maxInternalInstructions)
 {
     private FiberId? activeFiberId;
     private int internalInstructions;
 
-    internal int InternalInstructions => internalInstructions;
+    public int InternalInstructions => internalInstructions;
 
-    internal bool ShouldRotate(FiberId fiberId, CompiledInstructionKind instructionKind)
+    public bool ShouldRotate(FiberId fiberId, CompiledInstructionKind instructionKind)
     {
         Select(fiberId);
         return IsInternal(instructionKind) && internalInstructions >= maxInternalInstructions;
     }
 
-    internal void Record(FiberId fiberId, CompiledInstructionKind instructionKind)
+    public void Record(FiberId fiberId, CompiledInstructionKind instructionKind)
     {
         Select(fiberId);
         if (IsInternal(instructionKind))
@@ -24,13 +24,13 @@ internal sealed class FiberQuantumBudget(int maxInternalInstructions)
         }
     }
 
-    internal void EndTurn()
+    public void EndTurn()
     {
         activeFiberId = null;
         internalInstructions = 0;
     }
 
-    internal static bool IsInternal(CompiledInstructionKind instructionKind) =>
+    public static bool IsInternal(CompiledInstructionKind instructionKind) =>
         instructionKind != CompiledInstructionKind.Step;
 
     private void Select(FiberId fiberId)

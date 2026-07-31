@@ -15,13 +15,15 @@ internal static partial class DefinitionCompiler
             var nodeId = $"{path}/{index}";
             yield return node switch
             {
-                SelectedInitAuthoringNode<TState> init => new InitNode<TState>(
-                    nodeId,
-                    init.CreateState,
-                    init.RehydrateInput),
+            SelectedInitAuthoringNode<TState> init => new InitNode<TState>(
+                nodeId,
+                init.InputType,
+                init.CreateState),
                 SelectedStepAuthoringNode<TState> step => new BusinessStepNode<TState>(
                     nodeId,
-                    step.StepFactory,
+                    step.StepFactory ?? (() => throw new InvalidOperationException(
+                        $"Named step '{step.StepType?.FullName}' requires compiled host resolution.")),
+                    step.StepType,
                     step.Policies),
                 SelectedWaitAuthoringNode<TState> wait => new WaitNode<TState>(
                     nodeId,
@@ -60,6 +62,9 @@ internal static partial class DefinitionCompiler
                 SelectedContinueAsNewAuthoringNode<TState> rollover => new ContinueAsNewNode<TState>(
                     nodeId,
                     rollover.StateSelector),
+                SelectedResourceLeaseAuthoringNode<TState> lease => new SequenceNode<TState>(
+                    $"{nodeId}/lease",
+                    BuildNodes(lease.Body, $"{nodeId}/lease")),
                 SelectedStructuredScopeAuthoringNode<TState> => new CompiledScopeNode<TState>(
                     nodeId,
                     $"scope/{nodeId}"),

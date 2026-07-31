@@ -1,6 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>OrcaCore.Engine.Ephemeral</AssemblyName>
+    <PackageId>OrcaCore.Engine.Ephemeral</PackageId>
+  </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\OrcaCore.Abstractions\OrcaCore.Abstractions.csproj" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OrcaCore.Abstractions\OrcaCore.csproj" />
     <ProjectReference Include="..\OrcaCore.Core\OrcaCore.Core.csproj" />
   </ItemGroup>
 </Project>

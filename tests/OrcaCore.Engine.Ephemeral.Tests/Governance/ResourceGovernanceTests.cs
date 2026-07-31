@@ -1,11 +1,6 @@
 using AwesomeAssertions;
-using OrcaCore.Abstractions.Errors;
-using OrcaCore.Abstractions.Events;
-using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
-using OrcaCore.Abstractions.Steps;
-using OrcaCore.Core.Building;
-using OrcaCore.Engine.Ephemeral;
+using Microsoft.Extensions.DependencyInjection;
+using OrcaCore.Hosting;
 using OrcaCore.TestSupport;
 using Xunit;
 
@@ -13,297 +8,411 @@ namespace OrcaCore.Engine.Ephemeral.Tests.Governance;
 
 public sealed class ResourceGovernanceTests
 {
-    [Fact]
-    public async Task StepConcurrencyLimit_AllowsOnlyConfiguredConcurrentSteps()
-    {
-        var gate = new StepGate();
-        var governanceAttempts = new AsyncSignalCounter();
-        var engine = new EphemeralWorkflowEngine(
-            TimeProvider.System,
-            new EphemeralWorkflowEngineOptions
-            {
-                MaxConcurrentSteps = 1,
-                GovernanceWaitStarting = governanceAttempts.Signal
-            });
-        var definition = BlockingDefinition(gate);
-        engine.RegisterDefinition(definition);
-
-        var first = engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
-            "first",
-            TestContext.Current.CancellationToken);
-        await gate.WaitForEnteredCountAsync(1, TestContext.Current.CancellationToken);
-        var second = engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
-            "second",
-            TestContext.Current.CancellationToken);
-
-        var secondEntry = gate.WaitForEnteredCountAsync(2, TestContext.Current.CancellationToken);
-        await governanceAttempts.WaitForCountAsync(2, TestContext.Current.CancellationToken);
-        var secondEnteredBeforeRelease = secondEntry.IsCompleted;
-        gate.ReleaseOne();
-        await secondEntry;
-        gate.ReleaseOne();
-        var snapshots = await Task.WhenAll(first, second).WaitAsync(TestContext.Current.CancellationToken);
-
-        secondEnteredBeforeRelease.Should().BeFalse();
-        gate.MaxObservedConcurrent.Should().Be(1);
-        snapshots.Should().OnlyContain(snapshot => snapshot.Status == WorkflowStatus.Completed);
-    }
+    private static readonly EventName StartWork = EventName.Create("start-work");
 
     [Fact]
-    public async Task NamedPoolLimit_SharedAcrossDefinitions_BoundsConcurrentExecution()
+    public async Task ExactNamedStepThrottle_IsSharedAcrossWorkflowInstances()
     {
         var gate = new StepGate();
-        var governanceAttempts = new AsyncSignalCounter();
-        var engine = new EphemeralWorkflowEngine(
-            TimeProvider.System,
-            new EphemeralWorkflowEngineOptions
+        using var provider = CreateProvider(
+            services => services.AddSingleton(new BlockingStep(gate)),
+            new EphemeralEngineHostOptions
             {
-                NamedPools = { ["db"] = 1 },
-                GovernanceWaitStarting = governanceAttempts.Signal
+                StructuredExecution = new StructuredExecutionHostOptions
+                {
+                    MaxConcurrentExecutionPathsPerInstance = 4,
+                    StepThrottles = [StepExecutionThrottle.For<BlockingStep>(1)]
+                },
+                TransientPools = []
             });
-        var firstDefinition = BlockingDefinition(gate, "db");
-        var secondDefinition = BlockingDefinition(gate, "db");
-        engine.RegisterDefinition(firstDefinition);
-        engine.RegisterDefinition(secondDefinition);
+        var handle = RegisterBlockingDefinition(provider);
+        var first = await StartWaitingAsync(handle, "step-throttle-first");
+        var second = await StartWaitingAsync(handle, "step-throttle-second");
 
-        var first = engine.StartAsync<string, TestState>(
-            firstDefinition.DefinitionId,
-            "first",
-            TestContext.Current.CancellationToken);
-        await gate.WaitForEnteredCountAsync(1, TestContext.Current.CancellationToken);
-        var second = engine.StartAsync<string, TestState>(
-            secondDefinition.DefinitionId,
-            "second",
-            TestContext.Current.CancellationToken);
+        var firstDelivery = DeliverWorkAsync(
+            provider,
+            first,
+            "step-throttle-first").AsTask();
+        await gate.WaitForEntriesAsync(1, TestContext.Current.CancellationToken);
+        var secondDelivery = DeliverWorkAsync(
+            provider,
+            second,
+            "step-throttle-second").AsTask();
 
-        var secondEntry = gate.WaitForEnteredCountAsync(2, TestContext.Current.CancellationToken);
-        await governanceAttempts.WaitForCountAsync(2, TestContext.Current.CancellationToken);
-        var secondEnteredBeforeRelease = secondEntry.IsCompleted;
-        gate.ReleaseOne();
-        await secondEntry;
-        gate.ReleaseOne();
-        await Task.WhenAll(first, second).WaitAsync(TestContext.Current.CancellationToken);
-
-        secondEnteredBeforeRelease.Should().BeFalse();
-        gate.MaxObservedConcurrent.Should().Be(1);
-    }
-
-    [Fact]
-    public async Task StepTimeout_DoesNotRunWhileWaitingForGovernancePermit()
-    {
-        var clock = new Clock(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
-        var gate = new StepGate();
-        var governanceAttempts = new AsyncSignalCounter();
-        var engine = new EphemeralWorkflowEngine(
-            clock.TimeProvider,
-            new EphemeralWorkflowEngineOptions
-            {
-                MaxConcurrentSteps = 1,
-                GovernanceWaitStarting = governanceAttempts.Signal
-            });
-        var blocking = BlockingDefinition(gate);
-        var timed = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState(gate))
-            .WithTimeout(TimeSpan.FromSeconds(30))
-            .Then(() => new CompletedStep())
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-        engine.RegisterDefinition(blocking);
-        engine.RegisterDefinition(timed);
-
-        var first = engine.StartAsync<string, TestState>(
-            blocking.DefinitionId,
-            "first",
-            TestContext.Current.CancellationToken);
-        await gate.WaitForEnteredCountAsync(1, TestContext.Current.CancellationToken);
-        var second = engine.StartAsync<string, TestState>(
-            timed.DefinitionId,
-            "second",
-            TestContext.Current.CancellationToken);
-        await governanceAttempts.WaitForCountAsync(2, TestContext.Current.CancellationToken);
-        clock.Advance(TimeSpan.FromMinutes(1));
-
-        var completedWhileQueued = second.IsCompleted;
-        gate.ReleaseOne();
-        var snapshots = await Task.WhenAll(first, second).WaitAsync(TestContext.Current.CancellationToken);
-
-        completedWhileQueued.Should().BeFalse();
-        snapshots.Should().OnlyContain(snapshot => snapshot.Status == WorkflowStatus.Completed);
-    }
-
-    [Fact]
-    public async Task Governance_DoesNotBreakPerInstanceSerialization()
-    {
-        var gate = new StepGate();
-        var laneEnqueues = new AsyncSignalCounter();
-        var engine = new EphemeralWorkflowEngine(
-            TimeProvider.System,
-            new EphemeralWorkflowEngineOptions
-            {
-                MaxConcurrentSteps = 4,
-                LaneWorkItemEnqueued = _ => laneEnqueues.Signal()
-            });
-        var definition = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState(gate))
-            .Wait("Ready", _ => new CorrelationId("same"))
-            .Then(() => new BlockingStep())
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-        engine.RegisterDefinition(definition);
-        var waiting = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
-            "start",
-            TestContext.Current.CancellationToken);
-
-        var first = engine.RaiseEventAsync<TestState>(
-            waiting.InstanceId,
-            Event(EventId.New()),
-            TestContext.Current.CancellationToken);
-        await gate.WaitForEnteredCountAsync(1, TestContext.Current.CancellationToken);
-        var second = engine.RaiseEventAsync<TestState>(
-            waiting.InstanceId,
-            Event(EventId.New()),
-            TestContext.Current.CancellationToken);
-
-        await laneEnqueues.WaitForCountAsync(3, TestContext.Current.CancellationToken);
-        var secondCompletedBeforeRelease = second.IsCompleted;
-        gate.ReleaseOne();
-        await first.WaitAsync(TestContext.Current.CancellationToken);
-        await second.WaitAsync(TestContext.Current.CancellationToken);
-
-        secondCompletedBeforeRelease.Should().BeFalse();
-        gate.MaxObservedConcurrent.Should().Be(1);
         gate.EnteredCount.Should().Be(1);
+        gate.MaxObserved.Should().Be(1);
+        gate.ReleaseOne();
+        await gate.WaitForEntriesAsync(2, TestContext.Current.CancellationToken);
+        gate.MaxObserved.Should().Be(1);
+        gate.ReleaseOne();
+
+        (await firstDelivery).Status.Should().Be(EventDeliveryStatus.Accepted);
+        (await secondDelivery).Status.Should().Be(EventDeliveryStatus.Accepted);
+        (await WaitForStatusAsync(
+                first,
+                WorkflowInstanceStatus.Completed,
+                TestContext.Current.CancellationToken))
+            .Status.Should().Be(WorkflowInstanceStatus.Completed);
+        (await WaitForStatusAsync(
+                second,
+                WorkflowInstanceStatus.Completed,
+                TestContext.Current.CancellationToken))
+            .Status.Should().Be(WorkflowInstanceStatus.Completed);
     }
 
-    private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> BlockingDefinition(
-        StepGate gate,
-        string? poolKey = null)
+    [Fact]
+    public async Task TransientPool_IsSharedAcrossDefinitions()
     {
-        var builder = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState(gate));
-        if (poolKey is not null)
+        var gate = new StepGate();
+        var pool = TransientPoolName.Create("database");
+        using var provider = CreateProvider(
+            services => services.AddSingleton(new BlockingStep(gate)),
+            new EphemeralEngineHostOptions
+            {
+                StructuredExecution = new StructuredExecutionHostOptions
+                {
+                    MaxConcurrentExecutionPathsPerInstance = 4,
+                    StepThrottles = []
+                },
+                TransientPools = [TransientPoolDefinition.Create(pool, 1)]
+            });
+        var registry = provider.GetRequiredService<IWorkflowDefinitionRegistry>();
+        var firstHandle = registry.Register(BlockingDefinition(pool)).GetHandleOrThrow();
+        var secondHandle = registry.Register(BlockingDefinition(pool)).GetHandleOrThrow();
+        var first = await StartWaitingAsync(firstHandle, "transient-pool-first");
+        var second = await StartWaitingAsync(secondHandle, "transient-pool-second");
+
+        var firstDelivery = DeliverWorkAsync(
+            provider,
+            first,
+            "transient-pool-first").AsTask();
+        await gate.WaitForEntriesAsync(1, TestContext.Current.CancellationToken);
+        var secondDelivery = DeliverWorkAsync(
+            provider,
+            second,
+            "transient-pool-second").AsTask();
+
+        gate.EnteredCount.Should().Be(1);
+        gate.MaxObserved.Should().Be(1);
+        gate.ReleaseOne();
+        await gate.WaitForEntriesAsync(2, TestContext.Current.CancellationToken);
+        gate.MaxObserved.Should().Be(1);
+        gate.ReleaseOne();
+
+        (await firstDelivery).Status.Should().Be(EventDeliveryStatus.Accepted);
+        (await secondDelivery).Status.Should().Be(EventDeliveryStatus.Accepted);
+    }
+
+    [Fact]
+    public async Task StepTimeout_DoesNotRunWhileWaitingForNamedStepPermit()
+    {
+        var clock = new Clock(
+            new DateTimeOffset(2026, 7, 30, 12, 0, 0, TimeSpan.Zero));
+        var gate = new StepGate();
+        var step = new FirstInvocationBlocksStep(gate);
+        using var provider = CreateProvider(
+            services => services.AddSingleton(step),
+            new EphemeralEngineHostOptions
+            {
+                StructuredExecution = new StructuredExecutionHostOptions
+                {
+                    MaxConcurrentExecutionPathsPerInstance = 4,
+                    StepThrottles = [StepExecutionThrottle.For<FirstInvocationBlocksStep>(1)]
+                },
+                TransientPools = []
+            },
+            clock.TimeProvider);
+        var registry = provider.GetRequiredService<IWorkflowDefinitionRegistry>();
+        var blocking = TimedDefinition(timeout: null);
+        var timed = TimedDefinition(TimeSpan.FromMinutes(1));
+        var blockingHandle = registry.Register(blocking).GetHandleOrThrow();
+        var timedHandle = registry.Register(timed).GetHandleOrThrow();
+        var first = await StartWaitingAsync(blockingHandle, "timeout-permit-first");
+        var second = await StartWaitingAsync(timedHandle, "timeout-permit-second");
+
+        var firstDelivery = DeliverWorkAsync(
+            provider,
+            first,
+            "timeout-permit-first").AsTask();
+        await gate.WaitForEntriesAsync(1, TestContext.Current.CancellationToken);
+        var secondDelivery = DeliverWorkAsync(
+            provider,
+            second,
+            "timeout-permit-second").AsTask();
+        clock.Advance(TimeSpan.FromMinutes(2));
+        var waiting = await second.GetSnapshotAsync(TestContext.Current.CancellationToken);
+
+        waiting.Status.Should().Be(WorkflowInstanceStatus.Waiting);
+        waiting.Failure.Should().BeNull(
+            "the step timeout starts only after the governance permit is acquired");
+        step.InvocationCount.Should().Be(1);
+        gate.ReleaseOne();
+
+        _ = await firstDelivery;
+        _ = await secondDelivery;
+        await step.SecondEntered.Task.WaitAsync(
+            TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+        (await first.GetSnapshotAsync(TestContext.Current.CancellationToken))
+            .Status.Should().Be(WorkflowInstanceStatus.Completed);
+        (await WaitForStatusAsync(
+                second,
+                WorkflowInstanceStatus.Completed,
+                TestContext.Current.CancellationToken))
+            .Status.Should().Be(WorkflowInstanceStatus.Completed);
+        step.InvocationCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task EventDelivery_RemainsSerializedWhileGovernedStepIsRunning()
+    {
+        var gate = new StepGate();
+        using var provider = CreateProvider(
+            services => services.AddSingleton(new BlockingStep(gate)),
+            new EphemeralEngineHostOptions
+            {
+                StructuredExecution = new StructuredExecutionHostOptions
+                {
+                    MaxConcurrentExecutionPathsPerInstance = 4,
+                    StepThrottles = []
+                },
+                TransientPools = []
+            });
+        var registry = provider.GetRequiredService<IWorkflowDefinitionRegistry>();
+        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var eventName = EventName.Create("ready");
+        var correlation = CorrelationId.Create("serialized-governance");
+        var definition = Workflow.Ephemeral<State>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(_ => new State("serialized-governance"))
+            .Wait(eventName, _ => correlation)
+            .Then<BlockingStep>()
+            .End()
+            .Build();
+        var handle = registry.Register(definition).GetHandleOrThrow();
+        var instance = (await handle.StartOrGetAsync(
+            "start",
+            StartIdempotencyKey.Create("serialized-governance"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
+
+        var first = events.DeliverToInstanceAsync(
+            instance.InstanceId,
+            Event("serialized-first", eventName, correlation),
+            TestContext.Current.CancellationToken).AsTask();
+        await gate.WaitForEntriesAsync(1, TestContext.Current.CancellationToken);
+        var second = events.DeliverToInstanceAsync(
+            instance.InstanceId,
+            Event("serialized-second", eventName, correlation),
+            TestContext.Current.CancellationToken).AsTask();
+
+        second.IsCompleted.Should().BeFalse();
+        gate.MaxObserved.Should().Be(1);
+        gate.EnteredCount.Should().Be(1);
+        gate.ReleaseOne();
+
+        (await first).Status.Should().Be(EventDeliveryStatus.Accepted);
+        (await second).Status.Should().Be(EventDeliveryStatus.Accepted);
+        gate.EnteredCount.Should().Be(1);
+        (await instance.GetSnapshotAsync(TestContext.Current.CancellationToken))
+            .Status.Should().Be(WorkflowInstanceStatus.Completed);
+    }
+
+    private static ServiceProvider CreateProvider(
+        Action<ServiceCollection> registerSteps,
+        EphemeralEngineHostOptions options,
+        TimeProvider? timeProvider = null)
+    {
+        var services = new ServiceCollection();
+        registerSteps(services);
+        if (timeProvider is not null)
         {
-            builder.WithPoolKey(poolKey);
+            services.AddSingleton(timeProvider);
         }
 
-        return builder
-            .Then(() => new BlockingStep())
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+        services.AddOrcaCoreEphemeralEngine(options);
+        return services.BuildServiceProvider();
     }
 
-    private static EventEnvelope Event(EventId eventId)
+    private static EphemeralDefinitionHandle<string> RegisterBlockingDefinition(
+        ServiceProvider provider) =>
+        provider.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(BlockingDefinition())
+            .GetHandleOrThrow();
+
+    private static EphemeralWorkflowDefinition<string> BlockingDefinition(
+        TransientPoolName? pool = null)
     {
-        return new EventEnvelope
+        var builder = Workflow.Ephemeral<State>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(correlation => new State(correlation))
+            .Wait(
+                StartWork,
+                state => CorrelationId.Create(state.Value.Correlation))
+            .Then<BlockingStep>();
+        if (pool is not null)
         {
-            EventId = eventId,
-            EventName = "Ready",
-            CorrelationId = new CorrelationId("same"),
-            Payload = null,
-            OccurredAt = DateTimeOffset.UtcNow
-        };
+            builder.WithTransientPool(pool);
+        }
+
+        return builder.End().Build();
     }
 
-    private sealed record TestState(StepGate Gate);
+    private static EphemeralWorkflowDefinition<string> TimedDefinition(
+        TimeSpan? timeout)
+    {
+        var builder = Workflow.Ephemeral<State>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(correlation => new State(correlation))
+            .Wait(
+                StartWork,
+                state => CorrelationId.Create(state.Value.Correlation))
+            .Then<FirstInvocationBlocksStep>();
+        if (timeout is { } value)
+        {
+            builder.WithStepTimeout(value);
+        }
 
-    private sealed class BlockingStep : IStep<TestState>
+        return builder.End().Build();
+    }
+
+    private static async Task<WorkflowInstanceHandle> StartWaitingAsync(
+        EphemeralDefinitionHandle<string> handle,
+        string correlation) =>
+        (await handle.StartOrGetAsync(
+            correlation,
+            StartIdempotencyKey.Create($"start-{correlation}"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
+
+    private static ValueTask<EventDeliveryResult> DeliverWorkAsync(
+        ServiceProvider provider,
+        WorkflowInstanceHandle instance,
+        string correlation) =>
+        provider.GetRequiredService<IWorkflowEventClient>().DeliverToInstanceAsync(
+            instance.InstanceId,
+            Event(
+                $"event-{correlation}",
+                StartWork,
+                CorrelationId.Create(correlation)),
+            TestContext.Current.CancellationToken);
+
+    private static async Task<WorkflowInstanceSnapshot> WaitForStatusAsync(
+        WorkflowInstanceHandle instance,
+        WorkflowInstanceStatus status,
+        CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var snapshot = await instance.GetSnapshotAsync(cancellationToken);
+            if (snapshot.Status == status)
+            {
+                return snapshot;
+            }
+
+            await Task.Yield();
+        }
+    }
+
+    private static WorkflowEvent Event(
+        string eventId,
+        EventName eventName,
+        CorrelationId correlation) =>
+        WorkflowEvent.Create(
+            EventId.Create(eventId),
+            eventName,
+            correlation,
+            DateTimeOffset.UtcNow);
+
+    private sealed record State(string Correlation);
+
+    private sealed class BlockingStep(StepGate gate) : IStep<State>
     {
         public async ValueTask<StepResult> ExecuteAsync(
-            StepContext<TestState> context,
+            StepContext<State> context,
             CancellationToken cancellationToken)
         {
-            await context.State.Gate.EnterAndWaitAsync(cancellationToken).ConfigureAwait(false);
+            await gate.EnterAndWaitAsync(cancellationToken);
             return new StepResult.Completed();
         }
     }
 
-    private sealed class CompletedStep : IStep<TestState>
+    private sealed class FirstInvocationBlocksStep(StepGate gate) : IStep<State>
     {
-        public ValueTask<StepResult> ExecuteAsync(
-            StepContext<TestState> context,
+        private int invocationCount;
+
+        internal TaskCompletionSource SecondEntered { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal int InvocationCount => Volatile.Read(ref invocationCount);
+
+        public async ValueTask<StepResult> ExecuteAsync(
+            StepContext<State> context,
             CancellationToken cancellationToken)
         {
-            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+            if (Interlocked.Increment(ref invocationCount) == 1)
+            {
+                await gate.EnterAndWaitAsync(cancellationToken);
+            }
+            else
+            {
+                SecondEntered.TrySetResult();
+            }
+
+            return new StepResult.Completed();
         }
     }
 
     private sealed class StepGate
     {
-        private readonly object gate = new();
-        private readonly Queue<TaskCompletionSource> releases = [];
-        private readonly Dictionary<int, TaskCompletionSource> enteredWaiters = [];
-        private int activeCount;
+        private readonly SemaphoreSlim entered = new(0);
+        private readonly SemaphoreSlim releases = new(0);
+        private int active;
         private int enteredCount;
+        private int maxObserved;
 
-        internal int EnteredCount => enteredCount;
+        internal int EnteredCount => Volatile.Read(ref enteredCount);
 
-        internal int MaxObservedConcurrent { get; private set; }
+        internal int MaxObserved => Volatile.Read(ref maxObserved);
 
-        internal Task EnterAndWaitAsync(CancellationToken cancellationToken)
+        internal async Task EnterAndWaitAsync(CancellationToken cancellationToken)
         {
-            TaskCompletionSource release;
-            TaskCompletionSource[] completedWaiters;
-            lock (gate)
-            {
-                enteredCount++;
-                activeCount++;
-                MaxObservedConcurrent = Math.Max(MaxObservedConcurrent, activeCount);
-                release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                releases.Enqueue(release);
-                completedWaiters = enteredWaiters
-                    .Where(waiter => enteredCount >= waiter.Key)
-                    .Select(waiter => waiter.Value)
-                    .ToArray();
-            }
-
-            foreach (var waiter in completedWaiters)
-            {
-                waiter.TrySetResult();
-            }
-
-            return WaitForReleaseAsync(release, cancellationToken);
+            var current = Interlocked.Increment(ref active);
+            UpdateMaximum(current);
+            Interlocked.Increment(ref enteredCount);
+            entered.Release();
+            await releases.WaitAsync(cancellationToken);
+            Interlocked.Decrement(ref active);
         }
 
-        internal void ReleaseOne()
-        {
-            TaskCompletionSource release;
-            lock (gate)
-            {
-                release = releases.Dequeue();
-                activeCount--;
-            }
+        internal void ReleaseOne() => releases.Release();
 
-            release.SetResult();
+        internal async Task WaitForEntriesAsync(
+            int count,
+            CancellationToken cancellationToken)
+        {
+            while (Volatile.Read(ref enteredCount) < count)
+            {
+                await entered.WaitAsync(cancellationToken);
+            }
         }
 
-        internal async Task WaitForEnteredCountAsync(int count, CancellationToken cancellationToken)
+        private void UpdateMaximum(int current)
         {
-            TaskCompletionSource waiter;
-            lock (gate)
+            while (true)
             {
-                if (enteredCount >= count)
+                var observed = Volatile.Read(ref maxObserved);
+                if (current <= observed ||
+                    Interlocked.CompareExchange(
+                        ref maxObserved,
+                        current,
+                        observed) == observed)
                 {
                     return;
                 }
-
-                if (!enteredWaiters.TryGetValue(count, out waiter!))
-                {
-                    waiter = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                    enteredWaiters.Add(count, waiter);
-                }
             }
-
-            await waiter.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
-        }
-
-        private async Task WaitForReleaseAsync(
-            TaskCompletionSource release,
-            CancellationToken cancellationToken)
-        {
-            await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 }

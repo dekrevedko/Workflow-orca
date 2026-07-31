@@ -8,6 +8,8 @@ using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Providers.InMemory;
 using Xunit;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Tests.ExternalJobs;
 
 public sealed class ExternalJobCancellationTests
@@ -90,7 +92,7 @@ public sealed class ExternalJobCancellationTests
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}"));
+        return InstanceId.Parse($"00000000-0000-0000-0000-{value:000000000000}");
     }
 
     private static CommandId CommandIdValue(int value)
@@ -100,6 +102,6 @@ public sealed class ExternalJobCancellationTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}"));
+        return DefinitionId.Parse($"00000000-0000-0000-0000-{value:000000000000}");
     }
 }

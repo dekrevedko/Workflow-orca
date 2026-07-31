@@ -128,7 +128,7 @@ public sealed class DagBuilderTests
         runner.IsComplete(["D"], ["A"]).Should().BeTrue();
     }
 
-    public static WorkflowDagBuilder Diamond()
+    private static WorkflowDagBuilder Diamond()
     {
         return new WorkflowDagBuilder()
             .Node("A", DefinitionIdValue(1), DefinitionVersion.Initial)
@@ -143,6 +143,6 @@ public sealed class DagBuilderTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}"));
+        return DefinitionId.Parse($"00000000-0000-0000-0000-{value:000000000000}");
     }
 }

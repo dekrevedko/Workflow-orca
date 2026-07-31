@@ -163,16 +163,16 @@ public sealed class RedisProjectionStore : IWorkflowProjectionStore
 
     private static bool Matches(WorkflowInstanceSnapshot snapshot, WorkflowProjectionQuery query)
     {
-        return (query.InstanceId is null || snapshot.InstanceId == query.InstanceId) &&
-            (query.ParentInstanceId is null || snapshot.ParentInstanceId == query.ParentInstanceId) &&
-            (query.RootInstanceId is null || snapshot.RootInstanceId == query.RootInstanceId) &&
-            (query.DefinitionId is null || snapshot.DefinitionId == query.DefinitionId) &&
+        return (query.InstanceId is null || snapshot.InstanceId.Equals(query.InstanceId)) &&
+            (query.ParentInstanceId is null || snapshot.ParentInstanceId?.Equals(query.ParentInstanceId) == true) &&
+            (query.RootInstanceId is null || snapshot.RootInstanceId?.Equals(query.RootInstanceId) == true) &&
+            (query.DefinitionId is null || snapshot.DefinitionId.Equals(query.DefinitionId)) &&
             (query.DefinitionVersion is null || snapshot.DefinitionVersion == query.DefinitionVersion) &&
             (query.Status is null || snapshot.Status == query.Status) &&
             (query.ActiveWaitEventName is null || snapshot.ActiveWaits.Any(wait =>
                 string.Equals(wait.EventName, query.ActiveWaitEventName, StringComparison.Ordinal))) &&
             (query.ActiveWaitCorrelationId is null || snapshot.ActiveWaits.Any(wait =>
-                wait.CorrelationId == query.ActiveWaitCorrelationId));
+                wait.CorrelationId.Equals(query.ActiveWaitCorrelationId)));
     }
 
     private static WorkflowInstanceSnapshot CloneSnapshot(WorkflowInstanceSnapshot snapshot)
@@ -406,7 +406,7 @@ public sealed class RedisProjectionStore : IWorkflowProjectionStore
     private static string? SnapshotKeyFromMember(RedisValue member)
     {
         return Guid.TryParse(member.ToString(), out var instanceId)
-            ? SnapshotKey(new InstanceId(instanceId))
+            ? SnapshotKey(InstanceId.Parse(instanceId.ToString()))
             : null;
     }
 

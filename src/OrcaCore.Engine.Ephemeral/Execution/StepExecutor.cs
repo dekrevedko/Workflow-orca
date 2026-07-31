@@ -35,7 +35,7 @@ internal sealed class StepExecutor<TState>
         bool deferFailures)
     {
         await using var governanceLease = await governance
-            .EnterStepAsync(stepNode.Policies.PoolKey, cancellationToken)
+            .EnterStepAsync(stepNode.StepType, stepNode.Policies.PoolKey, cancellationToken)
             .ConfigureAwait(false);
         using var stateAccess = await instance.EnterStateAccessAsync(cancellationToken).ConfigureAwait(false);
         var timedOut = 0;
@@ -55,6 +55,7 @@ internal sealed class StepExecutor<TState>
             ? cancellationToken
             : timeoutCancellation.Token;
         var maxAttempts = stepNode.Policies.Retry?.MaxAttempts ?? 1;
+        var operationId = instance.BeginStepOperation(stepPath);
 
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
@@ -70,8 +71,14 @@ internal sealed class StepExecutor<TState>
             try
             {
                 var step = stepNode.StepFactory();
-                var context = new StepContext<TState>(instance.State, resumedEvent, timeProvider, forEachItem);
+                var context = RuntimeStepContextFactory.Create(
+                    instance.State,
+                    RuntimeStepContextFactory.CreateExecution(instance.InstanceId, operationId, attempt),
+                    resumedEvent,
+                    timeProvider,
+                    forEachItem);
                 var result = await step.ExecuteAsync(context, executionToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
                 instance.CompleteStep(stepPath, timeProvider.GetUtcNow());
                 RecordStuckStepIfNeeded(instance, stepPath, stepStartedAt);
                 if (result is StepResult.Failed && attempt < maxAttempts)
@@ -82,6 +89,11 @@ internal sealed class StepExecutor<TState>
                     }
 
                     continue;
+                }
+
+                if (result is not StepResult.Failed)
+                {
+                    instance.ReplaceState(context.State);
                 }
 
                 return ApplyResult(instance, result, stepPath, deferFailures);
@@ -128,6 +140,7 @@ internal sealed class StepExecutor<TState>
         return StepExecutionResult.Stop();
     }
 
+
     private void RecordStuckStepIfNeeded(
         WorkflowInstance<TState> instance,
         string stepPath,
@@ -154,7 +167,7 @@ internal sealed class StepExecutor<TState>
         switch (result)
         {
             case StepResult.Completed:
-                instance.RecordLifecycleEvent("StepCompleted", stepPath, WorkflowStatus.Running, timeProvider.GetUtcNow());
+                instance.RecordLifecycleEvent("StepCompleted", stepPath, LegacyWorkflowStatus.Running, timeProvider.GetUtcNow());
                 return StepExecutionResult.Continue();
             case StepResult.Failed failed:
                 if (deferFailures)
@@ -165,8 +178,8 @@ internal sealed class StepExecutor<TState>
                 Fail(instance, failed.Error, stepPath);
                 return StepExecutionResult.Stop();
             case StepResult.WaitForEvent wait:
-                return StepExecutionResult.Wait(wait.EventName, wait.CorrelationId);
-            case StepResult.Yield:
+                return StepExecutionResult.Wait(wait.EventName.Value, wait.CorrelationId);
+            case var legacyYield when LegacyStepResultProjection.IsYield(legacyYield):
                 return StepExecutionResult.Yield();
             default:
                 throw new NotSupportedException(
@@ -177,7 +190,7 @@ internal sealed class StepExecutor<TState>
     private void Fail(WorkflowInstance<TState> instance, Exception exception, string stepPath)
     {
         var occurredAt = timeProvider.GetUtcNow();
-        instance.RecordLifecycleEvent("StepFailed", stepPath, WorkflowStatus.Failed, occurredAt);
+        instance.RecordLifecycleEvent("StepFailed", stepPath, LegacyWorkflowStatus.Failed, occurredAt);
         instance.Fail(new WorkflowErrorDetails(
             exception.GetType().Name,
             exception.Message,

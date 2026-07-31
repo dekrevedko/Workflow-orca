@@ -14,8 +14,8 @@ public sealed class EphemeralRoutingIndexTests
     {
         var index = new EphemeralRoutingIndex();
         var instanceId = InstanceIdValue(1);
-        var firstCorrelation = new CorrelationId("first");
-        var secondCorrelation = new CorrelationId("second");
+        var firstCorrelation = CorrelationId.Create("first");
+        var secondCorrelation = CorrelationId.Create("second");
 
         index.IndexSnapshot(Snapshot(instanceId, Wait("Approved", firstCorrelation)));
         index.IndexSnapshot(Snapshot(instanceId, Wait("Rejected", secondCorrelation)));
@@ -30,7 +30,7 @@ public sealed class EphemeralRoutingIndexTests
     {
         var index = new EphemeralRoutingIndex();
         var instanceId = InstanceIdValue(1);
-        var correlation = new CorrelationId("same");
+        var correlation = CorrelationId.Create("same");
 
         index.IndexSnapshot(Snapshot(
             instanceId,
@@ -72,7 +72,7 @@ public sealed class EphemeralRoutingIndexTests
     {
         return new EventEnvelope
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             EventName = eventName,
             CorrelationId = correlationId,
             OccurredAt = Timestamp(0)
@@ -86,17 +86,17 @@ public sealed class EphemeralRoutingIndexTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static WaitId WaitIdValue(int value)
     {
-        return new WaitId(GuidValue(value));
+        return WaitId.Parse(GuidValue(value).ToString());
     }
 
     private static Guid GuidValue(int value)

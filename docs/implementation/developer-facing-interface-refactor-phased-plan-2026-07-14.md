@@ -6,9 +6,14 @@
 
 **Root-only fanout revision:** 2026-07-19
 
+**Root-only fanout and authoring-lifecycle amendment:** 2026-07-28
+
 **Review-E remediation revision:** 2026-07-19
 
-**Status:** Phase 0 guard packet independently approved; stopped before blocked task 4.0
+**Status:** Sections 4, 5, and 6, including revision-8 remediation and the greenfield ownership-DDL
+scanner remediation, are independently approved. Section 7 is implemented and frozen for
+independent exit review. Task 8.0 and all Section 8 source work remain blocked until that exact
+Section 7 target receives a new approval without a release blocker.
 
 **Primary change:** [`reshape-developer-facing-interfaces`](../../openspec/changes/reshape-developer-facing-interfaces/)
 
@@ -27,7 +32,10 @@
 records the applied Review-E remediation. The
 [independent planning re-review](../review/developer-facing-interface-review-e-remediation-independent-rereview-2026-07-19.md)
 approved guard retargeting with no P0/P1/P2 findings. The root-only owner decision remains
-incorporated, while its earlier readiness verdict is historical evidence.
+incorporated, while its earlier readiness verdict is historical evidence. The current
+[root-only fan-out and authoring-lifecycle amendment](../../openspec/changes/reshape-developer-facing-interfaces/AMENDMENT-2026-07-28-root-only-fanout-and-authoring-lifecycle.md)
+confirms that boundary, removes the implementation-only live-fiber limit from v1 semantics, and
+adds the pending lifecycle, provenance, and fingerprint remediation.
 
 **Historical Phase 0 snapshot:** [`developer-facing-interface-phase-00-public-consumer-guards-implementation-status-2026-07-18.md`](../review/developer-facing-interface-phase-00-public-consumer-guards-implementation-status-2026-07-18.md)
 
@@ -67,14 +75,16 @@ document controls execution order, evidence, and review boundaries.
 1. Work only in the repository-root implementation: `src/`, `tests/`, `samples/`,
    `benchmarks/`, `OrcaCore.slnx`, and root documentation. Do not reopen
    `archive/legacy-poc`.
-2. Apply the canonical amendments named by the relevant OpenSpec `x.0` task before source work
-   in that section.
+2. Author new decisions in the active proposal/amendment/deltas, obtain independent approval,
+   synchronize the approved text into canonical artifacts through the named gate task, and review
+   that sync before source work in the affected section.
 3. Use bounded TDD packets: contract-relevant red test, minimum final implementation,
    refactor, then affected-suite reruns. Public compile fixtures and packed consumers are
    product tests.
-4. Phase 0 is the only expected-red exception. A guard task is delivered when the harness is
-   green and the guard fails for the intended unimplemented-contract reason recorded in the
-   ledger. Product work remains blocked until the guard packet is independently approved.
+4. Phase 0 guards and explicitly mapped post-amendment conformance gaps are the only expected-red
+   exceptions. Each must identify its owning remediation task and must not be reported as passing
+   implementation evidence. Product work remains blocked until the applicable guard or amendment
+   packet is independently approved.
 5. Delete provisional APIs as soon as their replacement/removal guard is green. Do not add
    aliases, obsolete tombstones, compatibility overloads, placeholder members, or parallel
    builder families.
@@ -218,6 +228,13 @@ provisional API merely because source currently implements it.
    definition-targeted fanout absent.
 9. Delete `WaitLong`, public/author `Yield`, mixed-mode/fallback builders, definition-wide
    retry, and every alias/tombstone/placeholder for deferred members.
+10. Govern every mutable façade through one phase- and scope-bound authoring session; freeze the
+    graph atomically at root terminal selection, build only the frozen snapshot, and reject stale,
+    duplicate-join, post-terminal, escaped-callback, and losing concurrent operations without
+    graph mutation.
+11. Keep the structural fingerprint limited to inspectable authored structure plus codec format;
+    exclude compiler format, mode, identity/version, and every compiler option, with
+    compiler-format retention or migration for nonterminal durable instances.
 
 **Verification:** Typed-definition/registration tests; structural-fingerprint conflicts and
 opaque-code version-bump tests; execution-ID
@@ -249,11 +266,16 @@ larger cancellation state machine of `WhenFirst` or recursive/nested fanout.
 4. In durable mode commit the item snapshot before admission and reuse it after restart.
 5. Make `MaxConcurrentExecutionPathsPerInstance` host-owned. A runnable root/branch/item owns
    one token and releases it on wait/delay/resource request/join; the parent releases before
-   fan-out and reacquires only for merge/continuation. Admit fixed root `Parallel` branches in authored
-   order; effective item concurrency is the lower of host and node ceilings, and separately
-   counts admitted nonterminal items including parked ones.
+   child scheduling and reacquires only for merge/continuation. Create every fixed root
+   `Parallel` branch fiber at scope start and schedule runnable branches fairly in authored order
+   with no live-fiber admission resource. Effective item concurrency is the lower of host and node
+   ceilings and separately counts admitted nonterminal items including parked ones; document that
+   admitted-item dependence on pending work has no global-progress guarantee.
 6. Keep `WhenFirst`, nested `Parallel`, and nested `ForEach`/multilevel dynamic expansion absent
    and documented for a future amendment.
+7. Carry `AuthoredLocation` plus runtime-created root/branch/item occurrence on every
+   `WorkflowFailure`, attaching it at failure creation and preserving it through aggregation and
+   fixed-codec round-trip.
 
 **Verification:** Success/failure outcome matrices; authored-order versus completion-order tests;
 ancestor cancellation/termination/deadline merge suppression; merge-at-most-once; selector-once
@@ -487,20 +509,60 @@ Verdicts:
 
 ## 6. Current progress accounting
 
-The Review-E remediation and Phase 0 status is the current human planning state; OpenSpec
-checkboxes are the machine-readable execution record. Counts must agree. All dated amendments,
-status reports, reviews A-E, the earlier consolidated review, and the root-only decision are
-immutable historical inputs and are not rewritten by this packet. Where they differ, the current
-matrix, exact companion, canonical requirements, and live OpenSpec changes control.
+The selected-mode matrix and canonical OpenSpec requirements are the accepted baseline. Revision 8
+was independently approved under task 4.15 and synchronized under task 10.14; the active deltas
+remain the implementation mapping for that canonical target, and OpenSpec checkboxes are the
+machine-readable execution record. Counts must agree. All dated amendments, status reports,
+reviews A-E, the earlier consolidated review, and the root-only decision are immutable historical
+inputs and are not rewritten by this synchronization.
 
 Current disposition:
 
 - Review-E planning remediation is applied and independently approved for guard retargeting;
-- current reshape OpenSpec progress is 30 done / 82 pending / 112 total; coordinated
-  concurrency progress is 7 done / 9 pending / 16 total;
+- revisions 4 and 6 of the 2026-07-28 documentation amendment are rejected; revision 8 supersedes
+  revision 7's premature canonical sequencing and is independently approved under task 4.15;
+- task 10.14 synchronized all 137 approved delta operations (130 reshape plus 7 coordinated
+  runtime-governance operations) into canonical OpenSpec specs, applied the capability-matrix and
+  guide wording, and published the non-normative semantic appendix with L4 reserved until task 4.16;
+- tasks 5.10, 9.10, 9.12, and 10.14 are complete; proposal-validation tasks 10.9 and 10.13 remain
+  planning evidence rather than product-source conformance evidence;
+- current reshape OpenSpec progress is 90 complete / 46 pending / 136 total with no duplicate
+  task IDs; coordinated concurrency progress is 16 complete / 0 pending / 16 total;
 - tasks 3.1 through 3.11d are implemented against the complete live planning packet and have
   clean infrastructure plus intentional-red execution evidence;
 - task 3.12 reconciled the full packet and is closed after the final immutable independent
   approval recorded no P0-P3 gate findings;
-- task 4.0 and all later implementation remain blocked at the requested next-phase review
-  boundary and by task 4.0's explicit prerequisites.
+- tasks 4.16-4.21, 5.11, and 5.13-5.15 now implement builder lifecycle, frozen completion
+  snapshots, exact lifecycle diagnostics, portable role parity, failure provenance,
+  live-fiber-limit removal, structural fingerprint conformance, compiler-profile binding, and
+  tagged-item/budget regressions;
+- the Section 4/5 remediation is independently approved. Section 6 implements workflow and wait
+  deadlines, retry/attempt identity and fencing, scoped durable leasing and recovery, exact
+  execution-path/step/transient governance, restart re-admission, metrics/debug counters, and the
+  operator contract;
+- the first Section 6 exit target was independently rejected twice because
+  `ancestor-terminal-suppresses-merge` ended at task `6.2` but remained ExpectedRed with no
+  executable driver. Both immutable verdicts are preserved;
+- remediation derives each scenario's terminal section from `turnsGreenTask` instead of three
+  parallel ID lists and executes the missing deadline race across both engines, both root fan-out
+  shapes, and both joins, including durable replacement-host projection after deadline commit;
+- final remediation validation is green at build 0 warnings/0 errors; Core 464, Ephemeral 173,
+  Durable 332, Hosting 17, Acceptance 70, ProviderCertification 78, and guard infrastructure 104
+  on three consecutive runs. All 32 Section-6 current-physical scenario drivers pass, including
+  deadline merge suppression plus forged `SFE-RUN-002` ancestry and `SFE-RUN-001` non-quiescent
+  rollover checkpoints;
+- the ExpectedRed guard lane is now exactly 61 intentionally failing later-section cases with zero
+  passes. Green compile fixtures succeed; the product-authoring ExpectedRed compile set has zero
+  remaining gaps; and eight package/application fixtures remain intentionally red for Sections 7
+  and 8;
+- both active changes and all 17 OpenSpec items pass strict validation, `git diff --check` is
+  clean apart from line-ending notices, and the live NuGet audit reports no vulnerable package in
+  any of the 32 solution projects;
+- the superseding Docker/provider, greenfield schema, compatibility-DDL, and scanner remediation
+  reviews are preserved. The exact Section 6 target received immutable independent approval in
+  `developer-facing-interface-section-06-ownership-ddl-scanner-remediation-independent-rereview-verdict-2026-07-30.md`;
+- Section 7 implements the exact 11-package graph, application facades, split host/provider roles,
+  reduced management, durable governance, the persisted-collection allowlist, operational
+  diagnostics, and 37 current-physical behavior drivers;
+- Section 7 is frozen for immutable independent exit review. Task 8.0 remains open, and no Section
+  8 implementation is authorized by these owner-run results.

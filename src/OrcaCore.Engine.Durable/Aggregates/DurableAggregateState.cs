@@ -13,7 +13,7 @@ namespace OrcaCore.Engine.Durable.Aggregates;
 /// </summary>
 internal sealed record DurableAggregateState
 {
-    internal InstanceId InstanceId { get; init; }
+    internal InstanceId InstanceId { get; init; } = null!;
 
     internal StreamVersion StreamVersion { get; init; } = StreamVersion.Empty;
 

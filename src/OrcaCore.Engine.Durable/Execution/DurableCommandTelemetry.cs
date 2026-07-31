@@ -7,6 +7,8 @@ using OrcaCore.Abstractions.Serialization;
 using OrcaCore.Engine.Durable.Aggregates;
 using OrcaCore.Engine.Durable.Diagnostics;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Execution;
 
 /// <summary>
@@ -72,7 +74,7 @@ internal sealed class DurableCommandTelemetry(IWorkflowRuntimeObserver runtimeOb
     }
 
     internal static IReadOnlyList<WorkflowRuntimeEventObservation> CreateEventObservations(
-        IReadOnlyList<WorkflowEvent> events,
+        IReadOnlyList<DurableWorkflowEvent> events,
         DefinitionId? definitionId,
         IReadOnlyDictionary<WaitId, DurableActiveWait> activeWaitsById,
         TimeSpan stepDuration)
@@ -170,7 +172,7 @@ internal sealed class DurableCommandTelemetry(IWorkflowRuntimeObserver runtimeOb
             .Replace("EventStore", string.Empty, StringComparison.Ordinal);
     }
 
-    private static string? ToLifecycleEventName(WorkflowEvent workflowEvent)
+    private static string? ToLifecycleEventName(DurableWorkflowEvent workflowEvent)
     {
         return workflowEvent switch
         {
@@ -184,6 +186,7 @@ internal sealed class DurableCommandTelemetry(IWorkflowRuntimeObserver runtimeOb
             WorkflowParkedEvent => "InstanceParked",
             WorkflowUnparkedEvent => "InstanceUnparked",
             WorkflowCompletedEvent => "InstanceCompleted",
+            WorkflowCancellationRequestedEvent => "InstanceCancellationRequested",
             WorkflowTerminalEvent { Status: WorkflowStatus.Failed } => "InstanceFailed",
             WorkflowTerminalEvent { Status: WorkflowStatus.Cancelled } => "InstanceCancelled",
             WorkflowTerminalEvent { Status: WorkflowStatus.Terminated } => "InstanceTerminated",

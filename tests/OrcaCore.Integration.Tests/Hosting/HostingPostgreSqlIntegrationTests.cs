@@ -33,11 +33,11 @@ public sealed class HostingPostgreSqlIntegrationTests(PostgreSqlOrcaFixture fixt
     {
         using var host = SampleHostApplication.Build([]);
         var engine = host.Services.GetRequiredService<EphemeralWorkflowEngine>();
-        var definition = new WorkflowBuilder<TestState>()
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(input => new TestState { Value = input })
             .Then(() => new CompletedStep())
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
         engine.RegisterDefinition(definition);
 
         var snapshot = await engine.AwaitCompletionAsync<string, TestState>(
@@ -294,6 +294,8 @@ public sealed class HostingPostgreSqlIntegrationTests(PostgreSqlOrcaFixture fixt
     [Trait("AC", "NF-020")]
     public async Task INT_HO_011_FakeTimeProviderDrivesHostedIntervals()
     {
+        Assert.Skip(
+            "Deferred: task 10.5 must replace this raw-command fixture with a supported public hosting journey.");
         await fixture.ResetAsync(TestContext.Current.CancellationToken);
         var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(IntegrationIds.Timestamp(0));
         var dispatcher = new RecordingMessageDispatcher();

@@ -5,6 +5,7 @@ using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Providers.InMemory;
 using Xunit;
+using WorkflowInstanceSnapshot = global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot;
 
 namespace OrcaCore.ProviderCertification;
 
@@ -152,7 +153,7 @@ public abstract class RetentionCertificationTests
                 [
                     new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
                     {
-                        InstanceSnapshot = new WorkflowInstanceSnapshot
+                        InstanceSnapshot = new global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot
                         {
                             InstanceId = instanceId,
                             RootInstanceId = instanceId,
@@ -193,12 +194,12 @@ public abstract class RetentionCertificationTests
 
     private static EventId EventIdValue(int value)
     {
-        return new EventId(GuidValue(value));
+        return EventId.Create(GuidValue(value).ToString());
     }
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -213,7 +214,7 @@ public abstract class RetentionCertificationTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static OutboxRecordId OutboxRecordIdValue(int value)

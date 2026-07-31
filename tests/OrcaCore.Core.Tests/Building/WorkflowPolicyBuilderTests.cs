@@ -1,8 +1,5 @@
+using System.Reflection;
 using AwesomeAssertions;
-using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Steps;
-using OrcaCore.Core.Building;
-using OrcaCore.Core.Definitions;
 using Xunit;
 
 namespace OrcaCore.Core.Tests.Building;
@@ -10,50 +7,56 @@ namespace OrcaCore.Core.Tests.Building;
 public sealed class WorkflowPolicyBuilderTests
 {
     [Fact]
-    public void StepPolicy_WithRetryAndTimeout_AttachesMetadataToNextStep()
+    public void StepPolicy_RetryAndTimeoutDecorateThePrecedingStep()
     {
-        var timeout = TimeSpan.FromSeconds(30);
-
-        var definition = new WorkflowBuilder<PolicyState>()
+        var definitionId = DefinitionId.New();
+        var configured = Workflow.Ephemeral<PolicyState>(
+                definitionId,
+                DefinitionVersion.Initial)
             .Init<string>(_ => new PolicyState())
+            .Then<NoOpStep>()
             .WithRetry(maxAttempts: 3)
-            .WithTimeout(timeout)
+            .WithStepTimeout(TimeSpan.FromSeconds(30))
+            .End()
+            .Build();
+        var baseline = Workflow.Ephemeral<PolicyState>(
+                definitionId,
+                DefinitionVersion.Initial)
+            .Init<string>(_ => new PolicyState())
             .Then<NoOpStep>()
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
 
-        var step = definition.RootSequence.Children.OfType<BusinessStepNode<PolicyState>>().Single();
-        step.Policies.Retry.Should().NotBeNull();
-        step.Policies.Retry!.MaxAttempts.Should().Be(3);
-        step.Policies.Timeout.Should().NotBeNull();
-        step.Policies.Timeout!.Duration.Should().Be(timeout);
+        configured.DefinitionFingerprint.Should().NotBe(
+            baseline.DefinitionFingerprint);
     }
 
     [Fact]
-    public void DefinitionPolicy_AppliesToRootMetadata()
+    public void DefinitionLevelRetryPolicy_IsNotExposed()
     {
-        var definition = new WorkflowBuilder<PolicyState>()
-            .WithDefinitionRetry(maxAttempts: 2)
-            .Init<string>(_ => new PolicyState())
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-
-        definition.Policies.Retry.Should().NotBeNull();
-        definition.Policies.Retry!.MaxAttempts.Should().Be(2);
+        typeof(EphemeralWorkflowInitBuilder<PolicyState>)
+            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Select(method => method.Name)
+            .Should().NotContain("WithDefinitionRetry");
+        typeof(DurableWorkflowInitBuilder<PolicyState>)
+            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Select(method => method.Name)
+            .Should().NotContain("WithDefinitionRetry");
     }
 
     [Fact]
-    public void InvalidRetryPolicy_ReportsValidationError()
+    public void InvalidRetryPolicy_IsRejectedEagerly()
     {
-        var validation = new WorkflowBuilder<PolicyState>()
+        var builder = Workflow.Ephemeral<PolicyState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
             .Init<string>(_ => new PolicyState())
-            .WithRetry(maxAttempts: 0)
-            .Then<NoOpStep>()
-            .End()
-            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+            .Then<NoOpStep>();
 
-        validation.IsValid.Should().BeFalse();
-        validation.Errors.Should().ContainSingle(error => error.Code == BuilderValidationCodes.InvalidRetryPolicy);
+        Action invalid = () => builder.WithRetry(maxAttempts: 0);
+
+        invalid.Should().Throw<ArgumentOutOfRangeException>()
+            .WithParameterName("maxAttempts");
     }
 
     private sealed class PolicyState;
@@ -62,9 +65,7 @@ public sealed class WorkflowPolicyBuilderTests
     {
         public ValueTask<StepResult> ExecuteAsync(
             StepContext<PolicyState> context,
-            CancellationToken cancellationToken)
-        {
-            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
-        }
+            CancellationToken cancellationToken) =>
+            ValueTask.FromResult<StepResult>(new StepResult.Completed());
     }
 }

@@ -72,9 +72,8 @@ public sealed class ContinuationPumpHostedServiceTests
         var runtime = new DurableWorkflowRuntime(
             processor,
             new DurableDefinitionRegistry(),
-            timeProvider,
-            new JsonWorkflowPayloadSerializer());
-        runtime.RegisterDefinition(Workflow.Durable<DrainState>(definitionId, DefinitionVersion.Initial)
+            timeProvider);
+        runtime.RegisterDefinition(global::OrcaCore.Workflow.Durable<DrainState>(definitionId, DefinitionVersion.Initial)
             .Init<string>(orderId => new DrainState { OrderId = orderId ?? "order-drain" })
             .Then<GatedStep>()
             .Then<AfterGateStep>()
@@ -111,7 +110,7 @@ public sealed class ContinuationPumpHostedServiceTests
         // The start commit leaves the instance runnable; the hosted pump claims its
         // continuation record on the next tick and blocks inside the first step, holding the
         // segment mid-flight.
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         await hostA.Processor.ProcessAsync(
             new StartWorkflowCommand
             {
@@ -126,7 +125,7 @@ public sealed class ContinuationPumpHostedServiceTests
         await GatedStep.Started.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
         // Stop requested mid-segment: claiming stops, the drain window elapses, then the
-        // in-flight step finishes — its commit must still land, and nothing new may start.
+        // in-flight step finishes Ã¢â‚¬â€ its commit must still land, and nothing new may start.
         var stopTask = service.StopAsync(TestContext.Current.CancellationToken);
         timeProvider.Advance(TimeSpan.FromSeconds(5));
         GatedStep.Gate.TrySetResult();

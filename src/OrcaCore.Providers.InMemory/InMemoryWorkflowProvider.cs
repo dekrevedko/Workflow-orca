@@ -3,6 +3,7 @@ using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
 
 namespace OrcaCore.Providers.InMemory;
 
@@ -22,15 +23,15 @@ public sealed class InMemoryWorkflowProvider :
     private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
 
     private readonly Lock gate = new();
-    private readonly Dictionary<EventId, InboxRecordState> inbox = [];
+    private readonly Dictionary<(InstanceId InstanceId, EventId EventId), InboxRecord> inbox = [];
     private readonly Dictionary<string, StartedWorkflowIdempotencyRecord> startIdempotency = new(StringComparer.Ordinal);
     private readonly Dictionary<OutboxRecordId, InMemoryOutboxRecord> outbox = [];
     private readonly List<OutboxWrite> dispatched = [];
     private readonly List<ProjectionWrite> projections = [];
     private readonly List<ProjectionHistoryWrite> history = [];
-    private readonly Dictionary<InstanceId, WorkflowInstanceSnapshot> summaries = [];
+    private readonly Dictionary<InstanceId, LegacyWorkflowInstanceSnapshot> summaries = [];
     private readonly Dictionary<InstanceId, CheckpointWrite> checkpoints = [];
-    private readonly Dictionary<WorkflowStreamId, List<WorkflowEvent>> streams = [];
+    private readonly Dictionary<WorkflowStreamId, List<DurableWorkflowEvent>> streams = [];
     private readonly Dictionary<TimerId, InMemoryTimerSchedule> timers = [];
     private readonly TimeProvider timeProvider;
 
@@ -83,7 +84,7 @@ public sealed class InMemoryWorkflowProvider :
             }
 
             stream.AddRange(batch.Events);
-            ApplyInboxOperations(batch.InboxOperations);
+            ApplyInboxOperations(batch.StreamId.InstanceId, batch.InboxOperations);
             ApplyStartIdempotencyOperations(batch.StartIdempotencyOperations);
             foreach (var record in batch.OutboxRecords)
             {
@@ -110,7 +111,7 @@ public sealed class InMemoryWorkflowProvider :
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<WorkflowEvent>> LoadTailAsync(
+    public Task<IReadOnlyList<DurableWorkflowEvent>> LoadTailAsync(
         WorkflowStreamId streamId,
         StreamVersion afterVersion,
         CancellationToken cancellationToken)
@@ -122,20 +123,25 @@ public sealed class InMemoryWorkflowProvider :
             var events = streams.TryGetValue(streamId, out var stream)
                 ? stream.Skip((int)afterVersion.Value).ToArray()
                 : [];
-            return Task.FromResult<IReadOnlyList<WorkflowEvent>>(events);
+            return Task.FromResult<IReadOnlyList<DurableWorkflowEvent>>(events);
         }
     }
 
     /// <inheritdoc />
-    public Task<Option<InboxRecordState>> GetAsync(EventId eventId, CancellationToken cancellationToken)
+    public Task<Option<InboxRecord>> GetAsync(
+        InstanceId instanceId,
+        EventId eventId,
+        CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(instanceId);
+        ArgumentNullException.ThrowIfNull(eventId);
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (gate)
         {
-            return Task.FromResult(inbox.TryGetValue(eventId, out var state)
-                ? Option<InboxRecordState>.Some(state)
-                : Option<InboxRecordState>.None);
+            return Task.FromResult(inbox.TryGetValue((instanceId, eventId), out var record)
+                ? Option<InboxRecord>.Some(record)
+                : Option<InboxRecord>.None);
         }
     }
 
@@ -268,7 +274,7 @@ public sealed class InMemoryWorkflowProvider :
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<WorkflowInstanceSnapshot>> ListAsync(
+    public Task<IReadOnlyList<LegacyWorkflowInstanceSnapshot>> ListAsync(
         WorkflowProjectionQuery query,
         CancellationToken cancellationToken)
     {
@@ -277,7 +283,7 @@ public sealed class InMemoryWorkflowProvider :
 
         lock (gate)
         {
-            return Task.FromResult<IReadOnlyList<WorkflowInstanceSnapshot>>(
+            return Task.FromResult<IReadOnlyList<LegacyWorkflowInstanceSnapshot>>(
                 summaries.Values
                     .Where(snapshot => Matches(snapshot, query))
                     .Select(CloneSnapshot)
@@ -298,7 +304,7 @@ public sealed class InMemoryWorkflowProvider :
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<ActiveWaitSnapshot>> ListActiveWaitsAsync(
+    public Task<IReadOnlyList<LegacyActiveWaitSnapshot>> ListActiveWaitsAsync(
         WorkflowProjectionQuery query,
         CancellationToken cancellationToken)
     {
@@ -307,7 +313,7 @@ public sealed class InMemoryWorkflowProvider :
 
         lock (gate)
         {
-            return Task.FromResult<IReadOnlyList<ActiveWaitSnapshot>>(
+            return Task.FromResult<IReadOnlyList<LegacyActiveWaitSnapshot>>(
                 summaries.Values
                     .Where(snapshot => Matches(snapshot, query))
                     .SelectMany(snapshot => snapshot.ActiveWaits)
@@ -378,7 +384,7 @@ public sealed class InMemoryWorkflowProvider :
                     ExternalOutboxClaimedCount = outbox.Values.Count(record =>
                         record.Write.Kind != OutboxKinds.Continue && record.State is OutboxRecordState.Claimed),
                     ActiveInstanceCount = summaries.Values.Count(snapshot =>
-                        snapshot.Status is WorkflowStatus.Running or WorkflowStatus.Waiting or WorkflowStatus.Paused)
+                        snapshot.Status is LegacyWorkflowStatus.Running or LegacyWorkflowStatus.Waiting or LegacyWorkflowStatus.Paused)
                 }
             });
         }
@@ -543,7 +549,7 @@ public sealed class InMemoryWorkflowProvider :
         }
     }
 
-    private List<WorkflowEvent> GetStream(WorkflowStreamId streamId)
+    private List<DurableWorkflowEvent> GetStream(WorkflowStreamId streamId)
     {
         if (!streams.TryGetValue(streamId, out var stream))
         {
@@ -554,17 +560,34 @@ public sealed class InMemoryWorkflowProvider :
         return stream;
     }
 
-    private void ApplyInboxOperations(IEnumerable<InboxWrite> operations)
+    private void ApplyInboxOperations(InstanceId instanceId, IEnumerable<InboxWrite> operations)
     {
         foreach (var operation in operations)
         {
-            if (inbox.TryGetValue(operation.EventId, out var existingState)
-                && existingState == InboxRecordState.Applied)
+            var key = (instanceId, operation.EventId);
+            if (inbox.TryGetValue(key, out var existing))
             {
+                inbox[key] = existing with
+                {
+                    State = existing.State == InboxRecordState.Applied
+                        ? existing.State
+                        : operation.State
+                };
                 continue;
             }
 
-            inbox[operation.EventId] = operation.State;
+            if (string.IsNullOrWhiteSpace(operation.EnvelopeFingerprint))
+            {
+                throw new InvalidOperationException(
+                    $"Initial inbox write '{operation.EventId}' for instance '{instanceId}' " +
+                    "must carry an envelope fingerprint.");
+            }
+
+            inbox[key] = new InboxRecord(
+                instanceId,
+                operation.EventId,
+                operation.EnvelopeFingerprint,
+                operation.State);
         }
     }
 
@@ -576,9 +599,11 @@ public sealed class InMemoryWorkflowProvider :
                 operation.IdempotencyKey,
                 new StartedWorkflowIdempotencyRecord(
                     operation.IdempotencyKey,
-                    operation.InstanceId,
-                    operation.DefinitionId,
-                    operation.DefinitionVersion));
+                     operation.InstanceId,
+                     operation.DefinitionId,
+                     operation.DefinitionVersion,
+                     operation.DefinitionFingerprint,
+                     operation.InputFingerprint));
         }
     }
 
@@ -608,19 +633,19 @@ public sealed class InMemoryWorkflowProvider :
         }
     }
 
-    private static bool Matches(WorkflowInstanceSnapshot snapshot, WorkflowProjectionQuery query)
+    private static bool Matches(LegacyWorkflowInstanceSnapshot snapshot, WorkflowProjectionQuery query)
     {
-        return (query.InstanceId is null || snapshot.InstanceId == query.InstanceId) &&
-            (query.ParentInstanceId is null || snapshot.ParentInstanceId == query.ParentInstanceId) &&
-            (query.RootInstanceId is null || snapshot.RootInstanceId == query.RootInstanceId) &&
-            (query.DefinitionId is null || snapshot.DefinitionId == query.DefinitionId) &&
+        return (query.InstanceId is null || snapshot.InstanceId.Equals(query.InstanceId)) &&
+            (query.ParentInstanceId is null || snapshot.ParentInstanceId?.Equals(query.ParentInstanceId) == true) &&
+            (query.RootInstanceId is null || snapshot.RootInstanceId?.Equals(query.RootInstanceId) == true) &&
+            (query.DefinitionId is null || snapshot.DefinitionId.Equals(query.DefinitionId)) &&
             (query.DefinitionVersion is null || snapshot.DefinitionVersion == query.DefinitionVersion) &&
             (query.Status is null || snapshot.Status == query.Status) &&
             MatchesActiveWait(snapshot.ActiveWaits, query);
     }
 
     private static bool MatchesActiveWait(
-        IReadOnlyList<ActiveWaitSnapshot> activeWaits,
+        IReadOnlyList<LegacyActiveWaitSnapshot> activeWaits,
         WorkflowProjectionQuery query)
     {
         if (query.ActiveWaitEventName is null && query.ActiveWaitCorrelationId is null)
@@ -631,10 +656,10 @@ public sealed class InMemoryWorkflowProvider :
         return activeWaits.Any(wait =>
             (query.ActiveWaitEventName is null ||
                 string.Equals(wait.EventName, query.ActiveWaitEventName, StringComparison.Ordinal)) &&
-            (query.ActiveWaitCorrelationId is null || wait.CorrelationId == query.ActiveWaitCorrelationId));
+            (query.ActiveWaitCorrelationId is null || wait.CorrelationId.Equals(query.ActiveWaitCorrelationId)));
     }
 
-    private static WorkflowInstanceSnapshot CloneSnapshot(WorkflowInstanceSnapshot snapshot)
+    private static LegacyWorkflowInstanceSnapshot CloneSnapshot(LegacyWorkflowInstanceSnapshot snapshot)
     {
         return snapshot with
         {
@@ -643,7 +668,7 @@ public sealed class InMemoryWorkflowProvider :
         };
     }
 
-    private static ActiveWaitSnapshot CloneActiveWait(ActiveWaitSnapshot snapshot)
+    private static LegacyActiveWaitSnapshot CloneActiveWait(LegacyActiveWaitSnapshot snapshot)
     {
         return snapshot with { };
     }
@@ -709,13 +734,13 @@ public sealed class InMemoryWorkflowProvider :
     private bool IsActive(InstanceId instanceId)
     {
         return summaries.TryGetValue(instanceId, out var snapshot) &&
-            snapshot.Status is WorkflowStatus.Running or WorkflowStatus.Waiting or WorkflowStatus.Paused;
+            snapshot.Status is LegacyWorkflowStatus.Running or LegacyWorkflowStatus.Waiting or LegacyWorkflowStatus.Paused;
     }
 
     private bool HasClaimedOutbox(InstanceId instanceId)
     {
         return outbox.Values.Any(record =>
-            record.InstanceId == instanceId &&
+            record.InstanceId.Equals(instanceId) &&
             record.State == OutboxRecordState.Claimed);
     }
 
@@ -725,7 +750,7 @@ public sealed class InMemoryWorkflowProvider :
         checkpoints.Remove(instanceId);
         streams.Remove(new WorkflowStreamId(instanceId));
         foreach (var timerId in timers.Values
-            .Where(timer => timer.Request.InstanceId == instanceId)
+            .Where(timer => timer.Request.InstanceId.Equals(instanceId))
             .Select(timer => timer.Request.TimerId)
             .ToArray())
         {
@@ -733,12 +758,12 @@ public sealed class InMemoryWorkflowProvider :
         }
 
         var purgedHistoryIds = projections
-            .Where(operation => operation.InstanceId == instanceId && operation.History is not null)
+            .Where(operation => operation.InstanceId.Equals(instanceId) && operation.History is not null)
             .Select(operation => operation.History!.HistoryId)
             .ToHashSet();
         history.RemoveAll(entry => purgedHistoryIds.Contains(entry.HistoryId));
         foreach (var recordId in outbox.Values
-            .Where(record => record.InstanceId == instanceId)
+            .Where(record => record.InstanceId.Equals(instanceId))
             .Select(record => record.Write.OutboxRecordId)
             .ToArray())
         {

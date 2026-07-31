@@ -14,17 +14,17 @@ internal enum StepExecutionStatus
 internal sealed record StepExecutionResult(
     StepExecutionStatus Status,
     string? EventName,
-    CorrelationId CorrelationId,
+    CorrelationId? CorrelationId,
     Exception? Error)
 {
     internal static StepExecutionResult Continue()
     {
-        return new StepExecutionResult(StepExecutionStatus.Continue, null, default, null);
+        return new StepExecutionResult(StepExecutionStatus.Continue, null, null, null);
     }
 
     internal static StepExecutionResult Stop()
     {
-        return new StepExecutionResult(StepExecutionStatus.Stop, null, default, null);
+        return new StepExecutionResult(StepExecutionStatus.Stop, null, null, null);
     }
 
     internal static StepExecutionResult Wait(string eventName, CorrelationId correlationId)
@@ -34,11 +34,11 @@ internal sealed record StepExecutionResult(
 
     internal static StepExecutionResult Yield()
     {
-        return new StepExecutionResult(StepExecutionStatus.Yield, null, default, null);
+        return new StepExecutionResult(StepExecutionStatus.Yield, null, null, null);
     }
 
     internal static StepExecutionResult Failed(Exception exception)
     {
-        return new StepExecutionResult(StepExecutionStatus.Failed, null, default, exception);
+        return new StepExecutionResult(StepExecutionStatus.Failed, null, null, exception);
     }
 }

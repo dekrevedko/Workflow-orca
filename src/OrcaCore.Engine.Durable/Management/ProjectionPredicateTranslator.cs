@@ -24,8 +24,24 @@ internal static class ProjectionPredicateTranslator
                 TranslateExpression(TranslateExpression(query, andAlso.Left), andAlso.Right),
             BinaryExpression { NodeType: ExpressionType.Equal } equal =>
                 TranslateEquality(query, equal.Left, equal.Right),
+            MethodCallExpression methodCall => TranslateEqualsCall(query, methodCall),
             _ => throw new NotSupportedException("Durable management predicates support equality and && only.")
         };
+    }
+
+    private static WorkflowProjectionQuery TranslateEqualsCall(
+        WorkflowProjectionQuery query,
+        MethodCallExpression methodCall)
+    {
+        if (methodCall.Method.Name == nameof(object.Equals) &&
+            methodCall.Object is not null &&
+            methodCall.Arguments.Count == 1 &&
+            TryGetMemberName(methodCall.Object, out var memberName))
+        {
+            return ApplyEquality(query, memberName, Evaluate(methodCall.Arguments[0]));
+        }
+
+        throw new NotSupportedException("Durable management predicates support member equality and && only.");
     }
 
     private static WorkflowProjectionQuery TranslateEquality(

@@ -13,10 +13,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\OrcaCore.Abstractions\OrcaCore.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\OrcaCore.Abstractions\OrcaCore.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Core\OrcaCore.Core.csproj" />
+    <ProjectReference Include="..\..\src\OrcaCore.Runtime.Protocol\OrcaCore.Runtime.Protocol.csproj" />
+    <ProjectReference Include="..\..\src\OrcaCore.Provider.Abstractions\OrcaCore.Provider.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Engine.Durable\OrcaCore.Engine.Durable.csproj" />
+    <ProjectReference Include="..\..\src\OrcaCore.Durable.Hosting\OrcaCore.Durable.Hosting.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Providers.InMemory\OrcaCore.Providers.InMemory.csproj" />
+    <ProjectReference Include="..\OrcaCore.DeveloperSurface.BehaviorContracts\OrcaCore.DeveloperSurface.BehaviorContracts.csproj" />
     <ProjectReference Include="..\OrcaCore.TestSupport\OrcaCore.TestSupport.csproj" />
   </ItemGroup>
 </Project>

@@ -1,6 +1,6 @@
 namespace OrcaCore.Core.Definitions;
 
-internal abstract record WorkflowNode<TState>
+public abstract record WorkflowNode<TState>
 {
     protected WorkflowNode(string nodeId)
     {
@@ -9,5 +9,5 @@ internal abstract record WorkflowNode<TState>
         NodeId = nodeId;
     }
 
-    internal string NodeId { get; }
+    public string NodeId { get; }
 }

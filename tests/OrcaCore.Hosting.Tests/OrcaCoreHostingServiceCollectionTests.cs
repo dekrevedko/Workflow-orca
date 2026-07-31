@@ -19,12 +19,74 @@ using OrcaCore.Hosting.Services;
 using OrcaCore.Providers.InMemory;
 using Xunit;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Hosting.Tests;
 
 public sealed class OrcaCoreHostingServiceCollectionTests
 {
     private static readonly TimeSpan HostedInterval = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan FailureBackoff = TimeSpan.FromSeconds(1);
+
+    [Fact]
+    public void RoleSpecificEngineRegistration_ValidatesImmediatelyAndDurableIncludesProgressionLoops()
+    {
+        var invalid = new ServiceCollection();
+        Action invalidRegistration = () => invalid.AddOrcaCoreEphemeralEngine(
+            new EphemeralEngineHostOptions());
+        invalidRegistration.Should().Throw<ArgumentNullException>();
+
+        var services = new ServiceCollection();
+        services.AddOrcaCoreDurableEngine(new DurableEngineHostOptions
+        {
+            StructuredExecution = new StructuredExecutionHostOptions
+            {
+                MaxConcurrentExecutionPathsPerInstance = 2,
+                StepThrottles = []
+            },
+            ResourcePools = new DurableResourcePoolOptions
+            {
+                PartitionId = ResourceGovernancePartitionId.Create("primary"),
+                Pools =
+                [
+                    DurableResourcePoolDefinition.Create(
+                        ResourcePoolName.Create("database"),
+                        2,
+                        TimeSpan.FromMinutes(5))
+                ]
+            }
+        });
+
+        using var provider = services.BuildServiceProvider();
+        provider.GetRequiredService<DurableWorkflowRuntime>().Should().NotBeNull();
+        provider.GetRequiredService<IDurableResourcePoolManagement>().Should().NotBeNull();
+        provider.GetServices<IHostedService>().Should().Contain(service =>
+            service is OrcaCoreContinuationPumpHostedService);
+    }
+
+    [Fact]
+    public void EphemeralRoleRegistration_CopiesMutableOptionCollections()
+    {
+        var pools = new List<TransientPoolDefinition>
+        {
+            TransientPoolDefinition.Create(TransientPoolName.Create("database"), 1)
+        };
+        var services = new ServiceCollection();
+        services.AddOrcaCoreEphemeralEngine(new EphemeralEngineHostOptions
+        {
+            StructuredExecution = new StructuredExecutionHostOptions
+            {
+                MaxConcurrentExecutionPathsPerInstance = 2,
+                StepThrottles = []
+            },
+            TransientPools = pools
+        });
+        pools.Clear();
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<EphemeralWorkflowEngine>().Should().NotBeNull();
+    }
 
     [Fact]
     [Trait("AC", "PR-040")]
@@ -40,9 +102,10 @@ public sealed class OrcaCoreHostingServiceCollectionTests
         provider.GetRequiredService<DurableCommandProcessor>().Should().NotBeNull();
         provider.GetRequiredService<DurableDefinitionRegistry>().Should().NotBeNull();
         provider.GetRequiredService<DurableWorkflowRuntime>().Should().NotBeNull();
-        provider.GetRequiredService<DurableDagRunner>().Should().NotBeNull();
         provider.GetRequiredService<DurableOutboxPump>().Should().NotBeNull();
         provider.GetRequiredService<DurableManagement>().Should().NotBeNull();
+        provider.GetRequiredService<IDurableResourceLeaseRecovery>().Should().NotBeNull();
+        provider.GetRequiredService<IDurableResourceLeaseDiagnostics>().Should().NotBeNull();
         provider.GetRequiredService<IWorkflowEventStore>().Should().BeOfType<InMemoryWorkflowProvider>();
         provider.GetRequiredService<IWorkflowOutboxStore>().Should().BeOfType<InMemoryWorkflowProvider>();
         provider.GetRequiredService<IMessageDispatcher>().Should().BeOfType<InMemoryWorkflowProvider>();
@@ -267,7 +330,6 @@ public sealed class OrcaCoreHostingServiceCollectionTests
         builder.Services.AddSingleton<IWorkflowRetentionStore>(capturedWorkflowStore);
         builder.Services.AddSingleton<ITimerScheduler>(capturedWorkflowStore);
         builder.Services.AddSingleton<IMessageDispatcher>(capturedWorkflowStore);
-        builder.Services.AddSingleton<IWorkflowPayloadSerializer>(capturedWorkflowStore);
         builder.Services.AddSingleton<IResourcePoolStore>(capturedResourcePoolStore);
         builder.Services
             .AddOrcaCore()
@@ -338,7 +400,7 @@ public sealed class OrcaCoreHostingServiceCollectionTests
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -364,11 +426,9 @@ public sealed class OrcaCoreHostingServiceCollectionTests
         IWorkflowProjectionStore,
         IWorkflowRetentionStore,
         ITimerScheduler,
-        IMessageDispatcher,
-        IWorkflowPayloadSerializer
+        IMessageDispatcher
     {
         private readonly InMemoryWorkflowProvider inner = new();
-        private readonly JsonWorkflowPayloadSerializer serializer = new();
         private Exception? outboxClaimFailure;
         private Exception? timerClaimFailure;
         private int outboxClaimAttempts;
@@ -425,7 +485,7 @@ public sealed class OrcaCoreHostingServiceCollectionTests
             return result;
         }
 
-        public Task<IReadOnlyList<WorkflowEvent>> LoadTailAsync(
+        public Task<IReadOnlyList<DurableWorkflowEvent>> LoadTailAsync(
             WorkflowStreamId streamId,
             StreamVersion afterVersion,
             CancellationToken cancellationToken)
@@ -585,15 +645,6 @@ public sealed class OrcaCoreHostingServiceCollectionTests
             return result;
         }
 
-        public SerializedPayload Serialize<TPayload>(TPayload payload)
-        {
-            return serializer.Serialize(payload);
-        }
-
-        public TPayload Deserialize<TPayload>(SerializedPayload payload)
-        {
-            return serializer.Deserialize<TPayload>(payload);
-        }
     }
 
     private sealed class RecordingRuntimeObserver : IWorkflowRuntimeObserver
@@ -682,13 +733,5 @@ public sealed class OrcaCoreHostingServiceCollectionTests
             return inner.ExpireTicketsAsync(now, cancellationToken);
         }
 
-        public Task<ResourcePoolForceReleaseResult> ForceReleaseTicketAsync(
-            Guid ticketId,
-            string reason,
-            DateTimeOffset releasedAt,
-            CancellationToken cancellationToken)
-        {
-            return inner.ForceReleaseTicketAsync(ticketId, reason, releasedAt, cancellationToken);
-        }
     }
 }

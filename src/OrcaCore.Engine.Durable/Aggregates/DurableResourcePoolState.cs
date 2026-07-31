@@ -3,6 +3,8 @@ using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Aggregates;
 
 internal sealed class DurableResourcePoolState
@@ -54,7 +56,7 @@ internal sealed class DurableResourcePoolState
                 [
                     new WorkflowResourcePoolAcquiredEvent
                     {
-                        EventId = EventId.New(),
+                        EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                         InstanceId = context.InstanceId,
                         CommandId = context.CommandId,
                         CausationId = context.CausationId,
@@ -76,14 +78,14 @@ internal sealed class DurableResourcePoolState
                 [
                     new WorkflowResourcePoolQueuedEvent
                     {
-                        EventId = EventId.New(),
+                        EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                         InstanceId = context.InstanceId,
                         CommandId = context.CommandId,
                         CausationId = context.CausationId,
                         OccurredAt = context.RequestedAt,
                         ParentInstanceId = context.ParentInstanceId,
                         RootInstanceId = context.RootInstanceId,
-                        WaitId = queuedWaitId ?? WaitId.New(),
+                        WaitId = queuedWaitId ?? WaitId.Parse(Guid.CreateVersion7().ToString()),
                         HolderKey = holderKey,
                         Requirements = requirements,
                         ExpiresAt = expiresAt,
@@ -112,7 +114,7 @@ internal sealed class DurableResourcePoolState
             .GroupBy(ticket => ticket.HolderKey, StringComparer.Ordinal)
             .Select(group => new WorkflowResourcePoolReleasedEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = context.InstanceId,
                 CommandId = context.CommandId,
                 CausationId = context.CausationId,
@@ -127,7 +129,7 @@ internal sealed class DurableResourcePoolState
             .ToArray();
     }
 
-    internal DurableResourcePoolReplayEffects Apply(WorkflowEvent workflowEvent)
+    internal DurableResourcePoolReplayEffects Apply(DurableWorkflowEvent workflowEvent)
     {
         ArgumentNullException.ThrowIfNull(workflowEvent);
 
@@ -143,7 +145,7 @@ internal sealed class DurableResourcePoolState
                         new DurableActiveWait(
                             queued.WaitId,
                             GrantedEventName,
-                            new CorrelationId(queued.HolderKey),
+                            CorrelationId.Create(queued.HolderKey),
                             queued.OccurredAt,
                             WaitMode.Cold)
                         {
@@ -173,7 +175,7 @@ internal sealed class DurableResourcePoolState
 }
 
 internal sealed record DurableResourcePoolAcquirePlan(
-    IReadOnlyList<WorkflowEvent> Events,
+    IReadOnlyList<DurableWorkflowEvent> Events,
     bool EvictAfterCommit)
 {
     internal static DurableResourcePoolAcquirePlan Empty { get; } = new([], false);

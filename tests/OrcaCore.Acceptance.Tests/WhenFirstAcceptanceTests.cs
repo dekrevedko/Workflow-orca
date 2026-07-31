@@ -27,7 +27,7 @@ public sealed class WhenFirstAcceptanceTests
     public async Task WhenFirst_LosingBranchWaitIsCancelledBeforeContinuation()
     {
         var engine = new EphemeralWorkflowEngine();
-        var definition = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState([]))
             .WhenFirst<string>(
                 branches => branches
@@ -35,13 +35,13 @@ public sealed class WhenFirstAcceptanceTests
                         "a",
                         _ => new BranchState("a"),
                         branch => branch
-                            .Wait("A", _ => new CorrelationId("a"))
+                            .Wait("A", _ => CorrelationId.Create("a"))
                             .Return(state => state.Value.Name))
                     .Branch<BranchState>(
                         "b",
                         _ => new BranchState("b"),
                         branch => branch
-                            .Wait("B", _ => new CorrelationId("b"))
+                            .Wait("B", _ => CorrelationId.Create("b"))
                             .Return(state => state.Value.Name)),
                 MergeWinner)
             .End()
@@ -54,7 +54,7 @@ public sealed class WhenFirstAcceptanceTests
 
         var snapshot = await engine.RaiseEventAsync<TestState>(
             waiting.InstanceId,
-            Event("A", new CorrelationId("a")),
+            Event("A", CorrelationId.Create("a")),
             TestContext.Current.CancellationToken);
         var state = engine.Management.Instance(snapshot.InstanceId).GetState<TestState>();
 
@@ -66,7 +66,7 @@ public sealed class WhenFirstAcceptanceTests
     private static async Task<(TestState State, WorkflowInstanceSnapshot Snapshot)> RunImmediateAsync()
     {
         var engine = new EphemeralWorkflowEngine();
-        var definition = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState([]))
             .WhenFirst<string>(
                 branches => branches
@@ -93,7 +93,7 @@ public sealed class WhenFirstAcceptanceTests
 
     private static TestState MergeWinner(
         ReadOnlyParentSnapshot<TestState> parent,
-        BranchResult<string> winner)
+        global::OrcaCore.Core.Building.BranchResult<string> winner)
     {
         return new TestState([.. parent.Value.Values, winner.Value]);
     }
@@ -102,7 +102,7 @@ public sealed class WhenFirstAcceptanceTests
     {
         return new EventEnvelope
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             EventName = name,
             CorrelationId = correlationId,
             OccurredAt = DateTimeOffset.UtcNow

@@ -2,8 +2,10 @@ using System.Collections.Concurrent;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
+using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Engine.Durable.Driver;
+using OrcaCore.Hosting;
 
 namespace OrcaCore.Engine.Durable.Definitions;
 
@@ -13,6 +15,71 @@ namespace OrcaCore.Engine.Durable.Definitions;
 public sealed class DurableDefinitionRegistry
 {
     private readonly ConcurrentDictionary<DurableDefinitionKey, RegisteredDefinition> definitions = [];
+    private readonly IServiceProvider? serviceProvider;
+    private readonly int maxConcurrentExecutionPathsPerInstance = int.MaxValue;
+    private readonly DurableStepThrottleCoordinator stepThrottles = new();
+
+    public DurableDefinitionRegistry()
+    {
+    }
+
+    public DurableDefinitionRegistry(IServiceProvider serviceProvider)
+    {
+        ArgumentNullException.ThrowIfNull(serviceProvider);
+        this.serviceProvider = serviceProvider;
+    }
+
+    /// <summary>
+    /// Creates a registry using the common structured-execution host profile.
+    /// </summary>
+    public DurableDefinitionRegistry(
+        StructuredExecutionHostOptions options,
+        IServiceProvider? serviceProvider = null)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        if (options.MaxConcurrentExecutionPathsPerInstance <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(options),
+                options.MaxConcurrentExecutionPathsPerInstance,
+                "The execution-path limit must be positive.");
+        }
+
+        ArgumentNullException.ThrowIfNull(options.StepThrottles);
+        var copied = new Dictionary<Type, int>();
+        foreach (var throttle in options.StepThrottles)
+        {
+            ArgumentNullException.ThrowIfNull(throttle);
+            if (!copied.TryAdd(throttle.StepType, throttle.MaxConcurrency))
+            {
+                throw new ArgumentException(
+                    $"StepThrottles contains duplicate exact step type '{throttle.StepType.FullName}'.",
+                    nameof(options));
+            }
+        }
+
+        maxConcurrentExecutionPathsPerInstance = options.MaxConcurrentExecutionPathsPerInstance;
+        stepThrottles = new DurableStepThrottleCoordinator(copied);
+        this.serviceProvider = serviceProvider;
+    }
+
+    internal DurableDefinitionRegistry(
+        int maxConcurrentExecutionPathsPerInstance,
+        IServiceProvider? serviceProvider = null,
+        IReadOnlyDictionary<Type, int>? exactStepThrottles = null)
+    {
+        if (maxConcurrentExecutionPathsPerInstance <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(maxConcurrentExecutionPathsPerInstance),
+                maxConcurrentExecutionPathsPerInstance,
+                "MaxConcurrentExecutionPathsPerInstance must be positive.");
+        }
+
+        this.maxConcurrentExecutionPathsPerInstance = maxConcurrentExecutionPathsPerInstance;
+        stepThrottles = new DurableStepThrottleCoordinator(exactStepThrottles);
+        this.serviceProvider = serviceProvider;
+    }
 
     /// <summary>
     /// Registers one immutable workflow definition version.
@@ -25,14 +92,18 @@ public sealed class DurableDefinitionRegistry
         var registered = new RegisteredDefinition(
             definition,
             typeof(TState),
-            definition.CompiledPlan.Fingerprint,
-            DurableDriverCatalog.CreateExecutor(definition));
+            ((CompiledWorkflowPlan)WorkflowDefinitionRuntime.GetPlan(definition)).Fingerprint,
+            DurableDriverCatalog.CreateExecutor(
+                definition,
+                serviceProvider,
+                maxConcurrentExecutionPathsPerInstance,
+                stepThrottles));
         definitions.AddOrUpdate(
             key,
             registered,
             (_, existing) => SameRegistration(existing, registered)
                 ? existing
-                : throw new WorkflowDefinitionException(
+                : throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                     $"Workflow definition '{key.DefinitionId}' version '{key.DefinitionVersion}' " +
                     $"is already registered with state type '{existing.StateType.FullName}' and " +
                     $"fingerprint '{existing.Fingerprint}'. Candidate fingerprint: '{registered.Fingerprint}'."));
@@ -55,10 +126,13 @@ public sealed class DurableDefinitionRegistry
         DefinitionId definitionId,
         DefinitionVersion definitionVersion)
     {
+        ArgumentNullException.ThrowIfNull(definitionId);
+        ArgumentNullException.ThrowIfNull(definitionVersion);
+
         var key = new DurableDefinitionKey(definitionId, definitionVersion);
         if (!definitions.TryGetValue(key, out var registered))
         {
-            throw new WorkflowDefinitionException(
+            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                 $"Workflow definition '{definitionId}' version '{definitionVersion}' is not registered.");
         }
 
@@ -67,7 +141,7 @@ public sealed class DurableDefinitionRegistry
             return typed;
         }
 
-        throw new WorkflowDefinitionException(
+        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
             $"Workflow definition '{definitionId}' version '{definitionVersion}' is registered for " +
             $"state type '{registered.StateType.FullName}', not '{typeof(TState).FullName}'.");
     }
@@ -97,6 +171,9 @@ public sealed class DurableDefinitionRegistry
             ? registered.Executor
             : null;
     }
+
+    internal IReadOnlyList<StepThrottleDebugSnapshot> StepThrottleSnapshots =>
+        stepThrottles.Snapshot();
 
     private static bool SameRegistration(
         RegisteredDefinition existing,

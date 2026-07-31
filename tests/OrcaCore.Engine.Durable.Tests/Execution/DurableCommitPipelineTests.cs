@@ -10,6 +10,8 @@ using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Providers.InMemory;
 using Xunit;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Tests.Execution;
 
 public sealed class DurableCommitPipelineTests
@@ -258,12 +260,12 @@ public sealed class DurableCommitPipelineTests
 
     private static EventId EventIdValue(int value)
     {
-        return new EventId(GuidValue(value));
+        return EventId.Create(GuidValue(value).ToString());
     }
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -278,7 +280,7 @@ public sealed class DurableCommitPipelineTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static Guid GuidValue(int value)
@@ -324,14 +326,6 @@ public sealed class DurableCommitPipelineTests
             return inner.ExpireTicketsAsync(expiredAt, cancellationToken);
         }
 
-        public Task<ResourcePoolForceReleaseResult> ForceReleaseTicketAsync(
-            Guid ticketId,
-            string operatorId,
-            DateTimeOffset releasedAt,
-            CancellationToken cancellationToken)
-        {
-            return inner.ForceReleaseTicketAsync(ticketId, operatorId, releasedAt, cancellationToken);
-        }
     }
 
     private sealed class RecordingEventStore : IWorkflowEventStore
@@ -361,13 +355,13 @@ public sealed class DurableCommitPipelineTests
                 ?? Result<AppendEventsResult>.Success(new AppendEventsResult(batch.ExpectedVersion.Next())));
         }
 
-        public Task<IReadOnlyList<WorkflowEvent>> LoadTailAsync(
+        public Task<IReadOnlyList<DurableWorkflowEvent>> LoadTailAsync(
             WorkflowStreamId streamId,
             StreamVersion afterVersion,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult<IReadOnlyList<WorkflowEvent>>([]);
+            return Task.FromResult<IReadOnlyList<DurableWorkflowEvent>>([]);
         }
     }
 }

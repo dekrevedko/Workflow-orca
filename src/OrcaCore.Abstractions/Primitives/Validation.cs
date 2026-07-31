@@ -3,7 +3,7 @@ namespace OrcaCore.Abstractions.Primitives;
 /// <summary>
 /// Represents build-time validation that may accumulate multiple errors.
 /// </summary>
-public sealed record Validation<T>
+internal sealed record Validation<T>
 {
     private readonly T? value;
 

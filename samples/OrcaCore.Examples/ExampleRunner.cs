@@ -23,11 +23,11 @@ namespace OrcaCore.Examples;
 /// </summary>
 /// <remarks>
 /// WHAT: six examples that build up from a single in-process workflow to durable, host-integrated
-/// operations. HOW: each example is fully independent — it constructs its own engine/host, authors
+/// operations. HOW: each example is fully independent ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â it constructs its own engine/host, authors
 /// a mode-selected definition, runs it, and prints the resulting
 /// snapshot so you can see the observable outcome. WHY: the two OrcaCore execution modes are
-/// deliberately different surfaces — the <b>ephemeral</b> engine runs a workflow to a result
-/// in-process (examples 01–05), while the <b>durable</b> path is command-driven and persists every
+/// deliberately different surfaces ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the <b>ephemeral</b> engine runs a workflow to a result
+/// in-process (examples 01ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“05), while the <b>durable</b> path is command-driven and persists every
 /// transition (example 06). Reading them in order shows where each mode fits.
 /// </remarks>
 public static class ExampleRunner
@@ -61,7 +61,7 @@ public static class ExampleRunner
         Console.WriteLine("The dashboard includes durable operations and local Kubernetes job scheduling.");
     }
 
-    // WHAT: the smallest useful workflow — validate, do work, finish with a named outcome.
+    // WHAT: the smallest useful workflow ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â validate, do work, finish with a named outcome.
     // HOW: Workflow.Ephemeral authors an immutable definition (Init seeds state from input; each Then
     //   adds a step; End names the terminal outcome). AwaitCompletionAsync runs it to a terminal
     //   snapshot in one call.
@@ -70,7 +70,7 @@ public static class ExampleRunner
     private static async Task RunSimpleEphemeralWorkflowAsync(CancellationToken cancellationToken)
     {
         var engine = new EphemeralWorkflowEngine();
-        var definition = Workflow.Ephemeral<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Core.Building.Workflow.Ephemeral<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<OrderInput>(OrderState.From)
             .Then<ValidateOrderStep>()
             .Then(() => new RecordOrderStep("reserve inventory"))
@@ -96,22 +96,22 @@ public static class ExampleRunner
     // HOW: Wait declares "suspend here until a 'PaymentApproved' event whose correlation matches
     //   this order arrives". StartAsync returns while the instance is Waiting; RaiseEventByCorrelation
     //   delivers the event, the engine matches it by correlation id, and the instance resumes.
-    // WHY: correlation is the request/reply identity — it lets an out-of-band signal (a webhook, a
+    // WHY: correlation is the request/reply identity ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â it lets an out-of-band signal (a webhook, a
     //   human approval) find the exact instance that is waiting for it, without the caller knowing
     //   the instance id. The resumed step reads the event payload via context.ResumedEvent.
     private static async Task RunEventWaitAsync(CancellationToken cancellationToken)
     {
         var engine = new EphemeralWorkflowEngine();
-        var definition = Workflow.Ephemeral<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Core.Building.Workflow.Ephemeral<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<OrderInput>(OrderState.From)
-            .Wait("PaymentApproved", state => new CorrelationId(state.OrderId))
+            .Wait("PaymentApproved", state => CorrelationId.Create(state.OrderId))
             .Then<CapturePaymentApprovalStep>()
             .End("Paid")
             .Build();
 
         engine.RegisterDefinition(definition);
 
-        // StartAsync returns as soon as the instance suspends at the Wait — status is Waiting.
+        // StartAsync returns as soon as the instance suspends at the Wait ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â status is Waiting.
         var waiting = await engine.StartAsync<OrderInput, OrderState>(
             definition.DefinitionId,
             new OrderInput("order-2001", 88.40m, ["sku-9"]),
@@ -143,15 +143,23 @@ public static class ExampleRunner
     //   without touching business state.
     private static async Task RunFanoutManagementAsync(CancellationToken cancellationToken)
     {
-        var options = new EphemeralWorkflowEngineOptions
+        var options = new global::OrcaCore.Hosting.EphemeralEngineHostOptions
         {
-            MaxConcurrentAdvancements = 4,
-            MaxConcurrentSteps = 2
+            StructuredExecution = new global::OrcaCore.Hosting.StructuredExecutionHostOptions
+            {
+                MaxConcurrentExecutionPathsPerInstance = 4,
+                StepThrottles = []
+            },
+            TransientPools =
+            [
+                global::OrcaCore.Hosting.TransientPoolDefinition.Create(
+                    TransientPoolName.Create("fulfillment"),
+                    1)
+            ]
         };
-        options.NamedPools["fulfillment"] = 1;
 
         var engine = new EphemeralWorkflowEngine(TimeProvider.System, options);
-        var definition = Workflow.Ephemeral<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Core.Building.Workflow.Ephemeral<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<OrderInput>(OrderState.From)
             .WithPoolKey("fulfillment")
             .Then(() => new RecordOrderStep("entered fulfillment pool"))
@@ -176,7 +184,7 @@ public static class ExampleRunner
             new OrderInput("order-3001", 230.00m, ["pick", "pack", "label", "handoff"]),
             cancellationToken).ConfigureAwait(false);
 
-        // Statistics is a metadata-only aggregate over all instances — cheap fleet visibility.
+        // Statistics is a metadata-only aggregate over all instances ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â cheap fleet visibility.
         var statistics = engine.Management.All().Statistics();
         var state = engine.Management.Instance(snapshot.InstanceId).GetState<OrderState>();
 
@@ -189,7 +197,7 @@ public static class ExampleRunner
     // HOW: Delay suspends the instance until its fire time. The ephemeral engine does not own a
     //   background clock, so the caller pumps due timers explicitly with FireDueTimersAsync, which
     //   resumes every instance whose delay has elapsed and returns their terminal snapshots.
-    // WHY: explicit pumping keeps the ephemeral engine deterministic and host-agnostic — you decide
+    // WHY: explicit pumping keeps the ephemeral engine deterministic and host-agnostic ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â you decide
     //   when time advances (a loop, a scheduler tick, a test's fake clock). The durable engine, by
     //   contrast, persists timers and fires them from a hosted sweep (see the SampleHost/dashboard).
     // NOTE: the real 25 ms Task.Delay below simply lets the 15 ms workflow timer become due; it is a
@@ -197,7 +205,7 @@ public static class ExampleRunner
     private static async Task RunTimerAsync(CancellationToken cancellationToken)
     {
         var engine = new EphemeralWorkflowEngine();
-        var definition = Workflow.Ephemeral<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Core.Building.Workflow.Ephemeral<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<OrderInput>(OrderState.From)
             .Delay(TimeSpan.FromMilliseconds(15))
             .Then(() => new RecordOrderStep("timer fired"))
@@ -220,14 +228,14 @@ public static class ExampleRunner
         Console.WriteLine($"  transient-timer-log={string.Join(" -> ", state.Log)}");
     }
 
-    // WHAT: a saga — a sequence of steps that each register a compensating action, so a later
+    // WHAT: a saga ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â a sequence of steps that each register a compensating action, so a later
     //   failure unwinds the earlier successful work.
     // HOW: SagaBuilder pairs each forward Then with a CompensateBy. When FailSagaStep fails, the
     //   engine runs the registered compensations for the completed steps in reverse order, and the
     //   instance ends in the Compensated state (not Failed).
     // WHY: sagas are how you get "all-or-nothing" semantics across steps that have real side effects
     //   and cannot share a transaction (charge a card, reserve stock). Note compensation runs only
-    //   on failure — a graceful Cancel does not trigger it (SG-011).
+    //   on failure ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â a graceful Cancel does not trigger it (SG-011).
     private static async Task RunEphemeralSagaAsync(CancellationToken cancellationToken)
     {
         var saga = new SagaBuilder<SagaState>()
@@ -251,7 +259,7 @@ public static class ExampleRunner
         Console.WriteLine($"  saga-log={string.Join(" -> ", state.Log)}");
     }
 
-    // WHAT: the durable path — start-or-get idempotency, an external job that borrows a resource
+    // WHAT: the durable path ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â start-or-get idempotency, an external job that borrows a resource
     //   pool, inbox deduplication of a repeated completion, and durable management queries.
     // HOW: AddOrcaCore wires the durable stack over the in-memory provider. StartOrGetAsync is keyed
     //   by an idempotency key, so a retry returns the same instance (Created=false) instead of a
@@ -269,7 +277,7 @@ public static class ExampleRunner
         var management = host.Services.GetRequiredService<DurableManagement>();
         var pools = host.Services.GetRequiredService<InMemoryResourcePoolStore>();
 
-        var definition = Workflow.Durable<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Core.Building.Workflow.Durable<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<OrderInput>(OrderState.From)
             .End("DurableStarted")
             .Build();
@@ -306,7 +314,7 @@ public static class ExampleRunner
 
         // Complete the job once, then replay the identical completion. The shared CompletionEventId
         // is the inbox dedup key, so the replay is a NoOp rather than a second completion.
-        var completionEventId = EventId.New();
+        var completionEventId = EventId.Create(Guid.CreateVersion7().ToString());
         var completed = await processor.ProcessAsync(
             new CompleteExternalJobCommand
             {
@@ -344,7 +352,7 @@ public static class ExampleRunner
 
     // AddOrcaCore registers the full durable stack (engine, command processor, management, and the
     // in-memory provider). A real host swaps the provider (e.g. AddOrcaCorePostgreSql) and adds
-    // AddOrcaCoreHostedServices to run the outbox pump and timer sweep — see OrcaCore.SampleHost.
+    // AddOrcaCoreHostedServices to run the outbox pump and timer sweep ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â see OrcaCore.SampleHost.
     private static IHost CreateHost()
     {
         var builder = Host.CreateApplicationBuilder();
@@ -356,7 +364,7 @@ public static class ExampleRunner
     {
         return new EventEnvelope
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             EventName = name,
             CorrelationId = correlationId,
             Payload = payload,
@@ -398,7 +406,7 @@ public static class ExampleRunner
     }
 
     // The types below are what a workflow author writes: the start input, event payloads, the typed
-    // business state, and the steps. OrcaCore never sees business meaning — it owns orchestration
+    // business state, and the steps. OrcaCore never sees business meaning ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â it owns orchestration
     // (status, waits, position); steps own the state (CR-020). Steps mutate state only through the
     // context and return a StepResult to signal control flow.
 
@@ -447,7 +455,7 @@ public static class ExampleRunner
                 // Business-rule failures use OrcaCoreException (the general base). Reserve
                 // WorkflowDefinitionException for malformed definitions, not runtime failures.
                 return ValueTask.FromResult<StepResult>(
-                    new StepResult.Failed(new OrcaCoreException("Order total must be positive.")));
+                    new StepResult.Failed(new WorkflowLifecycleException("Order total must be positive.")));
             }
 
             context.State.Log.Add("validated order");
@@ -495,7 +503,7 @@ public static class ExampleRunner
 
     private static OrderState MergeFanout(
         ReadOnlyParentSnapshot<OrderState> parent,
-        IReadOnlyList<ForEachItemOutcome<string>> outcomes)
+        IReadOnlyList<global::OrcaCore.Core.Building.ForEachItemOutcome<string>> outcomes)
     {
         var processed = outcomes
             .Where(outcome => outcome.Status == ForEachItemTerminalStatus.Succeeded)
@@ -534,7 +542,7 @@ public static class ExampleRunner
             CancellationToken cancellationToken)
         {
             return ValueTask.FromResult<StepResult>(
-                new StepResult.Failed(new OrcaCoreException("payment capture failed")));
+                new StepResult.Failed(new WorkflowLifecycleException("payment capture failed")));
         }
     }
 }

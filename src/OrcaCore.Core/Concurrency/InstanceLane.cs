@@ -4,7 +4,7 @@ using OrcaCore.Abstractions.Ids;
 
 namespace OrcaCore.Core.Concurrency;
 
-internal sealed class InstanceLane
+public sealed class InstanceLane
 {
     private const int LaneCapacity = 1024;
 
@@ -12,7 +12,7 @@ internal sealed class InstanceLane
     private readonly Action<InstanceId>? onLaneEvicted;
     private readonly Action<InstanceId>? onWorkItemEnqueued;
 
-    internal InstanceLane(
+    public InstanceLane(
         Action<InstanceId>? onWorkItemEnqueued = null,
         Action<InstanceId>? onLaneEvicted = null)
     {
@@ -20,9 +20,9 @@ internal sealed class InstanceLane
         this.onLaneEvicted = onLaneEvicted;
     }
 
-    internal int ActiveLaneCount => lanes.Count;
+    public int ActiveLaneCount => lanes.Count;
 
-    internal async Task RunAsync(
+    public async Task RunAsync(
         InstanceId instanceId,
         Func<CancellationToken, Task> operation,
         CancellationToken cancellationToken)
@@ -39,7 +39,7 @@ internal sealed class InstanceLane
             cancellationToken).ConfigureAwait(false);
     }
 
-    internal async Task<T> RunAsync<T>(
+    public async Task<T> RunAsync<T>(
         InstanceId instanceId,
         Func<CancellationToken, Task<T>> operation,
         CancellationToken cancellationToken)

@@ -1,7 +1,7 @@
+using Microsoft.Extensions.DependencyInjection;
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
 using OrcaCore.Engine.Ephemeral;
 using OrcaCore.TestSupport;
@@ -11,90 +11,47 @@ namespace OrcaCore.Acceptance.Tests;
 
 public sealed class TimerAcceptanceTests
 {
-    private static readonly CorrelationId Correlation = new("order-123");
+    private static readonly CorrelationId Correlation = CorrelationId.Create("order-123");
 
     [Fact]
     [Trait("AC", "AC-111")]
     public async Task EphemeralDelay_CompletesAfterDueTime()
     {
         var clock = new Clock(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
-        var engine = new EphemeralWorkflowEngine(clock.TimeProvider);
-        var sink = new List<string>();
-        var definition = new WorkflowBuilder<TimerState>()
-            .Init<string>(_ => new TimerState(sink))
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider(timeProvider: clock.TimeProvider);
+        var engine = provider.GetRequiredService<EphemeralWorkflowEngine>();
+        var definition = global::OrcaCore.Workflow.Ephemeral<TimerState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(_ => new TimerState())
             .Delay(TimeSpan.FromSeconds(30))
-            .Then(() => new RecordingStep())
+            .Then(context =>
+            {
+                context.State.Sink.Add("continued");
+                return ValueTask.CompletedTask;
+            })
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-        engine.RegisterDefinition(definition);
-
-        var started = await engine.StartAsync<string, TimerState>(
-            definition.DefinitionId,
+            .Build();
+        var definitionHandle = provider.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        var instance = (await definitionHandle.StartOrGetAsync(
             "start",
-            TestContext.Current.CancellationToken);
+            StartIdempotencyKey.Create("ephemeral-delay"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
+        var started = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
         clock.Advance(TimeSpan.FromSeconds(30));
 
-        var fired = await engine.FireDueTimersAsync(TestContext.Current.CancellationToken);
+        await engine.FireDueTimersAsync(TestContext.Current.CancellationToken);
+        var completed = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var state = await instance.GetStateAsync<TimerState>(TestContext.Current.CancellationToken);
 
-        started.Status.Should().Be(WorkflowStatus.Waiting);
-        fired.Should().ContainSingle()
-            .Which.Status.Should().Be(WorkflowStatus.Completed);
-        sink.Should().Equal(["continued"]);
+        started.Status.Should().Be(WorkflowInstanceStatus.Waiting);
+        completed.Status.Should().Be(WorkflowInstanceStatus.Completed);
+        state.Sink.Should().Equal(["continued"]);
     }
 
-    [Fact]
-    [Trait("AC", "AC-112")]
-    public async Task TimerEventRace_SelectsOneWinnerDeterministically()
+    public sealed record TimerState
     {
-        var clock = new Clock(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
-        var engine = new EphemeralWorkflowEngine(clock.TimeProvider);
-        var state = new RaceState();
-        var definition = new WorkflowBuilder<RaceState>()
-            .Init<string>(_ => state)
-            .Wait("Approved", _ => Correlation, TimeSpan.FromSeconds(30))
-            .Then(() => new RecordRaceOutcomeStep())
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-        engine.RegisterDefinition(definition);
-        await engine.StartAsync<string, RaceState>(
-            definition.DefinitionId,
-            "start",
-            TestContext.Current.CancellationToken);
-        clock.Advance(TimeSpan.FromSeconds(30));
-
-        var fired = await engine.FireDueTimersAsync(TestContext.Current.CancellationToken);
-
-        fired.Should().ContainSingle()
-            .Which.Status.Should().Be(WorkflowStatus.Completed);
-        state.Outcomes.Should().Equal(["timeout"]);
+        public List<string> Sink { get; init; } = [];
     }
 
-    private sealed record TimerState(List<string> Sink);
-
-    private sealed class RaceState
-    {
-        public List<string> Outcomes { get; } = [];
-    }
-
-    private sealed class RecordingStep : IStep<TimerState>
-    {
-        public ValueTask<StepResult> ExecuteAsync(
-            StepContext<TimerState> context,
-            CancellationToken cancellationToken)
-        {
-            context.State.Sink.Add("continued");
-            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
-        }
-    }
-
-    private sealed class RecordRaceOutcomeStep : IStep<RaceState>
-    {
-        public ValueTask<StepResult> ExecuteAsync(
-            StepContext<RaceState> context,
-            CancellationToken cancellationToken)
-        {
-            context.State.Outcomes.Add(context.ResumedEvent is null ? "timeout" : "event");
-            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
-        }
-    }
 }

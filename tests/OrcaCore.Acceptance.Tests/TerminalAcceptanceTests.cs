@@ -1,5 +1,5 @@
+using Microsoft.Extensions.DependencyInjection;
 using AwesomeAssertions;
-using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
@@ -16,57 +16,50 @@ public sealed class TerminalAcceptanceTests
     [Trait("AC", "AC-011")]
     public async Task CompletionBridge_ReturnsTerminalSnapshotWithoutLiveState()
     {
-        var engine = new EphemeralWorkflowEngine();
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
         var definition = CompletedDefinition();
-        engine.RegisterDefinition(definition);
-
-        var snapshot = await engine.AwaitCompletionAsync<string, TestState>(
-            definition.DefinitionId,
+        var instance = await StartAsync(provider, definition, "completion-bridge",
             "done",
             TestContext.Current.CancellationToken);
+        var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
 
-        snapshot.Status.Should().Be(WorkflowStatus.Completed);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
     }
 
     [Fact]
     [Trait("AC", "AC-012")]
     public async Task NamedEndOutcome_IsRecordedAndQueryable()
     {
-        var engine = new EphemeralWorkflowEngine();
-        var definition = new WorkflowBuilder<TestState>()
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(input => new TestState { Name = input })
-            .End("Approved")
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-        engine.RegisterDefinition(definition);
-
-        await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
+            .End(WorkflowOutcomeName.Create("Approved"))
+            .Build();
+        var instance = await StartAsync(provider, definition, "named-outcome",
             "done",
             TestContext.Current.CancellationToken);
+        var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
 
-        engine.Management.All()
-            .Where(instance => instance.EndOutcomeName == "Approved")
-            .List()
-            .Should().ContainSingle()
-            .Which.Status.Should().Be(WorkflowStatus.Completed);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
+        snapshot.Outcome.Should().Be(WorkflowOutcomeName.Create("Approved"));
     }
 
     [Fact]
+    [Trait("AC", "AC-010")]
     [Trait("AC", "AC-014")]
     public async Task GracefulCancel_CancelsInFlightWorkAndActiveWaits()
     {
-        var engine = new EphemeralWorkflowEngine();
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
         var definition = WaitingDefinition();
-        engine.RegisterDefinition(definition);
-        var started = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
+        var instance = await StartAsync(provider, definition, "graceful-cancel",
             "wait",
             TestContext.Current.CancellationToken);
 
-        var cancelled = await engine.Management.Instance(started.InstanceId)
-            .CancelAsync(TestContext.Current.CancellationToken);
+        var request = await instance.RequestCancellationAsync(TestContext.Current.CancellationToken);
+        var cancelled = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
 
-        cancelled.Status.Should().Be(WorkflowStatus.Cancelled);
+        request.Should().Be(WorkflowCancellationRequestStatus.Requested);
+        cancelled.Status.Should().Be(WorkflowInstanceStatus.Cancelled);
         cancelled.ActiveWaits.Should().BeEmpty();
     }
 
@@ -74,53 +67,50 @@ public sealed class TerminalAcceptanceTests
     [Trait("AC", "AC-015")]
     public async Task ForcedTerminate_PreventsFurtherAdvancement()
     {
-        var engine = new EphemeralWorkflowEngine();
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
         var definition = WaitingDefinition();
-        engine.RegisterDefinition(definition);
-        var started = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
+        var instance = await StartAsync(provider, definition, "forced-terminate",
             "wait",
             TestContext.Current.CancellationToken);
+        var events = provider.GetRequiredService<IWorkflowEventClient>();
 
-        await engine.Management.Instance(started.InstanceId)
-            .TerminateAsync(TestContext.Current.CancellationToken);
-        var act = () => engine.RaiseEventAsync<TestState>(
-            started.InstanceId,
+        var termination = await instance.TerminateAsync(TestContext.Current.CancellationToken);
+        var delivery = await events.DeliverToInstanceAsync(
+            instance.InstanceId,
             Event("Ready", "wait"),
             TestContext.Current.CancellationToken);
+        var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
 
-        await act.Should().ThrowAsync<WorkflowLifecycleException>()
-            .WithMessage("*terminal*");
+        termination.Should().Be(WorkflowTerminationStatus.Terminated);
+        delivery.Status.Should().Be(EventDeliveryStatus.InstanceTerminal);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Terminated);
     }
 
     [Fact]
     [Trait("AC", "AC-005")]
     public async Task TerminalInstances_RejectIllegalTriggers()
     {
-        var engine = new EphemeralWorkflowEngine();
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
         var definition = CompletedDefinition();
-        engine.RegisterDefinition(definition);
-        var completed = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
+        var instance = await StartAsync(provider, definition, "terminal-trigger",
             "done",
             TestContext.Current.CancellationToken);
 
-        var act = () => engine.Management.Instance(completed.InstanceId)
-            .CancelAsync(TestContext.Current.CancellationToken);
+        var cancellation = await instance.RequestCancellationAsync(TestContext.Current.CancellationToken);
+        var termination = await instance.TerminateAsync(TestContext.Current.CancellationToken);
 
-        await act.Should().ThrowAsync<WorkflowLifecycleException>()
-            .WithMessage("*Cancel*Completed*");
+        cancellation.Should().Be(WorkflowCancellationRequestStatus.AlreadyTerminal);
+        termination.Should().Be(WorkflowTerminationStatus.AlreadyTerminal);
     }
 
     [Fact]
     [Trait("AC", "AC-516")]
     public async Task BroadDestructiveSelection_RequiresExplicitSafety()
     {
-        var engine = new EphemeralWorkflowEngine();
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
+        var engine = provider.GetRequiredService<EphemeralWorkflowEngine>();
         var definition = WaitingDefinition();
-        engine.RegisterDefinition(definition);
-        await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
+        _ = await StartAsync(provider, definition, "broad-destructive-safety",
             "wait",
             TestContext.Current.CancellationToken);
 
@@ -134,48 +124,53 @@ public sealed class TerminalAcceptanceTests
         safeTerminate.AffectedCount.Should().Be(1);
     }
 
-    private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> CompletedDefinition()
+    private static EphemeralWorkflowDefinition<string> CompletedDefinition()
     {
-        return new WorkflowBuilder<TestState>()
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(input => new TestState { Name = input })
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
     }
 
-    private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> WaitingDefinition()
+    private static EphemeralWorkflowDefinition<string> WaitingDefinition()
     {
-        return new WorkflowBuilder<TestState>()
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(input => new TestState { Name = input })
-            .Wait("Ready", state => new CorrelationId(state.Name))
-            .Then(() => new CaptureStep())
+            .Wait(EventName.Create("Ready"), state => CorrelationId.Create(state.Value.Name))
+            .Then(_ => ValueTask.CompletedTask)
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
     }
 
-    private static EventEnvelope Event(string eventName, string correlationId)
+    private static WorkflowEvent Event(string eventName, string correlationId)
     {
-        return new EventEnvelope
-        {
-            EventId = EventId.New(),
-            EventName = eventName,
-            CorrelationId = new CorrelationId(correlationId),
-            Payload = null,
-            OccurredAt = DateTimeOffset.UtcNow
-        };
+        return WorkflowEvent.Create(
+            EventId.Create(Guid.CreateVersion7().ToString()),
+            EventName.Create(eventName),
+            CorrelationId.Create(correlationId),
+            DateTimeOffset.UtcNow);
     }
 
-    private sealed class TestState
+    private static async Task<WorkflowInstanceHandle> StartAsync(
+        IServiceProvider provider,
+        EphemeralWorkflowDefinition<string> definition,
+        string idempotencyKey,
+        string input,
+        CancellationToken cancellationToken)
+    {
+        var definitionHandle = provider.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        return (await definitionHandle.StartOrGetAsync(
+                input,
+                StartIdempotencyKey.Create(idempotencyKey),
+                cancellationToken))
+            .GetHandleOrThrow();
+    }
+
+    public sealed class TestState
     {
         public string Name { get; set; } = string.Empty;
     }
 
-    private sealed class CaptureStep : IStep<TestState>
-    {
-        public ValueTask<StepResult> ExecuteAsync(
-            StepContext<TestState> context,
-            CancellationToken cancellationToken)
-        {
-            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
-        }
-    }
 }

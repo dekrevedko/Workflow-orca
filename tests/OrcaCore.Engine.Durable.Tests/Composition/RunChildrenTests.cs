@@ -108,7 +108,7 @@ public sealed class RunChildrenTests
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -118,7 +118,7 @@ public sealed class RunChildrenTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static Guid GuidValue(int value)

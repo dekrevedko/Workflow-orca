@@ -11,7 +11,7 @@ public sealed class InstanceIdJsonConverter : JsonConverter<InstanceId>
     /// <inheritdoc />
     public override InstanceId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        return new InstanceId(Guid.Parse(reader.GetString()!));
+        return InstanceId.Parse(reader.GetString()!);
     }
 
     /// <inheritdoc />
@@ -29,7 +29,7 @@ public sealed class EventIdJsonConverter : JsonConverter<EventId>
     /// <inheritdoc />
     public override EventId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        return new EventId(reader.GetGuid());
+        return EventId.Create(reader.GetString()!);
     }
 
     /// <inheritdoc />
@@ -83,7 +83,7 @@ public sealed class DefinitionIdJsonConverter : JsonConverter<DefinitionId>
     /// <inheritdoc />
     public override DefinitionId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        return new DefinitionId(reader.GetGuid());
+        return DefinitionId.Parse(reader.GetString()!);
     }
 
     /// <inheritdoc />
@@ -119,7 +119,7 @@ public sealed class WaitIdJsonConverter : JsonConverter<WaitId>
     /// <inheritdoc />
     public override WaitId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        return new WaitId(reader.GetGuid());
+        return WaitId.Parse(reader.GetString()!);
     }
 
     /// <inheritdoc />
@@ -155,7 +155,7 @@ public sealed class CorrelationIdJsonConverter : JsonConverter<CorrelationId>
     /// <inheritdoc />
     public override CorrelationId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        return new CorrelationId(reader.GetString() ?? string.Empty);
+        return CorrelationId.Create(reader.GetString()!);
     }
 
     /// <inheritdoc />

@@ -30,7 +30,7 @@ Workflow and DAG builders SHALL produce immutable, identity/version/structural-f
 - **THEN** it returns a typed conflict before executing changed semantics
 
 ### Requirement: Parallel authoring defines deterministic join structure
-Parallel authoring SHALL be exposed only on the selected ephemeral and durable root workflow builders and SHALL declare at least one fixed isolated branch, one common serializable result type, and exactly one explicit `WhenAll` or `WhenAllOutcomes` merge. Nested, branch, item, and leased builders SHALL NOT expose `Parallel`; a hand-built graph that places `Parallel` below another structural body SHALL be rejected. An empty root scope SHALL remain constructible long enough for aggregate graph validation and SHALL report `SFE-AUTH-BRANCH-004` (`EmptyParallelScope`) through identical `Build`/`TryBuild` diagnostics at the root `Parallel` node. `WhenFirst` SHALL be absent in v1.
+Parallel authoring SHALL be exposed only on the selected ephemeral and durable root workflow builders and SHALL declare at least one fixed isolated branch, one common serializable result type, and exactly one explicit `WhenAll` or `WhenAllOutcomes` merge. Nested, branch, item, and leased builders SHALL NOT expose `Parallel`; a hand-built graph that places `Parallel` below another structural body SHALL be rejected. Every join SHALL return the selected root builder and replace parent state, allowing root fan-out phases to compose sequentially while preserving a barrier between phases. An empty root scope SHALL remain constructible long enough for aggregate graph validation and SHALL report `SFE-AUTH-BRANCH-004` (`EmptyParallelScope`) through identical `Build`/`TryBuild` diagnostics at the root `Parallel` node. `WhenFirst` SHALL be absent in v1.
 
 #### Scenario: Root Parallel workflow is composed
 - **WHEN** a contributor adds fixed branches from a root workflow builder and chooses `WhenAll`
@@ -39,6 +39,10 @@ Parallel authoring SHALL be exposed only on the selected ephemeral and durable r
 #### Scenario: Parallel outcomes are inspected
 - **WHEN** a contributor chooses `WhenAllOutcomes`
 - **THEN** the merge receives every ordered success or failure outcome, replaces parent state once, and a following `If` can decide business acceptance
+
+#### Scenario: Root fan-out phases are sequenced
+- **WHEN** an author completes one root `Parallel` or `ForEach` join and starts another root fan-out scope
+- **THEN** the first merge's replacement parent state is the second phase's input and no child from the second phase starts before the first barrier completes
 
 #### Scenario: Ancestor terminal transition wins
 - **WHEN** instance cancellation, operator termination, or `CompleteWithin` wins while branches are active
@@ -149,7 +153,7 @@ Root-only `ForEach` authoring in both modes SHALL declare a selector returning a
 - **THEN** the merge receives each ordered success or failure outcome exactly once after all items become terminal
 
 #### Scenario: Item bound is exceeded
-- **WHEN** the selected finite snapshot exceeds the authored or host item/payload bound
+- **WHEN** the selected finite snapshot exceeds its authored `MaxItems` or an applicable fixed-codec payload/envelope bound
 - **THEN** the scope fails deterministically before admitting any item
 
 #### Scenario: Item snapshot is empty
@@ -165,6 +169,38 @@ Root-only `ForEach` authoring in both modes SHALL declare a selector returning a
 - **THEN** the member is absent and compiler defense rejects a manually constructed nested graph
 
 ## ADDED Requirements
+
+### Requirement: Authoring handles are phase-bound and definitions are frozen
+Workflow authoring SHALL be governed by one session whose state is `Open`, `JoinPending`, or
+`Frozen`. Every builder handle SHALL be valid only for the session epoch and lexical scope in which
+it was produced. Starting root fan-out SHALL supersede the current root handle; selecting the
+single join SHALL return a distinct façade bound to the successor epoch. A nested, branch, item, or
+leased handle SHALL expire when its authoring callback returns. Applying an operator through a
+superseded or expired handle, selecting more than one join for one scope, applying any operator
+after a root terminal, or losing a concurrent authoring race SHALL throw one catalogued lifecycle
+`WorkflowDefinitionException` and SHALL leave the authored graph unchanged.
+
+A root `End` or terminal `ContinueAsNew` SHALL atomically move the session to `Frozen` and capture
+one immutable authored-graph snapshot. The returned completion builder SHALL build only that
+snapshot. Repeated `Build()` or `TryBuild()` on one completion builder SHALL produce structurally
+equivalent definitions with identical ordered diagnostics and fingerprints. Workflow-wide
+authoring configuration SHALL belong to the session rather than to an individual façade.
+
+#### Scenario: Stale root handle is reused after a join
+- **WHEN** a retained root handle is used after its fan-out join returned a successor root façade
+- **THEN** the stale operation throws its lifecycle diagnostic and the graph visible to the successor façade is unchanged
+
+#### Scenario: Callback-local handle escapes
+- **WHEN** a nested, branch, item, or leased handle is invoked after its authoring callback returned
+- **THEN** the operation is rejected at that handle's authored location and cannot mutate the completed lexical body
+
+#### Scenario: Terminal completion builder is reused
+- **WHEN** one completion builder is built or validated repeatedly after unrelated stale aliases are invoked
+- **THEN** every accepted build observes only the frozen terminal snapshot and produces the same structure, ordered diagnostics, and fingerprint
+
+#### Scenario: Concurrent authoring operations race
+- **WHEN** two operations target the same open session concurrently
+- **THEN** at most one mutation wins atomically and every losing lifecycle operation leaves the graph unchanged
 
 ### Requirement: Selected mode is preserved through nested authoring
 Every conditional, loop, root-parallel branch, root-`ForEach` item, and leased-scope builder SHALL retain selected mode and enclosing capability restrictions in its static type while sharing internal machinery. Nested, branch, item, and leased builders SHALL expose sequencing, nested `If`, waits, delays, and decorators where otherwise legal, but SHALL expose no `Parallel`, `ForEach`, or `While`. Durable non-leased builders MAY expose scoped `AcquireResources` at the placements approved by the matrix.

@@ -2,7 +2,10 @@ using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
+using ProjectionActiveWaitSnapshot = global::OrcaCore.Abstractions.Instances.ActiveWaitSnapshot;
 using OrcaCore.Abstractions.Providers;
+
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
 
 namespace OrcaCore.Engine.Durable.Aggregates;
 
@@ -43,7 +46,7 @@ internal sealed class DurableWaitState
 
     internal bool HasWait(WaitId waitId)
     {
-        return activeWaits.Any(wait => wait.WaitId == waitId);
+        return activeWaits.Any(wait => wait.WaitId.Equals(waitId));
     }
 
     internal void Register(DurableActiveWait wait)
@@ -54,7 +57,7 @@ internal sealed class DurableWaitState
 
     internal void Remove(WaitId waitId)
     {
-        activeWaits.RemoveAll(wait => wait.WaitId == waitId);
+        activeWaits.RemoveAll(wait => wait.WaitId.Equals(waitId));
     }
 
     internal void Clear()
@@ -71,7 +74,7 @@ internal sealed class DurableWaitState
 
     internal DurablePendingResume? FindPendingResume(WaitId waitId)
     {
-        return pendingResumes.FirstOrDefault(pending => pending.WaitId == waitId);
+        return pendingResumes.FirstOrDefault(pending => pending.WaitId.Equals(waitId));
     }
 
     internal DurableBufferedDelivery? FindBufferedDelivery(
@@ -97,7 +100,7 @@ internal sealed class DurableWaitState
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var events = new List<WorkflowEvent>();
+        var events = new List<DurableWorkflowEvent>();
         var inboxWrites = new List<InboxWrite>();
         var replayWaits = activeWaits.ToList();
 
@@ -107,7 +110,7 @@ internal sealed class DurableWaitState
             {
                 events.Add(new WorkflowDeliveryDiscardedEvent
                 {
-                    EventId = EventId.New(),
+                    EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                     InstanceId = context.InstanceId,
                     CommandId = context.CommandId,
                     CausationId = context.CausationId,
@@ -127,10 +130,10 @@ internal sealed class DurableWaitState
                 continue;
             }
 
-            replayWaits.RemoveAll(candidate => candidate.WaitId == wait.WaitId);
+            replayWaits.RemoveAll(candidate => candidate.WaitId.Equals(wait.WaitId));
             events.Add(new WorkflowWaitMatchedEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = context.InstanceId,
                 CommandId = context.CommandId,
                 CausationId = context.CausationId,
@@ -152,7 +155,7 @@ internal sealed class DurableWaitState
         return new DurableWaitReplayPlan(events, inboxWrites);
     }
 
-    internal void Apply(WorkflowEvent workflowEvent)
+    internal void Apply(DurableWorkflowEvent workflowEvent)
     {
         ArgumentNullException.ThrowIfNull(workflowEvent);
 
@@ -177,10 +180,10 @@ internal sealed class DurableWaitState
                 // Kernel-driven matches (external-job completion, direct wait-matched commands)
                 // carry no event context of their own; the resume falls back to the matched
                 // wait's registered name/correlation so the resumed step observes them.
-                var matchedWait = activeWaits.FirstOrDefault(wait => wait.WaitId == waitMatched.WaitId);
+                var matchedWait = activeWaits.FirstOrDefault(wait => wait.WaitId.Equals(waitMatched.WaitId));
                 Remove(waitMatched.WaitId);
-                bufferedDeliveries.RemoveAll(delivery => delivery.EventId == waitMatched.MatchedEventId);
-                pendingResumes.RemoveAll(pending => pending.WaitId == waitMatched.WaitId);
+                bufferedDeliveries.RemoveAll(delivery => delivery.EventId.Equals(waitMatched.MatchedEventId));
+                pendingResumes.RemoveAll(pending => pending.WaitId.Equals(waitMatched.WaitId));
                 pendingResumes.Add(new DurablePendingResume(
                     waitMatched.WaitId,
                     waitMatched.MatchedEventId,
@@ -200,10 +203,10 @@ internal sealed class DurableWaitState
                 break;
             case WorkflowWaitCancelledEvent waitCancelled:
                 Remove(waitCancelled.WaitId);
-                pendingResumes.RemoveAll(pending => pending.WaitId == waitCancelled.WaitId);
+                pendingResumes.RemoveAll(pending => pending.WaitId.Equals(waitCancelled.WaitId));
                 break;
             case WorkflowResumeConsumedEvent resumeConsumed:
-                pendingResumes.RemoveAll(pending => pending.WaitId == resumeConsumed.WaitId);
+                pendingResumes.RemoveAll(pending => pending.WaitId.Equals(resumeConsumed.WaitId));
                 break;
             case WorkflowDeliveryBufferedEvent deliveryBuffered:
                 bufferedDeliveries.Add(new DurableBufferedDelivery(
@@ -215,15 +218,15 @@ internal sealed class DurableWaitState
                     deliveryBuffered.Payload));
                 break;
             case WorkflowDeliveryDiscardedEvent deliveryDiscarded:
-                bufferedDeliveries.RemoveAll(delivery => delivery.EventId == deliveryDiscarded.DiscardedEventId);
+                bufferedDeliveries.RemoveAll(delivery => delivery.EventId.Equals(deliveryDiscarded.DiscardedEventId));
                 break;
         }
     }
 
-    internal IReadOnlyList<ActiveWaitSnapshot> CreateActiveWaitSnapshots()
+    internal IReadOnlyList<ProjectionActiveWaitSnapshot> CreateActiveWaitSnapshots()
     {
         return activeWaits
-            .Select(wait => new ActiveWaitSnapshot
+            .Select(wait => new ProjectionActiveWaitSnapshot
             {
                 WaitId = wait.WaitId,
                 EventName = wait.EventName,
@@ -294,14 +297,14 @@ internal sealed class DurableWaitState
     private static bool Matches(DurableActiveWait wait, EventEnvelope envelope)
     {
         return wait.EventName == envelope.EventName &&
-            wait.CorrelationId == envelope.CorrelationId &&
+            wait.CorrelationId.Equals(envelope.CorrelationId) &&
             BranchesMatch(wait.BranchId, envelope.BranchId);
     }
 
     private static bool Matches(DurableActiveWait wait, DurableBufferedDelivery delivery)
     {
         return wait.EventName == delivery.EventName &&
-            wait.CorrelationId == delivery.CorrelationId &&
+            wait.CorrelationId.Equals(delivery.CorrelationId) &&
             BranchesMatch(wait.BranchId, delivery.BranchId);
     }
 
@@ -312,7 +315,7 @@ internal sealed class DurableWaitState
         DurableBufferedDelivery delivery)
     {
         return eventName == delivery.EventName &&
-            correlationId == delivery.CorrelationId &&
+            correlationId.Equals(delivery.CorrelationId) &&
             BranchesMatch(branchId, delivery.BranchId);
     }
 
@@ -334,7 +337,7 @@ internal sealed class DurableWaitState
 }
 
 internal sealed record DurableWaitReplayPlan(
-    IReadOnlyList<WorkflowEvent> Events,
+    IReadOnlyList<DurableWorkflowEvent> Events,
     IReadOnlyList<InboxWrite> InboxWrites);
 
 internal sealed record DurableWaitEventContext(

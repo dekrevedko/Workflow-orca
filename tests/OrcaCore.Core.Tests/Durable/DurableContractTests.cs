@@ -3,6 +3,8 @@ using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using Xunit;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Core.Tests.Durable;
 
 public sealed class DurableContractTests
@@ -10,17 +12,17 @@ public sealed class DurableContractTests
     [Fact]
     public void WorkflowEventCatalog_AllEventsCarryInstanceAndCausationMetadata()
     {
-        var eventTypes = typeof(WorkflowEvent).Assembly.GetTypes()
-            .Where(type => type.IsAssignableTo(typeof(WorkflowEvent)) && !type.IsAbstract)
+        var eventTypes = typeof(DurableWorkflowEvent).Assembly.GetTypes()
+            .Where(type => type.IsAssignableTo(typeof(DurableWorkflowEvent)) && !type.IsAbstract)
             .ToArray();
 
         eventTypes.Should().NotBeEmpty();
         eventTypes.Should().OnlyContain(type =>
-            type.GetProperty(nameof(WorkflowEvent.EventId)) != null &&
-            type.GetProperty(nameof(WorkflowEvent.InstanceId)) != null &&
-            type.GetProperty(nameof(WorkflowEvent.CommandId)) != null &&
-            type.GetProperty(nameof(WorkflowEvent.CausationId)) != null &&
-            type.GetProperty(nameof(WorkflowEvent.OccurredAt)) != null);
+            type.GetProperty(nameof(DurableWorkflowEvent.EventId)) != null &&
+            type.GetProperty(nameof(DurableWorkflowEvent.InstanceId)) != null &&
+            type.GetProperty(nameof(DurableWorkflowEvent.CommandId)) != null &&
+            type.GetProperty(nameof(DurableWorkflowEvent.CausationId)) != null &&
+            type.GetProperty(nameof(DurableWorkflowEvent.OccurredAt)) != null);
     }
 
     [Fact]
@@ -53,8 +55,8 @@ public sealed class DurableContractTests
         var definitionVersion = new DefinitionVersion(7);
         var started = new WorkflowStartedEvent
         {
-            EventId = EventId.New(),
-            InstanceId = InstanceId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
+            InstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString()),
             CommandId = CommandId.New(),
             CausationId = CausationId.New(),
             OccurredAt = DateTimeOffset.UtcNow,

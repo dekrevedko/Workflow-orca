@@ -12,7 +12,7 @@ public sealed class FiberReducerTests
     public void FiberLifecycle_TransitionsThroughRunnableBlockedAndTerminalPhases()
     {
         var runnable = FiberRecord.CreateRoot(
-            InstanceId.New(),
+            InstanceId.Parse(Guid.CreateVersion7().ToString()),
             generation: 0,
             new InstructionId("instruction:root/0:Init"));
 

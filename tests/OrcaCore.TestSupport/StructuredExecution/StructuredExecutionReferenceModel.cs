@@ -279,13 +279,17 @@ public static class StructuredExecutionComparisonHarness
                 }
             }
 
-            var expectedScopePhase = referencePhases.Values.Any(phase => phase == ReferenceFiberPhase.Failed)
-                ? ExecutionScopePhase.Failed
-                : referencePhases.Values.Any(phase => phase == ReferenceFiberPhase.Cancelled)
-                    ? ExecutionScopePhase.Cancelled
-                    : referencePhases.Values.All(phase => phase == ReferenceFiberPhase.Completed)
-                        ? ExecutionScopePhase.Joinable
-                        : ExecutionScopePhase.Running;
+            var allTerminal = referencePhases.Values.All(phase =>
+                phase is ReferenceFiberPhase.Completed or
+                    ReferenceFiberPhase.Failed or
+                    ReferenceFiberPhase.Cancelled);
+            var expectedScopePhase = !allTerminal
+                ? ExecutionScopePhase.Running
+                : referencePhases.Values.Any(phase => phase == ReferenceFiberPhase.Failed)
+                    ? ExecutionScopePhase.Failed
+                    : referencePhases.Values.Any(phase => phase == ReferenceFiberPhase.Cancelled)
+                        ? ExecutionScopePhase.Cancelled
+                        : ExecutionScopePhase.Joinable;
             var actualScopePhase = actual.Scopes[started.ScopeId].Phase;
             if (actualScopePhase != expectedScopePhase)
             {
@@ -526,8 +530,7 @@ public static class StructuredExecutionComparisonHarness
             case StructuredExecutionOperationKind.Fail:
                 RequireSelected(operation.FiberIds[0], queue);
                 phases[operation.FiberIds[0]] = ReferenceFiberPhase.Failed;
-                CancelActiveReferenceFibers(phases, operation.FiberIds[0]);
-                queue.Clear();
+                queue.RemoveAt(0);
                 break;
             case StructuredExecutionOperationKind.Cancel:
                 RequireSelected(operation.FiberIds[0], queue);
@@ -691,7 +694,7 @@ public static class StructuredExecutionComparisonHarness
         var continuation = new InstructionId("instruction:after-scope");
         return new CompiledWorkflowPlan(
             WorkflowExecutionMode.Ephemeral,
-            new DefinitionId(Guid.Parse("00000000-0000-0000-0000-000000000002")),
+            DefinitionId.Parse("00000000-0000-0000-0000-000000000002"),
             DefinitionVersion.Initial,
             "reference-nested",
             [
@@ -719,8 +722,8 @@ public static class StructuredExecutionComparisonHarness
 
     private static CompiledWorkflowPlan CreateForEachPlan(int maxConcurrency)
     {
-        return Workflow.Ephemeral<ReferenceForEachParent>(
-                new DefinitionId(Guid.Parse("00000000-0000-0000-0000-000000000003")),
+        return global::OrcaCore.Workflow.Ephemeral<ReferenceForEachParent>(
+                DefinitionId.Parse("00000000-0000-0000-0000-000000000003"),
                 DefinitionVersion.Initial)
             .Init<int[]>(items => new ReferenceForEachParent(items))
             .ForEach<int, ReferenceForEachItem, int>(
@@ -827,8 +830,8 @@ public static class StructuredExecutionComparisonHarness
 
 internal static class StructuredExecutionReferenceIdentity
 {
-    internal static InstanceId InstanceId { get; } = new(
-        Guid.Parse("00000000-0000-0000-0000-000000000001"));
+    internal static InstanceId InstanceId { get; } =
+        InstanceId.Parse("00000000-0000-0000-0000-000000000001");
 
     internal static string ChildFiberId(string branchId)
     {

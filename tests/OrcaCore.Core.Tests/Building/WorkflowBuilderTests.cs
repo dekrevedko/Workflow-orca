@@ -1,465 +1,373 @@
+using System.Reflection;
 using AwesomeAssertions;
-using OrcaCore.Abstractions.Durable;
-using OrcaCore.Abstractions.Errors;
-using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Steps;
-using OrcaCore.Core.Building;
-using OrcaCore.Core.Definitions;
 using Xunit;
 
 namespace OrcaCore.Core.Tests.Building;
 
+/// <summary>
+/// Ports the supported consumer-facing coverage from the retired catch-all builder suite.
+/// Invalid graph shapes that the staged API now makes unrepresentable are asserted from
+/// the public surface instead of being constructed through the old permissive builder.
+/// </summary>
 public sealed class WorkflowBuilderTests
 {
     [Fact]
-    public void Build_MinimalWorkflow_ProducesInitStepEndTree()
+    public void Build_MinimalWorkflow_ProducesStablePublicDefinitionMetadata()
     {
-        var definition = new WorkflowBuilder<TestState>()
+        var definitionId = DefinitionId.New();
+
+        var definition = Workflow.Ephemeral<TestState>(
+                definitionId,
+                DefinitionVersion.Initial)
             .Init<string>(_ => new TestState("created"))
             .Then<TestStep>()
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
 
-        definition.RootSequence.Children.Should().HaveCount(3);
-        definition.RootSequence.Children[0].Should().BeOfType<InitNode<TestState>>();
-        definition.RootSequence.Children[1].Should().BeOfType<BusinessStepNode<TestState>>();
-        definition.RootSequence.Children[2].Should().BeOfType<EndNode<TestState>>();
+        definition.Mode.Should().Be(WorkflowMode.Ephemeral);
+        definition.DefinitionId.Should().Be(definitionId);
+        definition.DefinitionVersion.Should().Be(DefinitionVersion.Initial);
+        definition.DefinitionFingerprint.Value.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
-    public void Build_NestedStructures_ProduceExpectedTree()
+    public void Build_NestedStructures_ProduceDifferentStructuralFingerprint()
     {
-        var definition = new WorkflowBuilder<TestState>()
+        var definitionId = DefinitionId.New();
+        var minimal = BuildMinimal(definitionId);
+
+        var nested = Workflow.Ephemeral<TestState>(
+                definitionId,
+                DefinitionVersion.Initial)
             .Init<string>(_ => new TestState("created"))
             .If(
-                state => state.ShouldRoute,
+                state => state.Value.ShouldRoute,
                 then => then
-                    .Wait("Approved", state => new CorrelationId(state.CorrelationId))
+                    .Wait(
+                        EventName.Create("approved"),
+                        state => CorrelationId.Create(state.Value.CorrelationId))
                     .Then<TestStep>(),
                 otherwise => otherwise.Then<TestStep>())
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
 
-        var ifNode = definition.RootSequence.Children.OfType<IfNode<TestState>>().Single();
-        ifNode.Then.Children.Should().HaveCount(2);
-        ifNode.Then.Children[0].Should().BeOfType<WaitNode<TestState>>();
-        ifNode.Then.Children[1].Should().BeOfType<BusinessStepNode<TestState>>();
+        nested.DefinitionFingerprint.Should().NotBe(minimal.DefinitionFingerprint);
     }
 
     [Fact]
-    public void BuildValidated_MissingInit_ReportsError()
+    public void MissingInit_IsCompileImpossibleThroughTheInitStage()
     {
-        var validation = new WorkflowBuilder<TestState>()
-            .End()
-            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
-
-        validation.IsValid.Should().BeFalse();
-        validation.Errors.Should().ContainSingle(error => error.Code == BuilderValidationCodes.MissingInit);
+        DeclaredMethods(typeof(EphemeralWorkflowInitBuilder<TestState>))
+            .Should().Equal("Init");
+        DeclaredMethods(typeof(DurableWorkflowInitBuilder<TestState>))
+            .Should().Equal("Init");
     }
 
     [Fact]
-    public void BuildValidated_MultipleRootInitNodes_ReportsStableError()
+    public void MultipleRootInitNodes_AreCompileImpossibleAfterInit()
     {
-        var validation = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState("first"))
-            .Init<string>(_ => new TestState("second"))
-            .End()
-            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
-
-        validation.IsValid.Should().BeFalse();
-        validation.Errors.Should().ContainSingle(error => error.Code == "WF017_MULTIPLE_INIT");
+        DeclaredMethods(typeof(EphemeralWorkflowBuilder<string, TestState>))
+            .Should().NotContain("Init");
+        DeclaredMethods(typeof(DurableWorkflowBuilder<string, TestState>))
+            .Should().NotContain("Init");
     }
 
     [Fact]
-    public void BuildValidated_InitAfterExecutableNode_ReportsStableError()
+    public void InitAfterExecutableNode_IsCompileImpossible()
     {
-        var validation = new WorkflowBuilder<TestState>()
+        var builderType = Workflow.Ephemeral<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(_ => new TestState("created"))
             .Then<TestStep>()
-            .Init<string>(_ => new TestState("late"))
-            .End()
-            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+            .GetType();
 
-        validation.IsValid.Should().BeFalse();
-        validation.Errors.Should().Contain(error => error.Code == "WF018_INIT_NOT_FIRST");
+        DeclaredMethods(builderType).Should().NotContain("Init");
     }
 
     [Fact]
-    public void BuildValidated_NestedInitNode_ReportsStableError()
+    public void NestedInit_IsCompileImpossible()
     {
-        var validation = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState("root"))
-            .If(_ => true, then => then.Init<string>(_ => new TestState("nested")))
-            .End()
-            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
-
-        validation.IsValid.Should().BeFalse();
-        validation.Errors.Should().ContainSingle(error => error.Code == "WF019_NESTED_INIT");
+        DeclaredMethods(typeof(EphemeralNestedBuilder<string, TestState>))
+            .Should().NotContain("Init");
+        DeclaredMethods(typeof(DurableNestedBuilder<string, TestState>))
+            .Should().NotContain("Init");
     }
 
     [Fact]
-    public void BuildValidated_MultipleRootEndNodes_ReportsStableError()
+    public void MultipleRootEnds_AreCompileImpossibleAfterCompletionSelection()
     {
-        var validation = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState("created"))
-            .End("first")
-            .End("second")
-            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
-
-        validation.IsValid.Should().BeFalse();
-        validation.Errors.Should().ContainSingle(error => error.Code == "WF020_MULTIPLE_END");
+        AssertCompletionStage(typeof(EphemeralWorkflowCompletionBuilder<string>));
+        AssertCompletionStage(typeof(DurableWorkflowCompletionBuilder<string>));
     }
 
     [Fact]
-    public void BuildValidated_NestedEndNode_ReportsStableError()
+    public void NestedEnd_IsCompileImpossible()
     {
-        var validation = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState("created"))
-            .If(_ => true, then => then.End("nested"))
-            .End("root")
-            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
-
-        validation.IsValid.Should().BeFalse();
-        validation.Errors.Should().ContainSingle(error => error.Code == "WF021_NESTED_END");
+        DeclaredMethods(typeof(EphemeralNestedBuilder<string, TestState>))
+            .Should().NotContain("End");
+        DeclaredMethods(typeof(DurableNestedBuilder<string, TestState>))
+            .Should().NotContain("End");
     }
 
     [Fact]
-    public void BuildValidated_ExecutableNodeAfterRootEnd_ReportsStableError()
+    public void ExecutableNodeAfterRootEnd_IsCompileImpossible()
     {
-        var validation = new WorkflowBuilder<TestState>()
+        var completionType = Workflow.Ephemeral<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
             .Init<string>(_ => new TestState("created"))
             .End()
-            .Then<TestStep>()
-            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+            .GetType();
 
-        validation.IsValid.Should().BeFalse();
-        validation.Errors.Should().ContainSingle(error => error.Code == "WF022_NODE_AFTER_END");
+        DeclaredMethods(completionType).Should().Equal("Build", "TryBuild");
     }
 
     [Fact]
-    public void BuildValidated_BranchReturnAtWorkflowRoot_ReportsStableError()
+    public void BranchReturnAtWorkflowRoot_IsCompileImpossible()
     {
-        var validation = new WorkflowBuilder<TestState>()
+        DeclaredMethods(typeof(EphemeralWorkflowBuilder<string, TestState>))
+            .Should().NotContain("Return");
+        DeclaredMethods(typeof(DurableWorkflowBuilder<string, TestState>))
+            .Should().NotContain("Return");
+    }
+
+    [Fact]
+    public void ContinueAsNew_IsDurableRootOnly()
+    {
+        DeclaredMethods(typeof(DurableWorkflowBuilder<string, TestState>))
+            .Should().Contain("ContinueAsNew");
+        DeclaredMethods(typeof(EphemeralWorkflowBuilder<string, TestState>))
+            .Should().NotContain("ContinueAsNew");
+        DeclaredMethods(typeof(DurableNestedBuilder<string, TestState>))
+            .Should().NotContain("ContinueAsNew");
+    }
+
+    [Fact]
+    public void ContinueAsNew_IsTerminalAndCannotBeFollowedByEnd()
+    {
+        var completion = Workflow.Durable<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
             .Init<string>(_ => new TestState("created"))
-            .BranchReturn(state => state.CorrelationId)
-            .End()
-            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+            .ContinueAsNew(state => state.Value);
 
-        validation.IsValid.Should().BeFalse();
-        validation.Errors.Should().Contain(error => error.Code == "WF026_BRANCH_RETURN_NOT_AT_SCOPE_EXIT");
+        completion.Build().Mode.Should().Be(WorkflowMode.Durable);
+        DeclaredMethods(completion.GetType()).Should().Equal("Build", "TryBuild");
     }
 
     [Fact]
-    public void BuildValidated_RootContinueAsNewInsideConditional_IsValid()
+    public void InvalidFluentArguments_AreRejectedAtTheCallSite()
     {
-        var validation = new WorkflowBuilder<TestState>()
+        var builder = Workflow.Ephemeral<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(_ => new TestState("created"));
+
+        Action nullCondition = () => builder.If(null!, _ => { });
+        Action zeroDelay = () => builder.Delay(TimeSpan.Zero);
+
+        nullCondition.Should().Throw<ArgumentNullException>();
+        zeroDelay.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void Build_WithGraphErrors_ThrowsAggregatedDefinitionException()
+    {
+        var completion = Workflow.Ephemeral<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
             .Init<string>(_ => new TestState("created"))
-            .If(state => state.ShouldRoute, then => then.ContinueAsNew(state => state with { ShouldRoute = false }))
-            .End()
-            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
-
-        validation.IsValid.Should().BeTrue();
-    }
-
-    [Fact]
-    public void BuildValidated_UnconditionalContinueAsNewBeforeEnd_ReportsUnreachableEnd()
-    {
-        var validation = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState("created"))
-            .ContinueAsNew(state => state)
-            .End()
-            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
-
-        validation.IsValid.Should().BeFalse();
-        validation.Errors.Should().ContainSingle(error => error.Code == "WF028_UNREACHABLE_NODE");
-    }
-
-    [Fact]
-    public void BuildValidated_MultipleProblems_ReportsAllAtOnce()
-    {
-        var validation = new WorkflowBuilder<TestState>()
-            .If(null!, _ => { })
-            .Delay(TimeSpan.Zero)
-            .End()
-            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
-
-        validation.IsValid.Should().BeFalse();
-        validation.Errors.Select(error => error.Code).Should().Equal(
-            [
-                BuilderValidationCodes.MissingInit,
-                BuilderValidationCodes.NullDelegate,
-                BuilderValidationCodes.NonPositiveDelay
-            ]);
-    }
-
-    [Fact]
-    public void Build_WithErrors_ThrowsAggregatedDefinitionException()
-    {
-        var builder = new WorkflowBuilder<TestState>()
-            .If(null!, _ => { })
-            .Delay(TimeSpan.Zero)
+            .Parallel<int>(_ => { })
+            .WhenAll((state, _) => state.Value)
             .End();
 
-        var act = () => builder.Build(DefinitionId.New(), DefinitionVersion.Initial);
+        Action build = () => completion.Build();
 
-        act.Should().Throw<WorkflowDefinitionException>()
-            .Which.Message.Should().Contain(BuilderValidationCodes.MissingInit)
-            .And.Contain(BuilderValidationCodes.NullDelegate)
-            .And.Contain(BuilderValidationCodes.NonPositiveDelay);
+        build.Should().Throw<WorkflowDefinitionException>()
+            .Which.Diagnostics.Should().ContainSingle(
+                diagnostic => diagnostic.Code == "SFE-AUTH-BRANCH-004");
     }
 
     [Fact]
-    public void Build_Twice_ProducesEqualIndependentDefinitions()
+    public void Build_Twice_ProducesEquivalentIndependentDefinitions()
     {
-        var definitionId = DefinitionId.New();
-        var builder = new WorkflowBuilder<TestState>()
+        var completion = Workflow.Ephemeral<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
             .Init<string>(_ => new TestState("created"))
-            .Then(() => new TestStep())
+            .Then<TestStep>()
             .End();
 
-        var first = builder.Build(definitionId, DefinitionVersion.Initial);
-        var second = builder.Build(definitionId, DefinitionVersion.Initial);
+        var first = completion.Build();
+        var second = completion.Build();
 
         first.Should().NotBeSameAs(second);
         first.DefinitionId.Should().Be(second.DefinitionId);
         first.DefinitionVersion.Should().Be(second.DefinitionVersion);
-        first.RootSequence.Children.Select(node => node.GetType()).Should()
-            .Equal(second.RootSequence.Children.Select(node => node.GetType()));
+        first.DefinitionFingerprint.Should().Be(second.DefinitionFingerprint);
     }
 
     [Fact]
-    public void End_WithOutcomeName_LandsOnEndNode()
+    public void End_WithFixedOutcome_ChangesTheStructuralFingerprint()
     {
-        var definition = new WorkflowBuilder<TestState>()
+        var definitionId = DefinitionId.New();
+        var baseline = Workflow.Ephemeral<TestState>(
+                definitionId,
+                DefinitionVersion.Initial)
             .Init<string>(_ => new TestState("created"))
-            .End("Approved")
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-
-        definition.RootSequence.Children.OfType<EndNode<TestState>>()
-            .Single().OutcomeName.Should().Be("Approved");
-    }
-
-    [Fact]
-    public void End_WithOutcomeSelector_ResolvesFromFinalState()
-    {
-        var definition = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState("created"))
-            .End(state => state.ShouldRoute ? "Approved" : "Rejected")
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-
-        var end = definition.RootSequence.Children.OfType<EndNode<TestState>>().Single();
-
-        end.ResolveOutcome(new TestState("accepted", ShouldRoute: true)).Should().Be("Approved");
-        end.ResolveOutcome(new TestState("rejected", ShouldRoute: false)).Should().Be("Rejected");
-    }
-
-    [Fact]
-    public void Delay_WithPositiveDuration_AddsTimerNode()
-    {
-        var delay = TimeSpan.FromSeconds(30);
-
-        var definition = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState("created"))
-            .Delay(delay)
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-
-        definition.RootSequence.Children.OfType<DelayNode<TestState>>()
-            .Single().Duration.Should().Be(delay);
-    }
-
-    [Fact]
-    public void Delay_WithNonPositiveDuration_ReportsValidationError()
-    {
-        var validation = new WorkflowBuilder<TestState>()
+            .Build();
+        var named = Workflow.Ephemeral<TestState>(
+                definitionId,
+                DefinitionVersion.Initial)
             .Init<string>(_ => new TestState("created"))
-            .Delay(TimeSpan.Zero)
-            .End()
-            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+            .End(WorkflowOutcomeName.Create("approved"))
+            .Build();
 
-        validation.IsValid.Should().BeFalse();
-        validation.Errors.Should().ContainSingle(error => error.Code == BuilderValidationCodes.NonPositiveDelay);
+        named.DefinitionFingerprint.Should().NotBe(baseline.DefinitionFingerprint);
     }
 
     [Fact]
-    public void Build_DelayBeforeEnd_DoesNotCountAsEnd()
+    public void DynamicOutcomeSelector_IsNotExposed()
     {
-        var validation = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState("created"))
-            .Delay(TimeSpan.FromSeconds(1))
-            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
+        var outcomeOverloads = typeof(EphemeralWorkflowBuilder<string, TestState>)
+            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Where(method => method.Name == "End")
+            .Where(method => !method.IsGenericMethodDefinition)
+            .ToArray();
 
-        validation.IsValid.Should().BeFalse();
-        validation.Errors.Should().ContainSingle(error => error.Code == BuilderValidationCodes.MissingEnd);
+        outcomeOverloads.Should().HaveCount(2);
+        outcomeOverloads.Should().ContainSingle(method => method.GetParameters().Length == 0);
+        outcomeOverloads.Should().ContainSingle(method =>
+            method.GetParameters().Select(parameter => parameter.ParameterType)
+                .SequenceEqual(new[] { typeof(WorkflowOutcomeName) }));
     }
 
     [Fact]
-    public void Then_GenericParameterlessStep_UsesTypedStepFactory()
+    public void Delay_WithPositiveDuration_ChangesTheStructuralFingerprint()
     {
-        var definition = new WorkflowBuilder<TestState>()
+        var definitionId = DefinitionId.New();
+
+        BuildWithDelay(definitionId, TimeSpan.FromSeconds(30)).DefinitionFingerprint
+            .Should().NotBe(BuildWithDelay(
+                definitionId,
+                TimeSpan.FromSeconds(31)).DefinitionFingerprint);
+    }
+
+    [Fact]
+    public void Delay_WithNonPositiveDuration_IsRejectedEagerly()
+    {
+        var builder = Workflow.Ephemeral<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(_ => new TestState("created"));
+
+        Action zero = () => builder.Delay(TimeSpan.Zero);
+        Action negative = () => builder.Delay(TimeSpan.FromTicks(-1));
+
+        zero.Should().Throw<ArgumentOutOfRangeException>();
+        negative.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void MissingEnd_IsCompileImpossibleFromTheRootBuilder()
+    {
+        var methods = DeclaredMethods(typeof(EphemeralWorkflowBuilder<string, TestState>));
+
+        methods.Should().NotContain("Build");
+        methods.Should().NotContain("TryBuild");
+        methods.Should().Contain("End");
+    }
+
+    [Fact]
+    public void Then_GenericNamedStep_BuildsThroughThePublicSurface()
+    {
+        var definition = Workflow.Ephemeral<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
             .Init<string>(_ => new TestState("created"))
             .Then<TestStep>()
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
 
-        var step = definition.RootSequence.Children
-            .OfType<BusinessStepNode<TestState>>()
-            .Single()
-            .StepFactory();
-
-        step.Should().BeOfType<TestStep>();
+        definition.DefinitionFingerprint.Value.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
-    public void Then_ConfiguredStepInstance_StoresExplicitFactory()
+    public void Then_InlineStep_BuildsWithoutAnImplicitConfiguredStepInstance()
     {
-        var configuredStep = new ConfiguredStep("x");
-
-        var definition = new WorkflowBuilder<TestState>()
+        var definition = Workflow.Ephemeral<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
             .Init<string>(_ => new TestState("created"))
-            .Then(configuredStep)
+            .Then((StepContext<TestState> _) => ValueTask.CompletedTask)
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
 
-        var step = definition.RootSequence.Children
-            .OfType<BusinessStepNode<TestState>>()
-            .Single()
-            .StepFactory();
-
-        step.Should().BeSameAs(configuredStep);
+        definition.DefinitionFingerprint.Value.Should().NotBeNullOrWhiteSpace();
+        typeof(EphemeralWorkflowBuilder<string, TestState>)
+            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Where(method => method.Name == "Then")
+            .Should().NotContain(method =>
+                method.GetParameters().Any(parameter =>
+                    parameter.ParameterType == typeof(IStep<TestState>)));
     }
 
     [Fact]
-    public void RunChild_AddsDurableChildNode()
+    public void EphemeralDefinition_UsesTheExplicitEphemeralMode()
     {
-        var definition = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState("created"))
-            .RunChild(DefinitionIdValue(2), DefinitionVersion.Initial, RunChildFailurePolicy.ContinueParent)
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-
-        var node = definition.RootSequence.Children.OfType<RunChildNode<TestState>>().Single();
-        node.ChildDefinitionId.Should().Be(DefinitionIdValue(2));
-        node.FailurePolicy.Should().Be(RunChildFailurePolicy.ContinueParent);
+        BuildMinimal(DefinitionId.New()).Mode.Should().Be(WorkflowMode.Ephemeral);
     }
 
     [Fact]
-    public void RunChildren_AddsDurableFanoutNodeWithValidation()
+    public void WorkflowBuilders_DoNotExposeCompensationMethods()
     {
-        var validation = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState("created"))
-            .RunChildren(
-                DefinitionIdValue(2),
-                DefinitionVersion.Initial,
-                state => [state.CorrelationId],
-                maxConcurrency: 2,
-                joinPolicy: RunChildrenJoinPolicy.WhenAny)
-            .End()
-            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
-
-        validation.IsValid.Should().BeTrue();
-        var node = validation.Value.RootSequence.Children.OfType<RunChildrenNode<TestState>>().Single();
-        node.ItemSnapshotSelector(new TestState("item")).Should().Equal("item");
-        node.MaxConcurrency.Should().Be(2);
-        node.JoinPolicy.Should().Be(RunChildrenJoinPolicy.WhenAny);
-    }
-
-    [Fact]
-    public void RunChildren_WithNonPositiveMaxConcurrency_ReportsValidationError()
-    {
-        var validation = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState("created"))
-            .RunChildren(DefinitionIdValue(2), DefinitionVersion.Initial, _ => ["item"], maxConcurrency: 0)
-            .End()
-            .BuildValidated(DefinitionId.New(), DefinitionVersion.Initial);
-
-        validation.Errors.Should().ContainSingle(error => error.Code == BuilderValidationCodes.NonPositiveMaxConcurrency);
-    }
-
-    [Fact]
-    public void Build_WithoutDurableOnlyNodes_DoesNotRequireDurableEngine()
-    {
-        var definition = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState("created"))
-            .Then<TestStep>()
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-
-        definition.RequiresDurableEngine.Should().BeFalse();
-    }
-
-    [Fact]
-    public void Build_WithTopLevelRunChild_RequiresDurableEngine()
-    {
-        var definition = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState("created"))
-            .RunChild(DefinitionIdValue(2), DefinitionVersion.Initial)
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-
-        definition.RequiresDurableEngine.Should().BeTrue();
-    }
-
-    [Fact]
-    public void Build_WithRunChildrenNestedInsideControlFlow_RequiresDurableEngine()
-    {
-        var definition = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState("created"))
-            .If(
-                _ => true,
-                then => then.While(
-                    _ => false,
-                    body => body.RunChildren(
-                        DefinitionIdValue(2),
-                        DefinitionVersion.Initial,
-                        state => [state.CorrelationId])))
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-
-        definition.RequiresDurableEngine.Should().BeTrue();
-    }
-
-    [Fact]
-    public void WorkflowBuilder_DoesNotExposeCompensationMethods()
-    {
-        var publicMethodNames = typeof(WorkflowBuilder<TestState>)
-            .GetMethods()
-            .Where(method => method.DeclaringType == typeof(WorkflowBuilder<TestState>))
-            .Select(method => method.Name)
+        var publicMethodNames = DeclaredMethods(
+                typeof(EphemeralWorkflowBuilder<string, TestState>))
+            .Concat(DeclaredMethods(typeof(DurableWorkflowBuilder<string, TestState>)))
             .ToArray();
 
         publicMethodNames.Should().NotContain(
-            [
-                "CompensateBy",
-                "CompensationScope",
-                "Compensate"
-            ]);
+            "CompensateBy",
+            "CompensationScope",
+            "Compensate");
     }
+
+    private static EphemeralWorkflowDefinition<string> BuildMinimal(
+        DefinitionId definitionId) =>
+        Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
+            .Init<string>(_ => new TestState("created"))
+            .Then<TestStep>()
+            .End()
+            .Build();
+
+    private static EphemeralWorkflowDefinition<string> BuildWithDelay(
+        DefinitionId definitionId,
+        TimeSpan delay) =>
+        Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
+            .Init<string>(_ => new TestState("created"))
+            .Delay(delay)
+            .End()
+            .Build();
+
+    private static string[] DeclaredMethods(Type type) => type
+        .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+        .Select(method => method.Name)
+        .Distinct(StringComparer.Ordinal)
+        .OrderBy(name => name, StringComparer.Ordinal)
+        .ToArray();
+
+    private static void AssertCompletionStage(Type type) =>
+        DeclaredMethods(type).Should().Equal("Build", "TryBuild");
 
     private sealed record TestState(string CorrelationId, bool ShouldRoute = true);
-
-    private static DefinitionId DefinitionIdValue(int value)
-    {
-        return new DefinitionId(Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}"));
-    }
 
     private sealed class TestStep : IStep<TestState>
     {
         public ValueTask<StepResult> ExecuteAsync(
             StepContext<TestState> context,
-            CancellationToken cancellationToken)
-        {
-            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
-        }
-    }
-
-    private sealed class ConfiguredStep(string name) : IStep<TestState>
-    {
-        public ValueTask<StepResult> ExecuteAsync(
-            StepContext<TestState> context,
-            CancellationToken cancellationToken)
-        {
-            _ = name;
-            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
-        }
+            CancellationToken cancellationToken) =>
+            ValueTask.FromResult<StepResult>(new StepResult.Completed());
     }
 }

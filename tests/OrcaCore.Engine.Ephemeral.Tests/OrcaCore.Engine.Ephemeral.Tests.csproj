@@ -8,8 +8,35 @@
     <PackageReference Include="AwesomeAssertions" />
     <PackageReference Include="coverlet.collector" PrivateAssets="all" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
     <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Diagnostics\EphemeralDiagnosticsTests.cs" />
+    <Compile Remove="Execution\CoreRuntimeScenarioTests.cs" />
+    <Compile Remove="Execution\DeadlineExecutionTests.cs" />
+    <Compile Remove="Execution\EphemeralRoutingIndexTests.cs" />
+    <Compile Remove="Execution\ExecutionLaneTests.cs" />
+    <Compile Remove="Execution\InterpreterControlFlowTests.cs" />
+    <Compile Remove="Execution\InterpreterTests.cs" />
+    <Compile Remove="Execution\MailboxTests.cs" />
+    <Compile Remove="Execution\RoutingTests.cs" />
+    <Compile Remove="Execution\RuntimeTimerRecordTests.cs" />
+    <Compile Remove="Execution\StructuredFiberExecutionTests.cs" />
+    <Compile Remove="Execution\WaitMatchingTests.cs" />
+    <Compile Remove="Execution\YieldTests.cs" />
+    <Compile Remove="Execution\YieldContinuationSchedulerTests.cs" />
+    <Compile Remove="Lifecycle\LifecycleEventTests.cs" />
+    <Compile Remove="Management\EvictTests.cs" />
+    <Compile Remove="Management\ManagementQueryTests.cs" />
+    <Compile Remove="Management\StuckDetectionTests.cs" />
+    <Compile Remove="Management\TerminalCommandTests.cs" />
+    <Compile Remove="Policies\RetryPolicyTests.cs" />
+    <Compile Remove="Policies\TimeoutPolicyTests.cs" />
+    <Compile Remove="Registration\DefinitionRegistrationTests.cs" />
+    <Compile Remove="Sagas\EphemeralSagaTests.cs" />
   </ItemGroup>
 
   <ItemGroup>

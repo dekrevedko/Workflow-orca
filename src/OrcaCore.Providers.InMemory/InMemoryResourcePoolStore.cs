@@ -1,20 +1,28 @@
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.Provider.Abstractions.ResourceGovernance;
 
 namespace OrcaCore.Providers.InMemory;
 
 /// <summary>
 /// Provides an in-memory durable resource-pool store.
 /// </summary>
-public sealed class InMemoryResourcePoolStore : IResourcePoolStore
+public sealed class InMemoryResourcePoolStore :
+    IResourcePoolStore,
+    IResourceLeaseGovernanceStore
 {
     private readonly Lock gate = new();
-    private readonly Dictionary<string, ResourcePoolDefinition> pools = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, PoolState> pools = new(StringComparer.Ordinal);
     private readonly List<ResourcePoolTicket> tickets = [];
     private readonly List<ResourcePoolWaiter> waiters = [];
     private readonly List<ResourcePoolExpiredTicket> expiredTickets = [];
     private readonly List<ResourcePoolAuditRecord> auditRecords = [];
+    private readonly Dictionary<string, LeaseProtectionToken> protectionTokens =
+        new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> confirmationBindings =
+        new(StringComparer.Ordinal);
+    private readonly List<ResourcePoolReleaseEvidence> releaseEvidence = [];
 
     /// <inheritdoc />
     public Task UpsertPoolAsync(ResourcePoolDefinition definition, CancellationToken cancellationToken)
@@ -25,7 +33,18 @@ public sealed class InMemoryResourcePoolStore : IResourcePoolStore
 
         lock (gate)
         {
-            pools[definition.Name] = definition;
+            if (pools.TryGetValue(definition.Name, out var existing))
+            {
+                if (existing.CreationDefinition != definition)
+                {
+                    throw new InvalidOperationException(
+                        $"Resource pool '{definition.Name}' creation definition does not match persisted governance state.");
+                }
+
+                return Task.CompletedTask;
+            }
+
+            pools.Add(definition.Name, new PoolState(definition, definition.Capacity, 0));
         }
 
         return Task.CompletedTask;
@@ -42,6 +61,7 @@ public sealed class InMemoryResourcePoolStore : IResourcePoolStore
 
         lock (gate)
         {
+            RememberProtectionToken(request);
             if (!AllPoolsExist(request.Requirements))
             {
                 return Task.FromResult(new ResourcePoolAcquireResult(
@@ -55,7 +75,7 @@ public sealed class InMemoryResourcePoolStore : IResourcePoolStore
             // release re-attempts the acquisition (at-least-once, DR-014) and must observe
             // Granted with its existing tickets, never queue behind its own allocation.
             var heldByHolder = tickets
-                .Where(ticket => ticket.HolderInstanceId == request.HolderInstanceId &&
+                .Where(ticket => ticket.HolderInstanceId.Equals(request.HolderInstanceId) &&
                     string.Equals(ticket.HolderKey, request.HolderKey, StringComparison.Ordinal))
                 .ToArray();
             if (Satisfies(heldByHolder, request.Requirements))
@@ -98,15 +118,148 @@ public sealed class InMemoryResourcePoolStore : IResourcePoolStore
 
         lock (gate)
         {
-            var released = tickets
-                .Where(ticket => ticket.HolderInstanceId == request.HolderInstanceId &&
-                    string.Equals(ticket.HolderKey, request.HolderKey, StringComparison.Ordinal))
-                .ToArray();
-            tickets.RemoveAll(ticket => released.Contains(ticket));
-
-            var grantedWaiters = GrantQueuedWaiters(request.ReleasedAt);
-            return Task.FromResult(new ResourcePoolReleaseResult(released, grantedWaiters));
+            return Task.FromResult(ReleaseCore(request, confirmationId: null));
         }
+    }
+
+    /// <inheritdoc />
+    public Task<Option<ResourcePoolReleaseEvidence>> GetReleaseEvidenceAsync(
+        LeaseProtectionToken protectionToken,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(protectionToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (gate)
+        {
+            var found = releaseEvidence.LastOrDefault(candidate =>
+                candidate.ProtectionToken?.Equals(protectionToken) == true);
+            return Task.FromResult(found is null
+                ? Option<ResourcePoolReleaseEvidence>.None
+                : Option<ResourcePoolReleaseEvidence>.Some(CopyEvidence(found)));
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<Option<LeaseProtectionToken>> GetConfirmationBindingAsync(
+        StopConfirmationId confirmationId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(confirmationId);
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (gate)
+        {
+            return Task.FromResult(confirmationBindings.TryGetValue(
+                confirmationId.Value,
+                out var protectionToken)
+                ? Option<LeaseProtectionToken>.Some(LeaseProtectionToken.Parse(protectionToken))
+                : Option<LeaseProtectionToken>.None);
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<ResourcePoolStopConfirmationStatus> ConfirmAndReleaseAsync(
+        ResourcePoolStopConfirmationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.HolderInstanceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.HolderKey);
+        ArgumentNullException.ThrowIfNull(request.ProtectionToken);
+        ArgumentNullException.ThrowIfNull(request.ConfirmationId);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            if (confirmationBindings.TryGetValue(
+                    request.ConfirmationId.Value,
+                    out var boundToken))
+            {
+                return Task.FromResult(string.Equals(
+                    boundToken,
+                    request.ProtectionToken.Value,
+                    StringComparison.Ordinal)
+                    ? ResourcePoolStopConfirmationStatus.AlreadyConfirmed
+                    : ResourcePoolStopConfirmationStatus.ConfirmationConflict);
+            }
+
+            var prior = releaseEvidence.LastOrDefault(candidate =>
+                candidate.ProtectionToken?.Equals(request.ProtectionToken) == true);
+            if (prior?.ConfirmationId is not null)
+            {
+                return Task.FromResult(ResourcePoolStopConfirmationStatus.AlreadyConfirmed);
+            }
+
+            if (prior is not null)
+            {
+                return Task.FromResult(ResourcePoolStopConfirmationStatus.TokenNotFound);
+            }
+
+            var held = tickets.Any(ticket =>
+                ticket.HolderInstanceId.Equals(request.HolderInstanceId) &&
+                string.Equals(ticket.HolderKey, request.HolderKey, StringComparison.Ordinal));
+            if (!held ||
+                !protectionTokens.TryGetValue(
+                    HolderIdentity(request.HolderInstanceId, request.HolderKey),
+                    out var expectedToken) ||
+                !expectedToken.Equals(request.ProtectionToken))
+            {
+                return Task.FromResult(ResourcePoolStopConfirmationStatus.TokenNotFound);
+            }
+
+            confirmationBindings.Add(
+                request.ConfirmationId.Value,
+                request.ProtectionToken.Value);
+            _ = ReleaseCore(
+                new ResourcePoolReleaseRequest(
+                    request.HolderInstanceId,
+                    request.HolderKey,
+                    request.ConfirmedAt),
+                request.ConfirmationId);
+            return Task.FromResult(ResourcePoolStopConfirmationStatus.Released);
+        }
+    }
+
+    /// <inheritdoc />
+    public Task PurgeReleaseEvidenceAsync(
+        InstanceId instanceId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(instanceId);
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (gate)
+        {
+            if (tickets.Any(ticket => ticket.HolderInstanceId.Equals(instanceId)))
+            {
+                throw new InvalidOperationException(
+                    "Active resource ownership cannot be purged.");
+            }
+
+            var removedTokens = releaseEvidence
+                .Where(candidate => candidate.HolderInstanceId.Equals(instanceId))
+                .Select(candidate => candidate.ProtectionToken?.Value)
+                .Where(value => value is not null)
+                .ToHashSet(StringComparer.Ordinal);
+            releaseEvidence.RemoveAll(candidate =>
+                candidate.HolderInstanceId.Equals(instanceId));
+            foreach (var confirmationId in confirmationBindings
+                         .Where(binding => removedTokens.Contains(binding.Value))
+                         .Select(binding => binding.Key)
+                         .ToArray())
+            {
+                confirmationBindings.Remove(confirmationId);
+            }
+
+            foreach (var identity in protectionTokens.Keys
+                         .Where(identity => identity.StartsWith(
+                             $"{instanceId}:",
+                             StringComparison.Ordinal))
+                         .ToArray())
+            {
+                protectionTokens.Remove(identity);
+            }
+        }
+
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
@@ -117,12 +270,12 @@ public sealed class InMemoryResourcePoolStore : IResourcePoolStore
 
         lock (gate)
         {
-            if (!pools.TryGetValue(poolName, out var definition))
+            if (!pools.TryGetValue(poolName, out var state))
             {
                 return Task.FromResult(Option<ResourcePoolSnapshot>.None);
             }
 
-            return Task.FromResult(Option<ResourcePoolSnapshot>.Some(Snapshot(definition)));
+            return Task.FromResult(Option<ResourcePoolSnapshot>.Some(Snapshot(poolName, state)));
         }
     }
 
@@ -134,9 +287,9 @@ public sealed class InMemoryResourcePoolStore : IResourcePoolStore
         lock (gate)
         {
             return Task.FromResult<IReadOnlyList<ResourcePoolSnapshot>>(
-                pools.Values
-                    .OrderBy(pool => pool.Name, StringComparer.Ordinal)
-                    .Select(Snapshot)
+                pools
+                    .OrderBy(pool => pool.Key, StringComparer.Ordinal)
+                    .Select(pool => Snapshot(pool.Key, pool.Value))
                     .ToArray());
         }
     }
@@ -145,15 +298,17 @@ public sealed class InMemoryResourcePoolStore : IResourcePoolStore
     public Task ResizePoolAsync(string poolName, int capacity, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(poolName);
-        ArgumentOutOfRangeException.ThrowIfNegative(capacity);
+        ArgumentOutOfRangeException.ThrowIfLessThan(capacity, 1);
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (gate)
         {
-            if (pools.TryGetValue(poolName, out var definition))
+            if (!pools.TryGetValue(poolName, out var state))
             {
-                pools[poolName] = definition with { Capacity = capacity };
+                throw ResourcePoolNotConfiguredException.For([ResourcePoolName.Create(poolName)]);
             }
+
+            pools[poolName] = state with { CurrentCapacity = capacity };
         }
 
         return Task.CompletedTask;
@@ -169,71 +324,102 @@ public sealed class InMemoryResourcePoolStore : IResourcePoolStore
         lock (gate)
         {
             var newlyExpired = tickets
-                .Where(ticket => ticket.ExpiresAt <= now &&
+                .Where(ticket => ticket.ReviewDeadline <= now &&
                     expiredTickets.All(expired => expired.Ticket.TicketId != ticket.TicketId))
                 .Select(ticket => new ResourcePoolExpiredTicket(ticket, now))
                 .ToArray();
+            foreach (var expired in newlyExpired)
+            {
+                var index = tickets.FindIndex(ticket => ticket.TicketId == expired.Ticket.TicketId);
+                tickets[index] = tickets[index] with { ReviewMarked = true };
+            }
+
             expiredTickets.AddRange(newlyExpired);
             return Task.FromResult(new ResourcePoolExpiryResult(newlyExpired));
         }
     }
 
-    /// <inheritdoc />
-    public Task<ResourcePoolForceReleaseResult> ForceReleaseTicketAsync(
-        Guid ticketId,
-        string reason,
-        DateTimeOffset releasedAt,
-        CancellationToken cancellationToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (gate)
-        {
-            var ticket = tickets.FirstOrDefault(candidate => candidate.TicketId == ticketId);
-            if (ticket is null)
-            {
-                return Task.FromResult(new ResourcePoolForceReleaseResult(null, [], null));
-            }
-
-            tickets.Remove(ticket);
-            expiredTickets.RemoveAll(expired => expired.Ticket.TicketId == ticketId);
-            var audit = new ResourcePoolAuditRecord(
-                Guid.CreateVersion7(),
-                "ForceRelease",
-                reason,
-                releasedAt,
-                ticket);
-            auditRecords.Add(audit);
-            var granted = GrantQueuedWaiters(releasedAt);
-            return Task.FromResult(new ResourcePoolForceReleaseResult(ticket, granted, audit));
-        }
-    }
-
-    private ResourcePoolSnapshot Snapshot(ResourcePoolDefinition definition)
+    private ResourcePoolSnapshot Snapshot(string poolName, PoolState state)
     {
         var held = tickets
-            .Where(ticket => string.Equals(ticket.PoolName, definition.Name, StringComparison.Ordinal))
+            .Where(ticket => string.Equals(ticket.PoolName, poolName, StringComparison.Ordinal))
             .ToArray();
         var queued = waiters
             .Where(waiter => waiter.Requirements.Any(requirement =>
-                string.Equals(requirement.PoolName, definition.Name, StringComparison.Ordinal)))
+                string.Equals(requirement.PoolName, poolName, StringComparison.Ordinal)))
             .ToArray();
         return new ResourcePoolSnapshot(
-            definition.Name,
-            definition.Capacity,
-            Math.Max(0, definition.Capacity - held.Sum(ticket => ticket.Count)),
+            poolName,
+            state.CurrentCapacity,
+            Math.Max(0, state.CurrentCapacity - held.Sum(ticket => ticket.Count)),
             held,
             queued)
         {
             ExpiredTickets = expiredTickets
-                .Where(expired => string.Equals(expired.Ticket.PoolName, definition.Name, StringComparison.Ordinal))
+                .Where(expired => string.Equals(expired.Ticket.PoolName, poolName, StringComparison.Ordinal))
                 .ToArray(),
             AuditRecords = auditRecords
-                .Where(audit => string.Equals(audit.Ticket?.PoolName, definition.Name, StringComparison.Ordinal))
+                .Where(audit => string.Equals(audit.Ticket?.PoolName, poolName, StringComparison.Ordinal))
                 .ToArray()
         };
     }
+
+    private ResourcePoolReleaseResult ReleaseCore(
+        ResourcePoolReleaseRequest request,
+        StopConfirmationId? confirmationId)
+    {
+        waiters.RemoveAll(waiter =>
+            waiter.HolderInstanceId.Equals(request.HolderInstanceId) &&
+            string.Equals(waiter.HolderKey, request.HolderKey, StringComparison.Ordinal));
+        var released = tickets
+            .Where(ticket => ticket.HolderInstanceId.Equals(request.HolderInstanceId) &&
+                string.Equals(ticket.HolderKey, request.HolderKey, StringComparison.Ordinal))
+            .ToArray();
+        tickets.RemoveAll(ticket => released.Contains(ticket));
+        if (released.Length != 0)
+        {
+            protectionTokens.TryGetValue(
+                HolderIdentity(request.HolderInstanceId, request.HolderKey),
+                out var protectionToken);
+            releaseEvidence.RemoveAll(candidate =>
+                candidate.HolderInstanceId.Equals(request.HolderInstanceId) &&
+                string.Equals(candidate.HolderKey, request.HolderKey, StringComparison.Ordinal));
+            releaseEvidence.Add(new ResourcePoolReleaseEvidence(
+                request.HolderInstanceId,
+                request.HolderKey,
+                protectionToken,
+                request.ReleasedAt,
+                confirmationId,
+                released.ToArray()));
+        }
+
+        var grantedWaiters = GrantQueuedWaiters(request.ReleasedAt);
+        return new ResourcePoolReleaseResult(released, grantedWaiters);
+    }
+
+    private void RememberProtectionToken(ResourcePoolAcquireRequest request)
+    {
+        if (request.ProtectionToken is null)
+        {
+            return;
+        }
+
+        var identity = HolderIdentity(request.HolderInstanceId, request.HolderKey);
+        if (protectionTokens.TryGetValue(identity, out var existing) &&
+            !existing.Equals(request.ProtectionToken))
+        {
+            throw new InvalidOperationException(
+                "One resource holder cannot be rebound to a different protection token.");
+        }
+
+        protectionTokens[identity] = request.ProtectionToken;
+    }
+
+    private static string HolderIdentity(InstanceId instanceId, string holderKey) =>
+        $"{instanceId}:{holderKey}";
+
+    private static ResourcePoolReleaseEvidence CopyEvidence(ResourcePoolReleaseEvidence evidence) =>
+        evidence with { ReleasedTickets = evidence.ReleasedTickets.ToArray() };
 
     private bool AllPoolsExist(IEnumerable<ResourcePoolRequirement> requirements)
     {
@@ -257,7 +443,7 @@ public sealed class InMemoryResourcePoolStore : IResourcePoolStore
             var held = tickets
                 .Where(ticket => string.Equals(ticket.PoolName, requirement.PoolName, StringComparison.Ordinal))
                 .Sum(ticket => ticket.Count);
-            if (pools[requirement.PoolName].Capacity - held < requirement.Count)
+            if (pools[requirement.PoolName].CurrentCapacity - held < requirement.Count)
             {
                 return false;
             }
@@ -269,7 +455,12 @@ public sealed class InMemoryResourcePoolStore : IResourcePoolStore
     private IReadOnlyList<ResourcePoolTicket> Grant(ResourcePoolAcquireRequest request, DateTimeOffset acquiredAt)
     {
         var granted = request.Requirements
-            .Select(requirement => new ResourcePoolTicket(
+            .Select(requirement =>
+            {
+                var pool = pools[requirement.PoolName];
+                var generation = pool.NextProviderGeneration + 1;
+                pools[requirement.PoolName] = pool with { NextProviderGeneration = generation };
+                return new ResourcePoolTicket(
                 Guid.CreateVersion7(),
                 requirement.PoolName,
                 requirement.Count,
@@ -277,9 +468,14 @@ public sealed class InMemoryResourcePoolStore : IResourcePoolStore
                 request.HolderKey,
                 acquiredAt,
                 request.ExpiresAt)
-            {
-                FiberId = request.FiberId,
-                ScopeId = request.ScopeId
+                {
+                    FiberId = request.FiberId,
+                    ScopeId = request.ScopeId,
+                    ProviderGeneration = generation,
+                    ReviewDeadline = pool.CreationDefinition.LeaseDuration is { } reviewAfter
+                        ? acquiredAt + reviewAfter
+                        : null
+                };
             })
             .ToArray();
         tickets.AddRange(granted);
@@ -335,7 +531,7 @@ public sealed class InMemoryResourcePoolStore : IResourcePoolStore
     private ResourcePoolWaiter? FindWaiter(InstanceId holderInstanceId, string holderKey)
     {
         return waiters.FirstOrDefault(waiter =>
-            waiter.HolderInstanceId == holderInstanceId &&
+            waiter.HolderInstanceId.Equals(holderInstanceId) &&
             string.Equals(waiter.HolderKey, holderKey, StringComparison.Ordinal));
     }
 
@@ -359,4 +555,9 @@ public sealed class InMemoryResourcePoolStore : IResourcePoolStore
             ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(requirement.Count, 0);
         }
     }
+
+    private sealed record PoolState(
+        ResourcePoolDefinition CreationDefinition,
+        int CurrentCapacity,
+        long NextProviderGeneration);
 }

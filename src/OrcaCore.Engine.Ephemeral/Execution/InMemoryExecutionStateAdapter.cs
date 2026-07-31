@@ -19,11 +19,13 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
     SuspensionScheduler<TState> suspensionScheduler,
     ResourceGovernanceCoordinator governance,
     YieldContinuationScheduler yieldContinuationScheduler,
-    Action<WorkflowInstanceSnapshot> onSnapshotCommitted,
+    Action<LegacyWorkflowInstanceSnapshot> onSnapshotCommitted,
     TimeSpan? stuckStepThreshold,
     int maxPendingEvents,
     int maxConsumedEventIds,
-    int maxLifecycleEvents)
+    int maxLifecycleEvents,
+    int maxConcurrentExecutionPathsPerInstance,
+    IServiceProvider? serviceProvider)
 {
     private StructuredEphemeralValueCodec codec = null!;
     private readonly Dictionary<FiberId, EventEnvelope> resumedEvents = [];
@@ -53,7 +55,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            throw new WorkflowDefinitionException(
+            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                 $"Workflow definition '{definition.DefinitionId}' Init failed while creating state.",
                 exception);
         }
@@ -71,12 +73,19 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
 
         activeDefinition = definition;
         activeInstance = instance;
-        activePlan = definition.CompiledPlan;
-        codec = new StructuredEphemeralValueCodec(activePlan.SerializerRegistry);
+        activePlan = (CompiledWorkflowPlan)WorkflowDefinitionRuntime.GetPlan(definition);
+        codec = new StructuredEphemeralValueCodec();
         activeExecution = StructuredExecutionState.Create(
             instanceId,
             generation: 0,
             activePlan.Instructions[0].Id);
+        if (activePlan.WorkflowTimeout is { } workflowTimeout)
+        {
+            suspensionScheduler.RegisterWorkflowDeadline(
+                instance,
+                instance.CreatedAt.Add(workflowTimeout));
+        }
+
         await RunUntilBoundaryAsync(cancellationToken).ConfigureAwait(false);
         return instance;
     }
@@ -99,8 +108,15 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                 return;
             }
 
-            var execution = activeExecution ??
-                throw new InvalidOperationException("The structured execution state is not initialized.");
+            var execution = ScopeReducer.ReconcileForEachAdmission(
+                plan,
+                activeExecution ?? throw new InvalidOperationException(
+                    "The structured execution state is not initialized."),
+                maxConcurrentExecutionPathsPerInstance);
+            execution = FiberScheduler.ApplyPathCeiling(
+                execution,
+                maxConcurrentExecutionPathsPerInstance);
+            activeExecution = execution;
             var selected = FiberScheduler.SelectNext(execution.Scheduler);
             if (selected is null)
             {
@@ -126,7 +142,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                         return;
                     }
 
-                    throw new WorkflowDefinitionException(
+                    throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                         "Structured ephemeral execution has no runnable, blocked, or joinable work.");
                 }
 
@@ -166,7 +182,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                 {
                     if (instruction.Operation is null || string.IsNullOrWhiteSpace(instruction.EventName))
                     {
-                        throw new WorkflowDefinitionException(
+                        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                             $"Compiled wait '{instruction.Path}' has no typed executable binding.");
                     }
 
@@ -193,7 +209,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                 case CompiledInstructionKind.Delay:
                 {
                     var duration = instruction.DelayDuration ??
-                        throw new WorkflowDefinitionException(
+                        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                             $"Compiled delay '{instruction.Path}' has no duration.");
                     activeExecution = RegisterFiberDelay(
                         plan,
@@ -224,13 +240,21 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                 case CompiledInstructionKind.If:
                 case CompiledInstructionKind.LoopCheck:
                 {
-                    if (instruction.Operation is not Func<TState, bool> condition)
+                    if (instruction.Operation is not { } condition)
                     {
-                        throw new WorkflowDefinitionException(
+                        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                             $"Compiled condition '{instruction.Path}' has no typed executable binding.");
                     }
 
-                    var target = condition(instance.State)
+                    var conditionState = ResolveFiberState(
+                        plan,
+                        execution,
+                        fiber,
+                        instance.State);
+                    var matched = StructuredInvocationCache.Invoke(condition, conditionState) as bool? ??
+                        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                            $"Compiled condition '{instruction.Path}' did not return a Boolean value.");
+                    var target = matched
                         ? instruction.NextInstructionId
                         : instruction.AlternateInstructionId;
                     activeExecution = MoveTo(execution, fiber, target, instruction);
@@ -269,9 +293,31 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                 }
                 case CompiledInstructionKind.End:
                 {
+                    if (instance.HasUnresolvedRuntimeWork)
+                    {
+                        FailExecutionBoundary(
+                            execution,
+                            fiber,
+                            instruction,
+                            instance,
+                            new WorkflowLifecycleException(
+                                "Workflow cannot complete with unresolved runtime work."));
+                        return;
+                    }
+
                     var end = definition.RootSequence.Children
                         .OfType<EndNode<TState>>()
                         .Single(node => node.NodeId == instruction.Path);
+                    StructuredSerializedValue? output = null;
+                    if (instruction.OutputSelector is { } outputSelector &&
+                        instruction.OutputType is { } outputType &&
+                        instruction.OutputSchemaIdentity is { } outputSchemaIdentity)
+                    {
+                        var projected = StructuredInvocationCache.Invoke(outputSelector, instance.State);
+                        output = codec.Serialize(projected, outputType, outputSchemaIdentity);
+                    }
+
+                    var outcomeName = instruction.FixedOutcomeName ?? end.ResolveOutcome(instance.State);
                     var completed = FiberReducer.Complete(fiber);
                     var fibers = new Dictionary<FiberId, FiberRecord>(execution.Fibers)
                     {
@@ -284,17 +330,24 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     };
                     CancelAllStructuredWaits();
                     WorkflowLifecycleTransition.FireOrThrow(instance, LifecycleTrigger.Complete);
-                    instance.Complete(end.ResolveOutcome(instance.State), timeProvider.GetUtcNow());
+                    instance.Complete(outcomeName, timeProvider.GetUtcNow(), output);
                     return;
                 }
                 default:
-                    throw new WorkflowDefinitionException(
+                    throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                         $"Structured ephemeral instruction '{instruction.Kind}' at '{instruction.Path}' " +
                         "is not implemented by the in-memory Adapter.");
             }
 
-            var boundaryExecution = activeExecution ?? throw new InvalidOperationException(
-                "The structured execution state is not initialized.");
+            var boundaryExecution = ScopeReducer.ReconcileForEachAdmission(
+                plan,
+                activeExecution ?? throw new InvalidOperationException(
+                    "The structured execution state is not initialized."),
+                maxConcurrentExecutionPathsPerInstance);
+            boundaryExecution = FiberScheduler.ApplyPathCeiling(
+                boundaryExecution,
+                maxConcurrentExecutionPathsPerInstance);
+            activeExecution = boundaryExecution;
             if (!LifecycleMachine.TerminalStatuses.Contains(instance.Status) &&
                 instruction.Kind is
                     CompiledInstructionKind.Wait or
@@ -302,7 +355,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     CompiledInstructionKind.Step or
                     CompiledInstructionKind.StartScope or
                     CompiledInstructionKind.BranchReturn &&
-                (instance.Status == WorkflowStatus.Waiting ||
+                (instance.Status == LegacyWorkflowStatus.Waiting ||
                     boundaryExecution.Scheduler.RunnableFiberIds.Count == 0))
             {
                 ApplyDerivedStatus(boundaryExecution, instance);
@@ -317,10 +370,10 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         var derived = ExecutionStatusDeriver.Derive(WorkflowExecutionMode.Ephemeral, execution);
         if (derived.Failure is { } failure)
         {
-            throw new WorkflowDefinitionException($"{failure.Code}: {failure.Message}");
+            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException($"{failure.Code}: {failure.Message}");
         }
 
-        if (derived.Status is WorkflowStatus.Running or WorkflowStatus.Waiting)
+        if (derived.Status is LegacyWorkflowStatus.Running or LegacyWorkflowStatus.Waiting)
         {
             instance.ApplyStructuredStatus(derived.Status.Value, timeProvider.GetUtcNow());
         }
@@ -334,35 +387,50 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         WorkflowInstance<TState> instance,
         CancellationToken cancellationToken)
     {
-        var factory = instruction.Operation ??
-            throw new WorkflowDefinitionException(
-                $"Compiled step '{instruction.Path}' has no executable binding.");
         StepResult result;
         var updatedFiber = fiber;
         var resumedEvent = resumedEvents.Remove(fiber.Id, out var envelope) ? envelope : null;
         if (!grantedStepLeases.Remove(fiber.Id, out var governanceLease) &&
-            !governance.TryEnterStep(instruction.Policy.TransientPoolKey, out governanceLease))
+            !governance.TryEnterStep(
+                instruction.StepType,
+                instruction.Policy.TransientPoolKey,
+                out governanceLease))
         {
             return BlockForResourceGrant(state, fiber, instruction, instance);
         }
 
         await using var ownedGovernanceLease = governanceLease;
         var timedOut = 0;
+        TaskCompletionSource? timeoutReached = null;
         using var timeoutCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         using var timeoutTimer = instruction.Policy.Timeout is { } timeout
             ? timeProvider.CreateTimer(
                 _ =>
                 {
                     Interlocked.Exchange(ref timedOut, 1);
+                    timeoutReached?.TrySetResult();
                     timeoutCancellation.Cancel();
                 },
                 null,
                 timeout,
                 Timeout.InfiniteTimeSpan)
             : null;
+        if (timeoutTimer is not null)
+        {
+            timeoutReached = new TaskCompletionSource(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
         var executionToken = timeoutTimer is null ? cancellationToken : timeoutCancellation.Token;
         var maxAttempts = instruction.Policy.Retry?.MaxAttempts ?? 1;
         var attempt = checked(updatedFiber.RetryAttempt + 1);
+        var operationId = StepOperationId.Parse(
+            updatedFiber.LogicalOperationKey ?? instance.BeginStepOperation(instruction.Path).Value);
+        updatedFiber = updatedFiber with { LogicalOperationKey = operationId.Value };
+        var stepExecution = RuntimeStepContextFactory.CreateExecution(
+            instance.InstanceId,
+            operationId,
+            attempt);
         var stepStartedAt = timeProvider.GetUtcNow();
         instance.StartStep(instruction.Path, stepStartedAt, instruction.Policy.Timeout);
         using var stuckTimer = stuckStepThreshold is { } threshold
@@ -374,21 +442,57 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
             : null;
         try
         {
-            var step = StructuredInvocationCache.Invoke(factory) ??
-                throw new WorkflowDefinitionException(
-                    $"Compiled step factory '{instruction.Path}' returned null.");
+            var step = ResolveStep(instruction);
             if (fiber.OwningScopeId is null)
             {
                 if (step is not IStep<TState> rootStep)
                 {
-                    throw new WorkflowDefinitionException(
+                    throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                         $"Compiled root step '{instruction.Path}' does not implement " +
                         $"IStep<{typeof(TState).Name}>.");
             }
 
-                result = await rootStep.ExecuteAsync(
-                    new StepContext<TState>(instance.State, resumedEvent, timeProvider),
-                    executionToken).ConfigureAwait(false);
+                var stateSchema = typeof(TState).AssemblyQualifiedName ?? typeof(TState).FullName!;
+                var attemptState = plan.DetachedAttemptState
+                    ? (TState)(codec.Deserialize(codec.Serialize(
+                        instance.State,
+                        typeof(TState),
+                        stateSchema)) ?? throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                            "Root state deserialized to null before step execution."))
+                    : instance.State;
+                var stepContext = RuntimeStepContextFactory.Create(
+                    attemptState,
+                    stepExecution,
+                    resumedEvent,
+                    timeProvider);
+                var physicalAttempt = rootStep.ExecuteAsync(stepContext, executionToken).AsTask();
+                if (timeoutReached is not null &&
+                    await Task.WhenAny(physicalAttempt, timeoutReached.Task).ConfigureAwait(false) ==
+                        timeoutReached.Task &&
+                    !physicalAttempt.IsCompleted)
+                {
+                    ownedGovernanceLease.RetainUntil(physicalAttempt);
+                    result = TimedOutStepResult(operationId, attempt, instruction);
+                }
+                else
+                {
+                    result = await physicalAttempt.ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (result is not StepResult.Failed && plan.DetachedAttemptState)
+                    {
+                        var committedState = (TState)(codec.Deserialize(codec.Serialize(
+                            stepContext.State,
+                            typeof(TState),
+                            stateSchema)) ?? throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                                "Root state deserialized to null after step execution."));
+                        instance.ReplaceState(committedState);
+                    }
+                    else if (result is not StepResult.Failed &&
+                             !ReferenceEquals(stepContext.State, instance.State))
+                    {
+                        instance.ReplaceState(stepContext.State);
+                    }
+                }
             }
             else
             {
@@ -397,25 +501,45 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     branch.Input.BranchStateType,
                     branch.Input.BranchStateSchemaIdentity,
                     updatedFiber.LocalStatePayload ??
-                        throw new WorkflowDefinitionException("Branch state payload is missing."));
+                        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException("Branch state payload is missing."));
                 var localState = codec.Deserialize(localPayload) ??
-                    throw new WorkflowDefinitionException("Branch state deserialized to null.");
-                result = await StructuredInvocationCache.ExecuteStepAsync(
+                    throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException("Branch state deserialized to null.");
+                var physicalAttempt = StructuredInvocationCache.ExecuteStepAsync(
                     branch.Input.BranchStateType,
                     step,
                     localState,
+                    stepExecution,
                     resumedEvent,
                     timeProvider,
-                    executionToken).ConfigureAwait(false);
-                updatedFiber = updatedFiber with
+                    resourceLease: null,
+                    cancellationToken: executionToken).AsTask();
+                if (timeoutReached is not null &&
+                    await Task.WhenAny(physicalAttempt, timeoutReached.Task).ConfigureAwait(false) ==
+                        timeoutReached.Task &&
+                    !physicalAttempt.IsCompleted)
                 {
-                    LocalStatePayload = codec.Serialize(
-                        localState,
-                        branch.Input.BranchStateType,
-                        branch.Input.BranchStateSchemaIdentity).Payload
-                };
+                    ownedGovernanceLease.RetainUntil(physicalAttempt);
+                    result = TimedOutStepResult(operationId, attempt, instruction);
+                }
+                else
+                {
+                    var invocation = await physicalAttempt.ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    result = invocation.Result;
+                    if (result is not StepResult.Failed || !plan.DetachedAttemptState)
+                    {
+                        updatedFiber = updatedFiber with
+                        {
+                            LocalStatePayload = codec.Serialize(
+                                invocation.State,
+                                branch.Input.BranchStateType,
+                                branch.Input.BranchStateSchemaIdentity).Payload
+                        };
+                    }
+                }
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             instance.CompleteStep(instruction.Path, timeProvider.GetUtcNow());
         }
         catch (OperationCanceledException) when (
@@ -423,9 +547,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
             !cancellationToken.IsCancellationRequested)
         {
             instance.CompleteStep(instruction.Path, timeProvider.GetUtcNow());
-            var timeoutFailure = new TimeoutException(
-                $"Step '{instruction.Path}' timed out after {instruction.Policy.Timeout}.");
-            result = new StepResult.Failed(new OrcaCoreException(timeoutFailure.Message, timeoutFailure));
+            result = TimedOutStepResult(operationId, attempt, instruction);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -434,10 +556,12 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                 ? inner
                 : exception;
             result = new StepResult.Failed(
-                failure as OrcaCoreException ?? new OrcaCoreException(failure.Message, failure));
+                failure as OrcaCoreException ?? new WorkflowLifecycleException(failure.Message, failure));
         }
 
-        if (result is StepResult.Failed && attempt < maxAttempts)
+        if (result is StepResult.Failed failedResult &&
+            attempt < maxAttempts &&
+            IsRetryEligible(failedResult.Error))
         {
             return BlockForRetry(
                 state,
@@ -448,7 +572,12 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                 instruction.Policy.Retry?.Backoff ?? TimeSpan.Zero);
         }
 
-        updatedFiber = updatedFiber with { RetryAttempt = 0, RetryNotBefore = null };
+        updatedFiber = updatedFiber with
+        {
+            RetryAttempt = 0,
+            RetryNotBefore = null,
+            LogicalOperationKey = null
+        };
 
         var fibersWithState = new Dictionary<FiberId, FiberRecord>(state.Fibers)
         {
@@ -470,7 +599,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     },
                     InstanceTerminated: false);
             }
-            case StepResult.Yield:
+            case var legacyYield when LegacyStepResultProjection.IsYield(legacyYield):
             {
                 var yieldedFibers = new Dictionary<FiberId, FiberRecord>(state.Fibers)
                 {
@@ -489,7 +618,13 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
             }
             case StepResult.Failed failed:
             {
-                var failure = new FiberFailure(failed.Error.GetType().Name, failed.Error.Message);
+                var failure = FailureProvenance.Create(
+                    plan,
+                    state,
+                    fiber,
+                    instruction,
+                    failed.Error.Code,
+                    failed.Error.Message);
                 if (fiber.OwningScopeId is { } scopeId)
                 {
                     var scope = state.Scopes[scopeId];
@@ -503,7 +638,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                             fiber.Id,
                             resultPayload: null,
                             failure,
-                            plan.CompilerOptions.MaxActiveFibers);
+                            maxConcurrentExecutionPathsPerInstance);
                         state = transition.State;
                         CancelTerminalFiberWaits(state);
                         var updatedScope = state.Scopes[scopeId];
@@ -520,10 +655,22 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     }
                     else
                     {
-                        state = ScopeReducer.RecordChildTerminals(
+                        var transition = ScopeReducer.RecordChildTerminals(
                             state,
                             scopeId,
-                            [ChildTerminalOutcome.Failed(fiber.Id, failure)]).State;
+                            [ChildTerminalOutcome.Failed(fiber.Id, failure)]);
+                        state = transition.State;
+                        CancelTerminalFiberWaits(state);
+                        if (transition.ScopeBecameJoinable)
+                        {
+                            state = MergeAndResume(plan, state, state.Scopes[scopeId], instance);
+                            return new StepTransition(state, InstanceTerminated: false);
+                        }
+
+                        if (state.Scopes[scopeId].Phase == ExecutionScopePhase.Running)
+                        {
+                            return new StepTransition(state, InstanceTerminated: false);
+                        }
                     }
                 }
                 else
@@ -555,7 +702,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     updatedFiber,
                     instruction,
                     instance,
-                    wait.EventName,
+                    wait.EventName.Value,
                     wait.CorrelationId,
                     cancellationToken).ConfigureAwait(false);
                 return new StepTransition(
@@ -577,6 +724,57 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                 throw exception;
             }
         }
+    }
+
+    private static StepResult TimedOutStepResult(
+        StepOperationId operationId,
+        int attempt,
+        CompiledInstruction instruction)
+    {
+        var timeout = instruction.Policy.Timeout ??
+            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                $"Compiled timed step '{instruction.Path}' has no timeout.");
+        return new StepResult.Failed(
+            global::OrcaCore.Core.Authoring.PublicAuthoringContracts.StepTimeout(
+                operationId,
+                attempt,
+                timeout));
+    }
+
+    private static bool IsRetryEligible(OrcaCoreException error)
+    {
+        ArgumentNullException.ThrowIfNull(error);
+        if (error is WorkflowDefinitionException or
+            WorkflowDeadlineExceededException or
+            WorkflowWaitTimeoutException)
+        {
+            return false;
+        }
+
+        return !error.Code.StartsWith("SFE-AUTH-", StringComparison.Ordinal) &&
+            !error.Code.StartsWith("SFE-TYPE-", StringComparison.Ordinal) &&
+            !error.Code.StartsWith("WF-CANCEL", StringComparison.Ordinal) &&
+            !error.Code.StartsWith("LEASE-", StringComparison.Ordinal);
+    }
+
+    private object ResolveStep(CompiledInstruction instruction)
+    {
+        if (instruction.StepType is { } stepType)
+        {
+            if (serviceProvider is null)
+            {
+                throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                    $"Named step '{stepType.FullName}' requires a host service provider.");
+            }
+
+            return serviceProvider.GetService(stepType) ?? throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                $"Named step '{stepType.FullName}' is not registered in the host service provider.");
+        }
+
+        var factory = instruction.Operation ?? throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            $"Compiled step '{instruction.Path}' has no executable binding.");
+        return StructuredInvocationCache.Invoke(factory) ?? throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            $"Compiled step factory '{instruction.Path}' returned null.");
     }
 
     private static BranchId? BranchIdForFiber(
@@ -689,15 +887,22 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         ExecutionScopeRecord scope,
         WorkflowInstance<TState> instance)
     {
-        var failure = scope.ForEach?.Outcomes.Values
-            .Where(outcome => outcome.Failure is not null)
-            .OrderBy(outcome => outcome.Index)
-            .Select(outcome => outcome.Failure)
-            .FirstOrDefault() ??
-            scope.ChildFiberIds
+        var failures = scope.ForEach is { } forEach
+            ? forEach.Outcomes.Values
+                .Where(outcome => outcome.Failure is not null)
+                .OrderBy(outcome => outcome.Index)
+                .Select(outcome => outcome.Failure!)
+                .ToArray()
+            : scope.ChildFiberIds
                 .Select(childId => state.Fibers[childId].Failure)
-                .FirstOrDefault(candidate => candidate is not null) ??
-            new FiberFailure("StructuredScopeFailed", $"Execution scope '{scope.Id}' failed.");
+                .Where(candidate => candidate is not null)
+                .Select(candidate => candidate!)
+                .ToArray();
+        var provenance = FailureProvenance.ForScope(FailurePlan, state, scope);
+        var failure = ScopeReducer.AggregateFailures(
+            failures,
+            provenance.Location,
+            provenance.Occurrence);
         CancelAllStructuredWaits();
         instance.Fail(new WorkflowErrorDetails(
             failure.Code,
@@ -712,7 +917,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         FiberRecord fiber)
     {
         var scopeId = fiber.OwningScopeId ??
-            throw new WorkflowDefinitionException("Branch instruction has no owning scope.");
+            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException("Branch instruction has no owning scope.");
         var scope = state.Scopes[scopeId];
         var scopePlan = plan.GetScope(scope.ScopePlanId);
         if (scopePlan.Kind == CompiledScopeKind.ForEach)
@@ -743,7 +948,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                 parent.Id,
                 scopePlan,
                 MaterializeForEachDescriptors(scopePlan, parentState),
-                plan.CompilerOptions.MaxActiveFibers).State;
+                maxConcurrentExecutionPathsPerInstance).State;
         }
 
         var materializedInputs = scopePlan.Branches
@@ -753,8 +958,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         var started = ScopeReducer.StartScope(
             state,
             parent.Id,
-            scopePlan,
-            plan.CompilerOptions.MaxActiveFibers);
+            scopePlan);
         var fibers = new Dictionary<FiberId, FiberRecord>(started.State.Fibers);
         for (var index = 0; index < started.ChildFiberIds.Count; index++)
         {
@@ -777,7 +981,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         if (fiber.OwningScopeId is null)
         {
             return rootState ??
-                throw new WorkflowDefinitionException("Structured root state is null.");
+                throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException("Structured root state is null.");
         }
 
         var branch = ResolveBranch(plan, state, fiber);
@@ -785,8 +989,8 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
             branch.Input.BranchStateType,
             branch.Input.BranchStateSchemaIdentity,
             fiber.LocalStatePayload ??
-                throw new WorkflowDefinitionException("Branch state payload is missing."))) ??
-            throw new WorkflowDefinitionException("Branch state deserialized to null.");
+                throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException("Branch state payload is missing."))) ??
+            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException("Branch state deserialized to null.");
     }
 
     private CorrelationId ResolveWaitCorrelation(
@@ -800,138 +1004,18 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         {
             return StructuredInvocationCache.Invoke(
                     instruction.Operation ??
-                        throw new WorkflowDefinitionException(
+                        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                             $"Compiled wait '{instruction.Path}' has no selector."),
-                    ResolveFiberState(plan, state, fiber, rootState)) as CorrelationId? ??
-                throw new WorkflowDefinitionException(
+                    ResolveFiberState(plan, state, fiber, rootState)) as CorrelationId ??
+                throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                     $"Compiled wait '{instruction.Path}' did not return a CorrelationId.");
         }
         catch (TargetInvocationException exception) when (exception.InnerException is not null)
         {
-            throw new WorkflowDefinitionException(
+            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                 $"Compiled wait selector '{instruction.Path}' failed.",
                 exception.InnerException);
         }
-    }
-
-    private IReadOnlyList<ForEachItemDescriptor> MaterializeForEachDescriptors(
-        CompiledScopePlan scopePlan,
-        object parentState)
-    {
-        var forEach = scopePlan.ForEach ??
-            throw new WorkflowDefinitionException("Compiled ForEach contract is missing.");
-        if (parentState is not TState typedParent)
-        {
-            throw new WorkflowDefinitionException(
-                $"ForEach parent state must be '{typeof(TState).FullName}'.");
-        }
-
-        object? items;
-        try
-        {
-            items = StructuredInvocationCache.Invoke(
-                forEach.ItemSelector,
-                new ReadOnlyParentSnapshot<TState>(typedParent));
-        }
-        catch (TargetInvocationException exception) when (exception.InnerException is not null)
-        {
-            throw new WorkflowDefinitionException("ForEach item selection failed.", exception.InnerException);
-        }
-
-        var partitionMethod = forEach.Partitioner.GetType().GetMethod("Partition") ??
-            throw new WorkflowDefinitionException("ForEach partitioner has no Partition method.");
-        var partitions = partitionMethod.Invoke(forEach.Partitioner, [items]) as IEnumerable ??
-            throw new WorkflowDefinitionException("ForEach partitioner returned no work descriptors.");
-        var inputType = typeof(ForEachItemInput<>).MakeGenericType(forEach.ItemType);
-        var branch = scopePlan.Branches.Single();
-        var descriptors = new List<ForEachItemDescriptor>();
-        foreach (var partition in partitions)
-        {
-            var partitionType = partition!.GetType();
-            var index = (int)(partitionType.GetProperty("Index")?.GetValue(partition) ??
-                throw new WorkflowDefinitionException("ForEach partition index is missing."));
-            var partitionItems = partitionType.GetProperty("Items")?.GetValue(partition) ??
-                throw new WorkflowDefinitionException("ForEach partition items are missing.");
-            var input = Activator.CreateInstance(inputType, index, partitionItems) ??
-                throw new WorkflowDefinitionException(
-                    $"Could not create ForEach item input for index '{index}'.");
-            object? itemState;
-            try
-            {
-                itemState = StructuredInvocationCache.Invoke(forEach.ItemStateProjector, input);
-            }
-            catch (TargetInvocationException exception) when (exception.InnerException is not null)
-            {
-                throw new WorkflowDefinitionException(
-                    $"ForEach item-state projection failed for index '{index}'.",
-                    exception.InnerException);
-            }
-
-            descriptors.Add(new ForEachItemDescriptor(
-                index,
-                codec.Serialize(
-                    itemState,
-                    branch.Input.BranchStateType,
-                    branch.Input.BranchStateSchemaIdentity).Payload));
-        }
-
-        return descriptors.OrderBy(descriptor => descriptor.Index).ToArray();
-    }
-
-    private BranchTerminalTransition ReturnBranch(
-        CompiledWorkflowPlan plan,
-        StructuredExecutionState state,
-        FiberRecord fiber)
-    {
-        var scopeId = fiber.OwningScopeId ??
-            throw new WorkflowDefinitionException("BranchReturn was reached outside an execution scope.");
-        var scope = state.Scopes[scopeId];
-        var scopePlan = plan.GetScope(scope.ScopePlanId);
-        var branch = ResolveBranch(plan, state, fiber);
-        var localPayload = new StructuredSerializedValue(
-            branch.Input.BranchStateType,
-            branch.Input.BranchStateSchemaIdentity,
-            fiber.LocalStatePayload ?? throw new WorkflowDefinitionException("Branch state payload is missing."));
-        var localState = codec.Deserialize(localPayload);
-        var snapshot = StructuredInvocationCache.CreateBranchSnapshot(
-            branch.Result.BranchStateType,
-            localState ?? throw new WorkflowDefinitionException("Branch state deserialized to null."));
-        object? result;
-        try
-        {
-            result = StructuredInvocationCache.Invoke(branch.Result.Projector, snapshot);
-        }
-        catch (TargetInvocationException exception) when (exception.InnerException is not null)
-        {
-            throw new WorkflowDefinitionException("Branch return projection failed.", exception.InnerException);
-        }
-
-        var resultPayload = codec.Serialize(
-            result,
-            branch.Result.ResultType,
-            branch.Result.ResultSchemaIdentity);
-        EnsureSerializedResultSize(plan, resultPayload.Payload);
-        if (scope.Kind == CompiledScopeKind.ForEach)
-        {
-            var transition = ScopeReducer.RecordForEachTerminal(
-                state,
-                scopePlan,
-                scopeId,
-                fiber.Id,
-                resultPayload.Payload,
-                failure: null,
-                plan.CompilerOptions.MaxActiveFibers);
-            return new BranchTerminalTransition(
-                transition.State,
-                transition.ScopeId,
-                transition.ScopeBecameJoinable);
-        }
-
-        var returned = ScopeReducer.RecordBranchReturn(state, fiber, resultPayload.Payload);
-        return new BranchTerminalTransition(
-            returned.State,
-            returned.ScopeId,
-            returned.ScopeBecameJoinable);
     }
 
     private sealed record StepTransition(

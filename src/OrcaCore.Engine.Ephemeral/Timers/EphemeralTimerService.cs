@@ -12,7 +12,7 @@ internal sealed class EphemeralTimerService(TimeProvider timeProvider)
     internal ScheduledTimer Schedule(
         InstanceId instanceId,
         TimeSpan delay,
-        Func<CancellationToken, Task<WorkflowInstanceSnapshot>> fireAsync)
+        Func<CancellationToken, Task<LegacyWorkflowInstanceSnapshot>> fireAsync)
     {
         ArgumentNullException.ThrowIfNull(fireAsync);
 
@@ -84,4 +84,4 @@ internal sealed record ScheduledTimer(
     Guid Token,
     InstanceId InstanceId,
     DateTimeOffset FireAt,
-    Func<CancellationToken, Task<WorkflowInstanceSnapshot>> FireAsync);
+    Func<CancellationToken, Task<LegacyWorkflowInstanceSnapshot>> FireAsync);

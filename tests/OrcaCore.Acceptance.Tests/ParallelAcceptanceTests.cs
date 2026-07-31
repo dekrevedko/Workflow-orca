@@ -1,11 +1,8 @@
+using Microsoft.Extensions.DependencyInjection;
 using AwesomeAssertions;
-using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
-using OrcaCore.Core.Definitions;
-using OrcaCore.Engine.Ephemeral;
 using Xunit;
 
 namespace OrcaCore.Acceptance.Tests;
@@ -18,7 +15,7 @@ public sealed class ParallelAcceptanceTests
     {
         var (state, snapshot) = await RunBothOrdersAsync("A", "B");
 
-        snapshot.Status.Should().Be(WorkflowStatus.Completed);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
         state.ContinuationCount.Should().Be(1);
     }
 
@@ -36,32 +33,39 @@ public sealed class ParallelAcceptanceTests
     [Trait("AC", "AC-203")]
     public async Task ParallelWhenAll_GraphShapeInsensitive()
     {
-        var engine = new EphemeralWorkflowEngine();
-        var definition = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState([], 0))
-            .Parallel<string>(
-                branches => branches
+            .Parallel<string>(branches => branches
                     .Branch<BranchState>(
-                        "a",
+                        AuthoredBranchId.Create("a"),
                         _ => new BranchState("a", ""),
-                        branch => branch.Then<BranchNoOpStep>().Return(state => state.Value.Name))
+                        branch => branch
+                            .Then(_ => ValueTask.CompletedTask)
+                            .Return(state => state.Value.Name))
                     .Branch<BranchState>(
-                        "b",
+                        AuthoredBranchId.Create("b"),
                         _ => new BranchState("b", ""),
-                        branch => branch.Return(state => state.Value.Name)),
-                MergeResults)
-            .Then<CountContinuationStep>()
+                        branch => branch.Return(state => state.Value.Name)))
+            .WhenAll(MergeResults)
+            .Then(context =>
+            {
+                context.State.ContinuationCount++;
+                return ValueTask.CompletedTask;
+            })
             .End()
             .Build();
-        engine.RegisterDefinition(definition);
-
-        var snapshot = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
+        var definitionHandle = provider.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        var instance = (await definitionHandle.StartOrGetAsync(
             "start",
-            TestContext.Current.CancellationToken);
-        var state = engine.Management.Instance(snapshot.InstanceId).GetState<TestState>();
+            StartIdempotencyKey.Create("parallel-graph-shape"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
+        var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
-        snapshot.Status.Should().Be(WorkflowStatus.Completed);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
         state.Values.Should().Equal("a", "b");
         state.ContinuationCount.Should().Be(1);
     }
@@ -70,22 +74,26 @@ public sealed class ParallelAcceptanceTests
     [Trait("AC", "AC-110")]
     public async Task ParallelWaits_MatchingEventResumesOnlyItsBranchWithoutMutatingParent()
     {
-        var engine = new EphemeralWorkflowEngine();
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
         var definition = Definition();
-        engine.RegisterDefinition(definition);
-        var waiting = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
+        var definitionHandle = provider.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        var instance = (await definitionHandle.StartOrGetAsync(
             "start",
+            StartIdempotencyKey.Create("parallel-single-branch"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
+        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var delivery = await events.DeliverToInstanceAsync(
+            instance.InstanceId,
+            Event("A", CorrelationId.Create("a")),
             TestContext.Current.CancellationToken);
+        var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
-        var snapshot = await engine.RaiseEventAsync<TestState>(
-            waiting.InstanceId,
-            Event("A", new CorrelationId("a")),
-            TestContext.Current.CancellationToken);
-        var state = engine.Management.Instance(snapshot.InstanceId).GetState<TestState>();
-
-        snapshot.Status.Should().Be(WorkflowStatus.Waiting);
-        snapshot.ActiveWaits.Should().ContainSingle(wait => wait.EventName == "B");
+        delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Waiting);
+        snapshot.ActiveWaits.Should().ContainSingle(wait => wait.EventName.Equals(EventName.Create("B")));
         state.Values.Should().BeEmpty();
     }
 
@@ -95,100 +103,85 @@ public sealed class ParallelAcceptanceTests
     {
         var (state, snapshot) = await RunBothOrdersAsync("A", "B");
 
-        snapshot.Status.Should().Be(WorkflowStatus.Completed);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
         state.ContinuationCount.Should().Be(1);
         state.Values.Should().Equal("a", "b");
     }
 
-    private static async Task<(TestState State, WorkflowInstanceSnapshot Snapshot)> RunBothOrdersAsync(
+    private static async Task<(TestState State, global::OrcaCore.WorkflowInstanceSnapshot Snapshot)> RunBothOrdersAsync(
         params string[] eventOrder)
     {
-        var engine = new EphemeralWorkflowEngine();
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
         var definition = Definition();
-        engine.RegisterDefinition(definition);
-        var snapshot = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
+        var definitionHandle = provider.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        var instance = (await definitionHandle.StartOrGetAsync(
             "start",
-            TestContext.Current.CancellationToken);
+            StartIdempotencyKey.Create($"parallel-{Guid.CreateVersion7():N}"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
+        var events = provider.GetRequiredService<IWorkflowEventClient>();
 
         foreach (var eventName in eventOrder)
         {
-            snapshot = await engine.RaiseEventAsync<TestState>(
-                snapshot.InstanceId,
-                Event(eventName, new CorrelationId(eventName.ToLowerInvariant())),
+            _ = await events.DeliverToInstanceAsync(
+                instance.InstanceId,
+                Event(eventName, CorrelationId.Create(eventName.ToLowerInvariant())),
                 TestContext.Current.CancellationToken);
         }
 
-        return (engine.Management.Instance(snapshot.InstanceId).GetState<TestState>(), snapshot);
+        var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
+        return (state, snapshot);
     }
 
-    private static WorkflowDefinition<TestState> Definition()
+    private static EphemeralWorkflowDefinition<string> Definition()
     {
-        return Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState([], 0))
-            .Parallel<string>(
-                branches => branches
+            .Parallel<string>(branches => branches
                     .Branch<BranchState>(
-                        "a",
+                        AuthoredBranchId.Create("a"),
                         _ => new BranchState("a", "A"),
                         branch => branch
-                            .Wait("A", _ => new CorrelationId("a"))
+                            .Wait(EventName.Create("A"), _ => CorrelationId.Create("a"))
                             .Return(state => state.Value.Name))
                     .Branch<BranchState>(
-                        "b",
+                        AuthoredBranchId.Create("b"),
                         _ => new BranchState("b", "B"),
                         branch => branch
-                            .Wait("B", _ => new CorrelationId("b"))
-                            .Return(state => state.Value.Name)),
-                MergeResults)
-            .Then<CountContinuationStep>()
+                            .Wait(EventName.Create("B"), _ => CorrelationId.Create("b"))
+                            .Return(state => state.Value.Name)))
+            .WhenAll(MergeResults)
+            .Then(context =>
+            {
+                context.State.ContinuationCount++;
+                return ValueTask.CompletedTask;
+            })
             .End()
             .Build();
     }
 
     private static TestState MergeResults(
-        ReadOnlyParentSnapshot<TestState> parent,
-        IReadOnlyList<BranchResult<string>> results)
+        ReadOnlyStateSnapshot<TestState> parent,
+        IReadOnlyList<global::OrcaCore.BranchResult<string>> results)
     {
-        return new TestState(results.Select(result => result.Value).ToArray(), parent.Value.ContinuationCount);
+        return new TestState(results.Select(result => result.Result).ToArray(), parent.Value.ContinuationCount);
     }
 
-    private static EventEnvelope Event(string name, CorrelationId correlationId)
+    private static WorkflowEvent Event(string name, CorrelationId correlationId)
     {
-        return new EventEnvelope
-        {
-            EventId = EventId.New(),
-            EventName = name,
-            CorrelationId = correlationId,
-            OccurredAt = DateTimeOffset.UtcNow
-        };
+        return WorkflowEvent.Create(
+            EventId.Create(Guid.CreateVersion7().ToString()),
+            EventName.Create(name),
+            correlationId,
+            DateTimeOffset.UtcNow);
     }
 
-    private sealed record TestState(IReadOnlyList<string> Values, int ContinuationCount)
+    public sealed record TestState(IReadOnlyList<string> Values, int ContinuationCount)
     {
         public int ContinuationCount { get; set; } = ContinuationCount;
     }
 
-    private sealed record BranchState(string Name, string EventName);
-
-    private sealed class BranchNoOpStep : IStep<BranchState>
-    {
-        public ValueTask<StepResult> ExecuteAsync(
-            StepContext<BranchState> context,
-            CancellationToken cancellationToken)
-        {
-            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
-        }
-    }
-
-    private sealed class CountContinuationStep : IStep<TestState>
-    {
-        public ValueTask<StepResult> ExecuteAsync(
-            StepContext<TestState> context,
-            CancellationToken cancellationToken)
-        {
-            context.State.ContinuationCount++;
-            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
-        }
-    }
+    public sealed record BranchState(string Name, string EventName);
 }

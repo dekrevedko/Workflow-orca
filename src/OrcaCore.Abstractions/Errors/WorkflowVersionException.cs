@@ -9,7 +9,7 @@ public sealed class WorkflowVersionException : OrcaCoreException
     /// Initializes a version exception with a caller-actionable message.
     /// </summary>
     public WorkflowVersionException(string message)
-        : base(message)
+        : base("WF-LEGACY-VERSION", message)
     {
     }
 
@@ -17,7 +17,7 @@ public sealed class WorkflowVersionException : OrcaCoreException
     /// Initializes a version exception with a caller-actionable message and inner cause.
     /// </summary>
     public WorkflowVersionException(string message, Exception innerException)
-        : base(message, innerException)
+        : base("WF-LEGACY-VERSION", message, innerException)
     {
     }
 }

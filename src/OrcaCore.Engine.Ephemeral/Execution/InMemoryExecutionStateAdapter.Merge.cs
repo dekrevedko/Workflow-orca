@@ -22,12 +22,12 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
             if (scope.Kind == CompiledScopeKind.ForEach)
             {
                 var runtime = scope.ForEach ??
-                    throw new WorkflowDefinitionException("ForEach scope runtime state is missing.");
+                    throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException("ForEach scope runtime state is missing.");
                 var outcomes = runtime.Outcomes.Values.AsEnumerable();
                 if (runtime.JoinPolicy == ForEachJoinPolicy.WhenAny)
                 {
                     var winner = scope.WinnerFiberId ??
-                        throw new WorkflowDefinitionException("ForEach WhenAny scope has no winner.");
+                        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException("ForEach WhenAny scope has no winner.");
                     var winnerIndex = runtime.ItemIndexByFiber[winner];
                     outcomes = outcomes.Where(outcome => outcome.Index == winnerIndex);
                 }
@@ -36,6 +36,37 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
                     scopePlan,
                     parentState,
                     outcomes.ToArray(),
+                    codec);
+            }
+            else if (scope.Kind == CompiledScopeKind.WhenAllOutcomes)
+            {
+                var materializedOutcomes = scopePlan.Branches
+                    .OrderBy(branch => branch.Ordinal)
+                    .Select(branch =>
+                    {
+                        var childId = scope.ChildFiberIds[branch.Ordinal];
+                        var child = state.Fibers[childId];
+                        if (child.Failure is { } failure)
+                        {
+                            return new MaterializedBranchOutcome(branch.Id, Result: null, failure);
+                        }
+
+                        var payload = scope.CommittedResults[childId] ??
+                            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                                "Committed branch result payload is missing.");
+                        return new MaterializedBranchOutcome(
+                            branch.Id,
+                            new StructuredSerializedValue(
+                                branch.Result.ResultType,
+                                branch.Result.ResultSchemaIdentity,
+                                payload),
+                            Failure: null);
+                    })
+                    .ToArray();
+                replacementPayload = ScopeMergeAdapter.ExecuteOutcomes(
+                    scopePlan,
+                    parentState,
+                    materializedOutcomes,
                     codec);
             }
             else
@@ -48,7 +79,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
                     {
                         var childId = scope.ChildFiberIds[branch.Ordinal];
                         var payload = scope.CommittedResults[childId] ??
-                            throw new WorkflowDefinitionException(
+                            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                                 "Committed branch result payload is missing.");
                         return new MaterializedBranchResult(
                             branch.Id,
@@ -68,7 +99,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
             var replacement = codec.Deserialize(replacementPayload);
             if (scope.ParentFiberId == state.RootFiberId && replacement is not TState)
             {
-                throw new WorkflowDefinitionException(
+                throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                     $"Structured merge did not produce '{typeof(TState).FullName}'.");
             }
 

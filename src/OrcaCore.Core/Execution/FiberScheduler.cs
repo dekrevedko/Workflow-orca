@@ -1,12 +1,54 @@
 namespace OrcaCore.Core.Execution;
 
-internal sealed record FiberSchedulerState(
+public sealed record FiberSchedulerState(
     IReadOnlyList<FiberId> RunnableFiberIds,
     FiberId? NextFiberId);
 
-internal static class FiberScheduler
+public static class FiberScheduler
 {
-    internal static FiberSchedulerState Create(IReadOnlyList<FiberId> fibersInAuthoredOrder)
+    public static StructuredExecutionState ApplyPathCeiling(
+        StructuredExecutionState state,
+        int maxConcurrentExecutionPaths)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        if (maxConcurrentExecutionPaths <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(maxConcurrentExecutionPaths),
+                maxConcurrentExecutionPaths,
+                "The execution-path ceiling must be positive.");
+        }
+
+        var runnable = state.Fibers.Values
+            .Where(fiber => fiber.Phase == FiberPhase.Runnable)
+            .Select(fiber => fiber.Id)
+            .ToHashSet();
+        var admitted = state.Scheduler.RunnableFiberIds
+            .Where(runnable.Contains)
+            .Distinct()
+            .Take(maxConcurrentExecutionPaths)
+            .ToList();
+        var known = admitted.ToHashSet();
+        foreach (var fiberId in AuthoredRunnableOrder(state, runnable))
+        {
+            if (admitted.Count == maxConcurrentExecutionPaths)
+            {
+                break;
+            }
+
+            if (known.Add(fiberId))
+            {
+                admitted.Add(fiberId);
+            }
+        }
+
+        var scheduler = new FiberSchedulerState(
+            admitted,
+            admitted.Count == 0 ? null : admitted[0]);
+        return state with { Scheduler = scheduler };
+    }
+
+    public static FiberSchedulerState Create(IReadOnlyList<FiberId> fibersInAuthoredOrder)
     {
         ArgumentNullException.ThrowIfNull(fibersInAuthoredOrder);
         if (fibersInAuthoredOrder.Count != fibersInAuthoredOrder.Distinct().Count())
@@ -18,13 +60,13 @@ internal static class FiberScheduler
         return new FiberSchedulerState(queue, queue.Length == 0 ? null : queue[0]);
     }
 
-    internal static FiberId? SelectNext(FiberSchedulerState state)
+    public static FiberId? SelectNext(FiberSchedulerState state)
     {
         ArgumentNullException.ThrowIfNull(state);
         return state.NextFiberId;
     }
 
-    internal static FiberSchedulerState CompleteTurn(
+    public static FiberSchedulerState CompleteTurn(
         FiberSchedulerState state,
         FiberId selectedFiberId,
         bool requeueSelected,
@@ -53,7 +95,7 @@ internal static class FiberScheduler
         return new FiberSchedulerState(queue, queue.Count == 0 ? null : queue[0]);
     }
 
-    internal static FiberSchedulerState EnqueueResumed(
+    public static FiberSchedulerState EnqueueResumed(
         FiberSchedulerState state,
         IReadOnlyList<FiberId> resumedTogether)
     {
@@ -67,7 +109,7 @@ internal static class FiberScheduler
         return new FiberSchedulerState(queue, queue.Count == 0 ? null : queue[0]);
     }
 
-    internal static FiberSchedulerState EnqueueCreated(
+    public static FiberSchedulerState EnqueueCreated(
         FiberSchedulerState state,
         IReadOnlyList<FiberId> createdInAuthoredOrder)
     {
@@ -79,7 +121,7 @@ internal static class FiberScheduler
         return new FiberSchedulerState(queue, queue.Count == 0 ? null : queue[0]);
     }
 
-    internal static FiberSchedulerState RemoveRunnable(
+    public static FiberSchedulerState RemoveRunnable(
         FiberSchedulerState state,
         IReadOnlyCollection<FiberId> fiberIds)
     {
@@ -103,6 +145,38 @@ internal static class FiberScheduler
             }
 
             queue.Add(fiberId);
+        }
+    }
+
+    private static IEnumerable<FiberId> AuthoredRunnableOrder(
+        StructuredExecutionState state,
+        IReadOnlySet<FiberId> runnable)
+    {
+        if (runnable.Contains(state.RootFiberId))
+        {
+            yield return state.RootFiberId;
+        }
+
+        var yielded = new HashSet<FiberId> { state.RootFiberId };
+        foreach (var scope in state.Scopes.Values
+                     .OrderBy(scope => scope.ScopeEntrySequence)
+                     .ThenBy(scope => scope.ScopePlanId.Value, StringComparer.Ordinal)
+                     .ThenBy(scope => scope.Id.Value, StringComparer.Ordinal))
+        {
+            foreach (var childId in scope.ChildFiberIds)
+            {
+                if (runnable.Contains(childId) && yielded.Add(childId))
+                {
+                    yield return childId;
+                }
+            }
+        }
+
+        foreach (var fiberId in runnable
+                     .Where(yielded.Add)
+                     .OrderBy(fiberId => fiberId.Value, StringComparer.Ordinal))
+        {
+            yield return fiberId;
         }
     }
 }

@@ -3,7 +3,7 @@ using OrcaCore.Core.Compilation;
 
 namespace OrcaCore.Core.Execution;
 
-internal enum FiberPhase
+public enum FiberPhase
 {
     Runnable = 0,
     Blocked = 1,
@@ -12,7 +12,7 @@ internal enum FiberPhase
     Cancelled = 4
 }
 
-internal enum FiberBlockedReason
+public enum FiberBlockedReason
 {
     Wait = 0,
     Timer = 1,
@@ -23,11 +23,38 @@ internal enum FiberBlockedReason
     Retry = 6
 }
 
-internal sealed record FiberBlock(FiberBlockedReason Reason, string ObligationId);
+public sealed record FiberBlock(FiberBlockedReason Reason, string ObligationId);
 
-internal sealed record FiberFailure(string Code, string Message);
+public sealed record FiberFailure
+{
+    public FiberFailure(
+        string code,
+        string message,
+        IReadOnlyList<FiberFailure>? causes = null,
+        AuthoredLocation? authoredLocation = null,
+        FailureOccurrence? occurrence = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+        Code = code;
+        Message = message;
+        Causes = Array.AsReadOnly(causes?.ToArray() ?? []);
+        AuthoredLocation = authoredLocation ?? FailureProvenance.Location("workflow:$");
+        Occurrence = occurrence ?? FailureProvenance.RootOccurrence();
+    }
 
-internal sealed record FiberRecord(
+    public string Code { get; }
+
+    public string Message { get; }
+
+    public IReadOnlyList<FiberFailure> Causes { get; }
+
+    public AuthoredLocation AuthoredLocation { get; }
+
+    public FailureOccurrence Occurrence { get; }
+}
+
+public sealed record FiberRecord(
     FiberId Id,
     ScopeId? OwningScopeId,
     InstructionId InstructionId,
@@ -40,21 +67,23 @@ internal sealed record FiberRecord(
     FiberFailure? Failure,
     string? CancellationReason)
 {
-    internal long YieldCount { get; init; }
+    public long YieldCount { get; init; }
 
-    internal long ForcedRotationCount { get; init; }
+    public long ForcedRotationCount { get; init; }
 
-    internal int RetryAttempt { get; init; }
+    public int RetryAttempt { get; init; }
 
-    internal DateTimeOffset? RetryNotBefore { get; init; }
+    public DateTimeOffset? RetryNotBefore { get; init; }
 
-    internal string? LogicalOperationKey { get; init; }
+    public string? LogicalOperationKey { get; init; }
 
-    internal DateTimeOffset? TimeoutDeadline { get; init; }
+    public bool AttemptInFlight { get; init; }
 
-    internal string? ResumeFromWaitId { get; init; }
+    public DateTimeOffset? TimeoutDeadline { get; init; }
 
-    internal static FiberRecord CreateRoot(
+    public string? ResumeFromWaitId { get; init; }
+
+    public static FiberRecord CreateRoot(
         InstanceId instanceId,
         long generation,
         InstructionId instructionId)

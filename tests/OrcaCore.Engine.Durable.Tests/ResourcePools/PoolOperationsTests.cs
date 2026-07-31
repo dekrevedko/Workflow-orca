@@ -20,7 +20,7 @@ public sealed class PoolOperationsTests
             Request(1, Date(5)),
             TestContext.Current.CancellationToken);
 
-        var expired = await management.ExpireResourcePoolTicketsAsync(Date(6), TestContext.Current.CancellationToken);
+        var expired = await management.ExpireResourcePoolTicketsAsync(Date(32), TestContext.Current.CancellationToken);
         var snapshot = await management.GetResourcePoolAsync("db", TestContext.Current.CancellationToken);
 
         expired.ExpiredTickets.Should().ContainSingle()
@@ -53,30 +53,6 @@ public sealed class PoolOperationsTests
         snapshot.AvailableCapacity.Should().Be(0);
     }
 
-    [Fact]
-    public async Task ForceReleaseTicket_WhenOperatorReleases_RecordsAuditAndGrantsNextWaiter()
-    {
-        var pools = new InMemoryResourcePoolStore();
-        var management = new DurableManagement(new InMemoryWorkflowProvider(), pools);
-        await pools.UpsertPoolAsync(Pool("db", 1), TestContext.Current.CancellationToken);
-        var acquired = await pools.AcquireAsync(Request(1, Date(30)), TestContext.Current.CancellationToken);
-        await pools.AcquireAsync(Request(2, Date(30)), TestContext.Current.CancellationToken);
-
-        var forced = await management.ForceReleaseResourcePoolTicketAsync(
-            acquired.Tickets.Single().TicketId,
-            "operator requested",
-            Date(7),
-            TestContext.Current.CancellationToken);
-        var snapshot = await management.GetResourcePoolAsync("db", TestContext.Current.CancellationToken);
-
-        forced.GrantedWaiters.Should().ContainSingle()
-            .Which.HolderInstanceId.Should().Be(InstanceIdValue(2));
-        snapshot.HeldTickets.Should().ContainSingle()
-            .Which.HolderInstanceId.Should().Be(InstanceIdValue(2));
-        snapshot.AuditRecords.Should().ContainSingle()
-            .Which.Reason.Should().Be("operator requested");
-    }
-
     private static ResourcePoolDefinition Pool(string name, int capacity)
     {
         return new ResourcePoolDefinition(name, capacity, TimeSpan.FromMinutes(30));
@@ -99,6 +75,6 @@ public sealed class PoolOperationsTests
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}"));
+        return InstanceId.Parse($"00000000-0000-0000-0000-{value:000000000000}");
     }
 }

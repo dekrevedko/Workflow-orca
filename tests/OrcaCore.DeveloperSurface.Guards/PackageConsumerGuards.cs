@@ -18,6 +18,8 @@ public sealed class PackageConsumerInfrastructureGuards
 
         definitions.Should().HaveCount(8);
         definitions.Select(x => x.Id).Should().OnlyHaveUniqueItems();
+        definitions.Should().OnlyContain(x =>
+            x.TurnsGreenSection == 7 || x.TurnsGreenSection == 8);
         foreach (var fixture in definitions)
         {
             var projectPath = Path.Combine(fixtureRoot, fixture.Project.Replace('/', Path.DirectorySeparatorChar));
@@ -34,6 +36,9 @@ public sealed class PackageConsumerInfrastructureGuards
         var props = XDocument.Load(Path.Combine(fixtureRoot, "Directory.Build.props"));
         props.Descendants("RestoreSources").Single().Value.Replace('\\', '/')
             .Should().Be("$(MSBuildThisFileDirectory)../../../artifacts/phase0-packages");
+        props.Descendants("RestoreFallbackFolders").Single().Value.Replace('\\', '/')
+            .Should().Be("$(UserProfile)/.nuget/packages",
+                "third-party packages may reuse the host cache while every OrcaCore package comes from the exact local feed");
         props.Descendants("RestoreIgnoreFailedSources").Single().Value.Should().Be("false");
         var central = XDocument.Load(Path.Combine(fixtureRoot, "Directory.Packages.props"));
         central.Descendants("PackageVersion").Should().OnlyContain(x =>
@@ -81,8 +86,8 @@ public sealed class PackageConsumerInfrastructureGuards
 }
 
 [Trait(GuardTraits.Phase, GuardTraits.Phase0)]
-[Trait(GuardTraits.Disposition, GuardTraits.ExpectedRed)]
-public sealed class PackageConsumerExpectedRedGuards
+[Trait(GuardTraits.Disposition, GuardTraits.Infrastructure)]
+public sealed class PackageConsumerProductGuards
 {
     [Fact]
     public void LocalFeed_ContainsEveryExactManifestPackageWithDeclaredDependencies()
@@ -104,7 +109,40 @@ public sealed class PackageConsumerExpectedRedGuards
             document.Descendants().Single(x => x.Name.LocalName == "id").Value.Should().Be(package.Id);
             document.Descendants().Single(x => x.Name.LocalName == "version").Value.Should().Be("0.0.0-phase0");
             document.Descendants().Where(x => x.Name.LocalName == "dependency")
-                .Select(x => x.Attribute("id")?.Value).Distinct().Should().BeEquivalentTo(package.Dependencies);
+                .Select(x => x.Attribute("id")?.Value)
+                .OfType<string>()
+                .Where(id => id.StartsWith("OrcaCore", StringComparison.Ordinal))
+                .Distinct()
+                .Should().BeEquivalentTo(package.Dependencies);
+            archive.Entries
+                .Where(entry =>
+                    entry.FullName.StartsWith("lib/", StringComparison.Ordinal) &&
+                    entry.FullName.EndsWith(".dll", StringComparison.Ordinal))
+                .Select(entry => Path.GetFileName(entry.FullName))
+                .Should().Equal([$"{package.Id}.dll"],
+                    $"{package.Id} must own exactly one matching implementation assembly");
         }
+    }
+
+    [Fact]
+    public void ProductProjects_IsolateProviderNativeDependenciesAndShipNoTelemetrySdk()
+    {
+        var root = Path.Combine(FixtureDefinitions.RepositoryRoot(), "src");
+        var projects = Directory.GetFiles(root, "*.csproj", SearchOption.AllDirectories)
+            .Select(path => (Path: path, Document: XDocument.Load(path)))
+            .ToArray();
+        var references = projects.SelectMany(project => project.Document.Descendants("PackageReference")
+                .Select(reference => (
+                    Project: Path.GetFileNameWithoutExtension(project.Path),
+                    Package: reference.Attribute("Include")?.Value)))
+            .Where(reference => reference.Package is not null)
+            .ToArray();
+
+        references.Should().NotContain(reference =>
+            reference.Package!.StartsWith("OpenTelemetry", StringComparison.Ordinal),
+            "SDK and exporter registration is host-owned");
+        references.Where(reference => reference.Package is "Npgsql" or "Dapper")
+            .Should().OnlyContain(reference => reference.Project == "OrcaCore.Providers.PostgreSql",
+                "provider-native dependencies stay inside their owning provider");
     }
 }

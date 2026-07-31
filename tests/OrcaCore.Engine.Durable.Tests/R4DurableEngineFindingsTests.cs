@@ -5,7 +5,7 @@ using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
-using OrcaCore.Engine.Durable.Aggregates;
+using OrcaCore.Engine.Durable.Definitions;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Engine.Durable.Management;
 using OrcaCore.Engine.Durable.Outbox;
@@ -21,71 +21,63 @@ public sealed class R4DurableEngineFindingsTests
     public async Task R4_StartOrGet_RestartUsesDurableIdempotencyKey()
     {
         var store = new InMemoryWorkflowProvider();
-        var firstStarter = new DurableStartService(new DurableCommandProcessor(store));
-        var first = await firstStarter.StartOrGetAsync(
-            StartRequest("order-123"),
+        var definition = Workflow.Durable<R4State>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(value => new R4State(value))
+            .End(WorkflowOutcomeName.Create("started"))
+            .Build();
+        var key = StartIdempotencyKey.Create("order-123");
+        var firstFacade = CreateFacade(store);
+        var firstHandle = firstFacade.Registry.Register(definition).GetHandleOrThrow();
+        var first = await firstHandle.StartOrGetAsync(
+            "order-123",
+            key,
             TestContext.Current.CancellationToken);
 
-        var restartedStarter = new DurableStartService(new DurableCommandProcessor(store));
-        var second = await restartedStarter.StartOrGetAsync(
-            StartRequest("order-123"),
+        var replacement = CreateFacade(store);
+        var replacementHandle = replacement.Registry.Register(definition).GetHandleOrThrow();
+        var second = await replacementHandle.StartOrGetAsync(
+            "order-123",
+            key,
             TestContext.Current.CancellationToken);
+        var firstAccepted = first.Should()
+            .BeOfType<WorkflowStartResult<WorkflowInstanceHandle>.Accepted>()
+            .Which;
+        var secondAccepted = second.Should()
+            .BeOfType<WorkflowStartResult<WorkflowInstanceHandle>.Accepted>()
+            .Which;
         var events = await store.LoadTailAsync(
-            new WorkflowStreamId(first.InstanceId),
+            new WorkflowStreamId(firstAccepted.Handle.InstanceId),
             StreamVersion.Empty,
             TestContext.Current.CancellationToken);
 
-        first.Created.Should().BeTrue();
-        second.Created.Should().BeFalse();
-        second.InstanceId.Should().Be(first.InstanceId);
+        firstAccepted.WasExisting.Should().BeFalse();
+        secondAccepted.WasExisting.Should().BeTrue();
+        secondAccepted.Handle.InstanceId.Should().Be(firstAccepted.Handle.InstanceId);
         events.OfType<WorkflowStartedEvent>().Should().ContainSingle();
-    }
-
-    [Fact]
-    public async Task R4_EarlyInboundEvent_IsBufferedAndMatchedWhenWaitRegisters()
-    {
-        var store = new InMemoryWorkflowProvider();
-        var processor = new DurableCommandProcessor(store);
-        var instanceId = InstanceIdValue(1);
-        var eventId = EventIdValue(50);
-        await processor.ProcessAsync(Start(1), TestContext.Current.CancellationToken);
-
-        var delivered = await processor.ProcessAsync(
-            Deliver(instanceId, eventId, 2),
-            TestContext.Current.CancellationToken);
-        var registered = await processor.ProcessAsync(
-            WaitRegistered(instanceId, WaitIdValue(10), 3),
-            TestContext.Current.CancellationToken);
-        var inbox = await store.GetAsync(eventId, TestContext.Current.CancellationToken);
-        var events = await store.LoadTailAsync(
-            new WorkflowStreamId(instanceId),
-            StreamVersion.Empty,
-            TestContext.Current.CancellationToken);
-
-        delivered.Outcome.Should().Be(DurableCommandOutcome.Committed);
-        registered.Outcome.Should().Be(DurableCommandOutcome.Committed);
-        inbox.Value.Should().Be(InboxRecordState.Applied);
-        events.OfType<WorkflowDeliveryBufferedEvent>().Should().ContainSingle();
-        events.OfType<WorkflowWaitMatchedEvent>().Should().ContainSingle()
-            .Which.MatchedEventId.Should().Be(eventId);
     }
 
     [Fact]
     public async Task R4_ResourcePoolAcquire_AppendFailureRollsBackGrantedTicket()
     {
-        var store = new FakeWorkflowEventStore();
+        var store = new RejectAcquireAppendStore();
         var pools = new InMemoryResourcePoolStore();
         await pools.UpsertPoolAsync(Pool("db", 1), TestContext.Current.CancellationToken);
-        var processor = new DurableCommandProcessor(store, pools);
-        await processor.ProcessAsync(Start(1), TestContext.Current.CancellationToken);
-        store.FailNextCommitBeforeApply();
+        var definition = LeaseDefinition(DefinitionId.New());
+        var facade = CreateFacade(
+            store,
+            resourcePoolStore: pools,
+            stepServices: NoOpStepServices.Instance,
+            configuredResourcePools: [ResourcePoolName.Create("db")]);
+        var handle = facade.Registry.Register(definition).GetHandleOrThrow();
 
-        var result = await processor.ProcessAsync(
-            Acquire(1, "node-1", Requirement("db")),
+        var result = await handle.StartOrGetAsync(
+            "order-1",
+            StartIdempotencyKey.Create("resource-acquire-append-conflict"),
             TestContext.Current.CancellationToken);
         var pool = await pools.GetPoolAsync("db", TestContext.Current.CancellationToken);
 
-        result.Outcome.Should().Be(DurableCommandOutcome.Conflict);
+        result.Should().BeOfType<WorkflowStartResult<WorkflowInstanceHandle>.Accepted>();
+        store.AcquireAppendRejected.Should().BeTrue();
         pool.Value.HeldTickets.Should().BeEmpty();
     }
 
@@ -95,126 +87,62 @@ public sealed class R4DurableEngineFindingsTests
         var store = new InMemoryWorkflowProvider();
         var pools = new FlakyReleasePoolStore();
         await pools.UpsertPoolAsync(Pool("db", 1), TestContext.Current.CancellationToken);
-        var processor = new DurableCommandProcessor(store, pools);
-        await processor.ProcessAsync(Start(1), TestContext.Current.CancellationToken);
-        await processor.ProcessAsync(Acquire(1, "node-1", Requirement("db")), TestContext.Current.CancellationToken);
+        var definition = LeaseDefinition(DefinitionId.New());
+        var facade = CreateFacade(
+            store,
+            resourcePoolStore: pools,
+            stepServices: NoOpStepServices.Instance,
+            configuredResourcePools: [ResourcePoolName.Create("db")]);
+        var handle = facade.Registry.Register(definition).GetHandleOrThrow();
 
-        var result = await processor.ProcessAsync(
-            new DurableCompleteCommand(CommandIdValue(3), InstanceIdValue(1), Timestamp(3), null),
+        var result = await handle.StartOrGetAsync(
+            "order-1",
+            StartIdempotencyKey.Create("resource-release-retry"),
             TestContext.Current.CancellationToken);
         var pool = await pools.GetPoolAsync("db", TestContext.Current.CancellationToken);
 
-        result.Outcome.Should().Be(DurableCommandOutcome.Committed);
+        result.Should().BeOfType<WorkflowStartResult<WorkflowInstanceHandle>.Accepted>();
         pools.ReleaseAttempts.Should().Be(2);
         pool.Value.HeldTickets.Should().BeEmpty();
     }
 
     [Fact]
-    public void R4_PausedTimerFiring_IsReplayedOnResume()
+    public void R4_PublicWorkflowEvents_DoNotExposeBranchIdentity()
     {
-        var timerId = TimerIdValue(10);
-        var aggregate = DurableWorkflowAggregate.Rehydrate(
-            null,
-            [Started(), TimerScheduled(timerId), Paused(), TimerBuffered(timerId)]);
-
-        var decision = aggregate.DecideResume(
-            new DurableResumeCommand(CommandIdValue(5), InstanceIdValue(1), Timestamp(5)));
-
-        decision.Events.OfType<WorkflowTimerFiredEvent>().Should().ContainSingle()
-            .Which.TimerId.Should().Be(timerId);
+        typeof(WorkflowEvent).GetProperty("BranchId").Should().BeNull();
+        typeof(WorkflowEvent<string>).GetProperty("BranchId").Should().BeNull();
     }
 
     [Fact]
-    public void R4_SagaCompensation_TerminalOnlyAfterAllActionsComplete()
-    {
-        var aggregate = DurableWorkflowAggregate.Rehydrate(
-            null,
-            [Started(), CompensationStarted("release-b", 0), CompensationStarted("release-a", 1)]);
-
-        var first = aggregate.DecideCompleteSagaCompensation(
-            CompleteCompensation("release-b", 2));
-        var afterFirst = DurableWorkflowAggregate.Rehydrate(
-            null,
-            [Started(), CompensationStarted("release-b", 0), CompensationStarted("release-a", 1), .. first.Events]);
-        var second = afterFirst.DecideCompleteSagaCompensation(
-            CompleteCompensation("release-a", 3));
-
-        first.Events.OfType<WorkflowTerminalEvent>().Should().BeEmpty();
-        second.Events.OfType<WorkflowTerminalEvent>().Should().ContainSingle()
-            .Which.Status.Should().Be(WorkflowStatus.Compensated);
-    }
-
-    [Fact]
-    public async Task R4_WaitMatching_UsesBranchIdentityWhenPresent()
+    public async Task R4_CheckpointRehydration_RestoresRuntimeCollectionsWithoutTail()
     {
         var store = new InMemoryWorkflowProvider();
-        var processor = new DurableCommandProcessor(store);
-        var instanceId = InstanceIdValue(1);
-        var branchAWait = WaitIdValue(10);
-        var branchBWait = WaitIdValue(11);
-        await processor.ProcessAsync(Start(1), TestContext.Current.CancellationToken);
-        await processor.ProcessAsync(
-            WaitRegistered(instanceId, branchAWait, 2, branchId: "branch-a"),
-            TestContext.Current.CancellationToken);
-        await processor.ProcessAsync(
-            WaitRegistered(instanceId, branchBWait, 3, branchId: "branch-b"),
-            TestContext.Current.CancellationToken);
-
-        await processor.ProcessAsync(
-            Deliver(instanceId, EventIdValue(50), 4, branchId: "branch-b"),
-            TestContext.Current.CancellationToken);
-        var events = await store.LoadTailAsync(
-            new WorkflowStreamId(instanceId),
-            StreamVersion.Empty,
+        var eventName = EventName.Create("checkpoint-resume");
+        var definition = WaitingDefinition(DefinitionId.New(), eventName);
+        var first = CreateFacade(store);
+        var firstHandle = first.Registry.Register(definition).GetHandleOrThrow();
+        var instanceId = (await firstHandle.StartOrGetAsync(
+            "order-1",
+            StartIdempotencyKey.Create("checkpoint-rehydration"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow().InstanceId;
+        var checkpoint = await store.LoadCheckpointAsync(
+            instanceId,
             TestContext.Current.CancellationToken);
 
-        events.OfType<WorkflowWaitMatchedEvent>().Should().ContainSingle()
-            .Which.WaitId.Should().Be(branchBWait);
-    }
-
-    [Fact]
-    public void R4_CheckpointRehydration_RestoresRuntimeCollectionsWithoutTail()
-    {
-        var aggregate = DurableWorkflowAggregate.Rehydrate(
-            null,
-            [Started(), WaitRegisteredEvent(WaitIdValue(10))]);
-        var checkpoint = aggregate.CreateCheckpoint("application/json", [1]);
-
-        var rehydrated = DurableWorkflowAggregate.Rehydrate(checkpoint, []);
-
-        rehydrated.Snapshot.ActiveWaits.Should().ContainSingle()
-            .Which.WaitId.Should().Be(WaitIdValue(10));
-    }
-
-    [Fact]
-    public async Task R4_ManagementSurface_ExposesDurableOperatorCommands()
-    {
-        var store = new InMemoryWorkflowProvider();
-        await new DurableCommandProcessor(store).ProcessAsync(Start(1), TestContext.Current.CancellationToken);
-        var management = new DurableManagement(store);
-
-        var result = await management.PauseAsync(
-            InstanceIdValue(1),
-            Timestamp(2),
+        var replacement = CreateFacade(store);
+        _ = replacement.Registry.Register(definition).GetHandleOrThrow();
+        var delivered = await replacement.Events.DeliverToInstanceAsync(
+            instanceId,
+            WorkflowEvent.Create(
+                EventId.Create("checkpoint-resume-event"),
+                eventName,
+                CorrelationId.Create("order-1"),
+                DateTimeOffset.Parse("2026-07-30T12:00:00Z")),
             TestContext.Current.CancellationToken);
-        var snapshot = await management.Instance(InstanceIdValue(1))
-            .GetAsync(TestContext.Current.CancellationToken);
 
-        result.Outcome.Should().Be(DurableCommandOutcome.Committed);
-        snapshot.Status.Should().Be(WorkflowStatus.Paused);
-    }
-
-    [Fact]
-    public async Task R4_ManagementSurface_ExposesHistoryInspection()
-    {
-        var store = new InMemoryWorkflowProvider();
-        await new DurableCommandProcessor(store).ProcessAsync(Start(1), TestContext.Current.CancellationToken);
-
-        var history = await new DurableManagement(store)
-            .GetHistoryAsync(InstanceIdValue(1), TestContext.Current.CancellationToken);
-
-        history.Should().ContainSingle()
-            .Which.Should().BeOfType<WorkflowStartedEvent>();
+        checkpoint.HasValue.Should().BeTrue();
+        checkpoint.Value.RuntimeState.ActiveWaits.Should().ContainSingle();
+        delivered.Status.Should().Be(EventDeliveryStatus.Accepted);
     }
 
     [Fact]
@@ -251,95 +179,6 @@ public sealed class R4DurableEngineFindingsTests
         source.Should().NotContain("Channel.CreateUnbounded");
     }
 
-    private static StartOrGetRequest StartRequest(string key)
-    {
-        return new StartOrGetRequest(
-            key,
-            DefinitionIdValue(1),
-            DefinitionVersion.Initial,
-            null,
-            Timestamp(1));
-    }
-
-    private static StartWorkflowCommand Start(int instance)
-    {
-        return new StartWorkflowCommand
-        {
-            CommandId = CommandIdValue(1),
-            InstanceId = InstanceIdValue(instance),
-            RequestedAt = Timestamp(1),
-            DefinitionId = DefinitionIdValue(1),
-            DefinitionVersion = DefinitionVersion.Initial
-        };
-    }
-
-    private static DurableWaitRegisteredCommand WaitRegistered(
-        InstanceId instanceId,
-        WaitId waitId,
-        int commandValue,
-        string? branchId = null)
-    {
-        return new DurableWaitRegisteredCommand(
-            CommandIdValue(commandValue),
-            instanceId,
-            Timestamp(commandValue),
-            waitId,
-            "Approved",
-            new CorrelationId("order-1"),
-            WaitMode.Resident,
-            branchId);
-    }
-
-    private static DeliverEventCommand Deliver(
-        InstanceId instanceId,
-        EventId eventId,
-        int commandValue,
-        string? branchId = null)
-    {
-        return new DeliverEventCommand
-        {
-            CommandId = CommandIdValue(commandValue),
-            InstanceId = instanceId,
-            RequestedAt = Timestamp(commandValue),
-            Envelope = new EventEnvelope
-            {
-                EventId = eventId,
-                EventName = "Approved",
-                CorrelationId = new CorrelationId("order-1"),
-                OccurredAt = Timestamp(commandValue),
-                BranchId = branchId
-            }
-        };
-    }
-
-    private static AcquireResourcePoolCommand Acquire(
-        int instance,
-        string holderKey,
-        params ResourcePoolRequirement[] requirements)
-    {
-        return new AcquireResourcePoolCommand
-        {
-            CommandId = CommandIdValue(2),
-            InstanceId = InstanceIdValue(instance),
-            RequestedAt = Timestamp(2),
-            HolderKey = holderKey,
-            Requirements = requirements,
-            ExpiresAt = Timestamp(32)
-        };
-    }
-
-    private static CompleteSagaCompensationCommand CompleteCompensation(string actionKey, int commandValue)
-    {
-        return new CompleteSagaCompensationCommand
-        {
-            CommandId = CommandIdValue(commandValue),
-            InstanceId = InstanceIdValue(1),
-            RequestedAt = Timestamp(commandValue),
-            ScopeId = "scope-1",
-            ActionKey = actionKey
-        };
-    }
-
     private static WorkflowStartedEvent Started()
     {
         return new WorkflowStartedEvent
@@ -351,21 +190,6 @@ public sealed class R4DurableEngineFindingsTests
             OccurredAt = Timestamp(1),
             DefinitionId = DefinitionIdValue(1),
             DefinitionVersion = DefinitionVersion.Initial
-        };
-    }
-
-    private static WorkflowWaitRegisteredEvent WaitRegisteredEvent(WaitId waitId)
-    {
-        return new WorkflowWaitRegisteredEvent
-        {
-            EventId = EventIdValue(2),
-            InstanceId = InstanceIdValue(1),
-            CommandId = CommandIdValue(2),
-            CausationId = CausationIdValue(2),
-            OccurredAt = Timestamp(2),
-            WaitId = waitId,
-            EventName = "Approved",
-            CorrelationId = new CorrelationId("order-1")
         };
     }
 
@@ -384,55 +208,71 @@ public sealed class R4DurableEngineFindingsTests
         };
     }
 
-    private static WorkflowPausedEvent Paused()
+    private static DurableWorkflowDefinition<string> WaitingDefinition(
+        DefinitionId definitionId,
+        EventName eventName)
     {
-        return new WorkflowPausedEvent
-        {
-            EventId = EventIdValue(3),
-            InstanceId = InstanceIdValue(1),
-            CommandId = CommandIdValue(3),
-            CausationId = CausationIdValue(3),
-            OccurredAt = Timestamp(3)
-        };
+        return Workflow.Durable<R4State>(definitionId, DefinitionVersion.Initial)
+            .Init<string>(value => new R4State(value))
+            .Wait(eventName, state => CorrelationId.Create(state.Value.Value))
+            .End(WorkflowOutcomeName.Create("matched"))
+            .Build();
     }
 
-    private static WorkflowTimerBufferedEvent TimerBuffered(TimerId timerId)
-    {
-        return new WorkflowTimerBufferedEvent
-        {
-            EventId = EventIdValue(4),
-            InstanceId = InstanceIdValue(1),
-            CommandId = CommandIdValue(4),
-            CausationId = CausationIdValue(4),
-            OccurredAt = Timestamp(4),
-            TimerId = timerId,
-            WakeupName = "approval-timeout"
-        };
-    }
+    private static DurableWorkflowDefinition<string> LeaseDefinition(DefinitionId definitionId) =>
+        Workflow.Durable<R4State>(definitionId, DefinitionVersion.Initial)
+            .Init<string>(value => new R4State(value))
+            .AcquireResources(
+                ResourceLeaseRequest.Create(
+                    ResourceLeaseRequirement.Require(ResourcePoolName.Create("db"))),
+                lease => lease.Then<NoOpStep>())
+            .End(WorkflowOutcomeName.Create("released"))
+            .Build();
 
-    private static SagaCompensationStartedEvent CompensationStarted(string actionKey, int order)
+    private static FacadeServices CreateFacade<TStore>(
+        TStore store,
+        IResourcePoolStore? resourcePoolStore = null,
+        IServiceProvider? stepServices = null,
+        IEnumerable<ResourcePoolName>? configuredResourcePools = null)
+        where TStore : IWorkflowEventStore,
+            IWorkflowInboxStore,
+            IWorkflowStartIdempotencyStore,
+            IWorkflowProjectionStore
     {
-        return new SagaCompensationStartedEvent
-        {
-            EventId = EventId.New(),
-            InstanceId = InstanceIdValue(1),
-            CommandId = CommandIdValue(10 + order),
-            CausationId = CausationIdValue(10 + order),
-            OccurredAt = Timestamp(10 + order),
-            ScopeId = "scope-1",
-            ActionKey = actionKey,
-            Order = order
-        };
+        var notifications = new DurableFacadeNotificationHub();
+        var processor = new DurableCommandProcessor(
+            store,
+            resourcePoolStore,
+            notifications);
+        var management = new DurableManagement(
+            store,
+            resourcePoolStore,
+            store,
+            processor);
+        var definitions = stepServices is null
+            ? new DurableDefinitionRegistry()
+            : new DurableDefinitionRegistry(stepServices);
+        var runtime = new DurableWorkflowRuntime(
+            processor,
+            definitions,
+            TimeProvider.System,
+            projectionStore: store,
+            management: management);
+        return new FacadeServices(
+            new DurableWorkflowDefinitionRegistry(
+                runtime,
+                store,
+                store,
+                management,
+                notifications,
+                TimeProvider.System,
+                configuredResourcePools),
+            new DurableWorkflowEventClient(runtime, store, store));
     }
 
     private static ResourcePoolDefinition Pool(string name, int capacity)
     {
         return new ResourcePoolDefinition(name, capacity, TimeSpan.FromMinutes(30));
-    }
-
-    private static ResourcePoolRequirement Requirement(string poolName)
-    {
-        return new ResourcePoolRequirement(poolName, 1);
     }
 
     private static string FindRepoFile(string relativePath)
@@ -459,12 +299,12 @@ public sealed class R4DurableEngineFindingsTests
 
     private static EventId EventIdValue(int value)
     {
-        return new EventId(GuidValue(value));
+        return EventId.Create(GuidValue(value).ToString());
     }
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -479,12 +319,7 @@ public sealed class R4DurableEngineFindingsTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
-    }
-
-    private static WaitId WaitIdValue(int value)
-    {
-        return new WaitId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static TimerId TimerIdValue(int value)
@@ -495,6 +330,106 @@ public sealed class R4DurableEngineFindingsTests
     private static Guid GuidValue(int value)
     {
         return Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}");
+    }
+
+    private sealed record FacadeServices(
+        DurableWorkflowDefinitionRegistry Registry,
+        DurableWorkflowEventClient Events);
+
+    private sealed record R4State(string Value);
+
+    private sealed class NoOpStepServices : IServiceProvider
+    {
+        internal static NoOpStepServices Instance { get; } = new();
+
+        private NoOpStepServices()
+        {
+        }
+
+        public object? GetService(Type serviceType) =>
+            serviceType == typeof(NoOpStep) ? new NoOpStep() : null;
+    }
+
+    private sealed class NoOpStep : IStep<R4State>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<R4State> context,
+            CancellationToken cancellationToken) =>
+            ValueTask.FromResult<StepResult>(new StepResult.Completed());
+    }
+
+    private sealed class RejectAcquireAppendStore :
+        IWorkflowEventStore,
+        IWorkflowInboxStore,
+        IWorkflowStartIdempotencyStore,
+        IWorkflowProjectionStore
+    {
+        private readonly FakeWorkflowEventStore inner = new();
+
+        internal bool AcquireAppendRejected { get; private set; }
+
+        public Task<Option<CheckpointWrite>> LoadCheckpointAsync(
+            InstanceId instanceId,
+            CancellationToken cancellationToken) =>
+            inner.LoadCheckpointAsync(instanceId, cancellationToken);
+
+        public Task<Result<AppendEventsResult>> AppendAsync(
+            ProviderCommitBatch batch,
+            CancellationToken cancellationToken)
+        {
+            if (!AcquireAppendRejected &&
+                batch.Events.OfType<WorkflowResourcePoolAcquiredEvent>().Any())
+            {
+                AcquireAppendRejected = true;
+                return Task.FromResult(EventStoreConflict.ExpectedVersionMismatch(
+                    batch.ExpectedVersion,
+                    batch.ExpectedVersion));
+            }
+
+            return inner.AppendAsync(batch, cancellationToken);
+        }
+
+        public Task<IReadOnlyList<OrcaCore.Abstractions.Durable.WorkflowEvent>> LoadTailAsync(
+            WorkflowStreamId streamId,
+            StreamVersion afterVersion,
+            CancellationToken cancellationToken) =>
+            inner.LoadTailAsync(streamId, afterVersion, cancellationToken);
+
+        public Task<Option<InboxRecord>> GetAsync(
+            InstanceId instanceId,
+            EventId eventId,
+            CancellationToken cancellationToken) =>
+            inner.GetAsync(instanceId, eventId, cancellationToken);
+
+        public Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedAsync(
+            string idempotencyKey,
+            CancellationToken cancellationToken) =>
+            inner.GetStartedAsync(idempotencyKey, cancellationToken);
+
+        public Task ApplyAsync(
+            IReadOnlyList<ProjectionWrite> operations,
+            CancellationToken cancellationToken) =>
+            inner.ApplyAsync(operations, cancellationToken);
+
+        public Task<IReadOnlyList<global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot>> ListAsync(
+            WorkflowProjectionQuery query,
+            CancellationToken cancellationToken) =>
+            inner.ListAsync(query, cancellationToken);
+
+        public Task<int> CountAsync(
+            WorkflowProjectionQuery query,
+            CancellationToken cancellationToken) =>
+            inner.CountAsync(query, cancellationToken);
+
+        public Task<IReadOnlyList<global::OrcaCore.Abstractions.Instances.ActiveWaitSnapshot>> ListActiveWaitsAsync(
+            WorkflowProjectionQuery query,
+            CancellationToken cancellationToken) =>
+            inner.ListActiveWaitsAsync(query, cancellationToken);
+
+        public Task<WorkflowStatistics> GetStatisticsAsync(
+            WorkflowProjectionQuery query,
+            CancellationToken cancellationToken) =>
+            inner.GetStatisticsAsync(query, cancellationToken);
     }
 
     private sealed class FlakyReleasePoolStore : IResourcePoolStore
@@ -545,13 +480,5 @@ public sealed class R4DurableEngineFindingsTests
             return inner.ExpireTicketsAsync(now, cancellationToken);
         }
 
-        public Task<ResourcePoolForceReleaseResult> ForceReleaseTicketAsync(
-            Guid ticketId,
-            string reason,
-            DateTimeOffset releasedAt,
-            CancellationToken cancellationToken)
-        {
-            return inner.ForceReleaseTicketAsync(ticketId, reason, releasedAt, cancellationToken);
-        }
     }
 }

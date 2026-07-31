@@ -20,7 +20,7 @@ internal sealed class RuntimeWaitRecord
         ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
         ArgumentNullException.ThrowIfNull(resumeAsync);
 
-        WaitId = WaitId.New();
+        WaitId = WaitId.Parse(Guid.CreateVersion7().ToString());
         EventName = eventName;
         CorrelationId = correlationId;
         BranchId = branchId;
@@ -78,7 +78,7 @@ internal sealed class RuntimeWaitRecord
 
         return Status == "Active" &&
             string.Equals(EventName, envelope.EventName, StringComparison.Ordinal) &&
-            CorrelationId == envelope.CorrelationId;
+            CorrelationId.Equals(envelope.CorrelationId);
     }
 
     internal void MarkMatched()
@@ -91,9 +91,9 @@ internal sealed class RuntimeWaitRecord
         Status = "Active";
     }
 
-    internal ActiveWaitSnapshot ToSnapshot()
+    internal LegacyActiveWaitSnapshot ToSnapshot()
     {
-        return new ActiveWaitSnapshot
+        return new LegacyActiveWaitSnapshot
         {
             WaitId = WaitId,
             EventName = EventName,

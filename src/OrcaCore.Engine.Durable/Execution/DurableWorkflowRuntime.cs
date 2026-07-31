@@ -3,7 +3,9 @@ using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Definitions;
+using OrcaCore.Internal;
 using OrcaCore.Engine.Durable.Definitions;
 using OrcaCore.Engine.Durable.Driver;
 using OrcaCore.Engine.Durable.Management;
@@ -34,6 +36,26 @@ public sealed class DurableWorkflowRuntime
         DurableCommandProcessor commandProcessor,
         DurableDefinitionRegistry definitions,
         TimeProvider timeProvider,
+        DurableDriverBudget? driverBudget = null,
+        IWorkflowProjectionStore? projectionStore = null,
+        DurableManagement? management = null,
+        IDurableDriverObserver? driverObserver = null)
+        : this(
+            commandProcessor,
+            definitions,
+            timeProvider,
+            new JsonWorkflowPayloadSerializer(),
+            driverBudget,
+            projectionStore,
+            management,
+            driverObserver)
+    {
+    }
+
+    internal DurableWorkflowRuntime(
+        DurableCommandProcessor commandProcessor,
+        DurableDefinitionRegistry definitions,
+        TimeProvider timeProvider,
         IWorkflowPayloadSerializer payloadSerializer,
         DurableDriverBudget? driverBudget = null,
         IWorkflowProjectionStore? projectionStore = null,
@@ -49,7 +71,9 @@ public sealed class DurableWorkflowRuntime
         this.definitions = definitions;
         this.timeProvider = timeProvider;
         this.payloadSerializer = payloadSerializer;
-        this.projectionStore = projectionStore;
+        this.projectionStore =
+            projectionStore ??
+            commandProcessor.EventStore as IWorkflowProjectionStore;
         this.management = management;
         driverCatalog = new DurableDriverCatalog(definitions);
         startService = new DurableStartService(commandProcessor);
@@ -91,8 +115,72 @@ public sealed class DurableWorkflowRuntime
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        ArgumentNullException.ThrowIfNull(definitionId);
+        ArgumentNullException.ThrowIfNull(definitionVersion);
+        var definition = definitions.Resolve<TState>(definitionId, definitionVersion);
+        var plan = (CompiledWorkflowPlan)WorkflowDefinitionRuntime.GetPlan(definition);
+        var result = await StartOrGetCoreAsync(
+                idempotencyKey,
+                definitionId,
+                definitionVersion,
+                plan.Fingerprint,
+                WorkflowRuntimeBridge.PayloadFingerprint(input).Value,
+                input,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (result.ConflictingBinding is { } conflict)
+        {
+            throw new WorkflowVersionException(
+                $"Start idempotency key '{idempotencyKey}' is already bound to definition " +
+                $"'{conflict.DefinitionId}' version '{conflict.DefinitionVersion}' with different " +
+                "definition or fixed-codec input bytes.");
+        }
+
+        return new DurableWorkflowStartResult(
+            result.InstanceId,
+            definitionId,
+            definitionVersion,
+            result.Created);
+    }
+
+    internal async Task<DurableFacadeStartResult> StartOrGetForFacadeAsync<TInput, TState>(
+        string idempotencyKey,
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        DefinitionFingerprint definitionFingerprint,
+        TInput input,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        ArgumentNullException.ThrowIfNull(definitionId);
+        ArgumentNullException.ThrowIfNull(definitionVersion);
+        ArgumentNullException.ThrowIfNull(definitionFingerprint);
         definitions.Resolve<TState>(definitionId, definitionVersion);
 
+        var result = await StartOrGetCoreAsync(
+                idempotencyKey,
+                definitionId,
+                definitionVersion,
+                definitionFingerprint.Value,
+                WorkflowRuntimeBridge.PayloadFingerprint(input).Value,
+                input,
+                cancellationToken)
+            .ConfigureAwait(false);
+        return new DurableFacadeStartResult(
+            result.InstanceId,
+            result.Created,
+            result.ConflictingBinding);
+    }
+
+    private async Task<StartOrGetResult> StartOrGetCoreAsync<TInput>(
+        string idempotencyKey,
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        string definitionFingerprint,
+        string inputFingerprint,
+        TInput input,
+        CancellationToken cancellationToken)
+    {
         var serializedInput = input is null ? null : payloadSerializer.Serialize(input);
         var result = await startService
             .StartOrGetAsync(
@@ -100,16 +188,29 @@ public sealed class DurableWorkflowRuntime
                     idempotencyKey,
                     definitionId,
                     definitionVersion,
+                    definitionFingerprint,
+                    inputFingerprint,
                     serializedInput,
                     timeProvider.GetUtcNow()),
                 cancellationToken)
             .ConfigureAwait(false);
+        if (result.ConflictingBinding is not null)
+        {
+            return result;
+        }
+
+        if (projectionStore is not null)
+        {
+            _ = await new DurableResourceLeaseRecovery(
+                    commandProcessor,
+                    projectionStore,
+                    timeProvider)
+                .ReconcileReleaseGapsAsync(result.InstanceId, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
         await driver.DriveAsync(result.InstanceId, cancellationToken).ConfigureAwait(false);
-        return new DurableWorkflowStartResult(
-            result.InstanceId,
-            definitionId,
-            definitionVersion,
-            result.Created);
+        return result;
     }
 
     /// <summary>
@@ -148,6 +249,27 @@ public sealed class DurableWorkflowRuntime
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
 
+        return await RaiseFacadeEventAsync(
+            instanceId,
+            eventId ?? EventId.Create(Guid.CreateVersion7().ToString()),
+            EventName.Create(eventName),
+            correlationId,
+            timeProvider.GetUtcNow(),
+            payload,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    internal async Task<DurableCommandResult> RaiseFacadeEventAsync<TPayload>(
+        InstanceId instanceId,
+        EventId eventId,
+        EventName eventName,
+        CorrelationId correlationId,
+        DateTimeOffset occurredAt,
+        TPayload payload,
+        CancellationToken cancellationToken,
+        bool driveAfterDelivery = true,
+        string? envelopeFingerprint = null)
+    {
         var serialized = payload is null ? null : payloadSerializer.Serialize(payload);
         var command = new Abstractions.Durable.DeliverEventCommand
         {
@@ -156,16 +278,22 @@ public sealed class DurableWorkflowRuntime
             RequestedAt = timeProvider.GetUtcNow(),
             Envelope = new EventEnvelope
             {
-                EventId = eventId ?? EventId.New(),
-                EventName = eventName,
+                EventId = eventId,
+                EventName = eventName.Value,
                 CorrelationId = correlationId,
                 Payload = serialized?.Payload,
                 PayloadContentType = serialized?.ContentType,
-                OccurredAt = timeProvider.GetUtcNow()
-            }
+                OccurredAt = occurredAt
+            },
+            EnvelopeFingerprint = envelopeFingerprint ?? DurableEventEnvelopeFingerprint.Create(
+                eventName.Value,
+                correlationId,
+                occurredAt,
+                serialized?.ContentType,
+                serialized?.Payload)
         };
         var result = await commandProcessor.ProcessAsync(command, cancellationToken).ConfigureAwait(false);
-        if (result.Outcome == DurableCommandOutcome.Committed)
+        if (driveAfterDelivery && result.Outcome == DurableCommandOutcome.Committed)
         {
             await driver.DriveAsync(instanceId, cancellationToken).ConfigureAwait(false);
         }
@@ -242,6 +370,7 @@ public sealed class DurableWorkflowRuntime
         TPayload payload,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(definitionId);
         ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
         var instances = await RequiredProjectionStore()
             .ListAsync(
@@ -261,7 +390,7 @@ public sealed class DurableWorkflowRuntime
                 eventName,
                 correlationId,
                 payload,
-                EventId.New(),
+                EventId.Create(Guid.CreateVersion7().ToString()),
                 cancellationToken).ConfigureAwait(false);
             results.Add(new DurableEventDeliveryResult(instance.InstanceId, result));
         }
@@ -319,6 +448,11 @@ public sealed record DurableWorkflowStartResult(
     DefinitionId DefinitionId,
     DefinitionVersion DefinitionVersion,
     bool Created);
+
+internal sealed record DurableFacadeStartResult(
+    InstanceId InstanceId,
+    bool Created,
+    StartedWorkflowIdempotencyRecord? ConflictingBinding);
 
 /// <summary>
 /// Preconditions supplied by an operator when explicitly re-arming a parked durable instance.

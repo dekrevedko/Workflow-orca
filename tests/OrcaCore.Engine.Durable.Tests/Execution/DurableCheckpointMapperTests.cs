@@ -70,7 +70,7 @@ public sealed class DurableCheckpointMapperTests
                     new CheckpointActiveWait(
                         WaitIdValue(8),
                         "Approved",
-                        new CorrelationId("order-1"),
+                        CorrelationId.Create("order-1"),
                         Timestamp(4),
                         WaitMode.Cold,
                         "branch-a")
@@ -84,7 +84,7 @@ public sealed class DurableCheckpointMapperTests
                     new CheckpointBufferedDelivery(
                         EventIdValue(9),
                         "Approved",
-                        new CorrelationId("order-1"),
+                        CorrelationId.Create("order-1"),
                         "branch-a")
                 ],
                 BufferedTimers =
@@ -166,7 +166,7 @@ public sealed class DurableCheckpointMapperTests
             new DurableActiveWait(
                 WaitIdValue(8),
                 "Approved",
-                new CorrelationId("order-1"),
+                CorrelationId.Create("order-1"),
                 Timestamp(4),
                 WaitMode.Cold,
                 "branch-a")
@@ -175,7 +175,7 @@ public sealed class DurableCheckpointMapperTests
                 ScopeId = scopeId
             });
         aggregate.BufferedDeliveries.Should().ContainSingle().Which.Should().Be(
-            new DurableBufferedDelivery(EventIdValue(9), "Approved", new CorrelationId("order-1"), "branch-a"));
+            new DurableBufferedDelivery(EventIdValue(9), "Approved", CorrelationId.Create("order-1"), "branch-a"));
         aggregate.BufferedTimers.Should().ContainSingle().Which.Should().Be(
             new DurableBufferedTimer(TimerIdValue(10), "paused-timeout", Timestamp(5)));
         aggregate.ActiveChildren.Should().ContainSingle().Which.Should().BeEquivalentTo(
@@ -231,17 +231,17 @@ public sealed class DurableCheckpointMapperTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static EventId EventIdValue(int value)
     {
-        return new EventId(GuidValue(value));
+        return EventId.Create(GuidValue(value).ToString());
     }
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static TimerId TimerIdValue(int value)
@@ -251,7 +251,7 @@ public sealed class DurableCheckpointMapperTests
 
     private static WaitId WaitIdValue(int value)
     {
-        return new WaitId(GuidValue(value));
+        return WaitId.Parse(GuidValue(value).ToString());
     }
 
     private static Guid GuidValue(int value)

@@ -50,7 +50,9 @@ public enum CompiledInstructionKind
     Delay,
     RunChild,
     RunChildren,
-    ContinueAsNew
+    ContinueAsNew,
+    AcquireResources,
+    ReleaseResources
 }
 
 /// <summary>
@@ -59,6 +61,7 @@ public enum CompiledInstructionKind
 public enum CompiledScopeKind
 {
     WhenAll,
+    WhenAllOutcomes,
     WhenFirst,
     ForEach
 }
@@ -69,6 +72,7 @@ public enum CompiledScopeKind
 public enum CompiledMergeKind
 {
     WhenAll,
+    WhenAllOutcomes,
     WhenFirst,
     ForEach
 }
@@ -83,7 +87,7 @@ public sealed record CompiledRetryPolicy(int MaxAttempts, TimeSpan Backoff);
 /// </summary>
 public sealed record CompiledPolicyPlan
 {
-    internal static CompiledPolicyPlan Empty { get; } = new();
+    public static CompiledPolicyPlan Empty { get; } = new();
 
     public CompiledRetryPolicy? Retry { get; init; }
 
@@ -113,7 +117,13 @@ public sealed record CompiledInstruction(
 
     public WaitMode? WaitMode { get; init; }
 
+    public TimeSpan? WaitTimeout { get; init; }
+
     public TimeSpan? DelayDuration { get; init; }
+
+    public global::OrcaCore.ResourceLeaseRequest? StaticLeaseRequest { get; init; }
+
+    public Delegate? LeaseRequestSelector { get; init; }
 
     public DefinitionId? ChildDefinitionId { get; init; }
 
@@ -127,7 +137,17 @@ public sealed record CompiledInstruction(
 
     public RunChildrenResidualPolicy? ChildResidualPolicy { get; init; }
 
-    internal Delegate? Operation { get; init; }
+    public Delegate? Operation { get; init; }
+
+    public Type? StepType { get; init; }
+
+    public Type? OutputType { get; init; }
+
+    public string? OutputSchemaIdentity { get; init; }
+
+    public Delegate? OutputSelector { get; init; }
+
+    public string? FixedOutcomeName { get; init; }
 }
 
 /// <summary>
@@ -135,7 +155,7 @@ public sealed record CompiledInstruction(
 /// </summary>
 public sealed record CompiledBranchInputPlan
 {
-    internal CompiledBranchInputPlan(
+    public CompiledBranchInputPlan(
         Type parentStateType,
         Type branchStateType,
         string parentStateSchemaIdentity,
@@ -157,7 +177,7 @@ public sealed record CompiledBranchInputPlan
 
     public string BranchStateSchemaIdentity { get; }
 
-    internal Delegate Projector { get; }
+    public Delegate Projector { get; }
 }
 
 /// <summary>
@@ -165,7 +185,7 @@ public sealed record CompiledBranchInputPlan
 /// </summary>
 public sealed record CompiledBranchResultPlan
 {
-    internal CompiledBranchResultPlan(
+    public CompiledBranchResultPlan(
         Type branchStateType,
         Type resultType,
         string branchStateSchemaIdentity,
@@ -187,7 +207,7 @@ public sealed record CompiledBranchResultPlan
 
     public string ResultSchemaIdentity { get; }
 
-    internal Delegate Projector { get; }
+    public Delegate Projector { get; }
 }
 
 /// <summary>
@@ -195,7 +215,7 @@ public sealed record CompiledBranchResultPlan
 /// </summary>
 public sealed record CompiledMergePlan
 {
-    internal CompiledMergePlan(
+    public CompiledMergePlan(
         CompiledMergeKind kind,
         Type parentStateType,
         Type resultType,
@@ -221,7 +241,7 @@ public sealed record CompiledMergePlan
 
     public string ResultSchemaIdentity { get; }
 
-    internal Delegate? Merge { get; }
+    public Delegate? Merge { get; }
 }
 
 /// <summary>
@@ -255,7 +275,7 @@ public sealed record CompiledScopePlan(
 /// </summary>
 public sealed record CompiledForEachPlan
 {
-    internal CompiledForEachPlan(
+    public CompiledForEachPlan(
         Type itemType,
         string itemSchemaIdentity,
         Delegate itemSelector,
@@ -263,6 +283,7 @@ public sealed record CompiledForEachPlan
         Delegate itemStateProjector,
         ForEachJoinPolicy joinPolicy,
         ForEachFailurePolicy failurePolicy,
+        int? maxItems,
         int? maxConcurrency)
     {
         ItemType = itemType;
@@ -272,6 +293,7 @@ public sealed record CompiledForEachPlan
         ItemStateProjector = itemStateProjector;
         JoinPolicy = joinPolicy;
         FailurePolicy = failurePolicy;
+        MaxItems = maxItems;
         MaxConcurrency = maxConcurrency;
     }
 
@@ -283,11 +305,13 @@ public sealed record CompiledForEachPlan
 
     public ForEachFailurePolicy FailurePolicy { get; }
 
+    public int? MaxItems { get; }
+
     public int? MaxConcurrency { get; }
 
-    internal Delegate ItemSelector { get; }
+    public Delegate ItemSelector { get; }
 
-    internal object Partitioner { get; }
+    public object Partitioner { get; }
 
-    internal Delegate ItemStateProjector { get; }
+    public Delegate ItemStateProjector { get; }
 }

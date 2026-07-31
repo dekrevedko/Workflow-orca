@@ -1,11 +1,8 @@
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
-using OrcaCore.Engine.Ephemeral.Governance;
-
 namespace OrcaCore.Engine.Ephemeral.Execution;
 
 internal sealed class YieldContinuationScheduler(
-    ResourceGovernanceCoordinator governance,
     InstanceExecutionLane executionLane)
 {
     internal void Schedule<TState, TInput>(
@@ -24,10 +21,10 @@ internal sealed class YieldContinuationScheduler(
             continuationToken));
     }
 
-    internal async Task<WorkflowInstanceSnapshot> DrainAsync(
+    internal async Task<LegacyWorkflowInstanceSnapshot> DrainAsync(
         IWorkflowInstance instance,
         InstanceId instanceId,
-        Action<WorkflowInstanceSnapshot> onSnapshotCommitted,
+        Action<LegacyWorkflowInstanceSnapshot> onSnapshotCommitted,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(instance);
@@ -35,9 +32,7 @@ internal sealed class YieldContinuationScheduler(
 
         while (true)
         {
-            await using (await governance.EnterAdvancementAsync(cancellationToken).ConfigureAwait(false))
-            {
-                var result = await executionLane.RunAsync(
+            var result = await executionLane.RunAsync(
                     instanceId,
                     async laneCancellationToken =>
                     {
@@ -54,29 +49,25 @@ internal sealed class YieldContinuationScheduler(
                     },
                     cancellationToken).ConfigureAwait(false);
 
-                if (!result.DrainedContinuation)
-                {
-                    return result.Snapshot;
-                }
-
+            if (!result.DrainedContinuation)
+            {
+                return result.Snapshot;
             }
         }
     }
 
-    internal async Task<WorkflowInstanceSnapshot> ResumeAsync<TState>(
+    internal async Task<LegacyWorkflowInstanceSnapshot> ResumeAsync<TState>(
         WorkflowInstance<TState> instance,
         InstanceId instanceId,
         Func<CancellationToken, Task> continuation,
-        Action<WorkflowInstanceSnapshot> onSnapshotCommitted,
+        Action<LegacyWorkflowInstanceSnapshot> onSnapshotCommitted,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(instance);
         ArgumentNullException.ThrowIfNull(continuation);
         ArgumentNullException.ThrowIfNull(onSnapshotCommitted);
 
-        await using (await governance.EnterAdvancementAsync(cancellationToken).ConfigureAwait(false))
-        {
-            return await executionLane.RunAsync(
+        return await executionLane.RunAsync(
                 instanceId,
                 async laneCancellationToken =>
                 {
@@ -87,10 +78,9 @@ internal sealed class YieldContinuationScheduler(
                     return snapshot;
                 },
                 cancellationToken).ConfigureAwait(false);
-        }
     }
 
     private sealed record YieldDrainResult(
-        WorkflowInstanceSnapshot Snapshot,
+        LegacyWorkflowInstanceSnapshot Snapshot,
         bool DrainedContinuation);
 }

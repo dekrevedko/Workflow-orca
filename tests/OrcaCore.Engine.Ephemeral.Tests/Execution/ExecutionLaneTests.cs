@@ -16,7 +16,7 @@ public sealed class ExecutionLaneTests
     {
         var enqueued = new AsyncSignalCounter();
         var lane = new InstanceExecutionLane(_ => enqueued.Signal());
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         var firstEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var releaseFirst = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var secondEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -58,11 +58,11 @@ public sealed class ExecutionLaneTests
         var coordinator = new RaceCoordinator(TimeSpan.FromSeconds(5));
 
         var first = lane.RunAsync(
-            InstanceId.New(),
+            InstanceId.Parse(Guid.CreateVersion7().ToString()),
             cancellationToken => coordinator.ArriveAndWaitAsync(cancellationToken),
             TestContext.Current.CancellationToken);
         var second = lane.RunAsync(
-            InstanceId.New(),
+            InstanceId.Parse(Guid.CreateVersion7().ToString()),
             cancellationToken => coordinator.ArriveAndWaitAsync(cancellationToken),
             TestContext.Current.CancellationToken);
 
@@ -76,11 +76,11 @@ public sealed class ExecutionLaneTests
     {
         var engine = new EphemeralWorkflowEngine();
         var coordinator = new RaceCoordinator(TimeSpan.FromSeconds(5));
-        var definition = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState(coordinator))
-            .Then(() => new CoordinatedStep())
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(_ => new TestState())
+            .Then(() => new CoordinatedStep(coordinator))
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
 
         engine.RegisterDefinition(definition);
 
@@ -103,7 +103,7 @@ public sealed class ExecutionLaneTests
     public async Task RunAsync_WhenOperationThrows_ReleasesLaneForNextOperation()
     {
         var lane = new InstanceExecutionLane();
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
 
         var throwing = async () => await lane.RunAsync(
             instanceId,
@@ -127,7 +127,7 @@ public sealed class ExecutionLaneTests
         var lane = new InstanceExecutionLane(onLaneEvicted: _ => evicted.TrySetResult());
 
         await lane.RunAsync(
-            InstanceId.New(),
+            InstanceId.Parse(Guid.CreateVersion7().ToString()),
             _ => Task.CompletedTask,
             TestContext.Current.CancellationToken);
         await evicted.Task.WaitAsync(TestContext.Current.CancellationToken);
@@ -135,15 +135,15 @@ public sealed class ExecutionLaneTests
         lane.ActiveLaneCount.Should().Be(0);
     }
 
-    private sealed record TestState(RaceCoordinator Coordinator);
+    private sealed record TestState;
 
-    private sealed class CoordinatedStep : IStep<TestState>
+    private sealed class CoordinatedStep(RaceCoordinator coordinator) : IStep<TestState>
     {
         public async ValueTask<StepResult> ExecuteAsync(
             StepContext<TestState> context,
             CancellationToken cancellationToken)
         {
-            await context.State.Coordinator.ArriveAndWaitAsync(cancellationToken).ConfigureAwait(false);
+            await coordinator.ArriveAndWaitAsync(cancellationToken).ConfigureAwait(false);
 
             return new StepResult.Completed();
         }

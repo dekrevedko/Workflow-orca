@@ -1,6 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>OrcaCore.Engine.Durable</AssemblyName>
+    <PackageId>OrcaCore.Engine.Durable</PackageId>
+  </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\OrcaCore.Abstractions\OrcaCore.Abstractions.csproj" />
+    <ProjectReference Include="..\OrcaCore.Abstractions\OrcaCore.csproj" />
     <ProjectReference Include="..\OrcaCore.Core\OrcaCore.Core.csproj" />
+    <ProjectReference Include="..\OrcaCore.Runtime.Protocol\OrcaCore.Runtime.Protocol.csproj" />
+    <ProjectReference Include="..\OrcaCore.Provider.Abstractions\OrcaCore.Provider.Abstractions.csproj" />
   </ItemGroup>
 </Project>

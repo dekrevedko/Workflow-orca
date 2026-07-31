@@ -1,8 +1,8 @@
 namespace OrcaCore.Core.Definitions;
 
-internal readonly record struct BranchId
+public readonly record struct BranchId
 {
-    internal BranchId(int ordinal, string name)
+    public BranchId(int ordinal, string name)
     {
         if (ordinal < 0)
         {
@@ -15,9 +15,9 @@ internal readonly record struct BranchId
         Name = name;
     }
 
-    internal int Ordinal { get; }
+    public int Ordinal { get; }
 
-    internal string Name { get; }
+    public string Name { get; }
 
     public override string ToString()
     {

@@ -78,7 +78,7 @@ internal sealed class SqlServerTimerScheduler(string connectionString)
             commands.Add(new FireTimerCommand
             {
                 TimerId = new TimerId(reader.GetGuid(0)),
-                InstanceId = new InstanceId(reader.GetGuid(1)),
+                InstanceId = InstanceId.Parse(reader.GetGuid(1).ToString()),
                 CommandId = new CommandId(reader.GetGuid(2)),
                 RequestedAt = request.ClaimedAt
             });

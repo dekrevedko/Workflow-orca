@@ -42,6 +42,7 @@ public sealed class AuthoringContractInfrastructureGuards
     }
 
     [Fact]
+    [Trait("AC", "AC-605")]
     public void Companion_RestrictsParallelAndLeasedCapabilitiesToApprovedOwners()
     {
         var forbiddenOwners = new[]
@@ -105,6 +106,26 @@ public sealed class AuthoringContractInfrastructureGuards
             "run-compile-fixtures.ps1")).Should().Contain("unexpectedly compiled against the incomplete package");
     }
 
+    [Fact]
+    public void ProductSource_HasNoSupersededMixedModeBuilder()
+    {
+        var source = Directory.GetFiles(
+                Path.Combine(FixtureDefinitions.RepositoryRoot(), "src"),
+                "*.cs",
+                SearchOption.AllDirectories)
+            .SelectMany(File.ReadLines)
+            .ToArray();
+
+        foreach (var forbidden in new[]
+        {
+            "SelectedWorkflowBuilder<", "LegacyWorkflowBuilder<", "CreateLegacyTestPlan",
+            "ContainsDurableOnlyNodes", "requiresDurableEngine"
+        })
+        {
+            source.Should().NotContain(line => line.Contains(forbidden, StringComparison.Ordinal));
+        }
+    }
+
     private static string TypeBlock(string declaration)
     {
         var marker = declaration.Contains('<') ? $"class {declaration}" : $"class {declaration}<";
@@ -128,36 +149,65 @@ public sealed class AuthoringContractInfrastructureGuards
 }
 
 [Trait(GuardTraits.Phase, GuardTraits.Phase0)]
-[Trait(GuardTraits.Disposition, GuardTraits.ExpectedRed)]
-public sealed class AuthoringContractExpectedRedGuards
+[Trait(GuardTraits.Disposition, GuardTraits.Infrastructure)]
+[Collection(CompileFixtureCollection.Name)]
+public sealed class ProductAuthoringGreenGuards
 {
+    [Fact]
+    public void Product_DoesNotExportSupersededAuthoringEntryPointsOrDeferredFamilies()
+    {
+        var exported = PublicSurfaceCatalog.Assemblies
+            .Where(assembly => assembly.GetName().Name == "OrcaCore.Core")
+            .SelectMany(assembly => assembly.GetExportedTypes())
+            .ToArray();
+        var forbidden = new[]
+        {
+            "OrcaCore.Core.Building.Workflow",
+            "OrcaCore.Core.Building.WorkflowBuilder`1",
+            "OrcaCore.Core.Building.SelectedWorkflowBuilder`2",
+            "OrcaCore.Core.Building.EphemeralWorkflowBuilder`1",
+            "OrcaCore.Core.Building.DurableWorkflowBuilder`1",
+            "OrcaCore.Core.Building.BranchBuilder`2",
+            "OrcaCore.Core.Building.SagaBuilder`1",
+            "OrcaCore.Core.Building.WorkflowDagBuilder",
+            "OrcaCore.Core.Definitions.SagaDefinition`1"
+        };
+
+        exported.Select(type => type.FullName).Should().NotContain(forbidden);
+        exported.SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Instance |
+                BindingFlags.Static | BindingFlags.DeclaredOnly))
+            .Select(method => method.Name)
+            .Should().NotContain(new[]
+            {
+                "WhenFirst", "WaitLong", "Yield", "RunChild", "RunChildren", "RunExternalJob"
+            });
+        typeof(OrcaCore.Core.Definitions.WorkflowDefinition<>).GetProperty("RequiresDurableEngine")
+            .Should().BeNull();
+        Directory.GetFiles(
+                Path.Combine(FixtureDefinitions.RepositoryRoot(), "src"),
+                "*.cs",
+                SearchOption.AllDirectories)
+            .SelectMany(File.ReadLines)
+            .Should().NotContain(line => line.Contains("FromLegacy", StringComparison.Ordinal));
+
+        var durableManagement = Assembly.Load("OrcaCore.Engine.Durable")
+            .GetType("OrcaCore.Engine.Durable.Management.DurableManagement", throwOnError: true)!;
+        durableManagement.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Select(method => method.Name)
+            .Should().NotContain(new[] { "PauseAsync", "ResumeAsync", "ArchiveAsync", "PurgeAsync" });
+    }
+
     [Fact]
     public void Product_CompilesEveryPositiveSignatureAndRejectsEveryForbiddenMember()
     {
-        var positive = Build("ProductAuthoring/ProductAuthoring.csproj");
-        positive.ExitCode.Should().Be(0,
-            "the package consumer invokes every staged family, all root/nested/branch/item/leased members, every join, all four End overloads, Build/TryBuild, and definition/reference metadata; output: {0}",
-            positive.Output);
-
-        var forbidden = Build("ProductForbiddenAuthoring/ProductForbiddenAuthoring.csproj");
-        forbidden.ExitCode.Should().NotBe(0, "forbidden capabilities must not compile");
-        Regex.Matches(forbidden.Output, @"Forbidden\.cs\((\d+),(\d+)\): error CS1061")
-            .Select(x => x.Groups[1].Value + ":" + x.Groups[2].Value).Distinct().Should().HaveCount(26,
-            "all 26 forbidden mode/location/root-only/leased/deferred calls must be rejected; output: {0}",
-            forbidden.Output);
-    }
-
-    private static (int ExitCode, string Output) Build(string relativeProject)
-    {
-        var project = Path.Combine(FixtureDefinitions.RepositoryRoot(), "tests", "OrcaCore.DeveloperSurface.Guards",
-            "CompileFixtures", relativeProject.Replace('/', Path.DirectorySeparatorChar));
-        if (relativeProject is "ProductAuthoring/ProductAuthoring.csproj" or
-            "ProductForbiddenAuthoring/ProductForbiddenAuthoring.csproj")
-        {
-            var packageCache = Path.Combine(Path.GetDirectoryName(project)!, "obj", "package-cache");
-            if (Directory.Exists(packageCache)) Directory.Delete(packageCache, recursive: true);
-        }
-        var start = new ProcessStartInfo("dotnet", $"build \"{project}\" -c Release --nologo -v quiet")
+        var script = Path.Combine(
+            FixtureDefinitions.RepositoryRoot(),
+            "tests",
+            "OrcaCore.DeveloperSurface.Guards",
+            "run-compile-fixtures.ps1");
+        var start = new ProcessStartInfo(
+            "powershell",
+            $"-NoProfile -ExecutionPolicy Bypass -File \"{script}\" -Disposition Green")
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -167,6 +217,9 @@ public sealed class AuthoringContractExpectedRedGuards
         using var process = Process.Start(start)!;
         var output = process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd();
         process.WaitForExit();
-        return (process.ExitCode, output);
+
+        process.ExitCode.Should().Be(0,
+            "the self-contained package lane must freshly pack current source, compile every positive signature, reject all forbidden members, and prove its mutation control; output: {0}",
+            output);
     }
 }

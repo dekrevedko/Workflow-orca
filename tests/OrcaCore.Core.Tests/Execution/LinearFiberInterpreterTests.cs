@@ -15,7 +15,7 @@ public sealed class ReferenceLinearFiberInterpreterTests
     {
         var plan = TwoStepPlan();
         var state = StructuredExecutionState.Create(
-            InstanceId.New(),
+            InstanceId.Parse(Guid.CreateVersion7().ToString()),
             generation: 0,
             plan.Instructions[0].Id);
         var executor = new AdvancingExecutor();
@@ -38,7 +38,7 @@ public sealed class ReferenceLinearFiberInterpreterTests
     public async Task Suspension_BlocksOnlyTheSelectedFiber_AtItsResumePosition()
     {
         var plan = TwoStepPlan();
-        var state = StructuredExecutionState.Create(InstanceId.New(), 0, plan.Instructions[0].Id);
+        var state = StructuredExecutionState.Create(InstanceId.Parse(Guid.CreateVersion7().ToString()), 0, plan.Instructions[0].Id);
         var executor = new SuspendingExecutor(plan.Instructions[2].Id);
 
         var result = await ReferenceLinearFiberInterpreter.RunQuantumAsync(
@@ -62,7 +62,7 @@ public sealed class ReferenceLinearFiberInterpreterTests
         var scopePlan = plan.Scopes.Should().ContainSingle().Which;
         var start = plan.Instructions.Should().ContainSingle(instruction =>
             instruction.Kind == CompiledInstructionKind.StartScope).Which;
-        var initial = StructuredExecutionState.Create(InstanceId.New(), 0, start.Id);
+        var initial = StructuredExecutionState.Create(InstanceId.Parse(Guid.CreateVersion7().ToString()), 0, start.Id);
         var scope = ScopeReducer.StartScope(initial, initial.RootFiberId, scopePlan);
         var yieldingFiberId = scope.ChildFiberIds[0];
         var siblingFiberId = scope.ChildFiberIds[1];
@@ -89,7 +89,7 @@ public sealed class ReferenceLinearFiberInterpreterTests
         var scopePlan = plan.Scopes.Should().ContainSingle().Which;
         var start = plan.Instructions.Should().ContainSingle(instruction =>
             instruction.Kind == CompiledInstructionKind.StartScope).Which;
-        var initial = StructuredExecutionState.Create(InstanceId.New(), 0, start.Id);
+        var initial = StructuredExecutionState.Create(InstanceId.Parse(Guid.CreateVersion7().ToString()), 0, start.Id);
         var scope = ScopeReducer.StartScope(initial, initial.RootFiberId, scopePlan);
         var returningFiberId = scope.ChildFiberIds[0];
         var siblingFiberId = scope.ChildFiberIds[1];
@@ -113,7 +113,7 @@ public sealed class ReferenceLinearFiberInterpreterTests
     public async Task Failure_TerminatesSelectedFiber_AndRemovesItFromScheduling()
     {
         var plan = TwoStepPlan();
-        var state = StructuredExecutionState.Create(InstanceId.New(), 0, plan.Instructions[0].Id);
+        var state = StructuredExecutionState.Create(InstanceId.Parse(Guid.CreateVersion7().ToString()), 0, plan.Instructions[0].Id);
 
         var result = await ReferenceLinearFiberInterpreter.RunQuantumAsync(
             plan,
@@ -133,7 +133,7 @@ public sealed class ReferenceLinearFiberInterpreterTests
     {
         new DefinitionCompilerOptions().MaxInternalInstructionsPerQuantum.Should().Be(1024);
         var plan = InternalBudgetPlan();
-        var initial = StructuredExecutionState.Create(InstanceId.New(), 0, plan.Instructions[0].Id);
+        var initial = StructuredExecutionState.Create(InstanceId.Parse(Guid.CreateVersion7().ToString()), 0, plan.Instructions[0].Id);
         var siblingId = new FiberId("fiber:sibling");
         var sibling = initial.Fibers[initial.RootFiberId] with { Id = siblingId };
         var fibers = new Dictionary<FiberId, FiberRecord>(initial.Fibers)
@@ -166,7 +166,7 @@ public sealed class ReferenceLinearFiberInterpreterTests
         var plan = ParallelStepPlan();
         var start = plan.Instructions.Should().ContainSingle(instruction =>
             instruction.Kind == CompiledInstructionKind.StartScope).Which;
-        var state = StructuredExecutionState.Create(InstanceId.New(), 0, start.Id);
+        var state = StructuredExecutionState.Create(InstanceId.Parse(Guid.CreateVersion7().ToString()), 0, start.Id);
 
         var result = await ReferenceLinearFiberInterpreter.RunQuantumAsync(
             plan,
@@ -184,7 +184,7 @@ public sealed class ReferenceLinearFiberInterpreterTests
     public async Task RootEnd_CompletesTheRootAndEmptiesTheRunnableQueue()
     {
         var plan = ImmediatePlan();
-        var state = StructuredExecutionState.Create(InstanceId.New(), 0, plan.Instructions[0].Id);
+        var state = StructuredExecutionState.Create(InstanceId.Parse(Guid.CreateVersion7().ToString()), 0, plan.Instructions[0].Id);
 
         var result = await ReferenceLinearFiberInterpreter.RunQuantumAsync(
             plan,
@@ -199,7 +199,7 @@ public sealed class ReferenceLinearFiberInterpreterTests
 
     private static CompiledWorkflowPlan TwoStepPlan()
     {
-        return Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState(value))
             .Then<NoOpStep>()
             .Then<NoOpStep>()
@@ -210,7 +210,7 @@ public sealed class ReferenceLinearFiberInterpreterTests
 
     private static CompiledWorkflowPlan ImmediatePlan()
     {
-        return Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState(value))
             .End()
             .Build()
@@ -219,7 +219,7 @@ public sealed class ReferenceLinearFiberInterpreterTests
 
     private static CompiledWorkflowPlan ParallelStepPlan()
     {
-        return Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState(value))
             .Parallel<string>(
                 branches => branches
@@ -237,7 +237,7 @@ public sealed class ReferenceLinearFiberInterpreterTests
 
     private static CompiledWorkflowPlan InternalBudgetPlan()
     {
-        return Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .WithCompilerOptions(new DefinitionCompilerOptions
             {
                 MaxInternalInstructionsPerQuantum = 2

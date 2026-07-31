@@ -1,7 +1,6 @@
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Core.Building;
-using OrcaCore.Core.Compilation;
 using Xunit;
 
 namespace OrcaCore.Acceptance.Tests;
@@ -10,26 +9,19 @@ public sealed class BuilderAcceptanceTests
 {
     [Fact]
     [Trait("AC", "AC-008")]
-    public void Build_AccumulatesAllValidationErrors()
+    public void Build_ReportsInspectableGraphErrorsThroughThePublicStagedContract()
     {
-        var validation = Workflow.Ephemeral<BuilderState>(DefinitionId.New(), DefinitionVersion.Initial)
-            .WithCompilerOptions(new DefinitionCompilerOptions
-            {
-                MaxInternalInstructionsPerQuantum = 0,
-                MaxScopeDepth = 0,
-                MaxActiveFibers = 0
-            })
+        var completion = Workflow.Ephemeral<BuilderState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(_ => new BuilderState())
+            .Parallel<int>(_ => { })
+            .WhenAll((snapshot, _) => snapshot.Value)
             .End()
-            .TryBuild();
+            ;
+
+        var validation = completion.TryBuild();
 
         validation.IsValid.Should().BeFalse();
-        validation.Errors.Select(error => error.Code).Should().Equal(
-            [
-                DefinitionCompilerCodes.MaxInternalInstructionsNotPositive,
-                DefinitionCompilerCodes.MaxScopeDepthNotPositive,
-                DefinitionCompilerCodes.MaxActiveFibersNotPositive,
-                DefinitionCompilerCodes.MissingRootInit
-            ]);
+        validation.Diagnostics.Should().ContainSingle(error => error.Code == "SFE-AUTH-BRANCH-004");
     }
 
     private sealed record BuilderState;

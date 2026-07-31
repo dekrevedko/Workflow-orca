@@ -15,11 +15,11 @@ public sealed class YieldAcceptanceTests
     {
         var state = new TestState { RemainingYields = 3 };
         var engine = new EphemeralWorkflowEngine();
-        var definition = new WorkflowBuilder<TestState>()
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .Then(() => new YieldingStep())
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
         engine.RegisterDefinition(definition);
 
         await engine.StartAsync<string, TestState>(
@@ -50,7 +50,7 @@ public sealed class YieldAcceptanceTests
             {
                 context.State.RemainingYields--;
                 context.State.Progress++;
-                return ValueTask.FromResult<StepResult>(new StepResult.Yield());
+                return ValueTask.FromResult<StepResult>(global::OrcaCore.TestSupport.LegacyStepResults.Yield());
             }
 
             context.State.CompletedEffects++;

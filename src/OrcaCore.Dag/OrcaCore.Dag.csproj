@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>OrcaCore.Dag</AssemblyName>
+    <PackageId>OrcaCore.Dag</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OrcaCore.Abstractions\OrcaCore.csproj" />
+  </ItemGroup>
+</Project>

@@ -95,7 +95,7 @@ public sealed class CompensationDecisionTests
     {
         return new SagaForwardActionCompletedEvent
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = InstanceIdValue(1),
             CommandId = CommandIdValue(1),
             CausationId = CausationIdValue(1),
@@ -113,12 +113,12 @@ public sealed class CompensationDecisionTests
 
     private static EventId EventIdValue(int value)
     {
-        return new EventId(GuidValue(value));
+        return EventId.Create(GuidValue(value).ToString());
     }
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -133,7 +133,7 @@ public sealed class CompensationDecisionTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static Guid GuidValue(int value)

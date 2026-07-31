@@ -10,26 +10,174 @@ using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Execution;
+using OrcaCore.Core.Internal;
+using OrcaCore.Core.Definitions;
 using OrcaCore.Engine.Durable.Aggregates;
 using OrcaCore.Engine.Durable.Definitions;
 using OrcaCore.Engine.Durable.Driver;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Providers.InMemory;
 using OrcaCore.TestSupport;
+using OrcaCore.TestSupport.StructuredExecution;
 using Xunit;
+
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
 
 namespace OrcaCore.Engine.Durable.Tests.Driver;
 
 public sealed class DurableStructuredFiberDriverTests
 {
-    private static readonly CorrelationId WaitCorrelation = new("fiber-wait");
+    private static readonly CorrelationId WaitCorrelation = CorrelationId.Create("fiber-wait");
 
     [Fact]
-    public async Task SelectedParallel_UsesConfiguredSerializerRegistryAtRuntime()
+    public async Task ResultfulEnd_AfterHostReplacementPersistsOutputStatusAndOutcomeInOneTerminalCheckpoint()
+    {
+        var store = new InMemoryWorkflowProvider();
+        var firstRuntime = CreateRuntime(store);
+        var outcome = WorkflowOutcomeName.Create("approved");
+        var publicDefinition = global::OrcaCore.Workflow.Durable<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(value => new TestState { Value = value })
+            .Wait(EventName.Create("Complete"), _ => WaitCorrelation)
+            .End(snapshot => new TerminalOutput(snapshot.Value.Value), outcome)
+            .Build();
+        var runtimeDefinition = (WorkflowDefinition<TestState>)publicDefinition.GetType()
+            .GetProperty("RuntimeDefinition", System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(publicDefinition)!;
+        firstRuntime.RegisterDefinition(runtimeDefinition);
+
+        var waiting = await firstRuntime.StartOrGetAsync<string, TestState>(
+            "typed-terminal-output",
+            publicDefinition.DefinitionId,
+            publicDefinition.DefinitionVersion,
+            "input",
+            TestContext.Current.CancellationToken);
+        (await store.ListAsync(
+                new WorkflowProjectionQuery { InstanceId = waiting.InstanceId },
+                TestContext.Current.CancellationToken))
+            .Single().Status.Should().Be(WorkflowStatus.Waiting);
+
+        var replacementRuntime = CreateRuntime(store);
+        replacementRuntime.RegisterDefinition(runtimeDefinition);
+        await replacementRuntime.RaiseEventAsync(
+            waiting.InstanceId,
+            "Complete",
+            WaitCorrelation,
+            cancellationToken: TestContext.Current.CancellationToken);
+        var checkpoint = await store.LoadCheckpointAsync(
+            waiting.InstanceId,
+            TestContext.Current.CancellationToken);
+        var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint!.Value.Payload);
+        var snapshot = (await store.ListAsync(
+            new WorkflowProjectionQuery { InstanceId = waiting.InstanceId },
+            TestContext.Current.CancellationToken)).Single();
+
+        snapshot.Status.Should().Be(WorkflowStatus.Completed);
+        snapshot.EndOutcomeName.Should().Be(outcome.Value);
+        envelope.Output.Should().NotBeNull();
+        envelope.Output!.TypeName.Should().Contain(nameof(TerminalOutput));
+        JsonSerializer.Deserialize<TerminalOutput>(envelope.Output.Payload)
+            .Should().Be(new TerminalOutput("input"));
+    }
+
+    [Fact]
+    public async Task ResultfulEnd_RejectsUnapprovedPolymorphicOutputBeforeTerminalCommit()
+    {
+        var store = new InMemoryWorkflowProvider();
+        var runtime = CreateRuntime(store);
+        var publicDefinition = global::OrcaCore.Workflow.Durable<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(value => new TestState { Value = value })
+            .End<PolymorphicOutputBase>(
+                snapshot => new PolymorphicOutputDerived(snapshot.Value.Value, "must-not-be-dropped"))
+            .Build();
+        var runtimeDefinition = (WorkflowDefinition<TestState>)publicDefinition.GetType()
+            .GetProperty("RuntimeDefinition", System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(publicDefinition)!;
+        runtime.RegisterDefinition(runtimeDefinition);
+        const string idempotencyKey = "polymorphic-terminal-output";
+
+        Func<Task> act = async () =>
+        {
+            _ = await runtime.StartOrGetAsync<string, TestState>(
+                idempotencyKey,
+                publicDefinition.DefinitionId,
+                publicDefinition.DefinitionVersion,
+                "input",
+                TestContext.Current.CancellationToken);
+        };
+
+        await act.Should().ThrowAsync<NotSupportedException>()
+            .WithMessage("*polymorphic*not supported*");
+        var started = await store.GetStartedAsync(
+            idempotencyKey,
+            TestContext.Current.CancellationToken);
+        started.HasValue.Should().BeTrue();
+        var events = await store.LoadTailAsync(
+            new WorkflowStreamId(started.Value.InstanceId),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+        events.OfType<WorkflowCompletedEvent>().Should().BeEmpty();
+        events.OfType<WorkflowTerminalEvent>()
+            .Should().NotContain(workflowEvent => workflowEvent.Status == WorkflowStatus.Completed);
+        var checkpoint = await store.LoadCheckpointAsync(
+            started.Value.InstanceId,
+            TestContext.Current.CancellationToken);
+        checkpoint.HasValue.Should().BeFalse(
+            "the rejected output must not create a terminal checkpoint");
+    }
+
+    [Fact]
+    public async Task PublicDurableNamedStep_IsActivatedFromHostServicesWithConstructorDependencies()
+    {
+        var store = new InMemoryWorkflowProvider();
+        var dependency = new DurableProbeDependency();
+        var step = new ConstructorInjectedDurableStep(dependency);
+        var services = new DurableStepServiceProvider(step);
+        var registry = new DurableDefinitionRegistry(services);
+        var runtime = new DurableWorkflowRuntime(
+            new DurableCommandProcessor(store),
+            registry,
+            TimeProvider.System,
+            new JsonWorkflowPayloadSerializer());
+        var publicDefinition = global::OrcaCore.Workflow.Durable<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(value => new TestState { Value = value })
+            .Then<ConstructorInjectedDurableStep>()
+            .End()
+            .Build();
+        var runtimeDefinition = (WorkflowDefinition<TestState>)publicDefinition.GetType()
+            .GetProperty("RuntimeDefinition", System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(publicDefinition)!;
+        runtime.RegisterDefinition(runtimeDefinition);
+
+        var completed = await runtime.StartOrGetAsync<string, TestState>(
+            "durable-host-di",
+            publicDefinition.DefinitionId,
+            publicDefinition.DefinitionVersion,
+            "input",
+            TestContext.Current.CancellationToken);
+
+        (await store.ListAsync(
+                new WorkflowProjectionQuery { InstanceId = completed.InstanceId },
+                TestContext.Current.CancellationToken))
+            .Single().Status.Should().Be(WorkflowStatus.Completed);
+        dependency.ExecutionCount.Should().Be(1);
+        services.RequestedTypes.Should().Equal(typeof(ConstructorInjectedDurableStep));
+    }
+
+    [Fact]
+    public async Task SelectedParallel_UsesRegistryOnlyForSchemaIdentityAtBuild()
     {
         var registry = new TrackingSerializerRegistry();
         var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .WithTypeSerializerRegistry(registry)
             .Init<string>(value => new TestState { Value = value })
             .Parallel<string>(
@@ -58,15 +206,14 @@ public sealed class DurableStructuredFiberDriverTests
             TestContext.Current.CancellationToken)).Single();
 
         snapshot.Status.Should().Be(WorkflowStatus.Completed);
-        registry.SerializeCalls.Should().BeGreaterThan(0);
-        registry.DeserializeCalls.Should().BeGreaterThan(0);
+        registry.SchemaResolutionCalls.Should().BeGreaterThan(0);
     }
 
     [Fact]
     public async Task SelectedParallel_OversizedResultFailsOwningScopeBeforeCommit()
     {
         var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .WithCompilerOptions(new DefinitionCompilerOptions { MaxSerializedResultBytes = 8 })
             .Init<string>(value => new TestState { Value = value })
             .Parallel<string>(
@@ -108,7 +255,7 @@ public sealed class DurableStructuredFiberDriverTests
             new DurableDefinitionRegistry(),
             TimeProvider.System,
             new JsonWorkflowPayloadSerializer());
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .Then<AppendStep>()
             .End("done")
@@ -143,7 +290,7 @@ public sealed class DurableStructuredFiberDriverTests
     {
         var store = new InMemoryWorkflowProvider();
         var runtime = CreateRuntime(store);
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .WithCompilerOptions(new DefinitionCompilerOptions { MaxSerializedEnvelopeBytes = 1 })
             .Init<string>(value => new TestState { Value = value })
             .End("unreachable")
@@ -174,7 +321,7 @@ public sealed class DurableStructuredFiberDriverTests
     {
         var store = new InMemoryWorkflowProvider();
         var runtime = CreateRuntime(store);
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .WithCompilerOptions(new DefinitionCompilerOptions
             {
                 MaxInternalInstructionsPerQuantum = 1
@@ -207,7 +354,7 @@ public sealed class DurableStructuredFiberDriverTests
     public async Task SelectedWait_ResumesOwningFiberFromFormat2CheckpointAfterHostReplacement()
     {
         var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .Then<WaitStep>()
             .Then<CaptureResumedEventStep>()
@@ -273,9 +420,9 @@ public sealed class DurableStructuredFiberDriverTests
     public async Task SelectedWaitLong_CommitsColdOwnedWaitAndResumesAfterHostReplacement()
     {
         var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
-            .WaitLong("Approved", _ => new CorrelationId("order-42"))
+            .AddColdWait("Approved", _ => CorrelationId.Create("order-42"))
             .Then<ObserveExternalCompletionStep>()
             .End("approved")
             .Build();
@@ -302,7 +449,7 @@ public sealed class DurableStructuredFiberDriverTests
         await replacement.RaiseEventAsync(
             waiting.InstanceId,
             "Approved",
-            new CorrelationId("order-42"),
+            CorrelationId.Create("order-42"),
             cancellationToken: TestContext.Current.CancellationToken);
 
         var completed = (await store.ListAsync(
@@ -317,7 +464,7 @@ public sealed class DurableStructuredFiberDriverTests
     {
         var clock = new Clock(new DateTimeOffset(2026, 7, 13, 10, 0, 0, TimeSpan.Zero));
         var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .Delay(TimeSpan.FromMinutes(5))
             .Then<AppendStep>()
@@ -378,7 +525,7 @@ public sealed class DurableStructuredFiberDriverTests
     {
         var store = new InMemoryWorkflowProvider();
         var runtime = CreateRuntime(store);
-        var definition = Workflow.Durable<WaitSequenceState>(
+        var definition = global::OrcaCore.Workflow.Durable<WaitSequenceState>(
                 DefinitionId.New(),
                 DefinitionVersion.Initial)
             .Init<string>(_ => new WaitSequenceState())
@@ -433,7 +580,7 @@ public sealed class DurableStructuredFiberDriverTests
     {
         var clock = new Clock(new DateTimeOffset(2026, 7, 13, 10, 0, 0, TimeSpan.Zero));
         var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .Wait("Continue", _ => WaitCorrelation)
             .Delay(TimeSpan.FromMinutes(5))
@@ -524,7 +671,7 @@ public sealed class DurableStructuredFiberDriverTests
     {
         var trace = new List<string>();
         var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .Then(() => new DispatchExternalJobStep(trace))
             .Then<ObserveExternalCompletionStep>()
@@ -556,7 +703,7 @@ public sealed class DurableStructuredFiberDriverTests
             TimeProvider.System,
             new JsonWorkflowPayloadSerializer());
         replacementHost.RegisterDefinition(definition);
-        var completionEventId = EventId.New();
+        var completionEventId = EventId.Create(Guid.CreateVersion7().ToString());
         await replacementProcessor.ProcessAsync(
             new CompleteExternalJobCommand
             {
@@ -617,7 +764,7 @@ public sealed class DurableStructuredFiberDriverTests
     {
         var trace = new List<string>();
         var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .Then(() => new DispatchExternalJobStep(trace))
             .Then<ObserveExternalCompletionStep>()
@@ -701,7 +848,7 @@ public sealed class DurableStructuredFiberDriverTests
                 InstanceId = waiting.InstanceId,
                 RequestedAt = TimeProvider.System.GetUtcNow(),
                 ExternalJobId = "job-1",
-                CompletionEventId = EventId.New()
+                CompletionEventId = EventId.Create(Guid.CreateVersion7().ToString())
             },
             TestContext.Current.CancellationToken);
         await replacement.StartOrGetAsync<string, TestState>(
@@ -726,7 +873,7 @@ public sealed class DurableStructuredFiberDriverTests
         await pools.UpsertPoolAsync(
             new ResourcePoolDefinition("db", 1, null),
             TestContext.Current.CancellationToken);
-        var otherInstanceId = InstanceId.New();
+        var otherInstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         await pools.AcquireAsync(
             new ResourcePoolAcquireRequest(
                 otherInstanceId,
@@ -735,7 +882,7 @@ public sealed class DurableStructuredFiberDriverTests
                 TimeProvider.System.GetUtcNow(),
                 null),
             TestContext.Current.CancellationToken);
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .Then(() => new AcquireResourceStep(trace))
             .Then<AppendStep>()
@@ -781,7 +928,7 @@ public sealed class DurableStructuredFiberDriverTests
         await replacementHost.RaiseEventAsync(
             waiting.InstanceId,
             "ResourcePoolGranted",
-            new CorrelationId("holder"),
+            CorrelationId.Create("holder"),
             cancellationToken: TestContext.Current.CancellationToken);
 
         var completed = (await store.ListAsync(
@@ -808,13 +955,13 @@ public sealed class DurableStructuredFiberDriverTests
         await pools.UpsertPoolAsync(
             new ResourcePoolDefinition("db", 1, null),
             TestContext.Current.CancellationToken);
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .Then(() => new AcquireResourceStep(trace))
             .Then<AppendStep>()
             .End("resource-done")
             .Build();
-        var budget = new DurableDriverBudget(1, TimeSpan.FromSeconds(30));
+        var budget = new DurableDriverBudget(2, TimeSpan.FromSeconds(30));
 
         var starter = CreateRuntime(store, budget, pools);
         starter.RegisterDefinition(definition);
@@ -869,7 +1016,7 @@ public sealed class DurableStructuredFiberDriverTests
         var store = new InMemoryWorkflowProvider();
         var processor = new DurableCommandProcessor(store);
         var childDefinitionId = DefinitionId.New();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .RunChildren(
                 childDefinitionId,
@@ -977,7 +1124,7 @@ public sealed class DurableStructuredFiberDriverTests
     {
         var store = new InMemoryWorkflowProvider();
         var processor = new DurableCommandProcessor(store);
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .RunChildren(
                 DefinitionId.New(),
@@ -1040,7 +1187,7 @@ public sealed class DurableStructuredFiberDriverTests
     {
         var store = new InMemoryWorkflowProvider();
         var processor = new DurableCommandProcessor(store);
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .RunChildren(
                 DefinitionId.New(),
@@ -1103,7 +1250,7 @@ public sealed class DurableStructuredFiberDriverTests
     {
         var trace = new List<string>();
         var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .Parallel<string>(
                 branches => branches
@@ -1156,7 +1303,7 @@ public sealed class DurableStructuredFiberDriverTests
     {
         var blockingStep = new BlockingDurableBranchStep();
         var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .Parallel<string>(
                 branches => branches
@@ -1215,7 +1362,7 @@ public sealed class DurableStructuredFiberDriverTests
     public async Task SelectedWhenFirst_ConsumesWinnerResumeAndCancelsLosingFiberWait()
     {
         var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .WhenFirst<string>(
                 branches => branches
@@ -1282,7 +1429,7 @@ public sealed class DurableStructuredFiberDriverTests
     {
         var clock = new Clock(new DateTimeOffset(2026, 7, 13, 11, 0, 0, TimeSpan.Zero));
         var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .WhenFirst<string>(
                 branches => branches
@@ -1334,7 +1481,7 @@ public sealed class DurableStructuredFiberDriverTests
     {
         var store = new InMemoryWorkflowProvider();
         var trace = new List<string>();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .WhenFirst<string>(
                 branches => branches
@@ -1344,10 +1491,12 @@ public sealed class DurableStructuredFiberDriverTests
                         branch => branch
                             .Then(() => new DispatchExternalJobStep(trace))
                             .Return(state => state.Value.Value))
-                    .Branch<WaitingBranchState>(
+                    .Branch<YieldingBranchState>(
                         "winner",
-                        _ => new WaitingBranchState { Name = "winner" },
-                        branch => branch.Return(state => state.Value.Name)),
+                        _ => new YieldingBranchState { Name = "winner" },
+                        branch => branch
+                            .Then(() => new YieldOnceBranchStep([]))
+                            .Return(state => state.Value.Name)),
                 (parent, winner) => new TestState
                 {
                     Value = parent.Value.Value,
@@ -1393,7 +1542,7 @@ public sealed class DurableStructuredFiberDriverTests
             new ResourcePoolDefinition("db", 1, null),
             TestContext.Current.CancellationToken);
         var trace = new List<string>();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .WhenFirst<string>(
                 branches => branches
@@ -1404,10 +1553,12 @@ public sealed class DurableStructuredFiberDriverTests
                             .Then(() => new AcquireResourceStep(trace))
                             .Wait("Never", _ => WaitCorrelation)
                             .Return(state => state.Value.Value))
-                    .Branch<WaitingBranchState>(
+                    .Branch<YieldingBranchState>(
                         "winner",
-                        _ => new WaitingBranchState { Name = "winner" },
-                        branch => branch.Return(state => state.Value.Name)),
+                        _ => new YieldingBranchState { Name = "winner" },
+                        branch => branch
+                            .Then(() => new YieldTwiceBranchStep([]))
+                            .Return(state => state.Value.Name)),
                 (parent, winner) => new TestState
                 {
                     Value = parent.Value.Value,
@@ -1450,7 +1601,7 @@ public sealed class DurableStructuredFiberDriverTests
     public async Task SelectedWhenFirst_UnscopedDeliveryUsesPersistedWaitSequenceAfterHostReplacement()
     {
         var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .WhenFirst<string>(
                 branches => branches
@@ -1528,7 +1679,7 @@ public sealed class DurableStructuredFiberDriverTests
     {
         var trace = new List<string>();
         var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .Parallel<string>(
                 branches => branches
@@ -1551,7 +1702,7 @@ public sealed class DurableStructuredFiberDriverTests
                 })
             .End("done")
             .Build();
-        var budget = new DurableDriverBudget(1, TimeSpan.FromSeconds(30));
+        var budget = new DurableDriverBudget(2, TimeSpan.FromSeconds(30));
         var firstHost = CreateRuntime(store, budget);
         firstHost.RegisterDefinition(definition);
 
@@ -1567,7 +1718,9 @@ public sealed class DurableStructuredFiberDriverTests
         var firstEnvelope = DurableExecutionEnvelopeV2.Deserialize(firstCheckpoint!.Value.Payload);
 
         trace.Should().BeEmpty("scope creation alone consumes the first command budget");
-        firstEnvelope.Scheduler.NextFiberId.Should().Be(firstEnvelope.Scopes.Single().ChildFiberIds[0]);
+        firstEnvelope.Scheduler.NextFiberId.Should().Be(
+            firstEnvelope.Scopes.Single().ChildFiberIds[1],
+            "the first branch's operation-coordinate commit consumes the second command budget");
 
         var replacement = CreateRuntime(store, budget);
         replacement.RegisterDefinition(definition);
@@ -1603,109 +1756,9 @@ public sealed class DurableStructuredFiberDriverTests
     }
 
     [Fact]
-    public async Task SelectedNestedParallel_RepeatedYieldPreservesSiblingFairnessAcrossHostReplacement()
+    public void SelectedLoopNestedScope_IsRejectedBeforeRegistration()
     {
-        var trace = new List<string>();
-        var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
-            .Init<string>(value => new TestState { Value = value })
-            .Parallel<string>(
-                branches => branches
-                    .Branch<OuterNestedState>(
-                        "nested",
-                        _ => new OuterNestedState { Name = "nested" },
-                        branch => branch
-                            .Parallel<string>(
-                                nested => nested
-                                    .Branch<YieldingBranchState>(
-                                        "slow",
-                                        _ => new YieldingBranchState { Name = "slow" },
-                                        child => child
-                                            .Then(() => new YieldTwiceBranchStep(trace))
-                                            .Return(state => state.Value.Name))
-                                    .Branch<YieldingBranchState>(
-                                        "nested-sibling",
-                                        _ => new YieldingBranchState { Name = "nested-sibling" },
-                                        child => child
-                                            .Then(() => new CompleteBranchStep(trace))
-                                            .Return(state => state.Value.Name)),
-                                (parent, results) => new OuterNestedState
-                                {
-                                    Name = string.Join("+", results.Select(result => result.Value))
-                                })
-                            .Return(state => state.Value.Name))
-                    .Branch<YieldingBranchState>(
-                        "outer-sibling",
-                        _ => new YieldingBranchState { Name = "outer-sibling" },
-                        branch => branch
-                            .Then(() => new CompleteBranchStep(trace))
-                            .Return(state => state.Value.Name)),
-                (parent, results) => new TestState
-                {
-                    Value = parent.Value.Value,
-                    Log = results.Select(result => result.Value).ToList()
-                })
-            .End("done")
-            .Build();
-        var budget = new DurableDriverBudget(1, TimeSpan.FromSeconds(30));
-        var starter = CreateRuntime(store, budget);
-        starter.RegisterDefinition(definition);
-        var started = await starter.StartOrGetAsync<string, TestState>(
-            "fiber-nested-fairness",
-            definition.DefinitionId,
-            definition.DefinitionVersion,
-            "input",
-            TestContext.Current.CancellationToken);
-        var observedScopeIds = new HashSet<string>(StringComparer.Ordinal);
-
-        for (var attempt = 0; attempt < 24; attempt++)
-        {
-            var replacement = CreateRuntime(store, budget);
-            replacement.RegisterDefinition(definition);
-            await replacement.StartOrGetAsync<string, TestState>(
-                "fiber-nested-fairness",
-                definition.DefinitionId,
-                definition.DefinitionVersion,
-                "input",
-                TestContext.Current.CancellationToken);
-            var checkpoint = await store.LoadCheckpointAsync(
-                started.InstanceId,
-                TestContext.Current.CancellationToken);
-            if (checkpoint.HasValue && checkpoint.Value.ContentType == DurableExecutionEnvelopeV2.ContentType)
-            {
-                var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint.Value.Payload);
-                foreach (var scope in envelope.Scopes)
-                {
-                    observedScopeIds.Add(scope.ScopeId);
-                }
-            }
-
-            var projection = (await store.ListAsync(
-                new WorkflowProjectionQuery { InstanceId = started.InstanceId },
-                TestContext.Current.CancellationToken)).Single();
-            if (projection.Status == WorkflowStatus.Completed)
-            {
-                break;
-            }
-        }
-
-        var completed = (await store.ListAsync(
-            new WorkflowProjectionQuery { InstanceId = started.InstanceId },
-            TestContext.Current.CancellationToken)).Single();
-        completed.Status.Should().Be(WorkflowStatus.Completed);
-        trace.Should().Contain("slow:yield:1");
-        trace.Should().Contain("slow:yield:2");
-        trace.Should().Contain("slow:complete");
-        trace.IndexOf("nested-sibling").Should().BeLessThan(trace.IndexOf("slow:complete"));
-        trace.IndexOf("outer-sibling").Should().BeLessThan(trace.IndexOf("slow:complete"));
-        observedScopeIds.Should().HaveCount(2, "host replacement must reuse the two committed scope identities");
-    }
-
-    [Fact]
-    public async Task SelectedLoopScope_ReentryAndEveryBranchBoundaryReuseCommittedIdentities()
-    {
-        var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<LoopScopeState>(DefinitionId.New(), DefinitionVersion.Initial)
+        Action build = () => global::OrcaCore.Workflow.Durable<LoopScopeState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new LoopScopeState())
             .While(
                 state => state.Iteration < 2,
@@ -1726,80 +1779,11 @@ public sealed class DurableStructuredFiberDriverTests
                     }))
             .End("done")
             .Build();
-        var budget = new DurableDriverBudget(1, TimeSpan.FromSeconds(30));
-        var starter = CreateRuntime(store, budget);
-        starter.RegisterDefinition(definition);
-        var started = await starter.StartOrGetAsync<string, LoopScopeState>(
-            "fiber-loop-reentry",
-            definition.DefinitionId,
-            definition.DefinitionVersion,
-            "input",
-            TestContext.Current.CancellationToken);
-        var committedScopes = new Dictionary<long, (string ScopeId, IReadOnlyList<string> ChildIds)>();
 
-        for (var crashPoint = 0; crashPoint < 20; crashPoint++)
-        {
-            var checkpoint = await store.LoadCheckpointAsync(
-                started.InstanceId,
-                TestContext.Current.CancellationToken);
-            if (checkpoint.HasValue && checkpoint.Value.ContentType == DurableExecutionEnvelopeV2.ContentType)
-            {
-                var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint.Value.Payload);
-                envelope.Scopes.Should().HaveCountLessThanOrEqualTo(
-                    1,
-                    "completed loop scope subtrees must be pruned after each merge");
-                foreach (var scope in envelope.Scopes)
-                {
-                    if (committedScopes.TryGetValue(scope.ScopeEntrySequence, out var committed))
-                    {
-                        scope.ScopeId.Should().Be(committed.ScopeId);
-                        scope.ChildFiberIds.Should().Equal(committed.ChildIds);
-                    }
-                    else
-                    {
-                        committedScopes.Add(
-                            scope.ScopeEntrySequence,
-                            (scope.ScopeId, scope.ChildFiberIds.ToArray()));
-                    }
-                }
-            }
-
-            var replacement = CreateRuntime(store, budget);
-            replacement.RegisterDefinition(definition);
-            await replacement.StartOrGetAsync<string, LoopScopeState>(
-                "fiber-loop-reentry",
-                definition.DefinitionId,
-                definition.DefinitionVersion,
-                "input",
-                TestContext.Current.CancellationToken);
-            var projection = (await store.ListAsync(
-                new WorkflowProjectionQuery { InstanceId = started.InstanceId },
-                TestContext.Current.CancellationToken)).Single();
-            if (projection.Status == WorkflowStatus.Completed)
-            {
-                break;
-            }
-        }
-
-        var finalCheckpoint = await store.LoadCheckpointAsync(
-            started.InstanceId,
-            TestContext.Current.CancellationToken);
-        var finalEnvelope = DurableExecutionEnvelopeV2.Deserialize(finalCheckpoint!.Value.Payload);
-        var events = await store.LoadTailAsync(
-            new WorkflowStreamId(started.InstanceId),
-            StreamVersion.Empty,
-            TestContext.Current.CancellationToken);
-        var state = JsonSerializer.Deserialize<LoopScopeState>(finalEnvelope.StatePayload)!;
-
-        state.Iteration.Should().Be(2);
-        state.Total.Should().Be(6);
-        committedScopes.Keys.Should().Equal(0, 1);
-        committedScopes.Values.Select(scope => scope.ScopeId).Should().OnlyHaveUniqueItems();
-        finalEnvelope.Scopes.Should().BeEmpty();
-        finalEnvelope.Fibers.Should().ContainSingle(fiber => fiber.FiberId == finalEnvelope.RootFiberId);
-        events.OfType<WorkflowStepCompletedEvent>()
-            .Count(item => item.StepPath.EndsWith(":merge", StringComparison.Ordinal))
-            .Should().Be(2, "a lost merge response must replay from the committed post-merge position");
+        build.Should().Throw<WorkflowDefinitionException>()
+            .Which.Diagnostics.Should().ContainSingle(diagnostic =>
+                diagnostic.Code == "SFE-AUTH-CAP-001" &&
+                diagnostic.Message.Contains("Parallel is available only", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -1807,7 +1791,7 @@ public sealed class DurableStructuredFiberDriverTests
     {
         var gate = new TwoHostStepGate();
         var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .Parallel<string>(
                 branches => branches
@@ -1830,7 +1814,7 @@ public sealed class DurableStructuredFiberDriverTests
                 })
             .End("done")
             .Build();
-        var budget = new DurableDriverBudget(1, TimeSpan.FromSeconds(30));
+        var budget = new DurableDriverBudget(2, TimeSpan.FromSeconds(30));
         var starter = CreateRuntime(store, budget);
         starter.RegisterDefinition(definition);
         var started = await starter.StartOrGetAsync<string, TestState>(
@@ -1870,7 +1854,9 @@ public sealed class DurableStructuredFiberDriverTests
         var conflictedEnvelope = DurableExecutionEnvelopeV2.Deserialize(conflictedCheckpoint!.Value.Payload);
         conflictedEnvelope.Scopes.Should().ContainSingle().Which.ScopeId.Should().Be(expectedScopeId);
         conflictedEnvelope.Scopes.Single().ChildFiberIds.Should().Equal(expectedChildren);
-        gate.InvocationCount.Should().Be(3, "one first-branch invocation is at-least-once across the conflict");
+        gate.InvocationCount.Should().Be(
+            3,
+            "the starter and both competing hosts may physically dispatch the same persisted ordinal");
 
         for (var attempt = 0; attempt < 8; attempt++)
         {
@@ -1897,69 +1883,10 @@ public sealed class DurableStructuredFiberDriverTests
     }
 
     [Fact]
-    public async Task SelectedNestedParallel_MergesIntoOuterFiberBeforeRootMerge()
-    {
-        var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
-            .Init<string>(value => new TestState { Value = value })
-            .Parallel<string>(
-                branches => branches
-                    .Branch<OuterNestedState>(
-                        "nested",
-                        _ => new OuterNestedState { Name = "nested" },
-                        branch => branch
-                            .Parallel<int>(
-                                nested => nested
-                                    .Branch<NumberState>(
-                                        "one",
-                                        _ => new NumberState { Value = 1 },
-                                        child => child.Return(state => state.Value.Value))
-                                    .Branch<NumberState>(
-                                        "two",
-                                        _ => new NumberState { Value = 2 },
-                                        child => child.Return(state => state.Value.Value)),
-                                (parent, results) => new OuterNestedState
-                                {
-                                    Name = parent.Value.Name,
-                                    Total = results.Sum(result => result.Value)
-                                })
-                            .Return(state => $"{state.Value.Name}:{state.Value.Total}"))
-                    .Branch<OuterNestedState>(
-                        "plain",
-                        _ => new OuterNestedState { Name = "plain" },
-                        branch => branch.Return(state => state.Value.Name)),
-                (parent, results) => new TestState
-                {
-                    Value = parent.Value.Value,
-                    Log = results.Select(result => result.Value).ToList()
-                })
-            .End("nested")
-            .Build();
-        var runtime = CreateRuntime(store);
-        runtime.RegisterDefinition(definition);
-
-        var completed = await runtime.StartOrGetAsync<string, TestState>(
-            "fiber-nested",
-            definition.DefinitionId,
-            definition.DefinitionVersion,
-            "input",
-            TestContext.Current.CancellationToken);
-        var checkpoint = await store.LoadCheckpointAsync(
-            completed.InstanceId,
-            TestContext.Current.CancellationToken);
-        var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint!.Value.Payload);
-
-        JsonSerializer.Deserialize<TestState>(envelope.StatePayload)!.Log
-            .Should().Equal("nested:3", "plain");
-        envelope.Scopes.Should().BeEmpty();
-        envelope.Fibers.Should().ContainSingle(fiber => fiber.FiberId == envelope.RootFiberId);
-    }
-
-    [Fact]
     public async Task SelectedParallel_MergeTransfersSagaEligibilityInMergeCommitAcrossHostReplacement()
     {
         var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .Parallel<string>(
                 branches => branches
@@ -2045,106 +1972,10 @@ public sealed class DurableStructuredFiberDriverTests
     }
 
     [Fact]
-    [Trait("AC", "DR-AC-032")]
-    public async Task SelectedWhenFirst_CancelsNestedLosingScopeWaitsInWinnerCommit()
+    public async Task SelectedParallel_CeilingOnePreservesAuthoredWaitAndLaterFailureUntilSiblingCompletes()
     {
         var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
-            .Init<string>(value => new TestState { Value = value })
-            .WhenFirst<string>(
-                branches => branches
-                    .Branch<WaitingBranchState>(
-                        "winner",
-                        _ => new WaitingBranchState { Name = "winner", EventName = "WinnerReady" },
-                        branch => branch
-                            .Then<BranchWaitStep>()
-                            .Return(state => state.Value.Name))
-                    .Branch<WaitingBranchState>(
-                        "nested-loser",
-                        _ => new WaitingBranchState { Name = "loser" },
-                        branch => branch
-                            .Parallel<string>(
-                                nested => nested
-                                    .Branch<WaitingBranchState>(
-                                        "nested-a",
-                                        _ => new WaitingBranchState
-                                        {
-                                            Name = "nested-a",
-                                            EventName = "NestedA"
-                                        },
-                                        child => child
-                                            .Then<BranchWaitStep>()
-                                            .Return(state => state.Value.Name))
-                                    .Branch<WaitingBranchState>(
-                                        "nested-b",
-                                        _ => new WaitingBranchState
-                                        {
-                                            Name = "nested-b",
-                                            EventName = "NestedB"
-                                        },
-                                        child => child
-                                            .Then<BranchWaitStep>()
-                                            .Return(state => state.Value.Name)),
-                                (parent, _) => parent.Value)
-                            .Return(state => state.Value.Name)),
-                (parent, winner) => new TestState
-                {
-                    Value = parent.Value.Value,
-                    Log = [winner.Value]
-                })
-            .End("winner")
-            .Build();
-        var runtime = CreateRuntime(store);
-        runtime.RegisterDefinition(definition);
-
-        var waiting = await runtime.StartOrGetAsync<string, TestState>(
-            "fiber-nested-race",
-            definition.DefinitionId,
-            definition.DefinitionVersion,
-            "input",
-            TestContext.Current.CancellationToken);
-        var waitingSnapshot = (await store.ListAsync(
-            new WorkflowProjectionQuery { InstanceId = waiting.InstanceId },
-            TestContext.Current.CancellationToken)).Single();
-        waitingSnapshot.ActiveWaits.Should().HaveCount(3);
-        waitingSnapshot.ActiveWaits.Select(wait => wait.FiberId).Should().OnlyHaveUniqueItems();
-        waitingSnapshot.ActiveWaits.Should().OnlyContain(wait =>
-            wait.FiberId.HasValue && wait.ScopeId.HasValue);
-
-        await runtime.RaiseEventAsync(
-            waiting.InstanceId,
-            "WinnerReady",
-            WaitCorrelation,
-            cancellationToken: TestContext.Current.CancellationToken);
-
-        var completed = (await store.ListAsync(
-            new WorkflowProjectionQuery { InstanceId = waiting.InstanceId },
-            TestContext.Current.CancellationToken)).Single();
-        var checkpoint = await store.LoadCheckpointAsync(
-            waiting.InstanceId,
-            TestContext.Current.CancellationToken);
-        var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint!.Value.Payload);
-        var events = await store.LoadTailAsync(
-            new WorkflowStreamId(waiting.InstanceId),
-            StreamVersion.Empty,
-            TestContext.Current.CancellationToken);
-
-        completed.Status.Should().Be(WorkflowStatus.Completed);
-        completed.ActiveWaits.Should().BeEmpty();
-        envelope.OwnedObligations.Should().BeEmpty();
-        envelope.Scopes.Should().BeEmpty(
-            "the successfully merged winner scope prunes its cancelled losing subtree");
-        var cancellations = events.OfType<WorkflowWaitCancelledEvent>().ToArray();
-        cancellations.Should().HaveCount(2);
-        cancellations.Should().OnlyContain(workflowEvent =>
-            workflowEvent.FiberId.HasValue && workflowEvent.ScopeId.HasValue);
-    }
-
-    [Fact]
-    public async Task SelectedParallel_BranchFailureCancelsSiblingWaitBeforeWorkflowFails()
-    {
-        var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .Parallel<string>(
                 branches => branches
@@ -2163,24 +1994,48 @@ public sealed class DurableStructuredFiberDriverTests
                 (parent, _) => parent.Value)
             .End("unreachable")
             .Build();
-        var runtime = CreateRuntime(store);
+        var runtime = CreateRuntime(store, maxConcurrentExecutionPathsPerInstance: 1);
         runtime.RegisterDefinition(definition);
 
-        var failed = await runtime.StartOrGetAsync<string, TestState>(
+        var waiting = await runtime.StartOrGetAsync<string, TestState>(
             "fiber-branch-failure",
             definition.DefinitionId,
             definition.DefinitionVersion,
             "input",
             TestContext.Current.CancellationToken);
+        var waitingSnapshot = (await store.ListAsync(
+            new WorkflowProjectionQuery { InstanceId = waiting.InstanceId },
+            TestContext.Current.CancellationToken)).Single();
+        var waitingCheckpoint = await store.LoadCheckpointAsync(
+            waiting.InstanceId,
+            TestContext.Current.CancellationToken);
+        var waitingEnvelope = DurableExecutionEnvelopeV2.Deserialize(waitingCheckpoint!.Value.Payload);
+
+        waitingSnapshot.ErrorSummary.Should().BeNull();
+        waitingSnapshot.Status.Should().BeOneOf(
+            [WorkflowStatus.Running, WorkflowStatus.Waiting],
+            because: waitingSnapshot.ErrorSummary);
+        waitingSnapshot.ActiveWaits.Should().ContainSingle();
+        waitingEnvelope.OwnedObligations.Should().ContainSingle();
+        waitingEnvelope.Scopes.Should().ContainSingle(scope =>
+            scope.Phase == DurableExecutionScopePhase.Running);
+
+        var replacement = CreateRuntime(store, maxConcurrentExecutionPathsPerInstance: 1);
+        replacement.RegisterDefinition(definition);
+        await replacement.RaiseEventAsync(
+            waiting.InstanceId,
+            "Never",
+            WaitCorrelation,
+            cancellationToken: TestContext.Current.CancellationToken);
         var snapshot = (await store.ListAsync(
-            new WorkflowProjectionQuery { InstanceId = failed.InstanceId },
+            new WorkflowProjectionQuery { InstanceId = waiting.InstanceId },
             TestContext.Current.CancellationToken)).Single();
         var checkpoint = await store.LoadCheckpointAsync(
-            failed.InstanceId,
+            waiting.InstanceId,
             TestContext.Current.CancellationToken);
         var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint!.Value.Payload);
         var events = await store.LoadTailAsync(
-            new WorkflowStreamId(failed.InstanceId),
+            new WorkflowStreamId(waiting.InstanceId),
             StreamVersion.Empty,
             TestContext.Current.CancellationToken);
 
@@ -2189,7 +2044,845 @@ public sealed class DurableStructuredFiberDriverTests
         envelope.OwnedObligations.Should().BeEmpty();
         envelope.Scopes.Should().ContainSingle(scope =>
             scope.Phase == DurableExecutionScopePhase.Failed);
-        events.OfType<WorkflowWaitCancelledEvent>().Should().ContainSingle();
+        events.OfType<WorkflowWaitCancelledEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SelectedParallel_WhenAllOutcomesMergesOrderedSuccessAndFailureData()
+    {
+        var store = new InMemoryWorkflowProvider();
+        global::OrcaCore.WorkflowFailure? observedFailure = null;
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(value => new TestState { Value = value })
+            .ParallelOutcomes<string>(
+                branches => branches
+                    .Branch<WaitingBranchState>(
+                        "failing",
+                        _ => new WaitingBranchState { Name = "failing" },
+                        branch => branch
+                            .Then<FailingBranchStep>()
+                            .Return(state => state.Value.Name))
+                    .Branch<WaitingBranchState>(
+                        "succeeding",
+                        _ => new WaitingBranchState { Name = "succeeding" },
+                        branch => branch.Return(state => state.Value.Name)),
+                (parent, outcomes) => new TestState
+                {
+                    Value = parent.Value.Value,
+                    Log = outcomes.Select(outcome =>
+                    {
+                        if (outcome is global::OrcaCore.BranchOutcome<string>.Failed failed)
+                        {
+                            observedFailure = failed.Failure;
+                        }
+
+                        return outcome switch
+                        {
+                            global::OrcaCore.BranchOutcome<string>.Succeeded success =>
+                                $"{success.BranchId.Value}:success:{success.Result}",
+                            global::OrcaCore.BranchOutcome<string>.Failed failure =>
+                                $"{failure.BranchId.Value}:failure:{failure.Failure.Code}",
+                            _ => throw new InvalidOperationException("Unknown branch outcome.")
+                        };
+                    }).ToList()
+                })
+            .End("outcomes")
+            .Build();
+        var runtime = CreateRuntime(store);
+        runtime.RegisterDefinition(definition);
+
+        var completed = await runtime.StartOrGetAsync<string, TestState>(
+            "fiber-branch-outcomes",
+            definition.DefinitionId,
+            definition.DefinitionVersion,
+            "input",
+            TestContext.Current.CancellationToken);
+        var checkpoint = await store.LoadCheckpointAsync(
+            completed.InstanceId,
+            TestContext.Current.CancellationToken);
+        var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint!.Value.Payload);
+        var snapshot = (await store.ListAsync(
+            new WorkflowProjectionQuery { InstanceId = completed.InstanceId },
+            TestContext.Current.CancellationToken)).Single();
+
+        snapshot.Status.Should().Be(WorkflowStatus.Completed);
+        JsonSerializer.Deserialize<TestState>(envelope.StatePayload)!.Log.Should().Equal(
+            "failing:failure:WF-LEGACY-LIFECYCLE",
+            "succeeding:success:succeeding");
+        observedFailure.Should().NotBeNull();
+        observedFailure!.AuthoredLocation.Value.Should().Be(
+            "workflow:$/n:00000001/parallel:00000000/n:00000000");
+        observedFailure.Occurrence.Should().BeOfType<global::OrcaCore.FailureOccurrence.Branch>()
+            .Which.BranchId.Should().Be(global::OrcaCore.AuthoredBranchId.Create("failing"));
+    }
+
+    [Fact]
+    public async Task WideFixedParallel_CompletesWithoutACompilerOwnedFiberCeiling()
+    {
+        var store = new InMemoryWorkflowProvider();
+        var root = global::OrcaCore.Workflow.Durable<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(value => new TestState { Value = value });
+        var successor = root.Parallel<int>(branches =>
+        {
+            foreach (var index in Enumerable.Range(0, 257))
+            {
+                var branchId = global::OrcaCore.AuthoredBranchId.Create($"branch-{index:D4}");
+                branches.Branch(
+                    branchId,
+                    parent => parent.Value,
+                    branch => branch.Return(_ => index));
+            }
+        }).WhenAll((parent, results) => new TestState
+        {
+            Value = parent.Value.Value,
+            Log = [results.Count.ToString()]
+        });
+        var definition = successor.End().Build();
+        var runtime = CreateRuntime(store, maxConcurrentExecutionPathsPerInstance: 1);
+        runtime.RegisterDefinition(
+            definition.RuntimeDefinition.Should()
+                .BeOfType<WorkflowDefinition<TestState>>().Subject);
+
+        var completed = await runtime.StartOrGetAsync<string, TestState>(
+            "wide-fixed-parallel",
+            definition.DefinitionId,
+            definition.DefinitionVersion,
+            "input",
+            TestContext.Current.CancellationToken);
+        var finalStatus = WorkflowStatus.Running;
+        for (var attempt = 0; attempt < 8; attempt++)
+        {
+            var snapshot = (await store.ListAsync(
+                new WorkflowProjectionQuery { InstanceId = completed.InstanceId },
+                TestContext.Current.CancellationToken)).Single();
+            finalStatus = snapshot.Status;
+            if (snapshot.Status == WorkflowStatus.Completed)
+            {
+                break;
+            }
+
+            await runtime.StartOrGetAsync<string, TestState>(
+                "wide-fixed-parallel",
+                definition.DefinitionId,
+                definition.DefinitionVersion,
+                "input",
+                TestContext.Current.CancellationToken);
+        }
+
+        var checkpoint = await store.LoadCheckpointAsync(
+            completed.InstanceId,
+            TestContext.Current.CancellationToken);
+        var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint!.Value.Payload);
+        var state = JsonSerializer.Deserialize<TestState>(envelope.StatePayload)!;
+
+        finalStatus.Should().Be(WorkflowStatus.Completed);
+        state.Log.Should().Equal("257");
+    }
+
+    [Fact]
+    public async Task SelectedForEach_MaterializesBoundedItemsAndMergesResultsByIndex()
+    {
+        var store = new InMemoryWorkflowProvider();
+        var builder = global::OrcaCore.Workflow.Durable<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(value => new TestState { Value = value });
+        builder.AddForEach<string, WaitingBranchState, string>(
+            _ => ["zero", "one", "two"],
+            WorkflowPartitioner<string>.Items(),
+            item => new WaitingBranchState
+            {
+                Name = item.Items.Single()
+            },
+            body => body.Return(state => state.Value.Name),
+            ForEachJoinPolicy.WhenAll,
+            ForEachFailurePolicy.WaitAllThenFail,
+            maxConcurrency: 2,
+            merge: (parent, outcomes) => new TestState
+            {
+                Value = parent.Value.Value,
+                Log = outcomes.Select(outcome => $"{outcome.Index}:{outcome.Result}").ToList()
+            });
+        var definition = builder.End("foreach").Build();
+        var runtime = CreateRuntime(store);
+        runtime.RegisterDefinition(definition);
+
+        var completed = await runtime.StartOrGetAsync<string, TestState>(
+            "fiber-foreach",
+            definition.DefinitionId,
+            definition.DefinitionVersion,
+            "input",
+            TestContext.Current.CancellationToken);
+        var checkpoint = await store.LoadCheckpointAsync(
+            completed.InstanceId,
+            TestContext.Current.CancellationToken);
+        var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint!.Value.Payload);
+        var snapshot = (await store.ListAsync(
+            new WorkflowProjectionQuery { InstanceId = completed.InstanceId },
+            TestContext.Current.CancellationToken)).Single();
+
+        snapshot.Status.Should().Be(WorkflowStatus.Completed);
+        JsonSerializer.Deserialize<TestState>(envelope.StatePayload)!.Log.Should().Equal(
+            "0:zero",
+            "1:one",
+            "2:two");
+    }
+
+    [Fact]
+    public async Task PublicForEach_MaxItemsRejectsBeforeProjectorOrScopeAdmission()
+    {
+        var store = new InMemoryWorkflowProvider();
+        var itemStateCalls = 0;
+        var publicDefinition = global::OrcaCore.Workflow.Durable<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(value => new TestState { Value = value })
+            .ForEach<string, WaitingBranchState, string>(
+                _ => ["zero", "one"],
+                global::OrcaCore.ForEachOptions.Create(1),
+                item =>
+                {
+                    itemStateCalls++;
+                    return new WaitingBranchState { Name = item.Item };
+                },
+                body => body.Return(state => state.Value.Name))
+            .WhenAll((parent, _) => parent.Value)
+            .End()
+            .Build();
+        var definition = publicDefinition.RuntimeDefinition.Should()
+            .BeOfType<WorkflowDefinition<TestState>>().Subject;
+        var runtime = CreateRuntime(store);
+        runtime.RegisterDefinition(definition);
+
+        Func<Task> act = () => runtime.StartOrGetAsync<string, TestState>(
+            "foreach-max-items-preadmission",
+            definition.DefinitionId,
+            definition.DefinitionVersion,
+            "input",
+            TestContext.Current.CancellationToken);
+
+        var exception = await act.Should().ThrowAsync<Exception>();
+        exception.Which.ToString().Should().Contain("SFE-LIMIT-001");
+        itemStateCalls.Should().Be(0);
+        var checkpoint = await store.LoadCheckpointAsync(
+            (await store.ListAsync(
+                new WorkflowProjectionQuery { DefinitionId = definition.DefinitionId },
+                TestContext.Current.CancellationToken)).Single().InstanceId,
+            TestContext.Current.CancellationToken);
+        checkpoint.HasValue.Should().BeFalse("no dynamic item scope may be admitted or committed");
+    }
+
+    [Fact]
+    public async Task PublicForEach_EncodedValueLimitRejectsBeforeProjectorOrScopeAdmission()
+    {
+        var store = new InMemoryWorkflowProvider();
+        var itemStateCalls = 0;
+        var oversized = new string('x', FixedWorkflowValueCodec.MaxEncodedValueBytes);
+        var publicDefinition = global::OrcaCore.Workflow.Durable<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(value => new TestState { Value = value })
+            .ForEach<string, WaitingBranchState, string>(
+                _ => [oversized],
+                global::OrcaCore.ForEachOptions.Create(int.MaxValue),
+                item =>
+                {
+                    itemStateCalls++;
+                    return new WaitingBranchState { Name = item.Item };
+                },
+                body => body.Return(state => state.Value.Name))
+            .WhenAll((parent, _) => parent.Value)
+            .End()
+            .Build();
+        var definition = publicDefinition.RuntimeDefinition.Should()
+            .BeOfType<WorkflowDefinition<TestState>>().Subject;
+        var runtime = CreateRuntime(store);
+        runtime.RegisterDefinition(definition);
+
+        Func<Task> act = () => runtime.StartOrGetAsync<string, TestState>(
+            "foreach-encoded-value-preadmission",
+            definition.DefinitionId,
+            definition.DefinitionVersion,
+            "input",
+            TestContext.Current.CancellationToken);
+
+        var exception = await act.Should().ThrowAsync<StructuredExecutionLimitException>();
+        exception.Which.Code.Should().Be(StructuredExecutionLimitCodes.EncodedValueExceeded);
+        itemStateCalls.Should().Be(0);
+        var checkpoint = await store.LoadCheckpointAsync(
+            (await store.ListAsync(
+                new WorkflowProjectionQuery { DefinitionId = definition.DefinitionId },
+                TestContext.Current.CancellationToken)).Single().InstanceId,
+            TestContext.Current.CancellationToken);
+        checkpoint.HasValue.Should().BeFalse("no dynamic item scope may be admitted or committed");
+    }
+
+    [Fact]
+    public async Task PublicForEach_TaggedFlatteningPreservesGroupIdentityAndFlatAggregationOrder()
+    {
+        var store = new InMemoryWorkflowProvider();
+        var items = new[]
+        {
+            new TaggedWorkItem("group-a", "deploy", "unit-1"),
+            new TaggedWorkItem("group-a", "verify", "unit-1"),
+            new TaggedWorkItem("group-b", "deploy", "unit-2"),
+            new TaggedWorkItem("group-b", "verify", "unit-2")
+        };
+        var publicDefinition = global::OrcaCore.Workflow.Durable<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(value => new TestState { Value = value })
+            .ForEach<TaggedWorkItem, TaggedItemState, TaggedItemResult>(
+                _ => items,
+                global::OrcaCore.ForEachOptions.Create(16, maxConcurrency: 2),
+                item => new TaggedItemState
+                {
+                    Index = item.Index,
+                    Item = item.Item
+                },
+                body => body
+                    .If(
+                        state => state.Value.Item.UnitKind == "deploy",
+                        then => then.Then<TaggedDeployStep>(),
+                        otherwise => otherwise.Then<TaggedVerifyStep>())
+                    .Return(state => new TaggedItemResult(
+                        state.Value.Item.GroupId,
+                        state.Value.Item.UnitKind,
+                        state.Value.Item.UnitId,
+                        state.Value.Observation)))
+            .WhenAll((parent, results) => new TestState
+            {
+                Value = parent.Value.Value,
+                Log = results.Select(result =>
+                    $"{result.Index}:{result.Result.GroupId}:{result.Result.UnitKind}:" +
+                    $"{result.Result.UnitId}:{result.Result.Observation}").ToList()
+            })
+            .End()
+            .Build();
+        var definition = publicDefinition.RuntimeDefinition.Should()
+            .BeOfType<WorkflowDefinition<TestState>>().Subject;
+        var runtime = CreateRuntime(store, serviceProvider: new TaggedStepServiceProvider());
+        runtime.RegisterDefinition(definition);
+
+        var completed = await runtime.StartOrGetAsync<string, TestState>(
+            "foreach-tagged-flattening",
+            definition.DefinitionId,
+            definition.DefinitionVersion,
+            "input",
+            TestContext.Current.CancellationToken);
+        for (var attempt = 0; attempt < 8; attempt++)
+        {
+            var snapshot = (await store.ListAsync(
+                new WorkflowProjectionQuery { InstanceId = completed.InstanceId },
+                TestContext.Current.CancellationToken)).Single();
+            if (snapshot.Status == WorkflowStatus.Completed)
+            {
+                break;
+            }
+
+            await runtime.StartOrGetAsync<string, TestState>(
+                "foreach-tagged-flattening",
+                definition.DefinitionId,
+                definition.DefinitionVersion,
+                "input",
+                TestContext.Current.CancellationToken);
+        }
+
+        var checkpoint = await store.LoadCheckpointAsync(
+            completed.InstanceId,
+            TestContext.Current.CancellationToken);
+        var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint!.Value.Payload);
+        var finalProjection = (await store.ListAsync(
+            new WorkflowProjectionQuery { InstanceId = completed.InstanceId },
+            TestContext.Current.CancellationToken)).Single();
+        finalProjection.Status.Should().Be(
+            WorkflowStatus.Completed,
+            $"scope phases were {string.Join(",", envelope.Scopes.Select(scope => scope.Phase))}; " +
+            $"error was {finalProjection.ErrorSummary}; item failures were " +
+            string.Join(" | ", envelope.Scopes.SelectMany(scope => scope.ForEach?.Outcomes ?? [])
+                .Select(outcome => outcome.Failure?.Message ?? outcome.Status)));
+        var state = JsonSerializer.Deserialize<TestState>(envelope.StatePayload)!;
+
+        state.Log.Should().Equal(
+            "0:group-a:deploy:unit-1:deployed",
+            "1:group-a:verify:unit-1:verified",
+            "2:group-b:deploy:unit-2:deployed",
+            "3:group-b:verify:unit-2:verified");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SelectedForEach_EmptySnapshotMergesExactlyOnceUnderBothJoins(bool collectOutcomes)
+    {
+        var store = new InMemoryWorkflowProvider();
+        var mergeCalls = 0;
+        var builder = global::OrcaCore.Workflow.Durable<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(value => new TestState { Value = value });
+        builder.AddForEach<string, WaitingBranchState, string>(
+            _ => [],
+            WorkflowPartitioner<string>.Items(),
+            item => new WaitingBranchState { Name = item.Items.Single() },
+            body => body.Return(state => state.Value.Name),
+            ForEachJoinPolicy.WhenAll,
+            collectOutcomes
+                ? ForEachFailurePolicy.ContinueWithPartialFailures
+                : ForEachFailurePolicy.WaitAllThenFail,
+            maxConcurrency: null,
+            merge: (parent, outcomes) =>
+            {
+                mergeCalls++;
+                outcomes.Should().BeEmpty();
+                return new TestState { Value = parent.Value.Value, Log = ["empty"] };
+            });
+        var definition = builder.End("empty").Build();
+        var runtime = CreateRuntime(store);
+        runtime.RegisterDefinition(definition);
+
+        var completed = await runtime.StartOrGetAsync<string, TestState>(
+            $"fiber-foreach-empty-{collectOutcomes}",
+            definition.DefinitionId,
+            definition.DefinitionVersion,
+            "input",
+            TestContext.Current.CancellationToken);
+        var checkpoint = await store.LoadCheckpointAsync(
+            completed.InstanceId,
+            TestContext.Current.CancellationToken);
+        var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint!.Value.Payload);
+        var snapshot = (await store.ListAsync(
+            new WorkflowProjectionQuery { InstanceId = completed.InstanceId },
+            TestContext.Current.CancellationToken)).Single();
+
+        snapshot.Status.Should().Be(WorkflowStatus.Completed);
+        mergeCalls.Should().Be(1);
+        JsonSerializer.Deserialize<TestState>(envelope.StatePayload)!.Log.Should().Equal("empty");
+    }
+
+    [Fact]
+    public async Task SelectedForEach_WhenAllOutcomesPreservesStableItemFailureCodes()
+    {
+        var store = new InMemoryWorkflowProvider();
+        var builder = global::OrcaCore.Workflow.Durable<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(value => new TestState { Value = value });
+        builder.AddForEach<string, WaitingBranchState, string>(
+            _ => ["zero", "one", "two"],
+            WorkflowPartitioner<string>.Items(),
+            item => new WaitingBranchState { Name = item.Items.Single() },
+            body => body
+                .Then<MaybeFailForEachStep>()
+                .Return(state => state.Value.Name),
+            ForEachJoinPolicy.WhenAll,
+            ForEachFailurePolicy.ContinueWithPartialFailures,
+            maxConcurrency: null,
+            merge: (parent, outcomes) => new TestState
+            {
+                Value = parent.Value.Value,
+                Log = outcomes.Select(outcome =>
+                    $"{outcome.Index}:{outcome.Status}:{outcome.Result}:{outcome.Failure?.Code}").ToList()
+            });
+        var definition = builder.End("outcomes").Build();
+        var runtime = CreateRuntime(store);
+        runtime.RegisterDefinition(definition);
+
+        var completed = await runtime.StartOrGetAsync<string, TestState>(
+            "fiber-foreach-outcomes",
+            definition.DefinitionId,
+            definition.DefinitionVersion,
+            "input",
+            TestContext.Current.CancellationToken);
+        var checkpoint = await store.LoadCheckpointAsync(
+            completed.InstanceId,
+            TestContext.Current.CancellationToken);
+        var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint!.Value.Payload);
+        var snapshot = (await store.ListAsync(
+            new WorkflowProjectionQuery { InstanceId = completed.InstanceId },
+            TestContext.Current.CancellationToken)).Single();
+
+        snapshot.Status.Should().Be(WorkflowStatus.Completed);
+        JsonSerializer.Deserialize<TestState>(envelope.StatePayload)!.Log.Should().Equal(
+            "0:Succeeded:zero:",
+            "1:Failed::WF-LEGACY-LIFECYCLE",
+            "2:Succeeded:two:");
+    }
+
+    [Fact]
+    public async Task SelectedForEach_ReplacementHostUsesCommittedItemSnapshotWithoutReselectingItems()
+    {
+        var store = new InMemoryWorkflowProvider();
+        var selectorCalls = 0;
+        var selectedItems = new List<string> { "zero", "one", "two" };
+        var builder = global::OrcaCore.Workflow.Durable<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(value => new TestState { Value = value });
+        builder.AddForEach<string, WaitingBranchState, string>(
+            _ =>
+            {
+                selectorCalls++;
+                if (selectorCalls > 1)
+                {
+                    throw new InvalidOperationException("ForEach selector was replayed.");
+                }
+
+                return selectedItems;
+            },
+            WorkflowPartitioner<string>.Items(),
+            item => new WaitingBranchState
+            {
+                Name = item.Items.Single(),
+                EventName = $"Item-{item.Index}"
+            },
+            body => body
+                .Then<BranchWaitStep>()
+                .Return(state => state.Value.Name),
+            ForEachJoinPolicy.WhenAll,
+            ForEachFailurePolicy.WaitAllThenFail,
+            maxConcurrency: 3,
+            merge: (parent, outcomes) => new TestState
+            {
+                Value = parent.Value.Value,
+                Log = outcomes.Select(outcome => $"{outcome.Index}:{outcome.Result}").ToList()
+            });
+        var definition = builder.End("foreach-restart").Build();
+        var firstHost = CreateRuntime(store, maxConcurrentExecutionPathsPerInstance: 1);
+        firstHost.RegisterDefinition(definition);
+
+        var waiting = await firstHost.StartOrGetAsync<string, TestState>(
+            "fiber-foreach-restart",
+            definition.DefinitionId,
+            definition.DefinitionVersion,
+            "input",
+            TestContext.Current.CancellationToken);
+        var firstCheckpoint = await store.LoadCheckpointAsync(
+            waiting.InstanceId,
+            TestContext.Current.CancellationToken);
+        var firstEnvelope = DurableExecutionEnvelopeV2.Deserialize(firstCheckpoint!.Value.Payload);
+
+        selectorCalls.Should().Be(1);
+        firstEnvelope.Scopes.Single().ForEach!.Descriptors.Should().HaveCount(3);
+        firstEnvelope.Scopes.Single().ForEach!.NextAdmissionOffset.Should().Be(1);
+        firstEnvelope.Scopes.Single().ForEach!.MaxConcurrency.Should().Be(3);
+        selectedItems[1] = "mutated";
+
+        var replacementHost = CreateRuntime(store, maxConcurrentExecutionPathsPerInstance: 2);
+        replacementHost.RegisterDefinition(definition);
+        await replacementHost.RaiseEventAsync(
+            waiting.InstanceId,
+            "Item-0",
+            WaitCorrelation,
+            cancellationToken: TestContext.Current.CancellationToken);
+        var readmittedCheckpoint = await store.LoadCheckpointAsync(
+            waiting.InstanceId,
+            TestContext.Current.CancellationToken);
+        var readmittedEnvelope = DurableExecutionEnvelopeV2.Deserialize(readmittedCheckpoint!.Value.Payload);
+        readmittedEnvelope.Scopes.Single().ForEach!.NextAdmissionOffset.Should().Be(3);
+        readmittedEnvelope.Scopes.Single().ChildFiberIds.Should().HaveCount(3);
+
+        for (var index = 1; index < 3; index++)
+        {
+            await replacementHost.RaiseEventAsync(
+                waiting.InstanceId,
+                $"Item-{index}",
+                WaitCorrelation,
+                cancellationToken: TestContext.Current.CancellationToken);
+        }
+
+        var completed = (await store.ListAsync(
+            new WorkflowProjectionQuery { InstanceId = waiting.InstanceId },
+            TestContext.Current.CancellationToken)).Single();
+        var finalCheckpoint = await store.LoadCheckpointAsync(
+            waiting.InstanceId,
+            TestContext.Current.CancellationToken);
+        var finalEnvelope = DurableExecutionEnvelopeV2.Deserialize(finalCheckpoint!.Value.Payload);
+
+        selectorCalls.Should().Be(1);
+        completed.Status.Should().Be(WorkflowStatus.Completed);
+        JsonSerializer.Deserialize<TestState>(finalEnvelope.StatePayload)!.Log.Should().Equal(
+            "0:zero",
+            "1:one",
+            "2:two");
+    }
+
+    [Fact]
+    public async Task PublicParallel_WhenAllTerminationSuppressesMergeAndClearsChildWaits()
+    {
+        var mergeCalls = 0;
+        var store = new InMemoryWorkflowProvider();
+        var publicDefinition = global::OrcaCore.Workflow.Durable<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(value => new TestState { Value = value })
+            .Parallel<string>(branches => branches
+                .Branch<WaitingBranchState>(
+                    global::OrcaCore.AuthoredBranchId.Create("first"),
+                    _ => new WaitingBranchState { Name = "first" },
+                    branch => branch
+                        .Wait(EventName.Create("First"), _ => CorrelationId.Create("first"))
+                        .Return(state => state.Value.Name))
+                .Branch<WaitingBranchState>(
+                    global::OrcaCore.AuthoredBranchId.Create("second"),
+                    _ => new WaitingBranchState { Name = "second" },
+                    branch => branch
+                        .Wait(EventName.Create("Second"), _ => CorrelationId.Create("second"))
+                        .Return(state => state.Value.Name)))
+            .WhenAll((parent, _) =>
+            {
+                mergeCalls++;
+                return new TestState { Value = parent.Value.Value, Log = ["merged"] };
+            })
+            .End()
+            .Build();
+        var definition = (WorkflowDefinition<TestState>)publicDefinition.GetType()
+            .GetProperty("RuntimeDefinition", System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(publicDefinition)!;
+        var runtime = CreateRuntime(store);
+        runtime.RegisterDefinition(definition);
+
+        var waiting = await runtime.StartOrGetAsync<string, TestState>(
+            "parallel-terminate-suppresses-merge",
+            definition.DefinitionId,
+            definition.DefinitionVersion,
+            "input",
+            TestContext.Current.CancellationToken);
+        (await store.ListAsync(
+                new WorkflowProjectionQuery { InstanceId = waiting.InstanceId },
+                TestContext.Current.CancellationToken))
+            .Single().ActiveWaits.Should().HaveCount(2);
+        await runtime.Management.TerminateAsync(
+            waiting.InstanceId,
+            DateTimeOffset.UtcNow,
+            global::OrcaCore.Engine.Durable.Management.DestructiveCommandSafety.Confirmed,
+            TestContext.Current.CancellationToken);
+        var terminated = (await store.ListAsync(
+            new WorkflowProjectionQuery { InstanceId = waiting.InstanceId },
+            TestContext.Current.CancellationToken)).Single();
+
+        terminated.Status.Should().Be(WorkflowStatus.Terminated);
+        terminated.ActiveWaits.Should().BeEmpty();
+        mergeCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task PublicForEach_WhenAllOutcomesCancellationSuppressesMergeAndClearsItemWaits()
+    {
+        var mergeCalls = 0;
+        var store = new InMemoryWorkflowProvider();
+        var publicDefinition = global::OrcaCore.Workflow.Durable<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(value => new TestState { Value = value })
+            .ForEach<string, WaitingBranchState, string>(
+                _ => ["zero", "one"],
+                global::OrcaCore.ForEachOptions.Create(2),
+                item => new WaitingBranchState { Name = item.Item, EventName = $"Item-{item.Index}" },
+                body => body
+                    .Wait(EventName.Create("Resume"), state => CorrelationId.Create(state.Value.Name))
+                    .Return(state => state.Value.Name))
+            .WhenAllOutcomes((parent, _) =>
+            {
+                mergeCalls++;
+                return new TestState { Value = parent.Value.Value, Log = ["merged"] };
+            })
+            .End()
+            .Build();
+        var definition = (WorkflowDefinition<TestState>)publicDefinition.GetType()
+            .GetProperty("RuntimeDefinition", System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(publicDefinition)!;
+        var runtime = CreateRuntime(store);
+        runtime.RegisterDefinition(definition);
+
+        var waiting = await runtime.StartOrGetAsync<string, TestState>(
+            "foreach-cancel-suppresses-merge",
+            definition.DefinitionId,
+            definition.DefinitionVersion,
+            "input",
+            TestContext.Current.CancellationToken);
+        (await store.ListAsync(
+                new WorkflowProjectionQuery { InstanceId = waiting.InstanceId },
+                TestContext.Current.CancellationToken))
+            .Single().ActiveWaits.Should().HaveCount(2);
+        await runtime.Management.CancelAsync(
+            waiting.InstanceId,
+            DateTimeOffset.UtcNow,
+            TestContext.Current.CancellationToken);
+        var cancelled = (await store.ListAsync(
+            new WorkflowProjectionQuery { InstanceId = waiting.InstanceId },
+            TestContext.Current.CancellationToken)).Single();
+
+        cancelled.Status.Should().Be(WorkflowStatus.Cancelled);
+        cancelled.ActiveWaits.Should().BeEmpty();
+        mergeCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task PublicParallel_ReferenceModelCompletionAndRestartPermutationsProduceOneOrderedMerge()
+    {
+        foreach (var seed in new[] { 307, 311, 313 })
+        {
+            var scenario = StructuredScopeScenarioGenerator.GenerateNested(seed, branchCount: 4);
+            var mergeCalls = 0;
+            var store = new InMemoryWorkflowProvider();
+            var publicDefinition = global::OrcaCore.Workflow.Durable<TestState>(
+                    DefinitionId.New(),
+                    DefinitionVersion.Initial)
+                .Init<string>(value => new TestState { Value = value })
+                .Parallel<string>(branches =>
+                {
+                    for (var index = 0; index < scenario.WorkItemCount; index++)
+                    {
+                        var captured = index;
+                        branches.Branch<WaitingBranchState>(
+                            global::OrcaCore.AuthoredBranchId.Create($"branch-{captured}"),
+                            _ => new WaitingBranchState { Name = captured.ToString() },
+                            branch => branch
+                                .Wait(
+                                    EventName.Create("Ready"),
+                                    _ => CorrelationId.Create($"branch-{captured}"))
+                                .Return(state => state.Value.Name));
+                    }
+                })
+                .WhenAll((parent, results) =>
+                {
+                    mergeCalls++;
+                    return new TestState
+                    {
+                        Value = parent.Value.Value,
+                        Log = results.Select(result => result.Result).ToList()
+                    };
+                })
+                .End()
+                .Build();
+            var definition = (WorkflowDefinition<TestState>)publicDefinition.GetType()
+                .GetProperty("RuntimeDefinition", System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic)!
+                .GetValue(publicDefinition)!;
+            var runtime = CreateRuntime(store);
+            runtime.RegisterDefinition(definition);
+            var started = await runtime.StartOrGetAsync<string, TestState>(
+                $"parallel-reference-{seed}",
+                definition.DefinitionId,
+                definition.DefinitionVersion,
+                "input",
+                TestContext.Current.CancellationToken);
+
+            foreach (var index in scenario.CompletionOrder)
+            {
+                runtime = CreateRuntime(store);
+                runtime.RegisterDefinition(definition);
+                await runtime.RaiseEventAsync(
+                    started.InstanceId,
+                    "Ready",
+                    CorrelationId.Create($"branch-{index}"),
+                    cancellationToken: TestContext.Current.CancellationToken);
+            }
+
+            var completed = (await store.ListAsync(
+                new WorkflowProjectionQuery { InstanceId = started.InstanceId },
+                TestContext.Current.CancellationToken)).Single();
+            var checkpoint = await store.LoadCheckpointAsync(
+                started.InstanceId,
+                TestContext.Current.CancellationToken);
+            var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint!.Value.Payload);
+
+            completed.Status.Should().Be(WorkflowStatus.Completed);
+            completed.ActiveWaits.Should().BeEmpty();
+            envelope.OwnedObligations.Should().BeEmpty();
+            mergeCalls.Should().Be(1);
+            JsonSerializer.Deserialize<TestState>(envelope.StatePayload)!.Log
+                .Should().Equal("0", "1", "2", "3");
+        }
+    }
+
+    [Fact]
+    public async Task PublicForEach_ReferenceModelCompletionAndRestartPermutationsProduceOneIndexedMerge()
+    {
+        foreach (var seed in new[] { 401, 409, 419 })
+        {
+            var scenario = StructuredScopeScenarioGenerator.GenerateForEach(
+                seed,
+                itemCount: 6,
+                maxConcurrency: 6);
+            var mergeCalls = 0;
+            var store = new InMemoryWorkflowProvider();
+            var publicDefinition = global::OrcaCore.Workflow.Durable<TestState>(
+                    DefinitionId.New(),
+                    DefinitionVersion.Initial)
+                .Init<string>(value => new TestState { Value = value })
+                .ForEach<int, WaitingBranchState, string>(
+                    _ => Enumerable.Range(0, scenario.WorkItemCount).ToArray(),
+                    global::OrcaCore.ForEachOptions.Create(
+                        scenario.WorkItemCount,
+                        scenario.MaxConcurrency),
+                    item => new WaitingBranchState
+                    {
+                        Name = item.Item.ToString(),
+                        EventName = $"item-{item.Index}"
+                    },
+                    body => body
+                        .Wait(
+                            EventName.Create("Ready"),
+                            state => CorrelationId.Create(state.Value.EventName))
+                        .Return(state => state.Value.Name))
+                .WhenAll((parent, results) =>
+                {
+                    mergeCalls++;
+                    return new TestState
+                    {
+                        Value = parent.Value.Value,
+                        Log = results.Select(result => $"{result.Index}:{result.Result}").ToList()
+                    };
+                })
+                .End()
+                .Build();
+            var definition = (WorkflowDefinition<TestState>)publicDefinition.GetType()
+                .GetProperty("RuntimeDefinition", System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic)!
+                .GetValue(publicDefinition)!;
+            var runtime = CreateRuntime(store);
+            runtime.RegisterDefinition(definition);
+            var started = await runtime.StartOrGetAsync<string, TestState>(
+                $"foreach-reference-{seed}",
+                definition.DefinitionId,
+                definition.DefinitionVersion,
+                "input",
+                TestContext.Current.CancellationToken);
+
+            foreach (var index in scenario.CompletionOrder)
+            {
+                runtime = CreateRuntime(store);
+                runtime.RegisterDefinition(definition);
+                await runtime.RaiseEventAsync(
+                    started.InstanceId,
+                    "Ready",
+                    CorrelationId.Create($"item-{index}"),
+                    cancellationToken: TestContext.Current.CancellationToken);
+            }
+
+            var completed = (await store.ListAsync(
+                new WorkflowProjectionQuery { InstanceId = started.InstanceId },
+                TestContext.Current.CancellationToken)).Single();
+            var checkpoint = await store.LoadCheckpointAsync(
+                started.InstanceId,
+                TestContext.Current.CancellationToken);
+            var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint!.Value.Payload);
+
+            completed.Status.Should().Be(WorkflowStatus.Completed);
+            completed.ActiveWaits.Should().BeEmpty();
+            envelope.OwnedObligations.Should().BeEmpty();
+            mergeCalls.Should().Be(1);
+            JsonSerializer.Deserialize<TestState>(envelope.StatePayload)!.Log
+                .Should().Equal("0:0", "1:1", "2:2", "3:3", "4:4", "5:5");
+        }
     }
 
     [Fact]
@@ -2197,7 +2890,7 @@ public sealed class DurableStructuredFiberDriverTests
     {
         var trace = new List<string>();
         var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new TestState { Value = value })
             .Parallel<string>(
                 branches => branches
@@ -2246,64 +2939,18 @@ public sealed class DurableStructuredFiberDriverTests
     }
 
     [Fact]
-    public async Task SelectedContinueAsNew_QuiescentRootMintsNewGenerationAndPreservesSelectedState()
-    {
-        var store = new InMemoryWorkflowProvider();
-        var definition = Workflow.Durable<RolloverState>(DefinitionId.New(), DefinitionVersion.Initial)
-            .Init<int>(_ => new RolloverState(0))
-            .If(
-                state => state.Generation == 0,
-                then => then.ContinueAsNew(state => state with
-                {
-                    Generation = state.Generation + 1
-                }))
-            .End(state => $"generation-{state.Generation}")
-            .Build();
-        var runtime = CreateRuntime(store);
-        runtime.RegisterDefinition(definition);
-
-        var completed = await runtime.StartOrGetAsync<int, RolloverState>(
-            "fiber-rollover",
-            definition.DefinitionId,
-            definition.DefinitionVersion,
-            0,
-            TestContext.Current.CancellationToken);
-        var snapshot = (await store.ListAsync(
-            new WorkflowProjectionQuery { InstanceId = completed.InstanceId },
-            TestContext.Current.CancellationToken)).Single();
-        var checkpoint = await store.LoadCheckpointAsync(
-            completed.InstanceId,
-            TestContext.Current.CancellationToken);
-        var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint!.Value.Payload);
-        var events = await store.LoadTailAsync(
-            new WorkflowStreamId(completed.InstanceId),
-            StreamVersion.Empty,
-            TestContext.Current.CancellationToken);
-
-        snapshot.Status.Should().Be(WorkflowStatus.Completed);
-        snapshot.EndOutcomeName.Should().Be("generation-1");
-        envelope.ContinueAsNewGeneration.Should().Be(1);
-        envelope.RootFiberId.Should().NotBe(FiberIdentityForGeneration(completed.InstanceId, 0));
-        JsonSerializer.Deserialize<RolloverState>(envelope.StatePayload)!.Generation.Should().Be(1);
-        events.OfType<WorkflowContinuedAsNewEvent>().Should().ContainSingle();
-    }
-
-    [Fact]
     public async Task SelectedContinueAsNew_NonQuiescentRootFailsWithoutChangingGenerationStateOrOwnership()
     {
         var store = new InMemoryWorkflowProvider();
         var processor = new DurableCommandProcessor(store);
-        var definition = Workflow.Durable<RolloverState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<RolloverState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<int>(_ => new RolloverState(0))
-            .If(
-                _ => true,
-                then => then.ContinueAsNew(state => state with
-                {
-                    Generation = state.Generation + 1
-                }))
-            .End("unreachable")
+            .ContinueAsNew(state => state with
+            {
+                Generation = state.Generation + 1
+            })
             .Build();
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         await processor.ProcessAsync(
             new StartWorkflowCommand
             {
@@ -2322,12 +2969,12 @@ public sealed class DurableStructuredFiberDriverTests
         var root = FiberRecord.CreateRoot(instanceId, 0, rollover.Id);
         var scopeId = new ScopeId("non-quiescent-scope");
         var childId = new FiberId("non-quiescent-child");
-        var waitId = WaitId.New();
+        var waitId = WaitId.Parse(Guid.CreateVersion7().ToString());
         var child = new FiberRecord(
             childId,
             scopeId,
             definition.CompiledPlan.Instructions.Single(instruction =>
-                instruction.Kind == CompiledInstructionKind.End).Id,
+                instruction.Kind == CompiledInstructionKind.Init).Id,
             FiberPhase.Blocked,
             LoopIteration: 0,
             NextScopeEntrySequence: 0,
@@ -2406,14 +3053,24 @@ public sealed class DurableStructuredFiberDriverTests
     private static DurableWorkflowRuntime CreateRuntime(
         InMemoryWorkflowProvider store,
         DurableDriverBudget? budget = null,
-        IResourcePoolStore? resourcePoolStore = null)
+        IResourcePoolStore? resourcePoolStore = null,
+        int maxConcurrentExecutionPathsPerInstance = int.MaxValue,
+        IServiceProvider? serviceProvider = null)
     {
+        var processor = new DurableCommandProcessor(store, resourcePoolStore);
+        var management = new global::OrcaCore.Engine.Durable.Management.DurableManagement(
+            store,
+            resourcePoolStore,
+            store,
+            processor);
         return new DurableWorkflowRuntime(
-            new DurableCommandProcessor(store, resourcePoolStore),
-            new DurableDefinitionRegistry(),
+            processor,
+            new DurableDefinitionRegistry(maxConcurrentExecutionPathsPerInstance, serviceProvider),
             TimeProvider.System,
             new JsonWorkflowPayloadSerializer(),
-            budget);
+            budget,
+            projectionStore: store,
+            management: management);
     }
 
     private static string FiberIdentityForGeneration(InstanceId instanceId, long generation)
@@ -2441,7 +3098,7 @@ public sealed class DurableStructuredFiberDriverTests
             CancellationToken cancellationToken)
         {
             return ValueTask.FromResult<StepResult>(
-                new StepResult.WaitForEvent("Continue", WaitCorrelation));
+                new StepResult.WaitForEvent(EventName.Create("Continue"), WaitCorrelation));
         }
     }
 
@@ -2467,7 +3124,7 @@ public sealed class DurableStructuredFiberDriverTests
             CancellationToken cancellationToken)
         {
             trace.Add("dispatch");
-            return ValueTask.FromResult<StepResult>(new StepResult.RunExternalJob(
+            return ValueTask.FromResult<StepResult>(global::OrcaCore.TestSupport.LegacyStepResults.RunExternalJob(
                 context.State.Value,
                 [1, 2, 3]));
         }
@@ -2493,7 +3150,7 @@ public sealed class DurableStructuredFiberDriverTests
             CancellationToken cancellationToken)
         {
             trace.Add("acquire");
-            return ValueTask.FromResult<StepResult>(new StepResult.AcquireResources(
+            return ValueTask.FromResult<StepResult>(global::OrcaCore.TestSupport.LegacyStepResults.AcquireResources(
                 context.State.Value,
                 [new ResourcePoolRequirement("db", 1)]));
         }
@@ -2509,7 +3166,7 @@ public sealed class DurableStructuredFiberDriverTests
             var suffix = context.State.Attempts == 1 ? "yield" : "complete";
             trace.Add($"{context.State.Name}:{suffix}");
             return ValueTask.FromResult<StepResult>(context.State.Attempts == 1
-                ? new StepResult.Yield()
+                ? global::OrcaCore.TestSupport.LegacyStepResults.Yield()
                 : new StepResult.Completed());
         }
     }
@@ -2524,7 +3181,7 @@ public sealed class DurableStructuredFiberDriverTests
             if (context.State.Attempts <= 2)
             {
                 trace.Add($"{context.State.Name}:yield:{context.State.Attempts}");
-                return ValueTask.FromResult<StepResult>(new StepResult.Yield());
+                return ValueTask.FromResult<StepResult>(global::OrcaCore.TestSupport.LegacyStepResults.Yield());
             }
 
             trace.Add($"{context.State.Name}:complete");
@@ -2538,8 +3195,7 @@ public sealed class DurableStructuredFiberDriverTests
             StepContext<WaitingBranchState> context,
             CancellationToken cancellationToken)
         {
-            return ValueTask.FromResult<StepResult>(new StepResult.WaitForEvent(
-                context.State.EventName,
+            return ValueTask.FromResult<StepResult>(new StepResult.WaitForEvent(EventName.Create(context.State.EventName),
                 WaitCorrelation));
         }
     }
@@ -2627,6 +3283,102 @@ public sealed class DurableStructuredFiberDriverTests
         public List<string> Log { get; set; } = [];
     }
 
+    private sealed record TerminalOutput(string Value);
+
+    private sealed record TaggedWorkItem(string GroupId, string UnitKind, string UnitId);
+
+    private sealed record TaggedItemResult(
+        string GroupId,
+        string UnitKind,
+        string UnitId,
+        string Observation);
+
+    private sealed class TaggedItemState
+    {
+        public int Index { get; set; }
+
+        public TaggedWorkItem Item { get; set; } = null!;
+
+        public string Observation { get; set; } = string.Empty;
+    }
+
+    private sealed class TaggedDeployStep : IStep<TaggedItemState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<TaggedItemState> context,
+            CancellationToken cancellationToken)
+        {
+            context.State.Observation = "deployed";
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed class TaggedVerifyStep : IStep<TaggedItemState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<TaggedItemState> context,
+            CancellationToken cancellationToken)
+        {
+            context.State.Observation = "verified";
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed class TaggedStepServiceProvider : IServiceProvider
+    {
+        public object? GetService(Type serviceType) =>
+            serviceType == typeof(TaggedDeployStep)
+                ? new TaggedDeployStep()
+                : serviceType == typeof(TaggedVerifyStep)
+                    ? new TaggedVerifyStep()
+                    : null;
+    }
+
+    private record PolymorphicOutputBase(string Value);
+
+    private sealed record PolymorphicOutputDerived(string Value, string Detail)
+        : PolymorphicOutputBase(Value);
+
+    private sealed class DurableProbeDependency
+    {
+        internal int ExecutionCount { get; set; }
+    }
+
+    private sealed class MaybeFailForEachStep : IStep<WaitingBranchState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<WaitingBranchState> context,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult<StepResult>(
+                context.State.Name == "one"
+                    ? new StepResult.Failed(new WorkflowLifecycleException("item failed"))
+                    : new StepResult.Completed());
+        }
+    }
+
+    private sealed class ConstructorInjectedDurableStep(DurableProbeDependency dependency) : IStep<TestState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<TestState> context,
+            CancellationToken cancellationToken)
+        {
+            dependency.ExecutionCount++;
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed class DurableStepServiceProvider(ConstructorInjectedDurableStep step) : IServiceProvider
+    {
+        internal List<Type> RequestedTypes { get; } = [];
+
+        public object? GetService(Type serviceType)
+        {
+            RequestedTypes.Add(serviceType);
+            return serviceType == typeof(ConstructorInjectedDurableStep) ? step : null;
+        }
+    }
+
     private sealed class WaitSequenceState
     {
         public int Count { get; set; }
@@ -2645,29 +3397,15 @@ public sealed class DurableStructuredFiberDriverTests
 
     private sealed class TrackingSerializerRegistry : IWorkflowTypeSerializerRegistry
     {
-        private int serializeCalls;
-        private int deserializeCalls;
+        private int schemaResolutionCalls;
 
-        internal int SerializeCalls => Volatile.Read(ref serializeCalls);
-
-        internal int DeserializeCalls => Volatile.Read(ref deserializeCalls);
+        internal int SchemaResolutionCalls => Volatile.Read(ref schemaResolutionCalls);
 
         public bool TryGetSchemaIdentity(Type type, out string schemaIdentity)
         {
+            Interlocked.Increment(ref schemaResolutionCalls);
             schemaIdentity = $"tracking:{type.AssemblyQualifiedName}";
             return true;
-        }
-
-        public byte[] Serialize(object? value, Type declaredType)
-        {
-            Interlocked.Increment(ref serializeCalls);
-            return JsonSerializer.SerializeToUtf8Bytes(value, declaredType);
-        }
-
-        public object? Deserialize(ReadOnlySpan<byte> payload, Type declaredType)
-        {
-            Interlocked.Increment(ref deserializeCalls);
-            return JsonSerializer.Deserialize(payload, declaredType);
         }
     }
 

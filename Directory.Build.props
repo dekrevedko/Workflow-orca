@@ -8,4 +8,7 @@
     <AnalysisLevel>latest</AnalysisLevel>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+  <ItemGroup>
+    <Using Include="OrcaCore" />
+  </ItemGroup>
 </Project>

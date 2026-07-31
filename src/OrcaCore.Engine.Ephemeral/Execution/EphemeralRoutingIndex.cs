@@ -24,7 +24,7 @@ internal sealed class EphemeralRoutingIndex
         }
     }
 
-    public void IndexSnapshot(WorkflowInstanceSnapshot snapshot)
+    public void IndexSnapshot(LegacyWorkflowInstanceSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
 

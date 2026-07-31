@@ -58,8 +58,9 @@ Review-E planning remediation has been applied and is recorded in the current
 The independent planning re-review approved guard retargeting. Tasks 3.1-3.10, all four 3.11
 slices, and task 3.12 are complete. After two rejected intermediate guard packets, all findings
 were remediated and the exact whole packet received a final immutable approval with no P0-P3
-findings. Phase 0 is complete. Task 4.0/product implementation remain blocked at the requested
-next-phase review boundary and by task 4.0's prerequisites.
+ findings. Sections 4, 5, and 6 are independently approved. Section 7 is implemented and frozen
+ for independent exit review; task 8.0 and Section 8 source work remain blocked until that review
+ approves the exact target.
 
 The 2026-07-18 simplification amendment/status, 2026-07-19 construction amendment, completed
 reviewer prompt, reviews A-E, their earlier consolidated review, and the root-only owner decision

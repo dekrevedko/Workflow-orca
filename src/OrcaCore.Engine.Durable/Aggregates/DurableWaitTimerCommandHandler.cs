@@ -3,6 +3,8 @@ using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Aggregates;
 
 internal static class DurableWaitTimerCommandHandler
@@ -17,11 +19,11 @@ internal static class DurableWaitTimerCommandHandler
 
         var matched = aggregate.WaitState.FindBufferedDelivery(command.EventName, command.CorrelationId, command.BranchId);
         var registerTimeoutTimer = matched is null && command.TimeoutTimerId is not null;
-        var events = new List<WorkflowEvent>();
+        var events = new List<DurableWorkflowEvent>();
         AddConsumeAndCancelEvents(events, aggregate, command);
         events.Add(new WorkflowWaitRegisteredEvent
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = command.InstanceId,
             CommandId = command.CommandId,
             CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -41,7 +43,7 @@ internal static class DurableWaitTimerCommandHandler
         {
             events.Add(new WorkflowTimerScheduledEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -59,7 +61,7 @@ internal static class DurableWaitTimerCommandHandler
         {
             events.Add(new WorkflowWaitMatchedEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -94,7 +96,7 @@ internal static class DurableWaitTimerCommandHandler
     }
 
     internal static void AddResumeConsumedEvents(
-        List<WorkflowEvent> events,
+        List<DurableWorkflowEvent> events,
         DurableWorkflowAggregate aggregate,
         CommandId commandId,
         InstanceId instanceId,
@@ -110,7 +112,7 @@ internal static class DurableWaitTimerCommandHandler
 
             events.Add(new WorkflowResumeConsumedEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = instanceId,
                 CommandId = commandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(commandId),
@@ -123,7 +125,7 @@ internal static class DurableWaitTimerCommandHandler
     }
 
     private static void AddConsumeAndCancelEvents(
-        List<WorkflowEvent> events,
+        List<DurableWorkflowEvent> events,
         DurableWorkflowAggregate aggregate,
         DurableWaitRegisteredCommand command)
     {
@@ -137,14 +139,14 @@ internal static class DurableWaitTimerCommandHandler
 
         foreach (var waitId in command.CancelWaitIds)
         {
-            if (aggregate.WaitState.ActiveWaits.FirstOrDefault(wait => wait.WaitId == waitId) is not { } wait)
+            if (aggregate.WaitState.ActiveWaits.FirstOrDefault(wait => wait.WaitId.Equals(waitId)) is not { } wait)
             {
                 continue;
             }
 
             events.Add(new WorkflowWaitCancelledEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -164,7 +166,7 @@ internal static class DurableWaitTimerCommandHandler
 
             events.Add(new WorkflowTimerCancelledEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -183,11 +185,11 @@ internal static class DurableWaitTimerCommandHandler
         }
 
         var wait = aggregate.WaitState.ActiveWaits
-            .First(candidate => candidate.WaitId == command.WaitId);
+            .First(candidate => candidate.WaitId.Equals(command.WaitId));
         return new DurableDecision([
             new WorkflowWaitMatchedEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -209,11 +211,11 @@ internal static class DurableWaitTimerCommandHandler
             return DurableDecision.Empty;
         }
 
-        var events = new List<WorkflowEvent>
+        var events = new List<DurableWorkflowEvent>
         {
             new WorkflowTimerScheduledEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -251,7 +253,7 @@ internal static class DurableWaitTimerCommandHandler
             return new DurableDecision([
                 new WorkflowTimerBufferedEvent
                 {
-                    EventId = EventId.New(),
+                    EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                     InstanceId = command.InstanceId,
                     CommandId = command.CommandId,
                     CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -262,11 +264,11 @@ internal static class DurableWaitTimerCommandHandler
             ]);
         }
 
-        var events = new List<WorkflowEvent>
+        var events = new List<DurableWorkflowEvent>
         {
             new WorkflowTimerFiredEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -283,7 +285,7 @@ internal static class DurableWaitTimerCommandHandler
         {
             events.Add(new WorkflowWaitCancelledEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -320,11 +322,11 @@ internal static class DurableWaitTimerCommandHandler
             ]);
         }
 
-        var events = new List<WorkflowEvent>
+        var events = new List<DurableWorkflowEvent>
         {
             new WorkflowWaitMatchedEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -348,7 +350,7 @@ internal static class DurableWaitTimerCommandHandler
         {
             events.Add(new WorkflowTimerCancelledEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -366,7 +368,7 @@ internal static class DurableWaitTimerCommandHandler
     {
         return new WorkflowDeliveryBufferedEvent
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = command.InstanceId,
             CommandId = command.CommandId,
             CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),

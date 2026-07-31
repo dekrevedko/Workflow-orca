@@ -29,6 +29,17 @@ static async ValueTask<DagRunSnapshot> RunAsync(
     return await run.WaitForTerminalAsync(token);
 }
 
+_ = (Func<
+    DurableWorkflowRef<NodeInput, NodeOutput>,
+    DurableWorkflowRef<NodeInput>,
+    (WorkflowDagPlan<RunInput> Plan, DagNodeRef<NodeOutput> OutputNode)>)BuildPlan;
+_ = (Func<
+    IDagDefinitionRegistry,
+    WorkflowDagPlan<RunInput>,
+    RunInput,
+    CancellationToken,
+    ValueTask<DagRunSnapshot>>)RunAsync;
+
 internal sealed record RunInput(int Value);
 internal sealed record NodeInput(int Value);
 internal sealed record NodeOutput(int Value);

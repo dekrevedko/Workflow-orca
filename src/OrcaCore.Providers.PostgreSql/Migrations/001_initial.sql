@@ -1,7 +1,7 @@
 create table if not exists orcacore_events (
     stream_id uuid not null,
     version bigint not null,
-    event_id uuid not null,
+    event_id text not null,
     event_type text not null,
     occurred_at timestamp with time zone not null,
     payload jsonb not null,
@@ -30,15 +30,20 @@ alter table orcacore_checkpoints
     add column if not exists continue_as_new_generation integer not null default 0;
 
 create table if not exists orcacore_inbox (
-    event_id uuid primary key,
-    state text not null
+    instance_id uuid not null,
+    event_id text not null,
+    envelope_fingerprint text not null,
+    state text not null,
+    primary key (instance_id, event_id)
 );
 
 create table if not exists orcacore_start_idempotency (
     idempotency_key text primary key,
     instance_id uuid not null,
     definition_id uuid not null,
-    definition_version integer not null
+    definition_version integer not null,
+    definition_fingerprint text not null,
+    input_fingerprint text not null
 );
 
 create table if not exists orcacore_outbox (

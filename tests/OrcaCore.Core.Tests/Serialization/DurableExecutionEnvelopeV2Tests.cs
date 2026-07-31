@@ -10,7 +10,7 @@ public sealed class DurableExecutionEnvelopeV2Tests
     [Fact]
     public void Format2_RoundTripsCompleteStructuredExecutionState()
     {
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         var envelope = new DurableExecutionEnvelopeV2
         {
             EnvelopeVersion = DurableExecutionEnvelopeV2.CurrentVersion,
@@ -22,6 +22,7 @@ public sealed class DurableExecutionEnvelopeV2Tests
                 DefinitionId = DefinitionId.New(),
                 DefinitionVersion = new DefinitionVersion(7),
                 CompilerFormatVersion = 2,
+                CompilerProfileId = "orcacore-compiler-v2;quantum=1024",
                 PlanFingerprint = "FINGERPRINT"
             },
             StateContentType = "application/json",

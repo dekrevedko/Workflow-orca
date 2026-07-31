@@ -4,6 +4,8 @@ using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Aggregates;
 
 internal sealed class DurableChildWorkflowState
@@ -82,7 +84,7 @@ internal sealed class DurableChildWorkflowState
             .GroupBy(child => child.GroupId, StringComparer.Ordinal)
             .Select(group => new WorkflowChildResidualIntentRecordedEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = context.InstanceId,
                 CommandId = context.CommandId,
                 CausationId = context.CausationId,
@@ -111,7 +113,7 @@ internal sealed class DurableChildWorkflowState
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(command);
 
-        var activeChild = activeChildren.FirstOrDefault(child => child.ChildInstanceId == command.ChildInstanceId);
+        var activeChild = activeChildren.FirstOrDefault(child => child.ChildInstanceId.Equals(command.ChildInstanceId));
         if (activeChild is null)
         {
             return null;
@@ -119,7 +121,7 @@ internal sealed class DurableChildWorkflowState
 
         var childCompleted = new WorkflowChildCompletedEvent
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = context.InstanceId,
             CommandId = context.CommandId,
             CausationId = context.CausationId,
@@ -132,7 +134,7 @@ internal sealed class DurableChildWorkflowState
         };
         var waitMatched = new WorkflowWaitMatchedEvent
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = context.InstanceId,
             CommandId = context.CommandId,
             CausationId = context.CausationId,
@@ -148,7 +150,7 @@ internal sealed class DurableChildWorkflowState
         var shouldFailParent = command.ChildStatus == WorkflowStatus.Failed &&
             activeChild.FailurePolicy is RunChildFailurePolicy.PropagateFailure;
 
-        var events = new List<WorkflowEvent> { childCompleted };
+        var events = new List<DurableWorkflowEvent> { childCompleted };
         if (!shouldFailParent && childDispatch is not null)
         {
             events.Add(childDispatch);
@@ -187,7 +189,7 @@ internal sealed class DurableChildWorkflowState
 
         return new WorkflowChildCompensationScheduledEvent
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = context.InstanceId,
             CommandId = context.CommandId,
             CausationId = context.CausationId,
@@ -225,7 +227,7 @@ internal sealed class DurableChildWorkflowState
 
         return new WorkflowParentResumeTokenConsumedEvent
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = context.InstanceId,
             CommandId = context.CommandId,
             CausationId = context.CausationId,
@@ -237,7 +239,7 @@ internal sealed class DurableChildWorkflowState
         };
     }
 
-    internal DurableChildReplayEffects Apply(WorkflowEvent workflowEvent)
+    internal DurableChildReplayEffects Apply(DurableWorkflowEvent workflowEvent)
     {
         ArgumentNullException.ThrowIfNull(workflowEvent);
 
@@ -365,7 +367,7 @@ internal sealed class DurableChildWorkflowState
         BitConverter.TryWriteBytes(input.Slice(32, 4), index);
         Span<byte> hash = stackalloc byte[32];
         SHA256.HashData(input, hash);
-        return new InstanceId(new Guid(hash[..16]));
+        return InstanceId.Parse(new Guid(hash[..16]).ToString());
     }
 
     private WorkflowChildrenDispatchedEvent? DispatchChildrenIfCapacity(
@@ -404,7 +406,7 @@ internal sealed class DurableChildWorkflowState
 
         return new WorkflowChildrenDispatchedEvent
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = context.InstanceId,
             CommandId = context.CommandId,
             CausationId = context.CausationId,
@@ -439,7 +441,7 @@ internal sealed class DurableChildWorkflowState
             [
                 new WorkflowChildResidualIntentRecordedEvent
                 {
-                    EventId = EventId.New(),
+                    EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                     InstanceId = context.InstanceId,
                     CommandId = context.CommandId,
                     CausationId = context.CausationId,
@@ -484,7 +486,7 @@ internal sealed class DurableChildWorkflowState
     {
         return new WorkflowParentResumeTokenRecordedEvent
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = context.InstanceId,
             CommandId = context.CommandId,
             CausationId = context.CausationId,
@@ -492,7 +494,7 @@ internal sealed class DurableChildWorkflowState
             ParentInstanceId = context.ParentInstanceId,
             RootInstanceId = context.RootInstanceId,
             GroupId = activeChild.GroupId,
-            ResumeTokenId = new EventId(Guid.Parse(activeChild.GroupId))
+            ResumeTokenId = EventId.Create(activeChild.GroupId)
         };
     }
 
@@ -512,7 +514,7 @@ internal sealed class DurableChildWorkflowState
             var activeChild = new DurableActiveChild(
                 groupId,
                 child.ChildInstanceId,
-                new WaitId(child.ChildInstanceId.Value),
+                WaitId.Parse(child.ChildInstanceId.Value.ToString()),
                 failurePolicy,
                 joinPolicy,
                 residualPolicy,
@@ -531,12 +533,12 @@ internal sealed class DurableChildWorkflowState
     private DurableChildReplayEffects ApplyChildCompleted(WorkflowChildCompletedEvent childCompleted)
     {
         var completedChild = activeChildren.FirstOrDefault(
-            child => child.ChildInstanceId == childCompleted.ChildInstanceId);
+            child => child.ChildInstanceId.Equals(childCompleted.ChildInstanceId));
         if (completedChild is not null && childCompleted.ChildStatus is WorkflowStatus.Completed)
         {
             completedChildren.RemoveAll(child =>
                 string.Equals(child.GroupId, completedChild.GroupId, StringComparison.Ordinal) &&
-                child.ChildInstanceId == childCompleted.ChildInstanceId);
+                child.ChildInstanceId.Equals(childCompleted.ChildInstanceId));
             completedChildren.Add(new DurableCompletedChild(
                 completedChild.GroupId,
                 childCompleted.ChildInstanceId,
@@ -544,7 +546,7 @@ internal sealed class DurableChildWorkflowState
                 childCompleted.OccurredAt));
         }
 
-        activeChildren.RemoveAll(child => child.ChildInstanceId == childCompleted.ChildInstanceId);
+        activeChildren.RemoveAll(child => child.ChildInstanceId.Equals(childCompleted.ChildInstanceId));
         var errorSummary = childCompleted.ChildStatus == WorkflowStatus.Failed &&
             completedChild?.FailurePolicy is RunChildFailurePolicy.PropagateFailure
             ? childCompleted.ErrorSummary
@@ -558,13 +560,13 @@ internal sealed class DurableChildWorkflowState
         foreach (var residualChildId in residualIntent.ResidualChildInstanceIds)
         {
             var residualChild = activeChildren.FirstOrDefault(
-                child => child.ChildInstanceId == residualChildId);
+                child => child.ChildInstanceId.Equals(residualChildId));
             if (residualChild is not null)
             {
                 waitIdsToRemove.Add(residualChild.WaitId);
             }
 
-            activeChildren.RemoveAll(child => child.ChildInstanceId == residualChildId);
+            activeChildren.RemoveAll(child => child.ChildInstanceId.Equals(residualChildId));
         }
 
         if (!activeChildren.Any(child =>
@@ -592,12 +594,12 @@ internal sealed class DurableChildWorkflowState
 
     private static CorrelationId ChildCorrelation(InstanceId childInstanceId)
     {
-        return new CorrelationId(childInstanceId.Value.ToString("D"));
+        return CorrelationId.Create(childInstanceId.Value.ToString("D"));
     }
 }
 
 internal sealed record DurableChildCompletionPlan(
-    IReadOnlyList<WorkflowEvent> Events,
+    IReadOnlyList<DurableWorkflowEvent> Events,
     bool ShouldFailParent);
 
 internal sealed record DurableChildReplayEffects(

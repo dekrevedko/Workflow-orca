@@ -30,24 +30,33 @@ internal sealed class DurableDriverCatalog
         return definitions.ResolveExecutor(definitionId, definitionVersion);
     }
 
-    internal static IDurableDriverExecutor CreateExecutor<TState>(WorkflowDefinition<TState> definition)
+    internal static IDurableDriverExecutor CreateExecutor<TState>(
+        WorkflowDefinition<TState> definition,
+        IServiceProvider? serviceProvider,
+        int maxConcurrentExecutionPathsPerInstance,
+        DurableStepThrottleCoordinator stepThrottles)
     {
         ArgumentNullException.ThrowIfNull(definition);
 
-        if (definition.CompiledPlan.Instructions.Count == 0)
+        var plan = (CompiledWorkflowPlan)WorkflowDefinitionRuntime.GetPlan(definition);
+        if (plan.Instructions.Count == 0)
         {
-            throw new WorkflowDefinitionException(
+            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                 $"Definition '{definition.DefinitionId}' version '{definition.DefinitionVersion}' has no " +
-                "compiled plan. Durable registration requires Workflow.Durable<TState>(...).Build().");
+                "compiled plan. Durable registration requires OrcaCore.Workflow.Durable<TState>(...).Init<TInput>(...).End().Build().");
         }
 
-        if (definition.CompiledPlan.Mode != WorkflowExecutionMode.Durable)
+        if (plan.Mode != WorkflowExecutionMode.Durable)
         {
-            throw new WorkflowDefinitionException(
+            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                 $"Definition '{definition.DefinitionId}' version '{definition.DefinitionVersion}' was compiled " +
-                $"for '{definition.CompiledPlan.Mode}', not durable execution.");
+                $"for '{plan.Mode}', not durable execution.");
         }
 
-        return new DurableFiberDriverExecutor<TState>(definition);
+        return new DurableFiberDriverExecutor<TState>(
+            definition,
+            serviceProvider,
+            maxConcurrentExecutionPathsPerInstance,
+            stepThrottles);
     }
 }

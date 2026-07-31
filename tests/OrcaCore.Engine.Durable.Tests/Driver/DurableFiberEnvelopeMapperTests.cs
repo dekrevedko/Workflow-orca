@@ -15,12 +15,12 @@ public sealed class DurableFiberEnvelopeMapperTests
     [Fact]
     public void BindingValidation_ReportsEachIncompatibleEnvelopeDimension()
     {
-        var plan = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var plan = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
             .End()
             .Build()
             .CompiledPlan;
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         var state = StructuredExecutionState.Create(instanceId, 0, plan.Instructions[0].Id);
         var envelope = DurableFiberEnvelopeMapper.ToEnvelope(
             state,
@@ -36,6 +36,17 @@ public sealed class DurableFiberEnvelopeMapperTests
                 envelope with
                 {
                     PlanBinding = envelope.PlanBinding with { CompilerFormatVersion = 99 }
+                },
+                plan,
+                instanceId)
+            .Code.Should().Be("SFE-BIND-002");
+        DurableFiberEnvelopeValidator.Validate(
+                envelope with
+                {
+                    PlanBinding = envelope.PlanBinding with
+                    {
+                        CompilerProfileId = "orcacore-compiler-v1;quantum=2048"
+                    }
                 },
                 plan,
                 instanceId)
@@ -61,14 +72,52 @@ public sealed class DurableFiberEnvelopeMapperTests
     }
 
     [Fact]
+    public void EqualStructuralFingerprints_DoNotPermitAQuantumProfileChangeOnResume()
+    {
+        var definitionId = DefinitionId.New();
+        var baseline = new CompiledWorkflowPlan(
+            WorkflowExecutionMode.Durable,
+            definitionId,
+            DefinitionVersion.Initial,
+            "same-structure",
+            compilerOptions: new DefinitionCompilerOptions
+            {
+                MaxInternalInstructionsPerQuantum = 1024
+            });
+        var replacement = new CompiledWorkflowPlan(
+            WorkflowExecutionMode.Durable,
+            definitionId,
+            DefinitionVersion.Initial,
+            "same-structure",
+            compilerOptions: new DefinitionCompilerOptions
+            {
+                MaxInternalInstructionsPerQuantum = 2048
+            });
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var state = StructuredExecutionState.Create(
+            instanceId,
+            0,
+            new InstructionId("root/0"));
+        var envelope = DurableFiberEnvelopeMapper.ToEnvelope(
+            state,
+            baseline,
+            new SerializedPayload("application/json", [1]));
+
+        baseline.Fingerprint.Should().Be(replacement.Fingerprint);
+        baseline.CompilerProfileId.Should().NotBe(replacement.CompilerProfileId);
+        DurableFiberEnvelopeValidator.Validate(envelope, replacement, instanceId)
+            .Code.Should().Be("SFE-BIND-002");
+    }
+
+    [Fact]
     public void RoundTrip_PreservesNestedFibersScopesSchedulerResultsRetryAndYield()
     {
-        var plan = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var plan = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
             .End()
             .Build()
             .CompiledPlan;
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         var rootId = new FiberId("root");
         var childId = new FiberId("child");
         var siblingId = new FiberId("sibling");
@@ -193,6 +242,56 @@ public sealed class DurableFiberEnvelopeMapperTests
         rehydrated.Scheduler.RunnableFiberIds.Should().Equal(state.Scheduler.RunnableFiberIds);
         rehydrated.Scopes[outerScopeId].ChildFiberIds
             .Should().Equal(state.Scopes[outerScopeId].ChildFiberIds);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesRecursiveFailureLocationAndOccurrence()
+    {
+        var plan = global::OrcaCore.Workflow.Durable<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(_ => new TestState())
+            .End()
+            .Build()
+            .CompiledPlan;
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var state = StructuredExecutionState.Create(instanceId, 0, plan.Instructions[0].Id);
+        var root = state.Fibers[state.RootFiberId];
+        var cause = new FiberFailure(
+            "CHILD",
+            "Child failed.",
+            authoredLocation: FailureProvenance.Location(
+                "workflow:$/n:00000001/parallel:00000000/n:00000000"),
+            occurrence: FailureProvenance.BranchOccurrence("left"));
+        var failure = new FiberFailure(
+            "SFE-JOIN-FAILED",
+            "Join failed.",
+            [cause],
+            FailureProvenance.Location("workflow:$/n:00000001"),
+            FailureProvenance.RootOccurrence());
+        var failed = state with
+        {
+            Fibers = new Dictionary<FiberId, FiberRecord>(state.Fibers)
+            {
+                [root.Id] = FiberReducer.Fail(root, failure)
+            }
+        };
+
+        var envelope = DurableFiberEnvelopeMapper.ToEnvelope(
+            failed,
+            plan,
+            new SerializedPayload("application/json", [1]));
+        var roundTrip = DurableFiberEnvelopeMapper.FromEnvelope(
+            DurableExecutionEnvelopeV2.Deserialize(envelope.Serialize()));
+        var actual = roundTrip.Fibers[root.Id].Failure!;
+
+        actual.AuthoredLocation.Should().Be(failure.AuthoredLocation);
+        actual.Occurrence.Should().Be(failure.Occurrence);
+        actual.Occurrence.Should().NotBeSameAs(failure.Occurrence);
+        actual.Causes.Should().ContainSingle();
+        actual.Causes[0].AuthoredLocation.Should().Be(cause.AuthoredLocation);
+        actual.Causes[0].Occurrence.Should().Be(cause.Occurrence);
+        actual.Causes[0].Occurrence.Should().NotBeSameAs(cause.Occurrence);
     }
 
     private sealed class TestState;

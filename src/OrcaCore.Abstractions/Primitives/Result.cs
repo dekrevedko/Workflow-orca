@@ -46,7 +46,8 @@ public readonly record struct Result<T>
     /// Gets the expected failure error.
     /// </summary>
     public OrcaCoreException Error => IsFailure
-        ? error ?? new OrcaCoreException("The default Result<T> value represents failure without a specific error.")
+        ? error ?? new WorkflowLifecycleException(
+            "The default Result<T> value represents failure without a specific error.")
         : throw new InvalidOperationException("A successful result does not contain an error.");
 
     /// <summary>

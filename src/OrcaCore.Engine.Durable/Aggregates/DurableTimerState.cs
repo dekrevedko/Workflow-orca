@@ -2,6 +2,8 @@ using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Aggregates;
 
 internal sealed class DurableTimerState
@@ -81,7 +83,7 @@ internal sealed class DurableTimerState
             timerBuffered.OccurredAt));
     }
 
-    internal IReadOnlyList<WorkflowEvent> PlanBufferedReplay(
+    internal IReadOnlyList<DurableWorkflowEvent> PlanBufferedReplay(
         DurableTimerEventContext context,
         ResumeBufferedDeliveries handling)
     {
@@ -95,7 +97,7 @@ internal sealed class DurableTimerState
         return bufferedTimers
             .Select(bufferedTimer => new WorkflowTimerFiredEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = context.InstanceId,
                 CommandId = context.CommandId,
                 CausationId = new CausationId(context.CommandId.Value),

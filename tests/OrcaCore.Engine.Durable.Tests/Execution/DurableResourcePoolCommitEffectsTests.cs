@@ -133,12 +133,12 @@ public sealed class DurableResourcePoolCommitEffectsTests
 
     private static EventId EventIdValue(int value)
     {
-        return new EventId(GuidValue(value));
+        return EventId.Create(GuidValue(value).ToString());
     }
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -153,7 +153,7 @@ public sealed class DurableResourcePoolCommitEffectsTests
 
     private static WaitId WaitIdValue(int value)
     {
-        return new WaitId(GuidValue(value));
+        return WaitId.Parse(GuidValue(value).ToString());
     }
 
     private static Guid GuidValue(int value)
@@ -213,13 +213,5 @@ public sealed class DurableResourcePoolCommitEffectsTests
             return inner.ExpireTicketsAsync(now, cancellationToken);
         }
 
-        public Task<ResourcePoolForceReleaseResult> ForceReleaseTicketAsync(
-            Guid ticketId,
-            string reason,
-            DateTimeOffset releasedAt,
-            CancellationToken cancellationToken)
-        {
-            return inner.ForceReleaseTicketAsync(ticketId, reason, releasedAt, cancellationToken);
-        }
     }
 }

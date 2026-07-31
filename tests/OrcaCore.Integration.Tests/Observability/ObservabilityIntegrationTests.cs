@@ -134,7 +134,7 @@ public sealed class ObservabilityIntegrationTests
                 new StartWorkflowCommand
                 {
                     CommandId = CommandId.New(),
-                    InstanceId = InstanceId.New(),
+                    InstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString()),
                     RequestedAt = IntegrationIds.Timestamp(1),
                     DefinitionId = definitionId,
                     DefinitionVersion = definitionVersion
@@ -256,7 +256,7 @@ public sealed class ObservabilityIntegrationTests
     {
         var store = new InMemoryWorkflowProvider();
         var definitionId = DefinitionId.New();
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         await store.ApplyAsync(
             [
                 new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
@@ -554,7 +554,7 @@ public sealed class ObservabilityIntegrationTests
         {
             WaitId = IntegrationIds.Wait(1301),
             EventName = "approval.received",
-            CorrelationId = new CorrelationId("order-1301"),
+            CorrelationId = CorrelationId.Create("order-1301"),
             RegisteredAt = IntegrationIds.Timestamp(1301),
             Status = "Active",
             Mode = WaitMode.Resident.ToString()

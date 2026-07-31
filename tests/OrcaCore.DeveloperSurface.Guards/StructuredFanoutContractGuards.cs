@@ -35,18 +35,3 @@ public sealed class StructuredFanoutInfrastructureGuards
         }) matrix.Should().Contain(anchor);
     }
 }
-
-[Trait(GuardTraits.Phase, GuardTraits.Phase0)]
-[Trait(GuardTraits.Disposition, GuardTraits.ExpectedRed)]
-public sealed class StructuredFanoutExpectedRedGuards
-{
-    [Fact]
-    public void Product_ContainsFinalEmptyParallelAndClosedOutcomeContract()
-    {
-        var source = Directory.GetFiles(Path.Combine(FixtureDefinitions.RepositoryRoot(), "src"), "*.cs", SearchOption.AllDirectories)
-            .SelectMany(File.ReadLines).ToArray();
-        source.Should().Contain(line => line.Contains("SFE-AUTH-BRANCH-004", StringComparison.Ordinal));
-        PublicSurfaceCatalog.Assemblies.SelectMany(x => x.GetExportedTypes())
-            .Should().Contain(x => x.FullName == "OrcaCore.BranchOutcome`1");
-    }
-}

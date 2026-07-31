@@ -102,10 +102,10 @@ internal sealed class PostgreSqlWorkflowRetentionStore(NpgsqlDataSource dataSour
 
         var status = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         return status is string statusText &&
-            Enum.Parse<WorkflowStatus>(statusText) is
-                WorkflowStatus.Running or
-                WorkflowStatus.Waiting or
-                WorkflowStatus.Paused;
+            Enum.Parse<LegacyWorkflowStatus>(statusText) is
+                LegacyWorkflowStatus.Running or
+                LegacyWorkflowStatus.Waiting or
+                LegacyWorkflowStatus.Paused;
     }
 
     private static async Task<bool> ArchiveInstanceAsync(

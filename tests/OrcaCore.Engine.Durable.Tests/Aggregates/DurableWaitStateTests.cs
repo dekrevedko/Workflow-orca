@@ -38,7 +38,7 @@ public sealed class DurableWaitStateTests
         {
             EventId = EventIdValue(10),
             EventName = "Approved",
-            CorrelationId = new CorrelationId("order-1"),
+            CorrelationId = CorrelationId.Create("order-1"),
             OccurredAt = Timestamp(10)
         });
 
@@ -88,7 +88,7 @@ public sealed class DurableWaitStateTests
         return new DurableActiveWait(
             WaitIdValue(value),
             "Approved",
-            new CorrelationId("order-1"),
+            CorrelationId.Create("order-1"),
             Timestamp(value),
             WaitMode.Resident,
             branchId);
@@ -99,7 +99,7 @@ public sealed class DurableWaitStateTests
         return new DurableBufferedDelivery(
             eventId,
             "Approved",
-            new CorrelationId("order-1"),
+            CorrelationId.Create("order-1"),
             branchId);
     }
 
@@ -115,12 +115,12 @@ public sealed class DurableWaitStateTests
 
     private static EventId EventIdValue(int value)
     {
-        return new EventId(GuidValue(value));
+        return EventId.Create(GuidValue(value).ToString());
     }
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -130,7 +130,7 @@ public sealed class DurableWaitStateTests
 
     private static WaitId WaitIdValue(int value)
     {
-        return new WaitId(GuidValue(value));
+        return WaitId.Parse(GuidValue(value).ToString());
     }
 
     private static Guid GuidValue(int value)

@@ -140,7 +140,7 @@ public abstract class TimerSchedulerCertificationTests
 
     protected static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     protected static CommandId CommandIdValue(int value)

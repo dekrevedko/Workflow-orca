@@ -1,12 +1,10 @@
+using Microsoft.Extensions.DependencyInjection;
 using AwesomeAssertions;
-using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
-using OrcaCore.Core.Definitions;
-using OrcaCore.Engine.Ephemeral;
 using Xunit;
 
 namespace OrcaCore.Acceptance.Tests;
@@ -15,58 +13,61 @@ public sealed class ForEachAcceptanceTests
 {
     [Fact]
     [Trait("AC", "AC-601")]
-    public async Task ForEach_RuntimeBatchingCreatesExpectedIsolatedItems()
+    public async Task ForEach_PublicItemProjectionCreatesExpectedIsolatedItems()
     {
-        var engine = new EphemeralWorkflowEngine();
-        var definition = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState(Enumerable.Range(1, 23).ToArray()))
             .ForEach<int, ItemState, int>(
                 parent => parent.Value.Items,
-                WorkflowPartitioner<int>.Batch(10),
-                item => new ItemState(item.Index, item.Items),
-                body => body.Return(item => item.Value.Items.Count),
-                ForEachJoinPolicy.WhenAll,
-                ForEachFailurePolicy.FailFast,
-                merge: (parent, outcomes) => parent.Value with
+                ForEachOptions.Create(maxItems: 23),
+                item => new ItemState(item.Index, item.Item),
+                body => body.Return(item => item.Value.Item))
+            .WhenAll((parent, results) => parent.Value with
                 {
-                    BodyRuns = outcomes.Count,
-                    PartitionSizes = outcomes.Select(outcome => outcome.Result).ToArray()
+                    BodyRuns = results.Count,
+                    Results = results.OrderBy(result => result.Index).Select(result => result.Result).ToArray()
                 })
             .End()
             .Build();
-        engine.RegisterDefinition(definition);
-
-        var snapshot = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
+        var definitionHandle = provider.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        var instance = (await definitionHandle.StartOrGetAsync(
             "start",
-            TestContext.Current.CancellationToken);
-        var state = engine.Management.Instance(snapshot.InstanceId).GetState<TestState>();
+            StartIdempotencyKey.Create("foreach-isolated-items"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
+        var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
-        snapshot.Status.Should().Be(WorkflowStatus.Completed);
-        state.BodyRuns.Should().Be(3);
-        state.PartitionSizes.Should().Equal(10, 10, 3);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
+        state.BodyRuns.Should().Be(23);
+        state.Results.Should().Equal(Enumerable.Range(1, 23));
     }
 
     [Fact]
     [Trait("AC", "AC-602")]
     public async Task ForEach_WhenAllCompletesParent()
     {
-        var engine = new EphemeralWorkflowEngine();
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
         var definition = WaitingDefinition(maxConcurrency: null);
-        engine.RegisterDefinition(definition);
-
-        var snapshot = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
+        var definitionHandle = provider.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        var instance = (await definitionHandle.StartOrGetAsync(
             "start",
-            TestContext.Current.CancellationToken);
+            StartIdempotencyKey.Create("foreach-when-all"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
+        var events = provider.GetRequiredService<IWorkflowEventClient>();
 
         foreach (var index in Enumerable.Range(0, 3))
         {
-            snapshot = await RaiseItemAsync(engine, snapshot, index);
+            await RaiseItemAsync(events, instance, index);
         }
 
-        var state = engine.Management.Instance(snapshot.InstanceId).GetState<TestState>();
-        snapshot.Status.Should().Be(WorkflowStatus.Completed);
+        var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
         state.Results.Should().Equal(0, 1, 2);
         state.ContinuationCount.Should().Be(1);
     }
@@ -75,176 +76,187 @@ public sealed class ForEachAcceptanceTests
     [Trait("AC", "AC-603")]
     public async Task ForEach_HonorsMaxConcurrency()
     {
-        var engine = new EphemeralWorkflowEngine();
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
         var definition = WaitingDefinition(maxConcurrency: 2, itemCount: 5);
-        engine.RegisterDefinition(definition);
-
-        var snapshot = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
+        var definitionHandle = provider.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        var instance = (await definitionHandle.StartOrGetAsync(
             "start",
-            TestContext.Current.CancellationToken);
+            StartIdempotencyKey.Create("foreach-max-concurrency"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
+        var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
 
-        snapshot.Status.Should().Be(WorkflowStatus.Waiting);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Waiting);
         snapshot.ActiveWaits.Should().HaveCount(2);
     }
 
     [Fact]
-    [Trait("AC", "AC-604")]
+    [Trait("AC", "AC-602")]
     public async Task ForEach_WaitAllThenFailIsObservable()
     {
-        var engine = new EphemeralWorkflowEngine();
-        var definition = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider(
+            services => services.AddTransient<FailSecondItemStep>());
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState([1, 2, 3]))
             .ForEach<int, ItemState, int>(
                 parent => parent.Value.Items,
-                WorkflowPartitioner<int>.Items(),
-                item => new ItemState(item.Index, item.Items),
+                ForEachOptions.Create(maxItems: 3),
+                item => new ItemState(item.Index, item.Item),
                 body => body
                     .Then<FailSecondItemStep>()
-                    .Wait("ItemDone", item => new CorrelationId($"item-{item.Index}"))
-                    .Return(item => item.Value.Index),
-                ForEachJoinPolicy.WhenAll,
-                ForEachFailurePolicy.WaitAllThenFail,
-                merge: MergeOutcomes)
-            .Then<CountContinuationStep>()
+                    .Wait(EventName.Create("ItemDone"), item => CorrelationId.Create($"item-{item.Value.Index}"))
+                    .Return(item => item.Value.Index))
+            .WhenAll(MergeResults)
+            .Then(context =>
+            {
+                context.State.ContinuationCount++;
+                return ValueTask.CompletedTask;
+            })
             .End()
             .Build();
-        engine.RegisterDefinition(definition);
-
-        var snapshot = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
+        var definitionHandle = provider.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        var instance = (await definitionHandle.StartOrGetAsync(
             "start",
-            TestContext.Current.CancellationToken);
+            StartIdempotencyKey.Create("foreach-wait-all-failure"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
+        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
         snapshot.ActiveWaits.Should().HaveCount(2);
-        snapshot = await RaiseItemAsync(engine, snapshot, 0);
-        snapshot = await RaiseItemAsync(engine, snapshot, 2);
+        await RaiseItemAsync(events, instance, 0);
+        await RaiseItemAsync(events, instance, 2);
 
-        var state = engine.Management.Instance(snapshot.InstanceId).GetState<TestState>();
-        snapshot.Status.Should().Be(WorkflowStatus.Failed);
+        snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Failed);
         snapshot.ActiveWaits.Should().BeEmpty();
         state.ContinuationCount.Should().Be(0);
     }
 
     [Fact]
-    [Trait("AC", "AC-605")]
-    public async Task ForEach_WhenAnyCancelsResidualItemsBeforeContinuation()
+    [Trait("AC", "AC-604")]
+    public async Task ForEach_WhenAllOutcomesMergesOrderedSuccessAndFailureValues()
     {
-        var engine = new EphemeralWorkflowEngine();
-        var definition = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider(
+            services => services.AddTransient<FailSecondItemStep>());
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
             .Init<string>(_ => new TestState([1, 2, 3]))
             .ForEach<int, ItemState, int>(
                 parent => parent.Value.Items,
-                WorkflowPartitioner<int>.Items(),
-                item => new ItemState(item.Index, item.Items),
+                ForEachOptions.Create(maxItems: 3),
+                item => new ItemState(item.Index, item.Item),
                 body => body
-                    .Wait("ItemDone", item => new CorrelationId($"item-{item.Index}"))
-                    .Return(item => item.Value.Index),
-                ForEachJoinPolicy.WhenAny,
-                ForEachFailurePolicy.FailFast,
-                merge: MergeOutcomes)
-            .Then<CountContinuationStep>()
+                    .Then<FailSecondItemStep>()
+                    .Return(item => item.Value.Index))
+            .WhenAllOutcomes((parent, outcomes) => parent.Value with
+            {
+                Results = outcomes.Select(outcome => outcome switch
+                {
+                    ForEachItemOutcome<int>.Succeeded succeeded => succeeded.Result,
+                    ForEachItemOutcome<int>.Failed => -1,
+                    _ => throw new InvalidOperationException("Unexpected item outcome.")
+                }).ToArray()
+            })
+            .Then(context =>
+            {
+                context.State.ContinuationCount++;
+                return ValueTask.CompletedTask;
+            })
             .End()
             .Build();
-        engine.RegisterDefinition(definition);
-
-        var waiting = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
+        var definitionHandle = provider.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        var instance = (await definitionHandle.StartOrGetAsync(
             "start",
-            TestContext.Current.CancellationToken);
-        var snapshot = await RaiseItemAsync(engine, waiting, 0);
-        var state = engine.Management.Instance(snapshot.InstanceId).GetState<TestState>();
+            StartIdempotencyKey.Create("foreach-outcomes"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
 
-        snapshot.Status.Should().Be(WorkflowStatus.Completed);
-        snapshot.ActiveWaits.Should().BeEmpty();
-        state.Results.Should().Equal(0);
+        var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
+
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
+        state.Results.Should().Equal(0, -1, 2);
         state.ContinuationCount.Should().Be(1);
     }
 
-    private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> WaitingDefinition(
+    private static EphemeralWorkflowDefinition<string> WaitingDefinition(
         int? maxConcurrency,
         int itemCount = 3)
     {
-        return Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState(Enumerable.Range(1, itemCount).ToArray()))
             .ForEach<int, ItemState, int>(
                 parent => parent.Value.Items,
-                WorkflowPartitioner<int>.Items(),
-                item => new ItemState(item.Index, item.Items),
+                ForEachOptions.Create(itemCount, maxConcurrency),
+                item => new ItemState(item.Index, item.Item),
                 body => body
-                    .Wait("ItemDone", item => new CorrelationId($"item-{item.Index}"))
-                    .Return(item => item.Value.Index),
-                ForEachJoinPolicy.WhenAll,
-                ForEachFailurePolicy.FailFast,
-                maxConcurrency,
-                MergeOutcomes)
-            .Then<CountContinuationStep>()
+                    .Wait(EventName.Create("ItemDone"), item => CorrelationId.Create($"item-{item.Value.Index}"))
+                    .Return(item => item.Value.Index))
+            .WhenAll(MergeResults)
+            .Then(context =>
+            {
+                context.State.ContinuationCount++;
+                return ValueTask.CompletedTask;
+            })
             .End()
             .Build();
     }
 
-    private static TestState MergeOutcomes(
-        ReadOnlyParentSnapshot<TestState> parent,
-        IReadOnlyList<ForEachItemOutcome<int>> outcomes)
+    private static TestState MergeResults(
+        ReadOnlyStateSnapshot<TestState> parent,
+        IReadOnlyList<global::OrcaCore.ForEachItemResult<int>> results)
     {
         return parent.Value with
         {
-            Results = outcomes
-                .Where(outcome => outcome.Status == ForEachItemTerminalStatus.Succeeded)
-                .Select(outcome => outcome.Result)
+            Results = results
+                .OrderBy(result => result.Index)
+                .Select(result => result.Result)
                 .ToArray()
         };
     }
 
-    private static Task<WorkflowInstanceSnapshot> RaiseItemAsync(
-        EphemeralWorkflowEngine engine,
-        WorkflowInstanceSnapshot snapshot,
+    private static async Task RaiseItemAsync(
+        IWorkflowEventClient events,
+        WorkflowInstanceHandle instance,
         int index)
     {
-        return engine.RaiseEventAsync<TestState>(
-            snapshot.InstanceId,
-            new EventEnvelope
-            {
-                EventId = EventId.New(),
-                EventName = "ItemDone",
-                CorrelationId = new CorrelationId($"item-{index}"),
-                OccurredAt = DateTimeOffset.UtcNow
-            },
+        var delivery = await events.DeliverToInstanceAsync(
+            instance.InstanceId,
+            WorkflowEvent.Create(
+                EventId.Create(Guid.CreateVersion7().ToString()),
+                EventName.Create("ItemDone"),
+                CorrelationId.Create($"item-{index}"),
+                DateTimeOffset.UtcNow),
             TestContext.Current.CancellationToken);
+        delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
     }
 
     private sealed record TestState(int[] Items)
     {
         public int BodyRuns { get; init; }
 
-        public IReadOnlyList<int> PartitionSizes { get; init; } = [];
-
         public IReadOnlyList<int> Results { get; init; } = [];
 
         public int ContinuationCount { get; set; }
     }
 
-    private sealed record ItemState(int Index, IReadOnlyList<int> Items);
+    public sealed record ItemState(int Index, int Item);
 
-    private sealed class FailSecondItemStep : IStep<ItemState>
+    public sealed class FailSecondItemStep : IStep<ItemState>
     {
         public ValueTask<StepResult> ExecuteAsync(
             StepContext<ItemState> context,
             CancellationToken cancellationToken)
         {
             return ValueTask.FromResult<StepResult>(context.State.Index == 1
-                ? new StepResult.Failed(new OrcaCoreException("item failed"))
+                ? new StepResult.Failed(new WorkflowLifecycleException("item failed"))
                 : new StepResult.Completed());
         }
     }
 
-    private sealed class CountContinuationStep : IStep<TestState>
-    {
-        public ValueTask<StepResult> ExecuteAsync(
-            StepContext<TestState> context,
-            CancellationToken cancellationToken)
-        {
-            context.State.ContinuationCount++;
-            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
-        }
-    }
 }

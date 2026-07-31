@@ -6,6 +6,8 @@ using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Aggregates;
 using Xunit;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Tests.Aggregates;
 
 public sealed class DurableChildWorkflowStateTests
@@ -150,7 +152,7 @@ public sealed class DurableChildWorkflowStateTests
             ResidualChildInstanceIds = [ChildId(1)]
         });
 
-        effects.WaitIdsToRemove.Should().ContainSingle().Which.Should().Be(new WaitId(ChildId(1).Value));
+        effects.WaitIdsToRemove.Should().ContainSingle().Which.Should().Be(WaitId.Parse(ChildId(1).Value.ToString()));
         state.ActiveChildren.Should().ContainSingle().Which.ChildInstanceId.Should().Be(ChildId(0));
     }
 
@@ -197,7 +199,7 @@ public sealed class DurableChildWorkflowStateTests
         return new DurableActiveChild(
             group.GroupId,
             ChildId(index),
-            new WaitId(ChildId(index).Value),
+            WaitId.Parse(ChildId(index).Value.ToString()),
             group.FailurePolicy,
             group.JoinPolicy,
             group.ResidualPolicy,
@@ -260,12 +262,12 @@ public sealed class DurableChildWorkflowStateTests
 
     private static EventId EventIdValue(int value)
     {
-        return new EventId(GuidValue(value));
+        return EventId.Create(GuidValue(value).ToString());
     }
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -280,7 +282,7 @@ public sealed class DurableChildWorkflowStateTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static Guid GuidValue(int value)

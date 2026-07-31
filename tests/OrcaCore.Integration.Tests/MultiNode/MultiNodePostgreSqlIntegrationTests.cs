@@ -273,6 +273,8 @@ public sealed class MultiNodePostgreSqlIntegrationTests(OrcaStackFixture fixture
     [Trait("AC", "AC-311")]
     public async Task INT_MN_009_StartOrGetFromTwoHosts_BlockedUntilPgIdempotencyStore()
     {
+        Assert.Skip(
+            "Blocked: task 7.5 must implement provider-backed StartOrGet idempotency before this contract is certified.");
         await fixture.ResetAsync(TestContext.Current.CancellationToken);
         await using var storeA = await fixture.PostgreSql.CreateStoreAsync();
         await using var storeB = await fixture.PostgreSql.CreateStoreAsync();

@@ -14,6 +14,7 @@ using OrcaCore.Core.Definitions;
 using OrcaCore.Core.Execution;
 using OrcaCore.Engine.Durable.Aggregates;
 using OrcaCore.Engine.Durable.Execution;
+using OrcaCore.Engine.Durable.ResourceGovernance;
 
 namespace OrcaCore.Engine.Durable.Driver;
 
@@ -34,6 +35,55 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
         var state = initialization.State;
         var ownedObligations = initialization.OwnedObligations;
         var currentVersion = context.Aggregate.StreamVersion;
+        var leaseReconciliation = await ReconcileLeaseTicketsAsync(
+            context,
+            execution,
+            state,
+            ownedObligations,
+            currentVersion,
+            cancellationToken).ConfigureAwait(false);
+        if (leaseReconciliation is not null)
+        {
+            return leaseReconciliation;
+        }
+
+        if (execution.WorkflowDeadline is { } workflowDeadline)
+        {
+            var now = context.TimeProvider.GetUtcNow();
+            if (workflowDeadline <= now)
+            {
+                return await TimeoutWorkflowAsync(
+                    context,
+                    execution,
+                    state,
+                    ownedObligations,
+                    currentVersion,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (execution.WorkflowDeadlineTimerId is null)
+            {
+                var timerId = TimerId.New();
+                execution = execution with { WorkflowDeadlineTimerId = timerId };
+                var scheduled = await context.Processor.ProcessAsync(
+                    new ScheduleTimerCommand
+                    {
+                        CommandId = CommandId.New(),
+                        InstanceId = context.InstanceId,
+                        RequestedAt = now,
+                        TimerId = timerId,
+                        FireAt = workflowDeadline,
+                        WakeupName = "workflow-deadline",
+                        Envelope = BuildEnvelope(context, execution, state, ownedObligations),
+                        ExpectedStreamVersion = currentVersion
+                    },
+                    cancellationToken).ConfigureAwait(false);
+                return scheduled.Outcome == DurableCommandOutcome.Committed
+                    ? DurableSegmentResult.PolicyBoundary
+                    : Conflict(scheduled);
+            }
+        }
+
         var commands = 0;
         var elapsed = Stopwatch.StartNew();
         var recovery = await RecoverSuspensionsAsync(
@@ -59,6 +109,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            execution = ReconcileAdmission(execution);
             if (BudgetReached(context, commands, elapsed))
             {
                 return new DurableSegmentResult(
@@ -68,87 +119,24 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
             var selected = FiberScheduler.SelectNext(execution.Scheduler);
             if (selected is null)
             {
-                var joinable = execution.Scopes.Values
-                    .Where(scope => scope.Phase == ExecutionScopePhase.Joinable)
-                    .OrderBy(scope => scope.Id.Value, StringComparer.Ordinal)
-                    .FirstOrDefault();
-                if (joinable is null)
-                {
-                    return DurableSegmentResult.Suspended;
-                }
-                try
-                {
-                    (execution, state) = MergeAndResume(execution, joinable, state);
-                    quantumBudget.EndTurn();
-                }
-                catch (Exception exception) when (exception is not OperationCanceledException)
-                {
-                    var failure = new FiberFailure(exception.GetType().Name, exception.Message);
-                    var scopes = new Dictionary<ScopeId, ExecutionScopeRecord>(execution.Scopes)
-                    {
-                        [joinable.Id] = ScopeReducer.Transition(
-                            joinable,
-                            ExecutionScopePhase.Failed)
-                    };
-                    execution = execution with { Scopes = scopes };
-                    execution = FailFiberAndAncestors(
-                        execution,
-                        execution.Fibers[joinable.ParentFiberId],
-                        failure);
-                    var cleanup = RemoveTerminalFiberObligations(
-                        execution,
-                        ownedObligations);
-                    var failedMerge = await context.Processor.ProcessAsync(
-                        new DurableStepFailedCommand(
-                            CommandId.New(),
-                            context.InstanceId,
-                            context.TimeProvider.GetUtcNow(),
-                            $"{joinable.ScopePlanId.Value}:merge",
-                            $"{failure.Code}: {failure.Message}",
-                            BuildEnvelope(context, execution, state, ownedObligations))
-                        {
-                            ExpectedStreamVersion = currentVersion,
-                            CancelWaitIds = cleanup.WaitIds,
-                            CancelTimerIds = cleanup.TimerIds,
-                            TerminalFiberIds = cleanup.TerminalFiberIds,
-                            FailedSagaScopeIds = FailedSagaScopes(execution),
-                            CoversRootSagaEligibility = RootFailed(execution)
-                        },
-                        cancellationToken).ConfigureAwait(false);
-                    return failedMerge.Outcome == DurableCommandOutcome.Committed
-                        ? DurableSegmentResult.Terminal
-                        : Conflict(failedMerge);
-                }
-                var merge = await context.Processor.ProcessAsync(
-                    new DurableStepCompletedCommand(
-                        CommandId.New(),
-                        context.InstanceId,
-                        context.TimeProvider.GetUtcNow(),
-                        $"{joinable.ScopePlanId.Value}:merge",
-                        BuildEnvelope(context, execution, state, ownedObligations))
-                    {
-                        ExpectedStreamVersion = currentVersion,
-                        SagaScopeTransfers =
-                        [
-                            new DurableSagaScopeTransfer(
-                                joinable.Id,
-                                execution.Fibers[joinable.ParentFiberId].OwningScopeId)
-                        ]
-                    },
+                var resolution = await ResolveNoRunnableFiberAsync(
+                    context,
+                    execution,
+                    state,
+                    ownedObligations,
+                    currentVersion,
+                    commands,
+                    elapsed,
+                    quantumBudget,
                     cancellationToken).ConfigureAwait(false);
-                if (merge.Outcome != DurableCommandOutcome.Committed)
+                if (resolution.Result is { } result)
                 {
-                    return Conflict(merge);
+                    return result;
                 }
-
-                currentVersion = merge.StreamVersion;
-                commands++;
-                if (BudgetReached(context, commands, elapsed))
-                {
-                    return new DurableSegmentResult(
-                        DurableSegmentOutcome.BudgetExhausted,
-                        CommittedProgress: true);
-                }
+                execution = resolution.Execution;
+                state = resolution.State;
+                currentVersion = resolution.StreamVersion;
+                commands = resolution.Commands;
                 continue;
             }
 
@@ -188,7 +176,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                         string.IsNullOrWhiteSpace(instruction.EventName) ||
                         instruction.WaitMode is not { } waitMode)
                     {
-                        throw new WorkflowDefinitionException(
+                        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                             $"Compiled wait '{instruction.Path}' has no typed executable binding.");
                     }
 
@@ -225,7 +213,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                 case CompiledInstructionKind.Delay:
                 {
                     var duration = instruction.DelayDuration ??
-                        throw new WorkflowDefinitionException(
+                        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                             $"Compiled delay '{instruction.Path}' has no duration.");
                     var timerId = TimerId.New();
                     var blocked = FiberReducer.Block(
@@ -280,6 +268,355 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
 
                     break;
                 }
+                case CompiledInstructionKind.AcquireResources:
+                {
+                    var lease = FindScopedLease(fiber, ownedObligations);
+                    if (lease is null)
+                    {
+                        if (HasCapacityReservingLeaseAncestor(execution, fiber, ownedObligations))
+                        {
+                            var rejected = await context.Processor.ProcessAsync(
+                                new DurableStepFailedCommand(
+                                    CommandId.New(),
+                                    context.InstanceId,
+                                    context.TimeProvider.GetUtcNow(),
+                                    instruction.Path,
+                                    "SFE-RUN-002: LeaseAncestryViolation.",
+                                    BuildEnvelope(context, execution, state, ownedObligations))
+                                {
+                                    ExpectedStreamVersion = currentVersion,
+                                    PreserveOwnership = true
+                                },
+                                CancellationToken.None).ConfigureAwait(false);
+                            return rejected.Outcome == DurableCommandOutcome.Committed
+                                ? DurableSegmentResult.Terminal
+                                : Conflict(rejected);
+                        }
+
+                        var request = NormalizeLeaseRequest(
+                            ResolveLeaseRequest(execution, fiber, instruction, state));
+                        await context.Processor.ValidateResourcePoolsAsync(
+                            request,
+                            cancellationToken).ConfigureAwait(false);
+                        var occurrenceKey = LeaseOccurrenceKey(execution, fiber, instruction);
+                        var waitId = LeaseWaitId(occurrenceKey);
+                        lease = new DurableOwnedObligationState
+                        {
+                            Kind = DurableOwnedObligationKind.Resource,
+                            ObligationId = waitId.ToString(),
+                            FiberId = fiber.Id.Value,
+                            ScopeId = fiber.OwningScopeId?.Value,
+                            InstructionId = instruction.Id.Value,
+                            AuthoredPath = instruction.Path,
+                            LeasePhase = nameof(DurableLeaseObligationPhase.Queued),
+                            HolderKey = LeaseHolderKey(occurrenceKey),
+                            ProtectionToken = LeaseProtectionKey(occurrenceKey),
+                            LeaseRequirements = request,
+                            RegistrationSequence = AllocateRegistrationSequence(ref execution)
+                        };
+                        ownedObligations.Add(lease);
+                        execution = execution with
+                        {
+                            Scheduler = FiberScheduler.CompleteTurn(
+                                execution.Scheduler,
+                                fiber.Id,
+                                requeueSelected: true)
+                        };
+                        var admitted = await context.Processor.ProcessAsync(
+                            new DurableYieldCommand(
+                                CommandId.New(),
+                                context.InstanceId,
+                                context.TimeProvider.GetUtcNow(),
+                                $"{instruction.Path}:lease-request-committed",
+                                BuildEnvelope(context, execution, state, ownedObligations))
+                            {
+                                ExpectedStreamVersion = currentVersion
+                            },
+                            cancellationToken).ConfigureAwait(false);
+                        if (admitted.Outcome != DurableCommandOutcome.Committed)
+                        {
+                            return Conflict(admitted);
+                        }
+
+                        await context.Processor.ReportLeaseBarrierAsync(
+                            DurableResourceLeaseCommitBarrier.WorkflowPendingObligationCommitted,
+                            context.InstanceId,
+                            checked((int)execution.ContinueAsNewGeneration),
+                            lease.ObligationId,
+                            lease.FiberId,
+                            lease.ScopeId ?? "root",
+                            lease.ProtectionToken!,
+                            admitted.StreamVersion.Value,
+                            [],
+                            cancellationToken).ConfigureAwait(false);
+                        currentVersion = admitted.StreamVersion;
+                        commands++;
+                        continue;
+                    }
+
+                    var wait = WaitId.Parse(lease.ObligationId);
+                    var blocked = FiberReducer.Block(
+                        ClearResume(fiber),
+                        FiberBlockedReason.Resource,
+                        wait.ToString());
+                    execution = execution with
+                    {
+                        Fibers = new Dictionary<FiberId, FiberRecord>(execution.Fibers)
+                        {
+                            [fiber.Id] = blocked
+                        },
+                        Scheduler = FiberScheduler.RemoveRunnable(execution.Scheduler, [fiber.Id])
+                    };
+                    var leaseIndex = ownedObligations.IndexOf(lease);
+                    lease = lease with
+                    {
+                        LeasePhase = nameof(DurableLeaseObligationPhase.PendingCommit)
+                    };
+                    ownedObligations[leaseIndex] = lease;
+                    var now = context.TimeProvider.GetUtcNow();
+                    var acquired = await context.Processor.ProcessAsync(
+                        new AcquireResourcePoolCommand
+                        {
+                            CommandId = CommandId.New(),
+                            InstanceId = context.InstanceId,
+                            RequestedAt = now,
+                            HolderKey = lease.HolderKey!,
+                            Requirements = lease.LeaseRequirements,
+                            ExpiresAt = null,
+                            WaitId = wait,
+                            WaitSequence = lease.RegistrationSequence,
+                            FiberId = fiber.Id,
+                            ScopeId = fiber.OwningScopeId,
+                            Envelope = BuildEnvelope(context, execution, state, ownedObligations),
+                            ExpectedStreamVersion = currentVersion,
+                            ConsumedResumeWaitIds = ConsumedWaitIds(consumedWaitId),
+                            LeaseObligationId = lease.ObligationId,
+                            LeaseProtectionToken = lease.ProtectionToken,
+                            LeaseGeneration = checked((int)execution.ContinueAsNewGeneration),
+                            LeaseFiberOccurrence = lease.FiberId,
+                            LeaseScopeOccurrence = lease.ScopeId ?? "root"
+                        },
+                        CancellationToken.None).ConfigureAwait(false);
+                    if (acquired.Outcome != DurableCommandOutcome.Committed)
+                    {
+                        return acquired.Outcome == DurableCommandOutcome.NoOp
+                            ? await ParkAsync(
+                                context,
+                                DurableParkReason.Poison,
+                                $"Scoped resource acquisition for '{lease.HolderKey}' was rejected.",
+                                CancellationToken.None).ConfigureAwait(false)
+                            : Conflict(acquired);
+                    }
+
+                    currentVersion = acquired.StreamVersion;
+                    commands++;
+                    var reloaded = await ReloadAggregateAsync(context, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (reloaded.StreamVersion != currentVersion)
+                    {
+                        return new DurableSegmentResult(
+                            DurableSegmentOutcome.Conflict,
+                            "Scoped resource acquisition stream moved before result inspection.");
+                    }
+
+                    if (reloaded.WaitState.HasWait(wait))
+                    {
+                        ownedObligations[leaseIndex] = lease with
+                        {
+                            LeasePhase = nameof(DurableLeaseObligationPhase.Queued)
+                        };
+                        var queued = await context.Processor.ProcessAsync(
+                            new DurableYieldCommand(
+                                CommandId.New(),
+                                context.InstanceId,
+                                context.TimeProvider.GetUtcNow(),
+                                $"{instruction.Path}:lease-queued",
+                                BuildEnvelope(context, execution, state, ownedObligations))
+                            {
+                                ExpectedStreamVersion = currentVersion
+                            },
+                            CancellationToken.None).ConfigureAwait(false);
+                        if (queued.Outcome != DurableCommandOutcome.Committed)
+                        {
+                            return Conflict(queued);
+                        }
+
+                        currentVersion = queued.StreamVersion;
+                        commands++;
+                        if (BudgetReached(context, commands, elapsed))
+                        {
+                            return new DurableSegmentResult(
+                                DurableSegmentOutcome.BudgetExhausted,
+                                CommittedProgress: true);
+                        }
+
+                        // A resource miss parks only its exact fiber. Other roots, branches, or
+                        // items that remain runnable continue within this segment. Once none
+                        // remain, ResolveNoRunnableFiberAsync returns the suspended boundary.
+                        continue;
+                    }
+
+                    var acquiredLeaseTickets = reloaded.ResourcePoolState.ActiveTickets
+                        .Where(ticket =>
+                            string.Equals(
+                                ticket.HolderKey,
+                                lease.HolderKey,
+                                StringComparison.Ordinal))
+                        .OrderBy(ticket => ticket.PoolName, StringComparer.Ordinal)
+                        .ThenBy(ticket => ticket.ProviderGeneration)
+                        .ToArray();
+                    ownedObligations[leaseIndex] = lease with
+                    {
+                        LeasePhase = nameof(DurableLeaseObligationPhase.Held),
+                        LeaseTickets = acquiredLeaseTickets
+                            .Select(ticket => new DurableLeaseTicketState
+                            {
+                                TicketId = ticket.TicketId.ToString("N"),
+                                PoolName = ticket.PoolName,
+                                Units = ticket.Count,
+                                ProviderGeneration = ticket.ProviderGeneration,
+                                ReviewDeadline = ticket.ReviewDeadline,
+                                ReviewMarked = ticket.ReviewMarked
+                            })
+                            .ToArray()
+                    };
+                    RemoveConsumedObligation(ownedObligations, consumedWaitId);
+                    var advanced = FiberReducer.Resume(blocked) with
+                    {
+                        InstructionId = RequiredNext(instruction)
+                    };
+                    execution = execution with
+                    {
+                        Fibers = new Dictionary<FiberId, FiberRecord>(execution.Fibers)
+                        {
+                            [fiber.Id] = advanced
+                        },
+                        Scheduler = FiberScheduler.EnqueueResumed(execution.Scheduler, [fiber.Id])
+                    };
+                    var activated = await context.Processor.ProcessAsync(
+                        new DurableStepCompletedCommand(
+                            CommandId.New(),
+                            context.InstanceId,
+                            context.TimeProvider.GetUtcNow(),
+                            $"{instruction.Path}:lease-activated",
+                            BuildEnvelope(context, execution, state, ownedObligations))
+                        {
+                            ExpectedStreamVersion = currentVersion
+                        },
+                        CancellationToken.None).ConfigureAwait(false);
+                    if (activated.Outcome != DurableCommandOutcome.Committed)
+                    {
+                        return Conflict(activated);
+                    }
+
+                    currentVersion = activated.StreamVersion;
+                    commands++;
+                    await context.Processor.ReportLeaseBarrierAsync(
+                        DurableResourceLeaseCommitBarrier.WorkflowActivationCommitted,
+                        context.InstanceId,
+                        checked((int)execution.ContinueAsNewGeneration),
+                        lease.ObligationId,
+                        lease.FiberId,
+                        lease.ScopeId ?? "root",
+                        lease.ProtectionToken!,
+                        activated.StreamVersion.Value,
+                        acquiredLeaseTickets,
+                        cancellationToken).ConfigureAwait(false);
+                    await context.Processor.ReportLeaseBarrierAsync(
+                        DurableResourceLeaseCommitBarrier.GovernanceOwnershipConfirmed,
+                        context.InstanceId,
+                        checked((int)execution.ContinueAsNewGeneration),
+                        lease.ObligationId,
+                        lease.FiberId,
+                        lease.ScopeId ?? "root",
+                        lease.ProtectionToken!,
+                        activated.StreamVersion.Value,
+                        acquiredLeaseTickets,
+                        cancellationToken).ConfigureAwait(false);
+                    break;
+                }
+                case CompiledInstructionKind.ReleaseResources:
+                {
+                    var lease = FindScopedLease(fiber, ownedObligations);
+                    if (lease is null ||
+                        lease.LeasePhase is not (
+                            nameof(DurableLeaseObligationPhase.Held) or
+                            nameof(DurableLeaseObligationPhase.ReviewMarked) or
+                            nameof(DurableLeaseObligationPhase.AmbiguousHeld)) ||
+                        string.IsNullOrWhiteSpace(lease.HolderKey))
+                    {
+                        var rejected = await context.Processor.ProcessAsync(
+                            new DurableStepFailedCommand(
+                                CommandId.New(),
+                                context.InstanceId,
+                                context.TimeProvider.GetUtcNow(),
+                                instruction.Path,
+                                "SFE-RUN-002: LeaseAncestryViolation.",
+                                BuildEnvelope(context, execution, state, ownedObligations))
+                            {
+                                ExpectedStreamVersion = currentVersion,
+                                PreserveOwnership = true
+                            },
+                            CancellationToken.None).ConfigureAwait(false);
+                        return rejected.Outcome == DurableCommandOutcome.Committed
+                            ? DurableSegmentResult.Terminal
+                            : Conflict(rejected);
+                    }
+
+                    var quarantine = lease.LeasePhase ==
+                        nameof(DurableLeaseObligationPhase.AmbiguousHeld);
+                    if (quarantine)
+                    {
+                        var leaseIndex = ownedObligations.IndexOf(lease);
+                        ownedObligations[leaseIndex] = lease with
+                        {
+                            LeasePhase = nameof(DurableLeaseObligationPhase.Quarantined)
+                        };
+                    }
+                    else
+                    {
+                        var leaseIndex = ownedObligations.IndexOf(lease);
+                        ownedObligations[leaseIndex] = lease with
+                        {
+                            LeasePhase = nameof(DurableLeaseObligationPhase.Released),
+                            AcceptedConfirmationId = null
+                        };
+                    }
+
+                    if (fiber.ResultPayload is not null && fiber.OwningScopeId is not null)
+                    {
+                        execution = ReturnBranch(execution, fiber).State;
+                    }
+                    else
+                    {
+                        execution = MoveTo(execution, fiber, RequiredNext(instruction));
+                    }
+
+                    var cleanup = RemoveTerminalFiberObligations(execution, ownedObligations);
+                    var released = await context.Processor.ProcessAsync(
+                        new DurableStepCompletedCommand(
+                            CommandId.New(),
+                            context.InstanceId,
+                            context.TimeProvider.GetUtcNow(),
+                            instruction.Path,
+                            BuildEnvelope(context, execution, state, ownedObligations))
+                        {
+                            ExpectedStreamVersion = currentVersion,
+                            ReleaseResourceHolderKeys = quarantine ? [] : [lease.HolderKey],
+                            CancelWaitIds = cleanup.WaitIds,
+                            CancelTimerIds = cleanup.TimerIds,
+                            TerminalFiberIds = cleanup.TerminalFiberIds
+                        },
+                        CancellationToken.None).ConfigureAwait(false);
+                    if (released.Outcome != DurableCommandOutcome.Committed)
+                    {
+                        return Conflict(released);
+                    }
+
+                    currentVersion = released.StreamVersion;
+                    commands++;
+                    break;
+                }
                 case CompiledInstructionKind.RunChild:
                 case CompiledInstructionKind.RunChildren:
                 {
@@ -326,12 +663,18 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                     break;
                 case CompiledInstructionKind.Step:
                 {
-                    if (instruction.Policy.Timeout is { } stepTimeout && fiber.TimeoutDeadline is null)
+                    if (!fiber.AttemptInFlight)
                     {
+                        var now = context.TimeProvider.GetUtcNow();
                         var admittedFiber = fiber with
                         {
-                            TimeoutDeadline = context.TimeProvider.GetUtcNow().Add(stepTimeout),
-                            LogicalOperationKey = LogicalOperationKey(execution, fiber, instruction)
+                            RetryAttempt = fiber.RetryAttempt > 0 ? fiber.RetryAttempt : 1,
+                            TimeoutDeadline = instruction.Policy.Timeout is { } stepTimeout
+                                ? now.Add(stepTimeout)
+                                : null,
+                            LogicalOperationKey = fiber.LogicalOperationKey ??
+                                LogicalOperationKey(execution, fiber, instruction),
+                            AttemptInFlight = true
                         };
                         execution = execution with
                         {
@@ -348,16 +691,26 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                             new DurableYieldCommand(
                                 CommandId.New(),
                                 context.InstanceId,
-                                context.TimeProvider.GetUtcNow(),
-                                $"{instruction.Path}:timeout-admission",
+                                now,
+                                $"{instruction.Path}:attempt-admission",
                                 BuildEnvelope(context, execution, state, ownedObligations))
                             {
                                 ExpectedStreamVersion = currentVersion
                             },
                             cancellationToken).ConfigureAwait(false);
-                        return admitted.Outcome == DurableCommandOutcome.Committed
-                            ? DurableSegmentResult.PolicyBoundary
-                            : Conflict(admitted);
+                        if (admitted.Outcome != DurableCommandOutcome.Committed)
+                        {
+                            return Conflict(admitted);
+                        }
+
+                        if (instruction.Policy.Timeout is not null)
+                        {
+                            return DurableSegmentResult.PolicyBoundary;
+                        }
+
+                        currentVersion = admitted.StreamVersion;
+                        commands++;
+                        continue;
                     }
 
                     var resumedObligation = consumedWaitId is { } resumedWaitId
@@ -376,6 +729,48 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                         break;
                     }
 
+                    var stepThrottleOwner = new StepThrottleOwner(context.InstanceId, fiber.Id);
+                    if (!grantedStepThrottles.TryRemove(stepThrottleOwner, out var stepThrottleLease) &&
+                        !stepThrottles.TryEnter(instruction.StepType, out stepThrottleLease))
+                    {
+                        var obligation = StepThrottleObligation(fiber, instruction);
+                        var blockedFiber = FiberReducer.Block(
+                            fiber,
+                            FiberBlockedReason.Resource,
+                            obligation);
+                        execution = execution with
+                        {
+                            Fibers = new Dictionary<FiberId, FiberRecord>(execution.Fibers)
+                            {
+                                [fiber.Id] = blockedFiber
+                            },
+                            Scheduler = FiberScheduler.CompleteTurn(
+                                execution.Scheduler,
+                                fiber.Id,
+                                requeueSelected: false)
+                        };
+                        var blocked = await context.Processor.ProcessAsync(
+                            new DurableYieldCommand(
+                                CommandId.New(),
+                                context.InstanceId,
+                                context.TimeProvider.GetUtcNow(),
+                                $"{instruction.Path}:step-throttle-wait",
+                                BuildEnvelope(context, execution, state, ownedObligations))
+                            {
+                                ExpectedStreamVersion = currentVersion
+                            },
+                            cancellationToken).ConfigureAwait(false);
+                        if (blocked.Outcome != DurableCommandOutcome.Committed)
+                        {
+                            return Conflict(blocked);
+                        }
+
+                        currentVersion = blocked.StreamVersion;
+                        commands++;
+                        continue;
+                    }
+
+                    await using var ownedStepThrottleLease = stepThrottleLease;
                     var executed = await ExecutePolicyStepAsync(
                         context,
                         execution,
@@ -383,19 +778,17 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                         instruction,
                         state,
                         resumedEvent,
+                        ownedObligations,
+                        ownedStepThrottleLease,
                         cancellationToken).ConfigureAwait(false);
                     execution = executed.Execution;
                     fiber = executed.Fiber;
                     state = executed.State;
                     if (executed.OperatorCancelled)
                     {
-                        var cancelled = await context.Processor.ProcessAsync(
-                            new CancelWorkflowCommand
-                            {
-                                CommandId = CommandId.New(),
-                                InstanceId = context.InstanceId,
-                                RequestedAt = context.TimeProvider.GetUtcNow()
-                            },
+                        var cancelled = await context.Processor.FinalizeCancellationAsync(
+                            context.InstanceId,
+                            context.TimeProvider.GetUtcNow(),
                             CancellationToken.None).ConfigureAwait(false);
                         return cancelled.Outcome is DurableCommandOutcome.Committed or DurableCommandOutcome.NoOp
                             ? DurableSegmentResult.Terminal
@@ -447,7 +840,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                             }
 
                             break;
-                        case StepResult.Yield:
+                        case var legacyYield when LegacyStepResultProjection.IsYield(legacyYield):
                         {
                             var fibers = new Dictionary<FiberId, FiberRecord>(execution.Fibers)
                             {
@@ -483,18 +876,40 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                         }
                         case StepResult.Failed failed:
                         {
+                            var scopedLease = FindScopedLease(fiber, ownedObligations);
+                            if (scopedLease is not null &&
+                                string.Equals(failed.Error.Code, "WF-STEP-TIMEOUT", StringComparison.Ordinal) &&
+                                scopedLease.LeasePhase is
+                                    nameof(DurableLeaseObligationPhase.Held) or
+                                    nameof(DurableLeaseObligationPhase.ReviewMarked))
+                            {
+                                var scopedLeaseIndex = ownedObligations.IndexOf(scopedLease);
+                                ownedObligations[scopedLeaseIndex] = scopedLease with
+                                {
+                                    LeasePhase = nameof(DurableLeaseObligationPhase.AmbiguousHeld)
+                                };
+                            }
+
                             var attempt = fiber.RetryAttempt > 0 ? fiber.RetryAttempt : 1;
-                            if (instruction.Policy.Retry is { } retry && attempt < retry.MaxAttempts)
+                            if (instruction.Policy.Retry is { } retry &&
+                                attempt < retry.MaxAttempts &&
+                                IsRetryEligible(failed.Error))
                             {
                                 var nextAttempt = checked(attempt + 1);
+                                var retryAdmissionAt = context.TimeProvider.GetUtcNow()
+                                    .Add(retry.Backoff);
                                 var retryFiber = ClearResume(fiber) with
                                 {
                                     RetryAttempt = nextAttempt,
                                     RetryNotBefore = retry.Backoff > TimeSpan.Zero
-                                        ? context.TimeProvider.GetUtcNow().Add(retry.Backoff)
+                                        ? retryAdmissionAt
                                         : null,
                                     LogicalOperationKey = fiber.LogicalOperationKey ??
-                                        LogicalOperationKey(execution, fiber, instruction)
+                                        LogicalOperationKey(execution, fiber, instruction),
+                                    AttemptInFlight = true,
+                                    TimeoutDeadline = instruction.Policy.Timeout is { } retryTimeout
+                                        ? retryAdmissionAt.Add(retryTimeout)
+                                        : null
                                 };
                                 RemoveConsumedObligation(ownedObligations, consumedWaitId);
                                 if (retry.Backoff > TimeSpan.Zero)
@@ -575,14 +990,58 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                                     : Conflict(retryCommitted);
                             }
 
-                            var failure = new FiberFailure(
-                                failed.Error.GetType().Name,
+                            var failure = FailureProvenance.Create(
+                                plan,
+                                execution,
+                                fiber,
+                                instruction,
+                                failed.Error.Code,
                                 failed.Error.Message);
-                            execution = FailFiberAndAncestors(execution, fiber, failure);
+                            if (fiber.OwningScopeId is { } scopeId &&
+                                execution.Scopes[scopeId] is { Kind: CompiledScopeKind.ForEach } forEachScope)
+                            {
+                                execution = ScopeReducer.RecordForEachTerminal(
+                                    execution,
+                                    plan.GetScope(forEachScope.ScopePlanId),
+                                    scopeId,
+                                    fiber.Id,
+                                    resultPayload: null,
+                                    failure,
+                                    maxConcurrentExecutionPathsPerInstance).State;
+                            }
+                            else
+                            {
+                                execution = FailFiberAndAncestors(execution, fiber, failure);
+                            }
+
                             RemoveConsumedObligation(ownedObligations, consumedWaitId);
                             var cleanup = RemoveTerminalFiberObligations(
                                 execution,
                                 ownedObligations);
+                            if (!RootFailed(execution))
+                            {
+                                var fiberFailed = await context.Processor.ProcessAsync(
+                                    new DurableFiberFailedCommand(
+                                        CommandId.New(),
+                                        context.InstanceId,
+                                        context.TimeProvider.GetUtcNow(),
+                                        instruction.Path,
+                                        $"{failure.Code}: {failure.Message}",
+                                        BuildEnvelope(context, execution, state, ownedObligations))
+                                    {
+                                        ExpectedStreamVersion = currentVersion,
+                                        ConsumedResumeWaitIds = ConsumedWaitIds(consumedWaitId),
+                                        CancelWaitIds = cleanup.WaitIds,
+                                        CancelTimerIds = cleanup.TimerIds,
+                                        TerminalFiberIds = cleanup.TerminalFiberIds,
+                                        FailedSagaScopeIds = FailedSagaScopes(execution)
+                                    },
+                                    commitCancellationToken).ConfigureAwait(false);
+                                return fiberFailed.Outcome == DurableCommandOutcome.Committed
+                                    ? DurableSegmentResult.Yielded
+                                    : Conflict(fiberFailed);
+                            }
+
                             var failedResult = await context.Processor.ProcessAsync(
                                 new DurableStepFailedCommand(
                                     CommandId.New(),
@@ -607,6 +1066,14 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                         }
                         case StepResult.WaitForEvent wait:
                         {
+                            fiber = ClearStepPolicyState(ClearResume(fiber));
+                            execution = execution with
+                            {
+                                Fibers = new Dictionary<FiberId, FiberRecord>(execution.Fibers)
+                                {
+                                    [fiber.Id] = fiber
+                                }
+                            };
                             var registration = await RegisterOwnedWaitAsync(
                                 context,
                                 execution,
@@ -614,7 +1081,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                                 instruction,
                                 state,
                                 ownedObligations,
-                                wait.EventName,
+                                wait.EventName.Value,
                                 wait.CorrelationId,
                                 WaitMode.Resident,
                                 currentVersion,
@@ -637,9 +1104,10 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
 
                             break;
                         }
-                        case StepResult.RunExternalJob externalJob:
+                        case var externalJobResult when LegacyStepResultProjection.TryExternalJob(
+                            externalJobResult, out var externalJob):
                         {
-                            var waitId = WaitId.New();
+                            var waitId = WaitId.Parse(Guid.CreateVersion7().ToString());
                             var blocked = FiberReducer.Block(
                                 ClearResume(fiber),
                                 FiberBlockedReason.ExternalJob,
@@ -704,7 +1172,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                                 var existingWait = existing is null
                                     ? null
                                     : reloaded.WaitState.ActiveWaits.FirstOrDefault(candidate =>
-                                        candidate.WaitId == existing.WaitId);
+                                        candidate.WaitId.Equals(existing.WaitId));
                                 if (existing is null ||
                                     existingWait is null ||
                                     existing.FiberId != fiber.Id ||
@@ -767,9 +1235,10 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
 
                             break;
                         }
-                        case StepResult.AcquireResources acquire:
+                        case var acquireResult when LegacyStepResultProjection.TryAcquireResources(
+                            acquireResult, out var acquire):
                         {
-                            var waitId = WaitId.New();
+                            var waitId = WaitId.Parse(Guid.CreateVersion7().ToString());
                             var blocked = FiberReducer.Block(
                                 ClearResume(fiber),
                                 FiberBlockedReason.Resource,

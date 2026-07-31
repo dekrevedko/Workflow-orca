@@ -9,6 +9,7 @@ using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Abstractions.Serialization;
 using OrcaCore.Providers.Relational;
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
 
 namespace OrcaCore.Providers.SqlServer;
 
@@ -85,7 +86,7 @@ public sealed class SqlServerWorkflowStore :
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<WorkflowEvent>> LoadTailAsync(
+    public Task<IReadOnlyList<DurableWorkflowEvent>> LoadTailAsync(
         WorkflowStreamId streamId,
         StreamVersion afterVersion,
         CancellationToken cancellationToken)
@@ -300,16 +301,6 @@ public sealed class SqlServerWorkflowStore :
     }
 
     /// <inheritdoc />
-    public Task<ResourcePoolForceReleaseResult> ForceReleaseTicketAsync(
-        Guid ticketId,
-        string reason,
-        DateTimeOffset releasedAt,
-        CancellationToken cancellationToken)
-    {
-        return resourcePoolStore.ForceReleaseTicketAsync(ticketId, reason, releasedAt, cancellationToken);
-    }
-
-    /// <inheritdoc />
     public ValueTask DisposeAsync()
     {
         return ValueTask.CompletedTask;
@@ -342,7 +333,7 @@ public sealed class SqlServerWorkflowStore :
             reader.GetString(1),
             (byte[])reader[2])
         {
-            DefinitionId = reader.IsDBNull(3) ? null : new DefinitionId(reader.GetGuid(3)),
+            DefinitionId = reader.IsDBNull(3) ? null : DefinitionId.Parse(reader.GetGuid(3).ToString()),
             DefinitionVersion = reader.IsDBNull(4) ? null : new DefinitionVersion(reader.GetInt32(4)),
             Status = reader.IsDBNull(5) ? null : Enum.Parse<WorkflowStatus>(reader.GetString(5)),
             LastStepPath = reader.IsDBNull(6) ? null : reader.GetString(6),
@@ -444,7 +435,7 @@ public sealed class SqlServerWorkflowStore :
         }
     }
 
-    private async Task<IReadOnlyList<WorkflowEvent>> LoadTailCoreAsync(
+    private async Task<IReadOnlyList<DurableWorkflowEvent>> LoadTailCoreAsync(
         WorkflowStreamId streamId,
         StreamVersion afterVersion,
         CancellationToken cancellationToken)
@@ -461,7 +452,7 @@ public sealed class SqlServerWorkflowStore :
         command.Parameters.AddWithValue("@stream_id", streamId.InstanceId.Value);
         command.Parameters.AddWithValue("@after_version", afterVersion.Value);
 
-        var events = new List<WorkflowEvent>();
+        var events = new List<DurableWorkflowEvent>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
@@ -503,8 +494,8 @@ public sealed class SqlServerWorkflowStore :
 
         return Option<StartedWorkflowIdempotencyRecord>.Some(new StartedWorkflowIdempotencyRecord(
             idempotencyKey,
-            new InstanceId(reader.GetGuid(0)),
-            new DefinitionId(reader.GetGuid(1)),
+            InstanceId.Parse(reader.GetGuid(0).ToString()),
+            DefinitionId.Parse(reader.GetGuid(1).ToString()),
             new DefinitionVersion(reader.GetInt32(2))));
     }
 
@@ -676,7 +667,7 @@ public sealed class SqlServerWorkflowStore :
         SqlTransaction transaction,
         WorkflowStreamId streamId,
         StreamVersion version,
-        WorkflowEvent workflowEvent,
+        DurableWorkflowEvent workflowEvent,
         CancellationToken cancellationToken)
     {
         await using var command = new SqlCommand(

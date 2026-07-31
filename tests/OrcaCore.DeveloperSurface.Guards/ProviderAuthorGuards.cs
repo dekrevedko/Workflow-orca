@@ -63,8 +63,8 @@ public sealed class ProviderAuthorInfrastructureGuards
 }
 
 [Trait(GuardTraits.Phase, GuardTraits.Phase0)]
-[Trait(GuardTraits.Disposition, GuardTraits.ExpectedRed)]
-public sealed class ProviderAuthorExpectedRedGuards
+[Trait(GuardTraits.Disposition, GuardTraits.Infrastructure)]
+public sealed class ProviderAuthorProductGuards
 {
     [Fact]
     public void ExactProviderAuthoringProjects_ExistForTheFixtureToCompileAgainst()

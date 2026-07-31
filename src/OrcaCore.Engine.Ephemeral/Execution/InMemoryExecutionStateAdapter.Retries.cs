@@ -19,8 +19,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         var retryFiber = fiber with
         {
             RetryAttempt = attempt,
-            RetryNotBefore = backoff > TimeSpan.Zero ? retryNotBefore : null,
-            LogicalOperationKey = instruction.Id.Value
+            RetryNotBefore = backoff > TimeSpan.Zero ? retryNotBefore : null
         };
         if (backoff == TimeSpan.Zero)
         {

@@ -11,7 +11,7 @@ internal static class DurableVersionCompatibility
         DefinitionId requestedDefinitionId,
         DefinitionVersion requestedDefinitionVersion)
     {
-        if (existingDefinitionId == requestedDefinitionId &&
+        if (existingDefinitionId.Equals(requestedDefinitionId) &&
             existingDefinitionVersion == requestedDefinitionVersion)
         {
             return;

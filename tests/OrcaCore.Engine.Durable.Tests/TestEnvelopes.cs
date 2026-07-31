@@ -15,8 +15,8 @@ internal static class TestEnvelopes
         int rootIndex = 1,
         InstanceId? instanceId = null)
     {
-        var resolvedInstanceId = instanceId ?? new InstanceId(
-            Guid.Parse("00000000-0000-0000-0000-000000000001"));
+        var resolvedInstanceId = instanceId ??
+            InstanceId.Parse("00000000-0000-0000-0000-000000000001");
         return new DurableExecutionEnvelopeV2
         {
             EnvelopeVersion = DurableExecutionEnvelopeV2.CurrentVersion,
@@ -25,10 +25,10 @@ internal static class TestEnvelopes
             RootFiberId = "root",
             PlanBinding = new DurablePlanBinding
             {
-                DefinitionId = new DefinitionId(
-                    Guid.Parse("00000000-0000-0000-0000-000000000001")),
+                DefinitionId = DefinitionId.Parse("00000000-0000-0000-0000-000000000001"),
                 DefinitionVersion = DefinitionVersion.Initial,
                 CompilerFormatVersion = 1,
+                CompilerProfileId = "orcacore-compiler-v1;quantum=1024",
                 PlanFingerprint = "test-plan"
             },
             StateContentType = stateContentType,

@@ -19,7 +19,6 @@ namespace OrcaCore.Engine.Ephemeral;
 public sealed class EphemeralWorkflowEngine
 {
     private readonly ConcurrentDictionary<DefinitionId, RegisteredDefinition> definitions = [];
-    private readonly ConcurrentDictionary<InstanceId, object> sagaRuntimeStates = [];
     private readonly InstanceExecutionLane executionLane;
     private readonly ResourceGovernanceCoordinator governance;
     private readonly IInstanceRegistry instanceRegistry;
@@ -29,6 +28,9 @@ public sealed class EphemeralWorkflowEngine
     private readonly TimeProvider timeProvider;
     private readonly YieldContinuationScheduler yieldContinuationScheduler;
     private readonly InterpreterFactory interpreterFactory;
+    private readonly IServiceProvider? serviceProvider;
+
+    internal event Action<InstanceId>? InstanceCommitted;
 
     /// <summary>
     /// Initializes an engine using system time and an in-memory instance registry.
@@ -51,8 +53,23 @@ public sealed class EphemeralWorkflowEngine
     /// </summary>
     public EphemeralWorkflowEngine(
         TimeProvider timeProvider,
-        EphemeralWorkflowEngineOptions options)
-        : this(timeProvider, options, new InMemoryInstanceRegistry(), CreateExecutionLane(options))
+        EphemeralWorkflowEngineOptions options,
+        IServiceProvider? serviceProvider = null)
+        : this(timeProvider, options, new InMemoryInstanceRegistry(), CreateExecutionLane(options), serviceProvider)
+    {
+    }
+
+    /// <summary>
+    /// Initializes an engine from the validated public host-governance contract.
+    /// </summary>
+    public EphemeralWorkflowEngine(
+        TimeProvider timeProvider,
+        global::OrcaCore.Hosting.EphemeralEngineHostOptions options,
+        IServiceProvider? serviceProvider = null)
+        : this(
+            timeProvider,
+            EphemeralWorkflowEngineOptions.FromHostOptions(options),
+            serviceProvider)
     {
     }
 
@@ -60,7 +77,7 @@ public sealed class EphemeralWorkflowEngine
         TimeProvider timeProvider,
         IInstanceRegistry instanceRegistry,
         InstanceExecutionLane executionLane)
-        : this(timeProvider, new EphemeralWorkflowEngineOptions(), instanceRegistry, executionLane)
+        : this(timeProvider, new EphemeralWorkflowEngineOptions(), instanceRegistry, executionLane, null)
     {
     }
 
@@ -68,13 +85,13 @@ public sealed class EphemeralWorkflowEngine
         TimeProvider timeProvider,
         EphemeralWorkflowEngineOptions options,
         IInstanceRegistry instanceRegistry,
-        InstanceExecutionLane executionLane)
+        InstanceExecutionLane executionLane,
+        IServiceProvider? serviceProvider)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(instanceRegistry);
         ArgumentNullException.ThrowIfNull(executionLane);
-        ArgumentNullException.ThrowIfNull(options.StateSnapshotter);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(options.MaxPendingEventsPerInstance);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(options.MaxConsumedEventIdsPerInstance);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(options.MaxLifecycleEventsPerInstance);
@@ -83,15 +100,17 @@ public sealed class EphemeralWorkflowEngine
         this.options = options;
         this.instanceRegistry = instanceRegistry;
         this.executionLane = executionLane;
+        this.serviceProvider = serviceProvider;
         governance = new ResourceGovernanceCoordinator(options);
         timerService = new EphemeralTimerService(timeProvider);
-        yieldContinuationScheduler = new YieldContinuationScheduler(governance, executionLane);
+        yieldContinuationScheduler = new YieldContinuationScheduler(executionLane);
         interpreterFactory = new InterpreterFactory(
             timeProvider,
             timerService,
             governance,
             yieldContinuationScheduler,
-            options);
+            options,
+            serviceProvider);
         Management = new EphemeralManagement(this, instanceRegistry);
     }
 
@@ -107,39 +126,54 @@ public sealed class EphemeralWorkflowEngine
     /// </summary>
     public EphemeralManagement Management { get; }
 
-    internal IEphemeralStateSnapshotter StateSnapshotter => options.StateSnapshotter;
-
     /// <summary>
     /// Registers a workflow definition version for later starts.
     /// </summary>
     public void RegisterDefinition<TState>(WorkflowDefinition<TState> definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        if (definition.RequiresDurableEngine)
+        var plan = (global::OrcaCore.Core.Compilation.CompiledWorkflowPlan)
+            WorkflowDefinitionRuntime.GetPlan(definition);
+        if (plan.Mode == global::OrcaCore.Core.Compilation.WorkflowExecutionMode.Durable)
         {
-            throw new WorkflowDefinitionException(
+            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                 $"Workflow definition '{definition.DefinitionId}' contains durable-only nodes " +
                 "(RunChild/RunChildren) and cannot be registered on the ephemeral engine.");
         }
 
         if (definition.Policies.Retry is not null)
         {
-            throw new WorkflowDefinitionException(
+            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                 "Definition-level retry is not supported by the ephemeral engine because replaying the whole " +
                 "definition could duplicate completed side effects. Apply retry to individual steps instead.");
+        }
+
+        var missingTransientPools = plan.Instructions
+            .Select(instruction => instruction.Policy.TransientPoolKey)
+            .Where(pool => pool is not null && !options.TransientPools.ContainsKey(pool))
+            .Cast<string>()
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(pool => pool, StringComparer.Ordinal)
+            .ToArray();
+        if (missingTransientPools.Length > 0)
+        {
+            OrcaCoreEphemeralDiagnostics.RecordHostCompatibilityFailure("missing_transient_pools");
+            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                "HostIncompatible.MissingTransientPools: " +
+                string.Join(", ", missingTransientPools));
         }
 
         var registered = new RegisteredDefinition(
             definition,
             definition.DefinitionVersion,
             typeof(TState),
-            definition.CompiledPlan.Fingerprint);
+            plan.Fingerprint);
         definitions.AddOrUpdate(
             definition.DefinitionId,
             registered,
             (_, existing) => SameRegistration(existing, registered)
                 ? existing
-                : throw new WorkflowDefinitionException(
+                : throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                     $"Workflow definition '{definition.DefinitionId}' is already registered with " +
                     $"version '{existing.DefinitionVersion}', state type '{existing.StateType.FullName}', " +
                     $"and fingerprint '{existing.Fingerprint}'. Candidate version: " +
@@ -149,52 +183,49 @@ public sealed class EphemeralWorkflowEngine
     /// <summary>
     /// Starts a registered workflow and runs it inline to suspension or terminal status.
     /// </summary>
-    public async Task<WorkflowInstanceSnapshot> StartAsync<TInput, TState>(
+    public async Task<LegacyWorkflowInstanceSnapshot> StartAsync<TInput, TState>(
         DefinitionId definitionId,
         TInput input,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(definitionId);
         using var activity = OrcaCoreEphemeralDiagnostics.StartOperation("start");
         cancellationToken.ThrowIfCancellationRequested();
 
         if (!definitions.TryGetValue(definitionId, out var registeredDefinition))
         {
-            throw new WorkflowDefinitionException(
+            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                 $"No workflow definition is registered for definition id '{definitionId}'.");
         }
 
         if (registeredDefinition.Definition is not WorkflowDefinition<TState> definition)
         {
-            throw new WorkflowDefinitionException(
+            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                 $"Workflow definition '{definitionId}' was not registered for state type '{typeof(TState).Name}'.");
         }
 
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         WorkflowInstance<TState>? instance = null;
-        WorkflowInstanceSnapshot snapshot;
-        await using (await governance.EnterAdvancementAsync(cancellationToken).ConfigureAwait(false))
-        {
-            snapshot = await executionLane.RunAsync(
-                instanceId,
-                async laneCancellationToken =>
-                {
-                    var interpreter = interpreterFactory.Create<TState>();
-                    instance = await interpreter.RunAsync(
-                        definition,
-                        input,
-                        instanceId,
-                        initializedInstance =>
-                        {
-                            instanceRegistry.Save(initializedInstance);
-                            CommitSnapshot(initializedInstance.ToSnapshot());
-                        },
-                        committed => CommitSnapshot(committed),
-                        laneCancellationToken).ConfigureAwait(false);
+        var snapshot = await executionLane.RunAsync(
+            instanceId,
+            async laneCancellationToken =>
+            {
+                var interpreter = interpreterFactory.Create<TState>();
+                instance = await interpreter.RunAsync(
+                    definition,
+                    input,
+                    instanceId,
+                    initializedInstance =>
+                    {
+                        instanceRegistry.Save(initializedInstance);
+                        CommitSnapshot(initializedInstance.ToSnapshot());
+                    },
+                    committed => CommitSnapshot(committed),
+                    laneCancellationToken).ConfigureAwait(false);
 
-                    return CommitSnapshot(instance.ToSnapshot());
-                },
-                cancellationToken).ConfigureAwait(false);
-        }
+                return CommitSnapshot(instance.ToSnapshot());
+            },
+            cancellationToken).ConfigureAwait(false);
 
         snapshot = instance is null
             ? snapshot
@@ -230,7 +261,7 @@ public sealed class EphemeralWorkflowEngine
     /// <summary>
     /// Starts a short-running workflow and returns its terminal snapshot.
     /// </summary>
-    public async Task<WorkflowInstanceSnapshot> AwaitCompletionAsync<TInput, TState>(
+    public async Task<LegacyWorkflowInstanceSnapshot> AwaitCompletionAsync<TInput, TState>(
         DefinitionId definitionId,
         TInput input,
         CancellationToken cancellationToken)
@@ -250,144 +281,9 @@ public sealed class EphemeralWorkflowEngine
     }
 
     /// <summary>
-    /// Starts an ephemeral saga in-process only. This reduced-guarantee mode has no durable recovery,
-    /// no durable compensation audit, and no post-restart operator remediation.
-    /// </summary>
-    public async Task<WorkflowInstanceSnapshot> StartSagaAsync<TInput, TState>(
-        SagaDefinition<TState> definition,
-        TInput input,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(definition);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var instanceId = InstanceId.New();
-        WorkflowInstanceSnapshot snapshot;
-        await using (await governance.EnterAdvancementAsync(cancellationToken).ConfigureAwait(false))
-        {
-            snapshot = await executionLane.RunAsync(
-                instanceId,
-                async laneCancellationToken =>
-                {
-                    var state = definition.CreateState(input);
-                    var instance = new WorkflowInstance<TState>(
-                        instanceId,
-                        definition.DefinitionId,
-                        definition.DefinitionVersion,
-                        state,
-                        timeProvider.GetUtcNow(),
-                        options.MaxPendingEventsPerInstance,
-                        options.MaxConsumedEventIdsPerInstance,
-                        options.MaxLifecycleEventsPerInstance);
-                    var runtime = new EphemeralSagaRuntimeState<TState>(definition, instance);
-                    sagaRuntimeStates[instanceId] = runtime;
-                    instanceRegistry.Save(instance);
-
-                    foreach (var action in definition.ForwardActions)
-                    {
-                        var failure = await ExecuteSagaStepAsync(
-                            instance,
-                            action.StepFactory,
-                            action.ActionKey,
-                            laneCancellationToken).ConfigureAwait(false);
-                        if (failure is not null)
-                        {
-                            instance.RecordLifecycleEvent(
-                                "SagaForwardActionFailed",
-                                action.ActionKey,
-                                instance.Status,
-                                timeProvider.GetUtcNow());
-                            return CommitSnapshot(await CompensateSagaRuntimeAsync(
-                                runtime,
-                                failure,
-                                action.ScopeId,
-                                laneCancellationToken).ConfigureAwait(false));
-                        }
-
-                        runtime.CompletedActions.Add(action);
-                    }
-
-                    instance.Complete(null, timeProvider.GetUtcNow());
-                    return CommitSnapshot(instance.ToSnapshot());
-                },
-                cancellationToken).ConfigureAwait(false);
-        }
-
-        return snapshot;
-    }
-
-    /// <summary>
-    /// Requests compensation for an ephemeral saga instance in-process only. This reduced-guarantee mode has
-    /// no durable recovery, no durable compensation audit, and no post-restart operator remediation.
-    /// </summary>
-    public async Task<WorkflowInstanceSnapshot> RequestSagaCompensationAsync<TState>(
-        InstanceId instanceId,
-        CancellationToken cancellationToken)
-    {
-        return await RequestSagaCompensationCoreAsync<TState>(
-            instanceId,
-            scopeId: null,
-            cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Requests compensation for one declared saga scope in-process only.
-    /// </summary>
-    public async Task<WorkflowInstanceSnapshot> RequestSagaCompensationAsync<TState>(
-        InstanceId instanceId,
-        string scopeId,
-        CancellationToken cancellationToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(scopeId);
-        return await RequestSagaCompensationCoreAsync<TState>(
-            instanceId,
-            (string?)scopeId,
-            cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task<WorkflowInstanceSnapshot> RequestSagaCompensationCoreAsync<TState>(
-        InstanceId instanceId,
-        string? scopeId,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        if (!sagaRuntimeStates.TryGetValue(instanceId, out var registeredRuntime))
-        {
-            throw new WorkflowRoutingException(
-                $"No ephemeral saga instance exists for instance id '{instanceId}'.");
-        }
-
-        if (registeredRuntime is not EphemeralSagaRuntimeState<TState> runtime)
-        {
-            throw new WorkflowDefinitionException(
-                $"Saga instance '{instanceId}' is not using state type '{typeof(TState).Name}'.");
-        }
-
-        if (scopeId is not null && !runtime.Definition.ForwardActions.Any(action =>
-            string.Equals(action.ScopeId, scopeId, StringComparison.Ordinal)))
-        {
-            throw new WorkflowDefinitionException(
-                $"Saga scope '{scopeId}' is not declared by instance '{instanceId}'.");
-        }
-
-        await using (await governance.EnterAdvancementAsync(cancellationToken).ConfigureAwait(false))
-        {
-            return await executionLane.RunAsync(
-                instanceId,
-                async laneCancellationToken => CommitSnapshot(await CompensateSagaRuntimeAsync(
-                    runtime,
-                    null,
-                    scopeId,
-                    laneCancellationToken).ConfigureAwait(false)),
-                cancellationToken).ConfigureAwait(false);
-        }
-    }
-
-    /// <summary>
     /// Fires all transient timers whose due time has passed in this process.
     /// </summary>
-    public async Task<IReadOnlyList<WorkflowInstanceSnapshot>> FireDueTimersAsync(
+    public async Task<IReadOnlyList<LegacyWorkflowInstanceSnapshot>> FireDueTimersAsync(
         CancellationToken cancellationToken)
     {
         using var activity = OrcaCoreEphemeralDiagnostics.StartOperation("fire_due_timers");
@@ -399,17 +295,14 @@ public sealed class EphemeralWorkflowEngine
             return [];
         }
 
-        var snapshots = new List<WorkflowInstanceSnapshot>(dueTimers.Count);
+        var snapshots = new List<LegacyWorkflowInstanceSnapshot>(dueTimers.Count);
         for (var index = 0; index < dueTimers.Count; index++)
         {
             var timer = dueTimers[index];
             try
             {
-                WorkflowInstanceSnapshot snapshot;
                 instanceRegistry.TryGet(timer.InstanceId, out var registeredInstance);
-                await using (await governance.EnterAdvancementAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    snapshot = await executionLane.RunAsync(
+                var snapshot = await executionLane.RunAsync(
                         timer.InstanceId,
                         async laneCancellationToken =>
                         {
@@ -422,7 +315,6 @@ public sealed class EphemeralWorkflowEngine
                             return CommitSnapshot(await timer.FireAsync(laneCancellationToken).ConfigureAwait(false));
                         },
                         cancellationToken).ConfigureAwait(false);
-                }
 
                 if (registeredInstance is IWorkflowInstance instance)
                 {
@@ -452,7 +344,7 @@ public sealed class EphemeralWorkflowEngine
     /// <summary>
     /// Delivers an event directly to one known instance and resumes it when an active wait matches.
     /// </summary>
-    public async Task<WorkflowInstanceSnapshot> RaiseEventAsync<TState>(
+    public async Task<LegacyWorkflowInstanceSnapshot> RaiseEventAsync<TState>(
         InstanceId instanceId,
         EventEnvelope envelope,
         CancellationToken cancellationToken)
@@ -470,14 +362,11 @@ public sealed class EphemeralWorkflowEngine
 
         if (registeredInstance is not WorkflowInstance<TState> instance)
         {
-            throw new WorkflowDefinitionException(
+            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                 $"Workflow instance '{instanceId}' is not using state type '{typeof(TState).Name}'.");
         }
 
-        WorkflowInstanceSnapshot snapshot;
-        await using (await governance.EnterAdvancementAsync(cancellationToken).ConfigureAwait(false))
-        {
-            snapshot = await executionLane.RunAsync(
+        var snapshot = await executionLane.RunAsync(
                 instanceId,
                 async laneCancellationToken =>
                 {
@@ -487,7 +376,6 @@ public sealed class EphemeralWorkflowEngine
                         .ConfigureAwait(false));
                 },
                 cancellationToken).ConfigureAwait(false);
-        }
 
         snapshot = await yieldContinuationScheduler
             .DrainAsync(instance, instanceId, committed => CommitSnapshot(committed), cancellationToken)
@@ -498,24 +386,92 @@ public sealed class EphemeralWorkflowEngine
         return snapshot;
     }
 
-    internal async Task<WorkflowInstanceSnapshot> CancelInstanceAsync(
+    internal async Task<global::OrcaCore.WorkflowCancellationRequestStatus> RequestCancellationAsync(
         InstanceId instanceId,
         CancellationToken cancellationToken)
     {
-        return await RunInterruptingTerminalCommandAsync(
-            instanceId,
-            instance => instance.Cancel(timeProvider.GetUtcNow()),
-            cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!instanceRegistry.TryGet(instanceId, out var registeredInstance) ||
+            registeredInstance is not IWorkflowInstance instance)
+        {
+            throw new WorkflowRoutingException(
+                $"No workflow instance exists for instance id '{instanceId}'.");
+        }
+
+        var disposition = instance.TryRequestCancellation(timeProvider.GetUtcNow());
+        if (disposition != global::OrcaCore.WorkflowCancellationRequestStatus.Requested)
+        {
+            return disposition;
+        }
+
+        // The cancellation request is the command's commit point. Once user code has
+        // observed it, finish the terminal transition even if the caller disconnects.
+        var snapshot = await executionLane.RunAsync(
+                instanceId,
+                _ => Task.FromResult(CommitSnapshot(instance.Cancel(timeProvider.GetUtcNow()))),
+                CancellationToken.None).ConfigureAwait(false);
+        OrcaCoreEphemeralDiagnostics.RecordTerminalCommand(snapshot.Status);
+        return disposition;
     }
 
-    internal async Task<WorkflowInstanceSnapshot> TerminateInstanceAsync(
+    internal async Task<LegacyWorkflowInstanceSnapshot> CancelInstanceAsync(
         InstanceId instanceId,
         CancellationToken cancellationToken)
     {
-        return await RunInterruptingTerminalCommandAsync(
-            instanceId,
-            instance => instance.Terminate(timeProvider.GetUtcNow()),
-            cancellationToken).ConfigureAwait(false);
+        _ = await RequestCancellationAsync(instanceId, cancellationToken).ConfigureAwait(false);
+        return instanceRegistry.TryGet(instanceId, out var registeredInstance) &&
+               registeredInstance is IWorkflowInstance instance
+            ? instance.GetPublishedSnapshot()
+            : throw new WorkflowRoutingException(
+                $"No workflow instance exists for instance id '{instanceId}'.");
+    }
+
+    internal async Task<global::OrcaCore.WorkflowTerminationStatus> RequestTerminationAsync(
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!instanceRegistry.TryGet(instanceId, out var registeredInstance) ||
+            registeredInstance is not IWorkflowInstance instance)
+        {
+            throw new WorkflowRoutingException(
+                $"No workflow instance exists for instance id '{instanceId}'.");
+        }
+
+        instance.SignalCancellation();
+        var result = await executionLane.RunAsync(
+                instanceId,
+                _ =>
+                {
+                    var current = instance.ToSnapshot();
+                    if (LifecycleMachine.TerminalStatuses.Contains(current.Status))
+                    {
+                        return Task.FromResult((
+                            Status: global::OrcaCore.WorkflowTerminationStatus.AlreadyTerminal,
+                            Snapshot: current));
+                    }
+
+                    return Task.FromResult((
+                        Status: global::OrcaCore.WorkflowTerminationStatus.Terminated,
+                        Snapshot: CommitSnapshot(instance.Terminate(timeProvider.GetUtcNow()))));
+                },
+                CancellationToken.None).ConfigureAwait(false);
+        OrcaCoreEphemeralDiagnostics.RecordTerminalCommand(result.Snapshot.Status);
+        return result.Status;
+    }
+
+    internal async Task<LegacyWorkflowInstanceSnapshot> TerminateInstanceAsync(
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
+    {
+        _ = await RequestTerminationAsync(instanceId, cancellationToken).ConfigureAwait(false);
+        return instanceRegistry.TryGet(instanceId, out var registeredInstance) &&
+               registeredInstance is IWorkflowInstance instance
+            ? instance.GetPublishedSnapshot()
+            : throw new WorkflowRoutingException(
+                $"No workflow instance exists for instance id '{instanceId}'.");
     }
 
     /// <summary>
@@ -539,13 +495,12 @@ public sealed class EphemeralWorkflowEngine
         }
 
         var removed = instanceRegistry.Remove(instanceId);
-        sagaRuntimeStates.TryRemove(instanceId, out _);
         IndexSnapshot(snapshot);
         return removed;
     }
 
     /// <summary>
-    /// Removes every terminal instance and its saga runtime state from process memory.
+    /// Removes every terminal instance from process memory.
     /// </summary>
     internal int EvictTerminalInstances()
     {
@@ -568,140 +523,10 @@ public sealed class EphemeralWorkflowEngine
                 purged++;
             }
 
-            sagaRuntimeStates.TryRemove(instance.InstanceId, out _);
             IndexSnapshot(snapshot);
         }
 
         return purged;
-    }
-
-    private async Task<WorkflowInstanceSnapshot> RunInterruptingTerminalCommandAsync(
-        InstanceId instanceId,
-        Func<IWorkflowInstance, WorkflowInstanceSnapshot> command,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        if (!instanceRegistry.TryGet(instanceId, out var registeredInstance) ||
-            registeredInstance is not IWorkflowInstance instance)
-        {
-            throw new WorkflowRoutingException(
-                $"No workflow instance exists for instance id '{instanceId}'.");
-        }
-
-        // Signalling interruption is the command's commit point. Once user code has
-        // observed it, finish the terminal transition even if the caller disconnects.
-        instance.SignalCancellation();
-        await using (await governance.EnterAdvancementAsync(CancellationToken.None).ConfigureAwait(false))
-        {
-            var snapshot = await executionLane.RunAsync(
-                instanceId,
-                _ => Task.FromResult(CommitSnapshot(command(instance))),
-                CancellationToken.None).ConfigureAwait(false);
-            OrcaCoreEphemeralDiagnostics.RecordTerminalCommand(snapshot.Status);
-            return snapshot;
-        }
-    }
-
-    private async Task<WorkflowInstanceSnapshot> CompensateSagaRuntimeAsync<TState>(
-        EphemeralSagaRuntimeState<TState> runtime,
-        Exception? triggeringFailure,
-        string? scopeId,
-        CancellationToken cancellationToken)
-    {
-        if (runtime.CompensationState == SagaCompensationState.Completed)
-        {
-            return runtime.Instance.ToSnapshot();
-        }
-
-        runtime.CompensationState = SagaCompensationState.InProgress;
-        try
-        {
-            if (runtime.CompletedActions.Count == 0)
-            {
-                if (triggeringFailure is not null)
-                {
-                    runtime.Instance.Fail(ToWorkflowError(triggeringFailure, "saga", timeProvider.GetUtcNow()));
-                }
-
-                runtime.CompensationState = SagaCompensationState.Completed;
-                return runtime.Instance.ToSnapshot();
-            }
-
-            foreach (var action in runtime.CompletedActions
-                .Where(action => scopeId is null || string.Equals(action.ScopeId, scopeId, StringComparison.Ordinal))
-                .Reverse())
-            {
-                if (action.Compensation is null)
-                {
-                    continue;
-                }
-
-                var failure = await ExecuteSagaStepAsync(
-                    runtime.Instance,
-                    action.Compensation.StepFactory,
-                    $"{action.ActionKey}/compensation",
-                    cancellationToken).ConfigureAwait(false);
-                if (failure is not null)
-                {
-                    runtime.Instance.FailCompensation(ToWorkflowError(
-                        failure,
-                        $"{action.ActionKey}/compensation",
-                        timeProvider.GetUtcNow()));
-                    runtime.CompensationState = SagaCompensationState.Completed;
-                    return runtime.Instance.ToSnapshot();
-                }
-            }
-
-            runtime.Instance.Compensate(timeProvider.GetUtcNow());
-            runtime.CompensationState = SagaCompensationState.Completed;
-            return runtime.Instance.ToSnapshot();
-        }
-        catch
-        {
-            runtime.CompensationState = SagaCompensationState.NotRequested;
-            throw;
-        }
-    }
-
-    private async Task<Exception?> ExecuteSagaStepAsync<TState>(
-        WorkflowInstance<TState> instance,
-        Func<IStep<TState>> stepFactory,
-        string stepPath,
-        CancellationToken cancellationToken)
-    {
-        await using var governanceLease = await governance
-            .EnterStepAsync(null, cancellationToken)
-            .ConfigureAwait(false);
-        using var stateAccess = await instance.EnterStateAccessAsync(cancellationToken).ConfigureAwait(false);
-        using var executionCancellation = instance.CreateLinkedExecutionToken(cancellationToken);
-        instance.StartStep(stepPath, timeProvider.GetUtcNow(), null);
-        try
-        {
-            var step = stepFactory();
-            var result = await step.ExecuteAsync(
-                new StepContext<TState>(instance.State, null, timeProvider),
-                executionCancellation.Token).ConfigureAwait(false);
-            switch (result)
-            {
-                case StepResult.Completed:
-                    instance.RecordLifecycleEvent("SagaStepCompleted", stepPath, instance.Status, timeProvider.GetUtcNow());
-                    return null;
-                case StepResult.Failed failed:
-                    return failed.Error;
-                default:
-                    return new NotSupportedException(
-                        $"Ephemeral saga step result '{result.GetType().Name}' is not supported.");
-            }
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException and not NotSupportedException)
-        {
-            return exception;
-        }
-        finally
-        {
-            instance.CompleteStep(stepPath, timeProvider.GetUtcNow());
-        }
     }
 
     private static WorkflowErrorDetails ToWorkflowError(Exception exception, string stepPath, DateTimeOffset occurredAt)
@@ -716,7 +541,7 @@ public sealed class EphemeralWorkflowEngine
     /// <summary>
     /// Resolves one active wait by event name and correlation, then delivers the event to it.
     /// </summary>
-    public async Task<WorkflowInstanceSnapshot> RaiseEventByCorrelationAsync<TState>(
+    public async Task<LegacyWorkflowInstanceSnapshot> RaiseEventByCorrelationAsync<TState>(
         EventEnvelope envelope,
         CancellationToken cancellationToken)
     {
@@ -755,39 +580,48 @@ public sealed class EphemeralWorkflowEngine
             cancellationToken).ConfigureAwait(false);
     }
 
-    private void IndexSnapshot(WorkflowInstanceSnapshot snapshot)
+    private void IndexSnapshot(LegacyWorkflowInstanceSnapshot snapshot)
     {
         routingIndex.IndexSnapshot(snapshot);
     }
 
-    private WorkflowInstanceSnapshot CommitSnapshot(WorkflowInstanceSnapshot snapshot)
+    private LegacyWorkflowInstanceSnapshot CommitSnapshot(LegacyWorkflowInstanceSnapshot snapshot)
     {
         if (instanceRegistry.TryGet(snapshot.InstanceId, out var registered) &&
             registered is IWorkflowInstance instance)
         {
-            try
-            {
-                instance.PublishState(options.StateSnapshotter);
-            }
-            catch (WorkflowDefinitionException)
-            {
-                // State queryability is optional. A state type unsupported by the
-                // configured snapshotter must not change workflow execution semantics.
-            }
+            instance.PublishState();
         }
 
         IndexSnapshot(snapshot);
+        InstanceCommitted?.Invoke(snapshot.InstanceId);
         return snapshot;
+    }
+
+    internal bool TryGetFacadeInstance(
+        InstanceId instanceId,
+        out IWorkflowInstance? instance)
+    {
+        if (instanceRegistry.TryGet(instanceId, out var registered) &&
+            registered is IWorkflowInstance workflowInstance)
+        {
+            instance = workflowInstance;
+            return true;
+        }
+
+        instance = null;
+        return false;
     }
 
     /// <summary>
     /// Delivers an event to all active waits belonging to one workflow definition.
     /// </summary>
-    public async Task<IReadOnlyList<WorkflowInstanceSnapshot>> RaiseEventByDefinitionAsync<TState>(
+    public async Task<IReadOnlyList<LegacyWorkflowInstanceSnapshot>> RaiseEventByDefinitionAsync<TState>(
         DefinitionId definitionId,
         EventEnvelope envelope,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(definitionId);
         ArgumentNullException.ThrowIfNull(envelope);
         ValidateEventEnvelope(envelope);
         cancellationToken.ThrowIfCancellationRequested();
@@ -795,10 +629,10 @@ public sealed class EphemeralWorkflowEngine
         var matches = instanceRegistry.List()
             .OfType<WorkflowInstance<TState>>()
             .Where(instance =>
-                instance.DefinitionId == definitionId &&
+                instance.DefinitionId.Equals(definitionId) &&
                 instance.HasActiveWait(envelope))
             .ToArray();
-        var snapshots = new List<WorkflowInstanceSnapshot>(matches.Length);
+        var snapshots = new List<LegacyWorkflowInstanceSnapshot>(matches.Length);
 
         foreach (var instance in matches)
         {
@@ -814,10 +648,7 @@ public sealed class EphemeralWorkflowEngine
 
     private static void ValidateEventEnvelope(EventEnvelope envelope)
     {
-        if (envelope.EventId.Value == Guid.Empty)
-        {
-            throw new ArgumentException("EventId must not be empty.", nameof(envelope));
-        }
+        ArgumentNullException.ThrowIfNull(envelope.EventId);
 
         if (string.IsNullOrWhiteSpace(envelope.EventName))
         {
@@ -840,23 +671,4 @@ public sealed class EphemeralWorkflowEngine
         }
     }
 
-    private sealed class EphemeralSagaRuntimeState<TState>(
-        SagaDefinition<TState> definition,
-        WorkflowInstance<TState> instance)
-    {
-        internal SagaDefinition<TState> Definition { get; } = definition;
-
-        internal WorkflowInstance<TState> Instance { get; } = instance;
-
-        internal List<SagaForwardAction<TState>> CompletedActions { get; } = [];
-
-        internal SagaCompensationState CompensationState { get; set; }
-    }
-
-    private enum SagaCompensationState
-    {
-        NotRequested,
-        InProgress,
-        Completed
-    }
 }

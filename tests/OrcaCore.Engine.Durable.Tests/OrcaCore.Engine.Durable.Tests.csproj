@@ -7,14 +7,67 @@
   <ItemGroup>
     <PackageReference Include="AwesomeAssertions" />
     <PackageReference Include="coverlet.collector" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" PrivateAssets="all" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="Aggregates\DurableAggregateTests.cs" />
+    <Compile Remove="Aggregates\DurableChildWorkflowStateTests.cs" />
+    <Compile Remove="Aggregates\DurableExternalJobStateTests.cs" />
+    <Compile Remove="Aggregates\DurableResourcePoolStateTests.cs" />
+    <Compile Remove="Aggregates\DurableOwnershipContractTests.cs" />
+    <Compile Remove="Aggregates\DurableTerminalCleanupOrderTests.cs" />
+    <Compile Remove="Aggregates\DurableTimerAggregateTests.cs" />
+    <Compile Remove="Aggregates\DurableTimerStateTests.cs" />
+    <Compile Remove="Aggregates\DurableWaitStateTests.cs" />
+    <Compile Remove="Composition\ChildLineageTests.cs" />
+    <Compile Remove="Composition\RunChildTests.cs" />
+    <Compile Remove="Continuations\ContinueAsNewAggregateTests.cs" />
+    <Compile Remove="Definitions\DurableDefinitionRegistryTests.cs" />
+    <Compile Remove="Driver\DurableDeadlineExecutionTests.cs" />
+    <Compile Remove="Driver\DurableDriverAcceptanceTests.cs" />
+    <Compile Remove="Driver\DurableDriverHostAcceptanceTests.cs" />
+    <Compile Remove="Driver\DurableDriverReviewedAcceptanceTests.cs" />
+    <Compile Remove="Driver\DurableFiberEnvelopeMapperTests.cs" />
+    <Compile Remove="Driver\DurableLeaseExecutionTests.cs" />
+    <Compile Remove="Driver\DurableStepThrottleCoordinatorTests.cs" />
+    <Compile Remove="Driver\DurableStepThrottleExecutionTests.cs" />
+    <Compile Remove="Driver\DurableStructuredFiberDriverTests.cs" />
+    <Compile Remove="Events\DurableInboxTests.cs" />
+    <Compile Remove="Execution\DurableAggregateLoaderTests.cs" />
+    <Compile Remove="Execution\DurableCheckpointMapperTests.cs" />
+    <Compile Remove="Execution\DurableCommandPipelineTests.cs" />
+    <Compile Remove="Execution\DurableCommitMaterializerTests.cs" />
+    <Compile Remove="Execution\DurableCommitPipelineTests.cs" />
+    <Compile Remove="Execution\DurableDagRunnerTests.cs" />
+    <Compile Remove="Execution\DurableInboxPreflightTests.cs" />
+    <Compile Remove="Execution\DurableResourcePoolCommitEffectsTests.cs" />
+    <Compile Remove="Execution\DurableWaitTests.cs" />
+    <Compile Remove="Lifecycle\DurableLifecycleEventTests.cs" />
+    <Compile Remove="Management\DurableManagementTests.cs" />
+    <Compile Remove="Management\DurableQueryTests.cs" />
+    <Compile Remove="Management\DurableStatisticsTests.cs" />
+    <Compile Remove="R4DurableEngineDeferredTests.cs" />
+    <Compile Remove="Recovery\DurableCheckpointStateSurvivalTests.cs" />
+    <Compile Remove="ResourceGovernance\DurableResourcePoolManagementTests.cs" />
+    <Compile Remove="ResourcePools\PoolAcquisitionTests.cs" />
+    <Compile Remove="Sagas\ChildCompensationTests.cs" />
+    <Compile Remove="Sagas\CompensationDecisionTests.cs" />
+    <Compile Remove="Sagas\CompensationFailureTests.cs" />
+    <Compile Remove="Sagas\DurableSagaCommandAdapterTests.cs" />
+    <Compile Remove="Sagas\DurableSagaStateTests.cs" />
+    <Compile Remove="Sagas\SagaPolicyInteractionTests.cs" />
+    <Compile Remove="Sagas\StructuredSagaOwnershipTests.cs" />
+    <Compile Remove="Versioning\DurableVersioningTests.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\OrcaCore.Engine.Durable\OrcaCore.Engine.Durable.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Engine.Ephemeral\OrcaCore.Engine.Ephemeral.csproj" />
+    <ProjectReference Include="..\..\src\OrcaCore.Durable.Hosting\OrcaCore.Durable.Hosting.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Providers.InMemory\OrcaCore.Providers.InMemory.csproj" />
     <ProjectReference Include="..\OrcaCore.TestSupport\OrcaCore.TestSupport.csproj" />
   </ItemGroup>

@@ -1,5 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>OrcaCore.Providers.InMemory</AssemblyName>
+    <PackageId>OrcaCore.Providers.InMemory</PackageId>
+  </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\OrcaCore.Abstractions\OrcaCore.Abstractions.csproj" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OrcaCore.Abstractions\OrcaCore.csproj" />
+    <ProjectReference Include="..\OrcaCore.Runtime.Protocol\OrcaCore.Runtime.Protocol.csproj" />
+    <ProjectReference Include="..\OrcaCore.Provider.Abstractions\OrcaCore.Provider.Abstractions.csproj" />
   </ItemGroup>
 </Project>

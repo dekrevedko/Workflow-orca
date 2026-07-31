@@ -11,6 +11,8 @@ using OrcaCore.Providers.InMemory;
 using OrcaCore.TestSupport;
 using Xunit;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Tests.Execution;
 
 public sealed class DurableCommandPipelineTests
@@ -292,7 +294,7 @@ public sealed class DurableCommandPipelineTests
             OccurredAt = Timestamp(3),
             WaitId = waitId,
             EventName = "Approved",
-            CorrelationId = new CorrelationId("order-1")
+            CorrelationId = CorrelationId.Create("order-1")
         };
     }
 
@@ -303,12 +305,12 @@ public sealed class DurableCommandPipelineTests
 
     private static EventId EventIdValue(int value)
     {
-        return new EventId(GuidValue(value));
+        return EventId.Create(GuidValue(value).ToString());
     }
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -323,12 +325,12 @@ public sealed class DurableCommandPipelineTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static WaitId WaitIdValue(int value)
     {
-        return new WaitId(GuidValue(value));
+        return WaitId.Parse(GuidValue(value).ToString());
     }
 
     private static TimerId TimerIdValue(int value)
@@ -345,7 +347,7 @@ public sealed class DurableCommandPipelineTests
     {
         public CheckpointWrite? Checkpoint { get; init; }
 
-        public IReadOnlyList<WorkflowEvent> Tail { get; init; } = [];
+        public IReadOnlyList<DurableWorkflowEvent> Tail { get; init; } = [];
 
         public Result<AppendEventsResult>? AppendResult { get; init; }
 
@@ -376,7 +378,7 @@ public sealed class DurableCommandPipelineTests
                 ?? Result<AppendEventsResult>.Success(new AppendEventsResult(batch.ExpectedVersion.Next())));
         }
 
-        public Task<IReadOnlyList<WorkflowEvent>> LoadTailAsync(
+        public Task<IReadOnlyList<DurableWorkflowEvent>> LoadTailAsync(
             WorkflowStreamId streamId,
             StreamVersion afterVersion,
             CancellationToken cancellationToken)
@@ -420,7 +422,7 @@ public sealed class DurableCommandPipelineTests
         public TaskCompletionSource AppendEntered { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public IReadOnlyList<WorkflowEvent> Tail { get; init; } = [];
+        public IReadOnlyList<DurableWorkflowEvent> Tail { get; init; } = [];
 
         public int MaxConcurrentAppends { get; private set; }
 
@@ -460,7 +462,7 @@ public sealed class DurableCommandPipelineTests
             }
         }
 
-        public Task<IReadOnlyList<WorkflowEvent>> LoadTailAsync(
+        public Task<IReadOnlyList<DurableWorkflowEvent>> LoadTailAsync(
             WorkflowStreamId streamId,
             StreamVersion afterVersion,
             CancellationToken cancellationToken)

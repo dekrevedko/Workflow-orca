@@ -17,6 +17,8 @@ async ValueTask<Output> RunAsync(IWorkflowDefinitionRegistry registry, Input inp
     return output;
 }
 
+_ = (Func<IWorkflowDefinitionRegistry, Input, CancellationToken, ValueTask<Output>>)RunAsync;
+
 internal sealed record Input(int Value);
 internal sealed record State(int Value);
 internal sealed record Output(int Value);

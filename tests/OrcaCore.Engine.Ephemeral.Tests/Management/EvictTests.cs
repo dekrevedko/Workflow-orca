@@ -91,21 +91,21 @@ public sealed class EvictTests
 
     private static WorkflowDefinition<TestState> CompletedDefinition()
     {
-        return new WorkflowBuilder<TestState>()
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(input => new TestState { Name = input })
             .Then(() => new NoOpStep())
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
     }
 
     private static WorkflowDefinition<TestState> WaitingDefinition()
     {
-        return new WorkflowBuilder<TestState>()
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(input => new TestState { Name = input })
-            .Wait("Ready", state => new CorrelationId(state.Name))
+            .Wait("Ready", state => CorrelationId.Create(state.Name))
             .Then(() => new NoOpStep())
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
     }
 
     private sealed class TestState

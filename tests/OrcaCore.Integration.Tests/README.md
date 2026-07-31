@@ -1,10 +1,10 @@
-# OrcaCore Integration Gates
+# OrcaCore First-Release Integration Gate
 
 Run these commands from the repository root so the local SDK pin in `global.json` is used.
 
 ## Prerequisites
 
-Broad integration gates use Docker through Testcontainers. Before running a broad
+The PostgreSQL journey uses Docker through Testcontainers. Before running the
 gate locally, clear stale build workers if prior runs were interrupted:
 
 ```powershell
@@ -12,40 +12,30 @@ dotnet build-server shutdown
 docker info
 ```
 
-## Smoke Gate
+## Active gate
 
-Use this after small e2e or hosting edits:
+The active `CurrentSurface` lane verifies only the approved first-release
+application facade and package set:
 
-```powershell
-dotnet build OrcaCore.slnx --no-restore
-dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build --filter "FullyQualifiedName~OrcaCore.Integration.Tests.E2E|FullyQualifiedName~OrcaCore.Integration.Tests.Hosting"
-```
+- an in-memory ephemeral start/signal/output journey;
+- an in-memory durable replacement-host and start-binding journey;
+- a PostgreSQL durable replacement-host journey;
+- exact durable-engine and callback-only ingress role composition.
 
-## Focused Gates
-
-```powershell
-dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build --filter "FullyQualifiedName~OrcaCore.Integration.Tests.E2E"
-dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build --filter "FullyQualifiedName~OrcaCore.Integration.Tests.Hosting"
-dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build --filter "FullyQualifiedName~OrcaCore.Integration.Tests.Stacks"
-dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build --filter "FullyQualifiedName~OrcaCore.Integration.Tests.MultiNode"
-dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build --filter "FullyQualifiedName~OrcaCore.Integration.Tests.JobScheduler"
-dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build --filter "FullyQualifiedName~OrcaCore.Integration.Tests.Observability"
-```
-
-The observability gate covers `OB-AC-001` through `OB-AC-007`: command metrics,
-structured command logs with trace correlation, outbox dispatch health,
-activity tags, management/statistics parity, default pump metrics, and the
-OpenTelemetry package-boundary guard.
-
-## Full Integration Gate
+Run:
 
 ```powershell
+dotnet build tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-restore
 dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build
 ```
 
-Existing skipped tests are named backlog items. Do not delete or retag them just
-to make the full gate look cleaner; unskip each one only when its blocker is
-implemented and verified.
+Current result: 5 passed, 0 failed, 0 skipped.
 
-Current expected result: 107 passed, 1 skipped, 0 failed. The remaining skip is
-`INT_JS_018` for the one-hour slow soak.
+## Recoverable provisional sources
+
+The project file excludes 115 provisional `[Fact]`/`[Theory]` declarations
+without deleting their source files. They remain recoverable and are classified
+in
+`docs/review/developer-facing-interface-section-07-inactive-test-project-audit-2026-07-30.md`.
+Do not re-enable them wholesale: port supported behavior through the public
+application facade and the exact split hosting roles.

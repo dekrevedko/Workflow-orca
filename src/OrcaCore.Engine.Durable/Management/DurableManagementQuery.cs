@@ -1,6 +1,8 @@
 using System.Linq.Expressions;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
+using LegacyActiveWaitSnapshot = global::OrcaCore.Abstractions.Instances.ActiveWaitSnapshot;
+using LegacyWorkflowInstanceSnapshot = global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot;
 
 namespace OrcaCore.Engine.Durable.Management;
 
@@ -24,7 +26,7 @@ public sealed class DurableManagementQuery(
     /// <summary>
     /// Lists projected instance snapshots in the current selection.
     /// </summary>
-    public Task<IReadOnlyList<WorkflowInstanceSnapshot>> ListAsync(CancellationToken cancellationToken)
+    public Task<IReadOnlyList<LegacyWorkflowInstanceSnapshot>> ListAsync(CancellationToken cancellationToken)
     {
         return projectionStore.ListAsync(query, cancellationToken);
     }
@@ -40,7 +42,7 @@ public sealed class DurableManagementQuery(
     /// <summary>
     /// Gets the single projected snapshot in the current selection.
     /// </summary>
-    public async Task<WorkflowInstanceSnapshot> GetAsync(CancellationToken cancellationToken)
+    public async Task<LegacyWorkflowInstanceSnapshot> GetAsync(CancellationToken cancellationToken)
     {
         var snapshots = await ListAsync(cancellationToken).ConfigureAwait(false);
         return snapshots.Single();
@@ -49,7 +51,7 @@ public sealed class DurableManagementQuery(
     /// <summary>
     /// Gets projected active waits for instances in the current selection.
     /// </summary>
-    public Task<IReadOnlyList<ActiveWaitSnapshot>> GetActiveWaitsAsync(CancellationToken cancellationToken)
+    public Task<IReadOnlyList<LegacyActiveWaitSnapshot>> GetActiveWaitsAsync(CancellationToken cancellationToken)
     {
         return projectionStore.ListActiveWaitsAsync(query, cancellationToken);
     }

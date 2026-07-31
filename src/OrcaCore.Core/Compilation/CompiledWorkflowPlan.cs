@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Core.Definitions;
+using OrcaCore.Core.Internal;
 
 namespace OrcaCore.Core.Compilation;
 
@@ -27,11 +28,13 @@ public enum WorkflowExecutionMode
 /// </summary>
 public sealed record CompiledWorkflowPlan
 {
+    internal const string CodecFormat = FixedWorkflowValueCodec.Format;
+
     private readonly IReadOnlyDictionary<InstructionId, CompiledInstruction> instructionsById;
     private readonly IReadOnlyDictionary<InstructionId, InstructionId?> sequentialSuccessorsById;
     private readonly IReadOnlyDictionary<ScopePlanId, CompiledScopePlan> scopesById;
 
-    internal CompiledWorkflowPlan(
+    public CompiledWorkflowPlan(
         WorkflowExecutionMode mode,
         DefinitionId definitionId,
         DefinitionVersion definitionVersion,
@@ -40,8 +43,13 @@ public sealed record CompiledWorkflowPlan
         IReadOnlyList<CompiledScopePlan>? scopes = null,
         IReadOnlySet<CompiledInstructionKind>? allowedInstructions = null,
         DefinitionCompilerOptions? compilerOptions = null,
-        IWorkflowTypeSerializerRegistry? serializerRegistry = null)
+        IWorkflowTypeSerializerRegistry? serializerRegistry = null,
+        bool detachedAttemptState = false,
+        TimeSpan? workflowTimeout = null)
     {
+        ArgumentNullException.ThrowIfNull(definitionId);
+        ArgumentNullException.ThrowIfNull(definitionVersion);
+
         Mode = mode;
         DefinitionId = definitionId;
         DefinitionVersion = definitionVersion;
@@ -57,14 +65,21 @@ public sealed record CompiledWorkflowPlan
         AllowedInstructions = (allowedInstructions ?? new HashSet<CompiledInstructionKind>()).ToFrozenSet();
         CompilerOptions = compilerOptions ?? new DefinitionCompilerOptions();
         SerializerRegistry = serializerRegistry ?? DefaultWorkflowTypeSerializerRegistry.Instance;
-        Fingerprint = ComputeFingerprint(
-            $"{FormatVersion}|{mode}|{definitionId}|{definitionVersion}|{canonicalStructure}");
+        DetachedAttemptState = detachedAttemptState;
+        WorkflowTimeout = workflowTimeout;
+        Fingerprint = ComputeFingerprint($"{CodecFormat}|{canonicalStructure}");
     }
 
     /// <summary>
     /// Gets the compiled-plan serialization format version.
     /// </summary>
     public int FormatVersion => 1;
+
+    /// <summary>
+    /// Gets the runtime-affecting compiler profile owned by the persisted compiler format.
+    /// </summary>
+    public string CompilerProfileId =>
+        $"orcacore-compiler-v{FormatVersion};quantum={CompilerOptions.MaxInternalInstructionsPerQuantum}";
 
     /// <summary>
     /// Gets the selected execution mode.
@@ -82,7 +97,7 @@ public sealed record CompiledWorkflowPlan
     public DefinitionVersion DefinitionVersion { get; }
 
     /// <summary>
-    /// Gets the deterministic fingerprint of the compiler format, mode, identity, and graph.
+    /// Gets the deterministic fingerprint of the fixed codec and inspectable authored structure.
     /// </summary>
     public string Fingerprint { get; }
 
@@ -102,13 +117,17 @@ public sealed record CompiledWorkflowPlan
     public IReadOnlySet<CompiledInstructionKind> AllowedInstructions { get; }
 
     /// <summary>
-    /// Gets the validated execution limits bound into this plan's fingerprint.
+    /// Gets validated runtime/compiler options that do not contribute to structural identity.
     /// </summary>
     public DefinitionCompilerOptions CompilerOptions { get; }
 
-    internal IWorkflowTypeSerializerRegistry SerializerRegistry { get; }
+    public IWorkflowTypeSerializerRegistry SerializerRegistry { get; }
 
-    internal CompiledInstruction GetInstruction(InstructionId instructionId)
+    public bool DetachedAttemptState { get; }
+
+    public TimeSpan? WorkflowTimeout { get; }
+
+    public CompiledInstruction GetInstruction(InstructionId instructionId)
     {
         return instructionsById.TryGetValue(instructionId, out var instruction)
             ? instruction
@@ -116,7 +135,7 @@ public sealed record CompiledWorkflowPlan
                 $"Instruction '{instructionId}' is not present in compiled plan '{Fingerprint}'.");
     }
 
-    internal CompiledScopePlan GetScope(ScopePlanId scopePlanId)
+    public CompiledScopePlan GetScope(ScopePlanId scopePlanId)
     {
         return scopesById.TryGetValue(scopePlanId, out var scope)
             ? scope
@@ -124,42 +143,12 @@ public sealed record CompiledWorkflowPlan
                 $"Scope plan '{scopePlanId}' is not present in compiled plan '{Fingerprint}'.");
     }
 
-    internal InstructionId? GetSequentialSuccessor(InstructionId instructionId)
+    public InstructionId? GetSequentialSuccessor(InstructionId instructionId)
     {
         return sequentialSuccessorsById.TryGetValue(instructionId, out var successor)
             ? successor
             : throw new InvalidOperationException(
                 $"Instruction '{instructionId}' is not present in compiled plan '{Fingerprint}'.");
-    }
-
-    internal static CompiledWorkflowPlan FromLegacy<TState>(
-        DefinitionId definitionId,
-        DefinitionVersion definitionVersion,
-        SequenceNode<TState> rootSequence,
-        bool requiresDurableEngine)
-    {
-        var structure = string.Join(
-            ',',
-            Enumerate(rootSequence).Select(node => $"{node.NodeId}:{node.GetType().Name}"));
-        var mode = requiresDurableEngine ? WorkflowExecutionMode.Durable : WorkflowExecutionMode.Ephemeral;
-        return new CompiledWorkflowPlan(mode, definitionId, definitionVersion, $"legacy|{structure}");
-    }
-
-    private static IEnumerable<WorkflowNode<TState>> Enumerate<TState>(SequenceNode<TState> sequence)
-    {
-        foreach (var node in sequence.Children)
-        {
-            yield return node;
-            foreach (var child in node switch
-            {
-                IfNode<TState> conditional => Enumerate(conditional.Then).Concat(Enumerate(conditional.Else)),
-                WhileNode<TState> loop => Enumerate(loop.Body),
-                _ => []
-            })
-            {
-                yield return child;
-            }
-        }
     }
 
     private static string ComputeFingerprint(string canonicalStructure)

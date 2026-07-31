@@ -141,7 +141,7 @@ public sealed class DashboardTelemetryStore : ILoggerProvider, IDisposable
     private void Record<TState>(
         string category,
         LogLevel level,
-        EventId eventId,
+        Microsoft.Extensions.Logging.EventId eventId,
         TState state,
         Exception? exception,
         Func<TState, Exception?, string> formatter)
@@ -235,7 +235,7 @@ public sealed class DashboardTelemetryStore : ILoggerProvider, IDisposable
 
         public void Log<TState>(
             LogLevel logLevel,
-            EventId eventId,
+            Microsoft.Extensions.Logging.EventId eventId,
             TState state,
             Exception? exception,
             Func<TState, Exception?, string> formatter)

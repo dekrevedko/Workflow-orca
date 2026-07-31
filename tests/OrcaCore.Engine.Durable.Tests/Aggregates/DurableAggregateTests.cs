@@ -5,6 +5,8 @@ using OrcaCore.Abstractions.Instances;
 using OrcaCore.Engine.Durable.Aggregates;
 using Xunit;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Tests.Aggregates;
 
 public sealed class DurableAggregateTests
@@ -12,11 +14,11 @@ public sealed class DurableAggregateTests
     [Fact]
     public void Rehydrate_CheckpointPlusTail_RestoresSameStateAsFullReplay()
     {
-        var events = new WorkflowEvent[]
+        var events = new DurableWorkflowEvent[]
         {
             Started(),
             StepCompleted("root/1"),
-            WaitRegistered("Approved", new CorrelationId("order-1"))
+            WaitRegistered("Approved", CorrelationId.Create("order-1"))
         };
         var prefix = DurableWorkflowAggregate.Rehydrate(null, events.Take(2));
         var checkpoint = prefix.CreateCheckpoint("application/octet-stream", [1, 2, 3]);
@@ -48,6 +50,27 @@ public sealed class DurableAggregateTests
         started.DefinitionVersion.Should().Be(command.DefinitionVersion);
         started.CommandId.Should().Be(command.CommandId);
         started.InstanceId.Should().Be(command.InstanceId);
+    }
+
+    [Fact]
+    public void DecideStart_RejectsPayloadOutsideTheFixedWorkflowCodec()
+    {
+        var command = new StartWorkflowCommand
+        {
+            CommandId = CommandIdValue(1),
+            InstanceId = InstanceIdValue(1),
+            RequestedAt = Timestamp(1),
+            DefinitionId = DefinitionIdValue(1),
+            DefinitionVersion = DefinitionVersion.Initial,
+            InputContentType = "application/x-attacker-protobuf",
+            InputPayload = [0xDE, 0xAD, 0xBE, 0xEF]
+        };
+        var aggregate = DurableWorkflowAggregate.Empty(command.InstanceId);
+
+        var act = () => aggregate.DecideStart(command);
+
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName(nameof(command.InputContentType));
     }
 
     [Fact]
@@ -91,6 +114,7 @@ public sealed class DurableAggregateTests
                 DefinitionId = DefinitionIdValue(1),
                 DefinitionVersion = DefinitionVersion.Initial,
                 CompilerFormatVersion = 1,
+                CompilerProfileId = "orcacore-compiler-v1;quantum=1024",
                 PlanFingerprint = "fingerprint"
             },
             StateContentType = "application/json",
@@ -222,11 +246,11 @@ public sealed class DurableAggregateTests
     [Fact]
     public void Replay_SameEventsTwice_IsDeterministic()
     {
-        var events = new WorkflowEvent[]
+        var events = new DurableWorkflowEvent[]
         {
             Started(),
             StepCompleted("root/1"),
-            WaitRegistered("Approved", new CorrelationId("order-1")),
+            WaitRegistered("Approved", CorrelationId.Create("order-1")),
             WaitMatched()
         };
 
@@ -300,12 +324,12 @@ public sealed class DurableAggregateTests
 
     private static EventId EventIdValue(int value)
     {
-        return new EventId(GuidValue(value));
+        return EventId.Create(GuidValue(value).ToString());
     }
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -320,12 +344,12 @@ public sealed class DurableAggregateTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static WaitId WaitIdValue(int value)
     {
-        return new WaitId(GuidValue(value));
+        return WaitId.Parse(GuidValue(value).ToString());
     }
 
     private static Guid GuidValue(int value)

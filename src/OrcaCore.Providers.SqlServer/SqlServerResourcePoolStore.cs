@@ -26,19 +26,42 @@ internal sealed class SqlServerResourcePoolStore
         cancellationToken.ThrowIfCancellationRequested();
 
         await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = (SqlTransaction)await connection
+            .BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+            .ConfigureAwait(false);
+        await LockResourcePoolStateAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+
+        var persisted = await LoadCreationDefinitionAsync(
+            connection,
+            transaction,
+            definition.Name,
+            cancellationToken).ConfigureAwait(false);
+        if (persisted is not null)
+        {
+            if (persisted != definition)
+            {
+                throw CreationDefinitionMismatch(definition.Name);
+            }
+
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         await using var command = new SqlCommand(
             """
-            update dbo.orcacore_resource_pools
-            set capacity = @capacity,
-                lease_duration_seconds = @lease_duration_seconds
-            where pool_name = @pool_name;
-            if @@rowcount = 0
-            begin
-                insert into dbo.orcacore_resource_pools (pool_name, capacity, lease_duration_seconds)
-                values (@pool_name, @capacity, @lease_duration_seconds);
-            end;
+            insert into dbo.orcacore_resource_pools (
+                pool_name,
+                creation_capacity,
+                capacity,
+                lease_duration_seconds)
+            values (
+                @pool_name,
+                @capacity,
+                @capacity,
+                @lease_duration_seconds);
             """,
-            connection);
+            connection,
+            transaction);
         command.Parameters.AddWithValue("@pool_name", definition.Name);
         command.Parameters.AddWithValue("@capacity", definition.Capacity);
         AddNullable(command, "@lease_duration_seconds", definition.LeaseDuration is null
@@ -46,6 +69,7 @@ internal sealed class SqlServerResourcePoolStore
             : (int)definition.LeaseDuration.Value.TotalSeconds);
 
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<ResourcePoolAcquireResult> AcquireAsync(
@@ -122,6 +146,7 @@ internal sealed class SqlServerResourcePoolStore
             .ConfigureAwait(false);
         await LockResourcePoolStateAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
 
+        await DeleteWaiterAsync(connection, transaction, request, cancellationToken).ConfigureAwait(false);
         var released = await DeleteTicketsAsync(connection, transaction, request, cancellationToken).ConfigureAwait(false);
         var granted = await GrantQueuedResourceWaitersAsync(
             connection,
@@ -204,7 +229,7 @@ internal sealed class SqlServerResourcePoolStore
     public async Task ResizePoolAsync(string poolName, int capacity, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(poolName);
-        ArgumentOutOfRangeException.ThrowIfNegative(capacity);
+        ArgumentOutOfRangeException.ThrowIfLessThan(capacity, 1);
         cancellationToken.ThrowIfCancellationRequested();
 
         await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -217,7 +242,11 @@ internal sealed class SqlServerResourcePoolStore
             connection);
         command.Parameters.AddWithValue("@pool_name", poolName);
         command.Parameters.AddWithValue("@capacity", capacity);
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        var affected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        if (affected == 0)
+        {
+            throw ResourcePoolNotConfiguredException.For([ResourcePoolName.Create(poolName)]);
+        }
     }
 
     public async Task<ResourcePoolExpiryResult> ExpireTicketsAsync(
@@ -250,45 +279,6 @@ internal sealed class SqlServerResourcePoolStore
 
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         return new ResourcePoolExpiryResult(expired);
-    }
-
-    public async Task<ResourcePoolForceReleaseResult> ForceReleaseTicketAsync(
-        Guid ticketId,
-        string reason,
-        DateTimeOffset releasedAt,
-        CancellationToken cancellationToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var transaction = (SqlTransaction)await connection
-            .BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
-            .ConfigureAwait(false);
-        await LockResourcePoolStateAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-
-        var ticket = await DeleteTicketAsync(connection, transaction, ticketId, cancellationToken).ConfigureAwait(false);
-        if (ticket is null)
-        {
-            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-            return new ResourcePoolForceReleaseResult(null, [], null);
-        }
-
-        await DeleteExpiredTicketAsync(connection, transaction, ticketId, cancellationToken).ConfigureAwait(false);
-        var audit = new ResourcePoolAuditRecord(
-            Guid.CreateVersion7(),
-            "ForceRelease",
-            reason,
-            releasedAt,
-            ticket);
-        await InsertAuditRecordAsync(connection, transaction, audit, cancellationToken).ConfigureAwait(false);
-        var granted = await GrantQueuedResourceWaitersAsync(
-            connection,
-            transaction,
-            releasedAt,
-            cancellationToken).ConfigureAwait(false);
-        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-        return new ResourcePoolForceReleaseResult(ticket, granted, audit);
     }
 
     private async Task<SqlConnection> OpenConnectionAsync(CancellationToken cancellationToken)
@@ -354,6 +344,34 @@ internal sealed class SqlServerResourcePoolStore
         await using var command = new SqlCommand(
             """
             select pool_name, capacity, lease_duration_seconds
+            from dbo.orcacore_resource_pools
+            where pool_name = @pool_name;
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("@pool_name", poolName);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return null;
+        }
+
+        return new ResourcePoolDefinition(
+            reader.GetString(0),
+            reader.GetInt32(1),
+            reader.IsDBNull(2) ? null : TimeSpan.FromSeconds(reader.GetInt32(2)));
+    }
+
+    private static async Task<ResourcePoolDefinition?> LoadCreationDefinitionAsync(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        string poolName,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new SqlCommand(
+            """
+            select pool_name, creation_capacity, lease_duration_seconds
             from dbo.orcacore_resource_pools
             where pool_name = @pool_name;
             """,
@@ -573,7 +591,7 @@ internal sealed class SqlServerResourcePoolStore
         {
             waiters.Add(new ResourcePoolWaiter(
                 reader.GetGuid(0),
-                new InstanceId(reader.GetGuid(1)),
+                InstanceId.Parse(reader.GetGuid(1).ToString()),
                 reader.GetString(2),
                 DeserializeRequirements(reader.GetString(3)),
                 reader.GetFieldValue<DateTimeOffset>(4),
@@ -655,7 +673,7 @@ internal sealed class SqlServerResourcePoolStore
         CancellationToken cancellationToken)
     {
         var existing = (await LoadWaitersAsync(connection, transaction, cancellationToken).ConfigureAwait(false))
-            .FirstOrDefault(waiter => waiter.HolderInstanceId == request.HolderInstanceId &&
+            .FirstOrDefault(waiter => waiter.HolderInstanceId.Equals(request.HolderInstanceId) &&
                 string.Equals(waiter.HolderKey, request.HolderKey, StringComparison.Ordinal));
         if (existing is not null)
         {
@@ -896,6 +914,25 @@ internal sealed class SqlServerResourcePoolStore
     private static async Task DeleteWaiterAsync(
         SqlConnection connection,
         SqlTransaction transaction,
+        ResourcePoolReleaseRequest request,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new SqlCommand(
+            """
+            delete from dbo.orcacore_resource_waiters
+            where holder_instance_id = @holder_instance_id
+              and holder_key = @holder_key;
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("@holder_instance_id", request.HolderInstanceId.Value);
+        command.Parameters.AddWithValue("@holder_key", request.HolderKey);
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task DeleteWaiterAsync(
+        SqlConnection connection,
+        SqlTransaction transaction,
         Guid waiterId,
         CancellationToken cancellationToken)
     {
@@ -930,7 +967,7 @@ internal sealed class SqlServerResourcePoolStore
             reader.GetGuid(0),
             reader.GetString(1),
             reader.GetInt32(2),
-            new InstanceId(reader.GetGuid(3)),
+            InstanceId.Parse(reader.GetGuid(3).ToString()),
             reader.GetString(4),
             reader.GetFieldValue<DateTimeOffset>(5),
             reader.IsDBNull(6) ? null : reader.GetFieldValue<DateTimeOffset>(6))
@@ -983,6 +1020,12 @@ internal sealed class SqlServerResourcePoolStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(definition.Name);
         ArgumentOutOfRangeException.ThrowIfNegative(definition.Capacity);
+    }
+
+    private static InvalidOperationException CreationDefinitionMismatch(string poolName)
+    {
+        return new InvalidOperationException(
+            $"Resource pool '{poolName}' creation definition does not match persisted governance state.");
     }
 
     private static void ValidateResourcePoolAcquireRequest(ResourcePoolAcquireRequest request)

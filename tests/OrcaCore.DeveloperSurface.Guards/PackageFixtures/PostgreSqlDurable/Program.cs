@@ -23,6 +23,8 @@ async ValueTask<Output> RunAsync(
     return await start.WaitForOutputAsync(token);
 }
 
+_ = (Func<IWorkflowDefinitionRegistry, IWorkflowEventClient, Input, CancellationToken, ValueTask<Output>>)RunAsync;
+
 internal sealed record Input(CorrelationId Correlation);
 internal sealed record State(CorrelationId Correlation);
 internal sealed record Output(string Correlation);

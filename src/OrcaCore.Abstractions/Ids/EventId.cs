@@ -1,39 +1,24 @@
 using System.Text.Json.Serialization;
+using OrcaCore.Abstractions.Ids;
 
-namespace OrcaCore.Abstractions.Ids;
+namespace OrcaCore;
 
-/// <summary>
-/// Identifies one inbound or runtime event for deduplication.
-/// </summary>
 [JsonConverter(typeof(EventIdJsonConverter))]
-public readonly record struct EventId
+public sealed class EventId : IEquatable<EventId>
 {
-    /// <summary>
-    /// Initializes an event identifier from a GUID value.
-    /// </summary>
-    public EventId(Guid value)
-    {
-        Value = value;
-    }
+    private EventId(string value) => Value = value;
 
-    /// <summary>
-    /// Gets the underlying globally unique value.
-    /// </summary>
-    public Guid Value { get; }
+    public string Value { get; }
 
-    /// <summary>
-    /// Creates a new time-ordered version 7 event identifier.
-    /// </summary>
-    public static EventId New()
-    {
-        return new EventId(Guid.CreateVersion7());
-    }
+    public static EventId Create(string value) =>
+        new(StrongValueValidation.CallerCreated(value, nameof(value)));
 
-    /// <summary>
-    /// Returns the underlying GUID text.
-    /// </summary>
-    public override string ToString()
-    {
-        return Value.ToString();
-    }
+    public bool Equals(EventId? other) =>
+        other is not null && string.Equals(Value, other.Value, StringComparison.Ordinal);
+
+    public override bool Equals(object? obj) => obj is EventId other && Equals(other);
+
+    public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(Value);
+
+    public override string ToString() => Value;
 }

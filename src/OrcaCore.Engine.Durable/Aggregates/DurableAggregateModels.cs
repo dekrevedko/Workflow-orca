@@ -4,11 +4,13 @@ using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Aggregates;
 internal sealed record DurableDecision
 {
     internal DurableDecision(
-        IReadOnlyList<WorkflowEvent> events,
+        IReadOnlyList<DurableWorkflowEvent> events,
         CheckpointWrite? checkpoint = null,
         bool evictAfterCommit = false,
         IReadOnlyList<InboxWrite>? inboxOperations = null)
@@ -19,7 +21,7 @@ internal sealed record DurableDecision
         InboxOperations = inboxOperations ?? [];
     }
 
-    internal IReadOnlyList<WorkflowEvent> Events { get; }
+    internal IReadOnlyList<DurableWorkflowEvent> Events { get; }
 
     internal CheckpointWrite? Checkpoint { get; }
 
@@ -318,6 +320,11 @@ internal sealed record DurableStepCompletedCommand(
     public IReadOnlyList<FiberId> TerminalFiberIds { get; init; } = [];
 
     /// <summary>
+    /// Gets scoped resource holders whose exact tickets must be released in this commit.
+    /// </summary>
+    public IReadOnlyList<string> ReleaseResourceHolderKeys { get; init; } = [];
+
+    /// <summary>
     /// Gets compensation-eligibility transfers committed atomically with successful scope merges.
     /// A null target denotes the root execution position.
     /// </summary>
@@ -347,6 +354,31 @@ internal sealed record DurableStepFailedCommand(
     public IReadOnlyList<ScopeId> FailedSagaScopeIds { get; init; } = [];
 
     public bool CoversRootSagaEligibility { get; init; }
+
+    public bool PreserveOwnership { get; init; }
+}
+
+internal sealed record DurableFiberFailedCommand(
+    CommandId CommandId,
+    InstanceId InstanceId,
+    DateTimeOffset RequestedAt,
+    string StepPath,
+    string ErrorSummary,
+    DurableCheckpointPayload Envelope)
+{
+    public StreamVersion? ExpectedStreamVersion { get; init; }
+
+    public IReadOnlyList<WaitId> ConsumedResumeWaitIds { get; init; } = [];
+
+    public IReadOnlyList<WaitId> CancelWaitIds { get; init; } = [];
+
+    public IReadOnlyList<TimerId> CancelTimerIds { get; init; } = [];
+
+    public IReadOnlyList<FiberId> TerminalFiberIds { get; init; } = [];
+
+    public IReadOnlyList<ScopeId> FailedSagaScopeIds { get; init; } = [];
+
+    public bool PreserveOwnership { get; init; }
 }
 
 public sealed record DurableYieldCommand(
@@ -513,6 +545,8 @@ internal sealed record DurableCompleteCommand(
     public IReadOnlyList<TimerId> CancelTimerIds { get; init; } = [];
 
     public IReadOnlyList<FiberId> TerminalFiberIds { get; init; } = [];
+
+    public bool PreserveOwnership { get; init; }
 }
 
 internal sealed record DurableFailCommand(
@@ -525,6 +559,46 @@ internal sealed record DurableFailCommand(
     public StreamVersion? ExpectedStreamVersion { get; init; }
 
     public bool PreserveOwnership { get; init; }
+}
+
+internal sealed record DurableTimeoutCommand(
+    CommandId CommandId,
+    InstanceId InstanceId,
+    DateTimeOffset RequestedAt,
+    string ErrorSummary,
+    DurableCheckpointPayload Envelope)
+{
+    public StreamVersion? ExpectedStreamVersion { get; init; }
+
+    public bool PreserveOwnership { get; init; }
+}
+
+internal sealed record DurableTerminalLifecycleCommand(
+    CommandId CommandId,
+    InstanceId InstanceId,
+    DateTimeOffset RequestedAt,
+    WorkflowStatus Status,
+    DurableCheckpointPayload? Envelope)
+{
+    public IReadOnlySet<string> PreserveResourceHolderKeys { get; init; } =
+        new HashSet<string>(StringComparer.Ordinal);
+
+    public IReadOnlyList<DurableQueuedResourceCancellation> QueuedResourceCancellations { get; init; } = [];
+}
+
+internal sealed record DurableQueuedResourceCancellation(
+    string HolderKey,
+    FiberId? FiberId,
+    ScopeId? ScopeId);
+
+internal sealed record DurableLeaseStopConfirmedCommand(
+    CommandId CommandId,
+    InstanceId InstanceId,
+    DateTimeOffset RequestedAt,
+    string HolderKey,
+    DurableCheckpointPayload Envelope)
+{
+    public StreamVersion? ExpectedStreamVersion { get; init; }
 }
 
 internal sealed record DurableParkCommand(

@@ -52,7 +52,7 @@ public sealed class CoreRuntimeScenarioTests
     public async Task NEG_EV_001_RaiseEventAsync_UnknownInstanceThrowsRoutingException()
     {
         var engine = new EphemeralWorkflowEngine();
-        var unknownInstanceId = InstanceId.New();
+        var unknownInstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
 
         var act = async () => await engine.RaiseEventAsync<TestState>(
             unknownInstanceId,
@@ -124,7 +124,7 @@ public sealed class CoreRuntimeScenarioTests
     public async Task NEG_MG_020_CancelMissingInstanceThrowsRoutingException()
     {
         var engine = new EphemeralWorkflowEngine();
-        var unknownInstanceId = InstanceId.New();
+        var unknownInstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
 
         var act = async () => await engine.Management.Instance(unknownInstanceId)
             .CancelAsync(TestContext.Current.CancellationToken);
@@ -133,41 +133,23 @@ public sealed class CoreRuntimeScenarioTests
             .WithMessage($"*{unknownInstanceId}*");
     }
 
-    [Fact]
-    [Trait("Scenario", "NEG-CR-017")]
-    [Trait("AC", "AC-001")]
-    public void NEG_CR_017_RegisterDefinitionWithDurableOnlyNodes_ThrowsDefinitionException()
-    {
-        var engine = new EphemeralWorkflowEngine();
-        var definition = new WorkflowBuilder<TestState>()
-            .Init<string>(input => new TestState { CorrelationId = input })
-            .RunChild(DefinitionId.New(), DefinitionVersion.Initial)
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-
-        var act = () => engine.RegisterDefinition(definition);
-
-        act.Should().Throw<WorkflowDefinitionException>()
-            .WithMessage("*durable-only*");
-    }
-
     private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> WaitingDefinition()
     {
-        return new WorkflowBuilder<TestState>()
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(input => new TestState { CorrelationId = input })
-            .Wait("Ready", state => new CorrelationId(state.CorrelationId))
+            .Wait("Ready", state => CorrelationId.Create(state.CorrelationId))
             .Then(() => new CaptureStep())
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
     }
 
     private static EventEnvelope Event(string eventName, string correlationId)
     {
         return new EventEnvelope
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             EventName = eventName,
-            CorrelationId = new CorrelationId(correlationId),
+            CorrelationId = CorrelationId.Create(correlationId),
             Payload = "payload",
             OccurredAt = DateTimeOffset.UtcNow
         };

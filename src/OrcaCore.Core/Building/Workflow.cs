@@ -5,7 +5,7 @@ namespace OrcaCore.Core.Building;
 /// <summary>
 /// Entry points that select execution mode before workflow capabilities are authored.
 /// </summary>
-public static class Workflow
+internal static class WorkflowKernel
 {
     /// <summary>
     /// Starts authoring an ephemeral workflow definition.
@@ -14,6 +14,9 @@ public static class Workflow
         DefinitionId definitionId,
         DefinitionVersion definitionVersion)
     {
+        ArgumentNullException.ThrowIfNull(definitionId);
+        ArgumentNullException.ThrowIfNull(definitionVersion);
+
         return new EphemeralWorkflowBuilder<TState>(definitionId, definitionVersion);
     }
 
@@ -24,6 +27,9 @@ public static class Workflow
         DefinitionId definitionId,
         DefinitionVersion definitionVersion)
     {
+        ArgumentNullException.ThrowIfNull(definitionId);
+        ArgumentNullException.ThrowIfNull(definitionVersion);
+
         return new DurableWorkflowBuilder<TState>(definitionId, definitionVersion);
     }
 }

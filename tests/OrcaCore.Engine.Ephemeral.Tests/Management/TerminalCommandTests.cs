@@ -32,10 +32,10 @@ public sealed class TerminalCommandTests
     public async Task End_WithOutcomeName_RecordsOutcomeInSnapshotAndQueries()
     {
         var engine = new EphemeralWorkflowEngine();
-        var definition = new WorkflowBuilder<TestState>()
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(input => new TestState { Name = input })
             .End("Approved")
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
         engine.RegisterDefinition(definition);
 
         var snapshot = await engine.StartAsync<string, TestState>(
@@ -75,12 +75,12 @@ public sealed class TerminalCommandTests
     {
         var step = new CancellableStep();
         var engine = new EphemeralWorkflowEngine();
-        var definition = new WorkflowBuilder<TestState>()
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(input => new TestState { Name = input })
-            .Wait("Ready", state => new CorrelationId(state.Name))
+            .Wait("Ready", state => CorrelationId.Create(state.Name))
             .Then(() => step)
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
         engine.RegisterDefinition(definition);
         var started = await engine.StartAsync<string, TestState>(
             definition.DefinitionId,
@@ -106,16 +106,13 @@ public sealed class TerminalCommandTests
     {
         using var commandCancellation = new CancellationTokenSource();
         var step = new CancellableStep(() => commandCancellation.Cancel());
-        var engine = new EphemeralWorkflowEngine(TimeProvider.System, new EphemeralWorkflowEngineOptions
-        {
-            MaxConcurrentAdvancements = 1
-        });
-        var definition = new WorkflowBuilder<TestState>()
+        var engine = new EphemeralWorkflowEngine();
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(input => new TestState { Name = input })
-            .Wait("Ready", state => new CorrelationId(state.Name))
+            .Wait("Ready", state => CorrelationId.Create(state.Name))
             .Then(() => step)
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
         engine.RegisterDefinition(definition);
         var started = await engine.StartAsync<string, TestState>(
             definition.DefinitionId,
@@ -165,12 +162,12 @@ public sealed class TerminalCommandTests
     {
         var step = new CancellableStep();
         var engine = new EphemeralWorkflowEngine();
-        var definition = new WorkflowBuilder<TestState>()
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(input => new TestState { Name = input })
-            .Wait("Ready", state => new CorrelationId(state.Name))
+            .Wait("Ready", state => CorrelationId.Create(state.Name))
             .Then(() => step)
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
         engine.RegisterDefinition(definition);
         var started = await engine.StartAsync<string, TestState>(
             definition.DefinitionId,
@@ -260,30 +257,30 @@ public sealed class TerminalCommandTests
 
     private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> CompletedDefinition()
     {
-        return new WorkflowBuilder<TestState>()
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(input => new TestState { Name = input })
             .Then(() => new CaptureStep())
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
     }
 
     private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> WaitingDefinition()
     {
-        return new WorkflowBuilder<TestState>()
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(input => new TestState { Name = input })
-            .Wait("Ready", state => new CorrelationId(state.Name))
+            .Wait("Ready", state => CorrelationId.Create(state.Name))
             .Then(() => new CaptureStep())
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
     }
 
     private static EventEnvelope Event(string eventName, string correlationId)
     {
         return new EventEnvelope
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             EventName = eventName,
-            CorrelationId = new CorrelationId(correlationId),
+            CorrelationId = CorrelationId.Create(correlationId),
             Payload = null,
             OccurredAt = DateTimeOffset.UtcNow
         };

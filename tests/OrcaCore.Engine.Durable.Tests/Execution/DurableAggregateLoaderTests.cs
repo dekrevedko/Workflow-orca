@@ -7,6 +7,8 @@ using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Execution;
 using Xunit;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Tests.Execution;
 
 public sealed class DurableAggregateLoaderTests
@@ -97,17 +99,17 @@ public sealed class DurableAggregateLoaderTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static EventId EventIdValue(int value)
     {
-        return new EventId(GuidValue(value));
+        return EventId.Create(GuidValue(value).ToString());
     }
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static Guid GuidValue(int value)
@@ -119,7 +121,7 @@ public sealed class DurableAggregateLoaderTests
     {
         public CheckpointWrite? Checkpoint { get; init; }
 
-        public IReadOnlyList<WorkflowEvent> Tail { get; init; } = [];
+        public IReadOnlyList<DurableWorkflowEvent> Tail { get; init; } = [];
 
         public InstanceId? LoadedCheckpointFor { get; private set; }
 
@@ -143,7 +145,7 @@ public sealed class DurableAggregateLoaderTests
             throw new NotSupportedException();
         }
 
-        public Task<IReadOnlyList<WorkflowEvent>> LoadTailAsync(
+        public Task<IReadOnlyList<DurableWorkflowEvent>> LoadTailAsync(
             WorkflowStreamId streamId,
             StreamVersion afterVersion,
             CancellationToken cancellationToken)

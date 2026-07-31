@@ -68,7 +68,7 @@ public sealed class DurableQueryTests
                 Timestamp(2),
                 WaitIdValue(2),
                 "Approved",
-                new CorrelationId("order-1")),
+                CorrelationId.Create("order-1")),
             TestContext.Current.CancellationToken);
 
         var waits = await new DurableManagement(store).All()
@@ -78,7 +78,7 @@ public sealed class DurableQueryTests
         {
             WaitId = WaitIdValue(2),
             EventName = "Approved",
-            CorrelationId = new CorrelationId("order-1"),
+            CorrelationId = CorrelationId.Create("order-1"),
             RegisteredAt = Timestamp(2),
             Status = "Active",
             Mode = "Resident"
@@ -152,7 +152,7 @@ public sealed class DurableQueryTests
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -162,7 +162,7 @@ public sealed class DurableQueryTests
 
     private static WaitId WaitIdValue(int value)
     {
-        return new WaitId(GuidValue(value));
+        return WaitId.Parse(GuidValue(value).ToString());
     }
 
     private static Guid GuidValue(int value)

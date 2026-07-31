@@ -14,7 +14,8 @@ internal static class DurableFiberEnvelopeMapper
         StructuredExecutionState state,
         CompiledWorkflowPlan plan,
         SerializedPayload parentState,
-        IReadOnlyList<DurableOwnedObligationState>? ownedObligations = null)
+        IReadOnlyList<DurableOwnedObligationState>? ownedObligations = null,
+        DurableWorkflowOutputState? output = null)
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(plan);
@@ -31,6 +32,7 @@ internal static class DurableFiberEnvelopeMapper
                 DefinitionId = plan.DefinitionId,
                 DefinitionVersion = plan.DefinitionVersion,
                 CompilerFormatVersion = plan.FormatVersion,
+                CompilerProfileId = plan.CompilerProfileId,
                 PlanFingerprint = plan.Fingerprint
             },
             StateContentType = parentState.ContentType,
@@ -51,7 +53,10 @@ internal static class DurableFiberEnvelopeMapper
                     .ToArray(),
                 NextFiberId = state.Scheduler.NextFiberId?.Value
             },
+            WorkflowDeadline = state.WorkflowDeadline,
+            WorkflowDeadlineTimerId = state.WorkflowDeadlineTimerId,
             OwnedObligations = ownedObligations?.ToArray() ?? [],
+            Output = output,
             NextRegistrationSequence = state.NextRegistrationSequence,
             Diagnostics = new DurableExecutionDiagnostics
             {
@@ -85,6 +90,8 @@ internal static class DurableFiberEnvelopeMapper
             fibers,
             scopes)
         {
+            WorkflowDeadline = envelope.WorkflowDeadline,
+            WorkflowDeadlineTimerId = envelope.WorkflowDeadlineTimerId,
             CompletedYieldCount = Math.Max(0, envelope.Diagnostics.TotalYields - activeYields),
             CompletedForcedRotationCount = Math.Max(
                 0,
@@ -119,17 +126,14 @@ internal static class DurableFiberEnvelopeMapper
                 },
             Failure = fiber.Failure is null
                 ? null
-                : new DurableFiberFailure
-                {
-                    Code = fiber.Failure.Code,
-                    Message = fiber.Failure.Message
-                },
+                : ToEnvelopeFailure(fiber.Failure),
             CancellationReason = fiber.CancellationReason,
             YieldCount = fiber.YieldCount,
             ForcedRotationCount = fiber.ForcedRotationCount,
             RetryAttempt = fiber.RetryAttempt,
             RetryNotBefore = fiber.RetryNotBefore,
             LogicalOperationKey = fiber.LogicalOperationKey,
+            AttemptInFlight = fiber.AttemptInFlight,
             TimeoutDeadline = fiber.TimeoutDeadline,
             ResumeFromWaitId = fiber.ResumeFromWaitId
         };
@@ -153,7 +157,7 @@ internal static class DurableFiberEnvelopeMapper
                     fiber.Blocked.ObligationId),
             fiber.Failure is null
                 ? null
-                : new FiberFailure(fiber.Failure.Code, fiber.Failure.Message),
+                : FromEnvelopeFailure(fiber.Failure),
             fiber.CancellationReason)
         {
             YieldCount = fiber.YieldCount,
@@ -161,6 +165,7 @@ internal static class DurableFiberEnvelopeMapper
             RetryAttempt = fiber.RetryAttempt,
             RetryNotBefore = fiber.RetryNotBefore,
             LogicalOperationKey = fiber.LogicalOperationKey,
+            AttemptInFlight = fiber.AttemptInFlight,
             TimeoutDeadline = fiber.TimeoutDeadline,
             ResumeFromWaitId = fiber.ResumeFromWaitId
         };
@@ -244,11 +249,7 @@ internal static class DurableFiberEnvelopeMapper
                     ResultPayload = outcome.ResultPayload?.ToArray(),
                     Failure = outcome.Failure is null
                         ? null
-                        : new DurableFiberFailure
-                        {
-                            Code = outcome.Failure.Code,
-                            Message = outcome.Failure.Message
-                        }
+                        : ToEnvelopeFailure(outcome.Failure)
                 })
                 .ToArray()
         };
@@ -277,8 +278,55 @@ internal static class DurableFiberEnvelopeMapper
                     outcome.ResultPayload?.ToArray(),
                     outcome.Failure is null
                         ? null
-                        : new FiberFailure(outcome.Failure.Code, outcome.Failure.Message))));
+                        : FromEnvelopeFailure(outcome.Failure))));
     }
+
+    private static DurableFiberFailure ToEnvelopeFailure(FiberFailure failure) =>
+        new()
+        {
+            Code = failure.Code,
+            Message = failure.Message,
+            AuthoredLocation = failure.AuthoredLocation.Value,
+            OccurrenceKind = OccurrenceKind(failure.Occurrence),
+            BranchId = failure.Occurrence is FailureOccurrence.Branch branch
+                ? branch.BranchId.Value
+                : null,
+            ItemIndex = failure.Occurrence is FailureOccurrence.Item item
+                ? item.Index
+                : null,
+            Causes = failure.Causes.Select(ToEnvelopeFailure).ToArray()
+        };
+
+    private static FiberFailure FromEnvelopeFailure(DurableFiberFailure failure) =>
+        new(
+            failure.Code,
+            failure.Message,
+            failure.Causes.Select(FromEnvelopeFailure).ToArray(),
+            FailureProvenance.Location(failure.AuthoredLocation),
+            Occurrence(failure));
+
+    private static string OccurrenceKind(FailureOccurrence occurrence) => occurrence switch
+    {
+        FailureOccurrence.Root => "root",
+        FailureOccurrence.Branch => "branch",
+        FailureOccurrence.Item => "item",
+        _ => throw new InvalidOperationException(
+            $"Unsupported failure occurrence '{occurrence.GetType().FullName}'.")
+    };
+
+    private static FailureOccurrence Occurrence(DurableFiberFailure failure) =>
+        failure.OccurrenceKind switch
+        {
+            "root" when failure.BranchId is null && failure.ItemIndex is null =>
+                FailureProvenance.RootOccurrence(),
+            "branch" when !string.IsNullOrWhiteSpace(failure.BranchId) &&
+                          failure.ItemIndex is null =>
+                FailureProvenance.BranchOccurrence(failure.BranchId),
+            "item" when failure.BranchId is null && failure.ItemIndex is >= 0 =>
+                FailureProvenance.ItemOccurrence(failure.ItemIndex.Value),
+            _ => throw new InvalidOperationException(
+                $"Invalid durable failure occurrence '{failure.OccurrenceKind}'.")
+        };
 
     private static DurableFiberPhase ToEnvelopePhase(FiberPhase phase) => phase switch
     {

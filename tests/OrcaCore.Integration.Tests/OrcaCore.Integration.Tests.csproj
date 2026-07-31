@@ -9,33 +9,45 @@
     <PackageReference Include="coverlet.collector" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
-    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" PrivateAssets="all" />
-    <PackageReference Include="NetMQ" />
-    <PackageReference Include="Npgsql" />
-    <PackageReference Include="RabbitMQ.Client" />
-    <PackageReference Include="StackExchange.Redis" />
-    <PackageReference Include="Testcontainers.MsSql" />
     <PackageReference Include="Testcontainers.PostgreSql" />
-    <PackageReference Include="Testcontainers.RabbitMq" />
-    <PackageReference Include="Testcontainers.Redis" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\samples\OrcaCore.SampleHost\OrcaCore.SampleHost.csproj" />
-    <ProjectReference Include="..\..\src\OrcaCore.Abstractions\OrcaCore.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\OrcaCore.Abstractions\OrcaCore.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Core\OrcaCore.Core.csproj" />
+    <ProjectReference Include="..\..\src\OrcaCore.Provider.Abstractions\OrcaCore.Provider.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Engine.Durable\OrcaCore.Engine.Durable.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Engine.Ephemeral\OrcaCore.Engine.Ephemeral.csproj" />
-    <ProjectReference Include="..\..\src\OrcaCore.Hosting\OrcaCore.Hosting.csproj" />
+    <ProjectReference Include="..\..\src\OrcaCore.Durable.Hosting\OrcaCore.Durable.Hosting.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Providers.InMemory\OrcaCore.Providers.InMemory.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Providers.PostgreSql\OrcaCore.Providers.PostgreSql.csproj" />
-    <ProjectReference Include="..\..\src\OrcaCore.Providers.RabbitMq\OrcaCore.Providers.RabbitMq.csproj" />
-    <ProjectReference Include="..\..\src\OrcaCore.Providers.Redis\OrcaCore.Providers.Redis.csproj" />
-    <ProjectReference Include="..\..\src\OrcaCore.Providers.SqlServer\OrcaCore.Providers.SqlServer.csproj" />
-    <ProjectReference Include="..\..\src\OrcaCore.Providers.ZeroMq\OrcaCore.Providers.ZeroMq.csproj" />
-    <ProjectReference Include="..\OrcaCore.TestSupport\OrcaCore.TestSupport.csproj" />
+  </ItemGroup>
+
+  <!--
+    Section 7 keeps the provisional integration sources physically recoverable while
+    excluding them from the first-release lane. CurrentSurface contains their
+    public-application-facade replacements.
+  -->
+  <ItemGroup>
+    <!-- 81 declarations coupled to the provisional catch-all host/internal commands. -->
+    <Compile Remove="E2E\**\*.cs" />
+    <Compile Remove="Engine\EnginePostgreSqlIntegrationTests.cs" />
+    <Compile Remove="Hosting\**\*.cs" />
+    <Compile Remove="MultiNode\**\*.cs" />
+    <Compile Remove="Observability\**\*.cs" />
+
+    <!-- 18 declarations for the deferred DAG/job-scheduler surface. -->
+    <Compile Remove="JobScheduler\**\*.cs" />
+
+    <!-- 16 declarations for providers outside the first-release package set. -->
+    <Compile Remove="Engine\EngineSqlServerIntegrationTests.cs" />
+    <Compile Remove="Stacks\**\*.cs" />
+
+    <!-- Supporting scaffolding owned only by the excluded provisional sources. -->
+    <Compile Remove="Fixtures\**\*.cs" />
+    <Compile Remove="Support\**\*.cs" />
   </ItemGroup>
 </Project>

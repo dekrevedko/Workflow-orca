@@ -154,7 +154,7 @@ public sealed class SagaAcceptanceTests
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}"));
+        return InstanceId.Parse($"00000000-0000-0000-0000-{value:000000000000}");
     }
 
     private static CommandId CommandIdValue(int value)
@@ -164,7 +164,7 @@ public sealed class SagaAcceptanceTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}"));
+        return DefinitionId.Parse($"00000000-0000-0000-0000-{value:000000000000}");
     }
 
     private sealed class EphemeralSagaState
@@ -190,7 +190,7 @@ public sealed class SagaAcceptanceTests
             CancellationToken cancellationToken)
         {
             return ValueTask.FromResult<StepResult>(
-                new StepResult.Failed(new WorkflowDefinitionException("forward failed")));
+                new StepResult.Failed(new WorkflowLifecycleException("forward failed")));
         }
     }
 }

@@ -1,6 +1,6 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/OrcaCore.Abstractions/OrcaCore.Abstractions.csproj" />
+    <Project Path="src/OrcaCore.Abstractions/OrcaCore.csproj" />
     <Project Path="src/OrcaCore.EventDrivenPrototype/OrcaCore.EventDrivenPrototype.csproj" />
     <Project Path="src/OrcaCore.Runtime/OrcaCore.Runtime.csproj" />
   </Folder>

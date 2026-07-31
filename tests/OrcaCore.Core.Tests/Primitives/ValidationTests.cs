@@ -9,7 +9,7 @@ public sealed class ValidationTests
     [Fact]
     public void Valid_IsValid_NoErrors()
     {
-        var validation = Validation<string>.Valid("value");
+        var validation = OrcaCore.Abstractions.Primitives.Validation<string>.Valid("value");
 
         validation.IsValid.Should().BeTrue();
         validation.Value.Should().Be("value");
@@ -22,7 +22,7 @@ public sealed class ValidationTests
         var first = new ValidationError("first", "First error", "root.first");
         var second = new ValidationError("second", "Second error", "root.second");
 
-        var validation = Validation<string>.Invalid([first, second]);
+        var validation = OrcaCore.Abstractions.Primitives.Validation<string>.Invalid([first, second]);
 
         validation.IsValid.Should().BeFalse();
         validation.Errors.Should().Equal([first, second]);
@@ -35,8 +35,8 @@ public sealed class ValidationTests
     {
         var firstError = new ValidationError("first", "First error");
         var secondError = new ValidationError("second", "Second error");
-        var first = Validation<string>.Invalid([firstError]);
-        var second = Validation<string>.Invalid([secondError]);
+        var first = OrcaCore.Abstractions.Primitives.Validation<string>.Invalid([firstError]);
+        var second = OrcaCore.Abstractions.Primitives.Validation<string>.Invalid([secondError]);
 
         var combined = first.Combine(second, (left, right) => left + right);
 

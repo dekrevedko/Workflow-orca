@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>OrcaCore.Runtime.Protocol</AssemblyName>
+    <PackageId>OrcaCore.Runtime.Protocol</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OrcaCore.Abstractions\OrcaCore.csproj" />
+  </ItemGroup>
+</Project>

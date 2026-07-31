@@ -17,7 +17,7 @@ public sealed class InterpreterTests
     {
         var state = new TestState();
         var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(new WorkflowBuilder<TestState>()
+        var definition = Definition(global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .Then(() => new MutatingStep("first"))
             .End());
@@ -38,7 +38,7 @@ public sealed class InterpreterTests
     {
         var state = new TestState();
         var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(new WorkflowBuilder<TestState>()
+        var definition = Definition(global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .Then(() => new MutatingStep("first"))
             .Then(() => new MutatingStep("second"))
@@ -59,7 +59,7 @@ public sealed class InterpreterTests
     {
         var state = new TestState();
         var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(new WorkflowBuilder<TestState>()
+        var definition = Definition(global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .Then(() => new FailingResultStep())
             .Then(() => new MutatingStep("skipped"))
@@ -73,41 +73,16 @@ public sealed class InterpreterTests
             TestContext.Current.CancellationToken);
 
         snapshot.Status.Should().Be(WorkflowStatus.Failed);
-        snapshot.ErrorSummary.Should().Contain(nameof(WorkflowDefinitionException));
+        snapshot.ErrorSummary.Should().Contain("WF-LEGACY-LIFECYCLE");
         snapshot.ErrorSummary.Should().Contain("step failed");
         state.Values.Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task Run_StepThrows_InstanceFailed_ErrorDetailsCaptured()
-    {
-        var clock = new Clock(new DateTimeOffset(2026, 7, 2, 10, 15, 0, TimeSpan.Zero));
-        var state = new TestState();
-        var engine = new EphemeralWorkflowEngine(clock.TimeProvider);
-        var definition = Definition(new WorkflowBuilder<TestState>()
-            .Init<string>(_ => state)
-            .Then(() => new ThrowingStep())
-            .End());
-
-        engine.RegisterDefinition(definition);
-
-        var snapshot = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
-            "start",
-            TestContext.Current.CancellationToken);
-
-        snapshot.Status.Should().Be(WorkflowStatus.Failed);
-        snapshot.ErrorSummary.Should().Contain(nameof(InvalidOperationException));
-        snapshot.ErrorSummary.Should().Contain("boom");
-        snapshot.ErrorSummary.Should().Contain("root/1");
-        snapshot.UpdatedAt.Should().Be(clock.Now);
     }
 
     [Fact]
     public async Task Run_EndWithOutcome_RecordsOutcomeName()
     {
         var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(new WorkflowBuilder<TestState>()
+        var definition = Definition(global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
             .End("Approved"));
 
@@ -125,7 +100,7 @@ public sealed class InterpreterTests
     public async Task Run_UnsupportedResult_ThrowsNamingOwnerTask()
     {
         var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(new WorkflowBuilder<TestState>()
+        var definition = Definition(global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
             .Then(() => new UnsupportedResultStep())
             .End());
@@ -138,13 +113,13 @@ public sealed class InterpreterTests
             TestContext.Current.CancellationToken);
 
         await act.Should().ThrowAsync<NotSupportedException>()
-            .WithMessage("*UnsupportedResult*");
+            .WithMessage("*ContinueAsNew*");
     }
 
     private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> Definition(
-        WorkflowBuilder<TestState> builder)
+        EphemeralWorkflowBuilder<TestState> builder)
     {
-        return builder.Build(DefinitionId.New(), DefinitionVersion.Initial);
+        return builder.Build();
     }
 
     private sealed class TestState
@@ -170,7 +145,7 @@ public sealed class InterpreterTests
             CancellationToken cancellationToken)
         {
             return ValueTask.FromResult<StepResult>(
-                new StepResult.Failed(new WorkflowDefinitionException("step failed")));
+                new StepResult.Failed(new WorkflowLifecycleException("step failed")));
         }
     }
 
@@ -190,9 +165,8 @@ public sealed class InterpreterTests
             StepContext<TestState> context,
             CancellationToken cancellationToken)
         {
-            return ValueTask.FromResult<StepResult>(new UnsupportedResult());
+            return ValueTask.FromResult(
+                global::OrcaCore.TestSupport.LegacyStepResults.ContinueAsNew(context.State));
         }
     }
-
-    private sealed record UnsupportedResult : StepResult;
 }

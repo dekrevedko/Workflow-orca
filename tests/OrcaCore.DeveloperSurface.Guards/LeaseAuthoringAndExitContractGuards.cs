@@ -35,8 +35,8 @@ public sealed class LeaseAuthoringAndExitInfrastructureGuards
 }
 
 [Trait(GuardTraits.Phase, GuardTraits.Phase0)]
-[Trait(GuardTraits.Disposition, GuardTraits.ExpectedRed)]
-public sealed class LeaseAuthoringAndExitExpectedRedGuards
+[Trait(GuardTraits.Disposition, GuardTraits.Infrastructure)]
+public sealed class LeaseAuthoringAndExitProductGuards
 {
     [Fact]
     public void Product_ContainsScopedAcquireResourcesAndFinalLifecycle()

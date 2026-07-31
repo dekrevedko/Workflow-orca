@@ -8,6 +8,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\OrcaCore.Hosting\OrcaCore.Hosting.csproj" />
+    <ProjectReference Include="..\..\src\OrcaCore.Abstractions\OrcaCore.csproj" />
+    <ProjectReference Include="..\..\src\OrcaCore.Durable.Hosting\OrcaCore.Durable.Hosting.csproj" />
+    <ProjectReference Include="..\..\src\OrcaCore.Providers.InMemory\OrcaCore.Providers.InMemory.csproj" />
   </ItemGroup>
 </Project>

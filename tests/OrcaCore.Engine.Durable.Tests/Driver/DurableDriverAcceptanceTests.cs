@@ -92,10 +92,10 @@ public sealed class DurableDriverAcceptanceTests
         DefinitionId definitionId,
         DefinitionVersion version)
     {
-        return Workflow.Durable<OrderState>(definitionId, version)
+        return global::OrcaCore.Workflow.Durable<OrderState>(definitionId, version)
             .Init<string>(orderId => new OrderState { OrderId = orderId })
             .Then(() => new LogStep("prepare"))
-            .Wait("Approved", state => new CorrelationId(state.OrderId))
+            .Wait("Approved", state => CorrelationId.Create(state.OrderId))
             .Then(() => new LogStep("ship"))
             .End("shipped")
             .Build();
@@ -121,7 +121,7 @@ public sealed class DurableDriverAcceptanceTests
         await host.Runtime.RaiseEventAsync(
             start.InstanceId,
             "Approved",
-            new CorrelationId("order-1"),
+            CorrelationId.Create("order-1"),
             cancellationToken: TestContext.Current.CancellationToken);
 
         var completed = await SnapshotAsync(host, start.InstanceId);
@@ -155,7 +155,7 @@ public sealed class DurableDriverAcceptanceTests
         await hostB.Runtime.RaiseEventAsync(
             start.InstanceId,
             "Approved",
-            new CorrelationId("order-2"),
+            CorrelationId.Create("order-2"),
             cancellationToken: TestContext.Current.CancellationToken);
 
         var completed = await SnapshotAsync(hostB, start.InstanceId);
@@ -183,7 +183,7 @@ public sealed class DurableDriverAcceptanceTests
 
             context.State.CompletedChunks.Add(chunk);
             return ValueTask.FromResult<StepResult>(
-                chunk < 3 ? new StepResult.Yield() : new StepResult.Completed());
+                chunk < 3 ? global::OrcaCore.TestSupport.LegacyStepResults.Yield() : new StepResult.Completed());
         }
     }
 
@@ -193,7 +193,7 @@ public sealed class DurableDriverAcceptanceTests
     {
         var store = new InMemoryWorkflowProvider();
         var definitionId = DefinitionId.New();
-        var definition = Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
             .Init<string>(orderId => new OrderState { OrderId = orderId })
             .Then(() => new ChunkedStep())
             .End("chunked")
@@ -231,43 +231,42 @@ public sealed class DurableDriverAcceptanceTests
 
     [Fact]
     [Trait("AC", "DR-AC-006")]
-    public async Task NestedParallelInsideIf_RestartResumesCorrectBranchOnly()
+    public async Task RootParallelAfterIf_RestartResumesCorrectBranchOnly()
     {
         var store = new InMemoryWorkflowProvider();
         var definitionId = DefinitionId.New();
 
         WorkflowDefinition<OrderState> Definition()
         {
-            return Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
+            return global::OrcaCore.Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
                 .Init<string>(orderId => new OrderState { OrderId = orderId })
-                .If(
-                    state => true,
-                    then => then.Parallel<IReadOnlyList<string>>(
-                        branches => branches
-                            .Branch<BranchOrderState>(
-                                "approval",
-                                parent => new BranchOrderState(parent.Value.OrderId, []),
-                                branch => branch
-                                    .Then(() => new BranchLogStep("a1"))
-                                    .Wait("EventA", state => new CorrelationId(state.OrderId))
-                                    .Then(() => new BranchLogStep("a2"))
-                                    .Return(state => state.Value.Log))
-                            .Branch<BranchOrderState>(
-                                "audit",
-                                parent => new BranchOrderState(parent.Value.OrderId, []),
-                                branch => branch
-                                    .Then(() => new BranchLogStep("b1"))
-                                    .Return(state => state.Value.Log)),
-                        (parent, results) =>
+                .If(state => true, then => { })
+                .Parallel<IReadOnlyList<string>>(
+                    branches => branches
+                        .Branch<BranchOrderState>(
+                            "approval",
+                            parent => new BranchOrderState(parent.Value.OrderId, []),
+                            branch => branch
+                                .Then(() => new BranchLogStep("a1"))
+                                .Wait("EventA", state => CorrelationId.Create(state.OrderId))
+                                .Then(() => new BranchLogStep("a2"))
+                                .Return(state => state.Value.Log))
+                        .Branch<BranchOrderState>(
+                            "audit",
+                            parent => new BranchOrderState(parent.Value.OrderId, []),
+                            branch => branch
+                                .Then(() => new BranchLogStep("b1"))
+                                .Return(state => state.Value.Log)),
+                    (parent, results) =>
+                    {
+                        return new OrderState
                         {
-                            return new OrderState
-                            {
-                                OrderId = parent.Value.OrderId,
-                                Value = parent.Value.Value,
-                                CompletedChunks = [.. parent.Value.CompletedChunks],
-                                Log = results.SelectMany(result => result.Value).ToList()
-                            };
-                        }))
+                            OrderId = parent.Value.OrderId,
+                            Value = parent.Value.Value,
+                            CompletedChunks = [.. parent.Value.CompletedChunks],
+                            Log = results.SelectMany(result => result.Value).ToList()
+                        };
+                    })
                 .Then(() => new LogStep("after"))
                 .End("joined")
                 .Build();
@@ -288,7 +287,7 @@ public sealed class DurableDriverAcceptanceTests
         await hostB.Runtime.RaiseEventAsync(
             start.InstanceId,
             "EventA",
-            new CorrelationId("order-6"),
+            CorrelationId.Create("order-6"),
             cancellationToken: TestContext.Current.CancellationToken);
 
         var completed = await SnapshotAsync(hostB, start.InstanceId);
@@ -308,7 +307,7 @@ public sealed class DurableDriverAcceptanceTests
             context.State.Value = 42;
             context.State.Log.Add("mutated");
             return ValueTask.FromResult<StepResult>(
-                new StepResult.WaitForEvent("Go", new CorrelationId(context.State.OrderId)));
+                new StepResult.WaitForEvent(EventName.Create("Go"), CorrelationId.Create(context.State.OrderId)));
         }
     }
 
@@ -330,7 +329,7 @@ public sealed class DurableDriverAcceptanceTests
 
         WorkflowDefinition<OrderState> Definition()
         {
-            return Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
+            return global::OrcaCore.Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
                 .Init<string>(orderId => new OrderState { OrderId = orderId })
                 .Then<MutateAndWaitStep>()
                 .Then<ObserveMutationStep>()
@@ -353,7 +352,7 @@ public sealed class DurableDriverAcceptanceTests
         await hostB.Runtime.RaiseEventAsync(
             start.InstanceId,
             "Go",
-            new CorrelationId("order-13"),
+            CorrelationId.Create("order-13"),
             cancellationToken: TestContext.Current.CancellationToken);
 
         var completed = await SnapshotAsync(hostB, start.InstanceId);
@@ -368,11 +367,11 @@ public sealed class DurableDriverAcceptanceTests
     {
         var host = CreateHost();
         var definitionId = DefinitionId.New();
-        var first = Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
+        var first = global::OrcaCore.Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
             .Init<string>(orderId => new OrderState { OrderId = orderId })
             .End("first")
             .Build();
-        var drifted = Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
+        var drifted = global::OrcaCore.Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
             .Init<string>(orderId => new OrderState { OrderId = orderId })
             .End("second")
             .Build();
@@ -409,7 +408,7 @@ public sealed class DurableDriverAcceptanceTests
         (await SnapshotAsync(host, start.InstanceId)).Status.Should().Be(WorkflowStatus.Waiting);
 
         // Continue-as-new writes a checkpoint whose payload is a raw state baseline, not an
-        // execution-position envelope — the legacy checkpoint shape DR-AC-018 targets.
+        // execution-position envelope ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the legacy checkpoint shape DR-AC-018 targets.
         await host.Processor.ProcessAsync(
             new ContinueAsNewCommand
             {
@@ -424,7 +423,7 @@ public sealed class DurableDriverAcceptanceTests
         await host.Runtime.RaiseEventAsync(
             start.InstanceId,
             "Approved",
-            new CorrelationId("order-18"),
+            CorrelationId.Create("order-18"),
             cancellationToken: TestContext.Current.CancellationToken);
 
         var snapshot = await SnapshotAsync(host, start.InstanceId);

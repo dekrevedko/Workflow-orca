@@ -72,6 +72,9 @@ public sealed class DurableCommandRuntime
         }
     }
 
+    internal bool HasRunningStep(InstanceId instanceId) =>
+        runningSteps.ContainsKey(instanceId);
+
     internal sealed class StepCancellationScope : IDisposable
     {
         private readonly CancellationTokenSource cancellation;

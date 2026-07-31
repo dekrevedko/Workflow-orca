@@ -3,7 +3,7 @@ begin
     create table dbo.orcacore_events (
         stream_id uniqueidentifier not null,
         version bigint not null,
-        event_id uniqueidentifier not null,
+    event_id nvarchar(450) not null,
         event_type nvarchar(256) not null,
         occurred_at datetimeoffset not null,
         payload nvarchar(max) not null,
@@ -32,7 +32,7 @@ end;
 if object_id('dbo.orcacore_inbox', 'U') is null
 begin
     create table dbo.orcacore_inbox (
-        event_id uniqueidentifier not null primary key,
+    event_id nvarchar(450) not null primary key,
         state nvarchar(64) not null
     );
 end;
@@ -112,6 +112,7 @@ if object_id('dbo.orcacore_resource_pools', 'U') is null
 begin
     create table dbo.orcacore_resource_pools (
         pool_name nvarchar(512) not null primary key,
+        creation_capacity int not null,
         capacity int not null,
         lease_duration_seconds int null
     );
@@ -127,6 +128,8 @@ begin
         ticket_count int not null,
         acquired_at datetimeoffset not null,
         expires_at datetimeoffset null,
+        fiber_id nvarchar(256) null,
+        scope_id nvarchar(256) null,
         constraint fk_orcacore_resource_tickets_pool foreign key (pool_name)
             references dbo.orcacore_resource_pools(pool_name) on delete cascade
     );
@@ -143,6 +146,8 @@ begin
         requirements nvarchar(max) not null,
         requested_at datetimeoffset not null,
         expires_at datetimeoffset null,
+        fiber_id nvarchar(256) null,
+        scope_id nvarchar(256) null,
         constraint uq_orcacore_resource_waiters_holder unique (holder_instance_id, holder_key)
     );
     create index ix_orcacore_resource_waiters_requested

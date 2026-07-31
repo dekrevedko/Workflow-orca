@@ -6,6 +6,8 @@ using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Aggregates;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Execution;
 
 internal sealed class DurableCommitMaterializer
@@ -15,7 +17,7 @@ internal sealed class DurableCommitMaterializer
         StreamVersion expectedVersion,
         DurableDecision decision,
         DurableWorkflowAggregate aggregate,
-        EventId? inboxEventId)
+        DurableInboxDelivery? inboxDelivery)
     {
         ArgumentNullException.ThrowIfNull(decision);
         ArgumentNullException.ThrowIfNull(aggregate);
@@ -27,7 +29,7 @@ internal sealed class DurableCommitMaterializer
             ExpectedVersion = expectedVersion,
             Events = decision.Events,
             Checkpoint = decision.Checkpoint,
-            InboxOperations = CreateInboxOperations(inboxEventId, decision),
+            InboxOperations = CreateInboxOperations(inboxDelivery, decision),
             OutboxRecords = CreateOutboxRecords(decision, aggregate, projectionOperations),
             ProjectionOperations = projectionOperations,
             StartIdempotencyOperations = CreateStartIdempotencyWrites(decision.Events),
@@ -38,18 +40,24 @@ internal sealed class DurableCommitMaterializer
     internal ProviderCommitBatch CreateInboxOnlyBatch(
         InstanceId instanceId,
         StreamVersion expectedVersion,
-        EventId eventId,
+        DurableInboxDelivery delivery,
         InboxRecordState state)
     {
         return new ProviderCommitBatch
         {
             StreamId = new WorkflowStreamId(instanceId),
             ExpectedVersion = expectedVersion,
-            InboxOperations = [new InboxWrite(eventId, state)]
+            InboxOperations =
+            [
+                new InboxWrite(delivery.EventId, state)
+                {
+                    EnvelopeFingerprint = delivery.EnvelopeFingerprint
+                }
+            ]
         };
     }
 
-    private static IReadOnlyList<StartIdempotencyWrite> CreateStartIdempotencyWrites(IReadOnlyList<WorkflowEvent> events)
+    private static IReadOnlyList<StartIdempotencyWrite> CreateStartIdempotencyWrites(IReadOnlyList<DurableWorkflowEvent> events)
     {
         return events
             .OfType<WorkflowStartedEvent>()
@@ -58,7 +66,11 @@ internal sealed class DurableCommitMaterializer
                 started.IdempotencyKey!,
                 started.InstanceId,
                 started.DefinitionId,
-                started.DefinitionVersion))
+                started.DefinitionVersion,
+                started.DefinitionFingerprint ?? throw new InvalidOperationException(
+                    "An idempotent start must carry its definition fingerprint."),
+                started.InputFingerprint ?? throw new InvalidOperationException(
+                    "An idempotent start must carry its fixed-codec input fingerprint.")))
             .ToArray();
     }
 
@@ -113,7 +125,7 @@ internal sealed class DurableCommitMaterializer
             return [];
         }
 
-        if (status != WorkflowStatus.Running
+        if (status is not (WorkflowStatus.Running or WorkflowStatus.CancellationRequested)
             && !decision.Events.Any(IsUnblockingEvent)
             && !HasRunnableEnvelopeWork(decision.Checkpoint))
         {
@@ -131,7 +143,7 @@ internal sealed class DurableCommitMaterializer
         return [new OutboxWrite(OutboxRecordId.New(), OutboxKinds.Continue, signal.Serialize())];
     }
 
-    private static bool IsUnblockingEvent(WorkflowEvent workflowEvent)
+    private static bool IsUnblockingEvent(DurableWorkflowEvent workflowEvent)
     {
         return workflowEvent
             is WorkflowWaitMatchedEvent
@@ -170,7 +182,7 @@ internal sealed class DurableCommitMaterializer
         }
     }
 
-    private static IReadOnlyList<TimerScheduleRequest> CreateTimerSchedules(IReadOnlyList<WorkflowEvent> events)
+    private static IReadOnlyList<TimerScheduleRequest> CreateTimerSchedules(IReadOnlyList<DurableWorkflowEvent> events)
     {
         return events
             .OfType<WorkflowTimerScheduledEvent>()
@@ -178,7 +190,7 @@ internal sealed class DurableCommitMaterializer
             {
                 TimerId = timer.TimerId,
                 InstanceId = timer.InstanceId,
-                CommandId = new CommandId(timer.EventId.Value),
+                CommandId = new CommandId(timer.TimerId.Value),
                 FireAt = timer.FireAt,
                 WakeupName = timer.WakeupName
             })
@@ -186,11 +198,18 @@ internal sealed class DurableCommitMaterializer
     }
 
     private static IReadOnlyList<InboxWrite> CreateInboxOperations(
-        EventId? inboxEventId,
+        DurableInboxDelivery? inboxDelivery,
         DurableDecision decision)
     {
-        return inboxEventId is { } eventId
-            ? [new InboxWrite(eventId, InboundDeliveryState(decision)), .. decision.InboxOperations]
+        return inboxDelivery is { } delivery
+            ?
+            [
+                new InboxWrite(delivery.EventId, InboundDeliveryState(decision))
+                {
+                    EnvelopeFingerprint = delivery.EnvelopeFingerprint
+                },
+                .. decision.InboxOperations
+            ]
             : decision.InboxOperations;
     }
 
@@ -201,7 +220,7 @@ internal sealed class DurableCommitMaterializer
             : InboxRecordState.Applied;
     }
 
-    private static IReadOnlyList<OutboxWrite> CreateLifecycleOutboxRecords(IReadOnlyList<WorkflowEvent> events)
+    private static IReadOnlyList<OutboxWrite> CreateLifecycleOutboxRecords(IReadOnlyList<DurableWorkflowEvent> events)
     {
         return events
             .SelectMany(ToLifecycleEvents)
@@ -212,13 +231,13 @@ internal sealed class DurableCommitMaterializer
             .ToArray();
     }
 
-    private static IReadOnlyList<OutboxWrite> CreateChildStartOutboxRecords(IReadOnlyList<WorkflowEvent> events)
+    private static IReadOnlyList<OutboxWrite> CreateChildStartOutboxRecords(IReadOnlyList<DurableWorkflowEvent> events)
     {
         var singleChildren = events
             .OfType<WorkflowChildScheduledEvent>()
             .Select(child => ChildStartOutboxRecord(
                 "child-start",
-                new CommandId(child.EventId.Value),
+                new CommandId(child.ChildInstanceId.Value),
                 child.ChildInstanceId,
                 child.OccurredAt,
                 child.InstanceId,
@@ -292,7 +311,7 @@ internal sealed class DurableCommitMaterializer
             }));
     }
 
-    private static IReadOnlyList<OutboxWrite> CreateResidualOutboxRecords(IReadOnlyList<WorkflowEvent> events)
+    private static IReadOnlyList<OutboxWrite> CreateResidualOutboxRecords(IReadOnlyList<DurableWorkflowEvent> events)
     {
         return events
             .OfType<WorkflowChildResidualIntentRecordedEvent>()
@@ -310,7 +329,7 @@ internal sealed class DurableCommitMaterializer
             .ToArray();
     }
 
-    private static IReadOnlyList<OutboxWrite> CreateExternalJobOutboxRecords(IReadOnlyList<WorkflowEvent> events)
+    private static IReadOnlyList<OutboxWrite> CreateExternalJobOutboxRecords(IReadOnlyList<DurableWorkflowEvent> events)
     {
         var starts = events
             .OfType<WorkflowExternalJobStartedEvent>()
@@ -330,7 +349,7 @@ internal sealed class DurableCommitMaterializer
         return [.. starts, .. stops];
     }
 
-    private static IEnumerable<LifecycleEventSnapshot> ToLifecycleEvents(WorkflowEvent workflowEvent)
+    private static IEnumerable<LifecycleEventSnapshot> ToLifecycleEvents(DurableWorkflowEvent workflowEvent)
     {
         return workflowEvent switch
         {
@@ -382,6 +401,14 @@ internal sealed class DurableCommitMaterializer
             [
                 DurableLifecycleEvent(completed, "InstanceCompleted", null, WorkflowStatus.Completed)
             ],
+            WorkflowCancellationRequestedEvent requested =>
+            [
+                DurableLifecycleEvent(
+                    requested,
+                    "InstanceCancellationRequested",
+                    null,
+                    WorkflowStatus.CancellationRequested)
+            ],
             WorkflowTerminalEvent { Status: WorkflowStatus.Failed } terminal =>
             [
                 DurableLifecycleEvent(terminal, "InstanceFailed", null, WorkflowStatus.Failed)
@@ -407,7 +434,7 @@ internal sealed class DurableCommitMaterializer
     }
 
     private static LifecycleEventSnapshot DurableLifecycleEvent(
-        WorkflowEvent workflowEvent,
+        DurableWorkflowEvent workflowEvent,
         string eventName,
         string? stepPath,
         WorkflowStatus status)

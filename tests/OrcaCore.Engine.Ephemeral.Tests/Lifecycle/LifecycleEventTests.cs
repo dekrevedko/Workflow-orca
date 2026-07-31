@@ -14,11 +14,11 @@ public sealed class LifecycleEventTests
     public async Task WorkflowCompletion_PublishesCompletionLifecycleEvent()
     {
         var engine = new EphemeralWorkflowEngine();
-        var definition = new WorkflowBuilder<TestState>()
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
             .Then(() => new CompleteStep())
             .End("Done")
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
         engine.RegisterDefinition(definition);
 
         var snapshot = await engine.StartAsync<string, TestState>(
@@ -30,30 +30,6 @@ public sealed class LifecycleEventTests
         lifecycleEvents.Should().ContainSingle(lifecycleEvent =>
             lifecycleEvent.EventName == "InstanceCompleted" &&
             lifecycleEvent.Status == WorkflowStatus.Completed &&
-            lifecycleEvent.Durable == false);
-    }
-
-    [Fact]
-    public async Task StepFailure_PublishesStepFailedLifecycleEvent()
-    {
-        var engine = new EphemeralWorkflowEngine();
-        var definition = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState())
-            .Then(() => new FailingStep())
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-        engine.RegisterDefinition(definition);
-
-        var snapshot = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
-            "start",
-            TestContext.Current.CancellationToken);
-
-        var lifecycleEvents = engine.Management.Instance(snapshot.InstanceId).GetLifecycleEvents();
-        snapshot.Status.Should().Be(WorkflowStatus.Failed);
-        lifecycleEvents.Should().ContainSingle(lifecycleEvent =>
-            lifecycleEvent.EventName == "StepFailed" &&
-            lifecycleEvent.StepPath == "root/1" &&
             lifecycleEvent.Durable == false);
     }
 

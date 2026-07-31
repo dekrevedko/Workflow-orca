@@ -16,7 +16,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         WorkflowInstance<TState> instance,
         Exception exception)
     {
-        var failure = CreateFiberFailure(exception);
+        var failure = CreateFiberFailure(execution, fiber, instruction, exception);
         activeExecution = FailFiberAndAncestors(execution, fiber, failure);
         CancelAllStructuredWaits();
         FailInstance(instance, failure, instruction.Path);
@@ -28,7 +28,10 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         WorkflowInstance<TState> instance,
         Exception exception)
     {
-        var failure = CreateFiberFailure(exception);
+        var scopePlan = FailurePlan.GetScope(scope.ScopePlanId);
+        var mergeInstruction = FailurePlan.GetInstruction(scopePlan.JoinInstructionId);
+        var parent = execution.Fibers[scope.ParentFiberId];
+        var failure = CreateFiberFailure(execution, parent, mergeInstruction, exception);
         var currentScope = execution.Scopes[scope.Id];
         if (currentScope.Phase is not (
                 ExecutionScopePhase.Completed or
@@ -95,13 +98,23 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         string boundary,
         Exception exception)
     {
-        if (instance.Status is not (WorkflowStatus.Running or WorkflowStatus.Waiting))
+        if (instance.Status is not (LegacyWorkflowStatus.Running or LegacyWorkflowStatus.Waiting))
         {
             return;
         }
 
-        var failure = CreateFiberFailure(exception);
         var execution = activeExecution;
+        var failure = execution is not null &&
+                      execution.Fibers.TryGetValue(fiberId, out var candidate)
+            ? CreateFiberFailure(
+                execution,
+                candidate,
+                FailurePlan.GetInstruction(candidate.InstructionId),
+                exception)
+            : new FiberFailure(
+                "WF-STEP-UNHANDLED",
+                exception.Message,
+                authoredLocation: FailureProvenance.LocationFromCompilerPath(boundary));
         try
         {
             if (execution is not null &&
@@ -150,7 +163,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         FiberFailure failure,
         string path)
     {
-        if (instance.Status is not (WorkflowStatus.Running or WorkflowStatus.Waiting))
+        if (instance.Status is not (LegacyWorkflowStatus.Running or LegacyWorkflowStatus.Waiting))
         {
             return;
         }
@@ -162,16 +175,43 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
             timeProvider.GetUtcNow()));
     }
 
-    private static FiberFailure CreateFiberFailure(Exception exception)
+    private FiberFailure CreateFiberFailure(
+        StructuredExecutionState execution,
+        FiberRecord fiber,
+        CompiledInstruction instruction,
+        Exception exception)
     {
         var failure = exception is TargetInvocationException { InnerException: { } inner }
             ? inner
             : exception;
         if (failure is StructuredExecutionLimitException limit)
         {
-            return new FiberFailure(limit.Code, limit.Message);
+            return FailureProvenance.Create(
+                FailurePlan,
+                execution,
+                fiber,
+                instruction,
+                limit.Code,
+                limit.Message);
         }
 
-        return new FiberFailure(failure.GetType().Name, failure.Message);
+        return failure is OrcaCoreException known
+            ? FailureProvenance.Create(
+                FailurePlan,
+                execution,
+                fiber,
+                instruction,
+                known.Code,
+                known.Message)
+            : FailureProvenance.Create(
+                FailurePlan,
+                execution,
+                fiber,
+                instruction,
+                "WF-STEP-UNHANDLED",
+                failure.Message);
     }
+
+    private CompiledWorkflowPlan FailurePlan => activePlan ??
+        throw new InvalidOperationException("The structured execution plan is not initialized.");
 }

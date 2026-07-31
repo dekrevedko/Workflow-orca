@@ -45,8 +45,8 @@ public sealed class DagContractInfrastructureGuards
 }
 
 [Trait(GuardTraits.Phase, GuardTraits.Phase0)]
-[Trait(GuardTraits.Disposition, GuardTraits.ExpectedRed)]
-public sealed class DagContractExpectedRedGuards
+[Trait(GuardTraits.Disposition, GuardTraits.Infrastructure)]
+public sealed class DagPackageProductGuards
 {
     [Fact]
     public void ExactDagAssembliesAndTypesExist()

@@ -20,4 +20,7 @@ static async ValueTask ExerciseIngressAsync(
         _ = await client.DeliverToInstanceAsync(instanceId, payloadless, token);
 }
 
+_ = (Func<IWorkflowEventClient, InstanceId, DefinitionId, CorrelationId, CancellationToken, ValueTask>)
+    ExerciseIngressAsync;
+
 internal sealed record Payload(string Value);

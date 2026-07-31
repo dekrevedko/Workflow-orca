@@ -1,6 +1,6 @@
 namespace OrcaCore.Core.Lifecycle;
 
-internal enum LifecycleTrigger
+public enum LifecycleTrigger
 {
     Start,
     EnterWait,
@@ -14,5 +14,6 @@ internal enum LifecycleTrigger
     Pause,
     Resume,
     Park,
-    Unpark
+    Unpark,
+    Timeout
 }

@@ -29,6 +29,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         _ = AwaitResourceGrantAndResumeAsync(
             fiber.Id,
             obligationId,
+            instruction.StepType,
             instruction.Policy.TransientPoolKey,
             instance);
         return new StepTransition(blockedState, InstanceTerminated: false);
@@ -37,6 +38,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
     private async Task AwaitResourceGrantAndResumeAsync(
         FiberId fiberId,
         string obligationId,
+        Type? exactStepType,
         string? poolKey,
         WorkflowInstance<TState> instance)
     {
@@ -44,7 +46,10 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         try
         {
             using var instanceCancellation = instance.CreateLinkedExecutionToken(CancellationToken.None);
-            lease = await governance.EnterStepAsync(poolKey, instanceCancellation.Token).ConfigureAwait(false);
+            lease = await governance.EnterStepAsync(
+                exactStepType,
+                poolKey,
+                instanceCancellation.Token).ConfigureAwait(false);
             await yieldContinuationScheduler.ResumeAsync(
                 instance,
                 instance.InstanceId,

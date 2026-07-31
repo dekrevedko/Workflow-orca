@@ -13,6 +13,8 @@ using OrcaCore.Engine.Ephemeral;
 using OrcaCore.Providers.InMemory;
 using Xunit;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Tests.Management;
 
 public sealed class DurableManagementTests
@@ -244,7 +246,7 @@ public sealed class DurableManagementTests
                 Timestamp(2),
                 waitId,
                 "Approved",
-                new CorrelationId("order-1")),
+                CorrelationId.Create("order-1")),
             TestContext.Current.CancellationToken);
         await processor.ProcessAsync(
             new DurablePauseCommand(CommandIdValue(3), instanceId, Timestamp(3)),
@@ -288,7 +290,7 @@ public sealed class DurableManagementTests
             {
                 EventId = eventId,
                 EventName = "Approved",
-                CorrelationId = new CorrelationId("order-1"),
+                CorrelationId = CorrelationId.Create("order-1"),
                 OccurredAt = Timestamp(commandValue)
             }
         };
@@ -301,12 +303,12 @@ public sealed class DurableManagementTests
 
     private static EventId EventIdValue(int value)
     {
-        return new EventId(GuidValue(value));
+        return EventId.Create(GuidValue(value).ToString());
     }
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -316,12 +318,12 @@ public sealed class DurableManagementTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static WaitId WaitIdValue(int value)
     {
-        return new WaitId(GuidValue(value));
+        return WaitId.Parse(GuidValue(value).ToString());
     }
 
     private static Guid GuidValue(int value)
@@ -377,13 +379,13 @@ public sealed class DurableManagementTests
             throw new NotSupportedException();
         }
 
-        public Task<IReadOnlyList<WorkflowEvent>> LoadTailAsync(
+        public Task<IReadOnlyList<DurableWorkflowEvent>> LoadTailAsync(
             WorkflowStreamId streamId,
             StreamVersion afterVersion,
             CancellationToken cancellationToken)
         {
             LoadedAfterVersion = afterVersion;
-            return Task.FromResult<IReadOnlyList<WorkflowEvent>>([]);
+            return Task.FromResult<IReadOnlyList<DurableWorkflowEvent>>([]);
         }
 
         public Task ApplyAsync(IReadOnlyList<ProjectionWrite> operations, CancellationToken cancellationToken)

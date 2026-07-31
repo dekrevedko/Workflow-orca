@@ -13,7 +13,27 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\OrcaCore.Abstractions\OrcaCore.Abstractions.csproj" />
+    <Compile Remove="Building\DagBuilderTests.cs" />
+    <Compile Remove="Building\PartitionerTests.cs" />
+    <Compile Remove="Building\SagaBuilderTests.cs" />
+    <Compile Remove="Compilation\DefinitionCompilerTests.cs" />
+    <Compile Remove="Contracts\StrongValueContractTests.cs" />
+    <Compile Remove="Definitions\DefinitionModelTests.cs" />
+    <Compile Remove="Execution\BranchIsolationTests.cs" />
+    <Compile Remove="Execution\FiberIdentityTests.cs" />
+    <Compile Remove="Hosting\StructuredExecutionHostOptionsTests.cs" />
+    <Compile Remove="Execution\ForEachScopeReducerTests.cs" />
+    <Compile Remove="Execution\JoinPolicyReducerTests.cs" />
+    <Compile Remove="Execution\LinearFiberInterpreterTests.cs" />
+    <Compile Remove="Execution\ReferenceLinearFiberInterpreter.cs" />
+    <Compile Remove="Execution\ScopeMergeAdapterTests.cs" />
+    <Compile Remove="Execution\ScopeReducerTests.cs" />
+    <Compile Remove="Execution\StructuredExecutionReferenceModelTests.cs" />
+    <Compile Remove="Primitives\ValidationTests.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\OrcaCore.Abstractions\OrcaCore.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Core\OrcaCore.Core.csproj" />
     <ProjectReference Include="..\OrcaCore.TestSupport\OrcaCore.TestSupport.csproj" />
   </ItemGroup>

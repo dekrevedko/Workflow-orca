@@ -52,7 +52,7 @@ public sealed class ProviderStackRedisIntegrationTests(OrcaStackFixture fixture)
                 new WorkflowProjectionQuery
                 {
                     ActiveWaitEventName = "Approved",
-                    ActiveWaitCorrelationId = new CorrelationId("order-1")
+                    ActiveWaitCorrelationId = CorrelationId.Create("order-1")
                 },
                 TestContext.Current.CancellationToken);
 

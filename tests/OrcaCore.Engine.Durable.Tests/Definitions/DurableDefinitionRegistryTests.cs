@@ -14,18 +14,18 @@ namespace OrcaCore.Engine.Durable.Tests.Definitions;
 public sealed class DurableDefinitionRegistryTests
 {
     [Fact]
-    public void Register_LegacyEmptyPlanIsRejectedBeforeExecutorPublication()
+    public void Register_EphemeralPlanIsRejectedBeforeExecutorPublication()
     {
-        var definition = new WorkflowBuilder<TestState>()
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(input => new TestState(input))
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
         var registry = new DurableDefinitionRegistry();
 
         var register = () => registry.Register(definition);
 
         register.Should().Throw<WorkflowDefinitionException>()
-            .WithMessage("*compiled*plan*");
+            .WithMessage("*compiled for 'Ephemeral', not durable execution*");
         registry.ResolveExecutor(definition.DefinitionId, definition.DefinitionVersion)
             .Should().BeNull();
     }
@@ -86,11 +86,11 @@ public sealed class DurableDefinitionRegistryTests
     {
         var registry = new DurableDefinitionRegistry();
         var definitionId = DefinitionId.New();
-        var first = Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
+        var first = global::OrcaCore.Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
             .Init<string>(input => new TestState(input))
             .End("first")
             .Build();
-        var drifted = Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
+        var drifted = global::OrcaCore.Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
             .Init<string>(input => new TestState(input))
             .End("second")
             .Build();
@@ -108,7 +108,7 @@ public sealed class DurableDefinitionRegistryTests
         var childDefinitionId = DefinitionId.New();
         var definitions = new WorkflowDefinition<CancellationState>[]
         {
-            Workflow.Durable<CancellationState>(DefinitionId.New(), DefinitionVersion.Initial)
+            global::OrcaCore.Workflow.Durable<CancellationState>(DefinitionId.New(), DefinitionVersion.Initial)
                 .Init<string>(_ => new CancellationState())
                 .WhenFirst<string>(
                     branches => branches
@@ -116,7 +116,7 @@ public sealed class DurableDefinitionRegistryTests
                             "wait",
                             _ => new CancellationBranchState(),
                             branch => branch
-                                .Wait("resume", _ => new CorrelationId("registration"))
+                                .Wait("resume", _ => CorrelationId.Create("registration"))
                                 .Return(_ => "wait"))
                         .Branch<CancellationBranchState>(
                             "delay",
@@ -127,7 +127,7 @@ public sealed class DurableDefinitionRegistryTests
                     (parent, _) => parent.Value)
                 .End()
                 .Build(),
-            Workflow.Durable<CancellationState>(DefinitionId.New(), DefinitionVersion.Initial)
+            global::OrcaCore.Workflow.Durable<CancellationState>(DefinitionId.New(), DefinitionVersion.Initial)
                 .Init<string>(_ => new CancellationState())
                 .If(
                     _ => true,
@@ -141,7 +141,7 @@ public sealed class DurableDefinitionRegistryTests
                         residualPolicy: RunChildrenResidualPolicy.CancelRemaining))
                 .End()
                 .Build(),
-            Workflow.Durable<CancellationState>(DefinitionId.New(), DefinitionVersion.Initial)
+            global::OrcaCore.Workflow.Durable<CancellationState>(DefinitionId.New(), DefinitionVersion.Initial)
                 .Init<string>(_ => new CancellationState())
                 .Parallel<int>(
                     branches => branches
@@ -176,7 +176,7 @@ public sealed class DurableDefinitionRegistryTests
         DefinitionId definitionId,
         DefinitionVersion definitionVersion)
     {
-        return Workflow.Durable<TestState>(definitionId, definitionVersion)
+        return global::OrcaCore.Workflow.Durable<TestState>(definitionId, definitionVersion)
             .Init<string>(input => new TestState(input))
             .End()
             .Build();
@@ -188,7 +188,7 @@ public sealed class DurableDefinitionRegistryTests
     {
         return new WorkflowInstanceSnapshot
         {
-            InstanceId = InstanceId.New(),
+            InstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString()),
             DefinitionId = definitionId,
             DefinitionVersion = definitionVersion,
             Status = WorkflowStatus.Waiting,

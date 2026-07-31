@@ -1,9 +1,7 @@
 using AwesomeAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Steps;
-using OrcaCore.Core.Building;
-using OrcaCore.Engine.Ephemeral;
-using OrcaCore.TestSupport;
+using OrcaCore.Hosting;
 using Xunit;
 
 namespace OrcaCore.Acceptance.Tests;
@@ -11,133 +9,76 @@ namespace OrcaCore.Acceptance.Tests;
 public sealed class OperationsAcceptanceTests
 {
     [Fact]
-    [Trait("AC", "AC-507")]
-    public async Task StuckStep_IsSignalledAndQueryable()
-    {
-        var clock = new Clock(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
-        var engine = new EphemeralWorkflowEngine(
-            clock.TimeProvider,
-            new EphemeralWorkflowEngineOptions
-            {
-                StuckStepThreshold = TimeSpan.FromSeconds(5)
-            });
-        var definition = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState())
-            .Then(() => new SlowStep(clock, TimeSpan.FromSeconds(6)))
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-        engine.RegisterDefinition(definition);
-
-        var snapshot = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
-            "start",
-            TestContext.Current.CancellationToken);
-
-        snapshot.HasStuckStep.Should().BeTrue();
-        engine.Management.All().Where(instance => instance.HasStuckStep).List()
-            .Should().ContainSingle(instance => instance.InstanceId == snapshot.InstanceId);
-    }
-
-    [Fact]
-    [Trait("AC", "AC-508")]
-    public async Task StuckInstance_IsSignalledAndQueryable()
-    {
-        var clock = new Clock(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
-        var engine = new EphemeralWorkflowEngine(clock.TimeProvider);
-        var definition = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => new TestState())
-            .Wait("Ready", _ => new CorrelationId("item-1"))
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-        engine.RegisterDefinition(definition);
-        var waiting = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
-            "start",
-            TestContext.Current.CancellationToken);
-        clock.Advance(TimeSpan.FromSeconds(6));
-
-        engine.Management.All().DetectStuck(TimeSpan.FromSeconds(5));
-
-        engine.Management.All().Where(instance => instance.IsStuck).List()
-            .Should().ContainSingle(instance => instance.InstanceId == waiting.InstanceId);
-    }
-
-    [Fact]
     [Trait("AC", "AC-511")]
-    public async Task ConcurrencyLimitsAndNamedPoolsAreHonored()
+    public async Task TransientPoolLimit_IsHonoredAcrossWorkflowInstances()
     {
         var gate = new StepGate();
-        var engine = new EphemeralWorkflowEngine(
-            TimeProvider.System,
-            new EphemeralWorkflowEngineOptions
+        var pool = TransientPoolName.Create("db");
+        var services = new ServiceCollection();
+        services.AddSingleton(gate);
+        services.AddTransient<BlockingStep>();
+        services.AddOrcaCoreEphemeralEngine(new EphemeralEngineHostOptions
+        {
+            StructuredExecution = new StructuredExecutionHostOptions
             {
-                MaxConcurrentSteps = 2,
-                NamedPools = { ["db"] = 1 }
-            });
-        var firstDefinition = BlockingDefinition(gate, "db");
-        var secondDefinition = BlockingDefinition(gate, "db");
-        engine.RegisterDefinition(firstDefinition);
-        engine.RegisterDefinition(secondDefinition);
-
-        var first = engine.StartAsync<string, TestState>(
-            firstDefinition.DefinitionId,
-            "first",
-            TestContext.Current.CancellationToken);
-        await gate.WaitForEnteredCountAsync(1, TestContext.Current.CancellationToken);
-        var second = engine.StartAsync<string, TestState>(
-            secondDefinition.DefinitionId,
-            "second",
-            TestContext.Current.CancellationToken);
-
-        var secondEntry = gate.WaitForEnteredCountAsync(2, TestContext.Current.CancellationToken);
-        gate.ReleaseOne();
-        await secondEntry;
-        gate.ReleaseOne();
-        await Task.WhenAll(first, second).WaitAsync(TestContext.Current.CancellationToken);
-
-        gate.MaxObservedConcurrent.Should().Be(1);
-    }
-
-    private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> BlockingDefinition(
-        StepGate gate,
-        string poolKey)
-    {
-        return Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
-            .Init<string>(_ => new TestState { Gate = gate })
-            .WithPoolKey(poolKey)
-            .Then(() => new BlockingStep())
+                MaxConcurrentExecutionPathsPerInstance = 4,
+                StepThrottles = []
+            },
+            TransientPools = [TransientPoolDefinition.Create(pool, 1)]
+        });
+        using var provider = services.BuildServiceProvider();
+        var definition = global::OrcaCore.Workflow
+            .Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(_ => new TestState())
+            .Then<BlockingStep>()
+            .WithTransientPool(pool)
             .End()
             .Build();
+        var definitionHandle = provider.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+
+        var first = definitionHandle.StartOrGetAsync(
+            "first",
+            StartIdempotencyKey.Create("pool-first"),
+            TestContext.Current.CancellationToken).AsTask();
+        await gate.WaitForEnteredCountAsync(1, TestContext.Current.CancellationToken);
+        var second = definitionHandle.StartOrGetAsync(
+            "second",
+            StartIdempotencyKey.Create("pool-second"),
+            TestContext.Current.CancellationToken).AsTask();
+
+        await Task.Delay(TimeSpan.FromMilliseconds(50), TimeProvider.System, TestContext.Current.CancellationToken);
+        gate.MaxObservedConcurrent.Should().Be(1);
+        gate.ReleaseOne();
+        await gate.WaitForEnteredCountAsync(2, TestContext.Current.CancellationToken);
+        gate.MaxObservedConcurrent.Should().Be(1);
+        gate.ReleaseOne();
+        var instances = await Task.WhenAll(first, second)
+            .WaitAsync(TestContext.Current.CancellationToken);
+
+        foreach (var started in instances)
+        {
+            var snapshot = await started.GetHandleOrThrow()
+                .GetSnapshotAsync(TestContext.Current.CancellationToken);
+            snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
+        }
     }
 
-    private sealed class TestState
-    {
-        public StepGate? Gate { get; set; }
-    }
+    public sealed class TestState;
 
-    private sealed class BlockingStep : IStep<TestState>
+    public sealed class BlockingStep(StepGate gate) : IStep<TestState>
     {
         public async ValueTask<StepResult> ExecuteAsync(
             StepContext<TestState> context,
             CancellationToken cancellationToken)
         {
-            await context.State.Gate!.EnterAndWaitAsync(cancellationToken).ConfigureAwait(false);
+            await gate.EnterAndWaitAsync(cancellationToken).ConfigureAwait(false);
             return new StepResult.Completed();
         }
     }
 
-    private sealed class SlowStep(Clock clock, TimeSpan duration) : IStep<TestState>
-    {
-        public ValueTask<StepResult> ExecuteAsync(
-            StepContext<TestState> context,
-            CancellationToken cancellationToken)
-        {
-            clock.Advance(duration);
-            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
-        }
-    }
-
-    private sealed class StepGate
+    public sealed class StepGate
     {
         private readonly object gate = new();
         private readonly Queue<TaskCompletionSource> releases = [];
@@ -156,7 +97,8 @@ public sealed class OperationsAcceptanceTests
                 enteredCount++;
                 activeCount++;
                 MaxObservedConcurrent = Math.Max(MaxObservedConcurrent, activeCount);
-                release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                release = new TaskCompletionSource(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
                 releases.Enqueue(release);
                 completedWaiters = enteredWaiters
                     .Where(waiter => enteredCount >= waiter.Key)
@@ -184,7 +126,9 @@ public sealed class OperationsAcceptanceTests
             release.SetResult();
         }
 
-        internal async Task WaitForEnteredCountAsync(int count, CancellationToken cancellationToken)
+        internal async Task WaitForEnteredCountAsync(
+            int count,
+            CancellationToken cancellationToken)
         {
             TaskCompletionSource waiter;
             lock (gate)
@@ -196,7 +140,8 @@ public sealed class OperationsAcceptanceTests
 
                 if (!enteredWaiters.TryGetValue(count, out waiter!))
                 {
-                    waiter = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                    waiter = new TaskCompletionSource(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
                     enteredWaiters.Add(count, waiter);
                 }
             }

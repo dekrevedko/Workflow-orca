@@ -15,7 +15,7 @@ internal sealed class DurableCommitPipeline(
         InstanceId instanceId,
         DurableWorkflowAggregate aggregate,
         DurableDecision decision,
-        EventId? inboxEventId,
+        DurableInboxDelivery? inboxDelivery,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(aggregate);
@@ -27,7 +27,7 @@ internal sealed class DurableCommitPipeline(
                 instanceId,
                 aggregate.StreamVersion,
                 decision,
-                inboxEventId,
+                inboxDelivery,
                 cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -39,7 +39,7 @@ internal sealed class DurableCommitPipeline(
                     aggregate.StreamVersion,
                     decision,
                     aggregate,
-                    inboxEventId),
+                    inboxDelivery),
                 cancellationToken)
             .ConfigureAwait(false);
 
@@ -74,15 +74,15 @@ internal sealed class DurableCommitPipeline(
         InstanceId instanceId,
         StreamVersion expectedVersion,
         DurableDecision decision,
-        EventId? inboxEventId,
+        DurableInboxDelivery? inboxDelivery,
         CancellationToken cancellationToken)
     {
-        if (inboxEventId is { } poisonedEventId)
+        if (inboxDelivery is { } poisonedDelivery)
         {
             return await CommitInboxOnlyAsync(
                 instanceId,
                 expectedVersion,
-                poisonedEventId,
+                poisonedDelivery,
                 InboxRecordState.Poisoned,
                 DurableCommandOutcome.Poisoned,
                 "No active wait matched the inbound event.",
@@ -108,7 +108,7 @@ internal sealed class DurableCommitPipeline(
     private async Task<DurableCommandResult> CommitInboxOnlyAsync(
         InstanceId instanceId,
         StreamVersion expectedVersion,
-        EventId eventId,
+        DurableInboxDelivery delivery,
         InboxRecordState state,
         DurableCommandOutcome successOutcome,
         string successMessage,
@@ -116,7 +116,7 @@ internal sealed class DurableCommitPipeline(
     {
         var appendResult = await eventStore
             .AppendAsync(
-                commitMaterializer.CreateInboxOnlyBatch(instanceId, expectedVersion, eventId, state),
+                commitMaterializer.CreateInboxOnlyBatch(instanceId, expectedVersion, delivery, state),
                 cancellationToken)
             .ConfigureAwait(false);
 
@@ -125,3 +125,5 @@ internal sealed class DurableCommitPipeline(
             error => new DurableCommandResult(DurableCommandOutcome.Conflict, error.Message, expectedVersion));
     }
 }
+
+internal sealed record DurableInboxDelivery(EventId EventId, string EnvelopeFingerprint);

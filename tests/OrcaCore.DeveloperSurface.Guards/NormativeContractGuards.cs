@@ -56,7 +56,7 @@ public sealed partial class NormativeContractInfrastructureGuards
             package.Id.StartsWith("OrcaCore", StringComparison.Ordinal));
         Contract.CallerCreatedValues.Should().HaveCount(12).And.OnlyHaveUniqueItems();
         Contract.RuntimeCreatedValues.Should().HaveCount(5).And.OnlyHaveUniqueItems();
-        Contract.WorkflowDiagnostics.Should().HaveCount(22).And.OnlyHaveUniqueItems();
+        Contract.WorkflowDiagnostics.Should().HaveCount(27).And.OnlyHaveUniqueItems();
         Contract.DagDiagnostics.Should().HaveCount(7).And.OnlyHaveUniqueItems();
         Contract.FailureCodes.Should().HaveCount(25).And.OnlyHaveUniqueItems();
         Contract.AllowedFriends.Should().Equal(
@@ -179,6 +179,32 @@ public sealed partial class NormativeContractInfrastructureGuards
         }.Should().NotContain(value => valid.IsMatch(value));
     }
 
+    [Fact]
+    public void ProductStrongValues_UseExactConstructionFamilies()
+    {
+        using var scope = new AssertionScope();
+        foreach (var name in Contract.CallerCreatedValues)
+        {
+            var type = PublicSurfaceCatalog.ExportedTypes.Select(x => x.Type)
+                .Where(x => x.Name == name).Should().ContainSingle($"{name} has one canonical declaration").Subject;
+            type.GetConstructors(BindingFlags.Public | BindingFlags.Instance).Should().BeEmpty();
+            type.GetMethods(BindingFlags.Public | BindingFlags.Static).Where(x => x.Name == "Create")
+                .Should().ContainSingle().Which.GetParameters().Select(x => x.ParameterType).Should().Equal(typeof(string));
+            type.GetMethods(BindingFlags.Public | BindingFlags.Static).Select(x => x.Name)
+                .Should().NotContain(new[] { "New", "Parse", "TryParse" });
+        }
+
+        foreach (var name in Contract.RuntimeCreatedValues)
+        {
+            var type = PublicSurfaceCatalog.ExportedTypes.Select(x => x.Type)
+                .Where(x => x.Name == name).Should().ContainSingle($"{name} has one canonical declaration").Subject;
+            type.GetConstructors(BindingFlags.Public | BindingFlags.Instance).Should().BeEmpty();
+            type.GetMethods(BindingFlags.Public | BindingFlags.Static).Select(x => x.Name).Should().NotContain("Create");
+            type.GetMethods(BindingFlags.Public | BindingFlags.Static).Select(x => x.Name)
+                .Should().Contain(new[] { "Parse", "TryParse" });
+        }
+    }
+
     private static string Read(string path) => File.ReadAllText(Path.Combine(
         FixtureDefinitions.RepositoryRoot(), path.Replace('/', Path.DirectorySeparatorChar)));
 
@@ -187,8 +213,8 @@ public sealed partial class NormativeContractInfrastructureGuards
 }
 
 [Trait(GuardTraits.Phase, GuardTraits.Phase0)]
-[Trait(GuardTraits.Disposition, GuardTraits.ExpectedRed)]
-public sealed class NormativeContractExpectedRedGuards
+[Trait(GuardTraits.Disposition, GuardTraits.Infrastructure)]
+public sealed class NormativeContractProductGuards
 {
     private static V1PublicContract Contract => FixtureDefinitions.Read<V1PublicContract>(
         "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/v1-public-contract.json");
@@ -231,32 +257,6 @@ public sealed class NormativeContractExpectedRedGuards
             .OrderBy(edge => edge, StringComparer.Ordinal)
             .ToArray();
         actual.Should().Equal(Contract.AllowedFriends.OrderBy(edge => edge, StringComparer.Ordinal));
-    }
-
-    [Fact]
-    public void ProductStrongValues_UseExactConstructionFamilies()
-    {
-        using var scope = new AssertionScope();
-        foreach (var name in Contract.CallerCreatedValues)
-        {
-            var type = PublicSurfaceCatalog.ExportedTypes.Select(x => x.Type)
-                .Where(x => x.Name == name).Should().ContainSingle($"{name} has one canonical declaration").Subject;
-            type.GetConstructors(BindingFlags.Public | BindingFlags.Instance).Should().BeEmpty();
-            type.GetMethods(BindingFlags.Public | BindingFlags.Static).Where(x => x.Name == "Create")
-                .Should().ContainSingle().Which.GetParameters().Select(x => x.ParameterType).Should().Equal(typeof(string));
-            type.GetMethods(BindingFlags.Public | BindingFlags.Static).Select(x => x.Name)
-                .Should().NotContain(new[] { "New", "Parse", "TryParse" });
-        }
-
-        foreach (var name in Contract.RuntimeCreatedValues)
-        {
-            var type = PublicSurfaceCatalog.ExportedTypes.Select(x => x.Type)
-                .Where(x => x.Name == name).Should().ContainSingle($"{name} has one canonical declaration").Subject;
-            type.GetConstructors(BindingFlags.Public | BindingFlags.Instance).Should().BeEmpty();
-            type.GetMethods(BindingFlags.Public | BindingFlags.Static).Select(x => x.Name).Should().NotContain("Create");
-            type.GetMethods(BindingFlags.Public | BindingFlags.Static).Select(x => x.Name)
-                .Should().Contain(new[] { "Parse", "TryParse" });
-        }
     }
 
     [Fact]

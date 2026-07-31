@@ -20,6 +20,47 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         StreamVersion currentVersion,
         CancellationToken cancellationToken)
     {
+        if (FindScopedLease(fiber, ownedObligations) is
+            {
+                LeasePhase: nameof(DurableLeaseObligationPhase.Held)
+            } &&
+            instruction.NextInstructionId is { } releaseId)
+        {
+            var resultPayload = ProjectBranchResultPayload(execution, fiber);
+            var stagedReturn = ClearResume(fiber) with
+            {
+                InstructionId = releaseId,
+                ResultPayload = resultPayload
+            };
+            execution = execution with
+            {
+                Fibers = new Dictionary<FiberId, FiberRecord>(execution.Fibers)
+                {
+                    [fiber.Id] = stagedReturn
+                },
+                Scheduler = FiberScheduler.CompleteTurn(
+                    execution.Scheduler,
+                    fiber.Id,
+                    requeueSelected: true)
+            };
+            RemoveConsumedObligation(ownedObligations, consumedWaitId);
+            var staged = await context.Processor.ProcessAsync(
+                new DurableStepCompletedCommand(
+                    CommandId.New(),
+                    context.InstanceId,
+                    context.TimeProvider.GetUtcNow(),
+                    $"{instruction.Path}:branch-return-pending-release",
+                    BuildEnvelope(context, execution, state, ownedObligations))
+                {
+                    ExpectedStreamVersion = currentVersion,
+                    ConsumedResumeWaitIds = ConsumedWaitIds(consumedWaitId)
+                },
+                cancellationToken).ConfigureAwait(false);
+            return staged.Outcome == DurableCommandOutcome.Committed
+                ? new BranchReturnCommit(execution, staged.StreamVersion, null)
+                : new BranchReturnCommit(execution, currentVersion, Conflict(staged));
+        }
+
         var returningFibers = new Dictionary<FiberId, FiberRecord>(execution.Fibers)
         {
             [fiber.Id] = ClearResume(fiber)
@@ -90,7 +131,13 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         StructuredExecutionLimitException exception,
         CancellationToken cancellationToken)
     {
-        var failure = new FiberFailure(exception.Code, exception.Message);
+        var failure = FailureProvenance.Create(
+            plan,
+            execution,
+            fiber,
+            instruction,
+            exception.Code,
+            exception.Message);
         execution = FailFiberAndAncestors(execution, fiber, failure);
         RemoveConsumedObligation(ownedObligations, consumedWaitId);
         var cleanup = RemoveTerminalFiberObligations(execution, ownedObligations);

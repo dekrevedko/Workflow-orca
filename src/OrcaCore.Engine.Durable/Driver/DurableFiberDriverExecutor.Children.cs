@@ -166,7 +166,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 $"Child-group obligation '{obligation.ObligationId}' is not a valid identity.");
         }
 
-        var token = new EventId(groupGuid);
+        var token = EventId.Create(groupGuid.ToString());
         if (!context.Aggregate.ChildState.RecordedParentResumeTokens.Contains(token) ||
             context.Aggregate.ChildState.ConsumedParentResumeTokens.Contains(token))
         {

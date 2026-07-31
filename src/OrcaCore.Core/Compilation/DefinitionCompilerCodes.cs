@@ -3,7 +3,7 @@ namespace OrcaCore.Core.Compilation;
 /// <summary>
 /// Stable diagnostics emitted by the structured definition compiler.
 /// </summary>
-public static class DefinitionCompilerCodes
+internal static class DefinitionCompilerCodes
 {
     public const string MissingRootInit = "SFE-AUTH-001_MISSING_ROOT_INIT";
     public const string MissingRootEnd = "SFE-AUTH-002_MISSING_ROOT_END";
@@ -24,17 +24,17 @@ public static class DefinitionCompilerCodes
     public const string MaxInternalInstructionsNotPositive =
         "SFE-LIMIT-001_MAX_INTERNAL_INSTRUCTIONS_NOT_POSITIVE";
     public const string MaxScopeDepthNotPositive = "SFE-LIMIT-002_MAX_SCOPE_DEPTH_NOT_POSITIVE";
-    public const string MaxActiveFibersNotPositive = "SFE-LIMIT-003_MAX_ACTIVE_FIBERS_NOT_POSITIVE";
     public const string MaxSerializedResultBytesNotPositive =
         "SFE-LIMIT-005_MAX_SERIALIZED_RESULT_BYTES_NOT_POSITIVE";
     public const string MaxSerializedEnvelopeBytesNotPositive =
         "SFE-LIMIT-006_MAX_SERIALIZED_ENVELOPE_BYTES_NOT_POSITIVE";
     public const string MaxScopeDepthExceeded = "SFE-LIMIT-007_MAX_SCOPE_DEPTH_EXCEEDED";
-    public const string MaxActiveFibersExceeded = "SFE-LIMIT-008_MAX_ACTIVE_FIBERS_EXCEEDED";
     public const string NoProgressLoop = "SFE-PLAN-001_NO_PROGRESS_LOOP";
     public const string ForEachMaxConcurrencyNotPositive =
         "SFE-LIMIT-004_FOREACH_MAX_CONCURRENCY_NOT_POSITIVE";
     public const string ForEachWhenAnyFailurePolicy =
         "SFE-AUTH-014_FOREACH_WHEN_ANY_REQUIRES_FAIL_FAST";
     public const string EmptyStructuredScope = "SFE-AUTH-015_EMPTY_STRUCTURED_SCOPE";
+    public const string LeaseAncestryConflict = "SFE-AUTH-016_LEASE_ANCESTRY_CONFLICT";
+    public const string LeaseBlocksContinueAsNew = "SFE-AUTH-017_LEASE_BLOCKS_CONTINUE_AS_NEW";
 }

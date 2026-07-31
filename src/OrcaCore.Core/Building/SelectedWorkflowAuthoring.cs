@@ -1,7 +1,6 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
-using OrcaCore.Abstractions.Providers;
 using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Definitions;
@@ -15,6 +14,9 @@ internal sealed class SelectedWorkflowAuthoring<TState>
         DefinitionVersion definitionVersion,
         WorkflowExecutionMode mode)
     {
+        ArgumentNullException.ThrowIfNull(definitionId);
+        ArgumentNullException.ThrowIfNull(definitionVersion);
+
         DefinitionId = definitionId;
         DefinitionVersion = definitionVersion;
         Mode = mode;
@@ -31,6 +33,10 @@ internal sealed class SelectedWorkflowAuthoring<TState>
     internal IWorkflowTypeSerializerRegistry TypeSerializerRegistry { get; set; } =
         DefaultWorkflowTypeSerializerRegistry.Instance;
 
+    internal bool DetachedAttemptState { get; set; }
+
+    internal TimeSpan? WorkflowTimeout { get; set; }
+
     internal List<SelectedAuthoringNode<TState>> RootNodes { get; } = [];
 }
 
@@ -40,15 +46,16 @@ internal abstract record SelectedAuthoringNode<TState>
 }
 
 internal sealed record SelectedInitAuthoringNode<TState>(
-    Func<object?, TState> CreateState,
-    Func<SerializedPayload, IWorkflowPayloadSerializer, object?> RehydrateInput)
+    Type InputType,
+    Func<object?, TState> CreateState)
     : SelectedAuthoringNode<TState>
 {
     internal override string Kind => "Init";
 }
 
 internal sealed record SelectedStepAuthoringNode<TState>(
-    Func<IStep<TState>> StepFactory,
+    Type? StepType,
+    Func<IStep<TState>>? StepFactory,
     WorkflowPolicySet Policies)
     : SelectedAuthoringNode<TState>
 {
@@ -58,7 +65,8 @@ internal sealed record SelectedStepAuthoringNode<TState>(
 internal sealed record SelectedWaitAuthoringNode<TState>(
     string EventName,
     Func<TState, CorrelationId> CorrelationSelector,
-    WaitMode Mode)
+    WaitMode Mode,
+    TimeSpan? Timeout)
     : SelectedAuthoringNode<TState>
 {
     internal override string Kind => "Wait";
@@ -72,7 +80,9 @@ internal sealed record SelectedDelayAuthoringNode<TState>(TimeSpan Duration)
 
 internal sealed record SelectedEndAuthoringNode<TState>(
     string? OutcomeName,
-    Func<TState, string?>? OutcomeSelector)
+    Func<TState, string?>? OutcomeSelector,
+    Type? OutputType = null,
+    Delegate? OutputSelector = null)
     : SelectedAuthoringNode<TState>
 {
     internal override string Kind => "End";
@@ -99,6 +109,15 @@ internal sealed record SelectedContinueAsNewAuthoringNode<TState>(Func<TState, T
     : SelectedAuthoringNode<TState>
 {
     internal override string Kind => "ContinueAsNew";
+}
+
+internal sealed record SelectedResourceLeaseAuthoringNode<TState>(
+    global::OrcaCore.ResourceLeaseRequest? StaticRequest,
+    Func<TState, global::OrcaCore.ResourceLeaseRequest>? RequestSelector,
+    IReadOnlyList<SelectedAuthoringNode<TState>> Body)
+    : SelectedAuthoringNode<TState>
+{
+    internal override string Kind => "AcquireResources";
 }
 
 internal sealed record SelectedRunChildAuthoringNode<TState>(
@@ -143,6 +162,7 @@ internal sealed record SelectedForEachAuthoringNode<TState>(
     IReadOnlyList<BranchAuthoringInstruction> Body,
     ForEachJoinPolicy JoinPolicy,
     ForEachFailurePolicy FailurePolicy,
+    int? MaxItems,
     int? MaxConcurrency,
     Delegate? Merge)
     : SelectedAuthoringNode<TState>

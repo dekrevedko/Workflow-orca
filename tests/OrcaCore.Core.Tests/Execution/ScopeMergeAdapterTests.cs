@@ -14,7 +14,7 @@ public sealed class ScopeMergeAdapterTests
     public void WhenAllMerge_UsesAuthoredResultOrder_AndReturnsSerializedReplacementState()
     {
         var branchReturnInvocations = 0;
-        var plan = Workflow.Ephemeral<ParentState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var plan = global::OrcaCore.Workflow.Ephemeral<ParentState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<int>(_ => new ParentState([0]))
             .Parallel<int>(
                 branches => branches
@@ -62,7 +62,7 @@ public sealed class ScopeMergeAdapterTests
     [Fact]
     public void MergeException_LeavesOriginalParentUnchanged_AndReturnsStableDiagnostic()
     {
-        var plan = Workflow.Ephemeral<ParentState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var plan = global::OrcaCore.Workflow.Ephemeral<ParentState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<int>(_ => new ParentState([0]))
             .Parallel<int>(
                 branches => branches
@@ -91,7 +91,7 @@ public sealed class ScopeMergeAdapterTests
     [Fact]
     public void WhenFirstMerge_ReceivesOnlyTheCommittedWinner()
     {
-        var plan = Workflow.Ephemeral<ParentState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var plan = global::OrcaCore.Workflow.Ephemeral<ParentState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<int>(_ => new ParentState([0]))
             .WhenFirst<int>(
                 branches => branches
@@ -123,7 +123,7 @@ public sealed class ScopeMergeAdapterTests
 
     private static ParentState ThrowingMerge(
         ReadOnlyParentSnapshot<ParentState> parent,
-        IReadOnlyList<BranchResult<int>> results)
+        IReadOnlyList<global::OrcaCore.Core.Building.BranchResult<int>> results)
     {
         parent.Value.Values.Add(99);
         throw new InvalidOperationException("merge failed");

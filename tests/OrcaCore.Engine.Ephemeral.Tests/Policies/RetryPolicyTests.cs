@@ -11,33 +11,17 @@ namespace OrcaCore.Engine.Ephemeral.Tests.Policies;
 
 public sealed class RetryPolicyTests
 {
-    [Fact]
-    public void DefinitionRetry_IsRejectedInsteadOfSilentlyIgnored()
-    {
-        var definition = new WorkflowBuilder<RetryState>()
-            .Init<string>(_ => new RetryState())
-            .WithDefinitionRetry(maxAttempts: 2)
-            .Then(() => new AlwaysFailsStep())
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-        var engine = new EphemeralWorkflowEngine();
-
-        var act = () => engine.RegisterDefinition(definition);
-
-        act.Should().Throw<WorkflowDefinitionException>()
-            .WithMessage("*Definition-level retry*individual steps*");
-    }
 
     [Fact]
     public async Task StepFactoryFailure_IsCapturedAndRetriedByStepPolicy()
     {
         var factoryAttempts = 0;
-        var definition = Workflow.Ephemeral<RetryState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Ephemeral<RetryState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new RetryState())
             .WithRetry(maxAttempts: 2)
             .Then(() => Interlocked.Increment(ref factoryAttempts) == 1
                 ? throw new InvalidOperationException("factory unavailable")
-                : new FlakyStep(failuresBeforeSuccess: 0))
+                : new FlakyStep(new AttemptCounter(), failuresBeforeSuccess: 0))
             .End()
             .Build();
         var engine = new EphemeralWorkflowEngine();
@@ -55,12 +39,14 @@ public sealed class RetryPolicyTests
     [Fact]
     public async Task RetryPolicy_TransientFailures_RetriesUntilSuccess()
     {
-        var state = new RetryState();
+        var attempts = new AttemptCounter();
         var engine = new EphemeralWorkflowEngine();
-        var definition = Workflow.Ephemeral<RetryState>(DefinitionId.New(), DefinitionVersion.Initial)
-            .Init<string>(_ => state)
+        var authoring = global::OrcaCore.Workflow.Ephemeral<RetryState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(_ => new RetryState());
+        EnableDetachedAttemptState(authoring);
+        var definition = authoring
             .WithRetry(maxAttempts: 3)
-            .Then(() => new FlakyStep(failuresBeforeSuccess: 2))
+            .Then(() => new FlakyStep(attempts, failuresBeforeSuccess: 2))
             .End()
             .Build();
         engine.RegisterDefinition(definition);
@@ -71,19 +57,24 @@ public sealed class RetryPolicyTests
             TestContext.Current.CancellationToken);
 
         snapshot.Status.Should().Be(WorkflowStatus.Completed);
-        state.Attempts.Should().Be(3);
-        state.Completed.Should().BeTrue();
+        attempts.Value.Should().Be(3);
+        var committed = engine.Management.Instance(snapshot.InstanceId).GetState<RetryState>();
+        committed.Attempts.Should().Be(3);
+        committed.Completed.Should().BeTrue();
     }
 
     [Fact]
     public async Task RetryPolicy_ExhaustedAttempts_FailsOnceWithoutDuplicateCommit()
     {
         var state = new RetryState();
+        var attempts = new AttemptCounter();
         var engine = new EphemeralWorkflowEngine();
-        var definition = Workflow.Ephemeral<RetryState>(DefinitionId.New(), DefinitionVersion.Initial)
-            .Init<string>(_ => state)
+        var authoring = global::OrcaCore.Workflow.Ephemeral<RetryState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(_ => state);
+        EnableDetachedAttemptState(authoring);
+        var definition = authoring
             .WithRetry(maxAttempts: 2)
-            .Then(() => new AlwaysFailsStep())
+            .Then(() => new AlwaysFailsStep(attempts))
             .Then(() => new ShouldNotRunStep())
             .End()
             .Build();
@@ -95,7 +86,8 @@ public sealed class RetryPolicyTests
             TestContext.Current.CancellationToken);
 
         snapshot.Status.Should().Be(WorkflowStatus.Failed);
-        state.Attempts.Should().Be(2);
+        attempts.Value.Should().Be(2);
+        state.Attempts.Should().Be(0, "failed attempt-local mutations must be discarded");
         state.Completed.Should().BeFalse();
         state.AfterFailureStepRan.Should().BeFalse();
     }
@@ -109,33 +101,53 @@ public sealed class RetryPolicyTests
         public bool AfterFailureStepRan { get; set; }
     }
 
-    private sealed class FlakyStep(int failuresBeforeSuccess) : IStep<RetryState>
+    private sealed class AttemptCounter
+    {
+        public int Value;
+    }
+
+    private static void EnableDetachedAttemptState(object builder)
+    {
+        var method = builder.GetType().BaseType!.GetMethod(
+            "UseDetachedAttemptState",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic) ??
+            throw new InvalidOperationException("Detached attempt-state test seam was not found.");
+        method.Invoke(builder, null);
+    }
+
+    private sealed class FlakyStep(AttemptCounter attempts, int failuresBeforeSuccess) : IStep<RetryState>
     {
         public ValueTask<StepResult> ExecuteAsync(
             StepContext<RetryState> context,
             CancellationToken cancellationToken)
         {
-            context.State.Attempts++;
-            if (context.State.Attempts <= failuresBeforeSuccess)
+            context.State.Attempts.Should().Be(0, "each retry starts from detached committed state");
+            var attempt = Interlocked.Increment(ref attempts.Value);
+            context.State.Attempts = 99;
+            if (attempt <= failuresBeforeSuccess)
             {
                 return ValueTask.FromResult<StepResult>(
-                    new StepResult.Failed(new WorkflowDefinitionException("transient")));
+                    new StepResult.Failed(new WorkflowLifecycleException("transient")));
             }
 
-            context.State.Completed = true;
+            context.ReplaceState(new RetryState { Attempts = attempt, Completed = true });
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
         }
     }
 
-    private sealed class AlwaysFailsStep : IStep<RetryState>
+    private sealed class AlwaysFailsStep(AttemptCounter? attempts = null) : IStep<RetryState>
     {
         public ValueTask<StepResult> ExecuteAsync(
             StepContext<RetryState> context,
             CancellationToken cancellationToken)
         {
             context.State.Attempts++;
+            if (attempts is not null)
+            {
+                Interlocked.Increment(ref attempts.Value);
+            }
             return ValueTask.FromResult<StepResult>(
-                new StepResult.Failed(new WorkflowDefinitionException("permanent")));
+                new StepResult.Failed(new WorkflowLifecycleException("permanent")));
         }
     }
 

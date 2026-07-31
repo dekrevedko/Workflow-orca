@@ -27,7 +27,7 @@ public sealed class ProviderPortContractTests
     [Fact]
     public void CommitBatch_CarriesEventsCheckpointInboxOutboxAndProjectionOperations()
     {
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         var batch = new ProviderCommitBatch
         {
             StreamId = new WorkflowStreamId(instanceId),
@@ -36,7 +36,7 @@ public sealed class ProviderPortContractTests
             [
                 new WorkflowStartedEvent
                 {
-                    EventId = EventId.New(),
+                    EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                     InstanceId = instanceId,
                     CommandId = CommandId.New(),
                     CausationId = CausationId.New(),
@@ -46,14 +46,16 @@ public sealed class ProviderPortContractTests
                 }
             ],
             Checkpoint = new CheckpointWrite(instanceId, new StreamVersion(1), "application/json", [1, 2, 3]),
-            InboxOperations = [new InboxWrite(EventId.New(), InboxRecordState.Received)],
+            InboxOperations = [new InboxWrite(EventId.Create(Guid.CreateVersion7().ToString()), InboxRecordState.Received)],
             StartIdempotencyOperations =
             [
                 new StartIdempotencyWrite(
                     "order-1",
-                    instanceId,
-                    DefinitionId.New(),
-                    DefinitionVersion.Initial)
+                     instanceId,
+                     DefinitionId.New(),
+                     DefinitionVersion.Initial,
+                     "definition-fingerprint",
+                     "input-fingerprint")
             ],
             OutboxRecords = [new OutboxWrite(OutboxRecordId.New(), "status", [4, 5])],
             ProjectionOperations = [new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)]
@@ -94,7 +96,7 @@ public sealed class ProviderPortContractTests
         var schedule = new TimerScheduleRequest
         {
             TimerId = TimerId.New(),
-            InstanceId = InstanceId.New(),
+            InstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString()),
             CommandId = CommandId.New(),
             FireAt = DateTimeOffset.UtcNow.AddMinutes(5),
             WakeupName = "timeout"

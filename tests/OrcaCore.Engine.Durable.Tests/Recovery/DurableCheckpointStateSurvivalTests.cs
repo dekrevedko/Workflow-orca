@@ -8,6 +8,8 @@ using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Providers.InMemory;
 using Xunit;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Tests.Recovery;
 
 /// <summary>
@@ -184,7 +186,7 @@ public sealed class DurableCheckpointStateSurvivalTests
             .Should().ContainSingle("resume tokens must be consumed exactly once across checkpoints");
     }
 
-    private static async Task<IReadOnlyList<WorkflowEvent>> LoadEventsAsync(
+    private static async Task<IReadOnlyList<DurableWorkflowEvent>> LoadEventsAsync(
         InMemoryWorkflowProvider store,
         InstanceId instanceId)
     {
@@ -241,7 +243,7 @@ public sealed class DurableCheckpointStateSurvivalTests
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -251,7 +253,7 @@ public sealed class DurableCheckpointStateSurvivalTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static Guid GuidValue(int value)

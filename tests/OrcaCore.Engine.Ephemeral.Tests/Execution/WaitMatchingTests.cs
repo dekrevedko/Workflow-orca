@@ -12,14 +12,14 @@ namespace OrcaCore.Engine.Ephemeral.Tests.Execution;
 
 public sealed class WaitMatchingTests
 {
-    private static readonly CorrelationId Correlation = new("order-123");
+    private static readonly CorrelationId Correlation = CorrelationId.Create("order-123");
 
     [Fact]
     public async Task Run_WaitResult_RegistersActiveWaitAndSetsWaiting()
     {
         var state = new TestState();
         var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(new WorkflowBuilder<TestState>()
+        var definition = Definition(global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .Then(() => new WaitResultStep())
             .Then(() => new AppendPayloadStep())
@@ -46,9 +46,9 @@ public sealed class WaitMatchingTests
     public async Task Run_WaitCorrelationSelectorThrows_FailsWorkflowWithoutRegisteringWait()
     {
         var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(new WorkflowBuilder<TestState>()
+        var definition = Definition(global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
-            .Wait("Approved", _ => throw new WorkflowDefinitionException("selector boom"))
+            .Wait("Approved", _ => throw new InvalidOperationException("selector boom"))
             .Then(() => new AppendPayloadStep())
             .End());
         engine.RegisterDefinition(definition);
@@ -90,7 +90,7 @@ public sealed class WaitMatchingTests
     {
         var state = new TestState();
         var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(new WorkflowBuilder<TestState>()
+        var definition = Definition(global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .Then(() => new WaitResultStep())
             .Then(() => new AppendPayloadStep())
@@ -116,7 +116,7 @@ public sealed class WaitMatchingTests
     {
         var state = new TestState();
         var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(new WorkflowBuilder<TestState>()
+        var definition = Definition(global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .Wait("Approved", _ => Correlation)
             .Then(() => new YieldOnceStep())
@@ -154,7 +154,7 @@ public sealed class WaitMatchingTests
             TestContext.Current.CancellationToken);
         var wrongCorrelation = await engine.RaiseEventAsync<TestState>(
             waiting.InstanceId,
-            Event("Approved", new CorrelationId("other"), "wrong"),
+            Event("Approved", CorrelationId.Create("other"), "wrong"),
             TestContext.Current.CancellationToken);
 
         wrongName.Status.Should().Be(WorkflowStatus.Waiting);
@@ -195,7 +195,7 @@ public sealed class WaitMatchingTests
     {
         var state = new TestState();
         var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(new WorkflowBuilder<TestState>()
+        var definition = Definition(global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .Wait("A", _ => Correlation)
             .Then(() => new IncrementStep())
@@ -238,7 +238,7 @@ public sealed class WaitMatchingTests
 
     private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> WaitingDefinition(TestState state)
     {
-        return Definition(new WorkflowBuilder<TestState>()
+        return Definition(global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .Wait("Approved", _ => Correlation)
             .Then(() => new AppendPayloadStep())
@@ -246,16 +246,16 @@ public sealed class WaitMatchingTests
     }
 
     private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> Definition(
-        WorkflowBuilder<TestState> builder)
+        EphemeralWorkflowBuilder<TestState> builder)
     {
-        return builder.Build(DefinitionId.New(), DefinitionVersion.Initial);
+        return builder.Build();
     }
 
     private static EventEnvelope Event(string name, CorrelationId correlationId, object? payload)
     {
         return new EventEnvelope
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             EventName = name,
             CorrelationId = correlationId,
             Payload = payload,
@@ -281,7 +281,7 @@ public sealed class WaitMatchingTests
             CancellationToken cancellationToken)
         {
             return ValueTask.FromResult<StepResult>(
-                new StepResult.WaitForEvent("Approved", Correlation));
+                new StepResult.WaitForEvent(EventName.Create("Approved"), Correlation));
         }
     }
 
@@ -331,7 +331,7 @@ public sealed class WaitMatchingTests
             context.State.YieldAttempts++;
             return ValueTask.FromResult<StepResult>(
                 context.State.YieldAttempts == 1
-                    ? new StepResult.Yield()
+                    ? global::OrcaCore.TestSupport.LegacyStepResults.Yield()
                     : new StepResult.Completed());
         }
     }

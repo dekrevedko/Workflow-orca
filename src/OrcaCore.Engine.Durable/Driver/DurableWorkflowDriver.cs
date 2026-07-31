@@ -64,6 +64,29 @@ internal sealed class DurableWorkflowDriver(
                 return DurableSegmentResult.Terminal;
             }
 
+            if (aggregate.Status == WorkflowStatus.CancellationRequested)
+            {
+                if (processor.HasRunningStep(instanceId))
+                {
+                    // The persisted request owns the logical race, but cooperative user code
+                    // still has the physical step. Keep the continuation claim retryable.
+                    return new DurableSegmentResult(
+                        DurableSegmentOutcome.BudgetExhausted,
+                        "Cooperative cancellation is waiting for an active step to return.",
+                        CommittedProgress: false);
+                }
+
+                var cancelled = await processor.FinalizeCancellationAsync(
+                    instanceId,
+                    timeProvider.GetUtcNow(),
+                    cancellationToken).ConfigureAwait(false);
+                return cancelled.Outcome is DurableCommandOutcome.Committed or DurableCommandOutcome.NoOp
+                    ? DurableSegmentResult.Terminal
+                    : new DurableSegmentResult(
+                        DurableSegmentOutcome.Conflict,
+                        cancelled.Message ?? "Cancellation finalization conflicted.");
+            }
+
             if (aggregate.Status == WorkflowStatus.Paused)
             {
                 return new DurableSegmentResult(DurableSegmentOutcome.Suspended, "Instance is paused.");

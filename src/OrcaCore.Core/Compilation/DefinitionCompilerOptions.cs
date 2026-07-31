@@ -1,4 +1,5 @@
 using System.Text.Json;
+using OrcaCore.Core.Internal;
 
 namespace OrcaCore.Core.Compilation;
 
@@ -16,11 +17,6 @@ public sealed record DefinitionCompilerOptions
     /// Gets the maximum nested structured-scope depth.
     /// </summary>
     public int MaxScopeDepth { get; init; } = 32;
-
-    /// <summary>
-    /// Gets the maximum active fibers one instance may own.
-    /// </summary>
-    public int MaxActiveFibers { get; init; } = 256;
 
     /// <summary>
     /// Gets the maximum serialized result payload size.
@@ -42,34 +38,6 @@ public interface IWorkflowTypeSerializerRegistry
     /// Tries to resolve a stable schema identity for a persisted or copied type.
     /// </summary>
     bool TryGetSchemaIdentity(Type type, out string schemaIdentity);
-
-    /// <summary>
-    /// Serializes a value using the contract represented by the resolved schema identity.
-    /// </summary>
-    byte[] Serialize(object? value, Type declaredType)
-    {
-        return JsonSerializer.SerializeToUtf8Bytes(value, declaredType);
-    }
-
-    /// <summary>
-    /// Deserializes a value using the contract represented by the resolved schema identity.
-    /// </summary>
-    object? Deserialize(ReadOnlySpan<byte> payload, Type declaredType)
-    {
-        return JsonSerializer.Deserialize(payload, declaredType);
-    }
-}
-
-/// <summary>
-/// Supplies an explicit stable identity for captured workflow configuration that cannot be
-/// represented by the built-in scalar and collection fingerprint rules.
-/// </summary>
-public interface IWorkflowPlanFingerprintSource
-{
-    /// <summary>
-    /// Gets the stable configuration identity included in the compiled-plan fingerprint.
-    /// </summary>
-    string GetWorkflowPlanFingerprint();
 }
 
 internal sealed class DefaultWorkflowTypeSerializerRegistry : IWorkflowTypeSerializerRegistry
@@ -80,11 +48,7 @@ internal sealed class DefaultWorkflowTypeSerializerRegistry : IWorkflowTypeSeria
     {
         ArgumentNullException.ThrowIfNull(type);
         schemaIdentity = type.AssemblyQualifiedName ?? type.FullName ?? type.Name;
-        if (type.IsPointer ||
-            type.IsByRef ||
-            type.IsByRefLike ||
-            type.ContainsGenericParameters ||
-            typeof(Delegate).IsAssignableFrom(type))
+        if (!FixedWorkflowValueCodec.IsSupportedDeclaredType(type))
         {
             return false;
         }

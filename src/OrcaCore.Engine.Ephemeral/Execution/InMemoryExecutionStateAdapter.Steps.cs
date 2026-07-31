@@ -21,7 +21,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
     {
         var advanced = Advance(plan, state, fiber, instruction);
         var advancedFiber = advanced.Fibers[fiber.Id];
-        if (instance.Status == WorkflowStatus.Running)
+        if (instance.Status == LegacyWorkflowStatus.Running)
         {
             WorkflowLifecycleTransition.FireOrThrow(instance, LifecycleTrigger.EnterWait);
         }
@@ -35,6 +35,20 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
             fiber.Id,
             fiber.OwningScopeId);
         waitsByFiber[fiber.Id] = runtimeWait;
+        if (instruction.WaitTimeout is { } waitTimeout)
+        {
+            suspensionScheduler.RegisterStructuredWaitTimeout(
+                instance,
+                runtimeWait,
+                waitTimeout,
+                timeoutToken => FailTimedOutWaitAsync(
+                    fiber.Id,
+                    instruction,
+                    EventName.Create(eventName),
+                    correlationId,
+                    timeoutToken));
+        }
+
         var blockedFibers = new Dictionary<FiberId, FiberRecord>(advanced.Fibers)
         {
             [fiber.Id] = FiberReducer.Block(
@@ -55,6 +69,38 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
             timeProvider.GetUtcNow(),
             cancellationToken).ConfigureAwait(false);
         return activeExecution;
+    }
+
+    private async Task FailTimedOutWaitAsync(
+        FiberId fiberId,
+        CompiledInstruction instruction,
+        EventName eventName,
+        CorrelationId correlationId,
+        CancellationToken cancellationToken)
+    {
+        var execution = activeExecution ??
+            throw new InvalidOperationException("The structured execution state is not initialized.");
+        var instance = activeInstance ??
+            throw new InvalidOperationException("The workflow instance is not initialized.");
+        if (!execution.Fibers.TryGetValue(fiberId, out var fiber) ||
+            fiber.Phase != FiberPhase.Blocked)
+        {
+            return;
+        }
+
+        waitsByFiber.Remove(fiberId);
+        var exception = global::OrcaCore.Core.Authoring.PublicAuthoringContracts.WaitTimeout(
+            eventName,
+            correlationId);
+        var failure = CreateFiberFailure(execution, fiber, instruction, exception);
+        activeExecution = FailFiberAndAncestors(execution, fiber, failure);
+        if (activeExecution.Fibers[activeExecution.RootFiberId].Phase == FiberPhase.Failed)
+        {
+            FailInstance(instance, failure, instruction.Path);
+            return;
+        }
+
+        await RunUntilBoundaryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private StructuredExecutionState RegisterFiberDelay(

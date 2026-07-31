@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using OrcaCore.Abstractions.Diagnostics;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
@@ -7,11 +8,16 @@ using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Aggregates;
 using OrcaCore.Engine.Durable.Diagnostics;
+using OrcaCore.Engine.Durable.ResourceGovernance;
+using OrcaCore.Provider.Abstractions.ResourceGovernance;
+using OrcaCore.Runtime.Protocol.ResourceGovernance;
 
 namespace OrcaCore.Engine.Durable.Execution;
 
 public sealed class DurableCommandProcessor
 {
+    private const int LifecycleConflictRetryLimit = 3;
+
     private readonly DurableCommandRuntime runtime;
     private readonly IWorkflowEventStore eventStore;
     private readonly DurableAggregateLoader aggregateLoader;
@@ -61,10 +67,146 @@ public sealed class DurableCommandProcessor
 
     internal IWorkflowEventStore EventStore => eventStore;
 
+    internal IDurableResourceLeaseCertificationGate LeaseCertificationGate { get; init; } =
+        NullDurableResourceLeaseCertificationGate.Instance;
+
     internal DurableCommandRuntime.StepCancellationScope EnterStep(
         InstanceId instanceId,
         CancellationToken cancellationToken) =>
         runtime.EnterStep(instanceId, cancellationToken);
+
+    internal bool HasRunningStep(InstanceId instanceId) =>
+        runtime.HasRunningStep(instanceId);
+
+    internal async Task ValidateResourcePoolsAsync(
+        IReadOnlyList<ResourcePoolRequirement> requirements,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(requirements);
+        var missing = new List<ResourcePoolName>();
+        foreach (var name in requirements
+                     .Select(requirement => requirement.PoolName)
+                     .Distinct(StringComparer.Ordinal)
+                     .OrderBy(name => name, StringComparer.Ordinal))
+        {
+            if (!(await RequiredResourcePoolStore()
+                    .GetPoolAsync(name, cancellationToken)
+                    .ConfigureAwait(false)).HasValue)
+            {
+                missing.Add(ResourcePoolName.Create(name));
+            }
+        }
+
+        if (missing.Count > 0)
+        {
+            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.ResourcePoolsNotConfigured(missing);
+        }
+    }
+
+    internal async Task<bool> HasGrantedResourceTicketsAsync(
+        InstanceId instanceId,
+        string holderKey,
+        IReadOnlyList<ResourcePoolRequirement> requirements,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(instanceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(holderKey);
+        ArgumentNullException.ThrowIfNull(requirements);
+
+        foreach (var requirement in requirements)
+        {
+            var snapshot = await RequiredResourcePoolStore()
+                .GetPoolAsync(requirement.PoolName, cancellationToken)
+                .ConfigureAwait(false);
+            if (!snapshot.HasValue ||
+                snapshot.Value.HeldTickets
+                    .Where(ticket =>
+                        ticket.HolderInstanceId.Equals(instanceId) &&
+                        string.Equals(ticket.HolderKey, holderKey, StringComparison.Ordinal))
+                    .Sum(ticket => ticket.Count) != requirement.Count)
+            {
+                return false;
+            }
+        }
+
+        return requirements.Count > 0;
+    }
+
+    internal Task<ResourcePoolReleaseResult> ReleaseConfirmedResourceHolderAsync(
+        InstanceId instanceId,
+        string holderKey,
+        DateTimeOffset releasedAt,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(instanceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(holderKey);
+        return RequiredResourcePoolStore().ReleaseAsync(
+            new ResourcePoolReleaseRequest(instanceId, holderKey, releasedAt),
+            cancellationToken);
+    }
+
+    internal Task<Option<ResourcePoolReleaseEvidence>> GetResourceReleaseEvidenceAsync(
+        LeaseProtectionToken protectionToken,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(protectionToken);
+        return resourcePoolStore is IResourceLeaseGovernanceStore governance
+            ? governance.GetReleaseEvidenceAsync(protectionToken, cancellationToken)
+            : Task.FromResult(Option<ResourcePoolReleaseEvidence>.None);
+    }
+
+    internal Task<Option<LeaseProtectionToken>> GetResourceConfirmationBindingAsync(
+        StopConfirmationId confirmationId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(confirmationId);
+        return resourcePoolStore is IResourceLeaseGovernanceStore governance
+            ? governance.GetConfirmationBindingAsync(confirmationId, cancellationToken)
+            : Task.FromResult(Option<LeaseProtectionToken>.None);
+    }
+
+    internal async Task<ResourcePoolStopConfirmationStatus> ConfirmAndReleaseResourceHolderAsync(
+        ResourcePoolStopConfirmationRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (resourcePoolStore is IResourceLeaseGovernanceStore governance)
+        {
+            return await governance.ConfirmAndReleaseAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+
+        var released = await ReleaseConfirmedResourceHolderAsync(
+            request.HolderInstanceId,
+            request.HolderKey,
+            request.ConfirmedAt,
+            cancellationToken).ConfigureAwait(false);
+        return released.ReleasedTickets.Count == 0
+            ? ResourcePoolStopConfirmationStatus.TokenNotFound
+            : ResourcePoolStopConfirmationStatus.Released;
+    }
+
+    internal Task<IReadOnlyList<ResourcePoolSnapshot>> ListResourcePoolsAsync(
+        CancellationToken cancellationToken) =>
+        RequiredResourcePoolStore().ListPoolsAsync(cancellationToken);
+
+    internal async Task<IReadOnlyList<ResourcePoolTicket>> GetResourceTicketsAsync(
+        InstanceId instanceId,
+        string holderKey,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(instanceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(holderKey);
+        return (await RequiredResourcePoolStore()
+                .ListPoolsAsync(cancellationToken)
+                .ConfigureAwait(false))
+            .SelectMany(pool => pool.HeldTickets)
+            .Where(ticket =>
+                ticket.HolderInstanceId.Equals(instanceId) &&
+                string.Equals(ticket.HolderKey, holderKey, StringComparison.Ordinal))
+            .OrderBy(ticket => ticket.PoolName, StringComparer.Ordinal)
+            .ThenBy(ticket => ticket.ProviderGeneration)
+            .ToArray();
+    }
 
     internal async Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedAsync(
         string idempotencyKey,
@@ -108,6 +250,18 @@ public sealed class DurableCommandProcessor
         return RunInLaneAsync(
             command.InstanceId,
             aggregate => aggregate.DecideStepFailed(command),
+            cancellationToken,
+            expectedVersion: command.ExpectedStreamVersion);
+    }
+
+    internal Task<DurableCommandResult> ProcessAsync(
+        DurableFiberFailedCommand command,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        return RunInLaneAsync(
+            command.InstanceId,
+            aggregate => aggregate.DecideFiberFailed(command),
             cancellationToken,
             expectedVersion: command.ExpectedStreamVersion);
     }
@@ -273,12 +427,88 @@ public sealed class DurableCommandProcessor
                             command.ExpiresAt)
                         {
                             FiberId = command.FiberId,
-                            ScopeId = command.ScopeId
+                            ScopeId = command.ScopeId,
+                            ProtectionToken = command.LeaseProtectionToken is null
+                                ? null
+                                : LeaseProtectionToken.Parse(command.LeaseProtectionToken)
                         },
                         token)
                     .ConfigureAwait(false);
+                if (acquireResult.Status == ResourcePoolAcquireStatus.Granted &&
+                    command.LeaseObligationId is not null &&
+                    command.LeaseProtectionToken is not null &&
+                    command.LeaseFiberOccurrence is not null &&
+                    command.LeaseScopeOccurrence is not null)
+                {
+                    await ReportLeaseBarrierAsync(
+                        DurableResourceLeaseCommitBarrier.GovernanceReservationCommitted,
+                        command.InstanceId,
+                        command.LeaseGeneration,
+                        command.LeaseObligationId,
+                        command.LeaseFiberOccurrence,
+                        command.LeaseScopeOccurrence,
+                        command.LeaseProtectionToken,
+                        command.ExpectedStreamVersion?.Value ?? aggregate.StreamVersion.Value,
+                        acquireResult.Tickets,
+                        token).ConfigureAwait(false);
+                }
+
                 return aggregate.DecideResourcePoolAcquire(command, acquireResult);
             },
+            cancellationToken,
+            expectedVersion: command.ExpectedStreamVersion);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal async ValueTask ReportLeaseBarrierAsync(
+        DurableResourceLeaseCommitBarrier barrier,
+        InstanceId instanceId,
+        int generation,
+        string obligationId,
+        string fiberOccurrence,
+        string scopeOccurrence,
+        string protectionToken,
+        long workflowVersion,
+        IReadOnlyList<ResourcePoolTicket> tickets,
+        CancellationToken cancellationToken)
+    {
+        var ticketFacts = tickets
+            .OrderBy(ticket => ticket.PoolName, StringComparer.Ordinal)
+            .ThenBy(ticket => ticket.ProviderGeneration)
+            .Select(ticket => new DurableResourceLeaseTicketSnapshot(
+                ticket.TicketId.ToString("N"),
+                ResourcePoolName.Create(ticket.PoolName),
+                ticket.Count,
+                ticket.ProviderGeneration,
+                ticket.ReviewDeadline ?? DateTimeOffset.MaxValue,
+                ticket.ReviewMarked))
+            .ToArray();
+        await LeaseCertificationGate.OnPostCommitAsync(
+            new DurableResourceLeaseCommitBarrierFact(
+                barrier,
+                ResourceGovernancePartitionId.Create("default"),
+                obligationId,
+                instanceId,
+                generation,
+                fiberOccurrence,
+                scopeOccurrence,
+                LeaseProtectionToken.Parse(protectionToken),
+                workflowVersion,
+                ticketFacts.Length == 0
+                    ? 0
+                    : ticketFacts.Max(ticket => ticket.ProviderGeneration),
+                ticketFacts),
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    internal Task<DurableCommandResult> ProcessAsync(
+        DurableLeaseStopConfirmedCommand command,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        return RunInLaneAsync(
+            command.InstanceId,
+            aggregate => aggregate.DecideLeaseStopConfirmed(command),
             cancellationToken,
             expectedVersion: command.ExpectedStreamVersion);
     }
@@ -326,7 +556,9 @@ public sealed class DurableCommandProcessor
             command.InstanceId,
             aggregate => aggregate.DecideExternalJobCompleted(command),
             cancellationToken,
-            command.CompletionEventId);
+            new DurableInboxDelivery(
+                command.CompletionEventId,
+                DurableEventEnvelopeFingerprint.CreateExternalJobCompletion(command.ExternalJobId)));
     }
 
     public Task<DurableCommandResult> ProcessAsync(
@@ -340,15 +572,85 @@ public sealed class DurableCommandProcessor
             cancellationToken);
     }
 
-    public Task<DurableCommandResult> ProcessAsync(
+    public async Task<DurableCommandResult> ProcessAsync(
         CancelWorkflowCommand command,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(command);
-        runtime.RequestStepCancellation(command.InstanceId);
+        for (var attempt = 0; ; attempt++)
+        {
+            var disposition = DurableLifecycleDisposition.None;
+            var result = await RunInLaneAsync(
+                command.InstanceId,
+                aggregate =>
+                {
+                    if (aggregate.IsTerminal)
+                    {
+                        disposition = DurableLifecycleDisposition.AlreadyTerminal;
+                        return DurableDecision.Empty;
+                    }
+
+                    if (aggregate.Status == WorkflowStatus.CancellationRequested)
+                    {
+                        disposition = DurableLifecycleDisposition.CancellationAlreadyRequested;
+                        return DurableDecision.Empty;
+                    }
+
+                    disposition = DurableLifecycleDisposition.CancellationRequested;
+                    return aggregate.DecideCancel(command);
+                },
+                cancellationToken).ConfigureAwait(false);
+
+            if (result.Outcome == DurableCommandOutcome.Conflict &&
+                attempt < LifecycleConflictRetryLimit)
+            {
+                continue;
+            }
+
+            if (result.Outcome != DurableCommandOutcome.Conflict &&
+                disposition is DurableLifecycleDisposition.CancellationRequested or
+                    DurableLifecycleDisposition.CancellationAlreadyRequested)
+            {
+                runtime.RequestStepCancellation(command.InstanceId);
+                if (!runtime.HasRunningStep(command.InstanceId))
+                {
+                    // Waits, timers, external jobs, and replacement-host recovery have no
+                    // cooperative body to await. Preserve the committed request disposition
+                    // for the caller while completing definite cleanup immediately.
+                    _ = await FinalizeCancellationAsync(
+                        command.InstanceId,
+                        command.RequestedAt,
+                        cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            return result with { LifecycleDisposition = disposition };
+        }
+    }
+
+    internal Task<DurableCommandResult> FinalizeCancellationAsync(
+        InstanceId instanceId,
+        DateTimeOffset requestedAt,
+        CancellationToken cancellationToken)
+    {
         return RunInLaneAsync(
-            command.InstanceId,
-            aggregate => aggregate.DecideCancel(command),
+            instanceId,
+            async (aggregate, token) =>
+            {
+                if (aggregate.Status != WorkflowStatus.CancellationRequested)
+                {
+                    return DurableDecision.Empty;
+                }
+
+                return aggregate.DecideTerminalLifecycle(
+                    await CreateTerminalLifecycleCommandAsync(
+                            CommandId.New(),
+                            instanceId,
+                            requestedAt,
+                            WorkflowStatus.Cancelled,
+                            token)
+                        .ConfigureAwait(false));
+            },
             cancellationToken);
     }
 
@@ -472,7 +774,9 @@ public sealed class DurableCommandProcessor
             command.InstanceId,
             aggregate => aggregate.DecideDeliverEvent(command),
             cancellationToken,
-            command.Envelope.EventId);
+            new DurableInboxDelivery(
+                command.Envelope.EventId,
+                command.EnvelopeFingerprint ?? DurableEventEnvelopeFingerprint.Create(command.Envelope)));
     }
 
     internal Task<DurableCommandResult> ProcessAsync(
@@ -499,15 +803,61 @@ public sealed class DurableCommandProcessor
             expectedVersion: command.ExpectedStreamVersion);
     }
 
-    public Task<DurableCommandResult> ProcessAsync(
-        TerminateWorkflowCommand command,
+    internal Task<DurableCommandResult> ProcessAsync(
+        DurableTimeoutCommand command,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(command);
         return RunInLaneAsync(
             command.InstanceId,
-            aggregate => aggregate.DecideTerminate(command),
-            cancellationToken);
+            aggregate => aggregate.DecideTimeout(command),
+            cancellationToken,
+            expectedVersion: command.ExpectedStreamVersion);
+    }
+
+    public async Task<DurableCommandResult> ProcessAsync(
+        TerminateWorkflowCommand command,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        for (var attempt = 0; ; attempt++)
+        {
+            var disposition = DurableLifecycleDisposition.None;
+            var result = await RunInLaneAsync(
+                command.InstanceId,
+                async (aggregate, token) =>
+                {
+                    if (aggregate.IsTerminal)
+                    {
+                        disposition = DurableLifecycleDisposition.AlreadyTerminal;
+                        return DurableDecision.Empty;
+                    }
+
+                    disposition = DurableLifecycleDisposition.Terminated;
+                    return aggregate.DecideTerminalLifecycle(
+                        await CreateTerminalLifecycleCommandAsync(
+                                command.CommandId,
+                                command.InstanceId,
+                                command.RequestedAt,
+                                WorkflowStatus.Terminated,
+                                token)
+                            .ConfigureAwait(false));
+                },
+                cancellationToken).ConfigureAwait(false);
+
+            if (result.Outcome == DurableCommandOutcome.Conflict &&
+                attempt < LifecycleConflictRetryLimit)
+            {
+                continue;
+            }
+
+            if (result.Outcome == DurableCommandOutcome.Committed)
+            {
+                runtime.RequestStepCancellation(command.InstanceId);
+            }
+
+            return result with { LifecycleDisposition = disposition };
+        }
     }
 
     public Task<DurableCommandResult> ProcessAsync(
@@ -538,7 +888,7 @@ public sealed class DurableCommandProcessor
         InstanceId instanceId,
         Func<DurableWorkflowAggregate, DurableDecision> decide,
         CancellationToken cancellationToken,
-        EventId? inboxEventId = null,
+        DurableInboxDelivery? inboxDelivery = null,
         string commandType = "DurableCommand",
         StreamVersion? expectedVersion = null)
     {
@@ -546,22 +896,109 @@ public sealed class DurableCommandProcessor
             instanceId,
             (aggregate, _) => Task.FromResult(decide(aggregate)),
             cancellationToken,
-            inboxEventId,
+            inboxDelivery,
             commandType,
             expectedVersion).ConfigureAwait(false);
+    }
+
+    private async Task<DurableTerminalLifecycleCommand> CreateTerminalLifecycleCommandAsync(
+        CommandId commandId,
+        InstanceId instanceId,
+        DateTimeOffset requestedAt,
+        WorkflowStatus status,
+        CancellationToken cancellationToken)
+    {
+        var checkpoint = await eventStore
+            .LoadCheckpointAsync(instanceId, cancellationToken)
+            .ConfigureAwait(false);
+        if (!checkpoint.HasValue ||
+            !string.Equals(
+                checkpoint.Value.ContentType,
+                DurableExecutionEnvelopeV2.ContentType,
+                StringComparison.Ordinal))
+        {
+            return new DurableTerminalLifecycleCommand(
+                commandId,
+                instanceId,
+                requestedAt,
+                status,
+                Envelope: null);
+        }
+
+        var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint.Value.Payload);
+        var preserveHolderKeys = new HashSet<string>(StringComparer.Ordinal);
+        var queuedCancellations = new List<DurableQueuedResourceCancellation>();
+        var obligations = envelope.OwnedObligations
+            .Where(obligation => obligation.Kind == DurableOwnedObligationKind.Resource)
+            .Select(obligation =>
+            {
+                if (string.IsNullOrWhiteSpace(obligation.HolderKey))
+                {
+                    return obligation;
+                }
+
+                if (string.Equals(
+                        obligation.LeasePhase,
+                        nameof(Driver.DurableLeaseObligationPhase.Queued),
+                        StringComparison.Ordinal))
+                {
+                    queuedCancellations.Add(new DurableQueuedResourceCancellation(
+                        obligation.HolderKey,
+                        new FiberId(obligation.FiberId),
+                        obligation.ScopeId is null ? null : new ScopeId(obligation.ScopeId)));
+                    return obligation with
+                    {
+                        LeasePhase = nameof(Driver.DurableLeaseObligationPhase.CancelledBeforeGrant)
+                    };
+                }
+
+                if (obligation.LeasePhase is
+                    nameof(Driver.DurableLeaseObligationPhase.PendingCommit) or
+                    nameof(Driver.DurableLeaseObligationPhase.Held) or
+                    nameof(Driver.DurableLeaseObligationPhase.ReviewMarked) or
+                    nameof(Driver.DurableLeaseObligationPhase.AmbiguousHeld))
+                {
+                    preserveHolderKeys.Add(obligation.HolderKey);
+                    return obligation with
+                    {
+                        LeasePhase = nameof(Driver.DurableLeaseObligationPhase.Quarantined)
+                    };
+                }
+
+                if (obligation.LeasePhase is
+                    nameof(Driver.DurableLeaseObligationPhase.Quarantined) or
+                    nameof(Driver.DurableLeaseObligationPhase.LeaseLost))
+                {
+                    preserveHolderKeys.Add(obligation.HolderKey);
+                }
+
+                return obligation;
+            })
+            .ToArray();
+
+        return new DurableTerminalLifecycleCommand(
+            commandId,
+            instanceId,
+            requestedAt,
+            status,
+            envelope with { OwnedObligations = obligations })
+        {
+            PreserveResourceHolderKeys = preserveHolderKeys,
+            QueuedResourceCancellations = queuedCancellations
+        };
     }
 
     private async Task<DurableCommandResult> RunInLaneAsync(
         InstanceId instanceId,
         Func<DurableWorkflowAggregate, CancellationToken, Task<DurableDecision>> decide,
         CancellationToken cancellationToken,
-        EventId? inboxEventId = null,
+        DurableInboxDelivery? inboxDelivery = null,
         string commandType = "DurableCommand",
         StreamVersion? expectedVersion = null)
     {
         return await runtime.RunAsync(
             instanceId,
-            token => ProcessCoreAsync(instanceId, decide, token, inboxEventId, commandType, expectedVersion),
+            token => ProcessCoreAsync(instanceId, decide, token, inboxDelivery, commandType, expectedVersion),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -569,7 +1006,7 @@ public sealed class DurableCommandProcessor
         InstanceId instanceId,
         Func<DurableWorkflowAggregate, CancellationToken, Task<DurableDecision>> decide,
         CancellationToken cancellationToken,
-        EventId? inboxEventId,
+        DurableInboxDelivery? inboxDelivery,
         string commandType,
         StreamVersion? expectedVersion = null)
     {
@@ -580,15 +1017,33 @@ public sealed class DurableCommandProcessor
 
         try
         {
-            // Stage 1: inbox preflight — a duplicate or discarded delivery completes without
+            // Stage 1: inbox preflight â€” a duplicate or discarded delivery completes without
             // touching the aggregate.
-            var inboxState = await LoadInboxStateAsync(inboxEventId, cancellationToken).ConfigureAwait(false);
+            var inboxRecord = await LoadInboxRecordAsync(
+                    instanceId,
+                    inboxDelivery,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (InboxEnvelopeConflict(inboxRecord, inboxDelivery) is { } envelopeConflict)
+            {
+                return await CompleteWithoutCommitAsync(
+                    instanceId,
+                    envelopeConflict,
+                    inboxDelivery?.EventId,
+                    commandType,
+                    stopwatch,
+                    activity,
+                    inboxDuplicate: false,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            var inboxState = InboxState(inboxRecord);
             if (DurableInboxPreflight.TryCreateResult(inboxState) is { } preflightResult)
             {
                 return await CompleteWithoutCommitAsync(
                     instanceId,
                     preflightResult,
-                    inboxEventId,
+                    inboxDelivery?.EventId,
                     commandType,
                     stopwatch,
                     activity,
@@ -603,7 +1058,7 @@ public sealed class DurableCommandProcessor
                 return await CompleteWithoutCommitAsync(
                     instanceId,
                     conflictResult,
-                    inboxEventId,
+                    inboxDelivery?.EventId,
                     commandType,
                     stopwatch,
                     activity,
@@ -615,14 +1070,14 @@ public sealed class DurableCommandProcessor
             var activeWaitsById = aggregate.Snapshot.ActiveWaits.ToDictionary(wait => wait.WaitId);
             var decision = await decide(aggregate, cancellationToken).ConfigureAwait(false);
 
-            var providerCommitAttempted = HasProviderCommit(decision, inboxEventId);
+            var providerCommitAttempted = HasProviderCommit(decision, inboxDelivery);
             var providerName = DurableCommandTelemetry.ProviderName(eventStore);
             var providerCommitStopwatch = Stopwatch.StartNew();
             var result = await CommitWithTelemetryAsync(
                     instanceId,
                     aggregate,
                     decision,
-                    inboxEventId,
+                    inboxDelivery,
                     providerCommitAttempted,
                     providerName,
                     cancellationToken)
@@ -649,7 +1104,7 @@ public sealed class DurableCommandProcessor
                 result,
                 decision.Events.Count,
                 decision.Checkpoint is not null,
-                inboxEventId,
+                inboxDelivery?.EventId,
                 cancellationToken,
                 commandType,
                 observed.DefinitionId,
@@ -778,7 +1233,7 @@ public sealed class DurableCommandProcessor
         InstanceId instanceId,
         DurableWorkflowAggregate aggregate,
         DurableDecision decision,
-        EventId? inboxEventId,
+        DurableInboxDelivery? inboxDelivery,
         bool providerCommitAttempted,
         string providerName,
         CancellationToken cancellationToken)
@@ -786,7 +1241,7 @@ public sealed class DurableCommandProcessor
         if (!providerCommitAttempted)
         {
             return await commitPipeline
-                .CommitAsync(instanceId, aggregate, decision, inboxEventId, cancellationToken)
+                .CommitAsync(instanceId, aggregate, decision, inboxDelivery, cancellationToken)
                 .ConfigureAwait(false);
         }
 
@@ -798,7 +1253,7 @@ public sealed class DurableCommandProcessor
         try
         {
             var result = await commitPipeline
-                .CommitAsync(instanceId, aggregate, decision, inboxEventId, cancellationToken)
+                .CommitAsync(instanceId, aggregate, decision, inboxDelivery, cancellationToken)
                 .ConfigureAwait(false);
             activity?.SetTag(OrcaCoreDiagnostics.CommandOutcomeKey, result.Outcome.ToString());
             activity?.SetTag(OrcaCoreDiagnostics.StreamVersionKey, result.StreamVersion.Value);
@@ -817,9 +1272,9 @@ public sealed class DurableCommandProcessor
         }
     }
 
-    private static bool HasProviderCommit(DurableDecision decision, EventId? inboxEventId)
+    private static bool HasProviderCommit(DurableDecision decision, DurableInboxDelivery? inboxDelivery)
     {
-        return decision.Events.Count > 0 || decision.Checkpoint is not null || inboxEventId is not null;
+        return decision.Events.Count > 0 || decision.Checkpoint is not null || inboxDelivery is not null;
     }
 
     private static bool IsInboxDuplicate(Option<InboxRecordState> inboxState)
@@ -830,17 +1285,44 @@ public sealed class DurableCommandProcessor
                 or InboxRecordState.DiscardedOnResume;
     }
 
-    private async Task<Option<InboxRecordState>> LoadInboxStateAsync(
-        EventId? eventId,
+    private static DurableCommandResult? InboxEnvelopeConflict(
+        Option<InboxRecord> inboxRecord,
+        DurableInboxDelivery? inboxDelivery)
+    {
+        if (!inboxRecord.HasValue || inboxDelivery is not { } delivery ||
+            string.Equals(
+                inboxRecord.Value.EnvelopeFingerprint,
+                delivery.EnvelopeFingerprint,
+                StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return new DurableCommandResult(
+            DurableCommandOutcome.Conflict,
+            "The event identity is already bound to a different durable envelope.",
+            StreamVersion.Empty);
+    }
+
+    private static Option<InboxRecordState> InboxState(Option<InboxRecord> inboxRecord)
+    {
+        return inboxRecord.HasValue
+            ? Option<InboxRecordState>.Some(inboxRecord.Value.State)
+            : Option<InboxRecordState>.None;
+    }
+
+    private async Task<Option<InboxRecord>> LoadInboxRecordAsync(
+        InstanceId instanceId,
+        DurableInboxDelivery? inboxDelivery,
         CancellationToken cancellationToken)
     {
-        if (eventId is not { } inboxEventId)
+        if (inboxDelivery is not { } delivery)
         {
-            return Option<InboxRecordState>.None;
+            return Option<InboxRecord>.None;
         }
 
         return await RequiredInboxStore()
-            .GetAsync(inboxEventId, cancellationToken)
+            .GetAsync(instanceId, delivery.EventId, cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -871,4 +1353,16 @@ public sealed record DurableCommandResult(
     DurableCommandOutcome Outcome,
     string? Message,
     StreamVersion StreamVersion,
-    bool Evicted = false);
+    bool Evicted = false)
+{
+    internal DurableLifecycleDisposition LifecycleDisposition { get; init; }
+}
+
+internal enum DurableLifecycleDisposition
+{
+    None,
+    CancellationRequested,
+    CancellationAlreadyRequested,
+    Terminated,
+    AlreadyTerminal
+}

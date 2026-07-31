@@ -1,0 +1,503 @@
+ M CLAUDE.md
+ M Directory.Build.props
+ M Directory.Packages.props
+ M benchmarks/OrcaCore.Benchmarks/Fixtures/DeterministicIds.cs
+ M benchmarks/OrcaCore.Benchmarks/Fixtures/EphemeralWorkflowFixture.cs
+ M benchmarks/OrcaCore.Benchmarks/Scenarios/ProviderSerializationMaterializationBenchmarks.cs
+ M benchmarks/OrcaCore.Benchmarks/Scenarios/StructuredFiberExecutionBenchmarks.cs
+ M docs/ephemeral-engine-developer-guide.md
+ M docs/implementation/README.md
+ M docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md
+ M docs/review/code-quality-remediation-summary-2026-07-04.md
+ M docs/specs/17-selected-mode-capability-matrix.md
+ M openspec/changes/add-runtime-concurrency-limits/design.md
+ M openspec/changes/add-runtime-concurrency-limits/proposal.md
+ M openspec/changes/add-runtime-concurrency-limits/specs/runtime-resource-governance/spec.md
+ M openspec/changes/add-runtime-concurrency-limits/tasks.md
+ M openspec/changes/reshape-developer-facing-interfaces/design.md
+ M openspec/changes/reshape-developer-facing-interfaces/proposal.md
+ M openspec/changes/reshape-developer-facing-interfaces/specs/durable-runtime/spec.md
+ M openspec/changes/reshape-developer-facing-interfaces/specs/quality-and-verification/spec.md
+ M openspec/changes/reshape-developer-facing-interfaces/specs/workflow-authoring/spec.md
+ M openspec/changes/reshape-developer-facing-interfaces/specs/workflow-contracts/spec.md
+ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
+ M openspec/specs/durable-runtime/spec.md
+ M openspec/specs/management-and-querying/spec.md
+ M openspec/specs/quality-and-verification/spec.md
+ M openspec/specs/repository-foundation/spec.md
+ M openspec/specs/runtime-resource-governance/spec.md
+ M openspec/specs/saga-orchestration/spec.md
+ M openspec/specs/state-driven-runtime/spec.md
+ M openspec/specs/structured-fiber-execution/spec.md
+ M openspec/specs/workflow-authoring/spec.md
+ M openspec/specs/workflow-contracts/spec.md
+ M samples/OrcaCore.Dashboard/Telemetry/DashboardTelemetryStore.cs
+ M samples/OrcaCore.Dashboard/Workflows/DashboardScenarioSeeder.cs
+ M samples/OrcaCore.Dashboard/Workflows/KubernetesWorkflowSampleService.cs
+ M samples/OrcaCore.Examples/ExampleRunner.cs
+ M src/OrcaCore.Abstractions/Durable/DurableExecutionEnvelopeV2.cs
+ M src/OrcaCore.Abstractions/Durable/WorkflowCommand.cs
+ M src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs
+ M src/OrcaCore.Abstractions/Errors/OrcaCoreException.cs
+ M src/OrcaCore.Abstractions/Errors/WorkflowConcurrencyException.cs
+ M src/OrcaCore.Abstractions/Errors/WorkflowDefinitionException.cs
+ M src/OrcaCore.Abstractions/Errors/WorkflowLifecycleException.cs
+ M src/OrcaCore.Abstractions/Errors/WorkflowRoutingException.cs
+ M src/OrcaCore.Abstractions/Errors/WorkflowVersionException.cs
+ M src/OrcaCore.Abstractions/Ids/CorrelationId.cs
+ M src/OrcaCore.Abstractions/Ids/DefinitionId.cs
+ M src/OrcaCore.Abstractions/Ids/DefinitionVersion.cs
+ M src/OrcaCore.Abstractions/Ids/EventId.cs
+ M src/OrcaCore.Abstractions/Ids/InstanceId.cs
+ M src/OrcaCore.Abstractions/Ids/InstanceIdJsonConverter.cs
+ M src/OrcaCore.Abstractions/Ids/WaitId.cs
+ M src/OrcaCore.Abstractions/Instances/WorkflowStatus.cs
+ M src/OrcaCore.Abstractions/OrcaCore.Abstractions.csproj
+ M src/OrcaCore.Abstractions/Primitives/Result.cs
+ M src/OrcaCore.Abstractions/Primitives/ValidationError.cs
+ M src/OrcaCore.Abstractions/Providers/IResourcePoolStore.cs
+ D src/OrcaCore.Abstractions/Providers/IWorkflowPayloadCodec.cs
+ M src/OrcaCore.Abstractions/Providers/ProviderPorts.cs
+ M src/OrcaCore.Abstractions/Providers/ResourcePoolModels.cs
+ M src/OrcaCore.Abstractions/Steps/IStep.cs
+ M src/OrcaCore.Abstractions/Steps/StepContext.cs
+ M src/OrcaCore.Abstractions/Steps/StepResult.cs
+ M src/OrcaCore.Core/Building/BuilderValidationCodes.cs
+ M src/OrcaCore.Core/Building/SagaBuilder.cs
+ M src/OrcaCore.Core/Building/SelectedWorkflowAuthoring.cs
+ M src/OrcaCore.Core/Building/SelectedWorkflowBuilder.cs
+ M src/OrcaCore.Core/Building/StructuredBranchBuilders.cs
+ M src/OrcaCore.Core/Building/Workflow.cs
+ D src/OrcaCore.Core/Building/WorkflowBuilder.cs
+ M src/OrcaCore.Core/Building/WorkflowDagBuilder.cs
+ M src/OrcaCore.Core/Compilation/CompiledPlanModels.cs
+ M src/OrcaCore.Core/Compilation/CompiledWorkflowPlan.cs
+ M src/OrcaCore.Core/Compilation/DefinitionCompiler.Capabilities.cs
+ M src/OrcaCore.Core/Compilation/DefinitionCompiler.Fingerprint.cs
+ M src/OrcaCore.Core/Compilation/DefinitionCompiler.Instructions.cs
+ M src/OrcaCore.Core/Compilation/DefinitionCompiler.Limits.cs
+ M src/OrcaCore.Core/Compilation/DefinitionCompiler.Nodes.cs
+ M src/OrcaCore.Core/Compilation/DefinitionCompiler.cs
+ M src/OrcaCore.Core/Compilation/DefinitionCompilerCodes.cs
+ M src/OrcaCore.Core/Compilation/DefinitionCompilerOptions.cs
+ M src/OrcaCore.Core/Definitions/ForEachFailurePolicy.cs
+ M src/OrcaCore.Core/Definitions/ForEachJoinPolicy.cs
+ M src/OrcaCore.Core/Definitions/Nodes.cs
+ M src/OrcaCore.Core/Definitions/SagaDefinition.cs
+ M src/OrcaCore.Core/Definitions/WorkflowDefinition.cs
+ M src/OrcaCore.Core/Definitions/WorkflowPartition.cs
+ M src/OrcaCore.Core/Definitions/WorkflowPartitioner.cs
+ M src/OrcaCore.Core/Execution/ExecutionStatusDeriver.cs
+ M src/OrcaCore.Core/Execution/FiberModel.cs
+ M src/OrcaCore.Core/Execution/FiberScheduler.cs
+ M src/OrcaCore.Core/Execution/ScopeMergeAdapter.cs
+ M src/OrcaCore.Core/Execution/ScopeReducer.cs
+ M src/OrcaCore.Core/Execution/StructuredExecutionLimitException.cs
+ M src/OrcaCore.Core/Execution/StructuredExecutionState.cs
+ M src/OrcaCore.Core/Execution/StructuredInvocationCache.cs
+ M src/OrcaCore.Core/Lifecycle/LifecycleMachine.cs
+ M src/OrcaCore.Core/Lifecycle/LifecycleTrigger.cs
+ M src/OrcaCore.Core/Properties/AssemblyInfo.cs
+ M src/OrcaCore.Engine.Durable/Aggregates/DurableAggregateModels.cs
+ M src/OrcaCore.Engine.Durable/Aggregates/DurableAggregateState.cs
+ M src/OrcaCore.Engine.Durable/Aggregates/DurableChildWorkflowCommandHandler.cs
+ M src/OrcaCore.Engine.Durable/Aggregates/DurableChildWorkflowState.cs
+ M src/OrcaCore.Engine.Durable/Aggregates/DurableExternalJobCommandHandler.cs
+ M src/OrcaCore.Engine.Durable/Aggregates/DurableExternalJobState.cs
+ M src/OrcaCore.Engine.Durable/Aggregates/DurableLifecycleCommandHandler.cs
+ M src/OrcaCore.Engine.Durable/Aggregates/DurableResourcePoolCommandHandler.cs
+ M src/OrcaCore.Engine.Durable/Aggregates/DurableResourcePoolState.cs
+ M src/OrcaCore.Engine.Durable/Aggregates/DurableSagaCommandHandler.cs
+ M src/OrcaCore.Engine.Durable/Aggregates/DurableSagaState.cs
+ M src/OrcaCore.Engine.Durable/Aggregates/DurableTimerState.cs
+ M src/OrcaCore.Engine.Durable/Aggregates/DurableWaitState.cs
+ M src/OrcaCore.Engine.Durable/Aggregates/DurableWaitTimerCommandHandler.cs
+ M src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs
+ M src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowReplayApplier.cs
+ M src/OrcaCore.Engine.Durable/Building/DurableWorkflowBuilder.cs
+ M src/OrcaCore.Engine.Durable/Definitions/DurableDefinitionRegistry.cs
+ M src/OrcaCore.Engine.Durable/Driver/DurableDriverCatalog.cs
+ M src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Children.cs
+ M src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.ControlFlow.cs
+ M src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Helpers.cs
+ M src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Initialization.cs
+ M src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Limits.cs
+ M src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Terminals.cs
+ M src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.cs
+ M src/OrcaCore.Engine.Durable/Driver/DurableFiberEnvelopeMapper.cs
+ M src/OrcaCore.Engine.Durable/Driver/DurableFiberEnvelopeValidator.cs
+ D src/OrcaCore.Engine.Durable/Execution/ContentTypeWorkflowPayloadSerializer.cs
+ M src/OrcaCore.Engine.Durable/Execution/DurableAggregateLoader.cs
+ M src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs
+ M src/OrcaCore.Engine.Durable/Execution/DurableCommitMaterializer.cs
+ M src/OrcaCore.Engine.Durable/Execution/DurableDagRunner.cs
+ M src/OrcaCore.Engine.Durable/Execution/DurableSagaCommandAdapter.cs
+ M src/OrcaCore.Engine.Durable/Execution/DurableStartService.cs
+ M src/OrcaCore.Engine.Durable/Execution/DurableWorkflowRuntime.cs
+ M src/OrcaCore.Engine.Durable/Execution/JsonWorkflowPayloadSerializer.cs
+ M src/OrcaCore.Engine.Durable/Management/DurableManagement.cs
+ M src/OrcaCore.Engine.Durable/Management/ProjectionPredicateTranslator.cs
+ M src/OrcaCore.Engine.Durable/Properties/AssemblyInfo.cs
+ M src/OrcaCore.Engine.Durable/Versioning/DurableVersionCompatibility.cs
+ M src/OrcaCore.Engine.Ephemeral/Diagnostics/OrcaCoreEphemeralDiagnostics.cs
+ M src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs
+ M src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngineOptions.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/IWorkflowInstance.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Failures.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Helpers.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Merge.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Resources.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Retries.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Steps.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/InterpreterFactory.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/RuntimeWaitRecord.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/StepExecutionResult.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/StepExecutor.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/SuspensionScheduler.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/YieldContinuationScheduler.cs
+ M src/OrcaCore.Engine.Ephemeral/Governance/ResourceGovernanceCoordinator.cs
+ M src/OrcaCore.Engine.Ephemeral/Management/EphemeralManagement.cs
+ D src/OrcaCore.Engine.Ephemeral/Management/IEphemeralStateSnapshotter.cs
+ M src/OrcaCore.Engine.Ephemeral/Properties/AssemblyInfo.cs
+ M src/OrcaCore.Hosting/OrcaCoreServiceCollectionExtensions.cs
+ D src/OrcaCore.Hosting/WorkflowPayloadSerializationOptions.cs
+ M src/OrcaCore.Providers.InMemory/InMemoryResourcePoolStore.cs
+ M src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs
+ M src/OrcaCore.Providers.PostgreSql/Migrations/001_initial.sql
+ D src/OrcaCore.Providers.PostgreSql/Migrations/007_resource_ownership.sql
+ M src/OrcaCore.Providers.PostgreSql/PostgreSqlResourcePoolStore.cs
+ M src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.Projections.cs
+ M src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.Timers.cs
+ M src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs
+ M src/OrcaCore.Providers.Redis/RedisProjectionStore.cs
+ M src/OrcaCore.Providers.SqlServer/Migrations/001_initial.sql
+ M src/OrcaCore.Providers.SqlServer/Migrations/003_resource_pools.sql
+ D src/OrcaCore.Providers.SqlServer/Migrations/008_resource_ownership.sql
+ M src/OrcaCore.Providers.SqlServer/SqlServerResourcePoolStore.cs
+ M src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.Projections.cs
+ M src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.Timers.cs
+ M src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs
+ M tests/OrcaCore.Acceptance.Tests/BuilderAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/ChildCompensationAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/ChildWorkflowAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/ContinueAsNewAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/ControlFlowAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/DagAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/DagObservabilityAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/ExternalJobAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/ForEachAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/LifecycleAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/LoopWaitAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/MailboxAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/ManagementAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/OperationsAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/ParallelAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/PolicyAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/RetentionAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/RoutingAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/SagaAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/StraightLineAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/TerminalAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/TimerAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/WaitAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/WhenFirstAcceptanceTests.cs
+ M tests/OrcaCore.Acceptance.Tests/YieldAcceptanceTests.cs
+ M tests/OrcaCore.Core.Tests/Building/BranchContractTests.cs
+ M tests/OrcaCore.Core.Tests/Building/DagBuilderTests.cs
+ M tests/OrcaCore.Core.Tests/Building/ModeFirstWorkflowBuilderTests.cs
+ D tests/OrcaCore.Core.Tests/Building/WorkflowBuilderTests.cs
+ D tests/OrcaCore.Core.Tests/Building/WorkflowPolicyBuilderTests.cs
+ M tests/OrcaCore.Core.Tests/Compilation/DefinitionCompilerTests.cs
+ M tests/OrcaCore.Core.Tests/Concurrency/InstanceLaneTests.cs
+ M tests/OrcaCore.Core.Tests/Contracts/EventEnvelopeContractTests.cs
+ M tests/OrcaCore.Core.Tests/Contracts/IdContractTests.cs
+ M tests/OrcaCore.Core.Tests/Contracts/StepResultContractTests.cs
+ M tests/OrcaCore.Core.Tests/Definitions/DefinitionModelTests.cs
+ M tests/OrcaCore.Core.Tests/Durable/DurableContractTests.cs
+ M tests/OrcaCore.Core.Tests/Execution/BranchIsolationTests.cs
+ M tests/OrcaCore.Core.Tests/Execution/ExecutionStatusDeriverTests.cs
+ M tests/OrcaCore.Core.Tests/Execution/FiberIdentityTests.cs
+ M tests/OrcaCore.Core.Tests/Execution/FiberReducerTests.cs
+ M tests/OrcaCore.Core.Tests/Execution/FiberSchedulerTests.cs
+ M tests/OrcaCore.Core.Tests/Execution/ForEachScopeReducerTests.cs
+ M tests/OrcaCore.Core.Tests/Execution/JoinPolicyReducerTests.cs
+ M tests/OrcaCore.Core.Tests/Execution/LinearFiberInterpreterTests.cs
+ M tests/OrcaCore.Core.Tests/Execution/ScopeMergeAdapterTests.cs
+ M tests/OrcaCore.Core.Tests/Execution/ScopeReducerTests.cs
+ M tests/OrcaCore.Core.Tests/Lifecycle/LifecycleMachineTests.cs
+ M tests/OrcaCore.Core.Tests/Primitives/ResultTests.cs
+ M tests/OrcaCore.Core.Tests/Primitives/ValidationTests.cs
+ M tests/OrcaCore.Core.Tests/Providers/ProviderPortContractTests.cs
+ M tests/OrcaCore.Core.Tests/RepositoryGuardTests.cs
+ M tests/OrcaCore.Core.Tests/Serialization/DurableExecutionEnvelopeV2Tests.cs
+ M tests/OrcaCore.Core.Tests/Serialization/WorkflowEventCodecTests.cs
+ M tests/OrcaCore.DeveloperSurface.BehaviorContracts/Phase0BehaviorContract.cs
+ M tests/OrcaCore.DeveloperSurface.BehaviorScenarios/OrcaCore.DeveloperSurface.BehaviorScenarios.csproj
+ M tests/OrcaCore.DeveloperSurface.BehaviorScenarios/Phase0ScenarioHost.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/ApplicationJourneyContractGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/AuthoringContractGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/ExactAuthoring/PositiveUsage.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/ProductAuthoring/ProductAuthoring.csproj
+ M tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/ProductForbiddenAuthoring/ProductForbiddenAuthoring.csproj
+ M tests/OrcaCore.DeveloperSurface.Guards/DeadlineRetryContractGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/ExecutableBehaviorContractGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/behavior-certification-contracts.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/behavior-exact-call-signatures.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/package-consumer-fixtures.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/v1-public-contract.json
+ M tests/OrcaCore.DeveloperSurface.Guards/InfrastructureGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/LeaseAuthoringAndExitContractGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/LeaseDiscoveryAndGovernanceContractGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/NormativeContractGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/PrimaryPackage/Program.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/StateAndCodecContractGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/StructuredFanoutContractGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/run-compile-fixtures.ps1
+ M tests/OrcaCore.DeveloperSurface.Guards/run-package-fixtures.ps1
+ M tests/OrcaCore.Engine.Durable.Tests/Aggregates/DurableAggregateTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Aggregates/DurableChildWorkflowStateTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Aggregates/DurableExternalJobStateTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Aggregates/DurableResourcePoolStateTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Aggregates/DurableTerminalCleanupOrderTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Aggregates/DurableTimerAggregateTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Aggregates/DurableTimerStateTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Aggregates/DurableWaitStateTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Composition/ChildLineageTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Composition/ChildResidualPolicyTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Composition/DurableChildThrottlingTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Composition/ParentResumeTokenTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Composition/RunChildTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Composition/RunChildrenTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Continuations/ContinueAsNewAggregateTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Definitions/DurableDefinitionRegistryTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Driver/DurableDriverAcceptanceTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Driver/DurableDriverHostAcceptanceTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Driver/DurableDriverReviewedAcceptanceTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Driver/DurableFiberEnvelopeMapperTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Driver/DurableStructuredFiberDriverTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Events/DurableInboxTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Execution/DurableAggregateLoaderTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Execution/DurableCheckpointMapperTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Execution/DurableCommandPipelineTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Execution/DurableCommitMaterializerTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Execution/DurableCommitPipelineTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Execution/DurableDagRunnerTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Execution/DurableResourcePoolCommitEffectsTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Execution/DurableWaitTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Execution/WorkflowPayloadSerializationTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/ExternalJobs/ExternalJobCancellationTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/ExternalJobs/RunExternalJobTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Lifecycle/DurableLifecycleEventTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Management/DurableManagementTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Management/DurableQueryTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Management/DurableStatisticsTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Outbox/DurableOutboxTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/R4DurableEngineFindingsTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Recovery/DurableCheckpointStateSurvivalTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Recovery/DurableRecoveryTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/ResourcePools/PoolAcquisitionTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/ResourcePools/PoolOperationsTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Sagas/ChildCompensationTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Sagas/CompensationDecisionTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Sagas/CompensationFailureTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Sagas/DurableSagaCommandAdapterTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Sagas/DurableSagaStateTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Sagas/SagaAuditTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Sagas/SagaPolicyInteractionTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Sagas/StructuredSagaOwnershipTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/TestEnvelopes.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Versioning/DurableVersioningTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Diagnostics/EphemeralDiagnosticsTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Execution/CoreRuntimeScenarioTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Execution/EphemeralRoutingIndexTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Execution/ExecutionLaneTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Execution/InterpreterControlFlowTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Execution/InterpreterTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Execution/LoopWaitTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Execution/MailboxTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Execution/RoutingTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Execution/WaitMatchingTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Execution/YieldContinuationSchedulerTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Execution/YieldTests.cs
+ D tests/OrcaCore.Engine.Ephemeral.Tests/Governance/ResourceGovernanceTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Lifecycle/LifecycleEventTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Management/EvictTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Management/ManagementQueryTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Management/StuckDetectionTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Management/TerminalCommandTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Policies/RetryPolicyTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Policies/TimeoutPolicyTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Registration/DefinitionRegistrationTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Sagas/EphemeralSagaTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Timers/EphemeralTimerTests.cs
+ D tests/OrcaCore.Engine.Ephemeral.Tests/Timers/TimerEventRaceTests.cs
+ M tests/OrcaCore.Hosting.Tests/ContinuationPumpHostedServiceTests.cs
+ M tests/OrcaCore.Hosting.Tests/OrcaCoreHostingServiceCollectionTests.cs
+ M tests/OrcaCore.Hosting.Tests/WorkflowPayloadSerializationRegistrationTests.cs
+ M tests/OrcaCore.Integration.Tests/E2E/DurableDriverPostgreSqlIntegrationTests.cs
+ M tests/OrcaCore.Integration.Tests/E2E/DurableWorkflowPostgreSqlIntegrationTests.cs
+ M tests/OrcaCore.Integration.Tests/Hosting/HostingPostgreSqlIntegrationTests.cs
+ M tests/OrcaCore.Integration.Tests/JobScheduler/JobSchedulerStackIntegrationTests.cs
+ M tests/OrcaCore.Integration.Tests/MultiNode/MultiNodePostgreSqlIntegrationTests.cs
+ M tests/OrcaCore.Integration.Tests/Observability/ObservabilityIntegrationTests.cs
+ M tests/OrcaCore.Integration.Tests/Stacks/ProviderStackRedisIntegrationTests.cs
+ M tests/OrcaCore.Integration.Tests/Support/IntegrationCommands.cs
+ M tests/OrcaCore.ProviderCertification/ContinueAsNewCertificationTests.cs
+ M tests/OrcaCore.ProviderCertification/EventStoreCertificationTests.cs
+ M tests/OrcaCore.ProviderCertification/ResourcePoolStoreCertificationTests.cs
+ M tests/OrcaCore.ProviderCertification/RetentionCertificationTests.cs
+ M tests/OrcaCore.ProviderCertification/TimerSchedulerCertificationTests.cs
+ M tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlEventStoreTests.cs
+ M tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlProviderCertificationTests.cs
+ M tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlResourcePoolStoreCertificationTests.cs
+ M tests/OrcaCore.Providers.Redis.Tests/RedisProjectionProviderTests.cs
+ M tests/OrcaCore.Providers.SqlServer.Tests/SqlServerEventStoreTests.cs
+ M tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProjectionTests.cs
+ M tests/OrcaCore.Providers.SqlServer.Tests/SqlServerResourcePoolCertificationTests.cs
+ M tests/OrcaCore.TestSupport/Providers/FakeWorkflowEventStore.cs
+ M tests/OrcaCore.TestSupport/StructuredExecution/StructuredExecutionReferenceModel.cs
+?? docs/implementation/developer-facing-interface-section-06-scoped-deadline-decision-2026-07-29.md
+?? docs/review/developer-facing-interface-amendment-rev04-task-4-15-independent-approval-verdict-2026-07-28.md
+?? docs/review/developer-facing-interface-amendment-revision-06-independent-rereview-request-2026-07-28.md
+?? docs/review/developer-facing-interface-amendment-revision-06-independent-rereview-verdict-2026-07-28.md
+?? docs/review/developer-facing-interface-amendment-revision-08-canonical-synchronization-record-2026-07-29.md
+?? docs/review/developer-facing-interface-amendment-revision-08-independent-review-request-2026-07-28.md
+?? docs/review/developer-facing-interface-amendment-revision-08-task-4-15-independent-review-verdict-2026-07-28.md
+?? docs/review/developer-facing-interface-section-04-05-amendment-remediation-dirty-manifest-2026-07-29.txt
+?? docs/review/developer-facing-interface-section-04-05-amendment-remediation-independent-rereview-verdict-2026-07-29.md
+?? docs/review/developer-facing-interface-section-04-05-amendment-remediation-independent-review-request-2026-07-29.md
+?? docs/review/developer-facing-interface-section-04-05-amendment-remediation-independent-review-verdict-2026-07-29.md
+?? docs/review/developer-facing-interface-section-04-05-amendment-remediation-rereview-dirty-manifest-2026-07-29.txt
+?? docs/review/developer-facing-interface-section-04-05-amendment-remediation-rereview-request-2026-07-29.md
+?? docs/review/developer-facing-interface-section-04-codec-remediation-dirty-manifest-2026-07-22.txt
+?? docs/review/developer-facing-interface-section-04-codec-remediation-independent-rereview-2026-07-22.md
+?? docs/review/developer-facing-interface-section-04-codec-remediation-independent-rereview-2026-07-27.md
+?? docs/review/developer-facing-interface-section-04-codec-remediation-rereview-request-2026-07-22.md
+?? docs/review/developer-facing-interface-section-04-detached-snapshot-codec-closure-dirty-manifest-2026-07-27.txt
+?? docs/review/developer-facing-interface-section-04-detached-snapshot-codec-closure-independent-rereview-2026-07-27.md
+?? docs/review/developer-facing-interface-section-04-detached-snapshot-codec-closure-rereview-request-2026-07-27.md
+?? docs/review/developer-facing-interface-section-04-exit-review-codex-2026-07-21.md
+?? docs/review/developer-facing-interface-section-04-exit-review-dirty-manifest-2026-07-21-b.txt
+?? docs/review/developer-facing-interface-section-04-exit-review-dirty-manifest-2026-07-21-c.txt
+?? docs/review/developer-facing-interface-section-04-exit-review-dirty-manifest-2026-07-21.txt
+?? docs/review/developer-facing-interface-section-04-final-codec-closure-dirty-manifest-2026-07-27.txt
+?? docs/review/developer-facing-interface-section-04-final-codec-closure-independent-rereview-2026-07-27.md
+?? docs/review/developer-facing-interface-section-04-final-codec-closure-rereview-request-2026-07-27.md
+?? docs/review/developer-facing-interface-section-04-final-remediation-dirty-manifest-2026-07-22.txt
+?? docs/review/developer-facing-interface-section-04-final-remediation-exit-rereview-2026-07-22.md
+?? docs/review/developer-facing-interface-section-04-final-remediation-independent-rereview-2026-07-22.md
+?? docs/review/developer-facing-interface-section-04-final-remediation-rereview-request-2026-07-22.md
+?? docs/review/developer-facing-interface-section-04-independent-exit-review-2026-07-21.md
+?? docs/review/developer-facing-interface-section-04-remediation-dirty-manifest-2026-07-21.txt
+?? docs/review/developer-facing-interface-section-04-remediation-exit-rereview-2026-07-21.md
+?? docs/review/developer-facing-interface-section-04-remediation-independent-rereview-2026-07-22.md
+?? docs/review/developer-facing-interface-section-04-remediation-rereview-request-2026-07-21.md
+?? docs/review/developer-facing-interface-section-05-exit-review-dirty-manifest-2026-07-27.txt
+?? docs/review/developer-facing-interface-section-05-exit-review-request-2026-07-27.md
+?? docs/review/developer-facing-interface-section-06-ancestor-terminal-remediation-independent-rereview-verdict-2026-07-29.md
+?? docs/review/developer-facing-interface-section-06-ancestor-terminal-remediation-rereview-dirty-manifest-2026-07-29.txt
+?? docs/review/developer-facing-interface-section-06-ancestor-terminal-remediation-rereview-request-2026-07-29.md
+?? docs/review/developer-facing-interface-section-06-canonical-entry-review-2026-07-29.md
+?? docs/review/developer-facing-interface-section-06-docker-provider-gate-superseding-verdict-2026-07-29.md
+?? docs/review/developer-facing-interface-section-06-exit-review-dirty-manifest-2026-07-29.txt
+?? docs/review/developer-facing-interface-section-06-exit-review-independent-verdict-2026-07-29.md
+?? docs/review/developer-facing-interface-section-06-exit-review-request-2026-07-29.md
+?? docs/review/developer-facing-interface-section-06-greenfield-schema-remediation-compatibility-ddl-superseding-verdict-2026-07-30.md
+?? docs/review/developer-facing-interface-section-06-greenfield-schema-remediation-independent-rereview-verdict-2026-07-30.md
+?? docs/review/developer-facing-interface-section-06-greenfield-schema-remediation-rereview-dirty-manifest-2026-07-30.txt
+?? docs/review/developer-facing-interface-section-06-greenfield-schema-remediation-rereview-request-2026-07-30.md
+?? docs/review/developer-facing-interface-section-06-independent-exit-review-verdict-2026-07-29.md
+?? docs/review/developer-facing-interface-section-06-ownership-ddl-remediation-independent-rereview-verdict-2026-07-30.md
+?? docs/review/developer-facing-interface-section-06-ownership-ddl-remediation-rereview-dirty-manifest-2026-07-30.txt
+?? docs/review/developer-facing-interface-section-06-ownership-ddl-remediation-rereview-request-2026-07-30.md
+?? docs/review/developer-facing-interface-section-06-ownership-ddl-scanner-remediation-rereview-dirty-manifest-2026-07-30.txt
+?? docs/review/developer-facing-interface-section-06-ownership-ddl-scanner-remediation-rereview-request-2026-07-30.md
+?? docs/review/developer-facing-interface-section-06-relational-provider-remediation-rereview-dirty-manifest-2026-07-30.txt
+?? docs/review/developer-facing-interface-section-06-relational-provider-remediation-rereview-request-2026-07-30.md
+?? docs/specs/18-semantic-appendix.md
+?? openspec/changes/reshape-developer-facing-interfaces/AMENDMENT-2026-07-28-root-only-fanout-and-authoring-lifecycle.md
+?? openspec/changes/reshape-developer-facing-interfaces/artifacts/
+?? openspec/changes/reshape-developer-facing-interfaces/specs/state-driven-runtime/
+?? openspec/changes/reshape-developer-facing-interfaces/specs/structured-fiber-execution/
+?? openspec/specs/developer-facing-surface/
+?? src/OrcaCore.Abstractions/Errors/DeadlineExceptions.cs
+?? src/OrcaCore.Abstractions/Errors/LeaseLostException.cs
+?? src/OrcaCore.Abstractions/Errors/ResourcePoolNotConfiguredException.cs
+?? src/OrcaCore.Abstractions/Ids/StrongStringValueJsonConverterFactory.cs
+?? src/OrcaCore.Abstractions/Ids/StrongValues.cs
+?? src/OrcaCore.Abstractions/Instances/AuthoringValues.cs
+?? src/OrcaCore.Abstractions/Instances/PublicWorkflowValues.cs
+?? src/OrcaCore.Abstractions/Instances/ReadOnlyStateSnapshot.cs
+?? src/OrcaCore.Abstractions/Instances/WorkflowDiagnosticCatalog.cs
+?? src/OrcaCore.Abstractions/Properties/
+?? src/OrcaCore.Abstractions/Providers/DurableResourceGovernanceContracts.cs
+?? src/OrcaCore.Abstractions/Providers/ResourceGovernanceStore.cs
+?? src/OrcaCore.Abstractions/Steps/StepExecutionContext.cs
+?? src/OrcaCore.Core/Building/AuthoringLifecycle.cs
+?? src/OrcaCore.Core/Building/PublicBranchAuthoring.cs
+?? src/OrcaCore.Core/Building/PublicNestedAuthoring.cs
+?? src/OrcaCore.Core/Building/PublicStagedAuthoring.cs
+?? src/OrcaCore.Core/Building/PublicWorkflowDefinitions.cs
+?? src/OrcaCore.Core/Compilation/DefinitionCompiler.Branches.cs
+?? src/OrcaCore.Core/Compilation/DefinitionCompiler.ForEach.cs
+?? src/OrcaCore.Core/Compilation/DefinitionCompiler.Models.cs
+?? src/OrcaCore.Core/Compilation/FixedWorkflowValueCodec.cs
+?? src/OrcaCore.Core/Compilation/WorkflowFailureJsonConverters.cs
+?? src/OrcaCore.Core/Execution/FailureProvenance.cs
+?? src/OrcaCore.Core/Execution/ForEachSnapshotMaterializer.cs
+?? src/OrcaCore.Core/Hosting/
+?? src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.LeaseReconciliation.cs
+?? src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Leases.cs
+?? src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Models.cs
+?? src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Scopes.cs
+?? src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.StepThrottles.cs
+?? src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Utilities.cs
+?? src/OrcaCore.Engine.Durable/Driver/DurableLeaseObligationPhase.cs
+?? src/OrcaCore.Engine.Durable/Driver/DurableResourceLeaseDiagnostics.cs
+?? src/OrcaCore.Engine.Durable/Driver/DurableResourceLeaseRecovery.cs
+?? src/OrcaCore.Engine.Durable/Driver/DurableStepThrottleCoordinator.cs
+?? src/OrcaCore.Engine.Durable/Driver/LegacyStepResultProjection.cs
+?? src/OrcaCore.Engine.Durable/Driver/RuntimeStepContextFactory.cs
+?? src/OrcaCore.Engine.Durable/DurableEngineHostOptions.cs
+?? src/OrcaCore.Engine.Durable/ResourceGovernance/
+?? src/OrcaCore.Engine.Ephemeral/EphemeralEngineHostOptions.cs
+?? src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Branches.cs
+?? src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.ForEach.cs
+?? src/OrcaCore.Engine.Ephemeral/Execution/LegacyStepResultProjection.cs
+?? src/OrcaCore.Engine.Ephemeral/Execution/RuntimeStepContextFactory.cs
+?? src/OrcaCore.Providers.InMemory/InMemoryResourceGovernanceStore.cs
+?? tests/OrcaCore.Core.Tests/Building/AuthoringLifecycleTests.cs
+?? tests/OrcaCore.Core.Tests/Building/StagedWorkflowBuilderTests.cs
+?? tests/OrcaCore.Core.Tests/Contracts/PublicWorkflowValueContractTests.cs
+?? tests/OrcaCore.Core.Tests/Contracts/ReadOnlyStateSnapshotContractTests.cs
+?? tests/OrcaCore.Core.Tests/Contracts/StepContextContractTests.cs
+?? tests/OrcaCore.Core.Tests/Contracts/StrongValueContractTests.cs
+?? tests/OrcaCore.Core.Tests/Contracts/WorkflowDiagnosticCatalogContractTests.cs
+?? tests/OrcaCore.Core.Tests/Execution/FailureProvenanceTests.cs
+?? tests/OrcaCore.Core.Tests/Hosting/
+?? tests/OrcaCore.DeveloperSurface.BehaviorScenarios/DeadlineRetryScenarioHost.cs
+?? tests/OrcaCore.DeveloperSurface.BehaviorScenarios/LeaseAdmissionScenarioHost.cs
+?? tests/OrcaCore.DeveloperSurface.BehaviorScenarios/LeaseExitScenarioHost.cs
+?? tests/OrcaCore.DeveloperSurface.BehaviorScenarios/LeaseRecoveryScenarioHost.cs
+?? tests/OrcaCore.DeveloperSurface.BehaviorScenarios/StructuredFanoutScenarioHost.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/CompileFixtureCollection.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/FixedCodecClosureContractGuards.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/PortableAuthoringIntersectionGuards.cs
+?? tests/OrcaCore.Engine.Durable.Tests/Definitions/DurableEngineHostOptionsTests.cs
+?? tests/OrcaCore.Engine.Durable.Tests/Driver/DurableDeadlineExecutionTests.cs
+?? tests/OrcaCore.Engine.Durable.Tests/Driver/DurableLeaseExecutionTests.cs
+?? tests/OrcaCore.Engine.Durable.Tests/Driver/DurableStepThrottleCoordinatorTests.cs
+?? tests/OrcaCore.Engine.Durable.Tests/Driver/DurableStepThrottleExecutionTests.cs
+?? tests/OrcaCore.Engine.Durable.Tests/Execution/WorkflowPayloadGraphPositionTests.cs
+?? tests/OrcaCore.Engine.Durable.Tests/ResourceGovernance/
+?? tests/OrcaCore.Engine.Ephemeral.Tests/Execution/DeadlineExecutionTests.cs
+?? tests/OrcaCore.Engine.Ephemeral.Tests/Execution/NamedStepDependencyInjectionTests.cs
+?? tests/OrcaCore.Engine.Ephemeral.Tests/Governance/HostGovernanceExecutionTests.cs
+?? tests/OrcaCore.Engine.Ephemeral.Tests/Governance/HostGovernanceOptionsTests.cs
+?? tests/OrcaCore.ProviderCertification/DurableResourceLeaseBarrierCertificationTests.cs
+?? tests/OrcaCore.ProviderCertification/ResourceGovernanceStoreCertificationTests.cs
+?? tests/OrcaCore.TestSupport/LegacyStepResults.cs

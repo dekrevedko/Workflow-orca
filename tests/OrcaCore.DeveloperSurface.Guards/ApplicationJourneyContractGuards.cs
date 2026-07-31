@@ -39,13 +39,26 @@ public sealed class ApplicationJourneyInfrastructureGuards
 }
 
 [Trait(GuardTraits.Phase, GuardTraits.Phase0)]
-[Trait(GuardTraits.Disposition, GuardTraits.ExpectedRed)]
-public sealed class ApplicationJourneyExpectedRedGuards
+[Trait(GuardTraits.Disposition, GuardTraits.Infrastructure)]
+public sealed class ApplicationJourneyProductGuards
 {
     [Fact]
     public void TypedJourneyPackages_AreAvailableForCleanConsumerBuilds()
     {
-        Directory.GetFiles(Path.Combine(FixtureDefinitions.RepositoryRoot(), "artifacts", "phase0-packages"), "*.nupkg")
-            .Should().Contain(path => Path.GetFileName(path) == "OrcaCore.0.0.0-phase0.nupkg");
+        var root = FixtureDefinitions.RepositoryRoot();
+        var feed = Path.Combine(root, "artifacts", "phase0-packages");
+        var requiredPackages = Directory.GetFiles(Path.Combine(root, "tests", "OrcaCore.DeveloperSurface.Guards", "PackageFixtures"),
+                "*.csproj", SearchOption.AllDirectories)
+            .SelectMany(File.ReadLines)
+            .SelectMany(line => System.Text.RegularExpressions.Regex.Matches(line, "PackageReference Include=\"(?<id>OrcaCore[^\"]*)\"")
+                .Select(match => match.Groups["id"].Value))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToArray();
+
+        requiredPackages.Should().NotBeEmpty();
+        foreach (var packageId in requiredPackages)
+            File.Exists(Path.Combine(feed, $"{packageId}.0.0.0-phase0.nupkg")).Should().BeTrue(
+                $"the clean consumer fixtures require the exact {packageId} package");
     }
 }

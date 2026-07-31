@@ -5,7 +5,7 @@ using OrcaCore.Core.Definitions;
 
 namespace OrcaCore.Core.Execution;
 
-internal sealed record StructuredExecutionState(
+public sealed record StructuredExecutionState(
     InstanceId InstanceId,
     long ContinueAsNewGeneration,
     FiberId RootFiberId,
@@ -13,13 +13,17 @@ internal sealed record StructuredExecutionState(
     IReadOnlyDictionary<FiberId, FiberRecord> Fibers,
     IReadOnlyDictionary<ScopeId, ExecutionScopeRecord> Scopes)
 {
-    internal long CompletedYieldCount { get; init; }
+    public DateTimeOffset? WorkflowDeadline { get; init; }
 
-    internal long CompletedForcedRotationCount { get; init; }
+    public TimerId? WorkflowDeadlineTimerId { get; init; }
 
-    internal long NextRegistrationSequence { get; init; } = 1;
+    public long CompletedYieldCount { get; init; }
 
-    internal static StructuredExecutionState Create(
+    public long CompletedForcedRotationCount { get; init; }
+
+    public long NextRegistrationSequence { get; init; } = 1;
+
+    public static StructuredExecutionState Create(
         InstanceId instanceId,
         long generation,
         InstructionId rootInstructionId)
@@ -35,7 +39,7 @@ internal sealed record StructuredExecutionState(
     }
 }
 
-internal enum ExecutionScopePhase
+public enum ExecutionScopePhase
 {
     Created = 0,
     Running = 1,
@@ -46,7 +50,7 @@ internal enum ExecutionScopePhase
     Cancelled = 6
 }
 
-internal sealed record ExecutionScopeRecord(
+public sealed record ExecutionScopeRecord(
     ScopeId Id,
     ScopePlanId ScopePlanId,
     long ScopeEntrySequence,
@@ -58,18 +62,18 @@ internal sealed record ExecutionScopeRecord(
     FiberId? WinnerFiberId,
     IReadOnlyDictionary<FiberId, byte[]?> CommittedResults)
 {
-    internal ForEachRuntimeState? ForEach { get; init; }
+    public ForEachRuntimeState? ForEach { get; init; }
 }
 
-internal sealed record ForEachItemDescriptor(int Index, byte[] LocalStatePayload);
+public sealed record ForEachItemDescriptor(int Index, byte[] LocalStatePayload);
 
-internal sealed record ForEachTerminalOutcome(
+public sealed record ForEachTerminalOutcome(
     int Index,
     ForEachItemTerminalStatus Status,
     byte[]? ResultPayload,
     FiberFailure? Failure);
 
-internal sealed record ForEachRuntimeState(
+public sealed record ForEachRuntimeState(
     IReadOnlyList<ForEachItemDescriptor> Descriptors,
     int NextAdmissionOffset,
     int MaxConcurrency,
@@ -78,33 +82,33 @@ internal sealed record ForEachRuntimeState(
     IReadOnlyDictionary<FiberId, int> ItemIndexByFiber,
     IReadOnlyDictionary<int, ForEachTerminalOutcome> Outcomes);
 
-internal sealed record ScopeStartTransition(
+public sealed record ScopeStartTransition(
     StructuredExecutionState State,
     ScopeId ScopeId,
     IReadOnlyList<FiberId> ChildFiberIds);
 
-internal sealed record ScopeChildTransition(
+public sealed record ScopeChildTransition(
     StructuredExecutionState State,
     ScopeId ScopeId,
     bool ScopeBecameJoinable);
 
-internal sealed record ForEachScopeTransition(
+public sealed record ForEachScopeTransition(
     StructuredExecutionState State,
     ScopeId ScopeId,
     bool ScopeBecameJoinable,
     IReadOnlyList<FiberId> AdmittedFiberIds);
 
-internal sealed record ChildTerminalOutcome(
+public sealed record ChildTerminalOutcome(
     FiberId FiberId,
     byte[]? ResultPayload,
     FiberFailure? Failure)
 {
-    internal static ChildTerminalOutcome Succeeded(FiberId fiberId, byte[]? resultPayload)
+    public static ChildTerminalOutcome Succeeded(FiberId fiberId, byte[]? resultPayload)
     {
         return new ChildTerminalOutcome(fiberId, resultPayload?.ToArray(), null);
     }
 
-    internal static ChildTerminalOutcome Failed(FiberId fiberId, FiberFailure failure)
+    public static ChildTerminalOutcome Failed(FiberId fiberId, FiberFailure failure)
     {
         ArgumentNullException.ThrowIfNull(failure);
         return new ChildTerminalOutcome(fiberId, null, failure);

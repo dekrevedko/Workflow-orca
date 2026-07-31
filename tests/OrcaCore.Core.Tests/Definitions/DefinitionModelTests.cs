@@ -1,7 +1,10 @@
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Steps;
+using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Definitions;
 using Xunit;
 
@@ -9,6 +12,80 @@ namespace OrcaCore.Core.Tests.Definitions;
 
 public sealed class DefinitionModelTests
 {
+    [Fact]
+    public void CompiledPlanFingerprint_BindsTheFixedCodecFormat()
+    {
+        var definitionId = DefinitionId.Parse("018f3d31-7f2d-7ad0-a2b6-53e0ddcaf001");
+        var plan = new CompiledWorkflowPlan(
+            WorkflowExecutionMode.Durable,
+            definitionId,
+            DefinitionVersion.Initial,
+            "codec-binding-test");
+        var expected = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            "orcacore-json-v1|codec-binding-test")));
+
+        plan.Fingerprint.Should().Be(expected);
+    }
+
+    [Fact]
+    public void CompiledPlanFingerprint_ExcludesFormatModeIdentityVersionAndEveryCompilerOption()
+    {
+        var baseline = new CompiledWorkflowPlan(
+            WorkflowExecutionMode.Ephemeral,
+            DefinitionId.New(),
+            DefinitionVersion.Initial,
+            "same-structure",
+            compilerOptions: new DefinitionCompilerOptions()).Fingerprint;
+        var changed = new[]
+        {
+            new CompiledWorkflowPlan(
+                WorkflowExecutionMode.Durable,
+                DefinitionId.New(),
+                new DefinitionVersion(99),
+                "same-structure",
+                compilerOptions: new DefinitionCompilerOptions
+                {
+                    MaxInternalInstructionsPerQuantum = 2048
+                }).Fingerprint,
+            new CompiledWorkflowPlan(
+                WorkflowExecutionMode.Durable,
+                DefinitionId.New(),
+                new DefinitionVersion(2),
+                "same-structure",
+                compilerOptions: new DefinitionCompilerOptions
+                {
+                    MaxScopeDepth = 64
+                }).Fingerprint,
+            new CompiledWorkflowPlan(
+                WorkflowExecutionMode.Ephemeral,
+                DefinitionId.New(),
+                new DefinitionVersion(3),
+                "same-structure",
+                compilerOptions: new DefinitionCompilerOptions
+                {
+                    MaxSerializedResultBytes = 1024
+                }).Fingerprint,
+            new CompiledWorkflowPlan(
+                WorkflowExecutionMode.Ephemeral,
+                DefinitionId.New(),
+                new DefinitionVersion(4),
+                "same-structure",
+                compilerOptions: new DefinitionCompilerOptions
+                {
+                    MaxSerializedEnvelopeBytes = 8192
+                }).Fingerprint
+        };
+
+        changed.Should().OnlyContain(fingerprint => fingerprint == baseline);
+        typeof(DefinitionCompilerOptions).GetProperties()
+            .Select(property => property.Name)
+            .Should().BeEquivalentTo(
+                nameof(DefinitionCompilerOptions.MaxInternalInstructionsPerQuantum),
+                nameof(DefinitionCompilerOptions.MaxScopeDepth),
+                nameof(DefinitionCompilerOptions.MaxSerializedResultBytes),
+                nameof(DefinitionCompilerOptions.MaxSerializedEnvelopeBytes));
+    }
+
     [Fact]
     public void Definition_IsDeeplyImmutable()
     {
@@ -19,7 +96,12 @@ public sealed class DefinitionModelTests
         var definition = new WorkflowDefinition<TestState>(
             DefinitionId.New(),
             DefinitionVersion.Initial,
-            sequence);
+            sequence,
+            new CompiledWorkflowPlan(
+                WorkflowExecutionMode.Ephemeral,
+                DefinitionId.New(),
+                DefinitionVersion.Initial,
+                "definition-immutability-test"));
 
         sequence.Children.Should().Equal([end]);
         sequence.Children.Should().NotBeAssignableTo<IList<WorkflowNode<TestState>>>();
@@ -32,8 +114,11 @@ public sealed class DefinitionModelTests
     [Fact]
     public void NodeTree_Nesting_ComposesFreely()
     {
-        var businessStep = new BusinessStepNode<TestState>("step", () => new TestStep());
-        var wait = new WaitNode<TestState>("wait", "Approved", state => new CorrelationId(state.CorrelationId));
+        var businessStep = new BusinessStepNode<TestState>(
+            "step",
+            () => new TestStep(),
+            typeof(TestStep));
+        var wait = new WaitNode<TestState>("wait", "Approved", state => CorrelationId.Create(state.CorrelationId));
         var nestedLoop = new WhileNode<TestState>(
             "loop",
             state => state.ShouldRoute,

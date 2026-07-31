@@ -1,12 +1,14 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Providers;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Execution;
 
 internal sealed class DurableResourcePoolCommitEffects(IResourcePoolStore? resourcePoolStore)
 {
     internal async Task RollBackAcquiresAsync(
-        IReadOnlyList<WorkflowEvent> events,
+        IReadOnlyList<DurableWorkflowEvent> events,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(events);
@@ -22,7 +24,7 @@ internal sealed class DurableResourcePoolCommitEffects(IResourcePoolStore? resou
     }
 
     internal async Task ReleaseCommittedTicketsAsync(
-        IReadOnlyList<WorkflowEvent> events,
+        IReadOnlyList<DurableWorkflowEvent> events,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(events);

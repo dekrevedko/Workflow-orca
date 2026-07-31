@@ -1,32 +1,33 @@
 using System.Reflection;
 using AwesomeAssertions;
-using OrcaCore.Abstractions.Durable;
-using OrcaCore.Abstractions.Errors;
-using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
-using OrcaCore.Abstractions.Steps;
-using OrcaCore.Core.Building;
-using OrcaCore.Core.Compilation;
 using Xunit;
 
 namespace OrcaCore.Core.Tests.Building;
 
+/// <summary>
+/// Consumer-facing mode-first authoring coverage. Assertions deliberately stop at
+/// public definition metadata, diagnostics, and API shape; compiled-plan inspection
+/// belongs to the implementation-tier compiler suite.
+/// The former child-workflow lowering declaration remains a Section 8 obligation:
+/// public child authoring is intentionally absent from the v1 surface.
+/// </summary>
 public sealed class ModeFirstWorkflowBuilderTests
 {
     [Fact]
     [Trait("AC", "AC-016")]
-    public void Build_AndTryBuild_UseTheSameCompiledPlanContract()
+    public void Build_AndTryBuild_UseTheSamePublicDefinitionContract()
     {
         var definitionId = DefinitionId.New();
-        var builder = Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
+        var completion = Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
-            .End("Completed");
+            .End(WorkflowOutcomeName.Create("completed"));
 
-        var validation = builder.TryBuild();
-        var definition = builder.Build();
+        var validation = completion.TryBuild();
+        var definition = completion.Build();
 
         validation.IsValid.Should().BeTrue();
-        validation.Value.CompiledPlan.Fingerprint.Should().Be(definition.CompiledPlan.Fingerprint);
+        validation.TryGetValue(out var validated).Should().BeTrue();
+        validated!.DefinitionFingerprint.Should().Be(definition.DefinitionFingerprint);
         definition.DefinitionId.Should().Be(definitionId);
         definition.DefinitionVersion.Should().Be(DefinitionVersion.Initial);
     }
@@ -39,15 +40,15 @@ public sealed class ModeFirstWorkflowBuilderTests
             .Init<string>(_ => new TestState())
             .Parallel<string>(
                 branches => branches
-                    .Branch<BranchState>(
-                        "first",
+                    .Branch(
+                        AuthoredBranchId.Create("first"),
                         _ => new BranchState(),
                         branch => branch.Return(_ => "first"))
-                    .Branch<BranchState>(
-                        "second",
+                    .Branch(
+                        AuthoredBranchId.Create("second"),
                         _ => new BranchState(),
-                        branch => branch.Return(_ => "second")),
-                (parent, _) => parent.Value)
+                        branch => branch.Return(_ => "second")))
+            .WhenAll((parent, _) => parent.Value)
             .End()
             .TryBuild();
 
@@ -55,189 +56,152 @@ public sealed class ModeFirstWorkflowBuilderTests
     }
 
     [Fact]
-    public void Parallel_MissingAndMultipleBranchReturns_AreAccumulated()
+    public void Parallel_MissingAndMultipleBranchReturns_AreRejected()
     {
-        var validation = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var missing = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
             .Parallel<string>(
-                branches => branches
-                    .Branch<BranchState>("missing", _ => new BranchState(), _ => { })
-                    .Branch<BranchState>(
-                        "multiple",
-                        _ => new BranchState(),
-                        branch => branch
-                            .Return(_ => "first")
-                            .Return(_ => "second")),
-                (parent, _) => parent.Value)
+                branches => branches.Branch(
+                    AuthoredBranchId.Create("missing"),
+                    _ => new BranchState(),
+                    _ => { }))
+            .WhenAll((parent, _) => parent.Value)
             .End()
             .TryBuild();
 
-        validation.IsValid.Should().BeFalse();
-        validation.Errors.Select(error => error.Code).Should().Contain(
-            "SFE-AUTH-007_MISSING_BRANCH_RETURN",
-            "SFE-AUTH-008_MULTIPLE_BRANCH_RETURN",
-            "SFE-AUTH-009_UNREACHABLE_NODE");
+        var multiple = Workflow.Ephemeral<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(_ => new TestState())
+            .Parallel<string>(
+                branches => branches.Branch(
+                    AuthoredBranchId.Create("multiple"),
+                    _ => new BranchState(),
+                    branch => branch
+                        .Return(_ => "first")
+                        .Return(_ => "second")))
+            .WhenAll((parent, _) => parent.Value)
+            .End()
+            .TryBuild();
+
+        missing.IsValid.Should().BeFalse();
+        missing.Diagnostics.Should().ContainSingle(
+            diagnostic => diagnostic.Code == "SFE-AUTH-BRANCH-002");
+        multiple.IsValid.Should().BeFalse();
+        multiple.Diagnostics.Should().Contain(
+            diagnostic => diagnostic.Code == "SFE-AUTH-BRANCH-003");
     }
 
     [Fact]
-    public void ContinueAsNew_IsStructuralDurableAndRootFiberOnlyByApiShape()
+    public void ContinueAsNew_IsDurableAndRootOnlyByPublicApiShape()
     {
         var validation = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState(ShouldRollover: true))
-            .If(
-                state => state.ShouldRollover,
-                then => then.ContinueAsNew(state => state with { ShouldRollover = false }))
-            .End()
+            .ContinueAsNew(state => state.Value with { ShouldRollover = false })
             .TryBuild();
 
         validation.IsValid.Should().BeTrue();
-        typeof(DurableWorkflowBuilder<TestState>).GetMethod("ContinueAsNew").Should().NotBeNull();
-        typeof(EphemeralWorkflowBuilder<TestState>).GetMethod("ContinueAsNew").Should().BeNull();
-        typeof(BranchBuilder<BranchState, string>).GetMethod("ContinueAsNew").Should().BeNull();
+        DeclaredMethods(typeof(DurableWorkflowBuilder<string, TestState>))
+            .Should().Contain("ContinueAsNew");
+        DeclaredMethods(typeof(EphemeralWorkflowBuilder<string, TestState>))
+            .Should().NotContain("ContinueAsNew");
+        DeclaredMethods(typeof(DurableBranchBuilder<BranchState, string>))
+            .Should().NotContain("ContinueAsNew");
     }
 
     [Fact]
-    public void ContinueAsNew_UnconditionallyBeforeEnd_ReportsUnreachableEnd()
+    public void ContinueAsNew_IsATerminalCompletionStage()
     {
-        var validation = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var completion = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
-            .ContinueAsNew(state => state)
+            .ContinueAsNew(state => state.Value);
+
+        DeclaredMethods(completion.GetType()).Should().Equal("Build", "TryBuild");
+        completion.TryBuild().IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void StructuralWaitAndDelay_AreCapabilityCorrectAndWaitLongIsAbsent()
+    {
+        var definitionId = DefinitionId.New();
+        var correlation = CorrelationId.Create("order-42");
+        var baseline = Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
+            .Init<string>(_ => new TestState())
             .End()
-            .TryBuild();
-
-        validation.IsValid.Should().BeFalse();
-        validation.Errors.Should().ContainSingle(
-            error => error.Code == "SFE-AUTH-009_UNREACHABLE_NODE");
-    }
-
-    [Fact]
-    public void StructuralWaitDelayAndWaitLong_AreCapabilityCorrectAndCompiled()
-    {
-        var correlation = new CorrelationId("order-42");
-        var ephemeral = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Build();
+        var ephemeral = Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
-            .Wait("Ready", _ => correlation)
+            .Wait(EventName.Create("ready"), _ => correlation)
             .Delay(TimeSpan.FromSeconds(5))
             .End()
             .Build();
-        var durable = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var durable = Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
-            .WaitLong("Approved", _ => correlation)
+            .Wait(EventName.Create("approved"), _ => correlation)
             .End()
             .Build();
 
-        var wait = ephemeral.CompiledPlan.Instructions.Single(instruction =>
-            instruction.Kind == CompiledInstructionKind.Wait);
-        wait.EventName.Should().Be("Ready");
-        wait.WaitMode.Should().Be(WaitMode.Resident);
-        ephemeral.CompiledPlan.Instructions.Should().ContainSingle(instruction =>
-            instruction.Kind == CompiledInstructionKind.Delay &&
-            instruction.DelayDuration == TimeSpan.FromSeconds(5));
-        durable.CompiledPlan.Instructions.Should().ContainSingle(instruction =>
-            instruction.Kind == CompiledInstructionKind.Wait &&
-            instruction.EventName == "Approved" &&
-            instruction.WaitMode == WaitMode.Cold);
-
-        typeof(EphemeralWorkflowBuilder<TestState>).GetMethod("WaitLong").Should().BeNull();
-        typeof(DurableWorkflowBuilder<TestState>).GetMethod("WaitLong").Should().NotBeNull();
+        ephemeral.DefinitionFingerprint.Should().NotBe(baseline.DefinitionFingerprint);
+        durable.Mode.Should().Be(WorkflowMode.Durable);
+        DeclaredMethods(typeof(EphemeralWorkflowBuilder<string, TestState>))
+            .Should().Contain(["Wait", "Delay"]).And.NotContain("WaitLong");
+        DeclaredMethods(typeof(DurableWorkflowBuilder<string, TestState>))
+            .Should().Contain(["Wait", "Delay"]).And.NotContain("WaitLong");
     }
 
     [Fact]
-    public void BranchStructuralWaitAndDelay_LowerInsideTheOwningFiber()
+    public void BranchStructuralWaitAndDelay_ContributeToThePublicFingerprint()
     {
-        var plan = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
-            .Init<string>(_ => new TestState())
-            .Parallel<string>(
-                branches => branches.Branch<BranchState>(
-                    "worker",
-                    _ => new BranchState(),
-                    branch => branch
-                        .Wait("BranchReady", _ => new CorrelationId("branch"))
-                        .Delay(TimeSpan.FromSeconds(1))
-                        .Return(_ => "done")),
-                (parent, _) => parent.Value)
-            .End()
-            .Build()
-            .CompiledPlan;
+        var definitionId = DefinitionId.New();
+        var baseline = BuildParallel(definitionId, branch => branch.Return(_ => "done"));
+        var configured = BuildParallel(
+            definitionId,
+            branch => branch
+                .Wait(
+                    EventName.Create("branch-ready"),
+                    _ => CorrelationId.Create("branch"))
+                .Delay(TimeSpan.FromSeconds(1))
+                .Return(_ => "done"));
 
-        plan.Instructions.Should().Contain(instruction =>
-            instruction.Kind == CompiledInstructionKind.Wait &&
-            instruction.Path.Contains("branches/0", StringComparison.Ordinal));
-        plan.Instructions.Should().Contain(instruction =>
-            instruction.Kind == CompiledInstructionKind.Delay &&
-            instruction.Path.Contains("branches/0", StringComparison.Ordinal));
+        configured.DefinitionFingerprint.Should().NotBe(baseline.DefinitionFingerprint);
     }
 
     [Fact]
-    public void ChildWorkflows_AreDurableOnlyStructuralInstructions()
+    public void InvalidBranchIdentityAndDuplicateBranches_ReportPublicDiagnostics()
     {
-        var childDefinitionId = DefinitionId.New();
-        var plan = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
-            .Init<string>(_ => new TestState())
-            .RunChild(
-                childDefinitionId,
-                DefinitionVersion.Initial,
-                RunChildFailurePolicy.ContinueParent)
-            .RunChildren(
-                childDefinitionId,
-                DefinitionVersion.Initial,
-                _ => ["first", "second"],
-                maxConcurrency: 1,
-                failurePolicy: RunChildFailurePolicy.PropagateFailure,
-                joinPolicy: RunChildrenJoinPolicy.WhenAny,
-                residualPolicy: RunChildrenResidualPolicy.CancelRemaining)
-            .End()
-            .Build()
-            .CompiledPlan;
-
-        plan.Instructions.Should().ContainSingle(instruction =>
-            instruction.Kind == CompiledInstructionKind.RunChild &&
-            instruction.ChildDefinitionId == childDefinitionId &&
-            instruction.ChildDefinitionVersion == DefinitionVersion.Initial &&
-            instruction.ChildFailurePolicy == RunChildFailurePolicy.ContinueParent);
-        plan.Instructions.Should().ContainSingle(instruction =>
-            instruction.Kind == CompiledInstructionKind.RunChildren &&
-            instruction.ChildDefinitionId == childDefinitionId &&
-            instruction.MaxConcurrency == 1 &&
-            instruction.ChildJoinPolicy == RunChildrenJoinPolicy.WhenAny &&
-            instruction.ChildResidualPolicy == RunChildrenResidualPolicy.CancelRemaining);
-        typeof(DurableWorkflowBuilder<TestState>).GetMethod("RunChild").Should().NotBeNull();
-        typeof(DurableWorkflowBuilder<TestState>).GetMethod("RunChildren").Should().NotBeNull();
-        typeof(EphemeralWorkflowBuilder<TestState>).GetMethod("RunChild").Should().BeNull();
-        typeof(EphemeralWorkflowBuilder<TestState>).GetMethod("RunChildren").Should().BeNull();
-    }
-
-    [Fact]
-    public void TryBuild_BlankDuplicateBranchesAndMissingEnd_AccumulateInGraphOrder()
-    {
-        var validation = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        Action blank = () => AuthoredBranchId.Create(" ");
+        var duplicate = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
             .Parallel<string>(
                 branches => branches
-                    .Branch<BranchState>("", _ => new BranchState(), branch => branch.Return(_ => "blank"))
-                    .Branch<BranchState>("same", _ => new BranchState(), branch => branch.Return(_ => "first"))
-                    .Branch<BranchState>("same", _ => new BranchState(), branch => branch.Return(_ => "second")),
-                (parent, _) => parent.Value)
+                    .Branch(
+                        AuthoredBranchId.Create("same"),
+                        _ => new BranchState(),
+                        branch => branch.Return(_ => "first"))
+                    .Branch(
+                        AuthoredBranchId.Create("same"),
+                        _ => new BranchState(),
+                        branch => branch.Return(_ => "second")))
+            .WhenAll((parent, _) => parent.Value)
+            .End()
             .TryBuild();
 
-        validation.IsValid.Should().BeFalse();
-        validation.Errors.Select(error => error.Code).Should().Equal(
-            "SFE-AUTH-002_MISSING_ROOT_END",
-            "SFE-AUTH-010_BLANK_BRANCH_IDENTITY",
-            "SFE-AUTH-011_DUPLICATE_BRANCH_IDENTITY");
+        blank.Should().Throw<ArgumentException>();
+        duplicate.IsValid.Should().BeFalse();
+        duplicate.Diagnostics.Should().ContainSingle(
+            diagnostic => diagnostic.Code == "SFE-AUTH-BRANCH-001");
     }
 
     [Fact]
-    public void SelectedStepPolicies_AreResolvedIntoPlanAndFingerprint()
+    public void SelectedStepPolicies_ContributeToThePublicFingerprint()
     {
         var definitionId = DefinitionId.New();
         var configured = Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
-            .WithRetry(3, TimeSpan.FromSeconds(2))
-            .WithTimeout(TimeSpan.FromSeconds(30))
-            .WithCancellation()
-            .WithPoolKey("cpu")
             .Then<TestStep>()
+            .WithRetry(3, TimeSpan.FromSeconds(2))
+            .WithStepTimeout(TimeSpan.FromSeconds(30))
+            .WithTransientPool(TransientPoolName.Create("cpu"))
             .End()
             .Build();
         var baseline = Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
@@ -246,68 +210,77 @@ public sealed class ModeFirstWorkflowBuilderTests
             .End()
             .Build();
 
-        var policy = configured.CompiledPlan.Instructions
-            .Single(instruction => instruction.Kind == CompiledInstructionKind.Step)
-            .Policy;
-        policy.Retry.Should().Be(new CompiledRetryPolicy(3, TimeSpan.FromSeconds(2)));
-        policy.Timeout.Should().Be(TimeSpan.FromSeconds(30));
-        policy.CancellationEnabled.Should().BeTrue();
-        policy.TransientPoolKey.Should().Be("cpu");
-        configured.CompiledPlan.Fingerprint.Should().NotBe(baseline.CompiledPlan.Fingerprint);
+        configured.DefinitionFingerprint.Should().NotBe(baseline.DefinitionFingerprint);
     }
 
     [Fact]
-    public void DurableBuilder_DoesNotExposeTransientPoolAuthoring()
+    public void DurableBuilders_DoNotExposeTransientPoolAuthoring_WhileEveryEphemeralStepBuilderDoes()
     {
-        typeof(DurableWorkflowBuilder<TestState>)
-            .GetMethod("WithPoolKey", BindingFlags.Instance | BindingFlags.Public)
-            .Should().BeNull();
-        typeof(EphemeralWorkflowBuilder<TestState>)
-            .GetMethod("WithPoolKey", BindingFlags.Instance | BindingFlags.Public)
-            .Should().NotBeNull();
+        Type[] durableBuilders =
+        [
+            typeof(DurableWorkflowBuilder<string, TestState>),
+            typeof(DurableNestedBuilder<string, TestState>),
+            typeof(DurableBranchBuilder<BranchState, string>),
+            typeof(DurableItemBuilder<BranchState, string>),
+            typeof(DurableLeaseWorkflowBuilder<string, TestState>),
+            typeof(DurableLeaseNestedBuilder<string, TestState>),
+            typeof(DurableLeaseBranchBuilder<BranchState, string>),
+            typeof(DurableLeaseItemBuilder<BranchState, string>)
+        ];
+        Type[] ephemeralBuilders =
+        [
+            typeof(EphemeralWorkflowBuilder<string, TestState>),
+            typeof(EphemeralNestedBuilder<string, TestState>),
+            typeof(EphemeralBranchBuilder<BranchState, string>),
+            typeof(EphemeralItemBuilder<BranchState, string>)
+        ];
+
+        durableBuilders.Should().OnlyContain(type =>
+            type.GetMethod("WithTransientPool", BindingFlags.Instance | BindingFlags.Public) == null);
+        ephemeralBuilders.Should().OnlyContain(type =>
+            type.GetMethod("WithTransientPool", BindingFlags.Instance | BindingFlags.Public) != null);
     }
 
     [Fact]
-    public void DurableStructuredBranch_RejectsTransientPoolPolicyAtCompilation()
+    public void DurableStructuredBranch_CannotAuthorTransientPoolPolicy()
     {
-        var validation = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        DeclaredMethods(typeof(DurableBranchBuilder<BranchState, string>))
+            .Should().NotContain("WithTransientPool");
+        DeclaredMethods(typeof(DurableItemBuilder<BranchState, string>))
+            .Should().NotContain("WithTransientPool");
+    }
+
+    [Fact]
+    public void Build_IsAvailableOnlyAfterARepresentableTerminalGraph()
+    {
+        DeclaredMethods(typeof(EphemeralWorkflowInitBuilder<TestState>))
+            .Should().Equal("Init");
+        DeclaredMethods(typeof(EphemeralWorkflowBuilder<string, TestState>))
+            .Should().NotContain(["Build", "TryBuild", "Init"]);
+        DeclaredMethods(typeof(EphemeralWorkflowCompletionBuilder<string>))
+            .Should().Equal("Build", "TryBuild");
+    }
+
+    private static EphemeralWorkflowDefinition<string> BuildParallel(
+        DefinitionId definitionId,
+        Action<EphemeralBranchBuilder<BranchState, string>> body) =>
+        Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
             .Parallel<string>(
-                branches => branches.Branch<BranchState>(
-                    "pooled",
+                branches => branches.Branch(
+                    AuthoredBranchId.Create("worker"),
                     _ => new BranchState(),
-                    branch => branch
-                        .WithPoolKey("cpu")
-                        .Then<TestBranchStep>()
-                        .Return(_ => "done")),
-                (parent, _) => parent.Value)
+                    body))
+            .WhenAll((parent, _) => parent.Value)
             .End()
-            .TryBuild();
+            .Build();
 
-        validation.IsValid.Should().BeFalse();
-        validation.Errors.Should().ContainSingle(error =>
-            error.Code == DefinitionCompilerCodes.UnsupportedInstruction &&
-            error.Message.Contains("Transient", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void Build_InvalidGraph_ThrowsAllCompilerDiagnostics()
-    {
-        var builder = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
-            .Parallel<string>(
-                branches => branches.Branch<BranchState>(
-                    "missing-return",
-                    _ => new BranchState(),
-                    _ => { }),
-                (parent, _) => parent.Value);
-
-        var act = () => builder.Build();
-
-        act.Should().Throw<WorkflowDefinitionException>()
-            .Which.Message.Should().Contain("SFE-AUTH-001_MISSING_ROOT_INIT")
-            .And.Contain("SFE-AUTH-002_MISSING_ROOT_END")
-            .And.Contain("SFE-AUTH-007_MISSING_BRANCH_RETURN");
-    }
+    private static string[] DeclaredMethods(Type type) => type
+        .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+        .Select(method => method.Name)
+        .Distinct(StringComparer.Ordinal)
+        .OrderBy(name => name, StringComparer.Ordinal)
+        .ToArray();
 
     private sealed record TestState(bool ShouldRollover = false);
 
@@ -317,19 +290,7 @@ public sealed class ModeFirstWorkflowBuilderTests
     {
         public ValueTask<StepResult> ExecuteAsync(
             StepContext<TestState> context,
-            CancellationToken cancellationToken)
-        {
-            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
-        }
-    }
-
-    private sealed class TestBranchStep : IStep<BranchState>
-    {
-        public ValueTask<StepResult> ExecuteAsync(
-            StepContext<BranchState> context,
-            CancellationToken cancellationToken)
-        {
-            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
-        }
+            CancellationToken cancellationToken) =>
+            ValueTask.FromResult<StepResult>(new StepResult.Completed());
     }
 }

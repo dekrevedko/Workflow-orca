@@ -13,7 +13,7 @@ public sealed class InstanceLaneTests
     {
         var enqueued = new AsyncSignalCounter();
         var lane = new InstanceLane(_ => enqueued.Signal());
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         var firstEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var releaseFirst = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var secondEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -55,11 +55,11 @@ public sealed class InstanceLaneTests
         var coordinator = new RaceCoordinator(TimeSpan.FromSeconds(5));
 
         var first = lane.RunAsync(
-            InstanceId.New(),
+            InstanceId.Parse(Guid.CreateVersion7().ToString()),
             cancellationToken => coordinator.ArriveAndWaitAsync(cancellationToken),
             TestContext.Current.CancellationToken);
         var second = lane.RunAsync(
-            InstanceId.New(),
+            InstanceId.Parse(Guid.CreateVersion7().ToString()),
             cancellationToken => coordinator.ArriveAndWaitAsync(cancellationToken),
             TestContext.Current.CancellationToken);
 
@@ -72,7 +72,7 @@ public sealed class InstanceLaneTests
     public async Task RunAsync_WhenOperationThrows_ReleasesLaneForNextOperation()
     {
         var lane = new InstanceLane();
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
 
         var throwing = async () => await lane.RunAsync(
             instanceId,
@@ -97,7 +97,7 @@ public sealed class InstanceLaneTests
         await cancellation.CancelAsync();
 
         var canceled = async () => await lane.RunAsync(
-            InstanceId.New(),
+            InstanceId.Parse(Guid.CreateVersion7().ToString()),
             _ => throw new InvalidOperationException("should not run"),
             cancellation.Token);
 
@@ -112,7 +112,7 @@ public sealed class InstanceLaneTests
         var lane = new InstanceLane(onLaneEvicted: _ => evicted.Signal());
 
         await lane.RunAsync(
-            InstanceId.New(),
+            InstanceId.Parse(Guid.CreateVersion7().ToString()),
             _ => Task.CompletedTask,
             TestContext.Current.CancellationToken);
 

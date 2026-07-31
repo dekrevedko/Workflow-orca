@@ -37,7 +37,8 @@ public sealed class EphemeralManagement
     /// </summary>
     public EphemeralManagementQuery ForDefinition(DefinitionId definitionId)
     {
-        return All().Where(instance => instance.DefinitionId == definitionId);
+        ArgumentNullException.ThrowIfNull(definitionId);
+        return All().Where(instance => instance.DefinitionId.Equals(definitionId));
     }
 
     /// <summary>
@@ -62,7 +63,7 @@ public sealed class EphemeralManagement
     /// <summary>
     /// Evicts one terminal instance from process memory, ending its queryability. Returns false when
     /// the instance is unknown; throws <see cref="WorkflowLifecycleException"/> while it is still active.
-    /// Eviction is a memory-retention operation, not durable retention purge — nothing durable exists here.
+    /// Eviction is a memory-retention operation, not durable retention purge â€” nothing durable exists here.
     /// </summary>
     public bool Evict(InstanceId instanceId)
     {
@@ -124,7 +125,7 @@ public sealed class EphemeralManagementQuery
     /// <summary>
     /// Lists immutable instance snapshots in the current selection.
     /// </summary>
-    public IReadOnlyList<WorkflowInstanceSnapshot> List()
+    public IReadOnlyList<LegacyWorkflowInstanceSnapshot> List()
     {
         return ApplyFilters(LoadSnapshots()).ToArray();
     }
@@ -140,7 +141,7 @@ public sealed class EphemeralManagementQuery
     /// <summary>
     /// Gets the single snapshot in the current selection.
     /// </summary>
-    public WorkflowInstanceSnapshot Get()
+    public LegacyWorkflowInstanceSnapshot Get()
     {
         return List().Single();
     }
@@ -148,7 +149,7 @@ public sealed class EphemeralManagementQuery
     /// <summary>
     /// Gets active waits for instances in the current selection.
     /// </summary>
-    public IReadOnlyList<ActiveWaitSnapshot> GetActiveWaits()
+    public IReadOnlyList<LegacyActiveWaitSnapshot> GetActiveWaits()
     {
         return List()
             .SelectMany(snapshot => snapshot.ActiveWaits)
@@ -168,7 +169,7 @@ public sealed class EphemeralManagementQuery
     /// <summary>
     /// Marks selected non-terminal instances as stuck when they have made no progress beyond the threshold.
     /// </summary>
-    public IReadOnlyList<WorkflowInstanceSnapshot> DetectStuck(TimeSpan threshold)
+    public IReadOnlyList<LegacyWorkflowInstanceSnapshot> DetectStuck(TimeSpan threshold)
     {
         if (threshold <= TimeSpan.Zero)
         {
@@ -177,7 +178,7 @@ public sealed class EphemeralManagementQuery
 
         var now = engine.GetUtcNow();
         var compiledFilters = filters.Select(filter => filter.Compile()).ToArray();
-        var marked = new List<WorkflowInstanceSnapshot>();
+        var marked = new List<LegacyWorkflowInstanceSnapshot>();
         foreach (var instance in loadInstances().OfType<IWorkflowInstance>())
         {
             var snapshot = instance.GetPublishedSnapshot();
@@ -251,7 +252,7 @@ public sealed class EphemeralManagementQuery
     /// <summary>
     /// Delivers an event to selected instances that currently expose a matching active wait.
     /// </summary>
-    public async Task<IReadOnlyList<WorkflowInstanceSnapshot>> RaiseEventAsync<TState>(
+    public async Task<IReadOnlyList<LegacyWorkflowInstanceSnapshot>> RaiseEventAsync<TState>(
         EventEnvelope envelope,
         CancellationToken cancellationToken)
     {
@@ -260,11 +261,11 @@ public sealed class EphemeralManagementQuery
         var snapshots = List()
             .Where(snapshot => snapshot.ActiveWaits.Any(wait =>
                 string.Equals(wait.EventName, envelope.EventName, StringComparison.Ordinal) &&
-                wait.CorrelationId == envelope.CorrelationId &&
+                wait.CorrelationId.Equals(envelope.CorrelationId) &&
                 (string.IsNullOrWhiteSpace(envelope.BranchId) ||
                     string.Equals(wait.BranchId, envelope.BranchId, StringComparison.Ordinal))))
             .ToArray();
-        var results = new List<WorkflowInstanceSnapshot>(snapshots.Length);
+        var results = new List<LegacyWorkflowInstanceSnapshot>(snapshots.Length);
 
         foreach (var snapshot in snapshots)
         {
@@ -283,7 +284,7 @@ public sealed class EphemeralManagementQuery
     /// </summary>
     public async Task<TerminalCommandReport> CancelAsync(CancellationToken cancellationToken)
     {
-        var results = new List<WorkflowInstanceSnapshot>();
+        var results = new List<LegacyWorkflowInstanceSnapshot>();
         foreach (var snapshot in List().Where(snapshot => !IsTerminal(snapshot.Status)))
         {
             results.Add(await engine.CancelInstanceAsync(snapshot.InstanceId, cancellationToken).ConfigureAwait(false));
@@ -319,7 +320,7 @@ public sealed class EphemeralManagementQuery
                 "Terminate requires explicit safety confirmation.");
         }
 
-        var results = new List<WorkflowInstanceSnapshot>();
+        var results = new List<LegacyWorkflowInstanceSnapshot>();
         foreach (var snapshot in List().Where(snapshot => !IsTerminal(snapshot.Status)))
         {
             results.Add(await engine.TerminateInstanceAsync(snapshot.InstanceId, cancellationToken).ConfigureAwait(false));
@@ -328,7 +329,7 @@ public sealed class EphemeralManagementQuery
         return new TerminalCommandReport { Results = results };
     }
 
-    private IEnumerable<WorkflowInstanceSnapshot> ApplyFilters(IEnumerable<WorkflowInstanceSnapshot> snapshots)
+    private IEnumerable<LegacyWorkflowInstanceSnapshot> ApplyFilters(IEnumerable<LegacyWorkflowInstanceSnapshot> snapshots)
     {
         var filtered = snapshots;
         foreach (var filter in filters)
@@ -340,7 +341,7 @@ public sealed class EphemeralManagementQuery
         return filtered;
     }
 
-    private IReadOnlyList<WorkflowInstanceSnapshot> LoadSnapshots()
+    private IReadOnlyList<LegacyWorkflowInstanceSnapshot> LoadSnapshots()
     {
         return loadInstances()
             .OfType<IWorkflowInstance>()
@@ -348,14 +349,14 @@ public sealed class EphemeralManagementQuery
             .ToArray();
     }
 
-    private static bool IsTerminal(WorkflowStatus status)
+    private static bool IsTerminal(LegacyWorkflowStatus status)
     {
-        return status is WorkflowStatus.Completed or
-            WorkflowStatus.Failed or
-            WorkflowStatus.Cancelled or
-            WorkflowStatus.Terminated or
-            WorkflowStatus.Compensated or
-            WorkflowStatus.CompensationFailed;
+        return status is LegacyWorkflowStatus.Completed or
+            LegacyWorkflowStatus.Failed or
+            LegacyWorkflowStatus.Cancelled or
+            LegacyWorkflowStatus.Terminated or
+            LegacyWorkflowStatus.Compensated or
+            LegacyWorkflowStatus.CompensationFailed;
     }
 }
 
@@ -381,7 +382,7 @@ public sealed class EphemeralInstanceManagement
     /// <summary>
     /// Gets an immutable snapshot of the selected instance.
     /// </summary>
-    public WorkflowInstanceSnapshot Get()
+    public LegacyWorkflowInstanceSnapshot Get()
     {
         return GetInstance().GetPublishedSnapshot();
     }
@@ -394,7 +395,7 @@ public sealed class EphemeralInstanceManagement
         var instance = GetInstance();
         if (instance.StateType != typeof(TState))
         {
-            throw new WorkflowDefinitionException(
+            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                 $"Workflow instance '{instanceId}' state type is '{instance.StateType.Name}', not requested state type '{typeof(TState).Name}'.");
         }
 
@@ -404,13 +405,13 @@ public sealed class EphemeralInstanceManagement
                 $"Workflow instance '{instanceId}' state cannot be copied while user step code is running.");
         }
 
-        return (TState)instance.CopyState(engine.StateSnapshotter);
+        return (TState)instance.CopyState();
     }
 
     /// <summary>
     /// Gets immutable snapshots of currently active waits for the selected instance.
     /// </summary>
-    public IReadOnlyList<ActiveWaitSnapshot> GetActiveWaits()
+    public IReadOnlyList<LegacyActiveWaitSnapshot> GetActiveWaits()
     {
         return Get().ActiveWaits.ToArray();
     }
@@ -436,7 +437,7 @@ public sealed class EphemeralInstanceManagement
     /// <summary>
     /// Selects saga metadata for this instance.
     /// </summary>
-    public EphemeralSagaManagement Saga()
+    internal EphemeralSagaManagement Saga()
     {
         return new EphemeralSagaManagement(this);
     }
@@ -444,7 +445,7 @@ public sealed class EphemeralInstanceManagement
     /// <summary>
     /// Cooperatively cancels the selected instance.
     /// </summary>
-    public Task<WorkflowInstanceSnapshot> CancelAsync(CancellationToken cancellationToken)
+    public Task<LegacyWorkflowInstanceSnapshot> CancelAsync(CancellationToken cancellationToken)
     {
         return engine.CancelInstanceAsync(instanceId, cancellationToken);
     }
@@ -452,7 +453,7 @@ public sealed class EphemeralInstanceManagement
     /// <summary>
     /// Cooperatively interrupts in-flight user code and terminates the selected instance.
     /// </summary>
-    public Task<WorkflowInstanceSnapshot> TerminateAsync(CancellationToken cancellationToken)
+    public Task<LegacyWorkflowInstanceSnapshot> TerminateAsync(CancellationToken cancellationToken)
     {
         return engine.TerminateInstanceAsync(instanceId, cancellationToken);
     }
@@ -482,7 +483,7 @@ public sealed record WorkflowInstanceQueryModel
 
     public required DefinitionVersion DefinitionVersion { get; init; }
 
-    public required WorkflowStatus Status { get; init; }
+    public required LegacyWorkflowStatus Status { get; init; }
 
     public required DateTimeOffset CreatedAt { get; init; }
 
@@ -496,7 +497,7 @@ public sealed record WorkflowInstanceQueryModel
 
     public bool HasStuckStep { get; init; }
 
-    internal static WorkflowInstanceQueryModel From(WorkflowInstanceSnapshot snapshot)
+    internal static WorkflowInstanceQueryModel From(LegacyWorkflowInstanceSnapshot snapshot)
     {
         return new WorkflowInstanceQueryModel
         {
@@ -547,7 +548,7 @@ public sealed record WorkflowStatisticsGroup
 
     public required DefinitionVersion DefinitionVersion { get; init; }
 
-    public required WorkflowStatus Status { get; init; }
+    public required LegacyWorkflowStatus Status { get; init; }
 
     public required int Count { get; init; }
 }
@@ -568,7 +569,7 @@ public enum DestructiveCommandSafety
 /// </summary>
 public sealed record TerminalCommandReport
 {
-    public required IReadOnlyList<WorkflowInstanceSnapshot> Results { get; init; }
+    public required IReadOnlyList<LegacyWorkflowInstanceSnapshot> Results { get; init; }
 
     public int AffectedCount => Results.Count;
 }
@@ -606,7 +607,7 @@ public sealed class EphemeralStepManagement
 /// <summary>
 /// Instance-scoped query surface for saga metadata.
 /// </summary>
-public sealed class EphemeralSagaManagement
+internal sealed class EphemeralSagaManagement
 {
     private readonly EphemeralInstanceManagement instance;
 

@@ -10,6 +10,8 @@ using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Providers.InMemory;
 using Xunit;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Tests.Execution;
 
 public sealed class DurableWaitTests
@@ -19,7 +21,7 @@ public sealed class DurableWaitTests
     public async Task WaitLong_DurableSurfaceRegistersColdWait()
     {
         var wait = new OrcaCore.Engine.Durable.Building.DurableWorkflowBuilder<TestState>()
-            .WaitLong("Approved", state => new CorrelationId(state.CorrelationId))
+            .AddColdWait("Approved", state => CorrelationId.Create(state.CorrelationId))
             .Waits
             .Should().ContainSingle().Subject;
         var store = new InMemoryWorkflowProvider();
@@ -158,7 +160,7 @@ public sealed class DurableWaitTests
     [Fact]
     public void EphemeralBuilder_DoesNotExposeWaitLong()
     {
-        typeof(WorkflowBuilder<TestState>).GetMethods()
+        typeof(EphemeralWorkflowBuilder<TestState>).GetMethods()
             .Should().NotContain(method => method.Name == "WaitLong");
     }
 
@@ -187,7 +189,7 @@ public sealed class DurableWaitTests
             Timestamp(commandValue),
             waitId,
             "Approved",
-            new CorrelationId("order-1"),
+            CorrelationId.Create("order-1"),
             waitMode,
             branchId)
         {
@@ -206,7 +208,7 @@ public sealed class DurableWaitTests
             {
                 EventId = EventIdValue(commandValue + 100),
                 EventName = "Approved",
-                CorrelationId = new CorrelationId("order-1"),
+                CorrelationId = CorrelationId.Create("order-1"),
                 BranchId = branchId,
                 OccurredAt = Timestamp(commandValue)
             }
@@ -233,12 +235,12 @@ public sealed class DurableWaitTests
 
     private static EventId EventIdValue(int value)
     {
-        return new EventId(GuidValue(value));
+        return EventId.Create(GuidValue(value).ToString());
     }
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -248,12 +250,12 @@ public sealed class DurableWaitTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static WaitId WaitIdValue(int value)
     {
-        return new WaitId(GuidValue(value));
+        return WaitId.Parse(GuidValue(value).ToString());
     }
 
     private static Guid GuidValue(int value)

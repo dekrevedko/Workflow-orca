@@ -9,6 +9,8 @@ using OrcaCore.Providers.PostgreSql;
 using OrcaCore.TestSupport;
 using Testcontainers.PostgreSql;
 using Xunit;
+using ProjectionActiveWaitSnapshot = OrcaCore.Abstractions.Instances.ActiveWaitSnapshot;
+using ProjectionWorkflowInstanceSnapshot = OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot;
 
 namespace OrcaCore.Providers.PostgreSql.Tests;
 
@@ -59,10 +61,14 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         var startIdempotencyMigrationId = await ScalarAsync<string>(
             "select migration_id from orcacore_schema_migrations where migration_id = @migration_id;",
             "003_start_idempotency");
+        var ownershipCompatibilityMigrationCount = await ScalarAsync<long>(
+            "select count(*) from orcacore_schema_migrations where migration_id = @migration_id;",
+            "007_resource_ownership");
 
         initialMigrationId.Should().Be("001_initial");
         leaseMigrationId.Should().Be("002_claim_leases");
         startIdempotencyMigrationId.Should().Be("003_start_idempotency");
+        ownershipCompatibilityMigrationCount.Should().Be(0);
     }
 
     [Fact]
@@ -90,28 +96,43 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
     public async Task PostgreSql_DuplicateEventsBeforeAndAfterRestartDedup()
     {
         var eventId = EventIdValue(100);
+        var instanceId = InstanceIdValue(1);
         await using (var store = await CreateStoreAsync())
         {
             await store.AppendAsync(
                 Batch(
-                    InstanceIdValue(1),
+                    instanceId,
                     StreamVersion.Empty,
-                    inbox: [new InboxWrite(eventId, InboxRecordState.Applied)]),
+                    inbox:
+                    [
+                        new InboxWrite(eventId, InboxRecordState.Applied)
+                        {
+                            EnvelopeFingerprint = "postgres-envelope"
+                        }
+                    ]),
                 TestContext.Current.CancellationToken);
         }
 
         await using var restarted = await CreateStoreAsync();
-        var inbox = await restarted.GetAsync(eventId, TestContext.Current.CancellationToken);
+        var inbox = await restarted.GetAsync(
+            instanceId,
+            eventId,
+            TestContext.Current.CancellationToken);
         await restarted.AppendAsync(
             Batch(
-                InstanceIdValue(2),
-                StreamVersion.Empty,
+                instanceId,
+                new StreamVersion(1),
                 inbox: [new InboxWrite(eventId, InboxRecordState.Received)]),
             TestContext.Current.CancellationToken);
-        var afterDuplicate = await restarted.GetAsync(eventId, TestContext.Current.CancellationToken);
+        var afterDuplicate = await restarted.GetAsync(
+            instanceId,
+            eventId,
+            TestContext.Current.CancellationToken);
 
-        inbox.Value.Should().Be(InboxRecordState.Applied);
-        afterDuplicate.Value.Should().Be(InboxRecordState.Applied);
+        inbox.Value.EnvelopeFingerprint.Should().Be("postgres-envelope");
+        inbox.Value.State.Should().Be(InboxRecordState.Applied);
+        afterDuplicate.Value.EnvelopeFingerprint.Should().Be("postgres-envelope");
+        afterDuplicate.Value.State.Should().Be(InboxRecordState.Applied);
     }
 
     [Fact]
@@ -134,7 +155,9 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
                             IdempotencyKey,
                             instanceId,
                             DefinitionIdValue(1),
-                            DefinitionVersion.Initial)
+                            DefinitionVersion.Initial,
+                            "definition-fingerprint-1",
+                            "input-fingerprint-1")
                     ]
                 },
                 TestContext.Current.CancellationToken);
@@ -150,6 +173,8 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         existing.Value.InstanceId.Should().Be(instanceId);
         existing.Value.DefinitionId.Should().Be(DefinitionIdValue(1));
         existing.Value.DefinitionVersion.Should().Be(DefinitionVersion.Initial);
+        existing.Value.DefinitionFingerprint.Should().Be("definition-fingerprint-1");
+        existing.Value.InputFingerprint.Should().Be("input-fingerprint-1");
     }
 
     [Fact]
@@ -172,7 +197,9 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
                         IdempotencyKey,
                         firstInstanceId,
                         DefinitionIdValue(1),
-                        DefinitionVersion.Initial)
+                        DefinitionVersion.Initial,
+                        "definition-fingerprint-1",
+                        "input-fingerprint-1")
                 ]
             },
             TestContext.Current.CancellationToken);
@@ -189,7 +216,9 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
                         IdempotencyKey,
                         duplicateInstanceId,
                         DefinitionIdValue(2),
-                        new DefinitionVersion(2))
+                        new DefinitionVersion(2),
+                        "definition-fingerprint-2",
+                        "input-fingerprint-2")
                 ]
             },
             TestContext.Current.CancellationToken);
@@ -349,13 +378,13 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         var claimed = await store.ClaimDueAsync(Timestamp(10), 10, TestContext.Current.CancellationToken);
         var leasedCount = await ScalarAsync<long>(
             "select count(*) from orcacore_timers where timer_id = @instance_id;",
-            new InstanceId(request.TimerId.Value));
+            InstanceId.Parse(request.TimerId.Value.ToString()));
         var secondClaim = await store.ClaimDueAsync(Timestamp(10), 10, TestContext.Current.CancellationToken);
 
         await store.CompleteAsync(request.TimerId, TestContext.Current.CancellationToken);
         var completedCount = await ScalarAsync<long>(
             "select count(*) from orcacore_timers where timer_id = @instance_id;",
-            new InstanceId(request.TimerId.Value));
+            InstanceId.Parse(request.TimerId.Value.ToString()));
 
         claimed.Should().ContainSingle()
             .Which.TimerId.Should().Be(request.TimerId);
@@ -430,7 +459,7 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
             new WorkflowProjectionQuery
             {
                 ActiveWaitEventName = "Approved",
-                ActiveWaitCorrelationId = new CorrelationId("order-1")
+                ActiveWaitCorrelationId = CorrelationId.Create("order-1")
             },
             TestContext.Current.CancellationToken);
 
@@ -529,7 +558,7 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         StreamVersion expectedVersion,
         IReadOnlyList<InboxWrite>? inbox = null,
         IReadOnlyList<OutboxWrite>? outbox = null,
-        WorkflowInstanceSnapshot? projection = null)
+        ProjectionWorkflowInstanceSnapshot? projection = null)
     {
         return new ProviderCommitBatch
         {
@@ -547,27 +576,27 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         };
     }
 
-    private static WorkflowInstanceSnapshot RunningSnapshot(InstanceId instanceId)
+    private static ProjectionWorkflowInstanceSnapshot RunningSnapshot(InstanceId instanceId)
     {
         return Snapshot(instanceId, WorkflowStatus.Running);
     }
 
-    private static WorkflowInstanceSnapshot CompletedSnapshot(InstanceId instanceId)
+    private static ProjectionWorkflowInstanceSnapshot CompletedSnapshot(InstanceId instanceId)
     {
         return Snapshot(instanceId, WorkflowStatus.Completed);
     }
 
-    private static WorkflowInstanceSnapshot WaitingSnapshot(InstanceId instanceId)
+    private static ProjectionWorkflowInstanceSnapshot WaitingSnapshot(InstanceId instanceId)
     {
         return Snapshot(instanceId, WorkflowStatus.Waiting) with
         {
             ActiveWaits =
             [
-                new ActiveWaitSnapshot
+                new ProjectionActiveWaitSnapshot
                 {
                     WaitId = WaitIdValue(1),
                     EventName = "Approved",
-                    CorrelationId = new CorrelationId("order-1"),
+                    CorrelationId = CorrelationId.Create("order-1"),
                     RegisteredAt = Timestamp(2),
                     Status = "Active",
                     Mode = "Resident"
@@ -576,7 +605,7 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         };
     }
 
-    private static WorkflowInstanceSnapshot SagaSnapshot(InstanceId instanceId)
+    private static ProjectionWorkflowInstanceSnapshot SagaSnapshot(InstanceId instanceId)
     {
         return Snapshot(instanceId, WorkflowStatus.Compensated) with
         {
@@ -613,9 +642,9 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         };
     }
 
-    private static WorkflowInstanceSnapshot Snapshot(InstanceId instanceId, WorkflowStatus status)
+    private static ProjectionWorkflowInstanceSnapshot Snapshot(InstanceId instanceId, WorkflowStatus status)
     {
-        return new WorkflowInstanceSnapshot
+        return new ProjectionWorkflowInstanceSnapshot
         {
             InstanceId = instanceId,
             DefinitionId = DefinitionIdValue(1),
@@ -630,7 +659,7 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
     {
         return new WorkflowStartedEvent
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = instanceId,
             CommandId = CommandIdValue(1),
             CausationId = CausationIdValue(1),
@@ -652,12 +681,12 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static EventId EventIdValue(int value)
     {
-        return new EventId(GuidValue(value));
+        return EventId.Create(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -672,7 +701,7 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static OutboxRecordId OutboxRecordIdValue(int value)
@@ -682,7 +711,7 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
 
     private static WaitId WaitIdValue(int value)
     {
-        return new WaitId(GuidValue(value));
+        return WaitId.Parse(GuidValue(value).ToString());
     }
 
     private static TimerId TimerIdValue(int value)

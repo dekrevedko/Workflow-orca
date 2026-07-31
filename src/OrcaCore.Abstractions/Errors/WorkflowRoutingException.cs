@@ -9,7 +9,7 @@ public sealed class WorkflowRoutingException : OrcaCoreException
     /// Initializes a routing exception with a caller-actionable message.
     /// </summary>
     public WorkflowRoutingException(string message)
-        : base(message)
+        : base("WF-LEGACY-ROUTING", message)
     {
     }
 
@@ -17,7 +17,7 @@ public sealed class WorkflowRoutingException : OrcaCoreException
     /// Initializes a routing exception with a caller-actionable message and inner cause.
     /// </summary>
     public WorkflowRoutingException(string message, Exception innerException)
-        : base(message, innerException)
+        : base("WF-LEGACY-ROUTING", message, innerException)
     {
     }
 }

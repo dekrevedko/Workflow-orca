@@ -5,9 +5,9 @@ using OrcaCore.Abstractions.Primitives;
 
 namespace OrcaCore.Core.Lifecycle;
 
-internal static class LifecycleMachine
+public static class LifecycleMachine
 {
-    internal static readonly FrozenDictionary<LifecycleTransition, WorkflowStatus> Transitions =
+    public static readonly FrozenDictionary<LifecycleTransition, WorkflowStatus> Transitions =
         new Dictionary<LifecycleTransition, WorkflowStatus>
         {
             [new(WorkflowStatus.Running, LifecycleTrigger.EnterWait)] = WorkflowStatus.Waiting,
@@ -31,10 +31,14 @@ internal static class LifecycleMachine
             [new(WorkflowStatus.Waiting, LifecycleTrigger.Park)] = WorkflowStatus.Parked,
             [new(WorkflowStatus.Parked, LifecycleTrigger.Unpark)] = WorkflowStatus.Running,
             [new(WorkflowStatus.Parked, LifecycleTrigger.Terminate)] = WorkflowStatus.Terminated,
-            [new(WorkflowStatus.Parked, LifecycleTrigger.Cancel)] = WorkflowStatus.Cancelled
+            [new(WorkflowStatus.Parked, LifecycleTrigger.Cancel)] = WorkflowStatus.Cancelled,
+            [new(WorkflowStatus.CancellationRequested, LifecycleTrigger.Cancel)] = WorkflowStatus.Cancelled,
+            [new(WorkflowStatus.CancellationRequested, LifecycleTrigger.Terminate)] = WorkflowStatus.Terminated,
+            [new(WorkflowStatus.Running, LifecycleTrigger.Timeout)] = WorkflowStatus.TimedOut,
+            [new(WorkflowStatus.Waiting, LifecycleTrigger.Timeout)] = WorkflowStatus.TimedOut
         }.ToFrozenDictionary();
 
-    internal static readonly FrozenSet<WorkflowStatus> TerminalStatuses =
+    public static readonly FrozenSet<WorkflowStatus> TerminalStatuses =
         new[]
         {
             WorkflowStatus.Completed,
@@ -42,10 +46,11 @@ internal static class LifecycleMachine
             WorkflowStatus.Cancelled,
             WorkflowStatus.Terminated,
             WorkflowStatus.Compensated,
-            WorkflowStatus.CompensationFailed
+            WorkflowStatus.CompensationFailed,
+            WorkflowStatus.TimedOut
         }.ToFrozenSet();
 
-    internal static Result<WorkflowStatus> Fire(WorkflowStatus current, LifecycleTrigger trigger)
+    public static Result<WorkflowStatus> Fire(WorkflowStatus current, LifecycleTrigger trigger)
     {
         var transition = new LifecycleTransition(current, trigger);
         if (Transitions.TryGetValue(transition, out var target))

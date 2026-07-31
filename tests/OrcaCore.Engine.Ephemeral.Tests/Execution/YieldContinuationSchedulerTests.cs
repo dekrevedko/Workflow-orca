@@ -14,9 +14,7 @@ public sealed class YieldContinuationSchedulerTests
     {
         var instanceId = InstanceIdValue(1);
         var executionLane = new InstanceExecutionLane();
-        var scheduler = new YieldContinuationScheduler(
-            new ResourceGovernanceCoordinator(new EphemeralWorkflowEngineOptions()),
-            executionLane);
+        var scheduler = new YieldContinuationScheduler(executionLane);
         var instance = new SnapshotProbeInstance(instanceId);
         var laneEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var releaseLane = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -47,12 +45,12 @@ public sealed class YieldContinuationSchedulerTests
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static Guid GuidValue(int value)
@@ -68,14 +66,14 @@ public sealed class YieldContinuationSchedulerTests
 
         public object StateObject { get; } = new();
 
-        public object CopyState(IEphemeralStateSnapshotter snapshotter)
+        public object CopyState()
         {
             return StateObject;
         }
 
         public bool HasPublishedState => true;
 
-        public void PublishState(IEphemeralStateSnapshotter snapshotter)
+        public void PublishState()
         {
         }
 

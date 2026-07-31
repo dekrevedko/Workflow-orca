@@ -51,6 +51,7 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
             """
             create table if not exists orcacore_resource_pools (
                 pool_name text primary key,
+                creation_capacity integer not null,
                 capacity integer not null,
                 lease_duration_seconds integer null
             );
@@ -85,11 +86,6 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
                 unique (holder_instance_id, holder_key)
             );
 
-            alter table orcacore_resource_tickets add column if not exists fiber_id text null;
-            alter table orcacore_resource_tickets add column if not exists scope_id text null;
-            alter table orcacore_resource_waiters add column if not exists fiber_id text null;
-            alter table orcacore_resource_waiters add column if not exists scope_id text null;
-
             create index if not exists ix_orcacore_resource_waiters_requested
                 on orcacore_resource_waiters (requested_at, waiter_id);
 
@@ -123,11 +119,21 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var command = new NpgsqlCommand(
             """
-            insert into orcacore_resource_pools (pool_name, capacity, lease_duration_seconds)
-            values (@pool_name, @capacity, @lease_duration_seconds)
+            insert into orcacore_resource_pools (
+                pool_name,
+                creation_capacity,
+                capacity,
+                lease_duration_seconds)
+            values (
+                @pool_name,
+                @capacity,
+                @capacity,
+                @lease_duration_seconds)
             on conflict (pool_name) do update set
-                capacity = excluded.capacity,
-                lease_duration_seconds = excluded.lease_duration_seconds;
+                pool_name = excluded.pool_name
+            where orcacore_resource_pools.creation_capacity = excluded.creation_capacity
+              and orcacore_resource_pools.lease_duration_seconds is not distinct from excluded.lease_duration_seconds
+            returning 1;
             """,
             connection);
         command.Parameters.AddWithValue("pool_name", definition.Name);
@@ -135,7 +141,11 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
         command.Parameters.Add("lease_duration_seconds", NpgsqlDbType.Integer).Value =
             definition.LeaseDuration is null ? DBNull.Value : (int)definition.LeaseDuration.Value.TotalSeconds;
 
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        var accepted = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        if (accepted is null)
+        {
+            throw CreationDefinitionMismatch(definition.Name);
+        }
     }
 
     /// <inheritdoc />
@@ -213,6 +223,7 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
             .ConfigureAwait(false);
         await LockPoolTablesAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
 
+        await DeleteWaiterAsync(connection, transaction, request, cancellationToken).ConfigureAwait(false);
         var released = await DeleteTicketsAsync(connection, transaction, request, cancellationToken)
             .ConfigureAwait(false);
         var granted = await GrantQueuedWaitersAsync(connection, transaction, request.ReleasedAt, cancellationToken)
@@ -296,7 +307,7 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
     public async Task ResizePoolAsync(string poolName, int capacity, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(poolName);
-        ArgumentOutOfRangeException.ThrowIfNegative(capacity);
+        ArgumentOutOfRangeException.ThrowIfLessThan(capacity, 1);
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var command = new NpgsqlCommand(
@@ -308,7 +319,11 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
             connection);
         command.Parameters.AddWithValue("pool_name", poolName);
         command.Parameters.AddWithValue("capacity", capacity);
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        var affected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        if (affected == 0)
+        {
+            throw ResourcePoolNotConfiguredException.For([ResourcePoolName.Create(poolName)]);
+        }
     }
 
     /// <inheritdoc />
@@ -340,43 +355,6 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
 
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         return new ResourcePoolExpiryResult(expired);
-    }
-
-    /// <inheritdoc />
-    public async Task<ResourcePoolForceReleaseResult> ForceReleaseTicketAsync(
-        Guid ticketId,
-        string reason,
-        DateTimeOffset releasedAt,
-        CancellationToken cancellationToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
-
-        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var transaction = await connection
-            .BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
-            .ConfigureAwait(false);
-        await LockPoolTablesAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-
-        var ticket = await DeleteTicketAsync(connection, transaction, ticketId, cancellationToken)
-            .ConfigureAwait(false);
-        if (ticket is null)
-        {
-            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-            return new ResourcePoolForceReleaseResult(null, [], null);
-        }
-
-        await DeleteExpiredTicketAsync(connection, transaction, ticketId, cancellationToken).ConfigureAwait(false);
-        var audit = new ResourcePoolAuditRecord(
-            Guid.CreateVersion7(),
-            "ForceRelease",
-            reason,
-            releasedAt,
-            ticket);
-        await InsertAuditRecordAsync(connection, transaction, audit, cancellationToken).ConfigureAwait(false);
-        var granted = await GrantQueuedWaitersAsync(connection, transaction, releasedAt, cancellationToken)
-            .ConfigureAwait(false);
-        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-        return new ResourcePoolForceReleaseResult(ticket, granted, audit);
     }
 
     /// <inheritdoc />
@@ -638,7 +616,7 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
         {
             waiters.Add(new ResourcePoolWaiter(
                 reader.GetGuid(0),
-                new InstanceId(reader.GetGuid(1)),
+                InstanceId.Parse(reader.GetGuid(1).ToString()),
                 reader.GetString(2),
                 DeserializeRequirements(reader.GetString(3)),
                 reader.GetFieldValue<DateTimeOffset>(4),
@@ -720,7 +698,7 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
         CancellationToken cancellationToken)
     {
         var existing = (await LoadWaitersAsync(connection, transaction, cancellationToken).ConfigureAwait(false))
-            .FirstOrDefault(waiter => waiter.HolderInstanceId == request.HolderInstanceId &&
+            .FirstOrDefault(waiter => waiter.HolderInstanceId.Equals(request.HolderInstanceId) &&
                 string.Equals(waiter.HolderKey, request.HolderKey, StringComparison.Ordinal));
         if (existing is not null)
         {
@@ -962,6 +940,25 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
     private static async Task DeleteWaiterAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
+        ResourcePoolReleaseRequest request,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new NpgsqlCommand(
+            """
+            delete from orcacore_resource_waiters
+            where holder_instance_id = @holder_instance_id
+              and holder_key = @holder_key;
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("holder_instance_id", request.HolderInstanceId.Value);
+        command.Parameters.AddWithValue("holder_key", request.HolderKey);
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task DeleteWaiterAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
         Guid waiterId,
         CancellationToken cancellationToken)
     {
@@ -996,7 +993,7 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
             reader.GetGuid(0),
             reader.GetString(1),
             reader.GetInt32(2),
-            new InstanceId(reader.GetGuid(3)),
+            InstanceId.Parse(reader.GetGuid(3).ToString()),
             reader.GetString(4),
             reader.GetFieldValue<DateTimeOffset>(5),
             reader.IsDBNull(6) ? null : reader.GetFieldValue<DateTimeOffset>(6))
@@ -1052,6 +1049,12 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(definition.Name);
         ArgumentOutOfRangeException.ThrowIfNegative(definition.Capacity);
+    }
+
+    private static InvalidOperationException CreationDefinitionMismatch(string poolName)
+    {
+        return new InvalidOperationException(
+            $"Resource pool '{poolName}' creation definition does not match persisted governance state.");
     }
 
     private static void ValidateAcquireRequest(ResourcePoolAcquireRequest request)

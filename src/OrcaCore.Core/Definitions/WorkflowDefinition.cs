@@ -12,22 +12,19 @@ public sealed record WorkflowDefinition<TState>
         DefinitionId definitionId,
         DefinitionVersion definitionVersion,
         SequenceNode<TState> rootSequence,
-        WorkflowPolicySet? policies = null,
-        bool requiresDurableEngine = false,
-        CompiledWorkflowPlan? compiledPlan = null)
+        CompiledWorkflowPlan compiledPlan,
+        WorkflowPolicySet? policies = null)
     {
+        ArgumentNullException.ThrowIfNull(definitionId);
+        ArgumentNullException.ThrowIfNull(definitionVersion);
         ArgumentNullException.ThrowIfNull(rootSequence);
+        ArgumentNullException.ThrowIfNull(compiledPlan);
 
         DefinitionId = definitionId;
         DefinitionVersion = definitionVersion;
         RootSequence = rootSequence;
         Policies = policies ?? WorkflowPolicySet.Empty;
-        RequiresDurableEngine = requiresDurableEngine;
-        CompiledPlan = compiledPlan ?? CompiledWorkflowPlan.FromLegacy(
-            definitionId,
-            definitionVersion,
-            rootSequence,
-            requiresDurableEngine);
+        CompiledPlan = compiledPlan;
     }
 
     /// <summary>
@@ -41,17 +38,23 @@ public sealed record WorkflowDefinition<TState>
     public DefinitionVersion DefinitionVersion { get; }
 
     /// <summary>
-    /// Gets whether the definition contains durable-only primitives (RunChild/RunChildren)
-    /// and therefore cannot execute on the ephemeral engine.
-    /// </summary>
-    public bool RequiresDurableEngine { get; }
-
-    /// <summary>
     /// Gets the immutable compiler output bound to this definition.
     /// </summary>
-    public CompiledWorkflowPlan CompiledPlan { get; }
+    internal CompiledWorkflowPlan CompiledPlan { get; }
 
-    internal SequenceNode<TState> RootSequence { get; }
+    public SequenceNode<TState> RootSequence { get; }
 
-    internal WorkflowPolicySet Policies { get; }
+    public WorkflowPolicySet Policies { get; }
+}
+
+/// <summary>
+/// Cross-assembly runtime access for the implementation-only compiled definition payload.
+/// </summary>
+public static class WorkflowDefinitionRuntime
+{
+    public static object GetPlan<TState>(WorkflowDefinition<TState> definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        return definition.CompiledPlan;
+    }
 }

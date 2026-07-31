@@ -8,6 +8,8 @@ using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Providers.InMemory;
 using Xunit;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Tests.Composition;
 
 public sealed class ChildResidualPolicyTests
@@ -78,7 +80,7 @@ public sealed class ChildResidualPolicyTests
         return (await EventsAsync(store, parentId)).OfType<WorkflowChildrenScheduledEvent>().Single();
     }
 
-    private static async Task<List<WorkflowEvent>> EventsAsync(InMemoryWorkflowProvider store, InstanceId parentId)
+    private static async Task<List<DurableWorkflowEvent>> EventsAsync(InMemoryWorkflowProvider store, InstanceId parentId)
     {
         return (await store.LoadTailAsync(new WorkflowStreamId(parentId), StreamVersion.Empty, TestContext.Current.CancellationToken))
             .ToList();
@@ -98,11 +100,11 @@ public sealed class ChildResidualPolicyTests
 
     private static DateTimeOffset Timestamp(int seconds) => new(2026, 7, 2, 12, 0, seconds, TimeSpan.Zero);
 
-    private static InstanceId InstanceIdValue(int value) => new(GuidValue(value));
+    private static InstanceId InstanceIdValue(int value) => InstanceId.Parse(GuidValue(value).ToString());
 
     private static CommandId CommandIdValue(int value) => new(GuidValue(value));
 
-    private static DefinitionId DefinitionIdValue(int value) => new(GuidValue(value));
+    private static DefinitionId DefinitionIdValue(int value) => DefinitionId.Parse(GuidValue(value).ToString());
 
     private static Guid GuidValue(int value) => Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}");
 }

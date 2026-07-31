@@ -113,23 +113,21 @@ public sealed class SqlServerResourcePoolCertificationTests : ResourcePoolStoreC
         restartedSnapshot.Value.ExpiredTickets.Should().ContainSingle()
             .Which.Ticket.TicketId.Should().Be(acquired.Tickets.Single().TicketId);
 
-        var forced = await restarted.ForceReleaseTicketAsync(
-            acquired.Tickets.Single().TicketId,
-            "operator requested",
-            Timestamp(7),
+        var released = await restarted.ReleaseAsync(
+            new ResourcePoolReleaseRequest(InstanceIdValue(1), "node-1", Timestamp(7)),
             TestContext.Current.CancellationToken);
 
         await using var audited = new SqlServerWorkflowStore(container.GetConnectionString());
         await audited.InitializeAsync(TestContext.Current.CancellationToken);
         var auditedSnapshot = await audited.GetPoolAsync("db", TestContext.Current.CancellationToken);
 
-        forced.ReleasedTicket.Should().NotBeNull();
-        forced.GrantedWaiters.Should().ContainSingle()
+        released.ReleasedTickets.Should().ContainSingle()
+            .Which.TicketId.Should().Be(acquired.Tickets.Single().TicketId);
+        released.GrantedWaiters.Should().ContainSingle()
             .Which.HolderInstanceId.Should().Be(InstanceIdValue(2));
         auditedSnapshot.Value.HeldTickets.Should().ContainSingle()
             .Which.HolderInstanceId.Should().Be(InstanceIdValue(2));
-        auditedSnapshot.Value.AuditRecords.Should().ContainSingle()
-            .Which.Reason.Should().Be("operator requested");
+        auditedSnapshot.Value.AuditRecords.Should().BeEmpty();
     }
 
     private SqlServerWorkflowStore RequiredStore()
@@ -164,6 +162,6 @@ public sealed class SqlServerResourcePoolCertificationTests : ResourcePoolStoreC
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}"));
+        return InstanceId.Parse($"00000000-0000-0000-0000-{value:000000000000}");
     }
 }

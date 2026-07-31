@@ -57,7 +57,7 @@ Both modes SHALL expose root-only bounded `ForEach` results through runtime-owne
 - **THEN** the root selector carries that value in `TItem`, and the item projector consumes only its `ForEachItemInput<TItem>`
 
 ### Requirement: Executable plan identity is explicit
-Shared contracts SHALL represent definition identity, positive authored version, compiler format version, execution-envelope version, fixed codec format, and structural fingerprint as distinct values used during registration and resume. The fingerprint SHALL cover inspectable authored node/member kinds, ordering, strong values, referenced step/workflow types, static resource requests, and codec format only. It SHALL NOT include delegate IL, DI/step configuration, external adapter behavior, opaque mapping logic, or author-supplied contributors.
+Shared contracts SHALL represent definition identity, positive authored version, workflow mode, compiler format version, execution-envelope version, fixed codec format, and structural fingerprint as distinct values used during registration and resume. The fingerprint SHALL cover inspectable authored node/member kinds, ordering, strong values, referenced step/workflow types, static resource requests, and codec format only. It SHALL NOT include compiler format, workflow mode, definition identity/version, compiler acceptance or fairness limits, delegate IL, DI/step configuration, external adapter behavior, opaque mapping logic, or author-supplied contributors. A durable host SHALL retain every compiler format referenced by a nonterminal instance until the instance terminalizes or is explicitly migrated; before a released compatibility contract exists, a format bump MAY use a hard cutover when no supported persisted instance exists.
 
 #### Scenario: Durable instance resumes
 - **WHEN** a durable checkpoint is loaded
@@ -66,6 +66,10 @@ Shared contracts SHALL represent definition identity, positive authored version,
 #### Scenario: Opaque execution behavior changes
 - **WHEN** durable step or external-request construction behavior changes in a way OrcaCore cannot hash automatically
 - **THEN** the application supplies a new definition version because the version bump is the sole v1 contract for opaque code changes
+
+#### Scenario: Compiler policy changes without authored structure changing
+- **WHEN** scope-depth, internal-instruction, payload, envelope, or another compiler/runtime acceptance policy changes while the authored structure and codec format remain equal
+- **THEN** the structural fingerprint remains equal and compatibility is decided through the policy's owning compiler-format, codec, envelope, host, or provider binding
 
 ## ADDED Requirements
 
@@ -148,6 +152,33 @@ Every public workflow build, runtime, management, and success-projection failure
 - **WHEN** a normalized lease request or pool management call names an unconfigured durable pool
 - **THEN** `ResourcePoolNotConfiguredException` exposes `WF-RESOURCE-POOL-NOT-CONFIGURED` and carries every copied distinct ordinal-sorted missing name
 
+### Requirement: Workflow failures carry authored and occurrence provenance
+Every runtime-created `WorkflowFailure` SHALL carry non-null `AuthoredLocation` and non-null
+`FailureOccurrence`. `AuthoredLocation` SHALL use the existing authored-only grammar and identify
+the instruction at which the failure is created. `FailureOccurrence` SHALL be an externally
+non-derivable runtime-created abstract record with exactly `Root`, `Branch(AuthoredBranchId)`, and
+`Item(int index)` variants; its base constructor SHALL be `private protected`, variant constructors
+SHALL be internal, branch identity SHALL be non-null, and item index SHALL be nonnegative.
+
+Provenance SHALL attach when the failure is created rather than at join. A single `WhenAll` failure
+SHALL propagate unchanged. A synthesized `SFE-JOIN-FAILED` SHALL carry the owning scope fiber's
+occurrence while each ordered cause retains its own provenance. Occurrence variants SHALL retain
+record value equality; `WorkflowFailure` SHALL retain reference equality. Detachment SHALL copy
+location, occurrence, and causes. `orcacore-json-v1` SHALL round-trip the closed versioned
+occurrence discriminator allowlist `root`, `branch`, and `item`.
+
+#### Scenario: One ForEach item fails
+- **WHEN** root `ForEach.WhenAll` has exactly one failed item
+- **THEN** the propagated failure retains the authored instruction location and that item's stable index occurrence without a synthetic join wrapper
+
+#### Scenario: Several branches fail
+- **WHEN** root `Parallel.WhenAll` synthesizes `SFE-JOIN-FAILED`
+- **THEN** the aggregate records the owning root occurrence and every authored-order cause retains its own branch occurrence
+
+#### Scenario: Consumer matches an occurrence
+- **WHEN** application code switches over a `FailureOccurrence`
+- **THEN** it can handle the three documented variants and uses a defensive default because C# v1 does not compiler-enforce exhaustiveness for the closed runtime-created hierarchy
+
 ### Requirement: Step operation identity is stable and opaque
 `StepExecutionContext` SHALL expose `WorkflowInstanceId`, runtime-created `StepOperationId`, and positive `AttemptNumber`. One `StepOperationId` SHALL identify one logical visit to one business step and remain unchanged across policy retry, step-timeout reconciliation, replay, expected-version conflict, process replacement, and competing drivers. A new loop re-entry, item, branch occurrence, or continue-as-new generation SHALL receive a new ID. `AttemptNumber` SHALL be the durable retry-policy ordinal, not the physical CLR invocation count: before first dispatch the runtime SHALL persist the operation ID, ordinal, optional absolute deadline, and in-flight marker; crash/replay redispatch SHALL reuse all of them; only a committed eligible failure/timeout retry transition SHALL increment the ordinal. `maxAttempts = 1` SHALL allow crash replay of ordinal one but no policy retry. `AttemptNumber` SHALL remain public diagnostic metadata only and SHALL NOT be used as an external idempotency key, effect identity, or permission to issue another logical effect. External-effect adapters SHALL use the current occurrence's `StepOperationId`, retain a request fingerprint, and implement create-or-observe behavior. Arbitrary author code and external truth remain an explicit trust boundary; integration/provider certification SHALL exercise duplicate invocation and ambiguous recovery rather than claiming the CLR can prove correct use.
 
@@ -208,18 +239,30 @@ Application contract assemblies SHALL NOT reference provider-authoring or runtim
 - **THEN** no public return type, parameter, property, base type, or generic constraint leaks an advanced or implementation-only type
 
 ### Requirement: Durable values use one fixed detached codec
-V1 SHALL use the non-replaceable certified `System.Text.Json` format `orcacore-json-v1` for supported input/state/result/output/event/DAG values and idempotency bytes. Selector and query snapshots SHALL be codec-detached. Registration SHALL reject unsupported cyclic or unapproved polymorphic graphs before commit, and authors SHALL normalize unordered collections when semantic order matters.
+V1 SHALL use the non-replaceable certified `System.Text.Json` format `orcacore-json-v1` for supported input/state/result/output/event/DAG values and idempotency bytes. Selector and query snapshots SHALL be codec-detached. Registration SHALL reject unsupported cyclic or unapproved polymorphic graphs before commit. The only collection encodings SHALL be an ordered JSON-array sequence declared as a one-dimensional `T[]`, `List<T>`, `IList<T>`, or `IReadOnlyList<T>` and materialized as an array or exact `List<T>`, plus an ordered JSON-object map declared as `Dictionary<string,T>`, `IDictionary<string,T>`, or `IReadOnlyDictionary<string,T>` and materialized as exact `Dictionary<string,T>`. Sequence enumeration order and dictionary insertion/enumeration order SHALL be semantic codec input. Dictionaries remain usable only with string keys; authors SHALL normalize insertion order when map order is not business data. Every other declared or runtime collection shape SHALL reject before commit.
+
+#### Scenario: Persisted collection shape crosses the fixed-codec boundary
+- **WHEN** a value graph contains an allowlisted sequence or string-keyed dictionary
+- **THEN** its enumeration order round-trips byte-for-byte, while sets, queues, linked lists, multidimensional arrays, sorted/custom dictionaries, non-string map keys, and custom collection subclasses reject before provider mutation
 
 #### Scenario: Attempt starts from committed state
 - **WHEN** an attempt begins after a prior failure, timeout, replay, or process replacement
 - **THEN** it receives a fresh codec-detached copy of the last committed state rather than any discarded in-flight mutation
 
 ### Requirement: Execution-path tokens have one countable model
-A runnable root, branch, or item SHALL own one per-instance path token; parking on wait, delay, resource request, or join SHALL release it; and progression SHALL reacquire it. A parent SHALL release its token before fan-out and reacquire only for merge/continuation. Fixed branches SHALL queue by authored ordinal and items by index. `ForEachOptions.MaxConcurrency` SHALL count admitted nonterminal item scopes and only tighten the host path ceiling.
+A runnable root, branch, or item SHALL own one per-instance path token; parking on wait, delay, resource request, or join SHALL release it; and progression SHALL reacquire it. A parent SHALL release its token before fan-out and reacquire only for merge/continuation. Every fixed root-`Parallel` branch fiber SHALL exist when its scope starts and runnable branches SHALL queue for tokens by authored ordinal; no separate branch or live-fiber admission resource SHALL affect workflow semantics. Root-`ForEach` items SHALL queue by index, and `ForEachOptions.MaxConcurrency` SHALL count admitted nonterminal item scopes and only tighten the host path ceiling. A parked item SHALL release its path token while retaining its admitted-item slot; eventual admission of every item is conditional on admitted items not depending on pending items.
 
 #### Scenario: Path ceiling is one during fan-out
 - **WHEN** a parent fans out while `MaxConcurrentExecutionPathsPerInstance` is one
-- **THEN** the parent releases its token so children can progress and later reacquires one for the join without a parent-waits-for-child deadlock
+- **THEN** the parent releases its token so a runnable child can receive it and later reacquires one for the join without a deadlock caused solely by the parent retaining path-token capacity
+
+#### Scenario: Fixed branches exceed the path ceiling
+- **WHEN** a root `Parallel` starts more fixed branches than the host path ceiling
+- **THEN** every branch fiber exists, runnable branches receive tokens fairly in authored order, and no branch waits for a separate live-fiber admission slot
+
+#### Scenario: Admitted item depends on a pending item
+- **WHEN** every admitted `ForEach` item is parked awaiting an effect that only a pending item would produce
+- **THEN** later item admission may remain blocked because parking releases the path token but not the admitted-item slot; v1 does not promise progress for that authored dependency
 
 #### Scenario: Late attempt remains physical
 - **WHEN** a token-ignoring timed-out body continues after losing logical commit authority

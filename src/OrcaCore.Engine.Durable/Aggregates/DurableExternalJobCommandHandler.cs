@@ -4,6 +4,8 @@ using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Execution;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Aggregates;
 
 internal static class DurableExternalJobCommandHandler
@@ -24,7 +26,7 @@ internal static class DurableExternalJobCommandHandler
             return DurableDecision.Empty;
         }
 
-        var waitId = command.WaitId ?? WaitId.New();
+        var waitId = command.WaitId ?? WaitId.Parse(Guid.CreateVersion7().ToString());
         var resourcePoolAcquirePlan = acquireResult is null
             ? DurableResourcePoolAcquirePlan.Empty
             : aggregate.ResourcePoolState.PlanAcquire(
@@ -44,7 +46,7 @@ internal static class DurableExternalJobCommandHandler
         {
             // Queued: the driver-chosen wait now guards the grant signal; the position that
             // suspends on it must commit in the same batch (DR-011a).
-            var queuedEvents = new List<WorkflowEvent>();
+            var queuedEvents = new List<DurableWorkflowEvent>();
             DurableWaitTimerCommandHandler.AddResumeConsumedEvents(
                 queuedEvents, aggregate, command.CommandId, command.InstanceId, command.RequestedAt, command.ConsumedResumeWaitIds);
             queuedEvents.AddRange(resourcePoolAcquirePlan.Events);
@@ -55,14 +57,14 @@ internal static class DurableExternalJobCommandHandler
         }
 
         TimerId? timeoutTimerId = command.TimeoutAt is null ? null : TimerId.New();
-        var events = new List<WorkflowEvent>();
+        var events = new List<DurableWorkflowEvent>();
         DurableWaitTimerCommandHandler.AddResumeConsumedEvents(
             events, aggregate, command.CommandId, command.InstanceId, command.RequestedAt, command.ConsumedResumeWaitIds);
         events.AddRange(resourcePoolAcquirePlan.Events);
 
         events.Add(new WorkflowExternalJobStartedEvent
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = command.InstanceId,
             CommandId = command.CommandId,
             CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -79,7 +81,7 @@ internal static class DurableExternalJobCommandHandler
         });
         events.Add(new WorkflowWaitRegisteredEvent
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = command.InstanceId,
             CommandId = command.CommandId,
             CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -88,7 +90,7 @@ internal static class DurableExternalJobCommandHandler
             RootInstanceId = aggregate.RootInstanceId ?? aggregate.InstanceId,
             WaitId = waitId,
             EventName = DurableRuntimeEventNames.ExternalJobCompleted,
-            CorrelationId = new CorrelationId(command.ExternalJobId),
+            CorrelationId = CorrelationId.Create(command.ExternalJobId),
             Mode = WaitMode.Cold,
             WaitSequence = command.WaitSequence,
             FiberId = command.FiberId,
@@ -99,7 +101,7 @@ internal static class DurableExternalJobCommandHandler
         {
             events.Add(new WorkflowTimerScheduledEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -120,7 +122,7 @@ internal static class DurableExternalJobCommandHandler
     private static CheckpointWrite? CreateEnvelopeCheckpoint(
         DurableWorkflowAggregate aggregate,
         RunExternalJobCommand command,
-        IReadOnlyList<WorkflowEvent> events)
+        IReadOnlyList<DurableWorkflowEvent> events)
     {
         return command.Envelope is { } envelope
             ? DurableLifecycleCommandHandler.CreateEnvelopeCheckpoint(
@@ -144,7 +146,7 @@ internal static class DurableExternalJobCommandHandler
         return new DurableDecision([
             new WorkflowExternalJobCompletedEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -159,7 +161,7 @@ internal static class DurableExternalJobCommandHandler
             .. aggregate.ReleaseEvents(command.CommandId, command.InstanceId, command.RequestedAt, command.ExternalJobId),
             new WorkflowWaitMatchedEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -186,7 +188,7 @@ internal static class DurableExternalJobCommandHandler
         return new DurableDecision([
             new WorkflowExternalJobTimedOutEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -199,7 +201,7 @@ internal static class DurableExternalJobCommandHandler
             },
             new WorkflowExternalJobStopRequestedEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -213,7 +215,7 @@ internal static class DurableExternalJobCommandHandler
             .. aggregate.ReleaseEvents(command.CommandId, command.InstanceId, command.RequestedAt, command.ExternalJobId),
             new WorkflowTerminalEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),

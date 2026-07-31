@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\OrcaCore.Abstractions\OrcaCore.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\OrcaCore.Abstractions\OrcaCore.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Core\OrcaCore.Core.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Engine.Durable\OrcaCore.Engine.Durable.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Providers.SqlServer\OrcaCore.Providers.SqlServer.csproj" />

@@ -37,8 +37,8 @@ public sealed class LeaseDiscoveryAndGovernanceInfrastructureGuards
 }
 
 [Trait(GuardTraits.Phase, GuardTraits.Phase0)]
-[Trait(GuardTraits.Disposition, GuardTraits.ExpectedRed)]
-public sealed class LeaseDiscoveryAndGovernanceExpectedRedGuards
+[Trait(GuardTraits.Disposition, GuardTraits.Infrastructure)]
+public sealed class LeaseDiscoveryAndGovernanceProductGuards
 {
     [Fact]
     public void Product_ContainsFinalDiagnosticsRecoveryAndGovernanceStore()

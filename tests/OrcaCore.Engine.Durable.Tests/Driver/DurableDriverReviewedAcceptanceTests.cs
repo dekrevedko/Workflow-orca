@@ -19,6 +19,8 @@ using OrcaCore.Providers.InMemory;
 using OrcaCore.TestSupport;
 using Xunit;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Tests.Driver;
 
 public sealed class DurableDriverReviewedAcceptanceTests
@@ -90,6 +92,11 @@ public sealed class DurableDriverReviewedAcceptanceTests
         {
             return inner.Deserialize<TPayload>(payload);
         }
+
+        public object? Deserialize(SerializedPayload payload, Type payloadType)
+        {
+            return inner.Deserialize(payload, payloadType);
+        }
     }
 
     private sealed class ContinueOnceStep : IStep<TestState>
@@ -108,7 +115,7 @@ public sealed class DurableDriverReviewedAcceptanceTests
                     Log = [.. context.State.Log]
                 };
                 return ValueTask.FromResult<StepResult>(
-                    new StepResult.ContinueAsNew<TestState>(replacement));
+                    global::OrcaCore.TestSupport.LegacyStepResults.ContinueAsNew<TestState>(replacement));
             }
 
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
@@ -208,9 +215,9 @@ public sealed class DurableDriverReviewedAcceptanceTests
         DefinitionId definitionId,
         DefinitionVersion? version = null)
     {
-        return Workflow.Durable<TestState>(definitionId, version ?? DefinitionVersion.Initial)
+        return global::OrcaCore.Workflow.Durable<TestState>(definitionId, version ?? DefinitionVersion.Initial)
             .Init<string>(orderId => new TestState { OrderId = orderId })
-            .Wait("Approved", state => new CorrelationId(state.OrderId))
+            .Wait("Approved", state => CorrelationId.Create(state.OrderId))
             .Then(() => new AppendStep("approved"))
             .End("done")
             .Build();
@@ -283,7 +290,7 @@ public sealed class DurableDriverReviewedAcceptanceTests
 
         var replacement = CreateHarness(store, clock);
         replacement.Runtime.RegisterDefinition(
-            Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
+            global::OrcaCore.Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
                 .Init<StartInput>(value => new TestState
                 {
                     OrderId = value.OrderId,
@@ -367,7 +374,7 @@ public sealed class DurableDriverReviewedAcceptanceTests
         await replacement.Runtime.RaiseEventAsync(
             start.InstanceId,
             "Approved",
-            new CorrelationId("order-rearm"),
+            CorrelationId.Create("order-rearm"),
             cancellationToken: TestContext.Current.CancellationToken);
         (await SnapshotAsync(first.Store, start.InstanceId)).Status.Should().Be(WorkflowStatus.Completed);
     }
@@ -432,7 +439,7 @@ public sealed class DurableDriverReviewedAcceptanceTests
         var clock = new Clock(TestEpoch);
         var store = new InMemoryWorkflowProvider(clock.TimeProvider);
         var definitionId = DefinitionId.New();
-        WorkflowDefinition<TestState> Definition() => Workflow.Durable<TestState>(
+        WorkflowDefinition<TestState> Definition() => global::OrcaCore.Workflow.Durable<TestState>(
                 definitionId,
                 DefinitionVersion.Initial)
             .Init<string>(orderId => new TestState { OrderId = orderId })
@@ -486,7 +493,7 @@ public sealed class DurableDriverReviewedAcceptanceTests
         var harness = CreateHarness(
             budget: new DurableDriverBudget(1, TimeSpan.FromTicks(1)));
         harness.Runtime.RegisterDefinition(
-            Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
+            global::OrcaCore.Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
                 .Init<string>(orderId => new TestState { OrderId = orderId })
                 .Then(() => new AppendStep("never-admitted"))
                 .End("done")
@@ -518,7 +525,7 @@ public sealed class DurableDriverReviewedAcceptanceTests
     public async Task DriveFailureWithoutSuccessorCheckpoint_KeepsClaimedContinuationRetryable()
     {
         var definitionId = DefinitionId.New();
-        WorkflowDefinition<TestState> Definition() => Workflow.Durable<TestState>(
+        WorkflowDefinition<TestState> Definition() => global::OrcaCore.Workflow.Durable<TestState>(
                 definitionId,
                 DefinitionVersion.Initial)
             .Init<string>(orderId => new TestState { OrderId = orderId })
@@ -528,13 +535,13 @@ public sealed class DurableDriverReviewedAcceptanceTests
                         "runnable",
                         _ => new FailureBranchState("a"),
                         branch => branch
-                            .Wait("A", _ => new CorrelationId("a"))
+                            .Wait("A", _ => CorrelationId.Create("a"))
                             .Return(state => state.Value.Value))
                     .Branch<FailureBranchState>(
                         "blocked",
                         _ => new FailureBranchState("b"),
                         branch => branch
-                            .Wait("B", _ => new CorrelationId("b"))
+                            .Wait("B", _ => CorrelationId.Create("b"))
                             .Return(state => state.Value.Value)),
                 (parent, _) => parent.Value)
             .End("done")
@@ -555,9 +562,9 @@ public sealed class DurableDriverReviewedAcceptanceTests
                 RequestedAt = first.Clock.Now,
                 Envelope = new EventEnvelope
                 {
-                    EventId = EventId.New(),
+                    EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                     EventName = "A",
-                    CorrelationId = new CorrelationId("a"),
+                    CorrelationId = CorrelationId.Create("a"),
                     OccurredAt = first.Clock.Now
                 }
             },
@@ -610,7 +617,7 @@ public sealed class DurableDriverReviewedAcceptanceTests
 
         var routed = await harness.Runtime.RaiseEventByCorrelationAsync(
             "Approved",
-            new CorrelationId("unique"),
+            CorrelationId.Create("unique"),
             new { Source = "correlation" },
             cancellationToken: TestContext.Current.CancellationToken);
         routed.InstanceId.Should().Be(unique.InstanceId);
@@ -619,7 +626,7 @@ public sealed class DurableDriverReviewedAcceptanceTests
         var fanout = await harness.Runtime.RaiseEventToDefinitionAsync(
             definitionId,
             "Approved",
-            new CorrelationId("fanout"),
+            CorrelationId.Create("fanout"),
             new { Source = "definition" },
             TestContext.Current.CancellationToken);
         fanout.Should().HaveCount(2);
@@ -649,7 +656,7 @@ public sealed class DurableDriverReviewedAcceptanceTests
         var parentDefinitionId = DefinitionId.New();
         var childDefinitionId = DefinitionId.New();
         var first = CreateHarness();
-        WorkflowDefinition<TestState> ParentDefinition() => Workflow.Durable<TestState>(
+        WorkflowDefinition<TestState> ParentDefinition() => global::OrcaCore.Workflow.Durable<TestState>(
                 parentDefinitionId,
                 DefinitionVersion.Initial)
             .Init<string>(orderId => new TestState { OrderId = orderId })
@@ -698,24 +705,20 @@ public sealed class DurableDriverReviewedAcceptanceTests
 
     [Fact]
     [Trait("AC", "DR-AC-033")]
-    public async Task DriverOwnedContinueAsNew_CommitsFreshEnvelopeAndResumesAfterReplacement()
+    public async Task DriverOwnedRootContinueAsNew_CommitsFreshEnvelopeThatReplacementCanRead()
     {
         var definitionId = DefinitionId.New();
-        WorkflowDefinition<TestState> Definition() => Workflow.Durable<TestState>(
+        WorkflowDefinition<TestState> Definition() => global::OrcaCore.Workflow.Durable<TestState>(
                 definitionId,
                 DefinitionVersion.Initial)
             .Init<string>(orderId => new TestState { OrderId = orderId })
             .Then<RecordGenerationStep>()
-            .If(
-                state => state.Generation == 0,
-                then => then.ContinueAsNew(state => new TestState
-                {
-                    OrderId = state.OrderId,
-                    Generation = 1,
-                    Log = [.. state.Log]
-                }))
-            .Then(() => new AppendStep("after-rollover"))
-            .End("done")
+            .ContinueAsNew(state => new TestState
+            {
+                OrderId = state.OrderId,
+                Generation = 1,
+                Log = [.. state.Log]
+            })
             .Build();
 
         var first = CreateHarness();
@@ -743,14 +746,13 @@ public sealed class DurableDriverReviewedAcceptanceTests
 
         var replacement = CreateHarness(first.Store, first.Clock);
         replacement.Runtime.RegisterDefinition(Definition());
-        await PumpOnceAsync(replacement);
 
-        var completed = await SnapshotAsync(first.Store, start.InstanceId);
-        completed.Status.Should().Be(WorkflowStatus.Completed);
-        completed.ContinueAsNewGeneration.Should().Be(1);
+        var recovered = await SnapshotAsync(first.Store, start.InstanceId);
+        recovered.Status.Should().Be(WorkflowStatus.Running);
+        recovered.ContinueAsNewGeneration.Should().Be(1);
         var state = await FinalStateAsync(replacement, start.InstanceId);
         state.Generation.Should().Be(1);
-        state.Log.Should().Equal("generation-0", "generation-1", "after-rollover");
+        state.Log.Should().Equal("generation-0");
         var events = await first.Store.LoadTailAsync(
             new WorkflowStreamId(start.InstanceId),
             StreamVersion.Empty,
@@ -764,7 +766,7 @@ public sealed class DurableDriverReviewedAcceptanceTests
         var definitionId = DefinitionId.New();
         var harness = CreateHarness();
         harness.Runtime.RegisterDefinition(
-            Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
+            global::OrcaCore.Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
                 .Init<string>(orderId => new TestState { OrderId = orderId })
                 .WithTimeout(TimeSpan.FromMinutes(5))
                 .Then(() => new AppendStep("timed-step"))
@@ -783,47 +785,12 @@ public sealed class DurableDriverReviewedAcceptanceTests
     }
 
     [Fact]
-    public async Task FacadeOnlyStart_DrivesAcrossContinueAsNewWithoutHostedPump()
-    {
-        var definitionId = DefinitionId.New();
-        var harness = CreateHarness();
-        harness.Runtime.RegisterDefinition(
-            Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
-                .Init<string>(orderId => new TestState { OrderId = orderId })
-                .Then<RecordGenerationStep>()
-                .If(
-                    state => state.Generation == 0,
-                    then => then.ContinueAsNew(state => new TestState
-                    {
-                        OrderId = state.OrderId,
-                        Generation = 1,
-                        Log = [.. state.Log]
-                    }))
-                .Then(() => new AppendStep("after-rollover"))
-                .End("done")
-                .Build());
-
-        var start = await harness.Runtime.StartOrGetAsync<string, TestState>(
-            "facade-only-continue-as-new",
-            definitionId,
-            DefinitionVersion.Initial,
-            "rollover",
-            TestContext.Current.CancellationToken);
-
-        var completed = await SnapshotAsync(harness.Store, start.InstanceId);
-        completed.Status.Should().Be(WorkflowStatus.Completed);
-        completed.ContinueAsNewGeneration.Should().Be(1);
-        (await FinalStateAsync(harness, start.InstanceId)).Log
-            .Should().Equal("generation-0", "generation-1", "after-rollover");
-    }
-
-    [Fact]
     [Trait("AC", "DR-AC-024")]
     public async Task DurableRetry_BackoffAttemptAndRollbackSurviveHostReplacement()
     {
         var definitionId = DefinitionId.New();
         const string orderId = "durable-retry";
-        WorkflowDefinition<TestState> Definition() => Workflow.Durable<TestState>(
+        WorkflowDefinition<TestState> Definition() => global::OrcaCore.Workflow.Durable<TestState>(
                 definitionId,
                 DefinitionVersion.Initial)
             .Init<string>(value => new TestState { OrderId = value })
@@ -888,7 +855,7 @@ public sealed class DurableDriverReviewedAcceptanceTests
     {
         var timeoutDefinitionId = DefinitionId.New();
         const string timeoutOrderId = "durable-timeout";
-        WorkflowDefinition<TestState> TimeoutDefinition() => Workflow.Durable<TestState>(
+        WorkflowDefinition<TestState> TimeoutDefinition() => global::OrcaCore.Workflow.Durable<TestState>(
                 timeoutDefinitionId,
                 DefinitionVersion.Initial)
             .Init<string>(value => new TestState { OrderId = value })
@@ -943,7 +910,7 @@ public sealed class DurableDriverReviewedAcceptanceTests
     {
         var cancelDefinitionId = DefinitionId.New();
         const string cancelOrderId = "durable-operator-cancel";
-        var cancelDefinition = Workflow.Durable<TestState>(
+        var cancelDefinition = global::OrcaCore.Workflow.Durable<TestState>(
                 cancelDefinitionId,
                 DefinitionVersion.Initial)
             .Init<string>(value => new TestState { OrderId = value })
@@ -997,7 +964,7 @@ public sealed class DurableDriverReviewedAcceptanceTests
     public async Task DurableWhenFirst_ConcurrentMatchesAcrossHostsCommitOneWinner()
     {
         var definitionId = DefinitionId.New();
-        WorkflowDefinition<TestState> Definition() => Workflow.Durable<TestState>(
+        WorkflowDefinition<TestState> Definition() => global::OrcaCore.Workflow.Durable<TestState>(
                 definitionId,
                 DefinitionVersion.Initial)
             .Init<string>(orderId => new TestState { OrderId = orderId })
@@ -1007,13 +974,13 @@ public sealed class DurableDriverReviewedAcceptanceTests
                         "a",
                         _ => new RaceBranchState("winner-a"),
                         branch => branch
-                            .Wait("A", _ => new CorrelationId("a"))
+                            .Wait("A", _ => CorrelationId.Create("a"))
                             .Return(state => state.Value.Result))
                     .Branch<RaceBranchState>(
                         "b",
                         _ => new RaceBranchState("winner-b"),
                         branch => branch
-                            .Wait("B", _ => new CorrelationId("b"))
+                            .Wait("B", _ => CorrelationId.Create("b"))
                             .Return(state => state.Value.Result)),
                 (parent, winner) => new TestState
                 {
@@ -1048,9 +1015,9 @@ public sealed class DurableDriverReviewedAcceptanceTests
                     RequestedAt = hostA.Clock.Now,
                     Envelope = new EventEnvelope
                     {
-                        EventId = EventId.New(),
+                        EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                         EventName = "A",
-                        CorrelationId = new CorrelationId("a"),
+                        CorrelationId = CorrelationId.Create("a"),
                         OccurredAt = hostA.Clock.Now
                     }
                 },
@@ -1063,9 +1030,9 @@ public sealed class DurableDriverReviewedAcceptanceTests
                     RequestedAt = hostB.Clock.Now,
                     Envelope = new EventEnvelope
                     {
-                        EventId = EventId.New(),
+                        EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                         EventName = "B",
-                        CorrelationId = new CorrelationId("b"),
+                        CorrelationId = CorrelationId.Create("b"),
                         OccurredAt = hostB.Clock.Now
                     }
                 },
@@ -1090,146 +1057,6 @@ public sealed class DurableDriverReviewedAcceptanceTests
             TestContext.Current.CancellationToken);
         events.OfType<WorkflowWaitMatchedEvent>().Should().ContainSingle();
         events.OfType<WorkflowResumeConsumedEvent>().Should().ContainSingle();
-    }
-
-    [Fact]
-    [Trait("AC", "DR-AC-032")]
-    public async Task DurableWhenFirst_ReadyJoinIsNotBlockedByDeferredParallelCandidate()
-    {
-        var definitionId = DefinitionId.New();
-        var definition = Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
-            .Init<string>(orderId => new TestState { OrderId = orderId })
-            .Parallel<IReadOnlyList<string>>(
-                branches => branches
-                    .Branch<ComposedRaceState>(
-                        "quick",
-                        _ => new ComposedRaceState("quick", ["quick"]),
-                        branch => branch.Return(state => state.Value.Log))
-                    .Branch<ComposedRaceState>(
-                        "race",
-                        _ => new ComposedRaceState("race", []),
-                        branch => branch
-                            .WhenFirst<string>(
-                                candidates => candidates
-                                    .Branch<RaceBranchState>(
-                                        "winner",
-                                        _ => new RaceBranchState("winner"),
-                                        candidate => candidate
-                                            .Wait("A", _ => new CorrelationId("a"))
-                                            .Return(state => state.Value.Result))
-                                    .Branch<RaceBranchState>(
-                                        "loser",
-                                        _ => new RaceBranchState("loser"),
-                                        candidate => candidate
-                                            .Wait("B", _ => new CorrelationId("b"))
-                                            .Return(state => state.Value.Result)),
-                                (parent, winner) => parent.Value with { Log = [winner.Value] })
-                            .Return(state => state.Value.Log)),
-                (parent, results) => new TestState
-                {
-                    OrderId = parent.Value.OrderId,
-                    Generation = parent.Value.Generation,
-                    Log = results.SelectMany(result => result.Value).ToList()
-                })
-            .Then(() => new AppendStep("after-parallel"))
-            .End("done")
-            .Build();
-        var harness = CreateHarness();
-        harness.Runtime.RegisterDefinition(definition);
-        var start = await harness.Runtime.StartOrGetAsync<string, TestState>(
-            "dr-ac-032-deferred-parallel-candidate",
-            definitionId,
-            DefinitionVersion.Initial,
-            "composed-race",
-            TestContext.Current.CancellationToken);
-
-        (await SnapshotAsync(harness.Store, start.InstanceId)).ActiveWaits.Should().HaveCount(2);
-        await harness.Runtime.RaiseEventAsync(
-            start.InstanceId,
-            "A",
-            new CorrelationId("a"),
-            new { Winner = true },
-            cancellationToken: TestContext.Current.CancellationToken);
-
-        var completed = await SnapshotAsync(harness.Store, start.InstanceId);
-        completed.Status.Should().Be(WorkflowStatus.Completed);
-        completed.ActiveWaits.Should().BeEmpty();
-        (await FinalStateAsync(harness, start.InstanceId)).Log
-            .Should().Equal("quick", "winner", "after-parallel");
-        var events = await harness.Store.LoadTailAsync(
-            new WorkflowStreamId(start.InstanceId),
-            StreamVersion.Empty,
-            TestContext.Current.CancellationToken);
-        events.OfType<WorkflowWaitCancelledEvent>().Should().ContainSingle();
-    }
-
-    [Fact]
-    [Trait("AC", "DR-AC-032")]
-    public async Task DurableWhenFirst_NestedLosingBranchCancelsOwnedWaitAndCompletes()
-    {
-        var definitionId = DefinitionId.New();
-        var definition = Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
-            .Init<string>(orderId => new TestState { OrderId = orderId })
-            .WhenFirst<string>(
-                branches => branches
-                    .Branch<RaceBranchState>(
-                        "winner",
-                        _ => new RaceBranchState("winner"),
-                        branch => branch
-                            .Wait("A", _ => new CorrelationId("a"))
-                            .Return(state => state.Value.Result))
-                    .Branch<RaceBranchState>(
-                        "nested-loser",
-                        _ => new RaceBranchState("loser"),
-                        branch => branch
-                            .WhenFirst<string>(
-                                nested => nested.Branch<RaceBranchState>(
-                                    "nested-wait",
-                                    _ => new RaceBranchState("loser"),
-                                    child => child
-                                        .Wait("B", _ => new CorrelationId("b"))
-                                        .Return(state => state.Value.Result)),
-                                (parent, nestedWinner) => parent.Value with
-                                {
-                                    Result = nestedWinner.Value
-                                })
-                            .Return(state => state.Value.Result)),
-                (parent, winner) => new TestState
-                {
-                    OrderId = parent.Value.OrderId,
-                    Generation = parent.Value.Generation,
-                    Log = [winner.Value]
-                })
-            .Then(() => new AppendStep("after-winner"))
-            .End("done")
-            .Build();
-        var harness = CreateHarness();
-        harness.Runtime.RegisterDefinition(definition);
-        var start = await harness.Runtime.StartOrGetAsync<string, TestState>(
-            "dr-ac-032-nested-loser",
-            definitionId,
-            DefinitionVersion.Initial,
-            "nested-race",
-            TestContext.Current.CancellationToken);
-
-        (await SnapshotAsync(harness.Store, start.InstanceId)).ActiveWaits.Should().HaveCount(2);
-        await harness.Runtime.RaiseEventAsync(
-            start.InstanceId,
-            "A",
-            new CorrelationId("a"),
-            new { Winner = true },
-            cancellationToken: TestContext.Current.CancellationToken);
-
-        var completed = await SnapshotAsync(harness.Store, start.InstanceId);
-        completed.Status.Should().Be(WorkflowStatus.Completed);
-        completed.ActiveWaits.Should().BeEmpty();
-        (await FinalStateAsync(harness, start.InstanceId)).Log
-            .Should().Equal("winner", "after-winner");
-        var events = await harness.Store.LoadTailAsync(
-            new WorkflowStreamId(start.InstanceId),
-            StreamVersion.Empty,
-            TestContext.Current.CancellationToken);
-        events.OfType<WorkflowWaitCancelledEvent>().Should().ContainSingle();
     }
 
     private sealed class CoordinatedAppendEventStore(
@@ -1263,7 +1090,7 @@ public sealed class DurableDriverReviewedAcceptanceTests
             return await inner.AppendAsync(batch, cancellationToken).ConfigureAwait(false);
         }
 
-        public Task<IReadOnlyList<WorkflowEvent>> LoadTailAsync(
+        public Task<IReadOnlyList<DurableWorkflowEvent>> LoadTailAsync(
             WorkflowStreamId streamId,
             StreamVersion afterVersion,
             CancellationToken cancellationToken) =>

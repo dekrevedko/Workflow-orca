@@ -163,11 +163,11 @@ public sealed class ParentResumeTokenTests
 
     private static DateTimeOffset Timestamp(int seconds) => new(2026, 7, 2, 12, 0, seconds, TimeSpan.Zero);
 
-    private static InstanceId InstanceIdValue(int value) => new(GuidValue(value));
+    private static InstanceId InstanceIdValue(int value) => InstanceId.Parse(GuidValue(value).ToString());
 
     private static CommandId CommandIdValue(int value) => new(GuidValue(value));
 
-    private static DefinitionId DefinitionIdValue(int value) => new(GuidValue(value));
+    private static DefinitionId DefinitionIdValue(int value) => DefinitionId.Parse(GuidValue(value).ToString());
 
     private static Guid GuidValue(int value) => Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}");
 }

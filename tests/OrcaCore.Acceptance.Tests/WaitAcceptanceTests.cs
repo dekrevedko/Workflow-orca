@@ -1,56 +1,47 @@
+using Microsoft.Extensions.DependencyInjection;
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
-using OrcaCore.Engine.Ephemeral;
 using Xunit;
 
 namespace OrcaCore.Acceptance.Tests;
 
 public sealed class WaitAcceptanceTests
 {
-    private static readonly CorrelationId Correlation = new("order-123");
+    private static readonly CorrelationId Correlation = CorrelationId.Create("order-123");
 
     [Fact]
     [Trait("AC", "AC-101")]
     public async Task Wait_EntersWaiting_WithInspectableActiveWait()
     {
-        var state = new TestState();
-        var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(state);
-        engine.RegisterDefinition(definition);
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
+        var instance = await StartWaitingAsync(provider, "wait-inspection");
+        var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
 
-        var snapshot = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
-            "start",
-            TestContext.Current.CancellationToken);
-
-        snapshot.Status.Should().Be(WorkflowStatus.Waiting);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Waiting);
         snapshot.ActiveWaits.Should().ContainSingle()
-            .Which.EventName.Should().Be("Approved");
+            .Which.EventName.Should().Be(EventName.Create("Approved"));
     }
 
     [Fact]
     [Trait("AC", "AC-102")]
     public async Task MatchingEvent_ResumesExactlyOnce_WithPayload()
     {
-        var state = new TestState();
-        var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(state);
-        engine.RegisterDefinition(definition);
-        var waiting = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
-            "start",
-            TestContext.Current.CancellationToken);
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
+        var instance = await StartWaitingAsync(provider, "matching-event");
+        var events = provider.GetRequiredService<IWorkflowEventClient>();
 
-        var resumed = await engine.RaiseEventAsync<TestState>(
-            waiting.InstanceId,
+        var delivery = await events.DeliverToInstanceAsync(
+            instance.InstanceId,
             Event("Approved", Correlation, "accepted"),
             TestContext.Current.CancellationToken);
+        var resumed = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
-        resumed.Status.Should().Be(WorkflowStatus.Completed);
+        delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
+        resumed.Status.Should().Be(WorkflowInstanceStatus.Completed);
         state.Payloads.Should().Equal(["accepted"]);
     }
 
@@ -58,21 +49,19 @@ public sealed class WaitAcceptanceTests
     [Trait("AC", "AC-103")]
     public async Task NonMatchingEvent_DoesNotResume()
     {
-        var state = new TestState();
-        var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(state);
-        engine.RegisterDefinition(definition);
-        var waiting = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
-            "start",
-            TestContext.Current.CancellationToken);
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
+        var instance = await StartWaitingAsync(provider, "non-matching-event");
+        var events = provider.GetRequiredService<IWorkflowEventClient>();
 
-        var snapshot = await engine.RaiseEventAsync<TestState>(
-            waiting.InstanceId,
-            Event("Approved", new CorrelationId("other"), "ignored"),
+        var delivery = await events.DeliverToInstanceAsync(
+            instance.InstanceId,
+            Event("Approved", CorrelationId.Create("other"), "ignored"),
             TestContext.Current.CancellationToken);
+        var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
-        snapshot.Status.Should().Be(WorkflowStatus.Waiting);
+        delivery.Status.Should().Be(EventDeliveryStatus.NoActiveWait);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Waiting);
         state.Payloads.Should().BeEmpty();
     }
 
@@ -80,68 +69,65 @@ public sealed class WaitAcceptanceTests
     [Trait("AC", "AC-006")]
     public async Task ConcurrentResumeAttempts_ProduceOneSequentialOutcome()
     {
-        var state = new TestState();
-        var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(state);
-        engine.RegisterDefinition(definition);
-        var waiting = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
-            "start",
-            TestContext.Current.CancellationToken);
-
-        var first = engine.RaiseEventAsync<TestState>(
-            waiting.InstanceId,
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
+        var instance = await StartWaitingAsync(provider, "concurrent-resume");
+        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var first = events.DeliverToInstanceAsync(
+            instance.InstanceId,
             Event("Approved", Correlation, "first"),
-            TestContext.Current.CancellationToken);
-        var second = engine.RaiseEventAsync<TestState>(
-            waiting.InstanceId,
+            TestContext.Current.CancellationToken).AsTask();
+        var second = events.DeliverToInstanceAsync(
+            instance.InstanceId,
             Event("Approved", Correlation, "second"),
-            TestContext.Current.CancellationToken);
+            TestContext.Current.CancellationToken).AsTask();
 
         await Task.WhenAll(first, second).WaitAsync(TestContext.Current.CancellationToken);
+        var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
         state.Payloads.Should().HaveCount(1);
     }
 
-    private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> Definition(TestState state)
+    private static async Task<WorkflowInstanceHandle> StartWaitingAsync(
+        IServiceProvider provider,
+        string idempotencyKey)
     {
-        return new WorkflowBuilder<TestState>()
-            .Init<string>(_ => state)
-            .Wait("Approved", _ => Correlation)
-            .Then(() => new CapturePayloadStep())
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-    }
-
-    private static EventEnvelope Event(string name, CorrelationId correlationId, object? payload)
-    {
-        return new EventEnvelope
-        {
-            EventId = EventId.New(),
-            EventName = name,
-            CorrelationId = correlationId,
-            Payload = payload,
-            OccurredAt = DateTimeOffset.UtcNow
-        };
-    }
-
-    private sealed class TestState
-    {
-        public List<string> Payloads { get; } = [];
-    }
-
-    private sealed class CapturePayloadStep : IStep<TestState>
-    {
-        public ValueTask<StepResult> ExecuteAsync(
-            StepContext<TestState> context,
-            CancellationToken cancellationToken)
-        {
-            if (context.ResumedEvent?.Payload is string payload)
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(_ => new TestState())
+            .Wait(EventName.Create("Approved"), _ => Correlation)
+            .Then(context =>
             {
-                context.State.Payloads.Add(payload);
-            }
+                if (context.ResumedEvent is { Payload: string payload, PayloadContentType: null })
+                {
+                    context.State.Payloads.Add(payload);
+                }
 
-            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
-        }
+                return ValueTask.CompletedTask;
+            })
+            .End()
+            .Build();
+        var definitionHandle = provider.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        return (await definitionHandle.StartOrGetAsync(
+                "start",
+                StartIdempotencyKey.Create(idempotencyKey),
+                TestContext.Current.CancellationToken))
+            .GetHandleOrThrow();
     }
+
+    private static WorkflowEvent<string> Event(string name, CorrelationId correlationId, string payload)
+    {
+        return WorkflowEvent<string>.Create(
+            EventId.Create(Guid.CreateVersion7().ToString()),
+            EventName.Create(name),
+            correlationId,
+            payload,
+            DateTimeOffset.UtcNow);
+    }
+
+    public sealed class TestState
+    {
+        public List<string> Payloads { get; init; } = [];
+    }
+
 }

@@ -7,6 +7,8 @@ using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Aggregates;
 using OrcaCore.Engine.Durable.Execution;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Management;
 
 /// <summary>
@@ -34,7 +36,8 @@ public sealed class DurableManagement(
     /// </summary>
     public DurableManagementQuery ForDefinition(DefinitionId definitionId)
     {
-        return All().Where(instance => instance.DefinitionId == definitionId);
+        ArgumentNullException.ThrowIfNull(definitionId);
+        return All().Where(instance => instance.DefinitionId.Equals(definitionId));
     }
 
     /// <summary>
@@ -42,13 +45,14 @@ public sealed class DurableManagement(
     /// </summary>
     public DurableManagementQuery Instance(InstanceId instanceId)
     {
-        return All().Where(instance => instance.InstanceId == instanceId);
+        ArgumentNullException.ThrowIfNull(instanceId);
+        return All().Where(instance => instance.InstanceId.Equals(instanceId));
     }
 
     /// <summary>
     /// Pauses one durable instance at the next safe boundary.
     /// </summary>
-    public Task<DurableCommandResult> PauseAsync(
+    internal Task<DurableCommandResult> PauseAsync(
         InstanceId instanceId,
         DateTimeOffset requestedAt,
         CancellationToken cancellationToken)
@@ -61,7 +65,7 @@ public sealed class DurableManagement(
     /// <summary>
     /// Resumes one paused durable instance.
     /// </summary>
-    public Task<DurableCommandResult> ResumeAsync(
+    internal Task<DurableCommandResult> ResumeAsync(
         InstanceId instanceId,
         DateTimeOffset requestedAt,
         bool replayBufferedDeliveries,
@@ -129,7 +133,7 @@ public sealed class DurableManagement(
     /// <summary>
     /// Reads the committed durable event history for one instance.
     /// </summary>
-    public Task<IReadOnlyList<WorkflowEvent>> GetHistoryAsync(
+    public Task<IReadOnlyList<DurableWorkflowEvent>> GetHistoryAsync(
         InstanceId instanceId,
         CancellationToken cancellationToken)
     {
@@ -189,22 +193,9 @@ public sealed class DurableManagement(
     }
 
     /// <summary>
-    /// Force-releases one ticket as an audited operator action.
-    /// </summary>
-    public Task<ResourcePoolForceReleaseResult> ForceReleaseResourcePoolTicketAsync(
-        Guid ticketId,
-        string reason,
-        DateTimeOffset releasedAt,
-        CancellationToken cancellationToken)
-    {
-        return RequiredResourcePoolStore()
-            .ForceReleaseTicketAsync(ticketId, reason, releasedAt, cancellationToken);
-    }
-
-    /// <summary>
     /// Archives inactive durable metadata according to an explicit retention policy.
     /// </summary>
-    public Task<ArchiveResult> ArchiveAsync(RetentionPolicy policy, CancellationToken cancellationToken)
+    internal Task<ArchiveResult> ArchiveAsync(RetentionPolicy policy, CancellationToken cancellationToken)
     {
         return RequiredRetentionStore().ArchiveAsync(policy, cancellationToken);
     }
@@ -212,7 +203,7 @@ public sealed class DurableManagement(
     /// <summary>
     /// Purges retained durable data according to an explicit retention policy.
     /// </summary>
-    public Task<PurgeResult> PurgeAsync(RetentionPolicy policy, CancellationToken cancellationToken)
+    internal Task<PurgeResult> PurgeAsync(RetentionPolicy policy, CancellationToken cancellationToken)
     {
         throw new WorkflowLifecycleException(
             "Durable Purge requires explicit destructive safety confirmation.");
@@ -221,7 +212,7 @@ public sealed class DurableManagement(
     /// <summary>
     /// Purges retained durable data according to an explicit retention policy after destructive safety confirmation.
     /// </summary>
-    public Task<PurgeResult> PurgeAsync(
+    internal Task<PurgeResult> PurgeAsync(
         RetentionPolicy policy,
         DestructiveCommandSafety safety,
         CancellationToken cancellationToken)
@@ -298,7 +289,7 @@ public sealed class DurableManagement(
         }
     }
 
-    private static IEnumerable<DagNodeDraft> ChildNodesFromEvent(WorkflowEvent workflowEvent)
+    private static IEnumerable<DagNodeDraft> ChildNodesFromEvent(DurableWorkflowEvent workflowEvent)
     {
         return workflowEvent switch
         {

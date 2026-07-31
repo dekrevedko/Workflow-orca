@@ -1,12 +1,44 @@
+using System.Diagnostics;
+using System.Text.RegularExpressions;
 using AwesomeAssertions;
-using OrcaCore.Core.Compilation;
+using OrcaCore.Core.Definitions;
 
 namespace OrcaCore.DeveloperSurface.Guards;
 
 [Trait(GuardTraits.Phase, GuardTraits.Phase0)]
 [Trait(GuardTraits.Disposition, GuardTraits.Infrastructure)]
+[Collection(CompileFixtureCollection.Name)]
 public sealed class InfrastructureGuards
 {
+    private static readonly Regex OwnershipCompatibilityAlter = new(
+        """
+        \balter\s+table\s+
+        (?:if\s+exists\s+)?
+        (?:only\s+)?
+        (?:
+            (?:"[^"]+"|\[[^\]]+\]|[a-z_][a-z0-9_$]*)\s*\.\s*
+        )?
+        (?:
+            "orcacore_resource_(?:tickets|waiters)"
+            |\[orcacore_resource_(?:tickets|waiters)\]
+            |orcacore_resource_(?:tickets|waiters)
+        )
+        (?:\s*\*)?
+        \s+add\s+
+        (?:column\s+)?
+        (?:if\s+not\s+exists\s+)?
+        (?:
+            "(?:fiber_id|scope_id)"
+            |\[(?:fiber_id|scope_id)\]
+            |(?:fiber_id|scope_id)
+        )
+        (?=\s|[;,]|$)
+        """,
+        RegexOptions.IgnoreCase |
+        RegexOptions.Singleline |
+        RegexOptions.CultureInvariant |
+        RegexOptions.IgnorePatternWhitespace);
+
     [Fact]
     public void FrozenTargetCatalog_ModelsEveryAssemblyAndRequiredAudienceTier()
     {
@@ -26,11 +58,136 @@ public sealed class InfrastructureGuards
     }
 
     [Fact]
-    public void DefinitionIrScanner_FollowsInheritedAndNestedPublicSignatures()
+    public void DefinitionIrScanner_ReportsNoCompilerIrOnTheRuntimeDefinition()
     {
-        PublicSurfaceCatalog.FindCompilerIrSignatureTypes(typeof(SyntheticModeDefinition))
-            .Should().Contain(typeof(CompiledWorkflowPlan),
-                "an empty derived definition must not hide a compiled plan inherited through a nested signature");
+        PublicSurfaceCatalog.FindCompilerIrSignatureTypes(typeof(WorkflowDefinition<>))
+            .Should().BeEmpty("compiler IR must be implementation-only");
+    }
+
+    [Fact]
+    public void RelationalResourcePoolOwnership_UsesGreenfieldFirstCreateSchemasOnly()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        var postgreSqlRoot = Path.Combine(root, "src", "OrcaCore.Providers.PostgreSql");
+        var sqlServerRoot = Path.Combine(root, "src", "OrcaCore.Providers.SqlServer");
+
+        File.Exists(Path.Combine(postgreSqlRoot, "Migrations", "007_resource_ownership.sql"))
+            .Should().BeFalse("the greenfield PostgreSQL schema must not retain an ownership upgrade migration");
+        File.Exists(Path.Combine(sqlServerRoot, "Migrations", "008_resource_ownership.sql"))
+            .Should().BeFalse("the greenfield SQL Server schema must not retain an ownership upgrade migration");
+
+        var postgreSqlInitializer = File.ReadAllText(
+            Path.Combine(postgreSqlRoot, "PostgreSqlResourcePoolStore.cs"));
+
+        foreach (var firstCreateSchema in new[] { "001_initial.sql", "003_resource_pools.sql" })
+        {
+            var sql = File.ReadAllText(Path.Combine(sqlServerRoot, "Migrations", firstCreateSchema));
+            sql.Split("fiber_id nvarchar(256) null", StringSplitOptions.None)
+                .Should().HaveCount(3, "tickets and waiters must both own fiber identity from first creation");
+            sql.Split("scope_id nvarchar(256) null", StringSplitOptions.None)
+                .Should().HaveCount(3, "tickets and waiters must both own scope identity from first creation");
+        }
+
+        var compatibilityAlters = FindOwnershipCompatibilityAlters(
+            Path.Combine(postgreSqlRoot, "PostgreSqlResourcePoolStore.cs"),
+            postgreSqlInitializer);
+        foreach (var migrationRoot in new[]
+                 {
+                     Path.Combine(postgreSqlRoot, "Migrations"),
+                     Path.Combine(sqlServerRoot, "Migrations")
+                 })
+        {
+            foreach (var migration in Directory.EnumerateFiles(migrationRoot, "*.sql"))
+            {
+                compatibilityAlters.AddRange(FindOwnershipCompatibilityAlters(
+                    migration,
+                    File.ReadAllText(migration)));
+            }
+        }
+
+        compatibilityAlters.Should().BeEmpty(
+            "ownership columns belong in greenfield first-create schemas, but compatibility DDL was found:{0}{1}",
+            Environment.NewLine,
+            string.Join(Environment.NewLine, compatibilityAlters));
+    }
+
+    [Fact]
+    public void RelationalResourcePoolOwnership_ScannerRejectsRenamedFormerPostgreSqlMigration()
+    {
+        const string renamedMigration = "Migrations/999_renamed_resource_ownership.sql";
+        const string formerPostgreSqlMigration =
+            """
+            alter table if exists orcacore_resource_tickets
+                add column if not exists fiber_id text null;
+
+            alter table if exists orcacore_resource_tickets
+                add column if not exists scope_id text null;
+
+            alter table if exists orcacore_resource_waiters
+                add column if not exists fiber_id text null;
+
+            alter table if exists orcacore_resource_waiters
+                add column if not exists scope_id text null;
+            """;
+
+        var formerMigrationFindings = FindOwnershipCompatibilityAlters(
+            renamedMigration,
+            formerPostgreSqlMigration);
+
+        formerMigrationFindings.Should().HaveCount(
+            4,
+            "the exact deleted PostgreSQL ownership migration must remain rejected under any filename");
+        formerMigrationFindings.Should().OnlyContain(
+            finding => finding.StartsWith(renamedMigration, StringComparison.Ordinal));
+
+        var qualifiedVariants = new[]
+        {
+            """alter table if exists public.orcacore_resource_tickets add column if not exists fiber_id text null;""",
+            """alter table if exists only "public"."orcacore_resource_waiters" add column if not exists "scope_id" text null;""",
+            """alter table [dbo].[orcacore_resource_tickets] add [fiber_id] nvarchar(256) null;"""
+        };
+
+        qualifiedVariants.Should().OnlyContain(
+            sql => FindOwnershipCompatibilityAlters(renamedMigration, sql).Count == 1,
+            "optional PostgreSQL clauses, schema qualification, and quoted identifiers must not bypass the scanner");
+    }
+
+    private static List<string> FindOwnershipCompatibilityAlters(string sourcePath, string source)
+    {
+        return OwnershipCompatibilityAlter
+            .Matches(source)
+            .Select(match => $"{sourcePath}: {match.Value}")
+            .ToList();
+    }
+
+    [Fact]
+    public void ExactAuthoringPositiveFixture_Compiles()
+    {
+        var project = Path.Combine(
+            FixtureDefinitions.RepositoryRoot(),
+            "tests",
+            "OrcaCore.DeveloperSurface.Guards",
+            "CompileFixtures",
+            "ExactAuthoring",
+            "ExactAuthoring.csproj");
+        var start = new ProcessStartInfo(
+            "dotnet",
+            $"build \"{project}\" --configuration Release --nologo --verbosity quiet")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            WorkingDirectory = FixtureDefinitions.RepositoryRoot()
+        };
+
+        using var process = Process.Start(start)!;
+        var output = process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd();
+        process.WaitForExit();
+
+        process.ExitCode.Should().Be(
+            0,
+            "the exact companion declarations and their positive consumer usage must compile; output: {0}",
+            output);
     }
 
     [Fact]
@@ -62,12 +219,4 @@ public sealed class InfrastructureGuards
             x.Contract.Contains("public job", StringComparison.OrdinalIgnoreCase));
     }
 
-    private abstract class SyntheticDefinitionBase
-    {
-        public IReadOnlyList<CompiledWorkflowPlan> CompiledPlans => [];
-    }
-
-    private sealed class SyntheticModeDefinition : SyntheticDefinitionBase
-    {
-    }
 }

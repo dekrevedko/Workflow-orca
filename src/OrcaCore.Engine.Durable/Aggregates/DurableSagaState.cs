@@ -3,6 +3,8 @@ using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Aggregates;
 
 internal sealed class DurableSagaState
@@ -117,7 +119,7 @@ internal sealed class DurableSagaState
         return requestedCompensationScopes.Contains(scopeId);
     }
 
-    internal IReadOnlyList<WorkflowEvent> PlanCompensation(
+    internal IReadOnlyList<DurableWorkflowEvent> PlanCompensation(
         DurableSagaEventContext context,
         string scopeId,
         string? reason,
@@ -138,7 +140,7 @@ internal sealed class DurableSagaState
         return PlanCompensation(context, scopeId, reason, eligibleActions);
     }
 
-    internal IReadOnlyList<WorkflowEvent> PlanCompensationForFailure(
+    internal IReadOnlyList<DurableWorkflowEvent> PlanCompensationForFailure(
         DurableSagaEventContext context,
         IReadOnlyCollection<FiberId> terminalFiberIds,
         IReadOnlyCollection<ScopeId> failedScopeIds,
@@ -159,7 +161,7 @@ internal sealed class DurableSagaState
             .Where(action => !string.IsNullOrWhiteSpace(action.CompensationKey))
             .GroupBy(action => action.ScopeId, StringComparer.Ordinal)
             .OrderBy(group => group.Key, StringComparer.Ordinal);
-        var events = new List<WorkflowEvent>();
+        var events = new List<DurableWorkflowEvent>();
         foreach (var group in affected)
         {
             if (!HasRequestedCompensation(group.Key))
@@ -171,17 +173,17 @@ internal sealed class DurableSagaState
         return events;
     }
 
-    private static IReadOnlyList<WorkflowEvent> PlanCompensation(
+    private static IReadOnlyList<DurableWorkflowEvent> PlanCompensation(
         DurableSagaEventContext context,
         string scopeId,
         string? reason,
         DurableSagaForwardAction[] eligibleActions)
     {
-        var events = new List<WorkflowEvent>
+        var events = new List<DurableWorkflowEvent>
         {
             new SagaCompensationRequestedEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = context.InstanceId,
                 CommandId = context.CommandId,
                 CausationId = context.CausationId,
@@ -197,7 +199,7 @@ internal sealed class DurableSagaState
         {
             events.Add(new SagaCompensationStartedEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = context.InstanceId,
                 CommandId = context.CommandId,
                 CausationId = context.CausationId,
@@ -213,7 +215,7 @@ internal sealed class DurableSagaState
         return events;
     }
 
-    internal void Apply(WorkflowEvent workflowEvent, DateTimeOffset? aggregateUpdatedAt = null)
+    internal void Apply(DurableWorkflowEvent workflowEvent, DateTimeOffset? aggregateUpdatedAt = null)
     {
         ArgumentNullException.ThrowIfNull(workflowEvent);
 

@@ -17,25 +17,29 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             Initialize(context));
     }
 
-    private static StructuredExecutionState ExecuteConditionInstruction(
+    private StructuredExecutionState ExecuteConditionInstruction(
         StructuredExecutionState execution,
         FiberRecord fiber,
         CompiledInstruction instruction,
         TState state)
     {
-        if (instruction.Operation is not Func<TState, bool> condition)
+        if (instruction.Operation is not { } condition)
         {
-            throw new WorkflowDefinitionException(
+            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                 $"Compiled condition '{instruction.Path}' has no typed binding.");
         }
 
+        var conditionState = ResolveFiberState(execution, fiber, state);
+        var matched = StructuredInvocationCache.Invoke(condition, conditionState) as bool? ??
+            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                $"Compiled condition '{instruction.Path}' did not return a Boolean value.");
         return MoveTo(
             execution,
             fiber,
-            condition(state)
+            matched
                 ? RequiredNext(instruction)
                 : instruction.AlternateInstructionId ??
-                    throw new WorkflowDefinitionException(
+                    throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                         $"Condition '{instruction.Path}' has no alternate target."));
     }
 
@@ -44,6 +48,11 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         FiberRecord fiber,
         CompiledInstruction instruction)
     {
+        if (instruction.Kind == CompiledInstructionKind.LoopBack)
+        {
+            fiber = fiber with { LoopIteration = checked(fiber.LoopIteration + 1) };
+        }
+
         return MoveTo(execution, fiber, RequiredNext(instruction));
     }
 }

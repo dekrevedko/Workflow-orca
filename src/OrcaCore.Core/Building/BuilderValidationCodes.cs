@@ -3,7 +3,7 @@ namespace OrcaCore.Core.Building;
 /// <summary>
 /// Stable validation codes produced by workflow definition building.
 /// </summary>
-public static class BuilderValidationCodes
+internal static class BuilderValidationCodes
 {
     /// <summary>
     /// The definition does not contain an Init node.

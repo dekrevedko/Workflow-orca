@@ -4,6 +4,8 @@ using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Execution;
 using OrcaCore.Engine.Durable.Driver;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Aggregates;
 
 internal static class DurableWorkflowReplayApplier
@@ -18,7 +20,7 @@ internal static class DurableWorkflowReplayApplier
         TryApplySaga
     ];
 
-    internal static void Apply(DurableWorkflowAggregate aggregate, WorkflowEvent workflowEvent)
+    internal static void Apply(DurableWorkflowAggregate aggregate, DurableWorkflowEvent workflowEvent)
     {
         ArgumentNullException.ThrowIfNull(aggregate);
         ArgumentNullException.ThrowIfNull(workflowEvent);
@@ -54,19 +56,14 @@ internal static class DurableWorkflowReplayApplier
         aggregate.Status = derived.Status ?? WorkflowStatus.Parked;
     }
 
-    private static void BeginReplay(DurableWorkflowAggregate aggregate, WorkflowEvent workflowEvent)
+    private static void BeginReplay(DurableWorkflowAggregate aggregate, DurableWorkflowEvent workflowEvent)
     {
-        if (aggregate.InstanceId == default)
-        {
-            aggregate.InstanceId = workflowEvent.InstanceId;
-        }
-
         aggregate.CreatedAt ??= workflowEvent.OccurredAt;
         aggregate.UpdatedAt = workflowEvent.OccurredAt;
         aggregate.StreamVersion = aggregate.StreamVersion.Next();
     }
 
-    private static bool TryApplyLifecycle(DurableWorkflowAggregate aggregate, WorkflowEvent workflowEvent)
+    private static bool TryApplyLifecycle(DurableWorkflowAggregate aggregate, DurableWorkflowEvent workflowEvent)
     {
         switch (workflowEvent)
         {
@@ -141,8 +138,12 @@ internal static class DurableWorkflowReplayApplier
                 aggregate.Status = WorkflowStatus.Completed;
                 ClearActiveWork(aggregate);
                 return true;
+            case WorkflowCancellationRequestedEvent:
+                aggregate.Status = WorkflowStatus.CancellationRequested;
+                return true;
             case WorkflowTerminalEvent terminal:
                 aggregate.Status = terminal.Status;
+                aggregate.ErrorSummary = terminal.ErrorSummary ?? aggregate.ErrorSummary;
                 if (aggregate.IsTerminal)
                 {
                     ClearActiveWork(aggregate);
@@ -154,7 +155,7 @@ internal static class DurableWorkflowReplayApplier
         }
     }
 
-    private static bool TryApplyWaitsAndTimers(DurableWorkflowAggregate aggregate, WorkflowEvent workflowEvent)
+    private static bool TryApplyWaitsAndTimers(DurableWorkflowAggregate aggregate, DurableWorkflowEvent workflowEvent)
     {
         switch (workflowEvent)
         {
@@ -206,7 +207,7 @@ internal static class DurableWorkflowReplayApplier
         }
     }
 
-    private static bool TryApplyChildWorkflow(DurableWorkflowAggregate aggregate, WorkflowEvent workflowEvent)
+    private static bool TryApplyChildWorkflow(DurableWorkflowAggregate aggregate, DurableWorkflowEvent workflowEvent)
     {
         switch (workflowEvent)
         {
@@ -242,7 +243,7 @@ internal static class DurableWorkflowReplayApplier
         }
     }
 
-    private static bool TryApplyResourcePool(DurableWorkflowAggregate aggregate, WorkflowEvent workflowEvent)
+    private static bool TryApplyResourcePool(DurableWorkflowAggregate aggregate, DurableWorkflowEvent workflowEvent)
     {
         switch (workflowEvent)
         {
@@ -262,7 +263,7 @@ internal static class DurableWorkflowReplayApplier
         }
     }
 
-    private static bool TryApplyExternalJob(DurableWorkflowAggregate aggregate, WorkflowEvent workflowEvent)
+    private static bool TryApplyExternalJob(DurableWorkflowAggregate aggregate, DurableWorkflowEvent workflowEvent)
     {
         switch (workflowEvent)
         {
@@ -283,7 +284,7 @@ internal static class DurableWorkflowReplayApplier
         }
     }
 
-    private static bool TryApplySaga(DurableWorkflowAggregate aggregate, WorkflowEvent workflowEvent)
+    private static bool TryApplySaga(DurableWorkflowAggregate aggregate, DurableWorkflowEvent workflowEvent)
     {
         switch (workflowEvent)
         {
@@ -318,5 +319,5 @@ internal static class DurableWorkflowReplayApplier
         aggregate.ContinuationRetryNotBefore = null;
     }
 
-    private delegate bool ReplayHandler(DurableWorkflowAggregate aggregate, WorkflowEvent workflowEvent);
+    private delegate bool ReplayHandler(DurableWorkflowAggregate aggregate, DurableWorkflowEvent workflowEvent);
 }

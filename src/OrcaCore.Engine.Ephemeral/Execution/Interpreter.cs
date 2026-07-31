@@ -1,6 +1,7 @@
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
+using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Core.Lifecycle;
 using OrcaCore.Engine.Ephemeral.Governance;
@@ -23,6 +24,8 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
     private readonly int maxLifecycleEvents;
     private readonly int maxPendingEvents;
     private readonly TimeSpan? stuckStepThreshold;
+    private readonly int maxConcurrentExecutionPathsPerInstance;
+    private readonly IServiceProvider? serviceProvider;
 
     internal Interpreter(
         TimeProvider timeProvider,
@@ -34,7 +37,8 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
         WhileNodeRunner<TState> whileRunner,
         ResourceGovernanceCoordinator governance,
         YieldContinuationScheduler yieldContinuationScheduler,
-        EphemeralWorkflowEngineOptions options)
+        EphemeralWorkflowEngineOptions options,
+        IServiceProvider? serviceProvider)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(stepExecutor);
@@ -60,6 +64,15 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
         maxConsumedEventIds = options.MaxConsumedEventIdsPerInstance;
         maxLifecycleEvents = options.MaxLifecycleEventsPerInstance;
         stuckStepThreshold = options.StuckStepThreshold;
+        maxConcurrentExecutionPathsPerInstance = options.MaxConcurrentExecutionPathsPerInstance;
+        if (maxConcurrentExecutionPathsPerInstance <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(options),
+                maxConcurrentExecutionPathsPerInstance,
+                "MaxConcurrentExecutionPathsPerInstance must be positive.");
+        }
+        this.serviceProvider = serviceProvider;
     }
 
     internal async Task<WorkflowInstance<TState>> RunAsync<TInput>(
@@ -67,13 +80,13 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
         TInput input,
         InstanceId instanceId,
         Action<WorkflowInstance<TState>> onInitialized,
-        Action<WorkflowInstanceSnapshot> onSnapshotCommitted,
+        Action<LegacyWorkflowInstanceSnapshot> onSnapshotCommitted,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(onInitialized);
 
-        if (definition.CompiledPlan.Instructions.Count > 0)
+        if (((CompiledWorkflowPlan)WorkflowDefinitionRuntime.GetPlan(definition)).Instructions.Count > 0)
         {
             var adapter = new InMemoryExecutionStateAdapter<TState>(
                 timeProvider,
@@ -84,7 +97,9 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
                 stuckStepThreshold,
                 maxPendingEvents,
                 maxConsumedEventIds,
-                maxLifecycleEvents);
+                maxLifecycleEvents,
+                maxConcurrentExecutionPathsPerInstance,
+                serviceProvider);
             return await adapter.RunAsync(
                 definition,
                 input,
@@ -143,7 +158,7 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
                     }
                     catch (Exception exception)
                     {
-                        throw new WorkflowDefinitionException(
+                        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
                             $"Workflow definition '{context.DefinitionId}' Init failed while creating state.",
                             exception);
                     }
@@ -267,7 +282,7 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
                 await suspensionScheduler.RegisterWaitAsync(
                     instance,
                     stepResult.EventName!,
-                    stepResult.CorrelationId,
+                    stepResult.CorrelationId!,
                     timeout: null,
                     context,
                     nextIndex: stepIndex + 1,
@@ -343,7 +358,7 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
     {
         if (!runState.Initialized || runState.Instance is null)
         {
-            throw new WorkflowDefinitionException("Workflow execution reached a node before Init created state.");
+            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException("Workflow execution reached a node before Init created state.");
         }
 
         return runState.Instance;

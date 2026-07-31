@@ -24,21 +24,29 @@ public static class OrcaCoreEphemeralDiagnostics
         Meter.CreateCounter<long>("orcacore.ephemeral.timers.fired");
     private static readonly Counter<long> TerminalCommands =
         Meter.CreateCounter<long>("orcacore.ephemeral.terminal_commands");
+    private static readonly Counter<long> HostCompatibilityFailures =
+        Meter.CreateCounter<long>("orcacore.governance.host_compatibility.failures");
 
     internal static Activity? StartOperation(string operationName)
     {
         return ActivitySource.StartActivity($"orcacore.ephemeral.{operationName}", ActivityKind.Internal);
     }
 
-    internal static void RecordWorkflowStarted(WorkflowStatus status) =>
+    internal static void RecordWorkflowStarted(LegacyWorkflowStatus status) =>
         WorkflowsStarted.Add(1, new KeyValuePair<string, object?>("workflow.status", status.ToString()));
 
-    internal static void RecordEventDelivered(WorkflowStatus status) =>
+    internal static void RecordEventDelivered(LegacyWorkflowStatus status) =>
         EventsDelivered.Add(1, new KeyValuePair<string, object?>("workflow.status", status.ToString()));
 
-    internal static void RecordTimerFired(WorkflowStatus status) =>
+    internal static void RecordTimerFired(LegacyWorkflowStatus status) =>
         TimersFired.Add(1, new KeyValuePair<string, object?>("workflow.status", status.ToString()));
 
-    internal static void RecordTerminalCommand(WorkflowStatus status) =>
+    internal static void RecordTerminalCommand(LegacyWorkflowStatus status) =>
         TerminalCommands.Add(1, new KeyValuePair<string, object?>("workflow.status", status.ToString()));
+
+    internal static void RecordHostCompatibilityFailure(string reason) =>
+        HostCompatibilityFailures.Add(
+            1,
+            new KeyValuePair<string, object?>("governance.reason", reason),
+            new KeyValuePair<string, object?>("workflow.mode", "ephemeral"));
 }

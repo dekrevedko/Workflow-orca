@@ -47,7 +47,11 @@ Before running integration tests after an interrupted run, clear stale build wor
 dotnet build-server shutdown
 ```
 
-Expected integration baseline: 107 passed, 1 skipped (`INT_JS_018` — one-hour soak, intentionally skipped). Do not delete or unskip skipped tests unless the blocker is implemented and verified.
+Expected integration baseline: 110 passed, 5 skipped. The skips are `INT_JS_004` and `INT_JS_014`
+(future external-job/pause capability, task 9.6), `INT_MN_009` (provider-backed `StartOrGet`
+idempotency, task 7.5), `INT_HO_011` (replacement public hosting journey, task 10.5), and
+`INT_JS_018` (one-hour soak, intentionally deferred to the nightly slow suite). Do not delete or
+unskip skipped tests unless the named blocker is implemented and verified.
 
 CI enforces 80% line coverage for `OrcaCore.Engine.*` assemblies.
 
@@ -106,6 +110,23 @@ The `WaitLong` node (durable-only) parks execution until an external event arriv
 - Test framework: xunit.v3
 - Integration tests use Testcontainers — Docker must be running
 - CRLF line endings, 4-space indentation (`.editorconfig`)
+
+## Mandatory reviewed checkpoints
+
+- Every implementation phase and every other large coherent change must receive its required
+  review and then be committed before the next phase or large change begins.
+- A phase is not complete merely because its tasks and validation are green. Completion requires
+  an approval for the exact frozen target followed by a Git commit containing that approved target.
+- Do not commit while an independent review is pending because changing `HEAD` invalidates the
+  frozen provenance. If the review rejects the target, remediate, refreeze, and obtain approval
+  before committing.
+- Immediately after approval, confirm the reviewed manifest has no drift, stage the exact approved
+  target including additions and deletions, create the checkpoint commit, report its SHA, and
+  confirm the resulting worktree state before continuing.
+- Do not accumulate multiple approved phases in one dirty worktree. The next phase remains blocked
+  until the preceding approved phase has its checkpoint commit.
+- For a large change without a formal phase gate, run and record proportionate validation and
+  review first, then commit the coherent result before starting another large change.
 
 ## Documentation
 

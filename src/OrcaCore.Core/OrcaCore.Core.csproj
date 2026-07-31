@@ -1,5 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>OrcaCore.Core</AssemblyName>
+    <PackageId>OrcaCore.Core</PackageId>
+    <DefineConstants>$(DefineConstants);ORCACORE_CORE_CODEC_COPY</DefineConstants>
+    <NoWarn>$(NoWarn);CS0436</NoWarn>
+  </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\OrcaCore.Abstractions\OrcaCore.Abstractions.csproj" />
+    <ProjectReference Include="..\OrcaCore.Abstractions\OrcaCore.csproj" />
+    <Compile Include="..\OrcaCore.Abstractions\Primitives\Validation.cs"
+             Link="Primitives\Validation.cs" />
+    <Compile Include="..\OrcaCore.Abstractions\Serialization\FixedWorkflowValueCodec.cs"
+             Link="Internal\FixedWorkflowValueCodec.cs" />
+    <Compile Include="..\OrcaCore.Abstractions\Serialization\WorkflowFailureJsonConverters.cs"
+             Link="Internal\WorkflowFailureJsonConverters.cs" />
   </ItemGroup>
 </Project>

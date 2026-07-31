@@ -11,9 +11,9 @@ namespace OrcaCore.Core.Tests.Execution;
 public sealed class ForEachScopeReducerTests
 {
     [Fact]
-    public void DynamicAdmission_NeverExceedsConfiguredActiveFiberLimit()
+    public void DynamicAdmission_UsesOnlyTheLowerOfHostAndNodeConcurrency()
     {
-        var plan = Workflow.Ephemeral<ParentState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var plan = global::OrcaCore.Workflow.Ephemeral<ParentState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<int[]>(_ => new ParentState([1, 2, 3]))
             .ForEach<int, ItemState, string>(
                 parent => parent.Value.Items,
@@ -29,7 +29,7 @@ public sealed class ForEachScopeReducerTests
         var scopePlan = plan.Scopes.Single();
         var start = plan.Instructions.Single(instruction =>
             instruction.Kind == CompiledInstructionKind.StartScope);
-        var state = StructuredExecutionState.Create(InstanceId.New(), 0, start.Id);
+        var state = StructuredExecutionState.Create(InstanceId.Parse(Guid.CreateVersion7().ToString()), 0, start.Id);
 
         var started = ScopeReducer.StartForEachScope(
             state,
@@ -40,7 +40,7 @@ public sealed class ForEachScopeReducerTests
                 new ForEachItemDescriptor(1, [1]),
                 new ForEachItemDescriptor(2, [2])
             ],
-            maxActiveFibers: 2);
+            maxConcurrentExecutionPaths: 1);
         var first = started.AdmittedFiberIds.Should().ContainSingle().Which;
 
         var transition = ScopeReducer.RecordForEachTerminal(
@@ -50,7 +50,7 @@ public sealed class ForEachScopeReducerTests
             first,
             [0],
             failure: null,
-            maxActiveFibers: 2);
+            maxConcurrentExecutionPaths: 1);
 
         transition.AdmittedFiberIds.Should().ContainSingle();
         transition.State.Fibers.Values.Count(fiber =>
@@ -61,7 +61,7 @@ public sealed class ForEachScopeReducerTests
     [Fact]
     public void WhenAnySameTransitionTie_SelectsLowestItemIndex()
     {
-        var plan = Workflow.Ephemeral<ParentState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var plan = global::OrcaCore.Workflow.Ephemeral<ParentState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<int[]>(_ => new ParentState([1, 2]))
             .ForEach<int, ItemState, string>(
                 parent => parent.Value.Items,
@@ -77,7 +77,7 @@ public sealed class ForEachScopeReducerTests
         var scopePlan = plan.Scopes.Single();
         var start = plan.Instructions.Single(instruction =>
             instruction.Kind == CompiledInstructionKind.StartScope);
-        var state = StructuredExecutionState.Create(InstanceId.New(), 0, start.Id);
+        var state = StructuredExecutionState.Create(InstanceId.Parse(Guid.CreateVersion7().ToString()), 0, start.Id);
         var started = ScopeReducer.StartForEachScope(
             state,
             state.RootFiberId,

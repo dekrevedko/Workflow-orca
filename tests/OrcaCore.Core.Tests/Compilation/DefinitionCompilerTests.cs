@@ -1,4 +1,6 @@
 using AwesomeAssertions;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
@@ -57,7 +59,7 @@ public sealed class DefinitionCompilerTests
     [Fact]
     public void EphemeralForEach_IsAcceptedAndDurableSurfaceOmitsIt()
     {
-        var validation = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var validation = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<int[]>(_ => new TestState([1, 2, 3]))
             .ForEach<int, ItemState, string>(
                 parent => parent.Value.Items,
@@ -78,12 +80,13 @@ public sealed class DefinitionCompilerTests
     }
 
     [Theory]
-    [InlineData(ForEachFailurePolicy.WaitAllThenFail)]
-    [InlineData(ForEachFailurePolicy.ContinueWithPartialFailures)]
+    [InlineData((int)ForEachFailurePolicy.WaitAllThenFail)]
+    [InlineData((int)ForEachFailurePolicy.ContinueWithPartialFailures)]
     public void ForEachWhenAny_RejectsNonFailFastFailurePolicies(
-        ForEachFailurePolicy failurePolicy)
+        int failurePolicyValue)
     {
-        var validation = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var failurePolicy = (ForEachFailurePolicy)failurePolicyValue;
+        var validation = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<int[]>(_ => new TestState([1]))
             .ForEach<int, ItemState, string>(
                 parent => parent.Value.Items,
@@ -103,7 +106,7 @@ public sealed class DefinitionCompilerTests
     [Fact]
     public void ForEach_RejectsNonPositiveMaxConcurrency()
     {
-        var validation = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var validation = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<int[]>(_ => new TestState([1]))
             .ForEach<int, ItemState, string>(
                 parent => parent.Value.Items,
@@ -122,8 +125,7 @@ public sealed class DefinitionCompilerTests
     }
 
     [Fact]
-    [Trait("AC", "DR-AC-016")]
-    public void DurableCompiler_RejectsManuallyConstructedForEach()
+    public void DurableCompiler_AcceptsManuallyConstructedRootForEach()
     {
         var authoring = ManualDefinition(WorkflowExecutionMode.Durable);
         authoring.RootNodes.Insert(1, new SelectedForEachAuthoringNode<TestState>(
@@ -136,13 +138,129 @@ public sealed class DefinitionCompilerTests
             [new BranchReturnAuthoringInstruction(typeof(string), (ReadOnlyBranchSnapshot<ItemState> _) => "done")],
             ForEachJoinPolicy.WhenAll,
             ForEachFailurePolicy.FailFast,
+            null,
             1,
-            (ReadOnlyParentSnapshot<TestState> parent, IReadOnlyList<ForEachItemOutcome<string>> _) => parent.Value));
+            (ReadOnlyParentSnapshot<TestState> parent, IReadOnlyList<global::OrcaCore.Core.Building.ForEachItemOutcome<string>> _) => parent.Value));
+
+        var validation = DefinitionCompiler.Compile(authoring);
+
+        validation.IsValid.Should().BeTrue();
+        validation.Value.CompiledPlan.Scopes.Should().ContainSingle(scope =>
+            scope.Kind == CompiledScopeKind.ForEach);
+    }
+
+    [Fact]
+    [Trait("AC", "AC-206")]
+    public void Compiler_RejectsHandBuiltNestedWhileParallelAndForEach()
+    {
+        var authoring = ManualDefinition(WorkflowExecutionMode.Ephemeral);
+        var nested = new List<SelectedAuthoringNode<TestState>>
+        {
+            new SelectedWhileAuthoringNode<TestState>(
+                _ => false,
+                [new SelectedDelayAuthoringNode<TestState>(TimeSpan.FromMilliseconds(1))]),
+            new SelectedStructuredScopeAuthoringNode<TestState>(
+                "Parallel",
+                typeof(string),
+                [new StructuredBranchAuthoring(
+                    "branch",
+                    typeof(BranchState),
+                    (ReadOnlyParentSnapshot<TestState> _) => new BranchState(),
+                    [new BranchReturnAuthoringInstruction(
+                        typeof(string),
+                        (ReadOnlyBranchSnapshot<BranchState> _) => "done")])],
+                (ReadOnlyParentSnapshot<TestState> parent,
+                    IReadOnlyList<global::OrcaCore.Core.Building.BranchResult<string>> _) => parent.Value),
+            new SelectedForEachAuthoringNode<TestState>(
+                typeof(int),
+                typeof(ItemState),
+                typeof(string),
+                (Func<ReadOnlyParentSnapshot<TestState>, IReadOnlyList<int>>)(_ => Array.Empty<int>()),
+                WorkflowPartitioner<int>.Items(),
+                (Func<ForEachItemInput<int>, ItemState>)(_ => new ItemState(0)),
+                [new BranchReturnAuthoringInstruction(
+                    typeof(string),
+                    (ReadOnlyBranchSnapshot<ItemState> _) => "done")],
+                ForEachJoinPolicy.WhenAll,
+                ForEachFailurePolicy.FailFast,
+                null,
+                1,
+                (ReadOnlyParentSnapshot<TestState> parent,
+                    IReadOnlyList<global::OrcaCore.Core.Building.ForEachItemOutcome<string>> _) => parent.Value)
+        };
+        authoring.RootNodes.Insert(1, new SelectedIfAuthoringNode<TestState>(_ => true, nested, []));
 
         var validation = DefinitionCompiler.Compile(authoring);
 
         validation.IsValid.Should().BeFalse();
-        validation.Errors.Should().ContainSingle(error => error.Code == "SFE-CAP-001_UNSUPPORTED_INSTRUCTION");
+        validation.Errors.Where(error => error.Code == DefinitionCompilerCodes.UnsupportedInstruction)
+            .Should().HaveCount(3)
+            .And.OnlyContain(error =>
+                error.Message.Contains("root workflow sequence", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    [Trait("AC", "AC-206")]
+    public void Compiler_RejectsHandBuiltParallelInsideRootBranchAndForEachItem()
+    {
+        var authoring = ManualDefinition(WorkflowExecutionMode.Ephemeral);
+        var nestedFanout = NestedFanoutInstruction();
+        authoring.RootNodes.Insert(1, new SelectedStructuredScopeAuthoringNode<TestState>(
+            "Parallel",
+            typeof(string),
+            [new StructuredBranchAuthoring(
+                "outer",
+                typeof(BranchState),
+                (ReadOnlyParentSnapshot<TestState> _) => new BranchState(),
+                [
+                    nestedFanout,
+                    new BranchReturnAuthoringInstruction(
+                        typeof(string),
+                        (ReadOnlyBranchSnapshot<BranchState> _) => "outer")
+                ])],
+            (ReadOnlyParentSnapshot<TestState> parent,
+                IReadOnlyList<global::OrcaCore.Core.Building.BranchResult<string>> _) => parent.Value));
+        authoring.RootNodes.Insert(2, new SelectedForEachAuthoringNode<TestState>(
+            typeof(int),
+            typeof(ItemState),
+            typeof(string),
+            (Func<ReadOnlyParentSnapshot<TestState>, IReadOnlyList<int>>)(_ => Array.Empty<int>()),
+            WorkflowPartitioner<int>.Items(),
+            (Func<ForEachItemInput<int>, ItemState>)(_ => new ItemState(0)),
+            [
+                NestedFanoutInstruction(),
+                new BranchReturnAuthoringInstruction(
+                    typeof(string),
+                    (ReadOnlyBranchSnapshot<ItemState> _) => "item")
+            ],
+            ForEachJoinPolicy.WhenAll,
+            ForEachFailurePolicy.FailFast,
+            null,
+            1,
+            (ReadOnlyParentSnapshot<TestState> parent,
+                IReadOnlyList<global::OrcaCore.Core.Building.ForEachItemOutcome<string>> _) => parent.Value));
+
+        var validation = DefinitionCompiler.Compile(authoring);
+
+        validation.IsValid.Should().BeFalse();
+        validation.Errors.Where(error => error.Code == DefinitionCompilerCodes.UnsupportedInstruction)
+            .Should().HaveCount(2)
+            .And.OnlyContain(error =>
+                error.Message.Contains("root workflow sequence", StringComparison.Ordinal));
+
+        static BranchStructuredScopeAuthoringInstruction NestedFanoutInstruction() => new(
+            "Parallel",
+            typeof(object),
+            typeof(string),
+            [new StructuredBranchAuthoring(
+                "nested",
+                typeof(BranchState),
+                (Func<ReadOnlyParentSnapshot<object>, BranchState>)(_ => new BranchState()),
+                [new BranchReturnAuthoringInstruction(
+                    typeof(string),
+                    (ReadOnlyBranchSnapshot<BranchState> _) => "nested")])],
+            (ReadOnlyParentSnapshot<object> parent,
+                IReadOnlyList<global::OrcaCore.Core.Building.BranchResult<string>> _) => parent.Value);
     }
 
     [Fact]
@@ -150,6 +268,7 @@ public sealed class DefinitionCompilerTests
     {
         var authoring = ManualDefinition(WorkflowExecutionMode.Durable);
         authoring.RootNodes.Insert(1, new SelectedStepAuthoringNode<TestState>(
+            null,
             () => new NoOpStep(),
             WorkflowPolicySet.Empty.WithPoolKey("cpu")));
 
@@ -164,8 +283,9 @@ public sealed class DefinitionCompilerTests
     [Fact]
     public void MissingSerializerForBranchResult_IsRejectedBeforeRegistration()
     {
-        var validation = StructuredDefinition(DefinitionId.New())
-            .WithTypeSerializerRegistry(new SelectiveTypeSerializerRegistry(typeof(TestState), typeof(BranchState)))
+        var validation = StructuredDefinition(
+                DefinitionId.New(),
+                new SelectiveTypeSerializerRegistry(typeof(TestState), typeof(BranchState)))
             .TryBuild();
 
         validation.IsValid.Should().BeFalse();
@@ -186,7 +306,7 @@ public sealed class DefinitionCompilerTests
                 typeof(BranchState),
                 (ReadOnlyParentSnapshot<TestState> _) => new BranchState(),
                 [new BranchReturnAuthoringInstruction(typeof(int), (ReadOnlyBranchSnapshot<BranchState> _) => 42)])],
-            (ReadOnlyParentSnapshot<TestState> parent, IReadOnlyList<BranchResult<string>> _) => parent.Value));
+            (ReadOnlyParentSnapshot<TestState> parent, IReadOnlyList<global::OrcaCore.Core.Building.BranchResult<string>> _) => parent.Value));
 
         var validation = DefinitionCompiler.Compile(authoring);
 
@@ -197,12 +317,11 @@ public sealed class DefinitionCompilerTests
     [Fact]
     public void NonPositiveCompilerLimits_AreAccumulated()
     {
-        var validation = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var validation = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .WithCompilerOptions(new DefinitionCompilerOptions
             {
                 MaxInternalInstructionsPerQuantum = 0,
                 MaxScopeDepth = 0,
-                MaxActiveFibers = -1,
                 MaxSerializedResultBytes = 0,
                 MaxSerializedEnvelopeBytes = -1
             })
@@ -214,61 +333,40 @@ public sealed class DefinitionCompilerTests
         validation.Errors.Select(error => error.Code).Should().Equal(
             "SFE-LIMIT-001_MAX_INTERNAL_INSTRUCTIONS_NOT_POSITIVE",
             "SFE-LIMIT-002_MAX_SCOPE_DEPTH_NOT_POSITIVE",
-            "SFE-LIMIT-003_MAX_ACTIVE_FIBERS_NOT_POSITIVE",
             "SFE-LIMIT-005_MAX_SERIALIZED_RESULT_BYTES_NOT_POSITIVE",
             "SFE-LIMIT-006_MAX_SERIALIZED_ENVELOPE_BYTES_NOT_POSITIVE");
     }
 
     [Fact]
-    public void StructuredScopeDepth_AboveConfiguredLimit_IsRejected()
+    public void WideFixedParallel_HasNoCompilerOwnedBranchWidthCeiling()
     {
-        var validation = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
-            .WithCompilerOptions(new DefinitionCompilerOptions { MaxScopeDepth = 1 })
+        var validation = global::OrcaCore.Workflow.Ephemeral<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
             .Init<int[]>(_ => new TestState([]))
             .Parallel<string>(
-                branches => branches.Branch<BranchState>(
-                    "outer",
-                    _ => new BranchState(),
-                    branch => branch
-                        .Parallel<string>(
-                            nested => nested.Branch<BranchState>(
-                                "inner",
-                                _ => new BranchState(),
-                                child => child.Return(_ => "inner")),
-                            (parent, _) => parent.Value)
-                        .Return(_ => "outer")),
+                branches =>
+                {
+                    foreach (var index in Enumerable.Range(0, 300))
+                    {
+                        var branchId = $"branch-{index:D4}";
+                        branches.Branch<BranchState>(
+                            branchId,
+                            _ => new BranchState(),
+                            branch => branch.Return(_ => branchId));
+                    }
+                },
                 (parent, _) => parent.Value)
             .End()
             .TryBuild();
 
-        validation.IsValid.Should().BeFalse();
-        validation.Errors.Should().ContainSingle(error =>
-            error.Code == "SFE-LIMIT-007_MAX_SCOPE_DEPTH_EXCEEDED");
-    }
-
-    [Fact]
-    public void AuthoredScope_AboveConfiguredActiveFiberLimit_IsRejected()
-    {
-        var validation = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
-            .WithCompilerOptions(new DefinitionCompilerOptions { MaxActiveFibers = 2 })
-            .Init<int[]>(_ => new TestState([]))
-            .Parallel<string>(
-                branches => branches
-                    .Branch<BranchState>("first", _ => new BranchState(), branch => branch.Return(_ => "first"))
-                    .Branch<BranchState>("second", _ => new BranchState(), branch => branch.Return(_ => "second")),
-                (parent, _) => parent.Value)
-            .End()
-            .TryBuild();
-
-        validation.IsValid.Should().BeFalse();
-        validation.Errors.Should().ContainSingle(error =>
-            error.Code == "SFE-LIMIT-008_MAX_ACTIVE_FIBERS_EXCEEDED");
+        validation.IsValid.Should().BeTrue();
     }
 
     [Fact]
     public void LoopWithNoQuantumEndingOperation_IsRejected()
     {
-        var validation = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var validation = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<int[]>(_ => new TestState([]))
             .While(_ => true, _ => { })
             .End()
@@ -281,7 +379,7 @@ public sealed class DefinitionCompilerTests
     [Fact]
     public void LoopWithQuantumEndingOperationOnOnlyOneConditionalPath_IsRejected()
     {
-        var validation = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var validation = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<int[]>(_ => new TestState([]))
             .While(
                 _ => true,
@@ -296,7 +394,7 @@ public sealed class DefinitionCompilerTests
     [Fact]
     public void StructuredScopeWithNoBranches_IsRejectedDuringCompilation()
     {
-        var validation = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var validation = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<int[]>(_ => new TestState([]))
             .Parallel<string>(_ => { }, (parent, _) => parent.Value)
             .End()
@@ -308,19 +406,17 @@ public sealed class DefinitionCompilerTests
     }
 
     [Fact]
-    public void NestedBuilders_NeedNoClosingNodes_AndLowerStableStructuralInstructions()
+    public void ApprovedRootControlStructures_NeedNoClosingNodes_AndLowerStableInstructions()
     {
-        var plan = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var plan = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<int[]>(_ => new TestState([]))
-            .If(
-                _ => true,
-                then => then.While(
-                    _ => true,
-                    body => body.Parallel<string>(
-                        branches => branches
-                            .Branch<BranchState>("a", _ => new BranchState(), branch => branch.Return(_ => "a"))
-                            .Branch<BranchState>("b", _ => new BranchState(), branch => branch.Return(_ => "b")),
-                        (parent, _) => parent.Value)))
+            .If(_ => true, then => then.Then<NoOpStep>())
+            .While(_ => false, body => body.Delay(TimeSpan.FromMilliseconds(1)))
+            .Parallel<string>(
+                branches => branches
+                    .Branch<BranchState>("a", _ => new BranchState(), branch => branch.Return(_ => "a"))
+                    .Branch<BranchState>("b", _ => new BranchState(), branch => branch.Return(_ => "b")),
+                (parent, _) => parent.Value)
             .End()
             .Build()
             .CompiledPlan;
@@ -328,15 +424,17 @@ public sealed class DefinitionCompilerTests
         plan.Instructions.Select(instruction => instruction.Kind).Should().Equal(
             CompiledInstructionKind.Init,
             CompiledInstructionKind.If,
+            CompiledInstructionKind.Step,
+            CompiledInstructionKind.IfJoin,
             CompiledInstructionKind.LoopCheck,
+            CompiledInstructionKind.Delay,
+            CompiledInstructionKind.LoopBack,
+            CompiledInstructionKind.LoopExit,
             CompiledInstructionKind.StartScope,
             CompiledInstructionKind.BranchReturn,
             CompiledInstructionKind.BranchReturn,
             CompiledInstructionKind.ScopeJoin,
             CompiledInstructionKind.ScopeExit,
-            CompiledInstructionKind.LoopBack,
-            CompiledInstructionKind.LoopExit,
-            CompiledInstructionKind.IfJoin,
             CompiledInstructionKind.End);
         plan.Instructions.Select(instruction => instruction.Id).Should().OnlyHaveUniqueItems();
 
@@ -380,7 +478,7 @@ public sealed class DefinitionCompilerTests
     {
         var definitionId = DefinitionId.New();
         var ephemeral = StructuredDefinition(definitionId).Build().CompiledPlan;
-        var durable = Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
+        var durable = global::OrcaCore.Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
             .Init<int[]>(_ => new TestState([]))
             .Parallel<string>(
                 branches => branches
@@ -394,12 +492,11 @@ public sealed class DefinitionCompilerTests
         ephemeral.Instructions.Select(instruction => (instruction.Id, instruction.Kind))
             .Should().Equal(durable.Instructions.Select(instruction => (instruction.Id, instruction.Kind)));
         ephemeral.Scopes.Select(scope => scope.Id).Should().Equal(durable.Scopes.Select(scope => scope.Id));
-        ephemeral.Fingerprint.Should().NotBe(durable.Fingerprint);
+        ephemeral.Fingerprint.Should().Be(durable.Fingerprint);
 
-        var rollover = Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var rollover = global::OrcaCore.Workflow.Durable<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<int[]>(_ => new TestState([]))
-            .If(_ => true, then => then.ContinueAsNew(state => state))
-            .End()
+            .ContinueAsNew(state => state)
             .Build()
             .CompiledPlan;
         rollover.Instructions.Should().ContainSingle(instruction =>
@@ -409,13 +506,13 @@ public sealed class DefinitionCompilerTests
     }
 
     [Fact]
-    public void Fingerprint_IsDeterministic_AndChangesWithGraphOrCompilerConfiguration()
+    public void Fingerprint_IsDeterministic_ChangesWithStructureAndIgnoresCompilerOptions()
     {
         var definitionId = DefinitionId.New();
 
         var first = FingerprintDefinition(definitionId, "first", new()).CompiledPlan.Fingerprint;
         var repeated = FingerprintDefinition(definitionId, "first", new()).CompiledPlan.Fingerprint;
-        var graphDrift = Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
+        var graphDrift = global::OrcaCore.Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
             .Init<int[]>(_ => new TestState([]))
             .If(_ => true, _ => { })
             .End("first")
@@ -433,7 +530,7 @@ public sealed class DefinitionCompilerTests
         first.Should().Be(repeated);
         graphDrift.Should().NotBe(first);
         outcomeDrift.Should().NotBe(first);
-        optionDrift.Should().NotBe(first);
+        optionDrift.Should().Be(first);
     }
 
     [Fact]
@@ -448,25 +545,41 @@ public sealed class DefinitionCompilerTests
     }
 
     [Fact]
-    public void Fingerprint_ChangesWithNestedBranchGraphConfiguration()
+    public void PublicForEachFingerprint_ChangesWithAuthoredMaxItemsInBothModes()
     {
         var definitionId = DefinitionId.New();
 
-        var first = NestedFingerprintDefinition(definitionId, "nested-a").CompiledPlan.Fingerprint;
-        var changed = NestedFingerprintDefinition(definitionId, "nested-b").CompiledPlan.Fingerprint;
+        var ephemeralOne = PublicEphemeralForEachFingerprint(definitionId, maxItems: 1);
+        var ephemeralTwo = PublicEphemeralForEachFingerprint(definitionId, maxItems: 2);
+        var durableOne = PublicDurableForEachFingerprint(definitionId, maxItems: 1);
+        var durableTwo = PublicDurableForEachFingerprint(definitionId, maxItems: 2);
+
+        ephemeralTwo.Should().NotBe(ephemeralOne);
+        durableTwo.Should().NotBe(durableOne);
+        durableOne.Should().Be(ephemeralOne);
+        durableTwo.Should().Be(ephemeralTwo);
+    }
+
+    [Fact]
+    public void Fingerprint_ChangesWithRootBranchGraphConfiguration()
+    {
+        var definitionId = DefinitionId.New();
+
+        var first = RootFingerprintDefinition(definitionId, "branch-a").CompiledPlan.Fingerprint;
+        var changed = RootFingerprintDefinition(definitionId, "branch-b").CompiledPlan.Fingerprint;
 
         changed.Should().NotBe(first);
     }
 
     [Fact]
-    public void Fingerprint_ChangesWithCapturedDeclaredConfiguration()
+    public void Fingerprint_IgnoresCapturedOpaqueConfiguration()
     {
         var definitionId = DefinitionId.New();
 
         var first = CapturedFingerprintDefinition(definitionId, "first").CompiledPlan.Fingerprint;
         var changed = CapturedFingerprintDefinition(definitionId, "second").CompiledPlan.Fingerprint;
 
-        changed.Should().NotBe(first);
+        changed.Should().Be(first);
     }
 
     [Fact]
@@ -487,7 +600,7 @@ public sealed class DefinitionCompilerTests
     [Fact]
     public void DefaultSerializerRegistry_RejectsUnsupportedDelegateState()
     {
-        var validation = Workflow.Ephemeral<Action>(DefinitionId.New(), DefinitionVersion.Initial)
+        var validation = global::OrcaCore.Workflow.Ephemeral<Action>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<Action>(value => value)
             .End()
             .TryBuild();
@@ -497,9 +610,79 @@ public sealed class DefinitionCompilerTests
             error.Code == DefinitionCompilerCodes.SerializerUnavailable);
     }
 
-    private static EphemeralWorkflowBuilder<TestState> StructuredDefinition(DefinitionId definitionId)
+    [Fact]
+    public void DefaultSerializerRegistry_RejectsApplicationJsonConverterAtBuild()
     {
-        return Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
+        var validation = global::OrcaCore.Workflow.Ephemeral<ApplicationConvertedState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<ApplicationConvertedState>(value => value)
+            .End()
+            .TryBuild();
+
+        validation.IsValid.Should().BeFalse();
+        validation.Errors.Should().ContainSingle(error =>
+            error.Code == DefinitionCompilerCodes.SerializerUnavailable);
+    }
+
+    [Fact]
+    public void PublicBuilder_RejectsApplicationJsonConverterAtBuild()
+    {
+        var validation = global::OrcaCore.Workflow.Ephemeral<ApplicationConvertedState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<ApplicationConvertedState>(value => value)
+            .End()
+            .TryBuild();
+
+        validation.IsValid.Should().BeFalse();
+        validation.Diagnostics.Should().ContainSingle(error =>
+            error.Code == "SFE-TYPE-002");
+    }
+
+    [Fact]
+    public void PublicBuilder_RejectsApplicationJsonConverterOnNestedMemberAtBuild()
+    {
+        var validation = global::OrcaCore.Workflow.Durable<PropertyConvertedState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<PropertyConvertedState>(value => value)
+            .End()
+            .TryBuild();
+
+        validation.IsValid.Should().BeFalse();
+        validation.Diagnostics.Should().ContainSingle(error =>
+            error.Code == "SFE-TYPE-002");
+    }
+
+    [Fact]
+    public void PublicBuilder_RejectsApplicationJsonConverterOnExternalInputAtBuild()
+    {
+        var validation = global::OrcaCore.Workflow.Durable<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<ApplicationConvertedState>(_ => new TestState([]))
+            .End()
+            .TryBuild();
+
+        validation.IsValid.Should().BeFalse();
+        validation.Diagnostics.Should().ContainSingle(error =>
+            error.Code == "SFE-TYPE-002");
+    }
+
+    private static EphemeralWorkflowBuilder<TestState> StructuredDefinition(
+        DefinitionId definitionId,
+        IWorkflowTypeSerializerRegistry? serializerRegistry = null)
+    {
+        var builder = global::OrcaCore.Workflow.Ephemeral<TestState>(
+            definitionId,
+            DefinitionVersion.Initial);
+        if (serializerRegistry is not null)
+        {
+            builder.WithTypeSerializerRegistry(serializerRegistry);
+        }
+
+        return builder
             .Init<int[]>(_ => new TestState([]))
             .Parallel<string>(
                 branches => branches
@@ -514,7 +697,7 @@ public sealed class DefinitionCompilerTests
         string outcome,
         DefinitionCompilerOptions options)
     {
-        return Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
             .WithCompilerOptions(options)
             .Init<int[]>(_ => new TestState([]))
             .End(outcome)
@@ -525,7 +708,7 @@ public sealed class DefinitionCompilerTests
         DefinitionId definitionId,
         int batchSize)
     {
-        return Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
             .Init<int[]>(_ => new TestState([1, 2, 3]))
             .ForEach<int, ItemState, string>(
                 parent => parent.Value.Items,
@@ -539,25 +722,97 @@ public sealed class DefinitionCompilerTests
             .Build();
     }
 
-    private static WorkflowDefinition<TestState> NestedFingerprintDefinition(
+    private static DefinitionFingerprint PublicEphemeralForEachFingerprint(
         DefinitionId definitionId,
-        string nestedBranchId)
+        int maxItems) =>
+        global::OrcaCore.Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
+            .Init<int[]>(_ => new TestState([1]))
+            .ForEach<int, ItemState, string>(
+                parent => parent.Value.Items,
+                global::OrcaCore.ForEachOptions.Create(maxItems, maxConcurrency: 1),
+                item => new ItemState(item.Item),
+                body => body.Return(item => item.Value.Item.ToString()))
+            .WhenAll((parent, _) => parent.Value)
+            .End()
+            .Build()
+            .DefinitionFingerprint;
+
+    private static DefinitionFingerprint PublicDurableForEachFingerprint(
+        DefinitionId definitionId,
+        int maxItems) =>
+        global::OrcaCore.Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
+            .Init<int[]>(_ => new TestState([1]))
+            .ForEach<int, ItemState, string>(
+                parent => parent.Value.Items,
+                global::OrcaCore.ForEachOptions.Create(maxItems, maxConcurrency: 1),
+                item => new ItemState(item.Item),
+                body => body.Return(item => item.Value.Item.ToString()))
+            .WhenAll((parent, _) => parent.Value)
+            .End()
+            .Build()
+            .DefinitionFingerprint;
+
+    [Fact]
+    public void NestedResourceLease_IsRejectedWithBothAuthoredLocations()
     {
-        return Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
+        var request = ResourceLeaseRequest.Create(
+            ResourceLeaseRequirement.Require(ResourcePoolName.Create("database")));
+        var builder = new DurableWorkflowBuilder<TestState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<int[]>(_ => new TestState([]));
+        builder.AddResourceLease(
+            request,
+            outer => outer.AddResourceLease(request, _ => { }));
+        var validation = builder.End().TryBuild();
+
+        validation.IsValid.Should().BeFalse();
+        validation.Errors.Should().ContainSingle(error =>
+            error.Code == DefinitionCompilerCodes.LeaseAncestryConflict &&
+            error.Path == "root/1/lease/0" &&
+            error.RelatedPath == "root/1");
+        var diagnostic = PublicAuthoringContracts.Diagnostic(validation.Errors.Single());
+        diagnostic.Code.Should().Be("SFE-AUTH-LEASE-001");
+        diagnostic.Location.Value.Should().Be("workflow:$/n:00000001/n:00000000");
+        diagnostic.RelatedLocations.Select(location => location.Value).Should()
+            .Equal("workflow:$/n:00000001");
+    }
+
+    [Fact]
+    public void ContinueAsNewInsideResourceLease_IsRejectedAtBuild()
+    {
+        var request = ResourceLeaseRequest.Create(
+            ResourceLeaseRequirement.Require(ResourcePoolName.Create("database")));
+        var authoring = ManualDefinition(WorkflowExecutionMode.Durable);
+        authoring.RootNodes.Insert(
+            1,
+            new SelectedResourceLeaseAuthoringNode<TestState>(
+                request,
+                null,
+                [new SelectedContinueAsNewAuthoringNode<TestState>(state => state)]));
+        var validation = DefinitionCompiler.Compile(authoring);
+
+        validation.IsValid.Should().BeFalse();
+        validation.Errors.Should().ContainSingle(error =>
+            error.Code == DefinitionCompilerCodes.LeaseBlocksContinueAsNew &&
+            error.Path == "root/1/lease/0" &&
+            error.RelatedPath == "root/1");
+        PublicAuthoringContracts.Diagnostic(validation.Errors.Single()).Code.Should()
+            .Be("SFE-AUTH-LEASE-003");
+    }
+
+    private static WorkflowDefinition<TestState> RootFingerprintDefinition(
+        DefinitionId definitionId,
+        string branchId)
+    {
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
             .Init<int[]>(_ => new TestState([]))
             .Parallel<string>(
                 branches => branches
                     .Branch<BranchState>(
-                        "outer",
+                        branchId,
                         _ => new BranchState(),
-                        branch => branch
-                            .Parallel<string>(
-                                nested => nested.Branch<BranchState>(
-                                    nestedBranchId,
-                                    _ => new BranchState(),
-                                    child => child.Return(_ => nestedBranchId)),
-                                (parent, _) => parent.Value)
-                            .Return(_ => "outer"))
+                        branch => branch.Return(_ => branchId))
                     .Branch<BranchState>(
                         "plain",
                         _ => new BranchState(),
@@ -571,7 +826,7 @@ public sealed class DefinitionCompilerTests
         DefinitionId definitionId,
         string outcome)
     {
-        return Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
             .Init<int[]>(_ => new TestState([]))
             .End(_ => outcome)
             .Build();
@@ -590,8 +845,8 @@ public sealed class DefinitionCompilerTests
             DefinitionVersion.Initial,
             mode);
         authoring.RootNodes.Add(new SelectedInitAuthoringNode<TestState>(
-            _ => new TestState([]),
-            (_, _) => Array.Empty<int>()));
+            typeof(int[]),
+            _ => new TestState([])));
         authoring.RootNodes.Add(new SelectedEndAuthoringNode<TestState>(null, null));
         return authoring;
     }
@@ -613,6 +868,50 @@ public sealed class DefinitionCompilerTests
     private sealed record BranchState;
 
     private sealed record ItemState(int Item);
+
+    [JsonConverter(typeof(ApplicationConvertedStateConverter))]
+    private sealed record ApplicationConvertedState(string Value);
+
+    private sealed record PropertyConvertedState(
+        [property: JsonConverter(typeof(ApplicationStringConverter))] string Value);
+
+    private sealed class ApplicationConvertedStateConverter : JsonConverter<ApplicationConvertedState>
+    {
+        public override ApplicationConvertedState? Read(
+            ref Utf8JsonReader reader,
+            Type typeToConvert,
+            JsonSerializerOptions options)
+        {
+            return new ApplicationConvertedState(reader.GetString()!);
+        }
+
+        public override void Write(
+            Utf8JsonWriter writer,
+            ApplicationConvertedState value,
+            JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value.Value);
+        }
+    }
+
+    private sealed class ApplicationStringConverter : JsonConverter<string>
+    {
+        public override string? Read(
+            ref Utf8JsonReader reader,
+            Type typeToConvert,
+            JsonSerializerOptions options)
+        {
+            return reader.GetString();
+        }
+
+        public override void Write(
+            Utf8JsonWriter writer,
+            string value,
+            JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value);
+        }
+    }
 
     private sealed class NoOpStep : IStep<TestState>
     {

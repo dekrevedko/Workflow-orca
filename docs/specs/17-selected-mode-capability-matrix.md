@@ -52,6 +52,17 @@ that mode.
 | Management and typed state | In-memory implementation | Durable implementation | Typed snapshot/state/output queries, notification-driven output wait, cancellation request, and termination only. Instance enumeration/bulk query plus pause/resume/retry/archive/purge are deferred public operations. |
 | Persistence/restart recovery | Absent | Durable only | Requires a durable store. In-memory durable hosting is development/test-only. |
 
+V1 concurrency is bulk-synchronous fork-join. Root fan-out scopes compose sequentially without
+bound: each join returns the root builder and each merge replaces `TState`. Data-dependent fan-out
+is authored as successive stages separated by one barrier per stage, with intermediate results
+materialized in parent state and therefore subject to state and payload budgets.
+
+Heterogeneous per-group work is authored by emitting one tagged item per `(group, unit)` pair and
+dispatching on the tag in the item body. This encoding is sanctioned only where flat item identity,
+an authored item bound plus fixed encoded-value budgets, flat failure aggregation, a single
+`MaxConcurrency`, and the absence of sequential dependency between groups are all acceptable. It
+is not equivalent to nesting.
+
 ## 17.2 Approved public authoring signatures
 
 The member names, parameters, staged return families, value/result shapes, and availability in
@@ -351,9 +362,13 @@ before an author selector sees them. The codec is not replaceable in v1 and has 
 ID `orcacore-json-v1`. Registration rejects unsupported/cyclic/polymorphic shapes that lack an
 approved static contract. Certification proves that the same supported value graph, type,
 member order, and collection enumeration order produce the same bytes, plus round-trip type
-fidelity, detached copies, null behavior, and failure-before-commit. Authors normalize unordered
-sets/maps before using them in durable selectors or idempotency input; OrcaCore does not claim
-semantic canonicalization of arbitrary .NET collections. `ReadOnlyStateSnapshot<TState>` is a
+fidelity, detached copies, null behavior, and failure-before-commit. The closed sequence
+representation is a JSON array declared as one-dimensional `T[]`, `List<T>`, `IList<T>`, or
+`IReadOnlyList<T>` and materialized only as an array or exact `List<T>`. The closed map
+representation is a JSON object declared as `Dictionary<string,T>`, `IDictionary<string,T>`, or
+`IReadOnlyDictionary<string,T>` and materialized only as exact `Dictionary<string,T>`.
+Enumeration/insertion order is semantic; authors normalize it when order is not business data.
+All other declared/runtime collection shapes reject before commit. `ReadOnlyStateSnapshot<TState>` is a
 runtime-created non-positional sealed wrapper with no public constructor or deconstructor. The
 wrapper prevents replacing the runtime-owned reference; authors must still treat its `Value` as
 immutable.
@@ -1486,6 +1501,11 @@ meanings.
 | `SFE-AUTH-JOIN-002` | `InvalidMergeContract`: result/state/merge contracts do not agree. |
 | `SFE-AUTH-DECORATOR-001` | `MisplacedDecorator`: a retry/timeout/transient decorator is repeated or has no eligible immediately preceding business step. |
 | `SFE-AUTH-DEADLINE-001` | `DuplicateWorkflowDeadline`: `CompleteWithin` is selected more than once; the second call is primary and the first is related. |
+| `SFE-AUTH-LIFECYCLE-001` | `SupersededBuilderHandle`: a root builder handle belongs to an earlier authoring epoch or has a required join pending. |
+| `SFE-AUTH-LIFECYCLE-002` | `JoinAlreadySelected`: the required join stage has already selected a terminal join operation. |
+| `SFE-AUTH-LIFECYCLE-003` | `FrozenAuthoringSession`: the root authoring session has already selected its generation terminal and is immutable. |
+| `SFE-AUTH-LIFECYCLE-004` | `ExpiredLexicalBuilderHandle`: a callback-local nested, branch, item, leased, or scope builder escaped its lexical callback. |
+| `SFE-AUTH-LIFECYCLE-005` | `ConcurrentAuthoringConflict`: another authoring operation owns the session operation gate. |
 | `SFE-AUTH-LOOP-001` | `NonProgressingLoop`: a root loop cycle can repeat without business work, suspension, failure, rollover, or exit. |
 | `SFE-AUTH-LEASE-001` | `LeaseAncestryConflict`: acquisition is reachable under a live capacity-reserving lexical ancestor; primary/related locations identify both scopes. |
 | `SFE-AUTH-LEASE-003` | `LeaseBlocksContinueAsNew`: rollover is reached before a lexical lease scope exits. |
@@ -2040,6 +2060,19 @@ enforcement.
 
 ## 17.6 Explicitly deferred or removed surface
 
+Deferred capabilities are scored against the authoring shapes they restore, not against their
+individual appeal. As of 2026-07-28 the v1 residue is unbounded data-dependent repetition, plus
+the budget and observation preconditions under which root-only encodings substitute for nested
+ones. Conditional/finite `ContinueAsNew` restores the former at the generation level and is the
+cheapest such recovery; nested `While` restores unbounded per-unit iteration. Nested `Parallel`
+restores neither and was declined on that basis.
+
+**Re-entry bar for nested fan-out.** A concrete workload must demonstrate material latency,
+throughput, memory, or **budget-acceptance** failure against **every applicable root-only
+encoding**. A definition rejected by `MaxItems`, parent-state, payload, or snapshot limits under
+every applicable encoding, but acceptable when nested, qualifies as budget-acceptance evidence.
+It is not claimed that the root-only encodings preserve every bounded workload.
+
 Deferred capabilities remain design-visible but have no public member, alias, obsolete
 tombstone, empty implementation, reflection-visible placeholder, or compile fixture that
 pretends they ship:
@@ -2051,7 +2084,7 @@ pretends they ship:
 | Public `RunExternalJob` | Kubernetes can use ordinary typed steps; a generic protocol is not yet justified. | Typed request/result, dispatch/outbox topology, identity, timeout/stop, report dedup, resource bracket. |
 | Public `RunChild`/`RunChildren` | DAG needs internal child orchestration, not a general provisional fluent member. | Typed parent/child mapping, cancellation, group results, public failure policy. |
 | Nested `While` | Re-entry analysis and usability can wait. | Exact allowed nesting and compiler/runtime evidence. |
-| Nested `Parallel` | Recursive fixed fan-out would multiply branch identity, admission, merge, and lease interactions across every nested builder family. | Exact allowed locations, recursive identity and token admission, merge/failure behavior, lease interaction, and compiler/runtime evidence. |
+| Nested `Parallel` | Reviewed 2026-07-28 and declined for v1. Tagged-item flattening and sequential staging cover common cases under explicit budget/dependency/observation preconditions; nesting primarily removes barriers and does not solve unbounded data-dependent repetition. | A measured latency/throughput case the sanctioned encodings cannot meet; exact allowed locations; recursive identity and token/admitted-item semantics; merge/failure behavior; lease interaction; a sound conditional progress contract; occurrence provenance as an ancestry path; and compiler/runtime evidence. |
 | Nested `ForEach` | Multilevel dynamic expansion complicates limits and recovery. | Combined item bounds, identity, admission, payload and merge rules. |
 | Conditional/finite `ContinueAsNew` | V1's root form is an unconditional/perpetual generation terminal. | A root-only conditional terminal shape, finite path validation, output/lineage semantics, and deadline behavior. |
 | Durable lambda steps | Delegate identity/capture/versioning is unsafe for persisted definitions. | Stable code identity and replay/version contract. |

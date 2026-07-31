@@ -170,7 +170,7 @@ public sealed class DashboardScenarioSeeder(
 
     private static OrcaCore.Core.Definitions.WorkflowDefinition<DashboardOrderState> BuildDefinition()
     {
-        return Workflow.Durable<DashboardOrderState>(DefinitionId.New(), DefinitionVersion.Initial)
+        return global::OrcaCore.Core.Building.Workflow.Durable<DashboardOrderState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<DashboardOrderInput>(DashboardOrderState.From)
             .End("DashboardSampleStarted")
             .Build();

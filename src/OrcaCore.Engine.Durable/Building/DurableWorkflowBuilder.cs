@@ -9,7 +9,7 @@ internal sealed class DurableWorkflowBuilder<TState>
 
     internal IReadOnlyList<DurableWaitDefinition<TState>> Waits => waits;
 
-    internal DurableWorkflowBuilder<TState> WaitLong(
+    internal DurableWorkflowBuilder<TState> AddColdWait(
         string eventName,
         Func<TState, CorrelationId> correlationSelector)
     {

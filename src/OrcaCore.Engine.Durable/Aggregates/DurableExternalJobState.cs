@@ -2,6 +2,8 @@ using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Aggregates;
 
 internal sealed class DurableExternalJobState
@@ -44,7 +46,7 @@ internal sealed class DurableExternalJobState
                 job.FiberId is { } fiberId && ownerFiberIds.Contains(fiberId))
             .Select(job => new WorkflowExternalJobStopRequestedEvent
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = context.InstanceId,
             CommandId = context.CommandId,
             CausationId = context.CausationId,
@@ -57,7 +59,7 @@ internal sealed class DurableExternalJobState
         }).ToArray();
     }
 
-    internal void Apply(WorkflowEvent workflowEvent)
+    internal void Apply(DurableWorkflowEvent workflowEvent)
     {
         ArgumentNullException.ThrowIfNull(workflowEvent);
 

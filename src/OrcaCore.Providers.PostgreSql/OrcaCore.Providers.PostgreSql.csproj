@@ -1,12 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>OrcaCore.Providers.PostgreSql</AssemblyName>
+    <PackageId>OrcaCore.Providers.PostgreSql</PackageId>
+  </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Dapper" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Npgsql" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\OrcaCore.Abstractions\OrcaCore.Abstractions.csproj" />
-    <ProjectReference Include="..\OrcaCore.Providers.Relational\OrcaCore.Providers.Relational.csproj" />
+    <ProjectReference Include="..\OrcaCore.Abstractions\OrcaCore.csproj" />
+    <ProjectReference Include="..\OrcaCore.Runtime.Protocol\OrcaCore.Runtime.Protocol.csproj" />
+    <ProjectReference Include="..\OrcaCore.Provider.Abstractions\OrcaCore.Provider.Abstractions.csproj" />
   </ItemGroup>
 
   <ItemGroup>

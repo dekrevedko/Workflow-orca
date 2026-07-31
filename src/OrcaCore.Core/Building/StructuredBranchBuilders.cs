@@ -1,7 +1,9 @@
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Steps;
+using OrcaCore.Core.Authoring;
 using OrcaCore.Core.Definitions;
+using OrcaCore.Core.Execution;
 
 namespace OrcaCore.Core.Building;
 
@@ -42,14 +44,20 @@ public sealed record ForEachItemOutcome<TResult>(
     int Index,
     ForEachItemTerminalStatus Status,
     TResult? Result,
-    string? Failure);
+    FiberFailure? Failure);
 
 /// <summary>
 /// Authors branches with isolated state and one common result type.
 /// </summary>
-public sealed class BranchScopeBuilder<TParentState, TResult>
+internal sealed class BranchScopeBuilder<TParentState, TResult>
 {
     private readonly List<StructuredBranchAuthoring> branches = [];
+    private readonly AuthoringLifecycleHandle lifecycle;
+
+    internal BranchScopeBuilder(AuthoringLifecycleHandle lifecycle)
+    {
+        this.lifecycle = lifecycle;
+    }
 
     /// <summary>
     /// Adds one named branch with a parent-to-private-state projection and an explicit return.
@@ -62,8 +70,20 @@ public sealed class BranchScopeBuilder<TParentState, TResult>
         ArgumentNullException.ThrowIfNull(inputProjector);
         ArgumentNullException.ThrowIfNull(build);
 
-        var branch = new BranchBuilder<TBranchState, TResult>();
-        build(branch);
+        using var operation = lifecycle.BeginMutation(
+            $"{lifecycle.Location}/parallel:{branches.Count:D8}");
+        var branchHandle = lifecycle.CreateLexical(
+            $"{lifecycle.Location}/parallel:{branches.Count:D8}");
+        var branch = new BranchBuilder<TBranchState, TResult>(branchHandle);
+        try
+        {
+            build(branch);
+        }
+        finally
+        {
+            branchHandle.Expire();
+        }
+
         branches.Add(new StructuredBranchAuthoring(
             branchId,
             typeof(TBranchState),
@@ -78,18 +98,29 @@ public sealed class BranchScopeBuilder<TParentState, TResult>
 /// <summary>
 /// Authors one isolated branch body and its typed terminal result.
 /// </summary>
-public sealed class BranchBuilder<TBranchState, TResult>
+internal sealed class BranchBuilder<TBranchState, TResult>
 {
     private readonly List<BranchAuthoringInstruction> instructions = [];
+    private readonly AuthoringLifecycleHandle lifecycle;
     private WorkflowPolicySet pendingPolicies = WorkflowPolicySet.Empty;
+
+    internal BranchBuilder(AuthoringLifecycleHandle lifecycle)
+    {
+        this.lifecycle = lifecycle;
+    }
 
     /// <summary>
     /// Adds a parameterless business step to the branch-private state flow.
     /// </summary>
     public BranchBuilder<TBranchState, TResult> Then<TStep>()
-        where TStep : IStep<TBranchState>, new()
+        where TStep : IStep<TBranchState>
     {
-        instructions.Add(new BranchStepAuthoringInstruction(() => new TStep(), ConsumePendingPolicies()));
+        using var operation = Mutate();
+        instructions.Add(new BranchStepAuthoringInstruction(
+            null,
+            () => Activator.CreateInstance<TStep>() ?? throw new InvalidOperationException(
+                $"Step type '{typeof(TStep).FullName}' could not be created."),
+            ConsumePendingPolicies()));
         return this;
     }
 
@@ -99,8 +130,18 @@ public sealed class BranchBuilder<TBranchState, TResult>
     public BranchBuilder<TBranchState, TResult> Then(Func<IStep<TBranchState>> stepFactory)
     {
         ArgumentNullException.ThrowIfNull(stepFactory);
-        instructions.Add(new BranchStepAuthoringInstruction(stepFactory, ConsumePendingPolicies()));
+        using var operation = Mutate();
+        instructions.Add(new BranchStepAuthoringInstruction(null, stepFactory, ConsumePendingPolicies()));
         return this;
+    }
+
+    internal void AddNamedStep<TStep>() where TStep : IStep<TBranchState>
+    {
+        using var operation = Mutate();
+        instructions.Add(new BranchStepAuthoringInstruction(
+            typeof(TStep),
+            null,
+            ConsumePendingPolicies()));
     }
 
     /// <summary>
@@ -118,8 +159,31 @@ public sealed class BranchBuilder<TBranchState, TResult>
             throw new ArgumentOutOfRangeException(nameof(backoff), backoff, "Retry backoff cannot be negative.");
         }
 
+        using var operation = Mutate();
         pendingPolicies = pendingPolicies.WithRetry(maxAttempts, backoff ?? TimeSpan.Zero);
         return this;
+    }
+
+    internal void DecoratePreviousWithRetry(int maxAttempts, TimeSpan? backoff)
+    {
+        if (maxAttempts <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxAttempts), maxAttempts, "Retry attempts must be positive.");
+        }
+
+        if (backoff < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(backoff), backoff, "Retry backoff cannot be negative.");
+        }
+
+        using var operation = Mutate();
+        var step = PreviousDecoratableStep("retry");
+        if (step.Policies.Retry is not null)
+        {
+            throw PublicAuthoringContracts.MisplacedDecorator("retry", instructions.Count - 1);
+        }
+
+        instructions[^1] = step with { Policies = step.Policies.WithRetry(maxAttempts, backoff ?? TimeSpan.Zero) };
     }
 
     /// <summary>
@@ -132,8 +196,26 @@ public sealed class BranchBuilder<TBranchState, TResult>
             throw new ArgumentOutOfRangeException(nameof(duration), duration, "Timeout must be positive.");
         }
 
+        using var operation = Mutate();
         pendingPolicies = pendingPolicies.WithTimeout(duration);
         return this;
+    }
+
+    internal void DecoratePreviousWithTimeout(TimeSpan duration)
+    {
+        if (duration <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(duration), duration, "Timeout must be positive.");
+        }
+
+        using var operation = Mutate();
+        var step = PreviousDecoratableStep("timeout");
+        if (step.Policies.Timeout is not null)
+        {
+            throw PublicAuthoringContracts.MisplacedDecorator("timeout", instructions.Count - 1);
+        }
+
+        instructions[^1] = step with { Policies = step.Policies.WithTimeout(duration) };
     }
 
     /// <summary>
@@ -141,6 +223,7 @@ public sealed class BranchBuilder<TBranchState, TResult>
     /// </summary>
     public BranchBuilder<TBranchState, TResult> WithCancellation()
     {
+        using var operation = Mutate();
         pendingPolicies = pendingPolicies.WithCancellation();
         return this;
     }
@@ -152,8 +235,22 @@ public sealed class BranchBuilder<TBranchState, TResult>
     public BranchBuilder<TBranchState, TResult> WithPoolKey(string poolKey)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(poolKey);
+        using var operation = Mutate();
         pendingPolicies = pendingPolicies.WithPoolKey(poolKey);
         return this;
+    }
+
+    internal void DecoratePreviousWithPool(string poolKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(poolKey);
+        using var operation = Mutate();
+        var step = PreviousDecoratableStep("transient pool");
+        if (step.Policies.PoolKey is not null)
+        {
+            throw PublicAuthoringContracts.MisplacedDecorator("transient pool", instructions.Count - 1);
+        }
+
+        instructions[^1] = step with { Policies = step.Policies.WithPoolKey(poolKey) };
     }
 
     /// <summary>
@@ -165,11 +262,29 @@ public sealed class BranchBuilder<TBranchState, TResult>
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
         ArgumentNullException.ThrowIfNull(correlationSelector);
+        using var operation = Mutate();
         instructions.Add(new BranchWaitAuthoringInstruction(
             eventName,
             correlationSelector,
-            WaitMode.Resident));
+            WaitMode.Resident,
+            Timeout: null));
         return this;
+    }
+
+    internal void AddWait(
+        string eventName,
+        Func<TBranchState, CorrelationId> correlationSelector,
+        WaitMode mode,
+        TimeSpan? timeout = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
+        ArgumentNullException.ThrowIfNull(correlationSelector);
+        using var operation = Mutate();
+        instructions.Add(new BranchWaitAuthoringInstruction(
+            eventName,
+            correlationSelector,
+            mode,
+            timeout));
     }
 
     /// <summary>
@@ -182,29 +297,56 @@ public sealed class BranchBuilder<TBranchState, TResult>
             throw new ArgumentOutOfRangeException(nameof(duration), duration, "Delay must be positive.");
         }
 
+        using var operation = Mutate();
         instructions.Add(new BranchDelayAuthoringInstruction(duration));
         return this;
     }
 
-    /// <summary>
-    /// Adds nested cooperative branches whose merge replaces this branch's private state.
-    /// </summary>
-    public BranchBuilder<TBranchState, TResult> Parallel<TNestedResult>(
-        Action<BranchScopeBuilder<TBranchState, TNestedResult>> branches,
-        Func<ReadOnlyParentSnapshot<TBranchState>, IReadOnlyList<BranchResult<TNestedResult>>, TBranchState> merge)
+    internal void AddIf(
+        Func<TBranchState, bool> condition,
+        Action<BranchBuilder<TBranchState, TResult>> then,
+        Action<BranchBuilder<TBranchState, TResult>>? otherwise)
     {
-        ArgumentNullException.ThrowIfNull(branches);
-        ArgumentNullException.ThrowIfNull(merge);
+        ArgumentNullException.ThrowIfNull(condition);
+        ArgumentNullException.ThrowIfNull(then);
 
-        var scope = new BranchScopeBuilder<TBranchState, TNestedResult>();
-        branches(scope);
-        instructions.Add(new BranchStructuredScopeAuthoringInstruction(
-            "Parallel",
-            typeof(TBranchState),
-            typeof(TNestedResult),
-            scope.Branches,
-            merge));
-        return this;
+        using var operation = Mutate();
+        var thenBuilder = InvokeNested(then, "if:true");
+        var elseBuilder = otherwise is null
+            ? EmptyNested("if:false")
+            : InvokeNested(otherwise, "if:false");
+        instructions.Add(new BranchIfAuthoringInstruction(
+            condition,
+            thenBuilder.Instructions,
+            elseBuilder.Instructions));
+    }
+
+    internal void AddResourceLease(
+        global::OrcaCore.ResourceLeaseRequest request,
+        Action<BranchBuilder<TBranchState, TResult>> body)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(body);
+        using var operation = Mutate();
+        var nested = InvokeNested(body, "lease:body");
+        instructions.Add(new BranchResourceLeaseAuthoringInstruction(
+            request,
+            null,
+            nested.Instructions));
+    }
+
+    internal void AddResourceLease(
+        Func<TBranchState, global::OrcaCore.ResourceLeaseRequest> request,
+        Action<BranchBuilder<TBranchState, TResult>> body)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(body);
+        using var operation = Mutate();
+        var nested = InvokeNested(body, "lease:body");
+        instructions.Add(new BranchResourceLeaseAuthoringInstruction(
+            null,
+            request,
+            nested.Instructions));
     }
 
     /// <summary>
@@ -217,8 +359,18 @@ public sealed class BranchBuilder<TBranchState, TResult>
         ArgumentNullException.ThrowIfNull(branches);
         ArgumentNullException.ThrowIfNull(merge);
 
-        var scope = new BranchScopeBuilder<TBranchState, TNestedResult>();
-        branches(scope);
+        using var operation = Mutate();
+        var scopeHandle = lifecycle.CreateLexical(NextLocation);
+        var scope = new BranchScopeBuilder<TBranchState, TNestedResult>(scopeHandle);
+        try
+        {
+            branches(scope);
+        }
+        finally
+        {
+            scopeHandle.Expire();
+        }
+
         instructions.Add(new BranchStructuredScopeAuthoringInstruction(
             "WhenFirst",
             typeof(TBranchState),
@@ -235,17 +387,57 @@ public sealed class BranchBuilder<TBranchState, TResult>
         Func<ReadOnlyBranchSnapshot<TBranchState>, TResult> resultProjector)
     {
         ArgumentNullException.ThrowIfNull(resultProjector);
+        using var operation = Mutate();
         instructions.Add(new BranchReturnAuthoringInstruction(typeof(TResult), resultProjector));
         return this;
     }
 
     internal IReadOnlyList<BranchAuthoringInstruction> Instructions => instructions;
 
+    private IDisposable Mutate() => lifecycle.BeginMutation(NextLocation);
+
+    private string NextLocation => $"{lifecycle.Location}/n:{instructions.Count:D8}";
+
+    private BranchBuilder<TBranchState, TResult> InvokeNested(
+        Action<BranchBuilder<TBranchState, TResult>> callback,
+        string segment)
+    {
+        var nestedHandle = lifecycle.CreateLexical($"{NextLocation}/{segment}");
+        var nested = new BranchBuilder<TBranchState, TResult>(nestedHandle);
+        try
+        {
+            callback(nested);
+            return nested;
+        }
+        finally
+        {
+            nestedHandle.Expire();
+        }
+    }
+
+    private BranchBuilder<TBranchState, TResult> EmptyNested(string segment)
+    {
+        var nestedHandle = lifecycle.CreateLexical($"{NextLocation}/{segment}");
+        var nested = new BranchBuilder<TBranchState, TResult>(nestedHandle);
+        nestedHandle.Expire();
+        return nested;
+    }
+
     private WorkflowPolicySet ConsumePendingPolicies()
     {
         var policies = pendingPolicies;
         pendingPolicies = WorkflowPolicySet.Empty;
         return policies;
+    }
+
+    private BranchStepAuthoringInstruction PreviousDecoratableStep(string decorator)
+    {
+        if (instructions.Count == 0 || instructions[^1] is not BranchStepAuthoringInstruction step)
+        {
+            throw PublicAuthoringContracts.MisplacedDecorator(decorator, Math.Max(0, instructions.Count));
+        }
+
+        return step;
     }
 }
 
@@ -258,15 +450,27 @@ internal sealed record StructuredBranchAuthoring(
 internal abstract record BranchAuthoringInstruction;
 
 internal sealed record BranchStepAuthoringInstruction(
-    Delegate StepFactory,
+    Type? StepType,
+    Delegate? StepFactory,
     WorkflowPolicySet Policies) : BranchAuthoringInstruction;
 
 internal sealed record BranchWaitAuthoringInstruction(
     string EventName,
     Delegate CorrelationSelector,
-    WaitMode Mode) : BranchAuthoringInstruction;
+    WaitMode Mode,
+    TimeSpan? Timeout) : BranchAuthoringInstruction;
 
 internal sealed record BranchDelayAuthoringInstruction(TimeSpan Duration) : BranchAuthoringInstruction;
+
+internal sealed record BranchIfAuthoringInstruction(
+    Delegate Condition,
+    IReadOnlyList<BranchAuthoringInstruction> Then,
+    IReadOnlyList<BranchAuthoringInstruction> Else) : BranchAuthoringInstruction;
+
+internal sealed record BranchResourceLeaseAuthoringInstruction(
+    global::OrcaCore.ResourceLeaseRequest? StaticRequest,
+    Delegate? RequestSelector,
+    IReadOnlyList<BranchAuthoringInstruction> Body) : BranchAuthoringInstruction;
 
 internal sealed record BranchStructuredScopeAuthoringInstruction(
     string ScopeKind,

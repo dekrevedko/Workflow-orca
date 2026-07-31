@@ -14,7 +14,7 @@ public sealed class BranchIsolationTests
     public void MaterializedBranchInput_CannotMutateParentOrSiblingAliases()
     {
         var parent = new ParentState(["original"]);
-        var plan = Workflow.Ephemeral<ParentState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var plan = global::OrcaCore.Workflow.Ephemeral<ParentState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => parent)
             .Parallel<string>(
                 branches => branches

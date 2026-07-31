@@ -9,7 +9,9 @@ internal static class EphemeralWorkflowFixture
 {
     internal static WorkflowDefinition<EphemeralBenchmarkState> BuildDefinition(int stepCount)
     {
-        var builder = new WorkflowBuilder<EphemeralBenchmarkState>()
+        var builder = global::OrcaCore.Core.Building.Workflow.Ephemeral<EphemeralBenchmarkState>(
+                DeterministicIds.Definition(50_000 + stepCount),
+                DefinitionVersion.Initial)
             .Init<int>(_ => new EphemeralBenchmarkState());
         for (var index = 0; index < stepCount; index++)
         {
@@ -18,7 +20,7 @@ internal static class EphemeralWorkflowFixture
 
         return builder
             .End()
-            .Build(DeterministicIds.Definition(50_000 + stepCount), DefinitionVersion.Initial);
+            .Build();
     }
 }
 

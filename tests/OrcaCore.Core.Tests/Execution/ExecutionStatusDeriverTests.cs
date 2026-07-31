@@ -13,7 +13,7 @@ public sealed class ExecutionStatusDeriverTests
     public void AggregateRunnability_DerivesRunningWaitingAndRootTerminalStatuses()
     {
         var initial = StructuredExecutionState.Create(
-            InstanceId.New(),
+            InstanceId.Parse(Guid.CreateVersion7().ToString()),
             generation: 0,
             new InstructionId("instruction:root"));
         var root = initial.Fibers[initial.RootFiberId];
@@ -57,7 +57,7 @@ public sealed class ExecutionStatusDeriverTests
     public void BlockingRuntimeDiagnostic_ParksOnlyDurableMode_AndIsTypedForEphemeralMode()
     {
         var state = StructuredExecutionState.Create(
-            InstanceId.New(),
+            InstanceId.Parse(Guid.CreateVersion7().ToString()),
             generation: 0,
             new InstructionId("instruction:root"));
         var diagnostic = new StructuredRuntimeDiagnostic(

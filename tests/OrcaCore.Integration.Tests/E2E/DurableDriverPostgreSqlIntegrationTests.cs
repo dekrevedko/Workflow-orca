@@ -20,7 +20,7 @@ namespace OrcaCore.Integration.Tests.E2E;
 
 /// <summary>
 /// DR-P2 gate on PostgreSQL: the driver's restart-safe continuation signal works against the
-/// real store — kind-partitioned claims, continue records in commit batches, and a second
+/// real store Ã¢â‚¬â€ kind-partitioned claims, continue records in commit batches, and a second
 /// host's pump finishing work the committing host never continued.
 /// </summary>
 [Collection(nameof(PostgreSqlCollection))]
@@ -66,10 +66,10 @@ public sealed class DurableDriverPostgreSqlIntegrationTests(PostgreSqlOrcaFixtur
 
     private static WorkflowDefinition<OrderState> Definition(DefinitionId definitionId)
     {
-        return Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
+        return global::OrcaCore.Workflow.Durable<OrderState>(definitionId, DefinitionVersion.Initial)
             .Init<string>(orderId => new OrderState { OrderId = orderId ?? "unset" })
             .Then(() => new CountingStep("prepare"))
-            .Wait("Approved", state => new CorrelationId(state.OrderId))
+            .Wait("Approved", state => CorrelationId.Create(state.OrderId))
             .Then(() => new CountingStep("ship"))
             .End("shipped")
             .Build();
@@ -96,7 +96,7 @@ public sealed class DurableDriverPostgreSqlIntegrationTests(PostgreSqlOrcaFixtur
         CountingStep.Executions.GetValueOrDefault($"{orderId}:prepare").Should().Be(1);
 
         // The wait-matched commit lands via the kernel; host A dies before continuing.
-        var eventId = EventId.New();
+        var eventId = EventId.Create(Guid.CreateVersion7().ToString());
         var delivered = await hostA.Processor.ProcessAsync(
             new DeliverEventCommand
             {
@@ -107,7 +107,7 @@ public sealed class DurableDriverPostgreSqlIntegrationTests(PostgreSqlOrcaFixtur
                 {
                     EventId = eventId,
                     EventName = "Approved",
-                    CorrelationId = new CorrelationId(orderId),
+                    CorrelationId = CorrelationId.Create(orderId),
                     OccurredAt = DateTimeOffset.UtcNow
                 }
             },
@@ -125,7 +125,7 @@ public sealed class DurableDriverPostgreSqlIntegrationTests(PostgreSqlOrcaFixtur
                 {
                     EventId = eventId,
                     EventName = "Approved",
-                    CorrelationId = new CorrelationId(orderId),
+                    CorrelationId = CorrelationId.Create(orderId),
                     OccurredAt = DateTimeOffset.UtcNow
                 }
             },

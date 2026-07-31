@@ -8,6 +8,8 @@ using OrcaCore.TestSupport;
 using Testcontainers.PostgreSql;
 using Xunit;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Providers.PostgreSql.Tests;
 
 [Trait(Traits.Container, "PostgreSql")]
@@ -169,7 +171,7 @@ public sealed class PostgreSqlEventStoreTests : IAsyncLifetime
     private static ProviderCommitBatch Batch(
         WorkflowStreamId streamId,
         StreamVersion expectedVersion,
-        params WorkflowEvent[] events)
+        params DurableWorkflowEvent[] events)
     {
         return new ProviderCommitBatch
         {
@@ -183,7 +185,7 @@ public sealed class PostgreSqlEventStoreTests : IAsyncLifetime
     {
         return new WorkflowStartedEvent
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = instanceId,
             CommandId = CommandIdValue(1),
             CausationId = CausationIdValue(1),
@@ -197,7 +199,7 @@ public sealed class PostgreSqlEventStoreTests : IAsyncLifetime
     {
         return new WorkflowStepCompletedEvent
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = instanceId,
             CommandId = CommandIdValue(2),
             CausationId = CausationIdValue(2),
@@ -210,14 +212,14 @@ public sealed class PostgreSqlEventStoreTests : IAsyncLifetime
     {
         return new WorkflowWaitRegisteredEvent
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = instanceId,
             CommandId = CommandIdValue(3),
             CausationId = CausationIdValue(3),
             OccurredAt = Timestamp(3),
             WaitId = WaitIdValue(1),
             EventName = "Approved",
-            CorrelationId = new CorrelationId("order-1")
+            CorrelationId = CorrelationId.Create("order-1")
         };
     }
 
@@ -228,7 +230,7 @@ public sealed class PostgreSqlEventStoreTests : IAsyncLifetime
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -243,12 +245,12 @@ public sealed class PostgreSqlEventStoreTests : IAsyncLifetime
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static WaitId WaitIdValue(int value)
     {
-        return new WaitId(GuidValue(value));
+        return WaitId.Parse(GuidValue(value).ToString());
     }
 
     private static Guid GuidValue(int value)

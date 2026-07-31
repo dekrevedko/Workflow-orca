@@ -58,8 +58,8 @@ public sealed class StructuredSagaOwnershipTests
 
         state.Apply(new SagaForwardActionsTransferredEvent
         {
-            EventId = EventId.New(),
-            InstanceId = InstanceId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
+            InstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString()),
             CommandId = CommandId.New(),
             CausationId = CausationId.New(),
             OccurredAt = Timestamp(4),
@@ -220,8 +220,8 @@ public sealed class StructuredSagaOwnershipTests
     {
         return new SagaForwardActionCompletedEvent
         {
-            EventId = EventId.New(),
-            InstanceId = InstanceId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
+            InstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString()),
             CommandId = CommandId.New(),
             CausationId = CausationId.New(),
             OccurredAt = Timestamp(1),
@@ -239,10 +239,10 @@ public sealed class StructuredSagaOwnershipTests
 
     private static WorkflowStartedEvent Started()
     {
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         return new WorkflowStartedEvent
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = instanceId,
             CommandId = CommandId.New(),
             CausationId = CausationId.New(),
@@ -254,7 +254,7 @@ public sealed class StructuredSagaOwnershipTests
 
     private static DurableSagaEventContext Context()
     {
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         return new DurableSagaEventContext(
             CommandId.New(),
             instanceId,

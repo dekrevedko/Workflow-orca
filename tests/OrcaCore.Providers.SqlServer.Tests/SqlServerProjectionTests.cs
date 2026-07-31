@@ -110,7 +110,7 @@ public sealed class SqlServerProjectionTests : IAsyncLifetime
             DefinitionVersion = new DefinitionVersion(2),
             Status = WorkflowStatus.Running,
             ActiveWaitEventName = "approval-requested",
-            ActiveWaitCorrelationId = new CorrelationId("target-correlation")
+            ActiveWaitCorrelationId = CorrelationId.Create("target-correlation")
         };
 
         var byInstance = await RequiredStore().ListAsync(
@@ -216,9 +216,9 @@ public sealed class SqlServerProjectionTests : IAsyncLifetime
     {
         return new ActiveWaitSnapshot
         {
-            WaitId = new WaitId(GuidValue(value)),
+            WaitId = WaitId.Parse(GuidValue(value).ToString()),
             EventName = eventName,
-            CorrelationId = new CorrelationId(correlationId),
+            CorrelationId = CorrelationId.Create(correlationId),
             RegisteredAt = Timestamp(value),
             Status = "Waiting",
             Mode = WaitMode.Resident.ToString()
@@ -232,12 +232,12 @@ public sealed class SqlServerProjectionTests : IAsyncLifetime
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}"));
+        return InstanceId.Parse($"00000000-0000-0000-0000-{value:000000000000}");
     }
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}"));
+        return DefinitionId.Parse($"00000000-0000-0000-0000-{value:000000000000}");
     }
 
     private static Guid GuidValue(int value)

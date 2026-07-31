@@ -10,8 +10,8 @@ public sealed class EventEnvelopeContractTests
     [Fact]
     public void Envelope_WithSameData_AreEqual()
     {
-        var eventId = EventId.New();
-        var correlationId = new CorrelationId("order-123");
+        var eventId = EventId.Create(Guid.CreateVersion7().ToString());
+        var correlationId = CorrelationId.Create("order-123");
         var occurredAt = new DateTimeOffset(2026, 7, 2, 10, 15, 0, TimeSpan.Zero);
 
         var first = new EventEnvelope

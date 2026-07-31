@@ -124,6 +124,11 @@ The complete workflow compiler/runtime catalog is:
 - `SFE-AUTH-JOIN-002` `InvalidMergeContract`;
 - `SFE-AUTH-DECORATOR-001` `MisplacedDecorator`;
 - `SFE-AUTH-DEADLINE-001` `DuplicateWorkflowDeadline`;
+- `SFE-AUTH-LIFECYCLE-001` `SupersededBuilderHandle`;
+- `SFE-AUTH-LIFECYCLE-002` `JoinAlreadySelected`;
+- `SFE-AUTH-LIFECYCLE-003` `FrozenAuthoringSession`;
+- `SFE-AUTH-LIFECYCLE-004` `ExpiredLexicalBuilderHandle`;
+- `SFE-AUTH-LIFECYCLE-005` `ConcurrentAuthoringConflict`;
 - `SFE-AUTH-LOOP-001` `NonProgressingLoop`;
 - `SFE-AUTH-LEASE-001` `LeaseAncestryConflict`;
 - `SFE-AUTH-LEASE-003` `LeaseBlocksContinueAsNew`;
@@ -153,8 +158,31 @@ The complete DAG build catalog is `DAG-AUTH-NODE-001` `DuplicateNodeIdentity`; `
 - **WHEN** a second `CompleteWithin` call is authored
 - **THEN** it throws `SFE-AUTH-DEADLINE-001` with the second call primary, first call related, and the first deadline unchanged
 
+### Requirement: Authoring lifecycle, fingerprint coverage, and failure provenance are executable
+Verification SHALL prove the `Open`/`JoinPending`/`Frozen` session lifecycle, successor-epoch root
+façades, expired callback handles, one atomic winner for concurrent authoring, unchanged graph for
+each rejected lifecycle operation, root-terminal frozen snapshots, and repeated-build structural
+stability. It SHALL prove the structural fingerprint includes exactly inspectable authored
+structure plus codec format and excludes compiler format, mode, definition identity/version, every
+compiler option, opaque code, and author contributors. It SHALL also prove failure provenance
+attaches at failure creation, root/branch/item occurrence constructors are runtime-only, one-failure
+propagation is unchanged, multiple causes retain ordered individual provenance, and the closed
+`root`/`branch`/`item` discriminator allowlist round-trips through `orcacore-json-v1`.
+
+#### Scenario: Completion builder observes a frozen snapshot
+- **WHEN** a stale façade attempts mutation after root terminal selection and the completion builder is invoked repeatedly
+- **THEN** the mutation receives its lifecycle code, the graph is unchanged, and every build has equal structure, ordered diagnostics, and fingerprint
+
+#### Scenario: Non-authored fingerprint input changes
+- **WHEN** compiler format, workflow mode, definition identity/version, or one compiler option changes without changing authored structure or codec format
+- **THEN** the structural-fingerprint guard requires equality and verifies compatibility through the separately owned binding
+
+#### Scenario: One failed item is projected
+- **WHEN** one `ForEach.WhenAll` item failure is detached and round-tripped
+- **THEN** its authored location and item index remain intact without a synthesized join aggregate
+
 ### Requirement: Join and bounded fan-out semantics are executable
-Verification SHALL cover a nonempty authored-order root-`Parallel` with `SFE-AUTH-BRANCH-004` `Build`/`TryBuild` parity for an empty scope, index-order root-`ForEach` item results, `WhenAll` success/failure gating and ordered `SFE-JOIN-FAILED` causes, `WhenAllOutcomes` success/failure-only aggregation, ancestor terminal merge suppression, no automatic sibling cancellation, one parent-state replacement, valid empty-list merge, item-bound rejection before admission, selector commit/replay, and compile/reflection/compiler-defense proof that nested, branch, item, and leased builders expose no `Parallel`. Root `ForEach` guards SHALL prove effective admission is the lower of host and node-local limits; parked items release their runnable path token but retain their admitted-item slot until terminal; restart re-admits unfinished items without persisted host slots; admission follows authored item index; and host ceiling one makes progress because the parent releases before fan-out and reacquires only for merge.
+Verification SHALL cover a nonempty authored-order root-`Parallel` with `SFE-AUTH-BRANCH-004` `Build`/`TryBuild` parity for an empty scope, every fixed branch fiber existing at scope start, fair authored-order path-token scheduling with no live-fiber admission resource, index-order root-`ForEach` item results, `WhenAll` success/failure gating and ordered `SFE-JOIN-FAILED` causes, `WhenAllOutcomes` success/failure-only aggregation, ancestor terminal merge suppression, no automatic sibling cancellation, one parent-state replacement, valid empty-list merge, item-bound and encoded-value rejection before admission, selector commit/replay, sequential root fan-out stages with barriers, documented tagged-item flattening, and compile/reflection/compiler-defense proof that nested, branch, item, and leased builders expose no `Parallel`. Root `ForEach` guards SHALL prove effective admission is the lower of host and node-local limits; parked items release their runnable path token but retain their admitted-item slot until terminal; restart re-admits unfinished items without persisted host slots; admission follows authored item index; admitted-item dependence on pending work is not claimed to progress; and host ceiling one avoids only parent-held path-token deadlock because the parent releases before child scheduling and reacquires only for merge.
 
 #### Scenario: One branch fails under WhenAllOutcomes
 - **WHEN** fixed branches finish with mixed success and failure in arbitrary order
@@ -166,7 +194,7 @@ Verification SHALL cover a nonempty authored-order root-`Parallel` with `SFE-AUT
 
 #### Scenario: Parked item and host ceiling compose
 - **WHEN** a root `ForEach` item parks while the lower host/node item limit is full
-- **THEN** it releases its path token but retains its admitted-item slot, later indices wait, and restart re-admits unfinished items in index order without deadlock at a host ceiling of one
+- **THEN** it releases its path token but retains its admitted-item slot, later indices wait, and restart re-admits unfinished items in index order; no global-progress claim is made if admitted items depend on pending ones
 
 ### Requirement: Deadline and operation identity semantics are executable
 Verification SHALL cover workflow deadline persistence across waits/retries/restart/continue-as-new; eager duplicate-`CompleteWithin` rejection; exact retry eligibility/exclusions; structural wait event/timeout races, losing-obligation cancellation, `WorkflowWaitTimeoutException`, and absence of timeout callbacks; fixed-codec detached mutable and replacement state; per-attempt timeout fencing and honest physical late overlap outside durable lease scopes; persistence before first dispatch of operation ID, retry-policy ordinal, absolute deadline, and in-flight state; same-coordinate crash/lost-response redispatch without budget consumption; ordinal increment only after committed eligible failure/timeout; `maxAttempts` one and two; expired-deadline replay without redispatch; stable `StepOperationId` across ambiguous policy retry/replay/competing hosts; and distinct IDs for loop, branch, item, and generation occurrences. Inside a durable lease scope, verification SHALL prove that a timed-out in-process body blocks the next policy attempt until it actually returns, whereas host-loss recovery may redispatch the same ordinal with the same operation ID/deadline/token/tickets while the obligation remains `AmbiguousHeld`.

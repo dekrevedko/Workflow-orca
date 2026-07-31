@@ -11,7 +11,7 @@ public sealed class FiberIdentityTests
     [Fact]
     public void RootFiberIdentity_IsDeterministicPerInstanceGeneration()
     {
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
 
         var generationZero = FiberIdentity.CreateRoot(instanceId, generation: 0);
         var replayedGenerationZero = FiberIdentity.CreateRoot(instanceId, generation: 0);
@@ -24,7 +24,7 @@ public sealed class FiberIdentityTests
     [Fact]
     public void ScopeAndChildIdentity_DeriveFromCommittedPlanAndEntryIdentity()
     {
-        var parent = FiberIdentity.CreateRoot(InstanceId.New(), generation: 0);
+        var parent = FiberIdentity.CreateRoot(InstanceId.Parse(Guid.CreateVersion7().ToString()), generation: 0);
         var scopePlanId = new ScopePlanId("scope:root/parallel");
 
         var scope = FiberIdentity.CreateScope(parent, scopePlanId, scopeEntrySequence: 7);
@@ -43,7 +43,7 @@ public sealed class FiberIdentityTests
     [Fact]
     public void ForEachItemFiberIdentity_DerivesFromStableItemIndex()
     {
-        var parent = FiberIdentity.CreateRoot(InstanceId.New(), generation: 0);
+        var parent = FiberIdentity.CreateRoot(InstanceId.Parse(Guid.CreateVersion7().ToString()), generation: 0);
         var scope = FiberIdentity.CreateScope(parent, new ScopePlanId("scope:items"), scopeEntrySequence: 0);
 
         var first = FiberIdentity.CreateItem(scope, itemIndex: 0);

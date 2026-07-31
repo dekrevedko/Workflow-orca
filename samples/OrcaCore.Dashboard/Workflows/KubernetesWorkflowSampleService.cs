@@ -10,7 +10,7 @@ using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Building;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Engine.Durable.Execution;
-using OrcaEventId = OrcaCore.Abstractions.Ids.EventId;
+using OrcaEventId = OrcaCore.EventId;
 
 namespace OrcaCore.Dashboard.Workflows;
 
@@ -28,13 +28,13 @@ public sealed class KubernetesWorkflowSampleService(
     // start-idempotency records reference them forever. A random id here would strand every
     // instance started by a previous run of this host.
     private static readonly DefinitionId KubernetesDefinitionId =
-        new(Guid.Parse("6f9f4b64-3c1e-4f5a-9b2d-7d1a52e08b31"));
+        DefinitionId.Parse("6f9f4b64-3c1e-4f5a-9b2d-7d1a52e08b31");
 
     // The definition is deliberately Init -> End with no steps: this sample models the
     // external-job pattern, where kubectl-driven jobs are attached to the instance through
     // RunExternalJobCommand/CompleteExternalJobCommand rather than executed as workflow steps.
     private static readonly WorkflowDefinition<KubernetesWorkflowState> Definition =
-        Workflow.Durable<KubernetesWorkflowState>(KubernetesDefinitionId, DefinitionVersion.Initial)
+        global::OrcaCore.Core.Building.Workflow.Durable<KubernetesWorkflowState>(KubernetesDefinitionId, DefinitionVersion.Initial)
             .Init<KubernetesWorkflowInput>(KubernetesWorkflowState.From)
             .End("KubernetesWorkflowTracked")
             .Build();
@@ -288,7 +288,7 @@ public sealed class KubernetesWorkflowSampleService(
                 InstanceId = durableInstanceId,
                 RequestedAt = timeProvider.GetUtcNow(),
                 ExternalJobId = node.Name,
-                CompletionEventId = OrcaEventId.New()
+                CompletionEventId = OrcaEventId.Create(Guid.CreateVersion7().ToString())
             },
             cancellationToken).ConfigureAwait(false);
         MarkNodeSucceeded(runId, nodeName);

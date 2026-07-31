@@ -82,9 +82,9 @@ public sealed class RedisProjectionProviderTests
                     [
                         new ActiveWaitSnapshot
                         {
-                            WaitId = new WaitId(GuidValue(40)),
+                            WaitId = WaitId.Parse(GuidValue(40).ToString()),
                             EventName = "Approved",
-                            CorrelationId = new CorrelationId("order-4"),
+                            CorrelationId = CorrelationId.Create("order-4"),
                             RegisteredAt = Timestamp(2),
                             Status = "Active",
                             Mode = "Resident"
@@ -98,7 +98,7 @@ public sealed class RedisProjectionProviderTests
             new WorkflowProjectionQuery
             {
                 ActiveWaitEventName = "Approved",
-                ActiveWaitCorrelationId = new CorrelationId("order-4")
+                ActiveWaitCorrelationId = CorrelationId.Create("order-4")
             },
             TestContext.Current.CancellationToken);
 
@@ -221,12 +221,12 @@ public sealed class RedisProjectionProviderTests
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static string FindRepoFile(string relativePath)

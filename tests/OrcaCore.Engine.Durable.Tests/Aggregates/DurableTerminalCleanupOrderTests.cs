@@ -14,10 +14,10 @@ public sealed class DurableTerminalCleanupOrderTests
     [InlineData(true)]
     public void ParentCancelAndTerminate_EmitAllOwnedCleanupBeforeTerminal(bool terminate)
     {
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         var fiberId = new FiberId("fiber:nested");
         var scopeId = new ScopeId("scope:nested");
-        var waitId = WaitId.New();
+        var waitId = WaitId.Parse(Guid.CreateVersion7().ToString());
         var timerId = TimerId.New();
         var aggregate = DurableWorkflowAggregate.Rehydrate(
             null,
@@ -67,7 +67,7 @@ public sealed class DurableTerminalCleanupOrderTests
     {
         return new WorkflowStartedEvent
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = instanceId,
             CommandId = CommandId.New(),
             CausationId = CausationId.New(),
@@ -85,14 +85,14 @@ public sealed class DurableTerminalCleanupOrderTests
     {
         return new WorkflowWaitRegisteredEvent
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = instanceId,
             CommandId = CommandId.New(),
             CausationId = CausationId.New(),
             OccurredAt = Timestamp(2),
             WaitId = waitId,
             EventName = "resume",
-            CorrelationId = new CorrelationId("terminal-cleanup"),
+            CorrelationId = CorrelationId.Create("terminal-cleanup"),
             FiberId = fiberId,
             ScopeId = scopeId,
             WaitSequence = 1
@@ -107,7 +107,7 @@ public sealed class DurableTerminalCleanupOrderTests
     {
         return new WorkflowTimerScheduledEvent
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = instanceId,
             CommandId = CommandId.New(),
             CausationId = CausationId.New(),
@@ -127,14 +127,14 @@ public sealed class DurableTerminalCleanupOrderTests
     {
         return new WorkflowExternalJobStartedEvent
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = instanceId,
             CommandId = CommandId.New(),
             CausationId = CausationId.New(),
             OccurredAt = Timestamp(4),
             ExternalJobId = "job:nested",
             Payload = [1],
-            WaitId = WaitId.New(),
+            WaitId = WaitId.Parse(Guid.CreateVersion7().ToString()),
             FiberId = fiberId,
             ScopeId = scopeId
         };

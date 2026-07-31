@@ -16,6 +16,8 @@ using OrcaCore.Integration.Tests.Support;
 using OrcaCore.TestSupport;
 using Xunit;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Integration.Tests.E2E;
 
 [Collection(nameof(PostgreSqlCollection))]
@@ -664,7 +666,7 @@ public sealed class DurableWorkflowPostgreSqlIntegrationTests(PostgreSqlOrcaFixt
         DefinitionId definitionId,
         DefinitionVersion definitionVersion)
     {
-        return Workflow.Durable<DeployState>(definitionId, definitionVersion)
+        return global::OrcaCore.Workflow.Durable<DeployState>(definitionId, definitionVersion)
             .Init<string>(input => new DeployState(input))
             .End()
             .Build();

@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Errors;
+using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Steps;
@@ -12,12 +13,12 @@ namespace OrcaCore.Engine.Ephemeral.Tests.Execution;
 public sealed class InterpreterControlFlowTests
 {
     [Fact]
-    public async Task Start_InitFailure_IsReportedAsDefinitionFailure()
+    public async Task Start_InitFailure_IsReportedAsOneDefinitionDiagnostic()
     {
-        var definition = new WorkflowBuilder<TestState>()
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => throw new InvalidOperationException("bad input"))
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
         var engine = new EphemeralWorkflowEngine();
         engine.RegisterDefinition(definition);
 
@@ -28,7 +29,8 @@ public sealed class InterpreterControlFlowTests
 
         var failure = await act.Should().ThrowAsync<WorkflowDefinitionException>()
             .WithMessage("*Init failed*");
-        failure.Which.InnerException.Should().BeOfType<InvalidOperationException>();
+        failure.Which.Diagnostics.Should().ContainSingle()
+            .Which.Message.Should().Contain("bad input");
     }
 
     [Fact]
@@ -36,7 +38,7 @@ public sealed class InterpreterControlFlowTests
     {
         var state = new TestState { Flag = true };
         var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(new WorkflowBuilder<TestState>()
+        var definition = Definition(global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .If(
                 current => current.Flag,
@@ -61,7 +63,7 @@ public sealed class InterpreterControlFlowTests
     {
         var state = new TestState { Flag = false };
         var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(new WorkflowBuilder<TestState>()
+        var definition = Definition(global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .If(
                 current => current.Flag,
@@ -85,7 +87,7 @@ public sealed class InterpreterControlFlowTests
     {
         var state = new TestState { Flag = false };
         var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(new WorkflowBuilder<TestState>()
+        var definition = Definition(global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .If(current => current.Flag, then => then.Then(() => new AppendStep("then")))
             .Then(() => new AppendStep("after"))
@@ -106,7 +108,7 @@ public sealed class InterpreterControlFlowTests
     {
         var state = new TestState { Flag = true };
         var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(new WorkflowBuilder<TestState>()
+        var definition = Definition(global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .If(current => current.Flag, _ => { })
             .Then(() => new AppendStep("after"))
@@ -128,7 +130,7 @@ public sealed class InterpreterControlFlowTests
     {
         var state = new TestState();
         var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(new WorkflowBuilder<TestState>()
+        var definition = Definition(global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .While(
                 current =>
@@ -157,7 +159,7 @@ public sealed class InterpreterControlFlowTests
     {
         var state = new TestState();
         var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(new WorkflowBuilder<TestState>()
+        var definition = Definition(global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .While(_ => false, body => body.Then(() => new IncrementIterationStep()))
             .Then(() => new AppendStep("after"))
@@ -180,7 +182,7 @@ public sealed class InterpreterControlFlowTests
     {
         var state = new TestState();
         var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(new WorkflowBuilder<TestState>()
+        var definition = Definition(global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .While(
                 current => current.Iterations < 2,
@@ -209,7 +211,7 @@ public sealed class InterpreterControlFlowTests
     {
         var state = new TestState();
         var engine = new EphemeralWorkflowEngine();
-        var definition = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .Parallel<string>(
                 branches => branches
@@ -241,11 +243,11 @@ public sealed class InterpreterControlFlowTests
     }
 
     [Fact]
-    public async Task Run_ParallelFailureAfterAnotherBranchWaits_FailsAndReleasesRuntimeWork()
+    public async Task Run_ParallelFailureAfterAnotherBranchWaits_WaitsForSiblingThenFailsAndReleasesRuntimeWork()
     {
         var state = new TestState();
         var engine = new EphemeralWorkflowEngine();
-        var definition = Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .Parallel<string>(
                 branches => branches
@@ -253,7 +255,7 @@ public sealed class InterpreterControlFlowTests
                         "waiting",
                         _ => new BranchState("waiting"),
                         branch => branch
-                            .Wait("Ready", _ => new CorrelationId("waiting"))
+                            .Wait("Ready", _ => CorrelationId.Create("waiting"))
                             .Return(current => current.Value.Value))
                     .Branch<BranchState>(
                         "failing",
@@ -267,11 +269,23 @@ public sealed class InterpreterControlFlowTests
             .Build();
         engine.RegisterDefinition(definition);
 
-        var snapshot = await engine.StartAsync<string, TestState>(
+        var waiting = await engine.StartAsync<string, TestState>(
             definition.DefinitionId,
             "start",
             TestContext.Current.CancellationToken);
+        var snapshot = await engine.RaiseEventAsync<TestState>(
+            waiting.InstanceId,
+            new EventEnvelope
+            {
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
+                EventName = "Ready",
+                CorrelationId = CorrelationId.Create("waiting"),
+                OccurredAt = DateTimeOffset.UtcNow
+            },
+            TestContext.Current.CancellationToken);
 
+        waiting.Status.Should().Be(WorkflowStatus.Waiting);
+        waiting.ActiveWaits.Should().ContainSingle();
         snapshot.Status.Should().Be(WorkflowStatus.Failed);
         snapshot.ActiveWaits.Should().BeEmpty();
         snapshot.ErrorSummary.Should().Contain("boom");
@@ -279,9 +293,9 @@ public sealed class InterpreterControlFlowTests
     }
 
     private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> Definition(
-        WorkflowBuilder<TestState> builder)
+        EphemeralWorkflowBuilder<TestState> builder)
     {
-        return builder.Build(DefinitionId.New(), DefinitionVersion.Initial);
+        return builder.Build();
     }
 
     private sealed class TestState
@@ -324,7 +338,7 @@ public sealed class InterpreterControlFlowTests
             CancellationToken cancellationToken)
         {
             return ValueTask.FromResult<StepResult>(
-                new StepResult.Failed(new WorkflowDefinitionException("boom")));
+                new StepResult.Failed(new WorkflowLifecycleException("boom")));
         }
     }
 
@@ -337,7 +351,7 @@ public sealed class InterpreterControlFlowTests
             CancellationToken cancellationToken)
         {
             return ValueTask.FromResult<StepResult>(
-                new StepResult.Failed(new WorkflowDefinitionException("boom")));
+                new StepResult.Failed(new WorkflowLifecycleException("boom")));
         }
     }
 }

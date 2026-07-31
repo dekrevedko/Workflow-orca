@@ -106,10 +106,45 @@ public static class PositiveUsage
         ReadMetadata(default(DurableWorkflowRef<object, object>)!);
     }
 
-    private static void ReadMetadata(dynamic value)
+    private static void ReadMetadata(EphemeralWorkflowDefinition<object> value) =>
+        ReadMetadata(value.Mode, value.DefinitionId, value.DefinitionVersion, value.DefinitionFingerprint);
+
+    private static void ReadMetadata(EphemeralWorkflowDefinition<object, object> value) =>
+        ReadMetadata(value.Mode, value.DefinitionId, value.DefinitionVersion, value.DefinitionFingerprint);
+
+    private static void ReadMetadata(DurableWorkflowDefinition<object> value) =>
+        ReadMetadata(value.Mode, value.DefinitionId, value.DefinitionVersion, value.DefinitionFingerprint);
+
+    private static void ReadMetadata(DurableWorkflowDefinition<object, object> value) =>
+        ReadMetadata(value.Mode, value.DefinitionId, value.DefinitionVersion, value.DefinitionFingerprint);
+
+    private static void ReadMetadata(DurableWorkflowRef<object> value) =>
+        ReadMetadata(value.Mode, value.DefinitionId, value.DefinitionVersion, value.DefinitionFingerprint);
+
+    private static void ReadMetadata(DurableWorkflowRef<object, object> value) =>
+        ReadMetadata(value.Mode, value.DefinitionId, value.DefinitionVersion, value.DefinitionFingerprint);
+
+    private static void ReadMetadata(
+        WorkflowMode mode,
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        DefinitionFingerprint definitionFingerprint)
     {
-        _ = value.Mode; _ = value.DefinitionId; _ = value.DefinitionVersion; _ = value.DefinitionFingerprint;
+        _ = mode;
+        _ = definitionId;
+        _ = definitionVersion;
+        _ = definitionFingerprint;
     }
 
+#if PRODUCT_AUTHORING
+    private sealed class ProbeStep : IStep<object>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<object> context,
+            CancellationToken cancellationToken) =>
+            ValueTask.FromResult<StepResult>(new StepResult.Completed());
+    }
+#else
     private sealed class ProbeStep : IStep<object>;
+#endif
 }

@@ -243,7 +243,7 @@ public sealed class EphemeralSagaTests
             CancellationToken cancellationToken)
         {
             return ValueTask.FromResult<StepResult>(
-                new StepResult.Failed(new WorkflowDefinitionException(message)));
+                new StepResult.Failed(new WorkflowLifecycleException(message)));
         }
     }
 

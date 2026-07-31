@@ -170,7 +170,7 @@ public sealed class DurableOutboxTests
         await store.AppendAsync(
             new ProviderCommitBatch
             {
-                StreamId = new WorkflowStreamId(InstanceId.New()),
+                StreamId = new WorkflowStreamId(InstanceId.Parse(Guid.CreateVersion7().ToString())),
                 ExpectedVersion = StreamVersion.Empty,
                 OutboxRecords =
                 [
@@ -268,7 +268,7 @@ public sealed class DurableOutboxTests
         string kind = "status",
         StreamVersion? expectedVersion = null)
     {
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         return new ProviderCommitBatch
         {
             StreamId = new WorkflowStreamId(instanceId),
@@ -277,7 +277,7 @@ public sealed class DurableOutboxTests
             [
                 new WorkflowStartedEvent
                 {
-                    EventId = EventId.New(),
+                    EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                     InstanceId = instanceId,
                     CommandId = CommandId.New(),
                     CausationId = CausationId.New(),

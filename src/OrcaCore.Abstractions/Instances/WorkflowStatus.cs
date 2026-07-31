@@ -16,6 +16,11 @@ public enum WorkflowStatus
     Waiting,
 
     /// <summary>
+    /// A cooperative cancellation request is committed and remaining work is being stopped.
+    /// </summary>
+    CancellationRequested,
+
+    /// <summary>
     /// The instance reached a successful terminal state.
     /// </summary>
     Completed,
@@ -55,5 +60,10 @@ public enum WorkflowStatus
     /// version mismatch, version-binding failure, or poison) and is not automatically runnable until
     /// it is explicitly re-armed. The ephemeral engine never produces Parked.
     /// </summary>
-    Parked
+    Parked,
+
+    /// <summary>
+    /// The instance reached its workflow-wide start-relative deadline.
+    /// </summary>
+    TimedOut
 }

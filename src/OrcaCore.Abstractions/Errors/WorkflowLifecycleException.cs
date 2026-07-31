@@ -9,7 +9,7 @@ public sealed class WorkflowLifecycleException : OrcaCoreException
     /// Initializes a lifecycle exception with a caller-actionable message.
     /// </summary>
     public WorkflowLifecycleException(string message)
-        : base(message)
+        : base("WF-LEGACY-LIFECYCLE", message)
     {
     }
 
@@ -17,7 +17,7 @@ public sealed class WorkflowLifecycleException : OrcaCoreException
     /// Initializes a lifecycle exception with a caller-actionable message and inner cause.
     /// </summary>
     public WorkflowLifecycleException(string message, Exception innerException)
-        : base(message, innerException)
+        : base("WF-LEGACY-LIFECYCLE", message, innerException)
     {
     }
 }

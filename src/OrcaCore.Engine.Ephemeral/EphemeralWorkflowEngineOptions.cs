@@ -25,32 +25,33 @@ public sealed record EphemeralWorkflowEngineOptions
     public int MaxLifecycleEventsPerInstance { get; init; } = 10_000;
 
     /// <summary>
-    /// Gets the strategy used to create detached state copies for management queries.
-    /// </summary>
-    public IEphemeralStateSnapshotter StateSnapshotter { get; init; } =
-        SystemTextJsonEphemeralStateSnapshotter.Instance;
-
-    /// <summary>
     /// Gets the step execution duration after which a step is marked apparently stuck.
     /// </summary>
     public TimeSpan? StuckStepThreshold { get; init; }
 
-    /// <summary>
-    /// Gets the optional maximum number of concurrent instance advancements in this process.
-    /// </summary>
-    public int? MaxConcurrentAdvancements { get; init; }
-
-    /// <summary>
-    /// Gets the optional maximum number of concurrently executing workflow steps in this process.
-    /// </summary>
-    public int? MaxConcurrentSteps { get; init; }
-
-    /// <summary>
-    /// Gets optional in-process named pool capacities keyed by pool name.
-    /// </summary>
-    public IDictionary<string, int> NamedPools { get; init; } = new Dictionary<string, int>(StringComparer.Ordinal);
-
     internal Action<InstanceId>? LaneWorkItemEnqueued { get; init; }
 
     internal Action? GovernanceWaitStarting { get; init; }
+
+    internal int MaxConcurrentExecutionPathsPerInstance { get; init; } = int.MaxValue;
+
+    internal IReadOnlyDictionary<Type, int> StepThrottles { get; init; } =
+        new Dictionary<Type, int>();
+
+    internal IReadOnlyDictionary<string, int> TransientPools { get; init; } =
+        new Dictionary<string, int>(StringComparer.Ordinal);
+
+    internal static EphemeralWorkflowEngineOptions FromHostOptions(
+        global::OrcaCore.Hosting.EphemeralEngineHostOptions hostOptions)
+    {
+        ArgumentNullException.ThrowIfNull(hostOptions);
+        var validated = hostOptions.ValidateAndCopy();
+        return new EphemeralWorkflowEngineOptions
+        {
+            MaxConcurrentExecutionPathsPerInstance =
+                validated.MaxConcurrentExecutionPathsPerInstance,
+            StepThrottles = validated.StepThrottles,
+            TransientPools = validated.TransientPools
+        };
+    }
 }

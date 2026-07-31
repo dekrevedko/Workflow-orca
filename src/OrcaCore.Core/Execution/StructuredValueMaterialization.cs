@@ -3,9 +3,9 @@ using OrcaCore.Core.Compilation;
 
 namespace OrcaCore.Core.Execution;
 
-internal sealed record StructuredSerializedValue
+public sealed record StructuredSerializedValue
 {
-    internal StructuredSerializedValue(Type declaredType, string schemaIdentity, byte[] payload)
+    public StructuredSerializedValue(Type declaredType, string schemaIdentity, byte[] payload)
     {
         ArgumentNullException.ThrowIfNull(declaredType);
         ArgumentException.ThrowIfNullOrWhiteSpace(schemaIdentity);
@@ -16,23 +16,23 @@ internal sealed record StructuredSerializedValue
         Payload = payload.ToArray();
     }
 
-    internal Type DeclaredType { get; }
+    public Type DeclaredType { get; }
 
-    internal string SchemaIdentity { get; }
+    public string SchemaIdentity { get; }
 
-    internal byte[] Payload { get; }
+    public byte[] Payload { get; }
 }
 
-internal interface IStructuredValueCodec
+public interface IStructuredValueCodec
 {
     StructuredSerializedValue Serialize(object? value, Type declaredType, string schemaIdentity);
 
     object? Deserialize(StructuredSerializedValue value);
 }
 
-internal static class BranchInputMaterializer
+public static class BranchInputMaterializer
 {
-    internal static StructuredSerializedValue Materialize(
+    public static StructuredSerializedValue Materialize(
         CompiledBranchInputPlan inputPlan,
         object parentState,
         IStructuredValueCodec codec)

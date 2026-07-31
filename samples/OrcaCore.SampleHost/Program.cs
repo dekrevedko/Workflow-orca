@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using OrcaCore;
 using OrcaCore.Hosting;
+using OrcaCore.Providers.InMemory;
 
 namespace OrcaCore.SampleHost;
 
@@ -8,14 +10,9 @@ namespace OrcaCore.SampleHost;
 /// The minimal way to run OrcaCore inside a .NET Generic Host.
 /// </summary>
 /// <remarks>
-/// WHAT: registers the OrcaCore stack and its background services in a host, then runs it.
-/// HOW: <c>AddOrcaCore()</c> wires the engines, durable command processor, management, and the
-/// default in-memory provider; <c>AddOrcaCoreHostedServices()</c> adds the hosted outbox pump,
-/// durable timer sweep, and operational sweep as <see cref="IHostedService"/>s that start with
-/// the host. WHY: this is the seam a real application builds on — swap the in-memory provider for
-/// a durable one (e.g. <c>AddOrcaCorePostgreSql</c>) and OrcaCore's background work (dispatch,
-/// timers, expiry) runs automatically under the host lifetime. Unlike the console examples, which
-/// pump timers and drive commands by hand, a hosted app lets the hosted services do that for you.
+/// The application explicitly chooses one provider role and one engine role. The durable engine
+/// owns its hosted continuation, timer, and operational loops; no catch-all registration or
+/// implicit workflow mode is involved.
 /// </remarks>
 public static class SampleHostApplication
 {
@@ -23,8 +20,20 @@ public static class SampleHostApplication
     {
         var builder = Host.CreateApplicationBuilder(args);
         builder.Services
-            .AddOrcaCore()
-            .AddOrcaCoreHostedServices();
+            .AddOrcaCoreInMemoryDurableProvider()
+            .AddOrcaCoreDurableEngine(new DurableEngineHostOptions
+            {
+                StructuredExecution = new StructuredExecutionHostOptions
+                {
+                    MaxConcurrentExecutionPathsPerInstance = 32,
+                    StepThrottles = Array.Empty<StepExecutionThrottle>()
+                },
+                ResourcePools = new DurableResourcePoolOptions
+                {
+                    PartitionId = ResourceGovernancePartitionId.Create("sample"),
+                    Pools = Array.Empty<DurableResourcePoolDefinition>()
+                }
+            });
         return builder.Build();
     }
 }

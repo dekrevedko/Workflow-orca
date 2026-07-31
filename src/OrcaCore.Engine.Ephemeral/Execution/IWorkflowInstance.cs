@@ -11,25 +11,33 @@ internal interface IWorkflowInstance
 
     object StateObject { get; }
 
-    object CopyState(IEphemeralStateSnapshotter snapshotter);
+    object CopyState();
+
+    Type? OutputType => null;
+
+    byte[]? CopyOutputPayload() => null;
 
     bool HasPublishedState { get; }
 
-    void PublishState(IEphemeralStateSnapshotter snapshotter);
+    void PublishState();
 
-    WorkflowInstanceSnapshot Cancel(DateTimeOffset updatedAt);
+    LegacyWorkflowInstanceSnapshot Cancel(DateTimeOffset updatedAt);
 
-    WorkflowInstanceSnapshot Terminate(DateTimeOffset updatedAt);
+    LegacyWorkflowInstanceSnapshot Terminate(DateTimeOffset updatedAt);
 
-    WorkflowInstanceSnapshot MarkStuckIfNoProgress(DateTimeOffset now, TimeSpan threshold);
+    LegacyWorkflowInstanceSnapshot MarkStuckIfNoProgress(DateTimeOffset now, TimeSpan threshold);
 
     bool TryTakeYieldContinuation(out Func<CancellationToken, Task>? continuation);
 
     CancellationTokenSource CreateLinkedExecutionToken(CancellationToken cancellationToken);
 
+    bool IsCancellationRequested { get; }
+
+    global::OrcaCore.WorkflowCancellationRequestStatus TryRequestCancellation(DateTimeOffset requestedAt);
+
     void SignalCancellation();
 
-    WorkflowInstanceSnapshot ToSnapshot();
+    LegacyWorkflowInstanceSnapshot ToSnapshot();
 
-    WorkflowInstanceSnapshot GetPublishedSnapshot();
+    LegacyWorkflowInstanceSnapshot GetPublishedSnapshot();
 }

@@ -1,4 +1,3 @@
-using System.Text;
 using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Abstractions.Providers;
@@ -11,52 +10,51 @@ namespace OrcaCore.Hosting.Tests;
 public sealed class WorkflowPayloadSerializationRegistrationTests
 {
     [Fact]
-    public void AddOrcaCore_UsesContentTypeRouterWithJsonAsDefaultWriter()
+    public void AddOrcaCore_DoesNotResolveAnApplicationSerializerReplacement()
     {
         var services = new ServiceCollection();
+        services.AddSingleton(new ApplicationSerializerReplacement());
         services.AddOrcaCore();
         using var provider = services.BuildServiceProvider();
 
-        var serializer = provider.GetRequiredService<IWorkflowPayloadSerializer>();
-        var serialized = serializer.Serialize(new TestPayload("value"));
-
-        serializer.Should().BeOfType<ContentTypeWorkflowPayloadSerializer>();
-        serialized.ContentType.Should().Be(JsonWorkflowPayloadSerializer.JsonContentType);
-        serializer.Deserialize<TestPayload>(serialized).Should().Be(new TestPayload("value"));
+        provider.GetRequiredService<DurableWorkflowRuntime>().Should().NotBeNull();
+        services.Should().NotContain(
+            descriptor => descriptor.ServiceType.Name.Contains(
+                "WorkflowPayloadSerializer",
+                StringComparison.Ordinal));
     }
 
     [Fact]
-    public void RegisteredCodecAndWriterOption_PlugInWithoutChangingEngineRegistration()
+    public void ProductSurface_HasNoSerializerReplacementHook()
     {
+        var publicTypes = typeof(OrcaCoreServiceCollectionExtensions).Assembly
+            .GetExportedTypes()
+            .Concat(typeof(IWorkflowEventStore).Assembly.GetExportedTypes())
+            .Concat(typeof(DurableWorkflowRuntime).Assembly.GetExportedTypes())
+            .Select(type => type.FullName)
+            .ToArray();
+        var publicRuntimeConstructorParameterTypes = typeof(DurableWorkflowRuntime)
+            .GetConstructors()
+            .SelectMany(constructor => constructor.GetParameters())
+            .Select(parameter => parameter.ParameterType.FullName)
+            .ToArray();
         var services = new ServiceCollection();
+        services.AddSingleton(new ApplicationSerializerReplacement());
         services.AddOrcaCore();
-        services.AddSingleton<IWorkflowPayloadCodec, TestBinaryCodec>();
-        services.Configure<WorkflowPayloadSerializationOptions>(options =>
-            options.WriteContentType = TestBinaryCodec.BinaryContentType);
-        using var provider = services.BuildServiceProvider();
 
-        var serializer = provider.GetRequiredService<IWorkflowPayloadSerializer>();
-        var binary = serializer.Serialize("new-value");
-        var jsonCodec = new JsonWorkflowPayloadSerializer();
-        var historicalJson = jsonCodec.Serialize("old-value");
-
-        binary.ContentType.Should().Be(TestBinaryCodec.BinaryContentType);
-        serializer.Deserialize<string>(binary).Should().Be("new-value");
-        serializer.Deserialize<string>(historicalJson).Should().Be("old-value");
+        publicTypes.Should().NotContain("OrcaCore.Abstractions.Providers.IWorkflowPayloadSerializer");
+        publicTypes.Should().NotContain("OrcaCore.Abstractions.Providers.IWorkflowPayloadCodec");
+        publicTypes.Should().NotContain("OrcaCore.Hosting.WorkflowPayloadSerializationOptions");
+        publicTypes.Should().NotContain("OrcaCore.Engine.Durable.Execution.ContentTypeWorkflowPayloadSerializer");
+        publicRuntimeConstructorParameterTypes.Should().NotContain(
+            typeName => typeName != null &&
+                        typeName.Contains("WorkflowPayloadSerializer", StringComparison.Ordinal));
+        services.Should().NotContain(
+            descriptor => descriptor.ServiceType.Name.Contains(
+                "WorkflowPayloadSerializer",
+                StringComparison.Ordinal));
     }
 
-    private sealed record TestPayload(string Value);
+    private sealed class ApplicationSerializerReplacement;
 
-    private sealed class TestBinaryCodec : IWorkflowPayloadCodec
-    {
-        internal const string BinaryContentType = "application/vnd.test+binary";
-
-        public string ContentType => BinaryContentType;
-
-        public SerializedPayload Serialize<TPayload>(TPayload payload) =>
-            new(ContentType, Encoding.UTF8.GetBytes(payload?.ToString() ?? string.Empty));
-
-        public TPayload Deserialize<TPayload>(SerializedPayload payload) =>
-            (TPayload)(object)Encoding.UTF8.GetString(payload.Payload);
-    }
 }

@@ -6,17 +6,17 @@ internal static class DeterministicIds
 {
     internal static InstanceId Instance(int seed)
     {
-        return new InstanceId(GuidFrom(seed));
+        return InstanceId.Parse(GuidFrom(seed).ToString());
     }
 
     internal static DefinitionId Definition(int seed)
     {
-        return new DefinitionId(GuidFrom(seed));
+        return DefinitionId.Parse(GuidFrom(seed).ToString());
     }
 
     internal static EventId Event(int seed)
     {
-        return new EventId(GuidFrom(seed));
+        return EventId.Create(GuidFrom(seed).ToString());
     }
 
     internal static CommandId Command(int seed)

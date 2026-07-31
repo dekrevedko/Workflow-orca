@@ -176,7 +176,9 @@ public abstract class ResourcePoolStoreCertificationTests
     public async Task ExpireTicketsAsync_WhenTicketExpired_RecordsAudibleExpiryState()
     {
         var store = CreateStore();
-        await store.UpsertPoolAsync(Pool("db", 1), TestContext.Current.CancellationToken);
+        await store.UpsertPoolAsync(
+            new ResourcePoolDefinition("db", 1, TimeSpan.FromMinutes(5)),
+            TestContext.Current.CancellationToken);
         var acquired = await store.AcquireAsync(
             Request(1, Requirement("db")) with { ExpiresAt = Date(5) },
             TestContext.Current.CancellationToken);
@@ -214,27 +216,64 @@ public abstract class ResourcePoolStoreCertificationTests
     }
 
     [Fact]
-    public async Task ForceReleaseTicketAsync_WhenOperatorReleases_RecordsAuditAndGrantsNextWaiter()
+    public async Task ResizePoolAsync_RejectsNonPositiveAndUnknownBeforeMutation()
+    {
+        var store = CreateStore();
+        await store.UpsertPoolAsync(Pool("db", 2), TestContext.Current.CancellationToken);
+
+        await store.Invoking(candidate => candidate.ResizePoolAsync(
+                "db",
+                0,
+                TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<ArgumentOutOfRangeException>();
+        await store.Invoking(candidate => candidate.ResizePoolAsync(
+                "missing",
+                1,
+                TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<ResourcePoolNotConfiguredException>();
+
+        var snapshot = await store.GetPoolAsync("db", TestContext.Current.CancellationToken);
+        snapshot.Value.Capacity.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task UpsertPoolAsync_AfterResize_ValidatesCreationDefinitionWithoutResettingCurrentCapacity()
+    {
+        var store = CreateStore();
+        var creation = Pool("db", 3);
+        await store.UpsertPoolAsync(creation, TestContext.Current.CancellationToken);
+        await store.ResizePoolAsync("db", 1, TestContext.Current.CancellationToken);
+
+        await store.UpsertPoolAsync(creation, TestContext.Current.CancellationToken);
+        var snapshot = await store.GetPoolAsync("db", TestContext.Current.CancellationToken);
+        snapshot.Value.Capacity.Should().Be(1);
+
+        await store.Invoking(candidate => candidate.UpsertPoolAsync(
+                Pool("db", 1),
+                TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<InvalidOperationException>();
+        (await store.GetPoolAsync("db", TestContext.Current.CancellationToken))
+            .Value.Capacity.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ReleaseAsync_QueuedHolder_CancelsWaiterWithoutAllocatingTickets()
     {
         var store = CreateStore();
         await store.UpsertPoolAsync(Pool("db", 1), TestContext.Current.CancellationToken);
-        var acquired = await store.AcquireAsync(Request(1, Requirement("db")), TestContext.Current.CancellationToken);
+        await store.AcquireAsync(Request(1, Requirement("db")), TestContext.Current.CancellationToken);
         await store.AcquireAsync(Request(2, Requirement("db")), TestContext.Current.CancellationToken);
 
-        var forced = await store.ForceReleaseTicketAsync(
-            acquired.Tickets.Single().TicketId,
-            "operator requested",
-            Date(7),
+        var cancelled = await store.ReleaseAsync(
+            new ResourcePoolReleaseRequest(InstanceIdValue(2), "node-2", Date(10)),
             TestContext.Current.CancellationToken);
         var snapshot = await store.GetPoolAsync("db", TestContext.Current.CancellationToken);
 
-        forced.ReleasedTicket.Should().NotBeNull();
-        forced.GrantedWaiters.Should().ContainSingle()
-            .Which.HolderInstanceId.Should().Be(InstanceIdValue(2));
+        cancelled.ReleasedTickets.Should().BeEmpty();
+        cancelled.GrantedWaiters.Should().BeEmpty();
+        snapshot.Value.QueuedWaiters.Should().BeEmpty();
         snapshot.Value.HeldTickets.Should().ContainSingle()
-            .Which.HolderInstanceId.Should().Be(InstanceIdValue(2));
-        snapshot.Value.AuditRecords.Should().ContainSingle()
-            .Which.Reason.Should().Be("operator requested");
+            .Which.HolderInstanceId.Should().Be(InstanceIdValue(1));
     }
 
     [Fact]
@@ -415,7 +454,7 @@ public abstract class ResourcePoolStoreCertificationTests
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}"));
+        return InstanceId.Parse($"00000000-0000-0000-0000-{value:000000000000}");
     }
 }
 

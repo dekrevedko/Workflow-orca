@@ -2,6 +2,7 @@
 
 Define the behavior of the primary state-driven OrcaCore runtime in ephemeral and non-event-stream execution modes.
 ## Requirements
+
 ### Requirement: One logical mutator advances each instance at a time
 The state-driven runtime SHALL serialize execution per workflow instance so only one logical mutator can advance an instance state transition at a time.
 
@@ -10,15 +11,24 @@ The state-driven runtime SHALL serialize execution per workflow instance so only
 - **THEN** the runtime commits their effects in a valid serialized order rather than allowing overlapping mutation
 
 ### Requirement: Interpreter executes control flow deterministically
-The runtime SHALL interpret each selected fiber through one linear instruction position and SHALL represent branching through explicit recursive scopes. Equivalent branch inputs and results SHALL produce the same post-join state regardless of branch completion interleaving because merge order is derived from stable authored branch order rather than scheduler timing.
+The runtime SHALL interpret each selected fiber through one linear instruction position. It SHALL
+represent supported nested `If` through explicit conditional continuations and supported root
+`Parallel`/`ForEach` through explicit single-entry/single-exit scopes. Equivalent fixed child
+inputs and results SHALL produce the same post-join state regardless of child completion
+interleaving because merge order is derived from stable authored branch or item order rather than
+scheduler timing. This requirement does not authorize fan-out inside a child body.
 
 #### Scenario: Equivalent branch results complete in different orders
 - **WHEN** the same logical branch outcomes arrive with different interleavings
 - **THEN** the runtime supplies them to merge in canonical authored order and produces the same post-join state and continuation
 
-#### Scenario: Nested composition is interpreted
-- **WHEN** a child fiber reaches another branch construct
-- **THEN** the interpreter starts a nested scope using the same scope lifecycle instead of introducing a shape-specific join algorithm
+#### Scenario: Supported nested conditional is interpreted
+- **WHEN** a root, branch, item, loop, conditional, or leased body reaches a nested `If`
+- **THEN** the interpreter follows its explicit conditional continuation and rejoins the same linear fiber without creating a nested fan-out scope
+
+#### Scenario: Child body reaches another linear instruction
+- **WHEN** a root-fan-out child completes a supported nested conditional, wait, delay, resource scope, or business step
+- **THEN** the same child fiber advances to its next linear instruction under the shared interpreter rather than invoking a shape-specific child runtime
 
 ### Requirement: Lifecycle transitions are explicit and terminal states are final
 The runtime SHALL model workflow lifecycle transitions explicitly and SHALL reject further advancement once an instance reaches a terminal outcome such as completed, failed, or terminated.

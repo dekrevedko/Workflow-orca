@@ -9,6 +9,7 @@ using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Abstractions.Serialization;
 using OrcaCore.Providers.Relational;
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
 
 namespace OrcaCore.Providers.PostgreSql;
 
@@ -127,9 +128,9 @@ public sealed class PostgreSqlWorkflowStore :
             reader.GetString(1),
             reader.GetFieldValue<byte[]>(2))
         {
-            DefinitionId = reader.IsDBNull(3) ? null : new DefinitionId(reader.GetGuid(3)),
+            DefinitionId = reader.IsDBNull(3) ? null : DefinitionId.Parse(reader.GetGuid(3).ToString()),
             DefinitionVersion = reader.IsDBNull(4) ? null : new DefinitionVersion(reader.GetInt32(4)),
-            Status = reader.IsDBNull(5) ? null : Enum.Parse<WorkflowStatus>(reader.GetString(5)),
+            Status = reader.IsDBNull(5) ? null : Enum.Parse<LegacyWorkflowStatus>(reader.GetString(5)),
             LastStepPath = reader.IsDBNull(6) ? null : reader.GetString(6),
             ErrorSummary = reader.IsDBNull(7) ? null : reader.GetString(7),
             OutcomeName = reader.IsDBNull(8) ? null : reader.GetString(8),
@@ -147,7 +148,7 @@ public sealed class PostgreSqlWorkflowStore :
 
         return JsonSerializer.Deserialize(
             reader.GetString(ordinal),
-            OrcaCoreJsonSerializerContext.Default.WorkflowRuntimeCheckpointState)
+            ProviderJsonSerializerContext.Default.WorkflowRuntimeCheckpointState)
             ?? WorkflowRuntimeCheckpointState.Empty;
     }
 
@@ -195,7 +196,12 @@ public sealed class PostgreSqlWorkflowStore :
                     .ConfigureAwait(false);
             }
 
-            await ApplyInboxOperationsAsync(connection, transaction, batch.InboxOperations, cancellationToken)
+            await ApplyInboxOperationsAsync(
+                    connection,
+                    transaction,
+                    batch.StreamId.InstanceId,
+                    batch.InboxOperations,
+                    cancellationToken)
                 .ConfigureAwait(false);
             await ApplyStartIdempotencyOperationsAsync(connection, transaction, batch.StartIdempotencyOperations, cancellationToken)
                 .ConfigureAwait(false);
@@ -240,7 +246,7 @@ public sealed class PostgreSqlWorkflowStore :
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<WorkflowEvent>> LoadTailAsync(
+    public async Task<IReadOnlyList<DurableWorkflowEvent>> LoadTailAsync(
         WorkflowStreamId streamId,
         StreamVersion afterVersion,
         CancellationToken cancellationToken)
@@ -257,7 +263,7 @@ public sealed class PostgreSqlWorkflowStore :
         command.Parameters.AddWithValue("stream_id", streamId.InstanceId.Value);
         command.Parameters.AddWithValue("after_version", afterVersion.Value);
 
-        var events = new List<WorkflowEvent>();
+        var events = new List<DurableWorkflowEvent>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
@@ -268,22 +274,34 @@ public sealed class PostgreSqlWorkflowStore :
     }
 
     /// <inheritdoc />
-    public async Task<Option<InboxRecordState>> GetAsync(EventId eventId, CancellationToken cancellationToken)
+    public async Task<Option<InboxRecord>> GetAsync(
+        InstanceId instanceId,
+        EventId eventId,
+        CancellationToken cancellationToken)
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var command = new NpgsqlCommand(
             """
-            select state
+            select envelope_fingerprint, state
             from orcacore_inbox
-            where event_id = @event_id;
+            where instance_id = @instance_id
+              and event_id = @event_id;
             """,
             connection);
+        command.Parameters.AddWithValue("instance_id", instanceId.Value);
         command.Parameters.AddWithValue("event_id", eventId.Value);
 
-        var state = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return state is null
-            ? Option<InboxRecordState>.None
-            : Option<InboxRecordState>.Some(Enum.Parse<InboxRecordState>((string)state));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return Option<InboxRecord>.None;
+        }
+
+        return Option<InboxRecord>.Some(new InboxRecord(
+            instanceId,
+            eventId,
+            reader.GetString(0),
+            Enum.Parse<InboxRecordState>(reader.GetString(1))));
     }
 
     /// <inheritdoc />
@@ -296,7 +314,12 @@ public sealed class PostgreSqlWorkflowStore :
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var command = new NpgsqlCommand(
             """
-            select instance_id, definition_id, definition_version
+            select
+                instance_id,
+                definition_id,
+                definition_version,
+                definition_fingerprint,
+                input_fingerprint
             from orcacore_start_idempotency
             where idempotency_key = @idempotency_key;
             """,
@@ -310,9 +333,11 @@ public sealed class PostgreSqlWorkflowStore :
 
         return Option<StartedWorkflowIdempotencyRecord>.Some(new StartedWorkflowIdempotencyRecord(
             idempotencyKey,
-            new InstanceId(reader.GetGuid(0)),
-            new DefinitionId(reader.GetGuid(1)),
-            new DefinitionVersion(reader.GetInt32(2))));
+            InstanceId.Parse(reader.GetGuid(0).ToString()),
+            DefinitionId.Parse(reader.GetGuid(1).ToString()),
+            new DefinitionVersion(reader.GetInt32(2)),
+            reader.GetString(3),
+            reader.GetString(4)));
     }
 
     /// <inheritdoc />
@@ -477,7 +502,7 @@ public sealed class PostgreSqlWorkflowStore :
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<WorkflowInstanceSnapshot>> ListAsync(
+    public Task<IReadOnlyList<LegacyWorkflowInstanceSnapshot>> ListAsync(
         WorkflowProjectionQuery query,
         CancellationToken cancellationToken)
     {
@@ -491,7 +516,7 @@ public sealed class PostgreSqlWorkflowStore :
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<ActiveWaitSnapshot>> ListActiveWaitsAsync(
+    public Task<IReadOnlyList<LegacyActiveWaitSnapshot>> ListActiveWaitsAsync(
         WorkflowProjectionQuery query,
         CancellationToken cancellationToken)
     {
@@ -628,7 +653,7 @@ public sealed class PostgreSqlWorkflowStore :
         NpgsqlTransaction transaction,
         WorkflowStreamId streamId,
         StreamVersion version,
-        WorkflowEvent workflowEvent,
+        DurableWorkflowEvent workflowEvent,
         CancellationToken cancellationToken)
     {
         await using var command = new NpgsqlCommand(
@@ -723,7 +748,7 @@ public sealed class PostgreSqlWorkflowStore :
         command.Parameters.AddWithValue("continue_as_new_generation", checkpoint.ContinueAsNewGeneration);
         command.Parameters.Add("runtime_state", NpgsqlDbType.Jsonb).Value = JsonSerializer.Serialize(
             checkpoint.RuntimeState,
-            OrcaCoreJsonSerializerContext.Default.WorkflowRuntimeCheckpointState);
+            ProviderJsonSerializerContext.Default.WorkflowRuntimeCheckpointState);
 
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -731,16 +756,53 @@ public sealed class PostgreSqlWorkflowStore :
     private static async Task ApplyInboxOperationsAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
+        InstanceId instanceId,
         IEnumerable<InboxWrite> operations,
         CancellationToken cancellationToken)
     {
         foreach (var operation in operations)
         {
+            if (operation.EnvelopeFingerprint is null)
+            {
+                await using var update = new NpgsqlCommand(
+                    """
+                    update orcacore_inbox
+                    set state = case
+                        when state = @applied then state
+                        else @state
+                    end
+                    where instance_id = @instance_id
+                      and event_id = @event_id;
+                    """,
+                    connection,
+                    transaction);
+                update.Parameters.AddWithValue("instance_id", instanceId.Value);
+                update.Parameters.AddWithValue("event_id", operation.EventId.Value);
+                update.Parameters.AddWithValue("state", operation.State.ToString());
+                update.Parameters.AddWithValue("applied", InboxRecordState.Applied.ToString());
+                if (await update.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) != 1)
+                {
+                    throw new InvalidOperationException(
+                        $"Inbox transition '{operation.EventId}' for instance '{instanceId}' " +
+                        "has no accepted envelope record.");
+                }
+
+                continue;
+            }
+
             await using var command = new NpgsqlCommand(
                 """
-                insert into orcacore_inbox (event_id, state)
-                values (@event_id, @state)
-                on conflict (event_id) do update set
+                insert into orcacore_inbox (
+                    instance_id,
+                    event_id,
+                    envelope_fingerprint,
+                    state)
+                values (
+                    @instance_id,
+                    @event_id,
+                    @envelope_fingerprint,
+                    @state)
+                on conflict (instance_id, event_id) do update set
                     state = case
                         when orcacore_inbox.state = @applied then orcacore_inbox.state
                         else excluded.state
@@ -748,7 +810,9 @@ public sealed class PostgreSqlWorkflowStore :
                 """,
                 connection,
                 transaction);
+            command.Parameters.AddWithValue("instance_id", instanceId.Value);
             command.Parameters.AddWithValue("event_id", operation.EventId.Value);
+            command.Parameters.AddWithValue("envelope_fingerprint", operation.EnvelopeFingerprint);
             command.Parameters.AddWithValue("state", operation.State.ToString());
             command.Parameters.AddWithValue("applied", InboxRecordState.Applied.ToString());
 
@@ -770,12 +834,16 @@ public sealed class PostgreSqlWorkflowStore :
                     idempotency_key,
                     instance_id,
                     definition_id,
-                    definition_version)
+                    definition_version,
+                    definition_fingerprint,
+                    input_fingerprint)
                 values (
                     @idempotency_key,
                     @instance_id,
                     @definition_id,
-                    @definition_version);
+                    @definition_version,
+                    @definition_fingerprint,
+                    @input_fingerprint);
                 """,
                 connection,
                 transaction);
@@ -783,6 +851,8 @@ public sealed class PostgreSqlWorkflowStore :
             command.Parameters.AddWithValue("instance_id", operation.InstanceId.Value);
             command.Parameters.AddWithValue("definition_id", operation.DefinitionId.Value);
             command.Parameters.AddWithValue("definition_version", operation.DefinitionVersion.Value);
+            command.Parameters.AddWithValue("definition_fingerprint", operation.DefinitionFingerprint);
+            command.Parameters.AddWithValue("input_fingerprint", operation.InputFingerprint);
 
             await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }

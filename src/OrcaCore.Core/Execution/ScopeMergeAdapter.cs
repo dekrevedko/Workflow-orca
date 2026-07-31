@@ -5,24 +5,106 @@ using OrcaCore.Core.Compilation;
 
 namespace OrcaCore.Core.Execution;
 
-internal sealed record MaterializedBranchResult(
+public sealed record MaterializedBranchResult(
     BranchPlanId BranchPlanId,
     StructuredSerializedValue Result);
 
-internal sealed class StructuredMergeException : Exception
+public sealed record MaterializedBranchOutcome(
+    BranchPlanId BranchPlanId,
+    StructuredSerializedValue? Result,
+    FiberFailure? Failure);
+
+public sealed class StructuredMergeException : Exception
 {
-    internal StructuredMergeException(string code, string message, Exception innerException)
+    public StructuredMergeException(string code, string message, Exception innerException)
         : base(message, innerException)
     {
         Code = code;
     }
 
-    internal string Code { get; }
+    public string Code { get; }
 }
 
-internal static class ScopeMergeAdapter
+public static class ScopeMergeAdapter
 {
-    internal static StructuredSerializedValue Execute(
+    public static StructuredSerializedValue ExecuteOutcomes(
+        CompiledScopePlan scopePlan,
+        object parentState,
+        IReadOnlyList<MaterializedBranchOutcome> committedOutcomes,
+        IStructuredValueCodec codec)
+    {
+        ArgumentNullException.ThrowIfNull(scopePlan);
+        ArgumentNullException.ThrowIfNull(parentState);
+        ArgumentNullException.ThrowIfNull(committedOutcomes);
+        ArgumentNullException.ThrowIfNull(codec);
+        if (scopePlan.Kind != CompiledScopeKind.WhenAllOutcomes)
+        {
+            throw new InvalidOperationException($"Scope plan '{scopePlan.Id}' is not an outcome-preserving join.");
+        }
+
+        if (scopePlan.Merge.Merge is null)
+        {
+            throw new InvalidOperationException($"Scope plan '{scopePlan.Id}' has no merge contract.");
+        }
+
+        if (committedOutcomes.Count != scopePlan.Branches.Count)
+        {
+            throw new InvalidOperationException(
+                $"Scope plan '{scopePlan.Id}' requires {scopePlan.Branches.Count} merge outcome(s), " +
+                $"but {committedOutcomes.Count} were supplied.");
+        }
+
+        try
+        {
+            var parentCopyPayload = codec.Serialize(
+                parentState,
+                scopePlan.Merge.ParentStateType,
+                scopePlan.Merge.ParentStateSchemaIdentity);
+            var parentCopy = codec.Deserialize(parentCopyPayload) ??
+                throw new InvalidOperationException("Parent state copy deserialized as null.");
+            var parentSnapshot = StructuredInvocationCache.CreateParentSnapshot(
+                scopePlan.Merge.ParentStateType,
+                parentCopy);
+            var orderedOutcomes = BuildOrderedOutcomes(scopePlan, committedOutcomes, codec);
+            var replacement = StructuredInvocationCache.Invoke(
+                scopePlan.Merge.Merge,
+                parentSnapshot,
+                orderedOutcomes);
+            if (replacement is not null &&
+                !scopePlan.Merge.ParentStateType.IsInstanceOfType(replacement))
+            {
+                throw new InvalidOperationException(
+                    $"Merge returned '{replacement.GetType().FullName}', expected " +
+                    $"'{scopePlan.Merge.ParentStateType.FullName}'.");
+            }
+
+            return codec.Serialize(
+                replacement,
+                scopePlan.Merge.ParentStateType,
+                scopePlan.Merge.ParentStateSchemaIdentity);
+        }
+        catch (StructuredMergeException)
+        {
+            throw;
+        }
+        catch (TargetInvocationException exception) when (exception.InnerException is not null)
+        {
+            throw new StructuredMergeException(
+                "SFE-MERGE-002",
+                $"Outcome merge materialization for scope plan '{scopePlan.Id}' failed: " +
+                exception.InnerException.Message,
+                exception.InnerException);
+        }
+        catch (Exception exception)
+        {
+            throw new StructuredMergeException(
+                "SFE-MERGE-002",
+                $"Outcome merge materialization for scope plan '{scopePlan.Id}' failed: {exception.Message}",
+                exception);
+        }
+    }
+
+    public static StructuredSerializedValue Execute(
         CompiledScopePlan scopePlan,
         object parentState,
         IReadOnlyList<MaterializedBranchResult> committedResults,
@@ -103,7 +185,7 @@ internal static class ScopeMergeAdapter
         }
     }
 
-    internal static StructuredSerializedValue ExecuteForEach(
+    public static StructuredSerializedValue ExecuteForEach(
         CompiledScopePlan scopePlan,
         object parentState,
         IReadOnlyList<ForEachTerminalOutcome> outcomes,
@@ -134,7 +216,8 @@ internal static class ScopeMergeAdapter
             var parentSnapshot = StructuredInvocationCache.CreateParentSnapshot(
                 scopePlan.Merge.ParentStateType,
                 parentCopy);
-            var outcomeType = typeof(ForEachItemOutcome<>).MakeGenericType(scopePlan.ResultType);
+            var outcomeType = typeof(global::OrcaCore.Core.Building.ForEachItemOutcome<>)
+                .MakeGenericType(scopePlan.ResultType);
             var outcomeListType = typeof(List<>).MakeGenericType(outcomeType);
             var typedOutcomes = (IList)(Activator.CreateInstance(outcomeListType) ??
                 throw new InvalidOperationException("Could not create the typed ForEach outcome list."));
@@ -154,10 +237,10 @@ internal static class ScopeMergeAdapter
 
                 typedOutcomes.Add(Activator.CreateInstance(
                     outcomeType,
-                    outcome.Index,
-                    outcome.Status,
-                    result,
-                    outcome.Failure?.Message) ??
+                     outcome.Index,
+                     outcome.Status,
+                     result,
+                     outcome.Failure) ??
                     throw new InvalidOperationException(
                         $"Could not create outcome for ForEach item '{outcome.Index}'."));
             }
@@ -204,7 +287,8 @@ internal static class ScopeMergeAdapter
         IStructuredValueCodec codec)
     {
         var byBranch = committedResults.ToDictionary(result => result.BranchPlanId);
-        var resultRecordType = typeof(BranchResult<>).MakeGenericType(scopePlan.ResultType);
+        var resultRecordType = typeof(global::OrcaCore.Core.Building.BranchResult<>)
+            .MakeGenericType(scopePlan.ResultType);
         var listType = typeof(List<>).MakeGenericType(resultRecordType);
         var list = (IList)(Activator.CreateInstance(listType) ??
             throw new InvalidOperationException("Could not create the typed branch-result list."));
@@ -244,6 +328,82 @@ internal static class ScopeMergeAdapter
         if (list.Count != committedResults.Count)
         {
             throw new InvalidOperationException("One or more committed results reference an unknown branch plan.");
+        }
+
+        return list;
+    }
+
+    private static object BuildOrderedOutcomes(
+        CompiledScopePlan scopePlan,
+        IReadOnlyList<MaterializedBranchOutcome> committedOutcomes,
+        IStructuredValueCodec codec)
+    {
+        var byBranch = committedOutcomes.ToDictionary(outcome => outcome.BranchPlanId);
+        var outcomeType = typeof(global::OrcaCore.BranchOutcome<>).MakeGenericType(scopePlan.ResultType);
+        var listType = typeof(List<>).MakeGenericType(outcomeType);
+        var list = (IList)(Activator.CreateInstance(listType) ??
+            throw new InvalidOperationException("Could not create the typed branch-outcome list."));
+        var succeeded = typeof(global::OrcaCore.Core.Authoring.PublicAuthoringContracts)
+            .GetMethod(
+                nameof(global::OrcaCore.Core.Authoring.PublicAuthoringContracts.BranchSucceeded),
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)!
+            .MakeGenericMethod(scopePlan.ResultType);
+        var failed = typeof(global::OrcaCore.Core.Authoring.PublicAuthoringContracts)
+            .GetMethod(
+                nameof(global::OrcaCore.Core.Authoring.PublicAuthoringContracts.BranchFailed),
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)!
+            .MakeGenericMethod(scopePlan.ResultType);
+
+        foreach (var branch in scopePlan.Branches.OrderBy(branch => branch.Ordinal))
+        {
+            if (!byBranch.TryGetValue(branch.Id, out var materialized))
+            {
+                throw new InvalidOperationException(
+                    $"Committed outcome for branch plan '{branch.Id}' is missing.");
+            }
+
+            object publicOutcome;
+            if (materialized.Failure is { } failure)
+            {
+                if (materialized.Result is not null)
+                {
+                    throw new InvalidOperationException(
+                        $"Failed branch plan '{branch.Id}' also supplied a result.");
+                }
+
+                publicOutcome = failed.Invoke(
+                    null,
+                    [global::OrcaCore.AuthoredBranchId.Create(branch.BranchId), failure])!;
+            }
+            else
+            {
+                var result = materialized.Result ??
+                    throw new InvalidOperationException(
+                        $"Successful branch plan '{branch.Id}' did not supply a result.");
+                if (result.DeclaredType != scopePlan.ResultType ||
+                    !string.Equals(
+                        result.SchemaIdentity,
+                        branch.Result.ResultSchemaIdentity,
+                        StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        $"Committed outcome for branch plan '{branch.Id}' does not match its compiled contract.");
+                }
+
+                publicOutcome = succeeded.Invoke(
+                    null,
+                    [
+                        global::OrcaCore.AuthoredBranchId.Create(branch.BranchId),
+                        codec.Deserialize(result)
+                    ])!;
+            }
+
+            list.Add(publicOutcome);
+        }
+
+        if (list.Count != committedOutcomes.Count)
+        {
+            throw new InvalidOperationException("One or more committed outcomes reference an unknown branch plan.");
         }
 
         return list;

@@ -16,12 +16,12 @@ internal static class IntegrationIds
     internal static Guid GuidValue(int value) =>
         Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}");
 
-    internal static InstanceId Instance(int value) => new(GuidValue(value));
+    internal static InstanceId Instance(int value) => InstanceId.Parse(GuidValue(value).ToString());
     internal static CommandId Command(int value) => new(GuidValue(value));
-    internal static EventId Event(int value) => new(GuidValue(value));
-    internal static WaitId Wait(int value) => new(GuidValue(value));
+    internal static EventId Event(int value) => EventId.Create(GuidValue(value).ToString());
+    internal static WaitId Wait(int value) => WaitId.Parse(GuidValue(value).ToString());
     internal static TimerId Timer(int value) => new(GuidValue(value));
-    internal static DefinitionId Definition(int value) => new(GuidValue(value));
+    internal static DefinitionId Definition(int value) => DefinitionId.Parse(GuidValue(value).ToString());
     internal static CausationId Causation(int value) => new(GuidValue(value));
     internal static OutboxRecordId Outbox(int value) => new(GuidValue(value));
 }
@@ -54,7 +54,7 @@ internal static class IntegrationCommands
             IntegrationIds.Timestamp(command),
             IntegrationIds.Wait(wait),
             "Approved",
-            new CorrelationId("order-1"),
+            CorrelationId.Create("order-1"),
             mode,
             branchId);
 
@@ -72,7 +72,7 @@ internal static class IntegrationCommands
             {
                 EventId = IntegrationIds.Event(eventId),
                 EventName = "Approved",
-                CorrelationId = new CorrelationId("order-1"),
+                CorrelationId = CorrelationId.Create("order-1"),
                 OccurredAt = IntegrationIds.Timestamp(command),
                 BranchId = branchId
             }
@@ -94,6 +94,7 @@ internal static class IntegrationCommands
                 DefinitionId = IntegrationIds.Definition(1),
                 DefinitionVersion = DefinitionVersion.Initial,
                 CompilerFormatVersion = 1,
+                CompilerProfileId = "orcacore-compiler-v1;quantum=1024",
                 PlanFingerprint = "integration-test-plan"
             },
             StateContentType = stateContentType,

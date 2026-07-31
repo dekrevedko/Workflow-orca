@@ -20,7 +20,15 @@ internal static partial class DefinitionCompiler
         int? maxConcurrency = null,
         RunChildrenJoinPolicy? childJoinPolicy = null,
         RunChildrenResidualPolicy? childResidualPolicy = null,
-        CompiledPolicyPlan? policy = null)
+        CompiledPolicyPlan? policy = null,
+        Type? stepType = null,
+        Type? outputType = null,
+        string? outputSchemaIdentity = null,
+        Delegate? outputSelector = null,
+        string? fixedOutcomeName = null,
+        TimeSpan? waitTimeout = null,
+        global::OrcaCore.ResourceLeaseRequest? staticLeaseRequest = null,
+        Delegate? leaseRequestSelector = null)
     {
         var instruction = new CompiledInstruction(
             new InstructionId($"instruction:{path}:{kind}"),
@@ -29,8 +37,16 @@ internal static partial class DefinitionCompiler
             policy ?? CompiledPolicyPlan.Empty)
         {
             Operation = operation,
+            StepType = stepType,
+            OutputType = outputType,
+            OutputSchemaIdentity = outputSchemaIdentity,
+            OutputSelector = outputSelector,
+            FixedOutcomeName = fixedOutcomeName,
             EventName = eventName,
             WaitMode = waitMode,
+            WaitTimeout = waitTimeout,
+            StaticLeaseRequest = staticLeaseRequest,
+            LeaseRequestSelector = leaseRequestSelector,
             DelayDuration = delayDuration,
             ChildDefinitionId = childDefinitionId,
             ChildDefinitionVersion = childDefinitionVersion,

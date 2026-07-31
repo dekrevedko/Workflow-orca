@@ -23,14 +23,6 @@ internal static partial class DefinitionCompiler
                 "options/maxScopeDepth"));
         }
 
-        if (options.MaxActiveFibers <= 0)
-        {
-            errors.Add(Error(
-                DefinitionCompilerCodes.MaxActiveFibersNotPositive,
-                "MaxActiveFibers must be positive.",
-                "options/maxActiveFibers"));
-        }
-
         if (options.MaxSerializedResultBytes <= 0)
         {
             errors.Add(Error(
@@ -72,6 +64,8 @@ internal static partial class DefinitionCompiler
                 SelectedContinueAsNewAuthoringNode<TState> => true,
                 SelectedStructuredScopeAuthoringNode<TState> => true,
                 SelectedForEachAuthoringNode<TState> => true,
+                SelectedResourceLeaseAuthoringNode<TState> lease =>
+                    AllPathsContainQuantumEndingOperation(lease.Body, allPathsEndQuantum),
                 SelectedIfAuthoringNode<TState> conditional =>
                     AllPathsContainQuantumEndingOperation(conditional.Then, allPathsEndQuantum) &&
                     AllPathsContainQuantumEndingOperation(conditional.Else, allPathsEndQuantum),
@@ -101,17 +95,6 @@ internal static partial class DefinitionCompiler
             }
         }
 
-        if (options.MaxActiveFibers > 0)
-        {
-            var requiredFibers = MaximumActiveFibers(nodes, currentActiveFibers: 1);
-            if (requiredFibers > options.MaxActiveFibers)
-            {
-                errors.Add(Error(
-                    DefinitionCompilerCodes.MaxActiveFibersExceeded,
-                    $"The workflow can require {requiredFibers} active fibers, exceeding configured maximum {options.MaxActiveFibers}.",
-                    "root"));
-            }
-        }
     }
 
     private static int MaximumScopeDepth<TState>(
@@ -130,6 +113,8 @@ internal static partial class DefinitionCompiler
                         MaximumScopeDepth(conditional.Else, currentDepth))),
                 SelectedWhileAuthoringNode<TState> loop =>
                     Math.Max(maximum, MaximumScopeDepth(loop.Body, currentDepth)),
+                SelectedResourceLeaseAuthoringNode<TState> lease =>
+                    Math.Max(maximum, MaximumScopeDepth(lease.Body, checked(currentDepth + 1))),
                 SelectedStructuredScopeAuthoringNode<TState> scope => Math.Max(
                     maximum,
                     MaximumBranchScopeDepth(scope.Branches, checked(currentDepth + 1))),
@@ -170,76 +155,20 @@ internal static partial class DefinitionCompiler
                 MaximumBranchScopeDepth(nested.Branches, checked(currentDepth + 1)));
         }
 
-        return maximum;
-    }
-
-    private static int MaximumActiveFibers<TState>(
-        IReadOnlyList<SelectedAuthoringNode<TState>> nodes,
-        int currentActiveFibers)
-    {
-        var maximum = currentActiveFibers;
-        foreach (var node in nodes)
+        foreach (var conditional in instructions.OfType<BranchIfAuthoringInstruction>())
         {
-            maximum = node switch
-            {
-                SelectedIfAuthoringNode<TState> conditional => Math.Max(
-                    maximum,
-                    Math.Max(
-                        MaximumActiveFibers(conditional.Then, currentActiveFibers),
-                        MaximumActiveFibers(conditional.Else, currentActiveFibers))),
-                SelectedWhileAuthoringNode<TState> loop =>
-                    Math.Max(maximum, MaximumActiveFibers(loop.Body, currentActiveFibers)),
-                SelectedStructuredScopeAuthoringNode<TState> scope => Math.Max(
-                    maximum,
-                    MaximumBranchActiveFibers(
-                        scope.Branches,
-                        checked(currentActiveFibers + scope.Branches.Count))),
-                SelectedForEachAuthoringNode<TState> forEach when forEach.MaxConcurrency is { } admitted => Math.Max(
-                    maximum,
-                    MaximumBranchInstructionActiveFibers(
-                        forEach.Body,
-                        checked(currentActiveFibers + admitted))),
-                SelectedForEachAuthoringNode<TState> forEach => Math.Max(
-                    maximum,
-                    MaximumBranchInstructionActiveFibers(
-                        forEach.Body,
-                        checked(currentActiveFibers + 1))),
-                _ => maximum
-            };
+            maximum = Math.Max(maximum, MaximumBranchInstructionScopeDepth(conditional.Then, currentDepth));
+            maximum = Math.Max(maximum, MaximumBranchInstructionScopeDepth(conditional.Else, currentDepth));
         }
 
-        return maximum;
-    }
-
-    private static int MaximumBranchActiveFibers(
-        IReadOnlyList<StructuredBranchAuthoring> branches,
-        int currentActiveFibers)
-    {
-        var maximum = currentActiveFibers;
-        foreach (var branch in branches)
+        foreach (var lease in instructions.OfType<BranchResourceLeaseAuthoringInstruction>())
         {
             maximum = Math.Max(
                 maximum,
-                MaximumBranchInstructionActiveFibers(branch.Instructions, currentActiveFibers));
+                MaximumBranchInstructionScopeDepth(lease.Body, checked(currentDepth + 1)));
         }
 
         return maximum;
     }
 
-    private static int MaximumBranchInstructionActiveFibers(
-        IReadOnlyList<BranchAuthoringInstruction> instructions,
-        int currentActiveFibers)
-    {
-        var maximum = currentActiveFibers;
-        foreach (var nested in instructions.OfType<BranchStructuredScopeAuthoringInstruction>())
-        {
-            maximum = Math.Max(
-                maximum,
-                MaximumBranchActiveFibers(
-                    nested.Branches,
-                    checked(currentActiveFibers + nested.Branches.Count)));
-        }
-
-        return maximum;
-    }
 }

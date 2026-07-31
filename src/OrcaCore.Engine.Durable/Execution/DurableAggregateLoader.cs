@@ -29,6 +29,7 @@ internal sealed class DurableAggregateLoader
             .ConfigureAwait(false);
 
         return DurableWorkflowAggregate.Rehydrate(
+            instanceId,
             checkpointOption.HasValue ? DurableCheckpointMapper.ToAggregateCheckpoint(checkpointOption.Value) : null,
             tail);
     }

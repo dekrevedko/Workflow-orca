@@ -31,7 +31,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         instance.RecordLifecycleEvent(
             "FiberQuantumRotated",
             instruction.Path,
-            WorkflowStatus.Running,
+            LegacyWorkflowStatus.Running,
             timeProvider.GetUtcNow());
         await Task.Yield();
         return result;

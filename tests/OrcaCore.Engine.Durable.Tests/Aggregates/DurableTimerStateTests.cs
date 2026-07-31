@@ -5,6 +5,8 @@ using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Aggregates;
 using Xunit;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Tests.Aggregates;
 
 public sealed class DurableTimerStateTests
@@ -71,7 +73,7 @@ public sealed class DurableTimerStateTests
             .Which.Should().Match<WorkflowTimerFiredEvent>(workflowEvent =>
                 workflowEvent.TimerId == timerId &&
                 workflowEvent.CommandId == CommandIdValue(9) &&
-                workflowEvent.InstanceId == InstanceIdValue(1) &&
+                workflowEvent.InstanceId.Equals(InstanceIdValue(1)) &&
                 workflowEvent.OccurredAt == Timestamp(9));
     }
 
@@ -171,12 +173,12 @@ public sealed class DurableTimerStateTests
 
     private static EventId EventIdValue(int value)
     {
-        return new EventId(GuidValue(value));
+        return EventId.Create(GuidValue(value).ToString());
     }
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)

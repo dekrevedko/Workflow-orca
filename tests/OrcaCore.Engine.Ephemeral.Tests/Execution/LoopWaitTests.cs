@@ -1,211 +1,249 @@
 using AwesomeAssertions;
-using OrcaCore.Abstractions.Events;
-using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
-using OrcaCore.Abstractions.Steps;
-using OrcaCore.Core.Building;
-using OrcaCore.Engine.Ephemeral;
+using Microsoft.Extensions.DependencyInjection;
+using OrcaCore.Hosting;
 using Xunit;
 
 namespace OrcaCore.Engine.Ephemeral.Tests.Execution;
 
 public sealed class LoopWaitTests
 {
+    private static readonly EventName Tick = EventName.Create("tick");
+    private static readonly EventName Approval = EventName.Create("approval");
+
     [Fact]
     public async Task Run_WhileRegistersWaitEachIteration_CreatesFreshWaitIds()
     {
-        var state = new TestState();
-        var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(state);
-        engine.RegisterDefinition(definition);
-        var firstWait = await StartAsync(engine, definition);
-        var firstWaitId = firstWait.ActiveWaits.Should().ContainSingle().Which.WaitId;
+        using var provider = CreateProvider();
+        var handle = Register(provider, Definition());
+        var instance = await StartAsync(handle, "fresh-waits");
+        var first = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
 
-        var secondWait = await engine.RaiseEventAsync<TestState>(
-            firstWait.InstanceId,
-            Event("Tick", IterationCorrelation(0), "first"),
-            TestContext.Current.CancellationToken);
+        var firstWaitId = first.ActiveWaits.Should().ContainSingle().Which.WaitId;
+        var delivery = await DeliverAsync(
+            provider,
+            instance.InstanceId,
+            Tick,
+            IterationCorrelation(0),
+            "fresh-waits-first");
+        var second = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
 
-        secondWait.Status.Should().Be(WorkflowStatus.Waiting);
-        secondWait.ActiveWaits.Should().ContainSingle()
+        delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
+        second.Status.Should().Be(WorkflowInstanceStatus.Waiting);
+        second.ActiveWaits.Should().ContainSingle()
             .Which.WaitId.Should().NotBe(firstWaitId);
     }
 
     [Fact]
     public async Task RaiseEventAsync_EventForPreviousIteration_DoesNotResumeLaterIteration()
     {
-        var state = new TestState();
-        var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(state);
-        engine.RegisterDefinition(definition);
-        var firstWait = await StartAsync(engine, definition);
-        var secondWait = await engine.RaiseEventAsync<TestState>(
-            firstWait.InstanceId,
-            Event("Tick", IterationCorrelation(0), "first"),
-            TestContext.Current.CancellationToken);
+        using var provider = CreateProvider();
+        var handle = Register(provider, Definition());
+        var instance = await StartAsync(handle, "stale-iteration");
+        _ = await DeliverAsync(
+            provider,
+            instance.InstanceId,
+            Tick,
+            IterationCorrelation(0),
+            "stale-iteration-first");
 
-        var stale = await engine.RaiseEventAsync<TestState>(
-            firstWait.InstanceId,
-            Event("Tick", IterationCorrelation(0), "stale"),
-            TestContext.Current.CancellationToken);
+        var stale = await DeliverAsync(
+            provider,
+            instance.InstanceId,
+            Tick,
+            IterationCorrelation(0),
+            "stale-iteration-old");
+        var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
-        stale.Status.Should().Be(WorkflowStatus.Waiting);
-        stale.ActiveWaits.Should().ContainSingle()
+        stale.Status.Should().Be(EventDeliveryStatus.NoActiveWait);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Waiting);
+        snapshot.ActiveWaits.Should().ContainSingle()
             .Which.CorrelationId.Should().Be(IterationCorrelation(1));
-        state.Payloads.Should().Equal(["first"]);
+        state.Iteration.Should().Be(1);
     }
 
     [Fact]
     public async Task RaiseEventAsync_CurrentIterationEvent_ResumesCurrentWait()
     {
-        var state = new TestState();
-        var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(state);
-        engine.RegisterDefinition(definition);
-        var firstWait = await StartAsync(engine, definition);
-        await engine.RaiseEventAsync<TestState>(
-            firstWait.InstanceId,
-            Event("Tick", IterationCorrelation(0), "first"),
-            TestContext.Current.CancellationToken);
+        using var provider = CreateProvider();
+        var handle = Register(provider, Definition());
+        var instance = await StartAsync(handle, "current-iteration");
+        _ = await DeliverAsync(
+            provider,
+            instance.InstanceId,
+            Tick,
+            IterationCorrelation(0),
+            "current-iteration-first");
 
-        var completed = await engine.RaiseEventAsync<TestState>(
-            firstWait.InstanceId,
-            Event("Tick", IterationCorrelation(1), "second"),
-            TestContext.Current.CancellationToken);
+        var current = await DeliverAsync(
+            provider,
+            instance.InstanceId,
+            Tick,
+            IterationCorrelation(1),
+            "current-iteration-second");
+        var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
-        completed.Status.Should().Be(WorkflowStatus.Completed);
-        state.Payloads.Should().Equal(["first", "second"]);
+        current.Status.Should().Be(EventDeliveryStatus.Accepted);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
+        state.Iteration.Should().Be(2);
     }
 
     [Fact]
-    public async Task Mailbox_PreviousIterationEvent_RemainsStaleForLaterWait()
+    public async Task PreviousIterationEvent_RemainsStaleForLaterWait()
     {
-        var state = new TestState();
-        var engine = new EphemeralWorkflowEngine();
-        var definition = Definition(state);
-        engine.RegisterDefinition(definition);
-        var firstWait = await StartAsync(engine, definition);
-        await engine.RaiseEventAsync<TestState>(
-            firstWait.InstanceId,
-            Event("Tick", IterationCorrelation(0), "first"),
-            TestContext.Current.CancellationToken);
-        await engine.RaiseEventAsync<TestState>(
-            firstWait.InstanceId,
-            Event("Tick", IterationCorrelation(0), "stale"),
-            TestContext.Current.CancellationToken);
+        using var provider = CreateProvider();
+        var handle = Register(provider, Definition());
+        var instance = await StartAsync(handle, "stale-then-current");
+        _ = await DeliverAsync(
+            provider,
+            instance.InstanceId,
+            Tick,
+            IterationCorrelation(0),
+            "stale-then-current-first");
+        var stale = await DeliverAsync(
+            provider,
+            instance.InstanceId,
+            Tick,
+            IterationCorrelation(0),
+            "stale-then-current-old");
 
-        var completed = await engine.RaiseEventAsync<TestState>(
-            firstWait.InstanceId,
-            Event("Tick", IterationCorrelation(1), "second"),
-            TestContext.Current.CancellationToken);
+        var current = await DeliverAsync(
+            provider,
+            instance.InstanceId,
+            Tick,
+            IterationCorrelation(1),
+            "stale-then-current-second");
+        var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
-        completed.Status.Should().Be(WorkflowStatus.Completed);
-        completed.ErrorSummary.Should().BeNull();
-        state.Payloads.Should().Equal(["first", "second"]);
+        stale.Status.Should().Be(EventDeliveryStatus.NoActiveWait);
+        current.Status.Should().Be(EventDeliveryStatus.Accepted);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
+        snapshot.Failure.Should().BeNull();
+        state.Iteration.Should().Be(2);
     }
 
     [Fact]
     public async Task RaiseEventAsync_WaitInsideWhile_DoesNotReExecuteStepsBeforeWaitOnResume()
     {
-        var state = new TestState();
-        var engine = new EphemeralWorkflowEngine();
-        var definition = NoDoubleExecutionDefinition(state);
-        engine.RegisterDefinition(definition);
+        using var provider = CreateProvider();
+        var handle = Register(provider, NoDoubleExecutionDefinition());
+        var instance = await StartAsync(handle, "no-double-execution");
+        var first = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var firstState = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
-        var firstWait = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
-            "start",
-            TestContext.Current.CancellationToken);
-        var firstWaitId = engine.Management.Instance(firstWait.InstanceId)
-            .GetActiveWaits()
-            .Should().ContainSingle().Which.WaitId;
+        firstState.PreWaitCount.Should().Be(1);
+        firstState.PostWaitCount.Should().Be(0);
+        var firstWaitId = first.ActiveWaits.Should().ContainSingle().Which.WaitId;
 
-        state.PreWaitCount.Should().Be(1);
-        state.PostWaitCount.Should().Be(0);
+        _ = await DeliverAsync(
+            provider,
+            instance.InstanceId,
+            Approval,
+            CorrelationId.Create("corr-1"),
+            "no-double-first");
+        var second = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var secondState = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
-        var secondWait = await engine.RaiseEventAsync<TestState>(
-            firstWait.InstanceId,
-            Event("Approval", new CorrelationId("corr-1"), "first"),
-            TestContext.Current.CancellationToken);
-        var secondWaitId = engine.Management.Instance(firstWait.InstanceId)
-            .GetActiveWaits()
-            .Should().ContainSingle().Which.WaitId;
+        second.Status.Should().Be(WorkflowInstanceStatus.Waiting);
+        second.ActiveWaits.Should().ContainSingle()
+            .Which.WaitId.Should().NotBe(firstWaitId);
+        secondState.PreWaitCount.Should().Be(2);
+        secondState.PostWaitCount.Should().Be(1);
 
-        secondWait.Status.Should().Be(WorkflowStatus.Waiting);
-        secondWaitId.Should().NotBe(firstWaitId);
-        state.PreWaitCount.Should().Be(2);
-        state.PostWaitCount.Should().Be(1);
+        _ = await DeliverAsync(
+            provider,
+            instance.InstanceId,
+            Approval,
+            CorrelationId.Create("corr-1"),
+            "no-double-second");
+        var completed = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var completedState = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
-        var completed = await engine.RaiseEventAsync<TestState>(
-            firstWait.InstanceId,
-            Event("Approval", new CorrelationId("corr-1"), "second"),
-            TestContext.Current.CancellationToken);
-
-        completed.Status.Should().Be(WorkflowStatus.Completed);
-        engine.Management.Instance(firstWait.InstanceId).GetActiveWaits().Should().BeEmpty();
-        state.PreWaitCount.Should().Be(2);
-        state.PostWaitCount.Should().Be(2);
+        completed.Status.Should().Be(WorkflowInstanceStatus.Completed);
+        completed.ActiveWaits.Should().BeEmpty();
+        completedState.PreWaitCount.Should().Be(2);
+        completedState.PostWaitCount.Should().Be(2);
     }
 
-    private static Task<WorkflowInstanceSnapshot> StartAsync(
-        EphemeralWorkflowEngine engine,
-        OrcaCore.Core.Definitions.WorkflowDefinition<TestState> definition)
+    private static ServiceProvider CreateProvider()
     {
-        return engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
-            "start",
-            TestContext.Current.CancellationToken);
-    }
-
-    private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> Definition(TestState state)
-    {
-        return new WorkflowBuilder<TestState>()
-            .Init<string>(_ => state)
-            .While(
-                current => current.Iteration < 2,
-                body => body
-                    .Wait("Tick", current => IterationCorrelation(current.Iteration))
-                    .Then(() => new CaptureAndIncrementStep()))
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-    }
-
-    private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> NoDoubleExecutionDefinition(TestState state)
-    {
-        return new WorkflowBuilder<TestState>()
-            .Init<string>(_ => state)
-            .While(
-                current => current.PostWaitCount < 2,
-                body => body
-                    .Then(() => new CountPreWaitStep())
-                    .Wait("Approval", _ => new CorrelationId("corr-1"))
-                    .Then(() => new CountPostWaitStep()))
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-    }
-
-    private static CorrelationId IterationCorrelation(int iteration)
-    {
-        return new CorrelationId($"iteration-{iteration}");
-    }
-
-    private static EventEnvelope Event(string name, CorrelationId correlationId, object? payload)
-    {
-        return new EventEnvelope
+        var services = new ServiceCollection();
+        services.AddTransient<CaptureAndIncrementStep>();
+        services.AddTransient<CountPreWaitStep>();
+        services.AddTransient<CountPostWaitStep>();
+        services.AddOrcaCoreEphemeralEngine(new EphemeralEngineHostOptions
         {
-            EventId = EventId.New(),
-            EventName = name,
-            CorrelationId = correlationId,
-            Payload = payload,
-            OccurredAt = DateTimeOffset.UtcNow
-        };
+            StructuredExecution = new StructuredExecutionHostOptions
+            {
+                MaxConcurrentExecutionPathsPerInstance = 2,
+                StepThrottles = []
+            },
+            TransientPools = []
+        });
+        return services.BuildServiceProvider();
     }
+
+    private static EphemeralDefinitionHandle<string> Register(
+        ServiceProvider provider,
+        EphemeralWorkflowDefinition<string> definition) =>
+        provider.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+
+    private static async Task<WorkflowInstanceHandle> StartAsync(
+        EphemeralDefinitionHandle<string> handle,
+        string key) =>
+        (await handle.StartOrGetAsync(
+            "start",
+            StartIdempotencyKey.Create(key),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
+
+    private static ValueTask<EventDeliveryResult> DeliverAsync(
+        ServiceProvider provider,
+        InstanceId instanceId,
+        EventName eventName,
+        CorrelationId correlationId,
+        string eventId) =>
+        provider.GetRequiredService<IWorkflowEventClient>().DeliverToInstanceAsync(
+            instanceId,
+            WorkflowEvent.Create(
+                EventId.Create(eventId),
+                eventName,
+                correlationId,
+                DateTimeOffset.UtcNow),
+            TestContext.Current.CancellationToken);
+
+    private static EphemeralWorkflowDefinition<string> Definition() =>
+        Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(_ => new TestState())
+            .While(
+                current => current.Value.Iteration < 2,
+                body => body
+                    .Wait(Tick, current => IterationCorrelation(current.Value.Iteration))
+                    .Then<CaptureAndIncrementStep>())
+            .End()
+            .Build();
+
+    private static EphemeralWorkflowDefinition<string> NoDoubleExecutionDefinition() =>
+        Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(_ => new TestState())
+            .While(
+                current => current.Value.PostWaitCount < 2,
+                body => body
+                    .Then<CountPreWaitStep>()
+                    .Wait(Approval, _ => CorrelationId.Create("corr-1"))
+                    .Then<CountPostWaitStep>())
+            .End()
+            .Build();
+
+    private static CorrelationId IterationCorrelation(int iteration) =>
+        CorrelationId.Create($"iteration-{iteration}");
 
     private sealed class TestState
     {
         public int Iteration { get; set; }
-
-        public List<string> Payloads { get; } = [];
 
         public int PreWaitCount { get; set; }
 
@@ -218,11 +256,6 @@ public sealed class LoopWaitTests
             StepContext<TestState> context,
             CancellationToken cancellationToken)
         {
-            if (context.ResumedEvent?.Payload is string payload)
-            {
-                context.State.Payloads.Add(payload);
-            }
-
             context.State.Iteration++;
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
         }

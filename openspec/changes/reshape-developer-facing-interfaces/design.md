@@ -104,7 +104,9 @@ Branches receive isolated state/input. They cannot mutate parent state concurren
 
 Instance cancellation, operator termination, and the workflow deadline are ancestor terminal transitions. They signal/fence active work and suppress both joins; they are never converted into merge-visible cancellation variants. A scope-local wait or step timeout is an ordinary `Failed` outcome and remains visible to `WhenAllOutcomes`. Neither join automatically cancels a sibling.
 
-Root fixed-`Parallel` branches are admitted in authored order under the host-owned `MaxConcurrentExecutionPathsPerInstance` ceiling. There is no author-level global concurrency option.
+Every fixed root-`Parallel` branch fiber exists when its scope starts. Runnable branches receive
+host-owned `MaxConcurrentExecutionPathsPerInstance` tokens fairly in authored order; there is no
+branch/live-fiber admission resource and no author-level global concurrency option.
 
 An empty root `Parallel` is a graph error discovered by `Build`/`TryBuild`, not an argument exception from the first fluent call. It reports `SFE-AUTH-BRANCH-004` (`EmptyParallelScope`) at the `Parallel` node. This does not broaden placement: `Parallel` remains root-only, and nested, branch, item, and leased builders expose no `Parallel` member.
 
@@ -135,7 +137,7 @@ Alternative considered: durable lambdas with serialized delegates or source hash
 
 ### 7. Distinguish workflow deadlines from step attempt timeouts
 
-V1 uses one non-replaceable certified `System.Text.Json` codec with persisted format ID `orcacore-json-v1`. Author selectors, workflow/DAG input, state, item snapshots, results, output, idempotency bytes, and returned query values are codec-detached. Unsupported cyclic or unapproved polymorphic shapes fail before commit. Authors normalize unordered collections when semantic order matters; OrcaCore guarantees deterministic bytes for its supported value graph, not canonicalization of arbitrary collections.
+V1 uses one non-replaceable certified `System.Text.Json` codec with persisted format ID `orcacore-json-v1`. Author selectors, workflow/DAG input, state, item snapshots, results, output, idempotency bytes, and returned query values are codec-detached. Unsupported cyclic or unapproved polymorphic shapes fail before commit. The closed collection allowlist has one JSON-array sequence representation (`T[]`, `List<T>`, `IList<T>`, or `IReadOnlyList<T>` declarations, materialized only as a one-dimensional array or exact `List<T>`) and one JSON-object map representation (`Dictionary<string,T>`, `IDictionary<string,T>`, or `IReadOnlyDictionary<string,T>` declarations, materialized only as exact `Dictionary<string,T>`). Sequence enumeration order and dictionary insertion/enumeration order are part of the encoded value. Dictionaries therefore remain usable only with string keys and a normalized insertion order when order is not itself business data. Sets, queues, linked lists, multidimensional arrays, sorted/custom dictionaries, custom collection subclasses, and every other declared or runtime collection shape reject before commit. OrcaCore guarantees deterministic bytes for this supported value graph and order; it does not canonicalize arbitrary collections.
 
 Each business-step attempt receives a codec-detached attempt-local copy of the last committed root/branch/item state. Mutable state changes through `StepContext<TState>.State`; immutable/value state changes through `ReplaceState`. Only a successful winning `Completed` or validated dynamic `WaitForEvent` transition commits the attempt copy. Failure or timeout discards it. A token-ignoring late body may physically overlap a policy retry, but its copy is fenced and it retains no logical commit authority; its physical step-throttle/transient slot remains occupied until return. A leased attempt is stricter: while its prior in-process body is still running, no overlapping policy retry may start and the same lease remains held. After host loss, the same attempt coordinate may be redispatched under the same durable obligation because the old process can no longer execute locally.
 
@@ -256,7 +258,12 @@ A registered definition is identified by `(DefinitionId, DefinitionVersion)` and
 
 Caller-created string-backed strong values use one uniform factory-owned construction shape. `EventName`, `WorkflowOutcomeName`, `AuthoredBranchId`, `DagNodeId`, `ResourcePoolName`, `TransientPoolName`, `StartIdempotencyKey`, `CorrelationId`, `EventId`, `StopConfirmationId`, `ResourcePoolOperationId`, and `ResourceGovernancePartitionId` have private constructors and one public `Create(string)` factory. They expose neither a public constructor nor `Parse`/`TryParse`, `New`, implicit conversion, or a parallel raw-string overload. Runtime-created identities retain private construction plus canonical `Parse`/`TryParse`; `DefinitionId` retains `New`/`Parse`/`TryParse`, and positive numeric `DefinitionVersion` retains its validating constructor and `Initial`. `DefinitionId.Parse(Guid.Empty)` rejects with `ArgumentException`, and `TryParse` returns `false`; the same nonempty GUID rule applies to runtime-created `InstanceId`, `WaitId`, and `DagRunId`. `Create` validates but never trims or normalizes, so it does not weaken exact ordinal equality.
 
-The fingerprint covers inspectable authored structure only: node/member kinds, ordering, strong values, referenced step/workflow types, static requests, and fixed codec format. It does not hash delegate IL, DI configuration, step constructor/configuration behavior, external adapter behavior, or arbitrary bytes supplied by an author. Changing selector/projector/merge/output code, step construction/configuration, DAG mapping, or external-request construction therefore requires a new `DefinitionVersion`; the version bump is the sole v1 contract for opaque code changes.
+The fingerprint covers inspectable authored structure only: node/member kinds, ordering, strong values, referenced step/workflow types, static requests, and fixed codec format. It excludes compiler format, workflow mode, definition identity/version, and every compiler option because those are either separate binding values or acceptance policy rather than authored structure. It does not hash delegate IL, DI configuration, step constructor/configuration behavior, external adapter behavior, or arbitrary bytes supplied by an author. Changing selector/projector/merge/output code, step construction/configuration, DAG mapping, or external-request construction therefore requires a new `DefinitionVersion`; the version bump is the sole v1 contract for opaque code changes.
+
+Compiler format remains a distinct registration/resume binding. A durable host retains support for
+every compiler format referenced by a nonterminal instance and retires a format only after those
+instances terminalize or are explicitly migrated. Before the first released compatibility
+contract, a format bump may use a hard cutover when no supported persisted instance exists.
 
 DAG definitions have equivalent immutable identity/version/fingerprint binding over inspectable node references, edges, ordering, and codec format. Projector behavior itself is versioned, not fingerprinted.
 
@@ -305,7 +312,22 @@ All public runtime failures derive from `OrcaCoreException` and expose a nonblan
 
 `StructuredExecutionHostOptions.MaxConcurrentExecutionPathsPerInstance` is the host-owned logical path ceiling shared by root, fixed branches, and `ForEach` items. A runnable root/branch/item owns one token. Parking on an event, delay, resource request, or join releases it; progression reacquires it. A parent releases its token before fan-out and reacquires one only for merge/continuation, so a ceiling of one cannot deadlock solely because the parent waits for its children.
 
-Root fixed-`Parallel` branches queue by authored ordinal and root-`ForEach` items by index. `ForEachOptions.MaxConcurrency` separately counts admitted nonterminal item scopes, including items parked in waits, delays, or resource admission, and only tightens the host path ceiling. `DagHostOptions.MaxConcurrentNodes` counts admitted nonterminal DAG nodes, including children parked in waits, delays, or lease queues, until their child instance is terminal. It is not merely a count of currently executing CLR work. Per-step throttles, transient pools, and durable resource leases remain independent limits with different lifetimes.
+Every fixed root-`Parallel` branch fiber exists when the scope starts; runnable branches queue for
+path tokens by authored ordinal. There is no separate branch or live-fiber admission resource.
+Root-`ForEach` items queue by index, while `ForEachOptions.MaxConcurrency` separately counts admitted
+nonterminal item scopes, including items parked in waits, delays, or resource admission, and only
+tightens the host path ceiling. An admitted item can therefore block later admission if it waits
+on work assigned to a pending item; v1 documents that authored dependency caveat rather than
+claiming unconditional progress. `DagHostOptions.MaxConcurrentNodes` counts admitted nonterminal
+DAG nodes, including children parked in waits, delays, or lease queues, until their child instance
+is terminal. It is not merely a count of currently executing CLR work. Per-step throttles,
+transient pools, and durable resource leases remain independent limits with different lifetimes.
+
+The implementation-only `MaxActiveFibers` quantity has no normative owner and is removed from
+compiler acceptance, `ForEach` admission, runtime terminal failure, and fingerprinting together
+with its diagnostic codes. No replacement branch-width limit is added without evidence for a
+concrete v1 safety requirement. Allocation exhaustion is an infrastructure fault and never a
+different authored workflow outcome.
 
 A timed-out token-ignoring attempt loses its logical path token and commit authority, allowing retry or sibling progression, but continues holding its physical step-throttle/transient slot until it actually returns. Cooperative execution therefore does not imply that external work or late bodies are physically single-threaded.
 
@@ -315,10 +337,81 @@ Phase 0 guards currently encode rejected names and semantics, including `Acquire
 
 Tasks 3.1 through 3.12, including separate required slices 3.11a through 3.11d, are one 15-task expected-red Phase 0 packet. They use the exact companion declarations, semantic matrix, provider/facade contracts, project graph, and deferred/removed absence list. Source implementation does not proceed to section 4 until every section-3 task is complete and the entire packet receives independent approval. Public-signature absence scans use qualified names where structural nodes and result variants could otherwise collide. The deterministic lane is limited to friend-only test seams and fixed-codec immutable facts; no test hook becomes a public authoring/runtime API. The diagnostic catalog fixes every `WF-*`, `SFE-*`, `DAG-*`, and public exception code used by guards plus one canonical `AuthoredLocation` grammar, and guards reject undocumented or duplicate codes.
 
+### 17. Approve deltas, then synchronize canonical requirements before each source section
+
+New normative decisions are authored first in the active change's proposal, design, amendment, and
+delta specs. Independent approval reviews that proposal package against the unchanged accepted
+canonical baseline. Only an approval without a gate-blocking finding authorizes a dedicated
+canonical-synchronization task; the synchronized canonical diff is then reviewed before the
+dependent section's first product-source edit.
+
+| Source section | Canonical areas synchronized after approval |
+|---|---|
+| 4 | Workflow authoring, workflow contracts, quality verification |
+| 5 | Structured authoring, composition, durable runtime |
+| 6 | Deadlines, durable runtime, management, leasing, quality |
+| 7 | Repository tiers, developer surface, management, providers |
+| 8 | DAG, durable runtime, repository boundaries, developer surface, quality |
+
+The map is the mandatory synchronization scope for tasks 4.0 through 8.0. Historical section gates
+that already completed remain historical facts. For the 2026-07-28 amendment, task `4.15` approves
+Revision 8's proposal package, task `10.14` synchronizes the approved text, and only then may `4.16`
+or the dependent remediation source slice begin. Later documentation work verifies traceability,
+examples, and evidence; it does not substitute for approval or pre-apply unapproved canonical text.
+
+### 18. Freeze one phase- and scope-bound authoring session
+
+The existing fluent signatures remain mutable façade APIs, but every handle belongs to one
+authoring session, epoch, and lexical scope. The session moves through `Open`, `JoinPending`, and
+`Frozen`. Starting root fan-out makes the current root handle superseded; selecting its single join
+returns a new façade for the successor epoch. A nested, branch, item, or leased handle expires when
+its authoring callback returns.
+
+Root `End` or terminal `ContinueAsNew` atomically freezes the authored graph. A completion builder
+captures that frozen snapshot rather than a callback over live mutable state. Repeated `Build` and
+`TryBuild` calls are structurally stable with identical ordered diagnostics and fingerprints.
+Superseded-handle use, duplicate join selection, post-terminal mutation, escaped callback-handle
+use, and losing concurrent authoring operations raise catalogued lifecycle diagnostics and leave
+the authored graph unchanged. This obtains safe lifecycle behavior without redesigning every
+`Action<TBuilder>` body into a persistent functional API.
+
+### 19. Carry authored and occurrence failure provenance separately
+
+`WorkflowFailure` carries a non-null derived `AuthoredLocation` naming the authored instruction and
+a non-null runtime-created `FailureOccurrence` with exactly `Root`, `Branch(AuthoredBranchId)`, and
+`Item(index)` variants. The base is externally non-derivable and variant constructors are internal.
+The runtime attaches both coordinates when the failure is created. A synthesized
+`SFE-JOIN-FAILED` uses the owning scope fiber's occurrence while each ordered cause retains its own.
+
+`FailureOccurrence` variants use value equality. `WorkflowFailure` retains its existing reference
+equality; detachment copies both coordinates and causes. `orcacore-json-v1` uses the closed
+versioned occurrence discriminator allowlist `root`, `branch`, and `item`. A generalized ancestry
+path is deferred with nested fan-out.
+
+### 20. Treat root fan-out as bulk-synchronous composition
+
+Every root `Parallel` or `ForEach` join returns the root builder and replaces parent state, so
+fan-out stages compose sequentially without bound. Common grouped heterogeneous work may be
+flattened into tagged items, and data-dependent phases may be staged through a barrier. These are
+conditional observational simulations, not equivalences: they may lose per-group concurrency,
+sequential dependency, grouped failure attribution, or pipelining and may exceed authored item or
+fixed encoded-value budgets.
+
+Nested fixed `Parallel` is declined for v1 because it removes barriers for cases that satisfy those
+preconditions but does not solve unbounded data-dependent repetition, which needs nested
+`ForEach` or a separately specified continuation mechanism. Re-entry requires concrete latency or
+throughput evidence plus recursive identity, token/admission, merge, failure-provenance, and lease
+semantics.
+
 ## Risks / Trade-offs
 
 - **[Bounded durable `ForEach` still adds persistence and scheduler work]** -> Commit the finite item set once, reuse existing structured fibers, prohibit nesting, and require a positive item bound.
-- **[Root-only fan-out cannot express conditional, item-local, or leased nested concurrency in v1]** -> Accept the smaller first-release surface, compose sequential root `Parallel`/`ForEach` scopes or use durable DAG concurrency, and require a future amendment to define recursive identity, admission, merge, and lease rules before nested fan-out is introduced.
+- **[Root-only fan-out can add barriers or exceed a flat representation budget]** -> Treat v1 as
+  bulk-synchronous fork-join. Use tagged-item flattening or sequential staging only when authored
+  item limits, fixed encoded-value budgets, dependency order, failure attribution, per-group
+  concurrency, and barrier placement remain acceptable. Require measured latency/throughput
+  evidence plus recursive identity, admission, merge, provenance, and lease rules before nested
+  fan-out is introduced.
 - **[All-outcomes merge encourages swallowing infrastructure failures]** -> Make acceptance an explicit merge result, preserve complete failure diagnostics, and document domain rejection as typed data.
 - **[A workflow deadline terminalizes before external cleanup]** -> Fence resume, quarantine capacity, and require trusted stop/fence proof before reuse.
 - **[Stable operation identity is mistaken for exactly once]** -> Document at-least-once invocation and require create-or-observe adapters with request fingerprints.

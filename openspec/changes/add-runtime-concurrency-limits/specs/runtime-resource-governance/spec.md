@@ -111,11 +111,13 @@ The host SHALL own `MaxConcurrentExecutionPathsPerInstance` as the upper bound o
 structured execution-path tokens for one workflow instance. A runnable root, branch, or item
 SHALL own one token. It SHALL release the token when it parks on a wait, delay, resource request,
 or join and SHALL reacquire a token before progressing. A parent SHALL release its token before
-admitting fixed branches or items and SHALL reacquire one only for merge/continuation. Workflow
-authoring SHALL NOT expose a global option that overrides or duplicates that host limit. Root fixed
-`Parallel` branches SHALL be considered for admission in authored order. Waiting, delayed, and
-terminal paths SHALL NOT consume a token solely because their state exists. V1 SHALL NOT expose
-an independent host-wide workflow-instance or advancement ceiling.
+scheduling fixed branches or admitting items and SHALL reacquire one only for merge/continuation.
+Workflow authoring SHALL NOT expose a global option that overrides or duplicates that host limit.
+Every fixed root-`Parallel` branch fiber SHALL exist when its scope starts; runnable branches SHALL
+receive tokens fairly in authored order, and no separate branch or live-fiber admission resource
+SHALL affect workflow acceptance, scheduling, or outcome. Waiting, delayed, and terminal paths
+SHALL NOT consume a token solely because their state exists. V1 SHALL NOT expose an independent
+host-wide workflow-instance or advancement ceiling.
 
 Shared path/step settings SHALL be carried by `StructuredExecutionHostOptions` under both
 role-specific engine option wrappers. Ephemeral transient pools SHALL appear only on
@@ -137,6 +139,12 @@ SHALL remain a separate host-owned limit and count every started nonterminal chi
 including a child parked in a wait, delay, or durable lease queue, until its node becomes terminal.
 Releasing an in-instance path token SHALL NOT free DAG admission.
 
+Within one structured root fan-out scope, path tokens and admitted root-`ForEach` item slots are the
+only two quantities owned by the structured-fiber scheduler. This scope statement does not merge or replace exact-step
+throttles, named transient pools, durable resource leases, or the independent DAG-node ceiling.
+Eventual admission of every `ForEach` item is conditional on admitted items not depending on
+pending items.
+
 #### Scenario: Host tightens a ForEach node
 - **GIVEN** a `ForEach` node declares `maxConcurrency` 100
 - **AND** the host configures `MaxConcurrentExecutionPathsPerInstance` 10
@@ -149,14 +157,14 @@ Releasing an in-instance path token SHALL NOT free DAG admission.
 - **WHEN** the node runs
 - **THEN** no more than 4 item paths are admitted for that node
 
-#### Scenario: Root Parallel admission is deterministic
+#### Scenario: Root Parallel token scheduling is deterministic
 - **WHEN** a root fixed `Parallel` node has more ready branches than the host path ceiling
-- **THEN** the runtime admits branches in authored order and later branches remain runnable but unadmitted until capacity becomes available
+- **THEN** every branch fiber exists and runnable branches receive path tokens fairly in authored order without a separate admission state
 
 #### Scenario: Fan-out progresses with a path ceiling of one
 - **GIVEN** the host configures `MaxConcurrentExecutionPathsPerInstance` to 1
 - **WHEN** a root parent reaches a `Parallel` or `ForEach` join
-- **THEN** the parent releases its token before child admission, children run one at a time, and the parent reacquires a token only for merge/continuation without deadlock
+- **THEN** the parent releases its token before child scheduling, one runnable child at a time can receive it, and the parent reacquires a token only for merge/continuation without a deadlock caused solely by retaining path-token capacity
 
 #### Scenario: Durable host configures structured execution
 - **WHEN** a host registers `AddOrcaCoreDurableEngine(DurableEngineHostOptions)`
@@ -167,6 +175,10 @@ Releasing an in-instance path token SHALL NOT free DAG admission.
 - **AND** one admitted item is parked in a wait
 - **WHEN** another item is ready
 - **THEN** the ready item remains unadmitted until an admitted item becomes terminal even though the parked item does not own a runnable path token
+
+#### Scenario: Admitted ForEach items depend on pending work
+- **WHEN** every admitted item is parked awaiting an effect that only a pending item would produce
+- **THEN** later admission may remain blocked because path-token release does not release the admitted-item slot, and the runtime makes no global-progress promise for that authored dependency
 
 #### Scenario: Durable ForEach restarts under current host admission
 - **WHEN** a durable host restarts with unfinished committed items

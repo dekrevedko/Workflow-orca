@@ -12,8 +12,8 @@ namespace OrcaCore.Benchmarks.Scenarios;
 [MemoryDiagnoser]
 public class StructuredFiberExecutionBenchmarks
 {
-    private readonly InstanceId instanceId = new(
-        Guid.Parse("00000000-0000-0000-0000-000000090001"));
+    private readonly InstanceId instanceId =
+        InstanceId.Parse("00000000-0000-0000-0000-000000090001");
     private readonly JsonCodec codec = new();
     private CompiledWorkflowPlan plan = null!;
     private CompiledScopePlan outerScope = null!;
@@ -106,21 +106,14 @@ public class StructuredFiberExecutionBenchmarks
 
     private static WorkflowDefinition<BenchmarkState> BuildDefinition()
     {
-        return Workflow.Ephemeral<BenchmarkState>(
-                new DefinitionId(Guid.Parse("00000000-0000-0000-0000-000000090002")),
+        return global::OrcaCore.Core.Building.Workflow.Ephemeral<BenchmarkState>(
+                DefinitionId.Parse("00000000-0000-0000-0000-000000090002"),
                 DefinitionVersion.Initial)
             .Init<int>(value => new BenchmarkState(value))
             .Parallel<int>(
                 branches => branches
-                    .Branch<BranchState>("nested", parent => new BranchState(parent.Value.Value), branch => branch
-                        .Parallel<int>(
-                            nested => nested
-                                .Branch<BranchState>("a", parent => parent.Value, child =>
-                                    child.Return(state => state.Value.Value))
-                                .Branch<BranchState>("b", parent => parent.Value, child =>
-                                    child.Return(state => state.Value.Value)),
-                            (parent, results) => new BranchState(results.Sum(result => result.Value)))
-                        .Return(state => state.Value.Value))
+                    .Branch<BranchState>("first", parent => new BranchState(parent.Value.Value), branch =>
+                        branch.Return(state => state.Value.Value))
                     .Branch<BranchState>("direct", parent => new BranchState(parent.Value.Value + 1), branch =>
                         branch.Return(state => state.Value.Value)),
                 (parent, results) => new BenchmarkState(results.Sum(result => result.Value)))
@@ -141,6 +134,7 @@ public class StructuredFiberExecutionBenchmarks
                 DefinitionId = plan.DefinitionId,
                 DefinitionVersion = plan.DefinitionVersion,
                 CompilerFormatVersion = plan.FormatVersion,
+                CompilerProfileId = plan.CompilerProfileId,
                 PlanFingerprint = plan.Fingerprint
             },
             StateContentType = "application/json",

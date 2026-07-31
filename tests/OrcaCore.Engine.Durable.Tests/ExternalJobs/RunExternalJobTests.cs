@@ -44,7 +44,7 @@ public sealed class RunExternalJobTests
         snapshot.Status.Should().Be(WorkflowStatus.Waiting);
         snapshot.ActiveWaits.Should().ContainSingle(wait =>
             wait.EventName == "ExternalJobCompleted" &&
-            wait.CorrelationId == new CorrelationId("job-1") &&
+            wait.CorrelationId.Equals(CorrelationId.Create("job-1")) &&
             wait.Mode == WaitMode.Cold.ToString());
         snapshot.ActiveWaits.Single().FiberId.Should().Be(new FiberId("job-fiber"));
         snapshot.ActiveWaits.Single().ScopeId.Should().Be(new ScopeId("job-scope"));
@@ -112,16 +112,19 @@ public sealed class RunExternalJobTests
             new WorkflowProjectionQuery { InstanceId = InstanceIdValue(1) },
             TestContext.Current.CancellationToken)).Should().ContainSingle().Subject;
         var pool = await pools.GetPoolAsync("db", TestContext.Current.CancellationToken);
-        var inbox = await provider.GetAsync(wrongCompletionEventId, TestContext.Current.CancellationToken);
+        var inbox = await provider.GetAsync(
+            InstanceIdValue(1),
+            wrongCompletionEventId,
+            TestContext.Current.CancellationToken);
 
         result.Outcome.Should().Be(DurableCommandOutcome.Poisoned);
-        inbox.Value.Should().Be(InboxRecordState.Poisoned);
+        inbox.Value.State.Should().Be(InboxRecordState.Poisoned);
         events.OfType<WorkflowExternalJobCompletedEvent>().Should().BeEmpty();
         events.OfType<WorkflowWaitMatchedEvent>().Should().BeEmpty();
         snapshot.Status.Should().Be(WorkflowStatus.Waiting);
         snapshot.ActiveWaits.Should().ContainSingle(wait =>
             wait.EventName == "ExternalJobCompleted" &&
-            wait.CorrelationId == new CorrelationId("job-1"));
+            wait.CorrelationId.Equals(CorrelationId.Create("job-1")));
         pool.Value.HeldTickets.Should().ContainSingle()
             .Which.HolderKey.Should().Be("job-1");
     }
@@ -239,12 +242,12 @@ public sealed class RunExternalJobTests
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}"));
+        return InstanceId.Parse($"00000000-0000-0000-0000-{value:000000000000}");
     }
 
     private static EventId EventIdValue(int value)
     {
-        return new EventId(Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}"));
+        return EventId.Create($"00000000-0000-0000-0000-{value:000000000000}");
     }
 
     private static CommandId CommandIdValue(int value)
@@ -254,6 +257,6 @@ public sealed class RunExternalJobTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}"));
+        return DefinitionId.Parse($"00000000-0000-0000-0000-{value:000000000000}");
     }
 }

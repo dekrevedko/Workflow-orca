@@ -8,7 +8,8 @@ internal sealed class InterpreterFactory(
     EphemeralTimerService timerService,
     ResourceGovernanceCoordinator governance,
     YieldContinuationScheduler yieldContinuationScheduler,
-    EphemeralWorkflowEngineOptions options)
+    EphemeralWorkflowEngineOptions options,
+    IServiceProvider? serviceProvider)
 {
     internal Interpreter<TState> Create<TState>()
     {
@@ -25,6 +26,7 @@ internal sealed class InterpreterFactory(
             new WhileNodeRunner<TState>(conditionEvaluator),
             governance,
             yieldContinuationScheduler,
-            options);
+            options,
+            serviceProvider);
     }
 }

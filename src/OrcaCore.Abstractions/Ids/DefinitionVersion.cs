@@ -1,12 +1,13 @@
 using System.Text.Json.Serialization;
+using OrcaCore.Abstractions.Ids;
 
-namespace OrcaCore.Abstractions.Ids;
+namespace OrcaCore;
 
 /// <summary>
 /// Identifies one immutable version of a workflow definition.
 /// </summary>
 [JsonConverter(typeof(DefinitionVersionJsonConverter))]
-public readonly record struct DefinitionVersion
+public sealed class DefinitionVersion : IEquatable<DefinitionVersion>
 {
     /// <summary>
     /// Initializes a definition version from a positive integer.
@@ -30,6 +31,40 @@ public readonly record struct DefinitionVersion
     /// Gets the first definition version.
     /// </summary>
     public static DefinitionVersion Initial => new(1);
+
+    /// <inheritdoc />
+    public bool Equals(DefinitionVersion? other)
+    {
+        return other is not null && Value == other.Value;
+    }
+
+    /// <inheritdoc />
+    public override bool Equals(object? obj)
+    {
+        return obj is DefinitionVersion other && Equals(other);
+    }
+
+    /// <inheritdoc />
+    public override int GetHashCode()
+    {
+        return Value;
+    }
+
+    /// <summary>
+    /// Compares two definition versions by value.
+    /// </summary>
+    public static bool operator ==(DefinitionVersion? left, DefinitionVersion? right)
+    {
+        return ReferenceEquals(left, right) || (left?.Equals(right) ?? false);
+    }
+
+    /// <summary>
+    /// Compares two definition versions by value.
+    /// </summary>
+    public static bool operator !=(DefinitionVersion? left, DefinitionVersion? right)
+    {
+        return !(left == right);
+    }
 
     /// <summary>
     /// Returns the version text.

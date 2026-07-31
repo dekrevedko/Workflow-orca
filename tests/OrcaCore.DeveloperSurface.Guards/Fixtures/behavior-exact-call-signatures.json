@@ -1,6 +1,8 @@
 [
   {"id":"definition-id-new","assembly":"OrcaCore","type":"OrcaCore.DefinitionId","member":"New","genericArity":0,"parameters":[],"returnType":"OrcaCore.DefinitionId"},
+  {"id":"definition-id-parse","assembly":"OrcaCore","type":"OrcaCore.DefinitionId","member":"Parse","genericArity":0,"parameters":["System.String"],"returnType":"OrcaCore.DefinitionId"},
   {"id":"definition-id-tryparse","assembly":"OrcaCore","type":"OrcaCore.DefinitionId","member":"TryParse","genericArity":0,"parameters":["System.String","OrcaCore.DefinitionId&"],"returnType":"System.Boolean"},
+  {"id":"definition-fingerprint-value","assembly":"OrcaCore","type":"OrcaCore.DefinitionFingerprint","member":"get_Value","genericArity":0,"parameters":[],"returnType":"System.String"},
   {"id":"event-name-create","assembly":"OrcaCore","type":"OrcaCore.EventName","member":"Create","genericArity":0,"parameters":["System.String"],"returnType":"OrcaCore.EventName"},
   {"id":"instance-id-parse","assembly":"OrcaCore","type":"OrcaCore.InstanceId","member":"Parse","genericArity":0,"parameters":["System.String"],"returnType":"OrcaCore.InstanceId"},
   {"id":"readonly-snapshot-value","assembly":"OrcaCore","type":"OrcaCore.ReadOnlyStateSnapshot`1","member":"get_Value","genericArity":0,"parameters":[],"returnType":"!0"},

@@ -12,7 +12,10 @@
 > `Init`/`End`, `StepContext<TState>.State`/`ReplaceState`, and the fixed certified
 > `orcacore-json-v1` codec. It retains fixed root `Parallel`, supports finite root `ForEach`
 > (including a valid empty snapshot), and offers `WhenAll` plus success/failure-only
-> `WhenAllOutcomes`; an ancestor cancellation/termination/deadline suppresses merge. Retry is
+> `WhenAllOutcomes`; an ancestor cancellation/termination/deadline suppresses merge. V1 concurrency
+> is bulk-synchronous fork-join: flattening and sequential staging are the two sanctioned root-only
+> encodings, subject to their explicit budget, dependency, and observation preconditions. Builder
+> handles are phase- and scope-bound, and a root terminal freezes the definition snapshot. Retry is
 > `.WithRetry(maxAttempts, fixedDelay)` after a step, step attempts use `.WithStepTimeout`, and
 > the root uses `.CompleteWithin`. Ephemeral transient governance uses strong
 > `TransientPoolName` plus host-owned path tokens, not raw `WithPoolKey`. Caller-created
@@ -88,7 +91,7 @@ projects or packages:
 
 ```xml
 <ItemGroup>
-  <ProjectReference Include="path/to/src/OrcaCore.Abstractions/OrcaCore.Abstractions.csproj" />
+  <ProjectReference Include="path/to/src/OrcaCore.Abstractions/OrcaCore.csproj" />
   <ProjectReference Include="path/to/src/OrcaCore.Core/OrcaCore.Core.csproj" />
   <ProjectReference Include="path/to/src/OrcaCore.Engine.Ephemeral/OrcaCore.Engine.Ephemeral.csproj" />
 </ItemGroup>
@@ -621,54 +624,98 @@ it as a replacement for waiting on external events.
 
 ## Step Policies And Resource Governance
 
-Policies are decorators on the next authored step:
+Policies are decorators on the preceding authored step:
 
 ```csharp
 var definition = Workflow.Ephemeral<OrderState>(DefinitionId.New(), DefinitionVersion.Initial)
     .Init<OrderInput>(input => new OrderState { OrderId = input.OrderId })
-    .WithRetry(maxAttempts: 3)
-    .WithTimeout(TimeSpan.FromSeconds(30))
-    .WithPoolKey("payment-gateway")
-    .Then(() => new ChargePaymentStep())
+    .Then<ChargePaymentStep>()
+    .WithRetry(maxAttempts: 3, fixedDelay: TimeSpan.FromSeconds(1))
+    .WithStepTimeout(TimeSpan.FromSeconds(30))
+    .WithTransientPool(TransientPoolName.Create("payment-gateway"))
     .End()
     .Build();
 ```
 
 Policy notes:
 
-- `WithRetry(maxAttempts)` retries the next step when it returns a failed result
+- `WithRetry(maxAttempts, fixedDelay)` retries the preceding step when it returns a failed result
   or throws a handled exception. Attempts are bounded.
-- `WithTimeout(duration)` cancels the next step when it exceeds the duration.
+- `WithStepTimeout(duration)` signals cancellation for the preceding step when it exceeds the duration.
   Steps should honor the supplied cancellation token.
-- `WithCancellation()` records cancellation policy metadata on the next step.
-  Current ephemeral execution still relies on the provided cancellation token and
-  terminal management commands for cancellation behavior.
-- `WithPoolKey(poolKey)` uses a named in-process pool configured on the engine.
-- Pending policies are consumed by the next `Then(...)` call only.
+- `WithTransientPool(pool)` gives the preceding ephemeral step exactly one
+  host-local, named pool requirement.
 
-Engine-level governance is configured with `EphemeralWorkflowEngineOptions`:
+Host governance is configured with `EphemeralEngineHostOptions` and the
+role-specific registration entry point:
 
 ```csharp
-var engine = new EphemeralWorkflowEngine(
-    TimeProvider.System,
-    new EphemeralWorkflowEngineOptions
+var database = TransientPoolName.Create("payment-gateway");
+
+services.AddOrcaCoreEphemeralEngine(
+    new EphemeralEngineHostOptions
     {
-        MaxConcurrentAdvancements = 32,
-        MaxConcurrentSteps = 8,
-        StuckStepThreshold = TimeSpan.FromMinutes(2),
-        NamedPools =
+        StructuredExecution = new StructuredExecutionHostOptions
         {
-            ["payment-gateway"] = 2,
-            ["database"] = 4
-        }
+            MaxConcurrentExecutionPathsPerInstance = 8,
+            StepThrottles =
+            [
+                StepExecutionThrottle.For<ChargePaymentStep>(2)
+            ]
+        },
+        TransientPools =
+        [
+            TransientPoolDefinition.Create(database, 4)
+        ]
     });
 ```
 
-`MaxConcurrentAdvancements` bounds concurrent instance advancement operations in
-the process. `MaxConcurrentSteps` bounds step execution. Named pools bound steps
-that declare matching `WithPoolKey`.
+`MaxConcurrentExecutionPathsPerInstance` counts runnable root, branch, and item
+paths for one instance. A path releases its token when it parks on a wait, delay,
+resource request, or join. A fan-out parent releases its token before children
+are scheduled and reacquires one only for merge or continuation, so a limit of
+one does not deadlock a root `Parallel` or `ForEach`. This admission limit changes
+timing, not the existing serialized mutation rule for one workflow instance.
 
-Per-instance serialization still applies even when global concurrency is higher.
+A root `ForEach` node's `ForEachOptions.MaxConcurrency`, when present, composes
+with the host limit by taking the lower value. Unlike runnable path tokens, the
+node-local limit counts every admitted nonterminal item scope, including an item
+parked on a wait, delay, or resource request. Pending items therefore are not
+promised progress while admitted items remain parked.
+
+`StepExecutionThrottle.For<TStep>(N)` is host-wide and matches only the exact
+named type authored by `Then<TStep>()`. It does not match base or assignable
+types, and lambda steps have no inferred throttle target. A timed-out or fenced
+body loses logical commit authority and its path token, but retains any physical
+step-throttle slot until the body actually returns.
+
+An ephemeral step may apply one
+`.WithTransientPool(TransientPoolName)` decorator. Lookup is exact and
+case-sensitive; all missing pool names are reported during definition
+registration before registry mutation. Transient-pool slots coordinate instances
+only inside the current host process and reset on restart. Pending owners are
+re-admitted under the replacement host's current limits.
+
+V1 deliberately has no host-wide advancement ceiling, no general-body ceiling,
+no fail-fast or capacity-wait timeout, and no custom transient-governance SPI.
+Engine pumps and other infrastructure dispatch do not consume business
+execution-path, exact-step, or transient-pool capacity. Saturation parks the
+exact requesting owner until grant or governing cancellation; it is not a
+rejection.
+
+Durable mode supports the same per-instance path ceiling and exact named-step
+throttles through `DurableEngineHostOptions`, but it does not expose
+`WithTransientPool`. Cross-host durable capacity uses `ResourcePoolName` and
+`AcquireResources` instead. Durable lease authoring is limited to the durable
+root, root-nested `If`/`While` bodies, root-`Parallel` branch bodies, and
+root-`ForEach` item bodies when no live ancestor lease exists. Dedicated leased
+builders omit fan-out, nested acquisition, and `ContinueAsNew`.
+
+Durable leases are persisted ownership, not host-local throttles. A successful
+retry retains `AmbiguousHeld` ownership; an unproven exit transfers ownership to
+quarantine before workflow progression. Review and reconciliation use causal
+owner/provider evidence and never reclaim capacity merely because time elapsed;
+there is no renewal or force-release shortcut.
 
 ## Management API
 

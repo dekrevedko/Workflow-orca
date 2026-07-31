@@ -1,23 +1,21 @@
-namespace OrcaCore.Abstractions.Errors;
+using OrcaCore.Abstractions.Errors;
+
+namespace OrcaCore;
 
 /// <summary>
 /// Represents a workflow authoring or definition validation failure.
 /// </summary>
 public sealed class WorkflowDefinitionException : OrcaCoreException
 {
-    /// <summary>
-    /// Initializes a definition exception with a caller-actionable message.
-    /// </summary>
-    public WorkflowDefinitionException(string message)
-        : base(message)
+    private const string DefinitionInvalidCode = "WF-DEFINITION-INVALID";
+
+    internal WorkflowDefinitionException(IReadOnlyList<WorkflowDiagnostic> diagnostics)
+        : base(DefinitionInvalidCode, string.Join(Environment.NewLine, diagnostics.Select(x => $"{x.Code}: {x.Message} ({x.Location})")))
     {
+        ArgumentNullException.ThrowIfNull(diagnostics);
+        Diagnostics = diagnostics.ToArray();
     }
 
-    /// <summary>
-    /// Initializes a definition exception with a caller-actionable message and inner cause.
-    /// </summary>
-    public WorkflowDefinitionException(string message, Exception innerException)
-        : base(message, innerException)
-    {
-    }
+    /// <summary>Gets the complete immutable diagnostic sequence.</summary>
+    public IReadOnlyList<WorkflowDiagnostic> Diagnostics { get; }
 }

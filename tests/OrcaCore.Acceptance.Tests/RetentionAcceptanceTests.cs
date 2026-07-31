@@ -24,7 +24,7 @@ public sealed class RetentionAcceptanceTests
         await processor.ProcessAsync(Start(instanceId), TestContext.Current.CancellationToken);
         await processor.ProcessAsync(Terminate(instanceId), TestContext.Current.CancellationToken);
 
-        var result = await management.ArchiveAsync(
+        var result = await store.ArchiveAsync(
             new RetentionPolicy
             {
                 InstanceId = instanceId,
@@ -69,7 +69,7 @@ public sealed class RetentionAcceptanceTests
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -79,7 +79,7 @@ public sealed class RetentionAcceptanceTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static Guid GuidValue(int value)

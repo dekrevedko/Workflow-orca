@@ -13,17 +13,54 @@ public sealed partial class RepositoryGuardTests
         new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["AC-018"] = "The exact package-tier graph is implemented and verified by reshape-developer-facing-interfaces tasks 3.1-3.7.",
+        ["AC-020"] = "Stable operation coordinates across dispatch and replay are implemented by reshape-developer-facing-interfaces task 6.3.",
+        ["AC-023"] = "Attempt-local state isolation across retry and timeout is completed by reshape-developer-facing-interfaces task 6.2.",
+        ["AC-024"] = "The fixed public codec contract and removal of replacement hooks are completed by reshape-developer-facing-interfaces tasks 6.1 and 7.1-7.4.",
+        ["AC-025"] = "The exact retry surface and eligibility state machine are implemented by reshape-developer-facing-interfaces task 6.2.",
+        ["AC-026"] = "The exact hosting roles and conflict validation are implemented by reshape-developer-facing-interfaces tasks 7.2 and 7.9.",
+        ["AC-027"] = "The final public failure hierarchy and protocol-safe code ownership are implemented by reshape-developer-facing-interfaces tasks 7.1-7.8.",
+        ["AC-507"] = "The legacy engine-local stuck query/lifecycle surface is superseded by the exact v1 management contract in reshape-developer-facing-interfaces task 7.7.",
+        ["AC-508"] = "The legacy engine-local stuck query/lifecycle surface is superseded by the exact v1 management contract in reshape-developer-facing-interfaces task 7.7.",
+        ["AC-112"] = "Timer-versus-event wait races are restored with the approved timeout runtime in reshape-developer-facing-interfaces task 6.2.",
         ["AC-116"] = "Typed facade routing outcomes are implemented by reshape-developer-facing-interfaces tasks 6.8 and 7.1-7.3.",
+        ["AC-117"] = "Provider-independent EventName routing is certified after the event-client and provider split in reshape-developer-facing-interfaces tasks 7.6 and 10.6.",
         ["AC-317"] = "In-memory durable hosting diagnostics are implemented by reshape-developer-facing-interfaces tasks 8.4 and 9.2.",
         ["AC-318"] = "Explicit typed definition handles are implemented by reshape-developer-facing-interfaces tasks 6.1-6.2.",
         ["AC-319"] = "Split-host continuation is implemented and tested by reshape-developer-facing-interfaces tasks 2.7 and 6.6.",
         ["AC-320"] = "Worker-reported external-job failure is implemented by reshape-developer-facing-interfaces tasks 6.3-6.5.",
+        ["AC-321"] = "Create-or-observe identity across retry and split hosts is implemented by reshape-developer-facing-interfaces tasks 6.3 and 8.9.",
         ["AC-523"] = "Application-safe remediation and runtime time ownership are implemented by reshape-developer-facing-interfaces tasks 6.7 and 7.8.",
         ["AC-524"] = "The three concurrency lifetimes are implemented across the structured-fiber and interface-reshape resource slices.",
+        ["AC-525"] = "Lease ancestry authoring and runtime defenses are implemented by reshape-developer-facing-interfaces tasks 6.5 and 6.10.",
+        ["AC-526"] = "Replay-stable dynamic lease selection is implemented by reshape-developer-facing-interfaces tasks 6.5 and 6.10.",
+        ["AC-527"] = "Grant and cancellation race certification is implemented by reshape-developer-facing-interfaces tasks 6.6 and 6.10.",
+        ["AC-528"] = "Host and authored concurrency ceilings are implemented by reshape-developer-facing-interfaces tasks 5.7 and 8.6.",
+        ["AC-529"] = "The trusted stop-confirmation matrix is implemented by reshape-developer-facing-interfaces tasks 6.7 and 6.10.",
+        ["AC-530"] = "Atomic resource-governance aggregate certification is implemented by reshape-developer-facing-interfaces tasks 6.6 and 6.10.",
+        ["AC-531"] = "The reduced pool-management surface is implemented by reshape-developer-facing-interfaces tasks 6.8 and 7.7.",
+        ["AC-532"] = "Trusted outstanding-lease discovery is implemented by reshape-developer-facing-interfaces tasks 6.7 and 6.10.",
+        ["AC-617"] = "Complete ordered DAG snapshots are implemented by reshape-developer-facing-interfaces tasks 8.6 and 8.10.",
+        ["AC-618"] = "Reactive DAG terminal waiting is implemented by reshape-developer-facing-interfaces tasks 8.7 and 8.10.",
         ["DR-AC-007"] = "DR-P3 saga driving is still open.",
         ["DR-AC-008"] = "DR-P3 full DAG driving without manual pumping is still open.",
         ["DR-AC-012"] = "DR-P4 ephemeral/durable parity is still open.",
+        ["DR-AC-016"] = "Bounded durable ForEach restart, admission, and merge certification is implemented by reshape-developer-facing-interfaces tasks 5.5-5.9.",
         ["DR-AC-026"] = "All continuation dispositions are not yet covered end to end.",
+        ["DR-AC-034"] = "Lease selector commit-boundary recovery is implemented by reshape-developer-facing-interfaces tasks 6.5 and 6.10.",
+        ["DR-AC-035"] = "Lease ancestry analysis is implemented by reshape-developer-facing-interfaces tasks 6.5 and 6.10.",
+        ["DR-AC-036"] = "Lease retry and lexical-exit accounting are implemented by reshape-developer-facing-interfaces tasks 6.6 and 6.10.",
+        ["DR-AC-037"] = "Continue-as-new lease quiescence is implemented by reshape-developer-facing-interfaces tasks 6.5 and 6.10.",
+        ["DR-AC-038"] = "Safe lease review and orphan recovery are implemented by reshape-developer-facing-interfaces tasks 6.6 and 6.10.",
+        ["DR-AC-039"] = "Stable step-operation coordinates are implemented by reshape-developer-facing-interfaces task 6.3.",
+        ["DR-AC-040"] = "Durable typed-output atomicity and fingerprint conflicts are completed by reshape-developer-facing-interfaces tasks 4.5 and 7.5.",
+        ["DR-AC-041"] = "Generic protected-work confirmation is implemented by reshape-developer-facing-interfaces tasks 6.7 and 6.10.",
+        ["DR-AC-042"] = "Partition-wide governance provider certification is implemented by reshape-developer-facing-interfaces tasks 6.6 and 6.10.",
+        ["DR-AC-043"] = "Exact durable engine and ingress hosting roles are implemented by reshape-developer-facing-interfaces tasks 7.2 and 7.9.",
+        ["JS-AC-014"] = "Trusted stop confirmation is implemented by reshape-developer-facing-interfaces tasks 6.7 and 6.10.",
+        ["JS-AC-015"] = "Review deadlines that preserve live capacity are implemented by reshape-developer-facing-interfaces tasks 6.6 and 6.10.",
+        ["JS-AC-016"] = "Companion dependency isolation is implemented by reshape-developer-facing-interfaces tasks 8.8 and 8.10.",
+        ["JS-AC-017"] = "Resultless DAG prerequisites are implemented by reshape-developer-facing-interfaces tasks 8.1-8.3 and 8.10.",
+        ["JS-AC-018"] = "Reactive scheduler waits and quarantine discovery are implemented by reshape-developer-facing-interfaces tasks 6.7, 8.7, and 8.10.",
     };
 
     [Fact]
@@ -258,8 +295,9 @@ public sealed partial class RepositoryGuardTests
             "Driver",
             "DurableFiberDriverExecutor.cs"));
 
-        catalog.Should().Contain("definition.CompiledPlan.Instructions.Count == 0");
-        catalog.Should().Contain("definition.CompiledPlan.Mode != WorkflowExecutionMode.Durable");
+        catalog.Should().Contain("plan.Instructions.Count == 0");
+        catalog.Should().Contain("plan.Mode != WorkflowExecutionMode.Durable");
+        catalog.Should().Contain("WorkflowDefinitionRuntime.GetPlan(definition)");
         fiberExecutor.Should().NotContain(string.Concat("Unsupported", "Instruction"));
         fiberExecutor.Should().NotContain("DR-P3");
     }
@@ -417,15 +455,15 @@ public sealed partial class RepositoryGuardTests
     public void HostingProject_DoesNotReferenceRabbitMqProvider()
     {
         var repoRoot = FindRepoRoot();
-        var project = File.ReadAllText(Path.Combine(
-            repoRoot,
+        var hostingProjects = new[]
+        {
+            Path.Combine(repoRoot, "src", "OrcaCore.Engine.Ephemeral", "OrcaCore.Engine.Ephemeral.csproj"),
+            Path.Combine(repoRoot, "src", "OrcaCore.Durable.Hosting", "OrcaCore.Durable.Hosting.csproj")
+        };
 
-            "src",
-            "OrcaCore.Hosting",
-            "OrcaCore.Hosting.csproj"));
-
-        project.Should().NotContain("OrcaCore.Providers.RabbitMq");
-        project.Should().NotContain("RabbitMQ.Client");
+        hostingProjects.Select(File.ReadAllText).Should().OnlyContain(project =>
+            !project.Contains("OrcaCore.Providers.RabbitMq", StringComparison.Ordinal) &&
+            !project.Contains("RabbitMQ.Client", StringComparison.Ordinal));
     }
 
     [Fact]

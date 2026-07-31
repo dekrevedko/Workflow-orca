@@ -9,8 +9,13 @@ using OrcaCore.Core.Definitions;
 using OrcaCore.Engine.Durable.Definitions;
 using OrcaCore.Engine.Durable.Driver;
 using OrcaCore.Engine.Durable.Execution;
+using OrcaCore.Internal;
 using OrcaCore.TestSupport.Providers;
 using Xunit;
+
+using ActiveWaitSnapshot = global::OrcaCore.Abstractions.Instances.ActiveWaitSnapshot;
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+using WorkflowInstanceSnapshot = global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot;
 
 namespace OrcaCore.ProviderCertification;
 
@@ -23,7 +28,7 @@ public abstract class EventStoreCertificationTests
     public async Task ConcurrentAppend_SameExpectedVersion_OneWinnerOneConflict()
     {
         var fixture = CreateFixture();
-        var streamId = new WorkflowStreamId(InstanceId.New());
+        var streamId = new WorkflowStreamId(InstanceId.Parse(Guid.CreateVersion7().ToString()));
         var first = fixture.EventStore.AppendAsync(
             Batch(streamId, StreamVersion.Empty),
             TestContext.Current.CancellationToken);
@@ -42,15 +47,17 @@ public abstract class EventStoreCertificationTests
     public async Task CommitFailure_BeforeApply_LeavesWaitAndInboxEventAvailable()
     {
         var fixture = CreateFixture();
-        var inboxEventId = EventId.New();
+        var inboxEventId = EventId.Create(Guid.CreateVersion7().ToString());
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
 
         var result = await fixture.EventStore.AppendAsync(
             Batch(
-                new WorkflowStreamId(InstanceId.New()),
+                new WorkflowStreamId(instanceId),
                 new StreamVersion(1),
                 inboxEventId: inboxEventId),
             TestContext.Current.CancellationToken);
         var inboxRecord = await fixture.InboxStore.GetAsync(
+            instanceId,
             inboxEventId,
             TestContext.Current.CancellationToken);
 
@@ -63,18 +70,65 @@ public abstract class EventStoreCertificationTests
     public async Task InboxDuplicate_AfterRecordedApplied_IsIgnored()
     {
         var fixture = CreateFixture();
-        var inboxEventId = EventId.New();
+        var inboxEventId = EventId.Create(Guid.CreateVersion7().ToString());
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         await fixture.EventStore.AppendAsync(
             Batch(
-                new WorkflowStreamId(InstanceId.New()),
+                new WorkflowStreamId(instanceId),
                 StreamVersion.Empty,
                 inboxEventId: inboxEventId),
             TestContext.Current.CancellationToken);
 
-        var recorded = await fixture.InboxStore.GetAsync(inboxEventId, TestContext.Current.CancellationToken);
+        var recorded = await fixture.InboxStore.GetAsync(
+            instanceId,
+            inboxEventId,
+            TestContext.Current.CancellationToken);
 
         recorded.HasValue.Should().BeTrue();
-        recorded.Value.Should().Be(InboxRecordState.Applied);
+        recorded.Value.Should().Be(new InboxRecord(
+            instanceId,
+            inboxEventId,
+            "certification-envelope",
+            InboxRecordState.Applied));
+    }
+
+    [Fact]
+    [Trait("AC", "AC-305")]
+    public async Task SameInboxEventId_OnDifferentTargets_IsRecordedIndependently()
+    {
+        var fixture = CreateFixture();
+        var inboxEventId = EventId.Create(Guid.CreateVersion7().ToString());
+        var firstInstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var secondInstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
+
+        var first = await fixture.EventStore.AppendAsync(
+            Batch(
+                new WorkflowStreamId(firstInstanceId),
+                StreamVersion.Empty,
+                inboxEventId,
+                inboxEnvelopeFingerprint: "first-envelope"),
+            TestContext.Current.CancellationToken);
+        var second = await fixture.EventStore.AppendAsync(
+            Batch(
+                new WorkflowStreamId(secondInstanceId),
+                StreamVersion.Empty,
+                inboxEventId,
+                inboxEnvelopeFingerprint: "second-envelope"),
+            TestContext.Current.CancellationToken);
+
+        var firstRecord = await fixture.InboxStore.GetAsync(
+            firstInstanceId,
+            inboxEventId,
+            TestContext.Current.CancellationToken);
+        var secondRecord = await fixture.InboxStore.GetAsync(
+            secondInstanceId,
+            inboxEventId,
+            TestContext.Current.CancellationToken);
+
+        first.IsSuccess.Should().BeTrue();
+        second.IsSuccess.Should().BeTrue();
+        firstRecord.Value.EnvelopeFingerprint.Should().Be("first-envelope");
+        secondRecord.Value.EnvelopeFingerprint.Should().Be("second-envelope");
     }
 
     [Fact]
@@ -85,7 +139,7 @@ public abstract class EventStoreCertificationTests
 
         await fixture.EventStore.AppendAsync(
             Batch(
-                new WorkflowStreamId(InstanceId.New()),
+                new WorkflowStreamId(InstanceId.Parse(Guid.CreateVersion7().ToString())),
                 new StreamVersion(1),
                 outboxRecordId: OutboxRecordId.New()),
             TestContext.Current.CancellationToken);
@@ -99,19 +153,23 @@ public abstract class EventStoreCertificationTests
     public async Task StartIdempotencyWrite_CommittedWithStart_RoundTripsMapping()
     {
         var fixture = CreateFixture();
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         var definitionId = DefinitionId.New();
         var definitionVersion = new DefinitionVersion(7);
         const string IdempotencyKey = "certification-start-1";
+        const string DefinitionFingerprint = "definition-fingerprint-v7";
+        const string InputFingerprint = "fixed-codec-input-fingerprint";
         var batch = Batch(new WorkflowStreamId(instanceId), StreamVersion.Empty) with
         {
             StartIdempotencyOperations =
             [
                 new StartIdempotencyWrite(
                     IdempotencyKey,
-                    instanceId,
-                    definitionId,
-                    definitionVersion)
+                     instanceId,
+                     definitionId,
+                     definitionVersion,
+                     DefinitionFingerprint,
+                     InputFingerprint)
             ]
         };
 
@@ -128,7 +186,9 @@ public abstract class EventStoreCertificationTests
             IdempotencyKey,
             instanceId,
             definitionId,
-            definitionVersion));
+            definitionVersion,
+            DefinitionFingerprint,
+            InputFingerprint));
     }
 
     [Fact]
@@ -136,8 +196,8 @@ public abstract class EventStoreCertificationTests
     public async Task DuplicateStartIdempotencyKey_RejectsAndRollsBackEntireCommit()
     {
         var fixture = CreateFixture();
-        var winnerId = InstanceId.New();
-        var duplicateId = InstanceId.New();
+        var winnerId = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var duplicateId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         var definitionId = DefinitionId.New();
         const string IdempotencyKey = "certification-start-duplicate";
         ProviderCommitBatch startBatch(InstanceId instanceId) =>
@@ -146,10 +206,12 @@ public abstract class EventStoreCertificationTests
                 StartIdempotencyOperations =
                 [
                     new StartIdempotencyWrite(
-                        IdempotencyKey,
-                        instanceId,
-                        definitionId,
-                        DefinitionVersion.Initial)
+                         IdempotencyKey,
+                         instanceId,
+                         definitionId,
+                         DefinitionVersion.Initial,
+                         "definition-fingerprint",
+                         "input-fingerprint")
                 ]
             };
 
@@ -179,7 +241,7 @@ public abstract class EventStoreCertificationTests
     public async Task NEG_PR_003_AppendAsync_EmptyBatchIsNoOpAndDoesNotAdvanceStream()
     {
         var fixture = CreateFixture();
-        var streamId = new WorkflowStreamId(InstanceId.New());
+        var streamId = new WorkflowStreamId(InstanceId.Parse(Guid.CreateVersion7().ToString()));
 
         var result = await fixture.EventStore.AppendAsync(
             new ProviderCommitBatch
@@ -238,7 +300,7 @@ public abstract class EventStoreCertificationTests
         var outboxRecordId = OutboxRecordId.New();
         await fixture.EventStore.AppendAsync(
             Batch(
-                new WorkflowStreamId(InstanceId.New()),
+                new WorkflowStreamId(InstanceId.Parse(Guid.CreateVersion7().ToString())),
                 StreamVersion.Empty,
                 outboxRecordId: outboxRecordId),
             TestContext.Current.CancellationToken);
@@ -270,7 +332,7 @@ public abstract class EventStoreCertificationTests
         var outboxRecordId = OutboxRecordId.New();
         await fixture.EventStore.AppendAsync(
             Batch(
-                new WorkflowStreamId(InstanceId.New()),
+                new WorkflowStreamId(InstanceId.Parse(Guid.CreateVersion7().ToString())),
                 StreamVersion.Empty,
                 outboxRecordId: outboxRecordId),
             TestContext.Current.CancellationToken);
@@ -298,7 +360,7 @@ public abstract class EventStoreCertificationTests
         var outboxRecordId = OutboxRecordId.New();
         await fixture.EventStore.AppendAsync(
             Batch(
-                new WorkflowStreamId(InstanceId.New()),
+                new WorkflowStreamId(InstanceId.Parse(Guid.CreateVersion7().ToString())),
                 StreamVersion.Empty,
                 outboxRecordId: outboxRecordId),
             TestContext.Current.CancellationToken);
@@ -320,7 +382,7 @@ public abstract class EventStoreCertificationTests
     public async Task AppendAsync_AllWorkflowEventTypes_RoundTripsFromTail()
     {
         var fixture = CreateFixture();
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         var streamId = new WorkflowStreamId(instanceId);
         var events = AllWorkflowEventTypes(instanceId);
 
@@ -350,14 +412,15 @@ public abstract class EventStoreCertificationTests
     public async Task ProjectionUpsert_RoundTripsStreamVersion()
     {
         var fixture = CreateFixture();
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         var definitionId = DefinitionId.New();
 
         await fixture.ProjectionStore.ApplyAsync(
             [
                 new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
                 {
-                    InstanceSnapshot = new WorkflowInstanceSnapshot
+                    InstanceSnapshot =
+                        new global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot
                     {
                         InstanceId = instanceId,
                         RootInstanceId = instanceId,
@@ -387,8 +450,8 @@ public abstract class EventStoreCertificationTests
     {
         var fixture = CreateFixture();
         var definitionId = DefinitionId.New();
-        var targetId = InstanceId.New();
-        var splitMatchId = InstanceId.New();
+        var targetId = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var splitMatchId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         var targetWait = ActiveWait("approved", "order-1");
         await fixture.ProjectionStore.ApplyAsync(
             [
@@ -403,7 +466,7 @@ public abstract class EventStoreCertificationTests
         {
             DefinitionId = definitionId,
             ActiveWaitEventName = "approved",
-            ActiveWaitCorrelationId = new CorrelationId("order-1")
+            ActiveWaitCorrelationId = CorrelationId.Create("order-1")
         };
 
         var listed = await fixture.ProjectionStore.ListAsync(query, TestContext.Current.CancellationToken);
@@ -422,7 +485,7 @@ public abstract class EventStoreCertificationTests
     public async Task CheckpointUpsert_RoundTripsFullRuntimeState()
     {
         var fixture = CreateFixture();
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         var runtimeState = FullyPopulatedRuntimeState(instanceId);
 
         var result = await fixture.EventStore.AppendAsync(
@@ -434,7 +497,7 @@ public abstract class EventStoreCertificationTests
                 [
                     new WorkflowStartedEvent
                     {
-                        EventId = EventId.New(),
+                        EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                         InstanceId = instanceId,
                         CommandId = CommandId.New(),
                         CausationId = CausationId.New(),
@@ -458,7 +521,7 @@ public abstract class EventStoreCertificationTests
         checkpoint.HasValue.Should().BeTrue();
         checkpoint.Value.RuntimeState.Should().BeEquivalentTo(
             runtimeState,
-            "every runtime collection — including saga records and resume-token facts — must survive " +
+            "every runtime collection Ã¢â‚¬â€ including saga records and resume-token facts Ã¢â‚¬â€ must survive " +
             "checkpoint compaction, or rehydrated aggregates silently lose in-flight state");
     }
 
@@ -467,7 +530,7 @@ public abstract class EventStoreCertificationTests
     public async Task NestedFiberCheckpoint_OptimisticReplacementPreservesOwnersAndContinuationClaim()
     {
         var fixture = CreateFixture();
-        var instanceId = InstanceId.New();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         var streamId = new WorkflowStreamId(instanceId);
         var ownerFiberId = new FiberId("fiber:blocked-child");
         var ownerScopeId = new ScopeId("scope:nested");
@@ -495,7 +558,7 @@ public abstract class EventStoreCertificationTests
             [
                 new WorkflowStepCompletedEvent
                 {
-                    EventId = EventId.New(),
+                    EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                     InstanceId = instanceId,
                     CommandId = CommandId.New(),
                     CausationId = CausationId.New(),
@@ -612,7 +675,16 @@ public abstract class EventStoreCertificationTests
             StreamVersion.Empty,
             TestContext.Current.CancellationToken);
 
-        events.OfType<WorkflowCompletedEvent>().Should().ContainSingle();
+        var finalFiberState = string.Join(
+            " | ",
+            finalEnvelope.Fibers
+                .OrderBy(fiber => fiber.FiberId, StringComparer.Ordinal)
+                .Select(fiber =>
+                    $"{fiber.FiberId}:{fiber.Phase}:instruction={fiber.InstructionId}:" +
+                    $"blocked={fiber.Blocked?.Reason}:failure={fiber.Failure?.Code}/{fiber.Failure?.Message}"));
+        events.OfType<WorkflowCompletedEvent>().Should().ContainSingle(
+            "the replacement host must drain the exact persisted schedule; final fibers: {0}",
+            finalFiberState);
         finalEnvelope.OwnedObligations.Should().BeEmpty();
         events.OfType<WorkflowStepCompletedEvent>()
             .Should().ContainSingle(item => item.StepPath.EndsWith(":merge", StringComparison.Ordinal));
@@ -620,32 +692,35 @@ public abstract class EventStoreCertificationTests
 
     private static WorkflowDefinition<HostState> HostReplacementDefinition()
     {
-        return Workflow.Durable<HostState>(DefinitionId.New(), DefinitionVersion.Initial)
+        var definition = global::OrcaCore.Workflow.Durable<HostState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
             .Init<string>(_ => new HostState())
             .Parallel<string>(
                 branches => branches
                     .Branch<HostBranchState>(
-                        "blocked",
+                        AuthoredBranchId.Create("blocked"),
                         _ => new HostBranchState { Name = "blocked" },
                         branch => branch
-                            .Wait("ReleaseBlockedFiber", _ => HostCorrelation)
+                            .Wait(EventName.Create("ReleaseBlockedFiber"), _ => HostCorrelation)
                             .Return(state => state.Value.Name))
                     .Branch<HostBranchState>(
-                        "completed",
+                        AuthoredBranchId.Create("completed"),
                         _ => new HostBranchState { Name = "completed" },
                         branch => branch.Return(state => state.Value.Name))
                     .Branch<HostBranchState>(
-                        "yielding",
+                        AuthoredBranchId.Create("yielding"),
                         _ => new HostBranchState { Name = "yielding" },
                         branch => branch
                             .Then<YieldOnceHostStep>()
-                            .Return(state => state.Value.Name)),
-                (_, results) => new HostState
+                            .Return(state => state.Value.Name)))
+            .WhenAll((_, results) => new HostState
                 {
-                    Results = results.Select(result => result.Value).ToList()
+                    Results = results.Select(result => result.Result).ToList()
                 })
-            .End("done")
+            .End(WorkflowOutcomeName.Create("done"))
             .Build();
+        return (WorkflowDefinition<HostState>)WorkflowRuntimeBridge.RuntimeDefinition(definition);
     }
 
     private static DurableWorkflowRuntime Host(
@@ -655,9 +730,8 @@ public abstract class EventStoreCertificationTests
     {
         var runtime = new DurableWorkflowRuntime(
             new DurableCommandProcessor(fixture.EventStore),
-            new DurableDefinitionRegistry(),
+            new DurableDefinitionRegistry(new HostStepProvider()),
             TimeProvider.System,
-            new JsonWorkflowPayloadSerializer(),
             budget,
             fixture.ProjectionStore);
         runtime.RegisterDefinition(definition);
@@ -678,7 +752,7 @@ public abstract class EventStoreCertificationTests
             TestContext.Current.CancellationToken);
     }
 
-    private static CorrelationId HostCorrelation => new("provider-host-replacement");
+    private static CorrelationId HostCorrelation => CorrelationId.Create("provider-host-replacement");
 
     private sealed class YieldOnceHostStep : IStep<HostBranchState>
     {
@@ -688,9 +762,17 @@ public abstract class EventStoreCertificationTests
         {
             context.State.Attempts++;
             return ValueTask.FromResult<StepResult>(context.State.Attempts == 1
-                ? new StepResult.Yield()
+                ? global::OrcaCore.TestSupport.LegacyStepResults.Yield()
                 : new StepResult.Completed());
         }
+    }
+
+    private sealed class HostStepProvider : IServiceProvider
+    {
+        public object? GetService(Type serviceType) =>
+            serviceType == typeof(YieldOnceHostStep)
+                ? new YieldOnceHostStep()
+                : null;
     }
 
     private sealed class HostState
@@ -710,9 +792,9 @@ public abstract class EventStoreCertificationTests
         FiberId? ownerFiberId = null,
         ScopeId? ownerScopeId = null)
     {
-        var waitId = WaitId.New();
+        var waitId = WaitId.Parse(Guid.CreateVersion7().ToString());
         var timerId = TimerId.New();
-        var childInstanceId = InstanceId.New();
+        var childInstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         var childDefinitionId = DefinitionId.New();
 
         return new WorkflowRuntimeCheckpointState
@@ -730,7 +812,7 @@ public abstract class EventStoreCertificationTests
                 new CheckpointActiveWait(
                     waitId,
                     "approved",
-                    new CorrelationId("order-1"),
+                    CorrelationId.Create("order-1"),
                     Timestamp(3),
                     WaitMode.Cold,
                     "branch-a")
@@ -742,7 +824,7 @@ public abstract class EventStoreCertificationTests
             ],
             BufferedDeliveries =
             [
-                new CheckpointBufferedDelivery(EventId.New(), "approved", new CorrelationId("order-2"), "branch-b")
+                new CheckpointBufferedDelivery(EventId.Create(Guid.CreateVersion7().ToString()), "approved", CorrelationId.Create("order-2"), "branch-b")
             ],
             BufferedTimers = [new CheckpointBufferedTimer(TimerId.New(), "paused-timeout", Timestamp(5))],
             ActiveChildren =
@@ -750,7 +832,7 @@ public abstract class EventStoreCertificationTests
                 new CheckpointActiveChild(
                     "group-1",
                     childInstanceId,
-                    WaitId.New(),
+                    WaitId.Parse(Guid.CreateVersion7().ToString()),
                     RunChildFailurePolicy.PropagateFailure,
                     RunChildrenJoinPolicy.WhenAll,
                     RunChildrenResidualPolicy.CancelRemaining,
@@ -801,7 +883,7 @@ public abstract class EventStoreCertificationTests
             ],
             ActiveExternalJobs =
             [
-                new CheckpointActiveExternalJob("job-1", WaitId.New(), TimerId.New())
+                new CheckpointActiveExternalJob("job-1", WaitId.Parse(Guid.CreateVersion7().ToString()), TimerId.New())
                 {
                     FiberId = ownerFiberId,
                     ScopeId = ownerScopeId
@@ -844,8 +926,8 @@ public abstract class EventStoreCertificationTests
                     WorkflowStatus.Completed)
             ],
             RequestedSagaCompensationScopes = ["scope-1"],
-            RecordedParentResumeTokens = [EventId.New()],
-            ConsumedParentResumeTokens = [EventId.New()]
+            RecordedParentResumeTokens = [EventId.Create(Guid.CreateVersion7().ToString())],
+            ConsumedParentResumeTokens = [EventId.Create(Guid.CreateVersion7().ToString())]
         };
     }
 
@@ -868,6 +950,7 @@ public abstract class EventStoreCertificationTests
                 DefinitionId = DefinitionId.New(),
                 DefinitionVersion = DefinitionVersion.Initial,
                 CompilerFormatVersion = 2,
+                CompilerProfileId = "orcacore-compiler-v2;quantum=1024",
                 PlanFingerprint = "provider-certification-fingerprint"
             },
             StateContentType = "application/json",
@@ -988,7 +1071,7 @@ public abstract class EventStoreCertificationTests
     public async Task ClaimAsync_IncludeSelector_ClaimsOnlyMatchingKinds()
     {
         var fixture = CreateFixture();
-        var streamId = new WorkflowStreamId(InstanceId.New());
+        var streamId = new WorkflowStreamId(InstanceId.Parse(Guid.CreateVersion7().ToString()));
         var continueRecordId = OutboxRecordId.New();
         var statusRecordId = OutboxRecordId.New();
         await fixture.EventStore.AppendAsync(
@@ -1011,7 +1094,7 @@ public abstract class EventStoreCertificationTests
     public async Task ClaimAsync_ExcludeSelector_SkipsExcludedKindsAndLeavesThemClaimable()
     {
         var fixture = CreateFixture();
-        var streamId = new WorkflowStreamId(InstanceId.New());
+        var streamId = new WorkflowStreamId(InstanceId.Parse(Guid.CreateVersion7().ToString()));
         var continueRecordId = OutboxRecordId.New();
         var statusRecordId = OutboxRecordId.New();
         await fixture.EventStore.AppendAsync(
@@ -1040,7 +1123,7 @@ public abstract class EventStoreCertificationTests
     public async Task ClaimAsync_WithoutSelector_ClaimsAllKinds()
     {
         var fixture = CreateFixture();
-        var streamId = new WorkflowStreamId(InstanceId.New());
+        var streamId = new WorkflowStreamId(InstanceId.Parse(Guid.CreateVersion7().ToString()));
         var continueRecordId = OutboxRecordId.New();
         var statusRecordId = OutboxRecordId.New();
         await fixture.EventStore.AppendAsync(
@@ -1060,7 +1143,7 @@ public abstract class EventStoreCertificationTests
     public async Task Statistics_SeparateContinuationAndExternalOutboxCountsByState()
     {
         var fixture = CreateFixture();
-        var streamId = new WorkflowStreamId(InstanceId.New());
+        var streamId = new WorkflowStreamId(InstanceId.Parse(Guid.CreateVersion7().ToString()));
         await fixture.EventStore.AppendAsync(
             KindBatch(
                 streamId,
@@ -1117,7 +1200,8 @@ public abstract class EventStoreCertificationTests
         WorkflowStreamId streamId,
         StreamVersion expectedVersion,
         EventId? inboxEventId = null,
-        OutboxRecordId? outboxRecordId = null)
+        OutboxRecordId? outboxRecordId = null,
+        string inboxEnvelopeFingerprint = "certification-envelope")
     {
         return new ProviderCommitBatch
         {
@@ -1127,7 +1211,7 @@ public abstract class EventStoreCertificationTests
             [
                 new WorkflowStartedEvent
                 {
-                    EventId = EventId.New(),
+                    EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                     InstanceId = streamId.InstanceId,
                     CommandId = CommandId.New(),
                     CausationId = CausationId.New(),
@@ -1137,7 +1221,13 @@ public abstract class EventStoreCertificationTests
                 }
             ],
             InboxOperations = inboxEventId is { } eventId
-                ? [new InboxWrite(eventId, InboxRecordState.Applied)]
+                ?
+                [
+                    new InboxWrite(eventId, InboxRecordState.Applied)
+                    {
+                        EnvelopeFingerprint = inboxEnvelopeFingerprint
+                    }
+                ]
                 : [],
             OutboxRecords = outboxRecordId is { } recordId
                 ? [new OutboxWrite(recordId, "status", [1])]
@@ -1148,11 +1238,12 @@ public abstract class EventStoreCertificationTests
     private static ProjectionWrite Projection(
         InstanceId instanceId,
         DefinitionId definitionId,
-        IReadOnlyList<ActiveWaitSnapshot> activeWaits)
+        IReadOnlyList<global::OrcaCore.Abstractions.Instances.ActiveWaitSnapshot> activeWaits)
     {
         return new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
         {
-            InstanceSnapshot = new WorkflowInstanceSnapshot
+            InstanceSnapshot =
+                new global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot
             {
                 InstanceId = instanceId,
                 RootInstanceId = instanceId,
@@ -1166,13 +1257,15 @@ public abstract class EventStoreCertificationTests
         };
     }
 
-    private static ActiveWaitSnapshot ActiveWait(string eventName, string correlationId)
+    private static global::OrcaCore.Abstractions.Instances.ActiveWaitSnapshot ActiveWait(
+        string eventName,
+        string correlationId)
     {
-        return new ActiveWaitSnapshot
+        return new global::OrcaCore.Abstractions.Instances.ActiveWaitSnapshot
         {
-            WaitId = WaitId.New(),
+            WaitId = WaitId.Parse(Guid.CreateVersion7().ToString()),
             EventName = eventName,
-            CorrelationId = new CorrelationId(correlationId),
+            CorrelationId = CorrelationId.Create(correlationId),
             RegisteredAt = Timestamp(1),
             Status = "active",
             Mode = "cold"
@@ -1184,17 +1277,17 @@ public abstract class EventStoreCertificationTests
         return new DateTimeOffset(2026, 7, 3, 12, 0, seconds, TimeSpan.Zero);
     }
 
-    private static IReadOnlyList<WorkflowEvent> AllWorkflowEventTypes(InstanceId instanceId)
+    private static IReadOnlyList<DurableWorkflowEvent> AllWorkflowEventTypes(InstanceId instanceId)
     {
         var eventSequence = 100;
-        EventId nextEventId() => new(Guid.Parse($"00000000-0000-0000-0000-{eventSequence++:000000000000}"));
+        EventId nextEventId() => EventId.Create($"00000000-0000-0000-0000-{eventSequence++:000000000000}");
         CommandId commandId() => CommandId.New();
         CausationId causationId() => CausationId.New();
         DateTimeOffset occurredAt() => Timestamp(eventSequence % 50);
 
-        var waitId = WaitId.New();
+        var waitId = WaitId.Parse(Guid.CreateVersion7().ToString());
         var timerId = TimerId.New();
-        var childInstanceId = InstanceId.New();
+        var childInstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         var childDefinitionId = DefinitionId.New();
         var childDefinitionVersion = DefinitionVersion.Initial;
         var completionDefinitionId = DefinitionId.New();
@@ -1261,7 +1354,7 @@ public abstract class EventStoreCertificationTests
                 OccurredAt = occurredAt(),
                 WaitId = waitId,
                 EventName = "approved",
-                CorrelationId = new CorrelationId("order-1"),
+                CorrelationId = CorrelationId.Create("order-1"),
                 Mode = WaitMode.Cold,
                 BranchId = "branch-a"
             },
@@ -1273,7 +1366,7 @@ public abstract class EventStoreCertificationTests
                 CausationId = causationId(),
                 OccurredAt = occurredAt(),
                 WaitId = waitId,
-                MatchedEventId = EventId.New()
+                MatchedEventId = EventId.Create(Guid.CreateVersion7().ToString())
             },
             new WorkflowTimerScheduledEvent
             {
@@ -1305,7 +1398,7 @@ public abstract class EventStoreCertificationTests
                 ChildInstanceId = childInstanceId,
                 ChildDefinitionId = childDefinitionId,
                 ChildDefinitionVersion = childDefinitionVersion,
-                WaitId = WaitId.New(),
+                WaitId = WaitId.Parse(Guid.CreateVersion7().ToString()),
                 FailurePolicy = RunChildFailurePolicy.PropagateFailure
             },
             new WorkflowChildrenScheduledEvent
@@ -1352,7 +1445,7 @@ public abstract class EventStoreCertificationTests
                     new WorkflowChildMaterialization
                     {
                         Index = 1,
-                        ChildInstanceId = InstanceId.New(),
+                        ChildInstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString()),
                         ChildDefinitionId = childDefinitionId,
                         ChildDefinitionVersion = childDefinitionVersion,
                         ItemSnapshot = """{"id":2}"""
@@ -1417,7 +1510,7 @@ public abstract class EventStoreCertificationTests
                     {
                         Index = 0,
                         SourceChildInstanceId = childInstanceId,
-                        CompensationInstanceId = InstanceId.New(),
+                        CompensationInstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString()),
                         ItemSnapshot = """{"compensate":true}"""
                     }
                 ]
@@ -1439,7 +1532,7 @@ public abstract class EventStoreCertificationTests
                 CommandId = commandId(),
                 CausationId = causationId(),
                 OccurredAt = occurredAt(),
-                WaitId = WaitId.New(),
+                WaitId = WaitId.Parse(Guid.CreateVersion7().ToString()),
                 HolderKey = "holder-2",
                 Requirements = [new ResourcePoolRequirement("cpu", 1)],
                 ExpiresAt = Timestamp(45)
@@ -1463,7 +1556,7 @@ public abstract class EventStoreCertificationTests
                 OccurredAt = occurredAt(),
                 ExternalJobId = "job-1",
                 Payload = [1, 2, 3],
-                WaitId = WaitId.New(),
+                WaitId = WaitId.Parse(Guid.CreateVersion7().ToString()),
                 TimeoutTimerId = TimerId.New(),
                 TimeoutAt = Timestamp(46)
             },
@@ -1475,7 +1568,7 @@ public abstract class EventStoreCertificationTests
                 CausationId = causationId(),
                 OccurredAt = occurredAt(),
                 ExternalJobId = "job-1",
-                CompletionEventId = EventId.New()
+                CompletionEventId = EventId.Create(Guid.CreateVersion7().ToString())
             },
             new WorkflowExternalJobTimedOutEvent
             {
@@ -1529,9 +1622,9 @@ public abstract class EventStoreCertificationTests
                 CommandId = commandId(),
                 CausationId = causationId(),
                 OccurredAt = occurredAt(),
-                BufferedEventId = EventId.New(),
+                BufferedEventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 EventName = "approved",
-                CorrelationId = new CorrelationId("order-2"),
+                CorrelationId = CorrelationId.Create("order-2"),
                 BranchId = "branch-b"
             },
             new WorkflowDeliveryDiscardedEvent
@@ -1541,7 +1634,7 @@ public abstract class EventStoreCertificationTests
                 CommandId = commandId(),
                 CausationId = causationId(),
                 OccurredAt = occurredAt(),
-                DiscardedEventId = EventId.New()
+                DiscardedEventId = EventId.Create(Guid.CreateVersion7().ToString())
             },
             new WorkflowCompletedEvent
             {

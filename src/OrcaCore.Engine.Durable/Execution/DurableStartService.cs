@@ -1,13 +1,13 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Engine.Durable.Versioning;
+using OrcaCore.Abstractions.Providers;
 
 namespace OrcaCore.Engine.Durable.Execution;
 
 internal sealed class DurableStartService(DurableCommandProcessor commandProcessor)
 {
     private readonly SemaphoreSlim gate = new(1, 1);
-    private readonly Dictionary<string, StartedInstance> startedInstances = [];
+    private readonly Dictionary<string, StartedWorkflowIdempotencyRecord> startedInstances = [];
 
     internal async Task<StartOrGetResult> StartOrGetAsync(
         StartOrGetRequest request,
@@ -20,12 +20,9 @@ internal sealed class DurableStartService(DurableCommandProcessor commandProcess
         {
             if (startedInstances.TryGetValue(request.IdempotencyKey, out var existing))
             {
-                DurableVersionCompatibility.EnsureCompatible(
-                    existing.DefinitionId,
-                    existing.DefinitionVersion,
-                    request.DefinitionId,
-                    request.DefinitionVersion);
-                return new StartOrGetResult(existing.InstanceId, false);
+                return Matches(existing, request)
+                    ? new StartOrGetResult(existing.InstanceId, false, null)
+                    : new StartOrGetResult(existing.InstanceId, false, existing);
             }
 
             var durableExisting = await TryGetDurableExistingAsync(request, cancellationToken).ConfigureAwait(false);
@@ -34,7 +31,7 @@ internal sealed class DurableStartService(DurableCommandProcessor commandProcess
                 return durableExisting;
             }
 
-            var instanceId = InstanceId.New();
+            var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
             var result = await commandProcessor
                 .ProcessAsync(
                     new StartWorkflowCommand
@@ -45,6 +42,8 @@ internal sealed class DurableStartService(DurableCommandProcessor commandProcess
                         DefinitionId = request.DefinitionId,
                         DefinitionVersion = request.DefinitionVersion,
                         IdempotencyKey = request.IdempotencyKey,
+                        DefinitionFingerprint = request.DefinitionFingerprint,
+                        InputFingerprint = request.InputFingerprint,
                         InputContentType = request.Input?.ContentType,
                         InputPayload = request.Input?.Payload
                     },
@@ -62,10 +61,8 @@ internal sealed class DurableStartService(DurableCommandProcessor commandProcess
                     $"StartOrGet could not start workflow for key '{request.IdempotencyKey}': {result.Message}");
             }
 
-            startedInstances.Add(
-                request.IdempotencyKey,
-                new StartedInstance(instanceId, request.DefinitionId, request.DefinitionVersion));
-            return new StartOrGetResult(instanceId, true);
+            startedInstances.Add(request.IdempotencyKey, ToRecord(request, instanceId));
+            return new StartOrGetResult(instanceId, true, null);
         }
         finally
         {
@@ -85,29 +82,47 @@ internal sealed class DurableStartService(DurableCommandProcessor commandProcess
             return null;
         }
 
-        DurableVersionCompatibility.EnsureCompatible(
-            durableExisting.Value.DefinitionId,
-            durableExisting.Value.DefinitionVersion,
-            request.DefinitionId,
-            request.DefinitionVersion);
-        startedInstances[request.IdempotencyKey] = new StartedInstance(
-            durableExisting.Value.InstanceId,
-            durableExisting.Value.DefinitionId,
-            durableExisting.Value.DefinitionVersion);
-        return new StartOrGetResult(durableExisting.Value.InstanceId, false);
+        startedInstances[request.IdempotencyKey] = durableExisting.Value;
+        return Matches(durableExisting.Value, request)
+            ? new StartOrGetResult(durableExisting.Value.InstanceId, false, null)
+            : new StartOrGetResult(durableExisting.Value.InstanceId, false, durableExisting.Value);
     }
 
-    private sealed record StartedInstance(
-        InstanceId InstanceId,
-        DefinitionId DefinitionId,
-        DefinitionVersion DefinitionVersion);
+    private static bool Matches(StartedWorkflowIdempotencyRecord existing, StartOrGetRequest request)
+    {
+        return existing.DefinitionId.Equals(request.DefinitionId) &&
+               existing.DefinitionVersion.Equals(request.DefinitionVersion) &&
+               string.Equals(
+                   existing.DefinitionFingerprint,
+                   request.DefinitionFingerprint,
+                   StringComparison.Ordinal) &&
+               string.Equals(existing.InputFingerprint, request.InputFingerprint, StringComparison.Ordinal);
+    }
+
+    private static StartedWorkflowIdempotencyRecord ToRecord(
+        StartOrGetRequest request,
+        InstanceId instanceId)
+    {
+        return new StartedWorkflowIdempotencyRecord(
+            request.IdempotencyKey,
+            instanceId,
+            request.DefinitionId,
+            request.DefinitionVersion,
+            request.DefinitionFingerprint,
+            request.InputFingerprint);
+    }
 }
 
 internal sealed record StartOrGetRequest(
     string IdempotencyKey,
     DefinitionId DefinitionId,
     DefinitionVersion DefinitionVersion,
+    string DefinitionFingerprint,
+    string InputFingerprint,
     Abstractions.Providers.SerializedPayload? Input,
     DateTimeOffset RequestedAt);
 
-internal sealed record StartOrGetResult(InstanceId InstanceId, bool Created);
+internal sealed record StartOrGetResult(
+    InstanceId InstanceId,
+    bool Created,
+    StartedWorkflowIdempotencyRecord? ConflictingBinding);

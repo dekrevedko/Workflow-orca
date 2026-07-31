@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
@@ -18,19 +19,21 @@ public sealed class LifecycleAcceptanceTests
     [Trait("AC", "AC-509")]
     public async Task LifecycleEvents_FollowDocumentedDurabilityGuarantees()
     {
-        var ephemeral = new EphemeralWorkflowEngine();
-        var definition = new WorkflowBuilder<TestState>()
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
+        var ephemeral = provider.GetRequiredService<EphemeralWorkflowEngine>();
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
-            .Then(() => new CompleteStep())
+            .Then(_ => ValueTask.CompletedTask)
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-        ephemeral.RegisterDefinition(definition);
-
-        var ephemeralSnapshot = await ephemeral.StartAsync<string, TestState>(
-            definition.DefinitionId,
+            .Build();
+        var definitionHandle = provider.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        var ephemeralInstance = (await definitionHandle.StartOrGetAsync(
             "start",
-            TestContext.Current.CancellationToken);
-        var ephemeralLifecycle = ephemeral.Management.Instance(ephemeralSnapshot.InstanceId).GetLifecycleEvents();
+            StartIdempotencyKey.Create("lifecycle-events"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
+        var ephemeralLifecycle = ephemeral.Management.Instance(ephemeralInstance.InstanceId).GetLifecycleEvents();
 
         var instanceId = InstanceIdValue(1);
         var durableStore = new InMemoryWorkflowProvider();
@@ -61,7 +64,7 @@ public sealed class LifecycleAcceptanceTests
             [
                 new WorkflowTerminalEvent
                 {
-                    EventId = EventId.New(),
+                    EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                     InstanceId = instanceId,
                     CommandId = CommandIdValue(1),
                     CausationId = CausationId.New(),
@@ -93,7 +96,7 @@ public sealed class LifecycleAcceptanceTests
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -106,15 +109,5 @@ public sealed class LifecycleAcceptanceTests
         return Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}");
     }
 
-    private sealed class TestState;
-
-    private sealed class CompleteStep : IStep<TestState>
-    {
-        public ValueTask<StepResult> ExecuteAsync(
-            StepContext<TestState> context,
-            CancellationToken cancellationToken)
-        {
-            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
-        }
-    }
+    public sealed class TestState;
 }

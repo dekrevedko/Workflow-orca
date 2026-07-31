@@ -4,6 +4,9 @@ using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+using ProjectionActiveWaitSnapshot = global::OrcaCore.Abstractions.Instances.ActiveWaitSnapshot;
+using ProjectionWorkflowInstanceSnapshot = global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot;
 
 namespace OrcaCore.TestSupport.Providers;
 
@@ -17,13 +20,13 @@ public sealed class FakeWorkflowEventStore :
     private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
 
     private readonly object gate = new();
-    private readonly ConcurrentDictionary<EventId, InboxRecordState> inbox = [];
+    private readonly ConcurrentDictionary<(InstanceId InstanceId, EventId EventId), InboxRecord> inbox = [];
     private readonly ConcurrentDictionary<string, StartedWorkflowIdempotencyRecord> startIdempotency =
         new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<OutboxRecordId, FakeOutboxRecord> outbox = [];
     private readonly ConcurrentDictionary<InstanceId, CheckpointWrite> checkpoints = [];
-    private readonly ConcurrentDictionary<WorkflowStreamId, List<WorkflowEvent>> streams = [];
-    private readonly ConcurrentDictionary<InstanceId, WorkflowInstanceSnapshot> projectedSummaries = [];
+    private readonly ConcurrentDictionary<WorkflowStreamId, List<DurableWorkflowEvent>> streams = [];
+    private readonly ConcurrentDictionary<InstanceId, ProjectionWorkflowInstanceSnapshot> projectedSummaries = [];
     private readonly List<ProviderCommitBatch> committedBatches = [];
     private int failNextCommitBeforeApply;
 
@@ -83,7 +86,30 @@ public sealed class FakeWorkflowEventStore :
             stream.AddRange(batch.Events);
             foreach (var operation in batch.InboxOperations)
             {
-                inbox[operation.EventId] = operation.State;
+                var key = (batch.StreamId.InstanceId, operation.EventId);
+                if (inbox.TryGetValue(key, out var existing))
+                {
+                    inbox[key] = existing with
+                    {
+                        State = existing.State == InboxRecordState.Applied
+                            ? existing.State
+                            : operation.State
+                    };
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(operation.EnvelopeFingerprint))
+                {
+                    throw new InvalidOperationException(
+                        $"Initial inbox write '{operation.EventId}' for instance " +
+                        $"'{batch.StreamId.InstanceId}' must carry an envelope fingerprint.");
+                }
+
+                inbox[key] = new InboxRecord(
+                    batch.StreamId.InstanceId,
+                    operation.EventId,
+                    operation.EnvelopeFingerprint,
+                    operation.State);
             }
 
             foreach (var operation in batch.StartIdempotencyOperations)
@@ -92,7 +118,9 @@ public sealed class FakeWorkflowEventStore :
                     operation.IdempotencyKey,
                     operation.InstanceId,
                     operation.DefinitionId,
-                    operation.DefinitionVersion);
+                    operation.DefinitionVersion,
+                    operation.DefinitionFingerprint,
+                    operation.InputFingerprint);
             }
 
             foreach (var record in batch.OutboxRecords)
@@ -114,7 +142,7 @@ public sealed class FakeWorkflowEventStore :
         }
     }
 
-    public Task<IReadOnlyList<WorkflowEvent>> LoadTailAsync(
+    public Task<IReadOnlyList<DurableWorkflowEvent>> LoadTailAsync(
         WorkflowStreamId streamId,
         StreamVersion afterVersion,
         CancellationToken cancellationToken)
@@ -126,17 +154,20 @@ public sealed class FakeWorkflowEventStore :
             var events = streams.TryGetValue(streamId, out var stream)
                 ? stream.Skip((int)afterVersion.Value).ToArray()
                 : [];
-            return Task.FromResult<IReadOnlyList<WorkflowEvent>>(events);
+            return Task.FromResult<IReadOnlyList<DurableWorkflowEvent>>(events);
         }
     }
 
-    public Task<Option<InboxRecordState>> GetAsync(EventId eventId, CancellationToken cancellationToken)
+    public Task<Option<InboxRecord>> GetAsync(
+        InstanceId instanceId,
+        EventId eventId,
+        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        return Task.FromResult(inbox.TryGetValue(eventId, out var state)
-            ? Option<InboxRecordState>.Some(state)
-            : Option<InboxRecordState>.None);
+        return Task.FromResult(inbox.TryGetValue((instanceId, eventId), out var record)
+            ? Option<InboxRecord>.Some(record)
+            : Option<InboxRecord>.None);
     }
 
     public Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedAsync(
@@ -257,13 +288,13 @@ public sealed class FakeWorkflowEventStore :
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<WorkflowInstanceSnapshot>> ListAsync(
+    public Task<IReadOnlyList<ProjectionWorkflowInstanceSnapshot>> ListAsync(
         WorkflowProjectionQuery query,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult<IReadOnlyList<WorkflowInstanceSnapshot>>(
+        return Task.FromResult<IReadOnlyList<ProjectionWorkflowInstanceSnapshot>>(
             projectedSummaries.Values
                 .Where(snapshot => Matches(snapshot, query))
                 .OrderBy(snapshot => snapshot.InstanceId.Value)
@@ -277,13 +308,13 @@ public sealed class FakeWorkflowEventStore :
         return Task.FromResult(projectedSummaries.Values.Count(snapshot => Matches(snapshot, query)));
     }
 
-    public Task<IReadOnlyList<ActiveWaitSnapshot>> ListActiveWaitsAsync(
+    public Task<IReadOnlyList<ProjectionActiveWaitSnapshot>> ListActiveWaitsAsync(
         WorkflowProjectionQuery query,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult<IReadOnlyList<ActiveWaitSnapshot>>(
+        return Task.FromResult<IReadOnlyList<ProjectionActiveWaitSnapshot>>(
             projectedSummaries.Values
                 .Where(snapshot => Matches(snapshot, query))
                 .SelectMany(snapshot => snapshot.ActiveWaits)
@@ -339,7 +370,9 @@ public sealed class FakeWorkflowEventStore :
         });
     }
 
-    private static bool Matches(WorkflowInstanceSnapshot snapshot, WorkflowProjectionQuery query)
+    private static bool Matches(
+        ProjectionWorkflowInstanceSnapshot snapshot,
+        WorkflowProjectionQuery query)
     {
         return (query.InstanceId is null || snapshot.InstanceId == query.InstanceId) &&
             (query.ParentInstanceId is null || snapshot.ParentInstanceId == query.ParentInstanceId) &&
@@ -351,7 +384,7 @@ public sealed class FakeWorkflowEventStore :
     }
 
     private static bool MatchesActiveWait(
-        IReadOnlyList<ActiveWaitSnapshot> activeWaits,
+        IReadOnlyList<ProjectionActiveWaitSnapshot> activeWaits,
         WorkflowProjectionQuery query)
     {
         if (query.ActiveWaitEventName is null && query.ActiveWaitCorrelationId is null)
@@ -362,7 +395,8 @@ public sealed class FakeWorkflowEventStore :
         return activeWaits.Any(wait =>
             (query.ActiveWaitEventName is null ||
                 string.Equals(wait.EventName, query.ActiveWaitEventName, StringComparison.Ordinal)) &&
-            (query.ActiveWaitCorrelationId is null || wait.CorrelationId == query.ActiveWaitCorrelationId));
+            (query.ActiveWaitCorrelationId is null ||
+                wait.CorrelationId.Equals(query.ActiveWaitCorrelationId)));
     }
 
     public void FailNextCommitBeforeApply()

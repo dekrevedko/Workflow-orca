@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using AwesomeAssertions;
 using AwesomeAssertions.Execution;
 using OrcaCore.DeveloperSurface.BehaviorContracts;
@@ -75,6 +76,48 @@ public sealed class ExecutableBehaviorInfrastructureGuards
             "certification must be scenario-specific rather than a task-to-assembly lookup");
     }
 
+    [Theory]
+    [MemberData(nameof(Section4Scenarios))]
+    public Task Section4Scenario_HasOneRuntimeRecordedExactProductDriverAndPassingAssertion(
+        string taskId,
+        string scenarioId) => ScenarioCertification.AssertExecutableAsync(taskId, scenarioId);
+
+    public static IEnumerable<object[]> Section4Scenarios() => AllScenarios()
+        .Where(scenario => FinalOwningSection(scenario) == 4)
+        .Select(scenario => new object[] { scenario.TaskId, scenario.Id });
+
+    [Theory]
+    [MemberData(nameof(Section5Scenarios))]
+    public Task Section5Scenario_HasOneRuntimeRecordedExactProductDriverAndPassingAssertion(
+        string taskId,
+        string scenarioId) =>
+        ScenarioCertification.AssertExecutableAsync(taskId, scenarioId);
+
+    public static IEnumerable<object[]> Section5Scenarios() => AllScenarios()
+        .Where(scenario => FinalOwningSection(scenario) == 5)
+        .Select(scenario => new object[] { scenario.TaskId, scenario.Id });
+
+    [Theory]
+    [MemberData(nameof(Section6Scenarios))]
+    public Task Section6Scenario_HasOneRuntimeRecordedExactProductDriverAndPassingAssertion(
+        string taskId,
+        string scenarioId) =>
+        ScenarioCertification.AssertExecutableAsync(taskId, scenarioId);
+
+    public static IEnumerable<object[]> Section6Scenarios() => AllScenarios()
+        .Where(scenario => FinalOwningSection(scenario) == 6)
+        .Select(scenario => new object[] { scenario.TaskId, scenario.Id });
+
+    [Theory]
+    [MemberData(nameof(Section7Scenarios))]
+    public Task Section7Scenario_HasOneRuntimeRecordedExactProductDriverAndPassingAssertion(
+        string taskId,
+        string scenarioId) => ScenarioCertification.AssertExecutableAsync(taskId, scenarioId);
+
+    public static IEnumerable<object[]> Section7Scenarios() => AllScenarios()
+        .Where(scenario => FinalOwningSection(scenario) == 7)
+        .Select(scenario => new object[] { scenario.TaskId, scenario.Id });
+
     [Fact]
     public void UninvokedLambdaAndStoredIgnoredResult_CannotEnterObservationContext()
     {
@@ -119,6 +162,41 @@ public sealed class ExecutableBehaviorInfrastructureGuards
     }
 
     [Fact]
+    public void ThrowingArgumentExpression_CannotMintAnObservationForAnUninvokedFacade()
+    {
+        var facade = typeof(global::OrcaCore.Workflow).GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .Single(method =>
+                method.Name == nameof(global::OrcaCore.Workflow.Ephemeral) &&
+                method.IsGenericMethodDefinition)
+            .MakeGenericMethod(typeof(object));
+        var signature = ScenarioCertification.FromMethod("mutation-throwing-argument", facade);
+        var contract = new ResolvedScenarioContract(
+            "mutation-throwing-argument",
+            "mutation-control",
+            typeof(ExecutableBehaviorInfrastructureGuards).Assembly.GetName().Name!,
+            "None",
+            [signature],
+            ["OrcaCore", "OrcaCore.Core"]);
+        var context = ScenarioCertification.CreateContext(contract);
+        Func<global::OrcaCore.DefinitionId> throwFromCore = static () =>
+            throw new InvalidOperationException("argument failed before the facade executed");
+
+        Action observe = () => context
+            .ObserveThrows<TargetInvocationException, global::OrcaCore.EphemeralWorkflowInitBuilder<object>>(_ =>
+                global::OrcaCore.Workflow.Ephemeral<object>(
+                    (global::OrcaCore.DefinitionId)global::OrcaCore.Core.Execution.StructuredInvocationCache.Invoke(
+                        throwFromCore,
+                        Array.Empty<object?>())!,
+                    global::OrcaCore.DefinitionVersion.Initial));
+
+        observe.Should().Throw<TargetInvocationException>()
+            .WithInnerException<InvalidOperationException>()
+            .WithMessage("*argument failed before the facade executed*");
+        context.CertificationErrors().Should().Contain(error =>
+            error.Contains("required exact call", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task SystemClockAndNoOpBarrier_FailRuntimeConsumptionCertification()
     {
         var clockContract = MutationContract(nameof(Phase0MutationProbe.IgnoreInjectedClock), "Time");
@@ -135,6 +213,38 @@ public sealed class ExecutableBehaviorInfrastructureGuards
             Phase0MutationProbe.IgnoreInjectedBarrierAsync(services.Barrier));
         Phase0Assert.Completed(barrierObservation, "the no-op product barrier returned");
         barrierContext.CertificationErrors().Should().Contain(error =>
+            error.Contains("deterministic barrier", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DirectHarnessUse_CannotCertifyDeterministicProductConsumption()
+    {
+        var signature = ScenarioCertification.FromMethod(
+            "mutation-direct-harness",
+            typeof(Phase0MutationProbe).GetMethod(
+                nameof(Phase0MutationProbe.RequiredProductOperation),
+                BindingFlags.Static | BindingFlags.NonPublic)!);
+        var contract = new ResolvedScenarioContract(
+            "mutation-direct-harness",
+            "mutation-control",
+            typeof(ExecutableBehaviorInfrastructureGuards).Assembly.GetName().Name!,
+            "TimeAndBarrier",
+            [signature],
+            ["OrcaCore.Core"]);
+        var context = ScenarioCertification.CreateContext(contract);
+
+        _ = context.Services.TimeProvider.GetUtcNow();
+        context.ReleaseBarrier("direct-harness");
+        await context.Services.Barrier.ReachAsync(
+            "direct-harness",
+            TestContext.Current.CancellationToken);
+
+        var errors = context.CertificationErrors();
+        context.ProductConsumptionFrames.Should().BeEmpty(
+            "a direct harness call has no product invocation on its causal stack");
+        errors.Should().Contain(error =>
+            error.Contains("deterministic TimeProvider", StringComparison.Ordinal));
+        errors.Should().Contain(error =>
             error.Contains("deterministic barrier", StringComparison.Ordinal));
     }
 
@@ -202,6 +312,19 @@ public sealed class ExecutableBehaviorInfrastructureGuards
     internal static GuardScenario[] Read(string fixture) => FixtureDefinitions.Read<GuardScenario[]>(
         $"tests/OrcaCore.DeveloperSurface.Guards/Fixtures/{fixture}");
 
+    internal static IEnumerable<GuardScenario> AllScenarios() => Fixtures.SelectMany(Read);
+
+    internal static int FinalOwningSection(GuardScenario scenario)
+    {
+        var sections = Regex.Matches(scenario.TurnsGreenTask, @"(?<![\d.])(?<section>\d+)\.\d+")
+            .Select(match => int.Parse(match.Groups["section"].Value, System.Globalization.CultureInfo.InvariantCulture))
+            .ToArray();
+        return sections.Length > 0
+            ? sections.Max()
+            : throw new InvalidOperationException(
+                $"{scenario.TaskId}/{scenario.Id} has no parseable turnsGreenTask owner.");
+    }
+
     private static ResolvedScenarioContract MutationContract(string member, string determinism = "None")
     {
         var method = typeof(Phase0MutationProbe).GetMethod(member, BindingFlags.Static | BindingFlags.NonPublic)!;
@@ -217,49 +340,15 @@ public sealed class ExecutableBehaviorInfrastructureGuards
 public sealed class ExecutableBehaviorExpectedRedGuards
 {
     [Theory]
-    [MemberData(nameof(FixtureNames))]
-    public async Task EveryScenario_HasOneRuntimeRecordedExactProductDriverAndPassingAssertion(string fixture)
-    {
-        var methods = ScenarioCertification.Discover();
-        var signatures = ScenarioCertification.ReadSignatures();
-        var contracts = ScenarioCertification.ReadContracts().ToDictionary(
-            contract => $"{contract.TaskId}/{contract.Id}", StringComparer.Ordinal);
-        using var scope = new AssertionScope();
-        foreach (var definition in ExecutableBehaviorInfrastructureGuards.Read(fixture))
-        {
-            var contract = ScenarioCertification.Resolve(contracts[$"{definition.TaskId}/{definition.Id}"], signatures);
-            var matches = methods.Where(method =>
-            {
-                var attribute = method.GetCustomAttribute<Phase0ScenarioAttribute>();
-                return attribute?.Id == contract.Id && attribute.TaskId == contract.TaskId;
-            }).ToArray();
-            matches.Should().ContainSingle(
-                $"{contract.TaskId}/{contract.Id} must have one reviewable executable driver in {contract.HostAssembly}");
-            if (matches.Length != 1) continue;
+    [MemberData(nameof(RemainingScenarios))]
+    public Task Scenario_HasOneRuntimeRecordedExactProductDriverAndPassingAssertion(
+        string taskId,
+        string scenarioId) => ScenarioCertification.AssertExecutableAsync(taskId, scenarioId);
 
-            var errors = ScenarioCertification.Validate(matches[0], contract, true);
-            errors.Should().BeEmpty(
-                $"{contract.TaskId}/{contract.Id} must use the exact one-context driver signature");
-            if (errors.Count != 0) continue;
-
-            Exception? failure = null;
-            IReadOnlyList<string> runtimeErrors = [];
-            try
-            {
-                runtimeErrors = await ScenarioCertification.ExecuteAsync(matches[0], contract);
-            }
-            catch (Exception exception)
-            {
-                failure = exception;
-            }
-            failure.Should().BeNull($"{contract.TaskId}/{contract.Id}: {definition.Assertion}");
-            runtimeErrors.Should().BeEmpty(
-                $"{contract.TaskId}/{contract.Id} must execute every exact overload through a guard-owned observation, assert each result, and consume required deterministic seams through product code");
-        }
-    }
-
-    public static IEnumerable<object[]> FixtureNames() =>
-        ExecutableBehaviorInfrastructureGuards.Fixtures.Select(x => new object[] { x });
+    public static IEnumerable<object[]> RemainingScenarios() =>
+        ExecutableBehaviorInfrastructureGuards.AllScenarios()
+            .Where(scenario => ExecutableBehaviorInfrastructureGuards.FinalOwningSection(scenario) > 7)
+            .Select(scenario => new object[] { scenario.TaskId, scenario.Id });
 }
 
 internal sealed record RequiredCallContract(string Assembly, string Type, string Member)
@@ -336,6 +425,7 @@ internal static class ScenarioCertification
         contract.Calls.Select(call => new Phase0ExpectedCall(call.Id, call.Assembly, call.Type, call.Member,
             call.GenericArity, call.Parameters, call.ReturnType)).ToArray(),
         contract.ProductAssemblies,
+        [typeof(ScenarioCertification).Assembly.GetName().Name!],
         contract.DeterministicRequirement);
 
     private static string[] V1ProductAssemblies()
@@ -416,6 +506,45 @@ internal static class ScenarioCertification
         if (result is Task task) await task;
         else if (result is ValueTask valueTask) await valueTask;
         return context.CertificationErrors();
+    }
+
+    internal static async Task AssertExecutableAsync(string taskId, string scenarioId)
+    {
+        var definition = ExecutableBehaviorInfrastructureGuards.AllScenarios().Single(
+            scenario => scenario.TaskId == taskId && scenario.Id == scenarioId);
+        var methods = Discover();
+        var signatures = ReadSignatures();
+        var contractDefinition = ReadContracts().Single(
+            contract => contract.TaskId == taskId && contract.Id == scenarioId);
+        var contract = Resolve(contractDefinition, signatures);
+        var matches = methods.Where(method =>
+        {
+            var attribute = method.GetCustomAttribute<Phase0ScenarioAttribute>();
+            return attribute?.Id == contract.Id && attribute.TaskId == contract.TaskId;
+        }).ToArray();
+
+        matches.Should().ContainSingle(
+            $"{contract.TaskId}/{contract.Id} must have one reviewable executable driver in {contract.HostAssembly}");
+        if (matches.Length != 1) return;
+
+        var errors = Validate(matches[0], contract, true);
+        errors.Should().BeEmpty($"{contract.TaskId}/{contract.Id} must use the exact one-context driver signature");
+        if (errors.Count != 0) return;
+
+        Exception? failure = null;
+        IReadOnlyList<string> runtimeErrors = [];
+        try
+        {
+            runtimeErrors = await ExecuteAsync(matches[0], contract);
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
+
+        failure.Should().BeNull($"{contract.TaskId}/{contract.Id}: {definition.Assertion}");
+        runtimeErrors.Should().BeEmpty(
+            $"{contract.TaskId}/{contract.Id} must execute every exact overload through a guard-owned observation, assert each result, and consume required deterministic seams through product code");
     }
 
     private static IEnumerable<Type> SafeTypes(Assembly assembly)

@@ -4,9 +4,9 @@ using OrcaCore.Core.Definitions;
 
 namespace OrcaCore.Core.Execution;
 
-internal static class ScopeReducer
+public static class ScopeReducer
 {
-    internal static StructuredExecutionState BeginMerge(
+    public static StructuredExecutionState BeginMerge(
         StructuredExecutionState state,
         ScopeId scopeId)
     {
@@ -23,7 +23,7 @@ internal static class ScopeReducer
         return state with { Scopes = scopes };
     }
 
-    internal static StructuredExecutionState CompleteMerge(
+    public static StructuredExecutionState CompleteMerge(
         CompiledWorkflowPlan plan,
         StructuredExecutionState state,
         ScopeId scopeId,
@@ -90,7 +90,7 @@ internal static class ScopeReducer
         };
     }
 
-    internal static ScopeChildTransition RecordBranchReturn(
+    public static ScopeChildTransition RecordBranchReturn(
         StructuredExecutionState state,
         FiberRecord fiber,
         byte[]? resultPayload)
@@ -109,7 +109,7 @@ internal static class ScopeReducer
             [ChildTerminalOutcome.Succeeded(fiber.Id, resultPayload)]);
     }
 
-    internal static ScopeChildTransition RecordChildTerminals(
+    public static ScopeChildTransition RecordChildTerminals(
         StructuredExecutionState state,
         ScopeId scopeId,
         IReadOnlyList<ChildTerminalOutcome> outcomes)
@@ -168,14 +168,16 @@ internal static class ScopeReducer
                 ApplyOutcome(fibers, results, outcome);
             }
 
-            var failed = ordered.Any(outcome => outcome.Failure is not null);
             updatedScope = scope with { CommittedResults = results };
-            if (failed)
+            var allChildrenTerminal = scope.ChildFiberIds.All(childId =>
+                fibers[childId].Phase is FiberPhase.Completed or FiberPhase.Failed or FiberPhase.Cancelled);
+            if (allChildrenTerminal &&
+                scope.Kind != CompiledScopeKind.WhenAllOutcomes &&
+                scope.ChildFiberIds.Any(childId => fibers[childId].Phase == FiberPhase.Failed))
             {
-                CancelNonterminalChildren(state, fibers, scopes, scope.ChildFiberIds, except: null);
                 updatedScope = Transition(updatedScope, ExecutionScopePhase.Failed);
             }
-            else if (scope.ChildFiberIds.All(childId => fibers[childId].Phase == FiberPhase.Completed))
+            else if (allChildrenTerminal)
             {
                 updatedScope = Transition(updatedScope, ExecutionScopePhase.Joinable);
                 becameJoinable = true;
@@ -193,12 +195,12 @@ internal static class ScopeReducer
             becameJoinable);
     }
 
-    internal static ForEachScopeTransition StartForEachScope(
+    public static ForEachScopeTransition StartForEachScope(
         StructuredExecutionState state,
         FiberId parentFiberId,
         CompiledScopePlan scopePlan,
         IReadOnlyList<ForEachItemDescriptor> descriptors,
-        int maxActiveFibers = int.MaxValue)
+        int maxConcurrentExecutionPaths = int.MaxValue)
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(scopePlan);
@@ -221,18 +223,23 @@ internal static class ScopeReducer
             throw new InvalidOperationException($"Parent fiber '{parentFiberId}' is not runnable.");
         }
 
-        var ordered = descriptors.OrderBy(descriptor => descriptor.Index).ToArray();
-        var maxConcurrency = plan.MaxConcurrency ?? int.MaxValue;
-        var entrySequence = parent.NextScopeEntrySequence;
-        var scopeId = FiberIdentity.CreateScope(parentFiberId, scopePlan.Id, entrySequence);
-        var availableFiberSlots = maxActiveFibers - CountActiveFibers(state.Fibers);
-        if (ordered.Length > 0 && availableFiberSlots <= 0)
+        if (maxConcurrentExecutionPaths <= 0)
         {
-            throw ActiveFiberLimitExceeded(maxActiveFibers);
+            throw new ArgumentOutOfRangeException(
+                nameof(maxConcurrentExecutionPaths),
+                maxConcurrentExecutionPaths,
+                "The execution-path ceiling must be positive.");
         }
 
+        var ordered = descriptors.OrderBy(descriptor => descriptor.Index).ToArray();
+        var nodeMaxConcurrency = plan.MaxConcurrency ?? int.MaxValue;
+        var effectiveMaxConcurrency = Math.Min(
+            nodeMaxConcurrency,
+            maxConcurrentExecutionPaths);
+        var entrySequence = parent.NextScopeEntrySequence;
+        var scopeId = FiberIdentity.CreateScope(parentFiberId, scopePlan.Id, entrySequence);
         var admittedDescriptors = ordered
-            .Take(Math.Min(Math.Min(maxConcurrency, availableFiberSlots), ordered.Length))
+            .Take(Math.Min(effectiveMaxConcurrency, ordered.Length))
             .ToArray();
         var admittedIds = admittedDescriptors
             .Select(descriptor => FiberIdentity.CreateItem(scopeId, descriptor.Index))
@@ -270,7 +277,7 @@ internal static class ScopeReducer
             ForEach = new ForEachRuntimeState(
                 ordered,
                 admittedDescriptors.Length,
-                maxConcurrency,
+                nodeMaxConcurrency,
                 plan.JoinPolicy,
                 plan.FailurePolicy,
                 itemIndexByFiber,
@@ -292,14 +299,14 @@ internal static class ScopeReducer
             admittedIds);
     }
 
-    internal static ForEachScopeTransition RecordForEachTerminal(
+    public static ForEachScopeTransition RecordForEachTerminal(
         StructuredExecutionState state,
         CompiledScopePlan scopePlan,
         ScopeId scopeId,
         FiberId fiberId,
         byte[]? resultPayload,
         FiberFailure? failure,
-        int maxActiveFibers = int.MaxValue)
+        int maxConcurrentExecutionPaths = int.MaxValue)
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(scopePlan);
@@ -389,7 +396,7 @@ internal static class ScopeReducer
                 fibers,
                 scheduler,
                 scopePlan,
-                maxActiveFibers);
+                maxConcurrentExecutionPaths);
         }
 
         scopes[scopeId] = nextScope;
@@ -400,7 +407,7 @@ internal static class ScopeReducer
             admitted);
     }
 
-    internal static ForEachScopeTransition RecordForEachTerminalBatch(
+    public static ForEachScopeTransition RecordForEachTerminalBatch(
         StructuredExecutionState state,
         CompiledScopePlan scopePlan,
         ScopeId scopeId,
@@ -444,20 +451,61 @@ internal static class ScopeReducer
             winner.Failure);
     }
 
+    public static StructuredExecutionState ReconcileForEachAdmission(
+        CompiledWorkflowPlan plan,
+        StructuredExecutionState state,
+        int maxConcurrentExecutionPaths)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        ArgumentNullException.ThrowIfNull(state);
+        if (maxConcurrentExecutionPaths <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(maxConcurrentExecutionPaths),
+                maxConcurrentExecutionPaths,
+                "The execution-path ceiling must be positive.");
+        }
+
+        var fibers = new Dictionary<FiberId, FiberRecord>(state.Fibers);
+        var scopes = new Dictionary<ScopeId, ExecutionScopeRecord>(state.Scopes);
+        var scheduler = state.Scheduler;
+        foreach (var scopeId in scopes.Values
+                     .Where(scope =>
+                         scope.Kind == CompiledScopeKind.ForEach &&
+                         scope.Phase == ExecutionScopePhase.Running)
+                     .OrderBy(scope => scope.ScopeEntrySequence)
+                     .ThenBy(scope => scope.Id.Value, StringComparer.Ordinal)
+                     .Select(scope => scope.Id)
+                     .ToArray())
+        {
+            var scope = scopes[scopeId];
+            (scope, fibers, scheduler, _) = AdmitForEachItems(
+                scope,
+                fibers,
+                scheduler,
+                plan.GetScope(scope.ScopePlanId),
+                maxConcurrentExecutionPaths);
+            scopes[scopeId] = scope;
+        }
+
+        return state with { Fibers = fibers, Scopes = scopes, Scheduler = scheduler };
+    }
+
     private static (ExecutionScopeRecord Scope, Dictionary<FiberId, FiberRecord> Fibers,
         FiberSchedulerState Scheduler, IReadOnlyList<FiberId> Admitted) AdmitForEachItems(
         ExecutionScopeRecord scope,
         Dictionary<FiberId, FiberRecord> fibers,
         FiberSchedulerState scheduler,
         CompiledScopePlan scopePlan,
-        int maxActiveFibers)
+        int maxConcurrentExecutionPaths)
     {
         var runtime = scope.ForEach!;
         var activeCount = scope.ChildFiberIds.Count(childId =>
             fibers[childId].Phase is FiberPhase.Runnable or FiberPhase.Blocked);
-        var available = Math.Min(
-            runtime.MaxConcurrency - activeCount,
-            maxActiveFibers - CountActiveFibers(fibers));
+        var effectiveMaxConcurrency = Math.Min(
+            runtime.MaxConcurrency,
+            maxConcurrentExecutionPaths);
+        var available = effectiveMaxConcurrency - activeCount;
         if (available <= 0 || runtime.NextAdmissionOffset >= runtime.Descriptors.Count)
         {
             return (scope, fibers, scheduler, []);
@@ -651,7 +699,7 @@ internal static class ScopeReducer
         }
     }
 
-    internal static ExecutionScopeRecord Transition(
+    public static ExecutionScopeRecord Transition(
         ExecutionScopeRecord scope,
         ExecutionScopePhase target)
     {
@@ -680,11 +728,10 @@ internal static class ScopeReducer
         return scope with { Phase = target };
     }
 
-    internal static ScopeStartTransition StartScope(
+    public static ScopeStartTransition StartScope(
         StructuredExecutionState state,
         FiberId parentFiberId,
-        CompiledScopePlan scopePlan,
-        int maxActiveFibers = int.MaxValue)
+        CompiledScopePlan scopePlan)
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(scopePlan);
@@ -704,11 +751,6 @@ internal static class ScopeReducer
         {
             throw new InvalidOperationException(
                 $"Scope plan '{scopePlan.Id}' must contain non-empty branch instruction plans.");
-        }
-
-        if (CountActiveFibers(state.Fibers) + scopePlan.Branches.Count > maxActiveFibers)
-        {
-            throw ActiveFiberLimitExceeded(maxActiveFibers);
         }
 
         var entrySequence = parent.NextScopeEntrySequence;
@@ -770,10 +812,29 @@ internal static class ScopeReducer
         return new ScopeStartTransition(next, scopeId, childFiberIds);
     }
 
-    private static int CountActiveFibers(IReadOnlyDictionary<FiberId, FiberRecord> fibers)
+    public static FiberFailure AggregateFailures(
+        IReadOnlyList<FiberFailure> orderedFailures,
+        AuthoredLocation? authoredLocation = null,
+        FailureOccurrence? occurrence = null)
     {
-        return fibers.Values.Count(fiber =>
-            fiber.Phase is FiberPhase.Runnable or FiberPhase.Blocked);
+        ArgumentNullException.ThrowIfNull(orderedFailures);
+        authoredLocation ??= FailureProvenance.Location("workflow:$");
+        occurrence ??= FailureProvenance.RootOccurrence();
+        return orderedFailures.Count switch
+        {
+            0 => new FiberFailure(
+                "SFE-JOIN-FAILED",
+                "The structured scope failed without a recorded child failure.",
+                authoredLocation: authoredLocation,
+                occurrence: occurrence),
+            1 => orderedFailures[0],
+            _ => new FiberFailure(
+                "SFE-JOIN-FAILED",
+                $"{orderedFailures.Count} authored children failed.",
+                orderedFailures,
+                authoredLocation,
+                occurrence)
+        };
     }
 
     private static HashSet<ScopeId> DescendantScopeIds(
@@ -799,11 +860,4 @@ internal static class ScopeReducer
         return descendants;
     }
 
-    private static StructuredExecutionLimitException ActiveFiberLimitExceeded(int maxActiveFibers)
-    {
-        return new StructuredExecutionLimitException(
-            DefinitionCompilerCodes.MaxActiveFibersExceeded,
-            $"Starting or admitting the structured scope would exceed the configured maximum " +
-            $"of {maxActiveFibers} active fibers.");
-    }
 }

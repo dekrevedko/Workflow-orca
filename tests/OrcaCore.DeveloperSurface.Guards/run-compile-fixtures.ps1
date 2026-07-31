@@ -5,12 +5,19 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $fixtures = Join-Path $PSScriptRoot 'CompileFixtures'
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $normativeProject = Join-Path $fixtures 'ExactAuthoring/ExactAuthoring.csproj'
 $forbiddenProject = Join-Path $fixtures 'ForbiddenAuthoring/ForbiddenAuthoring.csproj'
 $productProject = Join-Path $fixtures 'ProductAuthoring/ProductAuthoring.csproj'
+$productForbiddenProject = Join-Path $fixtures 'ProductForbiddenAuthoring/ProductForbiddenAuthoring.csproj'
+$productSourceProject = Join-Path $repoRoot 'src/OrcaCore.Core/OrcaCore.Core.csproj'
+$packageSourceProject = Join-Path $repoRoot 'src/OrcaCore.Abstractions/OrcaCore.csproj'
 $incompleteProject = Join-Path $fixtures 'IncompleteProductPackage/IncompleteProductPackage.csproj'
 $negativeFeed = Join-Path $fixtures 'IncompleteProductPackage/obj/negative-control-feed'
+$productFeed = Join-Path $fixtures 'ProductAuthoring/obj/product-feed'
 $productPackageCache = Join-Path $fixtures 'ProductAuthoring/obj/package-cache'
+$forbiddenPackageCache = Join-Path $fixtures 'ProductForbiddenAuthoring/obj/package-cache'
+$productVersion = '0.0.0-phase0-local'
 $source = Get-Content -Raw (Join-Path $fixtures 'ExactAuthoring/Authoring.cs')
 
 $requiredFamilies = @(
@@ -59,6 +66,32 @@ if ($Disposition -eq 'Green') {
         }
     }
 
+    foreach ($directory in @($productFeed, $productPackageCache, $forbiddenPackageCache)) {
+        if (Test-Path -LiteralPath $directory) {
+            Remove-Item -LiteralPath $directory -Recurse -Force
+        }
+    }
+    $buildProduct = & dotnet build $productSourceProject --configuration Release --nologo --verbosity quiet 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { throw "Current product source failed before packing.`n$buildProduct" }
+    $packProduct = & dotnet pack $packageSourceProject --configuration Release --no-build --output $productFeed --nologo --verbosity quiet -p:PackageVersion=$productVersion 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { throw "Current product source failed to pack.`n$packProduct" }
+
+    $productRestore = & dotnet restore $productProject --source $productFeed --force --no-cache --nologo -p:Phase0PackageVersion=$productVersion 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { throw "Fresh product package failed to restore.`n$productRestore" }
+    $productBuild = & dotnet build $productProject --configuration Release --no-restore --nologo --verbosity quiet -p:Phase0PackageVersion=$productVersion 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { throw "Positive authoring source failed against the freshly packed product.`n$productBuild" }
+
+    $productForbiddenRestore = & dotnet restore $productForbiddenProject --source $productFeed --force --no-cache --nologo -p:Phase0PackageVersion=$productVersion 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { throw "Forbidden product fixture failed to restore.`n$productForbiddenRestore" }
+    $productForbidden = & dotnet build $productForbiddenProject --configuration Release --no-restore --nologo --verbosity quiet -p:Phase0PackageVersion=$productVersion 2>&1 | Out-String
+    if ($LASTEXITCODE -eq 0) { throw 'Forbidden authoring source unexpectedly compiled against the freshly packed product.' }
+    $forbiddenCount = [regex]::Matches($productForbidden, 'Forbidden\.cs\((\d+),(\d+)\): error CS1061') |
+        ForEach-Object { $_.Groups[1].Value + ':' + $_.Groups[2].Value } |
+        Sort-Object -Unique
+    if ($forbiddenCount.Count -ne 26) {
+        throw "Fresh product package did not reject all 26 forbidden calls.`n$productForbidden"
+    }
+
     if (Test-Path -LiteralPath $productPackageCache) {
         Remove-Item -LiteralPath $productPackageCache -Recurse -Force
     }
@@ -72,21 +105,9 @@ if ($Disposition -eq 'Green') {
         throw "Incomplete package did not fail on the exact missing authoring surface.`n$incomplete"
     }
 
-    Write-Output "Green compile infrastructure: compiled the exact companion and positive usages; verified 26 precise forbidden-member CS1061 diagnostics; rejected a deliberately incomplete product package."
+    Write-Output "Green compile infrastructure: freshly packed current source; compiled exact and product-positive usages; verified 26 source-fixture and 26 product-package forbidden-member CS1061 diagnostics; rejected a deliberately incomplete package."
     exit 0
 }
 
-if (Test-Path -LiteralPath $productPackageCache) {
-    Remove-Item -LiteralPath $productPackageCache -Recurse -Force
-}
-$output = & dotnet build $productProject --configuration Release --nologo --verbosity quiet 2>&1 | Out-String
-if ($LASTEXITCODE -eq 0) {
-    throw 'Expected-red exact authoring fixture unexpectedly compiled.'
-}
-if ($output -notmatch 'NU1101.*OrcaCore' -and
-    ($output -notmatch 'EphemeralWorkflowInitBuilder' -or $output -notmatch 'DurableLeaseItemBuilder')) {
-    throw "Exact authoring fixture failed for an unintended reason.`n$output"
-}
-
-Write-Output 'Expected product red (1): the full positive authoring usage fixture does not compile against OrcaCore 0.0.0-phase0.'
-exit 1
+Write-Output 'Expected-red compile fixtures (0): Section 4 product authoring package proof is green.'
+exit 0

@@ -1,0 +1,167 @@
+namespace OrcaCore;
+
+/// <summary>An immutable resultless ephemeral workflow definition.</summary>
+public sealed class EphemeralWorkflowDefinition<TInput>
+{
+    internal EphemeralWorkflowDefinition(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        DefinitionFingerprint definitionFingerprint,
+        object runtimeDefinition,
+        Type runtimeStateType)
+    {
+        DefinitionId = definitionId;
+        DefinitionVersion = definitionVersion;
+        DefinitionFingerprint = definitionFingerprint;
+        RuntimeDefinition = runtimeDefinition;
+        RuntimeStateType = runtimeStateType;
+    }
+
+    public WorkflowMode Mode => WorkflowMode.Ephemeral;
+
+    public DefinitionId DefinitionId { get; }
+
+    public DefinitionVersion DefinitionVersion { get; }
+
+    public DefinitionFingerprint DefinitionFingerprint { get; }
+
+    internal object RuntimeDefinition { get; }
+
+    internal Type RuntimeStateType { get; }
+}
+
+/// <summary>An immutable resultful ephemeral workflow definition.</summary>
+public sealed class EphemeralWorkflowDefinition<TInput, TOutput>
+{
+    internal EphemeralWorkflowDefinition(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        DefinitionFingerprint definitionFingerprint,
+        object runtimeDefinition,
+        Type runtimeStateType)
+    {
+        DefinitionId = definitionId;
+        DefinitionVersion = definitionVersion;
+        DefinitionFingerprint = definitionFingerprint;
+        RuntimeDefinition = runtimeDefinition;
+        RuntimeStateType = runtimeStateType;
+    }
+
+    public WorkflowMode Mode => WorkflowMode.Ephemeral;
+
+    public DefinitionId DefinitionId { get; }
+
+    public DefinitionVersion DefinitionVersion { get; }
+
+    public DefinitionFingerprint DefinitionFingerprint { get; }
+
+    internal object RuntimeDefinition { get; }
+
+    internal Type RuntimeStateType { get; }
+}
+
+/// <summary>An immutable resultless durable workflow definition.</summary>
+public sealed class DurableWorkflowDefinition<TInput>
+{
+    internal DurableWorkflowDefinition(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        DefinitionFingerprint definitionFingerprint,
+        object runtimeDefinition,
+        Type runtimeStateType)
+    {
+        DefinitionId = definitionId;
+        DefinitionVersion = definitionVersion;
+        DefinitionFingerprint = definitionFingerprint;
+        RuntimeDefinition = runtimeDefinition;
+        RuntimeStateType = runtimeStateType;
+        Reference = new DurableWorkflowRef<TInput>(this);
+    }
+
+    public WorkflowMode Mode => WorkflowMode.Durable;
+
+    public DefinitionId DefinitionId { get; }
+
+    public DefinitionVersion DefinitionVersion { get; }
+
+    public DefinitionFingerprint DefinitionFingerprint { get; }
+
+    public DurableWorkflowRef<TInput> Reference { get; }
+
+    internal object RuntimeDefinition { get; }
+
+    internal Type RuntimeStateType { get; }
+}
+
+/// <summary>An immutable resultful durable workflow definition.</summary>
+public sealed class DurableWorkflowDefinition<TInput, TOutput>
+{
+    internal DurableWorkflowDefinition(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        DefinitionFingerprint definitionFingerprint,
+        object runtimeDefinition,
+        Type runtimeStateType)
+    {
+        DefinitionId = definitionId;
+        DefinitionVersion = definitionVersion;
+        DefinitionFingerprint = definitionFingerprint;
+        RuntimeDefinition = runtimeDefinition;
+        RuntimeStateType = runtimeStateType;
+        Reference = new DurableWorkflowRef<TInput, TOutput>(this);
+    }
+
+    public WorkflowMode Mode => WorkflowMode.Durable;
+
+    public DefinitionId DefinitionId { get; }
+
+    public DefinitionVersion DefinitionVersion { get; }
+
+    public DefinitionFingerprint DefinitionFingerprint { get; }
+
+    public DurableWorkflowRef<TInput, TOutput> Reference { get; }
+
+    internal object RuntimeDefinition { get; }
+
+    internal Type RuntimeStateType { get; }
+}
+
+/// <summary>A state-opaque resultless durable workflow reference.</summary>
+public sealed class DurableWorkflowRef<TInput>
+{
+    internal DurableWorkflowRef(DurableWorkflowDefinition<TInput> definition)
+    {
+        Mode = definition.Mode;
+        DefinitionId = definition.DefinitionId;
+        DefinitionVersion = definition.DefinitionVersion;
+        DefinitionFingerprint = definition.DefinitionFingerprint;
+    }
+
+    public WorkflowMode Mode { get; }
+
+    public DefinitionId DefinitionId { get; }
+
+    public DefinitionVersion DefinitionVersion { get; }
+
+    public DefinitionFingerprint DefinitionFingerprint { get; }
+}
+
+/// <summary>A state-opaque resultful durable workflow reference.</summary>
+public sealed class DurableWorkflowRef<TInput, TOutput>
+{
+    internal DurableWorkflowRef(DurableWorkflowDefinition<TInput, TOutput> definition)
+    {
+        Mode = definition.Mode;
+        DefinitionId = definition.DefinitionId;
+        DefinitionVersion = definition.DefinitionVersion;
+        DefinitionFingerprint = definition.DefinitionFingerprint;
+    }
+
+    public WorkflowMode Mode { get; }
+
+    public DefinitionId DefinitionId { get; }
+
+    public DefinitionVersion DefinitionVersion { get; }
+
+    public DefinitionFingerprint DefinitionFingerprint { get; }
+}

@@ -31,18 +31,3 @@ public sealed class DeadlineRetryInfrastructureGuards
         }) matrix.Should().Contain(anchor);
     }
 }
-
-[Trait(GuardTraits.Phase, GuardTraits.Phase0)]
-[Trait(GuardTraits.Disposition, GuardTraits.ExpectedRed)]
-public sealed class DeadlineRetryExpectedRedGuards
-{
-    [Fact]
-    public void Product_ContainsFinalDeadlineDiagnosticAndOperationCoordinate()
-    {
-        var source = Directory.GetFiles(Path.Combine(FixtureDefinitions.RepositoryRoot(), "src"), "*.cs", SearchOption.AllDirectories)
-            .SelectMany(File.ReadLines).ToArray();
-        source.Should().Contain(line => line.Contains("SFE-AUTH-DEADLINE-001", StringComparison.Ordinal));
-        PublicSurfaceCatalog.Assemblies.SelectMany(x => x.GetExportedTypes())
-            .Should().Contain(x => x.FullName == "OrcaCore.StepOperationId");
-    }
-}

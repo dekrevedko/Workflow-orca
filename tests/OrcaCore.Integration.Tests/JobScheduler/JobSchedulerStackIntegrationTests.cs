@@ -12,6 +12,8 @@ using OrcaCore.Integration.Tests.Support;
 using OrcaCore.TestSupport;
 using Xunit;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Integration.Tests.JobScheduler;
 
 [Collection(nameof(OrcaStackCollection))]
@@ -48,6 +50,8 @@ public sealed class JobSchedulerStackIntegrationTests(OrcaStackFixture fixture)
     [Trait("AC", "JS-AC-005")]
     public async Task INT_JS_004_ExternalJob_WaitSurvivesProcessorRestart()
     {
+        Assert.Skip(
+            "Deferred: generic external-job commands are outside v1; task 9.6 owns any future replacement.");
         await fixture.ResetAsync(TestContext.Current.CancellationToken);
         await using var store = await fixture.PostgreSql.CreateStoreAsync();
         await using var pools = await fixture.PostgreSql.CreatePoolStoreAsync();
@@ -67,7 +71,7 @@ public sealed class JobSchedulerStackIntegrationTests(OrcaStackFixture fixture)
 
         snapshot.Status.Should().Be(WorkflowStatus.Waiting);
         snapshot.ActiveWaits.Should().ContainSingle(wait =>
-            wait.CorrelationId == new CorrelationId("job-1"));
+            wait.CorrelationId == CorrelationId.Create("job-1"));
         await restarted.ProcessAsync(
             IntegrationCommands.CompleteExternalJob(1, 3, "job-1", 90),
             TestContext.Current.CancellationToken);
@@ -408,6 +412,8 @@ public sealed class JobSchedulerStackIntegrationTests(OrcaStackFixture fixture)
     [Trait("AC", "MG-013")]
     public async Task INT_JS_014_PauseRunWithInFlightJobs_OnPostgreSql()
     {
+        Assert.Skip(
+            "Deferred: external jobs and pause/resume are outside v1; task 9.6 owns any future replacement.");
         await fixture.ResetAsync(TestContext.Current.CancellationToken);
         await using var store = await fixture.PostgreSql.CreateStoreAsync();
         await using var pools = await fixture.PostgreSql.CreatePoolStoreAsync();
@@ -432,7 +438,7 @@ public sealed class JobSchedulerStackIntegrationTests(OrcaStackFixture fixture)
 
         paused.Outcome.Should().Be(DurableCommandOutcome.Committed);
         snapshot.Status.Should().Be(WorkflowStatus.Paused);
-        snapshot.ActiveWaits.Should().ContainSingle(wait => wait.CorrelationId == new CorrelationId("job-1"));
+        snapshot.ActiveWaits.Should().ContainSingle(wait => wait.CorrelationId == CorrelationId.Create("job-1"));
         events.OfType<WorkflowExternalJobStopRequestedEvent>().Should().BeEmpty();
         outbox.Where(record => record.Kind == "external-job-stop").Should().BeEmpty();
         pool.Value.HeldTickets.Should().ContainSingle(ticket => ticket.HolderKey == "job-1");

@@ -9,7 +9,7 @@ public sealed class WorkflowConcurrencyException : OrcaCoreException
     /// Initializes a concurrency exception with a caller-actionable message.
     /// </summary>
     public WorkflowConcurrencyException(string message)
-        : base(message)
+        : base("WF-LEGACY-CONCURRENCY", message)
     {
     }
 
@@ -17,7 +17,7 @@ public sealed class WorkflowConcurrencyException : OrcaCoreException
     /// Initializes a concurrency exception with a caller-actionable message and inner cause.
     /// </summary>
     public WorkflowConcurrencyException(string message, Exception innerException)
-        : base(message, innerException)
+        : base("WF-LEGACY-CONCURRENCY", message, innerException)
     {
     }
 }

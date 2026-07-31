@@ -47,7 +47,11 @@ public sealed class SqlServerEventStoreTests : IAsyncLifetime
             """
             select count(*)
             from dbo.orcacore_schema_migrations
-            where migration_id in ('001_initial', '002_claim_leases', '003_resource_pools', '004_history_projections');
+            where migration_id in (
+                '001_initial',
+                '002_claim_leases',
+                '003_resource_pools',
+                '004_history_projections');
             """,
             connection);
 
@@ -100,6 +104,38 @@ public sealed class SqlServerEventStoreTests : IAsyncLifetime
             ?? throw new InvalidOperationException());
 
         tableCount.Should().Be(5);
+
+        await using var columnCommand = new SqlCommand(
+            """
+            select count(*)
+            from sys.columns
+            where
+                (object_id = object_id('dbo.orcacore_resource_pools')
+                    and name = 'creation_capacity')
+                or
+                (object_id = object_id('dbo.orcacore_resource_tickets')
+                    and name in ('fiber_id', 'scope_id'))
+                or
+                (object_id = object_id('dbo.orcacore_resource_waiters')
+                    and name in ('fiber_id', 'scope_id'));
+            """,
+            connection);
+        var currentResourcePoolColumnCount = (int)(await columnCommand.ExecuteScalarAsync(
+            TestContext.Current.CancellationToken) ?? throw new InvalidOperationException());
+
+        currentResourcePoolColumnCount.Should().Be(5);
+
+        await using var compatibilityMigrationCommand = new SqlCommand(
+            """
+            select count(*)
+            from dbo.orcacore_schema_migrations
+            where migration_id = '008_resource_ownership';
+            """,
+            connection);
+        var compatibilityMigrationCount = (int)(await compatibilityMigrationCommand.ExecuteScalarAsync(
+            TestContext.Current.CancellationToken) ?? throw new InvalidOperationException());
+
+        compatibilityMigrationCount.Should().Be(0);
     }
 
     [Fact]
@@ -242,12 +278,12 @@ public sealed class SqlServerEventStoreTests : IAsyncLifetime
 
     private static EventId EventIdValue(int value)
     {
-        return new EventId(GuidValue(value));
+        return EventId.Create(GuidValue(value).ToString());
     }
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -262,7 +298,7 @@ public sealed class SqlServerEventStoreTests : IAsyncLifetime
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static OutboxRecordId OutboxRecordIdValue(int value)

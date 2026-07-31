@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
@@ -5,6 +6,7 @@ using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
 using OrcaCore.Engine.Ephemeral;
+using OrcaCore.Hosting;
 using Xunit;
 
 namespace OrcaCore.Acceptance.Tests;
@@ -15,69 +17,99 @@ public sealed class StraightLineAcceptanceTests
     [Trait("AC", "AC-001")]
     public async Task StraightLine_Completes_StateReflectsSteps()
     {
-        var sink = new List<string>();
-        var engine = new EphemeralWorkflowEngine();
-        var definition = new WorkflowBuilder<StraightLineState>()
-            .Init<string>(_ => new StraightLineState(sink))
-            .Then(() => new RecordingStep("first"))
-            .Then(() => new RecordingStep("second"))
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
+        var registry = provider.GetRequiredService<IWorkflowDefinitionRegistry>();
+        var definition = global::OrcaCore.Workflow.Ephemeral<StraightLineState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(_ => new StraightLineState())
+            .Then(context =>
+            {
+                context.State.Sink.Add("first");
+                return ValueTask.CompletedTask;
+            })
+            .Then(context =>
+            {
+                context.State.Sink.Add("second");
+                return ValueTask.CompletedTask;
+            })
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
 
-        engine.RegisterDefinition(definition);
-
-        var snapshot = await engine.StartAsync<string, StraightLineState>(
-            definition.DefinitionId,
+        var definitionHandle = registry.Register(definition).GetHandleOrThrow();
+        var instance = (await definitionHandle.StartOrGetAsync(
             "start",
-            TestContext.Current.CancellationToken);
+            StartIdempotencyKey.Create("straight-line"),
+            TestContext.Current.CancellationToken));
+        var instanceHandle = instance.GetHandleOrThrow();
+        var snapshot = await instanceHandle.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var state = await instanceHandle.GetStateAsync<StraightLineState>(TestContext.Current.CancellationToken);
 
-        snapshot.Status.Should().Be(WorkflowStatus.Completed);
-        sink.Should().Equal(["first", "second"]);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
+        state.Sink.Should().Equal(["first", "second"]);
     }
 
     [Fact]
     [Trait("AC", "AC-004")]
     public async Task FailingStep_FailsInstance_ErrorInspectable()
     {
-        var engine = new EphemeralWorkflowEngine();
-        var definition = new WorkflowBuilder<StraightLineState>()
-            .Init<string>(_ => new StraightLineState([]))
-            .Then(() => new FailingStep())
+        using var provider = PublicAcceptanceHost.CreateEphemeralProvider(
+            services => services.AddTransient<FailingStep>());
+        var registry = provider.GetRequiredService<IWorkflowDefinitionRegistry>();
+        var definition = global::OrcaCore.Workflow.Ephemeral<StraightLineState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(_ => new StraightLineState())
+            .Then<FailingStep>()
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
 
-        engine.RegisterDefinition(definition);
-
-        var snapshot = await engine.StartAsync<string, StraightLineState>(
-            definition.DefinitionId,
+        var definitionHandle = registry.Register(definition).GetHandleOrThrow();
+        var instance = (await definitionHandle.StartOrGetAsync(
             "start",
-            TestContext.Current.CancellationToken);
+            StartIdempotencyKey.Create("failing-step"),
+            TestContext.Current.CancellationToken));
+        var snapshot = await instance.GetHandleOrThrow()
+            .GetSnapshotAsync(TestContext.Current.CancellationToken);
 
-        snapshot.Status.Should().Be(WorkflowStatus.Failed);
-        snapshot.ErrorSummary.Should().Contain("acceptance failure");
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Failed);
+        snapshot.Failure.Should().NotBeNull();
+        snapshot.Failure!.Message.Should().Contain("acceptance failure");
     }
 
-    private sealed record StraightLineState(List<string> Sink);
+    public sealed record StraightLineState
+    {
+        public List<string> Sink { get; init; } = [];
+    }
 
-    private sealed class RecordingStep(string value) : IStep<StraightLineState>
+    public sealed class FailingStep : IStep<StraightLineState>
     {
         public ValueTask<StepResult> ExecuteAsync(
             StepContext<StraightLineState> context,
-            CancellationToken cancellationToken)
-        {
-            context.State.Sink.Add(value);
-            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
-        }
+            CancellationToken cancellationToken) =>
+            ValueTask.FromResult<StepResult>(
+                new StepResult.Failed(new WorkflowLifecycleException("acceptance failure")));
     }
+}
 
-    private sealed class FailingStep : IStep<StraightLineState>
+internal static class PublicAcceptanceHost
+{
+    internal static ServiceProvider CreateEphemeralProvider(
+        Action<IServiceCollection>? configure = null,
+        TimeProvider? timeProvider = null)
     {
-        public ValueTask<StepResult> ExecuteAsync(
-            StepContext<StraightLineState> context,
-            CancellationToken cancellationToken)
+        var services = new ServiceCollection();
+        configure?.Invoke(services);
+        if (timeProvider is not null)
         {
-            return ValueTask.FromResult<StepResult>(
-                new StepResult.Failed(new WorkflowDefinitionException("acceptance failure")));
+            services.AddSingleton(timeProvider);
         }
+
+        services.AddOrcaCoreEphemeralEngine(new EphemeralEngineHostOptions
+        {
+            StructuredExecution = new StructuredExecutionHostOptions
+            {
+                MaxConcurrentExecutionPathsPerInstance = 8,
+                StepThrottles = []
+            },
+            TransientPools = []
+        });
+        return services.BuildServiceProvider();
     }
 }

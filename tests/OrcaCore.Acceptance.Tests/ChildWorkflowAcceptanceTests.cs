@@ -9,6 +9,8 @@ using OrcaCore.Engine.Durable.Management;
 using OrcaCore.Providers.InMemory;
 using Xunit;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Acceptance.Tests;
 
 public sealed class ChildWorkflowAcceptanceTests
@@ -353,7 +355,7 @@ public sealed class ChildWorkflowAcceptanceTests
         return events.OfType<WorkflowParentResumeTokenRecordedEvent>().ToArray();
     }
 
-    private static async Task<List<WorkflowEvent>> EventsAsync(
+    private static async Task<List<DurableWorkflowEvent>> EventsAsync(
         InMemoryWorkflowProvider store,
         InstanceId parentId)
     {
@@ -401,7 +403,7 @@ public sealed class ChildWorkflowAcceptanceTests
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -411,7 +413,7 @@ public sealed class ChildWorkflowAcceptanceTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static Guid GuidValue(int value)

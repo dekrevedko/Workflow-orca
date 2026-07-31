@@ -3,7 +3,7 @@ namespace OrcaCore.Core.Definitions;
 /// <summary>
 /// Deterministically partitions fanout input items for composition nodes.
 /// </summary>
-public abstract record WorkflowPartitioner<TItem>
+internal abstract record WorkflowPartitioner<TItem>
 {
     public abstract IReadOnlyList<WorkflowPartition<TItem>> Partition(IReadOnlyList<TItem> items);
 

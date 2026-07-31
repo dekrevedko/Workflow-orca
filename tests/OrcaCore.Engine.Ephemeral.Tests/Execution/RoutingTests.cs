@@ -13,7 +13,7 @@ namespace OrcaCore.Engine.Ephemeral.Tests.Execution;
 
 public sealed class RoutingTests
 {
-    private static readonly CorrelationId Correlation = new("shared");
+    private static readonly CorrelationId Correlation = CorrelationId.Create("shared");
 
     [Fact]
     public async Task RaiseByCorrelationAsync_OneActiveWait_ResumesThatInstance()
@@ -87,7 +87,7 @@ public sealed class RoutingTests
         snapshot.ActiveWaits.Should().ContainSingle(wait => wait.EventName == "other-a");
         snapshot = await engine.RaiseEventAsync<TestState>(
             snapshot.InstanceId,
-            Event("other-a", new CorrelationId("other-a"), null),
+            Event("other-a", CorrelationId.Create("other-a"), null),
             TestContext.Current.CancellationToken);
         var firstResult = engine.Management.Instance(snapshot.InstanceId).GetState<TestState>();
 
@@ -193,12 +193,12 @@ public sealed class RoutingTests
         string eventName,
         CorrelationId correlationId)
     {
-        return new WorkflowBuilder<TestState>()
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .Wait(eventName, _ => correlationId)
             .Then(() => new CapturePayloadStep())
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
     }
 
     private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> ParallelDefinition(
@@ -206,7 +206,7 @@ public sealed class RoutingTests
         string matchingBranchName,
         string otherEventName)
     {
-        return Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .Parallel<string>(
                 branches => branches
@@ -220,7 +220,7 @@ public sealed class RoutingTests
                         "residual",
                         _ => new BranchPayloadState(),
                         branch => branch
-                            .Wait(otherEventName, _ => new CorrelationId(otherEventName))
+                            .Wait(otherEventName, _ => CorrelationId.Create(otherEventName))
                             .Return(_ => string.Empty)),
                 (parent, results) =>
                 {
@@ -243,7 +243,7 @@ public sealed class RoutingTests
     {
         return new EventEnvelope
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             EventName = name,
             CorrelationId = correlationId,
             BranchId = branchId,

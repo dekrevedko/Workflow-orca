@@ -112,5 +112,6 @@ public sealed class ResultTests
         act.Should().Throw<InvalidOperationException>();
     }
 
-    private sealed class TestOrcaCoreException(string message) : OrcaCoreException(message);
+    private sealed class TestOrcaCoreException(string message)
+        : OrcaCoreException("TEST-ERROR", message);
 }

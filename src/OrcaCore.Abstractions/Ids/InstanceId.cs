@@ -1,17 +1,18 @@
 using System.Text.Json.Serialization;
+using OrcaCore.Abstractions.Ids;
 
-namespace OrcaCore.Abstractions.Ids;
+namespace OrcaCore;
 
 /// <summary>
 /// Identifies one logical workflow instance across activations and hosts.
 /// </summary>
 [JsonConverter(typeof(InstanceIdJsonConverter))]
-public readonly record struct InstanceId
+public sealed class InstanceId : IEquatable<InstanceId>
 {
     /// <summary>
     /// Initializes an instance identifier from a GUID value.
     /// </summary>
-    public InstanceId(Guid value)
+    private InstanceId(Guid value)
     {
         Value = value;
     }
@@ -22,12 +23,44 @@ public readonly record struct InstanceId
     public Guid Value { get; }
 
     /// <summary>
-    /// Creates a new time-ordered version 7 instance identifier.
+    /// Parses a non-empty instance identifier from its canonical GUID text.
     /// </summary>
-    public static InstanceId New()
+    public static InstanceId Parse(string value)
     {
-        return new InstanceId(Guid.CreateVersion7());
+        ArgumentNullException.ThrowIfNull(value);
+
+        var parsed = Guid.Parse(value);
+        if (parsed == Guid.Empty)
+        {
+            throw new ArgumentException("Instance identifier cannot be empty.", nameof(value));
+        }
+
+        return new InstanceId(parsed);
     }
+
+    /// <summary>
+    /// Attempts to parse a non-empty instance identifier from canonical GUID text.
+    /// </summary>
+    public static bool TryParse(string? value, out InstanceId? instanceId)
+    {
+        if (Guid.TryParse(value, out var parsed) && parsed != Guid.Empty)
+        {
+            instanceId = new InstanceId(parsed);
+            return true;
+        }
+
+        instanceId = null;
+        return false;
+    }
+
+    /// <inheritdoc />
+    public bool Equals(InstanceId? other) => other is not null && Value == other.Value;
+
+    /// <inheritdoc />
+    public override bool Equals(object? obj) => obj is InstanceId other && Equals(other);
+
+    /// <inheritdoc />
+    public override int GetHashCode() => Value.GetHashCode();
 
     /// <summary>
     /// Returns the underlying GUID text.

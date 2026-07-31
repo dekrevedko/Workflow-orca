@@ -2,12 +2,15 @@ using AwesomeAssertions;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
+using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
-using OrcaCore.Engine.Durable.Aggregates;
+using OrcaCore.Engine.Durable.Definitions;
 using OrcaCore.Engine.Durable.Execution;
+using OrcaCore.Engine.Durable.Management;
 using OrcaCore.Providers.InMemory;
-using OrcaCore.TestSupport.Providers;
 using Xunit;
+
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
 
 namespace OrcaCore.Engine.Durable.Tests.Recovery;
 
@@ -17,207 +20,262 @@ public sealed class DurableRecoveryTests
     [Trait("AC", "AC-301")]
     public async Task WaitingInstance_RehydrateAfterRestart_RemainsResumable()
     {
-        var instanceId = InstanceIdValue(1);
-        var waitId = WaitIdValue(1);
         var store = new InMemoryWorkflowProvider();
-        var processor = new DurableCommandProcessor(store);
-        await processor.ProcessAsync(StartCommand(instanceId), TestContext.Current.CancellationToken);
-        await processor.ProcessAsync(WaitRegisteredCommand(instanceId, waitId, 2), TestContext.Current.CancellationToken);
+        var eventName = EventName.Create("recovery-resume");
+        var correlation = CorrelationId.Create("waiting-restart");
+        var definition = WaitingDefinition(DefinitionId.New(), eventName);
+        var first = CreateFacade(store, store, store, driveAfterDelivery: true);
+        var firstHandle = first.Registry.Register(definition).GetHandleOrThrow();
+        var instanceId = (await firstHandle.StartOrGetAsync(
+            new Input(correlation.Value),
+            StartIdempotencyKey.Create("waiting-restart-start"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow().InstanceId;
 
-        var restarted = new DurableCommandProcessor(store);
-        var result = await restarted.ProcessAsync(
-            WaitMatchedCommand(instanceId, waitId, 3),
+        var replacement = CreateFacade(store, store, store, driveAfterDelivery: true);
+        var replacementHandle = replacement.Registry.Register(definition).GetHandleOrThrow();
+        var result = await replacement.Events.DeliverToInstanceAsync(
+            instanceId,
+            RecoveryEvent("waiting-restart-event", eventName, correlation),
             TestContext.Current.CancellationToken);
-        var events = await store.LoadTailAsync(
-            new WorkflowStreamId(instanceId),
-            StreamVersion.Empty,
-            TestContext.Current.CancellationToken);
+        var snapshot = await (await replacementHandle.GetInstanceAsync(
+                instanceId,
+                TestContext.Current.CancellationToken))
+            .GetSnapshotAsync(TestContext.Current.CancellationToken);
 
-        result.Outcome.Should().Be(DurableCommandOutcome.Committed);
-        events.OfType<WorkflowWaitMatchedEvent>().Should().ContainSingle();
+        result.Status.Should().Be(EventDeliveryStatus.Accepted);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
     }
 
     [Fact]
     [Trait("AC", "AC-302")]
     public async Task CrashBeforeCommit_RehydratesLastCommittedStateOnly()
     {
-        var instanceId = InstanceIdValue(1);
-        var store = new FakeWorkflowEventStore();
-        await store.AppendAsync(new ProviderCommitBatch
-        {
-            StreamId = new WorkflowStreamId(instanceId),
-            ExpectedVersion = StreamVersion.Empty,
-            Events = [Started(instanceId)]
-        }, TestContext.Current.CancellationToken);
-        store.FailNextCommitBeforeApply();
-        var processor = new DurableCommandProcessor(store);
+        var store = new InMemoryWorkflowProvider();
+        var eventStore = new FailOnceEventStore(store);
+        var eventName = EventName.Create("crash-recovery");
+        var correlation = CorrelationId.Create("crash-before-commit");
+        var definition = WaitingDefinition(DefinitionId.New(), eventName);
+        var first = CreateFacade(eventStore, store, store, driveAfterDelivery: false);
+        var firstHandle = first.Registry.Register(definition).GetHandleOrThrow();
+        var instanceId = (await firstHandle.StartOrGetAsync(
+            new Input(correlation.Value),
+            StartIdempotencyKey.Create("crash-before-commit-start"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow().InstanceId;
+        var workflowEvent = RecoveryEvent("crash-before-commit-event", eventName, correlation);
+        eventStore.FailNextCommitBeforeApply();
 
-        var failed = await processor.ProcessAsync(
-            StepCompletedCommand(instanceId, 2),
+        _ = await first.Events.DeliverToInstanceAsync(
+            instanceId,
+            workflowEvent,
             TestContext.Current.CancellationToken);
-        var recovered = await new DurableCommandProcessor(store).ProcessAsync(
-            StepCompletedCommand(instanceId, 3),
+        var afterFailure = await store.LoadTailAsync(
+            new WorkflowStreamId(instanceId),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+        var replacement = CreateFacade(eventStore, store, store, driveAfterDelivery: false);
+        _ = replacement.Registry.Register(definition).GetHandleOrThrow();
+        var recovered = await replacement.Events.DeliverToInstanceAsync(
+            instanceId,
+            workflowEvent,
             TestContext.Current.CancellationToken);
         var events = await store.LoadTailAsync(
             new WorkflowStreamId(instanceId),
             StreamVersion.Empty,
             TestContext.Current.CancellationToken);
 
-        failed.Outcome.Should().Be(DurableCommandOutcome.Conflict);
-        recovered.Outcome.Should().Be(DurableCommandOutcome.Committed);
-        events.OfType<WorkflowStepCompletedEvent>().Should().ContainSingle();
+        afterFailure.OfType<WorkflowWaitMatchedEvent>().Should().BeEmpty();
+        recovered.Status.Should().Be(EventDeliveryStatus.Accepted);
+        events.OfType<WorkflowWaitMatchedEvent>().Should().ContainSingle();
     }
 
     [Fact]
     [Trait("AC", "AC-316")]
     public async Task HostKilledBeforeShutdownHook_LosesNoCommittedTransition()
     {
-        var instanceId = InstanceIdValue(1);
         var store = new InMemoryWorkflowProvider();
-        var processor = new DurableCommandProcessor(store);
-        await processor.ProcessAsync(StartCommand(instanceId), TestContext.Current.CancellationToken);
-        await processor.ProcessAsync(StepCompletedCommand(instanceId, 2), TestContext.Current.CancellationToken);
-
-        var restarted = new DurableCommandProcessor(store);
-        var result = await restarted.ProcessAsync(
-            StepCompletedCommand(instanceId, 3, "root/2"),
+        var eventName = EventName.Create("committed-transition");
+        var correlation = CorrelationId.Create("host-killed");
+        var definition = WaitingDefinition(DefinitionId.New(), eventName);
+        var idempotencyKey = StartIdempotencyKey.Create("host-killed-start");
+        var first = CreateFacade(store, store, store, driveAfterDelivery: false);
+        var firstHandle = first.Registry.Register(definition).GetHandleOrThrow();
+        var instanceId = (await firstHandle.StartOrGetAsync(
+            new Input(correlation.Value),
+            idempotencyKey,
+            TestContext.Current.CancellationToken)).GetHandleOrThrow().InstanceId;
+        var accepted = await first.Events.DeliverToInstanceAsync(
+            instanceId,
+            RecoveryEvent("host-killed-event", eventName, correlation),
             TestContext.Current.CancellationToken);
+
+        var replacement = CreateFacade(store, store, store, driveAfterDelivery: true);
+        var replacementHandle = replacement.Registry.Register(definition).GetHandleOrThrow();
+        var restarted = await replacementHandle.StartOrGetAsync(
+            new Input(correlation.Value),
+            idempotencyKey,
+            TestContext.Current.CancellationToken);
+        var snapshot = await restarted.GetHandleOrThrow()
+            .GetSnapshotAsync(TestContext.Current.CancellationToken);
         var events = await store.LoadTailAsync(
             new WorkflowStreamId(instanceId),
             StreamVersion.Empty,
             TestContext.Current.CancellationToken);
 
-        result.Outcome.Should().Be(DurableCommandOutcome.Committed);
-        events.OfType<WorkflowStepCompletedEvent>().Select(workflowEvent => workflowEvent.StepPath)
-            .Should().Equal("root/1", "root/2");
+        accepted.Status.Should().Be(EventDeliveryStatus.Accepted);
+        restarted.Should()
+            .BeOfType<WorkflowStartResult<WorkflowInstanceHandle>.Accepted>()
+            .Which.WasExisting.Should().BeTrue();
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
+        events.OfType<WorkflowWaitMatchedEvent>().Should().ContainSingle();
+        events.OfType<WorkflowResumeConsumedEvent>().Should().ContainSingle();
     }
 
     [Fact]
     public async Task CheckpointPlusTail_RehydratesWithoutGenesisReplay()
     {
-        var instanceId = InstanceIdValue(1);
-        var waitId = WaitIdValue(1);
         var store = new InMemoryWorkflowProvider();
-        var processor = new DurableCommandProcessor(store);
-        await processor.ProcessAsync(StartCommand(instanceId), TestContext.Current.CancellationToken);
-        await processor.ProcessAsync(StepCompletedCommand(instanceId, 2), TestContext.Current.CancellationToken);
-        await processor.ProcessAsync(WaitRegisteredCommand(instanceId, waitId, 3), TestContext.Current.CancellationToken);
+        var eventName = EventName.Create("checkpoint-tail");
+        var correlation = CorrelationId.Create("checkpoint-tail");
+        var definition = WaitingDefinition(DefinitionId.New(), eventName);
+        var idempotencyKey = StartIdempotencyKey.Create("checkpoint-tail-start");
+        var first = CreateFacade(store, store, store, driveAfterDelivery: false);
+        var firstHandle = first.Registry.Register(definition).GetHandleOrThrow();
+        var instanceId = (await firstHandle.StartOrGetAsync(
+            new Input(correlation.Value),
+            idempotencyKey,
+            TestContext.Current.CancellationToken)).GetHandleOrThrow().InstanceId;
         var checkpoint = await store.LoadCheckpointAsync(instanceId, TestContext.Current.CancellationToken);
 
-        var result = await new DurableCommandProcessor(store).ProcessAsync(
-            WaitMatchedCommand(instanceId, waitId, 4),
+        await first.Events.DeliverToInstanceAsync(
+            instanceId,
+            RecoveryEvent("checkpoint-tail-event", eventName, correlation),
+            TestContext.Current.CancellationToken);
+        var replacement = CreateFacade(store, store, store, driveAfterDelivery: true);
+        var replacementHandle = replacement.Registry.Register(definition).GetHandleOrThrow();
+        var restarted = await replacementHandle.StartOrGetAsync(
+            new Input(correlation.Value),
+            idempotencyKey,
+            TestContext.Current.CancellationToken);
+        var snapshot = await restarted.GetHandleOrThrow()
+            .GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var tail = await store.LoadTailAsync(
+            new WorkflowStreamId(instanceId),
+            checkpoint.Value.StreamVersion,
             TestContext.Current.CancellationToken);
 
         checkpoint.HasValue.Should().BeTrue();
-        checkpoint.Value.StreamVersion.Should().Be(new StreamVersion(2));
-        checkpoint.Value.Status.Should().Be(WorkflowStatus.Running);
-        checkpoint.Value.LastStepPath.Should().Be("root/1");
-        result.Outcome.Should().Be(DurableCommandOutcome.Committed);
+        checkpoint.Value.StreamVersion.Value.Should().BeGreaterThan(0);
+        tail.OfType<WorkflowWaitMatchedEvent>().Should().ContainSingle();
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
     }
 
-    private static StartWorkflowCommand StartCommand(InstanceId instanceId)
+    private static DurableWorkflowDefinition<Input> WaitingDefinition(
+        DefinitionId definitionId,
+        EventName eventName)
     {
-        return new StartWorkflowCommand
+        return Workflow.Durable<RecoveryState>(definitionId, DefinitionVersion.Initial)
+            .Init<Input>(input => new RecoveryState(input.Correlation))
+            .Wait(eventName, state => CorrelationId.Create(state.Value.Correlation))
+            .End(WorkflowOutcomeName.Create("recovered"))
+            .Build();
+    }
+
+    private static WorkflowEvent RecoveryEvent(
+        string eventId,
+        EventName eventName,
+        CorrelationId correlation)
+    {
+        return WorkflowEvent.Create(
+            EventId.Create(eventId),
+            eventName,
+            correlation,
+            DateTimeOffset.Parse("2026-07-30T12:00:00Z"));
+    }
+
+    private static FacadeServices CreateFacade(
+        IWorkflowEventStore eventStore,
+        IWorkflowProjectionStore projectionStore,
+        IWorkflowInboxStore inboxStore,
+        bool driveAfterDelivery)
+    {
+        var notifications = new DurableFacadeNotificationHub();
+        var processor = new DurableCommandProcessor(eventStore, runtimeObserver: notifications);
+        var management = new DurableManagement(
+            projectionStore,
+            eventStore: eventStore,
+            commandProcessor: processor);
+        var runtime = new DurableWorkflowRuntime(
+            processor,
+            new DurableDefinitionRegistry(),
+            TimeProvider.System,
+            projectionStore: projectionStore,
+            management: management);
+        return new FacadeServices(
+            new DurableWorkflowDefinitionRegistry(
+                runtime,
+                projectionStore,
+                eventStore,
+                management,
+                notifications,
+                TimeProvider.System),
+            new DurableWorkflowEventClient(
+                runtime,
+                projectionStore,
+                inboxStore,
+                driveAfterDelivery));
+    }
+
+    private sealed record FacadeServices(
+        DurableWorkflowDefinitionRegistry Registry,
+        DurableWorkflowEventClient Events);
+
+    private sealed class FailOnceEventStore(InMemoryWorkflowProvider inner) :
+        IWorkflowEventStore,
+        IWorkflowInboxStore,
+        IWorkflowStartIdempotencyStore
+    {
+        private int failNextCommit;
+
+        internal void FailNextCommitBeforeApply()
         {
-            CommandId = CommandIdValue(1),
-            InstanceId = instanceId,
-            RequestedAt = Timestamp(1),
-            DefinitionId = DefinitionIdValue(1),
-            DefinitionVersion = DefinitionVersion.Initial
-        };
-    }
+            Interlocked.Exchange(ref failNextCommit, 1);
+        }
 
-    private static DurableStepCompletedCommand StepCompletedCommand(
-        InstanceId instanceId,
-        int commandValue,
-        string stepPath = "root/1")
-    {
-        return new DurableStepCompletedCommand(
-            CommandIdValue(commandValue),
-            instanceId,
-            Timestamp(commandValue),
-            stepPath,
-            TestEnvelopes.Envelope("application/octet-stream", [(byte)commandValue], instanceId: instanceId));
-    }
+        public Task<Option<CheckpointWrite>> LoadCheckpointAsync(
+            InstanceId instanceId,
+            CancellationToken cancellationToken) =>
+            inner.LoadCheckpointAsync(instanceId, cancellationToken);
 
-    private static DurableWaitRegisteredCommand WaitRegisteredCommand(
-        InstanceId instanceId,
-        WaitId waitId,
-        int commandValue)
-    {
-        return new DurableWaitRegisteredCommand(
-            CommandIdValue(commandValue),
-            instanceId,
-            Timestamp(commandValue),
-            waitId,
-            "Approved",
-            new CorrelationId("order-1"));
-    }
-
-    private static DurableWaitMatchedCommand WaitMatchedCommand(
-        InstanceId instanceId,
-        WaitId waitId,
-        int commandValue)
-    {
-        return new DurableWaitMatchedCommand(
-            CommandIdValue(commandValue),
-            instanceId,
-            Timestamp(commandValue),
-            waitId,
-            EventIdValue(commandValue + 100));
-    }
-
-    private static WorkflowStartedEvent Started(InstanceId instanceId)
-    {
-        return new WorkflowStartedEvent
+        public Task<Result<AppendEventsResult>> AppendAsync(
+            ProviderCommitBatch batch,
+            CancellationToken cancellationToken)
         {
-            EventId = EventIdValue(1),
-            InstanceId = instanceId,
-            CommandId = CommandIdValue(1),
-            CausationId = CausationIdValue(1),
-            OccurredAt = Timestamp(1),
-            DefinitionId = DefinitionIdValue(1),
-            DefinitionVersion = DefinitionVersion.Initial
-        };
+            return Interlocked.Exchange(ref failNextCommit, 0) == 1
+                ? Task.FromResult(EventStoreConflict.ExpectedVersionMismatch(
+                    batch.ExpectedVersion,
+                    batch.ExpectedVersion))
+                : inner.AppendAsync(batch, cancellationToken);
+        }
+
+        public Task<IReadOnlyList<DurableWorkflowEvent>> LoadTailAsync(
+            WorkflowStreamId streamId,
+            StreamVersion afterVersion,
+            CancellationToken cancellationToken) =>
+            inner.LoadTailAsync(streamId, afterVersion, cancellationToken);
+
+        public Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedAsync(
+            string idempotencyKey,
+            CancellationToken cancellationToken) =>
+            inner.GetStartedAsync(idempotencyKey, cancellationToken);
+
+        public Task<Option<InboxRecord>> GetAsync(
+            InstanceId instanceId,
+            EventId eventId,
+            CancellationToken cancellationToken) =>
+            inner.GetAsync(instanceId, eventId, cancellationToken);
     }
 
-    private static DateTimeOffset Timestamp(int seconds)
-    {
-        return new DateTimeOffset(2026, 7, 2, 12, 0, seconds, TimeSpan.Zero);
-    }
+    private sealed record Input(string Correlation);
 
-    private static EventId EventIdValue(int value)
-    {
-        return new EventId(GuidValue(value));
-    }
-
-    private static InstanceId InstanceIdValue(int value)
-    {
-        return new InstanceId(GuidValue(value));
-    }
-
-    private static CommandId CommandIdValue(int value)
-    {
-        return new CommandId(GuidValue(value));
-    }
-
-    private static CausationId CausationIdValue(int value)
-    {
-        return new CausationId(GuidValue(value));
-    }
-
-    private static DefinitionId DefinitionIdValue(int value)
-    {
-        return new DefinitionId(GuidValue(value));
-    }
-
-    private static WaitId WaitIdValue(int value)
-    {
-        return new WaitId(GuidValue(value));
-    }
-
-    private static Guid GuidValue(int value)
-    {
-        return Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}");
-    }
+    private sealed record RecoveryState(string Correlation);
 }

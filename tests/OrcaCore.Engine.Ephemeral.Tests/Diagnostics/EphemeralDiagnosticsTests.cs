@@ -38,11 +38,11 @@ public sealed class EphemeralDiagnosticsTests
             measurements.Enqueue((instrument.Name, value)));
         meterListener.Start();
         var engine = new EphemeralWorkflowEngine();
-        var definition = new WorkflowBuilder<TestState>()
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
             .Then(() => new CompleteStep())
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
         engine.RegisterDefinition(definition);
 
         await engine.StartAsync<string, TestState>(

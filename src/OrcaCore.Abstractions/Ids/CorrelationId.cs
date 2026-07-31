@@ -1,33 +1,24 @@
 using System.Text.Json.Serialization;
+using OrcaCore.Abstractions.Ids;
 
-namespace OrcaCore.Abstractions.Ids;
+namespace OrcaCore;
 
-/// <summary>
-/// Carries first-class request-reply correlation identity across events.
-/// </summary>
 [JsonConverter(typeof(CorrelationIdJsonConverter))]
-public readonly record struct CorrelationId
+public sealed class CorrelationId : IEquatable<CorrelationId>
 {
-    /// <summary>
-    /// Initializes a correlation identifier from non-empty text.
-    /// </summary>
-    public CorrelationId(string value)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+    private CorrelationId(string value) => Value = value;
 
-        Value = value;
-    }
-
-    /// <summary>
-    /// Gets the correlation value.
-    /// </summary>
     public string Value { get; }
 
-    /// <summary>
-    /// Returns the correlation value.
-    /// </summary>
-    public override string ToString()
-    {
-        return Value;
-    }
+    public static CorrelationId Create(string value) =>
+        new(StrongValueValidation.CallerCreated(value, nameof(value)));
+
+    public bool Equals(CorrelationId? other) =>
+        other is not null && string.Equals(Value, other.Value, StringComparison.Ordinal);
+
+    public override bool Equals(object? obj) => obj is CorrelationId other && Equals(other);
+
+    public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(Value);
+
+    public override string ToString() => Value;
 }

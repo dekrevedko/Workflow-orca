@@ -1,56 +1,56 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
-using OrcaCore.Abstractions.Providers;
 using OrcaCore.Abstractions.Steps;
 
 namespace OrcaCore.Core.Definitions;
 
-internal sealed record InitNode<TState> : WorkflowNode<TState>
+public sealed record InitNode<TState> : WorkflowNode<TState>
 {
-    internal InitNode(
+    public InitNode(
         string nodeId,
-        Func<object?, TState> createState,
-        Func<SerializedPayload, IWorkflowPayloadSerializer, object?>? rehydrateInput = null)
+        Type inputType,
+        Func<object?, TState> createState)
         : base(nodeId)
     {
+        ArgumentNullException.ThrowIfNull(inputType);
         ArgumentNullException.ThrowIfNull(createState);
 
+        InputType = inputType;
         CreateState = createState;
-        RehydrateInput = rehydrateInput;
     }
 
-    internal Func<object?, TState> CreateState { get; }
+    public Type InputType { get; }
 
-    /// <summary>
-    /// Rebuilds the typed start input from its serialized form so a durable host can run
-    /// Init after the starting process is gone. Captured at build time to stay AOT-safe.
-    /// </summary>
-    internal Func<SerializedPayload, IWorkflowPayloadSerializer, object?>? RehydrateInput { get; }
+    public Func<object?, TState> CreateState { get; }
 }
 
-internal sealed record BusinessStepNode<TState> : WorkflowNode<TState>
+public sealed record BusinessStepNode<TState> : WorkflowNode<TState>
 {
-    internal BusinessStepNode(
+    public BusinessStepNode(
         string nodeId,
         Func<IStep<TState>> stepFactory,
+        Type? stepType,
         WorkflowPolicySet? policies = null)
         : base(nodeId)
     {
         ArgumentNullException.ThrowIfNull(stepFactory);
 
         StepFactory = stepFactory;
+        StepType = stepType;
         Policies = policies ?? WorkflowPolicySet.Empty;
     }
 
-    internal Func<IStep<TState>> StepFactory { get; }
+    public Func<IStep<TState>> StepFactory { get; }
 
-    internal WorkflowPolicySet Policies { get; }
+    public Type? StepType { get; }
+
+    public WorkflowPolicySet Policies { get; }
 }
 
-internal sealed record EndNode<TState> : WorkflowNode<TState>
+public sealed record EndNode<TState> : WorkflowNode<TState>
 {
-    internal EndNode(
+    public EndNode(
         string nodeId,
         string? outcomeName,
         Func<TState, string?>? outcomeSelector = null)
@@ -60,19 +60,19 @@ internal sealed record EndNode<TState> : WorkflowNode<TState>
         OutcomeSelector = outcomeSelector;
     }
 
-    internal string? OutcomeName { get; }
+    public string? OutcomeName { get; }
 
     private Func<TState, string?>? OutcomeSelector { get; }
 
-    internal string? ResolveOutcome(TState state)
+    public string? ResolveOutcome(TState state)
     {
         return OutcomeSelector is null ? OutcomeName : OutcomeSelector(state);
     }
 }
 
-internal sealed record BranchReturnNode<TState> : WorkflowNode<TState>
+public sealed record BranchReturnNode<TState> : WorkflowNode<TState>
 {
-    internal BranchReturnNode(
+    public BranchReturnNode(
         string nodeId,
         Type resultType,
         Func<TState, object?> resultSelector)
@@ -85,38 +85,38 @@ internal sealed record BranchReturnNode<TState> : WorkflowNode<TState>
         ResultSelector = resultSelector;
     }
 
-    internal Type ResultType { get; }
+    public Type ResultType { get; }
 
-    internal Func<TState, object?> ResultSelector { get; }
+    public Func<TState, object?> ResultSelector { get; }
 }
 
-internal sealed record ContinueAsNewNode<TState> : WorkflowNode<TState>
+public sealed record ContinueAsNewNode<TState> : WorkflowNode<TState>
 {
-    internal ContinueAsNewNode(string nodeId, Func<TState, TState> stateSelector)
+    public ContinueAsNewNode(string nodeId, Func<TState, TState> stateSelector)
         : base(nodeId)
     {
         ArgumentNullException.ThrowIfNull(stateSelector);
         StateSelector = stateSelector;
     }
 
-    internal Func<TState, TState> StateSelector { get; }
+    public Func<TState, TState> StateSelector { get; }
 }
 
-internal sealed record CompiledScopeNode<TState> : WorkflowNode<TState>
+public sealed record CompiledScopeNode<TState> : WorkflowNode<TState>
 {
-    internal CompiledScopeNode(string nodeId, string scopePlanId)
+    public CompiledScopeNode(string nodeId, string scopePlanId)
         : base(nodeId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(scopePlanId);
         ScopePlanId = scopePlanId;
     }
 
-    internal string ScopePlanId { get; }
+    public string ScopePlanId { get; }
 }
 
-internal sealed record IfNode<TState> : WorkflowNode<TState>
+public sealed record IfNode<TState> : WorkflowNode<TState>
 {
-    internal IfNode(
+    public IfNode(
         string nodeId,
         Func<TState, bool> condition,
         SequenceNode<TState> then,
@@ -132,16 +132,16 @@ internal sealed record IfNode<TState> : WorkflowNode<TState>
         Else = otherwise;
     }
 
-    internal Func<TState, bool> Condition { get; }
+    public Func<TState, bool> Condition { get; }
 
-    internal SequenceNode<TState> Then { get; }
+    public SequenceNode<TState> Then { get; }
 
-    internal SequenceNode<TState> Else { get; }
+    public SequenceNode<TState> Else { get; }
 }
 
-internal sealed record WhileNode<TState> : WorkflowNode<TState>
+public sealed record WhileNode<TState> : WorkflowNode<TState>
 {
-    internal WhileNode(string nodeId, Func<TState, bool> condition, SequenceNode<TState> body)
+    public WhileNode(string nodeId, Func<TState, bool> condition, SequenceNode<TState> body)
         : base(nodeId)
     {
         ArgumentNullException.ThrowIfNull(condition);
@@ -151,14 +151,14 @@ internal sealed record WhileNode<TState> : WorkflowNode<TState>
         Body = body;
     }
 
-    internal Func<TState, bool> Condition { get; }
+    public Func<TState, bool> Condition { get; }
 
-    internal SequenceNode<TState> Body { get; }
+    public SequenceNode<TState> Body { get; }
 }
 
-internal sealed record RunChildNode<TState> : WorkflowNode<TState>
+public sealed record RunChildNode<TState> : WorkflowNode<TState>
 {
-    internal RunChildNode(
+    public RunChildNode(
         string nodeId,
         DefinitionId childDefinitionId,
         DefinitionVersion childDefinitionVersion,
@@ -170,16 +170,16 @@ internal sealed record RunChildNode<TState> : WorkflowNode<TState>
         FailurePolicy = failurePolicy;
     }
 
-    internal DefinitionId ChildDefinitionId { get; }
+    public DefinitionId ChildDefinitionId { get; }
 
-    internal DefinitionVersion ChildDefinitionVersion { get; }
+    public DefinitionVersion ChildDefinitionVersion { get; }
 
-    internal RunChildFailurePolicy FailurePolicy { get; }
+    public RunChildFailurePolicy FailurePolicy { get; }
 }
 
-internal sealed record RunChildrenNode<TState> : WorkflowNode<TState>
+public sealed record RunChildrenNode<TState> : WorkflowNode<TState>
 {
-    internal RunChildrenNode(
+    public RunChildrenNode(
         string nodeId,
         DefinitionId childDefinitionId,
         DefinitionVersion childDefinitionVersion,
@@ -201,24 +201,24 @@ internal sealed record RunChildrenNode<TState> : WorkflowNode<TState>
         ResidualPolicy = residualPolicy;
     }
 
-    internal DefinitionId ChildDefinitionId { get; }
+    public DefinitionId ChildDefinitionId { get; }
 
-    internal DefinitionVersion ChildDefinitionVersion { get; }
+    public DefinitionVersion ChildDefinitionVersion { get; }
 
-    internal Func<TState, IReadOnlyList<string>> ItemSnapshotSelector { get; }
+    public Func<TState, IReadOnlyList<string>> ItemSnapshotSelector { get; }
 
-    internal RunChildFailurePolicy FailurePolicy { get; }
+    public RunChildFailurePolicy FailurePolicy { get; }
 
-    internal int? MaxConcurrency { get; }
+    public int? MaxConcurrency { get; }
 
-    internal RunChildrenJoinPolicy JoinPolicy { get; }
+    public RunChildrenJoinPolicy JoinPolicy { get; }
 
-    internal RunChildrenResidualPolicy ResidualPolicy { get; }
+    public RunChildrenResidualPolicy ResidualPolicy { get; }
 }
 
-internal sealed record WaitNode<TState> : WorkflowNode<TState>
+public sealed record WaitNode<TState> : WorkflowNode<TState>
 {
-    internal WaitNode(
+    public WaitNode(
         string nodeId,
         string eventName,
         Func<TState, CorrelationId> correlationSelector,
@@ -233,27 +233,27 @@ internal sealed record WaitNode<TState> : WorkflowNode<TState>
         Timeout = timeout;
     }
 
-    internal string EventName { get; }
+    public string EventName { get; }
 
-    internal Func<TState, CorrelationId> CorrelationSelector { get; }
+    public Func<TState, CorrelationId> CorrelationSelector { get; }
 
-    internal TimeSpan? Timeout { get; }
+    public TimeSpan? Timeout { get; }
 }
 
-internal sealed record DelayNode<TState> : WorkflowNode<TState>
+public sealed record DelayNode<TState> : WorkflowNode<TState>
 {
-    internal DelayNode(string nodeId, TimeSpan duration)
+    public DelayNode(string nodeId, TimeSpan duration)
         : base(nodeId)
     {
         Duration = duration;
     }
 
-    internal TimeSpan Duration { get; }
+    public TimeSpan Duration { get; }
 }
 
-internal sealed record SequenceNode<TState> : WorkflowNode<TState>
+public sealed record SequenceNode<TState> : WorkflowNode<TState>
 {
-    internal SequenceNode(string nodeId, IEnumerable<WorkflowNode<TState>> children)
+    public SequenceNode(string nodeId, IEnumerable<WorkflowNode<TState>> children)
         : base(nodeId)
     {
         ArgumentNullException.ThrowIfNull(children);
@@ -261,5 +261,5 @@ internal sealed record SequenceNode<TState> : WorkflowNode<TState>
         Children = new ReadOnlyList<WorkflowNode<TState>>(children);
     }
 
-    internal IReadOnlyList<WorkflowNode<TState>> Children { get; }
+    public IReadOnlyList<WorkflowNode<TState>> Children { get; }
 }

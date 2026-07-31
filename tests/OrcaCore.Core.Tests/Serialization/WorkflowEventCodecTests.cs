@@ -6,6 +6,8 @@ using OrcaCore.Abstractions.Providers;
 using OrcaCore.Abstractions.Serialization;
 using Xunit;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Core.Tests.Serialization;
 
 public sealed class WorkflowEventCodecTests
@@ -66,11 +68,11 @@ public sealed class WorkflowEventCodecTests
         }
     }
 
-    public static TheoryData<WorkflowEvent> SupportedEvents
+    public static TheoryData<DurableWorkflowEvent> SupportedEvents
     {
         get
         {
-            var events = new TheoryData<WorkflowEvent>();
+            var events = new TheoryData<DurableWorkflowEvent>();
 
             events.Add(Started(1));
             events.Add(new WorkflowContinuedAsNewEvent
@@ -467,14 +469,14 @@ public sealed class WorkflowEventCodecTests
 
     [Theory]
     [MemberData(nameof(SupportedEvents))]
-    public void ToEventType_UsesStableConcreteTypeName(WorkflowEvent workflowEvent)
+    public void ToEventType_UsesStableConcreteTypeName(DurableWorkflowEvent workflowEvent)
     {
         WorkflowEventCodec.ToEventType(workflowEvent).Should().Be(workflowEvent.GetType().Name);
     }
 
     [Theory]
     [MemberData(nameof(SupportedEvents))]
-    public void SerializeThenDeserialize_RoundTripsSupportedEvent(WorkflowEvent workflowEvent)
+    public void SerializeThenDeserialize_RoundTripsSupportedEvent(DurableWorkflowEvent workflowEvent)
     {
         var eventType = WorkflowEventCodec.ToEventType(workflowEvent);
         var payload = WorkflowEventCodec.Serialize(workflowEvent);
@@ -564,12 +566,12 @@ public sealed class WorkflowEventCodecTests
 
     private static EventId EventIdValue(int value)
     {
-        return new EventId(GuidValue(value));
+        return EventId.Create(GuidValue(value).ToString());
     }
 
     private static InstanceId InstanceIdValue(int value)
     {
-        return new InstanceId(GuidValue(value));
+        return InstanceId.Parse(GuidValue(value).ToString());
     }
 
     private static CommandId CommandIdValue(int value)
@@ -584,12 +586,12 @@ public sealed class WorkflowEventCodecTests
 
     private static DefinitionId DefinitionIdValue(int value)
     {
-        return new DefinitionId(GuidValue(value));
+        return DefinitionId.Parse(GuidValue(value).ToString());
     }
 
     private static WaitId WaitIdValue(int value)
     {
-        return new WaitId(GuidValue(value));
+        return WaitId.Parse(GuidValue(value).ToString());
     }
 
     private static TimerId TimerIdValue(int value)
@@ -599,7 +601,7 @@ public sealed class WorkflowEventCodecTests
 
     private static CorrelationId CorrelationIdValue(int value)
     {
-        return new CorrelationId($"correlation-{value}");
+        return CorrelationId.Create($"correlation-{value}");
     }
 
     private static Guid GuidValue(int value)
@@ -612,5 +614,5 @@ public sealed class WorkflowEventCodecTests
         return new DateTimeOffset(2026, 7, 3, 0, 0, 0, TimeSpan.Zero).AddSeconds(value);
     }
 
-    private sealed record UnsupportedWorkflowEvent : WorkflowEvent;
+    private sealed record UnsupportedWorkflowEvent : DurableWorkflowEvent;
 }

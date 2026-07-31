@@ -3,7 +3,7 @@ namespace OrcaCore.Core.Definitions;
 /// <summary>
 /// A deterministic partition of fanout input items.
 /// </summary>
-public sealed record WorkflowPartition<TItem>
+internal sealed record WorkflowPartition<TItem>
 {
     public WorkflowPartition(int index, IEnumerable<TItem> items)
     {

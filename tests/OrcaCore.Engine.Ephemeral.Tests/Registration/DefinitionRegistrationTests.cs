@@ -33,7 +33,7 @@ public sealed class DefinitionRegistrationTests
         DefinitionId definitionId,
         string outcome)
     {
-        return Workflow.Ephemeral<RegistrationState>(definitionId, DefinitionVersion.Initial)
+        return global::OrcaCore.Workflow.Ephemeral<RegistrationState>(definitionId, DefinitionVersion.Initial)
             .Init<string>(input => new RegistrationState(input))
             .End(outcome)
             .Build();

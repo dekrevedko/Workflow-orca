@@ -2,6 +2,8 @@ using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Aggregates;
 
 internal static class DurableSagaCommandHandler
@@ -19,7 +21,7 @@ internal static class DurableSagaCommandHandler
         return new DurableDecision([
             new SagaForwardActionCompletedEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -62,11 +64,11 @@ internal static class DurableSagaCommandHandler
             return DurableDecision.Empty;
         }
 
-        var events = new List<WorkflowEvent>
+        var events = new List<DurableWorkflowEvent>
         {
             new SagaForwardActionTimedOutEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -98,11 +100,11 @@ internal static class DurableSagaCommandHandler
             return DurableDecision.Empty;
         }
 
-        var events = new List<WorkflowEvent>
+        var events = new List<DurableWorkflowEvent>
         {
             new SagaCompensationCompletedEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -118,7 +120,7 @@ internal static class DurableSagaCommandHandler
         {
             events.Add(new WorkflowTerminalEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -143,7 +145,7 @@ internal static class DurableSagaCommandHandler
         return new DurableDecision([
             new SagaCompensationFailedEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -156,7 +158,7 @@ internal static class DurableSagaCommandHandler
             },
             new WorkflowTerminalEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -179,7 +181,7 @@ internal static class DurableSagaCommandHandler
         return new DurableDecision([
             new SagaManualRecoveryRecordedEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -195,7 +197,7 @@ internal static class DurableSagaCommandHandler
             },
             new WorkflowTerminalEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),

@@ -39,8 +39,8 @@ public sealed class FacadeHostingInfrastructureGuards
 }
 
 [Trait(GuardTraits.Phase, GuardTraits.Phase0)]
-[Trait(GuardTraits.Disposition, GuardTraits.ExpectedRed)]
-public sealed class FacadeHostingExpectedRedGuards
+[Trait(GuardTraits.Disposition, GuardTraits.Infrastructure)]
+public sealed class FacadeHostingProductGuards
 {
     [Fact]
     public void Product_ExportsTheCommonRegistryAndExactEventClient()
@@ -48,5 +48,25 @@ public sealed class FacadeHostingExpectedRedGuards
         var exported = PublicSurfaceCatalog.Assemblies.SelectMany(x => x.GetExportedTypes()).ToArray();
         exported.Should().Contain(x => x.FullName == "OrcaCore.IWorkflowDefinitionRegistry");
         exported.Should().Contain(x => x.FullName == "OrcaCore.IWorkflowEventClient");
+    }
+
+    [Fact]
+    [Trait("AC", "AC-108")]
+    public void EventClient_ExposesOnlyInstanceAndCorrelationDelivery()
+    {
+        var methods = typeof(global::OrcaCore.IWorkflowEventClient).GetMethods();
+
+        methods.Should().HaveCount(4);
+        methods.Select(method => method.Name).Should().BeEquivalentTo(
+            "DeliverToInstanceAsync",
+            "DeliverToInstanceAsync",
+            "DeliverByCorrelationAsync",
+            "DeliverByCorrelationAsync");
+        methods.Where(method => method.Name == "DeliverToInstanceAsync")
+            .Should().OnlyContain(method =>
+                method.GetParameters()[0].ParameterType == typeof(global::OrcaCore.InstanceId));
+        methods.Where(method => method.Name == "DeliverByCorrelationAsync")
+            .Should().OnlyContain(method =>
+                method.GetParameters()[0].ParameterType == typeof(global::OrcaCore.DefinitionId));
     }
 }

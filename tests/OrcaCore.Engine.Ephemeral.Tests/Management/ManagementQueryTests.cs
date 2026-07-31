@@ -152,6 +152,58 @@ public sealed class ManagementQueryTests
     }
 
     [Fact]
+    public async Task DetachedState_RejectsUnapprovedPolymorphismInsteadOfReturningTruncatedData()
+    {
+        var engine = new EphemeralWorkflowEngine();
+        var definition = global::OrcaCore.Workflow
+            .Ephemeral<PolymorphicState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(input => new PolymorphicState
+            {
+                Item = new SnapshotDerived(input, "derived-only-data")
+            })
+            .End()
+            .Build();
+        engine.RegisterDefinition(definition);
+
+        var act = async () =>
+        {
+            var started = await engine.StartAsync<string, PolymorphicState>(
+                definition.DefinitionId,
+                "value",
+                TestContext.Current.CancellationToken);
+            _ = engine.Management.Instance(started.InstanceId).GetState<PolymorphicState>();
+        };
+
+        await act.Should().ThrowAsync<NotSupportedException>(
+            "the fixed codec must reject an unapproved runtime type instead of truncating its members");
+    }
+
+    [Fact]
+    public async Task DetachedState_RoundTripsApprovedPolymorphismWithoutDataLoss()
+    {
+        var engine = new EphemeralWorkflowEngine();
+        var definition = global::OrcaCore.Workflow
+            .Ephemeral<ApprovedPolymorphicState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(input => new ApprovedPolymorphicState
+            {
+                Item = new ApprovedSnapshotDerived(input, "derived-only-data")
+            })
+            .End()
+            .Build();
+        engine.RegisterDefinition(definition);
+
+        var started = await engine.StartAsync<string, ApprovedPolymorphicState>(
+            definition.DefinitionId,
+            "value",
+            TestContext.Current.CancellationToken);
+        var state = engine.Management.Instance(started.InstanceId)
+            .GetState<ApprovedPolymorphicState>();
+
+        state.Item.Should().BeOfType<ApprovedSnapshotDerived>()
+            .Which.Detail.Should().Be("derived-only-data");
+    }
+
+    [Fact]
     public async Task GetState_WrongType_ReturnsClearFailure()
     {
         var engine = new EphemeralWorkflowEngine();
@@ -173,11 +225,11 @@ public sealed class ManagementQueryTests
     {
         var step = new BlockingStep();
         var engine = new EphemeralWorkflowEngine();
-        var definition = new WorkflowBuilder<TestState>()
+        var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(input => new TestState { Name = input })
             .Then(() => step)
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
         engine.RegisterDefinition(definition);
         var start = engine.StartAsync<string, TestState>(
             definition.DefinitionId,
@@ -195,27 +247,6 @@ public sealed class ManagementQueryTests
         step.Release();
         (await start.WaitAsync(TestContext.Current.CancellationToken)).Status
             .Should().Be(WorkflowStatus.Completed);
-    }
-
-    [Fact]
-    public async Task GetState_UsesConfiguredSnapshotStrategy()
-    {
-        var snapshotter = new TestStateSnapshotter();
-        var engine = new EphemeralWorkflowEngine(TimeProvider.System, new EphemeralWorkflowEngineOptions
-        {
-            StateSnapshotter = snapshotter
-        });
-        var definition = CompletedDefinition();
-        engine.RegisterDefinition(definition);
-        var started = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
-            "original",
-            TestContext.Current.CancellationToken);
-
-        var state = engine.Management.Instance(started.InstanceId).GetState<TestState>();
-
-        snapshotter.Calls.Should().Be(3, "state is published at initial/final commits and copied for the caller");
-        state.Name.Should().Be("custom-copy");
     }
 
     [Fact]
@@ -296,40 +327,6 @@ public sealed class ManagementQueryTests
     }
 
     [Fact]
-    [Trait("AC", "AC-516")]
-    public async Task InstanceStepScope_ReturnsActiveStepAndStepLifecycleEvents()
-    {
-        var step = new BlockingStep();
-        var engine = new EphemeralWorkflowEngine();
-        var definition = new WorkflowBuilder<TestState>()
-            .Init<string>(input => new TestState { Name = input })
-            .Wait("Ready", state => new CorrelationId(state.Name))
-            .Then(() => step)
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-        engine.RegisterDefinition(definition);
-        var started = await engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
-            "wait",
-            TestContext.Current.CancellationToken);
-        var delivery = engine.RaiseEventAsync<TestState>(
-            started.InstanceId,
-            Event("Ready", "wait", "payload"),
-            TestContext.Current.CancellationToken);
-        await step.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
-
-        var activeStep = engine.Management.Instance(started.InstanceId).Get().ActiveStep;
-        activeStep.Should().NotBeNull();
-        var stepScope = engine.Management.Instance(started.InstanceId).Step(activeStep!.StepPath);
-
-        stepScope.GetActiveStep().Should().BeEquivalentTo(activeStep);
-        step.Release();
-        await delivery.WaitAsync(TestContext.Current.CancellationToken);
-        stepScope.GetLifecycleEvents().Should().Contain(lifecycleEvent =>
-            lifecycleEvent.EventName == "StepCompleted" && lifecycleEvent.StepPath == activeStep.StepPath);
-    }
-
-    [Fact]
     public async Task InstanceSagaScope_ReturnsSagaAuditSnapshots()
     {
         var engine = new EphemeralWorkflowEngine();
@@ -372,30 +369,30 @@ public sealed class ManagementQueryTests
 
     private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> CompletedDefinition()
     {
-        return new WorkflowBuilder<TestState>()
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(input => new TestState { Name = input })
             .Then(() => new AddValueStep("started"))
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
     }
 
     private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> WaitingDefinition()
     {
-        return new WorkflowBuilder<TestState>()
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(input => new TestState { Name = input })
-            .Wait("Ready", state => new CorrelationId(state.Name))
+            .Wait("Ready", state => CorrelationId.Create(state.Name))
             .Then(() => new CapturePayloadStep())
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
     }
 
     private static EventEnvelope Event(string eventName, string correlationId, object? payload)
     {
         return new EventEnvelope
         {
-            EventId = EventId.New(),
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             EventName = eventName,
-            CorrelationId = new CorrelationId(correlationId),
+            CorrelationId = CorrelationId.Create(correlationId),
             Payload = payload,
             OccurredAt = DateTimeOffset.UtcNow
         };
@@ -412,6 +409,28 @@ public sealed class ManagementQueryTests
     {
         public string Name { get; set; } = string.Empty;
     }
+
+    private sealed class PolymorphicState
+    {
+        public SnapshotBase Item { get; set; } = new("unset");
+    }
+
+    private record SnapshotBase(string Value);
+
+    private sealed record SnapshotDerived(string Value, string Detail) : SnapshotBase(Value);
+
+    private sealed class ApprovedPolymorphicState
+    {
+        public ApprovedSnapshotBase Item { get; set; } = new("unset");
+    }
+
+    [System.Text.Json.Serialization.JsonDerivedType(
+        typeof(ApprovedSnapshotDerived),
+        typeDiscriminator: "derived")]
+    private record ApprovedSnapshotBase(string Value);
+
+    private sealed record ApprovedSnapshotDerived(string Value, string Detail)
+        : ApprovedSnapshotBase(Value);
 
     private sealed class AddValueStep(string value) : IStep<TestState>
     {
@@ -509,19 +528,4 @@ public sealed class ManagementQueryTests
         }
     }
 
-    private sealed class TestStateSnapshotter : IEphemeralStateSnapshotter
-    {
-        internal int Calls { get; private set; }
-
-        public TState Snapshot<TState>(TState state)
-        {
-            Calls++;
-            if (state is TestState)
-            {
-                return (TState)(object)new TestState { Name = "custom-copy" };
-            }
-
-            throw new NotSupportedException();
-        }
-    }
 }

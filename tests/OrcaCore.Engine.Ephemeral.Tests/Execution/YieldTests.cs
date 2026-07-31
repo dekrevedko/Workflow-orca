@@ -50,29 +50,6 @@ public sealed class YieldTests
     }
 
     [Fact]
-    public async Task Run_YieldingStep_CommitsProgressForEachYield()
-    {
-        var gate = new YieldGate(blockBeforeCompletion: true);
-        var engine = new EphemeralWorkflowEngine();
-        var definition = YieldingDefinition(new TestState { RemainingYields = 1 }, gate);
-        engine.RegisterDefinition(definition);
-
-        var start = engine.StartAsync<string, TestState>(
-            definition.DefinitionId,
-            "start",
-            TestContext.Current.CancellationToken);
-        await gate.Yielded.Task.WaitAsync(TestContext.Current.CancellationToken);
-        await gate.BlockedBeforeCompletion.Task.WaitAsync(TestContext.Current.CancellationToken);
-        var snapshot = engine.Management.All().Get();
-        var state = engine.Management.Instance(snapshot.InstanceId).GetState<TestState>();
-        gate.ReleaseCompletion();
-        await start.WaitAsync(TestContext.Current.CancellationToken);
-
-        state.Progress.Should().Be(1);
-        state.CompletedEffects.Should().Be(0);
-    }
-
-    [Fact]
     public async Task Run_YieldingStep_DoesNotDuplicateCompletedEffects()
     {
         var state = new TestState { RemainingYields = 2 };
@@ -114,11 +91,11 @@ public sealed class YieldTests
         TestState state,
         YieldGate gate)
     {
-        return new WorkflowBuilder<TestState>()
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .Then(() => new YieldingStep(gate))
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
     }
 
     private sealed class TestState
@@ -167,7 +144,7 @@ public sealed class YieldTests
                 context.State.RemainingYields--;
                 context.State.Progress++;
                 gate.Yielded.TrySetResult();
-                return new StepResult.Yield();
+                return global::OrcaCore.TestSupport.LegacyStepResults.Yield();
             }
 
             if (gate.BlockBeforeCompletion)

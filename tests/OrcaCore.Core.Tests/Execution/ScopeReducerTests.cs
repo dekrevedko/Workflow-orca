@@ -17,7 +17,7 @@ public sealed class ScopeReducerTests
         var startInstruction = plan.Instructions.Should().ContainSingle(instruction =>
             instruction.Kind == CompiledInstructionKind.StartScope).Which;
         var initial = StructuredExecutionState.Create(
-            InstanceId.New(),
+            InstanceId.Parse(Guid.CreateVersion7().ToString()),
             generation: 0,
             startInstruction.Id);
         var originalParent = initial.Fibers[initial.RootFiberId];
@@ -55,7 +55,7 @@ public sealed class ScopeReducerTests
         var scopePlan = plan.Scopes.Should().ContainSingle().Which;
         var startInstruction = plan.Instructions.Should().ContainSingle(instruction =>
             instruction.Kind == CompiledInstructionKind.StartScope).Which;
-        var initial = StructuredExecutionState.Create(InstanceId.New(), 0, startInstruction.Id);
+        var initial = StructuredExecutionState.Create(InstanceId.Parse(Guid.CreateVersion7().ToString()), 0, startInstruction.Id);
         var running = ScopeReducer.StartScope(initial, initial.RootFiberId, scopePlan)
             .State.Scopes.Values.Should().ContainSingle().Which;
 
@@ -79,7 +79,7 @@ public sealed class ScopeReducerTests
         var scopePlan = plan.Scopes.Should().ContainSingle().Which;
         var startInstruction = plan.Instructions.Should().ContainSingle(instruction =>
             instruction.Kind == CompiledInstructionKind.StartScope).Which;
-        var initial = StructuredExecutionState.Create(InstanceId.New(), 0, startInstruction.Id);
+        var initial = StructuredExecutionState.Create(InstanceId.Parse(Guid.CreateVersion7().ToString()), 0, startInstruction.Id);
 
         var firstHost = ScopeReducer.StartScope(initial, initial.RootFiberId, scopePlan);
         var replacementHost = ScopeReducer.StartScope(initial, initial.RootFiberId, scopePlan);
@@ -104,7 +104,7 @@ public sealed class ScopeReducerTests
         var scopePlan = plan.Scopes.Should().ContainSingle().Which;
         var startInstruction = plan.Instructions.Should().ContainSingle(instruction =>
             instruction.Kind == CompiledInstructionKind.StartScope).Which;
-        var initial = StructuredExecutionState.Create(InstanceId.New(), 0, startInstruction.Id);
+        var initial = StructuredExecutionState.Create(InstanceId.Parse(Guid.CreateVersion7().ToString()), 0, startInstruction.Id);
         var started = ScopeReducer.StartScope(initial, initial.RootFiberId, scopePlan);
         var first = await ReferenceLinearFiberInterpreter.RunQuantumAsync(
             plan,
@@ -138,7 +138,7 @@ public sealed class ScopeReducerTests
 
     private static CompiledWorkflowPlan ParallelPlan()
     {
-        return Workflow.Ephemeral<ParentState>(DefinitionId.New(), DefinitionVersion.Initial)
+        return global::OrcaCore.Workflow.Ephemeral<ParentState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(value => new ParentState(value))
             .Parallel<string>(
                 branches => branches

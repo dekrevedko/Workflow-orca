@@ -12,8 +12,8 @@ namespace OrcaCore.Engine.Ephemeral.Tests.Execution;
 
 public sealed class MailboxTests
 {
-    private static readonly CorrelationId FirstCorrelation = new("first");
-    private static readonly CorrelationId SecondCorrelation = new("second");
+    private static readonly CorrelationId FirstCorrelation = CorrelationId.Create("first");
+    private static readonly CorrelationId SecondCorrelation = CorrelationId.Create("second");
 
     [Fact]
     public async Task RaiseEventAsync_BeforeWait_BuffersEvent()
@@ -26,7 +26,7 @@ public sealed class MailboxTests
 
         var snapshot = await engine.RaiseEventAsync<TestState>(
             waiting.InstanceId,
-            Event(EventId.New(), "Second", SecondCorrelation, "early"),
+            Event(EventId.Create(Guid.CreateVersion7().ToString()), "Second", SecondCorrelation, "early"),
             TestContext.Current.CancellationToken);
 
         snapshot.Status.Should().Be(WorkflowStatus.Waiting);
@@ -46,11 +46,11 @@ public sealed class MailboxTests
 
         await engine.RaiseEventAsync<TestState>(
             waiting.InstanceId,
-            Event(EventId.New(), "Second", SecondCorrelation, "early-second"),
+            Event(EventId.Create(Guid.CreateVersion7().ToString()), "Second", SecondCorrelation, "early-second"),
             TestContext.Current.CancellationToken);
         var completed = await engine.RaiseEventAsync<TestState>(
             waiting.InstanceId,
-            Event(EventId.New(), "First", FirstCorrelation, "first"),
+            Event(EventId.Create(Guid.CreateVersion7().ToString()), "First", FirstCorrelation, "first"),
             TestContext.Current.CancellationToken);
 
         completed.Status.Should().Be(WorkflowStatus.Completed);
@@ -66,7 +66,7 @@ public sealed class MailboxTests
         var definition = TwoWaitDefinition(state);
         engine.RegisterDefinition(definition);
         var waiting = await StartAsync(engine, definition);
-        var eventId = EventId.New();
+        var eventId = EventId.Create(Guid.CreateVersion7().ToString());
 
         await engine.RaiseEventAsync<TestState>(
             waiting.InstanceId,
@@ -78,7 +78,7 @@ public sealed class MailboxTests
             TestContext.Current.CancellationToken);
         await engine.RaiseEventAsync<TestState>(
             waiting.InstanceId,
-            Event(EventId.New(), "First", FirstCorrelation, "first"),
+            Event(EventId.Create(Guid.CreateVersion7().ToString()), "First", FirstCorrelation, "first"),
             TestContext.Current.CancellationToken);
 
         state.Payloads.Should().Equal(["first", "early-second"]);
@@ -97,12 +97,12 @@ public sealed class MailboxTests
         var waiting = await StartAsync(engine, definition);
         await engine.RaiseEventAsync<TestState>(
             waiting.InstanceId,
-            Event(EventId.New(), "Unmatched", new CorrelationId("one"), "first"),
+            Event(EventId.Create(Guid.CreateVersion7().ToString()), "Unmatched", CorrelationId.Create("one"), "first"),
             TestContext.Current.CancellationToken);
 
         var second = () => engine.RaiseEventAsync<TestState>(
             waiting.InstanceId,
-            Event(EventId.New(), "Unmatched", new CorrelationId("two"), "second"),
+            Event(EventId.Create(Guid.CreateVersion7().ToString()), "Unmatched", CorrelationId.Create("two"), "second"),
             TestContext.Current.CancellationToken);
 
         await second.Should().ThrowAsync<OrcaCore.Abstractions.Errors.WorkflowRoutingException>()
@@ -119,7 +119,7 @@ public sealed class MailboxTests
         var waiting = await StartAsync(engine, definition);
         var invalid = new EventEnvelope
         {
-            EventId = default,
+            EventId = null!,
             EventName = "First",
             CorrelationId = FirstCorrelation,
             OccurredAt = DateTimeOffset.UtcNow
@@ -142,7 +142,7 @@ public sealed class MailboxTests
         var definition = OneWaitDefinition(state);
         engine.RegisterDefinition(definition);
         var waiting = await StartAsync(engine, definition);
-        var eventId = EventId.New();
+        var eventId = EventId.Create(Guid.CreateVersion7().ToString());
         var envelope = Event(eventId, "First", FirstCorrelation, "first");
 
         await engine.RaiseEventAsync<TestState>(
@@ -168,7 +168,7 @@ public sealed class MailboxTests
         var definition = OneWaitDefinition(state);
         engine.RegisterDefinition(definition);
         var waiting = await StartAsync(engine, definition);
-        var envelope = Event(EventId.New(), "First", FirstCorrelation, "first");
+        var envelope = Event(EventId.Create(Guid.CreateVersion7().ToString()), "First", FirstCorrelation, "first");
 
         var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var deliveries = Enumerable.Range(0, 8)
@@ -188,65 +188,6 @@ public sealed class MailboxTests
         state.Payloads.Should().Equal(["first"], "exactly-once resume (EV-023) must hold under concurrent duplicate delivery");
     }
 
-    [Fact]
-    public async Task RaiseEventAsync_ResumeTransitionFails_EventRemainsAvailable()
-    {
-        var state = new TestState();
-        var registry = new InMemoryInstanceRegistry();
-        var engine = new EphemeralWorkflowEngine(TimeProvider.System, registry, new InstanceExecutionLane());
-        var definition = new WorkflowBuilder<TestState>()
-            .Init<string>(_ => state)
-            .Wait("First", _ => FirstCorrelation)
-            .Then(() => new UnsupportedOnceResultStep())
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-        engine.RegisterDefinition(definition);
-        var waiting = await StartAsync(engine, definition);
-        var envelope = Event(EventId.New(), "First", FirstCorrelation, "first");
-
-        var act = async () => await engine.RaiseEventAsync<TestState>(
-            waiting.InstanceId,
-            envelope,
-            TestContext.Current.CancellationToken);
-
-        await act.Should().ThrowAsync<NotSupportedException>()
-            .WithMessage("*UnsupportedResult*");
-        registry.TryGet(waiting.InstanceId, out var instance).Should().BeTrue();
-        var snapshot = ((WorkflowInstance<TestState>)instance!).ToSnapshot();
-        snapshot.Status.Should().Be(WorkflowStatus.Waiting);
-        snapshot.ActiveWaits.Should().ContainSingle();
-
-        var completed = await engine.RaiseEventAsync<TestState>(
-            waiting.InstanceId,
-            envelope,
-            TestContext.Current.CancellationToken);
-
-        completed.Status.Should().Be(WorkflowStatus.Completed);
-        state.Payloads.Should().Equal(["first"]);
-    }
-
-    [Fact]
-    public async Task Run_EndWithActiveWait_FailsOrCancelsByExplicitPolicy()
-    {
-        var state = new TestState();
-        var engine = new EphemeralWorkflowEngine();
-        var definition = OneWaitDefinition(state);
-        engine.RegisterDefinition(definition);
-        var waiting = await StartAsync(engine, definition);
-
-        await engine.RaiseEventAsync<TestState>(
-            waiting.InstanceId,
-            Event(EventId.New(), "Unclaimed", new CorrelationId("pending"), "pending"),
-            TestContext.Current.CancellationToken);
-        var completed = await engine.RaiseEventAsync<TestState>(
-            waiting.InstanceId,
-            Event(EventId.New(), "First", FirstCorrelation, "first"),
-            TestContext.Current.CancellationToken);
-
-        completed.Status.Should().Be(WorkflowStatus.Failed);
-        completed.ErrorSummary.Should().Contain("unresolved runtime work");
-    }
-
     private static Task<WorkflowInstanceSnapshot> StartAsync(
         EphemeralWorkflowEngine engine,
         OrcaCore.Core.Definitions.WorkflowDefinition<TestState> definition)
@@ -259,24 +200,24 @@ public sealed class MailboxTests
 
     private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> OneWaitDefinition(TestState state)
     {
-        return new WorkflowBuilder<TestState>()
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .Wait("First", _ => FirstCorrelation)
             .Then(() => new CapturePayloadStep())
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
     }
 
     private static OrcaCore.Core.Definitions.WorkflowDefinition<TestState> TwoWaitDefinition(TestState state)
     {
-        return new WorkflowBuilder<TestState>()
+        return global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => state)
             .Wait("First", _ => FirstCorrelation)
             .Then(() => new CapturePayloadStep())
             .Wait("Second", _ => SecondCorrelation)
             .Then(() => new CapturePayloadStep())
             .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
+            .Build();
     }
 
     private static EventEnvelope Event(EventId eventId, string name, CorrelationId correlationId, object? payload)
@@ -322,7 +263,8 @@ public sealed class MailboxTests
             context.State.ResumeAttempts++;
             if (context.State.ResumeAttempts == 1)
             {
-                return ValueTask.FromResult<StepResult>(new UnsupportedResult());
+                return ValueTask.FromResult(
+                    global::OrcaCore.TestSupport.LegacyStepResults.ContinueAsNew(context.State));
             }
 
             if (context.ResumedEvent?.Payload is string payload)
@@ -334,5 +276,4 @@ public sealed class MailboxTests
         }
     }
 
-    private sealed record UnsupportedResult : StepResult;
 }

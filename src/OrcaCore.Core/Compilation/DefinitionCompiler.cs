@@ -8,7 +8,7 @@ namespace OrcaCore.Core.Compilation;
 
 internal static partial class DefinitionCompiler
 {
-    internal static Validation<WorkflowDefinition<TState>> Compile<TState>(
+    internal static OrcaCore.Abstractions.Primitives.Validation<WorkflowDefinition<TState>> Compile<TState>(
         SelectedWorkflowAuthoring<TState> authoring)
     {
         ArgumentNullException.ThrowIfNull(authoring);
@@ -22,11 +22,11 @@ internal static partial class DefinitionCompiler
         var schemaIdentities = ValidateTypeContracts(authoring, errors);
         if (errors.Count > 0)
         {
-            return Validation<WorkflowDefinition<TState>>.Invalid(errors);
+            return OrcaCore.Abstractions.Primitives.Validation<WorkflowDefinition<TState>>.Invalid(errors);
         }
 
         var lowered = LowerPlan(authoring.RootNodes, authoring.Mode, schemaIdentities);
-        var canonical = $"{DescribeOptions(authoring.CompilerOptions)}|{DescribeSequence(authoring.RootNodes)}|" +
+        var canonical = $"deadline:{authoring.WorkflowTimeout?.Ticks}|{DescribeSequence(authoring.RootNodes)}|" +
             string.Join(',', schemaIdentities.OrderBy(pair => pair.Key.AssemblyQualifiedName).Select(pair => pair.Value));
         var plan = new CompiledWorkflowPlan(
             authoring.Mode,
@@ -37,15 +37,16 @@ internal static partial class DefinitionCompiler
             lowered.Scopes,
             lowered.AllowedInstructions,
             authoring.CompilerOptions,
-            authoring.TypeSerializerRegistry);
+            authoring.TypeSerializerRegistry,
+            authoring.DetachedAttemptState,
+            authoring.WorkflowTimeout);
         var root = new SequenceNode<TState>("root", BuildNodes(authoring.RootNodes, "root"));
         var definition = new WorkflowDefinition<TState>(
             authoring.DefinitionId,
             authoring.DefinitionVersion,
             root,
-            requiresDurableEngine: authoring.Mode == WorkflowExecutionMode.Durable,
-            compiledPlan: plan);
-        return Validation<WorkflowDefinition<TState>>.Valid(definition);
+            plan);
+        return OrcaCore.Abstractions.Primitives.Validation<WorkflowDefinition<TState>>.Valid(definition);
     }
 
     private static void ValidateRootShape<TState>(
@@ -60,6 +61,11 @@ internal static partial class DefinitionCompiler
         var endIndexes = nodes
             .Select((node, index) => (node, index))
             .Where(candidate => candidate.node is SelectedEndAuthoringNode<TState>)
+            .Select(candidate => candidate.index)
+            .ToArray();
+        var continueAsNewIndexes = nodes
+            .Select((node, index) => (node, index))
+            .Where(candidate => candidate.node is SelectedContinueAsNewAuthoringNode<TState>)
             .Select(candidate => candidate.index)
             .ToArray();
 
@@ -89,11 +95,11 @@ internal static partial class DefinitionCompiler
             }
         }
 
-        if (endIndexes.Length == 0)
+        if (endIndexes.Length == 0 && continueAsNewIndexes.Length == 0)
         {
             errors.Add(Error(
                 DefinitionCompilerCodes.MissingRootEnd,
-                "The workflow must contain exactly one root End.",
+                "The workflow must contain exactly one root End or terminal ContinueAsNew.",
                 "root"));
         }
         else if (endIndexes.Length > 1)
@@ -150,6 +156,13 @@ internal static partial class DefinitionCompiler
                     ValidateSequence(conditional.Then, $"{nodePath}/then", nested: true, errors);
                     ValidateSequence(conditional.Else, $"{nodePath}/else", nested: true, errors);
                     break;
+                case SelectedWhileAuthoringNode<TState> loop when nested:
+                    errors.Add(Error(
+                        DefinitionCompilerCodes.UnsupportedInstruction,
+                        "While is available only in the root workflow sequence.",
+                        nodePath));
+                    ValidateSequence(loop.Body, $"{nodePath}/body", nested: true, errors);
+                    break;
                 case SelectedWhileAuthoringNode<TState> loop:
                     ValidateSequence(loop.Body, $"{nodePath}/body", nested: true, errors);
                     if (!ContainsQuantumEndingOperation(loop.Body))
@@ -161,8 +174,25 @@ internal static partial class DefinitionCompiler
                     }
 
                     break;
+                case SelectedResourceLeaseAuthoringNode<TState> lease:
+                    ValidateSequence(lease.Body, $"{nodePath}/lease", nested: true, errors);
+                    break;
+                case SelectedStructuredScopeAuthoringNode<TState> scope when nested:
+                    errors.Add(Error(
+                        DefinitionCompilerCodes.UnsupportedInstruction,
+                        "Parallel is available only in the root workflow sequence.",
+                        nodePath));
+                    ValidateScope(scope, nodePath, errors);
+                    break;
                 case SelectedStructuredScopeAuthoringNode<TState> scope:
                     ValidateScope(scope, nodePath, errors);
+                    break;
+                case SelectedForEachAuthoringNode<TState> forEach when nested:
+                    errors.Add(Error(
+                        DefinitionCompilerCodes.UnsupportedInstruction,
+                        "ForEach is available only in the root workflow sequence.",
+                        nodePath));
+                    ValidateBranchInstructions(forEach.Body, $"{nodePath}/item", errors);
                     break;
                 case SelectedForEachAuthoringNode<TState> forEach:
                     ValidateBranchInstructions(forEach.Body, $"{nodePath}/item", errors);
@@ -251,7 +281,7 @@ internal static partial class DefinitionCompiler
         string path,
         List<ValidationError> errors)
     {
-        var returnCount = instructions.Count(instruction => instruction is BranchReturnAuthoringInstruction);
+        var returnCount = CountBranchReturns(instructions);
         if (returnCount == 0)
         {
             errors.Add(Error(
@@ -282,11 +312,67 @@ internal static partial class DefinitionCompiler
             returned = instructions[instructionIndex] is BranchReturnAuthoringInstruction;
             if (instructions[instructionIndex] is BranchStructuredScopeAuthoringInstruction nested)
             {
+                AddRootOnlyParallelError($"{path}/{instructionIndex}", errors);
                 ValidateStructuredBranches(
                     nested.ResultType,
                     nested.Branches,
                     $"{path}/{instructionIndex}",
                     errors);
+            }
+            else if (instructions[instructionIndex] is BranchIfAuthoringInstruction conditional)
+            {
+                ValidateBranchNestedSequence(conditional.Then, $"{path}/{instructionIndex}/then", errors);
+                ValidateBranchNestedSequence(conditional.Else, $"{path}/{instructionIndex}/else", errors);
+            }
+            else if (instructions[instructionIndex] is BranchResourceLeaseAuthoringInstruction lease)
+            {
+                ValidateBranchNestedSequence(lease.Body, $"{path}/{instructionIndex}/lease", errors);
+            }
+        }
+    }
+
+    private static int CountBranchReturns(IReadOnlyList<BranchAuthoringInstruction> instructions) =>
+        instructions.Sum(instruction => instruction switch
+        {
+            BranchReturnAuthoringInstruction => 1,
+            BranchIfAuthoringInstruction conditional =>
+                CountBranchReturns(conditional.Then) + CountBranchReturns(conditional.Else),
+            BranchResourceLeaseAuthoringInstruction lease => CountBranchReturns(lease.Body),
+            _ => 0
+        });
+
+    private static void ValidateBranchNestedSequence(
+        IReadOnlyList<BranchAuthoringInstruction> instructions,
+        string path,
+        List<ValidationError> errors)
+    {
+        var returned = false;
+        for (var index = 0; index < instructions.Count; index++)
+        {
+            if (returned)
+            {
+                errors.Add(Error(
+                    DefinitionCompilerCodes.UnreachableNode,
+                    "The branch instruction is unreachable after Return.",
+                    $"{path}/{index}"));
+                continue;
+            }
+
+            var instruction = instructions[index];
+            returned = instruction is BranchReturnAuthoringInstruction;
+            if (instruction is BranchIfAuthoringInstruction conditional)
+            {
+                ValidateBranchNestedSequence(conditional.Then, $"{path}/{index}/then", errors);
+                ValidateBranchNestedSequence(conditional.Else, $"{path}/{index}/else", errors);
+            }
+            else if (instruction is BranchResourceLeaseAuthoringInstruction lease)
+            {
+                ValidateBranchNestedSequence(lease.Body, $"{path}/{index}/lease", errors);
+            }
+            else if (instruction is BranchStructuredScopeAuthoringInstruction nested)
+            {
+                AddRootOnlyParallelError($"{path}/{index}", errors);
+                ValidateStructuredBranches(nested.ResultType, nested.Branches, $"{path}/{index}", errors);
             }
         }
     }
@@ -334,12 +420,21 @@ internal static partial class DefinitionCompiler
             var nodePath = $"{path}/{index}";
             switch (node)
             {
+                case SelectedInitAuthoringNode<TState> init:
+                    requiredTypes.Add((init.InputType, $"{nodePath}/input"));
+                    break;
+                case SelectedEndAuthoringNode<TState> end when end.OutputType is not null:
+                    requiredTypes.Add((end.OutputType, $"{nodePath}/output"));
+                    break;
                 case SelectedIfAuthoringNode<TState> conditional:
                     CollectTypes(conditional.Then, $"{nodePath}/then", requiredTypes);
                     CollectTypes(conditional.Else, $"{nodePath}/else", requiredTypes);
                     break;
                 case SelectedWhileAuthoringNode<TState> loop:
                     CollectTypes(loop.Body, $"{nodePath}/body", requiredTypes);
+                    break;
+                case SelectedResourceLeaseAuthoringNode<TState> lease:
+                    CollectTypes(lease.Body, $"{nodePath}/lease", requiredTypes);
                     break;
                 case SelectedStructuredScopeAuthoringNode<TState> scope:
                     requiredTypes.Add((scope.ResultType, $"{nodePath}/result"));
@@ -366,6 +461,28 @@ internal static partial class DefinitionCompiler
             requiredTypes.Add((branch.BranchStateType, $"{branchPath}/state"));
             for (var index = 0; index < branch.Instructions.Count; index++)
             {
+                if (branch.Instructions[index] is BranchIfAuthoringInstruction conditional)
+                {
+                    CollectBranchInstructionTypes(
+                        conditional.Then,
+                        $"{branchPath}/{index}/then",
+                        requiredTypes);
+                    CollectBranchInstructionTypes(
+                        conditional.Else,
+                        $"{branchPath}/{index}/else",
+                        requiredTypes);
+                    continue;
+                }
+
+                if (branch.Instructions[index] is BranchResourceLeaseAuthoringInstruction lease)
+                {
+                    CollectBranchInstructionTypes(
+                        lease.Body,
+                        $"{branchPath}/{index}/lease",
+                        requiredTypes);
+                    continue;
+                }
+
                 if (branch.Instructions[index] is not BranchStructuredScopeAuthoringInstruction nested)
                 {
                     continue;
@@ -375,6 +492,34 @@ internal static partial class DefinitionCompiler
                 requiredTypes.Add((nested.ParentStateType, $"{nestedPath}/parent-state"));
                 requiredTypes.Add((nested.ResultType, $"{nestedPath}/result"));
                 CollectBranchTypes(nested.Branches, nestedPath, requiredTypes);
+            }
+        }
+    }
+
+    private static void CollectBranchInstructionTypes(
+        IReadOnlyList<BranchAuthoringInstruction> instructions,
+        string path,
+        List<(Type Type, string Path)> requiredTypes)
+    {
+        for (var index = 0; index < instructions.Count; index++)
+        {
+            switch (instructions[index])
+            {
+                case BranchStructuredScopeAuthoringInstruction nested:
+                {
+                    var nestedPath = $"{path}/{index}";
+                    requiredTypes.Add((nested.ParentStateType, $"{nestedPath}/parent-state"));
+                    requiredTypes.Add((nested.ResultType, $"{nestedPath}/result"));
+                    CollectBranchTypes(nested.Branches, nestedPath, requiredTypes);
+                    break;
+                }
+                case BranchIfAuthoringInstruction conditional:
+                    CollectBranchInstructionTypes(conditional.Then, $"{path}/{index}/then", requiredTypes);
+                    CollectBranchInstructionTypes(conditional.Else, $"{path}/{index}/else", requiredTypes);
+                    break;
+                case BranchResourceLeaseAuthoringInstruction lease:
+                    CollectBranchInstructionTypes(lease.Body, $"{path}/{index}/lease", requiredTypes);
+                    break;
             }
         }
     }
@@ -411,6 +556,8 @@ internal static partial class DefinitionCompiler
             allowed.Add(CompiledInstructionKind.ContinueAsNew);
             allowed.Add(CompiledInstructionKind.RunChild);
             allowed.Add(CompiledInstructionKind.RunChildren);
+            allowed.Add(CompiledInstructionKind.AcquireResources);
+            allowed.Add(CompiledInstructionKind.ReleaseResources);
         }
 
         return new LoweredPlan(instructions, scopes, allowed);
@@ -463,6 +610,18 @@ internal static partial class DefinitionCompiler
                         instructions,
                         loopBack.Id);
                     SetContinuation(instructions, instruction.Id, bodyTarget, loopExit.Id);
+                    break;
+                }
+                case SelectedResourceLeaseAuthoringNode<TState> lease:
+                {
+                    var release = FindInstruction(instructions, $"{nodePath}/release");
+                    SetContinuation(instructions, release.Id, next, alternate: null);
+                    var bodyTarget = WireSequence(
+                        lease.Body,
+                        $"{nodePath}/lease",
+                        instructions,
+                        release.Id);
+                    SetContinuation(instructions, instruction.Id, bodyTarget, alternate: null);
                     break;
                 }
                 case SelectedStructuredScopeAuthoringNode<TState> scope:
@@ -536,7 +695,17 @@ internal static partial class DefinitionCompiler
         string path,
         List<CompiledInstruction> instructions)
     {
-        InstructionId? next = null;
+        _ = WireBranchSequence(authored, path, instructions, continuation: null);
+    }
+
+    private static InstructionId? WireBranchSequence(
+        IReadOnlyList<BranchAuthoringInstruction> authored,
+        string path,
+        List<CompiledInstruction> instructions,
+        InstructionId? continuation,
+        bool returnsFollowContinuation = false)
+    {
+        var next = continuation;
         for (var index = authored.Count - 1; index >= 0; index--)
         {
             var instruction = FindInstruction(instructions, $"{path}/{index}");
@@ -549,17 +718,51 @@ internal static partial class DefinitionCompiler
                     instruction.Id,
                     next);
             }
+            else if (authored[index] is BranchIfAuthoringInstruction conditional)
+            {
+                var join = FindInstruction(instructions, $"{path}/{index}/join");
+                SetContinuation(instructions, join.Id, next, alternate: null);
+                var thenTarget = WireBranchSequence(
+                    conditional.Then,
+                    $"{path}/{index}/then",
+                    instructions,
+                    join.Id,
+                    returnsFollowContinuation);
+                var elseTarget = WireBranchSequence(
+                    conditional.Else,
+                    $"{path}/{index}/else",
+                    instructions,
+                    join.Id,
+                    returnsFollowContinuation);
+                SetContinuation(instructions, instruction.Id, thenTarget, elseTarget);
+            }
+            else if (authored[index] is BranchResourceLeaseAuthoringInstruction lease)
+            {
+                var release = FindInstruction(instructions, $"{path}/{index}/release");
+                SetContinuation(instructions, release.Id, next, alternate: null);
+                var bodyTarget = WireBranchSequence(
+                    lease.Body,
+                    $"{path}/{index}/lease",
+                    instructions,
+                    release.Id,
+                    returnsFollowContinuation: true);
+                SetContinuation(instructions, instruction.Id, bodyTarget, alternate: null);
+            }
             else
             {
                 SetContinuation(
                     instructions,
                     instruction.Id,
-                    authored[index] is BranchReturnAuthoringInstruction ? null : next,
+                    authored[index] is BranchReturnAuthoringInstruction && !returnsFollowContinuation
+                        ? null
+                        : next,
                     alternate: null);
             }
 
             next = instruction.Id;
         }
+
+        return next;
     }
 
     private static CompiledInstruction FindInstruction(
@@ -606,7 +809,8 @@ internal static partial class DefinitionCompiler
                         CompiledInstructionKind.Step,
                         nodePath,
                         step.StepFactory,
-                        policy: CompilePolicy(step.Policies));
+                        policy: CompilePolicy(step.Policies),
+                        stepType: step.StepType);
                     break;
                 case SelectedWaitAuthoringNode<TState> wait:
                     AddInstruction(
@@ -615,7 +819,8 @@ internal static partial class DefinitionCompiler
                         nodePath,
                         wait.CorrelationSelector,
                         eventName: wait.EventName,
-                        waitMode: wait.Mode);
+                        waitMode: wait.Mode,
+                        waitTimeout: wait.Timeout);
                     break;
                 case SelectedDelayAuthoringNode<TState> delay:
                     AddInstruction(
@@ -647,7 +852,15 @@ internal static partial class DefinitionCompiler
                         childResidualPolicy: children.ResidualPolicy);
                     break;
                 case SelectedEndAuthoringNode<TState> end:
-                    AddInstruction(instructions, CompiledInstructionKind.End, nodePath, end.OutcomeSelector);
+                    AddInstruction(
+                        instructions,
+                        CompiledInstructionKind.End,
+                        nodePath,
+                        operation: end.OutcomeSelector,
+                        outputType: end.OutputType,
+                        outputSchemaIdentity: end.OutputType is null ? null : schemaIdentities[end.OutputType],
+                        outputSelector: end.OutputSelector,
+                        fixedOutcomeName: end.OutcomeName);
                     break;
                 case SelectedContinueAsNewAuthoringNode<TState> continueAsNew:
                     AddInstruction(
@@ -667,6 +880,19 @@ internal static partial class DefinitionCompiler
                     LowerSequence(loop.Body, $"{nodePath}/body", instructions, scopes, schemaIdentities);
                     AddInstruction(instructions, CompiledInstructionKind.LoopBack, $"{nodePath}/back");
                     AddInstruction(instructions, CompiledInstructionKind.LoopExit, $"{nodePath}/exit");
+                    break;
+                case SelectedResourceLeaseAuthoringNode<TState> lease:
+                    AddInstruction(
+                        instructions,
+                        CompiledInstructionKind.AcquireResources,
+                        nodePath,
+                        staticLeaseRequest: lease.StaticRequest,
+                        leaseRequestSelector: lease.RequestSelector);
+                    LowerSequence(lease.Body, $"{nodePath}/lease", instructions, scopes, schemaIdentities);
+                    AddInstruction(
+                        instructions,
+                        CompiledInstructionKind.ReleaseResources,
+                        $"{nodePath}/release");
                     break;
                 case SelectedStructuredScopeAuthoringNode<TState> scope:
                     LowerScope(scope, nodePath, instructions, scopes, schemaIdentities);
@@ -720,10 +946,7 @@ internal static partial class DefinitionCompiler
                 instructions,
                 scopes,
                 schemaIdentities);
-            var resultProjector = branch.Instructions
-                .OfType<BranchReturnAuthoringInstruction>()
-                .Single()
-                .ResultProjector;
+            var resultProjector = FindBranchReturn(branch.Instructions).ResultProjector;
             branches.Add(new CompiledBranchPlan(
                 new BranchPlanId($"branch:{path}:{ordinal}:{branch.BranchId}"),
                 branch.BranchId,
@@ -747,11 +970,21 @@ internal static partial class DefinitionCompiler
         var exit = AddInstruction(instructions, CompiledInstructionKind.ScopeExit, $"{path}/exit");
         scopes.Add(new CompiledScopePlan(
             new ScopePlanId($"scope:{path}"),
-            scopeKind == "WhenFirst" ? CompiledScopeKind.WhenFirst : CompiledScopeKind.WhenAll,
+            scopeKind switch
+            {
+                "WhenFirst" => CompiledScopeKind.WhenFirst,
+                "ParallelOutcomes" => CompiledScopeKind.WhenAllOutcomes,
+                _ => CompiledScopeKind.WhenAll
+            },
             resultType,
             branches,
             new CompiledMergePlan(
-                scopeKind == "WhenFirst" ? CompiledMergeKind.WhenFirst : CompiledMergeKind.WhenAll,
+                scopeKind switch
+                {
+                    "WhenFirst" => CompiledMergeKind.WhenFirst,
+                    "ParallelOutcomes" => CompiledMergeKind.WhenAllOutcomes,
+                    _ => CompiledMergeKind.WhenAll
+                },
                 parentStateType,
                 resultType,
                 schemaIdentities[parentStateType],
@@ -761,144 +994,4 @@ internal static partial class DefinitionCompiler
             exit.Id));
     }
 
-    private static void LowerForEach<TState>(
-        SelectedForEachAuthoringNode<TState> forEach,
-        string path,
-        List<CompiledInstruction> instructions,
-        List<CompiledScopePlan> scopes,
-        IReadOnlyDictionary<Type, string> schemaIdentities)
-    {
-        AddInstruction(instructions, CompiledInstructionKind.StartScope, path, forEach.ItemSelector);
-        var branchInstructions = LowerBranch(
-            forEach.Body,
-            $"{path}/item",
-            instructions,
-            scopes,
-            schemaIdentities);
-        var branch = new CompiledBranchPlan(
-            new BranchPlanId($"branch:{path}:item"),
-            "item",
-            0,
-            new CompiledBranchInputPlan(
-                forEach.ItemType,
-                forEach.ItemStateType,
-                schemaIdentities[forEach.ItemType],
-                schemaIdentities[forEach.ItemStateType],
-                forEach.ItemStateProjector),
-            new CompiledBranchResultPlan(
-                forEach.ItemStateType,
-                forEach.ResultType,
-                schemaIdentities[forEach.ItemStateType],
-                schemaIdentities[forEach.ResultType],
-                forEach.Body.OfType<BranchReturnAuthoringInstruction>().Single().ResultProjector),
-            branchInstructions);
-        var join = AddInstruction(instructions, CompiledInstructionKind.ScopeJoin, $"{path}/join");
-        var exit = AddInstruction(instructions, CompiledInstructionKind.ScopeExit, $"{path}/exit");
-        scopes.Add(new CompiledScopePlan(
-            new ScopePlanId($"scope:{path}"),
-            CompiledScopeKind.ForEach,
-            forEach.ResultType,
-            [branch],
-            new CompiledMergePlan(
-                CompiledMergeKind.ForEach,
-                typeof(TState),
-                forEach.ResultType,
-                schemaIdentities[typeof(TState)],
-                schemaIdentities[forEach.ResultType],
-                forEach.Merge),
-            join.Id,
-            exit.Id)
-        {
-            ForEach = new CompiledForEachPlan(
-                forEach.ItemType,
-                schemaIdentities[forEach.ItemType],
-                forEach.ItemSelector,
-                forEach.Partitioner,
-                forEach.ItemStateProjector,
-                forEach.JoinPolicy,
-                forEach.FailurePolicy,
-                forEach.MaxConcurrency)
-        });
-    }
-
-    private static IReadOnlyList<InstructionId> LowerBranch(
-        IReadOnlyList<BranchAuthoringInstruction> branchInstructions,
-        string path,
-        List<CompiledInstruction> instructions,
-        List<CompiledScopePlan> scopes,
-        IReadOnlyDictionary<Type, string> schemaIdentities)
-    {
-        var ids = new List<InstructionId>(branchInstructions.Count);
-        for (var index = 0; index < branchInstructions.Count; index++)
-        {
-            var authored = branchInstructions[index];
-            if (authored is BranchStructuredScopeAuthoringInstruction nested)
-            {
-                LowerStructuredScope(
-                    nested.ParentStateType,
-                    nested.ScopeKind,
-                    nested.ResultType,
-                    nested.Branches,
-                    nested.Merge,
-                    $"{path}/{index}",
-                    instructions,
-                    scopes,
-                    schemaIdentities);
-                ids.Add(FindInstruction(instructions, $"{path}/{index}").Id);
-                continue;
-            }
-
-            var kind = authored switch
-            {
-                BranchReturnAuthoringInstruction => CompiledInstructionKind.BranchReturn,
-                BranchWaitAuthoringInstruction => CompiledInstructionKind.Wait,
-                BranchDelayAuthoringInstruction => CompiledInstructionKind.Delay,
-                _ => CompiledInstructionKind.Step
-            };
-            var operation = authored switch
-            {
-                BranchStepAuthoringInstruction step => step.StepFactory,
-                BranchWaitAuthoringInstruction wait => wait.CorrelationSelector,
-                BranchReturnAuthoringInstruction branchReturn => branchReturn.ResultProjector,
-                _ => null
-            };
-            var waitInstruction = authored as BranchWaitAuthoringInstruction;
-            var delayInstruction = authored as BranchDelayAuthoringInstruction;
-            var stepInstruction = authored as BranchStepAuthoringInstruction;
-            ids.Add(AddInstruction(
-                instructions,
-                kind,
-                $"{path}/{index}",
-                operation,
-                waitInstruction?.EventName,
-                waitInstruction?.Mode,
-                delayInstruction?.Duration,
-                policy: stepInstruction is null ? null : CompilePolicy(stepInstruction.Policies)).Id);
-        }
-
-        return ids;
-    }
-
-    private sealed record LoweredPlan(
-        IReadOnlyList<CompiledInstruction> Instructions,
-        IReadOnlyList<CompiledScopePlan> Scopes,
-        IReadOnlySet<CompiledInstructionKind> AllowedInstructions);
-
-    private static CompiledPolicyPlan CompilePolicy(WorkflowPolicySet policy)
-    {
-        return new CompiledPolicyPlan
-        {
-            Retry = policy.Retry is null
-                ? null
-                : new CompiledRetryPolicy(policy.Retry.MaxAttempts, policy.Retry.Backoff),
-            Timeout = policy.Timeout?.Duration,
-            CancellationEnabled = policy.Cancellation,
-            TransientPoolKey = policy.PoolKey
-        };
-    }
-
-    private static ValidationError Error(string code, string message, string path)
-    {
-        return new ValidationError(code, message, path);
-    }
 }

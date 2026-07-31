@@ -7,17 +7,21 @@ using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using Xunit;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Providers.PostgreSql.Tests;
 
 public sealed class PostgreSqlServiceCollectionTests
 {
     [Fact]
-    public async Task AddOrcaCorePostgreSql_RegistersDurableProviderPortsAndRetentionStore()
+    public async Task AddOrcaCorePostgreSqlDurableProvider_RegistersCompleteDurableProviderRole()
     {
         var services = new ServiceCollection();
-        services.AddSingleton<IWorkflowEventStore, StubEventStore>();
 
-        services.AddOrcaCorePostgreSql("Host=localhost;Database=orca;Username=orca;Password=orca");
+        services.AddOrcaCorePostgreSqlDurableProvider(
+            new PostgreSqlDurableProviderOptions(
+                "Host=localhost;Database=orca;Username=orca;Password=orca",
+                "orcacore"));
 
         await using var provider = services.BuildServiceProvider();
         provider.GetRequiredService<IWorkflowEventStore>().Should().BeOfType<PostgreSqlWorkflowStore>();
@@ -28,6 +32,21 @@ public sealed class PostgreSqlServiceCollectionTests
         provider.GetRequiredService<ITimerScheduler>().Should().BeOfType<PostgreSqlWorkflowStore>();
         provider.GetRequiredService<IWorkflowRetentionStore>().Should().BeOfType<PostgreSqlWorkflowStore>();
         provider.GetRequiredService<IResourcePoolStore>().Should().BeOfType<PostgreSqlResourcePoolStore>();
+    }
+
+    [Fact]
+    public void AddOrcaCorePostgreSqlDurableProvider_RejectsPreRegisteredPartialProviderPorts()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IWorkflowEventStore, StubEventStore>();
+
+        var act = () => services.AddOrcaCorePostgreSqlDurableProvider(
+            new PostgreSqlDurableProviderOptions(
+                "Host=localhost;Database=orca;Username=orca;Password=orca",
+                "orcacore"));
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*IWorkflowEventStore*");
     }
 
     [Fact]
@@ -48,22 +67,6 @@ public sealed class PostgreSqlServiceCollectionTests
         await using var store = new PostgreSqlResourcePoolStore(dataSource);
 
         await store.DisposeAsync();
-
-        await AssertBorrowedDataSourceWasNotDisposedAsync(dataSource);
-    }
-
-    [Fact]
-    public async Task AddOrcaCorePostgreSql_WithBorrowedDataSource_DoesNotDisposeDataSourceOnProviderDispose()
-    {
-        await using var dataSource = CreateUnreachableDataSource();
-        var services = new ServiceCollection();
-
-        services.AddOrcaCorePostgreSql(dataSource);
-        var provider = services.BuildServiceProvider();
-        provider.GetRequiredService<PostgreSqlWorkflowStore>().Should().NotBeNull();
-        provider.GetRequiredService<PostgreSqlResourcePoolStore>().Should().NotBeNull();
-
-        await provider.DisposeAsync();
 
         await AssertBorrowedDataSourceWasNotDisposedAsync(dataSource);
     }
@@ -101,7 +104,7 @@ public sealed class PostgreSqlServiceCollectionTests
             throw new NotSupportedException();
         }
 
-        public Task<IReadOnlyList<WorkflowEvent>> LoadTailAsync(
+        public Task<IReadOnlyList<DurableWorkflowEvent>> LoadTailAsync(
             WorkflowStreamId streamId,
             StreamVersion afterVersion,
             CancellationToken cancellationToken)

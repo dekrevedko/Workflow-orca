@@ -2,18 +2,21 @@ using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
 using OrcaCore.Abstractions.Events;
+using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
 
 namespace OrcaCore.Core.Execution;
 
-internal static class StructuredInvocationCache
+public static class StructuredInvocationCache
 {
-    private delegate ValueTask<StepResult> StepInvoker(
+    private delegate ValueTask<StructuredStepInvocationResult> StepInvoker(
         object step,
         object state,
+        StepExecutionContext execution,
         EventEnvelope? resumedEvent,
         TimeProvider timeProvider,
+        ResourceLeaseExecutionContext? resourceLease,
         CancellationToken cancellationToken);
 
     private static readonly ConcurrentDictionary<Delegate, Func<object?[], object?>> DelegateInvokers = [];
@@ -21,7 +24,7 @@ internal static class StructuredInvocationCache
     private static readonly ConcurrentDictionary<Type, Func<object, object>> ParentSnapshotFactories = [];
     private static readonly ConcurrentDictionary<Type, Func<object, object>> BranchSnapshotFactories = [];
 
-    internal static object? Invoke(Delegate callback, params object?[] arguments)
+    public static object? Invoke(Delegate callback, params object?[] arguments)
     {
         ArgumentNullException.ThrowIfNull(callback);
         ArgumentNullException.ThrowIfNull(arguments);
@@ -39,12 +42,14 @@ internal static class StructuredInvocationCache
         }
     }
 
-    internal static async ValueTask<StepResult> ExecuteStepAsync(
+    public static async ValueTask<StructuredStepInvocationResult> ExecuteStepAsync(
         Type stateType,
         object step,
         object state,
+        StepExecutionContext execution,
         EventEnvelope? resumedEvent,
         TimeProvider timeProvider,
+        ResourceLeaseExecutionContext? resourceLease,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(stateType);
@@ -54,8 +59,10 @@ internal static class StructuredInvocationCache
                 .GetOrAdd(stateType, BuildStepInvoker)(
                     step,
                     state,
+                    execution,
                     resumedEvent,
                     timeProvider,
+                    resourceLease,
                     cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -69,12 +76,12 @@ internal static class StructuredInvocationCache
         }
     }
 
-    internal static object CreateParentSnapshot(Type stateType, object state) =>
+    public static object CreateParentSnapshot(Type stateType, object state) =>
         ParentSnapshotFactories.GetOrAdd(
             stateType,
             type => BuildSnapshotFactory(typeof(ReadOnlyParentSnapshot<>), type))(state);
 
-    internal static object CreateBranchSnapshot(Type stateType, object state) =>
+    public static object CreateBranchSnapshot(Type stateType, object state) =>
         BranchSnapshotFactories.GetOrAdd(
             stateType,
             type => BuildSnapshotFactory(typeof(ReadOnlyBranchSnapshot<>), type))(state);
@@ -104,11 +111,13 @@ internal static class StructuredInvocationCache
         return method.CreateDelegate<StepInvoker>();
     }
 
-    private static ValueTask<StepResult> ExecuteTypedStepAsync<TState>(
+    private static async ValueTask<StructuredStepInvocationResult> ExecuteTypedStepAsync<TState>(
         object step,
         object state,
+        StepExecutionContext execution,
         EventEnvelope? resumedEvent,
         TimeProvider timeProvider,
+        ResourceLeaseExecutionContext? resourceLease,
         CancellationToken cancellationToken)
     {
         if (step is not IStep<TState> typedStep || state is not TState typedState)
@@ -117,9 +126,13 @@ internal static class StructuredInvocationCache
                 $"Compiled branch step does not match state type '{typeof(TState).FullName}'.");
         }
 
-        return typedStep.ExecuteAsync(
-            new StepContext<TState>(typedState, resumedEvent, timeProvider),
-            cancellationToken);
+        var constructor = typeof(StepContext<TState>).GetConstructors(
+                BindingFlags.Instance | BindingFlags.NonPublic)
+            .Single(candidate => candidate.GetParameters().Length == 6);
+        var context = (StepContext<TState>)constructor.Invoke(
+            [typedState, execution, resumedEvent, timeProvider, null, resourceLease]);
+        var result = await typedStep.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
+        return new StructuredStepInvocationResult(result, context.State!);
     }
 
     private static Func<object, object> BuildSnapshotFactory(Type openSnapshotType, Type stateType)
@@ -135,3 +148,5 @@ internal static class StructuredInvocationCache
         return Expression.Lambda<Func<object, object>>(body, state).Compile();
     }
 }
+
+public sealed record StructuredStepInvocationResult(StepResult Result, object State);

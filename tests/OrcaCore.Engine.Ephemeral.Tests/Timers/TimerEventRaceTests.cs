@@ -1,10 +1,6 @@
 using AwesomeAssertions;
-using OrcaCore.Abstractions.Events;
-using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
-using OrcaCore.Abstractions.Steps;
-using OrcaCore.Core.Building;
-using OrcaCore.Engine.Ephemeral;
+using Microsoft.Extensions.DependencyInjection;
+using OrcaCore.Hosting;
 using OrcaCore.TestSupport;
 using Xunit;
 
@@ -12,121 +8,181 @@ namespace OrcaCore.Engine.Ephemeral.Tests.Timers;
 
 public sealed class TimerEventRaceTests
 {
-    private static readonly CorrelationId Correlation = new("order-123");
+    private static readonly EventName Approved = EventName.Create("approved");
+    private static readonly CorrelationId Correlation =
+        CorrelationId.Create("order-123");
 
     [Fact]
     public async Task EventBeforeTimeout_ConsumesEventAndCancelsTimer()
     {
-        var clock = new Clock(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
-        var engine = new EphemeralWorkflowEngine(clock.TimeProvider);
-        var state = new RaceState();
-        var definition = Definition(state, TimeSpan.FromMinutes(5));
-        engine.RegisterDefinition(definition);
-        var waiting = await engine.StartAsync<string, RaceState>(
-            definition.DefinitionId,
+        var clock = new Clock(
+            new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
+        using var provider = CreateProvider(clock);
+        var definition = Definition(TimeSpan.FromMinutes(5));
+        var handle = provider
+            .GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        var instance = (await handle.StartOrGetAsync(
             "start",
-            TestContext.Current.CancellationToken);
+            StartIdempotencyKey.Create("timer-event-wins"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
 
-        var resumed = await engine.RaiseEventAsync<RaceState>(
-            waiting.InstanceId,
-            Event(clock.Now, "accepted"),
-            TestContext.Current.CancellationToken);
+        var delivery = await provider
+            .GetRequiredService<IWorkflowEventClient>()
+            .DeliverToInstanceAsync(
+                instance.InstanceId,
+                Event("timer-event-wins", clock.Now, "accepted"),
+                TestContext.Current.CancellationToken);
         clock.Advance(TimeSpan.FromMinutes(5));
-        var dueTimers = await engine.FireDueTimersAsync(TestContext.Current.CancellationToken);
+        var dueTimers = await provider
+            .GetRequiredService<EphemeralWorkflowEngine>()
+            .FireDueTimersAsync(TestContext.Current.CancellationToken);
 
-        resumed.Status.Should().Be(WorkflowStatus.Completed);
+        delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
         dueTimers.Should().BeEmpty();
-        state.Outcomes.Should().Equal(["event:accepted"]);
+        (await instance.GetSnapshotAsync(TestContext.Current.CancellationToken))
+            .Status.Should().Be(WorkflowInstanceStatus.Completed);
+        (await instance.GetStateAsync<RaceState>(
+                TestContext.Current.CancellationToken))
+            .Outcomes.Should().Equal("event:accepted");
     }
 
     [Fact]
-    public async Task TimeoutBeforeEvent_CancelsWaitAndContinues()
+    public async Task TimeoutBeforeEvent_FailsAndCancelsWait()
     {
-        var clock = new Clock(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
-        var engine = new EphemeralWorkflowEngine(clock.TimeProvider);
-        var state = new RaceState();
-        var definition = Definition(state, TimeSpan.FromMinutes(5));
-        engine.RegisterDefinition(definition);
-        await engine.StartAsync<string, RaceState>(
-            definition.DefinitionId,
+        var clock = new Clock(
+            new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
+        using var provider = CreateProvider(clock);
+        var definition = Definition(TimeSpan.FromMinutes(5));
+        var handle = provider
+            .GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        var instance = (await handle.StartOrGetAsync(
             "start",
-            TestContext.Current.CancellationToken);
+            StartIdempotencyKey.Create("timer-timeout-wins"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
         clock.Advance(TimeSpan.FromMinutes(5));
 
-        var fired = await engine.FireDueTimersAsync(TestContext.Current.CancellationToken);
+        var fired = await provider
+            .GetRequiredService<EphemeralWorkflowEngine>()
+            .FireDueTimersAsync(TestContext.Current.CancellationToken);
+        var snapshot = await instance.GetSnapshotAsync(
+            TestContext.Current.CancellationToken);
+        var late = await provider
+            .GetRequiredService<IWorkflowEventClient>()
+            .DeliverToInstanceAsync(
+                instance.InstanceId,
+                Event("timer-late-event", clock.Now, "late"),
+                TestContext.Current.CancellationToken);
 
-        fired.Should().ContainSingle()
-            .Which.Status.Should().Be(WorkflowStatus.Completed);
-        state.Outcomes.Should().Equal(["timeout"]);
+        fired.Should().ContainSingle();
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Failed);
+        snapshot.Failure.Should().NotBeNull();
+        snapshot.Failure!.Code.Should().Be("WF-WAIT-TIMEOUT");
+        snapshot.ActiveWaits.Should().BeEmpty();
+        late.Status.Should().Be(EventDeliveryStatus.InstanceTerminal);
+        (await instance.GetStateAsync<RaceState>(
+                TestContext.Current.CancellationToken))
+            .Outcomes.Should().BeEmpty();
     }
 
     [Fact]
-    [Trait("AC", "AC-112")]
-    public async Task TimeoutBeforeFreshEvent_AllowsReusedWaitSignature()
+    public async Task TimedOutInstance_DoesNotPoisonSameWaitSignatureForFreshInstance()
     {
-        var clock = new Clock(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
-        var engine = new EphemeralWorkflowEngine(clock.TimeProvider);
-        var state = new RaceState();
-        var definition = ReusedCorrelationDefinition(state, TimeSpan.FromMinutes(5));
-        engine.RegisterDefinition(definition);
-        await engine.StartAsync<string, RaceState>(
-            definition.DefinitionId,
+        var clock = new Clock(
+            new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
+        using var provider = CreateProvider(clock);
+        var definition = Definition(TimeSpan.FromMinutes(5));
+        var handle = provider
+            .GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        var timedOut = (await handle.StartOrGetAsync(
             "start",
-            TestContext.Current.CancellationToken);
+            StartIdempotencyKey.Create("timer-first-instance"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
         clock.Advance(TimeSpan.FromMinutes(5));
-        await engine.FireDueTimersAsync(TestContext.Current.CancellationToken);
+        _ = await provider
+            .GetRequiredService<EphemeralWorkflowEngine>()
+            .FireDueTimersAsync(TestContext.Current.CancellationToken);
 
-        var fresh = await engine.RaiseEventAsync<RaceState>(
-            engine.Management.All().Get().InstanceId,
-            Event(clock.Now, "fresh"),
+        var freshInstance = (await handle.StartOrGetAsync(
+            "start",
+            StartIdempotencyKey.Create("timer-fresh-instance"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
+        var afterTimeout = await timedOut.GetSnapshotAsync(
             TestContext.Current.CancellationToken);
+        var fresh = await provider
+            .GetRequiredService<IWorkflowEventClient>()
+            .DeliverToInstanceAsync(
+                freshInstance.InstanceId,
+                PayloadlessEvent("timer-fresh-event", clock.Now),
+                TestContext.Current.CancellationToken);
 
-        fresh.Status.Should().Be(WorkflowStatus.Completed);
-        state.Outcomes.Should().Equal(["timeout", "event:fresh"]);
+        afterTimeout.Status.Should().Be(WorkflowInstanceStatus.Failed);
+        afterTimeout.Failure!.Code.Should().Be("WF-WAIT-TIMEOUT");
+        fresh.Status.Should().Be(EventDeliveryStatus.Accepted);
+        (await freshInstance.GetSnapshotAsync(TestContext.Current.CancellationToken))
+            .Status.Should().Be(WorkflowInstanceStatus.Completed);
+        (await freshInstance.GetStateAsync<RaceState>(
+                TestContext.Current.CancellationToken))
+            .Outcomes.Should().Equal("event");
     }
 
-    private static OrcaCore.Core.Definitions.WorkflowDefinition<RaceState> Definition(
-        RaceState state,
-        TimeSpan timeout)
+    private static ServiceProvider CreateProvider(Clock clock)
     {
-        return new WorkflowBuilder<RaceState>()
-            .Init<string>(_ => state)
-            .Wait("Approved", _ => Correlation, timeout)
-            .Then(() => new RecordOutcomeStep())
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-    }
-
-    private static OrcaCore.Core.Definitions.WorkflowDefinition<RaceState> ReusedCorrelationDefinition(
-        RaceState state,
-        TimeSpan timeout)
-    {
-        return new WorkflowBuilder<RaceState>()
-            .Init<string>(_ => state)
-            .Wait("Approved", _ => Correlation, timeout)
-            .Then(() => new RecordOutcomeStep())
-            .Wait("Approved", _ => Correlation)
-            .Then(() => new RecordOutcomeStep())
-            .End()
-            .Build(DefinitionId.New(), DefinitionVersion.Initial);
-    }
-
-    private static EventEnvelope Event(DateTimeOffset occurredAt, string payload)
-    {
-        return new EventEnvelope
+        var services = new ServiceCollection();
+        services.AddSingleton<TimeProvider>(clock.TimeProvider);
+        services.AddTransient<RecordOutcomeStep>();
+        services.AddOrcaCoreEphemeralEngine(new EphemeralEngineHostOptions
         {
-            EventId = EventId.New(),
-            EventName = "Approved",
-            CorrelationId = Correlation,
-            Payload = payload,
-            OccurredAt = occurredAt
-        };
+            StructuredExecution = new StructuredExecutionHostOptions
+            {
+                MaxConcurrentExecutionPathsPerInstance = 2,
+                StepThrottles = []
+            },
+            TransientPools = []
+        });
+        return services.BuildServiceProvider();
     }
 
-    private sealed class RaceState
+    private static EphemeralWorkflowDefinition<string> Definition(TimeSpan timeout)
     {
-        public List<string> Outcomes { get; } = [];
+        return Workflow.Ephemeral<RaceState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(_ => new RaceState([]))
+            .Wait(Approved, _ => Correlation, timeout)
+            .Then<RecordOutcomeStep>()
+            .End()
+            .Build();
     }
+
+    private static WorkflowEvent<string> Event(
+        string eventId,
+        DateTimeOffset occurredAt,
+        string payload)
+    {
+        return WorkflowEvent<string>.Create(
+            EventId.Create(eventId),
+            Approved,
+            Correlation,
+            payload,
+            occurredAt);
+    }
+
+    private static WorkflowEvent PayloadlessEvent(
+        string eventId,
+        DateTimeOffset occurredAt) =>
+        WorkflowEvent.Create(
+            EventId.Create(eventId),
+            Approved,
+            Correlation,
+            occurredAt);
+
+    private sealed record RaceState(List<string> Outcomes);
 
     private sealed class RecordOutcomeStep : IStep<RaceState>
     {
@@ -134,9 +190,13 @@ public sealed class TimerEventRaceTests
             StepContext<RaceState> context,
             CancellationToken cancellationToken)
         {
-            var outcome = context.ResumedEvent?.Payload is string payload
-                ? $"event:{payload}"
-                : "timeout";
+            var outcome = context.ResumedEvent switch
+            {
+                null => "timeout",
+                { Payload: string payload } => $"event:{payload}",
+                { Payload: null } => "event",
+                { Payload: var payload } => $"event-payload-type:{payload.GetType().Name}"
+            };
             context.State.Outcomes.Add(outcome);
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
         }

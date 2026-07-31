@@ -2,6 +2,8 @@ using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 
+using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+
 namespace OrcaCore.Engine.Durable.Aggregates;
 
 internal static class DurableChildWorkflowCommandHandler
@@ -19,7 +21,7 @@ internal static class DurableChildWorkflowCommandHandler
             return DurableDecision.Empty;
         }
 
-        var events = new List<WorkflowEvent>();
+        var events = new List<DurableWorkflowEvent>();
         DurableLifecycleCommandHandler.AddConsumeAndCancelEvents(
             events,
             aggregate,
@@ -50,8 +52,8 @@ internal static class DurableChildWorkflowCommandHandler
             return DurableDecision.Empty;
         }
 
-        var waitId = new WaitId(command.ChildInstanceId.Value);
-        var events = new List<WorkflowEvent>();
+        var waitId = WaitId.Parse(command.ChildInstanceId.Value.ToString());
+        var events = new List<DurableWorkflowEvent>();
         DurableLifecycleCommandHandler.AddConsumeAndCancelEvents(
             events,
             aggregate,
@@ -64,7 +66,7 @@ internal static class DurableChildWorkflowCommandHandler
         events.Add(
             new WorkflowChildScheduledEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -119,7 +121,7 @@ internal static class DurableChildWorkflowCommandHandler
                     excludedChildIds: new HashSet<InstanceId> { command.ChildInstanceId }),
                 new WorkflowTerminalEvent
                 {
-                    EventId = EventId.New(),
+                    EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                     InstanceId = command.InstanceId,
                     CommandId = command.CommandId,
                     CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
@@ -160,7 +162,7 @@ internal static class DurableChildWorkflowCommandHandler
             .ToArray();
         var maxConcurrency = Math.Min(command.MaxConcurrency ?? children.Length, children.Length);
         var initialDispatchCount = Math.Min(maxConcurrency, children.Length);
-        var events = new List<WorkflowEvent>();
+        var events = new List<DurableWorkflowEvent>();
         DurableLifecycleCommandHandler.AddConsumeAndCancelEvents(
             events,
             aggregate,
@@ -173,7 +175,7 @@ internal static class DurableChildWorkflowCommandHandler
         events.Add(
             new WorkflowChildrenScheduledEvent
             {
-                EventId = EventId.New(),
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
                 InstanceId = command.InstanceId,
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
