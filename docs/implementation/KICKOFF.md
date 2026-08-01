@@ -27,7 +27,7 @@ Rules of engagement:
    docs/implementation/03-tdd-workflow.md.
 3. Execute EXACTLY ONE task, following docs/implementation/04-task-protocol.md:
 
-   docs/implementation/phases/phase-0-skeleton/T0-01-solution-skeleton.md
+   docs/archive/implementation-phases/phase-0-skeleton/T0-01-solution-skeleton.md
 
 4. TDD is mandatory: write the task's listed tests first, watch them fail for the right
    reason, then implement the minimum, then refactor.

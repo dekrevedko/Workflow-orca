@@ -6,20 +6,22 @@ developer guides that explain it.
 
 ## Start here
 
-1. [Project README](../README.md) — public orientation, build/test commands, and samples.
-2. [V1 public-surface baseline](specs/17-selected-mode-capability-matrix.md) — the approved
+1. [Normative source map](normative-source-map.md) — which sources are normative, how the two
+   spec trees map to each other, and what is archived. **Read before changing any spec or doc.**
+2. [Project README](../README.md) — public orientation, build/test commands, and samples.
+3. [V1 public-surface baseline](specs/17-selected-mode-capability-matrix.md) — the approved
    greenfield release contract, including removed/deferred capabilities and package boundaries.
    Its exact authoring declarations are mirrored in
    [`17-public-authoring-contract.cs`](specs/17-public-authoring-contract.cs).
    The post-review caller-created strong-value construction decision is recorded in the
    [2026-07-19 amendment](review/developer-facing-interface-v1-strong-value-construction-amendment-2026-07-19.md).
-3. [Active implementation index](active-implementation-index.md) — current runtime guides,
+4. [Active implementation index](active-implementation-index.md) — current runtime guides,
    durable-driver notes, operations, and handoffs.
-4. [Project technical overview](project-technical-overview.md) — architecture and code map.
-5. [Current refactor plan](implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md)
+5. [Project technical overview](project-technical-overview.md) — architecture and code map.
+6. [Current refactor plan](implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md)
    — review-gated implementation order for the approved v1 surface. The April roadmap under
    `plans/` is a historical source snapshot.
-6. [Durable development store reset](durable-development-store-reset.md) - required after
+7. [Durable development store reset](durable-development-store-reset.md) - required after
    provisional cursor checkpoints or incompatible compiled-plan changes.
 
 ## Active source layout
@@ -35,14 +37,18 @@ The solution file is [`OrcaCore.slnx`](../OrcaCore.slnx). The main projects are:
 
 | Project | Purpose |
 |---------|---------|
-| [`OrcaCore.Abstractions`](../src/OrcaCore.Abstractions) | Public contracts, identifiers, workflow events, snapshots, provider ports, and serialization. |
-| [`OrcaCore.Core`](../src/OrcaCore.Core) | Workflow builders, immutable definitions, lifecycle, policies, and composition nodes. |
-| [`OrcaCore.Engine.Ephemeral`](../src/OrcaCore.Engine.Ephemeral) | In-process execution, waits, timers, management, governance, and ephemeral saga behavior. |
-| [`OrcaCore.Engine.Durable`](../src/OrcaCore.Engine.Durable) | Event-sourced durable aggregate, replay, checkpointing, outbox, driver, and continuation execution. |
-| [`OrcaCore.Hosting`](../src/OrcaCore.Hosting) | Dependency-injection registration, hosted pumps, lifecycle sweeps, and telemetry. |
-| [`OrcaCore.Providers.InMemory`](../src/OrcaCore.Providers.InMemory) | In-memory provider implementation used by tests and local runs. |
-| [`OrcaCore.Providers.PostgreSql`](../src/OrcaCore.Providers.PostgreSql) | PostgreSQL event, projection, timer, resource-pool, and outbox persistence. |
-| [`OrcaCore.Providers.SqlServer`](../src/OrcaCore.Providers.SqlServer) | SQL Server provider implementation and migrations. |
+| [`OrcaCore.Abstractions`](../src/OrcaCore.Abstractions) | **PackageId `OrcaCore`** — application contracts, identifiers, workflow events, snapshots, facades. |
+| [`OrcaCore.Core`](../src/OrcaCore.Core) | Authoring builders, immutable definitions, lifecycle, policies, compiler. |
+| [`OrcaCore.Engine.Ephemeral`](../src/OrcaCore.Engine.Ephemeral) | In-process execution, waits, timers, governance; owns `AddOrcaCoreEphemeralEngine`. |
+| [`OrcaCore.Runtime.Protocol`](../src/OrcaCore.Runtime.Protocol) | Durable commands, committed facts, checkpoints, envelopes. |
+| [`OrcaCore.Provider.Abstractions`](../src/OrcaCore.Provider.Abstractions) | Provider ports, commit DTOs, certification contracts. |
+| [`OrcaCore.Engine.Durable`](../src/OrcaCore.Engine.Durable) | Event-sourced durable aggregate, replay, checkpointing, outbox, driver. |
+| [`OrcaCore.Durable.Hosting`](../src/OrcaCore.Durable.Hosting) | Owns `AddOrcaCoreDurableEngine` and callback-only `AddOrcaCoreDurableEventIngress`. |
+| [`OrcaCore.Providers.InMemory`](../src/OrcaCore.Providers.InMemory) | Development/test provider; owns `AddOrcaCoreInMemoryDurableProvider`. |
+| [`OrcaCore.Providers.PostgreSql`](../src/OrcaCore.Providers.PostgreSql) | Production provider; owns `AddOrcaCorePostgreSqlDurableProvider`. |
+| [`OrcaCore.Dag`](../src/OrcaCore.Dag) | Typed DAG planning and operation contracts. |
+| [`OrcaCore.Dag.Hosting`](../src/OrcaCore.Dag.Hosting) | Sole DAG-to-durable bridge; owns `AddOrcaCoreDag`. |
+| *provisional — not in the v1 manifest* | `OrcaCore.Hosting`, `OrcaCore.Providers.SqlServer`, `.RabbitMq`, `.Redis`, `.ZeroMq`, `.Relational`. Slated for removal or relocation; do not build new work on them. |
 | [`tests/`](../tests) | Core, engine, hosting, provider certification, integration, and support test projects. |
 | [`samples/`](../samples) | Runnable console, generic-host, and Blazor dashboard examples. |
 | [`benchmarks/`](../benchmarks) | BenchmarkDotNet scenarios for execution, providers, management, and scheduling. |
@@ -79,12 +85,9 @@ of v1. There is no catch-all `AddOrcaCore` or separate hosted-service toggle.
 - [`specs/`](specs/README.md) — consolidated product requirements and acceptance criteria.
 - [`implementation/`](implementation/README.md) — agent-executable implementation guide.
 - [`orleans-engine/`](orleans-engine/README.md) — planned Orleans-hosted durable engine.
-- [`architecture/`](architecture/README.md) — historical design proposals, current routing,
-  and runtime diagrams.
-- [`durable/`](durable) — durable-runtime plans and historical implementation notes.
-- [`plans/`](plans/README.md) — historical roadmaps and acceptance plans, with current routing.
-- [`research/`](research) — prior-art and competitor studies.
-- [`reviews/`](reviews) and [`review/`](review) — review findings and verification records.
+- [`review/`](review) — dated review findings and verification records (frozen provenance).
+- [`archive/`](archive/README.md) — superseded documentation: architecture, requirements, plans,
+  research, durable notes. Provenance only, never current.
 
 The superseded prototype and its original root solution metadata are preserved
 under [`../archive/legacy-poc/`](../archive/legacy-poc/).

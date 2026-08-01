@@ -43,7 +43,7 @@ without large context windows.
 | [02-engineering-conventions.md](02-engineering-conventions.md) | C#/.NET conventions, API design rules, error primitives |
 | [03-tdd-workflow.md](03-tdd-workflow.md) | Test taxonomy, naming, AC traceability, the red‑green‑refactor loop |
 | [04-task-protocol.md](04-task-protocol.md) | Task file template, agent execution protocol, progress tracking |
-| [phases/](phases/) | Phase folders: each has a `README.md` (goal, exit criteria, task index) plus one file per task |
+| [phases/](../archive/implementation-phases/) | Phase folders: each has a `README.md` (goal, exit criteria, task index) plus one file per task |
 
 ## Active change-specific execution plan
 
@@ -75,7 +75,7 @@ historical readiness verdict advances the current gate.
 | Phase | Spec slice | Contents | Detail level here |
 |-------|-----------|----------|-------------------|
 | 0 | — | Repo skeleton, quality gates, primitives | Fully detailed tasks |
-| 1 | Slice 1 | Ephemeral engine core | Fully detailed for T1‑01…05; T1‑06…15 expanded by [T1‑05a](phases/phase-1-ephemeral-core/T1-05a-expand-remaining-tasks.md) |
+| 1 | Slice 1 | Ephemeral engine core | Fully detailed for T1‑01…05; T1‑06…15 expanded by [T1‑05a](../archive/implementation-phases/phase-1-ephemeral-core/T1-05a-expand-remaining-tasks.md) |
 | 2 | Slice 2 | Durable event-sourced core + **PostgreSQL plugin** | Task index |
 | 3 | Slice 3 | Timers, policies, lifecycle events, observability, governance | Task index |
 | 4 | Slice 4 | Historical `ForEach` and child-workflow implementation record; v1 public child members are deferred | Historical task index |
@@ -93,7 +93,7 @@ against a real database while they are still cheap to change; the certification 
 Detailed task files for Phases 2+ are **generated at phase start** (the first task of every
 phase, `Tn-00`, expands the phase README's task index into task files using the template in
 [04-task-protocol.md](04-task-protocol.md); Phase 1's remainder is expanded mid-phase by
-its own [T1-05a](phases/phase-1-ephemeral-core/T1-05a-expand-remaining-tasks.md)). Writing
+its own [T1-05a](../archive/implementation-phases/phase-1-ephemeral-core/T1-05a-expand-remaining-tasks.md)). Writing
 all ~80 detailed files up front would
 desynchronize from reality as earlier phases evolve, and expansion-at-start keeps every
 detailed instruction consistent with the code that actually exists. `Tn-00` tasks are
@@ -121,7 +121,7 @@ superseded pre-promotion prototype is preserved under `archive/legacy-poc/`.
 - Where any task file says "repo root", use the repository root.
 
 The historical implementation program began with
-**[T0-01](phases/phase-0-skeleton/T0-01-solution-skeleton.md)** (solution skeleton). That
+**[T0-01](../archive/implementation-phases/phase-0-skeleton/T0-01-solution-skeleton.md)** (solution skeleton). That
 bootstrap task and its completed phase records are provenance, not an active starting point.
 
 ## Entry point — current implementation work

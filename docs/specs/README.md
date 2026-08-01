@@ -65,13 +65,13 @@ may appear there without a coordinated matrix amendment.
 
 This package synthesizes (and supersedes for the purpose of a new implementation):
 
-- `docs/architecture/project-foundation.md`, `design-synthesis.md`, `workflow-kinds-and-runtime-modes.md`,
+- `docs/archive/architecture/project-foundation.md`, `design-synthesis.md`, `workflow-kinds-and-runtime-modes.md`,
   `instance-identity-and-rehydration.md`, `lifecycle-resource-management.md`, `management-command-surface.md`,
   `design-decisions-tracking.md`, `pseudo-dsl-draft.md`, `event-driven-durable-design-proposal.md`,
   `event-driven-outbox-design.md`, `child-workflow-orchestration-design-v3.md`, `monadic-primitives-design.md`
-- `docs/requirements/` (regular, saga, durable — initial and advanced tracks)
-- `docs/research/` (comparative research, Durable Functions, Orleans, MassTransit/Stateless, Workflow Core reviews)
-- `docs/plans/` (roadmap, runtime resource governance)
+- `docs/archive/requirements/` (regular, saga, durable — initial and advanced tracks)
+- `docs/archive/research/` (comparative research, Durable Functions, Orleans, MassTransit/Stateless, Workflow Core reviews)
+- `docs/archive/plans/` (roadmap, runtime resource governance)
 
 Where the source documents disagreed, the newest reviewed decision wins; conflicts and their
 resolutions are noted inline in the affected documents.

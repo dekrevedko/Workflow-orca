@@ -4,7 +4,7 @@ Drafted on April 10, 2026.
 
 **Status (April 2026):** Phases 1–8 of this guide are implemented on the reference durable path (`OrcaCore.Runtime` + `InMemoryWorkflowStore` + tests). The document remains useful as a migration narrative and checklist for **new** SQL/bus providers; treat `src/` as the source of truth when any step below disagrees with the tree (for example `IOutboxDispatcher` and `IDurablePayloadTypeResolver` are removed).
 
-This guide described how to implement the port changes proposed in [provider-ports-for-outbox-design.md](X:/Projects/GitHub/Workflow-orca/docs/architecture/provider-ports-for-outbox-design.md) without breaking the durable runtime incrementally.
+This guide described how to implement the port changes proposed in [provider-ports-for-outbox-design.md](provider-ports-for-outbox-design.md) without breaking the durable runtime incrementally.
 
 It is implementation-oriented:
 
@@ -13,7 +13,7 @@ It is implementation-oriented:
 - temporary compatibility rules
 - test expectations
 
-It assumes [event-driven-outbox-design.md](X:/Projects/GitHub/Workflow-orca/docs/architecture/event-driven-outbox-design.md) remains the behavioral source of truth and the provider-ports design defines the provider-facing contract.
+It assumes [event-driven-outbox-design.md](event-driven-outbox-design.md) remains the behavioral source of truth and the provider-ports design defines the provider-facing contract.
 
 ## Short Position
 

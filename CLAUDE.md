@@ -68,21 +68,32 @@ OrcaCore provides two runtime engines that share the same workflow definition AP
 
 ### Project structure (`src/`)
 
+The approved v1 package manifest is exhaustive — eleven packages. Anything in `src/` outside this
+list is provisional and slated for removal or relocation; do not build new work on it.
+
 ```
-OrcaCore.Abstractions      — IStep, StepContext, StepResult, EventEnvelope, WaitRecord/Status/Mode,
-                             WorkflowStatus, durable ports (IWorkflowStore, IMessageDispatcher)
-OrcaCore.Core              — WorkflowBuilder, workflow definition nodes (Init/End/If/While/Parallel/Wait/WaitLong)
-OrcaCore.Engine.Ephemeral  — In-process execution loop, timer pump, management surface
-OrcaCore.Engine.Durable    — Durable engine aggregates, outbox, checkpoint/replay, routing
-OrcaCore.Hosting           — AddOrcaCore() / AddOrcaCoreHostedServices() DI extensions
-OrcaCore.Providers.InMemory     — In-memory IWorkflowStore (ephemeral testing)
-OrcaCore.Providers.PostgreSql   — PostgreSQL provider (Dapper + Npgsql)
-OrcaCore.Providers.SqlServer    — SQL Server provider
-OrcaCore.Providers.RabbitMq     — RabbitMQ outbox dispatcher
-OrcaCore.Providers.Redis        — Redis outbox/signaling
-OrcaCore.Providers.ZeroMq       — ZeroMq transport
-OrcaCore.Providers.Relational   — Shared SQL utilities across relational providers
+OrcaCore                   — application contracts/authoring (project dir: src/OrcaCore.Abstractions,
+                             PackageId OrcaCore): IStep, StepContext<TState>, StepResult,
+                             identifiers, snapshots, facades
+OrcaCore.Core              — authoring builders, definitions, compiler
+OrcaCore.Engine.Ephemeral  — in-process execution loop, timer pump; owns AddOrcaCoreEphemeralEngine
+OrcaCore.Runtime.Protocol  — durable commands, committed facts, checkpoints, envelopes
+OrcaCore.Provider.Abstractions  — provider ports (IWorkflowStore, IMessageDispatcher,
+                             IDurableResourceGovernanceStore), commit DTOs, certification
+OrcaCore.Engine.Durable    — durable aggregates, outbox, checkpoint/replay, routing
+OrcaCore.Durable.Hosting   — owns AddOrcaCoreDurableEngine, AddOrcaCoreDurableEventIngress
+OrcaCore.Providers.InMemory     — dev/test provider; owns AddOrcaCoreInMemoryDurableProvider
+OrcaCore.Providers.PostgreSql   — production provider; owns AddOrcaCorePostgreSqlDurableProvider
+OrcaCore.Dag               — typed DAG planning/operation contracts
+OrcaCore.Dag.Hosting       — sole DAG-to-durable bridge; owns AddOrcaCoreDag
 ```
+
+Not in the v1 manifest (present in `src/`, provisional): `OrcaCore.Hosting`,
+`OrcaCore.Providers.SqlServer`, `.RabbitMq`, `.Redis`, `.ZeroMq`, `.Relational`.
+
+Hosting is **role-specific**. There is no catch-all `AddOrcaCore()`, no separate
+`AddOrcaCoreHostedServices()` toggle, no implicit mode selection, no options-binder facade, and no
+serializer/codec hook. Ephemeral and durable engine roles are mutually exclusive.
 
 ### Durable engine model
 
@@ -92,11 +103,29 @@ The durable engine persists workflow state as an event-sourced aggregate. On eac
 3. A committed outbox record is dispatched via `IMessageDispatcher` (at-least-once).
 4. On restart, the engine replays from the last checkpoint.
 
-The `WaitLong` node (durable-only) parks execution until an external event arrives, surviving host restarts.
+Wait residency is a runtime/hosting policy, not an authored distinction: a durable `Wait` is
+cold-capable and survives host restarts without a separate authored member.
 
 ### Control flow nodes
 
-`Init`, `End`, `If`, `While`, `Parallel`, `Wait` (ephemeral — channel-based), `WaitLong` (durable — persisted).
+The complete v1 node set: business steps, `Init`, `End`, `Delay`, event `Wait`, root `While`,
+nested `If`, root-only fixed `Parallel`, bounded root-only `ForEach`, `WhenAll`, `WhenAllOutcomes`,
+terminal durable-root `ContinueAsNew`, and scoped durable `AcquireResources`.
+
+**Removed — no alias, tombstone, or placeholder:** `WaitLong`, author `Yield`.
+**Deferred — absent from v1 public assemblies, but *must stay documented*:** public
+`RunExternalJob`, Saga, `WhenFirst`, public `RunChild`/`RunChildren`, nested
+`Parallel`/`While`/`ForEach`, durable lambda steps, definition-wide retry, management retry,
+pause/resume/archive/purge, workflow-authored `Publish`/`Cancel`, and definition-targeted event
+fanout.
+
+Deferred and removed get **identical code treatment** (absent) and **opposite documentation
+treatment**. A deferred capability keeps its entry, rationale, and re-entry criteria in the registry
+at `docs/specs/13-phasing-and-open-questions.md` §13.4; do not erase its mention from docs. A removed
+concept must disappear entirely. Do not write docs that teach a deferred capability as usable, and
+do not delete the record that it is deferred.
+
+Lambda step bodies are **ephemeral-only**; durable definitions use registered typed steps.
 
 ### Provider certification
 
@@ -128,9 +157,72 @@ The `WaitLong` node (durable-only) parks execution until an external event arriv
 - For a large change without a formal phase gate, run and record proportionate validation and
   review first, then commit the coherent result before starting another large change.
 
+## Specification workflow (mandatory)
+
+Start from [`docs/normative-source-map.md`](docs/normative-source-map.md). It names every source,
+classifies it, and carries the capability ↔ requirement-file crosswalk.
+
+### Two normative trees — check both, always
+
+`docs/specs/` (requirement IDs + acceptance criteria) and `openspec/specs/` (capability specs) are
+**both** normative, and code is judged against both. Neither is authoritative alone.
+
+- Before changing behavior, read **both** sides for the affected area. Use the crosswalk in the
+  source map to find the counterpart — do not guess it.
+- When they disagree, the approved change proposal that introduced the semantics wins. Do not
+  silently prefer either tree. If no approved change covers it, **that is the finding** — report it.
+- Do not assume the OpenSpec tree is more current because it is downstream. On 2026-07-31 it was the
+  stale side on four semantics.
+
+### `openspec/specs/` is derived — never hand-edit it
+
+Canonical specs are written by `openspec archive <change>` from an approved change's deltas.
+
+1. Create `openspec/changes/<id>/specs/<capability>/spec.md` using `## ADDED` / `## MODIFIED` /
+   `## REMOVED Requirements`.
+2. `MODIFIED` and `REMOVED` requirement headings must match the canonical heading **verbatim**.
+   Verify each against `openspec/specs/` — a mismatch has already shipped as a P1 here.
+3. Every `REMOVED` needs `**Reason**` and `**Migration**`.
+4. Get approval, then synchronize.
+
+Deltas carry **requirements only**. A spec's `## Purpose` cannot be expressed as a delta and must be
+scheduled as an explicit hand-application step at sync time, or it is silently lost.
+
+`openspec validate --strict` checks **structure, not provenance**. It cannot detect canonical
+content that no change describes. Never cite it as evidence of workflow compliance.
+
+### Synchronization gates must enumerate targets, not inputs
+
+Two independent consistency failures on 2026-07-31 shared one cause: a sync step that ran once, at a
+fixed point, and ignored anything approved later or not named in its own inputs.
+
+- A canonical sync must walk **every capability and every mapped file** in the crosswalk — not only
+  the deltas the change happens to contain. A capability with no delta is otherwise invisible.
+- An amendment approved **after** its section gate closed still needs a path into `docs/specs/`.
+  Check the amendment's declared target list against the crosswalk; a file that is neither amended
+  nor explicitly excluded is a gap, not a decision.
+- Record the exact sync diff.
+
+### Document status
+
+Every doc is NORMATIVE, BINDING, GUIDE, RECORD, or HISTORICAL — see the source map.
+
+- **Historical documentation lives in [`docs/archive/`](docs/archive/README.md)**, never in an active
+  directory. Superseded material is moved with `git mv`, not left in place with a banner.
+- Nothing under `docs/archive/` is evidence of current behavior. Do not copy its signatures, names,
+  or diagrams into source, guards, or new docs without an explicit matrix/spec amendment.
+- `docs/review/` records are **frozen**. Never edit a dated record to match a later contract; it is
+  provenance. Resolve stale paths through the redirect table in the archive README.
+- When you change the contract, update the affected GUIDE docs in the same change.
+
 ## Documentation
 
+- [`docs/normative-source-map.md`](docs/normative-source-map.md) — **start here**: source
+  classification and the cross-tree crosswalk
+- `docs/specs/` — product requirements and acceptance criteria (normative)
+- `openspec/specs/` — capability specs (normative, derived)
+- `docs/implementation/` — stack decisions, conventions, TDD discipline (binding)
 - `docs/ephemeral-engine-developer-guide.md` — complete API walkthrough with examples
 - `docs/durable-driver-lane-host.md` — durable segment execution model and multi-host contention
-- `docs/specs/` — consolidated product requirements (source of truth for intended behavior)
-- `docs/orleans-engine/` — self-contained specs for a planned Orleans-hosted durable engine variant
+- `docs/orleans-engine/` — planned Orleans-hosted durable engine variant (not a v1 obligation)
+- `docs/archive/` — superseded documentation; provenance only, never current

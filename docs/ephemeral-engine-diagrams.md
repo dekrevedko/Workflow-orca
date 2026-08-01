@@ -846,6 +846,6 @@ flowchart LR
 ## How to read these alongside other docs
 
 - Usage and API examples: [ephemeral-engine-developer-guide.md](ephemeral-engine-developer-guide.md)
-- Legacy state-driven engine diagrams: [architecture/engine-runtime-diagrams.md](architecture/engine-runtime-diagrams.md)
-- Ephemeral vs durable orchestration split: [architecture/child-workflow-orchestration-design-v3.md](architecture/child-workflow-orchestration-design-v3.md)
-- Implementation phase tasks: [implementation/phases/phase-1-ephemeral-core/README.md](implementation/phases/phase-1-ephemeral-core/README.md)
+- Legacy state-driven engine diagrams: [archive/architecture/engine-runtime-diagrams.md](archive/architecture/engine-runtime-diagrams.md)
+- Ephemeral vs durable orchestration split: [archive/architecture/child-workflow-orchestration-design-v3.md](archive/architecture/child-workflow-orchestration-design-v3.md)
+- Implementation phase tasks: [archive/implementation-phases/phase-1-ephemeral-core/README.md](archive/implementation-phases/phase-1-ephemeral-core/README.md)

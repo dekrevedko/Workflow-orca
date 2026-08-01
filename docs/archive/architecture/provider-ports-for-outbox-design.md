@@ -2,7 +2,7 @@
 
 Drafted on April 10, 2026.
 
-This document tightens the provider-facing ports that must support the revised outbox design from [event-driven-outbox-design.md](X:/Projects/GitHub/Workflow-orca/docs/architecture/event-driven-outbox-design.md).
+This document tightens the provider-facing ports that must support the revised outbox design from [event-driven-outbox-design.md](event-driven-outbox-design.md).
 
 **Implementation status (April 2026):** The reference in-memory durable path in `OrcaCore.Runtime` already follows this split: `WorkflowCommit` + claim-aware `IWorkflowStore` outbox APIs, `OutboxRecord` with deterministic ids and `SerializedPayloadEnvelope`, `JsonPayloadEnvelopeSerializer` / `IPayloadEnvelopeSerializer`, and `DurableOutboxPump` calling `IMessageDispatcher` with `DispatchMessage`. The sections below state the contract and rationale; treat `src/` as authoritative where narrative and code differ.
 
@@ -16,7 +16,7 @@ It focuses on:
 It is written with explicit consideration for:
 
 - durable event-driven workflow correctness
-- child workflow orchestration requirements from [child-workflow-orchestration-design-v3.md](X:/Projects/GitHub/Workflow-orca/docs/architecture/child-workflow-orchestration-design-v3.md)
+- child workflow orchestration requirements from [child-workflow-orchestration-design-v3.md](child-workflow-orchestration-design-v3.md)
 - future provider adapters for SQL, document, and key-value stores
 - transport adapters for RabbitMQ, Kafka, SQS, and similar systems
 - reuse of the transport dispatch port by the ephemeral engine
