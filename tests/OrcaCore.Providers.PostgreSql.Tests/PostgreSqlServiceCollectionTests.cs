@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Npgsql;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
@@ -30,8 +31,10 @@ public sealed class PostgreSqlServiceCollectionTests
         provider.GetRequiredService<IWorkflowOutboxStore>().Should().BeOfType<PostgreSqlWorkflowStore>();
         provider.GetRequiredService<IWorkflowProjectionStore>().Should().BeOfType<PostgreSqlWorkflowStore>();
         provider.GetRequiredService<ITimerScheduler>().Should().BeOfType<PostgreSqlWorkflowStore>();
-        provider.GetRequiredService<IWorkflowRetentionStore>().Should().BeOfType<PostgreSqlWorkflowStore>();
         provider.GetRequiredService<IResourcePoolStore>().Should().BeOfType<PostgreSqlResourcePoolStore>();
+        provider.GetServices<IHostedService>()
+            .Should().ContainSingle()
+            .Which.Should().BeOfType<PostgreSqlProviderInitializationHostedService>();
     }
 
     [Fact]

@@ -3,7 +3,7 @@ namespace OrcaCore.Abstractions.Providers;
 /// <summary>
 /// Describes the outcome of a retention archive attempt.
 /// </summary>
-public sealed record ArchiveResult
+internal sealed record ArchiveResult
 {
     /// <summary>
     /// Gets whether instance metadata was marked archived.

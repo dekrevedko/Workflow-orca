@@ -1,5 +1,4 @@
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Lifecycle;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Engine.Ephemeral.Timers;
@@ -15,21 +14,26 @@ internal sealed class SuspensionScheduler<TState>(
         string eventName,
         CorrelationId correlationId,
         TimeSpan? timeout,
+        string authoredPath,
         SequenceExecutionContext<TState, TInput> context,
         int nextIndex,
         ISequenceExecutionEngine<TState> sequenceExecution,
         CancellationToken cancellationToken)
     {
-        if (instance.Status == LegacyWorkflowStatus.Running)
+        if (instance.Status == global::OrcaCore.WorkflowInstanceStatus.Running)
         {
             WorkflowLifecycleTransition.FireOrThrow(instance, LifecycleTrigger.EnterWait);
         }
 
+        var registeredAt = timeProvider.GetUtcNow();
+        var deadline = timeout.HasValue ? registeredAt.Add(timeout.Value) : (DateTimeOffset?)null;
         var wait = instance.EnterWait(
             eventName,
             correlationId,
             context.BranchId,
-            timeProvider.GetUtcNow(),
+            registeredAt,
+            authoredPath,
+            deadline,
             (envelope, resumeToken) => sequenceExecution.ContinueSequenceAsync(
                 context with { ResumeEvent = new ResumeEventSlot(envelope) },
                 nextIndex,
@@ -60,7 +64,7 @@ internal sealed class SuspensionScheduler<TState>(
         int nextIndex,
         ISequenceExecutionEngine<TState> sequenceExecution)
     {
-        if (instance.Status == LegacyWorkflowStatus.Running)
+        if (instance.Status == global::OrcaCore.WorkflowInstanceStatus.Running)
         {
             WorkflowLifecycleTransition.FireOrThrow(instance, LifecycleTrigger.EnterWait);
         }
@@ -89,7 +93,7 @@ internal sealed class SuspensionScheduler<TState>(
     {
         ArgumentNullException.ThrowIfNull(instance);
         ArgumentNullException.ThrowIfNull(resumeAsync);
-        if (instance.Status == LegacyWorkflowStatus.Running)
+        if (instance.Status == global::OrcaCore.WorkflowInstanceStatus.Running)
         {
             WorkflowLifecycleTransition.FireOrThrow(instance, LifecycleTrigger.EnterWait);
         }

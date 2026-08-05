@@ -47,6 +47,7 @@ internal sealed class WaitExecutor<TState>(
             waitNode.EventName,
             correlationId,
             waitNode.Timeout,
+            nodeId,
             context,
             nextIndex: waitIndex + 1,
             sequenceExecution,

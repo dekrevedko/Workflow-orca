@@ -13,12 +13,15 @@ primary application contracts/authoring package, not a dependency-only meta-pack
 these exact IDs as `0.0.0-phase0` to `artifacts/phase0-packages`; clean fixtures restore them via
 `PackageReference` only. This local feed is test evidence, not a publication commitment.
 
-The approved first-release surface is [spec 17](specs/17-selected-mode-capability-matrix.md),
-but the source/guards are still being migrated to it. No provisional source member is a
-compatibility promise; release readiness requires the active OpenSpec change and its independent
-review gates to complete.
-Task 4.0 and all product implementation remain blocked until every task-3 guard is retargeted,
-executed, and independently re-reviewed; documentation remediation does not mark a guard complete.
+The approved first-release surface is [spec 17](specs/17-selected-mode-capability-matrix.md).
+Sections 4 through 7 are implemented and checkpointed; the post-checkpoint Section 7A closure is
+removing residual non-event public-surface and test-evidence gaps. Pending Section 7B proposes a
+replacement durable messaging/application-catalog contract, but the delivery guarantees below
+remain the approved matrix semantics until task 7.23 approves that amendment. No provisional source
+member is a compatibility promise. Section 8 remains blocked until the combined Section 7A/7B
+target receives independent approval and its mandatory coherent checkpoint commit, and until the
+revised non-conflicting `harmonize-downstream-capability-specs` remainder is approved, synchronized,
+independently reviewed, and checkpointed.
 
 ## Delivery Guarantees
 

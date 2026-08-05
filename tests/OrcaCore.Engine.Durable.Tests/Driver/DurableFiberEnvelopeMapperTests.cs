@@ -161,7 +161,7 @@ public sealed class DurableFiberEnvelopeMapperTests
             null,
             null)
         {
-            YieldCount = 5,
+                QuantumRotationCount = 5,
             ForcedRotationCount = 2,
             RetryAttempt = 3,
             RetryNotBefore = DateTimeOffset.Parse("2026-07-13T11:00:00Z"),

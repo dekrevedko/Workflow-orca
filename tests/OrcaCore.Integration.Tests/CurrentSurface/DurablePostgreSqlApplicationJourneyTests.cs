@@ -43,11 +43,11 @@ public sealed class DurablePostgreSqlApplicationJourneyTests : IAsyncLifetime
         var startKey = StartIdempotencyKey.Create("durable-postgresql-replacement");
         InstanceId firstInstanceId;
 
-        await using (var firstHost =
-                     DurableTestHosts.BuildPostgreSql(container.GetConnectionString()))
+        await using (var firstHost = await DurableTestHosts.StartPostgreSqlAsync(
+                         container.GetConnectionString(),
+                         TestContext.Current.CancellationToken))
         {
-            await InitializeProviderAsync(firstHost);
-            var definitions = firstHost.GetRequiredService<IWorkflowDefinitionRegistry>();
+            var definitions = firstHost.Services.GetRequiredService<IWorkflowDefinitionRegistry>();
             var handle = definitions.Register(definition).GetHandleOrThrow();
             var start = await handle.StartOrGetAsync(
                 new JourneyInput(41),
@@ -62,10 +62,11 @@ public sealed class DurablePostgreSqlApplicationJourneyTests : IAsyncLifetime
         }
 
         await using var replacementHost =
-            DurableTestHosts.BuildPostgreSql(container.GetConnectionString());
-        await InitializeProviderAsync(replacementHost);
+            await DurableTestHosts.StartPostgreSqlAsync(
+                container.GetConnectionString(),
+                TestContext.Current.CancellationToken);
         var replacementDefinitions =
-            replacementHost.GetRequiredService<IWorkflowDefinitionRegistry>();
+            replacementHost.Services.GetRequiredService<IWorkflowDefinitionRegistry>();
         var replacementHandle = replacementDefinitions.Register(definition).GetHandleOrThrow();
 
         var replay = await replacementHandle.StartOrGetAsync(
@@ -76,7 +77,7 @@ public sealed class DurablePostgreSqlApplicationJourneyTests : IAsyncLifetime
             .Which.WasExisting.Should().BeTrue();
         replay.GetHandleOrThrow().InstanceId.Should().Be(firstInstanceId);
 
-        var delivery = await replacementHost
+        var delivery = await replacementHost.Services
             .GetRequiredService<IWorkflowEventClient>()
             .DeliverToInstanceAsync(
                 firstInstanceId,
@@ -94,16 +95,6 @@ public sealed class DurablePostgreSqlApplicationJourneyTests : IAsyncLifetime
             TestContext.Current.CancellationToken);
         completed.Status.Should().Be(WorkflowInstanceStatus.Completed);
         completed.Outcome.Should().Be(WorkflowOutcomeName.Create("finished"));
-    }
-
-    private static async Task InitializeProviderAsync(ServiceProvider provider)
-    {
-        await provider
-            .GetRequiredService<PostgreSqlWorkflowStore>()
-            .InitializeAsync(TestContext.Current.CancellationToken);
-        await provider
-            .GetRequiredService<PostgreSqlResourcePoolStore>()
-            .InitializeAsync(TestContext.Current.CancellationToken);
     }
 
     private sealed record JourneyInput(int Value);

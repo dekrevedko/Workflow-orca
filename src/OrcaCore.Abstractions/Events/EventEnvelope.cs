@@ -1,48 +1,55 @@
-using OrcaCore.Abstractions.Ids;
+using OrcaCore.Internal;
 
-namespace OrcaCore.Abstractions.Events;
+namespace OrcaCore;
 
 /// <summary>
-/// Normalizes an inbound event for routing, matching, and deduplication.
+/// Provides the fixed-codec event value that resumed a workflow step.
 /// </summary>
-public sealed record EventEnvelope
+public sealed class EventEnvelope
 {
-    /// <summary>
-    /// Gets the event identity used for deduplication.
-    /// </summary>
-    public required EventId EventId { get; init; }
+    private readonly byte[] payload;
 
-    /// <summary>
-    /// Gets the event name matched against active waits.
-    /// </summary>
-    public required string EventName { get; init; }
+    internal EventEnvelope(
+        EventId eventId,
+        EventName eventName,
+        CorrelationId correlationId,
+        DateTimeOffset occurredAt,
+        ReadOnlyMemory<byte> payload)
+    {
+        EventId = eventId ?? throw new ArgumentNullException(nameof(eventId));
+        EventName = eventName ?? throw new ArgumentNullException(nameof(eventName));
+        CorrelationId = correlationId ?? throw new ArgumentNullException(nameof(correlationId));
+        if (occurredAt == default)
+        {
+            throw new ArgumentException("Occurrence time must be non-default.", nameof(occurredAt));
+        }
 
-    /// <summary>
-    /// Gets the request-reply correlation identity.
-    /// </summary>
-    public required CorrelationId CorrelationId { get; init; }
+        OccurredAt = occurredAt.ToUniversalTime();
+        this.payload = payload.ToArray();
+    }
 
-    /// <summary>
-    /// Gets the optional composition branch identity for instance-targeted delivery.
-    /// </summary>
-    public string? BranchId { get; init; }
+    /// <summary>Gets the event identity used for deduplication.</summary>
+    public EventId EventId { get; }
 
-    /// <summary>
-    /// Gets the business payload carried by the event. Ephemeral delivery passes this live
-    /// object through unchanged; durable delivery serializes it at the provider boundary, so
-    /// reference identity does not survive a durable wait.
-    /// </summary>
-    public object? Payload { get; init; }
+    /// <summary>Gets the event name matched against the active wait.</summary>
+    public EventName EventName { get; }
 
-    /// <summary>
-    /// Gets the content type of <see cref="Payload"/> when it carries serialized bytes. Durable
-    /// delivery requires the payload to already be serialized (byte array) so the matched fact
-    /// can commit it; live objects do not survive the durable boundary.
-    /// </summary>
-    public string? PayloadContentType { get; init; }
+    /// <summary>Gets the request-reply correlation identity.</summary>
+    public CorrelationId CorrelationId { get; }
 
-    /// <summary>
-    /// Gets when the event occurred.
-    /// </summary>
-    public required DateTimeOffset OccurredAt { get; init; }
+    /// <summary>Gets when the event occurred.</summary>
+    public DateTimeOffset OccurredAt { get; }
+
+    /// <summary>Materializes a detached payload through the fixed workflow-value codec.</summary>
+    public TPayload GetPayload<TPayload>()
+    {
+        if (payload.Length == 0)
+        {
+            throw new InvalidOperationException("The resumed event does not contain a payload.");
+        }
+
+        return (TPayload?)FixedWorkflowValueCodec.Deserialize(payload, typeof(TPayload)) ??
+            throw new InvalidOperationException(
+                $"The resumed event payload materialized as null for '{typeof(TPayload).FullName}'.");
+    }
 }

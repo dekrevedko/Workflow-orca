@@ -53,7 +53,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         {
             DateTimeOffset? workflowDeadline = plan.WorkflowTimeout is { } timeout
                 ? (context.Aggregate.CreatedAt ??
-                    throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                    throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
                         "A started durable workflow has no creation timestamp.")).Add(timeout)
                 : null;
             var initialExecution = StructuredExecutionState.Create(
@@ -100,8 +100,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         var execution = ReconcilePendingResumes(
             DurableFiberEnvelopeMapper.FromEnvelope(persisted),
             ownedObligations,
-            context.Aggregate.WaitState.PendingResumes,
-            context.Aggregate.ChildState);
+            context.Aggregate.WaitState.PendingResumes);
         return new InitializationResult(execution, state, ownedObligations, null);
     }
 
@@ -266,7 +265,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         }
 
         var correlation = ResolveWaitCorrelation(execution, fiber, state, instruction);
-        var exception = global::OrcaCore.Core.Authoring.PublicAuthoringContracts.WaitTimeout(
+        var exception = global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.WaitTimeout(
             EventName.Create(instruction.EventName),
             correlation);
         var failure = FailureProvenance.Create(
@@ -311,9 +310,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                     ExpectedStreamVersion = currentVersion,
                     CancelWaitIds = cleanup.WaitIds,
                     CancelTimerIds = cleanup.TimerIds,
-                    TerminalFiberIds = cleanup.TerminalFiberIds,
-                    FailedSagaScopeIds = FailedSagaScopes(execution),
-                    CoversRootSagaEligibility = true
+                    TerminalFiberIds = cleanup.TerminalFiberIds
                 },
                 CancellationToken.None).ConfigureAwait(false);
             result = DurableSegmentResult.Terminal;
@@ -332,8 +329,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                     ExpectedStreamVersion = currentVersion,
                     CancelWaitIds = cleanup.WaitIds,
                     CancelTimerIds = cleanup.TimerIds,
-                    TerminalFiberIds = cleanup.TerminalFiberIds,
-                    FailedSagaScopeIds = FailedSagaScopes(execution)
+                    TerminalFiberIds = cleanup.TerminalFiberIds
                 },
                 CancellationToken.None).ConfigureAwait(false);
             result = DurableSegmentResult.Yielded;

@@ -6,7 +6,7 @@ namespace OrcaCore.Engine.Durable.Outbox;
 /// <summary>
 /// Observes durable outbox pump dispatch and cycle results for metrics and diagnostics.
 /// </summary>
-public interface IOutboxPumpObserver
+internal interface IOutboxPumpObserver
 {
     /// <summary>
     /// Called after one outbox record dispatch attempt completes.
@@ -27,7 +27,7 @@ public interface IOutboxPumpObserver
 /// <summary>
 /// Describes one completed durable outbox pump cycle.
 /// </summary>
-public sealed record OutboxPumpObservation(
+internal sealed record OutboxPumpObservation(
     int ClaimedCount,
     int DispatchAttemptCount,
     int SuccessCount,
@@ -37,7 +37,7 @@ public sealed record OutboxPumpObservation(
 /// <summary>
 /// Describes one durable outbox dispatch attempt.
 /// </summary>
-public sealed record OutboxDispatchObservation(
+internal sealed record OutboxDispatchObservation(
     string Kind,
     OutboxRecordId OutboxRecordId,
     DispatchResult Result,

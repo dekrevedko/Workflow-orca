@@ -1,6 +1,6 @@
 namespace OrcaCore.Core.Definitions;
 
-public enum ForEachJoinPolicy
+internal enum ForEachJoinPolicy
 {
     WhenAll,
     WhenAny

@@ -1,22 +1,18 @@
 using OrcaCore.Abstractions.Durable;
-using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
-using ProjectionWorkflowInstanceSnapshot = global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot;
+using ProjectionWorkflowInstanceSnapshot = global::OrcaCore.Abstractions.Providers.WorkflowProjectionSnapshot;
 using OrcaCore.Abstractions.Providers;
 
 using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
+using WorkflowStatus = global::OrcaCore.WorkflowInstanceStatus;
 
 namespace OrcaCore.Engine.Durable.Aggregates;
 
 internal sealed class DurableWorkflowAggregate
 {
-    private readonly DurableChildWorkflowState childState;
-    private readonly DurableExternalJobState externalJobState;
     private readonly DurableResourcePoolState resourcePoolState;
     private readonly DurableTimerState timerState;
     private readonly DurableWaitState waitState;
-    private readonly DurableSagaState sagaState;
 
     private DurableWorkflowAggregate(DurableAggregateState state)
     {
@@ -39,22 +35,9 @@ internal sealed class DurableWorkflowAggregate
         ContinuationFailureCount = state.ContinuationFailureCount;
         ContinuationFailurePositionStreamVersion = state.ContinuationFailurePositionStreamVersion;
         ContinuationRetryNotBefore = state.ContinuationRetryNotBefore;
-        timerState = DurableTimerState.FromSnapshot(state.ActiveTimers, state.BufferedTimers);
-        waitState = DurableWaitState.FromSnapshot(state.ActiveWaits, state.BufferedDeliveries, state.PendingResumes);
-        childState = DurableChildWorkflowState.FromSnapshot(
-            state.ActiveChildren,
-            state.ActiveChildGroups,
-            [],
-            [],
-            state.RecordedParentResumeTokens,
-            state.ConsumedParentResumeTokens);
+        timerState = DurableTimerState.FromSnapshot(state.ActiveTimers);
+        waitState = DurableWaitState.FromSnapshot(state.ActiveWaits, state.PendingResumes);
         resourcePoolState = DurableResourcePoolState.FromSnapshot(state.ActiveResourceTickets);
-        externalJobState = DurableExternalJobState.FromSnapshot(state.ActiveExternalJobs);
-        sagaState = DurableSagaState.FromSnapshot(
-            state.CompletedSagaForwardActions,
-            state.SagaCompensationActions,
-            state.SagaRecoveryInterventions,
-            state.RequestedSagaCompensationScopes);
     }
 
     internal InstanceId InstanceId { get; set; }
@@ -104,17 +87,11 @@ internal sealed class DurableWorkflowAggregate
 
     internal DateTimeOffset? ContinuationRetryNotBefore { get; set; }
 
-    internal DurableChildWorkflowState ChildState => childState;
-
-    internal DurableExternalJobState ExternalJobState => externalJobState;
-
     internal DurableResourcePoolState ResourcePoolState => resourcePoolState;
 
     internal DurableTimerState TimerState => timerState;
 
     internal DurableWaitState WaitState => waitState;
-
-    internal DurableSagaState SagaState => sagaState;
 
     internal DurableAggregateSnapshot Snapshot => new(
         InstanceId,
@@ -131,16 +108,7 @@ internal sealed class DurableWorkflowAggregate
         ContinueAsNewGeneration,
         timerState.ActiveTimers,
         waitState.ActiveWaits,
-        waitState.BufferedDeliveries,
-        timerState.BufferedTimers,
-        childState.ActiveChildren,
-        childState.ActiveChildGroups,
-        resourcePoolState.ActiveTickets,
-        externalJobState.ActiveJobs,
-        sagaState.CompletedForwardActions,
-        sagaState.CompensationActions,
-        sagaState.RecoveryInterventions,
-        sagaState.RequestedCompensationScopes)
+        resourcePoolState.ActiveTickets)
     {
         PendingResumes = waitState.PendingResumes,
         StartInputContentType = StartInputContentType,
@@ -153,8 +121,6 @@ internal sealed class DurableWorkflowAggregate
             or WorkflowStatus.Failed
             or WorkflowStatus.Cancelled
             or WorkflowStatus.Terminated
-            or WorkflowStatus.Compensated
-            or WorkflowStatus.CompensationFailed
             or WorkflowStatus.TimedOut;
 
     internal static DurableWorkflowAggregate Empty(InstanceId instanceId)
@@ -217,18 +183,7 @@ internal sealed class DurableWorkflowAggregate
             ContinueAsNewGeneration = checkpoint.ContinueAsNewGeneration,
             ActiveTimers = checkpoint.ActiveTimers,
             ActiveWaits = checkpoint.ActiveWaits,
-            BufferedDeliveries = checkpoint.BufferedDeliveries,
-            BufferedTimers = checkpoint.BufferedTimers,
-            ActiveChildren = checkpoint.ActiveChildren,
-            ActiveChildGroups = checkpoint.ActiveChildGroups,
             ActiveResourceTickets = checkpoint.ActiveResourceTickets,
-            ActiveExternalJobs = checkpoint.ActiveExternalJobs,
-            CompletedSagaForwardActions = checkpoint.CompletedSagaForwardActions,
-            SagaCompensationActions = checkpoint.SagaCompensationActions,
-            SagaRecoveryInterventions = checkpoint.SagaRecoveryInterventions,
-            RequestedSagaCompensationScopes = checkpoint.RequestedSagaCompensationScopes,
-            RecordedParentResumeTokens = checkpoint.RecordedParentResumeTokens,
-            ConsumedParentResumeTokens = checkpoint.ConsumedParentResumeTokens,
             PendingResumes = checkpoint.PendingResumes,
             ContinuationFailureCount = checkpoint.ContinuationFailureCount,
             ContinuationFailurePositionStreamVersion = checkpoint.ContinuationFailurePositionStreamVersion,
@@ -259,18 +214,7 @@ internal sealed class DurableWorkflowAggregate
             ContinueAsNewGeneration = ContinueAsNewGeneration,
             ActiveTimers = timerState.ActiveTimers,
             ActiveWaits = waitState.ActiveWaits,
-            BufferedDeliveries = waitState.BufferedDeliveries,
-            BufferedTimers = timerState.BufferedTimers,
-            ActiveChildren = childState.ActiveChildren,
-            ActiveChildGroups = childState.ActiveChildGroups,
             ActiveResourceTickets = resourcePoolState.ActiveTickets,
-            ActiveExternalJobs = externalJobState.ActiveJobs,
-            CompletedSagaForwardActions = sagaState.CompletedForwardActions,
-            SagaCompensationActions = sagaState.CompensationActions,
-            SagaRecoveryInterventions = sagaState.RecoveryInterventions,
-            RequestedSagaCompensationScopes = sagaState.RequestedCompensationScopes,
-            RecordedParentResumeTokens = childState.RecordedParentResumeTokens,
-            ConsumedParentResumeTokens = childState.ConsumedParentResumeTokens,
             PendingResumes = waitState.PendingResumes,
             StartInputContentType = StartInputContentType,
             StartInputPayload = StartInputPayload,
@@ -302,18 +246,7 @@ internal sealed class DurableWorkflowAggregate
             ContinueAsNewGeneration,
             timerState.ActiveTimers,
             waitState.ActiveWaits,
-            waitState.BufferedDeliveries,
-            timerState.BufferedTimers,
-            childState.ActiveChildren,
-            childState.ActiveChildGroups,
             resourcePoolState.ActiveTickets,
-            externalJobState.ActiveJobs,
-            sagaState.CompletedForwardActions,
-            sagaState.CompensationActions,
-            sagaState.RecoveryInterventions,
-            sagaState.RequestedCompensationScopes,
-            childState.RecordedParentResumeTokens,
-            childState.ConsumedParentResumeTokens,
             contentType,
             [.. payload])
         {
@@ -345,9 +278,6 @@ internal sealed class DurableWorkflowAggregate
     internal DurableDecision DecideCancel(CancelWorkflowCommand command) =>
         DurableLifecycleCommandHandler.Handle(this, command);
 
-    internal DurableDecision DecideConsumeParentResumeToken(ConsumeParentResumeTokenCommand command) =>
-        DurableChildWorkflowCommandHandler.Handle(this, command);
-
     internal DurableDecision DecideWaitMatched(DurableWaitMatchedCommand command) =>
         DurableWaitTimerCommandHandler.Handle(this, command);
 
@@ -359,12 +289,6 @@ internal sealed class DurableWorkflowAggregate
 
     internal DurableDecision DecideDeliverEvent(DeliverEventCommand command) =>
         DurableWaitTimerCommandHandler.Handle(this, command);
-
-    internal DurableDecision DecidePause(DurablePauseCommand command) =>
-        DurableLifecycleCommandHandler.Handle(this, command);
-
-    internal DurableDecision DecideResume(DurableResumeCommand command) =>
-        DurableLifecycleCommandHandler.Handle(this, command);
 
     internal DurableDecision DecideComplete(DurableCompleteCommand command) =>
         DurableLifecycleCommandHandler.Handle(this, command);
@@ -393,18 +317,6 @@ internal sealed class DurableWorkflowAggregate
     internal DurableDecision DecideTerminalLifecycle(DurableTerminalLifecycleCommand command) =>
         DurableLifecycleCommandHandler.Handle(this, command);
 
-    internal DurableDecision DecideRunChild(DurableRunChildCommand command) =>
-        DurableChildWorkflowCommandHandler.Handle(this, command);
-
-    internal DurableDecision DecideChildCompleted(DurableChildCompletedCommand command) =>
-        DurableChildWorkflowCommandHandler.Handle(this, command);
-
-    internal DurableDecision DecideRunChildren(DurableRunChildrenCommand command) =>
-        DurableChildWorkflowCommandHandler.Handle(this, command);
-
-    internal DurableDecision DecideCompensateChildGroup(CompensateChildGroupCommand command) =>
-        DurableChildWorkflowCommandHandler.Handle(this, command);
-
     internal DurableDecision DecideResourcePoolAcquire(
         AcquireResourcePoolCommand command,
         ResourcePoolAcquireResult acquireResult) =>
@@ -413,36 +325,6 @@ internal sealed class DurableWorkflowAggregate
     internal DurableDecision DecideLeaseStopConfirmed(
         DurableLeaseStopConfirmedCommand command) =>
         DurableResourcePoolCommandHandler.Handle(this, command);
-
-    internal DurableDecision DecideRunExternalJob(
-        RunExternalJobCommand command,
-        ResourcePoolAcquireResult? acquireResult) =>
-        DurableExternalJobCommandHandler.Handle(this, command, acquireResult);
-
-    internal DurableDecision DecideExternalJobCompleted(CompleteExternalJobCommand command) =>
-        DurableExternalJobCommandHandler.Handle(this, command);
-
-    internal DurableDecision DecideExternalJobTimedOut(TimeoutExternalJobCommand command) =>
-        DurableExternalJobCommandHandler.Handle(this, command);
-
-    internal DurableDecision DecideRecordSagaForwardActionCompleted(
-        RecordSagaForwardActionCompletedCommand command) =>
-        DurableSagaCommandHandler.Handle(this, command);
-
-    internal DurableDecision DecideRequestSagaCompensation(RequestSagaCompensationCommand command) =>
-        DurableSagaCommandHandler.Handle(this, command);
-
-    internal DurableDecision DecideSagaForwardActionTimedOut(SagaForwardActionTimedOutCommand command) =>
-        DurableSagaCommandHandler.Handle(this, command);
-
-    internal DurableDecision DecideCompleteSagaCompensation(CompleteSagaCompensationCommand command) =>
-        DurableSagaCommandHandler.Handle(this, command);
-
-    internal DurableDecision DecideFailSagaCompensation(FailSagaCompensationCommand command) =>
-        DurableSagaCommandHandler.Handle(this, command);
-
-    internal DurableDecision DecideRecordSagaManualRecovery(RecordSagaManualRecoveryCommand command) =>
-        DurableSagaCommandHandler.Handle(this, command);
 
     /// <summary>
     /// Creates a detached copy of this aggregate and applies the supplied uncommitted events to
@@ -505,35 +387,6 @@ internal sealed class DurableWorkflowAggregate
         return new CausationId(commandId.Value);
     }
 
-    internal static DurableWaitEventContext CreateWaitEventContext(
-        CommandId commandId,
-        InstanceId instanceId,
-        DateTimeOffset requestedAt)
-    {
-        return new DurableWaitEventContext(commandId, instanceId, requestedAt);
-    }
-
-    internal static DurableTimerEventContext CreateTimerEventContext(
-        CommandId commandId,
-        InstanceId instanceId,
-        DateTimeOffset requestedAt)
-    {
-        return new DurableTimerEventContext(commandId, instanceId, requestedAt);
-    }
-
-    internal DurableExternalJobEventContext CreateExternalJobEventContext(
-        CommandId commandId,
-        InstanceId instanceId,
-        DateTimeOffset requestedAt)
-    {
-        return new DurableExternalJobEventContext(
-            commandId,
-            instanceId,
-            requestedAt,
-            ParentInstanceId,
-            RootInstanceId ?? InstanceId);
-    }
-
     internal DurableResourcePoolEventContext CreateResourcePoolEventContext(
         CommandId commandId,
         InstanceId instanceId,
@@ -553,32 +406,6 @@ internal sealed class DurableWorkflowAggregate
             waitSequence);
     }
 
-    internal DurableChildWorkflowEventContext CreateChildWorkflowEventContext(
-        CommandId commandId,
-        InstanceId instanceId,
-        DateTimeOffset requestedAt)
-    {
-        return new DurableChildWorkflowEventContext(
-            commandId,
-            instanceId,
-            requestedAt,
-            ParentInstanceId,
-            RootInstanceId ?? InstanceId);
-    }
-
-    internal DurableSagaEventContext CreateSagaEventContext(
-        CommandId commandId,
-        InstanceId instanceId,
-        DateTimeOffset requestedAt)
-    {
-        return new DurableSagaEventContext(
-            commandId,
-            instanceId,
-            requestedAt,
-            ParentInstanceId,
-            RootInstanceId ?? InstanceId);
-    }
-
     internal IReadOnlyList<WorkflowResourcePoolReleasedEvent> ReleaseEvents(
         CommandId commandId,
         InstanceId instanceId,
@@ -596,18 +423,7 @@ internal sealed class DurableWorkflowAggregate
         {
             ActiveTimers = timerState.CreateCheckpointActiveTimers(),
             ActiveWaits = waitState.CreateCheckpointActiveWaits(),
-            BufferedDeliveries = waitState.CreateCheckpointBufferedDeliveries(),
-            BufferedTimers = timerState.CreateCheckpointBufferedTimers(),
-            ActiveChildren = childState.CreateCheckpointActiveChildren(),
-            ActiveChildGroups = childState.CreateCheckpointActiveChildGroups(),
             ActiveResourceTickets = resourcePoolState.CreateCheckpointActiveResourceTickets(),
-            ActiveExternalJobs = externalJobState.CreateCheckpointActiveExternalJobs(),
-            CompletedSagaForwardActions = sagaState.CreateCheckpointForwardActions(),
-            SagaCompensationActions = sagaState.CreateCheckpointCompensationActions(),
-            SagaRecoveryInterventions = sagaState.CreateCheckpointRecoveryInterventions(),
-            RequestedSagaCompensationScopes = sagaState.RequestedCompensationScopes,
-            RecordedParentResumeTokens = childState.RecordedParentResumeTokens,
-            ConsumedParentResumeTokens = childState.ConsumedParentResumeTokens,
             PendingResumes = waitState.CreateCheckpointPendingResumes(),
             ContinuationFailureCount = ContinuationFailureCount,
             ContinuationFailurePositionStreamVersion = ContinuationFailurePositionStreamVersion,
@@ -616,20 +432,11 @@ internal sealed class DurableWorkflowAggregate
     }
 
     /// <summary>
-    /// Creates checkpoint runtime state carrying only the collections continue-as-new preserves:
-    /// replay clears active work but keeps saga records and resume-token consumption facts.
+    /// Creates the empty runtime-state baseline used by continue-as-new.
     /// </summary>
     internal WorkflowRuntimeCheckpointState ToContinueAsNewCheckpointRuntimeState()
     {
-        return new WorkflowRuntimeCheckpointState
-        {
-            CompletedSagaForwardActions = sagaState.CreateCheckpointForwardActions(),
-            SagaCompensationActions = sagaState.CreateCheckpointCompensationActions(),
-            SagaRecoveryInterventions = sagaState.CreateCheckpointRecoveryInterventions(),
-            RequestedSagaCompensationScopes = sagaState.RequestedCompensationScopes,
-            RecordedParentResumeTokens = childState.RecordedParentResumeTokens,
-            ConsumedParentResumeTokens = childState.ConsumedParentResumeTokens
-        };
+        return new WorkflowRuntimeCheckpointState();
     }
 
     private ProjectionWorkflowInstanceSnapshot? ToInstanceSnapshot()
@@ -657,24 +464,8 @@ internal sealed class DurableWorkflowAggregate
             ErrorSummary = ErrorSummary,
             EndOutcomeName = OutcomeName,
             ContinueAsNewGeneration = ContinueAsNewGeneration,
-            ActiveWaits = waitState.CreateActiveWaitSnapshots(),
-            SagaAudits = sagaState.CreateAuditScopes(Status)
+            ActiveWaits = waitState.CreateActiveWaitSnapshots()
         };
-    }
-
-    internal void ApplyChildReplayEffects(DurableChildReplayEffects effects)
-    {
-        foreach (var wait in effects.WaitsToRegister)
-        {
-            waitState.Register(wait);
-        }
-
-        foreach (var waitId in effects.WaitIdsToRemove)
-        {
-            waitState.Remove(waitId);
-        }
-
-        ErrorSummary = effects.PropagatedFailureErrorSummary ?? ErrorSummary;
     }
 
     internal void ApplyResourcePoolReplayEffects(DurableResourcePoolReplayEffects effects)

@@ -314,11 +314,6 @@ public sealed class DurableCommitPipelineTests
             return inner.GetPoolAsync(poolName, cancellationToken);
         }
 
-        public Task ResizePoolAsync(string poolName, int capacity, CancellationToken cancellationToken)
-        {
-            return inner.ResizePoolAsync(poolName, capacity, cancellationToken);
-        }
-
         public Task<ResourcePoolExpiryResult> ExpireTicketsAsync(
             DateTimeOffset expiredAt,
             CancellationToken cancellationToken)

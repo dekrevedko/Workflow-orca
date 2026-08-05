@@ -4,6 +4,22 @@
     <PackageId>OrcaCore</PackageId>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="Durable\RunChildFailurePolicy.cs" />
+    <Compile Remove="Durable\RunChildrenPolicies.cs" />
+    <Compile Remove="Instances\ActiveStepSnapshot.cs" />
+    <Compile Remove="Instances\ActiveWaitSnapshot.cs" />
+    <Compile Remove="Instances\CompositionBranchOutcomeSnapshot.cs" />
+    <Compile Remove="Instances\ForEachGroupSnapshot.cs" />
+    <Compile Remove="Instances\ForEachWorkItemSnapshot.cs" />
+    <Compile Remove="Instances\ForEachWorkItemStatus.cs" />
+    <Compile Remove="Instances\LifecycleEventSnapshot.cs" />
+    <Compile Remove="Instances\SagaAuditSnapshot.cs" />
+    <Compile Remove="Instances\WaitMode.cs" />
+    <Compile Remove="Instances\WorkflowInstanceSnapshot.cs" />
+    <Compile Remove="Instances\WorkflowPressureMetrics.cs" />
+    <Compile Remove="Instances\WorkflowStatistics.cs" />
+    <Compile Remove="Instances\WorkflowStatisticsGroup.cs" />
+    <Compile Remove="Instances\WorkflowStatus.cs" />
     <Compile Remove="Primitives\Validation.cs" />
   </ItemGroup>
 </Project>

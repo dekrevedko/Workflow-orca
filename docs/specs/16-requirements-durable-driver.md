@@ -26,7 +26,7 @@ Positioning against the engine family (normative):
 
 This section is a historical baseline, not a current implementation ledger. Subsequent
 implementation evidence and remaining gaps are tracked in
-[`docs/durable-driver-audit.md`](../../docs/durable-driver-audit.md).
+[`docs/archive/plans/durable-driver-audit.md`](../archive/plans/durable-driver-audit.md).
 
 What exists and is reused. The kernel processor, aggregate, persistence, wake-up
 sources, facade, and DAG runner are reused without behavioral forks. The kernel

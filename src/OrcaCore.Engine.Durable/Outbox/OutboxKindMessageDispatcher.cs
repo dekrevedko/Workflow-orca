@@ -5,7 +5,7 @@ namespace OrcaCore.Engine.Durable.Outbox;
 /// <summary>
 /// Dispatches durable outbox records to a dispatcher selected by <see cref="OutboxWrite.Kind" />.
 /// </summary>
-public sealed class OutboxKindMessageDispatcher : IMessageDispatcher
+internal sealed class OutboxKindMessageDispatcher : IMessageDispatcher
 {
     private readonly IReadOnlyDictionary<string, IMessageDispatcher> routes;
     private readonly IMessageDispatcher? fallbackDispatcher;
@@ -46,7 +46,7 @@ public sealed class OutboxKindMessageDispatcher : IMessageDispatcher
     }
 }
 
-public sealed record OutboxKindDispatcherRoute
+internal sealed record OutboxKindDispatcherRoute
 {
     public OutboxKindDispatcherRoute(string kind, IMessageDispatcher dispatcher)
     {

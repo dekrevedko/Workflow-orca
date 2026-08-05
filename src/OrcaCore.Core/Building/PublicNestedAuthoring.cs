@@ -58,7 +58,7 @@ internal sealed class EphemeralNestedBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(then);
         builder.If(
-            state => condition(PublicAuthoringContracts.Snapshot(state)),
+            state => condition(AuthoringContractFactory.Snapshot(state)),
             nested => then(new EphemeralNestedBuilder<TInput, TState>(nested)),
             otherwise is null ? null : nested => otherwise(new EphemeralNestedBuilder<TInput, TState>(nested)));
         return this;
@@ -70,7 +70,7 @@ internal sealed class EphemeralNestedBuilder<TInput, TState>
     {
         ArgumentNullException.ThrowIfNull(eventName);
         ArgumentNullException.ThrowIfNull(correlation);
-        builder.Wait(eventName.Value, state => correlation(PublicAuthoringContracts.Snapshot(state)));
+        builder.Wait(eventName.Value, state => correlation(AuthoringContractFactory.Snapshot(state)));
         return this;
     }
 
@@ -84,8 +84,8 @@ internal sealed class EphemeralNestedBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(correlation);
         builder.AddWait(
             eventName.Value,
-            state => correlation(PublicAuthoringContracts.Snapshot(state)),
-            global::OrcaCore.Abstractions.Instances.WaitMode.Resident,
+            state => correlation(AuthoringContractFactory.Snapshot(state)),
+            WaitMode.Resident,
             timeout);
         return this;
     }
@@ -131,7 +131,7 @@ internal sealed class DurableNestedBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(then);
         builder.If(
-            state => condition(PublicAuthoringContracts.Snapshot(state)),
+            state => condition(AuthoringContractFactory.Snapshot(state)),
             nested => then(new DurableNestedBuilder<TInput, TState>(nested)),
             otherwise is null ? null : nested => otherwise(new DurableNestedBuilder<TInput, TState>(nested)));
         return this;
@@ -143,7 +143,7 @@ internal sealed class DurableNestedBuilder<TInput, TState>
     {
         ArgumentNullException.ThrowIfNull(eventName);
         ArgumentNullException.ThrowIfNull(correlation);
-        builder.AddWait(eventName.Value, state => correlation(PublicAuthoringContracts.Snapshot(state)), global::OrcaCore.Abstractions.Instances.WaitMode.Cold);
+        builder.AddWait(eventName.Value, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold);
         return this;
     }
 
@@ -157,8 +157,8 @@ internal sealed class DurableNestedBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(correlation);
         builder.AddWait(
             eventName.Value,
-            state => correlation(PublicAuthoringContracts.Snapshot(state)),
-            global::OrcaCore.Abstractions.Instances.WaitMode.Cold,
+            state => correlation(AuthoringContractFactory.Snapshot(state)),
+            WaitMode.Cold,
             timeout);
         return this;
     }
@@ -188,7 +188,7 @@ internal sealed class DurableNestedBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(body);
         builder.AddResourceLease(
-            state => request(PublicAuthoringContracts.Snapshot(state)),
+            state => request(AuthoringContractFactory.Snapshot(state)),
             nested => body(new DurableLeaseNestedBuilder<TInput, TState>(nested)));
         return this;
     }
@@ -228,7 +228,7 @@ internal sealed class DurableLeaseWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(then);
         builder.If(
-            state => condition(PublicAuthoringContracts.Snapshot(state)),
+            state => condition(AuthoringContractFactory.Snapshot(state)),
             nested => then(new DurableLeaseNestedBuilder<TInput, TState>(nested)),
             otherwise is null ? null : nested => otherwise(new DurableLeaseNestedBuilder<TInput, TState>(nested)));
         return this;
@@ -240,7 +240,7 @@ internal sealed class DurableLeaseWorkflowBuilder<TInput, TState>
     {
         ArgumentNullException.ThrowIfNull(eventName);
         ArgumentNullException.ThrowIfNull(correlation);
-        builder.AddWait(eventName.Value, state => correlation(PublicAuthoringContracts.Snapshot(state)), global::OrcaCore.Abstractions.Instances.WaitMode.Cold);
+        builder.AddWait(eventName.Value, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold);
         return this;
     }
 
@@ -254,8 +254,8 @@ internal sealed class DurableLeaseWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(correlation);
         builder.AddWait(
             eventName.Value,
-            state => correlation(PublicAuthoringContracts.Snapshot(state)),
-            global::OrcaCore.Abstractions.Instances.WaitMode.Cold,
+            state => correlation(AuthoringContractFactory.Snapshot(state)),
+            WaitMode.Cold,
             timeout);
         return this;
     }
@@ -301,7 +301,7 @@ internal sealed class DurableLeaseNestedBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(then);
         builder.If(
-            state => condition(PublicAuthoringContracts.Snapshot(state)),
+            state => condition(AuthoringContractFactory.Snapshot(state)),
             nested => then(new DurableLeaseNestedBuilder<TInput, TState>(nested)),
             otherwise is null ? null : nested => otherwise(new DurableLeaseNestedBuilder<TInput, TState>(nested)));
         return this;
@@ -313,7 +313,7 @@ internal sealed class DurableLeaseNestedBuilder<TInput, TState>
     {
         ArgumentNullException.ThrowIfNull(eventName);
         ArgumentNullException.ThrowIfNull(correlation);
-        builder.AddWait(eventName.Value, state => correlation(PublicAuthoringContracts.Snapshot(state)), global::OrcaCore.Abstractions.Instances.WaitMode.Cold);
+        builder.AddWait(eventName.Value, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold);
         return this;
     }
 
@@ -327,8 +327,8 @@ internal sealed class DurableLeaseNestedBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(correlation);
         builder.AddWait(
             eventName.Value,
-            state => correlation(PublicAuthoringContracts.Snapshot(state)),
-            global::OrcaCore.Abstractions.Instances.WaitMode.Cold,
+            state => correlation(AuthoringContractFactory.Snapshot(state)),
+            WaitMode.Cold,
             timeout);
         return this;
     }

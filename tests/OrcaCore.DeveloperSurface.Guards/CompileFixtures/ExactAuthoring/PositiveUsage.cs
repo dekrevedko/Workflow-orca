@@ -23,7 +23,8 @@ public static class PositiveUsage
         DurableForEachJoinBuilder<object, object, object> durableForEachJoin,
         DefinitionId definitionId,
         DefinitionVersion definitionVersion,
-        EventName eventName,
+        WorkflowEventContract eventContract,
+        WorkflowEventContract<object> typedEventContract,
         CorrelationId correlationId,
         WorkflowOutcomeName outcome,
         AuthoredBranchId branchId,
@@ -38,7 +39,8 @@ public static class PositiveUsage
             .Then((_, _) => ValueTask.CompletedTask).WithRetry(2).WithStepTimeout(TimeSpan.Zero)
             .WithTransientPool(transientPool).CompleteWithin(TimeSpan.Zero)
             .If(_ => true, _ => { }, _ => { }).While(_ => false, _ => { })
-            .Wait(eventName, _ => correlationId).Wait(eventName, _ => correlationId, TimeSpan.Zero)
+            .Wait(eventContract, _ => correlationId).Wait(eventContract, _ => correlationId, TimeSpan.Zero)
+            .Wait(typedEventContract, _ => correlationId).Wait(typedEventContract, _ => correlationId, TimeSpan.Zero)
             .Delay(TimeSpan.Zero);
         _ = ephemeral.Parallel<object>(_ => { });
         _ = ephemeral.ForEach<object, object, object>(_ => Array.Empty<object>(), options, x => x.Item, _ => { });
@@ -46,7 +48,10 @@ public static class PositiveUsage
 
         _ = durable.Then<ProbeStep>().WithRetry(2).WithStepTimeout(TimeSpan.Zero).CompleteWithin(TimeSpan.Zero)
             .If(_ => true, _ => { }, _ => { }).While(_ => false, _ => { })
-            .Wait(eventName, _ => correlationId).Wait(eventName, _ => correlationId, TimeSpan.Zero).Delay(TimeSpan.Zero)
+            .Wait(eventContract, _ => correlationId).Wait(eventContract, _ => correlationId, TimeSpan.Zero)
+            .Wait(typedEventContract, _ => correlationId).Wait(typedEventContract, _ => correlationId, TimeSpan.Zero)
+            .Publish(eventContract, _ => correlationId).Publish(typedEventContract, _ => correlationId, _ => new object())
+            .Delay(TimeSpan.Zero)
             .AcquireResources(leaseRequest, _ => { }).AcquireResources(_ => leaseRequest, _ => { });
         _ = durable.Parallel<object>(_ => { });
         _ = durable.ForEach<object, object, object>(_ => Array.Empty<object>(), options, x => x.Item, _ => { });
@@ -55,32 +60,59 @@ public static class PositiveUsage
 
         _ = ephemeralNested.Then<ProbeStep>().Then(_ => ValueTask.CompletedTask).Then((_, _) => ValueTask.CompletedTask)
             .WithRetry(2).WithStepTimeout(TimeSpan.Zero).WithTransientPool(transientPool)
-            .If(_ => true, _ => { }).Wait(eventName, _ => correlationId).Wait(eventName, _ => correlationId, TimeSpan.Zero).Delay(TimeSpan.Zero);
+            .If(_ => true, _ => { }).Wait(eventContract, _ => correlationId)
+            .Wait(eventContract, _ => correlationId, TimeSpan.Zero).Wait(typedEventContract, _ => correlationId)
+            .Wait(typedEventContract, _ => correlationId, TimeSpan.Zero).Delay(TimeSpan.Zero);
         _ = durableNested.Then<ProbeStep>().WithRetry(2).WithStepTimeout(TimeSpan.Zero).If(_ => true, _ => { })
-            .Wait(eventName, _ => correlationId).Wait(eventName, _ => correlationId, TimeSpan.Zero).Delay(TimeSpan.Zero)
+            .Wait(eventContract, _ => correlationId).Wait(eventContract, _ => correlationId, TimeSpan.Zero)
+            .Wait(typedEventContract, _ => correlationId).Wait(typedEventContract, _ => correlationId, TimeSpan.Zero)
+            .Publish(eventContract, _ => correlationId).Publish(typedEventContract, _ => correlationId, _ => new object())
+            .Delay(TimeSpan.Zero)
             .AcquireResources(leaseRequest, _ => { }).AcquireResources(_ => leaseRequest, _ => { });
 
         _ = ephemeralBranch.Then<ProbeStep>().Then(_ => ValueTask.CompletedTask).Then((_, _) => ValueTask.CompletedTask)
             .WithRetry(2).WithStepTimeout(TimeSpan.Zero).WithTransientPool(transientPool).If(_ => true, _ => { })
-            .Wait(eventName, _ => correlationId).Wait(eventName, _ => correlationId, TimeSpan.Zero).Delay(TimeSpan.Zero).Return(_ => new object());
+            .Wait(eventContract, _ => correlationId).Wait(eventContract, _ => correlationId, TimeSpan.Zero)
+            .Wait(typedEventContract, _ => correlationId).Wait(typedEventContract, _ => correlationId, TimeSpan.Zero)
+            .Delay(TimeSpan.Zero).Return(_ => new object());
         _ = ephemeralItem.Then<ProbeStep>().Then(_ => ValueTask.CompletedTask).Then((_, _) => ValueTask.CompletedTask)
             .WithRetry(2).WithStepTimeout(TimeSpan.Zero).WithTransientPool(transientPool).If(_ => true, _ => { })
-            .Wait(eventName, _ => correlationId).Wait(eventName, _ => correlationId, TimeSpan.Zero).Delay(TimeSpan.Zero).Return(_ => new object());
+            .Wait(eventContract, _ => correlationId).Wait(eventContract, _ => correlationId, TimeSpan.Zero)
+            .Wait(typedEventContract, _ => correlationId).Wait(typedEventContract, _ => correlationId, TimeSpan.Zero)
+            .Delay(TimeSpan.Zero).Return(_ => new object());
         _ = durableBranch.Then<ProbeStep>().WithRetry(2).WithStepTimeout(TimeSpan.Zero).If(_ => true, _ => { })
-            .Wait(eventName, _ => correlationId).Wait(eventName, _ => correlationId, TimeSpan.Zero).Delay(TimeSpan.Zero)
+            .Wait(eventContract, _ => correlationId).Wait(eventContract, _ => correlationId, TimeSpan.Zero)
+            .Wait(typedEventContract, _ => correlationId).Wait(typedEventContract, _ => correlationId, TimeSpan.Zero)
+            .Publish(eventContract, _ => correlationId).Publish(typedEventContract, _ => correlationId, _ => new object())
+            .Delay(TimeSpan.Zero)
             .AcquireResources(leaseRequest, _ => { }).AcquireResources(_ => leaseRequest, _ => { }).Return(_ => new object());
         _ = durableItem.Then<ProbeStep>().WithRetry(2).WithStepTimeout(TimeSpan.Zero).If(_ => true, _ => { })
-            .Wait(eventName, _ => correlationId).Wait(eventName, _ => correlationId, TimeSpan.Zero).Delay(TimeSpan.Zero)
+            .Wait(eventContract, _ => correlationId).Wait(eventContract, _ => correlationId, TimeSpan.Zero)
+            .Wait(typedEventContract, _ => correlationId).Wait(typedEventContract, _ => correlationId, TimeSpan.Zero)
+            .Publish(eventContract, _ => correlationId).Publish(typedEventContract, _ => correlationId, _ => new object())
+            .Delay(TimeSpan.Zero)
             .AcquireResources(leaseRequest, _ => { }).AcquireResources(_ => leaseRequest, _ => { }).Return(_ => new object());
 
         _ = leaseRoot.Then<ProbeStep>().WithRetry(2).WithStepTimeout(TimeSpan.Zero).If(_ => true, _ => { })
-            .Wait(eventName, _ => correlationId).Wait(eventName, _ => correlationId, TimeSpan.Zero).Delay(TimeSpan.Zero);
+            .Wait(eventContract, _ => correlationId).Wait(eventContract, _ => correlationId, TimeSpan.Zero)
+            .Wait(typedEventContract, _ => correlationId).Wait(typedEventContract, _ => correlationId, TimeSpan.Zero)
+            .Publish(eventContract, _ => correlationId).Publish(typedEventContract, _ => correlationId, _ => new object())
+            .Delay(TimeSpan.Zero);
         _ = leaseNested.Then<ProbeStep>().WithRetry(2).WithStepTimeout(TimeSpan.Zero).If(_ => true, _ => { })
-            .Wait(eventName, _ => correlationId).Wait(eventName, _ => correlationId, TimeSpan.Zero).Delay(TimeSpan.Zero);
+            .Wait(eventContract, _ => correlationId).Wait(eventContract, _ => correlationId, TimeSpan.Zero)
+            .Wait(typedEventContract, _ => correlationId).Wait(typedEventContract, _ => correlationId, TimeSpan.Zero)
+            .Publish(eventContract, _ => correlationId).Publish(typedEventContract, _ => correlationId, _ => new object())
+            .Delay(TimeSpan.Zero);
         _ = leaseBranch.Then<ProbeStep>().WithRetry(2).WithStepTimeout(TimeSpan.Zero).If(_ => true, _ => { })
-            .Wait(eventName, _ => correlationId).Wait(eventName, _ => correlationId, TimeSpan.Zero).Delay(TimeSpan.Zero).Return(_ => new object());
+            .Wait(eventContract, _ => correlationId).Wait(eventContract, _ => correlationId, TimeSpan.Zero)
+            .Wait(typedEventContract, _ => correlationId).Wait(typedEventContract, _ => correlationId, TimeSpan.Zero)
+            .Publish(eventContract, _ => correlationId).Publish(typedEventContract, _ => correlationId, _ => new object())
+            .Delay(TimeSpan.Zero).Return(_ => new object());
         _ = leaseItem.Then<ProbeStep>().WithRetry(2).WithStepTimeout(TimeSpan.Zero).If(_ => true, _ => { })
-            .Wait(eventName, _ => correlationId).Wait(eventName, _ => correlationId, TimeSpan.Zero).Delay(TimeSpan.Zero).Return(_ => new object());
+            .Wait(eventContract, _ => correlationId).Wait(eventContract, _ => correlationId, TimeSpan.Zero)
+            .Wait(typedEventContract, _ => correlationId).Wait(typedEventContract, _ => correlationId, TimeSpan.Zero)
+            .Publish(eventContract, _ => correlationId).Publish(typedEventContract, _ => correlationId, _ => new object())
+            .Delay(TimeSpan.Zero).Return(_ => new object());
 
         _ = ephemeralScope.Branch<object>(branchId, _ => new object(), _ => { });
         _ = durableScope.Branch<object>(branchId, _ => new object(), _ => { });
@@ -102,6 +134,8 @@ public static class PositiveUsage
         ReadMetadata(default(EphemeralWorkflowDefinition<object, object>)!);
         ReadMetadata(default(DurableWorkflowDefinition<object>)!);
         ReadMetadata(default(DurableWorkflowDefinition<object, object>)!);
+        ReadMetadata(default(EphemeralWorkflowRef<object>)!);
+        ReadMetadata(default(EphemeralWorkflowRef<object, object>)!);
         ReadMetadata(default(DurableWorkflowRef<object>)!);
         ReadMetadata(default(DurableWorkflowRef<object, object>)!);
     }
@@ -116,6 +150,12 @@ public static class PositiveUsage
         ReadMetadata(value.Mode, value.DefinitionId, value.DefinitionVersion, value.DefinitionFingerprint);
 
     private static void ReadMetadata(DurableWorkflowDefinition<object, object> value) =>
+        ReadMetadata(value.Mode, value.DefinitionId, value.DefinitionVersion, value.DefinitionFingerprint);
+
+    private static void ReadMetadata(EphemeralWorkflowRef<object> value) =>
+        ReadMetadata(value.Mode, value.DefinitionId, value.DefinitionVersion, value.DefinitionFingerprint);
+
+    private static void ReadMetadata(EphemeralWorkflowRef<object, object> value) =>
         ReadMetadata(value.Mode, value.DefinitionId, value.DefinitionVersion, value.DefinitionFingerprint);
 
     private static void ReadMetadata(DurableWorkflowRef<object> value) =>

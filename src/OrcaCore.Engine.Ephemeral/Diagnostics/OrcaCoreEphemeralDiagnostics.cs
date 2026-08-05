@@ -1,14 +1,13 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using OrcaCore.Abstractions.Diagnostics;
-using OrcaCore.Abstractions.Instances;
 
 namespace OrcaCore.Engine.Ephemeral.Diagnostics;
 
 /// <summary>
 /// Owns the ephemeral engine telemetry source and meter.
 /// </summary>
-public static class OrcaCoreEphemeralDiagnostics
+internal static class OrcaCoreEphemeralDiagnostics
 {
     public const string SourceName = OrcaCoreDiagnostics.EphemeralSourceName;
 
@@ -32,16 +31,16 @@ public static class OrcaCoreEphemeralDiagnostics
         return ActivitySource.StartActivity($"orcacore.ephemeral.{operationName}", ActivityKind.Internal);
     }
 
-    internal static void RecordWorkflowStarted(LegacyWorkflowStatus status) =>
+    internal static void RecordWorkflowStarted(global::OrcaCore.WorkflowInstanceStatus status) =>
         WorkflowsStarted.Add(1, new KeyValuePair<string, object?>("workflow.status", status.ToString()));
 
-    internal static void RecordEventDelivered(LegacyWorkflowStatus status) =>
+    internal static void RecordEventDelivered(global::OrcaCore.WorkflowInstanceStatus status) =>
         EventsDelivered.Add(1, new KeyValuePair<string, object?>("workflow.status", status.ToString()));
 
-    internal static void RecordTimerFired(LegacyWorkflowStatus status) =>
+    internal static void RecordTimerFired(global::OrcaCore.WorkflowInstanceStatus status) =>
         TimersFired.Add(1, new KeyValuePair<string, object?>("workflow.status", status.ToString()));
 
-    internal static void RecordTerminalCommand(LegacyWorkflowStatus status) =>
+    internal static void RecordTerminalCommand(global::OrcaCore.WorkflowInstanceStatus status) =>
         TerminalCommands.Add(1, new KeyValuePair<string, object?>("workflow.status", status.ToString()));
 
     internal static void RecordHostCompatibilityFailure(string reason) =>

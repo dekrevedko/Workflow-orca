@@ -16,6 +16,9 @@ The exact workflow-authoring declaration baseline lives in `docs/specs/17-public
 - Make workflow input, output, definition identity, and mode visible in static types.
 - Provide useful structured concurrency: fixed `Parallel`, bounded `ForEach`, and explicit all-results joins.
 - Make durable deadlines, retries, external-call identity, and resource leasing honest under crash, replay, cancellation, and ambiguous ownership.
+- Make accepted third-party events durable before acknowledgement, retain events that precede waits, and reactivate cold durable instances without requiring broker handlers to know workflow definitions or runtime state.
+- Separate immutable workflow declaration, application-composition registration, and typed runtime handle lookup.
+- Commit outbound workflow events with workflow state and expose a transport-neutral dispatcher seam suitable for MassTransit, Rebus, SNS, SQS, RabbitMQ, and equivalent adapters.
 - Ship durable DAG execution as a separate package using child workflow instances and typed dependency mapping.
 - Keep common authoring free of provider/runtime protocol, Kubernetes, AWS, and scheduler-specific concepts.
 - Preserve deferred product direction in a reviewable future-capability registry without publishing placeholders.
@@ -29,6 +32,8 @@ The exact workflow-authoring declaration baseline lives in `docs/specs/17-public
 - Promise exactly-once external effects.
 - Use a timeout, lease TTL, or process liveness guess as proof that protected external work stopped.
 - Expose executable compiler IR or runtime ownership identities as normal application metadata.
+- Couple OrcaCore to a message-broker SDK, provide built-in broker publishing, or promise exactly-once broker delivery.
+- Discover workflows or event contracts by runtime assembly scanning or make Temporal-style attributes a second source of workflow truth.
 
 ## Decisions
 
@@ -45,9 +50,11 @@ OrcaCore.Runtime.Protocol <- OrcaCore.Provider.Abstractions <- provider adapters
 OrcaCore.Durable.Hosting <- OrcaCore.Dag.Hosting <- companion scheduler/application
 ```
 
-`OrcaCore` is the primary application contract package, not a dependency-only meta-package, and owns the `OrcaCore` application namespace. Every other package has one assembly with the same identity as its PackageId and a fixed public/internal tier in the package manifest. Document 17 fixes the CLR namespace and assembly owner for every host-option, DAG, management, recovery, diagnostics, protocol, and provider family; unqualified sketches do not grant placement freedom. Application contracts never reference advanced seams. Runtime protocol never references provider abstractions. Engines may consume both advanced seams internally. `OrcaCore.Dag.Hosting` is the only DAG-to-durable-runtime product bridge and uses a named, versioned internal child-start/join contract exposed by `OrcaCore.Durable.Hosting` through `InternalsVisibleTo("OrcaCore.Dag.Hosting")`. The only other friend is test-only `OrcaCore.Engine.Durable -> InternalsVisibleTo("OrcaCore.ProviderCertification")` for exactly the four resource-governance post-commit barrier types. `OrcaCore.Dag` does not pull provider or infrastructure SDKs into the core graph. A companion scheduler may be in `OrcaCore.slnx`, but no OrcaCore product project references it.
+`OrcaCore` is the primary application contract package, not a dependency-only meta-package, and owns the `OrcaCore` application namespace. Every other package has one assembly with the same identity as its PackageId and a fixed public/internal tier in the package manifest. Document 17 fixes the CLR namespace and assembly owner for every host-option, DAG, management, recovery, diagnostics, protocol, and provider family; unqualified sketches do not grant placement freedom. Application contracts never reference advanced seams. Runtime protocol never references provider abstractions. Engines may consume both advanced seams internally. `OrcaCore.Dag.Hosting` is the only DAG-to-durable-runtime product bridge and uses a named, versioned internal child-start/join contract exposed by `OrcaCore.Durable.Hosting` through `InternalsVisibleTo("OrcaCore.Dag.Hosting")`. The complete product and owning-test friend graph is closed by Decision 22; its one cross-package test edge remains `OrcaCore.Engine.Durable -> OrcaCore.ProviderCertification` for deterministic resource-governance barrier certification. `OrcaCore.Dag` does not pull provider or infrastructure SDKs into the core graph. A companion scheduler may be in `OrcaCore.slnx`, but no OrcaCore product project references it.
 
 Hosting extension classes are owned by their role assemblies rather than sharing one catch-all owner type. The first complete production durable provider is `OrcaCore.Providers.PostgreSql`; its one options object contains required nonblank `ConnectionString` and `Schema` values that registration copies and validates immediately, and its registration supplies the complete certified durable provider role set. `OrcaCore.Providers.InMemory` remains development/test only. Package fixtures validate only declared package references from a local Phase 0 feed; no project-reference transitivity or undeclared host package may make a consumer compile accidentally.
+
+`OrcaCore` owns immutable workflow-event contract descriptors, self-routing inbound envelopes, typed acceptance results, resumed/outbound application event projections, and durable authoring members. `OrcaCore.Durable.Hosting` owns `IWorkflowEventIngress`, the application-shaped `IWorkflowEventDispatcher`, its dispatch result/failure values, the durable engine/ingress composition builders, and hosted pumps. Serialized route/inbox/outbox records remain in `OrcaCore.Runtime.Protocol`; provider stores and raw commit records remain in `OrcaCore.Provider.Abstractions`; no application dispatcher receives an `OutboxWrite`, internal continuation kind, stream version, or provider state.
 
 "Provider/runtime SPI" means the explicitly advanced service-provider interface for a storage/transport adapter or custom runtime host. It is not the ordinary workflow-author API and is consumed only by implementers who intentionally reference the advanced package.
 
@@ -62,7 +69,7 @@ DurableWorkflowRef<TInput, TOutput>
 DurableWorkflowRef<TInput>       // resultless
 ```
 
-Mode-first staged builders produce immutable definitions carrying the matching reference. `Init` consumes the input once to create private workflow state. Each mode exposes exactly four completion overloads: resultless `End()`, resultless `End(WorkflowOutcomeName)`, resultful `End<TOutput>(Func<ReadOnlyStateSnapshot<TState>,TOutput>)`, and resultful `End<TOutput>(Func<ReadOnlyStateSnapshot<TState>,TOutput>, WorkflowOutcomeName)`. There are no nullable or optional outcome/selector parameters; an explicitly null selector or outcome throws `ArgumentNullException` immediately. `End` commits output, terminal status, and optional fixed outcome atomically. Resultless workflows use the one-arity reference rather than `Unit` in the public signature.
+Ephemeral definitions expose symmetric `EphemeralWorkflowRef<TInput,TOutput>` and `EphemeralWorkflowRef<TInput>` values for application-configuration registration and exact handle lookup; only durable references may become DAG child contracts. Mode-first staged builders produce immutable definitions carrying the matching reference. `Init` consumes the input once to create private workflow state. Each mode exposes exactly four completion overloads: resultless `End()`, resultless `End(WorkflowOutcomeName)`, resultful `End<TOutput>(Func<ReadOnlyStateSnapshot<TState>,TOutput>)`, and resultful `End<TOutput>(Func<ReadOnlyStateSnapshot<TState>,TOutput>, WorkflowOutcomeName)`. There are no nullable or optional outcome/selector parameters; an explicitly null selector or outcome throws `ArgumentNullException` immediately. `End` commits output, terminal status, and optional fixed outcome atomically. Resultless workflows use the one-arity reference rather than `Unit` in the public signature.
 
 Named outcome metadata is a small fixed declaration-time classification useful for queries and metrics. Dynamic business classifications belong in `TOutput`; v1 does not create arbitrary runtime outcome names. A definition's private `TState` never appears in the reusable workflow reference or DAG dependency contract.
 
@@ -149,7 +156,7 @@ Decorators are legal only while an immediately preceding undecorated business st
 
 `WithStepTimeout(duration)` decorates only the immediately preceding business step and bounds one attempt from invocation until return. The runtime supplies a cancellation token, fences/discards the timed-out copy, and records `StepAttemptTimeoutException`. A configured retry receives a higher attempt number and a new attempt deadline, but the workflow deadline remains the outer bound. Structural waits and external workloads are not secretly bounded by a step attempt timeout.
 
-`Wait(eventName, correlation, timeout)` races its event against one runtime-owned timer. The committed winner cancels the losing obligation. If timeout wins, the current root, branch, or item fails with `WorkflowWaitTimeoutException`; there is no timeout-callback builder. A branch/item wait timeout can therefore appear as failure data in its enclosing `WhenAllOutcomes` join.
+`Wait(eventContract, correlation, timeout)` races one explicit payloadless or typed `WorkflowEventContract` descriptor against one runtime-owned timer. The descriptor's stable `EventName` plus positive `EventContractVersion`, not a CLR type name or attribute lookup, is the durable match identity. The committed event/timer winner cancels the losing obligation. If timeout wins, the current root, branch, or item fails with `WorkflowWaitTimeoutException`; there is no timeout-callback builder. A branch/item wait timeout can therefore appear as failure data in its enclosing `WhenAllOutcomes` join.
 
 The orchestration implementation uses its own persisted timer/deadline protocol, not Polly. Polly may be used inside an application adapter for short transport retries, but it does not own workflow state, durable retry schedules, or timeout transitions.
 
@@ -223,7 +230,7 @@ A durable scheduler child workflow can:
 1. enter a scoped durable capacity acquisition;
 2. execute a typed submit step whose adapter uses `StepOperationId` and request fingerprint to create or observe external work;
 3. store the returned application-owned external reference in workflow state;
-4. use ordinary durable `Wait(EventName, correlation)` for a watcher report;
+4. use ordinary durable `Wait(WorkflowEventContract<TReport>, correlation)` for a watcher report;
 5. validate the normalized terminal payload, Kubernetes Job UID, `StepOperationId`, `LeaseProtectionToken`, and terminality, then map it to typed workflow output while still inside the lease; and
 6. exit the lease scope only after that exact terminal proof. An invalid or unproven report cannot release capacity and follows the ambiguity/quarantine rules.
 
@@ -284,25 +291,34 @@ Deferred items stay visible in planning but have no v1 public symbols:
 | Definition-wide retry | Reset point, state/output retention, and occurrence identity are unresolved | Reset, retained input/state, attempt identity, and terminal policy |
 | Failed-instance/step management retry | Terminal history is immutable in v1 | New-generation lineage, retained state/input, output invalidation, and authorization |
 | Public pause/resume/archive/purge | These operations enlarge lifecycle, retention, and authorization semantics | Exact lifecycle transitions, reference safety, authorization, and provider certification |
-| Workflow-authored `Publish` | No portable outbox event contract is needed for the first scheduler journey | Typed payload/destination, event identity, commit boundary, dispatch, and deduplication |
 | Workflow-authored `Cancel` | Self-cancellation adds no value over typed failure/output in v1 | Target, terminal result, descendant/lease cleanup, and authorization |
-| Definition-targeted event fanout | Target snapshot and per-target deduplication would enlarge delivery | Committed target set, per-target `EventId` deduplication, retry, and late-registration rules |
 
 `WaitLong` and `Yield` are not in this registry because they are intentionally removed concepts, not promised future features.
 
 ### 14. Keep runtime and management facades application-oriented
 
-`IWorkflowDefinitionRegistry` explicitly registers the four ephemeral/durable resultless/resultful definition families and returns a closed `Registered`/`HostIncompatible`/`Conflict` result with a typed definition handle. `DefinitionHostCompatibilityFailure` is a closed union of `EngineModeMismatch`, `MissingTransientPools`, and `MissingDurableResourcePools`; missing-name collections are copied, distinct, and ordinal-sorted. Validation performs mode mismatch first, then all statically inspectable pool references, then fingerprint conflict, and mutates nothing on failure. Ephemeral registration checks all authored transient pools; durable registration checks static lease requests, while selector-created pool names are checked at runtime before queue/provider mutation. `WorkflowRegistrationResult<TDefinitionHandle>.GetHandleOrThrow()` returns the registered handle, throws `WorkflowDefinitionHostCompatibilityException` with fixed code `WF-DEFINITION-HOST-INCOMPATIBLE` carrying the closed compatibility failure, or throws `WorkflowDefinitionRegistrationConflictException` carrying the conflict. A definition handle owns `StartOrGetAsync(input, StartIdempotencyKey)` and `GetInstanceAsync(InstanceId)`. Start binds identity, version, structural fingerprint, and fixed-codec input bytes; compatible key reuse returns the same handle with `WasExisting = true`, while incompatible reuse returns `StartIdempotencyConflict` and starts nothing. `WorkflowStartResult<TInstanceHandle>.GetHandleOrThrow()` returns the accepted handle or throws `WorkflowStartIdempotencyConflictException` carrying that conflict. The closed result unions remain the inspection surface for consumers that need failure details or `WasExisting`; the helpers remove casts from the ordinary success path.
+Every built ephemeral and durable resultless/resultful definition exposes a matching state-opaque typed reference. `IWorkflowDefinitionRegistry` explicitly registers all four families and returns a closed `Registered`/`HostIncompatible`/`Conflict` result with a typed definition handle. It also exposes four `GetRequiredHandle(reference)` overloads that resolve an already registered exact mode/identity/version/fingerprint without registering; an absent or stale exact reference throws `WorkflowDefinitionNotRegisteredException` with code `WF-DEFINITION-NOT-REGISTERED`. `DefinitionHostCompatibilityFailure` is a closed union of `EngineModeMismatch`, `MissingTransientPools`, `MissingDurableResourcePools`, and `MissingWorkflowEventDispatcher`; missing-name collections are copied, distinct, and ordinal-sorted. Validation performs mode mismatch first, all statically inspectable host capabilities second, then fingerprint conflict, and mutates nothing on failure. Ephemeral registration checks all authored transient pools; durable registration checks static lease requests and whether a definition containing `Publish` has an application dispatcher, while selector-created pool names are checked at runtime before queue/provider mutation.
+
+`AddOrcaCoreEphemeralEngine` and `AddOrcaCoreDurableEngine` return `OrcaCoreEphemeralEngineBuilder` and `OrcaCoreDurableEngineBuilder`, respectively. Each exposes only the two resultless/resultful `AddWorkflow` overloads for its own mode, returns itself for composition, and stages the already built immutable definition; application modules may group explicit calls in ordinary extension methods. Declaration therefore stays independent from host composition:
+
+```csharp
+services.AddOrcaCoreDurableEngine(options)
+    .AddWorkflow(OrderFulfillment.Definition);
+
+var orders = registry.GetRequiredHandle(OrderFulfillment.Reference);
+```
+
+`OrderFulfillment.Definition` and its reference are application-owned static declarations, not DI-created graphs. A logical durable definition uses the same explicitly fixed `DefinitionId` across process restarts and deployments; production catalog reconstruction never calls `DefinitionId.New()` to mint a new identity at startup. Environment-specific graphs or opaque behavior require a deliberately distinct identity/version rather than conditional construction under the same durable contract.
+
+Before readiness or any worker, timer, continuation, inbox, outbox, or DAG pump starts, the selected engine preflights the complete staged batch and applies it atomically. Exact duplicate mode/identity/version/fingerprint entries are idempotent; a missing capability or conflicting fingerprint starts no loop and leaves the registry unchanged. The staged startup batch is frozen, not the entire low-level registry, so explicit dynamic/test registration remains possible without adding a fourth registry result. `AddOrcaCoreDurableEventIngress` exposes no definition builder, registry, reference lookup, worker, or execution loop; combining it with an engine role remains invalid.
+
+`WorkflowRegistrationResult<TDefinitionHandle>.GetHandleOrThrow()` returns the registered handle, throws `WorkflowDefinitionHostCompatibilityException` with fixed code `WF-DEFINITION-HOST-INCOMPATIBLE` carrying the closed compatibility failure, or throws `WorkflowDefinitionRegistrationConflictException` carrying the conflict. A definition handle remains the sole owner of `StartOrGetAsync(input, StartIdempotencyKey)` and `GetInstanceAsync(InstanceId)`. Start and exact-reference lookup never register as a side effect. Start binds identity, version, structural fingerprint, and fixed-codec input bytes; compatible key reuse returns the same handle with `WasExisting = true`, while incompatible reuse returns `StartIdempotencyConflict` and starts nothing. `WorkflowStartResult<TInstanceHandle>.GetHandleOrThrow()` returns the accepted handle or throws `WorkflowStartIdempotencyConflictException` carrying that conflict. The closed result unions remain the inspection surface for consumers that need failure details or `WasExisting`; the helpers remove casts from the ordinary success path.
 
 The ordinary instance management surface is intentionally small. `WorkflowInstanceHandle` exposes only `GetSnapshotAsync`, fixed-codec-detached `GetStateAsync<TState>`, cooperative idempotent `RequestCancellationAsync`, and immediately fenced `TerminateAsync`. `WorkflowInstanceHandle<TOutput>` additionally exposes nonblocking typed pending/available/unavailable `GetOutputAsync` and notification-driven race-free `WaitForOutputAsync(CancellationToken)`. The latter returns the detached output, throws typed `WorkflowOutputUnavailableException` carrying terminal status/failure when the instance terminalizes without output, never polls, and treats caller cancellation as cancellation of only the local wait. `WorkflowStartResult<WorkflowInstanceHandle<TOutput>>` has a same-named convenience extension so the common path is `await start.WaitForOutputAsync(token)`; it projects through `GetHandleOrThrow()`. Durable waiting uses subscribe/recheck around the committed notification boundary so completion cannot be lost. The exact application snapshot remains unchanged: it carries authored/business facts and active wait deadlines, and represents terminal workflow timeout through `Status = TimedOut` plus `Failure`. Running absolute workflow deadline, active attempt ordinal/deadline/outcome, executable plans, branch/item or in-flight attempt copies, `FiberId`, `ScopeId`, stream versions, and raw obligations remain runtime/BCL telemetry or advanced diagnostics rather than v1 application snapshot/history. Lease quarantine is projected separately by lease diagnostics. Resultless handles have no output member. Pause/resume, failed-instance retry, archive, purge, workflow-instance enumeration, bulk selection/list/count/statistics, and durable history are deferred rather than mode-specific v1 methods.
 
-`IWorkflowEventClient` has exactly two route names, `DeliverToInstanceAsync` and `DeliverByCorrelationAsync(DefinitionId, event)`, with one payloadless `WorkflowEvent` and one generic `WorkflowEvent<TPayload>` overload for each route (four overloads total). Both event factories validate strong values and UTC time; the generic form additionally fixed-codec detaches its payload. Accepted delivery atomically deduplicates per target instance by `EventId` and records an at-least-once continuation handoff. Same ID/same envelope is `Duplicate`; same ID/different envelope is `EventConflict`; `NoActiveWait` and `InstanceTerminal` do not consume the ID. Correlation routing resolves `(DefinitionId, EventName, CorrelationId)`; registration of a second active wait for that pair, including within one instance, fails with `AmbiguousWaitRegistrationException` before parking. There is no ambiguous-match result or definition-wide fanout.
+Durable event ingress and outbound dispatch follow Decisions 24 and 25. The ordinary facade exposes one self-routing acceptance operation rather than caller-selected delivery methods, never exposes wait sequence/fiber/scope/provider/checkpoint identity, and never returns `NoActiveWait`. Ephemeral hosting makes no no-loss event-ingress or durable-publish promise.
 
-Event/correlation pairs are signal streams. After one wait consumes an event, a later loop occurrence may register the same pair and consume a later event. Authors encode occurrence-specific matching in `CorrelationId`; public delivery never accepts wait sequence, fiber, scope, provider generation, checkpoint, or raw command identity.
-
-Delivery before a matching wait returns `NoActiveWait` and does not consume `EventId`; redelivery of the same envelope after wait registration can therefore be accepted. The currently registered engine role owns the one `IWorkflowEventClient` implementation and its routing store. Ephemeral and durable engine roles are mutually exclusive in one service provider for v1, so routing ownership is never implicit or last-registration-wins.
-
-Microsoft hosting entry points are exact and role-specific: `OrcaCoreEphemeralEngineServiceCollectionExtensions.AddOrcaCoreEphemeralEngine(EphemeralEngineHostOptions)`, `OrcaCoreDurableEngineServiceCollectionExtensions.AddOrcaCoreDurableEngine(DurableEngineHostOptions)`, callback-only `AddOrcaCoreDurableEventIngress()`, development/test `AddOrcaCoreInMemoryDurableProvider()`, production `OrcaCorePostgreSqlProviderServiceCollectionExtensions.AddOrcaCorePostgreSqlDurableProvider(PostgreSqlDurableProviderOptions)`, and `OrcaCore.Dag.Hosting.AddOrcaCoreDag(DagHostOptions)`. The PostgreSQL options require nonblank `ConnectionString` and `Schema`; all options are programmatic immutable configuration objects, are copied and validated immediately, and are not claimed to be configuration-binder DTOs. Identical repeated registration is idempotent and conflicting role/options fail startup. Registering ephemeral and durable engine roles together fails startup. The callback-only role exposes durable event ingress and continuation handoff but no registry, worker, timer/reconciler, or DAG coordinator. `AddOrcaCoreDag` requires the durable-engine role and adds only DAG coordination/registry. There is no catch-all `AddOrcaCore`, separate hosted-service toggle, implicit mode selection, serializer replacement hook, or host-owned bulk facade.
+Microsoft hosting entry points remain exact and role-specific: `OrcaCoreEphemeralEngineServiceCollectionExtensions.AddOrcaCoreEphemeralEngine(EphemeralEngineHostOptions)`, `OrcaCoreDurableEngineServiceCollectionExtensions.AddOrcaCoreDurableEngine(DurableEngineHostOptions)`, callback-only `AddOrcaCoreDurableEventIngress()`, development/test `AddOrcaCoreInMemoryDurableProvider()`, production `OrcaCorePostgreSqlProviderServiceCollectionExtensions.AddOrcaCorePostgreSqlDurableProvider(PostgreSqlDurableProviderOptions)`, and `OrcaCore.Dag.Hosting.AddOrcaCoreDag(DagHostOptions)`. The first two return their mode-specific composition builder rather than `IServiceCollection`; `AddWorkflow` is a builder operation, not another hosting role entry point. The PostgreSQL options require nonblank `ConnectionString` and `Schema`; all options are programmatic immutable configuration objects, are copied and validated immediately, and are not claimed to be configuration-binder DTOs. Identical repeated role registration is idempotent and conflicting role/options fail startup. Registering ephemeral and durable engine roles together fails startup. The callback-only role exposes durable event acceptance and continuation handoff but no registry, workflow catalog, worker, timer/reconciler, outbox dispatcher, or DAG coordinator. `AddOrcaCoreDag` requires the durable-engine role and adds only DAG coordination/registry. There is no catch-all `AddOrcaCore`, separate hosted-service toggle, implicit mode selection, serializer replacement hook, reflection discovery, or host-owned bulk facade.
 
 Advanced resource administration remains separate: `IDurableResourcePoolManagement.ListAsync`, `GetAsync`, and `ResizeAsync` expose exact aggregate snapshots and the closed resize result; `IDurableResourceLeaseRecovery` accepts trusted stop confirmation; and `IDurableResourceLeaseDiagnostics` exposes trusted outstanding-obligation discovery. Forced termination and workflow deadline follow Decision 9 for protected leased work and never imply that external work stopped.
 
@@ -403,6 +419,116 @@ preconditions but does not solve unbounded data-dependent repetition, which need
 throughput evidence plus recursive identity, token/admission, merge, failure-provenance, and lease
 semantics.
 
+### 21. Treat the complete packaged API and active-test attribution as reviewed artifacts
+
+The package graph is not a public API baseline. Each of the exact 11 packaged assemblies has one
+checked-in, deterministic baseline covering every externally visible type and declared member,
+including constructors, properties, methods, fields, events, generic arity and constraints,
+parameter modifiers/defaults, and return signatures. Verification compares both the current
+build and freshly packed assemblies, refuses missing inventory, and reports exact additions and
+removals. Updating a baseline is an explicit reviewed change; the verifier never self-accepts the
+current product surface.
+
+Internal placeholders for removed concepts require qualified metadata and source absence guards
+because an exported-API baseline cannot observe them. In particular, authored `Yield` and the
+four transitional engine result bridges are removed; runtime fairness remains a scheduler-owned
+quantum decision with no author-returned result, alias, reflection adapter, or tombstone.
+
+Active acceptance accounting distinguishes current-v1 public-facade evidence from preserved but
+excluded legacy, deferred, provider-internal, or future-capability regressions. Historical test
+sources stay recoverable until a method-level crosswalk proves each retired-replacement
+declaration has executable successor evidence. Saga remains future/non-v1 rather than Section 8;
+Section 8 owns only DAG, companion hosting, and its single versioned internal child bridge.
+
+### 22. Use exact internal friends for implementation package boundaries
+
+The greenfield package split SHALL NOT force compiler, execution-kernel, concrete engine, provider,
+or hosted-loop implementation types into exported metadata. Type-safe internal access is preferred
+to reflection bridges. Product friends are exact: `OrcaCore.Core` grants
+`OrcaCore.Engine.Ephemeral` and `OrcaCore.Engine.Durable`; `OrcaCore.Engine.Durable` grants
+`OrcaCore.Durable.Hosting`; and `OrcaCore.Durable.Hosting` grants `OrcaCore.Dag.Hosting`. These edges
+grant CLR access only and do not add a package dependency in the reverse direction.
+
+Owning white-box test assemblies may be exact friends of their implementation assembly:
+`OrcaCore.Core.Tests`, `OrcaCore.Engine.Ephemeral.Tests`, `OrcaCore.Engine.Durable.Tests`,
+`OrcaCore.Hosting.Tests`, and `OrcaCore.Providers.PostgreSql.Tests`. The existing
+`OrcaCore.Engine.Durable` grant to `OrcaCore.ProviderCertification` remains the one cross-package
+test friend for deterministic post-commit barriers. Acceptance, behavior-scenario, compile-fixture,
+and integration assemblies exercise public or advanced provider contracts and receive no friend
+access. Every other friend remains forbidden and the exact compiled metadata is guarded.
+
+`OrcaCore.Core` therefore exports no implementation types; application authoring contracts remain
+owned by `OrcaCore`. Engine packages export only their documented role options and registration
+extensions, hosting exports only its documented options/management contracts/extension, and
+provider packages export only documented provider-authoring ports, role options, and registration
+extensions. A test convenience or cross-assembly call is not evidence for a public API.
+
+### 23. Use explicit versioned event contracts rather than attribute discovery
+
+`WorkflowEventContract` and `WorkflowEventContract<TPayload>` are immutable application values with a stable `EventName` and positive `EventContractVersion`. They are the common identity used by structural/dynamic waits, inbound delivery, resumed-event materialization, durable publish, outbox reconstruction, and external dispatch. CLR type name, assembly-qualified name, serializer metadata, or destination name never becomes wire identity. The generic descriptor fixes the expected payload type and the fixed codec detaches every accepted or published value.
+
+Temporal-style `[Workflow]`, `[Signal]`, and event-discovery attributes are not part of v1. Orca workflows are explicit immutable builder results rather than annotated method containers, and event descriptors must also work for third-party or unmodifiable broker message types. Application modules may expose named static descriptor values and ordinary registration extensions, but the runtime performs no assembly scanning, reflection discovery, or hidden attribute registration. A future source-generated attribute may emit the same descriptor only after a separate package/AOT/analyzer amendment; it cannot become an alternative identity or routing mechanism.
+
+Alternative considered: use attributes as the primary workflow and event declaration model. Rejected because it creates a second source of truth beside the staged builder, hides application composition, makes third-party message contracts awkward, and adds reflection/source-generator/package obligations without improving durable semantics.
+
+### 24. Treat inbound events as durably accepted self-routing work
+
+`IWorkflowEventIngress` exposes payloadless and typed `AcceptAsync` overloads over one immutable `WorkflowInboundEvent` shape. The envelope contains the explicit event contract, globally unique `EventId`, `CorrelationId`, optional causation event identity, UTC occurrence time, fixed-codec payload, and exactly one closed route: direct `InstanceId`; correlation within a `DefinitionId`; committed-snapshot fanout within a `DefinitionId`; or exact `DefinitionId`/`DefinitionVersion` start-or-deliver with `StartIdempotencyKey` and distinct fixed-codec workflow input. Every value needed for routing therefore comes from the upstream message; a MassTransit, Rebus, SNS/SQS, RabbitMQ, or other handler forwards one envelope and never resolves a workflow definition, handle, wait, or in-memory engine object.
+
+`AcceptAsync` returns the closed `WorkflowEventAcceptanceResult` union: `Accepted`, `Duplicate`, or `Rejected(WorkflowEventAcceptanceRejection)`. The rejection union is exactly `EventConflict`, `DirectInstanceNotFound`, `DirectInstanceTerminal`, `StartConflict(StartIdempotencyConflict)`, or `FanoutLimitExceeded`. `Accepted` means the complete normalized envelope and route intent are committed before return, so the broker may acknowledge. The same `EventId` and identical normalized bytes returns `Duplicate` and is also safe to acknowledge; this identity comparison precedes current target-state checks so redelivery remains `Duplicate` after the target progresses or terminalizes. The same identity with different normalized bytes returns `Rejected(EventConflict)` and never overwrites the accepted envelope. A new event aimed directly at an absent or terminal instance, a conflicting start binding, or a fanout snapshot that cannot fit the provider's atomic acceptance limit returns the matching rejection before any ownership or partial target commit. Only `Accepted` and `Duplicate` assert durable ownership; infrastructure, serialization, or cancellation failures propagate without an acknowledgement-safe result. Semantic failures discoverable only by a definition-owning worker after acceptance become durable observable poison records. `NoActiveWait` is not a durable ingress outcome.
+
+A direct event is stored in the target instance inbox even when no wait is active. A correlation event without a current unique wait is stored in a route-level inbox keyed by definition, contract, and correlation. Wait registration and pending-event acceptance/claim form one atomic race: either the oldest eligible event by durable acceptance order is claimed and the owner becomes runnable, or the event remains pending and the wait parks. One wait consumes one event; later loop occurrences consume later events. Timeout, cancellation, host loss, or a failed consumption commit cannot silently delete an unmatched accepted event, and v1 applies no automatic pending-event TTL. Terminal/unresolvable records remain observable poison/dead-letter state for explicit operational handling.
+
+An accepted event matching a persisted wait commits a continuation even when the instance is not in memory. A definition-owning pump loads the instance's exact bound definition/version/fingerprint, rehydrates its checkpoint, applies the inbox event once, and continues execution. Callback-only ingress commits the same event, any required pending start intent, and continuation handoff without loading a definition. Ephemeral hosting does not register this durable ingress and makes no no-loss acknowledgement promise.
+
+Correlation retains registration-time uniqueness for `(DefinitionId, event contract, CorrelationId)`; a second simultaneously active candidate is rejected before parking. Fanout is a distinct explicit route: first acceptance derives membership from provider-visible committed instance state for the `DefinitionId` across all versions, independent of the accepting host's catalog or hot instances; it commits that complete current nonterminal target set, creates independently deduplicated buffered target deliveries, treats an empty snapshot as accepted, and excludes instances created later. Redelivery reuses the committed set.
+
+Start-or-deliver acceptance atomically creates or reuses one durable pending start intent keyed by `StartIdempotencyKey`, bound to exact definition identity/version and normalized workflow-input bytes, and retains the event with that intent. A known incompatible binding returns `Rejected(StartConflict)` before acceptance. A definition-owning host may materialize a compatible intent in the acceptance transaction; callback-only ingress leaves it pending for a definition-owning pump. Materialization resolves the exact registered definition, binds its structural fingerprint, and atomically creates or reattaches the compatible instance, target inbox delivery, and continuation. A definition/version missing from the owning catalog or another semantic incompatibility discovered only after acceptance records observable poison against the owned intent/event; it does not retroactively require broker redelivery. Workflow input is never inferred from event payload.
+
+### 25. Commit outbound workflow events and delegate only transport dispatch
+
+Durable sequential builders expose `Publish` over an explicit payloadless or typed event contract plus side-effect-free correlation/payload selectors. Ephemeral builders expose no `Publish`. The authored contract and node position contribute to the structural fingerprint; selector behavior remains opaque and requires a definition-version bump when changed. Authors do not construct provider records, dispatch attempts, timestamps, or event identity.
+
+When a publish node wins commit authority, the runtime creates one replay-stable outbound `EventId`, inherits the current inbound `EventId` as optional causation, and records the correlation, origin `InstanceId`, `DefinitionId`, `DefinitionVersion`, deterministic occurrence time, contract descriptor, and fixed-codec payload. That `WorkflowOutboundEvent` and workflow progression commit atomically. A crash before commit publishes nothing; a crash after broker send but before outbox acknowledgement may resend the same event identity. The promise is durable at-least-once dispatch, never exactly once.
+
+`OrcaCore.Durable.Hosting.IWorkflowEventDispatcher` exposes exactly `ValueTask<WorkflowEventDispatchResult> DispatchAsync(WorkflowOutboundEvent outboundEvent, CancellationToken cancellationToken = default)`. `WorkflowEventDispatchResult` is the closed `Succeeded`/`RetryableFailure(WorkflowEventDispatchFailure)`/`PermanentFailure(WorkflowEventDispatchFailure)` union; `WorkflowEventDispatchFailure` is an immutable application value with a nonblank stable `Code` and optional diagnostic `Detail`. Success marks the external outbox record dispatched; retryable failure or an exception retains it for retry; cancellation releases its claim; permanent failure records observable poison state carrying the supplied failure. Internal continuation records are claimed by their own pump and never reach this dispatcher. The application maps stable event contract identity to its MassTransit, Rebus, SNS/SQS, RabbitMQ, or other destination. OrcaCore provides the transactional outbox, claim/retry/poison lifecycle, and envelope reconstruction but ships no broker SDK adapter.
+
+A durable definition containing `Publish` is host-incompatible when no application dispatcher is registered, preventing a definition-owning host from silently accumulating undispatchable external records. A future separately deployed dispatcher-only role would require its own explicit hosting contract; callback-only event ingress is not that role.
+
+### 26. Treat code and test removal as a first-class reviewed change
+
+Removing an obsolete application API does not authorize removing the runtime, provider, host,
+operator, persistence, observability, or retention behavior that previously supported it. Every
+physically deleted, project-orphaned, or compile-excluded production family receives exactly one
+reviewed disposition before Section 7 exit:
+
+- **Remove** cites the exact normative absence requirement and proves source, metadata, and packed
+  consumer absence without deleting a separately retained capability.
+- **Replace or relocate** names the new owning package/type/port and supplies executable equivalence
+  at every applicable public, provider, restart, and operational boundary.
+- **Defer** cites the exact future task or registry entry and re-entry criteria, keeps recovery
+  source available, and receives no completed or passing evidence credit.
+- **Dead or duplicate** proves production unreachability and identifies the surviving behaviorally
+  equivalent path.
+
+Compile failure after an API reshape, `<Compile Remove>`, absence from the solution, a smaller green
+suite, aggregate declaration counts, or the existence of a purported successor test are not proof
+of any disposition. A method-level test crosswalk compares setup, invoked boundary, failure or
+crash schedule, persistence/restart point, and assertions; one broad scenario cannot absorb
+unrelated declarations merely because it still compiles.
+
+The recovery worktree and checkpoint remain evidence anchors, not sources to restore wholesale.
+Forbidden public statistics, archive/purge, catch-all hosting, serializer, child, job, Saga, and
+compiler shapes remain absent. Still-required host/operator statistics and pressure projections,
+provider retention and cleanup safety, BCL diagnostics, and deferred DAG/companion behavior are
+reimplemented or preserved behind their correct owners. Provider projects and migrations receive
+explicit ship, defer, replace, or remove dispositions; greenfield schema creation contains the
+complete current schema and retains no compatibility DDL or provisional upgrade path.
+
+An exported-API baseline and a deletion ledger are reviewed together. A source slice cannot claim
+completion while the baseline is missing, the local package feed is stale, a reflection bridge
+substitutes for the approved typed friend boundary, or the ledger contains an unresolved family.
+
 ## Risks / Trade-offs
 
 - **[Bounded durable `ForEach` still adds persistence and scheduler work]** -> Commit the finite item set once, reuse existing structured fibers, prohibit nesting, and require a positive item bound.
@@ -423,6 +549,10 @@ semantics.
 - **[Fingerprint cannot detect arbitrary code changes]** -> Make it structural-only and require a version bump for every opaque behavior change; do not accept author-supplied contributors that imply stronger detection.
 - **[One fixed codec rejects some CLR graphs]** -> Fail unsupported/cyclic/unapproved polymorphic shapes before commit and version the persisted format as `orcacore-json-v1` rather than claiming arbitrary serializer portability.
 - **[One serialized resource-governance aggregate limits throughput]** -> Accept the v1 correctness trade-off for mandatory EKS scheduling, certify conflict/restart behavior, and require an explicit partitioning amendment before sharding.
+- **[Buffered unmatched events can grow without bound]** -> Make pending/poison state observable, require provider operational metrics, forbid silent TTL expiry, and defer deletion to an explicit reviewed retention/dead-letter policy.
+- **[Fanout can create a large write set]** -> Make fanout explicit, snapshot targets once, enforce provider transaction/batch limits, and reject acceptance before partial target ownership when the snapshot cannot be committed atomically.
+- **[At-least-once outbox dispatch duplicates broker publication]** -> Reuse the stable outbound `EventId` on every attempt and require adapters/consumers to deduplicate rather than claiming exactly once.
+- **[A host starts with an incomplete workflow catalog or missing dispatcher]** -> Preflight the entire staged definition batch before readiness and start no progression loop on any incompatibility or conflict.
 
 ## Migration Plan
 
@@ -431,9 +561,10 @@ semantics.
 3. Consolidate typed mode-first workflow authoring and delete provisional aliases/results/nodes.
 4. Implement joins and bounded durable `ForEach` on the existing structured-fiber substrate.
 5. Implement persisted workflow/step deadlines, `StepOperationId`, and scoped durable leases with quarantine/stop proof.
-6. Establish exact tier/package boundaries, role-specific hosting entry points, reduced application facades/event delivery, and serialized resource-governance provider contract.
-7. Implement `OrcaCore.Dag` and `OrcaCore.Dag.Hosting` with complete resultless/resultful planning, typed operation results, and the isolated friend child bridge; keep scheduler integrations outward-only.
-8. Rewrite samples and documentation, run strict OpenSpec validation and all public/package/runtime/provider guards, and prepare independent review.
+6. Establish exact tier/package boundaries, role-specific hosting entry points, application-configuration workflow catalogs, reduced application facades, and serialized resource-governance provider contract.
+7. Replace provisional event delivery with versioned event descriptors, durable self-routing ingress, pending inbox matching, cold activation, start-or-deliver, committed-snapshot fanout, durable publish, and the application-shaped outbox dispatcher.
+8. Implement `OrcaCore.Dag` and `OrcaCore.Dag.Hosting` with complete resultless/resultful planning, typed operation results, and the isolated friend child bridge; keep scheduler integrations outward-only.
+9. Rewrite samples and documentation, run strict OpenSpec validation and all public/package/runtime/provider guards, and prepare independent review.
 
 Rollback is source-level: revert the change and recreate development fixtures/stores. No released package or durable-data compatibility contract exists.
 

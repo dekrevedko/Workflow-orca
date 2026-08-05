@@ -2,41 +2,37 @@ using System.Collections;
 using System.Reflection;
 using OrcaCore.Core.Building;
 using OrcaCore.Core.Compilation;
+using OrcaCore.Core.Internal;
 
 namespace OrcaCore.Core.Execution;
 
-public sealed record MaterializedBranchResult(
+internal sealed record MaterializedBranchResult(
     BranchPlanId BranchPlanId,
     StructuredSerializedValue Result);
 
-public sealed record MaterializedBranchOutcome(
+internal sealed record MaterializedBranchOutcome(
     BranchPlanId BranchPlanId,
     StructuredSerializedValue? Result,
     FiberFailure? Failure);
 
-public sealed class StructuredMergeException : Exception
+internal sealed class StructuredMergeException : global::OrcaCore.OrcaCoreException
 {
     public StructuredMergeException(string code, string message, Exception innerException)
-        : base(message, innerException)
+        : base(code, message, innerException)
     {
-        Code = code;
     }
-
-    public string Code { get; }
 }
 
-public static class ScopeMergeAdapter
+internal static class ScopeMergeAdapter
 {
     public static StructuredSerializedValue ExecuteOutcomes(
         CompiledScopePlan scopePlan,
         object parentState,
-        IReadOnlyList<MaterializedBranchOutcome> committedOutcomes,
-        IStructuredValueCodec codec)
+        IReadOnlyList<MaterializedBranchOutcome> committedOutcomes)
     {
         ArgumentNullException.ThrowIfNull(scopePlan);
         ArgumentNullException.ThrowIfNull(parentState);
         ArgumentNullException.ThrowIfNull(committedOutcomes);
-        ArgumentNullException.ThrowIfNull(codec);
         if (scopePlan.Kind != CompiledScopeKind.WhenAllOutcomes)
         {
             throw new InvalidOperationException($"Scope plan '{scopePlan.Id}' is not an outcome-preserving join.");
@@ -56,16 +52,16 @@ public static class ScopeMergeAdapter
 
         try
         {
-            var parentCopyPayload = codec.Serialize(
+            var parentCopyPayload = Serialize(
                 parentState,
                 scopePlan.Merge.ParentStateType,
                 scopePlan.Merge.ParentStateSchemaIdentity);
-            var parentCopy = codec.Deserialize(parentCopyPayload) ??
+            var parentCopy = Deserialize(parentCopyPayload) ??
                 throw new InvalidOperationException("Parent state copy deserialized as null.");
             var parentSnapshot = StructuredInvocationCache.CreateParentSnapshot(
                 scopePlan.Merge.ParentStateType,
                 parentCopy);
-            var orderedOutcomes = BuildOrderedOutcomes(scopePlan, committedOutcomes, codec);
+            var orderedOutcomes = BuildOrderedOutcomes(scopePlan, committedOutcomes);
             var replacement = StructuredInvocationCache.Invoke(
                 scopePlan.Merge.Merge,
                 parentSnapshot,
@@ -78,7 +74,7 @@ public static class ScopeMergeAdapter
                     $"'{scopePlan.Merge.ParentStateType.FullName}'.");
             }
 
-            return codec.Serialize(
+            return Serialize(
                 replacement,
                 scopePlan.Merge.ParentStateType,
                 scopePlan.Merge.ParentStateSchemaIdentity);
@@ -107,13 +103,11 @@ public static class ScopeMergeAdapter
     public static StructuredSerializedValue Execute(
         CompiledScopePlan scopePlan,
         object parentState,
-        IReadOnlyList<MaterializedBranchResult> committedResults,
-        IStructuredValueCodec codec)
+        IReadOnlyList<MaterializedBranchResult> committedResults)
     {
         ArgumentNullException.ThrowIfNull(scopePlan);
         ArgumentNullException.ThrowIfNull(parentState);
         ArgumentNullException.ThrowIfNull(committedResults);
-        ArgumentNullException.ThrowIfNull(codec);
         if (scopePlan.Merge.Merge is null)
         {
             throw new InvalidOperationException($"Scope plan '{scopePlan.Id}' has no merge contract.");
@@ -136,16 +130,16 @@ public static class ScopeMergeAdapter
 
         try
         {
-            var parentCopyPayload = codec.Serialize(
+            var parentCopyPayload = Serialize(
                 parentState,
                 scopePlan.Merge.ParentStateType,
                 scopePlan.Merge.ParentStateSchemaIdentity);
-            var parentCopy = codec.Deserialize(parentCopyPayload) ??
+            var parentCopy = Deserialize(parentCopyPayload) ??
                 throw new InvalidOperationException("Parent state copy deserialized as null.");
             var parentSnapshot = StructuredInvocationCache.CreateParentSnapshot(
                 scopePlan.Merge.ParentStateType,
                 parentCopy);
-            var orderedResults = BuildOrderedResults(scopePlan, committedResults, codec);
+            var orderedResults = BuildOrderedResults(scopePlan, committedResults);
             var mergeArgument = scopePlan.Kind == CompiledScopeKind.WhenFirst
                 ? ((IList)orderedResults)[0]
                 : orderedResults;
@@ -160,7 +154,7 @@ public static class ScopeMergeAdapter
                     $"'{scopePlan.Merge.ParentStateType.FullName}'.");
             }
 
-            return codec.Serialize(
+            return Serialize(
                 replacement,
                 scopePlan.Merge.ParentStateType,
                 scopePlan.Merge.ParentStateSchemaIdentity);
@@ -188,13 +182,11 @@ public static class ScopeMergeAdapter
     public static StructuredSerializedValue ExecuteForEach(
         CompiledScopePlan scopePlan,
         object parentState,
-        IReadOnlyList<ForEachTerminalOutcome> outcomes,
-        IStructuredValueCodec codec)
+        IReadOnlyList<ForEachTerminalOutcome> outcomes)
     {
         ArgumentNullException.ThrowIfNull(scopePlan);
         ArgumentNullException.ThrowIfNull(parentState);
         ArgumentNullException.ThrowIfNull(outcomes);
-        ArgumentNullException.ThrowIfNull(codec);
         if (scopePlan.Kind != CompiledScopeKind.ForEach)
         {
             throw new InvalidOperationException($"Scope plan '{scopePlan.Id}' is not a ForEach scope.");
@@ -202,7 +194,7 @@ public static class ScopeMergeAdapter
 
         try
         {
-            var parentCopyPayload = codec.Serialize(
+            var parentCopyPayload = Serialize(
                 parentState,
                 scopePlan.Merge.ParentStateType,
                 scopePlan.Merge.ParentStateSchemaIdentity);
@@ -211,7 +203,7 @@ public static class ScopeMergeAdapter
                 return parentCopyPayload;
             }
 
-            var parentCopy = codec.Deserialize(parentCopyPayload) ??
+            var parentCopy = Deserialize(parentCopyPayload) ??
                 throw new InvalidOperationException("Parent state copy deserialized as null.");
             var parentSnapshot = StructuredInvocationCache.CreateParentSnapshot(
                 scopePlan.Merge.ParentStateType,
@@ -227,7 +219,7 @@ public static class ScopeMergeAdapter
                 object? result = null;
                 if (outcome.Status == ForEachItemTerminalStatus.Succeeded)
                 {
-                    result = codec.Deserialize(new StructuredSerializedValue(
+                    result = Deserialize(new StructuredSerializedValue(
                         scopePlan.ResultType,
                         resultSchema,
                         outcome.ResultPayload ??
@@ -256,7 +248,7 @@ public static class ScopeMergeAdapter
                     $"'{scopePlan.Merge.ParentStateType.FullName}'.");
             }
 
-            return codec.Serialize(
+            return Serialize(
                 replacement,
                 scopePlan.Merge.ParentStateType,
                 scopePlan.Merge.ParentStateSchemaIdentity);
@@ -283,8 +275,7 @@ public static class ScopeMergeAdapter
 
     private static object BuildOrderedResults(
         CompiledScopePlan scopePlan,
-        IReadOnlyList<MaterializedBranchResult> committedResults,
-        IStructuredValueCodec codec)
+        IReadOnlyList<MaterializedBranchResult> committedResults)
     {
         var byBranch = committedResults.ToDictionary(result => result.BranchPlanId);
         var resultRecordType = typeof(global::OrcaCore.Core.Building.BranchResult<>)
@@ -315,7 +306,7 @@ public static class ScopeMergeAdapter
                     $"Committed result for branch plan '{branch.Id}' does not match its compiled contract.");
             }
 
-            var value = codec.Deserialize(materialized.Result);
+            var value = Deserialize(materialized.Result);
             var resultRecord = Activator.CreateInstance(
                 resultRecordType,
                 branch.BranchId,
@@ -335,22 +326,21 @@ public static class ScopeMergeAdapter
 
     private static object BuildOrderedOutcomes(
         CompiledScopePlan scopePlan,
-        IReadOnlyList<MaterializedBranchOutcome> committedOutcomes,
-        IStructuredValueCodec codec)
+        IReadOnlyList<MaterializedBranchOutcome> committedOutcomes)
     {
         var byBranch = committedOutcomes.ToDictionary(outcome => outcome.BranchPlanId);
         var outcomeType = typeof(global::OrcaCore.BranchOutcome<>).MakeGenericType(scopePlan.ResultType);
         var listType = typeof(List<>).MakeGenericType(outcomeType);
         var list = (IList)(Activator.CreateInstance(listType) ??
             throw new InvalidOperationException("Could not create the typed branch-outcome list."));
-        var succeeded = typeof(global::OrcaCore.Core.Authoring.PublicAuthoringContracts)
+        var succeeded = typeof(global::OrcaCore.Core.Authoring.AuthoringContractFactory)
             .GetMethod(
-                nameof(global::OrcaCore.Core.Authoring.PublicAuthoringContracts.BranchSucceeded),
+                nameof(global::OrcaCore.Core.Authoring.AuthoringContractFactory.BranchSucceeded),
                 BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)!
             .MakeGenericMethod(scopePlan.ResultType);
-        var failed = typeof(global::OrcaCore.Core.Authoring.PublicAuthoringContracts)
+        var failed = typeof(global::OrcaCore.Core.Authoring.AuthoringContractFactory)
             .GetMethod(
-                nameof(global::OrcaCore.Core.Authoring.PublicAuthoringContracts.BranchFailed),
+                nameof(global::OrcaCore.Core.Authoring.AuthoringContractFactory.BranchFailed),
                 BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)!
             .MakeGenericMethod(scopePlan.ResultType);
 
@@ -394,7 +384,7 @@ public static class ScopeMergeAdapter
                     null,
                     [
                         global::OrcaCore.AuthoredBranchId.Create(branch.BranchId),
-                        codec.Deserialize(result)
+                        Deserialize(result)
                     ])!;
             }
 
@@ -408,4 +398,16 @@ public static class ScopeMergeAdapter
 
         return list;
     }
+
+    private static StructuredSerializedValue Serialize(
+        object? value,
+        Type declaredType,
+        string schemaIdentity) =>
+        new(
+            declaredType,
+            schemaIdentity,
+            CoreWorkflowValueCodec.Serialize(value, declaredType));
+
+    private static object? Deserialize(StructuredSerializedValue value) =>
+        CoreWorkflowValueCodec.Deserialize(value.Payload, value.DeclaredType);
 }

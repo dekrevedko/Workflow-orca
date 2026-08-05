@@ -1,16 +1,11 @@
-using System.Reflection;
+using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
-using OrcaCore.Core.Definitions;
 using OrcaCore.DeveloperSurface.BehaviorContracts;
-using OrcaCore.Engine.Durable.Definitions;
-using OrcaCore.Engine.Durable.Driver;
-using OrcaCore.Engine.Durable.Execution;
-using OrcaCore.Engine.Durable.Management;
+using OrcaCore.Hosting;
 using OrcaCore.Hosting.ResourceLeases;
-using OrcaCore.Providers.InMemory;
+using OrcaCore.Runtime.Protocol.ResourceGovernance;
 
 namespace OrcaCore.DeveloperSurface.BehaviorScenarios;
 
@@ -21,8 +16,8 @@ public static partial class LeaseExitScenarioHost
     {
         const string barrier = "obligation-state";
         context.ReleaseBarrier(barrier);
-        var fixture = await ActiveLeaseFixture.CreateAsync(context, barrier, "obligation-state");
-        var diagnostics = CreateDiagnostics(fixture.Processor, fixture.Store);
+        using var fixture = await ActiveLeaseFixture.CreateAsync(context, barrier, "obligation-state");
+        var diagnostics = fixture.Runtime.LeaseDiagnostics;
         var held = await context.ObserveAsync(
             _ => diagnostics.GetAsync(fixture.Token, CancellationToken.None));
         Phase0Assert.Satisfies(
@@ -43,7 +38,7 @@ public static partial class LeaseExitScenarioHost
 
         fixture.Gate.Release.TrySetResult();
         await fixture.Running;
-        var recovery = CreateRecovery(fixture.Processor, fixture.Store);
+        var recovery = fixture.Runtime.LeaseRecovery;
         var released = await recovery.ConfirmProtectedWorkStoppedAsync(
             fixture.Token,
             StopConfirmationId.Create("obligation-state-release"),
@@ -62,8 +57,7 @@ public static partial class LeaseExitScenarioHost
     {
         const string barrier = "release-before-parent";
         context.ReleaseBarrier(barrier);
-        var store = new InMemoryWorkflowProvider();
-        var pools = await CreatePoolsAsync(("database", 1, (TimeSpan?)null));
+        using var store = new DurableScenarioProvider(context.Services.TimeProvider);
         var probe = new LeaseProbe();
         var request = DatabaseRequest();
         var definition = Workflow.Durable<LeaseState>(DefinitionId.New(), DefinitionVersion.Initial)
@@ -76,12 +70,13 @@ public static partial class LeaseExitScenarioHost
             .Then<CaptureParentCapacityStep>()
             .End()
             .Build();
-        var runtime = CreateRuntime(
+        using var runtime = CreateRuntime(
             store,
-            pools,
             definition,
             context.Services.TimeProvider,
-            new LeaseServices(pools, probe));
+            PoolDefinitions(("database", 1, (TimeSpan?)null)),
+            probe);
+        var definitionHandle = runtime.Register(definition);
         var started = await runtime.StartOrGetAsync<string, LeaseState>(
             "release-before-parent",
             definition.DefinitionId,
@@ -89,14 +84,6 @@ public static partial class LeaseExitScenarioHost
             "input",
             CancellationToken.None);
 
-        var definitionHandle = DurableFacadeScenarioAdapter.Register(
-            runtime,
-            store,
-            store,
-            new DurableManagement(store),
-            context.Services.TimeProvider,
-            definition,
-            [ResourcePoolName.Create("database")]);
         var instance = await definitionHandle.GetInstanceAsync(
             started.InstanceId,
             CancellationToken.None);
@@ -112,7 +99,7 @@ public static partial class LeaseExitScenarioHost
             throw new InvalidOperationException(
                 "The post-release parent continuation did not commit completion.");
         }
-        IDurableResourcePoolManagement management = new ResourcePoolManagementView(pools);
+        IDurableResourcePoolManagement management = runtime.ResourceManagement;
         var pool = await context.ObserveAsync(
             _ => management.GetAsync(
                 ResourcePoolName.Create("database"),
@@ -131,59 +118,12 @@ public static partial class LeaseExitScenarioHost
         }
     }
 
-    private sealed class ResourcePoolManagementView(
-        IResourcePoolStore store) : IDurableResourcePoolManagement
-    {
-        public async ValueTask<IReadOnlyList<DurableResourcePoolSnapshot>> ListAsync(
-            CancellationToken cancellationToken = default)
-        {
-            var pools = await store.ListPoolsAsync(cancellationToken).ConfigureAwait(false);
-            return pools.Select(ToSnapshot).ToArray();
-        }
-
-        public async ValueTask<DurableResourcePoolSnapshot> GetAsync(
-            ResourcePoolName pool,
-            CancellationToken cancellationToken = default)
-        {
-            ArgumentNullException.ThrowIfNull(pool);
-            var found = await store.GetPoolAsync(pool.Value, cancellationToken).ConfigureAwait(false);
-            if (!found.HasValue)
-            {
-                throw ResourcePoolNotConfiguredException.For([pool]);
-            }
-
-            return ToSnapshot(found.Value);
-        }
-
-        public ValueTask<DurableResourcePoolResizeResult> ResizeAsync(
-            ResourcePoolName pool,
-            int capacity,
-            ResourcePoolOperationId operationId,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        private static DurableResourcePoolSnapshot ToSnapshot(ResourcePoolSnapshot pool)
-        {
-            var reserved = pool.HeldTickets.Sum(ticket => ticket.Count);
-            return new DurableResourcePoolSnapshot(
-                ResourcePoolName.Create(pool.Name),
-                pool.Capacity,
-                reserved,
-                Math.Max(0, reserved - pool.Capacity),
-                pool.QueuedWaiters.Count,
-                pool.HeldTickets
-                    .Where(ticket => ticket.ReviewDeadline is not null)
-                    .Select(ticket => ticket.ReviewDeadline)
-                    .Min());
-        }
-    }
-
     [Phase0Scenario("cancellation-handoff-phases", "3.11b")]
     public static async Task CancellationHandoffPreservesPhaseTruth(Phase0ScenarioContext context)
     {
         const string barrier = "cancellation-handoff";
         context.ReleaseBarrier(barrier);
-        var fixture = await QueuedLeaseFixture.CreateAsync(context, barrier, "cancellation-handoff");
+        using var fixture = await QueuedLeaseFixture.CreateAsync(context, barrier, "cancellation-handoff");
         var cancelled = await context.ObserveAsync(
             _ => fixture.Instance.RequestCancellationAsync(CancellationToken.None));
         Phase0Assert.Satisfies(
@@ -193,7 +133,7 @@ public static partial class LeaseExitScenarioHost
         var token = LeaseProtectionToken.Parse(
             (await EnvelopeAsync(fixture.Store, fixture.InstanceId))
             .OwnedObligations.Single().ProtectionToken!);
-        var diagnostics = CreateDiagnostics(fixture.Processor, fixture.Store);
+        var diagnostics = fixture.Runtime.LeaseDiagnostics;
         var outstanding = await context.ObserveAsync(
             _ => diagnostics.GetAsync(token, CancellationToken.None));
         Phase0Assert.Satisfies(
@@ -219,14 +159,14 @@ public static partial class LeaseExitScenarioHost
     {
         const string barrier = "leased-coordinate";
         context.ReleaseBarrier(barrier);
-        var fixture = await ActiveLeaseFixture.CreateAsync(context, barrier, "leased-coordinate");
+        using var fixture = await ActiveLeaseFixture.CreateAsync(context, barrier, "leased-coordinate");
         var execution = fixture.Gate.Executions.Single();
         var operationId = context.Observe(_ => execution.OperationId);
         Phase0Assert.Satisfies(
             operationId,
             id => !string.IsNullOrWhiteSpace(id.Value),
             "The leased dispatch did not expose its durable operation identity.");
-        var diagnostics = CreateDiagnostics(fixture.Processor, fixture.Store);
+        var diagnostics = fixture.Runtime.LeaseDiagnostics;
         var snapshot = await context.ObserveAsync(
             _ => diagnostics.GetAsync(fixture.Token, CancellationToken.None));
         Phase0Assert.Satisfies(
@@ -257,8 +197,7 @@ public static partial class LeaseExitScenarioHost
         const string barrier = "leased-no-overlap";
         context.ReleaseBarrier(barrier);
         var gate = new LeaseGate();
-        var store = new InMemoryWorkflowProvider();
-        var pools = await CreatePoolsAsync(("database", 1, (TimeSpan?)null));
+        using var store = new DurableScenarioProvider(context.Services.TimeProvider);
         Phase0Observation<DurableLeaseWorkflowBuilder<string, LeaseState>>? retry = null;
         var definition = Workflow.Durable<LeaseState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ =>
@@ -280,31 +219,31 @@ public static partial class LeaseExitScenarioHost
             retry ?? throw new InvalidOperationException("Leased body was not authored."),
             selected => selected is not null,
             "WithRetry was unavailable on the leased business step.");
-        var processor = new DurableCommandProcessor(store, pools);
-        var runtime = CreateRuntime(
+        using var runtime = CreateRuntime(
             store,
-            pools,
             definition,
             context.Services.TimeProvider,
-            new LeaseServices(pools, new LeaseProbe(), gate),
-            processor);
-        var running = runtime.StartOrGetAsync<string, LeaseState>(
-            "leased-no-overlap",
-            definition.DefinitionId,
-            definition.DefinitionVersion,
+            PoolDefinitions(("database", 1, (TimeSpan?)null)),
+            new LeaseProbe(),
+            gate);
+        var handle = runtime.Register(definition);
+        var running = handle.StartOrGetAsync(
             "input",
-            CancellationToken.None);
+            StartIdempotencyKey.Create("leased-no-overlap"),
+            CancellationToken.None).AsTask();
         await gate.FirstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        await Task.Delay(TimeSpan.FromMilliseconds(100), TimeProvider.System, CancellationToken.None);
+        context.AdvanceTimeBy(TimeSpan.FromMilliseconds(100));
+        await gate.TimeoutObserved.Task;
+        await Task.Yield();
         if (gate.SecondStarted.Task.IsCompleted)
         {
             throw new InvalidOperationException(
                 "A leased retry overlapped the still-running timed-out body.");
         }
 
-        var instanceId = (await store.ListAsync(
-            new WorkflowProjectionQuery(),
-            CancellationToken.None)).Single().InstanceId;
+        var instanceId = (await store.GetStartedAsync(
+            "leased-no-overlap",
+            CancellationToken.None)).Value.InstanceId;
         var active = await EnvelopeAsync(store, instanceId);
         var token = LeaseProtectionToken.Parse(
             active.OwnedObligations.Single(obligation => obligation.ProtectionToken is not null)
@@ -312,7 +251,7 @@ public static partial class LeaseExitScenarioHost
         gate.Release.TrySetResult();
         await gate.SecondStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await running;
-        var diagnostics = CreateDiagnostics(processor, store);
+        var diagnostics = runtime.LeaseDiagnostics;
         var quarantined = await context.ObserveAsync(
             _ => diagnostics.GetAsync(token, CancellationToken.None));
         Phase0Assert.Satisfies(
@@ -332,8 +271,8 @@ public static partial class LeaseExitScenarioHost
     {
         const string barrier = "successful-retry-ambiguity";
         context.ReleaseBarrier(barrier);
-        var fixture = await RunTimedOutRetryAsync(context, barrier, "successful-retry-ambiguity");
-        var diagnostics = CreateDiagnostics(fixture.Processor, fixture.Store);
+        using var fixture = await RunTimedOutRetryAsync(context, barrier, "successful-retry-ambiguity");
+        var diagnostics = fixture.Runtime.LeaseDiagnostics;
         var observed = await context.ObserveAsync(
             _ => diagnostics.GetAsync(fixture.Token, CancellationToken.None));
         Phase0Assert.Satisfies(
@@ -357,12 +296,12 @@ public static partial class LeaseExitScenarioHost
     {
         const string barrier = "quarantine-before-terminal";
         context.ReleaseBarrier(barrier);
-        var fixture = await ActiveLeaseFixture.CreateAsync(
+        using var fixture = await ActiveLeaseFixture.CreateAsync(
             context,
             barrier,
             "quarantine-before-terminal");
         await TerminateAsync(fixture);
-        var diagnostics = CreateDiagnostics(fixture.Processor, fixture.Store);
+        var diagnostics = fixture.Runtime.LeaseDiagnostics;
         var lease = await context.ObserveAsync(
             _ => diagnostics.GetAsync(fixture.Token, CancellationToken.None));
         Phase0Assert.Satisfies(
@@ -394,8 +333,7 @@ public static partial class LeaseExitScenarioHost
         string key)
     {
         var gate = new LeaseGate();
-        var store = new InMemoryWorkflowProvider();
-        var pools = await CreatePoolsAsync(("database", 1, (TimeSpan?)null));
+        var store = new DurableScenarioProvider(context.Services.TimeProvider);
         var definition = Workflow.Durable<LeaseState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ =>
             {
@@ -410,36 +348,35 @@ public static partial class LeaseExitScenarioHost
                     .WithStepTimeout(TimeSpan.FromMilliseconds(30)))
             .End()
             .Build();
-        var processor = new DurableCommandProcessor(store, pools);
         var runtime = CreateRuntime(
             store,
-            pools,
             definition,
             context.Services.TimeProvider,
-            new LeaseServices(pools, new LeaseProbe(), gate),
-            processor);
-        var running = runtime.StartOrGetAsync<string, LeaseState>(
-            key,
-            definition.DefinitionId,
-            definition.DefinitionVersion,
+            PoolDefinitions(("database", 1, (TimeSpan?)null)),
+            new LeaseProbe(),
+            gate);
+        var pools = runtime.ResourcePools;
+        var handle = runtime.Register(definition);
+        var running = handle.StartOrGetAsync(
             "input",
-            CancellationToken.None);
+            StartIdempotencyKey.Create(key),
+            CancellationToken.None).AsTask();
         await gate.FirstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        var instanceId = (await store.ListAsync(
-            new WorkflowProjectionQuery(),
-            CancellationToken.None)).Single().InstanceId;
+        var instanceId = (await store.GetStartedAsync(key, CancellationToken.None)).Value.InstanceId;
         var active = await EnvelopeAsync(store, instanceId);
         var token = LeaseProtectionToken.Parse(
             active.OwnedObligations.Single(obligation => obligation.ProtectionToken is not null)
                 .ProtectionToken!);
-        await Task.Delay(TimeSpan.FromMilliseconds(100), TimeProvider.System, CancellationToken.None);
+        context.AdvanceTimeBy(TimeSpan.FromMilliseconds(100));
+        await gate.TimeoutObserved.Task;
+        await Task.Yield();
         gate.Release.TrySetResult();
         await gate.SecondStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await running;
         return new TimedOutRetryFixture(
             store,
+            runtime,
             pools,
-            processor,
             token,
             instanceId,
             definition,
@@ -448,104 +385,52 @@ public static partial class LeaseExitScenarioHost
 
     private static async Task TerminateAsync(ActiveLeaseFixture fixture)
     {
-        var result = await fixture.Processor.ProcessAsync(
-            new TerminateWorkflowCommand
-            {
-                CommandId = CommandId.New(),
-                InstanceId = fixture.InstanceId,
-                RequestedAt = DateTimeOffset.UtcNow
-            },
-            CancellationToken.None);
-        if (result.Outcome != DurableCommandOutcome.Committed)
+        var result = await fixture.Instance.TerminateAsync(CancellationToken.None);
+        if (result != WorkflowTerminationStatus.Terminated)
         {
             throw new InvalidOperationException("Termination did not commit.");
         }
-    }
-
-    private static IDurableResourceLeaseDiagnostics CreateDiagnostics(
-        DurableCommandProcessor processor,
-        IWorkflowProjectionStore projections)
-    {
-        var runtime = CreateInternal(
-            typeof(DurableWorkflowRuntime).Assembly,
-            "OrcaCore.Engine.Durable.Driver.DurableResourceLeaseDiagnostics",
-            processor,
-            projections);
-        return (IDurableResourceLeaseDiagnostics)CreateInternal(
-            typeof(IDurableResourceLeaseDiagnostics).Assembly,
-            "OrcaCore.Hosting.ResourceLeases.HostedDurableResourceLeaseDiagnostics",
-            runtime);
-    }
-
-    private static IDurableResourceLeaseRecovery CreateRecovery(
-        DurableCommandProcessor processor,
-        IWorkflowProjectionStore projections)
-    {
-        var runtime = CreateInternal(
-            typeof(DurableWorkflowRuntime).Assembly,
-            "OrcaCore.Engine.Durable.Driver.DurableResourceLeaseRecovery",
-            processor,
-            projections,
-            TimeProvider.System);
-        return (IDurableResourceLeaseRecovery)CreateInternal(
-            typeof(IDurableResourceLeaseRecovery).Assembly,
-            "OrcaCore.Hosting.ResourceLeases.HostedDurableResourceLeaseRecovery",
-            runtime);
-    }
-
-    private static object CreateInternal(Assembly assembly, string typeName, params object[] arguments)
-    {
-        var type = assembly.GetType(typeName, throwOnError: true)!;
-        return Activator.CreateInstance(
-            type,
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-            binder: null,
-            args: arguments,
-            culture: null)!;
     }
 
     private static ResourceLeaseRequest DatabaseRequest() =>
         ResourceLeaseRequest.Create(
             ResourceLeaseRequirement.Require(ResourcePoolName.Create("database")));
 
-    private static async Task<InMemoryResourcePoolStore> CreatePoolsAsync(
+    private static IReadOnlyList<DurableResourcePoolDefinition> PoolDefinitions(
         params (string Name, int Capacity, TimeSpan? ReviewAfter)[] definitions)
-    {
-        var pools = new InMemoryResourcePoolStore();
-        foreach (var definition in definitions)
-        {
-            await pools.UpsertPoolAsync(
-                new ResourcePoolDefinition(
-                    definition.Name,
-                    definition.Capacity,
-                    definition.ReviewAfter),
-                CancellationToken.None);
-        }
+        => definitions
+            .Select(definition => DurableResourcePoolDefinition.Create(
+                ResourcePoolName.Create(definition.Name),
+                definition.Capacity,
+                definition.ReviewAfter ?? TimeSpan.FromMinutes(5)))
+            .ToArray();
 
-        return pools;
-    }
-
-    private static DurableWorkflowRuntime CreateRuntime(
-        InMemoryWorkflowProvider store,
-        IResourcePoolStore pools,
+    private static DurableScenarioRuntime CreateRuntime(
+        DurableScenarioProvider store,
         DurableWorkflowDefinition<string> definition,
         TimeProvider timeProvider,
-        IServiceProvider services,
-        DurableCommandProcessor? processor = null)
-    {
-        var runtime = new DurableWorkflowRuntime(
-            processor ?? new DurableCommandProcessor(store, pools),
-            new DurableDefinitionRegistry(services),
+        IReadOnlyList<DurableResourcePoolDefinition> pools,
+        LeaseProbe probe,
+        LeaseGate? gate = null,
+        Func<IResourcePoolStore, IResourcePoolStore>? decorateResourcePools = null) =>
+        DurableScenarioRuntime.Create(
+            store,
             timeProvider,
-            DurableDriverBudget.Default);
-        runtime.RegisterDefinition(RuntimeDefinition<LeaseState>(definition));
-        return runtime;
-    }
-
-    private static WorkflowDefinition<TState> RuntimeDefinition<TState>(object publicDefinition) =>
-        (WorkflowDefinition<TState>)publicDefinition.GetType()
-            .GetProperty("RuntimeDefinition", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .GetValue(publicDefinition)!;
+            resourcePools: pools,
+            configureServices: services =>
+            {
+                services.AddSingleton(probe);
+                services.AddTransient<CaptureLeaseStep>();
+                services.AddTransient<CaptureParentCapacityStep>();
+                services.AddTransient<NoOpStep>();
+                if (gate is not null)
+                {
+                    services.AddSingleton(gate);
+                    services.AddTransient<BlockingLeaseStep>();
+                }
+            },
+            partition: $"lease-exit-{definition.DefinitionId.Value:N}",
+            decorateResourcePools: decorateResourcePools);
 
     private static async Task<DurableExecutionEnvelopeV2> EnvelopeAsync(
         IWorkflowEventStore store,
@@ -573,6 +458,8 @@ public static partial class LeaseExitScenarioHost
         internal TaskCompletionSource FirstStarted { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource SecondStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource TimeoutObserved { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Release { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -610,6 +497,8 @@ public static partial class LeaseExitScenarioHost
             StepContext<LeaseState> context,
             CancellationToken cancellationToken)
         {
+            using var timeoutRegistration = cancellationToken.Register(
+                () => gate.TimeoutObserved.TrySetResult());
             var attempt = Interlocked.Increment(ref gate.Attempts);
             lock (gate.Executions)
             {
@@ -638,61 +527,37 @@ public static partial class LeaseExitScenarioHost
             ValueTask.FromResult<StepResult>(new StepResult.Completed());
     }
 
-    private sealed class LeaseServices(
-        IResourcePoolStore pools,
-        LeaseProbe probe,
-        LeaseGate? gate = null) : IServiceProvider
-    {
-        public object? GetService(Type serviceType)
-        {
-            if (serviceType == typeof(CaptureLeaseStep))
-            {
-                return new CaptureLeaseStep(probe);
-            }
-
-            if (serviceType == typeof(CaptureParentCapacityStep))
-            {
-                return new CaptureParentCapacityStep(pools, probe);
-            }
-
-            if (serviceType == typeof(BlockingLeaseStep) && gate is not null)
-            {
-                return new BlockingLeaseStep(gate);
-            }
-
-            if (serviceType == typeof(NoOpStep))
-            {
-                return new NoOpStep();
-            }
-
-            return null;
-        }
-    }
-
     private sealed record TimedOutRetryFixture(
-        InMemoryWorkflowProvider Store,
-        InMemoryResourcePoolStore Pools,
-        DurableCommandProcessor Processor,
+        DurableScenarioProvider Store,
+        DurableScenarioRuntime Runtime,
+        IResourcePoolStore Pools,
         LeaseProtectionToken Token,
         InstanceId InstanceId,
         DurableWorkflowDefinition<string> Definition,
-        string Key);
+        string Key) : IDisposable
+    {
+        public void Dispose()
+        {
+            Runtime.Dispose();
+            Store.Dispose();
+        }
+    }
 
-    private sealed class ActiveLeaseFixture
+    private sealed class ActiveLeaseFixture : IDisposable
     {
         private ActiveLeaseFixture(
-            InMemoryWorkflowProvider store,
-            InMemoryResourcePoolStore pools,
-            DurableCommandProcessor processor,
+            DurableScenarioProvider store,
+            DurableScenarioRuntime runtime,
+            IResourcePoolStore pools,
             LeaseGate gate,
-            Task<DurableWorkflowStartResult> running,
+            Task<WorkflowStartResult<WorkflowInstanceHandle>> running,
             InstanceId instanceId,
             LeaseProtectionToken token,
             WorkflowInstanceHandle instance)
         {
             Store = store;
+            Runtime = runtime;
             Pools = pools;
-            Processor = processor;
             Gate = gate;
             Running = running;
             InstanceId = instanceId;
@@ -700,11 +565,11 @@ public static partial class LeaseExitScenarioHost
             Instance = instance;
         }
 
-        internal InMemoryWorkflowProvider Store { get; }
-        internal InMemoryResourcePoolStore Pools { get; }
-        internal DurableCommandProcessor Processor { get; }
+        internal DurableScenarioProvider Store { get; }
+        internal DurableScenarioRuntime Runtime { get; }
+        internal IResourcePoolStore Pools { get; }
         internal LeaseGate Gate { get; }
-        internal Task<DurableWorkflowStartResult> Running { get; }
+        internal Task<WorkflowStartResult<WorkflowInstanceHandle>> Running { get; }
         internal InstanceId InstanceId { get; }
         internal LeaseProtectionToken Token { get; }
         internal WorkflowInstanceHandle Instance { get; }
@@ -714,8 +579,7 @@ public static partial class LeaseExitScenarioHost
             string barrier,
             string key)
         {
-            var store = new InMemoryWorkflowProvider();
-            var pools = await CreatePoolsAsync(("database", 1, (TimeSpan?)null));
+            var store = new DurableScenarioProvider(context.Services.TimeProvider);
             var gate = new LeaseGate();
             var definition = Workflow.Durable<LeaseState>(
                     DefinitionId.New(),
@@ -730,70 +594,65 @@ public static partial class LeaseExitScenarioHost
                     lease => lease.Then<BlockingLeaseStep>())
                 .End()
                 .Build();
-            var processor = new DurableCommandProcessor(store, pools);
             var runtime = CreateRuntime(
                 store,
-                pools,
                 definition,
                 context.Services.TimeProvider,
-                new LeaseServices(pools, new LeaseProbe(), gate),
-                processor);
-            var running = runtime.StartOrGetAsync<string, LeaseState>(
-                key,
-                definition.DefinitionId,
-                definition.DefinitionVersion,
+                PoolDefinitions(("database", 1, (TimeSpan?)null)),
+                new LeaseProbe(),
+                gate);
+            var pools = runtime.ResourcePools;
+            var definitionHandle = runtime.Register(definition);
+            var running = definitionHandle.StartOrGetAsync(
                 "input",
-                CancellationToken.None);
+                StartIdempotencyKey.Create(key),
+                CancellationToken.None).AsTask();
             await gate.FirstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-            var instanceId = (await store.ListAsync(
-                new WorkflowProjectionQuery(),
-                CancellationToken.None)).Single().InstanceId;
+            var instanceId = (await store.GetStartedAsync(key, CancellationToken.None)).Value.InstanceId;
             var envelope = await EnvelopeAsync(store, instanceId);
             var token = LeaseProtectionToken.Parse(
                 envelope.OwnedObligations.Single(
                     obligation => obligation.ProtectionToken is not null).ProtectionToken!);
-            var definitionHandle = DurableFacadeScenarioAdapter.Register(
-                runtime,
-                store,
-                store,
-                new DurableManagement(store, pools, store, processor),
-                context.Services.TimeProvider,
-                definition,
-                [ResourcePoolName.Create("database")]);
             var instance = await definitionHandle.GetInstanceAsync(
                 instanceId,
                 CancellationToken.None);
             return new ActiveLeaseFixture(
                 store,
+                runtime,
                 pools,
-                processor,
                 gate,
                 running,
                 instanceId,
                 token,
                 instance);
         }
+
+        public void Dispose()
+        {
+            Runtime.Dispose();
+            Store.Dispose();
+        }
     }
 
-    private sealed class QueuedLeaseFixture
+    private sealed class QueuedLeaseFixture : IDisposable
     {
         private QueuedLeaseFixture(
-            InMemoryWorkflowProvider store,
-            InMemoryResourcePoolStore pools,
-            DurableCommandProcessor processor,
+            DurableScenarioProvider store,
+            DurableScenarioRuntime runtime,
+            IResourcePoolStore pools,
             InstanceId instanceId,
             WorkflowInstanceHandle instance)
         {
             Store = store;
+            Runtime = runtime;
             Pools = pools;
-            Processor = processor;
             InstanceId = instanceId;
             Instance = instance;
         }
 
-        internal InMemoryWorkflowProvider Store { get; }
-        internal InMemoryResourcePoolStore Pools { get; }
-        internal DurableCommandProcessor Processor { get; }
+        internal DurableScenarioProvider Store { get; }
+        internal DurableScenarioRuntime Runtime { get; }
+        internal IResourcePoolStore Pools { get; }
         internal InstanceId InstanceId { get; }
         internal WorkflowInstanceHandle Instance { get; }
 
@@ -802,17 +661,7 @@ public static partial class LeaseExitScenarioHost
             string barrier,
             string key)
         {
-            var store = new InMemoryWorkflowProvider();
-            var pools = await CreatePoolsAsync(("database", 1, (TimeSpan?)null));
-            var blocker = InstanceId.Parse(Guid.CreateVersion7().ToString());
-            _ = await pools.AcquireAsync(
-                new ResourcePoolAcquireRequest(
-                    blocker,
-                    "external",
-                    [new ResourcePoolRequirement("database", 1)],
-                    context.Services.TimeProvider.GetUtcNow(),
-                    ExpiresAt: null),
-                CancellationToken.None);
+            var store = new DurableScenarioProvider(context.Services.TimeProvider);
             var definition = Workflow.Durable<LeaseState>(
                     DefinitionId.New(),
                     DefinitionVersion.Initial)
@@ -824,32 +673,39 @@ public static partial class LeaseExitScenarioHost
                 .AcquireResources(DatabaseRequest(), lease => lease.Then<NoOpStep>())
                 .End()
                 .Build();
-            var processor = new DurableCommandProcessor(store, pools);
             var runtime = CreateRuntime(
                 store,
-                pools,
                 definition,
                 context.Services.TimeProvider,
-                new LeaseServices(pools, new LeaseProbe()),
-                processor);
+                PoolDefinitions(("database", 1, (TimeSpan?)null)),
+                new LeaseProbe());
+            var pools = runtime.ResourcePools;
+            var blocker = InstanceId.Parse(Guid.CreateVersion7().ToString());
+            _ = await pools.AcquireAsync(
+                new ResourcePoolAcquireRequest(
+                    blocker,
+                    "external",
+                    [new ResourcePoolRequirement("database", 1)],
+                    context.Services.TimeProvider.GetUtcNow(),
+                    ExpiresAt: null),
+                CancellationToken.None);
+            var definitionHandle = runtime.Register(definition);
             var started = await runtime.StartOrGetAsync<string, LeaseState>(
                 key,
                 definition.DefinitionId,
                 definition.DefinitionVersion,
                 "input",
                 CancellationToken.None);
-            var definitionHandle = DurableFacadeScenarioAdapter.Register(
-                runtime,
-                store,
-                store,
-                new DurableManagement(store, pools, store, processor),
-                context.Services.TimeProvider,
-                definition,
-                [ResourcePoolName.Create("database")]);
             var instance = await definitionHandle.GetInstanceAsync(
                 started.InstanceId,
                 CancellationToken.None);
-            return new QueuedLeaseFixture(store, pools, processor, started.InstanceId, instance);
+            return new QueuedLeaseFixture(store, runtime, pools, started.InstanceId, instance);
+        }
+
+        public void Dispose()
+        {
+            Runtime.Dispose();
+            Store.Dispose();
         }
     }
 }

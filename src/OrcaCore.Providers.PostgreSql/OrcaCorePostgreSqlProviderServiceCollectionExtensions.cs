@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Npgsql;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Provider.Abstractions;
@@ -70,7 +71,6 @@ public static class OrcaCorePostgreSqlProviderServiceCollectionExtensions
             typeof(IWorkflowStartIdempotencyStore),
             typeof(IWorkflowOutboxStore),
             typeof(IWorkflowProjectionStore),
-            typeof(IWorkflowRetentionStore),
             typeof(ITimerScheduler),
             typeof(IResourcePoolStore),
             typeof(IDurableResourceGovernanceStore)
@@ -107,14 +107,14 @@ public static class OrcaCorePostgreSqlProviderServiceCollectionExtensions
             provider.GetRequiredService<PostgreSqlWorkflowStore>());
         services.TryAddSingleton<IWorkflowProjectionStore>(provider =>
             provider.GetRequiredService<PostgreSqlWorkflowStore>());
-        services.TryAddSingleton<IWorkflowRetentionStore>(provider =>
-            provider.GetRequiredService<PostgreSqlWorkflowStore>());
         services.TryAddSingleton<ITimerScheduler>(provider =>
             provider.GetRequiredService<PostgreSqlWorkflowStore>());
         services.TryAddSingleton<IResourcePoolStore>(provider =>
             provider.GetRequiredService<PostgreSqlResourcePoolStore>());
         services.TryAddSingleton<IDurableResourceGovernanceStore>(provider =>
             provider.GetRequiredService<PostgreSqlResourceGovernanceStore>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, PostgreSqlProviderInitializationHostedService>());
         services.AddSingleton<IDurableProviderRole>(
             new PostgreSqlDurableProviderRole(copiedConnectionString, copiedSchema));
         return services;

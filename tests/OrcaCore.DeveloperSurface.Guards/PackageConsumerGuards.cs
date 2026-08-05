@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using AwesomeAssertions;
 
@@ -20,11 +21,44 @@ public sealed class PackageConsumerInfrastructureGuards
         definitions.Select(x => x.Id).Should().OnlyHaveUniqueItems();
         definitions.Should().OnlyContain(x =>
             x.TurnsGreenSection == 7 || x.TurnsGreenSection == 8);
+        definitions.Where(x => x.GuardTask is not null).Should().OnlyContain(x =>
+            x.GuardTask == "7.24" && x.TurnsGreenTask != null);
+        foreach (var fixture in definitions.Where(x => x.GuardTask is not null))
+            _ = Version.Parse(fixture.TurnsGreenTask!);
+
+        var tasks = File.ReadAllText(Path.Combine(root, "openspec", "changes",
+            "reshape-developer-facing-interfaces", "tasks.md"));
+        Regex.Matches(tasks, @"(?m)^- \[[ x]\] 7\.27\b").Should().ContainSingle();
+        var ingressTaskComplete = Regex.IsMatch(tasks, @"(?m)^- \[x\] 7\.27\b");
+        var shimFixtureIds = ingressTaskComplete
+            ? new HashSet<string>(StringComparer.Ordinal)
+            : new HashSet<string>(["postgresql-durable", "callback-ingress"], StringComparer.Ordinal);
+
         foreach (var fixture in definitions)
         {
             var projectPath = Path.Combine(fixtureRoot, fixture.Project.Replace('/', Path.DirectorySeparatorChar));
             File.Exists(projectPath).Should().BeTrue($"{fixture.Id} project must exist");
-            File.Exists(Path.Combine(Path.GetDirectoryName(projectPath)!, "Program.cs")).Should().BeTrue();
+            var fixtureDirectory = Path.GetDirectoryName(projectPath)!;
+            var expectedSources = shimFixtureIds.Contains(fixture.Id)
+                ? new[] { "MissingNamespaceShim.cs", "Program.cs" }
+                : new[] { "Program.cs" };
+            Directory.GetFiles(fixtureDirectory, "*.cs", SearchOption.AllDirectories)
+                .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal) &&
+                               !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+                .Select(path => Path.GetRelativePath(fixtureDirectory, path).Replace('\\', '/'))
+                .OrderBy(path => path, StringComparer.Ordinal)
+                .Should().Equal(expectedSources, $"{fixture.Id} must compile only its reviewed consumer sources");
+
+            if (shimFixtureIds.Contains(fixture.Id))
+            {
+                var shim = File.ReadAllText(Path.Combine(fixtureDirectory, "MissingNamespaceShim.cs"));
+                Regex.IsMatch(shim, @"\b(?:class|record|struct|interface|enum|delegate)\b", RegexOptions.CultureInvariant)
+                    .Should().BeFalse($"{fixture.Id} shim must never substitute a fixture-local product type");
+                Regex.Replace(shim, @"(?m)^\s*//.*(?:\r?\n|$)", string.Empty).Trim()
+                    .Should().Be("namespace OrcaCore.Durable.Hosting;",
+                        $"{fixture.Id} shim may contain only the empty compiler-progress namespace");
+            }
+
             var project = XDocument.Load(projectPath);
             project.Descendants("ProjectReference").Should().BeEmpty();
             project.Descendants("Reference").Should().BeEmpty();

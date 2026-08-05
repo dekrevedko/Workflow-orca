@@ -4,7 +4,6 @@ using Npgsql;
 using NpgsqlTypes;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Abstractions.Serialization;
@@ -14,51 +13,9 @@ namespace OrcaCore.Providers.PostgreSql;
 
 internal sealed class PostgreSqlWorkflowRetentionStore(NpgsqlDataSource dataSource)
 {
-    public async Task<ArchiveResult> ArchiveAsync(RetentionPolicy policy, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(policy);
-
-        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var transaction = await connection
-            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (await IsActiveInstanceAsync(connection, transaction, policy.InstanceId, cancellationToken).ConfigureAwait(false))
-        {
-            await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
-            return new ArchiveResult { Archived = false, Reason = "Instance is active." };
-        }
-
-        var archived = await ArchiveInstanceAsync(
-            connection,
-            transaction,
-            policy.InstanceId,
-            policy.RequestedAt,
-            cancellationToken).ConfigureAwait(false);
-        if (!archived)
-        {
-            await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
-            return new ArchiveResult { Archived = false, Reason = "Instance projection was not found." };
-        }
-
-        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-        return new ArchiveResult { Archived = true };
-    }
-
-    /// <inheritdoc />
-    public async Task<PurgeResult> PurgeAsync(RetentionPolicy policy, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(policy);
-
-        return await PurgeCoreAsync(policy.InstanceId, cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task<PurgeResult> PurgeAsync(InstanceId instanceId, CancellationToken cancellationToken)
-    {
-        return await PurgeCoreAsync(instanceId, cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task<PurgeResult> PurgeCoreAsync(InstanceId instanceId, CancellationToken cancellationToken)
+    internal async Task<(bool Purged, string? Reason)> PurgeForRetentionAsync(
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var transaction = await connection
@@ -68,21 +25,19 @@ internal sealed class PostgreSqlWorkflowRetentionStore(NpgsqlDataSource dataSour
         if (await IsActiveInstanceAsync(connection, transaction, instanceId, cancellationToken).ConfigureAwait(false))
         {
             await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
-            return new PurgeResult { Purged = false, Reason = "Instance is active." };
+            return (false, "Instance is active.");
         }
 
         if (await HasClaimedOutboxAsync(connection, transaction, instanceId, cancellationToken).ConfigureAwait(false))
         {
             await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
-            return new PurgeResult { Purged = false, Reason = "Instance has claimed outbox records." };
+            return (false, "Instance has claimed outbox records.");
         }
 
         await DeleteInstanceDataAsync(connection, transaction, instanceId, cancellationToken).ConfigureAwait(false);
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-        return new PurgeResult { Purged = true };
+        return (true, null);
     }
-
-    /// <inheritdoc />
 
     private static async Task<bool> IsActiveInstanceAsync(
         NpgsqlConnection connection,
@@ -101,33 +56,11 @@ internal sealed class PostgreSqlWorkflowRetentionStore(NpgsqlDataSource dataSour
         command.Parameters.AddWithValue("instance_id", instanceId.Value);
 
         var status = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return status is string statusText &&
-            Enum.Parse<LegacyWorkflowStatus>(statusText) is
-                LegacyWorkflowStatus.Running or
-                LegacyWorkflowStatus.Waiting or
-                LegacyWorkflowStatus.Paused;
-    }
-
-    private static async Task<bool> ArchiveInstanceAsync(
-        NpgsqlConnection connection,
-        NpgsqlTransaction transaction,
-        InstanceId instanceId,
-        DateTimeOffset archivedAt,
-        CancellationToken cancellationToken)
-    {
-        await using var command = new NpgsqlCommand(
-            """
-            update orcacore_instance_projections
-            set archived_at = @archived_at
-            where instance_id = @instance_id;
-            """,
-            connection,
-            transaction);
-        command.Parameters.AddWithValue("instance_id", instanceId.Value);
-        command.Parameters.AddWithValue("archived_at", archivedAt);
-
-        var affected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        return affected > 0;
+        return status is string statusText && Enum.Parse<global::OrcaCore.WorkflowInstanceStatus>(statusText) is
+            global::OrcaCore.WorkflowInstanceStatus.Pending or
+            global::OrcaCore.WorkflowInstanceStatus.Running or
+            global::OrcaCore.WorkflowInstanceStatus.Waiting or
+            global::OrcaCore.WorkflowInstanceStatus.CancellationRequested;
     }
 
     private static async Task<bool> HasClaimedOutboxAsync(

@@ -1,10 +1,10 @@
 namespace OrcaCore.Core.Execution;
 
-public sealed record FiberSchedulerState(
+internal sealed record FiberSchedulerState(
     IReadOnlyList<FiberId> RunnableFiberIds,
     FiberId? NextFiberId);
 
-public static class FiberScheduler
+internal static class FiberScheduler
 {
     public static StructuredExecutionState ApplyPathCeiling(
         StructuredExecutionState state,

@@ -24,7 +24,11 @@
     <Compile Remove="Aggregates\DurableTimerStateTests.cs" />
     <Compile Remove="Aggregates\DurableWaitStateTests.cs" />
     <Compile Remove="Composition\ChildLineageTests.cs" />
+    <Compile Remove="Composition\ChildResidualPolicyTests.cs" />
+    <Compile Remove="Composition\DurableChildThrottlingTests.cs" />
+    <Compile Remove="Composition\ParentResumeTokenTests.cs" />
     <Compile Remove="Composition\RunChildTests.cs" />
+    <Compile Remove="Composition\RunChildrenTests.cs" />
     <Compile Remove="Continuations\ContinueAsNewAggregateTests.cs" />
     <Compile Remove="Definitions\DurableDefinitionRegistryTests.cs" />
     <Compile Remove="Driver\DurableDeadlineExecutionTests.cs" />
@@ -37,6 +41,8 @@
     <Compile Remove="Driver\DurableStepThrottleExecutionTests.cs" />
     <Compile Remove="Driver\DurableStructuredFiberDriverTests.cs" />
     <Compile Remove="Events\DurableInboxTests.cs" />
+    <Compile Remove="ExternalJobs\ExternalJobCancellationTests.cs" />
+    <Compile Remove="ExternalJobs\RunExternalJobTests.cs" />
     <Compile Remove="Execution\DurableAggregateLoaderTests.cs" />
     <Compile Remove="Execution\DurableCheckpointMapperTests.cs" />
     <Compile Remove="Execution\DurableCommandPipelineTests.cs" />
@@ -59,6 +65,7 @@
     <Compile Remove="Sagas\CompensationFailureTests.cs" />
     <Compile Remove="Sagas\DurableSagaCommandAdapterTests.cs" />
     <Compile Remove="Sagas\DurableSagaStateTests.cs" />
+    <Compile Remove="Sagas\SagaAuditTests.cs" />
     <Compile Remove="Sagas\SagaPolicyInteractionTests.cs" />
     <Compile Remove="Sagas\StructuredSagaOwnershipTests.cs" />
     <Compile Remove="Versioning\DurableVersioningTests.cs" />

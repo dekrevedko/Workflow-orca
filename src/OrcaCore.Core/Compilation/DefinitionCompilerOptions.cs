@@ -6,7 +6,7 @@ namespace OrcaCore.Core.Compilation;
 /// <summary>
 /// Static limits and type-contract resolution used while compiling a definition.
 /// </summary>
-public sealed record DefinitionCompilerOptions
+internal sealed record DefinitionCompilerOptions
 {
     /// <summary>
     /// Gets the maximum structural instructions one fiber may execute in one quantum.
@@ -32,7 +32,7 @@ public sealed record DefinitionCompilerOptions
 /// <summary>
 /// Resolves whether a workflow type has a configured serialization contract.
 /// </summary>
-public interface IWorkflowTypeSerializerRegistry
+internal interface IWorkflowTypeSerializerRegistry
 {
     /// <summary>
     /// Tries to resolve a stable schema identity for a persisted or copied type.

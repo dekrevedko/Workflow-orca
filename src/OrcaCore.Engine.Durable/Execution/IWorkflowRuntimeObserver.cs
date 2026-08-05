@@ -1,13 +1,14 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 
 namespace OrcaCore.Engine.Durable.Execution;
+
+using WorkflowStatus = global::OrcaCore.WorkflowInstanceStatus;
 
 /// <summary>
 /// Observes durable runtime command outcomes for diagnostics and metrics.
 /// </summary>
-public interface IWorkflowRuntimeObserver
+internal interface IWorkflowRuntimeObserver
 {
     /// <summary>
     /// Called after a durable command reaches a final outcome.
@@ -20,7 +21,7 @@ public interface IWorkflowRuntimeObserver
 /// <summary>
 /// Describes one durable command outcome at the runtime boundary.
 /// </summary>
-public sealed record WorkflowRuntimeObservation(
+internal sealed record WorkflowRuntimeObservation(
     WorkflowRuntimeObservationKind Kind,
     InstanceId InstanceId,
     DurableCommandOutcome Outcome,
@@ -55,7 +56,7 @@ public sealed record WorkflowRuntimeObservation(
 /// kernel (decide + commit), not the wall time of the business step itself — step code executes
 /// outside the kernel, which never observes when it started.
 /// </summary>
-public sealed record WorkflowRuntimeEventObservation(
+internal sealed record WorkflowRuntimeEventObservation(
     string EventType,
     DefinitionId? DefinitionId = null,
     string? StepPath = null,
@@ -70,7 +71,7 @@ public sealed record WorkflowRuntimeEventObservation(
 /// <summary>
 /// Categorizes durable runtime observations without requiring callers to parse command result text.
 /// </summary>
-public enum WorkflowRuntimeObservationKind
+internal enum WorkflowRuntimeObservationKind
 {
     CommandCommitted,
     CommandConflict,

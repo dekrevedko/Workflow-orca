@@ -17,43 +17,18 @@ SHALL be able to answer, without ad-hoc host instrumentation:
 
 ---
 
-## 15.0 active implementation review (2026-07-03)
+## 15.0 Interpretation and conformance evidence
 
-Assessment of the repository-root implementation against IOQ-5 (`docs/implementation/00-stack-decisions.md`) and
-MG/DU observability requirements. This section is **provenance only**; normative requirements
-follow in §15.1+.
+This document defines the observability contract; it does not embed a dated inventory of product
+source. Current implementation status, exact instrument coverage, and host-loop evidence belong in
+the active OpenSpec task graph and immutable review packets, where they can be reproduced against a
+frozen target.
 
-### What exists today (product observability)
-
-| Area | Status | Notes |
-|------|--------|-------|
-| Management statistics | **Partial, provisional** | Legacy `Statistics()` on ephemeral management and `GetStatisticsAsync` on the durable projection store prove the projection data; neither is an approved v1 application-handle member. |
-| Pressure metrics | **Partial** | `WorkflowPressureMetrics` (stream events, checkpoints, pending outbox, active instances) in PostgreSQL/in-memory providers. Missing checkpoint **lag** and payload-size pressure (DU-052). |
-| Ephemeral statistics richness | **Ahead of abstractions** | The legacy ephemeral `WorkflowStatistics` includes `ActiveWaitsByEventName`, `OldestActiveInstanceAge`, and `StuckCount`; the durable abstraction type does not. This is provenance for host/operator projections, not v1 handle approval. |
-| Lifecycle events | **Good** | `LifecycleEventSnapshot` with `Durable` flag; ephemeral in-process; durable committed as outbox `"lifecycle-event"` records in same commit (`DurableCommandProcessor.CreateLifecycleOutboxRecords`). |
-| DAG run inspection | **Good** | Historical `DurableManagement.ReconstructDagRunAsync` proves node status/timing reconstruction; v1 places the typed surface in `OrcaCore.Dag` (JS-010). The baseline implementation loads the full stream tail — scalability concern (R7). |
-| Stuck detection | **Good** | Lifecycle events + queryable `IsStuck` / `HasStuckStep` on snapshots. |
-
-### What is missing (runtime telemetry)
-
-| Area | Status | Gap |
-|------|--------|-----|
-| `ILogger` / `[LoggerMessage]` | **Absent** | Zero usages under `src/` (R8 P2). Only `OrcaCore.Hosting` references `Logging.Abstractions`; no log calls. |
-| `ActivitySource` (traces) | **Absent** | No spans on command processing, commits, outbox dispatch, or step execution. |
-| `Meter` (metrics) | **Absent** | No runtime instruments; dashboard consumers cannot scrape OrcaCore-native signals. |
-| OpenTelemetry SDK | **Absent** | No OTel packages in `Directory.Packages.props`; hosting does not wire exporters. |
-| Outbox pump observability hooks | **Absent** | `DurableOutboxPump` has no `IOutboxPumpObserver`-equivalent (required by DU-032/PR-015). Prior `src/OrcaCore.Runtime` had observer interface; current implementation does not. |
-| Hosted pump/timer services | **Stub** | `OrcaCoreOutboxPumpHostedService` is a no-op (R7 P0) — even if metrics existed, background paths are not live in sample host. |
-| Log ↔ metric correlation | **Absent** | No shared attribute model, trace context propagation, or exemplars. |
-
-### Conclusion
-
-The current implementation delivers **queryable workflow state** suitable for host/operator
-dashboards built on legacy statistics/projections, but **does not yet emit OTel logs or metrics**.
-Hosts cannot populate a system dashboard from OrcaCore instrumentation alone. Implementation
-of this document closes that gap while preserving the IOQ-5 boundary: BCL diagnostics in
-core/engines/providers; the host application owns OTel SDK wiring. The exhaustive first-release
-package manifest contains no `OrcaCore.Hosting` or OrcaCore OTel integration package.
+The first-release boundary is stable: product libraries emit only BCL diagnostics, the application
+host owns OpenTelemetry SDK and exporter registration, and application workflow handles expose the
+closed instance projections defined by document 09 rather than broad statistics or provider query
+surfaces. Provider/runtime projections may support operator diagnostics without becoming public
+application APIs.
 
 ---
 

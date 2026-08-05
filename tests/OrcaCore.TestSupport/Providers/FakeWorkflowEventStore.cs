@@ -1,12 +1,10 @@
 using System.Collections.Concurrent;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
-using ProjectionActiveWaitSnapshot = global::OrcaCore.Abstractions.Instances.ActiveWaitSnapshot;
-using ProjectionWorkflowInstanceSnapshot = global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot;
+using ProjectionWorkflowInstanceSnapshot = global::OrcaCore.Abstractions.Providers.WorkflowProjectionSnapshot;
 
 namespace OrcaCore.TestSupport.Providers;
 
@@ -288,115 +286,41 @@ public sealed class FakeWorkflowEventStore :
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<ProjectionWorkflowInstanceSnapshot>> ListAsync(
-        WorkflowProjectionQuery query,
+    public Task<Option<ProjectionWorkflowInstanceSnapshot>> GetAsync(
+        InstanceId instanceId,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(projectedSummaries.TryGetValue(instanceId, out var snapshot)
+            ? Option<ProjectionWorkflowInstanceSnapshot>.Some(snapshot)
+            : Option<ProjectionWorkflowInstanceSnapshot>.None);
+    }
+
+    public Task<IReadOnlyList<ProjectionWorkflowInstanceSnapshot>> FindActiveWaitsAsync(
+        DefinitionId? definitionId,
+        EventName eventName,
+        CorrelationId correlationId,
+        CancellationToken cancellationToken)
+    {
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult<IReadOnlyList<ProjectionWorkflowInstanceSnapshot>>(
             projectedSummaries.Values
-                .Where(snapshot => Matches(snapshot, query))
+                .Where(snapshot => definitionId is null || snapshot.DefinitionId.Equals(definitionId))
+                .Where(snapshot => snapshot.ActiveWaits.Any(wait =>
+                    string.Equals(wait.EventName, eventName.Value, StringComparison.Ordinal) &&
+                    wait.CorrelationId.Equals(correlationId)))
                 .OrderBy(snapshot => snapshot.InstanceId.Value)
                 .ToArray());
     }
 
-    public Task<int> CountAsync(WorkflowProjectionQuery query, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(query);
-        cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(projectedSummaries.Values.Count(snapshot => Matches(snapshot, query)));
-    }
-
-    public Task<IReadOnlyList<ProjectionActiveWaitSnapshot>> ListActiveWaitsAsync(
-        WorkflowProjectionQuery query,
+    public Task<IReadOnlyList<ProjectionWorkflowInstanceSnapshot>> ListLeaseRecoveryCandidatesAsync(
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult<IReadOnlyList<ProjectionActiveWaitSnapshot>>(
+        return Task.FromResult<IReadOnlyList<ProjectionWorkflowInstanceSnapshot>>(
             projectedSummaries.Values
-                .Where(snapshot => Matches(snapshot, query))
-                .SelectMany(snapshot => snapshot.ActiveWaits)
+                .OrderBy(snapshot => snapshot.InstanceId.Value)
                 .ToArray());
-    }
-
-    public Task<WorkflowStatistics> GetStatisticsAsync(
-        WorkflowProjectionQuery query,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(query);
-        cancellationToken.ThrowIfCancellationRequested();
-        var matches = projectedSummaries.Values.Where(snapshot => Matches(snapshot, query)).ToArray();
-        return Task.FromResult(new WorkflowStatistics
-        {
-            Groups = matches
-                .GroupBy(snapshot => new
-                {
-                    snapshot.DefinitionId,
-                    snapshot.DefinitionVersion,
-                    snapshot.Status
-                })
-                .Select(group => new WorkflowStatisticsGroup
-                {
-                    DefinitionId = group.Key.DefinitionId,
-                    DefinitionVersion = group.Key.DefinitionVersion,
-                    Status = group.Key.Status,
-                    Count = group.Count()
-                })
-                .ToArray(),
-            Pressure = new WorkflowPressureMetrics
-            {
-                PendingOutboxCount = outbox.Values.Count(record =>
-                    record.State is OutboxRecordState.Pending or OutboxRecordState.Retryable),
-                OutboxPendingCount = outbox.Values.Count(record => record.State is OutboxRecordState.Pending),
-                OutboxRetryableCount = outbox.Values.Count(record => record.State is OutboxRecordState.Retryable),
-                OutboxClaimedCount = outbox.Values.Count(record => record.State is OutboxRecordState.Claimed),
-                ContinuationPendingCount = outbox.Values.Count(record =>
-                    record.Write.Kind == OutboxKinds.Continue && record.State is OutboxRecordState.Pending),
-                ContinuationRetryableCount = outbox.Values.Count(record =>
-                    record.Write.Kind == OutboxKinds.Continue && record.State is OutboxRecordState.Retryable),
-                ContinuationClaimedCount = outbox.Values.Count(record =>
-                    record.Write.Kind == OutboxKinds.Continue && record.State is OutboxRecordState.Claimed),
-                ExternalOutboxPendingCount = outbox.Values.Count(record =>
-                    record.Write.Kind != OutboxKinds.Continue && record.State is OutboxRecordState.Pending),
-                ExternalOutboxRetryableCount = outbox.Values.Count(record =>
-                    record.Write.Kind != OutboxKinds.Continue && record.State is OutboxRecordState.Retryable),
-                ExternalOutboxClaimedCount = outbox.Values.Count(record =>
-                    record.Write.Kind != OutboxKinds.Continue && record.State is OutboxRecordState.Claimed),
-                ActiveInstanceCount = projectedSummaries.Values.Count(snapshot =>
-                    snapshot.Status is WorkflowStatus.Running or WorkflowStatus.Waiting or WorkflowStatus.Paused)
-            }
-        });
-    }
-
-    private static bool Matches(
-        ProjectionWorkflowInstanceSnapshot snapshot,
-        WorkflowProjectionQuery query)
-    {
-        return (query.InstanceId is null || snapshot.InstanceId == query.InstanceId) &&
-            (query.ParentInstanceId is null || snapshot.ParentInstanceId == query.ParentInstanceId) &&
-            (query.RootInstanceId is null || snapshot.RootInstanceId == query.RootInstanceId) &&
-            (query.DefinitionId is null || snapshot.DefinitionId == query.DefinitionId) &&
-            (query.DefinitionVersion is null || snapshot.DefinitionVersion == query.DefinitionVersion) &&
-            (query.Status is null || snapshot.Status == query.Status) &&
-            MatchesActiveWait(snapshot.ActiveWaits, query);
-    }
-
-    private static bool MatchesActiveWait(
-        IReadOnlyList<ProjectionActiveWaitSnapshot> activeWaits,
-        WorkflowProjectionQuery query)
-    {
-        if (query.ActiveWaitEventName is null && query.ActiveWaitCorrelationId is null)
-        {
-            return true;
-        }
-
-        return activeWaits.Any(wait =>
-            (query.ActiveWaitEventName is null ||
-                string.Equals(wait.EventName, query.ActiveWaitEventName, StringComparison.Ordinal)) &&
-            (query.ActiveWaitCorrelationId is null ||
-                wait.CorrelationId.Equals(query.ActiveWaitCorrelationId)));
     }
 
     public void FailNextCommitBeforeApply()
@@ -413,21 +337,14 @@ public sealed class FakeWorkflowEventStore :
             {
                 ActiveTimers = checkpoint.RuntimeState.ActiveTimers.Select(timer => timer with { }).ToArray(),
                 ActiveWaits = checkpoint.RuntimeState.ActiveWaits.Select(wait => wait with { }).ToArray(),
-                BufferedDeliveries = checkpoint.RuntimeState.BufferedDeliveries.Select(delivery => delivery with { }).ToArray(),
-                BufferedTimers = checkpoint.RuntimeState.BufferedTimers.Select(timer => timer with { }).ToArray(),
-                ActiveChildren = checkpoint.RuntimeState.ActiveChildren.Select(child => child with { }).ToArray(),
-                ActiveChildGroups = checkpoint.RuntimeState.ActiveChildGroups.Select(group => group with
-                {
-                    Children = group.Children.Select(child => child with { }).ToArray()
-                }).ToArray(),
                 ActiveResourceTickets = checkpoint.RuntimeState.ActiveResourceTickets.Select(ticket => ticket with { }).ToArray(),
-                ActiveExternalJobs = checkpoint.RuntimeState.ActiveExternalJobs.Select(job => job with { }).ToArray(),
-                CompletedSagaForwardActions = checkpoint.RuntimeState.CompletedSagaForwardActions.Select(action => action with { }).ToArray(),
-                SagaCompensationActions = checkpoint.RuntimeState.SagaCompensationActions.Select(action => action with { }).ToArray(),
-                SagaRecoveryInterventions = checkpoint.RuntimeState.SagaRecoveryInterventions.Select(intervention => intervention with { }).ToArray(),
-                RequestedSagaCompensationScopes = [.. checkpoint.RuntimeState.RequestedSagaCompensationScopes],
-                RecordedParentResumeTokens = [.. checkpoint.RuntimeState.RecordedParentResumeTokens],
-                ConsumedParentResumeTokens = [.. checkpoint.RuntimeState.ConsumedParentResumeTokens]
+                PendingResumes = checkpoint.RuntimeState.PendingResumes.Select(resume => resume with
+                {
+                    Payload = resume.Payload is null ? null : [.. resume.Payload]
+                }).ToArray(),
+                ContinuationFailureCount = checkpoint.RuntimeState.ContinuationFailureCount,
+                ContinuationFailurePositionStreamVersion = checkpoint.RuntimeState.ContinuationFailurePositionStreamVersion,
+                ContinuationRetryNotBefore = checkpoint.RuntimeState.ContinuationRetryNotBefore
             }
         };
     }

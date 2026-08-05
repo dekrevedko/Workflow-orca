@@ -58,17 +58,24 @@ Review-E planning remediation has been applied and is recorded in the current
 The independent planning re-review approved guard retargeting. Tasks 3.1-3.10, all four 3.11
 slices, and task 3.12 are complete. After two rejected intermediate guard packets, all findings
 were remediated and the exact whole packet received a final immutable approval with no P0-P3
- findings. Sections 4, 5, and 6 are independently approved. Section 7 is implemented and frozen
- for independent exit review; task 8.0 and Section 8 source work remain blocked until that review
- approves the exact target.
+ findings. Sections 4, 5, and 6 are independently approved. Section 7 was independently approved
+ and checkpointed as `50254d08175431896d580ecfcc93d8e49e1c2ec7`; post-checkpoint Section 7A now
+ closes the non-event public-surface and test-attribution findings. Pending Section 7B proposes a
+ replacement durable event/messaging and application-catalog contract; it is not current product
+ authority before task 7.23 approval. The separate `harmonize-downstream-capability-specs` change
+ remains pending and must remove its conflicting event ownership before planning approval and
+ canonical synchronization. Task 8.0 and Section 8 source work remain blocked until the combined
+ Section 7A/7B target and the final harmonized canonical/docs target are independently approved and
+ checkpointed.
 
 The 2026-07-18 simplification amendment/status, 2026-07-19 construction amendment, completed
 reviewer prompt, reviews A-E, their earlier consolidated review, and the root-only owner decision
 are immutable historical inputs. They do not outrank the live
 [matrix](../specs/17-selected-mode-capability-matrix.md),
-[exact companion](../specs/17-public-authoring-contract.cs), canonical requirements, or the two
-active OpenSpec changes. Root-only `Parallel`, `ForEach`, and `While` remain selected, but no
-historical readiness verdict advances the current gate.
+ [exact companion](../specs/17-public-authoring-contract.cs), canonical requirements, or the live
+ OpenSpec changes. `harmonize-downstream-capability-specs` is pending independent approval and its
+ deltas have not been synchronized into canonical specs. Root-only `Parallel`, `ForEach`, and
+ `While` remain selected, but no historical readiness verdict advances the current gate.
 
 ## Phases at a glance (mapped to spec slices)
 

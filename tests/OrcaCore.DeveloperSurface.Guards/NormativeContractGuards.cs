@@ -60,8 +60,16 @@ public sealed partial class NormativeContractInfrastructureGuards
         Contract.DagDiagnostics.Should().HaveCount(7).And.OnlyHaveUniqueItems();
         Contract.FailureCodes.Should().HaveCount(25).And.OnlyHaveUniqueItems();
         Contract.AllowedFriends.Should().Equal(
+            "OrcaCore.Core->OrcaCore.Core.Tests",
+            "OrcaCore.Core->OrcaCore.Engine.Durable",
+            "OrcaCore.Core->OrcaCore.Engine.Ephemeral",
             "OrcaCore.Durable.Hosting->OrcaCore.Dag.Hosting",
-            "OrcaCore.Engine.Durable->OrcaCore.ProviderCertification");
+            "OrcaCore.Durable.Hosting->OrcaCore.Hosting.Tests",
+            "OrcaCore.Engine.Durable->OrcaCore.Durable.Hosting",
+            "OrcaCore.Engine.Durable->OrcaCore.Engine.Durable.Tests",
+            "OrcaCore.Engine.Durable->OrcaCore.ProviderCertification",
+            "OrcaCore.Engine.Ephemeral->OrcaCore.Engine.Ephemeral.Tests",
+            "OrcaCore.Providers.PostgreSql->OrcaCore.Providers.PostgreSql.Tests");
         Contract.Diagnostics.Select(x => x.Code).Should().Equal(
             Contract.WorkflowDiagnostics.Concat(Contract.DagDiagnostics));
         Contract.Diagnostics.Should().OnlyContain(x => x.Severity == "Error");
@@ -115,6 +123,16 @@ public sealed partial class NormativeContractInfrastructureGuards
             "EphemeralWorkflowDefinition", "DurableWorkflowDefinition", "DurableWorkflowRef"
         };
         foreach (var type in required) companion.Should().Contain($"class {type}");
+        foreach (var declaration in new[]
+        {
+            "class EventContractVersion", "class WorkflowEventContract", "class WorkflowEventContract<TPayload>",
+            "record WorkflowEventRoute", "class WorkflowInboundEvent", "class WorkflowInboundEvent<TPayload>",
+            "record WorkflowEventAcceptanceResult", "record WorkflowEventAcceptanceRejection",
+            "class WorkflowOutboundEvent", "class WorkflowEventDispatchFailure", "record WorkflowEventDispatchResult",
+            "class EphemeralWorkflowRef", "class DurableWorkflowRef",
+            "class OrcaCoreEphemeralEngineBuilder", "class OrcaCoreDurableEngineBuilder",
+            "interface IWorkflowEventIngress", "interface IWorkflowEventDispatcher"
+        }) companion.Should().Contain(declaration);
 
         foreach (var forbidden in new[] { "WaitLong(", "Yield(", "WhenFirst(", "RunChild(", "RunChildren(", "RunExternalJob(", "Saga(" })
         {
@@ -203,6 +221,38 @@ public sealed partial class NormativeContractInfrastructureGuards
             type.GetMethods(BindingFlags.Public | BindingFlags.Static).Select(x => x.Name)
                 .Should().Contain(new[] { "Parse", "TryParse" });
         }
+    }
+
+    [Fact]
+    public void StepContextAndItemValues_HaveTheExactRootOwnedSurface()
+    {
+        var itemContext = typeof(global::OrcaCore.ForEachItemContext);
+        itemContext.Assembly.GetName().Name.Should().Be("OrcaCore");
+        itemContext.Namespace.Should().Be("OrcaCore");
+        itemContext.IsSealed.Should().BeTrue();
+        itemContext.GetConstructors(BindingFlags.Public | BindingFlags.Instance)
+            .Should().ContainSingle().Which.GetParameters().Select(parameter => parameter.ParameterType)
+            .Should().Equal(typeof(int));
+        itemContext.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Should().ContainSingle(property => property.Name == "Index" && property.PropertyType == typeof(int));
+
+        var stepContext = typeof(global::OrcaCore.StepContext<>);
+        stepContext.Assembly.GetName().Name.Should().Be("OrcaCore");
+        stepContext.Namespace.Should().Be("OrcaCore");
+        stepContext.IsSealed.Should().BeTrue();
+        stepContext.GetGenericArguments().Should().ContainSingle();
+        stepContext.GetConstructors(BindingFlags.Public | BindingFlags.Instance).Should().BeEmpty();
+        stepContext.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .OrderBy(property => property.Name, StringComparer.Ordinal)
+            .Select(property => property.Name)
+            .Should().Equal("Execution", "ForEachItem", "ResourceLease", "ResumedEvent", "State", "TimeProvider");
+        stepContext.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Should().OnlyContain(property => property.SetMethod == null);
+        var replaceState = stepContext.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Should().ContainSingle(method => method.Name == "ReplaceState").Subject;
+        replaceState.ReturnType.Should().Be(typeof(void));
+        replaceState.GetParameters().Select(parameter => parameter.ParameterType)
+            .Should().Equal(stepContext.GetGenericArguments()[0]);
     }
 
     private static string Read(string path) => File.ReadAllText(Path.Combine(
@@ -298,6 +348,17 @@ public sealed class NormativeContractProductGuards
                 matches[0].Assembly.GetName().Name.Should().Be(expectedOwner.Assembly);
             }
         }
+    }
+
+    [Fact]
+    public void EveryExternallyVisibleProductException_UsesTheStableCodedFailureBase()
+    {
+        PublicSurfaceCatalog.ExportedTypes
+            .Select(entry => entry.Type)
+            .Where(type => type != typeof(global::OrcaCore.OrcaCoreException) &&
+                           typeof(Exception).IsAssignableFrom(type))
+            .Should().OnlyContain(type => typeof(global::OrcaCore.OrcaCoreException).IsAssignableFrom(type),
+                "every public product failure must expose the stable OrcaCoreException.Code contract");
     }
 
     private static string Value(System.Xml.Linq.XDocument project, string name, string fallback) =>

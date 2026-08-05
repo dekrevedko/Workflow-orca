@@ -1,6 +1,7 @@
 using System.Diagnostics.Metrics;
+using System.Reflection;
 using AwesomeAssertions;
-using OrcaCore.Engine.Durable.Diagnostics;
+using OrcaCore.Abstractions.Diagnostics;
 
 namespace OrcaCore.DeveloperSurface.Guards;
 
@@ -8,6 +9,12 @@ namespace OrcaCore.DeveloperSurface.Guards;
 [Trait(GuardTraits.Disposition, GuardTraits.Infrastructure)]
 public sealed class OperationalTelemetryContractGuards
 {
+    private const string QuarantinedUnitsInstrumentName = "orcacore.resource.quarantined.units";
+    private const string OldestQuarantinedObligationAgeInstrumentName =
+        "orcacore.resource.quarantined.oldest_age";
+    private const string FencedBodiesRunningInstrumentName =
+        "orcacore.execution.fenced_bodies.running";
+
     [Fact]
     public void DurableEngine_PublishesTheThreeExactBclOperationalInstruments()
     {
@@ -16,7 +23,7 @@ public sealed class OperationalTelemetryContractGuards
         {
             InstrumentPublished = (instrument, current) =>
             {
-                if (instrument.Meter.Name == OrcaCoreDurableDiagnostics.SourceName)
+                if (instrument.Meter.Name == OrcaCoreDiagnostics.DurableSourceName)
                 {
                     published.Add(instrument.Name);
                     current.EnableMeasurementEvents(instrument);
@@ -24,13 +31,16 @@ public sealed class OperationalTelemetryContractGuards
             }
         };
         listener.Start();
-        _ = OrcaCoreDurableDiagnostics.Meter;
+        _ = Assembly.Load("OrcaCore.Engine.Durable")
+            .GetType("OrcaCore.Engine.Durable.Diagnostics.OrcaCoreDurableDiagnostics", throwOnError: true)!
+            .GetProperty("Meter", BindingFlags.Public | BindingFlags.Static)!
+            .GetValue(null);
 
         published.Should().Contain(new[]
         {
-            OrcaCoreDurableDiagnostics.QuarantinedUnitsInstrumentName,
-            OrcaCoreDurableDiagnostics.OldestQuarantinedObligationAgeInstrumentName,
-            OrcaCoreDurableDiagnostics.FencedBodiesRunningInstrumentName
+            QuarantinedUnitsInstrumentName,
+            OldestQuarantinedObligationAgeInstrumentName,
+            FencedBodiesRunningInstrumentName
         });
     }
 
@@ -42,10 +52,10 @@ public sealed class OperationalTelemetryContractGuards
             "docs",
             "observability",
             "resource-governance-dashboard.md"));
-        guidance.Should().Contain(OrcaCoreDurableDiagnostics.SourceName);
-        guidance.Should().Contain(OrcaCoreDurableDiagnostics.QuarantinedUnitsInstrumentName);
-        guidance.Should().Contain(OrcaCoreDurableDiagnostics.OldestQuarantinedObligationAgeInstrumentName);
-        guidance.Should().Contain(OrcaCoreDurableDiagnostics.FencedBodiesRunningInstrumentName);
+        guidance.Should().Contain(OrcaCoreDiagnostics.DurableSourceName);
+        guidance.Should().Contain(QuarantinedUnitsInstrumentName);
+        guidance.Should().Contain(OldestQuarantinedObligationAgeInstrumentName);
+        guidance.Should().Contain(FencedBodiesRunningInstrumentName);
         guidance.Should().Contain("authorize").And.Contain("redact");
         guidance.Should().Contain("host-owned").And.Contain("OpenTelemetry");
     }

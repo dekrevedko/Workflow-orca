@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Phase0PackageVersion Condition="'$(Phase0PackageVersion)' == ''">0.0.0-phase0</Phase0PackageVersion>
+    <RestoreSources>$(Phase0PackageFeed)</RestoreSources>
+    <Phase0PackageCache Condition="'$(Phase0PackageCache)' == ''">$(MSBuildThisFileDirectory)obj/package-cache/$(Phase0PackageVersion)</Phase0PackageCache>
+    <RestorePackagesPath>$(Phase0PackageCache)</RestorePackagesPath>
+    <RestoreFallbackFolders>$(UserProfile)/.nuget/packages</RestoreFallbackFolders>
+    <RestoreIgnoreFailedSources>false</RestoreIgnoreFailedSources>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="OrcaCore" Version="$(Phase0PackageVersion)" />
+    <PackageReference Include="OrcaCore.Core" Version="$(Phase0PackageVersion)" />
+    <PackageReference Include="OrcaCore.Engine.Durable" Version="$(Phase0PackageVersion)" />
+    <PackageReference Include="OrcaCore.Engine.Ephemeral" Version="$(Phase0PackageVersion)" />
+    <PackageReference Include="OrcaCore.Durable.Hosting" Version="$(Phase0PackageVersion)" />
+    <PackageReference Include="OrcaCore.Provider.Abstractions" Version="$(Phase0PackageVersion)" />
+    <PackageReference Include="OrcaCore.Runtime.Protocol" Version="$(Phase0PackageVersion)" />
+  </ItemGroup>
+</Project>

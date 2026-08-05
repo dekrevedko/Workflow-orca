@@ -1,6 +1,4 @@
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Authoring;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Core.Execution;
@@ -10,27 +8,27 @@ namespace OrcaCore.Core.Building;
 /// <summary>
 /// Immutable view of parent state supplied to branch projection and merge delegates.
 /// </summary>
-public sealed record ReadOnlyParentSnapshot<TState>(TState Value);
+internal sealed record ReadOnlyParentSnapshot<TState>(TState Value);
 
 /// <summary>
 /// Immutable view of branch-private state supplied to its result projector.
 /// </summary>
-public sealed record ReadOnlyBranchSnapshot<TState>(TState Value);
+internal sealed record ReadOnlyBranchSnapshot<TState>(TState Value);
 
 /// <summary>
 /// Typed result produced by one structured branch.
 /// </summary>
-public sealed record BranchResult<TResult>(string BranchId, int Ordinal, TResult Value);
+internal sealed record BranchResult<TResult>(string BranchId, int Ordinal, TResult Value);
 
 /// <summary>
 /// Stable partition input used to initialize one ephemeral ForEach item fiber.
 /// </summary>
-public sealed record ForEachItemInput<TItem>(int Index, IReadOnlyList<TItem> Items);
+internal sealed record ForEachItemInput<TItem>(int Index, IReadOnlyList<TItem> Items);
 
 /// <summary>
 /// Terminal state recorded for one ephemeral ForEach item fiber.
 /// </summary>
-public enum ForEachItemTerminalStatus
+internal enum ForEachItemTerminalStatus
 {
     Succeeded,
     Failed,
@@ -40,7 +38,7 @@ public enum ForEachItemTerminalStatus
 /// <summary>
 /// Runtime-owned ordered outcome for one ephemeral ForEach item fiber.
 /// </summary>
-public sealed record ForEachItemOutcome<TResult>(
+internal sealed record ForEachItemOutcome<TResult>(
     int Index,
     ForEachItemTerminalStatus Status,
     TResult? Result,
@@ -180,7 +178,7 @@ internal sealed class BranchBuilder<TBranchState, TResult>
         var step = PreviousDecoratableStep("retry");
         if (step.Policies.Retry is not null)
         {
-            throw PublicAuthoringContracts.MisplacedDecorator("retry", instructions.Count - 1);
+            throw AuthoringContractFactory.MisplacedDecorator("retry", instructions.Count - 1);
         }
 
         instructions[^1] = step with { Policies = step.Policies.WithRetry(maxAttempts, backoff ?? TimeSpan.Zero) };
@@ -212,7 +210,7 @@ internal sealed class BranchBuilder<TBranchState, TResult>
         var step = PreviousDecoratableStep("timeout");
         if (step.Policies.Timeout is not null)
         {
-            throw PublicAuthoringContracts.MisplacedDecorator("timeout", instructions.Count - 1);
+            throw AuthoringContractFactory.MisplacedDecorator("timeout", instructions.Count - 1);
         }
 
         instructions[^1] = step with { Policies = step.Policies.WithTimeout(duration) };
@@ -247,7 +245,7 @@ internal sealed class BranchBuilder<TBranchState, TResult>
         var step = PreviousDecoratableStep("transient pool");
         if (step.Policies.PoolKey is not null)
         {
-            throw PublicAuthoringContracts.MisplacedDecorator("transient pool", instructions.Count - 1);
+            throw AuthoringContractFactory.MisplacedDecorator("transient pool", instructions.Count - 1);
         }
 
         instructions[^1] = step with { Policies = step.Policies.WithPoolKey(poolKey) };
@@ -350,37 +348,6 @@ internal sealed class BranchBuilder<TBranchState, TResult>
     }
 
     /// <summary>
-    /// Adds a nested first-terminal race whose merge replaces this branch's private state.
-    /// </summary>
-    public BranchBuilder<TBranchState, TResult> WhenFirst<TNestedResult>(
-        Action<BranchScopeBuilder<TBranchState, TNestedResult>> branches,
-        Func<ReadOnlyParentSnapshot<TBranchState>, BranchResult<TNestedResult>, TBranchState> merge)
-    {
-        ArgumentNullException.ThrowIfNull(branches);
-        ArgumentNullException.ThrowIfNull(merge);
-
-        using var operation = Mutate();
-        var scopeHandle = lifecycle.CreateLexical(NextLocation);
-        var scope = new BranchScopeBuilder<TBranchState, TNestedResult>(scopeHandle);
-        try
-        {
-            branches(scope);
-        }
-        finally
-        {
-            scopeHandle.Expire();
-        }
-
-        instructions.Add(new BranchStructuredScopeAuthoringInstruction(
-            "WhenFirst",
-            typeof(TBranchState),
-            typeof(TNestedResult),
-            scope.Branches,
-            merge));
-        return this;
-    }
-
-    /// <summary>
     /// Terminates the branch and projects its serializable result.
     /// </summary>
     public BranchBuilder<TBranchState, TResult> Return(
@@ -434,7 +401,7 @@ internal sealed class BranchBuilder<TBranchState, TResult>
     {
         if (instructions.Count == 0 || instructions[^1] is not BranchStepAuthoringInstruction step)
         {
-            throw PublicAuthoringContracts.MisplacedDecorator(decorator, Math.Max(0, instructions.Count));
+            throw AuthoringContractFactory.MisplacedDecorator(decorator, Math.Max(0, instructions.Count));
         }
 
         return step;

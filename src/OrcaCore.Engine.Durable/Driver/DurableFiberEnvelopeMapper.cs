@@ -5,6 +5,7 @@ using OrcaCore.Core.Building;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Core.Execution;
+using OrcaCore.Engine.Durable.Execution;
 
 namespace OrcaCore.Engine.Durable.Driver;
 
@@ -60,8 +61,9 @@ internal static class DurableFiberEnvelopeMapper
             NextRegistrationSequence = state.NextRegistrationSequence,
             Diagnostics = new DurableExecutionDiagnostics
             {
-                TotalYields = checked(
-                    state.CompletedYieldCount + state.Fibers.Values.Sum(fiber => fiber.YieldCount)),
+            TotalQuantumRotations = checked(
+                state.CompletedQuantumRotationCount +
+                state.Fibers.Values.Sum(fiber => fiber.QuantumRotationCount)),
                 ForcedRotations = checked(
                     state.CompletedForcedRotationCount +
                     state.Fibers.Values.Sum(fiber => fiber.ForcedRotationCount))
@@ -78,7 +80,7 @@ internal static class DurableFiberEnvelopeMapper
         var scopes = envelope.Scopes.ToDictionary(
             scope => new ScopeId(scope.ScopeId),
             FromEnvelopeScope);
-        var activeYields = fibers.Values.Sum(fiber => fiber.YieldCount);
+        var activeQuantumRotations = fibers.Values.Sum(fiber => fiber.QuantumRotationCount);
         var activeRotations = fibers.Values.Sum(fiber => fiber.ForcedRotationCount);
         return new StructuredExecutionState(
             envelope.InstanceId,
@@ -92,7 +94,9 @@ internal static class DurableFiberEnvelopeMapper
         {
             WorkflowDeadline = envelope.WorkflowDeadline,
             WorkflowDeadlineTimerId = envelope.WorkflowDeadlineTimerId,
-            CompletedYieldCount = Math.Max(0, envelope.Diagnostics.TotalYields - activeYields),
+            CompletedQuantumRotationCount = Math.Max(
+                0,
+                envelope.Diagnostics.TotalQuantumRotations - activeQuantumRotations),
             CompletedForcedRotationCount = Math.Max(
                 0,
                 envelope.Diagnostics.ForcedRotations - activeRotations),
@@ -128,7 +132,7 @@ internal static class DurableFiberEnvelopeMapper
                 ? null
                 : ToEnvelopeFailure(fiber.Failure),
             CancellationReason = fiber.CancellationReason,
-            YieldCount = fiber.YieldCount,
+            QuantumRotationCount = fiber.QuantumRotationCount,
             ForcedRotationCount = fiber.ForcedRotationCount,
             RetryAttempt = fiber.RetryAttempt,
             RetryNotBefore = fiber.RetryNotBefore,
@@ -160,7 +164,7 @@ internal static class DurableFiberEnvelopeMapper
                 : FromEnvelopeFailure(fiber.Failure),
             fiber.CancellationReason)
         {
-            YieldCount = fiber.YieldCount,
+            QuantumRotationCount = fiber.QuantumRotationCount,
             ForcedRotationCount = fiber.ForcedRotationCount,
             RetryAttempt = fiber.RetryAttempt,
             RetryNotBefore = fiber.RetryNotBefore,

@@ -1,8 +1,6 @@
 using System.Diagnostics;
 using OrcaCore.Abstractions.Durable;
-using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Execution;
 using OrcaCore.Engine.Durable.Aggregates;
@@ -25,34 +23,12 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         }
 
         consumedWaitId = pending.WaitId;
-        return new EventEnvelope
-        {
-            EventId = pending.MatchedEventId,
-            EventName = pending.EventName ?? string.Empty,
-            CorrelationId = pending.CorrelationId ?? CorrelationId.Create("(uncorrelated)"),
-            BranchId = pending.BranchId,
-            Payload = ToResumedPayload(pending.Payload),
-            PayloadContentType = pending.PayloadContentType,
-            OccurredAt = pending.MatchedAt
-        };
-    }
-
-    private static object? ToResumedPayload(byte[]? payload)
-    {
-        if (payload is null || payload.Length == 0)
-        {
-            return null;
-        }
-
-        try
-        {
-            using var document = System.Text.Json.JsonDocument.Parse(payload);
-            return document.RootElement.Clone();
-        }
-        catch (System.Text.Json.JsonException)
-        {
-            return payload;
-        }
+        return RuntimeStepContextFactory.CreateResumedEvent(
+            pending.MatchedEventId,
+            EventName.Create(pending.EventName ?? "(unnamed)"),
+            pending.CorrelationId ?? CorrelationId.Create("(uncorrelated)"),
+            pending.MatchedAt,
+            pending.Payload ?? []);
     }
 
     private static FiberRecord ClearResume(FiberRecord fiber)

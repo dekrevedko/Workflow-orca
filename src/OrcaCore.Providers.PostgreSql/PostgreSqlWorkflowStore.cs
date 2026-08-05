@@ -4,7 +4,6 @@ using Npgsql;
 using NpgsqlTypes;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Abstractions.Serialization;
@@ -16,17 +15,15 @@ namespace OrcaCore.Providers.PostgreSql;
 /// <summary>
 /// Stores durable workflow events and checkpoints in PostgreSQL.
 /// </summary>
-public sealed class PostgreSqlWorkflowStore :
+internal sealed class PostgreSqlWorkflowStore :
     IWorkflowEventStore,
     IWorkflowInboxStore,
     IWorkflowStartIdempotencyStore,
     IWorkflowOutboxStore,
     IWorkflowProjectionStore,
     ITimerScheduler,
-    IWorkflowRetentionStore,
     IAsyncDisposable
 {
-    private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
     private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
 
     private readonly NpgsqlDataSource dataSource;
@@ -130,7 +127,9 @@ public sealed class PostgreSqlWorkflowStore :
         {
             DefinitionId = reader.IsDBNull(3) ? null : DefinitionId.Parse(reader.GetGuid(3).ToString()),
             DefinitionVersion = reader.IsDBNull(4) ? null : new DefinitionVersion(reader.GetInt32(4)),
-            Status = reader.IsDBNull(5) ? null : Enum.Parse<LegacyWorkflowStatus>(reader.GetString(5)),
+            Status = reader.IsDBNull(5)
+                ? null
+                : Enum.Parse<global::OrcaCore.WorkflowInstanceStatus>(reader.GetString(5)),
             LastStepPath = reader.IsDBNull(6) ? null : reader.GetString(6),
             ErrorSummary = reader.IsDBNull(7) ? null : reader.GetString(7),
             OutcomeName = reader.IsDBNull(8) ? null : reader.GetString(8),
@@ -148,7 +147,7 @@ public sealed class PostgreSqlWorkflowStore :
 
         return JsonSerializer.Deserialize(
             reader.GetString(ordinal),
-            ProviderJsonSerializerContext.Default.WorkflowRuntimeCheckpointState)
+            PostgreSqlJsonSerializerContext.Default.WorkflowRuntimeCheckpointState)
             ?? WorkflowRuntimeCheckpointState.Empty;
     }
 
@@ -502,34 +501,23 @@ public sealed class PostgreSqlWorkflowStore :
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<LegacyWorkflowInstanceSnapshot>> ListAsync(
-        WorkflowProjectionQuery query,
-        CancellationToken cancellationToken)
-    {
-        return projectionStore.ListAsync(query, cancellationToken);
-    }
+    public Task<Option<WorkflowProjectionSnapshot>> GetAsync(
+        InstanceId instanceId,
+        CancellationToken cancellationToken) =>
+        projectionStore.GetAsync(instanceId, cancellationToken);
 
     /// <inheritdoc />
-    public Task<int> CountAsync(WorkflowProjectionQuery query, CancellationToken cancellationToken)
-    {
-        return projectionStore.CountAsync(query, cancellationToken);
-    }
+    public Task<IReadOnlyList<WorkflowProjectionSnapshot>> FindActiveWaitsAsync(
+        DefinitionId? definitionId,
+        EventName eventName,
+        CorrelationId correlationId,
+        CancellationToken cancellationToken) =>
+        projectionStore.FindActiveWaitsAsync(definitionId, eventName, correlationId, cancellationToken);
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<LegacyActiveWaitSnapshot>> ListActiveWaitsAsync(
-        WorkflowProjectionQuery query,
-        CancellationToken cancellationToken)
-    {
-        return projectionStore.ListActiveWaitsAsync(query, cancellationToken);
-    }
-
-    /// <inheritdoc />
-    public Task<WorkflowStatistics> GetStatisticsAsync(
-        WorkflowProjectionQuery query,
-        CancellationToken cancellationToken)
-    {
-        return projectionStore.GetStatisticsAsync(query, cancellationToken);
-    }
+    public Task<IReadOnlyList<WorkflowProjectionSnapshot>> ListLeaseRecoveryCandidatesAsync(
+        CancellationToken cancellationToken) =>
+        projectionStore.ListLeaseRecoveryCandidatesAsync(cancellationToken);
 
     /// <inheritdoc />
     public Task ScheduleAsync(TimerScheduleRequest request, CancellationToken cancellationToken)
@@ -566,21 +554,11 @@ public sealed class PostgreSqlWorkflowStore :
         return timerScheduler.ReleaseAsync(timerId, cancellationToken);
     }
 
-    /// <inheritdoc />
-    public Task<ArchiveResult> ArchiveAsync(RetentionPolicy policy, CancellationToken cancellationToken)
+    internal Task<(bool Purged, string? Reason)> PurgeForRetentionAsync(
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
     {
-        return retentionStore.ArchiveAsync(policy, cancellationToken);
-    }
-
-    /// <inheritdoc />
-    public Task<PurgeResult> PurgeAsync(RetentionPolicy policy, CancellationToken cancellationToken)
-    {
-        return retentionStore.PurgeAsync(policy, cancellationToken);
-    }
-
-    public Task<PurgeResult> PurgeAsync(InstanceId instanceId, CancellationToken cancellationToken)
-    {
-        return retentionStore.PurgeAsync(instanceId, cancellationToken);
+        return retentionStore.PurgeForRetentionAsync(instanceId, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -748,7 +726,7 @@ public sealed class PostgreSqlWorkflowStore :
         command.Parameters.AddWithValue("continue_as_new_generation", checkpoint.ContinueAsNewGeneration);
         command.Parameters.Add("runtime_state", NpgsqlDbType.Jsonb).Value = JsonSerializer.Serialize(
             checkpoint.RuntimeState,
-            ProviderJsonSerializerContext.Default.WorkflowRuntimeCheckpointState);
+            PostgreSqlJsonSerializerContext.Default.WorkflowRuntimeCheckpointState);
 
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -900,16 +878,6 @@ public sealed class PostgreSqlWorkflowStore :
         {
             throw new ArgumentOutOfRangeException(nameof(leaseDuration), leaseDuration, "Lease duration must be positive.");
         }
-    }
-
-    private static IReadOnlyList<SagaAuditScopeSnapshot> DeserializeSagaAudits(string payload)
-    {
-        return JsonSerializer.Deserialize<IReadOnlyList<SagaAuditScopeSnapshot>>(payload, JsonOptions) ?? [];
-    }
-
-    private static JsonSerializerOptions CreateJsonOptions()
-    {
-        return new JsonSerializerOptions(JsonSerializerDefaults.Web);
     }
 
 }

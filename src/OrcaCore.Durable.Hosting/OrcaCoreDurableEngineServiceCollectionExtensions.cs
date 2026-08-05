@@ -11,7 +11,6 @@ using OrcaCore.Engine.Durable.Definitions;
 using OrcaCore.Engine.Durable.Diagnostics;
 using OrcaCore.Engine.Durable.Driver;
 using OrcaCore.Engine.Durable.Execution;
-using OrcaCore.Engine.Durable.Management;
 using OrcaCore.Engine.Durable.Outbox;
 using OrcaCore.Hosting.Services;
 using OrcaCore.Hosting.ResourceLeases;
@@ -61,13 +60,12 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
             provider.GetRequiredService<TimeProvider>(),
             DurableDriverBudget.Default,
             provider.GetRequiredService<IWorkflowProjectionStore>(),
-            provider.GetRequiredService<DurableManagement>(),
             provider.GetService<IDurableDriverObserver>()));
         services.TryAddSingleton(provider => new DurableWorkflowDefinitionRegistry(
             provider.GetRequiredService<DurableWorkflowRuntime>(),
             provider.GetRequiredService<IWorkflowProjectionStore>(),
             provider.GetRequiredService<IWorkflowEventStore>(),
-            provider.GetRequiredService<DurableManagement>(),
+            provider.GetRequiredService<DurableCommandProcessor>(),
             provider.GetRequiredService<DurableFacadeNotificationHub>(),
             provider.GetRequiredService<TimeProvider>(),
             copied.ResourcePools.Values.Select(pool => pool.Name)));
@@ -122,14 +120,12 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
         services.TryAddSingleton<IWorkflowEventClient>(provider =>
         {
             var definitions = new DurableDefinitionRegistry();
-            var management = provider.GetRequiredService<DurableManagement>();
             var runtime = new DurableWorkflowRuntime(
                 provider.GetRequiredService<DurableCommandProcessor>(),
                 definitions,
                 provider.GetRequiredService<TimeProvider>(),
                 DurableDriverBudget.Default,
-                provider.GetRequiredService<IWorkflowProjectionStore>(),
-                management);
+                provider.GetRequiredService<IWorkflowProjectionStore>());
             return new DurableWorkflowEventClient(
                 runtime,
                 provider.GetRequiredService<IWorkflowProjectionStore>(),
@@ -158,11 +154,6 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
         services.TryAddSingleton(provider => new DurableCommandProcessor(
             provider.GetRequiredService<DurableCommandRuntime>(),
             provider.GetRequiredService<IWorkflowRuntimeObserver>()));
-        services.TryAddSingleton(provider => new DurableManagement(
-            provider.GetRequiredService<IWorkflowProjectionStore>(),
-            provider.GetService<IResourcePoolStore>(),
-            provider.GetRequiredService<IWorkflowEventStore>(),
-            provider.GetRequiredService<DurableCommandProcessor>()));
     }
 
     private static void AddProgressionLoops(IServiceCollection services)

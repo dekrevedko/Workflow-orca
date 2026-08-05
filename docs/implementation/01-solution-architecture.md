@@ -12,8 +12,9 @@ src/
   OrcaCore.Runtime.Protocol     ← advanced persisted runtime/governance records and results
   OrcaCore.Provider.Abstractions← advanced durable-store/transport SPIs
   OrcaCore.Engine.Durable       ← event-sourced aggregate/interpreter internals
-  OrcaCore.Durable.Hosting      ← public durable registration/start/delivery/management and
-                                  hosted continuation/timer/outbox/governance services
+  OrcaCore.Durable.Hosting      ← public durable engine/ingress registration and options,
+                                  advanced management/recovery/diagnostics, and hosted
+                                  continuation/timer/outbox/governance services
   providers/
     OrcaCore.Providers.InMemory ← complete development/test durable provider role
     OrcaCore.Providers.PostgreSql ← complete certified production durable provider role
@@ -70,8 +71,8 @@ OrcaCore.Dag.Hosting           -> OrcaCore.Dag + OrcaCore.Durable.Hosting
 
 This direct-edge list is exhaustive. In particular, `OrcaCore.Durable.Hosting` receives protocol
 types only through its declared dependencies and must not add a direct `Runtime.Protocol` edge.
-Architecture checks reject every unlisted reference and every friend assembly other than the one
-named DAG-host bridge below.
+Architecture checks reject every unlisted reference and every friend assembly outside the exact
+closed graph below.
 
 - `OrcaCore.Dag` depends only on public `OrcaCore` application contracts. It never references
   engine internals, a provider implementation, Kubernetes, or AWS. It owns typed authoring and
@@ -80,8 +81,8 @@ named DAG-host bridge below.
   It depends on `OrcaCore.Dag` and `OrcaCore.Durable.Hosting` and uses one named, versioned
   internal child-start/join contract through
   `InternalsVisibleTo("OrcaCore.Dag.Hosting")`. The seam is same-solution/release-train internals,
-  not a public workflow or provider SPI; no second friend package is permitted without a matrix
-  amendment.
+  not a public workflow or provider SPI; no second DAG-to-durable product bridge is permitted
+  without a matrix amendment.
 - The companion scheduler depends outward on `OrcaCore.Dag.Hosting` plus documented public
   application/hosting packages. No dependency points from OrcaCore back to the companion.
 - **No core or engine project depends on a provider adapter.** Durable hosting consumes advanced
@@ -119,9 +120,12 @@ feed is verification infrastructure, not an external-publishing or release-versi
   the focused `OrcaCore.Dag` authoring package. Replaceable behavior seams are interfaces in their
   owning tier; approved immutable values/builders/definitions/outcomes are concrete public types.
   Other implementation collaborators remain `internal`, `sealed` by default.
-- Each production project grants `InternalsVisibleTo` to exactly one matching unit-test
-  project. `OrcaCore.Acceptance.Tests` gets **no** internals — it proves the public API is
-  sufficient (spec CR-021/MG-005 depend on this discipline).
+- Product friends are exact: `OrcaCore.Core` grants both engines, `OrcaCore.Engine.Durable` grants
+  `OrcaCore.Durable.Hosting`, and `OrcaCore.Durable.Hosting` grants `OrcaCore.Dag.Hosting`.
+  Owning white-box test friends are exact for Core, both engines, Durable Hosting, and PostgreSQL;
+  `OrcaCore.Engine.Durable -> OrcaCore.ProviderCertification` is the sole cross-package test edge.
+  Acceptance, behavior-scenario, compile-fixture, and integration projects get **no** internals and
+  prove the public or advanced provider contract is sufficient.
 - Microsoft-hosting composition is role-specific: application hosts call
   `AddOrcaCoreEphemeralEngine(EphemeralEngineHostOptions)` or
   `AddOrcaCoreDurableEngine(DurableEngineHostOptions)`; callback-only hosts call
@@ -152,25 +156,32 @@ feed is verification infrastructure, not an external-publishing or release-versi
 
 ## 4. Port catalog (interfaces allowed here; signatures indicative, not code)
 
-Provider ports are advanced contracts in `OrcaCore.Provider.Abstractions`, consume persisted
-records owned by `OrcaCore.Runtime.Protocol`, and are implemented by provider adapters
-(spec PR-010…016). They are not ordinary workflow-application references:
+Provider ports and their commit DTOs are advanced contracts in `OrcaCore.Provider.Abstractions`
+and are implemented by provider adapters. `OrcaCore.Runtime.Protocol` separately owns advanced
+durable commands, facts, checkpoints, and resource-governance records (spec PR-010…016). Neither
+tier is an ordinary workflow-application reference:
 
-- `IWorkflowEventStore` — `AppendAsync(streamId, expectedVersion, events, ct) → Result<AppendOutcome>`;
-  `ReadTailAsync(streamId, afterVersion, ct) → IAsyncEnumerable<StoredEvent>`;
-  `LoadCheckpointAsync(...) → Option<Checkpoint>`; `SaveCheckpointAsync(...)`.
-- `IWorkflowInboxStore` — record/query/mark by `EventId` (`Received/Applied/DuplicateIgnored/Poisoned/DiscardedOnResume`).
-- `IWorkflowOutboxStore` — append-in-commit, claim/lease batch, mark dispatched/failed/poisoned, backlog stats.
-- `IWorkflowProjectionStore` — upsert/get keyed instance summaries, active waits, pending events,
-  history, DAG lineage, and durable resource quarantine/reconciliation state. Public workflow
-  instance enumeration and bulk management remain deferred.
-- `ITimerScheduler` — schedule/cancel durable wake-ups → `FireTimer` commands.
+- `IWorkflowEventStore` — load one checkpoint, append one complete `ProviderCommitBatch` with
+  optimistic concurrency, and load a stream tail after one `StreamVersion`.
+- `IWorkflowInboxStore` — get one persisted inbox record by `(InstanceId, EventId)`; accepted inbox
+  writes travel atomically in `ProviderCommitBatch`.
+- `IWorkflowStartIdempotencyStore` — get one persisted start binding by idempotency key; accepted
+  bindings travel atomically in `ProviderCommitBatch` with definition and input fingerprints.
+- `IWorkflowOutboxStore` — claim/lease `OutboxWrite` records, inspect one record state, mark a result,
+  or release a claim. Outbox writes themselves travel atomically in `ProviderCommitBatch`.
+- `IWorkflowProjectionStore` — apply commit projections, get one exact instance projection, find
+  exact active-wait routing candidates, and list trusted lease-recovery candidates. Public workflow
+  instance enumeration, bulk management, history, pending-event mailboxes, and statistics remain
+  deferred or absent.
+- `ITimerScheduler` — schedule durable wake-ups, claim due `FireTimerCommand` records, and complete
+  or release one claim.
 - `IDurableResourceGovernanceStore` — load one serialized governance aggregate per configured
   provider partition and expected-version append one complete ordered record batch. The aggregate
   owns every pool definition, atomic multi-pool request, ticket, review mark, resize,
   confirmation binding, and tombstone. Partial append, time-only reclaim, and force release are
   forbidden (MG-062…065).
-- `IMessageDispatcher` — `DispatchAsync(DispatchMessage, ct) → DispatchOutcome` (success/retryable/permanent).
+- `IMessageDispatcher` — `DispatchAsync(OutboxWrite, ct) → DispatchResult`
+  (`Success`/`RetryableFailure`/`PermanentFailure`).
 - Provider payload envelopes preserve the fixed workflow-state codec bytes and format identity.
   The v1 workflow-state codec is certified `System.Text.Json` format `orcacore-json-v1`, not a
   replaceable provider/host SPI. Registration rejects unsupported cyclic/polymorphic state shapes.
@@ -180,10 +191,10 @@ or custom-host authors. They are not ordinary workflow-author APIs. In particula
 `IMessageDispatcher` nor any other port makes public `RunExternalJob` part of v1. A companion
 Kubernetes scheduler uses public workflow/DAG/management contracts plus its own adapter seam.
 
-The **atomic commit boundary** (PR-020) is expressed as one port-level unit-of-work
-operation on the store family (a provider composes events + checkpoint + inbox + outbox +
-projection work into one transaction or a documented transactional chain); its exact shape
-is designed in Phase 2 under IOQ-1/IOQ-3.
+The **atomic commit boundary** (PR-020) is the `ProviderCommitBatch` accepted by
+`IWorkflowEventStore.AppendAsync`. A provider commits its events, optional checkpoint, inbox and
+start-idempotency records, outbox writes, projections, and timer work as one accepted mutation;
+the other split ports expose the corresponding read/claim/maintenance operations.
 
 ## 5. Concurrency model (Channels + TPL)
 

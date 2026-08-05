@@ -1,11 +1,8 @@
-using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
-using OrcaCore.Abstractions.Steps;
 
 namespace OrcaCore.Core.Definitions;
 
-public sealed record InitNode<TState> : WorkflowNode<TState>
+internal sealed record InitNode<TState> : WorkflowNode<TState>
 {
     public InitNode(
         string nodeId,
@@ -25,7 +22,7 @@ public sealed record InitNode<TState> : WorkflowNode<TState>
     public Func<object?, TState> CreateState { get; }
 }
 
-public sealed record BusinessStepNode<TState> : WorkflowNode<TState>
+internal sealed record BusinessStepNode<TState> : WorkflowNode<TState>
 {
     public BusinessStepNode(
         string nodeId,
@@ -48,7 +45,7 @@ public sealed record BusinessStepNode<TState> : WorkflowNode<TState>
     public WorkflowPolicySet Policies { get; }
 }
 
-public sealed record EndNode<TState> : WorkflowNode<TState>
+internal sealed record EndNode<TState> : WorkflowNode<TState>
 {
     public EndNode(
         string nodeId,
@@ -70,7 +67,7 @@ public sealed record EndNode<TState> : WorkflowNode<TState>
     }
 }
 
-public sealed record BranchReturnNode<TState> : WorkflowNode<TState>
+internal sealed record BranchReturnNode<TState> : WorkflowNode<TState>
 {
     public BranchReturnNode(
         string nodeId,
@@ -90,7 +87,7 @@ public sealed record BranchReturnNode<TState> : WorkflowNode<TState>
     public Func<TState, object?> ResultSelector { get; }
 }
 
-public sealed record ContinueAsNewNode<TState> : WorkflowNode<TState>
+internal sealed record ContinueAsNewNode<TState> : WorkflowNode<TState>
 {
     public ContinueAsNewNode(string nodeId, Func<TState, TState> stateSelector)
         : base(nodeId)
@@ -102,7 +99,7 @@ public sealed record ContinueAsNewNode<TState> : WorkflowNode<TState>
     public Func<TState, TState> StateSelector { get; }
 }
 
-public sealed record CompiledScopeNode<TState> : WorkflowNode<TState>
+internal sealed record CompiledScopeNode<TState> : WorkflowNode<TState>
 {
     public CompiledScopeNode(string nodeId, string scopePlanId)
         : base(nodeId)
@@ -114,7 +111,7 @@ public sealed record CompiledScopeNode<TState> : WorkflowNode<TState>
     public string ScopePlanId { get; }
 }
 
-public sealed record IfNode<TState> : WorkflowNode<TState>
+internal sealed record IfNode<TState> : WorkflowNode<TState>
 {
     public IfNode(
         string nodeId,
@@ -139,7 +136,7 @@ public sealed record IfNode<TState> : WorkflowNode<TState>
     public SequenceNode<TState> Else { get; }
 }
 
-public sealed record WhileNode<TState> : WorkflowNode<TState>
+internal sealed record WhileNode<TState> : WorkflowNode<TState>
 {
     public WhileNode(string nodeId, Func<TState, bool> condition, SequenceNode<TState> body)
         : base(nodeId)
@@ -156,67 +153,7 @@ public sealed record WhileNode<TState> : WorkflowNode<TState>
     public SequenceNode<TState> Body { get; }
 }
 
-public sealed record RunChildNode<TState> : WorkflowNode<TState>
-{
-    public RunChildNode(
-        string nodeId,
-        DefinitionId childDefinitionId,
-        DefinitionVersion childDefinitionVersion,
-        RunChildFailurePolicy failurePolicy)
-        : base(nodeId)
-    {
-        ChildDefinitionId = childDefinitionId;
-        ChildDefinitionVersion = childDefinitionVersion;
-        FailurePolicy = failurePolicy;
-    }
-
-    public DefinitionId ChildDefinitionId { get; }
-
-    public DefinitionVersion ChildDefinitionVersion { get; }
-
-    public RunChildFailurePolicy FailurePolicy { get; }
-}
-
-public sealed record RunChildrenNode<TState> : WorkflowNode<TState>
-{
-    public RunChildrenNode(
-        string nodeId,
-        DefinitionId childDefinitionId,
-        DefinitionVersion childDefinitionVersion,
-        Func<TState, IReadOnlyList<string>> itemSnapshotSelector,
-        RunChildFailurePolicy failurePolicy,
-        int? maxConcurrency,
-        RunChildrenJoinPolicy joinPolicy,
-        RunChildrenResidualPolicy residualPolicy)
-        : base(nodeId)
-    {
-        ArgumentNullException.ThrowIfNull(itemSnapshotSelector);
-
-        ChildDefinitionId = childDefinitionId;
-        ChildDefinitionVersion = childDefinitionVersion;
-        ItemSnapshotSelector = itemSnapshotSelector;
-        FailurePolicy = failurePolicy;
-        MaxConcurrency = maxConcurrency;
-        JoinPolicy = joinPolicy;
-        ResidualPolicy = residualPolicy;
-    }
-
-    public DefinitionId ChildDefinitionId { get; }
-
-    public DefinitionVersion ChildDefinitionVersion { get; }
-
-    public Func<TState, IReadOnlyList<string>> ItemSnapshotSelector { get; }
-
-    public RunChildFailurePolicy FailurePolicy { get; }
-
-    public int? MaxConcurrency { get; }
-
-    public RunChildrenJoinPolicy JoinPolicy { get; }
-
-    public RunChildrenResidualPolicy ResidualPolicy { get; }
-}
-
-public sealed record WaitNode<TState> : WorkflowNode<TState>
+internal sealed record WaitNode<TState> : WorkflowNode<TState>
 {
     public WaitNode(
         string nodeId,
@@ -240,7 +177,7 @@ public sealed record WaitNode<TState> : WorkflowNode<TState>
     public TimeSpan? Timeout { get; }
 }
 
-public sealed record DelayNode<TState> : WorkflowNode<TState>
+internal sealed record DelayNode<TState> : WorkflowNode<TState>
 {
     public DelayNode(string nodeId, TimeSpan duration)
         : base(nodeId)
@@ -251,7 +188,7 @@ public sealed record DelayNode<TState> : WorkflowNode<TState>
     public TimeSpan Duration { get; }
 }
 
-public sealed record SequenceNode<TState> : WorkflowNode<TState>
+internal sealed record SequenceNode<TState> : WorkflowNode<TState>
 {
     public SequenceNode(string nodeId, IEnumerable<WorkflowNode<TState>> children)
         : base(nodeId)

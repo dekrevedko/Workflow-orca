@@ -8,7 +8,4 @@
     <RestorePackagesPath>$(MSBuildThisFileDirectory)obj\package-cache\$(Phase0PackageVersion)</RestorePackagesPath>
   </PropertyGroup>
   <ItemGroup><PackageVersion Include="OrcaCore" Version="$(Phase0PackageVersion)" /><PackageReference Include="OrcaCore" /></ItemGroup>
-  <ItemGroup>
-    <Compile Include="../ExactAuthoring/PositiveUsage.cs" Link="PositiveUsage.cs" />
-  </ItemGroup>
 </Project>

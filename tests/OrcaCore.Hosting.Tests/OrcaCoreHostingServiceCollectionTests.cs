@@ -327,7 +327,6 @@ public sealed class OrcaCoreHostingServiceCollectionTests
         builder.Services.AddSingleton<IWorkflowStartIdempotencyStore>(capturedWorkflowStore);
         builder.Services.AddSingleton<IWorkflowOutboxStore>(capturedWorkflowStore);
         builder.Services.AddSingleton<IWorkflowProjectionStore>(capturedWorkflowStore);
-        builder.Services.AddSingleton<IWorkflowRetentionStore>(capturedWorkflowStore);
         builder.Services.AddSingleton<ITimerScheduler>(capturedWorkflowStore);
         builder.Services.AddSingleton<IMessageDispatcher>(capturedWorkflowStore);
         builder.Services.AddSingleton<IResourcePoolStore>(capturedResourcePoolStore);
@@ -424,7 +423,6 @@ public sealed class OrcaCoreHostingServiceCollectionTests
         IWorkflowStartIdempotencyStore,
         IWorkflowOutboxStore,
         IWorkflowProjectionStore,
-        IWorkflowRetentionStore,
         ITimerScheduler,
         IMessageDispatcher
     {
@@ -585,16 +583,6 @@ public sealed class OrcaCoreHostingServiceCollectionTests
             return inner.GetStatisticsAsync(query, cancellationToken);
         }
 
-        public Task<ArchiveResult> ArchiveAsync(RetentionPolicy policy, CancellationToken cancellationToken)
-        {
-            return inner.ArchiveAsync(policy, cancellationToken);
-        }
-
-        public Task<PurgeResult> PurgeAsync(RetentionPolicy policy, CancellationToken cancellationToken)
-        {
-            return inner.PurgeAsync(policy, cancellationToken);
-        }
-
         public Task ScheduleAsync(TimerScheduleRequest request, CancellationToken cancellationToken)
         {
             return inner.ScheduleAsync(request, cancellationToken);
@@ -705,11 +693,6 @@ public sealed class OrcaCoreHostingServiceCollectionTests
             CancellationToken cancellationToken)
         {
             return inner.GetPoolAsync(poolName, cancellationToken);
-        }
-
-        public Task ResizePoolAsync(string poolName, int capacity, CancellationToken cancellationToken)
-        {
-            return inner.ResizePoolAsync(poolName, capacity, cancellationToken);
         }
 
         public Task<ResourcePoolExpiryResult> ExpireTicketsAsync(

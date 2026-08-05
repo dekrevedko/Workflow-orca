@@ -1,12 +1,13 @@
 using System.Diagnostics;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Aggregates;
 using OrcaCore.Engine.Durable.Execution;
 
 namespace OrcaCore.Engine.Durable.Driver;
+
+using WorkflowStatus = global::OrcaCore.WorkflowInstanceStatus;
 
 /// <summary>
 /// Drives one instance's advancement segments through the interpreter (DR-001 host side,
@@ -18,15 +19,12 @@ namespace OrcaCore.Engine.Durable.Driver;
 internal sealed class DurableWorkflowDriver(
     DurableCommandProcessor processor,
     DurableDriverCatalog catalog,
-    IWorkflowPayloadSerializer serializer,
+    JsonWorkflowPayloadSerializer serializer,
     TimeProvider timeProvider,
     DurableDriverBudget? budget = null,
     IDurableDriverObserver? observer = null)
 {
     private const int MaxConflictRetries = 5;
-    private const string LegacyEnvelopeContentType =
-        "application/vnd.orcacore.durable-envelope.v1+json";
-
     private readonly DurableDriverBudget budget = budget ?? DurableDriverBudget.Default;
     private readonly DurableAggregateLoader aggregateLoader = new(processor.EventStore);
     private readonly IDurableDriverObserver observer = observer ?? NullDurableDriverObserver.Instance;
@@ -87,12 +85,7 @@ internal sealed class DurableWorkflowDriver(
                         cancelled.Message ?? "Cancellation finalization conflicted.");
             }
 
-            if (aggregate.Status == WorkflowStatus.Paused)
-            {
-                return new DurableSegmentResult(DurableSegmentOutcome.Suspended, "Instance is paused.");
-            }
-
-            if (aggregate.Status == WorkflowStatus.Parked)
+            if (aggregate.ParkReason is not null)
             {
                 return new DurableSegmentResult(DurableSegmentOutcome.Parked, aggregate.ErrorSummary);
             }
@@ -108,8 +101,7 @@ internal sealed class DurableWorkflowDriver(
                 // commands also produce continuation records; parking those would break direct
                 // kernel usage, so their claims resolve as no-ops.
                 var driverOwned = checkpointOption.HasValue &&
-                    checkpointOption.Value.ContentType is
-                        LegacyEnvelopeContentType or DurableExecutionEnvelopeV2.ContentType;
+                    checkpointOption.Value.ContentType == DurableExecutionEnvelopeV2.ContentType;
                 if (mode == DurableDriveMode.Opportunistic || !driverOwned)
                 {
                     return new DurableSegmentResult(
@@ -136,11 +128,9 @@ internal sealed class DurableWorkflowDriver(
                 {
                     // DR-012/DR-AC-018: a checkpoint without a readable position envelope is
                     // never resumed under a guessed position.
-                    var summary = checkpoint.ContentType == LegacyEnvelopeContentType
-                        ? "Checkpoint uses retired cursor envelope format 1; reset development fixtures or " +
-                          "apply an explicit migration before re-arming the instance."
-                        : $"Checkpoint content type '{checkpoint.ContentType}' does not carry a durable " +
-                          "execution-position envelope; explicit migration or operator intervention is required.";
+                    var summary = $"Checkpoint content type '{checkpoint.ContentType}' does not carry a durable " +
+                                  "execution-position envelope; reset the development instance or use operator " +
+                                  "intervention. Automatic compatibility recovery is not supported.";
                     await ParkAsync(
                         instanceId,
                         DurableParkReason.RuntimeStateVersion,
@@ -232,7 +222,7 @@ internal sealed class DurableWorkflowDriver(
                 aggregate.StreamVersion);
         }
 
-        if (aggregate.Status != WorkflowStatus.Parked || aggregate.ParkReason is not { } reason)
+        if (aggregate.ParkReason is not { } reason)
         {
             return new DurableCommandResult(
                 DurableCommandOutcome.NoOp,

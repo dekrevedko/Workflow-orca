@@ -1,10 +1,8 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
-using ProjectionActiveWaitSnapshot = global::OrcaCore.Abstractions.Instances.ActiveWaitSnapshot;
-using ProjectionWorkflowInstanceSnapshot = global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot;
+using ProjectionWorkflowInstanceSnapshot = global::OrcaCore.Abstractions.Providers.WorkflowProjectionSnapshot;
 
 namespace OrcaCore.Abstractions.Providers;
 
@@ -132,46 +130,26 @@ public interface IWorkflowProjectionStore
     Task ApplyAsync(IReadOnlyList<ProjectionWrite> operations, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Lists projected instance summaries matching a structured query.
+    /// Gets one projected instance summary by its exact runtime identity.
     /// </summary>
-    Task<IReadOnlyList<ProjectionWorkflowInstanceSnapshot>> ListAsync(
-        WorkflowProjectionQuery query,
+    Task<Option<ProjectionWorkflowInstanceSnapshot>> GetAsync(
+        InstanceId instanceId,
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Counts projected instance summaries matching a structured query.
+    /// Resolves the exact active-wait candidates used by correlation delivery.
     /// </summary>
-    Task<int> CountAsync(WorkflowProjectionQuery query, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Lists projected active waits matching a structured query.
-    /// </summary>
-    Task<IReadOnlyList<ProjectionActiveWaitSnapshot>> ListActiveWaitsAsync(
-        WorkflowProjectionQuery query,
+    Task<IReadOnlyList<ProjectionWorkflowInstanceSnapshot>> FindActiveWaitsAsync(
+        DefinitionId? definitionId,
+        EventName eventName,
+        CorrelationId correlationId,
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Gets projected grouped statistics matching a structured query.
+    /// Lists the runtime candidates inspected by trusted lease recovery and diagnostics.
     /// </summary>
-    Task<WorkflowStatistics> GetStatisticsAsync(
-        WorkflowProjectionQuery query,
+    Task<IReadOnlyList<ProjectionWorkflowInstanceSnapshot>> ListLeaseRecoveryCandidatesAsync(
         CancellationToken cancellationToken);
-}
-
-/// <summary>
-/// Applies retention operations that must preserve active instances and dispatch safety.
-/// </summary>
-public interface IWorkflowRetentionStore
-{
-    /// <summary>
-    /// Archives one inactive instance according to an explicit retention policy.
-    /// </summary>
-    Task<ArchiveResult> ArchiveAsync(RetentionPolicy policy, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Purges retained data according to an explicit retention policy when no dispatch is in flight.
-    /// </summary>
-    Task<PurgeResult> PurgeAsync(RetentionPolicy policy, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -345,11 +323,6 @@ public sealed record TimerClaimRequest(
     int MaxCount,
     DateTimeOffset ClaimedAt,
     TimeSpan LeaseDuration);
-
-/// <summary>
-/// Describes one serialized payload.
-/// </summary>
-public sealed record SerializedPayload(string ContentType, byte[] Payload);
 
 /// <summary>
 /// Describes dispatch outcome categories.

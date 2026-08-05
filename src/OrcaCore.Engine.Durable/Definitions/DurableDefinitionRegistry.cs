@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Engine.Durable.Driver;
@@ -12,7 +11,7 @@ namespace OrcaCore.Engine.Durable.Definitions;
 /// <summary>
 /// Keeps the workflow definition versions a durable host can resume.
 /// </summary>
-public sealed class DurableDefinitionRegistry
+internal sealed class DurableDefinitionRegistry
 {
     private readonly ConcurrentDictionary<DurableDefinitionKey, RegisteredDefinition> definitions = [];
     private readonly IServiceProvider? serviceProvider;
@@ -103,7 +102,7 @@ public sealed class DurableDefinitionRegistry
             registered,
             (_, existing) => SameRegistration(existing, registered)
                 ? existing
-                : throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                : throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
                     $"Workflow definition '{key.DefinitionId}' version '{key.DefinitionVersion}' " +
                     $"is already registered with state type '{existing.StateType.FullName}' and " +
                     $"fingerprint '{existing.Fingerprint}'. Candidate fingerprint: '{registered.Fingerprint}'."));
@@ -132,7 +131,7 @@ public sealed class DurableDefinitionRegistry
         var key = new DurableDefinitionKey(definitionId, definitionVersion);
         if (!definitions.TryGetValue(key, out var registered))
         {
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
                 $"Workflow definition '{definitionId}' version '{definitionVersion}' is not registered.");
         }
 
@@ -141,7 +140,7 @@ public sealed class DurableDefinitionRegistry
             return typed;
         }
 
-        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+        throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
             $"Workflow definition '{definitionId}' version '{definitionVersion}' is registered for " +
             $"state type '{registered.StateType.FullName}', not '{typeof(TState).FullName}'.");
     }
@@ -193,14 +192,14 @@ public sealed class DurableDefinitionRegistry
 /// <summary>
 /// Identifies a durable workflow definition version.
 /// </summary>
-public readonly record struct DurableDefinitionKey(
+internal readonly record struct DurableDefinitionKey(
     DefinitionId DefinitionId,
     DefinitionVersion DefinitionVersion);
 
 /// <summary>
 /// Describes one registered durable workflow definition version.
 /// </summary>
-public sealed record DurableRegisteredDefinition(
+internal sealed record DurableRegisteredDefinition(
     DefinitionId DefinitionId,
     DefinitionVersion DefinitionVersion,
     Type StateType);

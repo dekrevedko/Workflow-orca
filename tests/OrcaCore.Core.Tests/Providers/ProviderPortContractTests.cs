@@ -70,9 +70,15 @@ public sealed class ProviderPortContractTests
     }
 
     [Fact]
-    public void ProjectionCommitDecision_MatchesRecordedIoq3Resolution()
+    public void ProjectionCommitDecision_IsStructuralAndHasNoPublicPolicyToggle()
     {
-        ProviderCommitPolicy.ProjectionMode.Should().Be(ProjectionCommitMode.SameCommitBoundary);
+        var exportedNames = typeof(IWorkflowEventStore).Assembly.GetExportedTypes()
+            .Select(type => type.Name)
+            .ToArray();
+
+        exportedNames.Should().NotContain(new[] { "ProviderCommitPolicy", "ProjectionCommitMode" });
+        typeof(ProviderCommitBatch).GetProperty(nameof(ProviderCommitBatch.ProjectionOperations))
+            .Should().NotBeNull("projection writes are structurally part of the accepted commit batch");
     }
 
     [Fact]

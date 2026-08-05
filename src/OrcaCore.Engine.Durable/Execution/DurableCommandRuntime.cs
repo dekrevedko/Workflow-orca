@@ -8,7 +8,7 @@ namespace OrcaCore.Engine.Durable.Execution;
 /// <summary>
 /// Owns durable command processing collaborators that must be shared for one host process.
 /// </summary>
-public sealed class DurableCommandRuntime
+internal sealed class DurableCommandRuntime
 {
     private readonly InstanceLane lanes;
     private readonly ConcurrentDictionary<InstanceId, StepCancellationScope> runningSteps = [];

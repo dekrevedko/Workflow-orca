@@ -1,6 +1,5 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Aggregates;
 using OrcaCore.Engine.Durable.Execution;
@@ -8,7 +7,7 @@ using OrcaCore.Runtime.Protocol.ResourceGovernance;
 
 namespace OrcaCore.Engine.Durable.Driver;
 
-public sealed class DurableResourceLeaseRecovery(
+internal sealed class DurableResourceLeaseRecovery(
     DurableCommandProcessor processor,
     IWorkflowProjectionStore projections,
     TimeProvider? timeProvider = null)
@@ -237,9 +236,7 @@ public sealed class DurableResourceLeaseRecovery(
     private async Task<IReadOnlyList<LeaseRecord>> LoadLeaseRecordsAsync(
         CancellationToken cancellationToken)
     {
-        var snapshots = await projections.ListAsync(
-            new WorkflowProjectionQuery(),
-            cancellationToken).ConfigureAwait(false);
+        var snapshots = await projections.ListLeaseRecoveryCandidatesAsync(cancellationToken).ConfigureAwait(false);
         var records = new List<LeaseRecord>();
         foreach (var snapshot in snapshots)
         {

@@ -154,9 +154,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 ConsumedResumeWaitIds = ConsumedWaitIds(consumedWaitId),
                 CancelWaitIds = cleanup.WaitIds,
                 CancelTimerIds = cleanup.TimerIds,
-                TerminalFiberIds = cleanup.TerminalFiberIds,
-                FailedSagaScopeIds = FailedSagaScopes(execution),
-                CoversRootSagaEligibility = RootFailed(execution)
+                TerminalFiberIds = cleanup.TerminalFiberIds
             },
             cancellationToken).ConfigureAwait(false);
         return failedReturn.Outcome == DurableCommandOutcome.Committed

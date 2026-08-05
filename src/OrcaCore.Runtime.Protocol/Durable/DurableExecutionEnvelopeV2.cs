@@ -139,7 +139,7 @@ public sealed record DurableFiberState
 
     public string? CancellationReason { get; init; }
 
-    public long YieldCount { get; init; }
+    public long QuantumRotationCount { get; init; }
 
     public long ForcedRotationCount { get; init; }
 
@@ -194,8 +194,6 @@ public enum DurableFiberBlockedReason
     Wait,
     Timer,
     Scope,
-    ExternalJob,
-    ChildGroup,
     Resource,
     Retry
 }
@@ -367,14 +365,12 @@ public enum DurableOwnedObligationKind
     Timer,
     PendingResume,
     Resource,
-    ExternalJob,
-    ChildGroup,
     Retry
 }
 
 public sealed record DurableExecutionDiagnostics
 {
-    public long TotalYields { get; init; }
+    public long TotalQuantumRotations { get; init; }
 
     public long ForcedRotations { get; init; }
 }

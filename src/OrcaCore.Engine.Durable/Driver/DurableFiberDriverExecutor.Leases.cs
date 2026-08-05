@@ -3,7 +3,6 @@ using System.Text;
 using System.Reflection;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Core.Building;
 using OrcaCore.Core.Compilation;
@@ -25,18 +24,18 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         }
 
         var selector = instruction.LeaseRequestSelector ??
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
                 $"Compiled lease '{instruction.Path}' has no request.");
         var state = ResolveFiberState(execution, fiber, rootState);
         try
         {
             return StructuredInvocationCache.Invoke(selector, state) as global::OrcaCore.ResourceLeaseRequest ??
-                throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
                     $"Lease selector '{instruction.Path}' returned null.");
         }
         catch (TargetInvocationException exception) when (exception.InnerException is not null)
         {
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
                 $"Lease selector '{instruction.Path}' failed.",
                 exception.InnerException);
         }

@@ -1,4 +1,4 @@
-using OrcaCore.Abstractions.Events;
+using OrcaCore.Abstractions.Durable;
 using OrcaCore.Core.Internal;
 
 namespace OrcaCore.Engine.Durable.Execution;
@@ -22,32 +22,15 @@ internal static class DurableEventEnvelopeFingerprint
             serializedPayload);
     }
 
-    internal static string Create(EventEnvelope envelope)
+    internal static string Create(DurableEventEnvelope envelope)
     {
         ArgumentNullException.ThrowIfNull(envelope);
-        var payload = envelope.Payload switch
-        {
-            null => null,
-            byte[] bytes => bytes,
-            _ => throw new ArgumentException(
-                "Durable event envelopes must carry a serialized byte-array payload.",
-                nameof(envelope))
-        };
         return Create(
             envelope.EventName,
             envelope.CorrelationId,
             envelope.OccurredAt,
             envelope.PayloadContentType,
-            payload);
-    }
-
-    internal static string CreateExternalJobCompletion(string externalJobId)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(externalJobId);
-        var normalized = CoreWorkflowValueCodec.Serialize(
-            new NormalizedExternalJobCompletion(externalJobId),
-            typeof(NormalizedExternalJobCompletion));
-        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(normalized));
+            envelope.Payload);
     }
 
     internal static string Create(
@@ -77,6 +60,4 @@ internal static class DurableEventEnvelopeFingerprint
         DateTimeOffset OccurredAt,
         string? PayloadContentType,
         byte[]? Payload);
-
-    private sealed record NormalizedExternalJobCompletion(string ExternalJobId);
 }

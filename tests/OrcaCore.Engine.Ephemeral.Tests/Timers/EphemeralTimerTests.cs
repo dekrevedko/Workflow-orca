@@ -17,13 +17,10 @@ public sealed class EphemeralTimerTests
         var instance = await StartAsync(handle, "before-due");
         clock.Advance(TimeSpan.FromMinutes(4));
 
-        var fired = await provider.GetRequiredService<EphemeralWorkflowEngine>()
-            .FireDueTimersAsync(TestContext.Current.CancellationToken);
         var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
         var state = await instance.GetStateAsync<TimerState>(
             TestContext.Current.CancellationToken);
 
-        fired.Should().BeEmpty();
         snapshot.Status.Should().Be(WorkflowInstanceStatus.Waiting);
         state.Entries.Should().BeEmpty();
     }
@@ -37,16 +34,12 @@ public sealed class EphemeralTimerTests
         var instance = await StartAsync(handle, "after-due");
         clock.Advance(TimeSpan.FromMinutes(5));
 
-        var firstFire = await provider.GetRequiredService<EphemeralWorkflowEngine>()
-            .FireDueTimersAsync(TestContext.Current.CancellationToken);
-        var secondFire = await provider.GetRequiredService<EphemeralWorkflowEngine>()
-            .FireDueTimersAsync(TestContext.Current.CancellationToken);
-        var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
-        var state = await instance.GetStateAsync<TimerState>(
-            TestContext.Current.CancellationToken);
+        var (snapshot, state) = await WaitForStateAsync(
+            instance,
+            WorkflowInstanceStatus.Completed,
+            candidate => candidate.Entries.Count == 1);
+        clock.Advance(TimeSpan.FromMinutes(5));
 
-        firstFire.Should().ContainSingle();
-        secondFire.Should().BeEmpty();
         snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
         state.Entries.Should().Equal("after-delay");
     }
@@ -65,28 +58,59 @@ public sealed class EphemeralTimerTests
                 nested => nested
                     .Delay(TimeSpan.FromMinutes(5))
                     .Then<RecordingStep>())
-            .End()
+            .End(snapshot => snapshot.Value.Entries.Count)
             .Build();
         var handle = Register(provider, definition);
         var instance = await StartAsync(handle, "nested-delay");
         clock.Advance(TimeSpan.FromMinutes(5));
 
-        var firstFire = await provider.GetRequiredService<EphemeralWorkflowEngine>()
-            .FireDueTimersAsync(TestContext.Current.CancellationToken);
-        var secondFire = await provider.GetRequiredService<EphemeralWorkflowEngine>()
-            .FireDueTimersAsync(TestContext.Current.CancellationToken);
-        var state = await instance.GetStateAsync<TimerState>(
-            TestContext.Current.CancellationToken);
+        var (snapshot, state) = await WaitForStateAsync(
+            instance,
+            WorkflowInstanceStatus.Completed,
+            candidate => candidate.Entries.Count == 1);
+        clock.Advance(TimeSpan.FromMinutes(5));
 
-        firstFire.Should().ContainSingle();
-        secondFire.Should().BeEmpty();
-        (await instance.GetSnapshotAsync(TestContext.Current.CancellationToken))
-            .Status.Should().Be(WorkflowInstanceStatus.Completed);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
         state.Entries.Should().Equal("after-delay");
     }
 
     [Fact]
-    public async Task ConcurrentClaimsAndTerminalCancellation_DoNotDuplicateDueContinuations()
+    public async Task AutomaticTimerDispatch_WhenOneContinuationThrows_RetriesItAndPreservesLaterTimers()
+    {
+        var clock = NewClock();
+        var gate = new ThrowOnceGate();
+        using var provider = CreateProvider(clock);
+        var engine = provider.GetRequiredService<EphemeralWorkflowEngine>();
+        var retryingHandle = Register(provider, RetryingDelayedDefinition(TimeSpan.FromMinutes(5), gate));
+        var laterHandle = Register(provider, DelayedDefinition(TimeSpan.FromMinutes(5)));
+        var retrying = await StartAsync(retryingHandle, "retrying-timer");
+        var later = await StartAsync(laterHandle, "later-timer");
+        clock.Advance(TimeSpan.FromMinutes(5));
+        await gate.FirstAttempt.WaitAsync(TestContext.Current.CancellationToken);
+        await WaitUntilAsync(
+            () => !engine.IsTimerDispatching,
+            "the failed automatic dispatch must release and rearm its due timers");
+        clock.Advance(TimeSpan.FromMilliseconds(100));
+        await WaitUntilAsync(
+            () => gate.SecondAttempt.IsCompleted,
+            "the rearmed timer must enter its second continuation attempt");
+        (await retrying.WaitForOutputAsync(TestContext.Current.CancellationToken)).Should().Be(1);
+        (await later.WaitForOutputAsync(TestContext.Current.CancellationToken)).Should().Be(1);
+
+        var retryingState = await retrying.GetStateAsync<TimerState>(TestContext.Current.CancellationToken);
+        var laterState = await later.GetStateAsync<TimerState>(TestContext.Current.CancellationToken);
+
+        gate.Attempts.Should().Be(2);
+        (await retrying.GetSnapshotAsync(TestContext.Current.CancellationToken))
+            .Status.Should().Be(WorkflowInstanceStatus.Completed);
+        (await later.GetSnapshotAsync(TestContext.Current.CancellationToken))
+            .Status.Should().Be(WorkflowInstanceStatus.Completed);
+        retryingState.Entries.Should().Equal("after-delay");
+        laterState.Entries.Should().Equal("after-delay");
+    }
+
+    [Fact]
+    public async Task AutomaticTimerDispatch_WithTerminalCancellation_DoesNotDuplicateDueContinuations()
     {
         const int instanceCount = 90;
         var clock = NewClock();
@@ -105,21 +129,15 @@ public sealed class EphemeralTimerTests
         }
 
         clock.Advance(TimeSpan.FromMinutes(5));
-        var engine = provider.GetRequiredService<EphemeralWorkflowEngine>();
-        var claims = await Task.WhenAll(
-            Enumerable.Range(0, 8)
-                .Select(_ => engine.FireDueTimersAsync(
-                    TestContext.Current.CancellationToken)));
-        var fired = claims.SelectMany(batch => batch).ToArray();
-
-        fired.Select(snapshot => snapshot.InstanceId).Should().OnlyHaveUniqueItems();
-        fired.Should().HaveCount(instanceCount - (instanceCount / 3));
         for (var index = 0; index < instances.Length; index++)
         {
-            var snapshot = await instances[index].GetSnapshotAsync(
-                TestContext.Current.CancellationToken);
-            var state = await instances[index].GetStateAsync<TimerState>(
-                TestContext.Current.CancellationToken);
+            var expected = index % 3 == 0
+                ? WorkflowInstanceStatus.Terminated
+                : WorkflowInstanceStatus.Completed;
+            var (snapshot, state) = await WaitForStateAsync(
+                instances[index],
+                expected,
+                candidate => expected == WorkflowInstanceStatus.Terminated || candidate.Entries.Count == 1);
             if (index % 3 == 0)
             {
                 snapshot.Status.Should().Be(WorkflowInstanceStatus.Terminated);
@@ -133,8 +151,44 @@ public sealed class EphemeralTimerTests
         }
     }
 
+    private static async Task<(WorkflowInstanceSnapshot Snapshot, TimerState State)> WaitForStateAsync(
+        WorkflowInstanceHandle instance,
+        WorkflowInstanceStatus expected,
+        Func<TimerState, bool> statePredicate)
+    {
+        for (var attempt = 0; attempt < 10_000; attempt++)
+        {
+            TestContext.Current.CancellationToken.ThrowIfCancellationRequested();
+            var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
+            var state = await instance.GetStateAsync<TimerState>(TestContext.Current.CancellationToken);
+            if (snapshot.Status == expected && statePredicate(state))
+            {
+                return (snapshot, state);
+            }
+
+            await Task.Yield();
+        }
+
+        throw new InvalidOperationException(
+            $"Instance '{instance.InstanceId}' did not publish '{expected}' with the expected state.");
+    }
+
     private static Clock NewClock() =>
         new(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
+
+    private static async Task WaitUntilAsync(Func<bool> condition, string because)
+    {
+        for (var attempt = 0; attempt < 10_000 && !condition(); attempt++)
+        {
+            await Task.Factory.StartNew(
+                static () => { },
+                TestContext.Current.CancellationToken,
+                TaskCreationOptions.DenyChildAttach,
+                TaskScheduler.Default);
+        }
+
+        condition().Should().BeTrue(because);
+    }
 
     private static ServiceProvider CreateProvider(Clock clock)
     {
@@ -153,22 +207,22 @@ public sealed class EphemeralTimerTests
         return services.BuildServiceProvider();
     }
 
-    private static EphemeralDefinitionHandle<string> Register(
+    private static EphemeralDefinitionHandle<string, int> Register(
         ServiceProvider provider,
-        EphemeralWorkflowDefinition<string> definition) =>
+        EphemeralWorkflowDefinition<string, int> definition) =>
         provider.GetRequiredService<IWorkflowDefinitionRegistry>()
             .Register(definition)
             .GetHandleOrThrow();
 
-    private static async Task<WorkflowInstanceHandle> StartAsync(
-        EphemeralDefinitionHandle<string> handle,
+    private static async Task<WorkflowInstanceHandle<int>> StartAsync(
+        EphemeralDefinitionHandle<string, int> handle,
         string idempotencyKey) =>
         (await handle.StartOrGetAsync(
             "start",
             StartIdempotencyKey.Create(idempotencyKey),
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
 
-    private static EphemeralWorkflowDefinition<string> DelayedDefinition(
+    private static EphemeralWorkflowDefinition<string, int> DelayedDefinition(
         TimeSpan delay) =>
         Workflow.Ephemeral<TimerState>(
                 DefinitionId.New(),
@@ -176,7 +230,21 @@ public sealed class EphemeralTimerTests
             .Init<string>(_ => new TimerState())
             .Delay(delay)
             .Then<RecordingStep>()
-            .End()
+            .End(snapshot => snapshot.Value.Entries.Count)
+            .Build();
+
+    private static EphemeralWorkflowDefinition<string, int> RetryingDelayedDefinition(
+        TimeSpan delay,
+        ThrowOnceGate gate) =>
+        Workflow.Ephemeral<TimerState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(_ => new TimerState())
+            .Delay(delay)
+            .If(
+                _ => gate.Evaluate(),
+                nested => nested.Then<RecordingStep>())
+            .End(snapshot => snapshot.Value.Entries.Count)
             .Build();
 
     private sealed class TimerState
@@ -192,6 +260,31 @@ public sealed class EphemeralTimerTests
         {
             context.State.Entries.Add("after-delay");
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed class ThrowOnceGate
+    {
+        private int attempts;
+        private readonly TaskCompletionSource firstAttempt =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource secondAttempt =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal int Attempts => Volatile.Read(ref attempts);
+        internal Task FirstAttempt => firstAttempt.Task;
+        internal Task SecondAttempt => secondAttempt.Task;
+
+        internal bool Evaluate()
+        {
+            if (Interlocked.Increment(ref attempts) == 1)
+            {
+                firstAttempt.TrySetResult();
+                throw new NotSupportedException("first timer continuation fails");
+            }
+
+            secondAttempt.TrySetResult();
+            return true;
         }
     }
 }

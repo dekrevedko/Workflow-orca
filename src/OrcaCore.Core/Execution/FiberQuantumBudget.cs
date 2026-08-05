@@ -2,7 +2,7 @@ using OrcaCore.Core.Compilation;
 
 namespace OrcaCore.Core.Execution;
 
-public sealed class FiberQuantumBudget(int maxInternalInstructions)
+internal sealed class FiberQuantumBudget(int maxInternalInstructions)
 {
     private FiberId? activeFiberId;
     private int internalInstructions;

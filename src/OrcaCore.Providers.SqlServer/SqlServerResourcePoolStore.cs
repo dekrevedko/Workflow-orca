@@ -226,29 +226,6 @@ internal sealed class SqlServerResourcePoolStore
         return snapshots;
     }
 
-    public async Task ResizePoolAsync(string poolName, int capacity, CancellationToken cancellationToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(poolName);
-        ArgumentOutOfRangeException.ThrowIfLessThan(capacity, 1);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        await using var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqlCommand(
-            """
-            update dbo.orcacore_resource_pools
-            set capacity = @capacity
-            where pool_name = @pool_name;
-            """,
-            connection);
-        command.Parameters.AddWithValue("@pool_name", poolName);
-        command.Parameters.AddWithValue("@capacity", capacity);
-        var affected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        if (affected == 0)
-        {
-            throw ResourcePoolNotConfiguredException.For([ResourcePoolName.Create(poolName)]);
-        }
-    }
-
     public async Task<ResourcePoolExpiryResult> ExpireTicketsAsync(
         DateTimeOffset now,
         CancellationToken cancellationToken)

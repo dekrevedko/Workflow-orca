@@ -1,6 +1,5 @@
 using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
-using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using Xunit;
 
@@ -122,8 +121,7 @@ public sealed class MailboxAcceptanceTests
     private static string ReadPayload(EventEnvelope? resumedEvent)
     {
         resumedEvent.Should().NotBeNull();
-        resumedEvent!.PayloadContentType.Should().BeNull();
-        return resumedEvent.Payload.Should().BeOfType<string>().Subject;
+        return resumedEvent!.GetPayload<string>();
     }
 
     public sealed class TestState

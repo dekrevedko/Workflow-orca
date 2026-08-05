@@ -3,11 +3,11 @@ using OrcaCore.Runtime.Protocol.ResourceGovernance;
 
 namespace OrcaCore.Hosting.ResourceLeases;
 
-public sealed class DurableResourcePoolManagement : IDurableResourcePoolManagement
+internal sealed class DurableResourcePoolManagement : IDurableResourcePoolManagement
 {
     private readonly SerializedResourceGovernanceAggregate aggregate;
 
-    public DurableResourcePoolManagement(
+    internal DurableResourcePoolManagement(
         IDurableResourceGovernanceStore store,
         DurableResourcePoolOptions options)
         : this(new SerializedResourceGovernanceAggregate(store, options))

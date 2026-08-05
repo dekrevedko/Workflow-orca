@@ -24,6 +24,7 @@ coverage.json
 
 # BenchmarkDotNet
 BenchmarkDotNet.Artifacts/
+artifacts/public-api-candidates/
 
 # Rider / ReSharper
 *.sln.DotSettings.user

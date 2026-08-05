@@ -5,7 +5,7 @@ namespace OrcaCore.Engine.Durable.Driver;
 /// <summary>
 /// Observes durable driver segments and continuation claims without affecting execution.
 /// </summary>
-public interface IDurableDriverObserver
+internal interface IDurableDriverObserver
 {
     /// <summary>
     /// Called after one advancement segment reaches an outcome.
@@ -25,7 +25,7 @@ public interface IDurableDriverObserver
 /// <summary>
 /// Telemetry-safe summary of one driver advancement segment.
 /// </summary>
-public sealed record DurableDriverSegmentObservation(
+internal sealed record DurableDriverSegmentObservation(
     DefinitionId DefinitionId,
     DefinitionVersion DefinitionVersion,
     string Outcome,
@@ -34,7 +34,7 @@ public sealed record DurableDriverSegmentObservation(
 /// <summary>
 /// Telemetry-safe summary of one continuation start.
 /// </summary>
-public sealed record DurableContinuationObservation(
+internal sealed record DurableContinuationObservation(
     string ProviderName,
     string Outcome,
     TimeSpan Lag);

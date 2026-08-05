@@ -1,7 +1,6 @@
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
-using OrcaCore.Engine.Durable.Management;
 using OrcaCore.Providers.InMemory;
 using Xunit;
 
@@ -14,14 +13,13 @@ public sealed class PoolOperationsTests
     public async Task ExpireTicketsAsync_WhenTicketExpired_RecordsAudibleExpiryState()
     {
         var pools = new InMemoryResourcePoolStore();
-        var management = new DurableManagement(new InMemoryWorkflowProvider(), pools);
         await pools.UpsertPoolAsync(Pool("db", 1), TestContext.Current.CancellationToken);
         var acquired = await pools.AcquireAsync(
             Request(1, Date(5)),
             TestContext.Current.CancellationToken);
 
-        var expired = await management.ExpireResourcePoolTicketsAsync(Date(32), TestContext.Current.CancellationToken);
-        var snapshot = await management.GetResourcePoolAsync("db", TestContext.Current.CancellationToken);
+        var expired = await pools.ExpireTicketsAsync(Date(32), TestContext.Current.CancellationToken);
+        var snapshot = (await pools.GetPoolAsync("db", TestContext.Current.CancellationToken)).Value;
 
         expired.ExpiredTickets.Should().ContainSingle()
             .Which.Ticket.TicketId.Should().Be(acquired.Tickets.Single().TicketId);
@@ -31,26 +29,10 @@ public sealed class PoolOperationsTests
     }
 
     [Fact]
-    public async Task ResizePool_WhenShrinkingBelowHeldCount_DoesNotRevokeHeldTickets()
+    public void ResourcePoolProviderPort_DoesNotExposeLegacyRawStringResize()
     {
-        var pools = new InMemoryResourcePoolStore();
-        var management = new DurableManagement(new InMemoryWorkflowProvider(), pools);
-        await pools.UpsertPoolAsync(Pool("db", 2), TestContext.Current.CancellationToken);
-        await pools.AcquireAsync(
-            new ResourcePoolAcquireRequest(
-                InstanceIdValue(1),
-                "node-1",
-                [new ResourcePoolRequirement("db", 2)],
-                Date(1),
-                Date(30)),
-            TestContext.Current.CancellationToken);
-
-        await management.ResizeResourcePoolAsync("db", 1, TestContext.Current.CancellationToken);
-        var snapshot = await management.GetResourcePoolAsync("db", TestContext.Current.CancellationToken);
-
-        snapshot.Capacity.Should().Be(1);
-        snapshot.HeldTickets.Sum(ticket => ticket.Count).Should().Be(2);
-        snapshot.AvailableCapacity.Should().Be(0);
+        typeof(IResourcePoolStore).GetMethod("ResizePoolAsync").Should().BeNull(
+            "resource administration belongs to the strong-ID management contract");
     }
 
     private static ResourcePoolDefinition Pool(string name, int capacity)

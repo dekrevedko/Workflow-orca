@@ -1,5 +1,3 @@
-using OrcaCore.Abstractions.Durable;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Core.Building;
 using OrcaCore.Core.Definitions;
@@ -37,7 +35,6 @@ internal static partial class DefinitionCompiler
             lowered.Scopes,
             lowered.AllowedInstructions,
             authoring.CompilerOptions,
-            authoring.TypeSerializerRegistry,
             authoring.DetachedAttemptState,
             authoring.WorkflowTimeout);
         var root = new SequenceNode<TState>("root", BuildNodes(authoring.RootNodes, "root"));
@@ -554,8 +551,6 @@ internal static partial class DefinitionCompiler
         if (mode == WorkflowExecutionMode.Durable)
         {
             allowed.Add(CompiledInstructionKind.ContinueAsNew);
-            allowed.Add(CompiledInstructionKind.RunChild);
-            allowed.Add(CompiledInstructionKind.RunChildren);
             allowed.Add(CompiledInstructionKind.AcquireResources);
             allowed.Add(CompiledInstructionKind.ReleaseResources);
         }
@@ -828,28 +823,6 @@ internal static partial class DefinitionCompiler
                         CompiledInstructionKind.Delay,
                         nodePath,
                         delayDuration: delay.Duration);
-                    break;
-                case SelectedRunChildAuthoringNode<TState> child:
-                    AddInstruction(
-                        instructions,
-                        CompiledInstructionKind.RunChild,
-                        nodePath,
-                        childDefinitionId: child.ChildDefinitionId,
-                        childDefinitionVersion: child.ChildDefinitionVersion,
-                        childFailurePolicy: child.FailurePolicy);
-                    break;
-                case SelectedRunChildrenAuthoringNode<TState> children:
-                    AddInstruction(
-                        instructions,
-                        CompiledInstructionKind.RunChildren,
-                        nodePath,
-                        children.ItemSnapshotSelector,
-                        childDefinitionId: children.ChildDefinitionId,
-                        childDefinitionVersion: children.ChildDefinitionVersion,
-                        childFailurePolicy: children.FailurePolicy,
-                        maxConcurrency: children.MaxConcurrency,
-                        childJoinPolicy: children.JoinPolicy,
-                        childResidualPolicy: children.ResidualPolicy);
                     break;
                 case SelectedEndAuthoringNode<TState> end:
                     AddInstruction(

@@ -1,9 +1,7 @@
 using AwesomeAssertions;
-using OrcaCore.Abstractions.Durable;
+using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
-using OrcaCore.Engine.Durable.Execution;
-using OrcaCore.Engine.Durable.Management;
+using OrcaCore.Hosting;
 using OrcaCore.Providers.InMemory;
 using Xunit;
 
@@ -15,69 +13,60 @@ public sealed class ContinueAsNewAcceptanceTests
     [Trait("AC", "AC-313")]
     public async Task ContinueAsNew_DurableInstance_RemainsQueryableByOriginalIdentity()
     {
-        var store = new InMemoryWorkflowProvider();
-        var processor = new DurableCommandProcessor(store);
-        var instanceId = InstanceIdValue(1);
+        using var host = CreateHost();
+        var definition = Workflow.Durable<ContinuationState>(
+                DefinitionId.New(),
+                DefinitionVersion.Initial)
+            .Init<string>(_ => new ContinuationState(Generation: 0))
+            .If(
+                snapshot => snapshot.Value.Generation > 0,
+                resumed => resumed.Wait(
+                    EventName.Create("continue-as-new-hold"),
+                    _ => CorrelationId.Create("continued-generation")))
+            .ContinueAsNew(snapshot => snapshot.Value with { Generation = 1 })
+            .Build();
+        var handle = host.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
 
-        await processor.ProcessAsync(Start(instanceId), TestContext.Current.CancellationToken);
-        await processor.ProcessAsync(ContinueAsNew(instanceId), TestContext.Current.CancellationToken);
+        var started = await handle.StartOrGetAsync(
+            "input",
+            StartIdempotencyKey.Create("continue-as-new-identity"),
+            TestContext.Current.CancellationToken);
+        var originalInstanceId = started.GetHandleOrThrow().InstanceId;
+        var reopened = await handle.GetInstanceAsync(
+            originalInstanceId,
+            TestContext.Current.CancellationToken);
+        var snapshot = await reopened.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var state = await reopened.GetStateAsync<ContinuationState>(
+            TestContext.Current.CancellationToken);
 
-        var snapshot = await new DurableManagement(store)
-            .Instance(instanceId)
-            .GetAsync(TestContext.Current.CancellationToken);
-
-        snapshot.InstanceId.Should().Be(instanceId);
-        snapshot.RootInstanceId.Should().Be(instanceId);
-        snapshot.Status.Should().Be(WorkflowStatus.Running);
-        snapshot.ContinueAsNewGeneration.Should().Be(1);
+        reopened.InstanceId.Should().Be(originalInstanceId);
+        snapshot.InstanceId.Should().Be(originalInstanceId);
+        snapshot.Status.Should().Be(WorkflowStatus.Waiting);
+        state.Should().Be(new ContinuationState(Generation: 1));
     }
 
-    private static StartWorkflowCommand Start(InstanceId instanceId)
+    private static ServiceProvider CreateHost()
     {
-        return new StartWorkflowCommand
+        var services = new ServiceCollection();
+        services.AddOrcaCoreInMemoryDurableProvider();
+        services.AddOrcaCoreDurableEngine(new DurableEngineHostOptions
         {
-            CommandId = CommandIdValue(1),
-            InstanceId = instanceId,
-            RequestedAt = Timestamp(1),
-            DefinitionId = DefinitionIdValue(1),
-            DefinitionVersion = new DefinitionVersion(7)
-        };
+            StructuredExecution = new StructuredExecutionHostOptions
+            {
+                MaxConcurrentExecutionPathsPerInstance = 4,
+                StepThrottles = []
+            },
+            ResourcePools = new DurableResourcePoolOptions
+            {
+                PartitionId = ResourceGovernancePartitionId.Create(
+                    $"acceptance-continue-{Guid.NewGuid():N}"),
+                Pools = []
+            }
+        });
+        return services.BuildServiceProvider();
     }
 
-    private static ContinueAsNewCommand ContinueAsNew(InstanceId instanceId)
-    {
-        return new ContinueAsNewCommand
-        {
-            CommandId = CommandIdValue(2),
-            InstanceId = instanceId,
-            RequestedAt = Timestamp(2),
-            StateContentType = "application/json",
-            StatePayload = [1]
-        };
-    }
-
-    private static DateTimeOffset Timestamp(int seconds)
-    {
-        return new DateTimeOffset(2026, 7, 2, 12, 0, seconds, TimeSpan.Zero);
-    }
-
-    private static InstanceId InstanceIdValue(int value)
-    {
-        return InstanceId.Parse(GuidValue(value).ToString());
-    }
-
-    private static CommandId CommandIdValue(int value)
-    {
-        return new CommandId(GuidValue(value));
-    }
-
-    private static DefinitionId DefinitionIdValue(int value)
-    {
-        return DefinitionId.Parse(GuidValue(value).ToString());
-    }
-
-    private static Guid GuidValue(int value)
-    {
-        return Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}");
-    }
+    public sealed record ContinuationState(int Generation);
 }

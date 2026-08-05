@@ -1,17 +1,16 @@
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Compilation;
 
 namespace OrcaCore.Core.Execution;
 
-public sealed record StructuredRuntimeDiagnostic(string Code, string Message);
+internal sealed record StructuredRuntimeDiagnostic(string Code, string Message);
 
-public sealed record StructuredExecutionFailure(string Code, string Message);
+internal sealed record StructuredExecutionFailure(string Code, string Message);
 
-public sealed record StructuredExecutionStatus(
-    WorkflowStatus? Status,
+internal sealed record StructuredExecutionStatus(
+    global::OrcaCore.WorkflowInstanceStatus? Status,
     StructuredExecutionFailure? Failure);
 
-public static class ExecutionStatusDeriver
+internal static class ExecutionStatusDeriver
 {
     public static StructuredExecutionStatus Derive(
         WorkflowExecutionMode mode,
@@ -34,10 +33,10 @@ public static class ExecutionStatusDeriver
 
         var terminal = root.Phase switch
         {
-            FiberPhase.Completed => WorkflowStatus.Completed,
-            FiberPhase.Failed => WorkflowStatus.Failed,
-            FiberPhase.Cancelled => WorkflowStatus.Cancelled,
-            _ => (WorkflowStatus?)null
+            FiberPhase.Completed => global::OrcaCore.WorkflowInstanceStatus.Completed,
+            FiberPhase.Failed => global::OrcaCore.WorkflowInstanceStatus.Failed,
+            FiberPhase.Cancelled => global::OrcaCore.WorkflowInstanceStatus.Cancelled,
+            _ => (global::OrcaCore.WorkflowInstanceStatus?)null
         };
         if (terminal is not null)
         {
@@ -47,7 +46,7 @@ public static class ExecutionStatusDeriver
         if (state.Scopes.Values.Any(scope =>
             scope.Phase is ExecutionScopePhase.Joinable or ExecutionScopePhase.Merging))
         {
-            return new StructuredExecutionStatus(WorkflowStatus.Running, null);
+            return new StructuredExecutionStatus(global::OrcaCore.WorkflowInstanceStatus.Running, null);
         }
 
         var runnable = state.Fibers.Values
@@ -71,7 +70,7 @@ public static class ExecutionStatusDeriver
 
         if (runnable.Count > 0)
         {
-            return new StructuredExecutionStatus(WorkflowStatus.Running, null);
+            return new StructuredExecutionStatus(global::OrcaCore.WorkflowInstanceStatus.Running, null);
         }
 
         var nonterminal = state.Fibers.Values
@@ -79,7 +78,7 @@ public static class ExecutionStatusDeriver
             .ToArray();
         if (nonterminal.Length > 0 && nonterminal.All(fiber => fiber.Phase == FiberPhase.Blocked))
         {
-            return new StructuredExecutionStatus(WorkflowStatus.Waiting, null);
+            return new StructuredExecutionStatus(global::OrcaCore.WorkflowInstanceStatus.Waiting, null);
         }
 
         return ReportModeFailure(
@@ -94,7 +93,7 @@ public static class ExecutionStatusDeriver
         string message)
     {
         return mode == WorkflowExecutionMode.Durable
-            ? new StructuredExecutionStatus(WorkflowStatus.Parked, null)
+            ? new StructuredExecutionStatus(global::OrcaCore.WorkflowInstanceStatus.Waiting, null)
             : new StructuredExecutionStatus(null, new StructuredExecutionFailure(code, message));
     }
 }

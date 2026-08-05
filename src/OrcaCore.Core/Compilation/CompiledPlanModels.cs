@@ -1,6 +1,4 @@
-using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Definitions;
 
 namespace OrcaCore.Core.Compilation;
@@ -8,7 +6,7 @@ namespace OrcaCore.Core.Compilation;
 /// <summary>
 /// Stable identity of one compiled instruction.
 /// </summary>
-public readonly record struct InstructionId(string Value)
+internal readonly record struct InstructionId(string Value)
 {
     public override string ToString() => Value;
 }
@@ -16,7 +14,7 @@ public readonly record struct InstructionId(string Value)
 /// <summary>
 /// Stable identity of one authored structured-scope plan.
 /// </summary>
-public readonly record struct ScopePlanId(string Value)
+internal readonly record struct ScopePlanId(string Value)
 {
     public override string ToString() => Value;
 }
@@ -24,7 +22,7 @@ public readonly record struct ScopePlanId(string Value)
 /// <summary>
 /// Stable identity of one authored branch plan.
 /// </summary>
-public readonly record struct BranchPlanId(string Value)
+internal readonly record struct BranchPlanId(string Value)
 {
     public override string ToString() => Value;
 }
@@ -32,7 +30,7 @@ public readonly record struct BranchPlanId(string Value)
 /// <summary>
 /// Instruction kinds emitted by the structured definition compiler.
 /// </summary>
-public enum CompiledInstructionKind
+internal enum CompiledInstructionKind
 {
     Init,
     Step,
@@ -48,8 +46,6 @@ public enum CompiledInstructionKind
     ScopeExit,
     Wait,
     Delay,
-    RunChild,
-    RunChildren,
     ContinueAsNew,
     AcquireResources,
     ReleaseResources
@@ -58,7 +54,7 @@ public enum CompiledInstructionKind
 /// <summary>
 /// Structured scope kinds emitted by the compiler.
 /// </summary>
-public enum CompiledScopeKind
+internal enum CompiledScopeKind
 {
     WhenAll,
     WhenAllOutcomes,
@@ -69,7 +65,7 @@ public enum CompiledScopeKind
 /// <summary>
 /// Merge contract selected for one structured scope.
 /// </summary>
-public enum CompiledMergeKind
+internal enum CompiledMergeKind
 {
     WhenAll,
     WhenAllOutcomes,
@@ -80,12 +76,12 @@ public enum CompiledMergeKind
 /// <summary>
 /// Fully resolved retry settings attached to an instruction.
 /// </summary>
-public sealed record CompiledRetryPolicy(int MaxAttempts, TimeSpan Backoff);
+internal sealed record CompiledRetryPolicy(int MaxAttempts, TimeSpan Backoff);
 
 /// <summary>
 /// Fully resolved execution policies attached to one compiled instruction.
 /// </summary>
-public sealed record CompiledPolicyPlan
+internal sealed record CompiledPolicyPlan
 {
     public static CompiledPolicyPlan Empty { get; } = new();
 
@@ -103,7 +99,7 @@ public sealed record CompiledPolicyPlan
 /// <summary>
 /// One immutable instruction and its authored location.
 /// </summary>
-public sealed record CompiledInstruction(
+internal sealed record CompiledInstruction(
     InstructionId Id,
     CompiledInstructionKind Kind,
     string Path,
@@ -125,17 +121,7 @@ public sealed record CompiledInstruction(
 
     public Delegate? LeaseRequestSelector { get; init; }
 
-    public DefinitionId? ChildDefinitionId { get; init; }
-
-    public DefinitionVersion? ChildDefinitionVersion { get; init; }
-
-    public RunChildFailurePolicy? ChildFailurePolicy { get; init; }
-
     public int? MaxConcurrency { get; init; }
-
-    public RunChildrenJoinPolicy? ChildJoinPolicy { get; init; }
-
-    public RunChildrenResidualPolicy? ChildResidualPolicy { get; init; }
 
     public Delegate? Operation { get; init; }
 
@@ -153,7 +139,7 @@ public sealed record CompiledInstruction(
 /// <summary>
 /// Typed branch input projection and serialization contract.
 /// </summary>
-public sealed record CompiledBranchInputPlan
+internal sealed record CompiledBranchInputPlan
 {
     public CompiledBranchInputPlan(
         Type parentStateType,
@@ -183,7 +169,7 @@ public sealed record CompiledBranchInputPlan
 /// <summary>
 /// Typed branch-return and serialization contract.
 /// </summary>
-public sealed record CompiledBranchResultPlan
+internal sealed record CompiledBranchResultPlan
 {
     public CompiledBranchResultPlan(
         Type branchStateType,
@@ -213,7 +199,7 @@ public sealed record CompiledBranchResultPlan
 /// <summary>
 /// Typed replacement-state merge and serialization contract.
 /// </summary>
-public sealed record CompiledMergePlan
+internal sealed record CompiledMergePlan
 {
     public CompiledMergePlan(
         CompiledMergeKind kind,
@@ -247,7 +233,7 @@ public sealed record CompiledMergePlan
 /// <summary>
 /// One immutable authored branch inside a scope plan.
 /// </summary>
-public sealed record CompiledBranchPlan(
+internal sealed record CompiledBranchPlan(
     BranchPlanId Id,
     string BranchId,
     int Ordinal,
@@ -258,7 +244,7 @@ public sealed record CompiledBranchPlan(
 /// <summary>
 /// One immutable structured-scope plan.
 /// </summary>
-public sealed record CompiledScopePlan(
+internal sealed record CompiledScopePlan(
     ScopePlanId Id,
     CompiledScopeKind Kind,
     Type ResultType,
@@ -273,7 +259,7 @@ public sealed record CompiledScopePlan(
 /// <summary>
 /// Dynamic item materialization and admission contract for an ephemeral ForEach scope.
 /// </summary>
-public sealed record CompiledForEachPlan
+internal sealed record CompiledForEachPlan
 {
     public CompiledForEachPlan(
         Type itemType,

@@ -25,7 +25,7 @@ public sealed record LifecycleEventSnapshot
     /// <summary>
     /// Gets the workflow status associated with the lifecycle event when applicable.
     /// </summary>
-    public WorkflowStatus? Status { get; init; }
+    public global::OrcaCore.WorkflowInstanceStatus? Status { get; init; }
 
     /// <summary>
     /// Gets when the lifecycle event occurred.

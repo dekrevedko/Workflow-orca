@@ -2,15 +2,14 @@ using AwesomeAssertions;
 using Npgsql;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.ProviderCertification;
 using OrcaCore.Providers.PostgreSql;
 using OrcaCore.TestSupport;
 using Testcontainers.PostgreSql;
 using Xunit;
-using ProjectionActiveWaitSnapshot = OrcaCore.Abstractions.Instances.ActiveWaitSnapshot;
-using ProjectionWorkflowInstanceSnapshot = OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot;
+using ProjectionActiveWaitSnapshot = OrcaCore.Abstractions.Providers.WorkflowProjectionActiveWaitSnapshot;
+using ProjectionWorkflowInstanceSnapshot = OrcaCore.Abstractions.Providers.WorkflowProjectionSnapshot;
 
 namespace OrcaCore.Providers.PostgreSql.Tests;
 
@@ -340,25 +339,29 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
 
     [Fact]
     [Trait("AC", "DU-070")]
-    public async Task PostgreSql_CountAsync_UsesScalarQueryWithoutDeserializingProjectionPayloads()
+    public async Task PostgreSql_GetAsync_UsesTheExactInstanceIdentity()
     {
         var store = await CreateStoreAsync();
         var instanceId = InstanceIdValue(54);
+        var otherInstanceId = InstanceIdValue(154);
         await store.ApplyAsync(
-            [new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
-            {
-                InstanceSnapshot = RunningSnapshot(instanceId)
-            }],
+            [
+                new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
+                {
+                    InstanceSnapshot = RunningSnapshot(instanceId)
+                },
+                new ProjectionWrite(otherInstanceId, ProjectionOperationKind.UpsertSummary)
+                {
+                    InstanceSnapshot = RunningSnapshot(otherInstanceId)
+                }
+            ],
             TestContext.Current.CancellationToken);
-        await ExecuteAsync(
-            """update orcacore_instance_projections set saga_audits = '{"not":"an-array"}'::jsonb where instance_id = @instance_id;""",
-            instanceId);
 
-        var count = await store.CountAsync(
-            new WorkflowProjectionQuery { InstanceId = instanceId },
+        var snapshot = await store.GetAsync(
+            instanceId,
             TestContext.Current.CancellationToken);
 
-        count.Should().Be(1);
+        snapshot.Value.InstanceId.Should().Be(instanceId);
     }
 
     [Fact]
@@ -413,8 +416,12 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
             TestContext.Current.CancellationToken);
         await store.ClaimAsync(1, TestContext.Current.CancellationToken);
 
-        var activePurge = await store.PurgeAsync(activeInstanceId, TestContext.Current.CancellationToken);
-        var claimedPurge = await store.PurgeAsync(claimedInstanceId, TestContext.Current.CancellationToken);
+        var activePurge = await store.PurgeForRetentionAsync(
+            activeInstanceId,
+            TestContext.Current.CancellationToken);
+        var claimedPurge = await store.PurgeForRetentionAsync(
+            claimedInstanceId,
+            TestContext.Current.CancellationToken);
         var activeTail = await store.LoadTailAsync(
             new WorkflowStreamId(activeInstanceId),
             StreamVersion.Empty,
@@ -455,12 +462,10 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
             Batch(instanceId, StreamVersion.Empty, projection: WaitingSnapshot(instanceId)),
             TestContext.Current.CancellationToken);
 
-        var results = await store.ListAsync(
-            new WorkflowProjectionQuery
-            {
-                ActiveWaitEventName = "Approved",
-                ActiveWaitCorrelationId = CorrelationId.Create("order-1")
-            },
+        var results = await store.FindActiveWaitsAsync(
+            definitionId: null,
+            EventName.Create("Approved"),
+            CorrelationId.Create("order-1"),
             TestContext.Current.CancellationToken);
 
         results.Should().ContainSingle()
@@ -468,8 +473,8 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
     }
 
     [Fact]
-    [Trait("AC", "AC-407")]
-    public async Task PostgreSql_SagaEventsAndAuditProjectionRoundTrip()
+    [Trait("AC", "AC-314")]
+    public async Task PostgreSql_CurrentWorkflowEventsAndSummaryProjectionRoundTrip()
     {
         var instanceId = InstanceIdValue(1);
         var store = await CreateStoreAsync();
@@ -481,23 +486,21 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
                 Events =
                 [
                     StartEvent(instanceId),
-                    new SagaForwardActionCompletedEvent
+                    new WorkflowStepCompletedEvent
                     {
                         EventId = EventIdValue(101),
                         InstanceId = instanceId,
                         CommandId = CommandIdValue(2),
                         CausationId = CausationIdValue(2),
                         OccurredAt = Timestamp(2),
-                        ScopeId = "checkout",
-                        ActionKey = "reserve",
-                        CompensationKey = "release"
+                        StepPath = "root/1"
                     }
                 ],
                 ProjectionOperations =
                 [
                     new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
                     {
-                        InstanceSnapshot = SagaSnapshot(instanceId)
+                        InstanceSnapshot = CompletedSnapshot(instanceId)
                     }
                 ]
             },
@@ -507,16 +510,13 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
             new WorkflowStreamId(instanceId),
             StreamVersion.Empty,
             TestContext.Current.CancellationToken);
-        var projections = await store.ListAsync(
-            new WorkflowProjectionQuery { InstanceId = instanceId },
+        var projection = await store.GetAsync(
+            instanceId,
             TestContext.Current.CancellationToken);
 
-        tail.OfType<SagaForwardActionCompletedEvent>().Should().ContainSingle()
-            .Which.CompensationKey.Should().Be("release");
-        projections.Should().ContainSingle()
-            .Which.SagaAudits.Should().ContainSingle()
-            .Which.CompensationActions.Should().ContainSingle()
-            .Which.Status.Should().Be(SagaCompensationActionStatus.Completed);
+        tail.OfType<WorkflowStepCompletedEvent>().Should().ContainSingle()
+            .Which.StepPath.Should().Be("root/1");
+        projection.Value.Status.Should().Be(WorkflowInstanceStatus.Completed);
     }
 
     private async Task<PostgreSqlWorkflowStore> CreateStoreAsync()
@@ -600,43 +600,6 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
                     RegisteredAt = Timestamp(2),
                     Status = "Active",
                     Mode = "Resident"
-                }
-            ]
-        };
-    }
-
-    private static ProjectionWorkflowInstanceSnapshot SagaSnapshot(InstanceId instanceId)
-    {
-        return Snapshot(instanceId, WorkflowStatus.Compensated) with
-        {
-            SagaAudits =
-            [
-                new SagaAuditScopeSnapshot
-                {
-                    ScopeId = "checkout",
-                    Outcome = WorkflowStatus.Compensated,
-                    ForwardActions =
-                    [
-                        new SagaForwardActionSnapshot
-                        {
-                            ScopeId = "checkout",
-                            ActionKey = "reserve",
-                            CompensationKey = "release",
-                            CompletedAt = Timestamp(2)
-                        }
-                    ],
-                    CompensationActions =
-                    [
-                        new SagaCompensationActionSnapshot
-                        {
-                            ScopeId = "checkout",
-                            ActionKey = "release",
-                            Order = 0,
-                            StartedAt = Timestamp(3),
-                            CompletedAt = Timestamp(4),
-                            Status = SagaCompensationActionStatus.Completed
-                        }
-                    ]
                 }
             ]
         };

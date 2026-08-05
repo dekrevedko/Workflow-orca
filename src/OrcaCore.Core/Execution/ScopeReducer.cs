@@ -4,7 +4,7 @@ using OrcaCore.Core.Definitions;
 
 namespace OrcaCore.Core.Execution;
 
-public static class ScopeReducer
+internal static class ScopeReducer
 {
     public static StructuredExecutionState BeginMerge(
         StructuredExecutionState state,
@@ -67,7 +67,8 @@ public static class ScopeReducer
                 $"Scope '{scopeId}' cannot be pruned while it owns nonterminal fibers.");
         }
 
-        var completedYields = completedFiberIds.Sum(fiberId => state.Fibers[fiberId].YieldCount);
+        var completedQuantumRotations = completedFiberIds.Sum(
+            fiberId => state.Fibers[fiberId].QuantumRotationCount);
         var completedRotations = completedFiberIds.Sum(fiberId =>
             state.Fibers[fiberId].ForcedRotationCount);
         var fibers = state.Fibers
@@ -84,7 +85,8 @@ public static class ScopeReducer
             Fibers = fibers,
             Scopes = scopes,
             Scheduler = scheduler,
-            CompletedYieldCount = checked(state.CompletedYieldCount + completedYields),
+            CompletedQuantumRotationCount = checked(
+                state.CompletedQuantumRotationCount + completedQuantumRotations),
             CompletedForcedRotationCount = checked(
                 state.CompletedForcedRotationCount + completedRotations)
         };

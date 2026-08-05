@@ -12,7 +12,7 @@ using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Engine.Durable.ResourceGovernance;
 using OrcaCore.Hosting;
 using OrcaCore.Hosting.ResourceLeases;
-using OrcaCore.Internal;
+using OrcaCore.Provider.Abstractions;
 using OrcaCore.Provider.Abstractions.ResourceGovernance;
 using OrcaCore.Providers.InMemory;
 using OrcaCore.Runtime.Protocol.ResourceGovernance;
@@ -71,9 +71,11 @@ public static class Section7GovernanceScenarioHost
     {
         const string scenario = "creation-current-capacity";
         await ConsumeProductBarrierAsync(context, scenario, observeExactGate: true);
-        var store = new InMemoryResourceGovernanceStore();
+        using var provider = InMemoryProviderPorts.Create();
+        var store = provider.ResourceGovernanceStore;
         var options = Options(scenario, ("database", 3));
-        var first = new DurableResourcePoolManagement(store, options);
+        using var firstHost = CreateManagementProvider(store, options);
+        var first = firstHost.GetRequiredService<IDurableResourcePoolManagement>();
         var resized = await first.ResizeAsync(
             ResourcePoolName.Create("database"),
             1,
@@ -83,7 +85,8 @@ public static class Section7GovernanceScenarioHost
             throw new InvalidOperationException("Initial resize did not commit.");
         }
 
-        var replacement = new DurableResourcePoolManagement(store, options);
+        using var replacementHost = CreateManagementProvider(store, options);
+        var replacement = replacementHost.GetRequiredService<IDurableResourcePoolManagement>();
         var current = await replacement.GetAsync(ResourcePoolName.Create("database"));
         if (current.ConfiguredCapacity != 1)
         {
@@ -100,18 +103,25 @@ public static class Section7GovernanceScenarioHost
             stream => stream.Version == 2 && stream.Records.Count == 2,
             "Creation and resize did not occupy one validated serialized stream.");
 
-        var incompatible = new DurableResourcePoolManagement(
+        using var incompatibleHost = CreateManagementProvider(
             store,
             Options(scenario, ("database", 4)));
+        var incompatible = incompatibleHost.GetRequiredService<IDurableResourcePoolManagement>();
+        var rejected = false;
         try
         {
             _ = await incompatible.GetAsync(ResourcePoolName.Create("database"));
-            throw new InvalidOperationException(
-                "Replacement startup accepted a changed immutable creation definition.");
         }
         catch (InvalidOperationException exception)
             when (exception.Message.Contains("creation definition", StringComparison.Ordinal))
         {
+            rejected = true;
+        }
+
+        if (!rejected)
+        {
+            throw new InvalidOperationException(
+                "Replacement startup accepted a changed immutable pool catalog.");
         }
     }
 
@@ -121,7 +131,8 @@ public static class Section7GovernanceScenarioHost
     {
         const string scenario = "whole-batch";
         await ConsumeProductBarrierAsync(context, scenario);
-        var store = new InMemoryResourceGovernanceStore();
+        using var provider = InMemoryProviderPorts.Create();
+        var store = provider.ResourceGovernanceStore;
         var partition = ResourceGovernancePartitionId.Create(scenario);
         var callerPayload = Encoding.UTF8.GetBytes("first");
         var first = Record(1, callerPayload);
@@ -488,7 +499,8 @@ public static class Section7GovernanceScenarioHost
     {
         const string scenario = "confirmation-tombstone";
         using var fixture = GovernanceFixture.Create(scenario, ("database", 1));
-        var workflowStore = new InMemoryWorkflowProvider();
+        using var workflowProvider = InMemoryProviderPorts.Create();
+        var workflowStore = workflowProvider.EventStore;
         var control = new BlockingLeaseControl();
         var publicDefinition = global::OrcaCore.Workflow.Durable<CertificationState>(
                 DefinitionId.New(),
@@ -500,25 +512,22 @@ public static class Section7GovernanceScenarioHost
                 lease => lease.Then<BlockingLeaseStep>())
             .End()
             .Build();
-        var definition = (WorkflowDefinition<CertificationState>)
-            WorkflowRuntimeBridge.RuntimeDefinition(publicDefinition);
         var processor = new DurableCommandProcessor(workflowStore, fixture.Pools);
         var runtime = new DurableWorkflowRuntime(
             processor,
             new DurableDefinitionRegistry(new StepServices(control)),
             TimeProvider.System,
             DurableDriverBudget.Default,
-            workflowStore);
-        runtime.RegisterDefinition(definition);
+            workflowProvider.ProjectionStore);
+        runtime.RegisterDefinition(publicDefinition);
         var running = runtime.StartOrGetAsync<string, CertificationState>(
             scenario,
-            definition.DefinitionId,
-            definition.DefinitionVersion,
+            publicDefinition.DefinitionId,
+            publicDefinition.DefinitionVersion,
             "start",
             CancellationToken.None);
         await control.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        var projection = (await workflowStore.ListAsync(
-            new WorkflowProjectionQuery(),
+        var projection = (await workflowProvider.ProjectionStore.ListLeaseRecoveryCandidatesAsync(
             CancellationToken.None)).Single();
         var terminated = await processor.ProcessAsync(
             new TerminateWorkflowCommand
@@ -537,7 +546,7 @@ public static class Section7GovernanceScenarioHost
         _ = await running;
         var recovery = new DurableResourceLeaseRecovery(
             processor,
-            workflowStore,
+            workflowProvider.ProjectionStore,
             TimeProvider.System);
         var adapter = new RecoveryAdapter(recovery);
         var token = LeaseProtectionToken.Parse(control.ProtectionToken!);
@@ -575,7 +584,8 @@ public static class Section7GovernanceScenarioHost
         RecordingCertificationGate gate,
         string key)
     {
-        var workflowStore = new InMemoryWorkflowProvider();
+        using var workflowProvider = InMemoryProviderPorts.Create();
+        var workflowStore = workflowProvider.EventStore;
         var publicDefinition = global::OrcaCore.Workflow.Durable<CertificationState>(
                 DefinitionId.New(),
                 DefinitionVersion.Initial)
@@ -586,8 +596,6 @@ public static class Section7GovernanceScenarioHost
                 lease => lease.Then<NoOpStep>())
             .End()
             .Build();
-        var definition = (WorkflowDefinition<CertificationState>)
-            WorkflowRuntimeBridge.RuntimeDefinition(publicDefinition);
         var processor = new DurableCommandProcessor(workflowStore, pools)
         {
             LeaseCertificationGate = gate
@@ -597,12 +605,12 @@ public static class Section7GovernanceScenarioHost
             new DurableDefinitionRegistry(new StepServices()),
             TimeProvider.System,
             DurableDriverBudget.Default,
-            workflowStore);
-        runtime.RegisterDefinition(definition);
+            workflowProvider.ProjectionStore);
+        runtime.RegisterDefinition(publicDefinition);
         _ = await runtime.StartOrGetAsync<string, CertificationState>(
             key,
-            definition.DefinitionId,
-            definition.DefinitionVersion,
+            publicDefinition.DefinitionId,
+            publicDefinition.DefinitionVersion,
             "start",
             CancellationToken.None);
         return gate.Facts.ToArray();
@@ -635,7 +643,8 @@ public static class Section7GovernanceScenarioHost
         var productName = $"{scenario}:product";
         context.ReleaseBarrier(productName);
         var productGate = new SingleBarrierGate(context.Services.Barrier, productName);
-        var processor = new DurableCommandProcessor(new InMemoryWorkflowProvider())
+        using var provider = InMemoryProviderPorts.Create();
+        var processor = new DurableCommandProcessor(provider.EventStore)
         {
             LeaseCertificationGate = productGate
         };
@@ -672,7 +681,8 @@ public static class Section7GovernanceScenarioHost
         var productName = $"{scenario}:product";
         context.ReleaseBarrier(productName);
         var productGate = new SingleBarrierGate(context.Services.Barrier, productName);
-        var processor = new DurableCommandProcessor(new InMemoryWorkflowProvider())
+        using var provider = InMemoryProviderPorts.Create();
+        var processor = new DurableCommandProcessor(provider.EventStore)
         {
             LeaseCertificationGate = productGate
         };
@@ -764,6 +774,25 @@ public static class Section7GovernanceScenarioHost
                 .ToArray()
         };
 
+    private static ServiceProvider CreateManagementProvider(
+        IDurableResourceGovernanceStore store,
+        DurableResourcePoolOptions options)
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IDurableProviderRole>(CertificationProviderRole.Instance);
+        services.AddSingleton(store);
+        services.AddOrcaCoreDurableEngine(new DurableEngineHostOptions
+        {
+            StructuredExecution = new StructuredExecutionHostOptions
+            {
+                MaxConcurrentExecutionPathsPerInstance = 4,
+                StepThrottles = []
+            },
+            ResourcePools = options
+        });
+        return services.BuildServiceProvider();
+    }
+
     private static ResourceGovernanceRecord Record(long sequence, byte[] payload)
     {
         var checksum = Convert.ToHexString(SHA256.HashData(payload)).ToLowerInvariant();
@@ -814,6 +843,15 @@ public static class Section7GovernanceScenarioHost
         }
 
         public void Dispose() => Provider.Dispose();
+    }
+
+    private sealed record CertificationProviderRole : IDurableProviderRole
+    {
+        internal static CertificationProviderRole Instance { get; } = new();
+
+        public string Name => "provider-certification";
+
+        public bool IsDevelopmentOnly => true;
     }
 
     private sealed class RecordingCertificationGate(

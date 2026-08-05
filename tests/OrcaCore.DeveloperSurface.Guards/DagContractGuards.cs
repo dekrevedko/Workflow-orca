@@ -39,7 +39,7 @@ public sealed class DagContractInfrastructureGuards
         {
             "DAG-AUTH-MAP-001", "DAG-AUTH-MAP-002", "DAG_INPUT_MAPPING_INVALID", "OutputOf",
             "before mapped-input", "WaitForTerminalAsync", "ChildInstanceId", "MaxConcurrentNodes",
-            "InternalsVisibleTo(\"OrcaCore.Dag.Hosting\")", "`RunChild`/`RunChildren` are deferred public APIs"
+            "`OrcaCore.Durable.Hosting -> OrcaCore.Dag.Hosting`", "`RunChild`/`RunChildren` are deferred public APIs"
         }) matrix.Should().Contain(anchor);
     }
 }

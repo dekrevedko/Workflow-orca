@@ -1,15 +1,16 @@
 # OrcaCore semantic appendix
 
-**Status:** proposed non-normative review and verification aid; publication is pending independent approval under task `4.15` and canonical synchronization under task `10.14`.
+**Status:** published non-normative review and verification aid after Revision 8 approval under
+task `4.15` and canonical synchronization under task `10.14`.
 
 The accepted normative contract remains the selected-mode matrix and canonical OpenSpec baseline.
-This draft summarizes consequences of the active change deltas; it does not create another promise
-and SHALL NOT be published under `docs/specs/` before approval and canonical synchronization.
+This appendix summarizes consequences of that normative contract and does not create another
+promise.
 
-**Implementation status:** these laws describe the proposed normative target, not a blanket claim
-that the current product source already conforms. In particular, L4 remains reserved pending task
-4.16, L5's contributor boundary remains pending task 5.14, and the no-live-fiber-resource portions
-of L8/L9 remain pending task 5.13. Those gaps are recorded as `ExpectedRed` in the active change.
+**Implementation status:** these laws describe the normative target, not a blanket claim that every
+later-section capability already conforms. Tasks `4.16`, `5.13`, and `5.14` implemented and verified
+the authoring lifecycle, two-quantity concurrency model, and structural-fingerprint boundary used by
+L4, L5, L8, and L9. Remaining work is tracked by its owning later-section OpenSpec tasks.
 
 ## Citation rule
 
@@ -65,11 +66,22 @@ behavior.
 Normative source:
 [workflow-contracts: Durable values use one fixed detached codec](../specs/workflow-contracts/spec.md).
 
-### L4. Reserved
+### L4. Build agreement
 
-The proposed build-agreement law is intentionally not published until implementation task 4.16
-lands. The normative lifecycle requirement already governs the target behavior; this appendix does
-not claim that the current implementation satisfies it.
+For every completion builder `c` produced from one frozen authoring snapshot:
+
+```text
+Build(c) = orThrow(TryBuild(c))
+```
+
+Repeated `Build` and `TryBuild` calls observe the same structural snapshot. Eager local diagnostics
+are raised by the fluent operation and are not added to `TryBuild`'s accumulated diagnostic set.
+For the five lifecycle rejections governed by the authoring-session contract, rejection leaves the
+graph unchanged and `TryBuild` remains reachable; no broader atomicity claim is implied.
+
+Normative sources:
+[workflow-authoring: Authoring sessions have one explicit lifecycle](../specs/workflow-authoring/spec.md) and
+[quality-and-verification: Authoring lifecycle evidence is mutation-sensitive](../specs/quality-and-verification/spec.md).
 
 ### L5. Fingerprint factorization
 
@@ -85,8 +97,8 @@ mutation. Collision resistance is an engineering assumption exercised by certifi
 mathematical theorem. Compiler format, mode, definition identity/version, and compiler options are
 separate bindings rather than fingerprint inputs.
 
-Current implementation note: task 5.14 implemented this boundary on 2026-07-29 and its exact
-mutation/non-mutation matrix is green; independent Section 4/5 exit review remains pending.
+Current implementation note: task 5.14 implemented this boundary on 2026-07-29, its exact
+mutation/non-mutation matrix is green, and the Section 4/5 exit target was independently approved.
 
 Normative source:
 [workflow-contracts: Executable plan identity is explicit](../specs/workflow-contracts/spec.md).
@@ -157,13 +169,13 @@ Normative sources:
 - Replay makes external effects exactly once.
 - Codec round-trip yields CLR-equal or reference-identical objects.
 - `TryBuild` is unreachable after an eager diagnostic. It remains reachable.
-- Every eager authoring rejection leaves the graph unchanged. That guarantee is proposed only for
-  the five lifecycle rejections owned by task 4.16.
+- Every eager authoring rejection leaves the graph unchanged. That guarantee applies only to the
+  five lifecycle rejections owned by task 4.16.
 - Structural drift detection is collision-free by theorem.
 - Ceiling-one path tokens imply global progress.
 - Every `ForEach` item is unconditionally eventually admitted.
-- The current implementation has no third concurrency quantity. The normative v1 model excludes
-  one, but product source retains `MaxActiveFibers` until task 5.13 lands.
+- A third live-fiber admission quantity exists in the current implementation. Task 5.13 removed it;
+  the v1 execution model has only host execution-path capacity and node-local `ForEach` admission.
 - Fan-out rank one is a computational complexity class. Step bodies remain arbitrary code.
 - Scope-tree acyclicity rules out resource wait cycles.
 - Fixed `Parallel` requires whole-set reservation.

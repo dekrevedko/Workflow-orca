@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using AwesomeAssertions;
+using OrcaCore.Core.Authoring;
 using OrcaCore.Core.Building;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Execution;
@@ -79,7 +80,7 @@ public sealed class FailureProvenanceTests
             FailureProvenance.Location("workflow:$/n:00000001"),
             FailureProvenance.RootOccurrence());
 
-        var detached = global::OrcaCore.Core.Authoring.PublicAuthoringContracts.ItemOutcome(
+        var detached = AuthoringContractFactory.ItemOutcome(
             new global::OrcaCore.Core.Building.ForEachItemOutcome<int>(
                 0,
                 ForEachItemTerminalStatus.Failed,
@@ -99,7 +100,7 @@ public sealed class FailureProvenanceTests
         publicFailure.Causes[0].Occurrence.Should().Be(child.Occurrence);
         publicFailure.Causes[0].Occurrence.Should().NotBeSameAs(child.Occurrence);
 
-        var second = global::OrcaCore.Core.Authoring.PublicAuthoringContracts.ItemOutcome(
+        var second = AuthoringContractFactory.ItemOutcome(
             new global::OrcaCore.Core.Building.ForEachItemOutcome<int>(
                 0,
                 ForEachItemTerminalStatus.Failed,

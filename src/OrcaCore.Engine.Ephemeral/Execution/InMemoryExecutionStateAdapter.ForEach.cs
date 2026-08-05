@@ -13,10 +13,10 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         object parentState)
     {
         var forEach = scopePlan.ForEach ??
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException("Compiled ForEach contract is missing.");
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException("Compiled ForEach contract is missing.");
         if (parentState is not TState typedParent)
         {
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                 $"ForEach parent state must be '{typeof(TState).FullName}'.");
         }
 
@@ -27,19 +27,20 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
                 forEach.ItemSelector,
                 new ReadOnlyParentSnapshot<TState>(typedParent));
         }
-        catch (TargetInvocationException exception) when (exception.InnerException is not null)
+        catch (TargetInvocationException exception)
+            when (exception.InnerException is not null and not StructuredExecutionLimitException)
         {
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                 "ForEach item selection failed.",
                 exception.InnerException);
         }
 
         items = ForEachSnapshotMaterializer.Materialize(items, forEach.ItemType);
         var partitionMethod = forEach.Partitioner.GetType().GetMethod("Partition") ??
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                 "ForEach partitioner has no Partition method.");
         var partitions = partitionMethod.Invoke(forEach.Partitioner, [items]) as IEnumerable ??
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                 "ForEach partitioner returned no work descriptors.");
         var inputType = typeof(global::OrcaCore.Core.Building.ForEachItemInput<>)
             .MakeGenericType(forEach.ItemType);
@@ -49,13 +50,13 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         {
             var partitionType = partition!.GetType();
             var index = (int)(partitionType.GetProperty("Index")?.GetValue(partition) ??
-                throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                     "ForEach partition index is missing."));
             var partitionItems = partitionType.GetProperty("Items")?.GetValue(partition) ??
-                throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                     "ForEach partition items are missing.");
             var input = Activator.CreateInstance(inputType, index, partitionItems) ??
-                throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                     $"Could not create ForEach item input for index '{index}'.");
             object? itemState;
             try
@@ -64,7 +65,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
             }
             catch (TargetInvocationException exception) when (exception.InnerException is not null)
             {
-                throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                     $"ForEach item-state projection failed for index '{index}'.",
                     exception.InnerException);
             }

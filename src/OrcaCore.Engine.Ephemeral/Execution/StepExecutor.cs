@@ -1,6 +1,3 @@
-using OrcaCore.Abstractions.Events;
-using OrcaCore.Abstractions.Instances;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Engine.Ephemeral.Governance;
 
@@ -167,7 +164,7 @@ internal sealed class StepExecutor<TState>
         switch (result)
         {
             case StepResult.Completed:
-                instance.RecordLifecycleEvent("StepCompleted", stepPath, LegacyWorkflowStatus.Running, timeProvider.GetUtcNow());
+                instance.RecordLifecycleEvent("StepCompleted", stepPath, global::OrcaCore.WorkflowInstanceStatus.Running, timeProvider.GetUtcNow());
                 return StepExecutionResult.Continue();
             case StepResult.Failed failed:
                 if (deferFailures)
@@ -179,8 +176,6 @@ internal sealed class StepExecutor<TState>
                 return StepExecutionResult.Stop();
             case StepResult.WaitForEvent wait:
                 return StepExecutionResult.Wait(wait.EventName.Value, wait.CorrelationId);
-            case var legacyYield when LegacyStepResultProjection.IsYield(legacyYield):
-                return StepExecutionResult.Yield();
             default:
                 throw new NotSupportedException(
                     $"Step result '{result.GetType().Name}' is not supported by the ephemeral engine.");
@@ -190,7 +185,7 @@ internal sealed class StepExecutor<TState>
     private void Fail(WorkflowInstance<TState> instance, Exception exception, string stepPath)
     {
         var occurredAt = timeProvider.GetUtcNow();
-        instance.RecordLifecycleEvent("StepFailed", stepPath, LegacyWorkflowStatus.Failed, occurredAt);
+        instance.RecordLifecycleEvent("StepFailed", stepPath, global::OrcaCore.WorkflowInstanceStatus.Failed, occurredAt);
         instance.Fail(new WorkflowErrorDetails(
             exception.GetType().Name,
             exception.Message,

@@ -2,7 +2,6 @@ using System.Security.Cryptography;
 using System.Text;
 using AwesomeAssertions;
 using OrcaCore.Provider.Abstractions.ResourceGovernance;
-using OrcaCore.Providers.InMemory;
 using OrcaCore.Runtime.Protocol.ResourceGovernance;
 using Xunit;
 
@@ -81,7 +80,7 @@ public sealed class InMemoryResourceGovernanceStoreCertificationTests
     : ResourceGovernanceStoreCertificationTests
 {
     protected override IDurableResourceGovernanceStore CreateStore()
-        => new InMemoryResourceGovernanceStore();
+        => InMemoryProviderPorts.Create().ResourceGovernanceStore;
 }
 
 public sealed class ResourceGovernanceValueTests

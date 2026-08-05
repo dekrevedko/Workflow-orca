@@ -40,15 +40,44 @@ public interface IResourcePoolStore
     }
 
     /// <summary>
-    /// Resizes a pool without revoking held tickets.
-    /// </summary>
-    Task ResizePoolAsync(string poolName, int capacity, CancellationToken cancellationToken);
-
-    /// <summary>
     /// Marks expired tickets as audibly expired without silently releasing them.
     /// </summary>
     Task<ResourcePoolExpiryResult> ExpireTicketsAsync(
         DateTimeOffset now,
         CancellationToken cancellationToken);
+
+    /// <summary>Gets retained causal release evidence for one exact protection token.</summary>
+    Task<Option<ResourcePoolReleaseEvidence>> GetReleaseEvidenceAsync(
+        LeaseProtectionToken protectionToken,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(Option<ResourcePoolReleaseEvidence>.None);
+
+    /// <summary>Gets the token bound to one accepted stop-confirmation identity.</summary>
+    Task<Option<LeaseProtectionToken>> GetConfirmationBindingAsync(
+        StopConfirmationId confirmationId,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(Option<LeaseProtectionToken>.None);
+
+    /// <summary>Atomically binds a trusted confirmation and releases its exact holder.</summary>
+    async Task<ResourcePoolStopConfirmationStatus> ConfirmAndReleaseAsync(
+        ResourcePoolStopConfirmationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var released = await ReleaseAsync(
+            new ResourcePoolReleaseRequest(
+                request.HolderInstanceId,
+                request.HolderKey,
+                request.ConfirmedAt),
+            cancellationToken).ConfigureAwait(false);
+        return released.ReleasedTickets.Count == 0
+            ? ResourcePoolStopConfirmationStatus.TokenNotFound
+            : ResourcePoolStopConfirmationStatus.Released;
+    }
+
+    /// <summary>Purges retained release evidence after the provider deduplication window.</summary>
+    Task PurgeReleaseEvidenceAsync(
+        InstanceId instanceId,
+        CancellationToken cancellationToken = default) => Task.CompletedTask;
 
 }

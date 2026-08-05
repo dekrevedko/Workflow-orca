@@ -14,7 +14,9 @@ public sealed record PackageConsumerFixture(
     string Project,
     string[] Packages,
     string[] TransitivePackages,
-    int TurnsGreenSection);
+    int TurnsGreenSection,
+    string? TurnsGreenTask,
+    string? GuardTask);
 
 public sealed record GuardScenario(
     string Id,

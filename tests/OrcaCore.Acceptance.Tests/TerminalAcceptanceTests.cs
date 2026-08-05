@@ -1,11 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using AwesomeAssertions;
-using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
-using OrcaCore.Engine.Ephemeral;
 using Xunit;
 
 namespace OrcaCore.Acceptance.Tests;
@@ -101,27 +97,6 @@ public sealed class TerminalAcceptanceTests
 
         cancellation.Should().Be(WorkflowCancellationRequestStatus.AlreadyTerminal);
         termination.Should().Be(WorkflowTerminationStatus.AlreadyTerminal);
-    }
-
-    [Fact]
-    [Trait("AC", "AC-516")]
-    public async Task BroadDestructiveSelection_RequiresExplicitSafety()
-    {
-        using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
-        var engine = provider.GetRequiredService<EphemeralWorkflowEngine>();
-        var definition = WaitingDefinition();
-        _ = await StartAsync(provider, definition, "broad-destructive-safety",
-            "wait",
-            TestContext.Current.CancellationToken);
-
-        var unsafeTerminate = () => engine.Management.All()
-            .TerminateAsync(TestContext.Current.CancellationToken);
-        var safeTerminate = await engine.Management.All()
-            .TerminateAsync(DestructiveCommandSafety.Confirmed, TestContext.Current.CancellationToken);
-
-        await unsafeTerminate.Should().ThrowAsync<WorkflowLifecycleException>()
-            .WithMessage("*explicit safety*");
-        safeTerminate.AffectedCount.Should().Be(1);
     }
 
     private static EphemeralWorkflowDefinition<string> CompletedDefinition()

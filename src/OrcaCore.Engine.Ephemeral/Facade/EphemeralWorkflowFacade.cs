@@ -1,14 +1,13 @@
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
-using OrcaCore.Abstractions.Events;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Definitions;
+using OrcaCore.Core.Execution;
 using OrcaCore.Engine.Ephemeral.Execution;
 using OrcaCore.Core.Internal;
 using OrcaCore.Internal;
-using LegacySnapshot = OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot;
-using LegacyStatus = OrcaCore.Abstractions.Instances.WorkflowStatus;
+using LegacySnapshot = OrcaCore.Engine.Ephemeral.Execution.EphemeralWorkflowInstanceSnapshot;
+using LegacyStatus = OrcaCore.WorkflowInstanceStatus;
 
 namespace OrcaCore.Engine.Ephemeral;
 
@@ -18,8 +17,8 @@ internal sealed class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionR
         .GetMethods(BindingFlags.Instance | BindingFlags.Public)
         .Single(method => method.Name == nameof(EphemeralWorkflowEngine.RegisterDefinition));
     private static readonly MethodInfo StartRuntimeMethod = typeof(EphemeralWorkflowEngine)
-        .GetMethods(BindingFlags.Instance | BindingFlags.Public)
-        .Single(method => method.Name == nameof(EphemeralWorkflowEngine.StartAsync));
+        .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
+        .Single(method => method.Name == nameof(EphemeralWorkflowEngine.StartCoreAsync));
 
     private readonly object gate = new();
     private readonly SemaphoreSlim startGate = new(1, 1);
@@ -39,9 +38,9 @@ internal sealed class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionR
         ArgumentNullException.ThrowIfNull(definition);
         return RegisterCore(
             definition,
-            WorkflowRuntimeBridge.RuntimeDefinition(definition),
-            WorkflowRuntimeBridge.RuntimeStateType(definition),
-            () => WorkflowRuntimeBridge.EphemeralDefinitionHandle<TInput>(
+            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RuntimeDefinition(definition),
+            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RuntimeStateType(definition),
+            () => global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.EphemeralDefinitionHandle<TInput>(
                 definition.DefinitionId,
                 definition.DefinitionVersion,
                 definition.DefinitionFingerprint,
@@ -59,9 +58,9 @@ internal sealed class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionR
         ArgumentNullException.ThrowIfNull(definition);
         return RegisterCore(
             definition,
-            WorkflowRuntimeBridge.RuntimeDefinition(definition),
-            WorkflowRuntimeBridge.RuntimeStateType(definition),
-            () => WorkflowRuntimeBridge.EphemeralDefinitionHandle<TInput, TOutput>(
+            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RuntimeDefinition(definition),
+            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RuntimeStateType(definition),
+            () => global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.EphemeralDefinitionHandle<TInput, TOutput>(
                 definition.DefinitionId,
                 definition.DefinitionVersion,
                 definition.DefinitionFingerprint,
@@ -174,7 +173,7 @@ internal sealed class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionR
             definition.DefinitionId,
             definition.DefinitionVersion,
             definition.DefinitionFingerprint,
-            WorkflowRuntimeBridge.RuntimeStateType(definition),
+            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RuntimeStateType(definition),
             input,
             idempotencyKey,
             cancellationToken).ConfigureAwait(false);
@@ -195,7 +194,7 @@ internal sealed class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionR
             definition.DefinitionId,
             definition.DefinitionVersion,
             definition.DefinitionFingerprint,
-            WorkflowRuntimeBridge.RuntimeStateType(definition),
+            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RuntimeStateType(definition),
             input,
             idempotencyKey,
             cancellationToken).ConfigureAwait(false);
@@ -527,14 +526,14 @@ internal sealed class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionR
     }
 
     private static global::OrcaCore.ActiveWaitSnapshot MapWait(
-        OrcaCore.Abstractions.Instances.ActiveWaitSnapshot wait) =>
+        OrcaCore.Engine.Ephemeral.Execution.EphemeralActiveWaitSnapshot wait) =>
         new(
             wait.WaitId,
-            FacadeValueFactory.RootLocation(),
+            FailureProvenance.LocationFromCompilerPath(wait.AuthoredPath),
             EventName.Create(wait.EventName),
             wait.CorrelationId,
             wait.RegisteredAt,
-            null);
+            wait.Deadline);
 
     private static WorkflowFailure? MapFailure(LegacySnapshot snapshot)
     {
@@ -548,11 +547,11 @@ internal sealed class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionR
         var message = separator > 0
             ? snapshot.ErrorSummary[(separator + 1)..].Trim()
             : snapshot.ErrorSummary;
-        return WorkflowRuntimeBridge.WorkflowFailure(
+        return global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.WorkflowFailure(
             code,
             message,
-            WorkflowRuntimeBridge.AuthoredLocation("workflow:$"),
-            WorkflowRuntimeBridge.RootFailureOccurrence(),
+            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.AuthoredLocation("workflow:$"),
+            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RootFailureOccurrence(),
             []);
     }
 
@@ -561,11 +560,10 @@ internal sealed class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionR
         LegacyStatus.Running => WorkflowInstanceStatus.Running,
         LegacyStatus.Waiting => WorkflowInstanceStatus.Waiting,
         LegacyStatus.Completed => WorkflowInstanceStatus.Completed,
-        LegacyStatus.Failed or LegacyStatus.CompensationFailed => WorkflowInstanceStatus.Failed,
+        LegacyStatus.Failed => WorkflowInstanceStatus.Failed,
         LegacyStatus.TimedOut => WorkflowInstanceStatus.TimedOut,
-        LegacyStatus.Cancelled or LegacyStatus.Compensated => WorkflowInstanceStatus.Cancelled,
+        LegacyStatus.Cancelled => WorkflowInstanceStatus.Cancelled,
         LegacyStatus.Terminated => WorkflowInstanceStatus.Terminated,
-        LegacyStatus.Paused or LegacyStatus.Parked => WorkflowInstanceStatus.Waiting,
         _ => WorkflowInstanceStatus.Pending
     };
 
@@ -574,9 +572,7 @@ internal sealed class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionR
             LegacyStatus.Failed or
             LegacyStatus.TimedOut or
             LegacyStatus.Cancelled or
-            LegacyStatus.Terminated or
-            LegacyStatus.Compensated or
-            LegacyStatus.CompensationFailed;
+            LegacyStatus.Terminated;
 
     private IReadOnlyList<InstanceBinding> GetInstancesSnapshot()
     {
@@ -630,7 +626,6 @@ internal sealed class EphemeralWorkflowEventClient(
             @event.CorrelationId,
             @event.OccurredAt,
             null,
-            null,
             cancellationToken);
 
     public ValueTask<EventDeliveryResult> DeliverToInstanceAsync<TPayload>(
@@ -643,7 +638,6 @@ internal sealed class EphemeralWorkflowEventClient(
             @event.EventName,
             @event.CorrelationId,
             @event.OccurredAt,
-            @event.Payload,
             CoreWorkflowValueCodec.Serialize(@event.Payload, typeof(TPayload)),
             cancellationToken);
 
@@ -658,7 +652,6 @@ internal sealed class EphemeralWorkflowEventClient(
             @event.CorrelationId,
             @event.OccurredAt,
             null,
-            null,
             cancellationToken);
 
     public ValueTask<EventDeliveryResult> DeliverByCorrelationAsync<TPayload>(
@@ -671,7 +664,6 @@ internal sealed class EphemeralWorkflowEventClient(
             @event.EventName,
             @event.CorrelationId,
             @event.OccurredAt,
-            @event.Payload,
             CoreWorkflowValueCodec.Serialize(@event.Payload, typeof(TPayload)),
             cancellationToken);
 
@@ -681,7 +673,6 @@ internal sealed class EphemeralWorkflowEventClient(
         EventName eventName,
         CorrelationId correlationId,
         DateTimeOffset occurredAt,
-        object? payload,
         byte[]? payloadBytes,
         CancellationToken cancellationToken)
     {
@@ -712,7 +703,6 @@ internal sealed class EphemeralWorkflowEventClient(
             eventName,
             correlationId,
             occurredAt,
-            payload,
             payloadBytes,
             cancellationToken).ConfigureAwait(false);
     }
@@ -723,7 +713,6 @@ internal sealed class EphemeralWorkflowEventClient(
         EventName eventName,
         CorrelationId correlationId,
         DateTimeOffset occurredAt,
-        object? payload,
         byte[]? payloadBytes,
         CancellationToken cancellationToken)
     {
@@ -753,9 +742,7 @@ internal sealed class EphemeralWorkflowEventClient(
             LegacyStatus.Failed or
             LegacyStatus.TimedOut or
             LegacyStatus.Cancelled or
-            LegacyStatus.Terminated or
-            LegacyStatus.Compensated or
-            LegacyStatus.CompensationFailed)
+            LegacyStatus.Terminated)
         {
             return new EventDeliveryResult(EventDeliveryStatus.InstanceTerminal, instanceId);
         }
@@ -768,15 +755,12 @@ internal sealed class EphemeralWorkflowEventClient(
             return new EventDeliveryResult(EventDeliveryStatus.NoActiveWait, instanceId);
         }
 
-        var envelope = new EventEnvelope
-        {
-            EventId = eventId,
-            EventName = eventName.Value,
-            CorrelationId = correlationId,
-            Payload = payload,
-            PayloadContentType = null,
-            OccurredAt = occurredAt
-        };
+        var envelope = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.EventEnvelope(
+            eventId,
+            eventName,
+            correlationId,
+            occurredAt,
+            payloadBytes ?? []);
         await RaiseEventAsync(binding!.StateType, instanceId, envelope, cancellationToken).ConfigureAwait(false);
         lock (gate)
         {
@@ -793,8 +777,8 @@ internal sealed class EphemeralWorkflowEventClient(
         CancellationToken cancellationToken)
     {
         var method = typeof(EphemeralWorkflowEngine)
-            .GetMethods(BindingFlags.Instance | BindingFlags.Public)
-            .Single(candidate => candidate.Name == nameof(EphemeralWorkflowEngine.RaiseEventAsync) &&
+            .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Single(candidate => candidate.Name == nameof(EphemeralWorkflowEngine.RaiseEventCoreAsync) &&
                 candidate.IsGenericMethodDefinition);
         var task = (Task)method.MakeGenericMethod(stateType)
             .Invoke(engine, [instanceId, envelope, cancellationToken])!;

@@ -1,546 +1,120 @@
-# OrcaCore End-to-End Plan
+# OrcaCore End-to-End Delivery Plan
+
+This plan routes current integration work. Exact semantics come from both normative trees through
+the [normative source map](normative-source-map.md); exact public ownership comes from the
+[selected-mode capability matrix](specs/17-selected-mode-capability-matrix.md). Exact task state and
+validation counts belong in the active OpenSpec task graphs and frozen review requests, not in this
+guide.
+
+## Current gate
+
+Sections 4 through 7 of `reshape-developer-facing-interfaces` are independently approved and
+checkpointed. The post-checkpoint Section 7A closure is active and owns the non-event public-surface
+cleanup, exported API baseline machinery, packed negative consumers, recovery crosswalk, and timer
+regression. Its event-surface baseline and final acceptance accounting wait for the pending Section
+7B durable-messaging/application-catalog amendment.
+
+Section 7B is a proposal, not current product authority. Until task 7.23 approves it, the selected
+matrix and canonical specs continue to define the implemented event contract. Guides must not teach
+the proposed buffered ingress, fanout, start-or-deliver, publish, dispatcher, or catalog APIs as
+available v1 members.
+
+The separate `harmonize-downstream-capability-specs` change is also pending independent planning
+approval and still contains event semantics superseded by the Section 7B draft. Its non-conflicting
+remainder must be reconciled and approved before any delta is synchronized into `openspec/specs/`.
+Section 8 source work remains blocked until the combined Section 7A/7B target and the final
+synchronized harmonization target are independently approved and checkpointed.
+
+## Selected application journeys
+
+End-to-end evidence is organized around public contracts rather than concrete engine or provider
+implementations:
+
+1. Author and build a typed definition from PackageId/assembly `OrcaCore`.
+2. Register it through `IWorkflowDefinitionRegistry` and inspect the closed registration result.
+3. Start or reopen through a typed definition handle with a deterministic idempotency key.
+4. Deliver payloadless or typed events by exact instance or correlation route.
+5. Inspect detached snapshot, root state, and typed output through the instance handle.
+6. Request cooperative cancellation or immediate fenced termination through that handle.
+7. Repeat the durable journey on a replacement host and a certified provider.
+
+The ephemeral host role is registered by
+`AddOrcaCoreEphemeralEngine(EphemeralEngineHostOptions)`. The durable host uses
+`AddOrcaCoreDurableEngine(DurableEngineHostOptions)` or callback-only
+`AddOrcaCoreDurableEventIngress`, together with exactly one durable provider role. Development and
+test use `AddOrcaCoreInMemoryDurableProvider`; production certification targets
+`AddOrcaCorePostgreSqlDurableProvider(PostgreSqlDurableProviderOptions)`.
+
+## Validation lanes
+
+Every review target records and reproduces these lanes independently:
+
+- clean Release solution build with zero warnings and errors;
+- active product, acceptance, hosting, provider-certification, and integration suites;
+- PostgreSQL container suites when Docker is available, with environment failures reported
+  separately from product failures;
+- infrastructure guards separated from intentional expected-red future-section scenarios;
+- current-tree and fresh-package public API baselines plus packed compile fixtures;
+- strict validation of every active OpenSpec change;
+- active-document vocabulary and link checks;
+- live package vulnerability audit when network policy permits;
+- `git diff --check` and exact ordered dirty-manifest reproduction before and after validation.
+
+Container-backed provider suites run sequentially to avoid shared Docker resource contention. Safe
+non-container build/test lanes may run in parallel when they use independent outputs.
+
+## Workstream A: close Sections 7A and 7B
+
+- finish non-event Section 7A cleanup and approve one exact exported type/member baseline for each
+  of the eleven v1 assemblies after Section 7B fixes the event surface;
+- reject every legacy/deferred public surface through metadata and fresh-package compile fixtures;
+- preserve the currently approved event behavior until the Section 7B amendment is approved, then
+  implement its descriptor, durable ingress/publish, route-inbox, catalog, and provider evidence;
+- recalculate the exact current-v1 acceptance lane after Section 7B and preserve deferred or
+  historical sources outside that positive lane;
+- maintain a method-level old-declaration-to-current-evidence crosswalk before removing any source;
+- retain the public-facade timer retry/no-loss regression;
+- freeze the exact target and obtain focused independent approval.
+
+No post-Section-7 checkpoint is created until one combined Section 7A/7B approval reproduces the
+frozen target with zero drift.
+
+## Workstream B: harmonize normative and guide trees
+
+- remove the event-routing/durable-messaging ownership superseded by Section 7B and independently
+  approve the non-conflicting harmonization remainder against the unchanged canonical baseline;
+- only then synchronize approved deltas and the explicitly listed purpose text;
+- reconcile numbered requirements, acceptance criteria, active guides, and the future-capability
+  registry without rewriting frozen review or archived history;
+- enforce active-document vocabulary through an exact classified-occurrence baseline rather than a
+  broad file allowlist;
+- freeze and independently approve the final canonical/docs target before its checkpoint.
+
+## Workstream C: Section 8 DAG boundary
+
+Section 8 begins only after both preceding workstreams are approved and checkpointed. Its task graph
+owns the typed DAG packages, the single internal durable child bridge, runtime-owned progression,
+restart/cancellation behavior, and outward companion scheduler boundary. No current guide or test
+may pre-approve those source changes.
+
+## Observability and operations
+
+Product packages emit BCL logs, activities, and metrics. The application host owns OpenTelemetry
+SDK/exporter registration; OrcaCore publishes no exporter-registration facade. Operator dashboards
+consume documented diagnostics and provider/runtime projections without adding broad application
+instance enumeration or a public statistics query.
 
-This plan is scoped to the current root implementation. It uses the
-existing source, test projects, Testcontainers fixtures, and skipped integration
-tests as the baseline. The root `src` and root `tests` trees are the active
-implementation; `archive/legacy-poc` is not part of this plan.
+Provider-owned maintenance may clean operational records while preserving runtime correctness and
+documented inspection guarantees. It does not create a provider-neutral application retention API.
 
-> **2026-07-18 first-release contract:** existing passing tests for provisional Saga,
-> `Yield`, public child/external-job commands, or the earlier DAG runner are historical
-> implementation evidence, not approval to ship those public members. The active refactor
-> removes `WaitLong`/`Yield`, defers public `RunExternalJob`, `RunChild`/`RunChildren`, Saga,
-> `WhenFirst`, nested `Parallel`, nested `While`, and nested `ForEach`/multilevel dynamic
-> expansion, while retaining fixed root `Parallel`; it adds typed workflows, scoped leases,
-> deadlines, stable `StepOperationId`, bounded durable `ForEach`, and separate
-> `OrcaCore.Dag` plus its `OrcaCore.Dag.Hosting` bridge. This plan's final gate must follow
-> document 17 and [`17-public-authoring-contract.cs`](specs/17-public-authoring-contract.cs)
-> when a historical statement conflicts with them.
+## Checkpoint rule
 
-The v1 e2e gate also proves codec-detached attempt state and `ReplaceState`, fixed certified
-`orcacore-json-v1` registration, `WithRetry(maxAttempts, fixedDelay)`, per-attempt
-`WithStepTimeout`, the original absolute `CompleteWithin` deadline across continue-as-new,
-instance-targeted event dedup/unique correlation routing, countable execution-path tokens, and the
-role-specific hosting entry points. A catch-all `AddOrcaCore` or separate hosted-service toggle is
-provisional and must not survive the refactor.
+After each independently approved phase or other large coherent change:
 
-## Current Baseline
+1. verify the current worktree differs from the frozen manifest only by the new immutable verdict;
+2. stage the complete approved target and its verdict;
+3. create one coherent checkpoint commit;
+4. verify the resulting worktree state before starting the next phase.
 
-The current end-to-end harness lives in:
-
-- `tests/OrcaCore.Integration.Tests`
-- `tests/OrcaCore.ProviderCertification`
-- provider-specific test projects under `tests/OrcaCore.Providers.*.Tests`
-- the sample host at `samples/OrcaCore.SampleHost`
-
-The integration project already references the full provider and hosting stack:
-
-- durable and ephemeral engines;
-- hosting services;
-- in-memory, PostgreSQL, SQL Server, Redis, RabbitMQ, and ZeroMQ providers;
-- Testcontainers for PostgreSQL, SQL Server, Redis, and RabbitMQ;
-- `OrcaIntegrationHost` as the shared host-level test harness.
-
-Observed current baseline:
-
-```powershell
-dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build --filter "FullyQualifiedName~OrcaCore.Integration.Tests.E2E"
-```
-
-Result after Workstream 6 and the current scheduler slice: 18 passed, 0
-skipped, 0 failed.
-
-The original skipped `E2E` scenarios are now implemented:
-
-- `INT_E2E_008`: durable saga compensation survives restart on PostgreSQL.
-- `INT_E2E_011`: durable definition version binding survives deployment.
-- `INT_E2E_013`: durable DAG runner schedules children and management
-  reconstructs node status.
-- `INT_E2E_015`: durable yield persists progress across processor restart.
-
-The broader integration suite still contains a deliberate skip for the slow
-scheduler soak. Cron triggering remains scheduler-app owned, but OrcaCore now
-  covers the durable `StartOrGetAsync` idempotency primitive used by scheduled
-occurrence keys. The current full integration project gate is expected to be 107
-passed, 1 skipped, 0 failed.
-
-Structured logging and runtime metrics are introduced in Workstream 3. The
-current code now has source-generated command/outbox logs, BCL `Meter`
-instruments at durable command and outbox pump boundaries, and `ActivitySource`
-spans for durable command processing. Remaining telemetry breadth still follows
-`docs/specs/15-requirements-observability-otel.md`: provider commit spans,
-wait/timer/resource-pool metrics, and opt-in OpenTelemetry exporter wiring in
-hosting.
-
-## E2E Definition
-
-For this implementation track, an OrcaCore end-to-end test should exercise the
-library the way an application would consume it:
-
-1. Build an `IHost` through public DI registration.
-2. Register or resolve the workflow/runtime/provider surface from DI.
-3. Start or resume workflow work through public entry points.
-4. Persist state through a real provider when durability is part of the scenario.
-5. Let hosted services execute outbox, timer, and operational sweep behavior.
-6. Observe outcomes through management APIs, provider state, dispatched messages,
-   and, for observability scenarios, structured logs and metrics.
-7. Cover restart or multi-node behavior where the acceptance criterion requires it.
-
-Manual `DurableCommandProcessor` calls remain valid lower-level integration
-coverage, but they are not enough for the final e2e gate when a host-level path
-should exist.
-
-## Non-Goals
-
-- Do not put Kubernetes or EKS adapters inside OrcaCore. The current
-  `eks-scheduler-handoff.md` keeps Kubernetes Job API clients, EKS/AWS composition,
-  watchers/reconcilers, cron, and tenant policy in a separate outward-dependent companion
-  project. It may share the solution but is not part of any OrcaCore package.
-- Do not create a parallel e2e harness. Extend `OrcaCore.Integration.Tests` and
-  reuse its fixtures.
-- Do not widen scope to the archived legacy implementation under `archive/legacy-poc/`.
-- Do not require Docker for unit, acceptance, or provider-certification tests
-  that do not need real external services.
-
-## Workstream 1: Baseline And Gate Hygiene
-
-Goal: make the current e2e surface explicit and repeatable before adding missing
-runtime behavior.
-
-Tasks:
-
-1. Add a documented e2e gate command set:
-   - `FullyQualifiedName~OrcaCore.Integration.Tests.E2E`
-   - `FullyQualifiedName~OrcaCore.Integration.Tests.Hosting`
-   - `FullyQualifiedName~OrcaCore.Integration.Tests.Stacks`
-   - `FullyQualifiedName~OrcaCore.Integration.Tests.MultiNode`
-   - `FullyQualifiedName~OrcaCore.Integration.Tests.JobScheduler`
-   - `FullyQualifiedName~OrcaCore.Integration.Tests.Observability`
-2. Record that broad integration runs require Docker.
-3. Before broad e2e runs, use `dotnet build-server shutdown` if old MSBuild
-   node-reuse processes are still resident.
-4. Keep existing skipped tests as named backlog items until each blocker is
-   implemented; do not delete or silently retag them.
-
-Exit criteria:
-
-- The current `E2E` namespace remains green with only deliberate skips.
-- `tests/OrcaCore.Integration.Tests/README.md` identifies smoke, focused,
-  observability, and full-stack integration commands.
-- The observability filter is executable and covers `OB-AC-001` through
-  `OB-AC-007`.
-
-## Workstream 2: Host-Level Durable E2E
-
-Goal: prove the durable stack through `IHost`, not only through manually created
-processors and stores.
-
-Current useful code:
-
-- `OrcaIntegrationHost.Build`
-- `OrcaIntegrationHost.BuildPostgreSqlAsync`
-- `HostingPostgreSqlIntegrationTests`
-- `ProviderStackIntegrationTests`
-- PostgreSQL provider DI registration through `AddOrcaCorePostgreSql`
-
-Tasks:
-
-1. Promote representative command-level durable scenarios to host-level tests:
-   - start -> step complete -> complete;
-   - start -> wait -> event delivery -> resume;
-   - start -> typed bounded external create-or-observe step -> durable `Wait` -> normalized
-     event completion, using a fake application adapter rather than a public external-job node;
-   - start -> timer scheduled -> hosted timer sweep fires;
-   - terminal instance -> typed snapshot/state/output inspection and termination safety;
-     public archive/purge are deferred.
-2. Build ordinary execution hosts through
-   `AddOrcaCoreDurableEngine(DurableEngineHostOptions)` plus one certified provider role. Build
-   callback-only hosts through `AddOrcaCoreDurableEventIngress()` and prove they expose event
-   ingress/continuation handoff without definition/execution/timer/reconciliation/DAG loops.
-   Provider-certification tests, not application journeys, may resolve
-   `IDurableResourceGovernanceStore` and other advanced SPIs.
-3. For scenarios with dispatch, prefer the hosted outbox path where possible;
-   use `PumpOnceAsync` only when the scenario intentionally isolates a single
-   cycle.
-4. Add matching assertions through management projections and provider state,
-   not only return values from command calls.
-
-Exit criteria:
-
-- Existing durable happy paths have host-level coverage with PostgreSQL.
-- Host restart tests prove a waiting durable instance resumes after host rebuild.
-- Outbox and timer tests prove hosted service wiring, not just direct class calls.
-
-## Workstream 3: Structured Logging, Metrics, And Telemetry E2E
-
-Goal: introduce the actual runtime telemetry surface after the host-level durable
-path is proven, so logs and metrics are validated against real command,
-provider, outbox, timer, and management behavior.
-
-Current useful code:
-
-- `OrcaCore.Abstractions.Diagnostics.OrcaCoreDiagnostics`
-- `IWorkflowRuntimeObserver`
-- `IOutboxPumpObserver`
-- management `Statistics()` / durable projection statistics
-- hosted outbox, timer, and operational sweep services
-
-Current implemented slice:
-
-- Source-generated structured `ILogger` calls are part of the e2e gate for
-  durable command outcomes and outbox pump summaries.
-- BCL `Meter` instruments are asserted by integration tests for durable command
-  throughput/duration, active instances, and outbox dispatch health.
-- `ActivitySource` spans are asserted for durable command processing and trace
-  correlation on command logs.
-
-Remaining gap:
-
-- Provider append/commit, wait/timer, and resource-pool telemetry is not yet as
-  broad as the command/outbox telemetry surface.
-- No opt-in hosting extension wires OpenTelemetry exporters for OrcaCore meters,
-  traces, and logs.
-
-Implementation note:
-
-- The first telemetry slice introduces source-generated structured logs and BCL
-  metrics at the durable command and outbox pump boundaries, plus an
-  `ActivitySource` span for durable command processing. The executable
-  `Observability` integration gate now covers `OB-AC-001` through `OB-AC-007`.
-  Provider-commit, wait/timer, resource-pool, and OpenTelemetry exporter wiring
-  remain in this workstream's remaining task list.
-
-Tasks:
-
-1. Add structured logging on the high-value runtime boundaries:
-   - durable command accepted, completed, no-op, conflict, poisoned, or failed
-     (initial command-completed slice complete);
-   - provider append/commit success and conflict;
-   - wait registered and matched;
-   - timer scheduled and fired;
-   - outbox pump cycle summary (initial slice complete);
-   - outbox record dispatched, retryable, or poisoned;
-   - resource-pool request, atomic grant, release, review mark, quarantine, and reconciliation.
-2. Use source-generated `[LoggerMessage]` partial methods on hot paths and keep
-   log calls structured. Do not log business payloads or workflow state by
-   default.
-3. Add BCL `Meter` instruments for the required operator signals:
-   - active instances by status and definition (initial slice complete);
-   - active waits by event name;
-   - commands processed and command duration (initial slice complete);
-   - provider commit duration;
-   - outbox pending/retryable/claimed counts;
-   - outbox dispatch attempts and dispatch duration (initial slice complete);
-   - resource-pool waiters and tickets.
-4. Back observable gauges with the same projections used by management
-   statistics where possible, so metrics and management answers stay aligned.
-5. Add `ActivitySource` spans for command processing (initial slice complete),
-   provider commit, step execution, outbox dispatch, and pump cycles. Logs
-   emitted inside those spans must carry trace correlation through logging
-   scopes.
-6. Add opt-in hosting wiring such as `AddOrcaCoreOpenTelemetry(...)` in
-   `OrcaCore.Hosting`. OpenTelemetry SDK package references belong in hosting
-   only; engines, providers, core, and abstractions stay on BCL diagnostics.
-7. Add observability e2e tests under `OrcaCore.Integration.Tests`:
-   - metrics are emitted after starting workflows and creating outbox backlog;
-   - a command produces a structured log with instance id, command type, and
-     trace id when tracing is enabled;
-   - a failed outbox dispatch increments the matching metric and emits a
-     correlated structured error log;
-   - `Statistics()` and `orca.instances.active` agree for the same fixture;
-   - no `OpenTelemetry.*` packages appear outside hosting.
-
-Exit criteria:
-
-- `OB-AC-001` through `OB-AC-007` have scenario-traceable tests.
-- Operators can answer the basic fleet-health, blocking, throughput, latency,
-  and outbox-health questions from OrcaCore logs and metrics without adding
-  custom host instrumentation.
-- Telemetry failures never change workflow command outcomes.
-
-## Workstream 4: Durable Workflow Facade And Driver
-
-Goal: add the missing public durable workflow runtime surface and the document-16 durable
-driver pieces needed for true definition-driven e2e.
-
-Current gap:
-
-- The ephemeral engine can register a `WorkflowDefinition<TState>` and execute
-  the node graph inline.
-- The durable runtime now exposes a public definition registry and version-bound
-  `StartOrGetAsync` facade over the durable command path.
-- Full durable workflow-node execution is not yet available.
-- Document 16 (`16-requirements-durable-driver.md`) is now the gate for this gap: the
-  durable interpreter, execution-position envelope, lane host, restart-safe continuation
-  signal, and segment budgets must exist before host-level definition-driven e2e can be
-  claimed complete.
-
-Implementation note:
-
-- `DurableDefinitionRegistry` registers immutable definition versions by
-  `DefinitionId` and `DefinitionVersion`.
-- `DurableWorkflowRuntime` exposes public version-bound `StartOrGetAsync` over the
-  existing durable start/idempotency implementation.
-- `INT_E2E_011` now simulates deployment on PostgreSQL: an instance started on
-  version 1 remains bound to version 1 after version 2 is registered, and a
-  same-key start under version 2 fails explicitly.
-
-Tasks:
-
-0. Complete the document-16 driver prerequisites before claiming full host-level durable
-   workflow execution:
-   - **DR-P1** interpreter + execution-position envelope;
-   - **DR-P2** lane host + restart-safe continuation signal;
-   - DR acceptance coverage for crash-after-runnable-commit, stale continuation no-op,
-     runtime-owned segment checkpointing, stateful wait, bounded durable `ForEach` snapshot/
-     admission/restart, and checkpoint envelope migration/parking.
-1. Define the durable public entry point:
-   - register definition version;
-   - start or start-or-get an instance;
-   - bind a running instance to its original definition version;
-   - deliver events and timers through the durable runtime.
-2. Add a durable definition registry that can resolve the bound definition after
-   restart. (Initial registry/facade slice complete for `INT_E2E_011`.)
-3. Translate durable-capable workflow nodes into existing durable commands through the
-   document-16 durable interpreter:
-   - start;
-   - step completed or failed;
-   - waits;
-   - timers;
-   - internal child workflow commands used only by `OrcaCore.Dag.Hosting`;
-   - ordinary typed step completion plus `Wait` for application-owned external adapters;
-   - terminal commands.
-4. Add version-compatibility diagnostics for incompatible resumed definitions.
-5. Unskip and implement `INT_E2E_011`. (Complete.)
-
-Exit criteria:
-
-- DR-P1 and DR-P2 gates pass for the in-memory provider and PostgreSQL where required by
-  document 16.
-- A workflow definition can be registered, started, suspended, persisted, reloaded after
-   host restart, and resumed through public durable APIs without tests issuing kernel
-  commands by hand.
-- Version binding is observable and tested.
-
-## Workstream 5: Integrated DAG And Scheduler Runner
-
-Goal: turn the useful durable child-instance substrate into typed `OrcaCore.Dag` planning plus
-`OrcaCore.Dag.Hosting` execution and
-prove the separate companion-scheduler boundary without adding Kubernetes/AWS dependencies or
-a public external-job composite to OrcaCore.
-
-Current useful code:
-
-- DAG builder and acceptance tests.
-- Durable child workflow command handlers.
-- Historical durable external-job protocol handlers (internal evidence only in v1).
-- Resource-pool stores and certification tests.
-- Outbox kind dispatching.
-
-Current implemented slice:
-
-- The durable runtime now has an initial `DurableDagRunner` that schedules ready
-  `WorkflowDagPlan` batches through durable child workflow commands.
-- Core-owned `INT-JS-*` tests now cover diamond DAG scheduling, failure-blocked
-  dependents, queue quota, restart mid-job, cancellation stop outbox, pause with
-  in-flight jobs, continue-as-new mid-DAG, heterogeneous node definitions, and
-  duplicate completion deduplication.
-
-These tests describe useful internal behavior. They do not freeze the provisional public
-`WorkflowDagPlan`, `RunChildren`, external-job command, or job-outbox authoring shapes.
-
-Remaining gap:
-
-- `OrcaCore.Dag` must expose typed immutable run input, typed durable workflow references,
-  direct-dependency output mapping, finite validation, and one child instance per node through
-  the sole `OrcaCore.Dag.Hosting` bridge to the named/versioned internal protocol.
-- The companion scheduler must prove Kubernetes create-or-observe with `StepOperationId`,
-  normalized watcher events, and lease stop-confirmation/quarantine while remaining an
-  outward-only solution dependency.
-- Cron/scheduled-start triggering belongs to the scheduler application, which
-   should call OrcaCore `StartOrGetAsync` with a canonical occurrence key.
-- `INT_JS_018` remains skipped because the one-hour fake-clock soak belongs in a
-  slow or nightly gate, not the default integration gate.
-
-Implementation note:
-
-- `DurableDagRunner.ScheduleReadyAsync(...)` turns ready DAG batches into
-  `DurableRunChildrenCommand` commits.
-- `INT_E2E_013` now runs against PostgreSQL by scheduling DAG children through
-  the runner and reconstructing node status through durable management.
-- `INT_JS_013` now proves that a canonical scheduler occurrence key maps to one
-   durable run through `StartOrGetAsync`, including after processor restart.
-- The JobScheduler focused gate now passes with only the slow soak skipped.
-
-Tasks:
-
-1. Replace the provisional public DAG builder with `OrcaCore.Dag` typed input/output and
-   dependency-mapping contracts; add `OrcaCore.Dag.Hosting` as the only bridge to the existing
-   internal child-instance protocol.
-2. Schedule ready node child instances only after direct dependencies succeed and the mapped
-   node input commits; reconstruct progress without caller-owned ready/completed sets.
-3. Use scoped durable resource leases around protected scheduler capacity. Hold the scope
-   across `Wait` only when the running Kubernetes Job consumes that capacity.
-4. Prove stable `StepOperationId` create-or-observe and generic stop confirmation with a fake
-   companion adapter; do not introduce public job-start/stop authoring.
-5. Consume normalized completion events with stable `EventId` values for inbox deduplication.
-6. Preserve management visibility for node state, blocked dependants, quarantined protected
-   work, queued resource requests, and completed node outputs.
-7. Retarget DAG runner scenarios incrementally:
-   - diamond DAG happy path;
-   - failure blocks dependents;
-   - restart mid-job;
-   - queue quota across definitions;
-   - cancellation request with in-flight jobs. Public pause/resume are deferred.
-     (Complete for the focused core gate.)
-
-Exit criteria:
-
-- Typed DAG acceptance criteria that belong to OrcaCore pass without Kubernetes and without a
-  public `RunChildren` or `RunExternalJob` member.
-- Companion scheduler responsibilities and SDK isolation remain documented and proven by its
-  own acceptance boundary.
-
-## Workstream 6: Remove Provisional Saga And Yield Surface
-
-Goal: retain any generally useful restart/compensation evidence while removing the provisional
-public Saga and author-`Yield` surfaces from the first release. Future Saga work remains in the
-deferred registry and requires a new normative amendment.
-
-Historical implementation note:
-
-- `INT_E2E_008` now uses the durable saga command adapter against PostgreSQL to
-  prove compensation is restart-safe and idempotent.
-- `DurableYieldCommand` commits a checkpoint without appending a
-  `WorkflowStepCompletedEvent`, allowing a restarted processor to complete the
-  same logical step once.
-- `INT_E2E_015` now proves yield checkpoint recovery and exactly-once step
-  completion across PostgreSQL-backed processor restart.
-
-First-release tasks:
-
-1. Delete public Saga builders/definitions/adapters and remove first-release samples or tests
-   that present them as supported APIs.
-2. Delete public/author `Yield`; keep execution quanta and checkpoint scheduling entirely
-   runtime-owned.
-3. Add absence guards and preserve Saga plus yield/checkpoint intent in the future-feature
-   registry so reopening either capability starts with an explicit amendment.
-
-Exit criteria:
-
-- No public assembly, sample, packed consumer, or reflection-visible placeholder exposes Saga
-  or `Yield`; retained internal tests do not contradict document 17.
-
-## Workstream 7: Failure Injection And Resilience E2E
-
-Goal: prove crash, cancellation, transient failure, and retry behavior at the
-boundaries where production failures happen.
-
-Current implemented slice:
-
-- `PostgreSqlWorkflowStoreOptions.BeforeCommitAsync` exposes a deterministic
-  hook inside the PostgreSQL append transaction after writes are staged and
-  before commit.
-- `INT_EP_002` proves a pre-commit failure leaves no events, checkpoint,
-  projection, or outbox rows.
-- `INT_HO_005` proves cancellation during an in-flight host command rolls back
-  cleanly without relying on sleeps or process killing.
-
-Remaining gap:
-
-- Additional hooks for after-commit/before-return, outbox claim, timer claim,
-  and resource-pool acquire/release would broaden provider failure testing.
-- Several resilience scenarios remain covered by direct class tests rather than
-  full provider-backed e2e tests.
-
-Tasks:
-
-1. Add test-only or internal injectable hooks around:
-   - append before commit; (Complete for PostgreSQL.)
-   - append after commit before return;
-   - outbox claim;
-   - outbox dispatch;
-   - timer claim;
-   - resource-pool acquire and release.
-2. Use those hooks to prove:
-   - no outbox dispatch before commit is visible;
-   - no partial append; (Complete for PostgreSQL pre-commit failure.)
-   - no timer leak on failed commit;
-   - claimed outbox rows can be retried after cancellation;
-   - host shutdown during a pump cycle does not lose rows;
-   - host shutdown during a command leaves either a committed or cleanly absent
-     state. (Complete for cancellation before PostgreSQL append commit.)
-3. Unskip host and engine failure-injection tests only after the hook exists.
-   (Complete for `INT_EP_002` and `INT_HO_005`.)
-
-Exit criteria:
-
-- Failure-path e2e tests are deterministic and do not rely on sleeps or process
-  killing. (Complete for the default integration gate.)
-- Provider invariants remain covered by certification tests.
-
-## Workstream 8: Provider Matrix E2E
-
-Goal: prove the same behavioral contract across providers without duplicating
-all tests for every provider.
-
-Tasks:
-
-1. Keep the full scenario set on PostgreSQL as the primary durable e2e provider.
-2. Keep SQL Server coverage focused on provider parity:
-   - durable wait survives restart;
-   - outbox and timer stack;
-   - projections;
-   - resource pools;
-   - retention.
-3. Keep Redis coverage focused on projection-cache behavior.
-4. Keep RabbitMQ and ZeroMQ coverage focused on dispatcher behavior and outbox
-   state transitions.
-5. Put cross-provider invariants in `OrcaCore.ProviderCertification` when the
-   behavior belongs to every provider.
-
-Exit criteria:
-
-- PostgreSQL proves full stack e2e.
-- SQL Server proves equivalent provider semantics for implemented surfaces.
-- Dispatcher providers prove retryable, permanent, and successful dispatch paths.
-
-## Final E2E Gate
-
-The final gate should run from the repository root:
-
-```powershell
-dotnet build OrcaCore.slnx
-dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build
-dotnet test tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj --no-build
-dotnet test tests/OrcaCore.Providers.PostgreSql.Tests/OrcaCore.Providers.PostgreSql.Tests.csproj --no-build
-dotnet test tests/OrcaCore.Providers.SqlServer.Tests/OrcaCore.Providers.SqlServer.Tests.csproj --no-build
-dotnet test tests/OrcaCore.Providers.RabbitMq.Tests/OrcaCore.Providers.RabbitMq.Tests.csproj --no-build
-dotnet test tests/OrcaCore.Providers.Redis.Tests/OrcaCore.Providers.Redis.Tests.csproj --no-build
-dotnet test tests/OrcaCore.Providers.ZeroMq.Tests/OrcaCore.Providers.ZeroMq.Tests.csproj --no-build
-```
-
-For local iteration, use narrower gates first:
-
-```powershell
-dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build --filter "FullyQualifiedName~OrcaCore.Integration.Tests.E2E"
-dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build --filter "FullyQualifiedName~OrcaCore.Integration.Tests.Hosting"
-dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build --filter "FullyQualifiedName~OrcaCore.Integration.Tests.Observability"
-dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build --filter "FullyQualifiedName~OrcaCore.Integration.Tests.JobScheduler"
-```
-
-## Sequencing
-
-1. Workstream 1: baseline and gate hygiene.
-2. Workstream 2: host-level durable e2e promotion.
-3. Workstream 3: structured logging, metrics, and telemetry e2e.
-4. Workstream 4: durable workflow facade and document-16 DR-P1/DR-P2 driver gates.
-5. Workstream 5: integrated DAG and scheduler runner, after the durable driver can advance
-   registered definitions without manual command pumping.
-6. Workstream 6: remove provisional Saga and author-`Yield` surface; preserve future intent in
-   the deferred registry.
-7. Workstream 7: failure injection and resilience e2e.
-8. Workstream 8: provider matrix expansion and final e2e gate.
-
-This order gives fast confidence first, then adds the missing durable interpreter/driver
-surface area before claiming host-level definition-driven e2e, then fills advanced durable
-semantics and hardens resilience/provider breadth.
+The superseded pre-v1 plan and its historical counts/workstreams are preserved unchanged at
+[`archive/plans/end-to-end-plan-pre-v1.md`](archive/plans/end-to-end-plan-pre-v1.md).

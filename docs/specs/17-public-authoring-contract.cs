@@ -13,7 +13,43 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace OrcaCore;
+namespace OrcaCore
+{
+
+public sealed class EventContractVersion : IEquatable<EventContractVersion>
+{
+    public EventContractVersion(int value) => throw new NotSupportedException();
+    public int Value => throw new NotSupportedException();
+    public static EventContractVersion Initial => throw new NotSupportedException();
+    public bool Equals(EventContractVersion? other) => throw new NotSupportedException();
+}
+
+public class WorkflowEventContract : IEquatable<WorkflowEventContract>
+{
+    private protected WorkflowEventContract(
+        EventName eventName,
+        EventContractVersion version) => throw new NotSupportedException();
+
+    public EventName EventName => throw new NotSupportedException();
+    public EventContractVersion Version => throw new NotSupportedException();
+
+    public static WorkflowEventContract Create(
+        EventName eventName,
+        EventContractVersion version) => throw new NotSupportedException();
+
+    public bool Equals(WorkflowEventContract? other) => throw new NotSupportedException();
+}
+
+public sealed class WorkflowEventContract<TPayload> : WorkflowEventContract
+{
+    private WorkflowEventContract(
+        EventName eventName,
+        EventContractVersion version) : base(eventName, version) { }
+
+    public static new WorkflowEventContract<TPayload> Create(
+        EventName eventName,
+        EventContractVersion version) => throw new NotSupportedException();
+}
 
 public static class Workflow
 {
@@ -92,11 +128,33 @@ public sealed class EphemeralWorkflowDefinition<TInput>
     public DefinitionId DefinitionId { get; } = null!;
     public DefinitionVersion DefinitionVersion { get; } = null!;
     public DefinitionFingerprint DefinitionFingerprint { get; } = null!;
+    public EphemeralWorkflowRef<TInput> Reference { get; } = null!;
 }
 
 public sealed class EphemeralWorkflowDefinition<TInput, TOutput>
 {
     internal EphemeralWorkflowDefinition() { }
+
+    public WorkflowMode Mode { get; }
+    public DefinitionId DefinitionId { get; } = null!;
+    public DefinitionVersion DefinitionVersion { get; } = null!;
+    public DefinitionFingerprint DefinitionFingerprint { get; } = null!;
+    public EphemeralWorkflowRef<TInput, TOutput> Reference { get; } = null!;
+}
+
+public sealed class EphemeralWorkflowRef<TInput>
+{
+    internal EphemeralWorkflowRef() { }
+
+    public WorkflowMode Mode { get; }
+    public DefinitionId DefinitionId { get; } = null!;
+    public DefinitionVersion DefinitionVersion { get; } = null!;
+    public DefinitionFingerprint DefinitionFingerprint { get; } = null!;
+}
+
+public sealed class EphemeralWorkflowRef<TInput, TOutput>
+{
+    internal EphemeralWorkflowRef() { }
 
     public WorkflowMode Mode { get; }
     public DefinitionId DefinitionId { get; } = null!;
@@ -186,12 +244,22 @@ public sealed class EphemeralWorkflowBuilder<TInput, TState>
         throw new NotSupportedException();
 
     public EphemeralWorkflowBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
         throw new NotSupportedException();
 
     public EphemeralWorkflowBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        TimeSpan timeout) => throw new NotSupportedException();
+
+    public EphemeralWorkflowBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        throw new NotSupportedException();
+
+    public EphemeralWorkflowBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout) => throw new NotSupportedException();
 
@@ -255,14 +323,35 @@ public sealed class DurableWorkflowBuilder<TInput, TState>
         Action<DurableNestedBuilder<TInput, TState>> body) => throw new NotSupportedException();
 
     public DurableWorkflowBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
         throw new NotSupportedException();
 
     public DurableWorkflowBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout) => throw new NotSupportedException();
+
+    public DurableWorkflowBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        throw new NotSupportedException();
+
+    public DurableWorkflowBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        TimeSpan timeout) => throw new NotSupportedException();
+
+    public DurableWorkflowBuilder<TInput, TState> Publish(
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        throw new NotSupportedException();
+
+    public DurableWorkflowBuilder<TInput, TState> Publish<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload) =>
+        throw new NotSupportedException();
 
     public DurableWorkflowBuilder<TInput, TState> Delay(TimeSpan duration) =>
         throw new NotSupportedException();
@@ -340,12 +429,22 @@ public sealed class EphemeralNestedBuilder<TInput, TState>
         throw new NotSupportedException();
 
     public EphemeralNestedBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
         throw new NotSupportedException();
 
     public EphemeralNestedBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        TimeSpan timeout) => throw new NotSupportedException();
+
+    public EphemeralNestedBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        throw new NotSupportedException();
+
+    public EphemeralNestedBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout) => throw new NotSupportedException();
 
@@ -375,14 +474,35 @@ public sealed class DurableNestedBuilder<TInput, TState>
         throw new NotSupportedException();
 
     public DurableNestedBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
         throw new NotSupportedException();
 
     public DurableNestedBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout) => throw new NotSupportedException();
+
+    public DurableNestedBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        throw new NotSupportedException();
+
+    public DurableNestedBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        TimeSpan timeout) => throw new NotSupportedException();
+
+    public DurableNestedBuilder<TInput, TState> Publish(
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        throw new NotSupportedException();
+
+    public DurableNestedBuilder<TInput, TState> Publish<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload) =>
+        throw new NotSupportedException();
 
     public DurableNestedBuilder<TInput, TState> Delay(TimeSpan duration) =>
         throw new NotSupportedException();
@@ -429,12 +549,22 @@ public sealed class EphemeralBranchBuilder<TState, TResult>
         throw new NotSupportedException();
 
     public EphemeralBranchBuilder<TState, TResult> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
         throw new NotSupportedException();
 
     public EphemeralBranchBuilder<TState, TResult> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        TimeSpan timeout) => throw new NotSupportedException();
+
+    public EphemeralBranchBuilder<TState, TResult> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        throw new NotSupportedException();
+
+    public EphemeralBranchBuilder<TState, TResult> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout) => throw new NotSupportedException();
 
@@ -477,12 +607,22 @@ public sealed class EphemeralItemBuilder<TState, TResult>
         throw new NotSupportedException();
 
     public EphemeralItemBuilder<TState, TResult> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
         throw new NotSupportedException();
 
     public EphemeralItemBuilder<TState, TResult> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        TimeSpan timeout) => throw new NotSupportedException();
+
+    public EphemeralItemBuilder<TState, TResult> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        throw new NotSupportedException();
+
+    public EphemeralItemBuilder<TState, TResult> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout) => throw new NotSupportedException();
 
@@ -515,14 +655,35 @@ public sealed class DurableBranchBuilder<TState, TResult>
         throw new NotSupportedException();
 
     public DurableBranchBuilder<TState, TResult> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
         throw new NotSupportedException();
 
     public DurableBranchBuilder<TState, TResult> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout) => throw new NotSupportedException();
+
+    public DurableBranchBuilder<TState, TResult> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        throw new NotSupportedException();
+
+    public DurableBranchBuilder<TState, TResult> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        TimeSpan timeout) => throw new NotSupportedException();
+
+    public DurableBranchBuilder<TState, TResult> Publish(
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        throw new NotSupportedException();
+
+    public DurableBranchBuilder<TState, TResult> Publish<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload) =>
+        throw new NotSupportedException();
 
     public DurableBranchBuilder<TState, TResult> Delay(TimeSpan duration) =>
         throw new NotSupportedException();
@@ -563,14 +724,35 @@ public sealed class DurableItemBuilder<TState, TResult>
         throw new NotSupportedException();
 
     public DurableItemBuilder<TState, TResult> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
         throw new NotSupportedException();
 
     public DurableItemBuilder<TState, TResult> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout) => throw new NotSupportedException();
+
+    public DurableItemBuilder<TState, TResult> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        throw new NotSupportedException();
+
+    public DurableItemBuilder<TState, TResult> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        TimeSpan timeout) => throw new NotSupportedException();
+
+    public DurableItemBuilder<TState, TResult> Publish(
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        throw new NotSupportedException();
+
+    public DurableItemBuilder<TState, TResult> Publish<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload) =>
+        throw new NotSupportedException();
 
     public DurableItemBuilder<TState, TResult> Delay(TimeSpan duration) =>
         throw new NotSupportedException();
@@ -611,14 +793,35 @@ public sealed class DurableLeaseWorkflowBuilder<TInput, TState>
         throw new NotSupportedException();
 
     public DurableLeaseWorkflowBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
         throw new NotSupportedException();
 
     public DurableLeaseWorkflowBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout) => throw new NotSupportedException();
+
+    public DurableLeaseWorkflowBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        throw new NotSupportedException();
+
+    public DurableLeaseWorkflowBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        TimeSpan timeout) => throw new NotSupportedException();
+
+    public DurableLeaseWorkflowBuilder<TInput, TState> Publish(
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        throw new NotSupportedException();
+
+    public DurableLeaseWorkflowBuilder<TInput, TState> Publish<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload) =>
+        throw new NotSupportedException();
 
     public DurableLeaseWorkflowBuilder<TInput, TState> Delay(TimeSpan duration) =>
         throw new NotSupportedException();
@@ -646,14 +849,35 @@ public sealed class DurableLeaseNestedBuilder<TInput, TState>
         throw new NotSupportedException();
 
     public DurableLeaseNestedBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
         throw new NotSupportedException();
 
     public DurableLeaseNestedBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout) => throw new NotSupportedException();
+
+    public DurableLeaseNestedBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        throw new NotSupportedException();
+
+    public DurableLeaseNestedBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        TimeSpan timeout) => throw new NotSupportedException();
+
+    public DurableLeaseNestedBuilder<TInput, TState> Publish(
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        throw new NotSupportedException();
+
+    public DurableLeaseNestedBuilder<TInput, TState> Publish<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload) =>
+        throw new NotSupportedException();
 
     public DurableLeaseNestedBuilder<TInput, TState> Delay(TimeSpan duration) =>
         throw new NotSupportedException();
@@ -681,14 +905,35 @@ public sealed class DurableLeaseBranchBuilder<TState, TResult>
         throw new NotSupportedException();
 
     public DurableLeaseBranchBuilder<TState, TResult> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
         throw new NotSupportedException();
 
     public DurableLeaseBranchBuilder<TState, TResult> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout) => throw new NotSupportedException();
+
+    public DurableLeaseBranchBuilder<TState, TResult> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        throw new NotSupportedException();
+
+    public DurableLeaseBranchBuilder<TState, TResult> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        TimeSpan timeout) => throw new NotSupportedException();
+
+    public DurableLeaseBranchBuilder<TState, TResult> Publish(
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        throw new NotSupportedException();
+
+    public DurableLeaseBranchBuilder<TState, TResult> Publish<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload) =>
+        throw new NotSupportedException();
 
     public DurableLeaseBranchBuilder<TState, TResult> Delay(TimeSpan duration) =>
         throw new NotSupportedException();
@@ -719,14 +964,35 @@ public sealed class DurableLeaseItemBuilder<TState, TResult>
         throw new NotSupportedException();
 
     public DurableLeaseItemBuilder<TState, TResult> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
         throw new NotSupportedException();
 
     public DurableLeaseItemBuilder<TState, TResult> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout) => throw new NotSupportedException();
+
+    public DurableLeaseItemBuilder<TState, TResult> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        throw new NotSupportedException();
+
+    public DurableLeaseItemBuilder<TState, TResult> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        TimeSpan timeout) => throw new NotSupportedException();
+
+    public DurableLeaseItemBuilder<TState, TResult> Publish(
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        throw new NotSupportedException();
+
+    public DurableLeaseItemBuilder<TState, TResult> Publish<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload) =>
+        throw new NotSupportedException();
 
     public DurableLeaseItemBuilder<TState, TResult> Delay(TimeSpan duration) =>
         throw new NotSupportedException();
@@ -822,4 +1088,200 @@ public sealed class DurableForEachJoinBuilder<TInput, TState, TResult>
         Func<ReadOnlyStateSnapshot<TState>,
             IReadOnlyList<ForEachItemOutcome<TResult>>,
             TState> merge) => throw new NotSupportedException();
+}
+
+// Durable event contract, route, acceptance, and outbound application shapes.
+
+public abstract record WorkflowEventRoute
+{
+    private protected WorkflowEventRoute() { }
+
+    public sealed record Direct(InstanceId InstanceId) : WorkflowEventRoute;
+
+    public sealed record Correlation(DefinitionId DefinitionId) : WorkflowEventRoute;
+
+    public sealed record DefinitionFanout(DefinitionId DefinitionId) : WorkflowEventRoute;
+
+    public sealed record StartOrDeliver<TInput>(
+        DefinitionId DefinitionId,
+        DefinitionVersion DefinitionVersion,
+        StartIdempotencyKey StartIdempotencyKey,
+        TInput WorkflowInput) : WorkflowEventRoute;
+}
+
+public class WorkflowInboundEvent
+{
+    private protected WorkflowInboundEvent(
+        WorkflowEventContract eventContract,
+        EventId eventId,
+        CorrelationId correlationId,
+        EventId? causationEventId,
+        DateTimeOffset occurredAt,
+        WorkflowEventRoute route) => throw new NotSupportedException();
+
+    public WorkflowEventContract EventContract => throw new NotSupportedException();
+    public EventId EventId => throw new NotSupportedException();
+    public CorrelationId CorrelationId => throw new NotSupportedException();
+    public EventId? CausationEventId => throw new NotSupportedException();
+    public DateTimeOffset OccurredAt => throw new NotSupportedException();
+    public WorkflowEventRoute Route => throw new NotSupportedException();
+
+    public static WorkflowInboundEvent Create(
+        WorkflowEventContract eventContract,
+        EventId eventId,
+        CorrelationId correlationId,
+        EventId? causationEventId,
+        DateTimeOffset occurredAt,
+        WorkflowEventRoute route) => throw new NotSupportedException();
+}
+
+public sealed class WorkflowInboundEvent<TPayload> : WorkflowInboundEvent
+{
+    private WorkflowInboundEvent(
+        WorkflowEventContract<TPayload> eventContract,
+        EventId eventId,
+        CorrelationId correlationId,
+        EventId? causationEventId,
+        DateTimeOffset occurredAt,
+        WorkflowEventRoute route,
+        TPayload payload)
+        : base(eventContract, eventId, correlationId, causationEventId, occurredAt, route) { }
+
+    public new WorkflowEventContract<TPayload> EventContract =>
+        throw new NotSupportedException();
+    public TPayload Payload => throw new NotSupportedException();
+
+    public static WorkflowInboundEvent<TPayload> Create(
+        WorkflowEventContract<TPayload> eventContract,
+        EventId eventId,
+        CorrelationId correlationId,
+        EventId? causationEventId,
+        DateTimeOffset occurredAt,
+        WorkflowEventRoute route,
+        TPayload payload) => throw new NotSupportedException();
+}
+
+public abstract record WorkflowEventAcceptanceRejection
+{
+    private protected WorkflowEventAcceptanceRejection() { }
+
+    public sealed record EventConflict : WorkflowEventAcceptanceRejection;
+    public sealed record DirectInstanceNotFound : WorkflowEventAcceptanceRejection;
+    public sealed record DirectInstanceTerminal : WorkflowEventAcceptanceRejection;
+    public sealed record StartConflict(
+        StartIdempotencyConflict Conflict) : WorkflowEventAcceptanceRejection;
+    public sealed record FanoutLimitExceeded : WorkflowEventAcceptanceRejection;
+}
+
+public abstract record WorkflowEventAcceptanceResult
+{
+    private protected WorkflowEventAcceptanceResult() { }
+
+    public sealed record Accepted : WorkflowEventAcceptanceResult;
+    public sealed record Duplicate : WorkflowEventAcceptanceResult;
+    public sealed record Rejected(
+        WorkflowEventAcceptanceRejection Reason) : WorkflowEventAcceptanceResult;
+}
+
+public sealed class WorkflowOutboundEvent
+{
+    internal WorkflowOutboundEvent(
+        WorkflowEventContract eventContract,
+        EventId eventId,
+        CorrelationId correlationId,
+        EventId? causationEventId,
+        DateTimeOffset occurredAt,
+        InstanceId originInstanceId,
+        DefinitionId originDefinitionId,
+        DefinitionVersion originDefinitionVersion,
+        ReadOnlyMemory<byte> payload) => throw new NotSupportedException();
+
+    public WorkflowEventContract EventContract => throw new NotSupportedException();
+    public EventId EventId => throw new NotSupportedException();
+    public CorrelationId CorrelationId => throw new NotSupportedException();
+    public EventId? CausationEventId => throw new NotSupportedException();
+    public DateTimeOffset OccurredAt => throw new NotSupportedException();
+    public InstanceId OriginInstanceId => throw new NotSupportedException();
+    public DefinitionId OriginDefinitionId => throw new NotSupportedException();
+    public DefinitionVersion OriginDefinitionVersion => throw new NotSupportedException();
+
+    public TPayload GetPayload<TPayload>(
+        WorkflowEventContract<TPayload> eventContract) => throw new NotSupportedException();
+}
+
+public sealed class WorkflowEventDispatchFailure
+{
+    private WorkflowEventDispatchFailure(string code, string? detail) { }
+
+    public string Code => throw new NotSupportedException();
+    public string? Detail => throw new NotSupportedException();
+
+    public static WorkflowEventDispatchFailure Create(
+        string code,
+        string? detail = null) => throw new NotSupportedException();
+}
+
+public abstract record WorkflowEventDispatchResult
+{
+    private protected WorkflowEventDispatchResult() { }
+
+    public sealed record Succeeded : WorkflowEventDispatchResult;
+    public sealed record RetryableFailure(
+        WorkflowEventDispatchFailure Failure) : WorkflowEventDispatchResult;
+    public sealed record PermanentFailure(
+        WorkflowEventDispatchFailure Failure) : WorkflowEventDispatchResult;
+}
+
+}
+
+namespace OrcaCore.Hosting
+{
+using OrcaCore;
+
+public sealed class OrcaCoreEphemeralEngineBuilder
+{
+    internal OrcaCoreEphemeralEngineBuilder() { }
+
+    public OrcaCoreEphemeralEngineBuilder AddWorkflow<TInput>(
+        EphemeralWorkflowDefinition<TInput> definition) => throw new NotSupportedException();
+
+    public OrcaCoreEphemeralEngineBuilder AddWorkflow<TInput, TOutput>(
+        EphemeralWorkflowDefinition<TInput, TOutput> definition) =>
+        throw new NotSupportedException();
+}
+
+public sealed class OrcaCoreDurableEngineBuilder
+{
+    internal OrcaCoreDurableEngineBuilder() { }
+
+    public OrcaCoreDurableEngineBuilder AddWorkflow<TInput>(
+        DurableWorkflowDefinition<TInput> definition) => throw new NotSupportedException();
+
+    public OrcaCoreDurableEngineBuilder AddWorkflow<TInput, TOutput>(
+        DurableWorkflowDefinition<TInput, TOutput> definition) =>
+        throw new NotSupportedException();
+}
+}
+
+namespace OrcaCore.Durable.Hosting
+{
+using OrcaCore;
+
+public interface IWorkflowEventIngress
+{
+    ValueTask<WorkflowEventAcceptanceResult> AcceptAsync(
+        WorkflowInboundEvent inboundEvent,
+        CancellationToken cancellationToken = default);
+
+    ValueTask<WorkflowEventAcceptanceResult> AcceptAsync<TPayload>(
+        WorkflowInboundEvent<TPayload> inboundEvent,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IWorkflowEventDispatcher
+{
+    ValueTask<WorkflowEventDispatchResult> DispatchAsync(
+        WorkflowOutboundEvent outboundEvent,
+        CancellationToken cancellationToken = default);
+}
 }

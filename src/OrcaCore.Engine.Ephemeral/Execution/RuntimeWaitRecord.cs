@@ -1,6 +1,4 @@
-using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Definitions;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
@@ -12,12 +10,15 @@ internal sealed class RuntimeWaitRecord
         CorrelationId correlationId,
         BranchId? branchId,
         DateTimeOffset registeredAt,
+        string authoredPath,
+        DateTimeOffset? deadline,
         Func<EventEnvelope, CancellationToken, Task> resumeAsync,
         long waitSequence,
         FiberId? fiberId,
         ScopeId? scopeId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(authoredPath);
         ArgumentNullException.ThrowIfNull(resumeAsync);
 
         WaitId = WaitId.Parse(Guid.CreateVersion7().ToString());
@@ -25,6 +26,8 @@ internal sealed class RuntimeWaitRecord
         CorrelationId = correlationId;
         BranchId = branchId;
         RegisteredAt = registeredAt;
+        AuthoredPath = authoredPath;
+        Deadline = deadline;
         ResumeAsync = resumeAsync;
         WaitSequence = waitSequence;
         FiberId = fiberId;
@@ -40,6 +43,10 @@ internal sealed class RuntimeWaitRecord
     internal BranchId? BranchId { get; }
 
     internal DateTimeOffset RegisteredAt { get; }
+
+    internal string AuthoredPath { get; }
+
+    internal DateTimeOffset? Deadline { get; }
 
     internal long WaitSequence { get; }
 
@@ -70,14 +77,8 @@ internal sealed class RuntimeWaitRecord
 
     internal bool Matches(EventEnvelope envelope)
     {
-        if (!string.IsNullOrWhiteSpace(envelope.BranchId) &&
-            !string.Equals(BranchId?.ToString(), envelope.BranchId, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
         return Status == "Active" &&
-            string.Equals(EventName, envelope.EventName, StringComparison.Ordinal) &&
+            string.Equals(EventName, envelope.EventName.Value, StringComparison.Ordinal) &&
             CorrelationId.Equals(envelope.CorrelationId);
     }
 
@@ -91,14 +92,16 @@ internal sealed class RuntimeWaitRecord
         Status = "Active";
     }
 
-    internal LegacyActiveWaitSnapshot ToSnapshot()
+    internal EphemeralActiveWaitSnapshot ToSnapshot()
     {
-        return new LegacyActiveWaitSnapshot
+        return new EphemeralActiveWaitSnapshot
         {
             WaitId = WaitId,
             EventName = EventName,
             CorrelationId = CorrelationId,
             RegisteredAt = RegisteredAt,
+            AuthoredPath = AuthoredPath,
+            Deadline = Deadline,
             BranchId = BranchId?.ToString(),
             Status = Status,
             Mode = Mode,

@@ -1,6 +1,6 @@
 namespace OrcaCore.Core.Definitions;
 
-public readonly record struct BranchId
+internal readonly record struct BranchId
 {
     public BranchId(int ordinal, string name)
     {

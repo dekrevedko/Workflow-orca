@@ -27,7 +27,7 @@ internal sealed record DurableDriverContext(
     DurableWorkflowAggregate Aggregate,
     DurableExecutionEnvelopeV2? FiberEnvelope,
     DurableCommandProcessor Processor,
-    IWorkflowPayloadSerializer Serializer,
+    JsonWorkflowPayloadSerializer Serializer,
     TimeProvider TimeProvider,
     DurableDriverBudget Budget);
 
@@ -37,7 +37,7 @@ internal sealed record DurableDriverContext(
 /// driver later resumes from the persisted position. Budgets are hard limits — unbounded
 /// segments are not a supported production configuration.
 /// </summary>
-public sealed record DurableDriverBudget(int MaxCommandsPerSegment, TimeSpan MaxSegmentDuration)
+internal sealed record DurableDriverBudget(int MaxCommandsPerSegment, TimeSpan MaxSegmentDuration)
 {
     /// <summary>
     /// DR-OQ-3 defaults, flagged for review: 256 commands / 30 seconds per segment keeps a

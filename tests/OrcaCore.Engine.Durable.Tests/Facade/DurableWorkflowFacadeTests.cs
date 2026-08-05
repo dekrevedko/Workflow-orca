@@ -1,7 +1,6 @@
 using AwesomeAssertions;
 using OrcaCore.Engine.Durable.Definitions;
 using OrcaCore.Engine.Durable.Execution;
-using OrcaCore.Engine.Durable.Management;
 using OrcaCore.Providers.InMemory;
 using Xunit;
 
@@ -85,23 +84,56 @@ public sealed class DurableWorkflowFacadeTests
             .Which.Error.Should().BeOfType<DefinitionHostCompatibilityFailure.EngineModeMismatch>();
     }
 
-    private static FacadeServices CreateFacade()
+    [Fact]
+    public async Task ActiveWaitProjection_PreservesAuthoredLocationAndDeadlineAcrossHostReplacement()
     {
         var store = new InMemoryWorkflowProvider();
+        var definition = Workflow.Durable<State>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<Input>(input => new State(input.Value))
+            .Wait(
+                EventName.Create("approval"),
+                _ => CorrelationId.Create("durable-active-wait"),
+                TimeSpan.FromHours(1))
+            .End()
+            .Build();
+        var firstHost = CreateFacade(store);
+        var started = await firstHost.Registry.Register(definition)
+            .GetHandleOrThrow()
+            .StartOrGetAsync(
+                new Input(1),
+                StartIdempotencyKey.Create("durable-active-wait"),
+                TestContext.Current.CancellationToken);
+        var first = await started.GetHandleOrThrow()
+            .GetSnapshotAsync(TestContext.Current.CancellationToken);
+
+        var replacementHost = CreateFacade(store);
+        var reopened = await replacementHost.Registry.Register(definition)
+            .GetHandleOrThrow()
+            .GetInstanceAsync(first.InstanceId, TestContext.Current.CancellationToken);
+        var recovered = await reopened.GetSnapshotAsync(TestContext.Current.CancellationToken);
+
+        var originalWait = first.ActiveWaits.Should().ContainSingle().Which;
+        var recoveredWait = recovered.ActiveWaits.Should().ContainSingle().Which;
+        originalWait.AuthoredLocation.Value.Should().Be("workflow:$/n:00000001");
+        originalWait.Deadline.Should().Be(originalWait.RegisteredAt.AddHours(1));
+        recoveredWait.Should().BeEquivalentTo(originalWait);
+    }
+
+    private static FacadeServices CreateFacade(InMemoryWorkflowProvider? suppliedStore = null)
+    {
+        var store = suppliedStore ?? new InMemoryWorkflowProvider();
         var notifications = new DurableFacadeNotificationHub();
         var processor = new DurableCommandProcessor(store, runtimeObserver: notifications);
-        var management = new DurableManagement(store, eventStore: store, commandProcessor: processor);
         var runtime = new DurableWorkflowRuntime(
             processor,
             new DurableDefinitionRegistry(),
             TimeProvider.System,
-            projectionStore: store,
-            management: management);
+            projectionStore: store);
         var registry = new DurableWorkflowDefinitionRegistry(
             runtime,
             store,
             store,
-            management,
+            processor,
             notifications,
             TimeProvider.System);
         return new FacadeServices(registry, store);

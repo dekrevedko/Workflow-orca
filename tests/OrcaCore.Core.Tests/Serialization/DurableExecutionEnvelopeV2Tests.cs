@@ -43,7 +43,7 @@ public sealed class DurableExecutionEnvelopeV2Tests
                         Reason = DurableFiberBlockedReason.Wait,
                         ObligationId = "wait-1"
                     },
-                    YieldCount = 2,
+                    QuantumRotationCount = 2,
                     ForcedRotationCount = 1,
                     RetryAttempt = 3,
                     RetryNotBefore = DateTimeOffset.Parse("2026-07-13T10:00:00Z"),
@@ -99,7 +99,7 @@ public sealed class DurableExecutionEnvelopeV2Tests
             ],
             Diagnostics = new DurableExecutionDiagnostics
             {
-                TotalYields = 2,
+                TotalQuantumRotations = 2,
                 ForcedRotations = 1
             }
         };

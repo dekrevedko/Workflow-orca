@@ -7,7 +7,7 @@ namespace OrcaCore.Core.Execution;
 /// <summary>
 /// Creates the one detached, size-bounded value snapshot consumed by a dynamic item scope.
 /// </summary>
-public static class ForEachSnapshotMaterializer
+internal static class ForEachSnapshotMaterializer
 {
     public static object Materialize(object? selectedItems, Type itemType)
     {

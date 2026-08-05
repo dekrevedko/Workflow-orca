@@ -1,7 +1,6 @@
 using System.Reflection;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Execution;
 
@@ -98,7 +97,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         string boundary,
         Exception exception)
     {
-        if (instance.Status is not (LegacyWorkflowStatus.Running or LegacyWorkflowStatus.Waiting))
+        if (instance.Status is not (global::OrcaCore.WorkflowInstanceStatus.Running or global::OrcaCore.WorkflowInstanceStatus.Waiting))
         {
             return;
         }
@@ -163,7 +162,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         FiberFailure failure,
         string path)
     {
-        if (instance.Status is not (LegacyWorkflowStatus.Running or LegacyWorkflowStatus.Waiting))
+        if (instance.Status is not (global::OrcaCore.WorkflowInstanceStatus.Running or global::OrcaCore.WorkflowInstanceStatus.Waiting))
         {
             return;
         }

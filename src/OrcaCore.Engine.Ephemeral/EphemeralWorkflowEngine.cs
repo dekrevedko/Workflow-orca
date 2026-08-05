@@ -1,10 +1,9 @@
 using System.Collections.Concurrent;
-using OrcaCore.Abstractions.Events;
+using System.Reflection;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Definitions;
+using OrcaCore.Core.Execution;
 using OrcaCore.Core.Lifecycle;
 using OrcaCore.Engine.Ephemeral.Diagnostics;
 using OrcaCore.Engine.Ephemeral.Execution;
@@ -16,7 +15,7 @@ namespace OrcaCore.Engine.Ephemeral;
 /// <summary>
 /// Executes registered workflow definitions in the current process without durable recovery.
 /// </summary>
-public sealed class EphemeralWorkflowEngine
+internal sealed class EphemeralWorkflowEngine : IDisposable
 {
     private readonly ConcurrentDictionary<DefinitionId, RegisteredDefinition> definitions = [];
     private readonly InstanceExecutionLane executionLane;
@@ -111,7 +110,7 @@ public sealed class EphemeralWorkflowEngine
             yieldContinuationScheduler,
             options,
             serviceProvider);
-        Management = new EphemeralManagement(this, instanceRegistry);
+        timerService.SetDueDispatcher(FireDueTimersCoreAsync);
     }
 
     private static InstanceExecutionLane CreateExecutionLane(EphemeralWorkflowEngineOptions options)
@@ -121,10 +120,9 @@ public sealed class EphemeralWorkflowEngine
         return new InstanceExecutionLane(options.LaneWorkItemEnqueued);
     }
 
-    /// <summary>
-    /// Gets the management query entry point for ephemeral instances.
-    /// </summary>
-    public EphemeralManagement Management { get; }
+    public void Dispose() => timerService.Dispose();
+
+    internal bool IsTimerDispatching => timerService.IsDispatching;
 
     /// <summary>
     /// Registers a workflow definition version for later starts.
@@ -136,14 +134,14 @@ public sealed class EphemeralWorkflowEngine
             WorkflowDefinitionRuntime.GetPlan(definition);
         if (plan.Mode == global::OrcaCore.Core.Compilation.WorkflowExecutionMode.Durable)
         {
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                 $"Workflow definition '{definition.DefinitionId}' contains durable-only nodes " +
                 "(RunChild/RunChildren) and cannot be registered on the ephemeral engine.");
         }
 
         if (definition.Policies.Retry is not null)
         {
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                 "Definition-level retry is not supported by the ephemeral engine because replaying the whole " +
                 "definition could duplicate completed side effects. Apply retry to individual steps instead.");
         }
@@ -158,7 +156,7 @@ public sealed class EphemeralWorkflowEngine
         if (missingTransientPools.Length > 0)
         {
             OrcaCoreEphemeralDiagnostics.RecordHostCompatibilityFailure("missing_transient_pools");
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                 "HostIncompatible.MissingTransientPools: " +
                 string.Join(", ", missingTransientPools));
         }
@@ -173,7 +171,7 @@ public sealed class EphemeralWorkflowEngine
             registered,
             (_, existing) => SameRegistration(existing, registered)
                 ? existing
-                : throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                : throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                     $"Workflow definition '{definition.DefinitionId}' is already registered with " +
                     $"version '{existing.DefinitionVersion}', state type '{existing.StateType.FullName}', " +
                     $"and fingerprint '{existing.Fingerprint}'. Candidate version: " +
@@ -183,7 +181,7 @@ public sealed class EphemeralWorkflowEngine
     /// <summary>
     /// Starts a registered workflow and runs it inline to suspension or terminal status.
     /// </summary>
-    public async Task<LegacyWorkflowInstanceSnapshot> StartAsync<TInput, TState>(
+    internal async Task<EphemeralWorkflowInstanceSnapshot> StartCoreAsync<TInput, TState>(
         DefinitionId definitionId,
         TInput input,
         CancellationToken cancellationToken)
@@ -194,13 +192,13 @@ public sealed class EphemeralWorkflowEngine
 
         if (!definitions.TryGetValue(definitionId, out var registeredDefinition))
         {
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                 $"No workflow definition is registered for definition id '{definitionId}'.");
         }
 
         if (registeredDefinition.Definition is not WorkflowDefinition<TState> definition)
         {
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                 $"Workflow definition '{definitionId}' was not registered for state type '{typeof(TState).Name}'.");
         }
 
@@ -238,6 +236,112 @@ public sealed class EphemeralWorkflowEngine
         return snapshot;
     }
 
+    /// <summary>
+    /// Starts a registered workflow and returns the approved detached application snapshot.
+    /// </summary>
+    public async Task<global::OrcaCore.WorkflowInstanceSnapshot> StartAsync<TInput, TState>(
+        DefinitionId definitionId,
+        TInput input,
+        CancellationToken cancellationToken) =>
+        ToApplicationSnapshot(await StartCoreAsync<TInput, TState>(
+            definitionId,
+            input,
+            cancellationToken).ConfigureAwait(false));
+
+    /// <summary>
+    /// Starts a short-running workflow and returns its approved terminal application snapshot.
+    /// </summary>
+    public async Task<global::OrcaCore.WorkflowInstanceSnapshot> AwaitCompletionAsync<TInput, TState>(
+        DefinitionId definitionId,
+        TInput input,
+        CancellationToken cancellationToken) =>
+        ToApplicationSnapshot(await AwaitCompletionCoreAsync<TInput, TState>(
+            definitionId,
+            input,
+            cancellationToken).ConfigureAwait(false));
+
+    /// <summary>Fires due transient timers and returns approved application snapshots.</summary>
+    public async Task<IReadOnlyList<global::OrcaCore.WorkflowInstanceSnapshot>> FireDueTimersAsync(
+        CancellationToken cancellationToken) =>
+        (await FireDueTimersCoreAsync(cancellationToken).ConfigureAwait(false))
+            .Select(ToApplicationSnapshot)
+            .ToArray();
+
+    /// <summary>Delivers an event to one instance and returns its approved application snapshot.</summary>
+    public async Task<global::OrcaCore.WorkflowInstanceSnapshot> RaiseEventAsync<TState>(
+        InstanceId instanceId,
+        EventEnvelope envelope,
+        CancellationToken cancellationToken) =>
+        ToApplicationSnapshot(await RaiseEventCoreAsync<TState>(
+            instanceId,
+            envelope,
+            cancellationToken).ConfigureAwait(false));
+
+    /// <summary>Delivers an event by unique correlation and returns its approved application snapshot.</summary>
+    public async Task<global::OrcaCore.WorkflowInstanceSnapshot> RaiseEventByCorrelationAsync<TState>(
+        EventEnvelope envelope,
+        CancellationToken cancellationToken) =>
+        ToApplicationSnapshot(await RaiseEventByCorrelationCoreAsync<TState>(
+            envelope,
+            cancellationToken).ConfigureAwait(false));
+
+    private global::OrcaCore.WorkflowInstanceSnapshot ToApplicationSnapshot(
+        EphemeralWorkflowInstanceSnapshot snapshot)
+    {
+        if (!definitions.TryGetValue(snapshot.DefinitionId, out var registration))
+        {
+            throw new InvalidOperationException(
+                $"Definition '{snapshot.DefinitionId}' is not registered for snapshot projection.");
+        }
+
+        var fingerprint = ConstructNonPublic<global::OrcaCore.DefinitionFingerprint>(registration.Fingerprint);
+        var terminal = LifecycleMachine.TerminalStatuses.Contains(snapshot.Status);
+        return new global::OrcaCore.WorkflowInstanceSnapshot(
+            snapshot.InstanceId,
+            global::OrcaCore.WorkflowMode.Ephemeral,
+            snapshot.DefinitionId,
+            snapshot.DefinitionVersion,
+            fingerprint,
+            snapshot.Status,
+            snapshot.CreatedAt,
+            terminal ? snapshot.UpdatedAt : null,
+            string.IsNullOrWhiteSpace(snapshot.EndOutcomeName)
+                ? null
+                : global::OrcaCore.WorkflowOutcomeName.Create(snapshot.EndOutcomeName),
+            ToApplicationFailure(snapshot.ErrorSummary),
+            snapshot.ActiveWaits.Select(wait => new global::OrcaCore.ActiveWaitSnapshot(
+                wait.WaitId,
+                FailureProvenance.LocationFromCompilerPath(wait.AuthoredPath),
+                global::OrcaCore.EventName.Create(wait.EventName),
+                wait.CorrelationId,
+                wait.RegisteredAt,
+                wait.Deadline)).ToArray());
+    }
+
+    private static global::OrcaCore.WorkflowFailure? ToApplicationFailure(string? errorSummary)
+    {
+        if (string.IsNullOrWhiteSpace(errorSummary))
+        {
+            return null;
+        }
+
+        var separator = errorSummary.IndexOf(':', StringComparison.Ordinal);
+        var code = separator > 0 ? errorSummary[..separator] : "WF-RUNTIME-FAILED";
+        var message = separator > 0 ? errorSummary[(separator + 1)..].Trim() : errorSummary;
+        return global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.WorkflowFailure(
+            code,
+            message,
+            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.AuthoredLocation("workflow:$"),
+            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RootFailureOccurrence(),
+            []);
+    }
+
+    private static T ConstructNonPublic<T>(params object?[] arguments) =>
+        (T)typeof(T)
+            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Single(constructor => constructor.GetParameters().Length == arguments.Length)
+            .Invoke(arguments);
+
     private static bool SameRegistration(
         RegisteredDefinition existing,
         RegisteredDefinition candidate)
@@ -261,12 +365,12 @@ public sealed class EphemeralWorkflowEngine
     /// <summary>
     /// Starts a short-running workflow and returns its terminal snapshot.
     /// </summary>
-    public async Task<LegacyWorkflowInstanceSnapshot> AwaitCompletionAsync<TInput, TState>(
+    internal async Task<EphemeralWorkflowInstanceSnapshot> AwaitCompletionCoreAsync<TInput, TState>(
         DefinitionId definitionId,
         TInput input,
         CancellationToken cancellationToken)
     {
-        var snapshot = await StartAsync<TInput, TState>(
+        var snapshot = await StartCoreAsync<TInput, TState>(
             definitionId,
             input,
             cancellationToken).ConfigureAwait(false);
@@ -283,7 +387,7 @@ public sealed class EphemeralWorkflowEngine
     /// <summary>
     /// Fires all transient timers whose due time has passed in this process.
     /// </summary>
-    public async Task<IReadOnlyList<LegacyWorkflowInstanceSnapshot>> FireDueTimersAsync(
+    internal async Task<IReadOnlyList<EphemeralWorkflowInstanceSnapshot>> FireDueTimersCoreAsync(
         CancellationToken cancellationToken)
     {
         using var activity = OrcaCoreEphemeralDiagnostics.StartOperation("fire_due_timers");
@@ -295,7 +399,7 @@ public sealed class EphemeralWorkflowEngine
             return [];
         }
 
-        var snapshots = new List<LegacyWorkflowInstanceSnapshot>(dueTimers.Count);
+        var snapshots = new List<EphemeralWorkflowInstanceSnapshot>(dueTimers.Count);
         for (var index = 0; index < dueTimers.Count; index++)
         {
             var timer = dueTimers[index];
@@ -344,7 +448,7 @@ public sealed class EphemeralWorkflowEngine
     /// <summary>
     /// Delivers an event directly to one known instance and resumes it when an active wait matches.
     /// </summary>
-    public async Task<LegacyWorkflowInstanceSnapshot> RaiseEventAsync<TState>(
+    internal async Task<EphemeralWorkflowInstanceSnapshot> RaiseEventCoreAsync<TState>(
         InstanceId instanceId,
         EventEnvelope envelope,
         CancellationToken cancellationToken)
@@ -362,7 +466,7 @@ public sealed class EphemeralWorkflowEngine
 
         if (registeredInstance is not WorkflowInstance<TState> instance)
         {
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                 $"Workflow instance '{instanceId}' is not using state type '{typeof(TState).Name}'.");
         }
 
@@ -415,7 +519,7 @@ public sealed class EphemeralWorkflowEngine
         return disposition;
     }
 
-    internal async Task<LegacyWorkflowInstanceSnapshot> CancelInstanceAsync(
+    internal async Task<EphemeralWorkflowInstanceSnapshot> CancelInstanceAsync(
         InstanceId instanceId,
         CancellationToken cancellationToken)
     {
@@ -462,7 +566,7 @@ public sealed class EphemeralWorkflowEngine
         return result.Status;
     }
 
-    internal async Task<LegacyWorkflowInstanceSnapshot> TerminateInstanceAsync(
+    internal async Task<EphemeralWorkflowInstanceSnapshot> TerminateInstanceAsync(
         InstanceId instanceId,
         CancellationToken cancellationToken)
     {
@@ -541,7 +645,7 @@ public sealed class EphemeralWorkflowEngine
     /// <summary>
     /// Resolves one active wait by event name and correlation, then delivers the event to it.
     /// </summary>
-    public async Task<LegacyWorkflowInstanceSnapshot> RaiseEventByCorrelationAsync<TState>(
+    internal async Task<EphemeralWorkflowInstanceSnapshot> RaiseEventByCorrelationCoreAsync<TState>(
         EventEnvelope envelope,
         CancellationToken cancellationToken)
     {
@@ -571,21 +675,21 @@ public sealed class EphemeralWorkflowEngine
         {
             throw new WorkflowRoutingException(
                 $"Correlation-targeted delivery for event '{envelope.EventName}' and correlation " +
-                $"'{envelope.CorrelationId}' is ambiguous; use instance-targeted delivery or definition fanout.");
+                $"'{envelope.CorrelationId}' is ambiguous; the correlation route requires exactly one active wait.");
         }
 
-        return await RaiseEventAsync<TState>(
+        return await RaiseEventCoreAsync<TState>(
             matches[0].InstanceId,
             envelope,
             cancellationToken).ConfigureAwait(false);
     }
 
-    private void IndexSnapshot(LegacyWorkflowInstanceSnapshot snapshot)
+    private void IndexSnapshot(EphemeralWorkflowInstanceSnapshot snapshot)
     {
         routingIndex.IndexSnapshot(snapshot);
     }
 
-    private LegacyWorkflowInstanceSnapshot CommitSnapshot(LegacyWorkflowInstanceSnapshot snapshot)
+    private EphemeralWorkflowInstanceSnapshot CommitSnapshot(EphemeralWorkflowInstanceSnapshot snapshot)
     {
         if (instanceRegistry.TryGet(snapshot.InstanceId, out var registered) &&
             registered is IWorkflowInstance instance)
@@ -613,44 +717,11 @@ public sealed class EphemeralWorkflowEngine
         return false;
     }
 
-    /// <summary>
-    /// Delivers an event to all active waits belonging to one workflow definition.
-    /// </summary>
-    public async Task<IReadOnlyList<LegacyWorkflowInstanceSnapshot>> RaiseEventByDefinitionAsync<TState>(
-        DefinitionId definitionId,
-        EventEnvelope envelope,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(definitionId);
-        ArgumentNullException.ThrowIfNull(envelope);
-        ValidateEventEnvelope(envelope);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var matches = instanceRegistry.List()
-            .OfType<WorkflowInstance<TState>>()
-            .Where(instance =>
-                instance.DefinitionId.Equals(definitionId) &&
-                instance.HasActiveWait(envelope))
-            .ToArray();
-        var snapshots = new List<LegacyWorkflowInstanceSnapshot>(matches.Length);
-
-        foreach (var instance in matches)
-        {
-            var snapshot = await RaiseEventAsync<TState>(
-                instance.InstanceId,
-                envelope,
-                cancellationToken).ConfigureAwait(false);
-            snapshots.Add(snapshot);
-        }
-
-        return snapshots;
-    }
-
     private static void ValidateEventEnvelope(EventEnvelope envelope)
     {
         ArgumentNullException.ThrowIfNull(envelope.EventId);
 
-        if (string.IsNullOrWhiteSpace(envelope.EventName))
+        if (string.IsNullOrWhiteSpace(envelope.EventName.Value))
         {
             throw new ArgumentException("EventName must not be empty.", nameof(envelope));
         }
@@ -665,10 +736,6 @@ public sealed class EphemeralWorkflowEngine
             throw new ArgumentException("OccurredAt must not be the default value.", nameof(envelope));
         }
 
-        if (envelope.BranchId is not null && string.IsNullOrWhiteSpace(envelope.BranchId))
-        {
-            throw new ArgumentException("BranchId must not be whitespace when supplied.", nameof(envelope));
-        }
     }
 
 }

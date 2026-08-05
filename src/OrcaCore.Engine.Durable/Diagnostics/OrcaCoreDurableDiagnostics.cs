@@ -9,7 +9,7 @@ namespace OrcaCore.Engine.Durable.Diagnostics;
 /// <summary>
 /// Owns durable engine BCL diagnostics sources.
 /// </summary>
-public static class OrcaCoreDurableDiagnostics
+internal static class OrcaCoreDurableDiagnostics
 {
     private static readonly object OperationalGate = new();
     private static IReadOnlyDictionary<string, PoolOperationalSnapshot> poolOperationalSnapshots =

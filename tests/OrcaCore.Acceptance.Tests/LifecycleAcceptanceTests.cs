@@ -3,11 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
-using OrcaCore.Engine.Ephemeral;
+using OrcaCore.Provider.Abstractions;
 using OrcaCore.Providers.InMemory;
 using Xunit;
 
@@ -17,10 +15,9 @@ public sealed class LifecycleAcceptanceTests
 {
     [Fact]
     [Trait("AC", "AC-509")]
-    public async Task LifecycleEvents_FollowDocumentedDurabilityGuarantees()
+    public async Task ApplicationSnapshotAndDurableLifecycleOutbox_FollowDocumentedDurabilityGuarantees()
     {
         using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
-        var ephemeral = provider.GetRequiredService<EphemeralWorkflowEngine>();
         var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
             .Then(_ => ValueTask.CompletedTask)
@@ -33,25 +30,26 @@ public sealed class LifecycleAcceptanceTests
             "start",
             StartIdempotencyKey.Create("lifecycle-events"),
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
-        var ephemeralLifecycle = ephemeral.Management.Instance(ephemeralInstance.InstanceId).GetLifecycleEvents();
+        var ephemeralSnapshot = await ephemeralInstance.GetSnapshotAsync(TestContext.Current.CancellationToken);
 
         var instanceId = InstanceIdValue(1);
-        var durableStore = new InMemoryWorkflowProvider();
-        await durableStore.AppendAsync(
+        using var durableProvider = new ServiceCollection()
+            .AddOrcaCoreInMemoryDurableProvider()
+            .BuildServiceProvider();
+        var eventStore = durableProvider.GetRequiredService<IWorkflowEventStore>();
+        var outboxStore = durableProvider.GetRequiredService<IWorkflowOutboxStore>();
+        await eventStore.AppendAsync(
             LifecycleCommit(instanceId),
             TestContext.Current.CancellationToken);
-        var outbox = await durableStore.ClaimAsync(10, TestContext.Current.CancellationToken);
-        var durableLifecycle = JsonSerializer.Deserialize<LifecycleEventSnapshot>(
+        var outbox = await outboxStore.ClaimAsync(10, TestContext.Current.CancellationToken);
+        using var durableLifecycle = JsonDocument.Parse(
             outbox.Single(record => record.Kind == "lifecycle-event").Payload);
+        var durableLifecycleRoot = durableLifecycle.RootElement;
 
-        ephemeralLifecycle.Should().ContainSingle(lifecycleEvent =>
-            lifecycleEvent.EventName == "InstanceCompleted" && lifecycleEvent.Durable == false);
-        durableLifecycle.Should().BeEquivalentTo(new
-        {
-            EventName = "InstanceCompleted",
-            Status = WorkflowStatus.Completed,
-            Durable = true
-        });
+        ephemeralSnapshot.Status.Should().Be(WorkflowStatus.Completed);
+        durableLifecycleRoot.GetProperty("EventName").GetString().Should().Be("InstanceCompleted");
+        durableLifecycleRoot.GetProperty("Status").GetInt32().Should().Be((int)WorkflowStatus.Completed);
+        durableLifecycleRoot.GetProperty("Durable").GetBoolean().Should().BeTrue();
     }
 
     private static ProviderCommitBatch LifecycleCommit(InstanceId instanceId)
@@ -77,7 +75,7 @@ public sealed class LifecycleAcceptanceTests
                 new OutboxWrite(
                     OutboxRecordId.New(),
                     "lifecycle-event",
-                    JsonSerializer.SerializeToUtf8Bytes(new LifecycleEventSnapshot
+                    JsonSerializer.SerializeToUtf8Bytes(new
                     {
                         InstanceId = instanceId,
                         EventName = "InstanceCompleted",

@@ -20,14 +20,14 @@ internal sealed class EphemeralWorkflowCompletionBuilder<TInput>
     {
         var result = frozenBuild;
         return result.Build is { } build
-            ? PublicAuthoringContracts.Valid(
-                WorkflowRuntimeBridge.EphemeralDefinition<TInput>(
+            ? AuthoringContractFactory.Valid(
+                AuthoringContractFactory.EphemeralDefinition<TInput>(
                     build.DefinitionId,
                     build.DefinitionVersion,
                     build.Fingerprint,
                     build.RuntimeDefinition,
                     build.RuntimeStateType))
-            : PublicAuthoringContracts.Invalid<EphemeralWorkflowDefinition<TInput>>(result.Errors);
+            : AuthoringContractFactory.Invalid<EphemeralWorkflowDefinition<TInput>>(result.Errors);
     }
 }
 
@@ -46,14 +46,14 @@ internal sealed class EphemeralWorkflowCompletionBuilder<TInput, TOutput>
     {
         var result = frozenBuild;
         return result.Build is { } build
-            ? PublicAuthoringContracts.Valid(
-                WorkflowRuntimeBridge.EphemeralDefinition<TInput, TOutput>(
+            ? AuthoringContractFactory.Valid(
+                AuthoringContractFactory.EphemeralDefinition<TInput, TOutput>(
                     build.DefinitionId,
                     build.DefinitionVersion,
                     build.Fingerprint,
                     build.RuntimeDefinition,
                     build.RuntimeStateType))
-            : PublicAuthoringContracts.Invalid<EphemeralWorkflowDefinition<TInput, TOutput>>(result.Errors);
+            : AuthoringContractFactory.Invalid<EphemeralWorkflowDefinition<TInput, TOutput>>(result.Errors);
     }
 }
 
@@ -72,14 +72,14 @@ internal sealed class DurableWorkflowCompletionBuilder<TInput>
     {
         var result = frozenBuild;
         return result.Build is { } build
-            ? PublicAuthoringContracts.Valid(
-                WorkflowRuntimeBridge.DurableDefinition<TInput>(
+            ? AuthoringContractFactory.Valid(
+                AuthoringContractFactory.DurableDefinition<TInput>(
                     build.DefinitionId,
                     build.DefinitionVersion,
                     build.Fingerprint,
                     build.RuntimeDefinition,
                     build.RuntimeStateType))
-            : PublicAuthoringContracts.Invalid<DurableWorkflowDefinition<TInput>>(result.Errors);
+            : AuthoringContractFactory.Invalid<DurableWorkflowDefinition<TInput>>(result.Errors);
     }
 }
 
@@ -98,14 +98,14 @@ internal sealed class DurableWorkflowCompletionBuilder<TInput, TOutput>
     {
         var result = frozenBuild;
         return result.Build is { } build
-            ? PublicAuthoringContracts.Valid(
-                WorkflowRuntimeBridge.DurableDefinition<TInput, TOutput>(
+            ? AuthoringContractFactory.Valid(
+                AuthoringContractFactory.DurableDefinition<TInput, TOutput>(
                     build.DefinitionId,
                     build.DefinitionVersion,
                     build.Fingerprint,
                     build.RuntimeDefinition,
                     build.RuntimeStateType))
-            : PublicAuthoringContracts.Invalid<DurableWorkflowDefinition<TInput, TOutput>>(result.Errors);
+            : AuthoringContractFactory.Invalid<DurableWorkflowDefinition<TInput, TOutput>>(result.Errors);
     }
 }
 
@@ -132,7 +132,7 @@ internal static class PublicDefinitionBuilder
             new PublicDefinitionBuild(
                 definition.DefinitionId,
                 definition.DefinitionVersion,
-                PublicAuthoringContracts.Fingerprint(definition.CompiledPlan.Fingerprint),
+                AuthoringContractFactory.Fingerprint(definition.CompiledPlan.Fingerprint),
                 definition,
                 typeof(TState)),
             []);
@@ -159,6 +159,6 @@ file static class CompletionProjection
             return value!;
         }
 
-        throw PublicAuthoringContracts.DefinitionException(validation.Diagnostics);
+        throw AuthoringContractFactory.DefinitionException(validation.Diagnostics);
     }
 }

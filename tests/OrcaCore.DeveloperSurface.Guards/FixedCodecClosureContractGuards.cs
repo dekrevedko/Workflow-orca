@@ -2,12 +2,11 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AwesomeAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
-using OrcaCore.Engine.Durable.Definitions;
-using OrcaCore.Engine.Durable.Execution;
+using OrcaCore.Hosting;
 using OrcaCore.Providers.InMemory;
 
 namespace OrcaCore.DeveloperSurface.Guards;
@@ -33,8 +32,10 @@ public sealed class FixedCodecClosureContractGuards
     [Fact]
     public async Task TypedCompletionOutput_RejectsUnapprovedPolymorphismBeforeCommit()
     {
-        var store = new InMemoryWorkflowProvider();
-        var runtime = CreateRuntime(store);
+        using var host = CreateHost();
+        var registry = host.GetRequiredService<IWorkflowDefinitionRegistry>();
+        var starts = host.GetRequiredService<IWorkflowStartIdempotencyStore>();
+        var projections = host.GetRequiredService<IWorkflowProjectionStore>();
         var definitionId = DefinitionId.New();
         var definition = global::OrcaCore.Workflow
             .Durable<ConcreteCodecState>(definitionId, DefinitionVersion.Initial)
@@ -44,22 +45,25 @@ public sealed class FixedCodecClosureContractGuards
             })
             .End<CodecBase>(snapshot => snapshot.Value.Item)
             .Build();
-        RegisterDefinition(runtime, definition, typeof(ConcreteCodecState));
+        var handle = registry.Register(definition).GetHandleOrThrow();
 
-        var act = () => runtime.StartOrGetAsync<string, ConcreteCodecState>(
-            "typed-output-polymorphism",
-            definitionId,
-            DefinitionVersion.Initial,
+        var act = () => handle.StartOrGetAsync(
             "value",
-            CancellationToken.None);
+            StartIdempotencyKey.Create("typed-output-polymorphism"),
+            CancellationToken.None).AsTask();
 
         await act.Should().ThrowAsync<NotSupportedException>(
                 "the fixed codec governs output values, not only input and state")
             .WithMessage("*polymorphic*not supported*");
-        (await store.ListAsync(new WorkflowProjectionQuery(), CancellationToken.None))
-            .Should().NotContain(
-                snapshot => snapshot.Status == WorkflowStatus.Completed,
-                "no instance may complete on an output the codec cannot represent");
+        var binding = await starts.GetStartedAsync(
+            "typed-output-polymorphism",
+            CancellationToken.None);
+        binding.HasValue.Should().BeTrue("the output rejection occurs at the terminal boundary");
+        var projection = await projections.GetAsync(binding.Value.InstanceId, CancellationToken.None);
+        projection.HasValue.Should().BeTrue();
+        projection.Value.Status.Should().NotBe(
+            WorkflowInstanceStatus.Completed,
+            "no instance may complete on an output the codec cannot represent");
     }
 
     /// <summary>
@@ -69,8 +73,9 @@ public sealed class FixedCodecClosureContractGuards
     [Fact]
     public async Task TypedCompletionOutput_RoundTripsApprovedPolymorphismWithoutLoss()
     {
-        var store = new InMemoryWorkflowProvider();
-        var runtime = CreateRuntime(store);
+        using var host = CreateHost();
+        var registry = host.GetRequiredService<IWorkflowDefinitionRegistry>();
+        var store = host.GetRequiredService<IWorkflowEventStore>();
         var definitionId = DefinitionId.New();
         var definition = global::OrcaCore.Workflow
             .Durable<ApprovedCodecState>(definitionId, DefinitionVersion.Initial)
@@ -80,16 +85,16 @@ public sealed class FixedCodecClosureContractGuards
             })
             .End<ApprovedBase>(snapshot => snapshot.Value.Item)
             .Build();
-        RegisterDefinition(runtime, definition, typeof(ApprovedCodecState));
+        var handle = registry.Register(definition).GetHandleOrThrow();
 
-        var started = await runtime.StartOrGetAsync<string, ApprovedCodecState>(
-            "typed-output-approved",
-            definitionId,
-            DefinitionVersion.Initial,
+        var started = await handle.StartOrGetAsync(
             "value",
+            StartIdempotencyKey.Create("typed-output-approved"),
             CancellationToken.None);
 
-        var checkpoint = await store.LoadCheckpointAsync(started.InstanceId, CancellationToken.None);
+        var checkpoint = await store.LoadCheckpointAsync(
+            started.GetHandleOrThrow().InstanceId,
+            CancellationToken.None);
         checkpoint.HasValue.Should().BeTrue();
         var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint.Value.Payload);
         envelope.Output.Should().NotBeNull();
@@ -106,7 +111,8 @@ public sealed class FixedCodecClosureContractGuards
     [Fact]
     public async Task FixedCodec_RejectsApplicationOwnedJsonConvertersAtBuildBeforeProviderMutation()
     {
-        var store = new InMemoryWorkflowProvider();
+        using var host = CreateHost();
+        var store = host.GetRequiredService<IWorkflowStartIdempotencyStore>();
         var definitionId = DefinitionId.New();
         var validation = global::OrcaCore.Workflow
             .Durable<ConverterState>(definitionId, DefinitionVersion.Initial)
@@ -128,54 +134,40 @@ public sealed class FixedCodecClosureContractGuards
     /// start fact the codec never produced, leaving an instance the driver can never deserialize.
     /// </summary>
     [Fact]
-    public async Task RawStartCommand_CannotCommitPayloadBytesTheFixedCodecDidNotProduce()
+    public void RawStartCommand_HasNoPublicApplicationExecutionSurface()
     {
-        var store = new InMemoryWorkflowProvider();
-        var processor = new DurableCommandProcessor(store);
-        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var exported = PublicSurfaceCatalog.Assemblies
+            .SelectMany(assembly => assembly.GetExportedTypes())
+            .ToArray();
 
-        var act = () => processor.ProcessAsync(
-            new StartWorkflowCommand
-            {
-                InstanceId = instanceId,
-                CommandId = CommandId.New(),
-                RequestedAt = DateTimeOffset.UtcNow,
-                DefinitionId = DefinitionId.New(),
-                DefinitionVersion = DefinitionVersion.Initial,
-                InputContentType = "application/x-foreign",
-                InputPayload = [0xDE, 0xAD, 0xBE, 0xEF]
-            },
-            CancellationToken.None);
-
-        await act.Should().ThrowAsync<ArgumentException>(
-            "a start fact carrying a foreign content type must be rejected, not committed");
-        (await store.LoadTailAsync(
-                new WorkflowStreamId(instanceId),
-                StreamVersion.Empty,
-                CancellationToken.None))
-            .OfType<WorkflowStartedEvent>()
-            .Should().BeEmpty("no foreign-codec start fact may reach the durable stream");
+        exported.Should().NotContain(type =>
+            type.FullName == "OrcaCore.Engine.Durable.Execution.DurableCommandProcessor");
+        exported.Where(type => type != typeof(StartWorkflowCommand))
+            .SelectMany(type => type.GetMethods())
+            .Should().NotContain(method => method.GetParameters().Any(parameter =>
+                    parameter.ParameterType == typeof(StartWorkflowCommand)),
+                "applications must not receive a raw command path around the fixed codec");
     }
 
-    private static DurableWorkflowRuntime CreateRuntime(InMemoryWorkflowProvider store) =>
-        new(new DurableCommandProcessor(store),
-            new DurableDefinitionRegistry(),
-            TimeProvider.System,
-            projectionStore: store);
-
-    private static void RegisterDefinition(
-        DurableWorkflowRuntime runtime,
-        object publicDefinition,
-        Type stateType)
+    private static ServiceProvider CreateHost()
     {
-        var runtimeDefinition = publicDefinition.GetType()
-            .GetProperty("RuntimeDefinition", System.Reflection.BindingFlags.Instance |
-                System.Reflection.BindingFlags.NonPublic)!
-            .GetValue(publicDefinition)!;
-        typeof(DurableWorkflowRuntime)
-            .GetMethod(nameof(DurableWorkflowRuntime.RegisterDefinition))!
-            .MakeGenericMethod(stateType)
-            .Invoke(runtime, [runtimeDefinition]);
+        var services = new ServiceCollection();
+        services.AddOrcaCoreInMemoryDurableProvider();
+        services.AddOrcaCoreDurableEngine(new DurableEngineHostOptions
+        {
+            StructuredExecution = new StructuredExecutionHostOptions
+            {
+                MaxConcurrentExecutionPathsPerInstance = 4,
+                StepThrottles = []
+            },
+            ResourcePools = new DurableResourcePoolOptions
+            {
+                PartitionId = ResourceGovernancePartitionId.Create(
+                    $"fixed-codec-guard-{Guid.NewGuid():N}"),
+                Pools = []
+            }
+        });
+        return services.BuildServiceProvider();
     }
 
     public record CodecBase(string Value);

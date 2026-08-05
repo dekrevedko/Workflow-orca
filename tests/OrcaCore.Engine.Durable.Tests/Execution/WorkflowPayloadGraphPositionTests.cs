@@ -3,7 +3,6 @@ using AwesomeAssertions;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Engine.Durable.Definitions;
 using OrcaCore.Engine.Durable.Execution;
-using OrcaCore.Engine.Durable.Management;
 using OrcaCore.Providers.InMemory;
 using Xunit;
 
@@ -151,18 +150,16 @@ public sealed class WorkflowPayloadGraphPositionTests
     {
         var notifications = new DurableFacadeNotificationHub();
         var processor = new DurableCommandProcessor(store, runtimeObserver: notifications);
-        var management = new DurableManagement(store, eventStore: store, commandProcessor: processor);
         var runtime = new DurableWorkflowRuntime(
             processor,
             new DurableDefinitionRegistry(),
             TimeProvider.System,
-            projectionStore: store,
-            management: management);
+            projectionStore: store);
         var registry = new DurableWorkflowDefinitionRegistry(
             runtime,
             store,
             store,
-            management,
+            processor,
             notifications,
             TimeProvider.System);
         return registry.Register(

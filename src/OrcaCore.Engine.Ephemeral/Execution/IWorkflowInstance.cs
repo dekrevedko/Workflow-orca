@@ -1,5 +1,4 @@
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
 
@@ -21,11 +20,11 @@ internal interface IWorkflowInstance
 
     void PublishState();
 
-    LegacyWorkflowInstanceSnapshot Cancel(DateTimeOffset updatedAt);
+    EphemeralWorkflowInstanceSnapshot Cancel(DateTimeOffset updatedAt);
 
-    LegacyWorkflowInstanceSnapshot Terminate(DateTimeOffset updatedAt);
+    EphemeralWorkflowInstanceSnapshot Terminate(DateTimeOffset updatedAt);
 
-    LegacyWorkflowInstanceSnapshot MarkStuckIfNoProgress(DateTimeOffset now, TimeSpan threshold);
+    EphemeralWorkflowInstanceSnapshot MarkStuckIfNoProgress(DateTimeOffset now, TimeSpan threshold);
 
     bool TryTakeYieldContinuation(out Func<CancellationToken, Task>? continuation);
 
@@ -37,7 +36,7 @@ internal interface IWorkflowInstance
 
     void SignalCancellation();
 
-    LegacyWorkflowInstanceSnapshot ToSnapshot();
+    EphemeralWorkflowInstanceSnapshot ToSnapshot();
 
-    LegacyWorkflowInstanceSnapshot GetPublishedSnapshot();
+    EphemeralWorkflowInstanceSnapshot GetPublishedSnapshot();
 }

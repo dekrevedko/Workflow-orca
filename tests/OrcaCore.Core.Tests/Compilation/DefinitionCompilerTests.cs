@@ -2,7 +2,6 @@ using AwesomeAssertions;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Definitions;
@@ -771,7 +770,8 @@ public sealed class DefinitionCompilerTests
             error.Code == DefinitionCompilerCodes.LeaseAncestryConflict &&
             error.Path == "root/1/lease/0" &&
             error.RelatedPath == "root/1");
-        var diagnostic = PublicAuthoringContracts.Diagnostic(validation.Errors.Single());
+        var diagnostic = global::OrcaCore.Core.Tests.TestAuthoringContractAccessor.Diagnostic(
+            validation.Errors.Single());
         diagnostic.Code.Should().Be("SFE-AUTH-LEASE-001");
         diagnostic.Location.Value.Should().Be("workflow:$/n:00000001/n:00000000");
         diagnostic.RelatedLocations.Select(location => location.Value).Should()
@@ -797,7 +797,7 @@ public sealed class DefinitionCompilerTests
             error.Code == DefinitionCompilerCodes.LeaseBlocksContinueAsNew &&
             error.Path == "root/1/lease/0" &&
             error.RelatedPath == "root/1");
-        PublicAuthoringContracts.Diagnostic(validation.Errors.Single()).Code.Should()
+        global::OrcaCore.Core.Tests.TestAuthoringContractAccessor.Diagnostic(validation.Errors.Single()).Code.Should()
             .Be("SFE-AUTH-LEASE-003");
     }
 

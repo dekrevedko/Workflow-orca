@@ -1,7 +1,7 @@
 using System.Diagnostics;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using AwesomeAssertions;
-using OrcaCore.Core.Definitions;
 
 namespace OrcaCore.DeveloperSurface.Guards;
 
@@ -60,7 +60,9 @@ public sealed class InfrastructureGuards
     [Fact]
     public void DefinitionIrScanner_ReportsNoCompilerIrOnTheRuntimeDefinition()
     {
-        PublicSurfaceCatalog.FindCompilerIrSignatureTypes(typeof(WorkflowDefinition<>))
+        var runtimeDefinition = Assembly.Load("OrcaCore.Core")
+            .GetType("OrcaCore.Core.Definitions.WorkflowDefinition`1", throwOnError: true)!;
+        PublicSurfaceCatalog.FindCompilerIrSignatureTypes(runtimeDefinition)
             .Should().BeEmpty("compiler IR must be implementation-only");
     }
 

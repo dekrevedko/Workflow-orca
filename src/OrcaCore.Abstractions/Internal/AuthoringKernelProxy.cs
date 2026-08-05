@@ -189,7 +189,7 @@ internal static class AuthoringKernelProxy
 
     private static bool CanWrap(Type runtimeType, Type applicationType) =>
         runtimeType.Assembly.GetName().Name == CoreAssemblyName &&
-        applicationType.Assembly == typeof(WorkflowRuntimeBridge).Assembly &&
+        applicationType.Assembly == typeof(AuthoringKernelProxy).Assembly &&
         string.Equals(runtimeType.Name, applicationType.Name, StringComparison.Ordinal) &&
         applicationType.GetConstructor(
             BindingFlags.Instance | BindingFlags.NonPublic,

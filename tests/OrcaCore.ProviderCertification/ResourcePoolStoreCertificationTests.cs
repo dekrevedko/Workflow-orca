@@ -1,7 +1,7 @@
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
-using OrcaCore.Providers.InMemory;
+using OrcaCore.Hosting.ResourceLeases;
 using Xunit;
 
 namespace OrcaCore.ProviderCertification;
@@ -194,66 +194,44 @@ public abstract class ResourcePoolStoreCertificationTests
     }
 
     [Fact]
-    public async Task ResizePoolAsync_WhenShrinkingBelowHeldCount_DoesNotRevokeHeldTickets()
+    public void ProviderPort_DoesNotExposeLegacyRawStringResize()
     {
-        var store = CreateStore();
-        await store.UpsertPoolAsync(Pool("db", 2), TestContext.Current.CancellationToken);
-        await store.AcquireAsync(
-            new ResourcePoolAcquireRequest(
-                InstanceIdValue(1),
-                "node-1",
-                [new ResourcePoolRequirement("db", 2)],
-                Date(1),
-                Date(30)),
-            TestContext.Current.CancellationToken);
-
-        await store.ResizePoolAsync("db", 1, TestContext.Current.CancellationToken);
-        var snapshot = await store.GetPoolAsync("db", TestContext.Current.CancellationToken);
-
-        snapshot.Value.Capacity.Should().Be(1);
-        snapshot.Value.HeldTickets.Sum(ticket => ticket.Count).Should().Be(2);
-        snapshot.Value.AvailableCapacity.Should().Be(0);
+        typeof(IResourcePoolStore).GetMethod("ResizePoolAsync").Should().BeNull();
     }
 
     [Fact]
-    public async Task ResizePoolAsync_RejectsNonPositiveAndUnknownBeforeMutation()
+    public void ResourceAdministration_UsesTheStrongIdentityOperationBoundContract()
     {
-        var store = CreateStore();
-        await store.UpsertPoolAsync(Pool("db", 2), TestContext.Current.CancellationToken);
+        var resize = typeof(IDurableResourcePoolManagement).GetMethod("ResizeAsync");
 
-        await store.Invoking(candidate => candidate.ResizePoolAsync(
-                "db",
-                0,
-                TestContext.Current.CancellationToken))
-            .Should().ThrowAsync<ArgumentOutOfRangeException>();
-        await store.Invoking(candidate => candidate.ResizePoolAsync(
-                "missing",
-                1,
-                TestContext.Current.CancellationToken))
-            .Should().ThrowAsync<ResourcePoolNotConfiguredException>();
-
-        var snapshot = await store.GetPoolAsync("db", TestContext.Current.CancellationToken);
-        snapshot.Value.Capacity.Should().Be(2);
+        resize.Should().NotBeNull();
+        resize!.GetParameters().Select(parameter => parameter.ParameterType.Name).Should().Equal(
+            "ResourcePoolName",
+            "Int32",
+            "ResourcePoolOperationId",
+            "CancellationToken");
+        resize.ReturnType.Name.Should().StartWith("ValueTask");
+        resize.ReturnType.GenericTypeArguments.Should().ContainSingle()
+            .Which.Name.Should().Be("DurableResourcePoolResizeResult");
     }
 
     [Fact]
-    public async Task UpsertPoolAsync_AfterResize_ValidatesCreationDefinitionWithoutResettingCurrentCapacity()
+    public async Task UpsertPoolAsync_ReplayValidatesTheImmutableCreationDefinition()
     {
         var store = CreateStore();
         var creation = Pool("db", 3);
         await store.UpsertPoolAsync(creation, TestContext.Current.CancellationToken);
-        await store.ResizePoolAsync("db", 1, TestContext.Current.CancellationToken);
 
         await store.UpsertPoolAsync(creation, TestContext.Current.CancellationToken);
         var snapshot = await store.GetPoolAsync("db", TestContext.Current.CancellationToken);
-        snapshot.Value.Capacity.Should().Be(1);
+        snapshot.Value.Capacity.Should().Be(3);
 
         await store.Invoking(candidate => candidate.UpsertPoolAsync(
                 Pool("db", 1),
                 TestContext.Current.CancellationToken))
             .Should().ThrowAsync<InvalidOperationException>();
         (await store.GetPoolAsync("db", TestContext.Current.CancellationToken))
-            .Value.Capacity.Should().Be(1);
+            .Value.Capacity.Should().Be(3);
     }
 
     [Fact]
@@ -462,6 +440,6 @@ public sealed class InMemoryResourcePoolStoreCertificationTests : ResourcePoolSt
 {
     protected override IResourcePoolStore CreateStore()
     {
-        return new InMemoryResourcePoolStore();
+        return InMemoryProviderPorts.Create().ResourcePoolStore;
     }
 }

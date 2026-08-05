@@ -24,7 +24,7 @@ active source and links the two normative trees.
 |---|---|---|
 | `architecture/` | `docs/architecture/` | Its own README declared the directory "design exploration… not the first-release approval baseline". 12 files are named as superseded in `docs/specs/README.md` provenance; the remainder are March–April 2026 and reference removed types (`WorkflowEngine`, `EventDrivenWorkflowEngine`, `IOutboxDispatcher`, `Quick Engine`). |
 | `requirements/` | `docs/requirements/` | Self-declared "Historical Requirements Tree… no longer the active first-release baseline". Superseded by `docs/specs/`. |
-| `plans/` | `docs/plans/` | Roadmaps and acceptance plans; README declared the directory historical. Superseded by the OpenSpec task graphs. |
+| `plans/` | `docs/plans/` plus later superseded root guides/status records | Roadmaps and acceptance plans; the former directory README declared them historical. It now also preserves the Phase-0 kickoff, pre-v1 ephemeral guide/diagrams, dated durable-driver audit/status, the old end-to-end plan, and the superseded 25-file Orleans plan that contradicted the selected v1 surface. |
 | `research/` | `docs/research/` | Prior-art and competitor studies (2026-03). Synthesized into `docs/specs/`. |
 | `reviews/` | `docs/reviews/` | Single consolidated findings file (2026-03-17), superseded by `docs/review/`. The near-identical directory name was itself a hazard. |
 | `durable/` | `docs/durable/` | All five files "Saved on 2026-03-16"; superseded by `docs/specs/06`, `16`, and the durable-driver notes at `docs/`. |
@@ -44,12 +44,18 @@ and are **not** rewritten, so resolve their links through this table:
 | `docs/reviews/…` | `docs/archive/reviews/…` |
 | `docs/durable/…` | `docs/archive/durable/…` |
 | `docs/implementation/phases/…` | `docs/archive/implementation-phases/…` |
+| pre-2026-08-01 `docs/ephemeral-engine-developer-guide.md` | `docs/archive/plans/ephemeral-engine-developer-guide.md` |
+| pre-2026-08-01 `docs/ephemeral-engine-diagrams.md` | `docs/archive/plans/ephemeral-engine-diagrams.md` |
+| `docs/durable-driver-status.md` | `docs/archive/plans/durable-driver-status.md` |
+| `docs/durable-driver-audit.md` | `docs/archive/plans/durable-driver-audit.md` |
+| pre-2026-08-01 `docs/orleans-engine/…` | `docs/archive/plans/orleans-engine-pre-v1/…` |
+| pre-2026-08-01 `docs/end-to-end-plan.md` | `docs/archive/plans/end-to-end-plan-pre-v1.md` |
 
 Git history is preserved — every file was moved with `git mv`, so `git log --follow` works across
 the move.
 
 ## Not archived
 
-- [`docs/orleans-engine/`](../orleans-engine/README.md) — **planned**, not superseded. A future
-  durable-host variant that carries no v1 obligation.
+- [`docs/orleans-engine/`](../orleans-engine/README.md) — clean **planned** boundary for a future
+  durable-host variant that carries no v1 obligation. Its superseded task plan is archived.
 - [`docs/review/`](../review) — dated review records. Frozen, but active provenance.

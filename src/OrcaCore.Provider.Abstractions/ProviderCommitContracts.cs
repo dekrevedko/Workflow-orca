@@ -1,33 +1,10 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
-using ProjectionActiveWaitSnapshot = global::OrcaCore.Abstractions.Instances.ActiveWaitSnapshot;
-using ProjectionWorkflowInstanceSnapshot = global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot;
+using ProjectionActiveWaitSnapshot = global::OrcaCore.Abstractions.Providers.WorkflowProjectionActiveWaitSnapshot;
+using ProjectionWorkflowInstanceSnapshot = global::OrcaCore.Abstractions.Providers.WorkflowProjectionSnapshot;
 
 namespace OrcaCore.Abstractions.Providers;
-
-/// <summary>
-/// Declares how projection writes participate in a provider commit.
-/// </summary>
-public enum ProjectionCommitMode
-{
-    /// <summary>
-    /// Projection updates are part of the same provider commit boundary as stream append.
-    /// </summary>
-    SameCommitBoundary
-}
-
-/// <summary>
-/// Captures durable provider policy choices that affect port contracts.
-/// </summary>
-public static class ProviderCommitPolicy
-{
-    /// <summary>
-    /// Gets the projection commit mode selected by IOQ-3.
-    /// </summary>
-    public static ProjectionCommitMode ProjectionMode => ProjectionCommitMode.SameCommitBoundary;
-}
 
 /// <summary>
 /// Carries all writes for one accepted durable mutation.
@@ -128,7 +105,7 @@ public sealed record CheckpointWrite(
     /// <summary>
     /// Gets the lifecycle status restored by this checkpoint when known.
     /// </summary>
-    public WorkflowStatus? Status { get; init; }
+    public global::OrcaCore.WorkflowInstanceStatus? Status { get; init; }
 
     /// <summary>
     /// Gets the last completed step path restored by this checkpoint when known.
@@ -177,64 +154,9 @@ public sealed record WorkflowRuntimeCheckpointState
     public IReadOnlyList<CheckpointActiveWait> ActiveWaits { get; init; } = [];
 
     /// <summary>
-    /// Gets buffered inbound deliveries.
-    /// </summary>
-    public IReadOnlyList<CheckpointBufferedDelivery> BufferedDeliveries { get; init; } = [];
-
-    /// <summary>
-    /// Gets buffered timer firings accepted while paused.
-    /// </summary>
-    public IReadOnlyList<CheckpointBufferedTimer> BufferedTimers { get; init; } = [];
-
-    /// <summary>
-    /// Gets active child waits.
-    /// </summary>
-    public IReadOnlyList<CheckpointActiveChild> ActiveChildren { get; init; } = [];
-
-    /// <summary>
-    /// Gets active child group dispatch metadata.
-    /// </summary>
-    public IReadOnlyList<CheckpointActiveChildGroup> ActiveChildGroups { get; init; } = [];
-
-    /// <summary>
     /// Gets active resource-pool tickets.
     /// </summary>
     public IReadOnlyList<ResourcePoolTicket> ActiveResourceTickets { get; init; } = [];
-
-    /// <summary>
-    /// Gets active external jobs.
-    /// </summary>
-    public IReadOnlyList<CheckpointActiveExternalJob> ActiveExternalJobs { get; init; } = [];
-
-    /// <summary>
-    /// Gets completed saga forward actions eligible for later compensation.
-    /// </summary>
-    public IReadOnlyList<CheckpointSagaForwardAction> CompletedSagaForwardActions { get; init; } = [];
-
-    /// <summary>
-    /// Gets saga compensation actions and their progress.
-    /// </summary>
-    public IReadOnlyList<CheckpointSagaCompensationAction> SagaCompensationActions { get; init; } = [];
-
-    /// <summary>
-    /// Gets recorded saga manual-recovery interventions.
-    /// </summary>
-    public IReadOnlyList<CheckpointSagaRecoveryIntervention> SagaRecoveryInterventions { get; init; } = [];
-
-    /// <summary>
-    /// Gets saga scopes whose compensation has already been requested.
-    /// </summary>
-    public IReadOnlyList<string> RequestedSagaCompensationScopes { get; init; } = [];
-
-    /// <summary>
-    /// Gets parent resume tokens recorded by completed child groups.
-    /// </summary>
-    public IReadOnlyList<EventId> RecordedParentResumeTokens { get; init; } = [];
-
-    /// <summary>
-    /// Gets parent resume tokens already consumed exactly once.
-    /// </summary>
-    public IReadOnlyList<EventId> ConsumedParentResumeTokens { get; init; } = [];
 
     /// <summary>
     /// Gets matched-wait resume envelopes not yet consumed by a driver advancement commit.
@@ -309,123 +231,6 @@ public sealed record CheckpointActiveWait(
 
     public long WaitSequence { get; init; }
 }
-
-/// <summary>
-/// Checkpoint materialization of one buffered inbound delivery.
-/// </summary>
-public sealed record CheckpointBufferedDelivery(
-    EventId EventId,
-    string EventName,
-    CorrelationId CorrelationId,
-    string? BranchId,
-    string? PayloadContentType = null,
-    byte[]? Payload = null);
-
-/// <summary>
-/// Checkpoint materialization of one buffered timer firing.
-/// </summary>
-public sealed record CheckpointBufferedTimer(
-    TimerId TimerId,
-    string WakeupName,
-    DateTimeOffset BufferedAt);
-
-/// <summary>
-/// Checkpoint materialization of one active child.
-/// </summary>
-public sealed record CheckpointActiveChild(
-    string GroupId,
-    InstanceId ChildInstanceId,
-    WaitId WaitId,
-    RunChildFailurePolicy FailurePolicy,
-    RunChildrenJoinPolicy JoinPolicy,
-    RunChildrenResidualPolicy ResidualPolicy,
-    string? ItemSnapshot)
-{
-    public FiberId? FiberId { get; init; }
-
-    public ScopeId? ScopeId { get; init; }
-}
-
-/// <summary>
-/// Checkpoint materialization of one active child group.
-/// </summary>
-public sealed record CheckpointActiveChildGroup(
-    string GroupId,
-    RunChildFailurePolicy FailurePolicy,
-    RunChildrenJoinPolicy JoinPolicy,
-    RunChildrenResidualPolicy ResidualPolicy,
-    int MaxConcurrency,
-    int NextDispatchIndex,
-    IReadOnlyList<WorkflowChildMaterialization> Children)
-{
-    public FiberId? FiberId { get; init; }
-
-    public ScopeId? ScopeId { get; init; }
-}
-
-/// <summary>
-/// Checkpoint materialization of one active external job.
-/// </summary>
-public sealed record CheckpointActiveExternalJob(
-    string ExternalJobId,
-    WaitId WaitId,
-    TimerId? TimeoutTimerId)
-{
-    public FiberId? FiberId { get; init; }
-
-    public ScopeId? ScopeId { get; init; }
-}
-
-/// <summary>
-/// Checkpoint materialization of one completed saga forward action.
-/// </summary>
-public sealed record CheckpointSagaForwardAction(
-    string ScopeId,
-    string ActionKey,
-    string CompensationKey,
-    DateTimeOffset CompletedAt)
-{
-    public FiberId? FiberId { get; init; }
-
-    public OrcaCore.Abstractions.Ids.ScopeId? OwningScopeId { get; init; }
-
-    public OrcaCore.Abstractions.Ids.ScopeId? EligibleScopeId { get; init; }
-
-    public string? InstructionId { get; init; }
-
-    public long CommittedSequence { get; init; }
-
-    public int CanonicalBranchOrder { get; init; }
-
-    public int CanonicalInstructionOrder { get; init; }
-
-    public int? ScopeOrderOverride { get; init; }
-}
-
-/// <summary>
-/// Checkpoint materialization of one saga compensation action.
-/// </summary>
-public sealed record CheckpointSagaCompensationAction(
-    string ScopeId,
-    string ActionKey,
-    int Order,
-    DateTimeOffset StartedAt,
-    DateTimeOffset? CompletedAt,
-    DateTimeOffset? FailedAt,
-    string? ErrorSummary,
-    SagaCompensationActionStatus Status);
-
-/// <summary>
-/// Checkpoint materialization of one saga manual-recovery intervention.
-/// </summary>
-public sealed record CheckpointSagaRecoveryIntervention(
-    string ScopeId,
-    string ActionKey,
-    string OperatorId,
-    string RecoveryAction,
-    string? Reason,
-    DateTimeOffset RecordedAt,
-    WorkflowStatus TargetStatus);
 
 /// <summary>
 /// Describes an inbox state write.
@@ -566,54 +371,3 @@ public sealed record ProjectionHistoryWrite(
     DateTimeOffset RecordedAt,
     string Kind,
     string PayloadJson);
-
-/// <summary>
-/// Describes a structured provider-side projection query.
-/// </summary>
-public sealed record WorkflowProjectionQuery
-{
-    /// <summary>
-    /// Gets an unconstrained projection query.
-    /// </summary>
-    public static WorkflowProjectionQuery All { get; } = new();
-
-    /// <summary>
-    /// Gets an optional instance identity filter.
-    /// </summary>
-    public InstanceId? InstanceId { get; init; }
-
-    /// <summary>
-    /// Gets an optional parent instance identity filter.
-    /// </summary>
-    public InstanceId? ParentInstanceId { get; init; }
-
-    /// <summary>
-    /// Gets an optional root instance identity filter.
-    /// </summary>
-    public InstanceId? RootInstanceId { get; init; }
-
-    /// <summary>
-    /// Gets an optional definition identity filter.
-    /// </summary>
-    public DefinitionId? DefinitionId { get; init; }
-
-    /// <summary>
-    /// Gets an optional definition version filter.
-    /// </summary>
-    public DefinitionVersion? DefinitionVersion { get; init; }
-
-    /// <summary>
-    /// Gets an optional lifecycle status filter.
-    /// </summary>
-    public WorkflowStatus? Status { get; init; }
-
-    /// <summary>
-    /// Gets an optional active-wait event name filter.
-    /// </summary>
-    public string? ActiveWaitEventName { get; init; }
-
-    /// <summary>
-    /// Gets an optional active-wait correlation filter.
-    /// </summary>
-    public CorrelationId? ActiveWaitCorrelationId { get; init; }
-}

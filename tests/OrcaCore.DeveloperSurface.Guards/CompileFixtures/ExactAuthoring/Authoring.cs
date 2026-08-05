@@ -1,4 +1,6 @@
 using OrcaCore;
+using OrcaCore.Durable.Hosting;
+using OrcaCore.Hosting;
 
 public static class ExactAuthoring
 {
@@ -19,6 +21,13 @@ public static class ExactAuthoring
         typeof(DurableWorkflowCompletionBuilder<>), typeof(DurableWorkflowCompletionBuilder<,>),
         typeof(EphemeralWorkflowDefinition<>), typeof(EphemeralWorkflowDefinition<,>),
         typeof(DurableWorkflowDefinition<>), typeof(DurableWorkflowDefinition<,>),
-        typeof(DurableWorkflowRef<>), typeof(DurableWorkflowRef<,>)
+        typeof(EphemeralWorkflowRef<>), typeof(EphemeralWorkflowRef<,>),
+        typeof(DurableWorkflowRef<>), typeof(DurableWorkflowRef<,>),
+        typeof(EventContractVersion), typeof(WorkflowEventContract), typeof(WorkflowEventContract<>),
+        typeof(WorkflowEventRoute), typeof(WorkflowInboundEvent), typeof(WorkflowInboundEvent<>),
+        typeof(WorkflowEventAcceptanceResult), typeof(WorkflowEventAcceptanceRejection),
+        typeof(WorkflowOutboundEvent), typeof(WorkflowEventDispatchFailure), typeof(WorkflowEventDispatchResult),
+        typeof(IWorkflowEventIngress), typeof(IWorkflowEventDispatcher),
+        typeof(OrcaCoreEphemeralEngineBuilder), typeof(OrcaCoreDurableEngineBuilder)
     ];
 }

@@ -1,64 +1,52 @@
 using System.Collections.Frozen;
 using OrcaCore.Abstractions.Errors;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 
 namespace OrcaCore.Core.Lifecycle;
 
-public static class LifecycleMachine
+internal static class LifecycleMachine
 {
-    public static readonly FrozenDictionary<LifecycleTransition, WorkflowStatus> Transitions =
-        new Dictionary<LifecycleTransition, WorkflowStatus>
+    public static readonly FrozenDictionary<LifecycleTransition, global::OrcaCore.WorkflowInstanceStatus> Transitions =
+        new Dictionary<LifecycleTransition, global::OrcaCore.WorkflowInstanceStatus>
         {
-            [new(WorkflowStatus.Running, LifecycleTrigger.EnterWait)] = WorkflowStatus.Waiting,
-            [new(WorkflowStatus.Waiting, LifecycleTrigger.MatchWait)] = WorkflowStatus.Running,
-            [new(WorkflowStatus.Running, LifecycleTrigger.Complete)] = WorkflowStatus.Completed,
-            [new(WorkflowStatus.Running, LifecycleTrigger.Fail)] = WorkflowStatus.Failed,
-            [new(WorkflowStatus.Running, LifecycleTrigger.Cancel)] = WorkflowStatus.Cancelled,
-            [new(WorkflowStatus.Waiting, LifecycleTrigger.Cancel)] = WorkflowStatus.Cancelled,
-            [new(WorkflowStatus.Running, LifecycleTrigger.Terminate)] = WorkflowStatus.Terminated,
-            [new(WorkflowStatus.Waiting, LifecycleTrigger.Terminate)] = WorkflowStatus.Terminated,
-            [new(WorkflowStatus.Running, LifecycleTrigger.Compensate)] = WorkflowStatus.Compensated,
-            [new(WorkflowStatus.Waiting, LifecycleTrigger.Compensate)] = WorkflowStatus.Compensated,
-            [new(WorkflowStatus.Running, LifecycleTrigger.FailCompensation)] = WorkflowStatus.CompensationFailed,
-            [new(WorkflowStatus.Waiting, LifecycleTrigger.FailCompensation)] = WorkflowStatus.CompensationFailed,
-            [new(WorkflowStatus.Running, LifecycleTrigger.Pause)] = WorkflowStatus.Paused,
-            [new(WorkflowStatus.Waiting, LifecycleTrigger.Pause)] = WorkflowStatus.Paused,
-            [new(WorkflowStatus.Paused, LifecycleTrigger.Resume)] = WorkflowStatus.Running,
-            [new(WorkflowStatus.Paused, LifecycleTrigger.Terminate)] = WorkflowStatus.Terminated,
-            [new(WorkflowStatus.Paused, LifecycleTrigger.Cancel)] = WorkflowStatus.Cancelled,
-            [new(WorkflowStatus.Running, LifecycleTrigger.Park)] = WorkflowStatus.Parked,
-            [new(WorkflowStatus.Waiting, LifecycleTrigger.Park)] = WorkflowStatus.Parked,
-            [new(WorkflowStatus.Parked, LifecycleTrigger.Unpark)] = WorkflowStatus.Running,
-            [new(WorkflowStatus.Parked, LifecycleTrigger.Terminate)] = WorkflowStatus.Terminated,
-            [new(WorkflowStatus.Parked, LifecycleTrigger.Cancel)] = WorkflowStatus.Cancelled,
-            [new(WorkflowStatus.CancellationRequested, LifecycleTrigger.Cancel)] = WorkflowStatus.Cancelled,
-            [new(WorkflowStatus.CancellationRequested, LifecycleTrigger.Terminate)] = WorkflowStatus.Terminated,
-            [new(WorkflowStatus.Running, LifecycleTrigger.Timeout)] = WorkflowStatus.TimedOut,
-            [new(WorkflowStatus.Waiting, LifecycleTrigger.Timeout)] = WorkflowStatus.TimedOut
+            [new(global::OrcaCore.WorkflowInstanceStatus.Pending, LifecycleTrigger.Start)] = global::OrcaCore.WorkflowInstanceStatus.Running,
+            [new(global::OrcaCore.WorkflowInstanceStatus.Running, LifecycleTrigger.EnterWait)] = global::OrcaCore.WorkflowInstanceStatus.Waiting,
+            [new(global::OrcaCore.WorkflowInstanceStatus.Waiting, LifecycleTrigger.MatchWait)] = global::OrcaCore.WorkflowInstanceStatus.Running,
+            [new(global::OrcaCore.WorkflowInstanceStatus.Running, LifecycleTrigger.Complete)] = global::OrcaCore.WorkflowInstanceStatus.Completed,
+            [new(global::OrcaCore.WorkflowInstanceStatus.Running, LifecycleTrigger.Fail)] = global::OrcaCore.WorkflowInstanceStatus.Failed,
+            [new(global::OrcaCore.WorkflowInstanceStatus.Running, LifecycleTrigger.Cancel)] = global::OrcaCore.WorkflowInstanceStatus.Cancelled,
+            [new(global::OrcaCore.WorkflowInstanceStatus.Waiting, LifecycleTrigger.Cancel)] = global::OrcaCore.WorkflowInstanceStatus.Cancelled,
+            [new(global::OrcaCore.WorkflowInstanceStatus.Running, LifecycleTrigger.Terminate)] = global::OrcaCore.WorkflowInstanceStatus.Terminated,
+            [new(global::OrcaCore.WorkflowInstanceStatus.Waiting, LifecycleTrigger.Terminate)] = global::OrcaCore.WorkflowInstanceStatus.Terminated,
+            [new(global::OrcaCore.WorkflowInstanceStatus.Running, LifecycleTrigger.Park)] = global::OrcaCore.WorkflowInstanceStatus.Waiting,
+            [new(global::OrcaCore.WorkflowInstanceStatus.Waiting, LifecycleTrigger.Unpark)] = global::OrcaCore.WorkflowInstanceStatus.Running,
+            [new(global::OrcaCore.WorkflowInstanceStatus.CancellationRequested, LifecycleTrigger.Cancel)] = global::OrcaCore.WorkflowInstanceStatus.Cancelled,
+            [new(global::OrcaCore.WorkflowInstanceStatus.CancellationRequested, LifecycleTrigger.Terminate)] = global::OrcaCore.WorkflowInstanceStatus.Terminated,
+            [new(global::OrcaCore.WorkflowInstanceStatus.Running, LifecycleTrigger.Timeout)] = global::OrcaCore.WorkflowInstanceStatus.TimedOut,
+            [new(global::OrcaCore.WorkflowInstanceStatus.Waiting, LifecycleTrigger.Timeout)] = global::OrcaCore.WorkflowInstanceStatus.TimedOut
         }.ToFrozenDictionary();
 
-    public static readonly FrozenSet<WorkflowStatus> TerminalStatuses =
+    public static readonly FrozenSet<global::OrcaCore.WorkflowInstanceStatus> TerminalStatuses =
         new[]
         {
-            WorkflowStatus.Completed,
-            WorkflowStatus.Failed,
-            WorkflowStatus.Cancelled,
-            WorkflowStatus.Terminated,
-            WorkflowStatus.Compensated,
-            WorkflowStatus.CompensationFailed,
-            WorkflowStatus.TimedOut
+            global::OrcaCore.WorkflowInstanceStatus.Completed,
+            global::OrcaCore.WorkflowInstanceStatus.Failed,
+            global::OrcaCore.WorkflowInstanceStatus.Cancelled,
+            global::OrcaCore.WorkflowInstanceStatus.Terminated,
+            global::OrcaCore.WorkflowInstanceStatus.TimedOut
         }.ToFrozenSet();
 
-    public static Result<WorkflowStatus> Fire(WorkflowStatus current, LifecycleTrigger trigger)
+    public static Result<global::OrcaCore.WorkflowInstanceStatus> Fire(
+        global::OrcaCore.WorkflowInstanceStatus current,
+        LifecycleTrigger trigger)
     {
         var transition = new LifecycleTransition(current, trigger);
         if (Transitions.TryGetValue(transition, out var target))
         {
-            return Result<WorkflowStatus>.Success(target);
+            return Result<global::OrcaCore.WorkflowInstanceStatus>.Success(target);
         }
 
-        return Result<WorkflowStatus>.Failure(
+        return Result<global::OrcaCore.WorkflowInstanceStatus>.Failure(
             new WorkflowLifecycleException(
                 $"Lifecycle trigger '{trigger}' is not valid from workflow status '{current}'."));
     }

@@ -3,25 +3,21 @@
 This folder contains GitHub-readable documentation for the active implementation
 at the repository root.
 
-> **Routing:** current source-oriented guides below may describe provisional pre-refactor
-> members. The first-release authority is
+> **Routing:** current guides below describe the selected first-release surface. The exact
+> authority is
 > [spec 17](specs/17-selected-mode-capability-matrix.md), with exact authoring declarations in
-> [`17-public-authoring-contract.cs`](specs/17-public-authoring-contract.cs). Do not copy a
-> current-source signature into new code or guards when it conflicts with those files.
+> [`17-public-authoring-contract.cs`](specs/17-public-authoring-contract.cs). Superseded guides and
+> status records are preserved under [`archive/`](archive/README.md), not mixed into this index.
 
 ## Developer Guides
 
 - [Ephemeral Engine Developer Guide](ephemeral-engine-developer-guide.md) -
-  pre-refactor current-source guide for the in-process engine; its supersession banner lists
-  the approved v1 replacements for provisional examples.
+  selected-v1 host, authoring, state, event-delivery, and management contract.
 - [Ephemeral Engine Runtime Diagrams](ephemeral-engine-diagrams.md) -
-  current-source architecture diagrams. Any yield, old routing, or broad management sequence is
-  historical until the v1 documentation rewrite.
+  selected-v1 application-contract flows without internal compiler or scheduler types.
 - [Durable Driver Lane Host](durable-driver-lane-host.md) - how registered durable
   definitions advance (segments, restart-safe continuation signal, poison parking) and
   the honest multi-host contention model (DR-030..037).
-- [Durable Driver Status](durable-driver-status.md) - current structured-fiber
-  implementation, format-2 checkpoint, continuation, ownership, and verification status.
 - [Durable Development Store Reset](durable-development-store-reset.md) - required reset
   procedure for stale cursor checkpoints and plan-binding changes during active development.
 
@@ -33,11 +29,14 @@ at the repository root.
   missing host/runtime surfaces, staged e2e workstreams, and verification gates.
 - [Developer-Facing Interface Refactor Plan](implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md) -
   the 2026-07-18 simplified first-release phase order, review gates, and removal/defer policy.
-- [Current Review-E Remediation and Phase 0 Status](review/developer-facing-interface-v1-simplification-review-e-remediation-and-phase-00-status-2026-07-19.md) -
-  planning remediation passed its independent re-review. After two rejected intermediate guard
-  packets, all findings were remediated and the exact whole packet received a final immutable
-  approval with no P0-P3 findings. Task 3.12 and Phase 0 are complete. Task 4.0 and product work
-  remain blocked at the requested next-phase review boundary and by task 4.0's prerequisites.
+- [Historical Review-E Remediation and Phase 0 Status](review/developer-facing-interface-v1-simplification-review-e-remediation-and-phase-00-status-2026-07-19.md) -
+  immutable evidence for the completed Phase 0 gate. Sections 4 through 7 were subsequently
+  implemented, independently approved, and checkpointed through commit `50254d08175431896d580ecfcc93d8e49e1c2ec7`.
+  The post-checkpoint Section 7A public-surface/test-evidence closure is active, and the pending
+  Section 7B amendment proposes durable messaging and application catalogs. Section 8 remains
+  blocked until the combined Section 7A/7B target is approved and checkpointed and the revised,
+  non-conflicting downstream-capability harmonization change is approved, synchronized, reviewed,
+  and checkpointed.
 - [Historical Root-Only Fan-Out Decision and Revalidation](review/developer-facing-interface-v1-root-only-fan-out-decision-and-revalidation-2026-07-19.md) -
   immutable owner decision selecting root-only `Parallel`, `ForEach`, and `While`. Its placement
   rule remains incorporated in current authority; its earlier guard-readiness verdict is a

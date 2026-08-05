@@ -19,9 +19,11 @@
     <Compile Remove="Compilation\DefinitionCompilerTests.cs" />
     <Compile Remove="Contracts\StrongValueContractTests.cs" />
     <Compile Remove="Definitions\DefinitionModelTests.cs" />
+    <Compile Remove="Durable\SagaContractTests.cs" />
     <Compile Remove="Execution\BranchIsolationTests.cs" />
     <Compile Remove="Execution\FiberIdentityTests.cs" />
     <Compile Remove="Hosting\StructuredExecutionHostOptionsTests.cs" />
+    <Compile Remove="Lifecycle\SagaLifecycleTests.cs" />
     <Compile Remove="Execution\ForEachScopeReducerTests.cs" />
     <Compile Remove="Execution\JoinPolicyReducerTests.cs" />
     <Compile Remove="Execution\LinearFiberInterpreterTests.cs" />

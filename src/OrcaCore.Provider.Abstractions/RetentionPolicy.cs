@@ -5,7 +5,7 @@ namespace OrcaCore.Abstractions.Providers;
 /// <summary>
 /// Describes an explicit durable retention operation for one workflow instance.
 /// </summary>
-public sealed record RetentionPolicy
+internal sealed record RetentionPolicy
 {
     /// <summary>
     /// Gets the workflow instance targeted by the retention operation.

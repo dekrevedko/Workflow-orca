@@ -1,14 +1,12 @@
-using System.Reflection;
 using System.Text.Json;
+using System.Reflection;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.DeveloperSurface.BehaviorContracts;
-using OrcaCore.Engine.Durable.Definitions;
-using OrcaCore.Engine.Durable.Execution;
-using OrcaCore.Engine.Ephemeral;
-using OrcaCore.Providers.InMemory;
+using OrcaCore.Hosting;
 
 namespace OrcaCore.DeveloperSurface.BehaviorScenarios;
 
@@ -45,18 +43,14 @@ public static class Phase0ScenarioHost
                       definition!.DefinitionFingerprint.Value.Length > 0,
             "A fixed-codec-compatible detached state graph did not compile deterministically.");
 
-        var store = new InMemoryWorkflowProvider();
-        var runtime = new DurableWorkflowRuntime(
-            new DurableCommandProcessor(store),
-            new DurableDefinitionRegistry(),
-            TimeProvider.System,
-            projectionStore: store);
+        using var store = new DurableScenarioProvider();
+        using var runtime = DurableScenarioRuntime.Create(store);
         var durableId = DefinitionId.New();
         var durableDefinition = Workflow.Durable<CodecState>(durableId, DefinitionVersion.Initial)
             .Init<CodecInput>(input => new CodecState(input.Value, [.. input.Items]))
             .End()
             .Build();
-        RegisterRuntimeDefinition(runtime, durableDefinition, typeof(CodecState));
+        runtime.Register(durableDefinition);
 
         var source = new CodecInput(7, ["first", "second"], null);
         var firstResult = await runtime.StartOrGetAsync<CodecInput, CodecState>(
@@ -134,20 +128,14 @@ public static class Phase0ScenarioHost
                 "An application JsonConverter was admitted into orcacore-json-v1.");
         }
 
-        var exported = typeof(DurableWorkflowRuntime).Assembly.GetExportedTypes()
+        var durableAssembly = Assembly.Load("OrcaCore.Engine.Durable");
+        var exported = durableAssembly.GetExportedTypes()
             .Concat(typeof(IWorkflowEventStore).Assembly.GetExportedTypes())
             .Select(type => type.FullName)
             .ToHashSet(StringComparer.Ordinal);
-        var publicSerializerParameter = typeof(DurableWorkflowRuntime)
-            .GetConstructors()
-            .SelectMany(constructor => constructor.GetParameters())
-            .Any(parameter => parameter.ParameterType.Name.Contains(
-                "WorkflowPayloadSerializer",
-                StringComparison.Ordinal));
         if (exported.Contains("OrcaCore.Abstractions.Providers.IWorkflowPayloadSerializer") ||
             exported.Contains("OrcaCore.Abstractions.Providers.IWorkflowPayloadCodec") ||
-            exported.Contains("OrcaCore.Engine.Durable.Execution.ContentTypeWorkflowPayloadSerializer") ||
-            publicSerializerParameter)
+            exported.Contains("OrcaCore.Engine.Durable.Execution.ContentTypeWorkflowPayloadSerializer"))
         {
             throw new InvalidOperationException("A public codec replacement seam remains available.");
         }
@@ -202,24 +190,6 @@ public static class Phase0ScenarioHost
     [Phase0Scenario("attempt-local-replace-state", "3.5")]
     public static async Task ReplaceStateChangesOnlyTheAttemptLocalContext(Phase0ScenarioContext context)
     {
-        var executionConstructor = typeof(StepExecutionContext).GetConstructors(
-            BindingFlags.Instance | BindingFlags.NonPublic).Single();
-        var execution = (StepExecutionContext)executionConstructor.Invoke([
-            InstanceId.Parse("018f3d31-7f2d-7ad0-a2b6-53e0ddcaf001"),
-            StepOperationId.Parse("step:00000001"),
-            1]);
-        var contextConstructor = typeof(StepContext<AttemptState>).GetConstructors(
-            BindingFlags.Instance | BindingFlags.NonPublic).Single();
-        var original = new AttemptState(1);
-        var replacement = new AttemptState(2);
-        var stepContext = (StepContext<AttemptState>)contextConstructor.Invoke([
-            original, execution, null, TimeProvider.System, null, null]);
-
-        var replaced = context.Observe(_ => stepContext.ReplaceState(replacement));
-        Phase0Assert.Completed(replaced, "StepContext.ReplaceState did not complete.");
-        if (!ReferenceEquals(stepContext.State, replacement) || original.Value != 1)
-            throw new InvalidOperationException("ReplaceState mutated committed input instead of replacing attempt-local state.");
-
         var attempts = 0;
         var committedValue = -1;
         var definitionId = DefinitionId.New();
@@ -236,7 +206,11 @@ public static class Phase0ScenarioHost
 
                 if (step.State.Value != 1)
                     throw new InvalidOperationException("Failed-attempt mutation leaked into retry state.");
-                step.ReplaceState(new AttemptState(2));
+                var replacement = context.Observe(
+                    _ => step.ReplaceState(new AttemptState(2)));
+                Phase0Assert.Completed(
+                    replacement,
+                    "ReplaceState did not update the successful attempt-local context.");
                 return ValueTask.CompletedTask;
             })
             .WithRetry(2)
@@ -247,15 +221,28 @@ public static class Phase0ScenarioHost
             })
             .End()
             .Build();
-        var runtimeDefinition = (global::OrcaCore.Core.Definitions.WorkflowDefinition<AttemptState>)
-            publicDefinition.GetType()
-                .GetProperty("RuntimeDefinition", BindingFlags.Instance | BindingFlags.NonPublic)!
-                .GetValue(publicDefinition)!;
-        var engine = new EphemeralWorkflowEngine();
-        engine.RegisterDefinition(runtimeDefinition);
-        var terminal = await engine.StartAsync<int, AttemptState>(definitionId, 1, CancellationToken.None);
-        if (terminal.Status != LegacyWorkflowStatus.Completed ||
-            attempts != 2 || committedValue != 2)
+        var services = new ServiceCollection();
+        services.AddOrcaCoreEphemeralEngine(new EphemeralEngineHostOptions
+        {
+            StructuredExecution = new StructuredExecutionHostOptions
+            {
+                MaxConcurrentExecutionPathsPerInstance = 2,
+                StepThrottles = []
+            },
+            TransientPools = []
+        });
+        await using var provider = services.BuildServiceProvider();
+        var handle = provider.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(publicDefinition)
+            .GetHandleOrThrow();
+        var instance = (await handle.StartOrGetAsync(
+            1,
+            StartIdempotencyKey.Create("attempt-state-is-transactional"),
+            CancellationToken.None)).GetHandleOrThrow();
+        var terminal = await instance.GetSnapshotAsync(CancellationToken.None);
+        var committed = await instance.GetStateAsync<AttemptState>(CancellationToken.None);
+        if (terminal.Status != WorkflowInstanceStatus.Completed ||
+            attempts != 2 || committedValue != 2 || committed.Value != 2)
         {
             throw new InvalidOperationException(
                 "The runtime did not discard failed attempt state and commit the successful replacement.");
@@ -297,18 +284,14 @@ public static class Phase0ScenarioHost
         TGraph graph)
         where TException : Exception
     {
-        var store = new InMemoryWorkflowProvider();
-        var runtime = new DurableWorkflowRuntime(
-            new DurableCommandProcessor(store),
-            new DurableDefinitionRegistry(),
-            TimeProvider.System,
-            projectionStore: store);
+        using var store = new DurableScenarioProvider();
+        using var runtime = DurableScenarioRuntime.Create(store);
         var definitionId = DefinitionId.New();
         var definition = Workflow.Durable<TGraph>(definitionId, DefinitionVersion.Initial)
             .Init<TGraph>(value => value)
             .End()
             .Build();
-        RegisterRuntimeDefinition(runtime, definition, typeof(TGraph));
+        runtime.Register(definition);
         var idempotencyKey = $"fixed-codec-{caseName}";
 
         await AssertThrowsAsync<TException>(
@@ -317,7 +300,7 @@ public static class Phase0ScenarioHost
                 definitionId,
                 DefinitionVersion.Initial,
                 graph,
-                CancellationToken.None),
+                CancellationToken.None).AsTask(),
             $"The fixed codec accepted invalid {caseName} input.");
 
         var started = await store.GetStartedAsync(idempotencyKey, CancellationToken.None);
@@ -342,20 +325,6 @@ public static class Phase0ScenarioHost
             throw new InvalidOperationException(
                 $"The fixed codec admitted {caseName} into orcacore-json-v1.");
         }
-    }
-
-    private static void RegisterRuntimeDefinition(
-        DurableWorkflowRuntime runtime,
-        object publicDefinition,
-        Type stateType)
-    {
-        var runtimeDefinition = publicDefinition.GetType()
-            .GetProperty("RuntimeDefinition", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .GetValue(publicDefinition)!;
-        typeof(DurableWorkflowRuntime)
-            .GetMethod(nameof(DurableWorkflowRuntime.RegisterDefinition))!
-            .MakeGenericMethod(stateType)
-            .Invoke(runtime, [runtimeDefinition]);
     }
 
     private sealed record CodecInput(int Value, List<string> Items, string? Note);

@@ -1,9 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Building;
-using OrcaCore.Engine.Ephemeral;
 using OrcaCore.TestSupport;
 using Xunit;
 
@@ -19,7 +17,6 @@ public sealed class TimerAcceptanceTests
     {
         var clock = new Clock(new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));
         using var provider = PublicAcceptanceHost.CreateEphemeralProvider(timeProvider: clock.TimeProvider);
-        var engine = provider.GetRequiredService<EphemeralWorkflowEngine>();
         var definition = global::OrcaCore.Workflow.Ephemeral<TimerState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TimerState())
             .Delay(TimeSpan.FromSeconds(30))
@@ -28,24 +25,26 @@ public sealed class TimerAcceptanceTests
                 context.State.Sink.Add("continued");
                 return ValueTask.CompletedTask;
             })
-            .End()
+            .End(snapshot => snapshot.Value.Sink.Count)
             .Build();
         var definitionHandle = provider.GetRequiredService<IWorkflowDefinitionRegistry>()
             .Register(definition)
             .GetHandleOrThrow();
-        var instance = (await definitionHandle.StartOrGetAsync(
+        var start = await definitionHandle.StartOrGetAsync(
             "start",
             StartIdempotencyKey.Create("ephemeral-delay"),
-            TestContext.Current.CancellationToken)).GetHandleOrThrow();
+            TestContext.Current.CancellationToken);
+        var instance = start.GetHandleOrThrow();
         var started = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
         clock.Advance(TimeSpan.FromSeconds(30));
 
-        await engine.FireDueTimersAsync(TestContext.Current.CancellationToken);
+        var output = await start.WaitForOutputAsync(TestContext.Current.CancellationToken);
         var completed = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
         var state = await instance.GetStateAsync<TimerState>(TestContext.Current.CancellationToken);
 
         started.Status.Should().Be(WorkflowInstanceStatus.Waiting);
         completed.Status.Should().Be(WorkflowInstanceStatus.Completed);
+        output.Should().Be(1);
         state.Sink.Should().Equal(["continued"]);
     }
 

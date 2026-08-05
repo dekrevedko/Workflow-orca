@@ -1,5 +1,5 @@
 using AwesomeAssertions;
-using OrcaCore.Abstractions.Instances;
+using OrcaCore;
 using Xunit;
 
 namespace OrcaCore.Core.Tests.Contracts;

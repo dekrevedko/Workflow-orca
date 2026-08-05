@@ -6,7 +6,7 @@ namespace OrcaCore.Providers.PostgreSql;
 /// <summary>
 /// Configures PostgreSQL workflow-store behavior.
 /// </summary>
-public sealed class PostgreSqlWorkflowStoreOptions
+internal sealed class PostgreSqlWorkflowStoreOptions
 {
     /// <summary>
     /// Optional hook invoked inside the append transaction after all writes are staged and before commit.
@@ -24,7 +24,7 @@ public sealed class PostgreSqlWorkflowStoreOptions
 /// <summary>
 /// Describes a PostgreSQL append transaction at the pre-commit hook boundary.
 /// </summary>
-public sealed record PostgreSqlAppendContext(
+internal sealed record PostgreSqlAppendContext(
     WorkflowStreamId StreamId,
     StreamVersion ExpectedVersion,
     StreamVersion NewVersion,

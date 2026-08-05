@@ -2,7 +2,6 @@ using AwesomeAssertions;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
-using OrcaCore.Providers.InMemory;
 using Xunit;
 
 namespace OrcaCore.ProviderCertification;
@@ -163,6 +162,6 @@ public sealed class InMemoryTimerSchedulerCertificationTests : TimerSchedulerCer
 {
     protected override ITimerScheduler CreateTimerScheduler()
     {
-        return new InMemoryWorkflowProvider();
+        return InMemoryProviderPorts.Create().TimerScheduler;
     }
 }

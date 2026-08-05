@@ -1,26 +1,52 @@
 using OrcaCore;
+using OrcaCore.Durable.Hosting;
 
 static async ValueTask ExerciseIngressAsync(
-    IWorkflowEventClient client,
+    IWorkflowEventIngress ingress,
     InstanceId instanceId,
     DefinitionId definitionId,
+    DefinitionVersion definitionVersion,
     CorrelationId correlationId,
     CancellationToken token)
 {
-    var eventId = EventId.Create("delivery-1");
-    var payloadless = WorkflowEvent.Create(eventId, EventName.Create("ready"), correlationId, DateTimeOffset.UtcNow);
-    var payload = WorkflowEvent<Payload>.Create(
-        EventId.Create("delivery-2"), EventName.Create("ready"), correlationId, new Payload("ok"), DateTimeOffset.UtcNow);
-    _ = await client.DeliverToInstanceAsync(instanceId, payloadless, token);
-    _ = await client.DeliverToInstanceAsync(instanceId, payload, token);
-    _ = await client.DeliverByCorrelationAsync(definitionId, payloadless, token);
-    _ = await client.DeliverByCorrelationAsync(definitionId, payload, token);
-    var noWait = await client.DeliverToInstanceAsync(instanceId, payloadless, token);
-    if (noWait.Status == EventDeliveryStatus.NoActiveWait)
-        _ = await client.DeliverToInstanceAsync(instanceId, payloadless, token);
+    var payloadlessContract = WorkflowEventContract.Create(
+        EventName.Create("ready"), EventContractVersion.Initial);
+    var typedContract = WorkflowEventContract<Payload>.Create(
+        EventName.Create("ready-with-payload"), EventContractVersion.Initial);
+    WorkflowEventRoute[] routes =
+    [
+        new WorkflowEventRoute.Direct(instanceId),
+        new WorkflowEventRoute.Correlation(definitionId),
+        new WorkflowEventRoute.DefinitionFanout(definitionId),
+        new WorkflowEventRoute.StartOrDeliver<WorkflowInput>(definitionId, definitionVersion,
+            StartIdempotencyKey.Create("callback-start"), new WorkflowInput("from-callback"))
+    ];
+    var payloadless = WorkflowInboundEvent.Create(payloadlessContract, EventId.Create("delivery-1"),
+        correlationId, null, DateTimeOffset.UtcNow, routes[0]);
+    var typed = WorkflowInboundEvent<Payload>.Create(typedContract, EventId.Create("delivery-2"),
+        correlationId, EventId.Create("upstream-1"), DateTimeOffset.UtcNow, routes[3], new Payload("ok"));
+
+    _ = await ingress.AcceptAsync(payloadless, token);
+    var result = await ingress.AcceptAsync(typed, token);
+    _ = result switch
+    {
+        WorkflowEventAcceptanceResult.Accepted => true,
+        WorkflowEventAcceptanceResult.Duplicate => true,
+        WorkflowEventAcceptanceResult.Rejected(var reason) => reason switch
+        {
+            WorkflowEventAcceptanceRejection.EventConflict => false,
+            WorkflowEventAcceptanceRejection.DirectInstanceNotFound => false,
+            WorkflowEventAcceptanceRejection.DirectInstanceTerminal => false,
+            WorkflowEventAcceptanceRejection.StartConflict => false,
+            WorkflowEventAcceptanceRejection.FanoutLimitExceeded => false,
+            _ => false
+        },
+        _ => false
+    };
 }
 
-_ = (Func<IWorkflowEventClient, InstanceId, DefinitionId, CorrelationId, CancellationToken, ValueTask>)
-    ExerciseIngressAsync;
+_ = (Func<IWorkflowEventIngress, InstanceId, DefinitionId, DefinitionVersion, CorrelationId,
+    CancellationToken, ValueTask>)ExerciseIngressAsync;
 
+internal sealed record WorkflowInput(string Value);
 internal sealed record Payload(string Value);

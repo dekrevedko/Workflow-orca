@@ -1,5 +1,4 @@
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Execution;
 
@@ -31,7 +30,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         instance.RecordLifecycleEvent(
             "FiberQuantumRotated",
             instruction.Path,
-            LegacyWorkflowStatus.Running,
+            global::OrcaCore.WorkflowInstanceStatus.Running,
             timeProvider.GetUtcNow());
         await Task.Yield();
         return result;

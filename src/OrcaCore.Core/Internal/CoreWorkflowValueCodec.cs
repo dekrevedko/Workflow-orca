@@ -3,7 +3,7 @@ namespace OrcaCore.Core.Internal;
 /// <summary>
 /// Implementation-tier access to the fixed workflow value codec.
 /// </summary>
-public static class CoreWorkflowValueCodec
+internal static class CoreWorkflowValueCodec
 {
     public const string Format = FixedWorkflowValueCodec.Format;
 

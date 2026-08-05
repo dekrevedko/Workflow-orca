@@ -1,33 +1,24 @@
 ## Purpose
 
-Define the intended scope and behavioral contract of the separate OrcaCore event-driven prototype runtime.
+Record the OrcaCore event-driven prototype as planning history outside v1 and define the reviewed
+capability gate required before any future return.
 
 ## Requirements
 
-### Requirement: Prototype remains a separate runtime slice
-The event-driven prototype SHALL exist as a distinct runtime and test slice with its own engine, definitions, persistence model, and project boundary.
+### Requirement: The event-driven prototype is outside the first release
+The event-driven prototype SHALL NOT be part of the first-release project, package, or public surface. The exhaustive first-release project list in `repository-foundation` SHALL remain authoritative, and no prototype engine, definition family, persistence model, or hosting extension SHALL ship in v1. No first-release guard, acceptance criterion, or documentation claim SHALL depend on prototype behavior.
 
-#### Scenario: Contributor explores event-driven execution
-- **WHEN** a contributor works on the append-only runtime path
-- **THEN** they do so through the dedicated prototype project and test suite rather than through hidden modes inside the primary state-driven runtime
+#### Scenario: First-release package set is inspected
+- **WHEN** package and architecture guards inspect the first-release manifest
+- **THEN** no event-driven prototype project or package is present
 
-### Requirement: Prototype uses append-only facts with derived state
-The prototype SHALL record workflow facts in an append-only per-instance stream and SHALL derive resumable state through checkpoints, projections, and inbox tracking.
+#### Scenario: Contributor looks for the prototype runtime
+- **WHEN** a contributor looks for the append-only prototype engine in the active codebase
+- **THEN** it is absent, and this capability records it as a deferred exploration rather than an implemented slice
 
-#### Scenario: Instance resumes after restart
-- **WHEN** a prototype workflow is restarted after durable facts were appended
-- **THEN** the engine restores behavior from checkpointed and projected state derived from the append-only stream
+### Requirement: Future prototype work requires a reviewed capability amendment
+Any future append-only or event-sourced runtime exploration SHALL enter through a separate reviewed capability amendment that defines its engine, persistence model, control-flow coverage, and package boundary against the accepted v1 contract. It SHALL NOT reintroduce removed concepts such as `WaitLong` or an authored `Yield`, and it SHALL NOT claim parity with the state-driven runtime without its own acceptance evidence.
 
-### Requirement: Current implemented slice is intentionally narrow
-The prototype SHALL currently cover straight-line execution, `Wait`, buffering, deduplication, and instance-targeted or correlation-targeted resume without claiming full parity with the state-driven runtime.
-
-#### Scenario: Consumer evaluates prototype capability
-- **WHEN** a consumer asks whether the event-driven prototype is feature-complete
-- **THEN** the system documents it as a narrow implemented slice rather than a full replacement for the primary runtime
-
-### Requirement: Unsupported control-flow and infrastructure features stay explicit
-The prototype SHALL not imply support for `If`, `While`, `Parallel`, `WaitLong`, timers, outbox, or non-trivial provider abstraction until those behaviors are explicitly designed and implemented.
-
-#### Scenario: Contributor plans a new prototype feature
-- **WHEN** a feature outside the current implemented slice is proposed
-- **THEN** the work is treated as an explicit new capability increment instead of assumed baseline behavior
+#### Scenario: Contributor proposes prototype work after v1
+- **WHEN** an append-only runtime slice is proposed
+- **THEN** a separate reviewed amendment defines its scope before any project, package, or public member is added

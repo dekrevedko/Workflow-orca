@@ -1,21 +1,18 @@
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
-using OrcaCore.Core.Definitions;
 using OrcaCore.Engine.Durable.Definitions;
 using OrcaCore.Engine.Durable.Driver;
 using OrcaCore.Engine.Durable.Execution;
-using OrcaCore.Internal;
 using OrcaCore.TestSupport.Providers;
 using Xunit;
 
-using ActiveWaitSnapshot = global::OrcaCore.Abstractions.Instances.ActiveWaitSnapshot;
+using ActiveWaitSnapshot = global::OrcaCore.Abstractions.Providers.WorkflowProjectionActiveWaitSnapshot;
 using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
-using WorkflowInstanceSnapshot = global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot;
+using WorkflowInstanceSnapshot = global::OrcaCore.Abstractions.Providers.WorkflowProjectionSnapshot;
+using WorkflowStatus = global::OrcaCore.WorkflowInstanceStatus;
 
 namespace OrcaCore.ProviderCertification;
 
@@ -420,7 +417,7 @@ public abstract class EventStoreCertificationTests
                 new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
                 {
                     InstanceSnapshot =
-                        new global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot
+                        new global::OrcaCore.Abstractions.Providers.WorkflowProjectionSnapshot
                     {
                         InstanceId = instanceId,
                         RootInstanceId = instanceId,
@@ -435,12 +432,13 @@ public abstract class EventStoreCertificationTests
             ],
             TestContext.Current.CancellationToken);
 
-        var snapshots = await fixture.ProjectionStore.ListAsync(
-            new WorkflowProjectionQuery { InstanceId = instanceId },
+        var snapshot = await fixture.ProjectionStore.GetAsync(
+            instanceId,
             TestContext.Current.CancellationToken);
 
-        snapshots.Should().ContainSingle()
-            .Which.StreamVersion.Should().Be(5, "the projected stream version is the optimistic-concurrency token (CR-022)");
+        snapshot.Value.StreamVersion.Should().Be(
+            5,
+            "the projected stream version is the optimistic-concurrency token (CR-022)");
     }
 
     [Fact]
@@ -462,22 +460,14 @@ public abstract class EventStoreCertificationTests
                     [ActiveWait("approved", "order-2"), ActiveWait("rejected", "order-1")])
             ],
             TestContext.Current.CancellationToken);
-        var query = new WorkflowProjectionQuery
-        {
-            DefinitionId = definitionId,
-            ActiveWaitEventName = "approved",
-            ActiveWaitCorrelationId = CorrelationId.Create("order-1")
-        };
-
-        var listed = await fixture.ProjectionStore.ListAsync(query, TestContext.Current.CancellationToken);
-        var count = await fixture.ProjectionStore.CountAsync(query, TestContext.Current.CancellationToken);
-        var waits = await fixture.ProjectionStore.ListActiveWaitsAsync(query, TestContext.Current.CancellationToken);
-        var statistics = await fixture.ProjectionStore.GetStatisticsAsync(query, TestContext.Current.CancellationToken);
+        var listed = await fixture.ProjectionStore.FindActiveWaitsAsync(
+            definitionId,
+            EventName.Create("approved"),
+            CorrelationId.Create("order-1"),
+            TestContext.Current.CancellationToken);
 
         listed.Should().ContainSingle().Which.InstanceId.Should().Be(targetId);
-        count.Should().Be(1);
-        waits.Should().ContainSingle().Which.Should().BeEquivalentTo(targetWait);
-        statistics.Groups.Should().ContainSingle().Which.Count.Should().Be(1);
+        listed.Single().ActiveWaits.Should().Contain(targetWait);
     }
 
     [Fact]
@@ -521,8 +511,8 @@ public abstract class EventStoreCertificationTests
         checkpoint.HasValue.Should().BeTrue();
         checkpoint.Value.RuntimeState.Should().BeEquivalentTo(
             runtimeState,
-            "every runtime collection Ã¢â‚¬â€ including saga records and resume-token facts Ã¢â‚¬â€ must survive " +
-            "checkpoint compaction, or rehydrated aggregates silently lose in-flight state");
+            "every current runtime collection must survive checkpoint compaction, " +
+            "or rehydrated aggregates silently lose in-flight state");
     }
 
     [Fact]
@@ -619,7 +609,8 @@ public abstract class EventStoreCertificationTests
         var workflowKey = $"provider-fiber-{Guid.NewGuid():N}";
         var started = await Host(fixture, budget, definition).StartOrGetAsync<string, HostState>(
             workflowKey,
-            definition,
+            definition.DefinitionId,
+            definition.DefinitionVersion,
             "input",
             TestContext.Current.CancellationToken);
 
@@ -644,11 +635,11 @@ public abstract class EventStoreCertificationTests
             item.FiberId == blocked.FiberId && item.ScopeId == scope.ScopeId);
 
         await ResumeExisting(fixture, budget, definition, workflowKey);
-        var afterYieldCheckpoint = await fixture.EventStore.LoadCheckpointAsync(
+        var afterQuantumCheckpoint = await fixture.EventStore.LoadCheckpointAsync(
             started.InstanceId,
             TestContext.Current.CancellationToken);
-        var afterYield = DurableExecutionEnvelopeV2.Deserialize(afterYieldCheckpoint!.Value.Payload);
-        afterYield.Scheduler.NextFiberId.Should().Be(runnable.FiberId);
+        var afterQuantum = DurableExecutionEnvelopeV2.Deserialize(afterQuantumCheckpoint!.Value.Payload);
+        afterQuantum.Scheduler.NextFiberId.Should().Be(runnable.FiberId);
 
         for (var attempt = 0; attempt < 3; attempt++)
         {
@@ -690,7 +681,7 @@ public abstract class EventStoreCertificationTests
             .Should().ContainSingle(item => item.StepPath.EndsWith(":merge", StringComparison.Ordinal));
     }
 
-    private static WorkflowDefinition<HostState> HostReplacementDefinition()
+    private static DurableWorkflowDefinition<string> HostReplacementDefinition()
     {
         var definition = global::OrcaCore.Workflow.Durable<HostState>(
                 DefinitionId.New(),
@@ -712,7 +703,7 @@ public abstract class EventStoreCertificationTests
                         AuthoredBranchId.Create("yielding"),
                         _ => new HostBranchState { Name = "yielding" },
                         branch => branch
-                            .Then<YieldOnceHostStep>()
+                            .Then<AdvanceOnceHostStep>()
                             .Return(state => state.Value.Name)))
             .WhenAll((_, results) => new HostState
                 {
@@ -720,13 +711,13 @@ public abstract class EventStoreCertificationTests
                 })
             .End(WorkflowOutcomeName.Create("done"))
             .Build();
-        return (WorkflowDefinition<HostState>)WorkflowRuntimeBridge.RuntimeDefinition(definition);
+        return definition;
     }
 
     private static DurableWorkflowRuntime Host(
         IProviderCertificationFixture fixture,
         DurableDriverBudget budget,
-        WorkflowDefinition<HostState> definition)
+        DurableWorkflowDefinition<string> definition)
     {
         var runtime = new DurableWorkflowRuntime(
             new DurableCommandProcessor(fixture.EventStore),
@@ -741,7 +732,7 @@ public abstract class EventStoreCertificationTests
     private static async Task ResumeExisting(
         IProviderCertificationFixture fixture,
         DurableDriverBudget budget,
-        WorkflowDefinition<HostState> definition,
+        DurableWorkflowDefinition<string> definition,
         string workflowKey)
     {
         await Host(fixture, budget, definition).StartOrGetAsync<string, HostState>(
@@ -754,24 +745,22 @@ public abstract class EventStoreCertificationTests
 
     private static CorrelationId HostCorrelation => CorrelationId.Create("provider-host-replacement");
 
-    private sealed class YieldOnceHostStep : IStep<HostBranchState>
+    private sealed class AdvanceOnceHostStep : IStep<HostBranchState>
     {
         public ValueTask<StepResult> ExecuteAsync(
             StepContext<HostBranchState> context,
             CancellationToken cancellationToken)
         {
             context.State.Attempts++;
-            return ValueTask.FromResult<StepResult>(context.State.Attempts == 1
-                ? global::OrcaCore.TestSupport.LegacyStepResults.Yield()
-                : new StepResult.Completed());
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
         }
     }
 
     private sealed class HostStepProvider : IServiceProvider
     {
         public object? GetService(Type serviceType) =>
-            serviceType == typeof(YieldOnceHostStep)
-                ? new YieldOnceHostStep()
+            serviceType == typeof(AdvanceOnceHostStep)
+                ? new AdvanceOnceHostStep()
                 : null;
     }
 
@@ -794,8 +783,6 @@ public abstract class EventStoreCertificationTests
     {
         var waitId = WaitId.Parse(Guid.CreateVersion7().ToString());
         var timerId = TimerId.New();
-        var childInstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
-        var childDefinitionId = DefinitionId.New();
 
         return new WorkflowRuntimeCheckpointState
         {
@@ -822,50 +809,6 @@ public abstract class EventStoreCertificationTests
                     WaitSequence = 12
                 }
             ],
-            BufferedDeliveries =
-            [
-                new CheckpointBufferedDelivery(EventId.Create(Guid.CreateVersion7().ToString()), "approved", CorrelationId.Create("order-2"), "branch-b")
-            ],
-            BufferedTimers = [new CheckpointBufferedTimer(TimerId.New(), "paused-timeout", Timestamp(5))],
-            ActiveChildren =
-            [
-                new CheckpointActiveChild(
-                    "group-1",
-                    childInstanceId,
-                    WaitId.Parse(Guid.CreateVersion7().ToString()),
-                    RunChildFailurePolicy.PropagateFailure,
-                    RunChildrenJoinPolicy.WhenAll,
-                    RunChildrenResidualPolicy.CancelRemaining,
-                    """{"id":1}""")
-                {
-                    FiberId = ownerFiberId,
-                    ScopeId = ownerScopeId
-                }
-            ],
-            ActiveChildGroups =
-            [
-                new CheckpointActiveChildGroup(
-                    "group-1",
-                    RunChildFailurePolicy.PropagateFailure,
-                    RunChildrenJoinPolicy.WhenAll,
-                    RunChildrenResidualPolicy.CancelRemaining,
-                    2,
-                    1,
-                    [
-                        new WorkflowChildMaterialization
-                        {
-                            Index = 0,
-                            ChildInstanceId = childInstanceId,
-                            ChildDefinitionId = childDefinitionId,
-                            ChildDefinitionVersion = DefinitionVersion.Initial,
-                            ItemSnapshot = """{"id":1}"""
-                        }
-                    ])
-                {
-                    FiberId = ownerFiberId,
-                    ScopeId = ownerScopeId
-                }
-            ],
             ActiveResourceTickets =
             [
                 new ResourcePoolTicket(
@@ -881,53 +824,26 @@ public abstract class EventStoreCertificationTests
                     ScopeId = ownerScopeId
                 }
             ],
-            ActiveExternalJobs =
+            PendingResumes =
             [
-                new CheckpointActiveExternalJob("job-1", WaitId.Parse(Guid.CreateVersion7().ToString()), TimerId.New())
+                new CheckpointPendingResume(
+                    waitId,
+                    EventId.Create(Guid.CreateVersion7().ToString()),
+                    "approved",
+                    CorrelationId.Create("order-1"),
+                    "branch-a",
+                    "application/json",
+                    [1, 2, 3],
+                    Timestamp(5))
                 {
                     FiberId = ownerFiberId,
-                    ScopeId = ownerScopeId
+                    ScopeId = ownerScopeId,
+                    WaitSequence = 12
                 }
             ],
-            CompletedSagaForwardActions =
-            [
-                new CheckpointSagaForwardAction("scope-1", "reserve-stock", "release-stock", Timestamp(6))
-                {
-                    FiberId = ownerFiberId,
-                    OwningScopeId = ownerScopeId,
-                    EligibleScopeId = ownerScopeId,
-                    InstructionId = "instruction:reserve-stock",
-                    CommittedSequence = 8,
-                    CanonicalBranchOrder = 1,
-                    CanonicalInstructionOrder = 2
-                }
-            ],
-            SagaCompensationActions =
-            [
-                new CheckpointSagaCompensationAction(
-                    "scope-1",
-                    "release-stock",
-                    0,
-                    Timestamp(7),
-                    Timestamp(8),
-                    null,
-                    null,
-                    SagaCompensationActionStatus.Completed)
-            ],
-            SagaRecoveryInterventions =
-            [
-                new CheckpointSagaRecoveryIntervention(
-                    "scope-1",
-                    "refund",
-                    "operator-1",
-                    "mark-complete",
-                    "resolved",
-                    Timestamp(9),
-                    WorkflowStatus.Completed)
-            ],
-            RequestedSagaCompensationScopes = ["scope-1"],
-            RecordedParentResumeTokens = [EventId.Create(Guid.CreateVersion7().ToString())],
-            ConsumedParentResumeTokens = [EventId.Create(Guid.CreateVersion7().ToString())]
+            ContinuationFailureCount = 2,
+            ContinuationFailurePositionStreamVersion = new StreamVersion(7),
+            ContinuationRetryNotBefore = Timestamp(9)
         };
     }
 
@@ -1059,7 +975,7 @@ public abstract class EventStoreCertificationTests
             ],
             Diagnostics = new DurableExecutionDiagnostics
             {
-                TotalYields = 4,
+                TotalQuantumRotations = 4,
                 ForcedRotations = 2
             }
         };
@@ -1140,19 +1056,21 @@ public abstract class EventStoreCertificationTests
 
     [Fact]
     [Trait("AC", "DR-AC-031")]
-    public async Task Statistics_SeparateContinuationAndExternalOutboxCountsByState()
+    public async Task OutboxSelectors_SeparateContinuationAndExternalRecordsByState()
     {
         var fixture = CreateFixture();
         var streamId = new WorkflowStreamId(InstanceId.Parse(Guid.CreateVersion7().ToString()));
+        var continuationIds = Enumerable.Range(0, 3).Select(_ => OutboxRecordId.New()).ToArray();
+        var externalIds = Enumerable.Range(0, 3).Select(_ => OutboxRecordId.New()).ToArray();
         await fixture.EventStore.AppendAsync(
             KindBatch(
                 streamId,
-                (OutboxRecordId.New(), OutboxKinds.Continue),
-                (OutboxRecordId.New(), OutboxKinds.Continue),
-                (OutboxRecordId.New(), OutboxKinds.Continue),
-                (OutboxRecordId.New(), "status"),
-                (OutboxRecordId.New(), "child-start"),
-                (OutboxRecordId.New(), "lifecycle-event")),
+                (continuationIds[0], OutboxKinds.Continue),
+                (continuationIds[1], OutboxKinds.Continue),
+                (continuationIds[2], OutboxKinds.Continue),
+                (externalIds[0], "status"),
+                (externalIds[1], "child-start"),
+                (externalIds[2], "lifecycle-event")),
             TestContext.Current.CancellationToken);
 
         var claimedContinuation = await fixture.OutboxStore.ClaimAsync(
@@ -1164,23 +1082,23 @@ public abstract class EventStoreCertificationTests
         await fixture.OutboxStore.ReleaseAsync(
             claimedContinuation.Should().ContainSingle().Subject.OutboxRecordId,
             TestContext.Current.CancellationToken);
-        await fixture.OutboxStore.ClaimAsync(
+        var claimedExternal = await fixture.OutboxStore.ClaimAsync(
             new OutboxClaimRequest(1, Timestamp(10), TimeSpan.FromMinutes(1))
             {
                 KindSelector = OutboxKindSelector.Excluding(OutboxKinds.Continue)
             },
             TestContext.Current.CancellationToken);
 
-        var statistics = await fixture.ProjectionStore.GetStatisticsAsync(
-            WorkflowProjectionQuery.All,
-            TestContext.Current.CancellationToken);
+        var continuationStates = await Task.WhenAll(continuationIds.Select(id =>
+            fixture.OutboxStore.GetStateAsync(id, TestContext.Current.CancellationToken)));
+        var externalStates = await Task.WhenAll(externalIds.Select(id =>
+            fixture.OutboxStore.GetStateAsync(id, TestContext.Current.CancellationToken)));
 
-        statistics.Pressure.ContinuationPendingCount.Should().Be(2);
-        statistics.Pressure.ContinuationRetryableCount.Should().Be(1);
-        statistics.Pressure.ContinuationClaimedCount.Should().Be(0);
-        statistics.Pressure.ExternalOutboxPendingCount.Should().Be(2);
-        statistics.Pressure.ExternalOutboxRetryableCount.Should().Be(0);
-        statistics.Pressure.ExternalOutboxClaimedCount.Should().Be(1);
+        claimedExternal.Should().ContainSingle();
+        continuationStates.Select(state => state.Value).Should().BeEquivalentTo(
+            [OutboxRecordState.Retryable, OutboxRecordState.Pending, OutboxRecordState.Pending]);
+        externalStates.Select(state => state.Value).Should().BeEquivalentTo(
+            [OutboxRecordState.Claimed, OutboxRecordState.Pending, OutboxRecordState.Pending]);
     }
 
     private static ProviderCommitBatch KindBatch(
@@ -1238,12 +1156,12 @@ public abstract class EventStoreCertificationTests
     private static ProjectionWrite Projection(
         InstanceId instanceId,
         DefinitionId definitionId,
-        IReadOnlyList<global::OrcaCore.Abstractions.Instances.ActiveWaitSnapshot> activeWaits)
+        IReadOnlyList<global::OrcaCore.Abstractions.Providers.WorkflowProjectionActiveWaitSnapshot> activeWaits)
     {
         return new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
         {
             InstanceSnapshot =
-                new global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot
+                new global::OrcaCore.Abstractions.Providers.WorkflowProjectionSnapshot
             {
                 InstanceId = instanceId,
                 RootInstanceId = instanceId,
@@ -1257,11 +1175,11 @@ public abstract class EventStoreCertificationTests
         };
     }
 
-    private static global::OrcaCore.Abstractions.Instances.ActiveWaitSnapshot ActiveWait(
+    private static global::OrcaCore.Abstractions.Providers.WorkflowProjectionActiveWaitSnapshot ActiveWait(
         string eventName,
         string correlationId)
     {
-        return new global::OrcaCore.Abstractions.Instances.ActiveWaitSnapshot
+        return new global::OrcaCore.Abstractions.Providers.WorkflowProjectionActiveWaitSnapshot
         {
             WaitId = WaitId.Parse(Guid.CreateVersion7().ToString()),
             EventName = eventName,
@@ -1287,13 +1205,6 @@ public abstract class EventStoreCertificationTests
 
         var waitId = WaitId.Parse(Guid.CreateVersion7().ToString());
         var timerId = TimerId.New();
-        var childInstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
-        var childDefinitionId = DefinitionId.New();
-        var childDefinitionVersion = DefinitionVersion.Initial;
-        var completionDefinitionId = DefinitionId.New();
-        var completionDefinitionVersion = new DefinitionVersion(2);
-        var groupId = "children-group";
-        var resumeTokenId = nextEventId();
         var ticket = new ResourcePoolTicket(
             Guid.Parse("00000000-0000-0000-0000-000000000901"),
             "cpu",
@@ -1368,6 +1279,73 @@ public abstract class EventStoreCertificationTests
                 WaitId = waitId,
                 MatchedEventId = EventId.Create(Guid.CreateVersion7().ToString())
             },
+            new WorkflowWaitCancelledEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                WaitId = waitId
+            },
+            new WorkflowTimerCancelledEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                TimerId = timerId
+            },
+            new WorkflowResumeConsumedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                WaitId = waitId
+            },
+            new WorkflowParkedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                Reason = DurableParkReason.Poison,
+                ErrorSummary = "parked",
+                FailedAttemptCount = 3,
+                PositionStreamVersion = new StreamVersion(7)
+            },
+            new WorkflowUnparkedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt()
+            },
+            new WorkflowContinuationAttemptFailedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt(),
+                AttemptCount = 2,
+                PositionStreamVersion = new StreamVersion(8),
+                NextEligibleAt = Timestamp(43),
+                ErrorSummary = "retryable"
+            },
+            new WorkflowContinuationAttemptResetEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt()
+            },
             new WorkflowTimerScheduledEvent
             {
                 EventId = nextEventId(),
@@ -1387,133 +1365,6 @@ public abstract class EventStoreCertificationTests
                 CausationId = causationId(),
                 OccurredAt = occurredAt(),
                 TimerId = timerId
-            },
-            new WorkflowChildScheduledEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                ChildInstanceId = childInstanceId,
-                ChildDefinitionId = childDefinitionId,
-                ChildDefinitionVersion = childDefinitionVersion,
-                WaitId = WaitId.Parse(Guid.CreateVersion7().ToString()),
-                FailurePolicy = RunChildFailurePolicy.PropagateFailure
-            },
-            new WorkflowChildrenScheduledEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                GroupId = groupId,
-                ChildDefinitionId = childDefinitionId,
-                ChildDefinitionVersion = childDefinitionVersion,
-                FailurePolicy = RunChildFailurePolicy.ContinueParent,
-                JoinPolicy = RunChildrenJoinPolicy.WhenAny,
-                ResidualPolicy = RunChildrenResidualPolicy.CancelRemaining,
-                TotalItemCount = 2,
-                InitialDispatchCount = 1,
-                NextDispatchIndex = 1,
-                MaxConcurrency = 1,
-                Children =
-                [
-                    new WorkflowChildMaterialization
-                    {
-                        Index = 0,
-                        ChildInstanceId = childInstanceId,
-                        ChildDefinitionId = childDefinitionId,
-                        ChildDefinitionVersion = childDefinitionVersion,
-                        ItemSnapshot = """{"id":1}"""
-                    }
-                ]
-            },
-            new WorkflowChildrenDispatchedEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                GroupId = groupId,
-                PreviousDispatchIndex = 1,
-                NextDispatchIndex = 2,
-                Children =
-                [
-                    new WorkflowChildMaterialization
-                    {
-                        Index = 1,
-                        ChildInstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString()),
-                        ChildDefinitionId = childDefinitionId,
-                        ChildDefinitionVersion = childDefinitionVersion,
-                        ItemSnapshot = """{"id":2}"""
-                    }
-                ]
-            },
-            new WorkflowChildCompletedEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                ChildInstanceId = childInstanceId,
-                ChildStatus = WorkflowStatus.Completed,
-                ErrorSummary = null
-            },
-            new WorkflowParentResumeTokenRecordedEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                GroupId = groupId,
-                ResumeTokenId = resumeTokenId
-            },
-            new WorkflowParentResumeTokenConsumedEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                GroupId = groupId,
-                ResumeTokenId = resumeTokenId
-            },
-            new WorkflowChildResidualIntentRecordedEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                GroupId = groupId,
-                ResidualPolicy = RunChildrenResidualPolicy.DetachRemaining,
-                ResidualChildInstanceIds = [childInstanceId]
-            },
-            new WorkflowChildCompensationScheduledEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                GroupId = groupId,
-                CompensationDefinitionId = completionDefinitionId,
-                CompensationDefinitionVersion = completionDefinitionVersion,
-                Compensations =
-                [
-                    new WorkflowChildCompensationMaterialization
-                    {
-                        Index = 0,
-                        SourceChildInstanceId = childInstanceId,
-                        CompensationInstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString()),
-                        ItemSnapshot = """{"compensate":true}"""
-                    }
-                ]
             },
             new WorkflowResourcePoolAcquiredEvent
             {
@@ -1547,95 +1398,6 @@ public abstract class EventStoreCertificationTests
                 HolderKey = "holder-1",
                 Tickets = [ticket]
             },
-            new WorkflowExternalJobStartedEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                ExternalJobId = "job-1",
-                Payload = [1, 2, 3],
-                WaitId = WaitId.Parse(Guid.CreateVersion7().ToString()),
-                TimeoutTimerId = TimerId.New(),
-                TimeoutAt = Timestamp(46)
-            },
-            new WorkflowExternalJobCompletedEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                ExternalJobId = "job-1",
-                CompletionEventId = EventId.Create(Guid.CreateVersion7().ToString())
-            },
-            new WorkflowExternalJobTimedOutEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                ExternalJobId = "job-1"
-            },
-            new WorkflowExternalJobStopRequestedEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                ExternalJobId = "job-1"
-            },
-            new WorkflowTimerBufferedEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                TimerId = TimerId.New(),
-                WakeupName = "paused-timeout"
-            },
-            new WorkflowPausedEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt()
-            },
-            new WorkflowResumedEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                BufferHandling = "replay"
-            },
-            new WorkflowDeliveryBufferedEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                BufferedEventId = EventId.Create(Guid.CreateVersion7().ToString()),
-                EventName = "approved",
-                CorrelationId = CorrelationId.Create("order-2"),
-                BranchId = "branch-b"
-            },
-            new WorkflowDeliveryDiscardedEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                DiscardedEventId = EventId.Create(Guid.CreateVersion7().ToString())
-            },
             new WorkflowCompletedEvent
             {
                 EventId = nextEventId(),
@@ -1645,6 +1407,14 @@ public abstract class EventStoreCertificationTests
                 OccurredAt = occurredAt(),
                 OutcomeName = "ok"
             },
+            new WorkflowCancellationRequestedEvent
+            {
+                EventId = nextEventId(),
+                InstanceId = instanceId,
+                CommandId = commandId(),
+                CausationId = causationId(),
+                OccurredAt = occurredAt()
+            },
             new WorkflowTerminalEvent
             {
                 EventId = nextEventId(),
@@ -1653,84 +1423,6 @@ public abstract class EventStoreCertificationTests
                 CausationId = causationId(),
                 OccurredAt = occurredAt(),
                 Status = WorkflowStatus.Cancelled
-            },
-            new SagaForwardActionCompletedEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                ScopeId = "scope-1",
-                ActionKey = "reserve",
-                CompensationKey = "release"
-            },
-            new SagaForwardActionTimedOutEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                ScopeId = "scope-1",
-                ActionKey = "charge",
-                CompensateScope = true
-            },
-            new SagaCompensationRequestedEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                ScopeId = "scope-1",
-                Reason = "timeout"
-            },
-            new SagaCompensationStartedEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                ScopeId = "scope-1",
-                ActionKey = "release",
-                Order = 1
-            },
-            new SagaCompensationCompletedEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                ScopeId = "scope-1",
-                ActionKey = "release"
-            },
-            new SagaCompensationFailedEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                ScopeId = "scope-1",
-                ActionKey = "refund",
-                ErrorSummary = "manual review"
-            },
-            new SagaManualRecoveryRecordedEvent
-            {
-                EventId = nextEventId(),
-                InstanceId = instanceId,
-                CommandId = commandId(),
-                CausationId = causationId(),
-                OccurredAt = occurredAt(),
-                ScopeId = "scope-1",
-                ActionKey = "refund",
-                OperatorId = "operator-1",
-                RecoveryAction = "mark-complete",
-                Reason = "resolved",
-                TargetStatus = WorkflowStatus.Completed
             }
         ];
     }

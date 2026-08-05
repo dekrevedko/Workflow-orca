@@ -1,6 +1,5 @@
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Steps;
 using Xunit;
 
 namespace OrcaCore.Core.Tests.Building;

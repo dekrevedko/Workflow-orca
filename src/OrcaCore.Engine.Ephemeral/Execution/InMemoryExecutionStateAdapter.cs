@@ -1,10 +1,7 @@
 using System.Collections;
 using System.Reflection;
-using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Definitions;
@@ -19,7 +16,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
     SuspensionScheduler<TState> suspensionScheduler,
     ResourceGovernanceCoordinator governance,
     YieldContinuationScheduler yieldContinuationScheduler,
-    Action<LegacyWorkflowInstanceSnapshot> onSnapshotCommitted,
+    Action<EphemeralWorkflowInstanceSnapshot> onSnapshotCommitted,
     TimeSpan? stuckStepThreshold,
     int maxPendingEvents,
     int maxConsumedEventIds,
@@ -55,7 +52,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                 $"Workflow definition '{definition.DefinitionId}' Init failed while creating state.",
                 exception);
         }
@@ -142,7 +139,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                         return;
                     }
 
-                    throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                    throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                         "Structured ephemeral execution has no runnable, blocked, or joinable work.");
                 }
 
@@ -182,7 +179,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                 {
                     if (instruction.Operation is null || string.IsNullOrWhiteSpace(instruction.EventName))
                     {
-                        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                        throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                             $"Compiled wait '{instruction.Path}' has no typed executable binding.");
                     }
 
@@ -209,7 +206,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                 case CompiledInstructionKind.Delay:
                 {
                     var duration = instruction.DelayDuration ??
-                        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                        throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                             $"Compiled delay '{instruction.Path}' has no duration.");
                     activeExecution = RegisterFiberDelay(
                         plan,
@@ -242,7 +239,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                 {
                     if (instruction.Operation is not { } condition)
                     {
-                        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                        throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                             $"Compiled condition '{instruction.Path}' has no typed executable binding.");
                     }
 
@@ -252,7 +249,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                         fiber,
                         instance.State);
                     var matched = StructuredInvocationCache.Invoke(condition, conditionState) as bool? ??
-                        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                        throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                             $"Compiled condition '{instruction.Path}' did not return a Boolean value.");
                     var target = matched
                         ? instruction.NextInstructionId
@@ -334,7 +331,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     return;
                 }
                 default:
-                    throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                    throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                         $"Structured ephemeral instruction '{instruction.Kind}' at '{instruction.Path}' " +
                         "is not implemented by the in-memory Adapter.");
             }
@@ -355,7 +352,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     CompiledInstructionKind.Step or
                     CompiledInstructionKind.StartScope or
                     CompiledInstructionKind.BranchReturn &&
-                (instance.Status == LegacyWorkflowStatus.Waiting ||
+                (instance.Status == global::OrcaCore.WorkflowInstanceStatus.Waiting ||
                     boundaryExecution.Scheduler.RunnableFiberIds.Count == 0))
             {
                 ApplyDerivedStatus(boundaryExecution, instance);
@@ -370,10 +367,10 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         var derived = ExecutionStatusDeriver.Derive(WorkflowExecutionMode.Ephemeral, execution);
         if (derived.Failure is { } failure)
         {
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException($"{failure.Code}: {failure.Message}");
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException($"{failure.Code}: {failure.Message}");
         }
 
-        if (derived.Status is LegacyWorkflowStatus.Running or LegacyWorkflowStatus.Waiting)
+        if (derived.Status is global::OrcaCore.WorkflowInstanceStatus.Running or global::OrcaCore.WorkflowInstanceStatus.Waiting)
         {
             instance.ApplyStructuredStatus(derived.Status.Value, timeProvider.GetUtcNow());
         }
@@ -431,6 +428,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
             instance.InstanceId,
             operationId,
             attempt);
+        var forEachItem = ResolveForEachItemContext(state, fiber);
         var stepStartedAt = timeProvider.GetUtcNow();
         instance.StartStep(instruction.Path, stepStartedAt, instruction.Policy.Timeout);
         using var stuckTimer = stuckStepThreshold is { } threshold
@@ -447,7 +445,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
             {
                 if (step is not IStep<TState> rootStep)
                 {
-                    throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                    throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                         $"Compiled root step '{instruction.Path}' does not implement " +
                         $"IStep<{typeof(TState).Name}>.");
             }
@@ -457,14 +455,15 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     ? (TState)(codec.Deserialize(codec.Serialize(
                         instance.State,
                         typeof(TState),
-                        stateSchema)) ?? throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                        stateSchema)) ?? throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                             "Root state deserialized to null before step execution."))
                     : instance.State;
                 var stepContext = RuntimeStepContextFactory.Create(
                     attemptState,
                     stepExecution,
                     resumedEvent,
-                    timeProvider);
+                    timeProvider,
+                    forEachItem);
                 var physicalAttempt = rootStep.ExecuteAsync(stepContext, executionToken).AsTask();
                 if (timeoutReached is not null &&
                     await Task.WhenAny(physicalAttempt, timeoutReached.Task).ConfigureAwait(false) ==
@@ -483,7 +482,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                         var committedState = (TState)(codec.Deserialize(codec.Serialize(
                             stepContext.State,
                             typeof(TState),
-                            stateSchema)) ?? throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                            stateSchema)) ?? throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                                 "Root state deserialized to null after step execution."));
                         instance.ReplaceState(committedState);
                     }
@@ -501,9 +500,9 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     branch.Input.BranchStateType,
                     branch.Input.BranchStateSchemaIdentity,
                     updatedFiber.LocalStatePayload ??
-                        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException("Branch state payload is missing."));
+                        throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException("Branch state payload is missing."));
                 var localState = codec.Deserialize(localPayload) ??
-                    throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException("Branch state deserialized to null.");
+                    throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException("Branch state deserialized to null.");
                 var physicalAttempt = StructuredInvocationCache.ExecuteStepAsync(
                     branch.Input.BranchStateType,
                     step,
@@ -511,6 +510,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     stepExecution,
                     resumedEvent,
                     timeProvider,
+                    forEachItem,
                     resourceLease: null,
                     cancellationToken: executionToken).AsTask();
                 if (timeoutReached is not null &&
@@ -594,23 +594,6 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     {
                         Scheduler = FiberScheduler.CompleteTurn(
                             advanced.Scheduler,
-                            fiber.Id,
-                            requeueSelected: true)
-                    },
-                    InstanceTerminated: false);
-            }
-            case var legacyYield when LegacyStepResultProjection.IsYield(legacyYield):
-            {
-                var yieldedFibers = new Dictionary<FiberId, FiberRecord>(state.Fibers)
-                {
-                    [fiber.Id] = updatedFiber with { YieldCount = checked(updatedFiber.YieldCount + 1) }
-                };
-                return new StepTransition(
-                    state with
-                    {
-                        Fibers = yieldedFibers,
-                        Scheduler = FiberScheduler.CompleteTurn(
-                            state.Scheduler,
                             fiber.Id,
                             requeueSelected: true)
                     },
@@ -726,16 +709,34 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         }
     }
 
+    private static ForEachItemContext? ResolveForEachItemContext(
+        StructuredExecutionState execution,
+        FiberRecord fiber)
+    {
+        if (fiber.OwningScopeId is not { } scopeId ||
+            !execution.Scopes.TryGetValue(scopeId, out var scope) ||
+            scope.Kind != CompiledScopeKind.ForEach)
+        {
+            return null;
+        }
+
+        var index = scope.ForEach?.ItemIndexByFiber.TryGetValue(fiber.Id, out var itemIndex) == true
+            ? itemIndex
+            : throw new InvalidOperationException(
+                $"ForEach scope '{scopeId}' has no item index for fiber '{fiber.Id}'.");
+        return new ForEachItemContext(index);
+    }
+
     private static StepResult TimedOutStepResult(
         StepOperationId operationId,
         int attempt,
         CompiledInstruction instruction)
     {
         var timeout = instruction.Policy.Timeout ??
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                 $"Compiled timed step '{instruction.Path}' has no timeout.");
         return new StepResult.Failed(
-            global::OrcaCore.Core.Authoring.PublicAuthoringContracts.StepTimeout(
+            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.StepTimeout(
                 operationId,
                 attempt,
                 timeout));
@@ -763,17 +764,17 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         {
             if (serviceProvider is null)
             {
-                throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                     $"Named step '{stepType.FullName}' requires a host service provider.");
             }
 
-            return serviceProvider.GetService(stepType) ?? throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            return serviceProvider.GetService(stepType) ?? throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                 $"Named step '{stepType.FullName}' is not registered in the host service provider.");
         }
 
-        var factory = instruction.Operation ?? throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+        var factory = instruction.Operation ?? throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
             $"Compiled step '{instruction.Path}' has no executable binding.");
-        return StructuredInvocationCache.Invoke(factory) ?? throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+        return StructuredInvocationCache.Invoke(factory) ?? throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
             $"Compiled step factory '{instruction.Path}' returned null.");
     }
 
@@ -822,11 +823,16 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
     {
         var execution = activeExecution ??
             throw new InvalidOperationException("The structured execution state is not initialized.");
-        timersByFiber.Remove(fiberId);
+        if (!timersByFiber.Remove(fiberId, out var timer))
+        {
+            return;
+        }
+
         if (!execution.Fibers.TryGetValue(fiberId, out var blocked) ||
             blocked.Phase != FiberPhase.Blocked ||
             blocked.Blocked?.Reason != FiberBlockedReason.Timer)
         {
+            timersByFiber[fiberId] = timer;
             return;
         }
 
@@ -838,7 +844,16 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
             },
             Scheduler = FiberScheduler.EnqueueResumed(execution.Scheduler, [fiberId])
         };
-        await RunUntilBoundaryAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await RunUntilBoundaryAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            activeExecution = execution;
+            timersByFiber[fiberId] = timer;
+            throw;
+        }
     }
 
     private void CancelTerminalFiberWaits(StructuredExecutionState state)
@@ -917,7 +932,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         FiberRecord fiber)
     {
         var scopeId = fiber.OwningScopeId ??
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException("Branch instruction has no owning scope.");
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException("Branch instruction has no owning scope.");
         var scope = state.Scopes[scopeId];
         var scopePlan = plan.GetScope(scope.ScopePlanId);
         if (scopePlan.Kind == CompiledScopeKind.ForEach)
@@ -953,7 +968,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
 
         var materializedInputs = scopePlan.Branches
             .OrderBy(branch => branch.Ordinal)
-            .Select(branch => BranchInputMaterializer.Materialize(branch.Input, parentState, codec))
+            .Select(branch => BranchInputMaterializer.Materialize(branch.Input, parentState))
             .ToArray();
         var started = ScopeReducer.StartScope(
             state,
@@ -981,7 +996,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         if (fiber.OwningScopeId is null)
         {
             return rootState ??
-                throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException("Structured root state is null.");
+                throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException("Structured root state is null.");
         }
 
         var branch = ResolveBranch(plan, state, fiber);
@@ -989,8 +1004,8 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
             branch.Input.BranchStateType,
             branch.Input.BranchStateSchemaIdentity,
             fiber.LocalStatePayload ??
-                throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException("Branch state payload is missing."))) ??
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException("Branch state deserialized to null.");
+                throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException("Branch state payload is missing."))) ??
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException("Branch state deserialized to null.");
     }
 
     private CorrelationId ResolveWaitCorrelation(
@@ -1004,15 +1019,15 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         {
             return StructuredInvocationCache.Invoke(
                     instruction.Operation ??
-                        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                        throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                             $"Compiled wait '{instruction.Path}' has no selector."),
                     ResolveFiberState(plan, state, fiber, rootState)) as CorrelationId ??
-                throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                     $"Compiled wait '{instruction.Path}' did not return a CorrelationId.");
         }
         catch (TargetInvocationException exception) when (exception.InnerException is not null)
         {
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                 $"Compiled wait selector '{instruction.Path}' failed.",
                 exception.InnerException);
         }

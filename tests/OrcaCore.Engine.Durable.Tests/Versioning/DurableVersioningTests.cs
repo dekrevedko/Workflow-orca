@@ -102,7 +102,7 @@ public sealed class DurableVersioningTests
             key,
             definitionId,
             version,
-            new Abstractions.Providers.SerializedPayload(
+            new Engine.Durable.Execution.SerializedPayload(
                 global::OrcaCore.Engine.Durable.Execution.JsonWorkflowPayloadSerializer.JsonContentType,
                 System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(input)),
             new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero));

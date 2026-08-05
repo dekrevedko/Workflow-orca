@@ -35,7 +35,7 @@ internal sealed class EphemeralBranchBuilder<TState, TResult>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(then);
         builder.AddIf(
-            state => condition(PublicAuthoringContracts.Snapshot(state)),
+            state => condition(AuthoringContractFactory.Snapshot(state)),
             nested => then(new EphemeralBranchBuilder<TState, TResult>(nested)),
             otherwise is null
                 ? null
@@ -44,16 +44,16 @@ internal sealed class EphemeralBranchBuilder<TState, TResult>
     }
 
     public EphemeralBranchBuilder<TState, TResult> Wait(EventName eventName, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
-    { ArgumentNullException.ThrowIfNull(eventName); ArgumentNullException.ThrowIfNull(correlation); builder.Wait(eventName.Value, state => correlation(PublicAuthoringContracts.Snapshot(state))); return this; }
+    { ArgumentNullException.ThrowIfNull(eventName); ArgumentNullException.ThrowIfNull(correlation); builder.Wait(eventName.Value, state => correlation(AuthoringContractFactory.Snapshot(state))); return this; }
 
     public EphemeralBranchBuilder<TState, TResult> Wait(EventName eventName, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation, TimeSpan timeout)
-    { PublicAuthoringValidation.Positive(timeout, nameof(timeout)); ArgumentNullException.ThrowIfNull(eventName); ArgumentNullException.ThrowIfNull(correlation); builder.AddWait(eventName.Value, state => correlation(PublicAuthoringContracts.Snapshot(state)), global::OrcaCore.Abstractions.Instances.WaitMode.Resident, timeout); return this; }
+{ PublicAuthoringValidation.Positive(timeout, nameof(timeout)); ArgumentNullException.ThrowIfNull(eventName); ArgumentNullException.ThrowIfNull(correlation); builder.AddWait(eventName.Value, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Resident, timeout); return this; }
 
     public EphemeralBranchBuilder<TState, TResult> Delay(TimeSpan duration)
     { builder.Delay(duration); return this; }
 
     public EphemeralBranchBuilder<TState, TResult> Return(Func<ReadOnlyStateSnapshot<TState>, TResult> result)
-    { ArgumentNullException.ThrowIfNull(result); builder.Return(snapshot => result(PublicAuthoringContracts.Snapshot(snapshot.Value))); return this; }
+    { ArgumentNullException.ThrowIfNull(result); builder.Return(snapshot => result(AuthoringContractFactory.Snapshot(snapshot.Value))); return this; }
 }
 
 /// <summary>Authors one ephemeral dynamic item.</summary>
@@ -79,7 +79,7 @@ internal sealed class EphemeralItemBuilder<TState, TResult>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(then);
         branch.RuntimeBuilder.AddIf(
-            state => condition(PublicAuthoringContracts.Snapshot(state)),
+            state => condition(AuthoringContractFactory.Snapshot(state)),
             nested => then(new EphemeralItemBuilder<TState, TResult>(nested)),
             otherwise is null
                 ? null
@@ -114,7 +114,7 @@ internal sealed class DurableBranchBuilder<TState, TResult>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(then);
         builder.AddIf(
-            state => condition(PublicAuthoringContracts.Snapshot(state)),
+            state => condition(AuthoringContractFactory.Snapshot(state)),
             nested => then(new DurableBranchBuilder<TState, TResult>(nested)),
             otherwise is null
                 ? null
@@ -122,17 +122,17 @@ internal sealed class DurableBranchBuilder<TState, TResult>
         return this;
     }
     public DurableBranchBuilder<TState, TResult> Wait(EventName eventName, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
-    { ArgumentNullException.ThrowIfNull(eventName); ArgumentNullException.ThrowIfNull(correlation); builder.AddWait(eventName.Value, state => correlation(PublicAuthoringContracts.Snapshot(state)), global::OrcaCore.Abstractions.Instances.WaitMode.Cold); return this; }
+{ ArgumentNullException.ThrowIfNull(eventName); ArgumentNullException.ThrowIfNull(correlation); builder.AddWait(eventName.Value, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold); return this; }
     public DurableBranchBuilder<TState, TResult> Wait(EventName eventName, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation, TimeSpan timeout)
-    { PublicAuthoringValidation.Positive(timeout, nameof(timeout)); ArgumentNullException.ThrowIfNull(eventName); ArgumentNullException.ThrowIfNull(correlation); builder.AddWait(eventName.Value, state => correlation(PublicAuthoringContracts.Snapshot(state)), global::OrcaCore.Abstractions.Instances.WaitMode.Cold, timeout); return this; }
+{ PublicAuthoringValidation.Positive(timeout, nameof(timeout)); ArgumentNullException.ThrowIfNull(eventName); ArgumentNullException.ThrowIfNull(correlation); builder.AddWait(eventName.Value, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold, timeout); return this; }
     public DurableBranchBuilder<TState, TResult> Delay(TimeSpan duration)
     { builder.Delay(duration); return this; }
     public DurableBranchBuilder<TState, TResult> AcquireResources(ResourceLeaseRequest request, Action<DurableLeaseBranchBuilder<TState, TResult>> body)
     { ArgumentNullException.ThrowIfNull(request); ArgumentNullException.ThrowIfNull(body); builder.AddResourceLease(request, nested => body(new DurableLeaseBranchBuilder<TState, TResult>(nested))); return this; }
     public DurableBranchBuilder<TState, TResult> AcquireResources(Func<ReadOnlyStateSnapshot<TState>, ResourceLeaseRequest> request, Action<DurableLeaseBranchBuilder<TState, TResult>> body)
-    { ArgumentNullException.ThrowIfNull(request); ArgumentNullException.ThrowIfNull(body); builder.AddResourceLease(state => request(PublicAuthoringContracts.Snapshot(state)), nested => body(new DurableLeaseBranchBuilder<TState, TResult>(nested))); return this; }
+    { ArgumentNullException.ThrowIfNull(request); ArgumentNullException.ThrowIfNull(body); builder.AddResourceLease(state => request(AuthoringContractFactory.Snapshot(state)), nested => body(new DurableLeaseBranchBuilder<TState, TResult>(nested))); return this; }
     public DurableBranchBuilder<TState, TResult> Return(Func<ReadOnlyStateSnapshot<TState>, TResult> result)
-    { ArgumentNullException.ThrowIfNull(result); builder.Return(snapshot => result(PublicAuthoringContracts.Snapshot(snapshot.Value))); return this; }
+    { ArgumentNullException.ThrowIfNull(result); builder.Return(snapshot => result(AuthoringContractFactory.Snapshot(snapshot.Value))); return this; }
 }
 
 /// <summary>Authors one durable dynamic item.</summary>
@@ -148,7 +148,7 @@ internal sealed class DurableItemBuilder<TState, TResult>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(then);
         branch.RuntimeBuilder.AddIf(
-            state => condition(PublicAuthoringContracts.Snapshot(state)),
+            state => condition(AuthoringContractFactory.Snapshot(state)),
             nested => then(new DurableItemBuilder<TState, TResult>(nested)),
             otherwise is null
                 ? null
@@ -159,7 +159,7 @@ internal sealed class DurableItemBuilder<TState, TResult>
     public DurableItemBuilder<TState, TResult> Wait(EventName eventName, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation, TimeSpan timeout) { branch.Wait(eventName, correlation, timeout); return this; }
     public DurableItemBuilder<TState, TResult> Delay(TimeSpan duration) { branch.Delay(duration); return this; }
     public DurableItemBuilder<TState, TResult> AcquireResources(ResourceLeaseRequest request, Action<DurableLeaseItemBuilder<TState, TResult>> body) { ArgumentNullException.ThrowIfNull(request); ArgumentNullException.ThrowIfNull(body); branch.RuntimeBuilder.AddResourceLease(request, nested => body(new DurableLeaseItemBuilder<TState, TResult>(new DurableBranchBuilder<TState, TResult>(nested)))); return this; }
-    public DurableItemBuilder<TState, TResult> AcquireResources(Func<ReadOnlyStateSnapshot<TState>, ResourceLeaseRequest> request, Action<DurableLeaseItemBuilder<TState, TResult>> body) { ArgumentNullException.ThrowIfNull(request); ArgumentNullException.ThrowIfNull(body); branch.RuntimeBuilder.AddResourceLease(state => request(PublicAuthoringContracts.Snapshot(state)), nested => body(new DurableLeaseItemBuilder<TState, TResult>(new DurableBranchBuilder<TState, TResult>(nested)))); return this; }
+    public DurableItemBuilder<TState, TResult> AcquireResources(Func<ReadOnlyStateSnapshot<TState>, ResourceLeaseRequest> request, Action<DurableLeaseItemBuilder<TState, TResult>> body) { ArgumentNullException.ThrowIfNull(request); ArgumentNullException.ThrowIfNull(body); branch.RuntimeBuilder.AddResourceLease(state => request(AuthoringContractFactory.Snapshot(state)), nested => body(new DurableLeaseItemBuilder<TState, TResult>(new DurableBranchBuilder<TState, TResult>(nested)))); return this; }
     public DurableItemBuilder<TState, TResult> Return(Func<ReadOnlyStateSnapshot<TState>, TResult> result) { branch.Return(result); return this; }
 }
 
@@ -177,17 +177,17 @@ internal sealed class DurableLeaseBranchBuilder<TState, TResult>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(then);
         builder.AddIf(
-            state => condition(PublicAuthoringContracts.Snapshot(state)),
+            state => condition(AuthoringContractFactory.Snapshot(state)),
             nested => then(new DurableLeaseBranchBuilder<TState, TResult>(nested)),
             otherwise is null
                 ? null
                 : nested => otherwise(new DurableLeaseBranchBuilder<TState, TResult>(nested)));
         return this;
     }
-    public DurableLeaseBranchBuilder<TState, TResult> Wait(EventName eventName, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) { ArgumentNullException.ThrowIfNull(eventName); ArgumentNullException.ThrowIfNull(correlation); builder.AddWait(eventName.Value, state => correlation(PublicAuthoringContracts.Snapshot(state)), global::OrcaCore.Abstractions.Instances.WaitMode.Cold); return this; }
-    public DurableLeaseBranchBuilder<TState, TResult> Wait(EventName eventName, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation, TimeSpan timeout) { PublicAuthoringValidation.Positive(timeout, nameof(timeout)); ArgumentNullException.ThrowIfNull(eventName); ArgumentNullException.ThrowIfNull(correlation); builder.AddWait(eventName.Value, state => correlation(PublicAuthoringContracts.Snapshot(state)), global::OrcaCore.Abstractions.Instances.WaitMode.Cold, timeout); return this; }
+public DurableLeaseBranchBuilder<TState, TResult> Wait(EventName eventName, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) { ArgumentNullException.ThrowIfNull(eventName); ArgumentNullException.ThrowIfNull(correlation); builder.AddWait(eventName.Value, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold); return this; }
+public DurableLeaseBranchBuilder<TState, TResult> Wait(EventName eventName, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation, TimeSpan timeout) { PublicAuthoringValidation.Positive(timeout, nameof(timeout)); ArgumentNullException.ThrowIfNull(eventName); ArgumentNullException.ThrowIfNull(correlation); builder.AddWait(eventName.Value, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold, timeout); return this; }
     public DurableLeaseBranchBuilder<TState, TResult> Delay(TimeSpan duration) { builder.Delay(duration); return this; }
-    public DurableLeaseBranchBuilder<TState, TResult> Return(Func<ReadOnlyStateSnapshot<TState>, TResult> result) { ArgumentNullException.ThrowIfNull(result); builder.Return(snapshot => result(PublicAuthoringContracts.Snapshot(snapshot.Value))); return this; }
+    public DurableLeaseBranchBuilder<TState, TResult> Return(Func<ReadOnlyStateSnapshot<TState>, TResult> result) { ArgumentNullException.ThrowIfNull(result); builder.Return(snapshot => result(AuthoringContractFactory.Snapshot(snapshot.Value))); return this; }
 }
 
 /// <summary>Authors a dynamic durable item body inside an existing lease.</summary>
@@ -203,7 +203,7 @@ internal sealed class DurableLeaseItemBuilder<TState, TResult>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(then);
         branch.RuntimeBuilder.AddIf(
-            state => condition(PublicAuthoringContracts.Snapshot(state)),
+            state => condition(AuthoringContractFactory.Snapshot(state)),
             nested => then(new DurableLeaseItemBuilder<TState, TResult>(new DurableBranchBuilder<TState, TResult>(nested))),
             otherwise is null
                 ? null
@@ -222,7 +222,7 @@ internal sealed class EphemeralWorkflowParallelBranchScopeBuilder<TInput, TState
     private readonly global::OrcaCore.Core.Building.BranchScopeBuilder<TState, TResult> scope;
     internal EphemeralWorkflowParallelBranchScopeBuilder(global::OrcaCore.Core.Building.BranchScopeBuilder<TState, TResult> scope) => this.scope = scope;
     public EphemeralWorkflowParallelBranchScopeBuilder<TInput, TState, TResult> Branch<TBranchState>(AuthoredBranchId branchId, Func<ReadOnlyStateSnapshot<TState>, TBranchState> input, Action<EphemeralBranchBuilder<TBranchState, TResult>> body)
-    { ArgumentNullException.ThrowIfNull(branchId); ArgumentNullException.ThrowIfNull(input); ArgumentNullException.ThrowIfNull(body); scope.Branch(branchId.Value, parent => input(PublicAuthoringContracts.Snapshot(parent.Value)), branch => body(new EphemeralBranchBuilder<TBranchState, TResult>(branch))); return this; }
+    { ArgumentNullException.ThrowIfNull(branchId); ArgumentNullException.ThrowIfNull(input); ArgumentNullException.ThrowIfNull(body); scope.Branch(branchId.Value, parent => input(AuthoringContractFactory.Snapshot(parent.Value)), branch => body(new EphemeralBranchBuilder<TBranchState, TResult>(branch))); return this; }
 }
 
 /// <summary>Authors fixed durable root branches.</summary>
@@ -231,7 +231,7 @@ internal sealed class DurableWorkflowParallelBranchScopeBuilder<TInput, TState, 
     private readonly global::OrcaCore.Core.Building.BranchScopeBuilder<TState, TResult> scope;
     internal DurableWorkflowParallelBranchScopeBuilder(global::OrcaCore.Core.Building.BranchScopeBuilder<TState, TResult> scope) => this.scope = scope;
     public DurableWorkflowParallelBranchScopeBuilder<TInput, TState, TResult> Branch<TBranchState>(AuthoredBranchId branchId, Func<ReadOnlyStateSnapshot<TState>, TBranchState> input, Action<DurableBranchBuilder<TBranchState, TResult>> body)
-    { ArgumentNullException.ThrowIfNull(branchId); ArgumentNullException.ThrowIfNull(input); ArgumentNullException.ThrowIfNull(body); scope.Branch(branchId.Value, parent => input(PublicAuthoringContracts.Snapshot(parent.Value)), branch => body(new DurableBranchBuilder<TBranchState, TResult>(branch))); return this; }
+    { ArgumentNullException.ThrowIfNull(branchId); ArgumentNullException.ThrowIfNull(input); ArgumentNullException.ThrowIfNull(body); scope.Branch(branchId.Value, parent => input(AuthoringContractFactory.Snapshot(parent.Value)), branch => body(new DurableBranchBuilder<TBranchState, TResult>(branch))); return this; }
 }
 
 /// <summary>Selects the required ephemeral root parallel join.</summary>
@@ -242,9 +242,9 @@ internal sealed class EphemeralWorkflowParallelJoinBuilder<TInput, TState, TResu
     private readonly Action<EphemeralWorkflowParallelBranchScopeBuilder<TInput, TState, TResult>> branches;
     internal EphemeralWorkflowParallelJoinBuilder(EphemeralWorkflowBuilder<TInput, TState> root, global::OrcaCore.Core.Building.AuthoringJoinToken join, Action<EphemeralWorkflowParallelBranchScopeBuilder<TInput, TState, TResult>> branches) { this.root = root; this.join = join; this.branches = branches; }
     public EphemeralWorkflowBuilder<TInput, TState> WhenAll(Func<ReadOnlyStateSnapshot<TState>, IReadOnlyList<BranchResult<TResult>>, TState> merge)
-    { ArgumentNullException.ThrowIfNull(merge); var successor = root.RuntimeBuilder.CompleteRootParallel<TResult>(join, scope => branches(new(scope)), (parent, results) => merge(PublicAuthoringContracts.Snapshot(parent.Value), results.Select(result => new BranchResult<TResult>(AuthoredBranchId.Create(result.BranchId), result.Value)).ToArray())); return new(successor); }
+    { ArgumentNullException.ThrowIfNull(merge); var successor = root.RuntimeBuilder.CompleteRootParallel<TResult>(join, scope => branches(new(scope)), (parent, results) => merge(AuthoringContractFactory.Snapshot(parent.Value), results.Select(result => new BranchResult<TResult>(AuthoredBranchId.Create(result.BranchId), result.Value)).ToArray())); return new(successor); }
     public EphemeralWorkflowBuilder<TInput, TState> WhenAllOutcomes(Func<ReadOnlyStateSnapshot<TState>, IReadOnlyList<BranchOutcome<TResult>>, TState> merge)
-    { ArgumentNullException.ThrowIfNull(merge); var successor = root.RuntimeBuilder.CompleteRootParallelOutcomes<TResult>(join, scope => branches(new(scope)), (parent, outcomes) => merge(PublicAuthoringContracts.Snapshot(parent.Value), outcomes)); return new(successor); }
+    { ArgumentNullException.ThrowIfNull(merge); var successor = root.RuntimeBuilder.CompleteRootParallelOutcomes<TResult>(join, scope => branches(new(scope)), (parent, outcomes) => merge(AuthoringContractFactory.Snapshot(parent.Value), outcomes)); return new(successor); }
 }
 
 /// <summary>Selects the required durable root parallel join.</summary>
@@ -255,9 +255,9 @@ internal sealed class DurableWorkflowParallelJoinBuilder<TInput, TState, TResult
     private readonly Action<DurableWorkflowParallelBranchScopeBuilder<TInput, TState, TResult>> branches;
     internal DurableWorkflowParallelJoinBuilder(DurableWorkflowBuilder<TInput, TState> root, global::OrcaCore.Core.Building.AuthoringJoinToken join, Action<DurableWorkflowParallelBranchScopeBuilder<TInput, TState, TResult>> branches) { this.root = root; this.join = join; this.branches = branches; }
     public DurableWorkflowBuilder<TInput, TState> WhenAll(Func<ReadOnlyStateSnapshot<TState>, IReadOnlyList<BranchResult<TResult>>, TState> merge)
-    { ArgumentNullException.ThrowIfNull(merge); var successor = root.RuntimeBuilder.CompleteRootParallel<TResult>(join, scope => branches(new(scope)), (parent, results) => merge(PublicAuthoringContracts.Snapshot(parent.Value), results.Select(result => new BranchResult<TResult>(AuthoredBranchId.Create(result.BranchId), result.Value)).ToArray())); return new(successor); }
+    { ArgumentNullException.ThrowIfNull(merge); var successor = root.RuntimeBuilder.CompleteRootParallel<TResult>(join, scope => branches(new(scope)), (parent, results) => merge(AuthoringContractFactory.Snapshot(parent.Value), results.Select(result => new BranchResult<TResult>(AuthoredBranchId.Create(result.BranchId), result.Value)).ToArray())); return new(successor); }
     public DurableWorkflowBuilder<TInput, TState> WhenAllOutcomes(Func<ReadOnlyStateSnapshot<TState>, IReadOnlyList<BranchOutcome<TResult>>, TState> merge)
-    { ArgumentNullException.ThrowIfNull(merge); var successor = root.RuntimeBuilder.CompleteRootParallelOutcomes<TResult>(join, scope => branches(new(scope)), (parent, outcomes) => merge(PublicAuthoringContracts.Snapshot(parent.Value), outcomes)); return new(successor); }
+    { ArgumentNullException.ThrowIfNull(merge); var successor = root.RuntimeBuilder.CompleteRootParallelOutcomes<TResult>(join, scope => branches(new(scope)), (parent, outcomes) => merge(AuthoringContractFactory.Snapshot(parent.Value), outcomes)); return new(successor); }
 }
 
 /// <summary>Selects the required ephemeral root item join.</summary>

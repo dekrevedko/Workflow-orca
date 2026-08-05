@@ -1,6 +1,3 @@
-using OrcaCore.Abstractions.Durable;
-using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 
 namespace OrcaCore.Core.Compilation;
 
@@ -14,12 +11,7 @@ internal static partial class DefinitionCompiler
         string? eventName = null,
         WaitMode? waitMode = null,
         TimeSpan? delayDuration = null,
-        DefinitionId? childDefinitionId = null,
-        DefinitionVersion? childDefinitionVersion = null,
-        RunChildFailurePolicy? childFailurePolicy = null,
         int? maxConcurrency = null,
-        RunChildrenJoinPolicy? childJoinPolicy = null,
-        RunChildrenResidualPolicy? childResidualPolicy = null,
         CompiledPolicyPlan? policy = null,
         Type? stepType = null,
         Type? outputType = null,
@@ -48,12 +40,7 @@ internal static partial class DefinitionCompiler
             StaticLeaseRequest = staticLeaseRequest,
             LeaseRequestSelector = leaseRequestSelector,
             DelayDuration = delayDuration,
-            ChildDefinitionId = childDefinitionId,
-            ChildDefinitionVersion = childDefinitionVersion,
-            ChildFailurePolicy = childFailurePolicy,
-            MaxConcurrency = maxConcurrency,
-            ChildJoinPolicy = childJoinPolicy,
-            ChildResidualPolicy = childResidualPolicy
+            MaxConcurrency = maxConcurrency
         };
         instructions.Add(instruction);
         return instruction;

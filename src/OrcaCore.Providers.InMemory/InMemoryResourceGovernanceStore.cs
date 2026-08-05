@@ -4,7 +4,7 @@ using OrcaCore.Runtime.Protocol.ResourceGovernance;
 namespace OrcaCore.Providers.InMemory;
 
 /// <summary>Provides an atomic in-memory resource-governance stream per partition.</summary>
-public sealed class InMemoryResourceGovernanceStore : IDurableResourceGovernanceStore
+internal sealed class InMemoryResourceGovernanceStore : IDurableResourceGovernanceStore
 {
     private readonly Lock gate = new();
     private readonly Dictionary<string, List<ResourceGovernanceRecord>> streams =

@@ -289,12 +289,6 @@ public sealed class SqlServerWorkflowStore :
     }
 
     /// <inheritdoc />
-    public Task ResizePoolAsync(string poolName, int capacity, CancellationToken cancellationToken)
-    {
-        return resourcePoolStore.ResizePoolAsync(poolName, capacity, cancellationToken);
-    }
-
-    /// <inheritdoc />
     public Task<ResourcePoolExpiryResult> ExpireTicketsAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
         return resourcePoolStore.ExpireTicketsAsync(now, cancellationToken);

@@ -2,7 +2,6 @@ using System.Diagnostics;
 using OrcaCore.Abstractions.Diagnostics;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Serialization;
 using OrcaCore.Engine.Durable.Aggregates;
 using OrcaCore.Engine.Durable.Diagnostics;
@@ -10,6 +9,8 @@ using OrcaCore.Engine.Durable.Diagnostics;
 using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
 
 namespace OrcaCore.Engine.Durable.Execution;
+
+using WorkflowStatus = global::OrcaCore.WorkflowInstanceStatus;
 
 /// <summary>
 /// Diagnostics sink for command processing: maps committed events to runtime observations
@@ -181,8 +182,6 @@ internal sealed class DurableCommandTelemetry(IWorkflowRuntimeObserver runtimeOb
             WorkflowWaitRegisteredEvent => "InstanceSuspended",
             WorkflowTimerScheduledEvent => "InstanceSuspended",
             WorkflowTimerFiredEvent => "InstanceResumed",
-            WorkflowPausedEvent => "InstancePaused",
-            WorkflowResumedEvent => "InstanceResumed",
             WorkflowParkedEvent => "InstanceParked",
             WorkflowUnparkedEvent => "InstanceUnparked",
             WorkflowCompletedEvent => "InstanceCompleted",
@@ -190,8 +189,6 @@ internal sealed class DurableCommandTelemetry(IWorkflowRuntimeObserver runtimeOb
             WorkflowTerminalEvent { Status: WorkflowStatus.Failed } => "InstanceFailed",
             WorkflowTerminalEvent { Status: WorkflowStatus.Cancelled } => "InstanceCancelled",
             WorkflowTerminalEvent { Status: WorkflowStatus.Terminated } => "InstanceTerminated",
-            WorkflowTerminalEvent { Status: WorkflowStatus.Compensated } => "InstanceCompensated",
-            WorkflowTerminalEvent { Status: WorkflowStatus.CompensationFailed } => "InstanceCompensationFailed",
             _ => null
         };
     }

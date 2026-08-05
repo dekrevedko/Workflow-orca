@@ -1,14 +1,11 @@
 using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
-using OrcaCore.Abstractions.Events;
-using OrcaCore.Abstractions.Instances;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
 
 namespace OrcaCore.Core.Execution;
 
-public static class StructuredInvocationCache
+internal static class StructuredInvocationCache
 {
     private delegate ValueTask<StructuredStepInvocationResult> StepInvoker(
         object step,
@@ -16,6 +13,7 @@ public static class StructuredInvocationCache
         StepExecutionContext execution,
         EventEnvelope? resumedEvent,
         TimeProvider timeProvider,
+        ForEachItemContext? forEachItem,
         ResourceLeaseExecutionContext? resourceLease,
         CancellationToken cancellationToken);
 
@@ -49,6 +47,7 @@ public static class StructuredInvocationCache
         StepExecutionContext execution,
         EventEnvelope? resumedEvent,
         TimeProvider timeProvider,
+        ForEachItemContext? forEachItem,
         ResourceLeaseExecutionContext? resourceLease,
         CancellationToken cancellationToken)
     {
@@ -62,6 +61,7 @@ public static class StructuredInvocationCache
                     execution,
                     resumedEvent,
                     timeProvider,
+                    forEachItem,
                     resourceLease,
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -117,6 +117,7 @@ public static class StructuredInvocationCache
         StepExecutionContext execution,
         EventEnvelope? resumedEvent,
         TimeProvider timeProvider,
+        ForEachItemContext? forEachItem,
         ResourceLeaseExecutionContext? resourceLease,
         CancellationToken cancellationToken)
     {
@@ -130,7 +131,7 @@ public static class StructuredInvocationCache
                 BindingFlags.Instance | BindingFlags.NonPublic)
             .Single(candidate => candidate.GetParameters().Length == 6);
         var context = (StepContext<TState>)constructor.Invoke(
-            [typedState, execution, resumedEvent, timeProvider, null, resourceLease]);
+            [typedState, execution, resumedEvent, timeProvider, forEachItem, resourceLease]);
         var result = await typedStep.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
         return new StructuredStepInvocationResult(result, context.State!);
     }
@@ -149,4 +150,4 @@ public static class StructuredInvocationCache
     }
 }
 
-public sealed record StructuredStepInvocationResult(StepResult Result, object State);
+internal sealed record StructuredStepInvocationResult(StepResult Result, object State);

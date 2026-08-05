@@ -4,8 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using OrcaCore.Abstractions.Diagnostics;
 using OrcaCore.Abstractions.Instances;
-using OrcaCore.Engine.Durable.Driver;
-using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Hosting.Telemetry;
 using Xunit;
 
@@ -109,8 +107,10 @@ public sealed class DurableDriverTelemetryAndOptionsTests
         configured.ContinuationInitialFailureBackoff.Should().Be(TimeSpan.FromSeconds(5));
         configured.MaxCommandsPerSegment.Should().Be(31);
         configured.MaxSegmentDuration.Should().Be(TimeSpan.FromSeconds(37));
-        provider.GetRequiredService<DurableWorkflowRuntime>().Should().NotBeNull();
-        provider.GetRequiredService<DurableContinuationPump>().Should().NotBeNull();
+        ResolveInternalService(services, provider, "OrcaCore.Engine.Durable.Execution.DurableWorkflowRuntime")
+            .Should().NotBeNull();
+        ResolveInternalService(services, provider, "OrcaCore.Engine.Durable.Driver.DurableContinuationPump")
+            .Should().NotBeNull();
     }
 
     private static IReadOnlyList<OrcaCoreHostedServiceOptions> InvalidDriverOptions()
@@ -141,6 +141,16 @@ public sealed class DurableDriverTelemetryAndOptionsTests
             .ToDictionary(
                 measurement => (string)measurement.Tags[OrcaCoreDiagnostics.OutboxStateKey]!,
                 measurement => measurement.Value);
+    }
+
+    private static object ResolveInternalService(
+        IServiceCollection services,
+        IServiceProvider provider,
+        string serviceTypeName)
+    {
+        var descriptor = services.Single(candidate =>
+            string.Equals(candidate.ServiceType.FullName, serviceTypeName, StringComparison.Ordinal));
+        return provider.GetRequiredService(descriptor.ServiceType);
     }
 
     private sealed record GaugeMeasurement(

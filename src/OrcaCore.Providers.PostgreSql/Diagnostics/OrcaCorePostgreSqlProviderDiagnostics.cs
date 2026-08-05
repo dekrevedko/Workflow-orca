@@ -4,7 +4,7 @@ using OrcaCore.Abstractions.Diagnostics;
 
 namespace OrcaCore.Providers.PostgreSql.Diagnostics;
 
-public static class OrcaCorePostgreSqlProviderDiagnostics
+internal static class OrcaCorePostgreSqlProviderDiagnostics
 {
     public const string SourceName = OrcaCoreDiagnostics.PostgreSqlProviderSourceName;
 

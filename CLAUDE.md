@@ -47,11 +47,10 @@ Before running integration tests after an interrupted run, clear stale build wor
 dotnet build-server shutdown
 ```
 
-Expected integration baseline: 110 passed, 5 skipped. The skips are `INT_JS_004` and `INT_JS_014`
-(future external-job/pause capability, task 9.6), `INT_MN_009` (provider-backed `StartOrGet`
-idempotency, task 7.5), `INT_HO_011` (replacement public hosting journey, task 10.5), and
-`INT_JS_018` (one-hour soak, intentionally deferred to the nightly slow suite). Do not delete or
-unskip skipped tests unless the named blocker is implemented and verified.
+Integration counts and intentional skips are target-specific. Use the active OpenSpec task graph
+and frozen review request for the exact expected lane; do not copy a count or blocker anchor from a
+historical review. Do not delete or unskip a test unless its current named blocker is implemented,
+the source is reclassified by the active ledger, and the replacement evidence is verified.
 
 CI enforces 80% line coverage for `OrcaCore.Engine.*` assemblies.
 
@@ -59,12 +58,14 @@ CI enforces 80% line coverage for `OrcaCore.Engine.*` assemblies.
 
 ### Two engines, one abstraction surface
 
-OrcaCore provides two runtime engines that share the same workflow definition API (`OrcaCore.Core`) and step contract (`OrcaCore.Abstractions`):
+OrcaCore provides two runtime engines that share the application authoring and step contracts in
+PackageId/assembly `OrcaCore` (project directory `src/OrcaCore.Abstractions`). `OrcaCore.Core` is
+their internal compiler/execution kernel and exports no application API:
 
 | Engine | Project | Persistence | Use case |
 |--------|---------|-------------|----------|
 | Ephemeral | `OrcaCore.Engine.Ephemeral` | In-memory only; lost on restart | Development, testing, short-lived coordination |
-| Durable | `OrcaCore.Engine.Durable` | Pluggable `IWorkflowStore` (PostgreSQL, SQL Server) | Production, long-running, crash-tolerant |
+| Durable | `OrcaCore.Engine.Durable` | Pluggable split provider ports (PostgreSQL in v1) | Production, long-running, crash-tolerant |
 
 ### Project structure (`src/`)
 
@@ -75,11 +76,11 @@ list is provisional and slated for removal or relocation; do not build new work 
 OrcaCore                   — application contracts/authoring (project dir: src/OrcaCore.Abstractions,
                              PackageId OrcaCore): IStep, StepContext<TState>, StepResult,
                              identifiers, snapshots, facades
-OrcaCore.Core              — authoring builders, definitions, compiler
+OrcaCore.Core              — internal authoring/compiler/execution support; exports no application API
 OrcaCore.Engine.Ephemeral  — in-process execution loop, timer pump; owns AddOrcaCoreEphemeralEngine
 OrcaCore.Runtime.Protocol  — durable commands, committed facts, checkpoints, envelopes
-OrcaCore.Provider.Abstractions  — provider ports (IWorkflowStore, IMessageDispatcher,
-                             IDurableResourceGovernanceStore), commit DTOs, certification
+OrcaCore.Provider.Abstractions  — split workflow/provider ports, IMessageDispatcher,
+                             IDurableResourceGovernanceStore, commit DTOs, certification
 OrcaCore.Engine.Durable    — durable aggregates, outbox, checkpoint/replay, routing
 OrcaCore.Durable.Hosting   — owns AddOrcaCoreDurableEngine, AddOrcaCoreDurableEventIngress
 OrcaCore.Providers.InMemory     — dev/test provider; owns AddOrcaCoreInMemoryDurableProvider
@@ -87,6 +88,13 @@ OrcaCore.Providers.PostgreSql   — production provider; owns AddOrcaCorePostgre
 OrcaCore.Dag               — typed DAG planning/operation contracts
 OrcaCore.Dag.Hosting       — sole DAG-to-durable bridge; owns AddOrcaCoreDag
 ```
+
+Implementation package boundaries use an exact internal-friend allowlist so compiler/kernel,
+concrete engine, provider, and hosted-loop types do not become public merely to cross assemblies.
+Product friends are Core to both engines, Durable engine to Durable hosting, and Durable hosting to
+DAG hosting. Exact owning unit-test assemblies plus Durable to ProviderCertification may inspect
+internals; acceptance, behavior, compile-fixture, and integration assemblies may not. No other
+friend or public reflection bridge is allowed.
 
 Not in the v1 manifest (present in `src/`, provisional): `OrcaCore.Hosting`,
 `OrcaCore.Providers.SqlServer`, `.RabbitMq`, `.Redis`, `.ZeroMq`, `.Relational`.
@@ -98,7 +106,7 @@ serializer/codec hook. Ephemeral and durable engine roles are mutually exclusive
 ### Durable engine model
 
 The durable engine persists workflow state as an event-sourced aggregate. On each step:
-1. The engine loads the current aggregate snapshot from `IWorkflowStore`.
+1. The engine loads the current aggregate snapshot through `IWorkflowEventStore`.
 2. It applies commands and emits events (append-only).
 3. A committed outbox record is dispatched via `IMessageDispatcher` (at-least-once).
 4. On restart, the engine replays from the last checkpoint.
@@ -129,7 +137,9 @@ Lambda step bodies are **ephemeral-only**; durable definitions use registered ty
 
 ### Provider certification
 
-`OrcaCore.ProviderCertification` contains provider contract tests that any `IWorkflowStore` implementation must pass. Run it when adding or modifying a provider.
+`OrcaCore.ProviderCertification` contains provider contract tests for the split workflow-event,
+inbox, start-idempotency, outbox, projection, timer, dispatch, and resource-governance ports. Run it
+when adding or modifying a provider.
 
 ## Key conventions
 
@@ -176,7 +186,9 @@ classifies it, and carries the capability ↔ requirement-file crosswalk.
 
 ### `openspec/specs/` is derived — never hand-edit it
 
-Canonical specs are written by `openspec archive <change>` from an approved change's deltas.
+Canonical specs are synchronized from an approved change's deltas. Archive the change only when
+the entire change is complete; approval and canonical synchronization may precede archival when
+the active task graph explicitly requires later implementation or final-review work.
 
 1. Create `openspec/changes/<id>/specs/<capability>/spec.md` using `## ADDED` / `## MODIFIED` /
    `## REMOVED Requirements`.

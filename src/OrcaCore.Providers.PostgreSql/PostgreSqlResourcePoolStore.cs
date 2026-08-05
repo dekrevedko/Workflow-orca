@@ -11,7 +11,7 @@ namespace OrcaCore.Providers.PostgreSql;
 /// <summary>
 /// Stores durable resource-pool state in PostgreSQL.
 /// </summary>
-public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisposable
+internal sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 
@@ -301,29 +301,6 @@ public sealed class PostgreSqlResourcePoolStore : IResourcePoolStore, IAsyncDisp
         }
 
         return snapshots;
-    }
-
-    /// <inheritdoc />
-    public async Task ResizePoolAsync(string poolName, int capacity, CancellationToken cancellationToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(poolName);
-        ArgumentOutOfRangeException.ThrowIfLessThan(capacity, 1);
-
-        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new NpgsqlCommand(
-            """
-            update orcacore_resource_pools
-            set capacity = @capacity
-            where pool_name = @pool_name;
-            """,
-            connection);
-        command.Parameters.AddWithValue("pool_name", poolName);
-        command.Parameters.AddWithValue("capacity", capacity);
-        var affected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        if (affected == 0)
-        {
-            throw ResourcePoolNotConfiguredException.For([ResourcePoolName.Create(poolName)]);
-        }
     }
 
     /// <inheritdoc />

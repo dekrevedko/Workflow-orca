@@ -1,5 +1,5 @@
-using OrcaCore.Abstractions.Instances;
-
 namespace OrcaCore.Core.Lifecycle;
 
-public readonly record struct LifecycleTransition(WorkflowStatus Current, LifecycleTrigger Trigger);
+internal readonly record struct LifecycleTransition(
+    global::OrcaCore.WorkflowInstanceStatus Current,
+    LifecycleTrigger Trigger);

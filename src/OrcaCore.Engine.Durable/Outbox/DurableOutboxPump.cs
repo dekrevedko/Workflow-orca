@@ -8,7 +8,7 @@ namespace OrcaCore.Engine.Durable.Outbox;
 /// <summary>
 /// Claims committed durable outbox records and dispatches them through the configured dispatcher.
 /// </summary>
-public sealed class DurableOutboxPump(
+internal sealed class DurableOutboxPump(
     IWorkflowOutboxStore outboxStore,
     IMessageDispatcher dispatcher,
     IOutboxPumpObserver? observer = null,

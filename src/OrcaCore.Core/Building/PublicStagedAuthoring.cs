@@ -154,7 +154,7 @@ internal sealed class EphemeralWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(then);
         builder.If(
-            state => condition(PublicAuthoringContracts.Snapshot(state)),
+            state => condition(AuthoringContractFactory.Snapshot(state)),
             nested => then(new EphemeralNestedBuilder<TInput, TState>(nested)),
             otherwise is null
                 ? null
@@ -170,7 +170,7 @@ internal sealed class EphemeralWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(body);
         builder.While(
-            state => condition(PublicAuthoringContracts.Snapshot(state)),
+            state => condition(AuthoringContractFactory.Snapshot(state)),
             nested => body(new EphemeralNestedBuilder<TInput, TState>(nested)));
         return this;
     }
@@ -182,7 +182,7 @@ internal sealed class EphemeralWorkflowBuilder<TInput, TState>
     {
         ArgumentNullException.ThrowIfNull(eventName);
         ArgumentNullException.ThrowIfNull(correlation);
-        builder.Wait(eventName.Value, state => correlation(PublicAuthoringContracts.Snapshot(state)));
+        builder.Wait(eventName.Value, state => correlation(AuthoringContractFactory.Snapshot(state)));
         return this;
     }
 
@@ -197,8 +197,8 @@ internal sealed class EphemeralWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(correlation);
         builder.AddWait(
             eventName.Value,
-            state => correlation(PublicAuthoringContracts.Snapshot(state)),
-            global::OrcaCore.Abstractions.Instances.WaitMode.Resident,
+            state => correlation(AuthoringContractFactory.Snapshot(state)),
+            WaitMode.Resident,
             timeout);
         return this;
     }
@@ -237,8 +237,8 @@ internal sealed class EphemeralWorkflowBuilder<TInput, TState>
             this,
             merge => builder.CompleteRootForEach<TItem, TItemState, TResult>(
                 join,
-                parent => PublicAuthoringContracts.BoundedItems(
-                    items(PublicAuthoringContracts.Snapshot(parent.Value)), options.MaxItems),
+                parent => AuthoringContractFactory.BoundedItems(
+                    items(AuthoringContractFactory.Snapshot(parent.Value)), options.MaxItems),
                 global::OrcaCore.Core.Definitions.WorkflowPartitioner<TItem>.Items(),
                 item => input(new ForEachItemInput<TItem>(item.Index, item.Items.Single())),
                 branch => body(new EphemeralItemBuilder<TItemState, TResult>(branch)),
@@ -247,12 +247,12 @@ internal sealed class EphemeralWorkflowBuilder<TInput, TState>
                 options.MaxItems,
                 options.MaxConcurrency,
                 (parent, outcomes) => ((Func<ReadOnlyStateSnapshot<TState>, IReadOnlyList<ForEachItemResult<TResult>>, TState>)merge)(
-                    PublicAuthoringContracts.Snapshot(parent.Value),
-                    outcomes.Select(PublicAuthoringContracts.ItemResult).ToArray())),
+                    AuthoringContractFactory.Snapshot(parent.Value),
+                    outcomes.Select(AuthoringContractFactory.ItemResult).ToArray())),
             merge => builder.CompleteRootForEach<TItem, TItemState, TResult>(
                 join,
-                parent => PublicAuthoringContracts.BoundedItems(
-                    items(PublicAuthoringContracts.Snapshot(parent.Value)), options.MaxItems),
+                parent => AuthoringContractFactory.BoundedItems(
+                    items(AuthoringContractFactory.Snapshot(parent.Value)), options.MaxItems),
                 global::OrcaCore.Core.Definitions.WorkflowPartitioner<TItem>.Items(),
                 item => input(new ForEachItemInput<TItem>(item.Index, item.Items.Single())),
                 branch => body(new EphemeralItemBuilder<TItemState, TResult>(branch)),
@@ -261,8 +261,8 @@ internal sealed class EphemeralWorkflowBuilder<TInput, TState>
                 options.MaxItems,
                 options.MaxConcurrency,
                 (parent, outcomes) => ((Func<ReadOnlyStateSnapshot<TState>, IReadOnlyList<ForEachItemOutcome<TResult>>, TState>)merge)(
-                    PublicAuthoringContracts.Snapshot(parent.Value),
-                    outcomes.Select(PublicAuthoringContracts.ItemOutcome).ToArray())));
+                    AuthoringContractFactory.Snapshot(parent.Value),
+                    outcomes.Select(AuthoringContractFactory.ItemOutcome).ToArray())));
     }
 
     /// <summary>Selects resultless completion.</summary>
@@ -285,7 +285,7 @@ internal sealed class EphemeralWorkflowBuilder<TInput, TState>
         Func<ReadOnlyStateSnapshot<TState>, TOutput> output)
     {
         ArgumentNullException.ThrowIfNull(output);
-        builder.AddTypedEnd(state => output(PublicAuthoringContracts.Snapshot(state)));
+        builder.AddTypedEnd(state => output(AuthoringContractFactory.Snapshot(state)));
         return new EphemeralWorkflowCompletionBuilder<TInput, TOutput>(
             PublicDefinitionBuilder.TryBuild(builder));
     }
@@ -298,7 +298,7 @@ internal sealed class EphemeralWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(outcome);
         builder.AddTypedEnd(
-            state => output(PublicAuthoringContracts.Snapshot(state)),
+            state => output(AuthoringContractFactory.Snapshot(state)),
             outcome.Value);
         return new EphemeralWorkflowCompletionBuilder<TInput, TOutput>(
             PublicDefinitionBuilder.TryBuild(builder));
@@ -355,7 +355,7 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(then);
         builder.If(
-            state => condition(PublicAuthoringContracts.Snapshot(state)),
+            state => condition(AuthoringContractFactory.Snapshot(state)),
             nested => then(new DurableNestedBuilder<TInput, TState>(nested)),
             otherwise is null ? null : nested => otherwise(new DurableNestedBuilder<TInput, TState>(nested)));
         return this;
@@ -369,7 +369,7 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(body);
         builder.While(
-            state => condition(PublicAuthoringContracts.Snapshot(state)),
+            state => condition(AuthoringContractFactory.Snapshot(state)),
             nested => body(new DurableNestedBuilder<TInput, TState>(nested)));
         return this;
     }
@@ -381,7 +381,7 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
     {
         ArgumentNullException.ThrowIfNull(eventName);
         ArgumentNullException.ThrowIfNull(correlation);
-        builder.AddWait(eventName.Value, state => correlation(PublicAuthoringContracts.Snapshot(state)), global::OrcaCore.Abstractions.Instances.WaitMode.Cold);
+        builder.AddWait(eventName.Value, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold);
         return this;
     }
 
@@ -396,8 +396,8 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(correlation);
         builder.AddWait(
             eventName.Value,
-            state => correlation(PublicAuthoringContracts.Snapshot(state)),
-            global::OrcaCore.Abstractions.Instances.WaitMode.Cold,
+            state => correlation(AuthoringContractFactory.Snapshot(state)),
+            WaitMode.Cold,
             timeout);
         return this;
     }
@@ -436,8 +436,8 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
             this,
             merge => builder.CompleteRootForEach<TItem, TItemState, TResult>(
                 join,
-                parent => PublicAuthoringContracts.BoundedItems(
-                    items(PublicAuthoringContracts.Snapshot(parent.Value)), options.MaxItems),
+                parent => AuthoringContractFactory.BoundedItems(
+                    items(AuthoringContractFactory.Snapshot(parent.Value)), options.MaxItems),
                 global::OrcaCore.Core.Definitions.WorkflowPartitioner<TItem>.Items(),
                 item => input(new ForEachItemInput<TItem>(item.Index, item.Items.Single())),
                 branch => body(new DurableItemBuilder<TItemState, TResult>(branch)),
@@ -446,12 +446,12 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
                 options.MaxItems,
                 options.MaxConcurrency,
                 (parent, outcomes) => ((Func<ReadOnlyStateSnapshot<TState>, IReadOnlyList<ForEachItemResult<TResult>>, TState>)merge)(
-                    PublicAuthoringContracts.Snapshot(parent.Value),
-                    outcomes.Select(PublicAuthoringContracts.ItemResult).ToArray())),
+                    AuthoringContractFactory.Snapshot(parent.Value),
+                    outcomes.Select(AuthoringContractFactory.ItemResult).ToArray())),
             merge => builder.CompleteRootForEach<TItem, TItemState, TResult>(
                 join,
-                parent => PublicAuthoringContracts.BoundedItems(
-                    items(PublicAuthoringContracts.Snapshot(parent.Value)), options.MaxItems),
+                parent => AuthoringContractFactory.BoundedItems(
+                    items(AuthoringContractFactory.Snapshot(parent.Value)), options.MaxItems),
                 global::OrcaCore.Core.Definitions.WorkflowPartitioner<TItem>.Items(),
                 item => input(new ForEachItemInput<TItem>(item.Index, item.Items.Single())),
                 branch => body(new DurableItemBuilder<TItemState, TResult>(branch)),
@@ -460,8 +460,8 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
                 options.MaxItems,
                 options.MaxConcurrency,
                 (parent, outcomes) => ((Func<ReadOnlyStateSnapshot<TState>, IReadOnlyList<ForEachItemOutcome<TResult>>, TState>)merge)(
-                    PublicAuthoringContracts.Snapshot(parent.Value),
-                    outcomes.Select(PublicAuthoringContracts.ItemOutcome).ToArray())));
+                    AuthoringContractFactory.Snapshot(parent.Value),
+                    outcomes.Select(AuthoringContractFactory.ItemOutcome).ToArray())));
     }
 
     /// <summary>Authors a static durable resource scope.</summary>
@@ -485,7 +485,7 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(body);
         builder.AddResourceLease(
-            state => request(PublicAuthoringContracts.Snapshot(state)),
+            state => request(AuthoringContractFactory.Snapshot(state)),
             nested => body(new DurableLeaseWorkflowBuilder<TInput, TState>(nested)));
         return this;
     }
@@ -495,7 +495,7 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
         Func<ReadOnlyStateSnapshot<TState>, TState> replacementState)
     {
         ArgumentNullException.ThrowIfNull(replacementState);
-        builder.ContinueAsNew(state => replacementState(PublicAuthoringContracts.Snapshot(state)));
+        builder.ContinueAsNew(state => replacementState(AuthoringContractFactory.Snapshot(state)));
         return new DurableWorkflowCompletionBuilder<TInput>(PublicDefinitionBuilder.TryBuild(builder));
     }
 
@@ -519,7 +519,7 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
         Func<ReadOnlyStateSnapshot<TState>, TOutput> output)
     {
         ArgumentNullException.ThrowIfNull(output);
-        builder.AddTypedEnd(state => output(PublicAuthoringContracts.Snapshot(state)));
+        builder.AddTypedEnd(state => output(AuthoringContractFactory.Snapshot(state)));
         return new DurableWorkflowCompletionBuilder<TInput, TOutput>(
             PublicDefinitionBuilder.TryBuild(builder));
     }
@@ -532,7 +532,7 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(outcome);
         builder.AddTypedEnd(
-            state => output(PublicAuthoringContracts.Snapshot(state)),
+            state => output(AuthoringContractFactory.Snapshot(state)),
             outcome.Value);
         return new DurableWorkflowCompletionBuilder<TInput, TOutput>(
             PublicDefinitionBuilder.TryBuild(builder));
@@ -562,8 +562,88 @@ internal static class PublicAuthoringValidation
     }
 }
 
-public static class PublicAuthoringContracts
+internal static class AuthoringContractFactory
 {
+    internal static EphemeralWorkflowDefinition<TInput> EphemeralDefinition<TInput>(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        DefinitionFingerprint definitionFingerprint,
+        object runtimeDefinition,
+        Type runtimeStateType) =>
+        Construct<EphemeralWorkflowDefinition<TInput>>(
+            [
+                typeof(DefinitionId),
+                typeof(DefinitionVersion),
+                typeof(DefinitionFingerprint),
+                typeof(object),
+                typeof(Type)
+            ],
+            definitionId,
+            definitionVersion,
+            definitionFingerprint,
+            runtimeDefinition,
+            runtimeStateType);
+
+    internal static EphemeralWorkflowDefinition<TInput, TOutput> EphemeralDefinition<TInput, TOutput>(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        DefinitionFingerprint definitionFingerprint,
+        object runtimeDefinition,
+        Type runtimeStateType) =>
+        Construct<EphemeralWorkflowDefinition<TInput, TOutput>>(
+            [
+                typeof(DefinitionId),
+                typeof(DefinitionVersion),
+                typeof(DefinitionFingerprint),
+                typeof(object),
+                typeof(Type)
+            ],
+            definitionId,
+            definitionVersion,
+            definitionFingerprint,
+            runtimeDefinition,
+            runtimeStateType);
+
+    internal static DurableWorkflowDefinition<TInput> DurableDefinition<TInput>(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        DefinitionFingerprint definitionFingerprint,
+        object runtimeDefinition,
+        Type runtimeStateType) =>
+        Construct<DurableWorkflowDefinition<TInput>>(
+            [
+                typeof(DefinitionId),
+                typeof(DefinitionVersion),
+                typeof(DefinitionFingerprint),
+                typeof(object),
+                typeof(Type)
+            ],
+            definitionId,
+            definitionVersion,
+            definitionFingerprint,
+            runtimeDefinition,
+            runtimeStateType);
+
+    internal static DurableWorkflowDefinition<TInput, TOutput> DurableDefinition<TInput, TOutput>(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        DefinitionFingerprint definitionFingerprint,
+        object runtimeDefinition,
+        Type runtimeStateType) =>
+        Construct<DurableWorkflowDefinition<TInput, TOutput>>(
+            [
+                typeof(DefinitionId),
+                typeof(DefinitionVersion),
+                typeof(DefinitionFingerprint),
+                typeof(object),
+                typeof(Type)
+            ],
+            definitionId,
+            definitionVersion,
+            definitionFingerprint,
+            runtimeDefinition,
+            runtimeStateType);
+
     public static ReadOnlyStateSnapshot<TState> Snapshot<TState>(TState state)
     {
         var constructor = typeof(ReadOnlyStateSnapshot<TState>).GetConstructors(
@@ -757,8 +837,10 @@ public static class PublicAuthoringContracts
         ArgumentNullException.ThrowIfNull(items);
         if (items.Count > maxItems)
         {
-            throw new InvalidOperationException(
-                $"SFE-LIMIT-001: ForEach selected {items.Count} items, exceeding MaxItems {maxItems}.");
+            const string code = global::OrcaCore.Core.Execution.StructuredExecutionLimitCodes.ForEachItemsExceeded;
+            throw new global::OrcaCore.Core.Execution.StructuredExecutionLimitException(
+                code,
+                $"{code}: ForEach selected {items.Count} items, exceeding MaxItems {maxItems}.");
         }
 
         return items.ToArray();
@@ -861,4 +943,16 @@ public static class PublicAuthoringContracts
         (WorkflowDiagnostic)typeof(WorkflowDiagnostic).GetConstructors(
             BindingFlags.NonPublic | BindingFlags.Instance).Single().Invoke(
                 [code, WorkflowDiagnosticSeverity.Error, location, relatedLocations, message]);
+
+    private static TContract Construct<TContract>(Type[] parameterTypes, params object?[] arguments)
+    {
+        var constructor = typeof(TContract).GetConstructor(
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            binder: null,
+            parameterTypes,
+            modifiers: null) ?? throw new MissingMethodException(
+                typeof(TContract).FullName,
+                $".ctor({string.Join(", ", parameterTypes.Select(type => type.FullName))})");
+        return (TContract)constructor.Invoke(arguments);
+    }
 }

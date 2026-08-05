@@ -2,37 +2,26 @@ using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
 
-using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
-
 namespace OrcaCore.Engine.Durable.Aggregates;
 
 internal sealed class DurableTimerState
 {
     private readonly List<DurableActiveTimer> activeTimers;
-    private readonly List<DurableBufferedTimer> bufferedTimers;
 
-    private DurableTimerState(
-        IEnumerable<DurableActiveTimer> activeTimers,
-        IEnumerable<DurableBufferedTimer> bufferedTimers)
+    private DurableTimerState(IEnumerable<DurableActiveTimer> activeTimers)
     {
         this.activeTimers = [.. activeTimers];
-        this.bufferedTimers = [.. bufferedTimers];
     }
 
     internal IReadOnlyList<DurableActiveTimer> ActiveTimers => [.. activeTimers];
 
-    internal IReadOnlyList<DurableBufferedTimer> BufferedTimers => [.. bufferedTimers];
-
     internal bool HasActiveTimers => activeTimers.Count > 0;
 
-    internal static DurableTimerState FromSnapshot(
-        IEnumerable<DurableActiveTimer> activeTimers,
-        IEnumerable<DurableBufferedTimer> bufferedTimers)
+    internal static DurableTimerState FromSnapshot(IEnumerable<DurableActiveTimer> activeTimers)
     {
         ArgumentNullException.ThrowIfNull(activeTimers);
-        ArgumentNullException.ThrowIfNull(bufferedTimers);
 
-        return new DurableTimerState(activeTimers, bufferedTimers);
+        return new DurableTimerState(activeTimers);
     }
 
     internal DurableActiveTimer? FindActive(TimerId timerId)
@@ -60,7 +49,6 @@ internal sealed class DurableTimerState
         ArgumentNullException.ThrowIfNull(timerFired);
 
         activeTimers.RemoveAll(timer => timer.TimerId == timerFired.TimerId);
-        bufferedTimers.RemoveAll(timer => timer.TimerId == timerFired.TimerId);
     }
 
     internal void Apply(WorkflowTimerCancelledEvent timerCancelled)
@@ -68,43 +56,6 @@ internal sealed class DurableTimerState
         ArgumentNullException.ThrowIfNull(timerCancelled);
 
         activeTimers.RemoveAll(timer => timer.TimerId == timerCancelled.TimerId);
-        bufferedTimers.RemoveAll(timer => timer.TimerId == timerCancelled.TimerId);
-    }
-
-    internal void Apply(WorkflowTimerBufferedEvent timerBuffered)
-    {
-        ArgumentNullException.ThrowIfNull(timerBuffered);
-
-        activeTimers.RemoveAll(timer => timer.TimerId == timerBuffered.TimerId);
-        bufferedTimers.RemoveAll(timer => timer.TimerId == timerBuffered.TimerId);
-        bufferedTimers.Add(new DurableBufferedTimer(
-            timerBuffered.TimerId,
-            timerBuffered.WakeupName,
-            timerBuffered.OccurredAt));
-    }
-
-    internal IReadOnlyList<DurableWorkflowEvent> PlanBufferedReplay(
-        DurableTimerEventContext context,
-        ResumeBufferedDeliveries handling)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-
-        if (handling == ResumeBufferedDeliveries.Discard)
-        {
-            return [];
-        }
-
-        return bufferedTimers
-            .Select(bufferedTimer => new WorkflowTimerFiredEvent
-            {
-                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
-                InstanceId = context.InstanceId,
-                CommandId = context.CommandId,
-                CausationId = new CausationId(context.CommandId.Value),
-                OccurredAt = context.RequestedAt,
-                TimerId = bufferedTimer.TimerId
-            })
-            .ToArray();
     }
 
     internal IReadOnlyList<CheckpointActiveTimer> CreateCheckpointActiveTimers()
@@ -122,24 +73,8 @@ internal sealed class DurableTimerState
             .ToArray();
     }
 
-    internal IReadOnlyList<CheckpointBufferedTimer> CreateCheckpointBufferedTimers()
-    {
-        return bufferedTimers
-            .Select(timer => new CheckpointBufferedTimer(
-                timer.TimerId,
-                timer.WakeupName,
-                timer.BufferedAt))
-            .ToArray();
-    }
-
     internal void Clear()
     {
         activeTimers.Clear();
-        bufferedTimers.Clear();
     }
 }
-
-internal sealed record DurableTimerEventContext(
-    CommandId CommandId,
-    InstanceId InstanceId,
-    DateTimeOffset RequestedAt);

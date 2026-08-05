@@ -1,7 +1,9 @@
 param(
     [ValidateSet('Green', 'ExpectedRed')]
     [string] $Disposition = 'Green',
-    [int] $CompletedSection = 7
+    [int] $CompletedSection = 7,
+    [string] $CompletedTask = '7.23',
+    [string] $GuardTask = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -46,12 +48,24 @@ foreach ($package in Get-ChildItem -LiteralPath $feed -Filter "OrcaCore*.$versio
     [IO.File]::WriteAllText((Join-Path $target '.nupkg.metadata'), $metadata)
 }
 
+$completedTaskVersion = [version]$CompletedTask
 $selectedDefinitions = @($definitions | Where-Object {
-    if ($Disposition -eq 'Green') {
-        $_.turnsGreenSection -le $CompletedSection
+    if (-not [string]::IsNullOrWhiteSpace($GuardTask) -and $_.guardTask -ne $GuardTask) {
+        return $false
+    }
+    $isComplete = if ($null -ne $_.turnsGreenTask) {
+        if ($_.turnsGreenSection -lt $CompletedSection) { $true }
+        elseif ($_.turnsGreenSection -gt $CompletedSection) { $false }
+        else { [version]$_.turnsGreenTask -le $completedTaskVersion }
     }
     else {
-        $_.turnsGreenSection -gt $CompletedSection
+        $_.turnsGreenSection -le $CompletedSection
+    }
+    if ($Disposition -eq 'Green') {
+        $isComplete
+    }
+    else {
+        -not $isComplete
     }
 })
 
@@ -71,12 +85,31 @@ foreach ($fixture in $selectedDefinitions) {
     if ($output -match 'api.nuget.org|Unable to load the service index|NU1301') {
         throw "Package fixture '$($fixture.id)' escaped the local feed.`n$output"
     }
+    $diagnosticText = (($output -split "`r?`n") | Where-Object { $_ -match 'error CS\d{4}:' } | ForEach-Object {
+        $message = $_ -replace '^.*?error CS\d{4}:\s*', ''
+        $message -replace '\s+\[[^\]]+\]\s*$', ''
+    }) -join "`n"
+    if ($null -ne $fixture.expectedAnyMissingSymbols) {
+        if ($output -notmatch 'CS0234|CS0246|CS1061|CS0117|CS1501|CS1503|CS0426|CS8121') {
+            throw "Package fixture '$($fixture.id)' did not fail on its declared Section 7B application surface.`n$output"
+        }
+        # The compiler may stop after a namespace/type failure, so one declared target symbol is sufficient.
+        # Match diagnostic messages only: fixture/project paths are not evidence for a missing product symbol.
+        $matchedSymbols = @($fixture.expectedAnyMissingSymbols | Where-Object {
+            $diagnosticText -match [regex]::Escape($_)
+        })
+        if ($matchedSymbols.Count -eq 0) {
+            throw "Package fixture '$($fixture.id)' did not report any declared missing Section 7B symbol.`n$output"
+        }
+        $failures.Add($fixture.id)
+        continue
+    }
     if ($null -ne $fixture.expectedMissingSymbols) {
-        if ($output -notmatch 'CS0246|CS1061') {
+        if ($output -notmatch 'CS0234|CS0246|CS1061') {
             throw "Package fixture '$($fixture.id)' did not fail on its declared missing application surface.`n$output"
         }
         foreach ($symbol in $fixture.expectedMissingSymbols) {
-            if ($output -notmatch [regex]::Escape($symbol)) {
+            if ($diagnosticText -notmatch [regex]::Escape($symbol)) {
                 throw "Package fixture '$($fixture.id)' did not report missing symbol '$symbol'.`n$output"
             }
         }
@@ -95,8 +128,8 @@ foreach ($fixture in $selectedDefinitions) {
 }
 
 if ($Disposition -eq 'ExpectedRed') {
-    Write-Output "Expected product reds ($($failures.Count)): $($failures -join ', ') remain incomplete against the exact 0.0.0-phase0 package/application contract."
+    Write-Output "Expected product reds ($($failures.Count)): $($failures -join ', ') remain incomplete against the exact 0.0.0-phase0 package/application contract [CompletedSection=$CompletedSection; CompletedTask=$CompletedTask; GuardTask=$GuardTask]."
     exit 1
 }
 
-Write-Output "Green package fixtures: $($selectedDefinitions.Count) built from the repository-local feed through completed Section $CompletedSection."
+Write-Output "Green package fixtures ($($selectedDefinitions.Count)): $($selectedDefinitions.id -join ', ') built from the repository-local feed [CompletedSection=$CompletedSection; CompletedTask=$CompletedTask; GuardTask=$GuardTask]."

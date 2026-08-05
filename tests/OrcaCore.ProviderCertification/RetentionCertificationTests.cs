@@ -1,11 +1,8 @@
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
-using OrcaCore.Providers.InMemory;
 using Xunit;
-using WorkflowInstanceSnapshot = global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot;
 
 namespace OrcaCore.ProviderCertification;
 
@@ -15,27 +12,25 @@ public abstract class RetentionCertificationTests
 
     [Fact]
     [Trait("AC", "AC-314")]
-    public async Task ArchivePolicy_InactiveInstance_MarksProjectionArchived()
+    public async Task PurgePolicy_InactiveTerminalInstance_RemovesProjectionAndStream()
     {
         var fixture = CreateFixture();
         var instanceId = InstanceIdValue(4);
-        await SeedInstanceAsync(fixture, instanceId, WorkflowStatus.Completed);
+        await SeedInstanceAsync(fixture, instanceId, WorkflowInstanceStatus.Completed);
 
-        var result = await fixture.RetentionStore.ArchiveAsync(
-            new RetentionPolicy
-            {
-                InstanceId = instanceId,
-                RequestedAt = Timestamp(7),
-                Reason = "retention elapsed"
-            },
+        var result = await fixture.PurgeForRetentionAsync(instanceId, TestContext.Current.CancellationToken);
+        var snapshot = await fixture.ProjectionStore.GetAsync(
+            instanceId,
             TestContext.Current.CancellationToken);
-        var snapshots = await fixture.ProjectionStore.ListAsync(
-            new WorkflowProjectionQuery { InstanceId = instanceId },
+        var tail = await fixture.EventStore.LoadTailAsync(
+            new WorkflowStreamId(instanceId),
+            StreamVersion.Empty,
             TestContext.Current.CancellationToken);
 
-        result.Archived.Should().BeTrue();
-        snapshots.Should().ContainSingle()
-            .Which.ArchivedAt.Should().Be(Timestamp(7));
+        result.Purged.Should().BeTrue();
+        result.Reason.Should().BeNull();
+        snapshot.HasValue.Should().BeFalse();
+        tail.Should().BeEmpty();
     }
 
     [Fact]
@@ -44,28 +39,20 @@ public abstract class RetentionCertificationTests
     {
         var fixture = CreateFixture();
         var instanceId = InstanceIdValue(1);
-        await SeedInstanceAsync(fixture, instanceId, WorkflowStatus.Running);
+        await SeedInstanceAsync(fixture, instanceId, WorkflowInstanceStatus.Running);
 
-        var result = await fixture.RetentionStore.ArchiveAsync(
-            new RetentionPolicy
-            {
-                InstanceId = instanceId,
-                RequestedAt = Timestamp(2),
-                Reason = "active safety check"
-            },
-            TestContext.Current.CancellationToken);
-        var snapshots = await fixture.ProjectionStore.ListAsync(
-            new WorkflowProjectionQuery { InstanceId = instanceId },
+        var result = await fixture.PurgeForRetentionAsync(instanceId, TestContext.Current.CancellationToken);
+        var snapshot = await fixture.ProjectionStore.GetAsync(
+            instanceId,
             TestContext.Current.CancellationToken);
         var tail = await fixture.EventStore.LoadTailAsync(
             new WorkflowStreamId(instanceId),
             StreamVersion.Empty,
             TestContext.Current.CancellationToken);
 
-        result.Archived.Should().BeFalse();
+        result.Purged.Should().BeFalse();
         result.Reason.Should().Be("Instance is active.");
-        snapshots.Should().ContainSingle()
-            .Which.InstanceId.Should().Be(instanceId);
+        snapshot.Value.InstanceId.Should().Be(instanceId);
         tail.Should().NotBeEmpty();
     }
 
@@ -76,17 +63,10 @@ public abstract class RetentionCertificationTests
         var fixture = CreateFixture();
         var instanceId = InstanceIdValue(2);
         var outboxRecordId = OutboxRecordIdValue(1);
-        await SeedInstanceAsync(fixture, instanceId, WorkflowStatus.Completed, outboxRecordId);
+        await SeedInstanceAsync(fixture, instanceId, WorkflowInstanceStatus.Completed, outboxRecordId);
         var claimed = await fixture.OutboxStore.ClaimAsync(1, TestContext.Current.CancellationToken);
 
-        var result = await fixture.RetentionStore.PurgeAsync(
-            new RetentionPolicy
-            {
-                InstanceId = instanceId,
-                RequestedAt = Timestamp(3),
-                Reason = "claimed outbox safety check"
-            },
-            TestContext.Current.CancellationToken);
+        var result = await fixture.PurgeForRetentionAsync(instanceId, TestContext.Current.CancellationToken);
         var outboxState = await fixture.OutboxStore.GetStateAsync(outboxRecordId, TestContext.Current.CancellationToken);
         var tail = await fixture.EventStore.LoadTailAsync(
             new WorkflowStreamId(instanceId),
@@ -107,7 +87,7 @@ public abstract class RetentionCertificationTests
     {
         var fixture = CreateFixture();
         var instanceId = InstanceIdValue(3);
-        await SeedInstanceAsync(fixture, instanceId, WorkflowStatus.Completed);
+        await SeedInstanceAsync(fixture, instanceId, WorkflowInstanceStatus.Completed);
         await fixture.TimerScheduler.ScheduleAsync(
             new TimerScheduleRequest
             {
@@ -119,14 +99,7 @@ public abstract class RetentionCertificationTests
             },
             TestContext.Current.CancellationToken);
 
-        var result = await fixture.RetentionStore.PurgeAsync(
-            new RetentionPolicy
-            {
-                InstanceId = instanceId,
-                RequestedAt = Timestamp(6),
-                Reason = "retention elapsed"
-            },
-            TestContext.Current.CancellationToken);
+        var result = await fixture.PurgeForRetentionAsync(instanceId, TestContext.Current.CancellationToken);
         var claimed = await fixture.TimerScheduler.ClaimDueAsync(
             Timestamp(6),
             maxCount: 10,
@@ -139,7 +112,7 @@ public abstract class RetentionCertificationTests
     private static async Task SeedInstanceAsync(
         IRetentionCertificationFixture fixture,
         InstanceId instanceId,
-        WorkflowStatus status,
+        WorkflowInstanceStatus status,
         OutboxRecordId? outboxRecordId = null)
     {
         var definitionId = DefinitionIdValue(1);
@@ -153,7 +126,7 @@ public abstract class RetentionCertificationTests
                 [
                     new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
                     {
-                        InstanceSnapshot = new global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot
+                        InstanceSnapshot = new WorkflowProjectionSnapshot
                         {
                             InstanceId = instanceId,
                             RootInstanceId = instanceId,
@@ -241,29 +214,9 @@ public interface IRetentionCertificationFixture
 
     IWorkflowProjectionStore ProjectionStore { get; }
 
-    IWorkflowRetentionStore RetentionStore { get; }
+    Task<(bool Purged, string? Reason)> PurgeForRetentionAsync(
+        InstanceId instanceId,
+        CancellationToken cancellationToken);
 
     ITimerScheduler TimerScheduler { get; }
-}
-
-public sealed class InMemoryRetentionCertificationTests : RetentionCertificationTests
-{
-    protected override IRetentionCertificationFixture CreateFixture()
-    {
-        return new InMemoryRetentionCertificationFixture(new InMemoryWorkflowProvider());
-    }
-
-    private sealed class InMemoryRetentionCertificationFixture(InMemoryWorkflowProvider provider)
-        : IRetentionCertificationFixture
-    {
-        public IWorkflowEventStore EventStore => provider;
-
-        public IWorkflowOutboxStore OutboxStore => provider;
-
-        public IWorkflowProjectionStore ProjectionStore => provider;
-
-        public IWorkflowRetentionStore RetentionStore => provider;
-
-        public ITimerScheduler TimerScheduler => provider;
-    }
 }

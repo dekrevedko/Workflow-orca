@@ -31,7 +31,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
     {
         if (target is null)
         {
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                 $"Instruction '{source.Id}' has no continuation.");
         }
 
@@ -43,7 +43,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
     }
 }
 
-internal sealed class StructuredEphemeralValueCodec : IStructuredValueCodec
+internal sealed class StructuredEphemeralValueCodec
 {
     public StructuredSerializedValue Serialize(object? value, Type declaredType, string schemaIdentity)
     {

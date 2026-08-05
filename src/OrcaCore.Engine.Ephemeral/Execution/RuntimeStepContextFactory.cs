@@ -1,7 +1,4 @@
 using System.Reflection;
-using OrcaCore.Abstractions.Events;
-using OrcaCore.Abstractions.Steps;
-
 namespace OrcaCore.Engine.Ephemeral.Execution;
 
 internal static class RuntimeStepContextFactory
@@ -30,5 +27,21 @@ internal static class RuntimeStepContextFactory
             .Single(candidate => candidate.GetParameters().Length == 6);
         return (StepContext<TState>)constructor.Invoke(
             [state, execution, resumedEvent, timeProvider, forEachItem, resourceLease]);
+    }
+
+    internal static EventEnvelope CreateResumedEvent(
+        EventId eventId,
+        EventName eventName,
+        CorrelationId correlationId,
+        DateTimeOffset occurredAt,
+        ReadOnlyMemory<byte> payload)
+    {
+        var constructor = typeof(EventEnvelope).GetConstructor(
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            binder: null,
+            [typeof(EventId), typeof(EventName), typeof(CorrelationId), typeof(DateTimeOffset), typeof(ReadOnlyMemory<byte>)],
+            modifiers: null) ?? throw new InvalidOperationException(
+                "The approved EventEnvelope constructor was not found.");
+        return (EventEnvelope)constructor.Invoke([eventId, eventName, correlationId, occurredAt, payload]);
     }
 }

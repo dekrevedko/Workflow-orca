@@ -1,6 +1,5 @@
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Execution;
 using OrcaCore.Core.Lifecycle;
@@ -21,16 +20,22 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
     {
         var advanced = Advance(plan, state, fiber, instruction);
         var advancedFiber = advanced.Fibers[fiber.Id];
-        if (instance.Status == LegacyWorkflowStatus.Running)
+        if (instance.Status == global::OrcaCore.WorkflowInstanceStatus.Running)
         {
             WorkflowLifecycleTransition.FireOrThrow(instance, LifecycleTrigger.EnterWait);
         }
 
+        var registeredAt = timeProvider.GetUtcNow();
+        var deadline = instruction.WaitTimeout.HasValue
+            ? registeredAt.Add(instruction.WaitTimeout.Value)
+            : (DateTimeOffset?)null;
         var runtimeWait = instance.EnterWait(
             eventName,
             correlationId,
             BranchIdForFiber(plan, state, fiber),
-            timeProvider.GetUtcNow(),
+            registeredAt,
+            instruction.Path,
+            deadline,
             (matched, resumeToken) => ResumeFiberAsync(fiber.Id, matched, resumeToken),
             fiber.Id,
             fiber.OwningScopeId);
@@ -89,7 +94,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         }
 
         waitsByFiber.Remove(fiberId);
-        var exception = global::OrcaCore.Core.Authoring.PublicAuthoringContracts.WaitTimeout(
+        var exception = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.WaitTimeout(
             eventName,
             correlationId);
         var failure = CreateFiberFailure(execution, fiber, instruction, exception);

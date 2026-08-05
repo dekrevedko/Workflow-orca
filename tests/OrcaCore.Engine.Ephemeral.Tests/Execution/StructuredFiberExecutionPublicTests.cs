@@ -925,7 +925,8 @@ public sealed class StructuredFiberExecutionPublicTests
         var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
 
         snapshot.Status.Should().Be(WorkflowInstanceStatus.Failed);
-        snapshot.Failure!.Message.Should().Contain("SFE-LIMIT-001");
+        snapshot.Failure!.Code.Should().Be("SFE-LIMIT-001");
+        snapshot.Failure.Message.Should().Contain("exceeding MaxItems 1");
         itemStateCalls.Should().Be(0);
     }
 
@@ -1703,11 +1704,10 @@ public sealed class StructuredFiberExecutionPublicTests
             StepContext<ParentState> context,
             CancellationToken cancellationToken)
         {
-            var payload = context.ResumedEvent?.Payload;
             context.State.Results.Add(
-                payload is string value
-                    ? value
-                    : $"unexpected:{payload?.GetType().Name ?? "null"}");
+                context.ResumedEvent is null
+                    ? "unexpected:null"
+                    : context.ResumedEvent.GetPayload<string>());
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
         }
     }

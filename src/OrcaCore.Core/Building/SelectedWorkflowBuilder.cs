@@ -1,9 +1,6 @@
 using OrcaCore.Abstractions.Errors;
-using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Authoring;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Definitions;
@@ -182,7 +179,7 @@ internal abstract class WorkflowAuthoringSession<TState, TSelf>
         var step = PreviousDecoratableStep("retry");
         if (step.Policies.Retry is not null)
         {
-            throw PublicAuthoringContracts.MisplacedDecorator("retry", nodes.Count - 1);
+            throw AuthoringContractFactory.MisplacedDecorator("retry", nodes.Count - 1);
         }
 
         nodes[^1] = step with { Policies = step.Policies.WithRetry(maxAttempts, backoff ?? TimeSpan.Zero) };
@@ -214,7 +211,7 @@ internal abstract class WorkflowAuthoringSession<TState, TSelf>
         var step = PreviousDecoratableStep("timeout");
         if (step.Policies.Timeout is not null)
         {
-            throw PublicAuthoringContracts.MisplacedDecorator("timeout", nodes.Count - 1);
+            throw AuthoringContractFactory.MisplacedDecorator("timeout", nodes.Count - 1);
         }
 
         nodes[^1] = step with { Policies = step.Policies.WithTimeout(duration) };
@@ -245,7 +242,7 @@ internal abstract class WorkflowAuthoringSession<TState, TSelf>
         var step = PreviousDecoratableStep("transient pool");
         if (step.Policies.PoolKey is not null)
         {
-            throw PublicAuthoringContracts.MisplacedDecorator("transient pool", nodes.Count - 1);
+            throw AuthoringContractFactory.MisplacedDecorator("transient pool", nodes.Count - 1);
         }
 
         nodes[^1] = step with { Policies = step.Policies.WithPoolKey(poolKey) };
@@ -343,36 +340,6 @@ internal abstract class WorkflowAuthoringSession<TState, TSelf>
     }
 
     /// <summary>
-    /// Adds a first-terminal branch race and a deterministic winner merge.
-    /// </summary>
-    internal TSelf WhenFirst<TResult>(
-        Action<BranchScopeBuilder<TState, TResult>> branches,
-        Func<ReadOnlyParentSnapshot<TState>, BranchResult<TResult>, TState> merge)
-    {
-        ArgumentNullException.ThrowIfNull(branches);
-        ArgumentNullException.ThrowIfNull(merge);
-
-        using var operation = Mutate();
-        var scopeHandle = lifecycle.CreateLexical(NextLocation);
-        var scope = new BranchScopeBuilder<TState, TResult>(scopeHandle);
-        try
-        {
-            branches(scope);
-        }
-        finally
-        {
-            scopeHandle.Expire();
-        }
-
-        nodes.Add(new SelectedStructuredScopeAuthoringNode<TState>(
-            "WhenFirst",
-            typeof(TResult),
-            scope.Branches,
-            merge));
-        return Self;
-    }
-
-    /// <summary>
     /// Adds the sole root completion node.
     /// </summary>
     internal TSelf End(string? outcomeName = null)
@@ -425,7 +392,7 @@ internal abstract class WorkflowAuthoringSession<TState, TSelf>
         var message = string.Join(
             Environment.NewLine,
             validation.Errors.Select(error => $"{error.Code}: {error.Message} ({error.Path})"));
-        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(message);
+        throw global::OrcaCore.Core.Authoring.AuthoringContractFactory.DefinitionException(message);
     }
 
     /// <summary>
@@ -683,7 +650,7 @@ internal abstract class WorkflowAuthoringSession<TState, TSelf>
     {
         if (nodes.Count == 0 || nodes[^1] is not SelectedStepAuthoringNode<TState> step)
         {
-            throw PublicAuthoringContracts.MisplacedDecorator(decorator, Math.Max(0, nodes.Count));
+            throw AuthoringContractFactory.MisplacedDecorator(decorator, Math.Max(0, nodes.Count));
         }
 
         return step;
@@ -817,58 +784,6 @@ internal sealed class DurableWorkflowBuilder<TState>
         Func<TState, CorrelationId> correlationSelector)
     {
         AddWait(eventName, correlationSelector, WaitMode.Cold);
-        return this;
-    }
-
-    /// <summary>
-    /// Dispatches one durable child instance and suspends the owning fiber until it completes.
-    /// </summary>
-    public DurableWorkflowBuilder<TState> RunChild(
-        DefinitionId childDefinitionId,
-        DefinitionVersion childDefinitionVersion,
-        RunChildFailurePolicy failurePolicy = RunChildFailurePolicy.PropagateFailure)
-    {
-        ArgumentNullException.ThrowIfNull(childDefinitionId);
-        ArgumentNullException.ThrowIfNull(childDefinitionVersion);
-
-        AddNode(new SelectedRunChildAuthoringNode<TState>(
-            childDefinitionId,
-            childDefinitionVersion,
-            failurePolicy));
-        return this;
-    }
-
-    /// <summary>
-    /// Dispatches a durable child-instance group as one owned suspension.
-    /// </summary>
-    public DurableWorkflowBuilder<TState> RunChildren(
-        DefinitionId childDefinitionId,
-        DefinitionVersion childDefinitionVersion,
-        Func<TState, IReadOnlyList<string>> itemSnapshotSelector,
-        int? maxConcurrency = null,
-        RunChildFailurePolicy failurePolicy = RunChildFailurePolicy.PropagateFailure,
-        RunChildrenJoinPolicy joinPolicy = RunChildrenJoinPolicy.WhenAll,
-        RunChildrenResidualPolicy residualPolicy = RunChildrenResidualPolicy.CancelRemaining)
-    {
-        ArgumentNullException.ThrowIfNull(childDefinitionId);
-        ArgumentNullException.ThrowIfNull(childDefinitionVersion);
-        ArgumentNullException.ThrowIfNull(itemSnapshotSelector);
-        if (maxConcurrency <= 0)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(maxConcurrency),
-                maxConcurrency,
-                "Child-group max concurrency must be positive.");
-        }
-
-        AddNode(new SelectedRunChildrenAuthoringNode<TState>(
-            childDefinitionId,
-            childDefinitionVersion,
-            itemSnapshotSelector,
-            maxConcurrency,
-            failurePolicy,
-            joinPolicy,
-            residualPolicy));
         return this;
     }
 

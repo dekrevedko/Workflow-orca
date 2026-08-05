@@ -1,14 +1,13 @@
 namespace OrcaCore.Core.Execution;
 
-public sealed class StructuredExecutionLimitException(
+internal sealed class StructuredExecutionLimitException(
     string code,
-    string message) : Exception(message)
-{
-    public string Code { get; } = code;
-}
+    string message) : global::OrcaCore.OrcaCoreException(code, message);
 
-public static class StructuredExecutionLimitCodes
+internal static class StructuredExecutionLimitCodes
 {
+    public const string ForEachItemsExceeded = "SFE-LIMIT-001";
+
     public const string SerializedResultExceeded = "SFE-LIMIT-009";
 
     public const string SerializedEnvelopeExceeded = "SFE-LIMIT-010";

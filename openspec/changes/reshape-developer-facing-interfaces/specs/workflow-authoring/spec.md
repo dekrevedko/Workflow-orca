@@ -12,18 +12,26 @@ The system SHALL provide explicit ephemeral and durable staged fluent entry poin
 - **THEN** that member is the sole generation terminal and returns a completion builder from which the resultless definition can be built
 
 ### Requirement: Durable workflows have a separate authoring surface
-The system SHALL provide distinct ephemeral and durable init, body, completion, definition, and nested builder families. The common definition registry SHALL accept all four typed definition families but SHALL return a closed host-incompatibility failure before mutation when a definition mode does not match the registered engine role; it SHALL NOT infer mode from a flag or public compiled plan. Durable `Wait` SHALL be cold-capable without a separate `WaitLong` member.
+The system SHALL provide distinct ephemeral and durable init, body, completion, definition, nested, branch, item, and leased builder families. The common definition registry SHALL accept all four typed definition families but SHALL return a closed host-incompatibility failure before mutation when a definition mode does not match the registered engine role; it SHALL NOT infer mode from a flag or public compiled plan. Durable descriptor-based `Wait` SHALL be cold-capable without a separate `WaitLong` member, and durable sequential builders SHALL expose transactional `Publish` while every ephemeral builder omits it.
 
 #### Scenario: Durable-only wait is authored
 - **WHEN** a durable workflow may park long enough to be evicted and rehydrated
-- **THEN** the author uses the same structural `Wait(EventName, ...)` contract and hosting/runtime residency policy remains outside workflow meaning
+- **THEN** the author uses the same structural `Wait(WorkflowEventContract, ...)` contract and hosting/runtime residency policy remains outside workflow meaning
 
 ### Requirement: Built definitions are immutable
-Workflow and DAG builders SHALL produce immutable, identity/version/structural-fingerprint-bound definitions whose public metadata cannot be downcast and mutated and whose executable factories, selectors, delegates, and compiled plans are not exposed as mutable application metadata. The fingerprint SHALL cover only inspectable authored structure and fixed codec format; every opaque delegate, step-construction/configuration, mapping, or external-request behavior change SHALL require a new `DefinitionVersion` and SHALL NOT accept an author fingerprint contributor.
+Workflow and DAG builders SHALL produce immutable, identity/version/structural-fingerprint-bound definitions whose public metadata cannot be downcast and mutated and whose executable factories, selectors, delegates, and compiled plans are not exposed as mutable application metadata. Every resultless/resultful ephemeral/durable definition SHALL expose its matching state-opaque typed reference and MAY be declared in a domain/application module independently of explicit application-configuration registration. The same logical durable definition SHALL reconstruct with the same explicitly fixed `DefinitionId` across process restarts and deployments; production catalog construction SHALL NOT invoke `DefinitionId.New()` on each startup. Conditional environment-specific graph or opaque behavior changes SHALL use a deliberately distinct definition identity/version rather than vary under the same durable contract. The fingerprint SHALL cover only inspectable authored structure, event contract descriptors, and fixed codec format; every opaque delegate, step-construction/configuration, mapping, event payload/correlation selector, or external-request behavior change SHALL require a new `DefinitionVersion` and SHALL NOT accept an author fingerprint contributor.
 
 #### Scenario: Definition is registered
-- **WHEN** a completed definition is built and registered with an engine
+- **WHEN** a completed definition is built independently and later staged on its mode-specific engine builder
 - **THEN** later caller mutation cannot change its graph, step registrations, selectors, policies, mapping logic, typed contract, or fingerprint
+
+#### Scenario: Definition is grouped in application configuration
+- **WHEN** an application-owned `AddOrderingWorkflows` extension stages several static built definitions
+- **THEN** registration remains explicit and typed without requiring a workflow registrar class, environment-dependent graph construction, an attribute, or assembly scanning
+
+#### Scenario: Durable application restarts
+- **WHEN** the application reconstructs its configured durable workflow catalog after process replacement or deployment
+- **THEN** each unchanged logical definition presents the same explicit identity/version/reference and can rehydrate existing instances rather than minting a new `DefinitionId`
 
 #### Scenario: Same version has different behavior
 - **WHEN** registration or resume observes a different compiled fingerprint for the same definition identity and version
@@ -212,6 +220,25 @@ Every conditional, loop, root-parallel branch, root-`ForEach` item, and leased-s
 #### Scenario: Leased item authoring is inspected
 - **WHEN** a developer inspects a leased item body
 - **THEN** ordinary steps, nested `If`, `Wait`, `Delay`, decorators, and the item `Return` remain available as applicable while `Parallel`, `ForEach`, `While`, nested `AcquireResources`, and `ContinueAsNew` are absent
+
+### Requirement: Event operations use explicit contracts and durable publish
+Every existing structural `Wait` location SHALL accept a payloadless or typed `WorkflowEventContract` descriptor plus a side-effect-free correlation selector, with the optional positive finite timeout overload unchanged. Event contract name/version SHALL participate in matching and structural fingerprinting. Every permitted durable sequential root, nested, branch, item, and leased builder SHALL additionally expose payloadless/typed `Publish` using an explicit event contract and side-effect-free correlation/payload selectors; `Publish` SHALL return the same sequential builder family. The runtime SHALL create event/causation/origin/time metadata and the outbox record, so authors SHALL NOT supply `EventId`, provider record kind, broker destination, retry policy, or dispatch timestamp. Every ephemeral builder, completion builder, join object, and DAG authoring surface SHALL omit workflow-authored `Publish`.
+
+#### Scenario: Durable workflow waits for a typed event
+- **WHEN** an author passes `WorkflowEventContract<TPayload>` and a correlation selector to `Wait`
+- **THEN** the registered wait persists exact contract name/version/correlation and the resumed step can materialize only through the same compatible descriptor
+
+#### Scenario: Durable workflow publishes an event
+- **WHEN** a durable sequential builder publishes one explicit contract with payload and correlation selectors
+- **THEN** build records a structural publish node while runtime supplies replay-stable identity and atomically commits the outbound event with progression
+
+#### Scenario: Ephemeral workflow looks for publish
+- **WHEN** an ephemeral root, nested, branch, item, or completion builder is inspected
+- **THEN** no `Publish` member exists because the in-memory engine cannot make the durable no-loss/outbox promise
+
+#### Scenario: Workflow or event attributes are scanned
+- **WHEN** a consumer looks for Temporal-style workflow/signal attributes or automatic event-contract discovery
+- **THEN** no v1 attribute or scanner exists and explicit built definitions plus explicit event descriptors remain the only declarations
 
 ### Requirement: Lambda business steps are ephemeral only
 Ephemeral builders SHALL expose exactly `Then(Func<StepContext<TState>, ValueTask>)` and `Then(Func<StepContext<TState>, CancellationToken, ValueTask>)` lambda business-step overloads wherever ephemeral business steps are allowed. They SHALL expose no `Action<StepContext<TState>>` overload; synchronous work SHALL return `ValueTask.CompletedTask`. Lambda bodies MAY mutate or replace state but SHALL NOT return `StepResult`. Durable builders SHALL require named `IStep<TState>` implementations and SHALL NOT expose lambda overloads. Host exact-type `StepThrottles` SHALL target named `Then<TStep>()` step types only; lambda bodies have no synthetic or inferred step type for that policy.

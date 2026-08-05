@@ -5,7 +5,7 @@ namespace OrcaCore.Engine.Ephemeral;
 /// <summary>
 /// Configures in-process operational behavior for the ephemeral workflow engine.
 /// </summary>
-public sealed record EphemeralWorkflowEngineOptions
+internal sealed record EphemeralWorkflowEngineOptions
 {
     /// <summary>
     /// Gets the maximum number of unmatched events retained in one instance mailbox.

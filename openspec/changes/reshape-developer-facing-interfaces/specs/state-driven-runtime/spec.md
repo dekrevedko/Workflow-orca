@@ -1,3 +1,22 @@
+## ADDED Requirements
+
+### Requirement: Quantum rotation is runtime-owned
+The runtime SHALL commit a selected fiber's current progress at its scheduler-owned quantum
+boundary and SHALL allow another runnable sibling to advance before selecting the same fiber
+again when the fairness bound requires rotation. No authored `Yield`, `StepResult.Yield`, engine
+result bridge, alias, or tombstone SHALL expose this scheduling decision.
+
+#### Scenario: First branch exhausts repeated runtime quanta
+- **WHEN** the first runnable branch repeatedly reaches the internal quantum bound while another branch remains runnable
+- **THEN** the scheduler advances the sibling within the configured fairness bound without an author-returned yield result
+
+## REMOVED Requirements
+
+### Requirement: Yield is a fiber scheduling operation
+**Reason**: Authored `Yield` and `StepResult.Yield` are removed from v1 rather than deferred. Fairness remains a runtime-owned quantum rotation rule with no author-returned result, alias, reflection bridge, or tombstone. Replaced by "Quantum rotation is runtime-owned".
+
+**Migration**: No released consumer migration exists. Remove authored yield nodes and let the runtime rotate runnable fibers at its internal quantum boundary.
+
 ## MODIFIED Requirements
 
 ### Requirement: Interpreter executes control flow deterministically

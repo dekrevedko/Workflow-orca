@@ -1,6 +1,6 @@
 namespace OrcaCore.Core.Execution;
 
-public static class FiberReducer
+internal static class FiberReducer
 {
     public static FiberRecord Block(
         FiberRecord fiber,

@@ -1,9 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
-using OrcaCore.Abstractions.Providers;
+using Microsoft.Extensions.Hosting;
 using OrcaCore.DeveloperSurface.BehaviorContracts;
-using OrcaCore.Engine.Durable.Driver;
 using OrcaCore.Hosting;
-using OrcaCore.Providers.InMemory;
 
 namespace OrcaCore.DeveloperSurface.BehaviorScenarios;
 
@@ -319,15 +317,11 @@ public static class ApplicationJourneyScenarioHost
             .Then<HandoffBarrierStep>()
             .End()
             .Build();
-        var sharedWorkflowStore = new InMemoryWorkflowProvider();
-        var sharedPoolStore = new InMemoryResourcePoolStore();
-        var sharedGovernanceStore = new InMemoryResourceGovernanceStore();
+        using var sharedProvider = new DurableScenarioProvider();
         InstanceId instanceId;
 
         using (var originalOwner = DurableServices(
-                   sharedWorkflowStore,
-                   sharedPoolStore,
-                   sharedGovernanceStore,
+                   sharedProvider,
                    step).BuildServiceProvider())
         {
             var registry = originalOwner.GetRequiredService<IWorkflowDefinitionRegistry>();
@@ -345,9 +339,7 @@ public static class ApplicationJourneyScenarioHost
         }
 
         using (var ingressOwner = DurableIngressServices(
-                   sharedWorkflowStore,
-                   sharedPoolStore,
-                   sharedGovernanceStore).BuildServiceProvider())
+                   sharedProvider).BuildServiceProvider())
         {
             var ingress = ingressOwner.GetRequiredService<IWorkflowEventClient>();
             var accepted = await context.ObserveAsync(_ => ingress.DeliverByCorrelationAsync(
@@ -365,15 +357,11 @@ public static class ApplicationJourneyScenarioHost
         }
 
         using var firstOwner = DurableServices(
-                sharedWorkflowStore,
-                sharedPoolStore,
-                sharedGovernanceStore,
+                sharedProvider,
                 step)
             .BuildServiceProvider();
         using var secondOwner = DurableServices(
-                sharedWorkflowStore,
-                sharedPoolStore,
-                sharedGovernanceStore,
+                sharedProvider,
                 step)
             .BuildServiceProvider();
         var firstDefinition = firstOwner
@@ -396,20 +384,35 @@ public static class ApplicationJourneyScenarioHost
                 "Callback-only ingress progressed the definition while every definition owner was offline.");
         }
 
-        var firstPump = firstOwner.GetRequiredService<DurableContinuationPump>();
-        var secondPump = secondOwner.GetRequiredService<DurableContinuationPump>();
-        var claimedAt = DateTimeOffset.UtcNow;
-        var firstTask = firstPump.PumpOnceAsync(
-            new OutboxClaimRequest(16, claimedAt, TimeSpan.FromMinutes(1)),
-            CancellationToken.None);
-        var secondTask = secondPump.PumpOnceAsync(
-            new OutboxClaimRequest(16, claimedAt, TimeSpan.FromMinutes(1)),
-            CancellationToken.None);
+        var terminalCommitted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        sharedProvider.AfterSuccessfulAppend = batch =>
+        {
+            if (batch.StreamId.InstanceId.Equals(instanceId) &&
+                batch.ProjectionOperations.Any(operation =>
+                    operation.InstanceSnapshot?.Status is
+                        WorkflowInstanceStatus.Completed or
+                        WorkflowInstanceStatus.Failed or
+                        WorkflowInstanceStatus.Cancelled or
+                        WorkflowInstanceStatus.Terminated or
+                        WorkflowInstanceStatus.TimedOut))
+            {
+                terminalCommitted.TrySetResult(true);
+            }
+        };
+        var firstHosted = firstOwner.GetServices<IHostedService>().ToArray();
+        var secondHosted = secondOwner.GetServices<IHostedService>().ToArray();
+        await Task.WhenAll(firstHosted.Concat(secondHosted)
+            .Select(service => service.StartAsync(CancellationToken.None)));
         await context.WaitUntilBarrierReachedAsync("handoff");
         context.ReleaseBarrier("handoff");
-        _ = await Task.WhenAll(firstTask, secondTask);
 
-        var completed = await context.ObserveAsync(_ => reopened.GetSnapshotAsync());
+        await terminalCommitted.Task;
+        sharedProvider.AfterSuccessfulAppend = null;
+        await Task.WhenAll(secondHosted.Reverse().Concat(firstHosted.Reverse())
+            .Select(service => service.StopAsync(CancellationToken.None)));
+        var completed = await context.ObserveAsync(
+            _ => reopened.GetSnapshotAsync(CancellationToken.None));
         Phase0Assert.Satisfies(
             completed,
             snapshot => snapshot.Status == WorkflowInstanceStatus.Completed &&
@@ -433,37 +436,28 @@ public static class ApplicationJourneyScenarioHost
     }
 
     private static ServiceCollection DurableServices(
-        InMemoryWorkflowProvider workflowStore,
-        InMemoryResourcePoolStore poolStore,
-        InMemoryResourceGovernanceStore governanceStore,
+        DurableScenarioProvider provider,
         HandoffBarrierStep step)
     {
-        var services = DurableProviderServices(workflowStore, poolStore, governanceStore);
+        var services = DurableProviderServices(provider);
         services.AddSingleton(step);
         services.AddOrcaCoreDurableEngine(DurableOptions());
         return services;
     }
 
     private static ServiceCollection DurableIngressServices(
-        InMemoryWorkflowProvider workflowStore,
-        InMemoryResourcePoolStore poolStore,
-        InMemoryResourceGovernanceStore governanceStore)
+        DurableScenarioProvider provider)
     {
-        var services = DurableProviderServices(workflowStore, poolStore, governanceStore);
+        var services = DurableProviderServices(provider);
         services.AddOrcaCoreDurableEventIngress();
         return services;
     }
 
     private static ServiceCollection DurableProviderServices(
-        InMemoryWorkflowProvider workflowStore,
-        InMemoryResourcePoolStore poolStore,
-        InMemoryResourceGovernanceStore governanceStore)
+        DurableScenarioProvider provider)
     {
         var services = new ServiceCollection();
-        services.AddSingleton(workflowStore);
-        services.AddSingleton(poolStore);
-        services.AddSingleton(governanceStore);
-        services.AddOrcaCoreInMemoryDurableProvider();
+        provider.AddRoleTo(services);
         return services;
     }
 

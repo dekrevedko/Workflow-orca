@@ -45,8 +45,8 @@ IOQ-2.
 | Lifecycle event durability split | **Ephemeral lifecycle events are in-process/queryable only; durable terminal and significant lifecycle events are outbox-backed in the same commit as state** (resolved 2026-07-02, spec open question 9) | Product lifecycle events are first-class records, not telemetry spans. Durable mode commits terminal, cancellation-request, wait-suspension/resume, timer, and step-failure/completion publications with state. Public pause/resume/retry/archive/purge are deferred. |
 | Benchmarks | **BenchmarkDotNet in `benchmarks/OrcaCore.Benchmarks`; PR CI builds only** (resolved 2026-07-02, IOQ-8) | Benchmarks cover the ephemeral execution loop, provider serialization/materialization, management query/projection path, resource pool and timer scheduling, and provider commit path. Normal PR CI builds the benchmark project but does not run benchmarks. |
 | Packaging and publishing | **Local package graph, package IDs, packing, and clean-consumer certification ship in v1; external publishing is deferred** (amended 2026-07-18, IOQ-9) | Every documented tier must pack and be consumed from local artifacts before release approval. Signing, SourceLink release configuration, registry publication, semantic-version release automation, and public package-release workflows remain deferred until explicitly reopened. |
-| Management query predicates | **No public instance enumeration, filtering, counting, statistics, or bulk management in v1** (superseded 2026-07-19, IOQ-6) | Runtime/provider internals may use keyed lookup and structured projection queries for routing and operations, but no public LINQ-like `Where(...)` facade ships in v1. |
-| Test internals visibility | **Public-API-first; matching unit-test internals only** (resolved 2026-07-02, IOQ-11) | Acceptance tests use public surfaces only. `InternalsVisibleTo` is allowed only for a matching unit-test project when a module boundary requires internal model inspection. |
+| Management query predicates | **No public instance enumeration, filtering, counting, statistics, or bulk management in v1** (superseded 2026-07-19, IOQ-6) | Advanced provider internals expose only exact runtime lookup, active-wait routing, and trusted lease-recovery candidate operations; no generic projection-query or public LINQ-like `Where(...)` facade ships in v1. |
+| Internal visibility | **Public-API-first with one exact closed friend graph** (amended 2026-08-01, Decision 22) | Product friends are Core→both engines, Durable Engine→Durable Hosting, and Durable Hosting→DAG Hosting. Exact owning white-box test friends cover Core, both engines, Durable Hosting, and PostgreSQL; Durable Engine→ProviderCertification is the sole cross-package test edge. Acceptance, behavior-scenario, compile-fixture, and integration projects receive no internals. |
 | Mocking | **Hand-rolled fakes first**, NSubstitute allowed | Fakes of ports live in a shared test-support project and double as executable documentation; NSubstitute only for narrow one-off stubs |
 | Assertions | **AwesomeAssertions** (FluentAssertions API, Apache-2.0 community fork) | Same `FluentAssertions` namespace and `Should()` syntax — tests read as classic FluentAssertions; maintained and xUnit v3-aware. Original `FluentAssertions` v8+ is banned (commercial license); pinning original FA **7.x** (last Apache release) is the recorded fallback if the fork ever misbehaves. Plain xUnit `Assert` remains acceptable where clearer (e.g. structural checks) |
 | Integration tests | **Testcontainers for .NET** | Postgres, RabbitMQ, later Redis/MSSQL/DynamoDB(-local) |
@@ -108,25 +108,14 @@ the question resolved in spec §13.2 — the spec stays the authority; this file
 crosswalk. Agents MUST NOT resolve open questions of either register implicitly inside a
 task; if a task cannot proceed without a resolution, stop and surface it.
 
-- 2026-07-02: **Spec open question 15 resolved** - DAG definitions compile each node as a
-  durable child workflow instance using `RunChildren`-style orchestration. Rationale:
-  child instances preserve per-node identity, lineage, retry isolation, restart-safe joins,
-  and the Phase 4 resume-token/outbox model while avoiding a second in-instance DAG
-  runtime. **Amended 2026-07-18:** the DAG builder ships in separate `OrcaCore.Dag`; child
-  workflow scheduling remains an internal compile/runtime target and public `RunChildren`
-  authoring is deferred.
-- 2026-07-02: **Spec open question 13 resolved** - Ephemeral saga support is in-process
-  only and must be described as a limited mode in public XML documentation and implementation
-  docs. It provides compensation semantics within one process lifetime, but no durable
-  recovery, durable audit, or post-restart operator remediation guarantees. **Amended
-  2026-07-18:** both public Saga modes are deferred from v1 and recorded in the future-feature
-  registry rather than shipped as provisional authoring.
-- 2026-07-02: **Spec open question 1 resolved** - `Wait` and `WaitLong` remain separate
-  public concepts. `WaitLong` is durable-only and represents cold-evictable, restart-safe
-  waits. Implementations may share internals, but public surfaces keep the durable residency
-  distinction explicit. **Amended 2026-07-18:** public `WaitLong` is removed from the
-  greenfield first-release surface. Durable `Wait` chooses residency internally/through host
-  policy without asking authors to predict duration.
+- 2026-07-18: **Spec open question 15 final** - `OrcaCore.Dag` compiles each node to an internal
+  durable child start/join protocol. The separate `OrcaCore.Dag.Hosting` package is the only friend
+  bridge to that protocol; no public child-workflow authoring member ships in v1.
+- 2026-07-18: **Spec open question 13 final** - Saga is deferred from both first-release modes and
+  remains recorded in the future-capability registry. Re-entry requires one approved typed
+  authoring, compensation, recovery, audit, cancellation, and remediation contract.
+- 2026-07-18: **Spec open question 1 final** - V1 has one ordinary `Wait`. Durable residency is a
+  runtime and host-policy choice; authors do not select a second duration-based wait concept.
 - 2026-07-02: **Spec open question 2 resolved** - Durable history is governed by explicit
   retention policy. Providers are not required to keep complete stream history forever, but
   must document retention behavior and preserve DU-071 inspection for the active retention
@@ -145,23 +134,23 @@ task; if a task cannot proceed without a resolution, stop and surface it.
   Durable-only and ephemeral-only features use distinct public authoring/runtime entry
   points when that keeps APIs clear; genuinely shared contracts stay shared, with runtime
   validation allowed where separate abstraction trees would add noise rather than safety.
-- 2026-07-02: **Spec open question 12 resolved** - Phase 5 proceeds with the
-  compensation-heavy saga track first. A process-manager-style, message-driven saga without
-  compensation is not a prerequisite track for the current implementation program.
-  **Amended 2026-07-18:** public Saga is deferred entirely from the first release; future work
-  must approve typed action/results, reverse progression, restart recovery, and remediation
-  before adding a builder, definition, adapter, or source task.
+- 2026-07-18: **Spec open question 12 final** - No Saga implementation track is part of the first
+  release. A future amendment must approve typed action/results, reverse progression, restart
+  recovery, cancellation, audit, and remediation before adding a public builder, definition,
+  adapter, or source task.
 - 2026-07-02: **Spec open question 10 resolved** - Continue-as-new belongs with the durable
   core and AC-313 gates Slice 2. Since the current root implementation reached Phase 6
   without DU-042, T6-04 is a corrective backfill of an early durable requirement, not a
   decision to defer continue-as-new to production readiness.
 - 2026-07-02: **IOQ-6 originally resolved, superseded 2026-07-19** - the proposed public
   management `Where(...)` expression facade is deferred with all public instance enumeration,
-  filtering, counting, statistics, and bulk management. Runtime/provider internals retain keyed
-  lookup and structured projection queries for routing and operations; these are not application APIs.
-- 2026-07-02: **IOQ-11 resolved** - Tests are public-API-first. Acceptance tests never use
-  internals; `InternalsVisibleTo` is allowed only for matching unit-test projects where an
-  internal module boundary would otherwise force public surface leakage.
+  filtering, counting, statistics, and bulk management. Advanced provider internals retain only
+  exact runtime lookup, active-wait routing, and trusted lease-recovery candidate operations;
+  these are not application APIs.
+- 2026-08-01: **IOQ-11 amended by Decision 22** - Tests remain public-API-first. The exact product,
+  owning-white-box-test, DAG-host, and ProviderCertification friend graph prevents implementation
+  types from becoming public; acceptance, behavior-scenario, compile-fixture, and integration
+  projects receive no internals.
 - 2026-07-02: **IOQ-8 resolved** - BenchmarkDotNet coverage is limited to the ephemeral
   execution loop, provider serialization/materialization, management query/projection path,
   resource pool and timer scheduling, and provider commit path. The benchmark project lives

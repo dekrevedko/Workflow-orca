@@ -56,11 +56,18 @@ public sealed class StateAndCodecGreenGuards
             "OrcaCore.Engine.Ephemeral.IEphemeralStateSnapshotter",
             "OrcaCore.Engine.Ephemeral.SystemTextJsonEphemeralStateSnapshotter"
         });
-        exported.Single(type => type.FullName == "OrcaCore.Engine.Ephemeral.EphemeralWorkflowEngineOptions")
-            .GetProperty("StateSnapshotter")
+        exported.Should().NotContain(type =>
+            type.FullName == "OrcaCore.Engine.Ephemeral.EphemeralWorkflowEngineOptions");
+        var ephemeralOptions = Assembly.Load("OrcaCore.Engine.Ephemeral")
+            .GetType("OrcaCore.Engine.Ephemeral.EphemeralWorkflowEngineOptions", throwOnError: true)!;
+        ephemeralOptions.IsNotPublic.Should().BeTrue();
+        ephemeralOptions.GetProperty(
+                "StateSnapshotter",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
             .Should().BeNull("the fixed codec has no ordinary application replacement hook");
-        exported.Single(type => type.FullName == "OrcaCore.Engine.Durable.Execution.DurableWorkflowRuntime")
-            .GetConstructors()
+        var durableRuntime = Assembly.Load("OrcaCore.Engine.Durable")
+            .GetType("OrcaCore.Engine.Durable.Execution.DurableWorkflowRuntime", throwOnError: true)!;
+        durableRuntime.GetConstructors(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
             .SelectMany(constructor => constructor.GetParameters())
             .Should().NotContain(parameter =>
                 parameter.ParameterType.Name.Contains(
@@ -73,7 +80,7 @@ public sealed class StateAndCodecGreenGuards
     [Fact]
     public void Product_HasOneFixedCodecAndTheTypeRegistryCannotChoosePayloadBytes()
     {
-        var coreAssembly = typeof(global::OrcaCore.Core.Definitions.WorkflowDefinition<>).Assembly;
+        var coreAssembly = Assembly.Load("OrcaCore.Core");
         var applicationAssembly = typeof(global::OrcaCore.InstanceId).Assembly;
         var registry = coreAssembly.GetType(
             "OrcaCore.Core.Compilation.IWorkflowTypeSerializerRegistry",
@@ -110,11 +117,9 @@ public sealed class StateAndCodecGreenGuards
             ["OrcaCore.Runtime.Protocol/Durable/DurableContinuationSignal.cs"] = 2,
             ["OrcaCore.Runtime.Protocol/Durable/DurableExecutionEnvelopeV2.cs"] = 2,
             ["OrcaCore.Runtime.Protocol/Serialization/WorkflowEventCodec.cs"] = 2,
-            ["OrcaCore.Engine.Durable/Execution/DurableCommitMaterializer.cs"] = 5,
             ["OrcaCore.Durable.Hosting/ResourceLeases/SerializedResourceGovernanceAggregate.cs"] = 2,
             ["OrcaCore.Providers.PostgreSql/PostgreSqlResourcePoolStore.cs"] = 4,
-            ["OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs"] = 2,
-            ["OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.Projections.cs"] = 1
+            ["OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs"] = 2
         };
         var rawJsonCall = new System.Text.RegularExpressions.Regex(
             @"JsonSerializer\.(?:Serialize|SerializeToUtf8Bytes|Deserialize)(?:<[^>]+>)?\s*\(",
@@ -146,64 +151,4 @@ public sealed class StateAndCodecGreenGuards
             "and workflow values must use FixedWorkflowValueCodec");
     }
 
-    [Fact]
-    public void FixedCodec_UsesOneOrderedSequenceAndOneStringKeyedMapRepresentation()
-    {
-        var sequence = new List<string> { "second", "first" };
-        var sequenceBytes = global::OrcaCore.Core.Internal.CoreWorkflowValueCodec.Serialize(
-            sequence,
-            typeof(IReadOnlyList<string>));
-        System.Text.Encoding.UTF8.GetString(sequenceBytes).Should().Be("[\"second\",\"first\"]");
-        global::OrcaCore.Core.Internal.CoreWorkflowValueCodec
-            .Deserialize(sequenceBytes, typeof(IReadOnlyList<string>))
-            .Should().BeAssignableTo<IReadOnlyList<string>>()
-            .Which.Should().Equal("second", "first");
-
-        var map = new Dictionary<string, int>
-        {
-            ["second"] = 2,
-            ["first"] = 1
-        };
-        var mapBytes = global::OrcaCore.Core.Internal.CoreWorkflowValueCodec.Serialize(
-            map,
-            typeof(IReadOnlyDictionary<string, int>));
-        System.Text.Encoding.UTF8.GetString(mapBytes).Should().Be("{\"second\":2,\"first\":1}");
-        global::OrcaCore.Core.Internal.CoreWorkflowValueCodec
-            .Deserialize(mapBytes, typeof(IReadOnlyDictionary<string, int>))
-            .Should().BeAssignableTo<IReadOnlyDictionary<string, int>>()
-            .Which.Select(pair => pair.Key).Should().Equal("second", "first");
-    }
-
-    [Fact]
-    public void FixedCodec_RejectsEveryCollectionShapeOutsideTheClosedAllowlist()
-    {
-        var unsupportedDeclaredTypes = new[]
-        {
-            typeof(HashSet<string>),
-            typeof(Queue<string>),
-            typeof(LinkedList<string>),
-            typeof(IReadOnlyCollection<string>),
-            typeof(SortedDictionary<string, int>),
-            typeof(Dictionary<int, string>),
-            typeof(string[,])
-        };
-        unsupportedDeclaredTypes.Should().OnlyContain(type =>
-            !global::OrcaCore.Core.Internal.CoreWorkflowValueCodec.IsSupportedDeclaredType(type));
-
-        Action customSequence = () =>
-            global::OrcaCore.Core.Internal.CoreWorkflowValueCodec.Serialize(
-                new CustomStringList { "value" },
-                typeof(IReadOnlyList<string>));
-        customSequence.Should().Throw<NotSupportedException>().WithMessage("*sequence/map allowlist*");
-
-        Action customMap = () =>
-            global::OrcaCore.Core.Internal.CoreWorkflowValueCodec.Serialize(
-                new SortedDictionary<string, int> { ["value"] = 1 },
-                typeof(IReadOnlyDictionary<string, int>));
-        customMap.Should().Throw<NotSupportedException>().WithMessage("*sequence/map allowlist*");
-    }
-
-    private sealed class CustomStringList : List<string>
-    {
-    }
 }

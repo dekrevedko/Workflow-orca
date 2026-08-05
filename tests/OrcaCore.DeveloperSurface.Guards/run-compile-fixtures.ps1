@@ -13,6 +13,7 @@ $productForbiddenProject = Join-Path $fixtures 'ProductForbiddenAuthoring/Produc
 $productSourceProject = Join-Path $repoRoot 'src/OrcaCore.Core/OrcaCore.Core.csproj'
 $packageSourceProject = Join-Path $repoRoot 'src/OrcaCore.Abstractions/OrcaCore.csproj'
 $incompleteProject = Join-Path $fixtures 'IncompleteProductPackage/IncompleteProductPackage.csproj'
+$section7BProject = Join-Path $fixtures 'Section7BSourceSurface/Section7BSourceSurface.csproj'
 $negativeFeed = Join-Path $fixtures 'IncompleteProductPackage/obj/negative-control-feed'
 $productFeed = Join-Path $fixtures 'ProductAuthoring/obj/product-feed'
 $productPackageCache = Join-Path $fixtures 'ProductAuthoring/obj/package-cache'
@@ -32,7 +33,12 @@ $requiredFamilies = @(
     'EphemeralWorkflowParallelJoinBuilder', 'DurableWorkflowParallelJoinBuilder',
     'EphemeralForEachJoinBuilder', 'DurableForEachJoinBuilder',
     'EphemeralWorkflowCompletionBuilder', 'DurableWorkflowCompletionBuilder',
-    'EphemeralWorkflowDefinition', 'DurableWorkflowDefinition', 'DurableWorkflowRef'
+    'EphemeralWorkflowDefinition', 'DurableWorkflowDefinition',
+    'EphemeralWorkflowRef', 'DurableWorkflowRef',
+    'EventContractVersion', 'WorkflowEventContract', 'WorkflowEventRoute',
+    'WorkflowInboundEvent', 'WorkflowEventAcceptanceResult', 'WorkflowEventAcceptanceRejection',
+    'WorkflowOutboundEvent', 'WorkflowEventDispatchResult', 'IWorkflowEventIngress',
+    'IWorkflowEventDispatcher', 'OrcaCoreEphemeralEngineBuilder', 'OrcaCoreDurableEngineBuilder'
 )
 
 foreach ($family in $requiredFamilies) {
@@ -109,5 +115,20 @@ if ($Disposition -eq 'Green') {
     exit 0
 }
 
-Write-Output 'Expected-red compile fixtures (0): Section 4 product authoring package proof is green.'
-exit 0
+$section7B = & dotnet build $section7BProject --configuration Release --nologo --verbosity quiet 2>&1 | Out-String
+if ($LASTEXITCODE -eq 0) {
+    throw 'Expected-red Section 7B source-surface fixture unexpectedly compiled.'
+}
+if ($section7B -notmatch 'Section7BSourceSurface.cs' -or $section7B -notmatch 'error CS(0234|0246|1061|0117|1501|1503|0426|8121)') {
+    throw "Section 7B fixture failed for an unintended reason.`n$section7B"
+}
+$errorCodes = [regex]::Matches($section7B, 'error (?<code>CS\d{4})') |
+    ForEach-Object { $_.Groups['code'].Value } |
+    Sort-Object -Unique
+$unexpectedCodes = @($errorCodes | Where-Object { $_ -notin @('CS0234', 'CS0246', 'CS1061', 'CS0117', 'CS1501', 'CS1503', 'CS0426', 'CS8121') })
+if ($unexpectedCodes.Count -ne 0) {
+    throw "Section 7B fixture has non-surface compiler failures: $($unexpectedCodes -join ', ').`n$section7B"
+}
+
+Write-Output "Expected-red compile fixtures (1): Section7BSourceSurface remains incomplete against the exact descriptor/routing/ingress/dispatcher/catalog contract using direct source ProjectReferences; diagnostics: $($errorCodes -join ', ')."
+exit 1

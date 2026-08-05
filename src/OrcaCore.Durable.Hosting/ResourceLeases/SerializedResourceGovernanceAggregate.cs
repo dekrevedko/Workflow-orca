@@ -17,8 +17,7 @@ namespace OrcaCore.Hosting.ResourceLeases;
 internal sealed class SerializedResourceGovernanceAggregate(
     IDurableResourceGovernanceStore store,
     DurableResourcePoolOptions options) :
-    IResourcePoolStore,
-    IResourceLeaseGovernanceStore
+    IResourcePoolStore
 {
     private const int MaxConflictRetries = 32;
     private const string StateCommitted = "state-committed";
@@ -522,12 +521,6 @@ internal sealed class SerializedResourceGovernanceAggregate(
             .ToArray();
     }
 
-    public Task ResizePoolAsync(
-        string poolName,
-        int capacity,
-        CancellationToken cancellationToken) =>
-        ResizeLegacyAsync(poolName, capacity, cancellationToken);
-
     public async Task<ResourcePoolExpiryResult> ExpireTicketsAsync(
         DateTimeOffset now,
         CancellationToken cancellationToken)
@@ -575,19 +568,6 @@ internal sealed class SerializedResourceGovernanceAggregate(
         }
 
         throw SerializationFailure("ticket review");
-    }
-
-    private async Task ResizeLegacyAsync(
-        string poolName,
-        int capacity,
-        CancellationToken cancellationToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(poolName);
-        await ResizeManagementAsync(
-            ResourcePoolName.Create(poolName),
-            capacity,
-            ResourcePoolOperationId.Create(Guid.CreateVersion7().ToString("N")),
-            cancellationToken).ConfigureAwait(false);
     }
 
     private async ValueTask EnsureInitializedAsync(CancellationToken cancellationToken)

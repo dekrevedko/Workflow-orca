@@ -9,7 +9,7 @@ public sealed class DurableInMemoryApplicationJourneyTests
     [Fact]
     public async Task ReplacementHost_PreservesStartBindingAndCompletesThroughPublicFacade()
     {
-        var stores = DurableTestHosts.CreateSharedInMemoryStores();
+        using var stores = DurableTestHosts.CreateSharedInMemoryStores();
         var continueEvent = EventName.Create("continue");
         var correlation = CorrelationId.Create("durable-in-memory-replacement");
         var definition = Workflow.Durable<JourneyState>(

@@ -19,6 +19,7 @@ public sealed partial class RepositoryGuardTests
         ["AC-025"] = "The exact retry surface and eligibility state machine are implemented by reshape-developer-facing-interfaces task 6.2.",
         ["AC-026"] = "The exact hosting roles and conflict validation are implemented by reshape-developer-facing-interfaces tasks 7.2 and 7.9.",
         ["AC-027"] = "The final public failure hierarchy and protocol-safe code ownership are implemented by reshape-developer-facing-interfaces tasks 7.1-7.8.",
+        ["AC-108"] = "The legacy no-definition-fanout criterion is superseded by the approved Section 7B definition-targeted event contract; task 7.24 guards the replacement target and task 9.9 owns canonical reconciliation.",
         ["AC-507"] = "The legacy engine-local stuck query/lifecycle surface is superseded by the exact v1 management contract in reshape-developer-facing-interfaces task 7.7.",
         ["AC-508"] = "The legacy engine-local stuck query/lifecycle surface is superseded by the exact v1 management contract in reshape-developer-facing-interfaces task 7.7.",
         ["AC-112"] = "Timer-versus-event wait races are restored with the approved timeout runtime in reshape-developer-facing-interfaces task 6.2.",

@@ -11,13 +11,21 @@
 **Review-E remediation revision:** 2026-07-19
 
 **Status:** Sections 4, 5, and 6, including revision-8 remediation and the greenfield ownership-DDL
-scanner remediation, are independently approved. Section 7 is implemented and frozen for
-independent exit review. Task 8.0 and all Section 8 source work remain blocked until that exact
-Section 7 target receives a new approval without a release blocker.
+scanner remediation, are independently approved. Section 7 was independently approved and
+checkpointed as `50254d08175431896d580ecfcc93d8e49e1c2ec7`. Post-checkpoint Section 7A closes the
+non-event public-surface/test-evidence gap; pending Section 7B proposes the replacement durable
+messaging and application-catalog contract. They must be completed, refrozen together,
+independently approved, and checkpointed. The separate `harmonize-downstream-capability-specs`
+change remains pending and must first remove its conflicting event ownership before planning
+approval and canonical synchronization. Task 8.0 and all Section 8 source work remain blocked until
+the combined Section 7A/7B target and final non-conflicting harmonized canonical/docs target are
+independently approved and checkpointed.
 
 **Primary change:** [`reshape-developer-facing-interfaces`](../../openspec/changes/reshape-developer-facing-interfaces/)
 
 **Coordinated change:** [`add-runtime-concurrency-limits`](../../openspec/changes/add-runtime-concurrency-limits/)
+
+**Pending canonical harmonization:** [`harmonize-downstream-capability-specs`](../../openspec/changes/harmonize-downstream-capability-specs/)
 
 **Normative surface:** [`17-selected-mode-capability-matrix.md`](../specs/17-selected-mode-capability-matrix.md)
 
@@ -523,11 +531,13 @@ Current disposition:
   revision 7's premature canonical sequencing and is independently approved under task 4.15;
 - task 10.14 synchronized all 137 approved delta operations (130 reshape plus 7 coordinated
   runtime-governance operations) into canonical OpenSpec specs, applied the capability-matrix and
-  guide wording, and published the non-normative semantic appendix with L4 reserved until task 4.16;
+  guide wording, and published the non-normative semantic appendix; task 4.16 subsequently landed
+  the authoring lifecycle and published L4's bounded build-agreement law;
 - tasks 5.10, 9.10, 9.12, and 10.14 are complete; proposal-validation tasks 10.9 and 10.13 remain
   planning evidence rather than product-source conformance evidence;
-- current reshape OpenSpec progress is 90 complete / 46 pending / 136 total with no duplicate
-  task IDs; coordinated concurrency progress is 16 complete / 0 pending / 16 total;
+- current reshape OpenSpec progress is 108 complete / 47 pending / 155 total with no duplicate
+  task IDs; coordinated concurrency progress is 16 complete / 0 pending / 16 total; the separate
+  downstream-capability harmonization change remains pending independent approval and unsynchronized;
 - tasks 3.1 through 3.11d are implemented against the complete live planning packet and have
   clean infrastructure plus intentional-red execution evidence;
 - task 3.12 reconciled the full packet and is closed after the final immutable independent
@@ -555,14 +565,19 @@ Current disposition:
   passes. Green compile fixtures succeed; the product-authoring ExpectedRed compile set has zero
   remaining gaps; and eight package/application fixtures remain intentionally red for Sections 7
   and 8;
-- both active changes and all 17 OpenSpec items pass strict validation, `git diff --check` is
-  clean apart from line-ending notices, and the live NuGet audit reports no vulnerable package in
-  any of the 32 solution projects;
+- the checkpoint's OpenSpec validations, `git diff --check`, and live NuGet audit were green; the
+  current Section 7A target and the pending harmonization change require fresh validation against
+  the reworked normative-source workflow before their respective gates can close;
 - the superseding Docker/provider, greenfield schema, compatibility-DDL, and scanner remediation
   reviews are preserved. The exact Section 6 target received immutable independent approval in
   `developer-facing-interface-section-06-ownership-ddl-scanner-remediation-independent-rereview-verdict-2026-07-30.md`;
-- Section 7 implements the exact 11-package graph, application facades, split host/provider roles,
+- Section 7 implemented the exact 11-package graph, application facades, split host/provider roles,
   reduced management, durable governance, the persisted-collection allowlist, operational
-  diagnostics, and 37 current-physical behavior drivers;
-- Section 7 is frozen for immutable independent exit review. Task 8.0 remains open, and no Section
-  8 implementation is authorized by these owner-run results.
+  diagnostics, and 37 current-physical behavior drivers, then received independent approval and
+  the checkpoint commit `50254d08175431896d580ecfcc93d8e49e1c2ec7`;
+- Section 7A now closes the post-checkpoint exact-API-baseline and test-attribution findings, while
+  the pending Section 7B amendment owns the proposed durable messaging and application-catalog
+  contract. Neither is frozen or approved. The harmonization change must first discard the
+  superseded event-contract ownership, then complete planning approval, canonical synchronization,
+  final-target review, and checkpoint. Task 8.0 remains open, and no Section 8 implementation is
+  authorized until the combined 7A/7B gate and the non-conflicting harmonization gate both close.

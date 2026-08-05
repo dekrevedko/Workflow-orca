@@ -1,13 +1,14 @@
 using System.Text.Json;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Aggregates;
 using OrcaCore.Engine.Durable.Execution;
 
 namespace OrcaCore.Engine.Durable.Driver;
+
+using WorkflowStatus = global::OrcaCore.WorkflowInstanceStatus;
 
 /// <summary>
 /// Claims internal <c>continue</c> outbox records and drives the referenced instances to their
@@ -17,7 +18,7 @@ namespace OrcaCore.Engine.Durable.Driver;
 /// processed. Repeated drive failures follow the poison path: bounded retries paced by the
 /// pump interval, then the instance parks with a diagnostic (DR-036).
 /// </summary>
-public sealed class DurableContinuationPump(
+internal sealed class DurableContinuationPump(
     IWorkflowOutboxStore outboxStore,
     DurableWorkflowRuntime runtime,
     DurableCommandProcessor processor,
@@ -268,7 +269,7 @@ public sealed class DurableContinuationPump(
             var aggregate = await aggregateLoader.LoadAsync(instanceId, cancellationToken).ConfigureAwait(false);
             if (aggregate.ContinuationFailureCount == 0 ||
                 aggregate.IsTerminal ||
-                aggregate.Status == WorkflowStatus.Parked)
+                aggregate.ParkReason is not null)
             {
                 return true;
             }

@@ -1,10 +1,10 @@
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 using Xunit;
-using WorkflowInstanceSnapshot = global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot;
+using WorkflowInstanceSnapshot = global::OrcaCore.Abstractions.Providers.WorkflowProjectionSnapshot;
+using WorkflowStatus = global::OrcaCore.WorkflowInstanceStatus;
 
 namespace OrcaCore.ProviderCertification;
 
@@ -32,7 +32,7 @@ public abstract class ContinueAsNewCertificationTests : EventStoreCertificationT
                 [
                     new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
                     {
-                        InstanceSnapshot = new global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot
+                        InstanceSnapshot = new global::OrcaCore.Abstractions.Providers.WorkflowProjectionSnapshot
                         {
                             InstanceId = instanceId,
                             RootInstanceId = instanceId,
@@ -56,14 +56,13 @@ public abstract class ContinueAsNewCertificationTests : EventStoreCertificationT
             },
             TestContext.Current.CancellationToken);
 
-        var snapshots = await fixture.ProjectionStore.ListAsync(
-            new WorkflowProjectionQuery { InstanceId = instanceId },
+        var snapshot = await fixture.ProjectionStore.GetAsync(
+            instanceId,
             TestContext.Current.CancellationToken);
         var checkpoint = await fixture.EventStore.LoadCheckpointAsync(instanceId, TestContext.Current.CancellationToken);
 
         result.IsSuccess.Should().BeTrue();
-        snapshots.Should().ContainSingle()
-            .Which.Should().BeEquivalentTo(
+        snapshot.Value.Should().BeEquivalentTo(
                 new
                 {
                     InstanceId = instanceId,

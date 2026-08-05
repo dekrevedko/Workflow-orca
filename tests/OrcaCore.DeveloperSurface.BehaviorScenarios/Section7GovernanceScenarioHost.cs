@@ -3,6 +3,7 @@ using OrcaCore.DeveloperSurface.BehaviorContracts;
 using OrcaCore.Hosting;
 using OrcaCore.Hosting.ResourceLeases;
 using OrcaCore.Providers.InMemory;
+using OrcaCore.Runtime.Protocol.ResourceGovernance;
 
 namespace OrcaCore.DeveloperSurface.BehaviorScenarios;
 

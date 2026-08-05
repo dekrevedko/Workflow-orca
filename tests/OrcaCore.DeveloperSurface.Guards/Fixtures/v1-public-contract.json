@@ -3,7 +3,7 @@
   "packageFeed": "artifacts/phase0-packages",
   "audienceTiers": ["Application", "Internal", "Engine", "RuntimeProtocol", "ProviderAuthoring", "DurableHosting", "Dag", "DagHosting", "Companion"],
   "companionFixtures": ["kubernetes-companion"],
-  "companionSha256": "E983EE716BF9C5A2FD5C58FEBA1802664B24BF938176784D1F811B5293C46077",
+  "companionSha256": "41F6472C2774363D2AB922C608922E787EC241333E1D1C0B76B0C6D529AB8EC3",
   "packages": [
     { "id": "OrcaCore", "tier":"Application", "dependencies": [] },
     { "id": "OrcaCore.Core", "tier":"Internal", "dependencies": ["OrcaCore"] },
@@ -52,8 +52,16 @@
     "CHILD_TIMED_OUT", "CHILD_TERMINATED", "CHILD_CANCELLED"
   ],
   "allowedFriends": [
+    "OrcaCore.Core->OrcaCore.Core.Tests",
+    "OrcaCore.Core->OrcaCore.Engine.Durable",
+    "OrcaCore.Core->OrcaCore.Engine.Ephemeral",
     "OrcaCore.Durable.Hosting->OrcaCore.Dag.Hosting",
-    "OrcaCore.Engine.Durable->OrcaCore.ProviderCertification"
+    "OrcaCore.Durable.Hosting->OrcaCore.Hosting.Tests",
+    "OrcaCore.Engine.Durable->OrcaCore.Durable.Hosting",
+    "OrcaCore.Engine.Durable->OrcaCore.Engine.Durable.Tests",
+    "OrcaCore.Engine.Durable->OrcaCore.ProviderCertification",
+    "OrcaCore.Engine.Ephemeral->OrcaCore.Engine.Ephemeral.Tests",
+    "OrcaCore.Providers.PostgreSql->OrcaCore.Providers.PostgreSql.Tests"
   ],
   "authoredLocationRoots": ["workflow:$", "dag:$"],
   "authoredLocationTokens": [

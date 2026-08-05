@@ -14,15 +14,22 @@ public sealed class ApplicationJourneyInfrastructureGuards
         var durable = File.ReadAllText(Path.Combine(root, "PostgreSqlDurable", "Program.cs"));
         var ingress = File.ReadAllText(Path.Combine(root, "CallbackIngress", "Program.cs"));
         var scheduler = File.ReadAllText(Path.Combine(root, "KubernetesCompanion", "Program.cs"));
-        ephemeral.Should().Contain("start.WaitForOutputAsync(token)").And.Contain("GetInstanceAsync");
-        durable.Should().Contain(".Wait(").And.Contain("DeliverToInstanceAsync").And.Contain("start.WaitForOutputAsync(token)");
-        ingress.Should().Contain("DeliverToInstanceAsync").And.Contain("DeliverByCorrelationAsync")
-            .And.Contain("EventDeliveryStatus.NoActiveWait");
-        scheduler.Should().Contain(".Wait(").And.Contain(".Then<ValidateTerminalJobStep>()")
+        ephemeral.Should().Contain("WorkflowEventContract.Create").And.Contain("AddWorkflow(definition)")
+            .And.Contain("GetRequiredHandle(reference)").And.Contain("start.WaitForOutputAsync(token)");
+        durable.Should().Contain("WorkflowEventContract<Approval>.Create").And.Contain(".Wait(")
+            .And.Contain(".Publish(").And.Contain("IWorkflowEventIngress").And.Contain("start.WaitForOutputAsync(token)");
+        ingress.Should().Contain("WorkflowEventRoute.Direct").And.Contain("WorkflowEventRoute.Correlation")
+            .And.Contain("WorkflowEventRoute.DefinitionFanout").And.Contain("WorkflowEventRoute.StartOrDeliver")
+            .And.Contain("AcceptAsync").And.Contain("WorkflowEventAcceptanceResult.Accepted")
+            .And.Contain("WorkflowEventAcceptanceRejection.FanoutLimitExceeded");
+        scheduler.Should().Contain("WorkflowEventContract<JobTerminal>.Create").And.Contain(".Wait(")
+            .And.Contain("GetPayload(EventContracts.JobTerminal)").And.Contain(".Then<ValidateTerminalJobStep>()")
             .And.Contain("payload.JobUid").And.Contain("context.Execution.OperationId.Value")
             .And.Contain("lease.ProtectionToken.Value").And.Contain("payload.IsTerminal");
         foreach (var source in new[] { ephemeral, durable, ingress, scheduler })
-            source.Should().NotContain("CommandProcessor").And.NotContain("WaitLong").And.NotContain("RunExternalJob");
+            source.Should().NotContain("IWorkflowEventClient").And.NotContain("DeliverToInstanceAsync")
+                .And.NotContain("DeliverByCorrelationAsync").And.NotContain("CommandProcessor")
+                .And.NotContain("WaitLong").And.NotContain("RunExternalJob").And.NotContain("DefinitionId.New()");
     }
 
     [Fact]

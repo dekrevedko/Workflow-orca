@@ -114,7 +114,10 @@ internal static class ReferenceLinearFiberInterpreter
                         userStepInvoked,
                         requeue: false);
                 case InstructionExecutionResult.Yield:
-                    fiber = fiber with { YieldCount = checked(fiber.YieldCount + 1) };
+                fiber = fiber with
+                {
+                    QuantumRotationCount = checked(fiber.QuantumRotationCount + 1)
+                };
                     return Finish(
                         state,
                         fiber,

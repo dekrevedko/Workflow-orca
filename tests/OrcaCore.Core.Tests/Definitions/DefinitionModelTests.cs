@@ -3,7 +3,6 @@ using System.Security.Cryptography;
 using System.Text;
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Definitions;
 using Xunit;

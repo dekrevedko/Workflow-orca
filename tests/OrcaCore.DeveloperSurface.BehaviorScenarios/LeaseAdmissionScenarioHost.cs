@@ -1,15 +1,10 @@
 using System.Reflection;
+using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
-using OrcaCore.Core.Definitions;
 using OrcaCore.DeveloperSurface.BehaviorContracts;
-using OrcaCore.Engine.Durable.Definitions;
-using OrcaCore.Engine.Durable.Driver;
-using OrcaCore.Engine.Durable.Execution;
-using OrcaCore.Engine.Durable.Management;
-using OrcaCore.Providers.InMemory;
+using OrcaCore.Hosting;
 
 namespace OrcaCore.DeveloperSurface.BehaviorScenarios;
 
@@ -76,8 +71,7 @@ public static class LeaseAdmissionScenarioHost
     {
         const string barrier = "unknown-pool";
         context.ReleaseBarrier(barrier);
-        var store = new InMemoryWorkflowProvider();
-        var pools = new InMemoryResourcePoolStore();
+        using var store = new DurableScenarioProvider(context.Services.TimeProvider);
         var request = ResourceLeaseRequest.Create(
             ResourceLeaseRequirement.Require(ResourcePoolName.Create("zeta")),
             ResourceLeaseRequirement.Require(ResourcePoolName.Create("alpha")));
@@ -87,18 +81,14 @@ public static class LeaseAdmissionScenarioHost
                 ConsumeBarrier(context, barrier);
                 return new LeaseState();
             })
-            .AcquireResources(request, lease => lease.Then<NoOpStep>())
+            .AcquireResources(_ => request, lease => lease.Then<NoOpStep>())
             .End()
             .Build();
-        var runtime = CreateRuntime(store, pools, definition, context.Services.TimeProvider);
+        using var runtime = CreateRuntime(store, definition, context.Services.TimeProvider);
+        var pools = runtime.ResourcePools;
         var definitionHandle = DurableFacadeScenarioAdapter.Register(
             runtime,
-            store,
-            store,
-            new DurableManagement(store),
-            context.Services.TimeProvider,
-            definition,
-            request.Requirements.Select(requirement => requirement.Pool));
+            definition);
 
         var observed = await context.ObserveThrowsAsync<
             ResourcePoolNotConfiguredException,
@@ -120,12 +110,12 @@ public static class LeaseAdmissionScenarioHost
             throw new InvalidOperationException("Unknown-pool admission mutated provider pools.");
         }
 
-        var instance = (await store.ListAsync(new WorkflowProjectionQuery(), CancellationToken.None))
-            .Single();
-        if ((await store.LoadCheckpointAsync(instance.InstanceId, CancellationToken.None)).HasValue)
+        var binding = await store.GetStartedAsync("unknown-pools", CancellationToken.None);
+        if (!binding.HasValue ||
+            (await store.LoadCheckpointAsync(binding.Value.InstanceId, CancellationToken.None)).HasValue)
         {
             throw new InvalidOperationException(
-                "Unknown-pool admission committed a lease obligation before failing.");
+                "Unknown-pool admission either skipped the serialized start or committed a driver checkpoint.");
         }
     }
 
@@ -135,8 +125,8 @@ public static class LeaseAdmissionScenarioHost
         const string barrier = "selector-request";
         context.ReleaseBarrier(barrier);
         var selectorCalls = 0;
-        var store = new InMemoryWorkflowProvider();
-        var pools = await CreatePoolsAsync(("database", 1, (TimeSpan?)null));
+        using var store = new DurableScenarioProvider(context.Services.TimeProvider);
+        var poolDefinitions = PoolDefinitions(("database", 1, (TimeSpan?)null));
         var request = ResourceLeaseRequest.Create(
             ResourceLeaseRequirement.Require(ResourcePoolName.Create("database")));
         var root = Workflow.Durable<LeaseState>(DefinitionId.New(), DefinitionVersion.Initial)
@@ -155,12 +145,12 @@ public static class LeaseAdmissionScenarioHost
             successor => ReferenceEquals(successor, root),
             "Selector AcquireResources did not preserve the authoring session.");
         var definition = root.End().Build();
-        var first = CreateRuntime(
+        using var first = CreateRuntime(
             store,
-            pools,
             definition,
             context.Services.TimeProvider,
-            new DurableDriverBudget(1, TimeSpan.FromMinutes(1)));
+            poolDefinitions);
+        first.Register(definition);
 
         var started = await first.StartOrGetAsync<string, LeaseState>(
             "selector-replay",
@@ -178,21 +168,20 @@ public static class LeaseAdmissionScenarioHost
         var original = committed.OwnedObligations.Single(
             obligation => obligation.ProtectionToken is not null);
 
-        var replacement = CreateRuntime(
+        using var replacement = CreateRuntime(
             store,
-            pools,
             definition,
-            context.Services.TimeProvider);
+            context.Services.TimeProvider,
+            poolDefinitions);
+        replacement.Register(definition);
         _ = await replacement.StartOrGetAsync<string, LeaseState>(
             "selector-replay",
             definition.DefinitionId,
             definition.DefinitionVersion,
             "input",
             CancellationToken.None);
-        var terminal = (await store.ListAsync(
-            new WorkflowProjectionQuery { InstanceId = started.InstanceId },
-            CancellationToken.None)).Single();
-        if (terminal.Status != LegacyWorkflowStatus.Completed ||
+        var terminal = (await store.GetAsync(started.InstanceId, CancellationToken.None)).Value;
+        if (terminal.Status != WorkflowInstanceStatus.Completed ||
             selectorCalls != 1 ||
             original.LeaseRequirements.Count != 1 ||
             original.LeaseRequirements[0].PoolName != "database")
@@ -207,23 +196,10 @@ public static class LeaseAdmissionScenarioHost
     {
         const string barrier = "atomic-multipool";
         context.ReleaseBarrier(barrier);
-        var store = new InMemoryWorkflowProvider();
-        var pools = await CreatePoolsAsync(
+        using var store = new DurableScenarioProvider(context.Services.TimeProvider);
+        var poolDefinitions = PoolDefinitions(
             ("pool-a", 1, (TimeSpan?)null),
             ("pool-b", 1, (TimeSpan?)null));
-        var blocker = InstanceId.Parse(Guid.CreateVersion7().ToString());
-        var blocked = await pools.AcquireAsync(
-            new ResourcePoolAcquireRequest(
-                blocker,
-                "external",
-                [new ResourcePoolRequirement("pool-a", 1)],
-                context.Services.TimeProvider.GetUtcNow(),
-                ExpiresAt: null),
-            CancellationToken.None);
-        if (blocked.Status != ResourcePoolAcquireStatus.Granted)
-        {
-            throw new InvalidOperationException("The external capacity blocker was not granted.");
-        }
 
         var first = ResourceLeaseRequirement.Require(ResourcePoolName.Create("pool-b"));
         var observedRequest = context.Observe(
@@ -248,15 +224,28 @@ public static class LeaseAdmissionScenarioHost
             .AcquireResources(request!, lease => lease.Then<NoOpStep>())
             .End()
             .Build();
-        var runtime = CreateRuntime(store, pools, definition, context.Services.TimeProvider);
+        using var runtime = CreateRuntime(
+            store,
+            definition,
+            context.Services.TimeProvider,
+            poolDefinitions);
+        var pools = runtime.ResourcePools;
+        var blocker = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var blocked = await pools.AcquireAsync(
+            new ResourcePoolAcquireRequest(
+                blocker,
+                "external",
+                [new ResourcePoolRequirement("pool-a", 1)],
+                context.Services.TimeProvider.GetUtcNow(),
+                ExpiresAt: null),
+            CancellationToken.None);
+        if (blocked.Status != ResourcePoolAcquireStatus.Granted)
+        {
+            throw new InvalidOperationException("The external capacity blocker was not granted.");
+        }
         var definitionHandle = DurableFacadeScenarioAdapter.Register(
             runtime,
-            store,
-            store,
-            new DurableManagement(store),
-            context.Services.TimeProvider,
-            definition,
-            request!.Requirements.Select(requirement => requirement.Pool));
+            definition);
         var observedStart = await context.ObserveAsync(
             _ => definitionHandle.StartOrGetAsync(
                 "input",
@@ -283,7 +272,7 @@ public static class LeaseAdmissionScenarioHost
     {
         const string barrier = "queued-cancel";
         context.ReleaseBarrier(barrier);
-        var fixture = await CreateQueuedFixtureAsync(context, barrier, "queued-cancel");
+        using var fixture = await CreateQueuedFixtureAsync(context, barrier, "queued-cancel");
         var observed = await context.ObserveAsync(
             _ => fixture.Instance.RequestCancellationAsync(CancellationToken.None));
         Phase0Assert.Satisfies(
@@ -309,17 +298,8 @@ public static class LeaseAdmissionScenarioHost
     {
         const string barrier = "park-requesting-fiber";
         context.ReleaseBarrier(barrier);
-        var store = new InMemoryWorkflowProvider();
-        var pools = await CreatePoolsAsync(("database", 1, (TimeSpan?)null));
-        var blocker = InstanceId.Parse(Guid.CreateVersion7().ToString());
-        _ = await pools.AcquireAsync(
-            new ResourcePoolAcquireRequest(
-                blocker,
-                "external",
-                [new ResourcePoolRequirement("database", 1)],
-                context.Services.TimeProvider.GetUtcNow(),
-                ExpiresAt: null),
-            CancellationToken.None);
+        using var store = new DurableScenarioProvider(context.Services.TimeProvider);
+        var poolDefinitions = PoolDefinitions(("database", 1, (TimeSpan?)null));
         var request = ResourceLeaseRequest.Create(
             ResourceLeaseRequirement.Require(ResourcePoolName.Create("database")));
         var probe = new LeaseProbe();
@@ -344,20 +324,25 @@ public static class LeaseAdmissionScenarioHost
             .WhenAll((snapshot, _) => snapshot.Value)
             .End()
             .Build();
-        var runtime = CreateRuntime(
+        using var runtime = CreateRuntime(
             store,
-            pools,
             definition,
             context.Services.TimeProvider,
-            services: new LeaseServices(probe));
+            poolDefinitions,
+            probe);
+        var pools = runtime.ResourcePools;
+        var blocker = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        _ = await pools.AcquireAsync(
+            new ResourcePoolAcquireRequest(
+                blocker,
+                "external",
+                [new ResourcePoolRequirement("database", 1)],
+                context.Services.TimeProvider.GetUtcNow(),
+                ExpiresAt: null),
+            CancellationToken.None);
         var definitionHandle = DurableFacadeScenarioAdapter.Register(
             runtime,
-            store,
-            store,
-            new DurableManagement(store),
-            context.Services.TimeProvider,
-            definition,
-            [ResourcePoolName.Create("database")]);
+            definition);
         var observedStart = await context.ObserveAsync(
             _ => definitionHandle.StartOrGetAsync(
                 "input",
@@ -439,19 +424,21 @@ public static class LeaseAdmissionScenarioHost
             item => item is not null,
             "Root ForEach item lease placement was rejected.");
 
-        var store = new InMemoryWorkflowProvider();
-        var pools = await CreatePoolsAsync(("database", 1, (TimeSpan?)null));
-        var runtime = CreateRuntime(store, pools, definition, TimeProvider.System);
+        using var store = new DurableScenarioProvider();
+        using var runtime = CreateRuntime(
+            store,
+            definition,
+            TimeProvider.System,
+            PoolDefinitions(("database", 1, (TimeSpan?)null)));
+        runtime.Register(definition);
         var started = await runtime.StartOrGetAsync<string, LeaseState>(
             "legal-lease-placements",
             definition.DefinitionId,
             definition.DefinitionVersion,
             "input",
             CancellationToken.None);
-        var snapshot = (await store.ListAsync(
-            new WorkflowProjectionQuery { InstanceId = started.InstanceId },
-            CancellationToken.None)).Single();
-        if (snapshot.Status != LegacyWorkflowStatus.Completed)
+        var snapshot = (await store.GetAsync(started.InstanceId, CancellationToken.None)).Value;
+        if (snapshot.Status != WorkflowInstanceStatus.Completed)
         {
             throw new InvalidOperationException(
                 $"Legal sequential lease placements did not complete: {snapshot.Status}.");
@@ -518,22 +505,15 @@ public static class LeaseAdmissionScenarioHost
             .AcquireResources(request, lease => lease.Then<NoOpStep>())
             .End()
             .Build();
-        var store = new InMemoryWorkflowProvider();
-        var pools = await CreatePoolsAsync(("database", 1, (TimeSpan?)null));
-        var runtime = CreateRuntime(
+        using var store = new DurableScenarioProvider(context.Services.TimeProvider);
+        using var runtime = CreateRuntime(
             store,
-            pools,
             definition,
             context.Services.TimeProvider,
-            DurableDriverBudget.Default);
+            PoolDefinitions(("database", 1, (TimeSpan?)null)));
         var definitionHandle = DurableFacadeScenarioAdapter.Register(
             runtime,
-            store,
-            store,
-            new DurableManagement(store),
-            context.Services.TimeProvider,
-            definition,
-            [ResourcePoolName.Create("database")]);
+            definition);
         var observedStart = await context.ObserveAsync(
             _ => definitionHandle.StartOrGetAsync(
                 "input",
@@ -577,20 +557,24 @@ public static class LeaseAdmissionScenarioHost
             .Parallel<int>(branches => branches.Branch(
                 AuthoredBranchId.Create("forged-ancestry"),
                 snapshot => snapshot.Value,
-                branch => branch.AcquireResources(
-                    request,
-                    lease => lease.Return(_ => 1))))
+                branch => branch
+                    .Wait(
+                        EventName.Create("Resume-Forged-Ancestry"),
+                        _ => CorrelationId.Create("forged-ancestry"))
+                    .AcquireResources(
+                        request,
+                        lease => lease.Return(_ => 1))))
             .WhenAll((snapshot, _) => snapshot.Value)
             .End()
             .Build();
-        var store = new InMemoryWorkflowProvider();
-        var pools = await CreatePoolsAsync(("database", 1, (TimeSpan?)null));
-        var runtime = CreateRuntime(
+        using var store = new DurableScenarioProvider(context.Services.TimeProvider);
+        var poolDefinitions = PoolDefinitions(("database", 1, (TimeSpan?)null));
+        using var runtime = CreateRuntime(
             store,
-            pools,
             definition,
             context.Services.TimeProvider,
-            new DurableDriverBudget(1, TimeSpan.FromMinutes(1)));
+            poolDefinitions);
+        runtime.Register(definition);
         var started = await runtime.StartOrGetAsync<string, LeaseState>(
             "forged-lease-ancestry",
             definition.DefinitionId,
@@ -600,34 +584,22 @@ public static class LeaseAdmissionScenarioHost
 
         DurableExecutionEnvelopeV2? candidate = null;
         CheckpointWrite? checkpoint = null;
-        for (var turn = 0; turn < 12; turn++)
+        var checkpointOption = await store.LoadCheckpointAsync(
+            started.InstanceId,
+            CancellationToken.None);
+        if (checkpointOption.HasValue)
         {
-            var checkpointOption = await store.LoadCheckpointAsync(
-                started.InstanceId,
-                CancellationToken.None);
-            if (checkpointOption.HasValue)
+            checkpoint = checkpointOption.Value;
+            var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint.Payload);
+            var scope = envelope.Scopes.SingleOrDefault(scope =>
+                scope.Phase == DurableExecutionScopePhase.Running &&
+                scope.ChildFiberIds.Count == 1);
+            if (scope is not null &&
+                envelope.OwnedObligations.All(obligation =>
+                    obligation.Kind != DurableOwnedObligationKind.Resource))
             {
-                checkpoint = checkpointOption.Value;
-                var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint.Payload);
-                var scope = envelope.Scopes.SingleOrDefault(scope =>
-                    scope.Phase == DurableExecutionScopePhase.Running &&
-                    scope.ChildFiberIds.Count == 1);
-                if (scope is not null &&
-                    envelope.OwnedObligations.Count == 0 &&
-                    envelope.Fibers.Single(fiber =>
-                        fiber.FiberId == scope.ChildFiberIds[0]).Phase == DurableFiberPhase.Runnable)
-                {
-                    candidate = envelope;
-                    break;
-                }
+                candidate = envelope;
             }
-
-            _ = await runtime.StartOrGetAsync<string, LeaseState>(
-                "forged-lease-ancestry",
-                definition.DefinitionId,
-                definition.DefinitionVersion,
-                "input",
-                CancellationToken.None);
         }
 
         if (candidate is null || checkpoint is null)
@@ -644,6 +616,7 @@ public static class LeaseAdmissionScenarioHost
         {
             OwnedObligations =
             [
+                .. candidate.OwnedObligations,
                 new DurableOwnedObligationState
                 {
                     Kind = DurableOwnedObligationKind.Resource,
@@ -662,29 +635,34 @@ public static class LeaseAdmissionScenarioHost
         };
         await ReplaceCheckpointAsync(store, checkpoint, forged);
 
-        var replacement = CreateRuntime(
+        using var replacement = CreateRuntime(
             store,
-            pools,
             definition,
-            context.Services.TimeProvider);
-        _ = await replacement.StartOrGetAsync<string, LeaseState>(
-            "forged-lease-ancestry",
-            definition.DefinitionId,
-            definition.DefinitionVersion,
-            "input",
+            context.Services.TimeProvider,
+            poolDefinitions);
+        replacement.Register(definition);
+        var delivery = await replacement.RaiseEventAsync(
+            started.InstanceId,
+            "Resume-Forged-Ancestry",
+            CorrelationId.Create("forged-ancestry"),
             CancellationToken.None);
-        var failed = (await store.ListAsync(
-            new WorkflowProjectionQuery { InstanceId = started.InstanceId },
-            CancellationToken.None)).Single();
-        var pool = (await pools.GetPoolAsync("database", CancellationToken.None)).Value;
-        if (failed.Status != LegacyWorkflowStatus.Failed ||
+        var failed = (await store.GetAsync(started.InstanceId, CancellationToken.None)).Value;
+        var failedEnvelope = DurableExecutionEnvelopeV2.Deserialize(
+            (await store.LoadCheckpointAsync(started.InstanceId, CancellationToken.None)).Value.Payload);
+        var pool = (await replacement.ResourcePools.GetPoolAsync("database", CancellationToken.None)).Value;
+        if (failed.Status != WorkflowInstanceStatus.Failed ||
             failed.ErrorSummary is null ||
             !failed.ErrorSummary.Contains("SFE-RUN-002", StringComparison.Ordinal) ||
             pool.AvailableCapacity != 1 ||
             pool.HeldTickets.Count != 0)
         {
             throw new InvalidOperationException(
-                "Forged live lease ancestry did not fail before pool mutation with SFE-RUN-002.");
+                "Forged live lease ancestry did not fail before pool mutation with SFE-RUN-002. " +
+                $"Delivery={delivery.Status}; Status={failed.Status}; Error={failed.ErrorSummary ?? "<null>"}; " +
+                $"Capacity={pool.AvailableCapacity}; Tickets={pool.HeldTickets.Count}; " +
+                $"Fibers={string.Join('|', failedEnvelope.Fibers.Select(fiber => $"{fiber.FiberId}:{fiber.Phase}:{fiber.Blocked?.Reason}:{fiber.Blocked?.ObligationId}:{fiber.InstructionId}:{fiber.OwningScopeId}"))}; " +
+                $"Scopes={string.Join('|', failedEnvelope.Scopes.Select(scope => $"{scope.ScopeId}:{scope.Phase}:{scope.ParentFiberId}"))}; " +
+                $"Obligations={string.Join('|', failedEnvelope.OwnedObligations.Select(obligation => $"{obligation.FiberId}:{obligation.LeasePhase}"))}.");
         }
     }
 
@@ -700,68 +678,90 @@ public static class LeaseAdmissionScenarioHost
             .WhenAll((snapshot, _) => snapshot.Value)
             .ContinueAsNew(snapshot => snapshot.Value)
             .Build();
-        var store = new InMemoryWorkflowProvider();
-        var pools = await CreatePoolsAsync();
-        var runtime = CreateRuntime(
+        using var store = new DurableScenarioProvider(context.Services.TimeProvider);
+        using var runtime = CreateRuntime(
             store,
-            pools,
             definition,
-            context.Services.TimeProvider,
-            new DurableDriverBudget(1, TimeSpan.FromMinutes(1)));
-        var started = await runtime.StartOrGetAsync<string, LeaseState>(
-            "forged-rollover",
-            definition.DefinitionId,
-            definition.DefinitionVersion,
-            "input",
-            CancellationToken.None);
-
-        DurableExecutionEnvelopeV2? candidate = null;
-        CheckpointWrite? checkpoint = null;
+            context.Services.TimeProvider);
+        runtime.Register(definition);
+        using var freeze = new CancellationTokenSource();
         DurableExecutionScopeState? scopeTemplate = null;
         DurableFiberState? childTemplate = null;
-        for (var turn = 0; turn < 16; turn++)
+        store.AfterSuccessfulAppend = batch =>
         {
-            var checkpointOption = await store.LoadCheckpointAsync(
-                started.InstanceId,
-                CancellationToken.None);
-            if (checkpointOption.HasValue)
+            if (batch.Checkpoint is not { ContentType: DurableExecutionEnvelopeV2.ContentType } checkpointWrite)
             {
-                checkpoint = checkpointOption.Value;
-                var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint.Payload);
-                if (envelope.Scopes.Count == 1)
-                {
-                    scopeTemplate = envelope.Scopes[0];
-                    childTemplate = envelope.Fibers.Single(fiber =>
-                        fiber.FiberId == scopeTemplate.ChildFiberIds.Single());
-                }
-
-                var root = envelope.Fibers.Single(fiber =>
-                    fiber.FiberId == envelope.RootFiberId);
-                if (envelope.ContinueAsNewGeneration == 0 &&
-                    envelope.OwnedObligations.Count == 0 &&
-                    envelope.Scopes.Count == 0 &&
-                    root.Phase == DurableFiberPhase.Runnable &&
-                    root.InstructionId.Contains("ContinueAsNew", StringComparison.Ordinal) &&
-                    scopeTemplate is not null &&
-                    childTemplate is not null)
-                {
-                    candidate = envelope;
-                    break;
-                }
+                return;
             }
 
+            var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpointWrite.Payload);
+            if (envelope.Scopes.Count == 1)
+            {
+                scopeTemplate = envelope.Scopes[0];
+                childTemplate = envelope.Fibers.Single(fiber =>
+                    fiber.FiberId == scopeTemplate.ChildFiberIds.Single());
+            }
+
+            var root = envelope.Fibers.Single(fiber =>
+                fiber.FiberId == envelope.RootFiberId);
+            if (envelope.ContinueAsNewGeneration == 0 &&
+                envelope.OwnedObligations.Count == 0 &&
+                envelope.Scopes.Count == 0 &&
+                root.Phase == DurableFiberPhase.Runnable &&
+                root.InstructionId.Contains("ContinueAsNew", StringComparison.Ordinal) &&
+                scopeTemplate is not null &&
+                childTemplate is not null)
+            {
+                freeze.Cancel();
+            }
+        };
+        try
+        {
             _ = await runtime.StartOrGetAsync<string, LeaseState>(
                 "forged-rollover",
                 definition.DefinitionId,
                 definition.DefinitionVersion,
                 "input",
-                CancellationToken.None);
+                freeze.Token);
+        }
+        catch (OperationCanceledException) when (freeze.IsCancellationRequested)
+        {
+            // The public provider seam cancels only after the exact pre-rollover checkpoint commits.
+        }
+        finally
+        {
+            store.AfterSuccessfulAppend = null;
         }
 
-        if (candidate is null || checkpoint is null)
+        var binding = await store.GetStartedAsync("forged-rollover", CancellationToken.None);
+        if (!binding.HasValue)
+        {
+            throw new InvalidOperationException("The pre-rollover start binding was not committed.");
+        }
+
+        var checkpointOption = await store.LoadCheckpointAsync(
+            binding.Value.InstanceId,
+            CancellationToken.None);
+        if (!checkpointOption.HasValue)
         {
             throw new InvalidOperationException(
                 "Could not freeze the root immediately before ContinueAsNew.");
+        }
+
+        var checkpoint = checkpointOption.Value;
+        var candidate = DurableExecutionEnvelopeV2.Deserialize(checkpoint.Payload);
+        var candidateRoot = candidate.Fibers.Single(fiber =>
+            fiber.FiberId == candidate.RootFiberId);
+        if (candidate.ContinueAsNewGeneration != 0 ||
+            candidate.OwnedObligations.Count != 0 ||
+            candidate.Scopes.Count != 0 ||
+            candidateRoot.Phase != DurableFiberPhase.Runnable ||
+            !candidateRoot.InstructionId.Contains("ContinueAsNew", StringComparison.Ordinal) ||
+            scopeTemplate is null ||
+            childTemplate is null)
+        {
+            throw new InvalidOperationException(
+                "The public provider seam did not freeze the exact pre-rollover checkpoint.");
         }
 
         var completedScope = scopeTemplate!;
@@ -806,25 +806,23 @@ public static class LeaseAdmissionScenarioHost
         };
         await ReplaceCheckpointAsync(store, checkpoint, forged);
 
-        var replacement = CreateRuntime(
+        using var replacement = CreateRuntime(
             store,
-            pools,
             definition,
             context.Services.TimeProvider);
+        replacement.Register(definition);
         _ = await replacement.StartOrGetAsync<string, LeaseState>(
             "forged-rollover",
             definition.DefinitionId,
             definition.DefinitionVersion,
             "input",
             CancellationToken.None);
-        var failed = (await store.ListAsync(
-            new WorkflowProjectionQuery { InstanceId = started.InstanceId },
-            CancellationToken.None)).Single();
+        var failed = (await store.GetAsync(binding.Value.InstanceId, CancellationToken.None)).Value;
         var failedCheckpoint = (await store.LoadCheckpointAsync(
-            started.InstanceId,
+            binding.Value.InstanceId,
             CancellationToken.None)).Value;
         var failedEnvelope = DurableExecutionEnvelopeV2.Deserialize(failedCheckpoint.Payload);
-        if (failed.Status != LegacyWorkflowStatus.Failed ||
+        if (failed.Status != WorkflowInstanceStatus.Failed ||
             failedCheckpoint.ErrorSummary is null ||
             !failedCheckpoint.ErrorSummary.Contains("SFE-RUN-001", StringComparison.Ordinal) ||
             failedEnvelope.ContinueAsNewGeneration != 0 ||
@@ -839,7 +837,7 @@ public static class LeaseAdmissionScenarioHost
     }
 
     private static async Task ReplaceCheckpointAsync(
-        InMemoryWorkflowProvider store,
+        IWorkflowEventStore store,
         CheckpointWrite checkpoint,
         DurableExecutionEnvelopeV2 envelope)
     {
@@ -866,17 +864,7 @@ public static class LeaseAdmissionScenarioHost
         string barrier,
         string key)
     {
-        var store = new InMemoryWorkflowProvider();
-        var pools = await CreatePoolsAsync(("database", 1, (TimeSpan?)null));
-        var blocker = InstanceId.Parse(Guid.CreateVersion7().ToString());
-        _ = await pools.AcquireAsync(
-            new ResourcePoolAcquireRequest(
-                blocker,
-                "external",
-                [new ResourcePoolRequirement("database", 1)],
-                context.Services.TimeProvider.GetUtcNow(),
-                ExpiresAt: null),
-            CancellationToken.None);
+        var store = new DurableScenarioProvider(context.Services.TimeProvider);
         var request = ResourceLeaseRequest.Create(
             ResourceLeaseRequirement.Require(ResourcePoolName.Create("database")));
         var definition = Workflow.Durable<LeaseState>(DefinitionId.New(), DefinitionVersion.Initial)
@@ -888,13 +876,22 @@ public static class LeaseAdmissionScenarioHost
             .AcquireResources(request, lease => lease.Then<NoOpStep>())
             .End()
             .Build();
-        var processor = new DurableCommandProcessor(store, pools);
         var runtime = CreateRuntime(
             store,
-            pools,
             definition,
             context.Services.TimeProvider,
-            processor: processor);
+            PoolDefinitions(("database", 1, (TimeSpan?)null)));
+        runtime.Register(definition);
+        var pools = runtime.ResourcePools;
+        var blocker = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        _ = await pools.AcquireAsync(
+            new ResourcePoolAcquireRequest(
+                blocker,
+                "external",
+                [new ResourcePoolRequirement("database", 1)],
+                context.Services.TimeProvider.GetUtcNow(),
+                ExpiresAt: null),
+            CancellationToken.None);
         var started = await runtime.StartOrGetAsync<string, LeaseState>(
             key,
             definition.DefinitionId,
@@ -903,57 +900,42 @@ public static class LeaseAdmissionScenarioHost
             CancellationToken.None);
         var definitionHandle = DurableFacadeScenarioAdapter.Register(
             runtime,
-            store,
-            store,
-            new DurableManagement(store, pools, store, processor),
-            context.Services.TimeProvider,
-            definition,
-            [ResourcePoolName.Create("database")]);
+            definition);
         var instance = await definitionHandle.GetInstanceAsync(
             started.InstanceId,
             CancellationToken.None);
-        return new QueuedFixture(store, pools, processor, started.InstanceId, instance);
+        return new QueuedFixture(store, runtime, pools, started.InstanceId, instance);
     }
 
-    private static DurableWorkflowRuntime CreateRuntime(
-        InMemoryWorkflowProvider store,
-        IResourcePoolStore pools,
+    private static DurableScenarioRuntime CreateRuntime(
+        DurableScenarioProvider store,
         DurableWorkflowDefinition<string> definition,
         TimeProvider timeProvider,
-        DurableDriverBudget? budget = null,
-        IServiceProvider? services = null,
-        DurableCommandProcessor? processor = null)
+        IReadOnlyList<DurableResourcePoolDefinition>? pools = null,
+        LeaseProbe? probe = null)
     {
-        var runtime = new DurableWorkflowRuntime(
-            processor ?? new DurableCommandProcessor(store, pools),
-            new DurableDefinitionRegistry(services ?? new LeaseServices(new LeaseProbe())),
+        var leaseProbe = probe ?? new LeaseProbe();
+        return DurableScenarioRuntime.Create(
+            store,
             timeProvider,
-            budget ?? DurableDriverBudget.Default);
-        runtime.RegisterDefinition(RuntimeDefinition<LeaseState>(definition));
-        return runtime;
+            resourcePools: pools,
+            configureServices: services =>
+            {
+                services.AddTransient<NoOpStep>();
+                services.AddSingleton(leaseProbe);
+                services.AddTransient<SiblingProbeStep>();
+            },
+            partition: $"lease-admission-{definition.DefinitionId.Value:N}");
     }
 
-    private static async Task<InMemoryResourcePoolStore> CreatePoolsAsync(
+    private static IReadOnlyList<DurableResourcePoolDefinition> PoolDefinitions(
         params (string Name, int Capacity, TimeSpan? ReviewAfter)[] definitions)
-    {
-        var pools = new InMemoryResourcePoolStore();
-        foreach (var definition in definitions)
-        {
-            await pools.UpsertPoolAsync(
-                new ResourcePoolDefinition(
-                    definition.Name,
-                    definition.Capacity,
-                    definition.ReviewAfter),
-                CancellationToken.None);
-        }
-
-        return pools;
-    }
-
-    private static WorkflowDefinition<TState> RuntimeDefinition<TState>(object publicDefinition) =>
-        (WorkflowDefinition<TState>)publicDefinition.GetType()
-            .GetProperty("RuntimeDefinition", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .GetValue(publicDefinition)!;
+        => definitions
+            .Select(definition => DurableResourcePoolDefinition.Create(
+                ResourcePoolName.Create(definition.Name),
+                definition.Capacity,
+                definition.ReviewAfter ?? TimeSpan.FromMinutes(5)))
+            .ToArray();
 
     private static async Task<DurableExecutionEnvelopeV2> EnvelopeAsync(
         IWorkflowEventStore store,
@@ -1010,28 +992,17 @@ public static class LeaseAdmissionScenarioHost
         }
     }
 
-    private sealed class LeaseServices(LeaseProbe probe) : IServiceProvider
+    private sealed record QueuedFixture(
+        DurableScenarioProvider Store,
+        DurableScenarioRuntime Runtime,
+        IResourcePoolStore Pools,
+        InstanceId InstanceId,
+        WorkflowInstanceHandle Instance) : IDisposable
     {
-        public object? GetService(Type serviceType)
+        public void Dispose()
         {
-            if (serviceType == typeof(NoOpStep))
-            {
-                return new NoOpStep();
-            }
-
-            if (serviceType == typeof(SiblingProbeStep))
-            {
-                return new SiblingProbeStep(probe);
-            }
-
-            return null;
+            Runtime.Dispose();
+            Store.Dispose();
         }
     }
-
-    private sealed record QueuedFixture(
-        InMemoryWorkflowProvider Store,
-        InMemoryResourcePoolStore Pools,
-        DurableCommandProcessor Processor,
-        InstanceId InstanceId,
-        WorkflowInstanceHandle Instance);
 }

@@ -35,7 +35,7 @@ public sealed record WorkflowInstanceSnapshot
     /// <summary>
     /// Gets the current lifecycle status.
     /// </summary>
-    public required WorkflowStatus Status { get; init; }
+    public required global::OrcaCore.WorkflowInstanceStatus Status { get; init; }
 
     /// <summary>
     /// Gets the monotonic committed stream version for optimistic concurrency, when the

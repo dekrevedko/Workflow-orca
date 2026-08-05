@@ -1,6 +1,5 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
@@ -10,13 +9,12 @@ namespace OrcaCore.Providers.InMemory;
 /// <summary>
 /// Provides in-memory durable port implementations for tests and local execution.
 /// </summary>
-public sealed class InMemoryWorkflowProvider :
+internal sealed class InMemoryWorkflowProvider :
     IWorkflowEventStore,
     IWorkflowInboxStore,
     IWorkflowStartIdempotencyStore,
     IWorkflowOutboxStore,
     IWorkflowProjectionStore,
-    IWorkflowRetentionStore,
     ITimerScheduler,
     IMessageDispatcher
 {
@@ -29,7 +27,7 @@ public sealed class InMemoryWorkflowProvider :
     private readonly List<OutboxWrite> dispatched = [];
     private readonly List<ProjectionWrite> projections = [];
     private readonly List<ProjectionHistoryWrite> history = [];
-    private readonly Dictionary<InstanceId, LegacyWorkflowInstanceSnapshot> summaries = [];
+    private readonly Dictionary<InstanceId, WorkflowProjectionSnapshot> summaries = [];
     private readonly Dictionary<InstanceId, CheckpointWrite> checkpoints = [];
     private readonly Dictionary<WorkflowStreamId, List<DurableWorkflowEvent>> streams = [];
     private readonly Dictionary<TimerId, InMemoryTimerSchedule> timers = [];
@@ -274,119 +272,55 @@ public sealed class InMemoryWorkflowProvider :
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<LegacyWorkflowInstanceSnapshot>> ListAsync(
-        WorkflowProjectionQuery query,
+    public Task<Option<WorkflowProjectionSnapshot>> GetAsync(
+        InstanceId instanceId,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(query);
+        ArgumentNullException.ThrowIfNull(instanceId);
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (gate)
         {
-            return Task.FromResult<IReadOnlyList<LegacyWorkflowInstanceSnapshot>>(
+            return Task.FromResult(summaries.TryGetValue(instanceId, out var snapshot)
+                ? Option<WorkflowProjectionSnapshot>.Some(CloneSnapshot(snapshot))
+                : Option<WorkflowProjectionSnapshot>.None);
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<WorkflowProjectionSnapshot>> FindActiveWaitsAsync(
+        DefinitionId? definitionId,
+        EventName eventName,
+        CorrelationId correlationId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(eventName);
+        ArgumentNullException.ThrowIfNull(correlationId);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            return Task.FromResult<IReadOnlyList<WorkflowProjectionSnapshot>>(
                 summaries.Values
-                    .Where(snapshot => Matches(snapshot, query))
+                    .Where(snapshot => definitionId is null || snapshot.DefinitionId.Equals(definitionId))
+                    .Where(snapshot => snapshot.ActiveWaits.Any(wait =>
+                        string.Equals(wait.EventName, eventName.Value, StringComparison.Ordinal) &&
+                        wait.CorrelationId.Equals(correlationId)))
                     .Select(CloneSnapshot)
                     .ToArray());
         }
     }
 
     /// <inheritdoc />
-    public Task<int> CountAsync(WorkflowProjectionQuery query, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(query);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (gate)
-        {
-            return Task.FromResult(summaries.Values.Count(snapshot => Matches(snapshot, query)));
-        }
-    }
-
-    /// <inheritdoc />
-    public Task<IReadOnlyList<LegacyActiveWaitSnapshot>> ListActiveWaitsAsync(
-        WorkflowProjectionQuery query,
+    public Task<IReadOnlyList<WorkflowProjectionSnapshot>> ListLeaseRecoveryCandidatesAsync(
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (gate)
         {
-            return Task.FromResult<IReadOnlyList<LegacyActiveWaitSnapshot>>(
-                summaries.Values
-                    .Where(snapshot => Matches(snapshot, query))
-                    .SelectMany(snapshot => snapshot.ActiveWaits)
-                    .Select(CloneActiveWait)
-                    .ToArray());
-        }
-    }
-
-    /// <inheritdoc />
-    public Task<WorkflowStatistics> GetStatisticsAsync(
-        WorkflowProjectionQuery query,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(query);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (gate)
-        {
-            var groups = summaries.Values
-                .Where(snapshot => Matches(snapshot, query))
-                .GroupBy(snapshot => new
-                {
-                    snapshot.DefinitionId,
-                    snapshot.DefinitionVersion,
-                    snapshot.Status
-                })
-                .Select(group => new WorkflowStatisticsGroup
-                {
-                    DefinitionId = group.Key.DefinitionId,
-                    DefinitionVersion = group.Key.DefinitionVersion,
-                    Status = group.Key.Status,
-                    Count = group.Count()
-                })
-                .ToArray();
-
-            return Task.FromResult(new WorkflowStatistics
-            {
-                Groups = groups,
-                Pressure = new WorkflowPressureMetrics
-                {
-                    TotalStreamEvents = streams.Values.Sum(stream => (long)stream.Count),
-                    CheckpointCount = checkpoints.Count,
-                    CheckpointLag = streams
-                        .Select(stream =>
-                        {
-                            var checkpointVersion = checkpoints.TryGetValue(stream.Key.InstanceId, out var checkpoint)
-                                ? checkpoint.StreamVersion.Value
-                                : 0;
-                            return Math.Max(0, stream.Value.Count - checkpointVersion);
-                        })
-                        .DefaultIfEmpty(0)
-                        .Max(),
-                    PendingOutboxCount = outbox.Values.Count(record =>
-                        record.State is OutboxRecordState.Pending or OutboxRecordState.Retryable),
-                    OutboxPendingCount = outbox.Values.Count(record => record.State is OutboxRecordState.Pending),
-                    OutboxRetryableCount = outbox.Values.Count(record => record.State is OutboxRecordState.Retryable),
-                    OutboxClaimedCount = outbox.Values.Count(record => record.State is OutboxRecordState.Claimed),
-                    ContinuationPendingCount = outbox.Values.Count(record =>
-                        record.Write.Kind == OutboxKinds.Continue && record.State is OutboxRecordState.Pending),
-                    ContinuationRetryableCount = outbox.Values.Count(record =>
-                        record.Write.Kind == OutboxKinds.Continue && record.State is OutboxRecordState.Retryable),
-                    ContinuationClaimedCount = outbox.Values.Count(record =>
-                        record.Write.Kind == OutboxKinds.Continue && record.State is OutboxRecordState.Claimed),
-                    ExternalOutboxPendingCount = outbox.Values.Count(record =>
-                        record.Write.Kind != OutboxKinds.Continue && record.State is OutboxRecordState.Pending),
-                    ExternalOutboxRetryableCount = outbox.Values.Count(record =>
-                        record.Write.Kind != OutboxKinds.Continue && record.State is OutboxRecordState.Retryable),
-                    ExternalOutboxClaimedCount = outbox.Values.Count(record =>
-                        record.Write.Kind != OutboxKinds.Continue && record.State is OutboxRecordState.Claimed),
-                    ActiveInstanceCount = summaries.Values.Count(snapshot =>
-                        snapshot.Status is LegacyWorkflowStatus.Running or LegacyWorkflowStatus.Waiting or LegacyWorkflowStatus.Paused)
-                }
-            });
+            return Task.FromResult<IReadOnlyList<WorkflowProjectionSnapshot>>(
+                summaries.Values.Select(CloneSnapshot).ToArray());
         }
     }
 
@@ -495,57 +429,26 @@ public sealed class InMemoryWorkflowProvider :
         return Task.FromResult(DispatchResult.Success);
     }
 
-    /// <inheritdoc />
-    public Task<ArchiveResult> ArchiveAsync(RetentionPolicy policy, CancellationToken cancellationToken)
+    internal Task<(bool Purged, string? Reason)> PurgeForRetentionAsync(
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(policy);
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (gate)
         {
-            if (IsActive(policy.InstanceId))
+            if (IsActive(instanceId))
             {
-                return Task.FromResult(new ArchiveResult { Archived = false, Reason = "Instance is active." });
+                return Task.FromResult((false, (string?)"Instance is active."));
             }
 
-            if (!summaries.TryGetValue(policy.InstanceId, out var snapshot))
+            if (HasClaimedOutbox(instanceId))
             {
-                return Task.FromResult(new ArchiveResult
-                {
-                    Archived = false,
-                    Reason = "Instance projection was not found."
-                });
+                return Task.FromResult((false, (string?)"Instance has claimed outbox records."));
             }
 
-            summaries[policy.InstanceId] = snapshot with { ArchivedAt = policy.RequestedAt };
-            return Task.FromResult(new ArchiveResult { Archived = true });
-        }
-    }
-
-    /// <inheritdoc />
-    public Task<PurgeResult> PurgeAsync(RetentionPolicy policy, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(policy);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (gate)
-        {
-            if (IsActive(policy.InstanceId))
-            {
-                return Task.FromResult(new PurgeResult { Purged = false, Reason = "Instance is active." });
-            }
-
-            if (HasClaimedOutbox(policy.InstanceId))
-            {
-                return Task.FromResult(new PurgeResult
-                {
-                    Purged = false,
-                    Reason = "Instance has claimed outbox records."
-                });
-            }
-
-            DeleteInstanceData(policy.InstanceId);
-            return Task.FromResult(new PurgeResult { Purged = true });
+            DeleteInstanceData(instanceId);
+            return Task.FromResult((true, (string?)null));
         }
     }
 
@@ -633,54 +536,18 @@ public sealed class InMemoryWorkflowProvider :
         }
     }
 
-    private static bool Matches(LegacyWorkflowInstanceSnapshot snapshot, WorkflowProjectionQuery query)
-    {
-        return (query.InstanceId is null || snapshot.InstanceId.Equals(query.InstanceId)) &&
-            (query.ParentInstanceId is null || snapshot.ParentInstanceId?.Equals(query.ParentInstanceId) == true) &&
-            (query.RootInstanceId is null || snapshot.RootInstanceId?.Equals(query.RootInstanceId) == true) &&
-            (query.DefinitionId is null || snapshot.DefinitionId.Equals(query.DefinitionId)) &&
-            (query.DefinitionVersion is null || snapshot.DefinitionVersion == query.DefinitionVersion) &&
-            (query.Status is null || snapshot.Status == query.Status) &&
-            MatchesActiveWait(snapshot.ActiveWaits, query);
-    }
-
-    private static bool MatchesActiveWait(
-        IReadOnlyList<LegacyActiveWaitSnapshot> activeWaits,
-        WorkflowProjectionQuery query)
-    {
-        if (query.ActiveWaitEventName is null && query.ActiveWaitCorrelationId is null)
-        {
-            return true;
-        }
-
-        return activeWaits.Any(wait =>
-            (query.ActiveWaitEventName is null ||
-                string.Equals(wait.EventName, query.ActiveWaitEventName, StringComparison.Ordinal)) &&
-            (query.ActiveWaitCorrelationId is null || wait.CorrelationId.Equals(query.ActiveWaitCorrelationId)));
-    }
-
-    private static LegacyWorkflowInstanceSnapshot CloneSnapshot(LegacyWorkflowInstanceSnapshot snapshot)
+    private static WorkflowProjectionSnapshot CloneSnapshot(WorkflowProjectionSnapshot snapshot)
     {
         return snapshot with
         {
-            ActiveWaits = snapshot.ActiveWaits.Select(CloneActiveWait).ToArray(),
-            SagaAudits = snapshot.SagaAudits.Select(CloneSagaAuditScope).ToArray()
+            ActiveWaits = snapshot.ActiveWaits.Select(CloneActiveWait).ToArray()
         };
     }
 
-    private static LegacyActiveWaitSnapshot CloneActiveWait(LegacyActiveWaitSnapshot snapshot)
+    private static WorkflowProjectionActiveWaitSnapshot CloneActiveWait(
+        WorkflowProjectionActiveWaitSnapshot snapshot)
     {
         return snapshot with { };
-    }
-
-    private static SagaAuditScopeSnapshot CloneSagaAuditScope(SagaAuditScopeSnapshot snapshot)
-    {
-        return snapshot with
-        {
-            ForwardActions = snapshot.ForwardActions.Select(action => action with { }).ToArray(),
-            CompensationActions = snapshot.CompensationActions.Select(action => action with { }).ToArray(),
-            RecoveryInterventions = snapshot.RecoveryInterventions.Select(intervention => intervention with { }).ToArray()
-        };
     }
 
     private static OutboxWrite CloneOutboxWrite(OutboxWrite record)
@@ -703,24 +570,7 @@ public sealed class InMemoryWorkflowProvider :
         {
             ActiveTimers = state.ActiveTimers.Select(timer => timer with { }).ToArray(),
             ActiveWaits = state.ActiveWaits.Select(wait => wait with { }).ToArray(),
-            BufferedDeliveries = state.BufferedDeliveries.Select(delivery => delivery with
-            {
-                Payload = delivery.Payload?.ToArray()
-            }).ToArray(),
-            BufferedTimers = state.BufferedTimers.Select(timer => timer with { }).ToArray(),
-            ActiveChildren = state.ActiveChildren.Select(child => child with { }).ToArray(),
-            ActiveChildGroups = state.ActiveChildGroups.Select(group => group with
-            {
-                Children = group.Children.Select(child => child with { }).ToArray()
-            }).ToArray(),
             ActiveResourceTickets = state.ActiveResourceTickets.Select(ticket => ticket with { }).ToArray(),
-            ActiveExternalJobs = state.ActiveExternalJobs.Select(job => job with { }).ToArray(),
-            CompletedSagaForwardActions = state.CompletedSagaForwardActions.Select(action => action with { }).ToArray(),
-            SagaCompensationActions = state.SagaCompensationActions.Select(action => action with { }).ToArray(),
-            SagaRecoveryInterventions = state.SagaRecoveryInterventions.Select(intervention => intervention with { }).ToArray(),
-            RequestedSagaCompensationScopes = [.. state.RequestedSagaCompensationScopes],
-            RecordedParentResumeTokens = [.. state.RecordedParentResumeTokens],
-            ConsumedParentResumeTokens = [.. state.ConsumedParentResumeTokens],
             PendingResumes = state.PendingResumes.Select(pending => pending with
             {
                 Payload = pending.Payload?.ToArray()
@@ -733,8 +583,11 @@ public sealed class InMemoryWorkflowProvider :
 
     private bool IsActive(InstanceId instanceId)
     {
-        return summaries.TryGetValue(instanceId, out var snapshot) &&
-            snapshot.Status is LegacyWorkflowStatus.Running or LegacyWorkflowStatus.Waiting or LegacyWorkflowStatus.Paused;
+        return summaries.TryGetValue(instanceId, out var snapshot) && snapshot.Status is
+            global::OrcaCore.WorkflowInstanceStatus.Pending or
+            global::OrcaCore.WorkflowInstanceStatus.Running or
+            global::OrcaCore.WorkflowInstanceStatus.Waiting or
+            global::OrcaCore.WorkflowInstanceStatus.CancellationRequested;
     }
 
     private bool HasClaimedOutbox(InstanceId instanceId)

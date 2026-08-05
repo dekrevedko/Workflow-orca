@@ -3,18 +3,18 @@ using System.Runtime.CompilerServices;
 using OrcaCore.Abstractions.Diagnostics;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Aggregates;
 using OrcaCore.Engine.Durable.Diagnostics;
 using OrcaCore.Engine.Durable.ResourceGovernance;
-using OrcaCore.Provider.Abstractions.ResourceGovernance;
 using OrcaCore.Runtime.Protocol.ResourceGovernance;
 
 namespace OrcaCore.Engine.Durable.Execution;
 
-public sealed class DurableCommandProcessor
+using WorkflowStatus = global::OrcaCore.WorkflowInstanceStatus;
+
+internal sealed class DurableCommandProcessor
 {
     private const int LifecycleConflictRetryLimit = 3;
 
@@ -99,7 +99,7 @@ public sealed class DurableCommandProcessor
 
         if (missing.Count > 0)
         {
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.ResourcePoolsNotConfigured(missing);
+            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.ResourcePoolsNotConfigured(missing);
         }
     }
 
@@ -150,9 +150,7 @@ public sealed class DurableCommandProcessor
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(protectionToken);
-        return resourcePoolStore is IResourceLeaseGovernanceStore governance
-            ? governance.GetReleaseEvidenceAsync(protectionToken, cancellationToken)
-            : Task.FromResult(Option<ResourcePoolReleaseEvidence>.None);
+        return RequiredResourcePoolStore().GetReleaseEvidenceAsync(protectionToken, cancellationToken);
     }
 
     internal Task<Option<LeaseProtectionToken>> GetResourceConfirmationBindingAsync(
@@ -160,9 +158,7 @@ public sealed class DurableCommandProcessor
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(confirmationId);
-        return resourcePoolStore is IResourceLeaseGovernanceStore governance
-            ? governance.GetConfirmationBindingAsync(confirmationId, cancellationToken)
-            : Task.FromResult(Option<LeaseProtectionToken>.None);
+        return RequiredResourcePoolStore().GetConfirmationBindingAsync(confirmationId, cancellationToken);
     }
 
     internal async Task<ResourcePoolStopConfirmationStatus> ConfirmAndReleaseResourceHolderAsync(
@@ -170,19 +166,9 @@ public sealed class DurableCommandProcessor
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (resourcePoolStore is IResourceLeaseGovernanceStore governance)
-        {
-            return await governance.ConfirmAndReleaseAsync(request, cancellationToken).ConfigureAwait(false);
-        }
-
-        var released = await ReleaseConfirmedResourceHolderAsync(
-            request.HolderInstanceId,
-            request.HolderKey,
-            request.ConfirmedAt,
-            cancellationToken).ConfigureAwait(false);
-        return released.ReleasedTickets.Count == 0
-            ? ResourcePoolStopConfirmationStatus.TokenNotFound
-            : ResourcePoolStopConfirmationStatus.Released;
+        return await RequiredResourcePoolStore()
+            .ConfirmAndReleaseAsync(request, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     internal Task<IReadOnlyList<ResourcePoolSnapshot>> ListResourcePoolsAsync(
@@ -314,7 +300,7 @@ public sealed class DurableCommandProcessor
             expectedVersion: command.ExpectedStreamVersion);
     }
 
-    public Task<DurableCommandResult> ProcessAsync(
+    internal Task<DurableCommandResult> ProcessAsync(
         DurableYieldCommand command,
         CancellationToken cancellationToken)
     {
@@ -324,41 +310,6 @@ public sealed class DurableCommandProcessor
             aggregate => aggregate.DecideYield(command),
             cancellationToken,
             commandType: nameof(DurableYieldCommand),
-            expectedVersion: command.ExpectedStreamVersion);
-    }
-
-    public Task<DurableCommandResult> ProcessAsync(
-        DurableRunChildCommand command,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        return RunInLaneAsync(
-            command.InstanceId,
-            aggregate => aggregate.DecideRunChild(command),
-            cancellationToken,
-            expectedVersion: command.ExpectedStreamVersion);
-    }
-
-    public Task<DurableCommandResult> ProcessAsync(
-        DurableChildCompletedCommand command,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        return RunInLaneAsync(
-            command.InstanceId,
-            aggregate => aggregate.DecideChildCompleted(command),
-            cancellationToken);
-    }
-
-    public Task<DurableCommandResult> ProcessAsync(
-        DurableRunChildrenCommand command,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        return RunInLaneAsync(
-            command.InstanceId,
-            aggregate => aggregate.DecideRunChildren(command),
-            cancellationToken,
             expectedVersion: command.ExpectedStreamVersion);
     }
 
@@ -513,65 +464,6 @@ public sealed class DurableCommandProcessor
             expectedVersion: command.ExpectedStreamVersion);
     }
 
-    public Task<DurableCommandResult> ProcessAsync(
-        RunExternalJobCommand command,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        return RunInLaneAsync(
-            command.InstanceId,
-            async (aggregate, token) =>
-            {
-                ResourcePoolAcquireResult? acquireResult = null;
-                if (command.Requirements.Count > 0)
-                {
-                    acquireResult = await RequiredResourcePoolStore()
-                        .AcquireAsync(
-                            new ResourcePoolAcquireRequest(
-                                command.InstanceId,
-                                command.ExternalJobId,
-                                command.Requirements,
-                                command.RequestedAt,
-                                command.TimeoutAt)
-                            {
-                                FiberId = command.FiberId,
-                                ScopeId = command.ScopeId
-                            },
-                            token)
-                        .ConfigureAwait(false);
-                }
-
-                return aggregate.DecideRunExternalJob(command, acquireResult);
-            },
-            cancellationToken,
-            expectedVersion: command.ExpectedStreamVersion);
-    }
-
-    public Task<DurableCommandResult> ProcessAsync(
-        CompleteExternalJobCommand command,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        return RunInLaneAsync(
-            command.InstanceId,
-            aggregate => aggregate.DecideExternalJobCompleted(command),
-            cancellationToken,
-            new DurableInboxDelivery(
-                command.CompletionEventId,
-                DurableEventEnvelopeFingerprint.CreateExternalJobCompletion(command.ExternalJobId)));
-    }
-
-    public Task<DurableCommandResult> ProcessAsync(
-        TimeoutExternalJobCommand command,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        return RunInLaneAsync(
-            command.InstanceId,
-            aggregate => aggregate.DecideExternalJobTimedOut(command),
-            cancellationToken);
-    }
-
     public async Task<DurableCommandResult> ProcessAsync(
         CancelWorkflowCommand command,
         CancellationToken cancellationToken)
@@ -614,7 +506,7 @@ public sealed class DurableCommandProcessor
                 runtime.RequestStepCancellation(command.InstanceId);
                 if (!runtime.HasRunningStep(command.InstanceId))
                 {
-                    // Waits, timers, external jobs, and replacement-host recovery have no
+                    // Waits, timers, and replacement-host recovery have no
                     // cooperative body to await. Preserve the committed request disposition
                     // for the caller while completing definite cleanup immediately.
                     _ = await FinalizeCancellationAsync(
@@ -651,117 +543,6 @@ public sealed class DurableCommandProcessor
                             token)
                         .ConfigureAwait(false));
             },
-            cancellationToken);
-    }
-
-    public Task<DurableCommandResult> ProcessAsync(
-        ConsumeParentResumeTokenCommand command,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        return RunInLaneAsync(
-            command.InstanceId,
-            aggregate => aggregate.DecideConsumeParentResumeToken(command),
-            cancellationToken,
-            expectedVersion: command.ExpectedStreamVersion);
-    }
-
-    public Task<DurableCommandResult> ProcessAsync(
-        CompensateChildGroupCommand command,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        return RunInLaneAsync(
-            command.InstanceId,
-            aggregate => aggregate.DecideCompensateChildGroup(command),
-            cancellationToken);
-    }
-
-    public Task<DurableCommandResult> ProcessAsync(
-        RecordSagaForwardActionCompletedCommand command,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        return RunInLaneAsync(
-            command.InstanceId,
-            aggregate => aggregate.DecideRecordSagaForwardActionCompleted(command),
-            cancellationToken);
-    }
-
-    public Task<DurableCommandResult> ProcessAsync(
-        RequestSagaCompensationCommand command,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        return RunInLaneAsync(
-            command.InstanceId,
-            aggregate => aggregate.DecideRequestSagaCompensation(command),
-            cancellationToken);
-    }
-
-    public Task<DurableCommandResult> ProcessAsync(
-        SagaForwardActionTimedOutCommand command,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        return RunInLaneAsync(
-            command.InstanceId,
-            aggregate => aggregate.DecideSagaForwardActionTimedOut(command),
-            cancellationToken);
-    }
-
-    public Task<DurableCommandResult> ProcessAsync(
-        CompleteSagaCompensationCommand command,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        return RunInLaneAsync(
-            command.InstanceId,
-            aggregate => aggregate.DecideCompleteSagaCompensation(command),
-            cancellationToken);
-    }
-
-    public Task<DurableCommandResult> ProcessAsync(
-        FailSagaCompensationCommand command,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        return RunInLaneAsync(
-            command.InstanceId,
-            aggregate => aggregate.DecideFailSagaCompensation(command),
-            cancellationToken);
-    }
-
-    public Task<DurableCommandResult> ProcessAsync(
-        RecordSagaManualRecoveryCommand command,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        return RunInLaneAsync(
-            command.InstanceId,
-            aggregate => aggregate.DecideRecordSagaManualRecovery(command),
-            cancellationToken);
-    }
-
-    internal Task<DurableCommandResult> ProcessAsync(
-        DurablePauseCommand command,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        return RunInLaneAsync(
-            command.InstanceId,
-            aggregate => aggregate.DecidePause(command),
-            cancellationToken);
-    }
-
-    internal Task<DurableCommandResult> ProcessAsync(
-        DurableResumeCommand command,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        return RunInLaneAsync(
-            command.InstanceId,
-            aggregate => aggregate.DecideResume(command),
             cancellationToken);
     }
 
@@ -1340,7 +1121,7 @@ public sealed class DurableCommandProcessor
 
 }
 
-public enum DurableCommandOutcome
+internal enum DurableCommandOutcome
 {
     Committed,
     Conflict,
@@ -1349,7 +1130,7 @@ public enum DurableCommandOutcome
     NoOp
 }
 
-public sealed record DurableCommandResult(
+internal sealed record DurableCommandResult(
     DurableCommandOutcome Outcome,
     string? Message,
     StreamVersion StreamVersion,

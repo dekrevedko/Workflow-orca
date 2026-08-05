@@ -1,7 +1,8 @@
 # 17. Selected-Mode Capability and Signature Matrix
 
-Status: **normative first-release planning baseline**, revised 2026-07-19. The live remediation and
-Phase 0 route is
+Status: **normative first-release planning baseline with a Section 7B amendment pending independent
+approval**, revised 2026-08-01. Product tasks 7.24–7.34 remain blocked until task 7.23 records that
+approval. The live remediation and Phase 0 route is
 [Review E remediation and Phase 00 status](../review/developer-facing-interface-v1-simplification-review-e-remediation-and-phase-00-status-2026-07-19.md).
 The approved root-only fan-out boundary remains recorded in the
 [root-only fan-out decision and final revalidation](../review/developer-facing-interface-v1-root-only-fan-out-decision-and-revalidation-2026-07-19.md).
@@ -33,8 +34,10 @@ that mode.
 | `WhenFirst` | Absent | Absent | Deferred until winner, loser cancellation, residual-work, and lease semantics are approved together. |
 | Root `ForEach(...).WhenAll*` | Portable | Portable | One finite item snapshot commits per scope; explicit item bound and optional node concurrency cap; stable item-index ordering. Durable mode commits before item admission. |
 | Nested `ForEach` | Absent | Absent | Deferred to keep the first-release state/limit model bounded. |
-| Structural `Wait` | Portable | Portable | One authoring member. Durable mode may evict any parked wait and later rehydrate it; residency is host policy, not workflow meaning. |
-| Dynamic `StepResult.WaitForEvent` | Portable | Portable | Retained only when a business step must select the event after it runs. Structural `Wait` remains preferred. |
+| Structural `Wait` | Portable | Portable | Payloadless/typed `WorkflowEventContract` descriptor plus correlation selector. Durable mode may buffer before registration, evict a parked wait, and later rehydrate it; residency is host policy, not workflow meaning. |
+| Dynamic `StepResult.WaitForEvent` | Portable | Portable | Payloadless/typed descriptor form retained only when a business step must select the event after it runs. Structural `Wait` remains preferred. |
+| Workflow-authored `Publish` | Absent | Durable sequential root, nested, branch, item, and leased builders | Payloadless/typed descriptor plus correlation/payload selectors; workflow progress and the transport-neutral external outbox event commit atomically. |
+| Durable event ingress | Absent | Durable hosting only | `IWorkflowEventIngress` accepts one self-routing envelope using direct, correlation, definition-fanout, or exact-definition start-or-deliver routing and returns a closed acknowledgement-safe result. |
 | `Delay` | Portable | Portable | Durable mode persists the timer. |
 | `WaitLong` | Removed | Removed | No alias or tombstone. Durable `Wait` is cold-capable automatically. |
 | `Yield` | Removed | Removed | No author control intent. The runtime owns internal execution quanta and checkpoint scheduling. |
@@ -94,6 +97,13 @@ public sealed class DefinitionVersion : IEquatable<DefinitionVersion>
     public DefinitionVersion(int value);
     public int Value { get; }
     public static DefinitionVersion Initial { get; }
+}
+
+public sealed class EventContractVersion : IEquatable<EventContractVersion>
+{
+    public EventContractVersion(int value);
+    public int Value { get; }
+    public static EventContractVersion Initial { get; }
 }
 
 public sealed class EventName : IEquatable<EventName>
@@ -242,15 +252,15 @@ public sealed class EventEnvelope
 {
     internal EventEnvelope(
         EventId eventId,
-        EventName eventName,
+        WorkflowEventContract eventContract,
         CorrelationId correlationId,
         DateTimeOffset occurredAt,
         ReadOnlyMemory<byte> payload);
     public EventId EventId { get; }
-    public EventName EventName { get; }
+    public WorkflowEventContract EventContract { get; }
     public CorrelationId CorrelationId { get; }
     public DateTimeOffset OccurredAt { get; }
-    public TPayload GetPayload<TPayload>();
+    public TPayload GetPayload<TPayload>(WorkflowEventContract<TPayload> eventContract);
 }
 
 public sealed class StepExecutionContext
@@ -472,6 +482,9 @@ DurableWorkflowDefinition<TInput, TOutput>
 Validation<DurableWorkflowDefinition<TInput, TOutput>>
     DurableWorkflowCompletionBuilder<TInput, TOutput>.TryBuild();
 
+EphemeralWorkflowRef<TInput> EphemeralWorkflowDefinition<TInput>.Reference { get; }
+EphemeralWorkflowRef<TInput, TOutput>
+    EphemeralWorkflowDefinition<TInput, TOutput>.Reference { get; }
 DurableWorkflowRef<TInput> DurableWorkflowDefinition<TInput>.Reference { get; }
 DurableWorkflowRef<TInput, TOutput>
     DurableWorkflowDefinition<TInput, TOutput>.Reference { get; }
@@ -526,13 +539,31 @@ TRootBuilder While(
     Action<TSelectedNestedBuilder> body);
 
 TBuilder Wait(
-    EventName eventName,
+    WorkflowEventContract eventContract,
     Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation);
 
 TBuilder Wait(
-    EventName eventName,
+    WorkflowEventContract eventContract,
     Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
     TimeSpan timeout);
+
+TBuilder Wait<TPayload>(
+    WorkflowEventContract<TPayload> eventContract,
+    Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation);
+
+TBuilder Wait<TPayload>(
+    WorkflowEventContract<TPayload> eventContract,
+    Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+    TimeSpan timeout);
+
+TSelectedDurableBuilder Publish(
+    WorkflowEventContract eventContract,
+    Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation);
+
+TSelectedDurableBuilder Publish<TPayload>(
+    WorkflowEventContract<TPayload> eventContract,
+    Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+    Func<ReadOnlyStateSnapshot<TState>, TPayload> payload);
 
 TBuilder Delay(TimeSpan duration);
 
@@ -547,16 +578,19 @@ public abstract record StepResult
     public sealed record Completed : StepResult;
     public sealed record Failed(OrcaCoreException Error) : StepResult;
     public sealed record WaitForEvent(
-        EventName EventName,
+        WorkflowEventContract EventContract,
+        CorrelationId CorrelationId) : StepResult;
+    public sealed record WaitForEvent<TPayload>(
+        WorkflowEventContract<TPayload> EventContract,
         CorrelationId CorrelationId) : StepResult;
 }
 
 public sealed class WorkflowWaitTimeoutException : OrcaCoreException
 {
     internal WorkflowWaitTimeoutException(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         CorrelationId correlationId);
-    public EventName EventName { get; }
+    public WorkflowEventContract EventContract { get; }
     public CorrelationId CorrelationId { get; }
 }
 
@@ -581,10 +615,10 @@ public sealed class AmbiguousWaitRegistrationException : OrcaCoreException
 {
     internal AmbiguousWaitRegistrationException(
         DefinitionId definitionId,
-        EventName eventName,
+        WorkflowEventContract eventContract,
         CorrelationId correlationId);
     public DefinitionId DefinitionId { get; }
-    public EventName EventName { get; }
+    public WorkflowEventContract EventContract { get; }
     public CorrelationId CorrelationId { get; }
 }
 
@@ -619,6 +653,7 @@ availability table is:
 | `Return` | no | no | branch/item only | leased branch/item only |
 | `WithTransientPool` | ephemeral | ephemeral | ephemeral | n/a |
 | `AcquireResources` | durable | durable when no lease is active | durable branch/item when no lease is active | no |
+| `Publish` | durable | durable | durable | durable |
 | `Init` | init builder only | no | no | no |
 | `CompleteWithin`, `End` | root sequence only | no | no | no |
 | terminal `ContinueAsNew` | durable root sequence only | no | no | no |
@@ -1018,7 +1053,7 @@ name order, so an unknown pool can never park indefinitely.
 The root, root-nested, branch, and item overload pairs above are exhaustive. Branch/item
 conditional bodies retain their enclosing `DurableBranchBuilder`/`DurableItemBuilder` family;
 root conditional/loop bodies use `DurableNestedBuilder`. The four leased builder families expose
-the ordinary step/`If`/wait/delay/return capabilities appropriate to their parent but omit every
+the ordinary step/`If`/wait/`Publish`/delay/return capabilities appropriate to their parent but omit every
 fan-out member (`Parallel` and `ForEach`), `AcquireResources`, and `ContinueAsNew`.
 
 The complete request is granted atomically. If unavailable, only the requesting fiber parks;
@@ -1938,17 +1973,24 @@ provider abstractions, application/core never references DAG or advanced package
 reference an engine, and no OrcaCore package references a companion integration. Provider-native
 dependencies remain inside their provider package.
 
-`OrcaCore.Dag.Hosting` is the only bridge between a DAG plan and durable child execution. It uses
-a named, versioned internal child-start/join contract exposed by `OrcaCore.Durable.Hosting` through
-`InternalsVisibleTo("OrcaCore.Dag.Hosting")`; that contract is compiled and tested in the same
-solution/release train but is not a public application or provider SPI. This avoids both a reverse
-core-to-DAG dependency and a public general-purpose child-management back door. Any future package
-that needs this bridge must first amend the matrix rather than gaining another friend declaration.
+Implementation package boundaries use exact type-safe internal friends so the package split never
+forces compiler, execution-kernel, concrete engine, provider, or hosted-loop types into exported
+metadata. The complete product-friend set is:
 
-The only additional friend is the test-only
-`OrcaCore.Engine.Durable -> InternalsVisibleTo("OrcaCore.ProviderCertification")` edge for the
-four internal post-commit barrier types. It creates no product-package dependency and exposes no
-general engine/runtime access. Every other friend assembly is forbidden.
+- `OrcaCore.Core -> OrcaCore.Engine.Ephemeral` and `OrcaCore.Engine.Durable` for the shared internal
+  compiler/execution kernel;
+- `OrcaCore.Engine.Durable -> OrcaCore.Durable.Hosting` for the internal durable role bootstrap;
+- `OrcaCore.Durable.Hosting -> OrcaCore.Dag.Hosting` for the named, versioned internal child-start/
+  join contract.
+
+These CLR access grants do not create reverse package dependencies or public application/provider
+SPIs. Exact owning white-box test friends are `OrcaCore.Core.Tests`,
+`OrcaCore.Engine.Ephemeral.Tests`, `OrcaCore.Engine.Durable.Tests`, `OrcaCore.Hosting.Tests`, and
+`OrcaCore.Providers.PostgreSql.Tests`. The only cross-package test friend remains
+`OrcaCore.Engine.Durable -> OrcaCore.ProviderCertification` for the four internal post-commit
+barrier types. Acceptance, behavior-scenario, compile-fixture, and integration assemblies receive
+no friend access. Every other friend is forbidden; a future product or test friend requires a
+reviewed matrix amendment first.
 
 Phase 0 packs every manifest entry at exact verification version `0.0.0-phase0` into repository-local
 feed `artifacts/phase0-packages`. Clean fixtures use only `PackageReference` and that feed: no
@@ -1964,19 +2006,37 @@ namespace OrcaCore.Hosting
 {
     public static class OrcaCoreEphemeralEngineServiceCollectionExtensions
     {
-        public static IServiceCollection AddOrcaCoreEphemeralEngine(
+        public static OrcaCoreEphemeralEngineBuilder AddOrcaCoreEphemeralEngine(
             this IServiceCollection services,
             EphemeralEngineHostOptions options);
     }
 
     public static class OrcaCoreDurableEngineServiceCollectionExtensions
     {
-        public static IServiceCollection AddOrcaCoreDurableEngine(
+        public static OrcaCoreDurableEngineBuilder AddOrcaCoreDurableEngine(
             this IServiceCollection services,
             DurableEngineHostOptions options);
 
         public static IServiceCollection AddOrcaCoreDurableEventIngress(
             this IServiceCollection services);
+    }
+
+    public sealed class OrcaCoreEphemeralEngineBuilder
+    {
+        internal OrcaCoreEphemeralEngineBuilder(IServiceCollection services);
+        public OrcaCoreEphemeralEngineBuilder AddWorkflow<TInput>(
+            EphemeralWorkflowDefinition<TInput> definition);
+        public OrcaCoreEphemeralEngineBuilder AddWorkflow<TInput, TOutput>(
+            EphemeralWorkflowDefinition<TInput, TOutput> definition);
+    }
+
+    public sealed class OrcaCoreDurableEngineBuilder
+    {
+        internal OrcaCoreDurableEngineBuilder(IServiceCollection services);
+        public OrcaCoreDurableEngineBuilder AddWorkflow<TInput>(
+            DurableWorkflowDefinition<TInput> definition);
+        public OrcaCoreDurableEngineBuilder AddWorkflow<TInput, TOutput>(
+            DurableWorkflowDefinition<TInput, TOutput> definition);
     }
 }
 
@@ -2023,14 +2083,14 @@ Engine/provider registration copies and validates programmatically constructed o
 registers the selected hosted loops, and is idempotent only for the same role/options; conflicting
 duplicate registration fails startup. V1 publishes no configuration-binder DTO/converter/section
 overload. One service provider cannot select both ephemeral and durable engines: mixed engine roles
-fail deterministically rather than making registry or event-client ownership implicit.
+fail deterministically rather than making registry or ingress ownership implicit.
 Durable-engine startup requires exactly one complete certified provider role set and the configured
 resource-governance partition. `AddOrcaCoreDurableEventIngress` is the definition-less callback
-role: it exposes `IWorkflowEventClient` and durable inbox/continuation handoff but registers no
+role: it exposes `IWorkflowEventIngress` and durable inbox/start-intent/continuation handoff but registers no
 definition registry, execution worker, timer/reconciliation loop, or DAG coordinator. The durable
 engine includes ingress and owns progression; registering callback-only ingress beside that engine
-is rejected. `AddOrcaCoreEphemeralEngine` registers the in-memory wait lookup/dedup implementation
-of `IWorkflowEventClient`; the durable engine/ingress role registers its durable implementation.
+is rejected. `AddOrcaCoreEphemeralEngine` registers only process-local wait matching and no durable
+ingress contract; the durable engine/ingress role registers `IWorkflowEventIngress`.
 The in-memory durable provider is development/test-only and makes no process-restart claim.
 `AddOrcaCorePostgreSqlDurableProvider` supplies the first complete production certified role set;
 its required nonblank `ConnectionString` and `Schema` are copied and validated before any partial
@@ -2091,9 +2151,7 @@ pretends they ship:
 | Definition-wide retry | Reset/state/output semantics are unresolved. | Reset point, retained input/state, attempt identity, terminal policy. |
 | Failed-instance/step management retry | Reopening a terminal instance conflicts with immutable terminal history. | New-generation identity, retained input/state, output invalidation, lineage, authorization. |
 | Public pause/resume/archive/purge | Not required for the first scheduler release and easy to confuse with waits, terminality, or provider retention. | Authorization, lifecycle transitions, retention/reference safety, provider certification. |
-| Workflow-authored `Publish` | A portable outbox event contract is not required by the first scheduler journey. | Typed payload, destination, event identity, commit boundary, dispatch/dedup contract. |
 | Workflow-authored `Cancel` | Self-cancellation adds no value over explicit failure/output in v1. | Target semantics, terminal outcome, descendant/lease cleanup, authorization. |
-| Definition-targeted event fanout | Snapshot and per-target dedup semantics unnecessarily enlarge event delivery. | Committed target set, `(target, EventId)` dedup, retry/late-registration rule. |
 
 `WaitLong` and author `Yield` are removed rather than deferred: their useful behavior is owned
 by durable `Wait` residency and the runtime's internal execution quantum. Their names must be
@@ -2143,6 +2201,9 @@ public abstract record DefinitionHostCompatibilityFailure
 
     public sealed record MissingDurableResourcePools(
         IReadOnlyList<ResourcePoolName> PoolNames) : DefinitionHostCompatibilityFailure;
+
+    public sealed record MissingWorkflowEventDispatcher
+        : DefinitionHostCompatibilityFailure;
 }
 
 public sealed class StartIdempotencyConflict
@@ -2240,6 +2301,14 @@ public interface IWorkflowDefinitionRegistry
         DurableWorkflowDefinition<TInput> definition);
     WorkflowRegistrationResult<DurableDefinitionHandle<TInput, TOutput>> Register<TInput, TOutput>(
         DurableWorkflowDefinition<TInput, TOutput> definition);
+    EphemeralDefinitionHandle<TInput> GetRequiredHandle<TInput>(
+        EphemeralWorkflowRef<TInput> reference);
+    EphemeralDefinitionHandle<TInput, TOutput> GetRequiredHandle<TInput, TOutput>(
+        EphemeralWorkflowRef<TInput, TOutput> reference);
+    DurableDefinitionHandle<TInput> GetRequiredHandle<TInput>(
+        DurableWorkflowRef<TInput> reference);
+    DurableDefinitionHandle<TInput, TOutput> GetRequiredHandle<TInput, TOutput>(
+        DurableWorkflowRef<TInput, TOutput> reference);
 }
 
 public sealed class EphemeralDefinitionHandle<TInput>
@@ -2305,7 +2374,7 @@ public sealed class DurableDefinitionHandle<TInput, TOutput>
 public sealed record ActiveWaitSnapshot(
     WaitId WaitId,
     AuthoredLocation AuthoredLocation,
-    EventName EventName,
+    WorkflowEventContract EventContract,
     CorrelationId CorrelationId,
     DateTimeOffset RegisteredAt,
     DateTimeOffset? Deadline);
@@ -2386,78 +2455,168 @@ public static class WorkflowStartResultExtensions
         CancellationToken cancellationToken = default);
 }
 
-public sealed class WorkflowEvent<TPayload>
+public class WorkflowEventContract : IEquatable<WorkflowEventContract>
 {
-    private WorkflowEvent(
-        EventId eventId,
+    private protected WorkflowEventContract(
         EventName eventName,
-        CorrelationId correlationId,
-        TPayload payload,
-        DateTimeOffset occurredAt);
-    public EventId EventId { get; }
+        EventContractVersion version);
     public EventName EventName { get; }
+    public EventContractVersion Version { get; }
+    public static WorkflowEventContract Create(
+        EventName eventName,
+        EventContractVersion version);
+}
+
+public sealed class WorkflowEventContract<TPayload> : WorkflowEventContract
+{
+    private WorkflowEventContract(
+        EventName eventName,
+        EventContractVersion version);
+    public static new WorkflowEventContract<TPayload> Create(
+        EventName eventName,
+        EventContractVersion version);
+}
+
+public abstract record WorkflowEventRoute
+{
+    private protected WorkflowEventRoute();
+    public sealed record Direct(InstanceId InstanceId) : WorkflowEventRoute;
+    public sealed record Correlation(DefinitionId DefinitionId) : WorkflowEventRoute;
+    public sealed record DefinitionFanout(DefinitionId DefinitionId) : WorkflowEventRoute;
+    public sealed record StartOrDeliver<TInput>(
+        DefinitionId DefinitionId,
+        DefinitionVersion DefinitionVersion,
+        StartIdempotencyKey StartIdempotencyKey,
+        TInput WorkflowInput) : WorkflowEventRoute;
+}
+
+public class WorkflowInboundEvent
+{
+    private protected WorkflowInboundEvent(
+        WorkflowEventContract eventContract,
+        EventId eventId,
+        CorrelationId correlationId,
+        EventId? causationEventId,
+        DateTimeOffset occurredAt,
+        WorkflowEventRoute route);
+    public WorkflowEventContract EventContract { get; }
+    public EventId EventId { get; }
     public CorrelationId CorrelationId { get; }
+    public EventId? CausationEventId { get; }
+    public DateTimeOffset OccurredAt { get; }
+    public WorkflowEventRoute Route { get; }
+    public static WorkflowInboundEvent Create(
+        WorkflowEventContract eventContract,
+        EventId eventId,
+        CorrelationId correlationId,
+        EventId? causationEventId,
+        DateTimeOffset occurredAt,
+        WorkflowEventRoute route);
+}
+
+public sealed class WorkflowInboundEvent<TPayload> : WorkflowInboundEvent
+{
+    private WorkflowInboundEvent(
+        WorkflowEventContract<TPayload> eventContract,
+        EventId eventId,
+        CorrelationId correlationId,
+        EventId? causationEventId,
+        DateTimeOffset occurredAt,
+        WorkflowEventRoute route,
+        TPayload payload);
+    public new WorkflowEventContract<TPayload> EventContract { get; }
     public TPayload Payload { get; }
-    public DateTimeOffset OccurredAt { get; }
-    public static WorkflowEvent<TPayload> Create(
+    public static WorkflowInboundEvent<TPayload> Create(
+        WorkflowEventContract<TPayload> eventContract,
         EventId eventId,
-        EventName eventName,
         CorrelationId correlationId,
-        TPayload payload,
-        DateTimeOffset occurredAt);
+        EventId? causationEventId,
+        DateTimeOffset occurredAt,
+        WorkflowEventRoute route,
+        TPayload payload);
 }
 
-public sealed class WorkflowEvent
+public abstract record WorkflowEventAcceptanceRejection
 {
-    private WorkflowEvent(
+    private protected WorkflowEventAcceptanceRejection();
+    public sealed record EventConflict : WorkflowEventAcceptanceRejection;
+    public sealed record DirectInstanceNotFound : WorkflowEventAcceptanceRejection;
+    public sealed record DirectInstanceTerminal : WorkflowEventAcceptanceRejection;
+    public sealed record StartConflict(
+        StartIdempotencyConflict Conflict) : WorkflowEventAcceptanceRejection;
+    public sealed record FanoutLimitExceeded : WorkflowEventAcceptanceRejection;
+}
+
+public abstract record WorkflowEventAcceptanceResult
+{
+    private protected WorkflowEventAcceptanceResult();
+    public sealed record Accepted : WorkflowEventAcceptanceResult;
+    public sealed record Duplicate : WorkflowEventAcceptanceResult;
+    public sealed record Rejected(
+        WorkflowEventAcceptanceRejection Reason) : WorkflowEventAcceptanceResult;
+}
+
+public sealed class WorkflowOutboundEvent
+{
+    internal WorkflowOutboundEvent(
+        WorkflowEventContract eventContract,
         EventId eventId,
-        EventName eventName,
         CorrelationId correlationId,
-        DateTimeOffset occurredAt);
+        EventId? causationEventId,
+        DateTimeOffset occurredAt,
+        InstanceId originInstanceId,
+        DefinitionId originDefinitionId,
+        DefinitionVersion originDefinitionVersion,
+        ReadOnlyMemory<byte> payload);
+    public WorkflowEventContract EventContract { get; }
     public EventId EventId { get; }
-    public EventName EventName { get; }
     public CorrelationId CorrelationId { get; }
+    public EventId? CausationEventId { get; }
     public DateTimeOffset OccurredAt { get; }
-    public static WorkflowEvent Create(
-        EventId eventId,
-        EventName eventName,
-        CorrelationId correlationId,
-        DateTimeOffset occurredAt);
+    public InstanceId OriginInstanceId { get; }
+    public DefinitionId OriginDefinitionId { get; }
+    public DefinitionVersion OriginDefinitionVersion { get; }
+    public TPayload GetPayload<TPayload>(WorkflowEventContract<TPayload> eventContract);
 }
 
-public enum EventDeliveryStatus
+public sealed class WorkflowEventDispatchFailure
 {
-    Accepted,
-    Duplicate,
-    NoActiveWait,
-    InstanceTerminal,
-    EventConflict
+    private WorkflowEventDispatchFailure(string code, string? detail);
+    public string Code { get; }
+    public string? Detail { get; }
+    public static WorkflowEventDispatchFailure Create(string code, string? detail = null);
 }
 
-public sealed record EventDeliveryResult(
-    EventDeliveryStatus Status,
-    InstanceId? InstanceId);
-
-public interface IWorkflowEventClient
+public abstract record WorkflowEventDispatchResult
 {
-    ValueTask<EventDeliveryResult> DeliverToInstanceAsync(
-        InstanceId instanceId,
-        WorkflowEvent @event,
-        CancellationToken cancellationToken = default);
+    private protected WorkflowEventDispatchResult();
+    public sealed record Succeeded : WorkflowEventDispatchResult;
+    public sealed record RetryableFailure(
+        WorkflowEventDispatchFailure Failure) : WorkflowEventDispatchResult;
+    public sealed record PermanentFailure(
+        WorkflowEventDispatchFailure Failure) : WorkflowEventDispatchResult;
+}
+```
 
-    ValueTask<EventDeliveryResult> DeliverToInstanceAsync<TPayload>(
-        InstanceId instanceId,
-        WorkflowEvent<TPayload> @event,
-        CancellationToken cancellationToken = default);
+The durable hosting interfaces are owned by `OrcaCore.Durable.Hosting`:
 
-    ValueTask<EventDeliveryResult> DeliverByCorrelationAsync(
-        DefinitionId definitionId,
-        WorkflowEvent @event,
-        CancellationToken cancellationToken = default);
+```csharp
+namespace OrcaCore.Durable.Hosting;
 
-    ValueTask<EventDeliveryResult> DeliverByCorrelationAsync<TPayload>(
-        DefinitionId definitionId,
-        WorkflowEvent<TPayload> @event,
+public interface IWorkflowEventIngress
+{
+    ValueTask<WorkflowEventAcceptanceResult> AcceptAsync(
+        WorkflowInboundEvent inboundEvent,
+        CancellationToken cancellationToken = default);
+    ValueTask<WorkflowEventAcceptanceResult> AcceptAsync<TPayload>(
+        WorkflowInboundEvent<TPayload> inboundEvent,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IWorkflowEventDispatcher
+{
+    ValueTask<WorkflowEventDispatchResult> DispatchAsync(
+        WorkflowOutboundEvent outboundEvent,
         CancellationToken cancellationToken = default);
 }
 ```
@@ -2512,30 +2671,48 @@ retry-policy attempt coordinate, attempt deadline/outcome, or remaining attempt 
 advanced runtime diagnostic/telemetry facts, not additional v1 application-management fields;
 their absence from this exact snapshot is normative.
 
-Accepted events atomically deduplicate and record an at-least-once continuation handoff. A
-definition-owning host may progress inline; a definition-less callback host records delivery and
-leaves progression to a definition-owning pump. Deduplication is per target instance by `EventId`:
-same ID plus identical normalized envelope is `Duplicate`; same ID plus different content is
-`EventConflict`. Correlation routing resolves exactly one active wait by
-`(DefinitionId, EventName, CorrelationId)`; registration of a second active wait for that key, or
-a second same-pair wait inside one instance, fails deterministically with
-`AmbiguousWaitRegistrationException` before parking. Definition-targeted fanout is not a v1 route.
-`NoActiveWait` and `InstanceTerminal` do not consume the `EventId`; a caller may redeliver the
-same envelope after observing/creating the intended wait. Only an accepted target writes the
-per-instance dedup record.
-`WorkflowEvent.Create` validates non-null strong values and a non-default UTC-normalized occurrence
-time and fixed-codec detaches the payload, so mutation of the caller's original object cannot alter
-delivery or dedup bytes. Occurrence time is diagnostic and never chooses a wait.
+Durable ingress compares global `EventId` plus the complete normalized envelope fingerprint before
+current route or target state. Identical redelivery returns `Duplicate` even after progression or
+terminalization; changed bytes return `Rejected(EventConflict)` without overwriting ownership.
+Only `Accepted` and `Duplicate` mean the complete envelope/route intent is durably owned and safe
+for upstream acknowledgement. Infrastructure, serialization, and cancellation failures remain
+exceptional. A new direct event for an absent or terminal target, an incompatible start binding,
+or an atomically unrepresentable fanout snapshot returns the exact rejection and commits no event
+ownership or partial target set.
+
+Direct events are stored in the target inbox before a wait exists. Correlation events without one
+unique active wait are stored in a route-level inbox keyed by exact definition, contract, and
+correlation. Acceptance, wait registration, claim, timeout, cancellation, and consumption serialize
+so the oldest eligible accepted event is consumed once or remains pending. No pending-event TTL or
+`NoActiveWait` result silently discards ownership. Correlation wait registration remains unique by
+`(DefinitionId, WorkflowEventContract, CorrelationId)` and rejects ambiguity before parking.
+
+Definition fanout atomically snapshots all current nonterminal persisted instances for the
+`DefinitionId` across versions from provider state, commits independently deduplicated target
+deliveries, accepts an empty set, excludes later instances, and reuses membership on redelivery.
+Start-or-deliver binds `StartIdempotencyKey` to exact definition/version and normalized workflow
+input distinct from event payload, then atomically owns the pending start intent and event. A
+callback-only ingress host persists the same ownership/handoff without loading a definition;
+definition-owning pumps materialize or rehydrate exact bound work. Post-acceptance semantic failures
+become observable poison rather than retroactive broker redelivery.
 
 Event/correlation pairs have signal-stream semantics. After one wait consumes an event, a later
 loop iteration may register the same pair and a later-arriving event may satisfy it. OrcaCore does
 not claim that an envelope without a wait-occurrence identity can distinguish iterations; authors
 that require occurrence-specific matching include that occurrence in `CorrelationId`. Delivery
 contains no raw command, fiber, scope, provider-generation, checkpoint, or wait-sequence identity.
-The selected engine role owns the one `IWorkflowEventClient`: ephemeral hosting provides in-memory
-wait lookup/dedup, while durable engine or callback-ingress hosting provides durable routing and
-continuation handoff. Mixed ephemeral/durable roles in one service provider are rejected, so event
-ownership is never last-registration-wins.
+Ephemeral hosting provides only process-local descriptor matching and no durable acceptance or
+broker-acknowledgement contract. Durable engine or callback-ingress hosting owns
+`IWorkflowEventIngress`; mixed ephemeral/durable roles remain rejected.
+
+Each durable `Publish` node records its explicit contract and position in the structural
+fingerprint. Runtime-owned replay-stable event, causation, correlation, origin, and occurrence-time
+metadata plus fixed-codec payload commit atomically with workflow progression. The external outbox
+pump invokes only `IWorkflowEventDispatcher.DispatchAsync(WorkflowOutboundEvent, ...)`. Success
+marks dispatch; retryable failure or exception retains retry; cancellation releases the claim;
+permanent failure records observable poison. An ambiguous broker send may repeat the same outbound
+`EventId`; internal continuation records never reach the application dispatcher. A definition that
+contains `Publish` is host-incompatible when no dispatcher is registered.
 
 `Completed`, `Failed`, `TimedOut`, `Cancelled`, and `Terminated` are immutable terminal statuses;
 v1 never reopens them. `RequestCancellationAsync` is cooperative and idempotent. `TerminateAsync`

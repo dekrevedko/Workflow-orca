@@ -1,7 +1,6 @@
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Errors;
-using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;

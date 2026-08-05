@@ -1,15 +1,11 @@
-using System.Reflection;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.DeveloperSurface.BehaviorContracts;
-using OrcaCore.Engine.Durable.Definitions;
-using OrcaCore.Engine.Durable.Execution;
-using OrcaCore.Engine.Durable.Management;
-using OrcaCore.Engine.Ephemeral;
-using OrcaCore.Providers.InMemory;
+using OrcaCore.Hosting;
 
 namespace OrcaCore.DeveloperSurface.BehaviorScenarios;
 
@@ -92,16 +88,19 @@ public static class StructuredFanoutScenarioHost
             "WhenAllOutcomes did not return a new successor-epoch facade of the exact root-builder type.");
 
         var definition = successor!.End().Build();
-        var engine = new EphemeralWorkflowEngine();
-        engine.RegisterDefinition(RuntimeDefinition<FanoutState>(definition));
-        var completed = await engine.AwaitCompletionAsync<string, FanoutState>(
-            definition.DefinitionId,
+        using var provider = CreateEphemeralHost();
+        var definitionHandle = provider.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        var instance = (await definitionHandle.StartOrGetAsync(
             "input",
-            CancellationToken.None);
-        var state = engine.Management.Instance(completed.InstanceId).GetState<FanoutState>();
+            StartIdempotencyKey.Create("success-failure-only-outcomes"),
+            CancellationToken.None)).GetHandleOrThrow();
+        var completed = await instance.GetSnapshotAsync(CancellationToken.None);
+        var state = await instance.GetStateAsync<FanoutState>(CancellationToken.None);
         var variants = typeof(BranchOutcome<string>).GetNestedTypes();
 
-        if (completed.Status != LegacyWorkflowStatus.Completed ||
+        if (completed.Status != WorkflowInstanceStatus.Completed ||
             mergeCalls != 1 ||
             !state.Results.SequenceEqual([
                 "succeeded:success:succeeded",
@@ -112,7 +111,7 @@ public static class StructuredFanoutScenarioHost
         {
             throw new InvalidOperationException(
                 "The runtime did not expose one ordered, closed success/failure-only outcome family. " +
-                $"status={completed.Status}; error={completed.ErrorSummary}; mergeCalls={mergeCalls}; " +
+                $"status={completed.Status}; error={completed.Failure}; mergeCalls={mergeCalls}; " +
                 $"results=[{string.Join(",", state.Results)}]; " +
                 $"variants=[{string.Join(",", variants.Select(type => $"{type.Name}:{type.IsSealed}:{type.GetConstructors().Length}"))}].");
         }
@@ -162,9 +161,11 @@ public static class StructuredFanoutScenarioHost
             "WhenAll did not return a new successor-epoch facade of the exact durable root-builder type.");
 
         var definition = successor!.End().Build();
-        var store = new InMemoryWorkflowProvider();
-        var runtime = CreateDurableRuntime(store, serviceProvider: new ScenarioServiceProvider());
-        RegisterRuntimeDefinition(runtime, definition, typeof(FanoutState));
+        using var store = new DurableScenarioProvider();
+        using var runtime = CreateDurableRuntime(
+            store,
+            configureServices: services => services.AddTransient<FailByNameStep>());
+        runtime.Register(definition);
         var started = await runtime.StartOrGetAsync<string, FanoutState>(
             "phase0-ordered-join-failure",
             definition.DefinitionId,
@@ -185,7 +186,7 @@ public static class StructuredFanoutScenarioHost
         var snapshot = await SnapshotAsync(store, started.InstanceId);
         var envelope = await EnvelopeAsync(store, started.InstanceId);
         var rootFailure = envelope.Fibers.Single(fiber => fiber.FiberId == envelope.RootFiberId).Failure;
-        if (snapshot.Status != LegacyWorkflowStatus.Failed ||
+        if (snapshot.Status != WorkflowInstanceStatus.Failed ||
             mergeCalls != 0 ||
             rootFailure?.Code != "SFE-JOIN-FAILED" ||
             !rootFailure.Causes.Select(cause => cause.Code).SequenceEqual([
@@ -239,7 +240,7 @@ public static class StructuredFanoutScenarioHost
 
         await AssertDurableDeadlineSuppressesMergeAsync(
             context,
-            successor!.End().Build(),
+            successor!.End(_ => "unreachable").Build(),
             "durable-parallel-outcomes",
             () => observedMergeCalls);
 
@@ -316,14 +317,17 @@ public static class StructuredFanoutScenarioHost
             "The empty ForEach join did not return a new successor-epoch facade of the exact root-builder type.");
 
         var definition = successor!.End().Build();
-        var engine = new EphemeralWorkflowEngine();
-        engine.RegisterDefinition(RuntimeDefinition<FanoutState>(definition));
-        var completed = await engine.AwaitCompletionAsync<string, FanoutState>(
-            definition.DefinitionId,
+        using var provider = CreateEphemeralHost();
+        var definitionHandle = provider.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        var instance = (await definitionHandle.StartOrGetAsync(
             "input",
-            CancellationToken.None);
-        var state = engine.Management.Instance(completed.InstanceId).GetState<FanoutState>();
-        if (completed.Status != LegacyWorkflowStatus.Completed ||
+            StartIdempotencyKey.Create("empty-foreach-merge"),
+            CancellationToken.None)).GetHandleOrThrow();
+        var completed = await instance.GetSnapshotAsync(CancellationToken.None);
+        var state = await instance.GetStateAsync<FanoutState>(CancellationToken.None);
+        if (completed.Status != WorkflowInstanceStatus.Completed ||
             mergeCalls != 1 ||
             !state.Results.SequenceEqual(["empty-merge"]))
         {
@@ -387,9 +391,9 @@ public static class StructuredFanoutScenarioHost
             "Durable ForEach.WhenAll did not return a new successor-epoch facade of the exact root-builder type.");
 
         var definition = successor!.End().Build();
-        var store = new InMemoryWorkflowProvider();
-        var firstHost = CreateDurableRuntime(store);
-        RegisterRuntimeDefinition(firstHost, definition, typeof(FanoutState));
+        using var store = new DurableScenarioProvider();
+        using var firstHost = CreateDurableRuntime(store);
+        firstHost.Register(definition);
         var started = await firstHost.StartOrGetAsync<string, FanoutState>(
             "phase0-foreach-snapshot",
             definition.DefinitionId,
@@ -398,8 +402,8 @@ public static class StructuredFanoutScenarioHost
             CancellationToken.None);
         selected[1] = "mutated";
 
-        var replacement = CreateDurableRuntime(store);
-        RegisterRuntimeDefinition(replacement, definition, typeof(FanoutState));
+        using var replacement = CreateDurableRuntime(store);
+        replacement.Register(definition);
         for (var index = 0; index < 3; index++)
         {
             await replacement.RaiseEventAsync(
@@ -412,7 +416,7 @@ public static class StructuredFanoutScenarioHost
         var snapshot = await SnapshotAsync(store, started.InstanceId);
         var state = JsonSerializer.Deserialize<FanoutState>(
             (await EnvelopeAsync(store, started.InstanceId)).StatePayload)!;
-        if (snapshot.Status != LegacyWorkflowStatus.Completed ||
+        if (snapshot.Status != WorkflowInstanceStatus.Completed ||
             selectorCalls != 1 ||
             itemStateCalls != 3 ||
             !state.Results.SequenceEqual(["0:zero", "1:one", "2:two"]))
@@ -469,9 +473,9 @@ public static class StructuredFanoutScenarioHost
             "Parallel.WhenAll did not return a new successor-epoch facade of the exact root-builder type.");
 
         var definition = successor!.End().Build();
-        var store = new InMemoryWorkflowProvider();
-        var runtime = CreateDurableRuntime(store, maxConcurrentExecutionPaths: 1);
-        RegisterRuntimeDefinition(runtime, definition, typeof(FanoutState));
+        using var store = new DurableScenarioProvider();
+        using var runtime = CreateDurableRuntime(store, maxConcurrentExecutionPaths: 1);
+        runtime.Register(definition);
         var started = await runtime.StartOrGetAsync<string, FanoutState>(
             "phase0-parallel-ceiling-one",
             definition.DefinitionId,
@@ -509,7 +513,7 @@ public static class StructuredFanoutScenarioHost
         var terminal = await SnapshotAsync(store, started.InstanceId);
         var state = JsonSerializer.Deserialize<FanoutState>(
             (await EnvelopeAsync(store, started.InstanceId)).StatePayload)!;
-        if (terminal.Status != LegacyWorkflowStatus.Completed ||
+        if (terminal.Status != WorkflowInstanceStatus.Completed ||
             mergeCalls != 1 ||
             !state.Results.SequenceEqual(["first", "second"]))
         {
@@ -634,9 +638,9 @@ public static class StructuredFanoutScenarioHost
             "Durable ForEach.WhenAllOutcomes did not return the successor-epoch root façade.");
 
         var definition = successor!.End().Build();
-        var store = new InMemoryWorkflowProvider();
-        var firstHost = CreateDurableRuntime(store, maxConcurrentExecutionPaths: 1);
-        RegisterRuntimeDefinition(firstHost, definition, typeof(FanoutState));
+        using var store = new DurableScenarioProvider();
+        using var firstHost = CreateDurableRuntime(store, maxConcurrentExecutionPaths: 1);
+        firstHost.Register(definition);
         var started = await firstHost.StartOrGetAsync<string, FanoutState>(
             "phase0-foreach-restart-readmission",
             definition.DefinitionId,
@@ -655,8 +659,8 @@ public static class StructuredFanoutScenarioHost
         }
 
         selectedItems[1] = "mutated-after-commit";
-        var replacementHost = CreateDurableRuntime(store, maxConcurrentExecutionPaths: 2);
-        RegisterRuntimeDefinition(replacementHost, definition, typeof(FanoutState));
+        using var replacementHost = CreateDurableRuntime(store, maxConcurrentExecutionPaths: 2);
+        replacementHost.Register(definition);
         await replacementHost.RaiseEventAsync(
             started.InstanceId,
             "Resume",
@@ -677,33 +681,35 @@ public static class StructuredFanoutScenarioHost
                 "The replacement host did not preserve terminal item zero and re-admit unfinished items in index order.");
         }
 
-        var finalHost = CreateDurableRuntime(store, maxConcurrentExecutionPaths: 1);
-        RegisterRuntimeDefinition(finalHost, definition, typeof(FanoutState));
+        using var finalHost = CreateDurableRuntime(store, maxConcurrentExecutionPaths: 1);
+        finalHost.Register(definition);
+        var finalDeliveries = new List<EventDeliveryStatus>();
         foreach (var index in new[] { 1, 2 })
         {
-            await finalHost.RaiseEventAsync(
+            var delivered = await finalHost.RaiseEventAsync(
                 started.InstanceId,
                 "Resume",
                 CorrelationId.Create($"Item-{index}"),
                 cancellationToken: CancellationToken.None);
+            finalDeliveries.Add(delivered.Status);
         }
 
         var definitionHandle = DurableFacadeScenarioAdapter.Register(
             finalHost,
-            store,
-            store,
-            new DurableManagement(store),
-            TimeProvider.System,
             definition);
         var instanceHandle = await definitionHandle.GetInstanceAsync(
             started.InstanceId,
             CancellationToken.None);
+        var projectedTerminal = await SnapshotAsync(store, started.InstanceId);
         var snapshotObservation = await context.ObserveAsync(
             _ => instanceHandle.GetSnapshotAsync(CancellationToken.None));
         Phase0Assert.Satisfies(
             snapshotObservation,
             snapshot => snapshot.Status == global::OrcaCore.WorkflowInstanceStatus.Completed,
-            "The replacement-host occurrence did not reach a committed terminal snapshot.");
+            "The replacement-host occurrence did not reach a committed terminal snapshot. " +
+            $"Deliveries={string.Join(',', finalDeliveries)}; " +
+            $"Status={projectedTerminal.Status}; " +
+            $"Waits={string.Join(',', projectedTerminal.ActiveWaits.Select(wait => wait.CorrelationId.Value))}.");
         var finalEnvelope = await EnvelopeAsync(store, started.InstanceId);
         var finalState = JsonSerializer.Deserialize<FanoutState>(finalEnvelope.StatePayload)!;
         if (selectorCalls != 1 ||
@@ -717,9 +723,9 @@ public static class StructuredFanoutScenarioHost
 
     private static async Task AssertHostCeilingIsLowerLimitAsync(DurableWorkflowDefinition<string> definition)
     {
-        var store = new InMemoryWorkflowProvider();
-        var runtime = CreateDurableRuntime(store, maxConcurrentExecutionPaths: 1);
-        RegisterRuntimeDefinition(runtime, definition, typeof(FanoutState));
+        using var store = new DurableScenarioProvider();
+        using var runtime = CreateDurableRuntime(store, maxConcurrentExecutionPaths: 1);
+        runtime.Register(definition);
         var started = await runtime.StartOrGetAsync<string, FanoutState>(
             "phase0-foreach-host-lower",
             definition.DefinitionId,
@@ -743,7 +749,7 @@ public static class StructuredFanoutScenarioHost
                 cancellationToken: CancellationToken.None);
         }
 
-        if ((await SnapshotAsync(store, started.InstanceId)).Status != LegacyWorkflowStatus.Completed)
+        if ((await SnapshotAsync(store, started.InstanceId)).Status != WorkflowInstanceStatus.Completed)
         {
             throw new InvalidOperationException("Ceiling-one item execution deadlocked before merge.");
         }
@@ -751,9 +757,9 @@ public static class StructuredFanoutScenarioHost
 
     private static async Task AssertParkedItemsRetainNodeSlotsAsync(DurableWorkflowDefinition<string> definition)
     {
-        var store = new InMemoryWorkflowProvider();
-        var runtime = CreateDurableRuntime(store, maxConcurrentExecutionPaths: 3);
-        RegisterRuntimeDefinition(runtime, definition, typeof(FanoutState));
+        using var store = new DurableScenarioProvider();
+        using var runtime = CreateDurableRuntime(store, maxConcurrentExecutionPaths: 3);
+        runtime.Register(definition);
         var started = await runtime.StartOrGetAsync<string, FanoutState>(
             "phase0-foreach-node-lower",
             definition.DefinitionId,
@@ -791,7 +797,7 @@ public static class StructuredFanoutScenarioHost
                 cancellationToken: CancellationToken.None);
         }
 
-        if ((await SnapshotAsync(store, started.InstanceId)).Status != LegacyWorkflowStatus.Completed)
+        if ((await SnapshotAsync(store, started.InstanceId)).Status != WorkflowInstanceStatus.Completed)
         {
             throw new InvalidOperationException("Node-limited item execution did not complete.");
         }
@@ -814,22 +820,27 @@ public static class StructuredFanoutScenarioHost
             .WhenAll((parent, _) => parent.Value)
             .End()
             .Build();
-        var engine = new EphemeralWorkflowEngine();
-        engine.RegisterDefinition(RuntimeDefinition<FanoutState>(definition));
-        var failed = await engine.StartAsync<string, FanoutState>(
-            definition.DefinitionId,
+        using var provider = CreateEphemeralHost();
+        var handle = provider.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        var instance = (await handle.StartOrGetAsync(
             "input",
-            CancellationToken.None);
-        if (failed.Status != LegacyWorkflowStatus.Failed ||
-            !failed.ErrorSummary!.Contains("SFE-LIMIT-001", StringComparison.Ordinal) ||
+            StartIdempotencyKey.Create("oversized-ephemeral-selection"),
+            CancellationToken.None)).GetHandleOrThrow();
+        var failed = await instance.GetSnapshotAsync(CancellationToken.None);
+        if (failed.Status != WorkflowInstanceStatus.Failed ||
+            failed.Failure?.Code != "SFE-LIMIT-001" ||
             itemStateCalls != 0)
         {
             throw new InvalidOperationException(
-                "An oversized selection admitted or materialized an item before bound rejection.");
+                $"An oversized selection admitted or materialized an item before bound rejection " +
+                $"(status: {failed.Status}, code: {failed.Failure?.Code ?? "<null>"}, " +
+                $"item-state calls: {itemStateCalls}).");
         }
     }
 
-    private static DurableWorkflowDefinition<string> BuildDurableDeadlineDefinition(
+    private static DurableWorkflowDefinition<string, string> BuildDurableDeadlineDefinition(
         FanoutShape shape,
         bool collectOutcomes,
         Action onMerge)
@@ -853,8 +864,10 @@ public static class StructuredFanoutScenarioHost
                         .Wait(EventName.Create("Resume"), state => CorrelationId.Create(state.Value.EventName))
                         .Return(state => state.Value.Name)));
             return collectOutcomes
-                ? join.WhenAllOutcomes((parent, _) => RecordMerge(parent, onMerge)).End().Build()
-                : join.WhenAll((parent, _) => RecordMerge(parent, onMerge)).End().Build();
+                ? join.WhenAllOutcomes((parent, _) => RecordMerge(parent, onMerge))
+                    .End(_ => "unreachable").Build()
+                : join.WhenAll((parent, _) => RecordMerge(parent, onMerge))
+                    .End(_ => "unreachable").Build();
         }
 
         var forEach = root.ForEach<string, ItemState, string>(
@@ -865,11 +878,13 @@ public static class StructuredFanoutScenarioHost
                 .Wait(EventName.Create("Resume"), state => CorrelationId.Create(state.Value.EventName))
                 .Return(state => state.Value.Value));
         return collectOutcomes
-            ? forEach.WhenAllOutcomes((parent, _) => RecordMerge(parent, onMerge)).End().Build()
-            : forEach.WhenAll((parent, _) => RecordMerge(parent, onMerge)).End().Build();
+            ? forEach.WhenAllOutcomes((parent, _) => RecordMerge(parent, onMerge))
+                .End(_ => "unreachable").Build()
+            : forEach.WhenAll((parent, _) => RecordMerge(parent, onMerge))
+                .End(_ => "unreachable").Build();
     }
 
-    private static EphemeralWorkflowDefinition<string> BuildEphemeralDeadlineDefinition(
+    private static EphemeralWorkflowDefinition<string, string> BuildEphemeralDeadlineDefinition(
         FanoutShape shape,
         bool collectOutcomes,
         Action onMerge)
@@ -893,8 +908,10 @@ public static class StructuredFanoutScenarioHost
                         .Wait(EventName.Create("Resume"), state => CorrelationId.Create(state.Value.EventName))
                         .Return(state => state.Value.Name)));
             return collectOutcomes
-                ? join.WhenAllOutcomes((parent, _) => RecordMerge(parent, onMerge)).End().Build()
-                : join.WhenAll((parent, _) => RecordMerge(parent, onMerge)).End().Build();
+                ? join.WhenAllOutcomes((parent, _) => RecordMerge(parent, onMerge))
+                    .End(_ => "unreachable").Build()
+                : join.WhenAll((parent, _) => RecordMerge(parent, onMerge))
+                    .End(_ => "unreachable").Build();
         }
 
         var forEach = root.ForEach<string, ItemState, string>(
@@ -905,8 +922,10 @@ public static class StructuredFanoutScenarioHost
                 .Wait(EventName.Create("Resume"), state => CorrelationId.Create(state.Value.EventName))
                 .Return(state => state.Value.Value));
         return collectOutcomes
-            ? forEach.WhenAllOutcomes((parent, _) => RecordMerge(parent, onMerge)).End().Build()
-            : forEach.WhenAll((parent, _) => RecordMerge(parent, onMerge)).End().Build();
+            ? forEach.WhenAllOutcomes((parent, _) => RecordMerge(parent, onMerge))
+                .End(_ => "unreachable").Build()
+            : forEach.WhenAll((parent, _) => RecordMerge(parent, onMerge))
+                .End(_ => "unreachable").Build();
     }
 
     private static FanoutState RecordMerge(ReadOnlyStateSnapshot<FanoutState> parent, Action onMerge)
@@ -917,26 +936,30 @@ public static class StructuredFanoutScenarioHost
 
     private static async Task AssertEphemeralDeadlineSuppressesMergeAsync(
         Phase0ScenarioContext context,
-        EphemeralWorkflowDefinition<string> definition,
+        EphemeralWorkflowDefinition<string, string> definition,
         Func<int> mergeCalls)
     {
-        var engine = new EphemeralWorkflowEngine(context.Services.TimeProvider);
-        engine.RegisterDefinition(RuntimeDefinition<FanoutState>(definition));
-        var waiting = await engine.StartAsync<string, FanoutState>(
-            definition.DefinitionId,
+        using var provider = CreateEphemeralHost(context.Services.TimeProvider);
+        var definitionHandle = provider.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        var instance = (await definitionHandle.StartOrGetAsync(
             "input",
-            CancellationToken.None);
-        if (waiting.Status != LegacyWorkflowStatus.Waiting || waiting.ActiveWaits.Count != 2)
+            StartIdempotencyKey.Create("ephemeral-deadline-suppresses-merge"),
+            CancellationToken.None)).GetHandleOrThrow();
+        var waiting = await instance.GetSnapshotAsync(CancellationToken.None);
+        if (waiting.Status != WorkflowInstanceStatus.Waiting || waiting.ActiveWaits.Count != 2)
         {
             throw new InvalidOperationException(
                 "The ephemeral deadline did not begin with two active fan-out children.");
         }
 
+        var terminalSignal = instance.WaitForOutputAsync(CancellationToken.None).AsTask();
         context.AdvanceTimeBy(TimeSpan.FromMinutes(1));
-        var fired = await engine.FireDueTimersAsync(CancellationToken.None);
-        var terminal = fired.Single();
-        var state = engine.Management.Instance(terminal.InstanceId).GetState<FanoutState>();
-        if (terminal.Status != LegacyWorkflowStatus.TimedOut ||
+        await AwaitTerminalWithoutOutputAsync(terminalSignal);
+        var terminal = await instance.GetSnapshotAsync(CancellationToken.None);
+        var state = await instance.GetStateAsync<FanoutState>(CancellationToken.None);
+        if (terminal.Status != WorkflowInstanceStatus.TimedOut ||
             terminal.ActiveWaits.Count != 0 ||
             mergeCalls() != 0 ||
             state.Results.Count != 0)
@@ -946,64 +969,85 @@ public static class StructuredFanoutScenarioHost
         }
     }
 
+    private static ServiceProvider CreateEphemeralHost(TimeProvider? timeProvider = null)
+    {
+        var services = new ServiceCollection();
+        if (timeProvider is not null)
+        {
+            services.AddSingleton(timeProvider);
+        }
+
+        services.AddOrcaCoreEphemeralEngine(new EphemeralEngineHostOptions
+        {
+            StructuredExecution = new StructuredExecutionHostOptions
+            {
+                MaxConcurrentExecutionPathsPerInstance = 4,
+                StepThrottles = []
+            },
+            TransientPools = []
+        });
+        return services.BuildServiceProvider();
+    }
+
     private static async Task AssertDurableDeadlineSuppressesMergeAsync(
         Phase0ScenarioContext context,
-        DurableWorkflowDefinition<string> definition,
+        DurableWorkflowDefinition<string, string> definition,
         string key,
         Func<int> mergeCalls)
     {
-        var store = new InMemoryWorkflowProvider();
-        var processor = new DurableCommandProcessor(store);
-        var runtime = CreateDurableRuntime(
-            store,
-            timeProvider: context.Services.TimeProvider,
-            processor: processor);
-        RegisterRuntimeDefinition(runtime, definition, typeof(FanoutState));
+        using var store = new DurableScenarioProvider(context.Services.TimeProvider);
+        using var runtime = CreateDurableRuntime(store, timeProvider: context.Services.TimeProvider);
+        var definitionHandle = runtime.Register(definition);
         var startKey = $"phase0-{key}";
-        var started = await runtime.StartOrGetAsync<string, FanoutState>(
-            startKey,
-            definition.DefinitionId,
-            definition.DefinitionVersion,
+        var started = (await definitionHandle.StartOrGetAsync(
             "input",
-            CancellationToken.None);
+            StartIdempotencyKey.Create(startKey),
+            CancellationToken.None)).GetHandleOrThrow();
         var waiting = await SnapshotAsync(store, started.InstanceId);
-        if (waiting.Status != LegacyWorkflowStatus.Waiting || waiting.ActiveWaits.Count != 2)
+        if (waiting.Status != WorkflowInstanceStatus.Waiting || waiting.ActiveWaits.Count != 2)
         {
             throw new InvalidOperationException(
                 "The durable deadline did not begin with two active fan-out children.");
         }
 
+        var terminalSignal = started.WaitForOutputAsync(CancellationToken.None).AsTask();
         context.AdvanceTimeBy(TimeSpan.FromMinutes(1));
-        var now = context.Services.TimeProvider.GetUtcNow();
-        var due = await store.ClaimDueAsync(
-            new TimerClaimRequest(now, 10, now, TimeSpan.FromMinutes(1)),
-            CancellationToken.None);
-        foreach (var fire in due)
+        var hostedServices = runtime.Services.GetServices<IHostedService>().ToArray();
+        try
         {
-            await processor.ProcessAsync(fire, CancellationToken.None);
-            await store.CompleteAsync(fire.TimerId, CancellationToken.None);
+            foreach (var hostedService in hostedServices)
+            {
+                await hostedService.StartAsync(CancellationToken.None);
+            }
+
+            context.AdvanceTimeBy(TimeSpan.FromSeconds(2));
+            await AwaitTerminalWithoutOutputAsync(terminalSignal);
+        }
+        finally
+        {
+            foreach (var hostedService in hostedServices.Reverse())
+            {
+                await hostedService.StopAsync(CancellationToken.None);
+            }
         }
 
-        var replacement = CreateDurableRuntime(store, timeProvider: context.Services.TimeProvider);
-        RegisterRuntimeDefinition(replacement, definition, typeof(FanoutState));
-        await replacement.StartOrGetAsync<string, FanoutState>(
-            startKey,
-            definition.DefinitionId,
-            definition.DefinitionVersion,
+        using var replacement = CreateDurableRuntime(store, timeProvider: context.Services.TimeProvider);
+        var replacementHandle = replacement.Register(definition);
+        _ = await replacementHandle.StartOrGetAsync(
             "input",
+            StartIdempotencyKey.Create(startKey),
             CancellationToken.None);
         var terminal = await SnapshotAsync(store, started.InstanceId);
         var state = JsonSerializer.Deserialize<FanoutState>(
             (await EnvelopeAsync(store, started.InstanceId)).StatePayload)!;
-        if (due.Count != 1 ||
-            terminal.Status != LegacyWorkflowStatus.TimedOut ||
+        if (terminal.Status != WorkflowInstanceStatus.TimedOut ||
             terminal.ActiveWaits.Count != 0 ||
             mergeCalls() != 0 ||
             state.Results.Count != 0)
         {
             throw new InvalidOperationException(
                 "The durable workflow deadline did not fence fan-out and suppress its merge. " +
-                $"Due={due.Count}; Status={terminal.Status}; Waits={terminal.ActiveWaits.Count}; " +
+                $"Status={terminal.Status}; Waits={terminal.ActiveWaits.Count}; " +
                 $"MergeCalls={mergeCalls()}; StateResults={string.Join(",", state.Results)}.");
         }
     }
@@ -1011,64 +1055,48 @@ public static class StructuredFanoutScenarioHost
     private static void ConsumeBarrier(Phase0ScenarioContext context, string name) =>
         context.Services.Barrier.ReachAsync(name).GetAwaiter().GetResult();
 
-    private static global::OrcaCore.Core.Definitions.WorkflowDefinition<TState> RuntimeDefinition<TState>(
-        object publicDefinition) =>
-        (global::OrcaCore.Core.Definitions.WorkflowDefinition<TState>)publicDefinition.GetType()
-            .GetProperty("RuntimeDefinition", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .GetValue(publicDefinition)!;
-
-    private static DurableWorkflowRuntime CreateDurableRuntime(
-        InMemoryWorkflowProvider store,
+    private static DurableScenarioRuntime CreateDurableRuntime(
+        DurableScenarioProvider store,
         int maxConcurrentExecutionPaths = int.MaxValue,
-        IServiceProvider? serviceProvider = null,
+        Action<IServiceCollection>? configureServices = null,
         TimeProvider? timeProvider = null,
-        DurableCommandProcessor? processor = null)
-    {
-        var registry = maxConcurrentExecutionPaths == int.MaxValue
-            ? serviceProvider is null
-                ? new DurableDefinitionRegistry()
-                : new DurableDefinitionRegistry(serviceProvider)
-            : (DurableDefinitionRegistry)Activator.CreateInstance(
-                typeof(DurableDefinitionRegistry),
-                BindingFlags.Instance | BindingFlags.NonPublic,
-                binder: null,
-                [maxConcurrentExecutionPaths, serviceProvider, null],
-                culture: null)!;
-        processor ??= new DurableCommandProcessor(store);
-        return new DurableWorkflowRuntime(
-            processor,
-            registry,
-            timeProvider ?? TimeProvider.System,
-            projectionStore: store);
-    }
+        string? partition = null) =>
+        DurableScenarioRuntime.Create(
+            store,
+            timeProvider,
+            maxConcurrentExecutionPaths,
+            configureServices: configureServices,
+            partition: partition);
 
-    private static void RegisterRuntimeDefinition(
-        DurableWorkflowRuntime runtime,
-        object publicDefinition,
-        Type stateType)
+    private static async Task<WorkflowProjectionSnapshot> SnapshotAsync(
+        DurableScenarioProvider store,
+        InstanceId instanceId)
     {
-        var runtimeDefinition = publicDefinition.GetType()
-            .GetProperty("RuntimeDefinition", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .GetValue(publicDefinition)!;
-        typeof(DurableWorkflowRuntime)
-            .GetMethod(nameof(DurableWorkflowRuntime.RegisterDefinition))!
-            .MakeGenericMethod(stateType)
-            .Invoke(runtime, [runtimeDefinition]);
+        var projected = await store.GetAsync(instanceId, CancellationToken.None);
+        return projected.HasValue
+            ? projected.Value
+            : throw new InvalidOperationException($"Missing projection for '{instanceId}'.");
     }
-
-    private static async Task<LegacyWorkflowInstanceSnapshot> SnapshotAsync(
-        InMemoryWorkflowProvider store,
-        InstanceId instanceId) =>
-        (await store.ListAsync(
-            new WorkflowProjectionQuery { InstanceId = instanceId },
-            CancellationToken.None)).Single();
 
     private static async Task<DurableExecutionEnvelopeV2> EnvelopeAsync(
-        InMemoryWorkflowProvider store,
+        IWorkflowEventStore store,
         InstanceId instanceId)
     {
         var checkpoint = await store.LoadCheckpointAsync(instanceId, CancellationToken.None);
         return DurableExecutionEnvelopeV2.Deserialize(checkpoint!.Value.Payload);
+    }
+
+    private static async Task AwaitTerminalWithoutOutputAsync(Task<string> output)
+    {
+        try
+        {
+            _ = await output;
+            throw new InvalidOperationException(
+                "The deadline workflow produced output instead of terminating without one.");
+        }
+        catch (WorkflowOutputUnavailableException)
+        {
+        }
     }
 
     public sealed record FanoutState(string Value, List<string> Results);
@@ -1096,9 +1124,4 @@ public static class StructuredFanoutScenarioHost
                     new ScenarioFailureException($"SCENARIO-{context.State.Name.ToUpperInvariant()}")));
     }
 
-    private sealed class ScenarioServiceProvider : IServiceProvider
-    {
-        public object? GetService(Type serviceType) =>
-            serviceType == typeof(FailByNameStep) ? new FailByNameStep() : null;
-    }
 }

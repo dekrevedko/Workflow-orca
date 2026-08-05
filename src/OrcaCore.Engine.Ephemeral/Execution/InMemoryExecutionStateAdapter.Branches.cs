@@ -12,7 +12,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         FiberRecord fiber)
     {
         var scopeId = fiber.OwningScopeId ??
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                 "BranchReturn was reached outside an execution scope.");
         var scope = state.Scopes[scopeId];
         var scopePlan = plan.GetScope(scope.ScopePlanId);
@@ -20,12 +20,12 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         var localPayload = new StructuredSerializedValue(
             branch.Input.BranchStateType,
             branch.Input.BranchStateSchemaIdentity,
-            fiber.LocalStatePayload ?? throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            fiber.LocalStatePayload ?? throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                 "Branch state payload is missing."));
         var localState = codec.Deserialize(localPayload);
         var snapshot = StructuredInvocationCache.CreateBranchSnapshot(
             branch.Result.BranchStateType,
-            localState ?? throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            localState ?? throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                 "Branch state deserialized to null."));
         object? result;
         try
@@ -34,7 +34,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         }
         catch (TargetInvocationException exception) when (exception.InnerException is not null)
         {
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                 "Branch return projection failed.", exception.InnerException);
         }
 

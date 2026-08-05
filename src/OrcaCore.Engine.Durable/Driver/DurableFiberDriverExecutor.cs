@@ -3,11 +3,8 @@ using System.Reflection;
 using System.Text.Json;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Errors;
-using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Definitions;
@@ -176,7 +173,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                         string.IsNullOrWhiteSpace(instruction.EventName) ||
                         instruction.WaitMode is not { } waitMode)
                     {
-                        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                        throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
                             $"Compiled wait '{instruction.Path}' has no typed executable binding.");
                     }
 
@@ -213,7 +210,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                 case CompiledInstructionKind.Delay:
                 {
                     var duration = instruction.DelayDuration ??
-                        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                        throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
                             $"Compiled delay '{instruction.Path}' has no duration.");
                     var timerId = TimerId.New();
                     var blocked = FiberReducer.Block(
@@ -617,41 +614,6 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                     commands++;
                     break;
                 }
-                case CompiledInstructionKind.RunChild:
-                case CompiledInstructionKind.RunChildren:
-                {
-                    var child = await ExecuteChildInstructionAsync(
-                        context,
-                        execution,
-                        fiber,
-                        instruction,
-                        state,
-                        ownedObligations,
-                        currentVersion,
-                        consumedWaitId,
-                        cancellationToken).ConfigureAwait(false);
-                    execution = child.Execution;
-                    if (child.Commit is not { } childCommit)
-                    {
-                        break;
-                    }
-
-                    if (childCommit.Outcome != DurableCommandOutcome.Committed)
-                    {
-                        return Conflict(childCommit);
-                    }
-
-                    currentVersion = childCommit.StreamVersion;
-                    commands++;
-                    if (BudgetReached(context, commands, elapsed))
-                    {
-                        return new DurableSegmentResult(
-                            DurableSegmentOutcome.BudgetExhausted,
-                            CommittedProgress: true);
-                    }
-
-                    break;
-                }
                 case CompiledInstructionKind.If:
                 case CompiledInstructionKind.LoopCheck:
                     execution = ExecuteConditionInstruction(execution, fiber, instruction, state);
@@ -711,22 +673,6 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                         currentVersion = admitted.StreamVersion;
                         commands++;
                         continue;
-                    }
-
-                    var resumedObligation = consumedWaitId is { } resumedWaitId
-                        ? ownedObligations.FirstOrDefault(obligation =>
-                            obligation.ObligationId == resumedWaitId.ToString())
-                        : null;
-                    if (resumedEvent?.EventName == DurableRuntimeEventNames.ExternalJobCompleted &&
-                        resumedObligation?.Kind == DurableOwnedObligationKind.ExternalJob)
-                    {
-                        var obligationIndex = ownedObligations.IndexOf(resumedObligation);
-                        ownedObligations[obligationIndex] = resumedObligation with
-                        {
-                            Kind = DurableOwnedObligationKind.PendingResume
-                        };
-                        execution = MoveTo(execution, fiber, RequiredNext(instruction));
-                        break;
                     }
 
                     var stepThrottleOwner = new StepThrottleOwner(context.InstanceId, fiber.Id);
@@ -840,40 +786,6 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                             }
 
                             break;
-                        case var legacyYield when LegacyStepResultProjection.IsYield(legacyYield):
-                        {
-                            var fibers = new Dictionary<FiberId, FiberRecord>(execution.Fibers)
-                            {
-                                [fiber.Id] = ClearResume(fiber) with
-                                {
-                                    YieldCount = checked(fiber.YieldCount + 1)
-                                }
-                            };
-                            RemoveConsumedObligation(ownedObligations, consumedWaitId);
-                            execution = execution with
-                            {
-                                Fibers = fibers,
-                                Scheduler = FiberScheduler.CompleteTurn(
-                                    execution.Scheduler,
-                                    fiber.Id,
-                                    requeueSelected: true)
-                            };
-                            var yielded = await context.Processor.ProcessAsync(
-                                new DurableYieldCommand(
-                                    CommandId.New(),
-                                    context.InstanceId,
-                                    context.TimeProvider.GetUtcNow(),
-                                    instruction.Path,
-                                    BuildEnvelope(context, execution, state, ownedObligations))
-                                {
-                                    ExpectedStreamVersion = currentVersion,
-                                    ConsumedResumeWaitIds = ConsumedWaitIds(consumedWaitId)
-                                },
-                                commitCancellationToken).ConfigureAwait(false);
-                            return yielded.Outcome == DurableCommandOutcome.Committed
-                                ? DurableSegmentResult.Yielded
-                                : Conflict(yielded);
-                        }
                         case StepResult.Failed failed:
                         {
                             var scopedLease = FindScopedLease(fiber, ownedObligations);
@@ -1033,8 +945,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                                         ConsumedResumeWaitIds = ConsumedWaitIds(consumedWaitId),
                                         CancelWaitIds = cleanup.WaitIds,
                                         CancelTimerIds = cleanup.TimerIds,
-                                        TerminalFiberIds = cleanup.TerminalFiberIds,
-                                        FailedSagaScopeIds = FailedSagaScopes(execution)
+                                        TerminalFiberIds = cleanup.TerminalFiberIds
                                     },
                                     commitCancellationToken).ConfigureAwait(false);
                                 return fiberFailed.Outcome == DurableCommandOutcome.Committed
@@ -1055,9 +966,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                                     ConsumedResumeWaitIds = ConsumedWaitIds(consumedWaitId),
                                     CancelWaitIds = cleanup.WaitIds,
                                     CancelTimerIds = cleanup.TimerIds,
-                                    TerminalFiberIds = cleanup.TerminalFiberIds,
-                                    FailedSagaScopeIds = FailedSagaScopes(execution),
-                                    CoversRootSagaEligibility = RootFailed(execution)
+                                    TerminalFiberIds = cleanup.TerminalFiberIds
                                 },
                                 commitCancellationToken).ConfigureAwait(false);
                             return failedResult.Outcome == DurableCommandOutcome.Committed
@@ -1094,267 +1003,6 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                             }
 
                             currentVersion = registration.Commit.StreamVersion;
-                            commands++;
-                            if (BudgetReached(context, commands, elapsed))
-                            {
-                                return new DurableSegmentResult(
-                                    DurableSegmentOutcome.BudgetExhausted,
-                                    CommittedProgress: true);
-                            }
-
-                            break;
-                        }
-                        case var externalJobResult when LegacyStepResultProjection.TryExternalJob(
-                            externalJobResult, out var externalJob):
-                        {
-                            var waitId = WaitId.Parse(Guid.CreateVersion7().ToString());
-                            var blocked = FiberReducer.Block(
-                                ClearResume(fiber),
-                                FiberBlockedReason.ExternalJob,
-                                waitId.ToString());
-                            var fibers = new Dictionary<FiberId, FiberRecord>(execution.Fibers)
-                            {
-                                [fiber.Id] = blocked
-                            };
-                            execution = execution with
-                            {
-                                Fibers = fibers,
-                                Scheduler = FiberScheduler.RemoveRunnable(
-                                    execution.Scheduler,
-                                    [fiber.Id])
-                            };
-                            RemoveConsumedObligation(ownedObligations, consumedWaitId);
-                            var waitSequence = AllocateRegistrationSequence(ref execution);
-                            ownedObligations.Add(new DurableOwnedObligationState
-                            {
-                                Kind = DurableOwnedObligationKind.ExternalJob,
-                                ObligationId = waitId.ToString(),
-                                FiberId = fiber.Id.Value,
-                                ScopeId = fiber.OwningScopeId?.Value,
-                                RegistrationSequence = waitSequence
-                            });
-                            var now = context.TimeProvider.GetUtcNow();
-                            var dispatched = await context.Processor.ProcessAsync(
-                                new RunExternalJobCommand
-                                {
-                                    CommandId = CommandId.New(),
-                                    InstanceId = context.InstanceId,
-                                    RequestedAt = now,
-                                    ExternalJobId = externalJob.ExternalJobId,
-                                    Payload = externalJob.Payload,
-                                    Requirements = externalJob.Requirements ?? [],
-                                    TimeoutAt = externalJob.Timeout is { } timeout
-                                        ? now.Add(timeout)
-                                        : null,
-                                    WaitId = waitId,
-                                    WaitSequence = waitSequence,
-                                    FiberId = fiber.Id,
-                                    ScopeId = fiber.OwningScopeId,
-                                    Envelope = BuildEnvelope(
-                                        context,
-                                        execution,
-                                        state,
-                                        ownedObligations),
-                                    ExpectedStreamVersion = currentVersion,
-                                    ConsumedResumeWaitIds = ConsumedWaitIds(consumedWaitId)
-                                },
-                                commitCancellationToken).ConfigureAwait(false);
-                            if (dispatched.Outcome != DurableCommandOutcome.Committed)
-                            {
-                                if (dispatched.Outcome != DurableCommandOutcome.NoOp)
-                                {
-                                    return Conflict(dispatched);
-                                }
-
-                                var reloaded = await ReloadAggregateAsync(context, cancellationToken)
-                                    .ConfigureAwait(false);
-                                var existing = reloaded.ExternalJobState.Find(externalJob.ExternalJobId);
-                                var existingWait = existing is null
-                                    ? null
-                                    : reloaded.WaitState.ActiveWaits.FirstOrDefault(candidate =>
-                                        candidate.WaitId.Equals(existing.WaitId));
-                                if (existing is null ||
-                                    existingWait is null ||
-                                    existing.FiberId != fiber.Id ||
-                                    existing.ScopeId != fiber.OwningScopeId)
-                                {
-                                    return await ParkAsync(
-                                        context,
-                                        DurableParkReason.Poison,
-                                        $"External job '{externalJob.ExternalJobId}' is not owned by the selected fiber.",
-                                        cancellationToken).ConfigureAwait(false);
-                                }
-
-                                RemoveConsumedObligation(ownedObligations, waitId);
-                                ownedObligations.Add(new DurableOwnedObligationState
-                                {
-                                    Kind = DurableOwnedObligationKind.ExternalJob,
-                                    ObligationId = existing.WaitId.ToString(),
-                                    FiberId = fiber.Id.Value,
-                                    ScopeId = fiber.OwningScopeId?.Value,
-                                    RegistrationSequence = existingWait.WaitSequence
-                                });
-                                var rebound = FiberReducer.Block(
-                                    ClearResume(fiber),
-                                    FiberBlockedReason.ExternalJob,
-                                    existing.WaitId.ToString());
-                                execution = execution with
-                                {
-                                    Fibers = new Dictionary<FiberId, FiberRecord>(execution.Fibers)
-                                    {
-                                        [fiber.Id] = rebound
-                                    },
-                                    Scheduler = FiberScheduler.RemoveRunnable(
-                                        execution.Scheduler,
-                                        [fiber.Id])
-                                };
-                                var repaired = await context.Processor.ProcessAsync(
-                                    new DurableStepCompletedCommand(
-                                        CommandId.New(),
-                                        context.InstanceId,
-                                        context.TimeProvider.GetUtcNow(),
-                                        $"{instruction.Path}:external-job-rebind",
-                                        BuildEnvelope(context, execution, state, ownedObligations))
-                                    {
-                                        ExpectedStreamVersion = reloaded.StreamVersion
-                                    },
-                                    commitCancellationToken).ConfigureAwait(false);
-                                return repaired.Outcome == DurableCommandOutcome.Committed
-                                    ? DurableSegmentResult.Suspended
-                                    : Conflict(repaired);
-                            }
-
-                            currentVersion = dispatched.StreamVersion;
-                            commands++;
-                            if (BudgetReached(context, commands, elapsed))
-                            {
-                                return new DurableSegmentResult(
-                                    DurableSegmentOutcome.BudgetExhausted,
-                                    CommittedProgress: true);
-                            }
-
-                            break;
-                        }
-                        case var acquireResult when LegacyStepResultProjection.TryAcquireResources(
-                            acquireResult, out var acquire):
-                        {
-                            var waitId = WaitId.Parse(Guid.CreateVersion7().ToString());
-                            var blocked = FiberReducer.Block(
-                                ClearResume(fiber),
-                                FiberBlockedReason.Resource,
-                                waitId.ToString());
-                            var fibers = new Dictionary<FiberId, FiberRecord>(execution.Fibers)
-                            {
-                                [fiber.Id] = blocked
-                            };
-                            execution = execution with
-                            {
-                                Fibers = fibers,
-                                Scheduler = FiberScheduler.RemoveRunnable(
-                                    execution.Scheduler,
-                                    [fiber.Id])
-                            };
-                            RemoveConsumedObligation(ownedObligations, consumedWaitId);
-                            var waitSequence = AllocateRegistrationSequence(ref execution);
-                            ownedObligations.Add(new DurableOwnedObligationState
-                            {
-                                Kind = DurableOwnedObligationKind.Resource,
-                                ObligationId = waitId.ToString(),
-                                FiberId = fiber.Id.Value,
-                                ScopeId = fiber.OwningScopeId?.Value,
-                                RegistrationSequence = waitSequence
-                            });
-                            var now = context.TimeProvider.GetUtcNow();
-                            var acquired = await context.Processor.ProcessAsync(
-                                new AcquireResourcePoolCommand
-                                {
-                                    CommandId = CommandId.New(),
-                                    InstanceId = context.InstanceId,
-                                    RequestedAt = now,
-                                    HolderKey = acquire.HolderKey,
-                                    Requirements = acquire.Requirements,
-                                    ExpiresAt = acquire.LeaseDuration is { } lease
-                                        ? now.Add(lease)
-                                        : null,
-                                    WaitId = waitId,
-                                    WaitSequence = waitSequence,
-                                    FiberId = fiber.Id,
-                                    ScopeId = fiber.OwningScopeId,
-                                    Envelope = BuildEnvelope(
-                                        context,
-                                        execution,
-                                        state,
-                                        ownedObligations),
-                                    ExpectedStreamVersion = currentVersion,
-                                    ConsumedResumeWaitIds = ConsumedWaitIds(consumedWaitId)
-                                },
-                                commitCancellationToken).ConfigureAwait(false);
-                            if (acquired.Outcome != DurableCommandOutcome.Committed)
-                            {
-                                return acquired.Outcome == DurableCommandOutcome.NoOp
-                                    ? await ParkAsync(
-                                        context,
-                                        DurableParkReason.Poison,
-                                        $"Resource acquisition for '{acquire.HolderKey}' was rejected.",
-                                        commitCancellationToken).ConfigureAwait(false)
-                                    : Conflict(acquired);
-                            }
-
-                            currentVersion = acquired.StreamVersion;
-                            commands++;
-                            if (BudgetReached(context, commands, elapsed))
-                            {
-                                return new DurableSegmentResult(
-                                    DurableSegmentOutcome.BudgetExhausted,
-                                    CommittedProgress: true);
-                            }
-
-                            var reloaded = await ReloadAggregateAsync(context, cancellationToken)
-                                .ConfigureAwait(false);
-                            if (reloaded.StreamVersion != currentVersion)
-                            {
-                                return new DurableSegmentResult(
-                                    DurableSegmentOutcome.Conflict,
-                                    "Resource acquisition stream moved before result inspection.");
-                            }
-
-                            if (reloaded.WaitState.HasWait(waitId))
-                            {
-                                break;
-                            }
-
-                            RemoveConsumedObligation(ownedObligations, waitId);
-                            var advanced = FiberReducer.Resume(blocked) with
-                            {
-                                InstructionId = RequiredNext(instruction)
-                            };
-                            execution = execution with
-                            {
-                                Fibers = new Dictionary<FiberId, FiberRecord>(execution.Fibers)
-                                {
-                                    [fiber.Id] = advanced
-                                },
-                                Scheduler = FiberScheduler.EnqueueResumed(
-                                    execution.Scheduler,
-                                    [fiber.Id])
-                            };
-                            var advancedCommit = await context.Processor.ProcessAsync(
-                                new DurableStepCompletedCommand(
-                                    CommandId.New(),
-                                    context.InstanceId,
-                                    context.TimeProvider.GetUtcNow(),
-                                    instruction.Path,
-                                    BuildEnvelope(context, execution, state, ownedObligations))
-                                {
-                                    ExpectedStreamVersion = currentVersion
-                                },
-                                commitCancellationToken).ConfigureAwait(false);
-                            if (advancedCommit.Outcome != DurableCommandOutcome.Committed)
-                            {
-                                return Conflict(advancedCommit);
-                            }
-
-                            currentVersion = advancedCommit.StreamVersion;
                             commands++;
                             if (BudgetReached(context, commands, elapsed))
                             {

@@ -1,7 +1,5 @@
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Execution;
 using OrcaCore.Core.Internal;
@@ -10,7 +8,7 @@ namespace OrcaCore.Engine.Durable.Driver;
 
 internal sealed partial class DurableFiberDriverExecutor<TState>
 {
-    private sealed class DurableStructuredValueCodec : IStructuredValueCodec
+    private sealed class DurableStructuredValueCodec
     {
         public StructuredSerializedValue Serialize(
             object? value,

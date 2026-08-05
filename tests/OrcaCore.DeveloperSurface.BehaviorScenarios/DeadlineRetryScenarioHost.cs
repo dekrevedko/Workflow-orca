@@ -1,15 +1,8 @@
-using System.Reflection;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
-using OrcaCore.Core.Definitions;
 using OrcaCore.DeveloperSurface.BehaviorContracts;
-using OrcaCore.Engine.Durable.Definitions;
-using OrcaCore.Engine.Durable.Driver;
-using OrcaCore.Engine.Durable.Execution;
-using OrcaCore.Engine.Durable.Management;
-using OrcaCore.Providers.InMemory;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace OrcaCore.DeveloperSurface.BehaviorScenarios;
 
@@ -32,17 +25,17 @@ public static class DeadlineRetryScenarioHost
             },
             "WithRetry did not return a new authoring epoch.");
         var definition = selected!.End().Build();
-        var store = new InMemoryWorkflowProvider();
+        var store = new DurableScenarioProvider(context.Services.TimeProvider);
         var runtime = CreateRuntime(store, definition, probe, context.Services.TimeProvider);
 
-        await runtime.StartOrGetAsync<string, ScenarioState>(
+        var started = await runtime.StartOrGetAsync<string, ScenarioState>(
             "deadline-retry-exclusion",
             definition.DefinitionId,
             definition.DefinitionVersion,
             "input",
             CancellationToken.None);
-        var snapshot = await SnapshotAsync(store);
-        if (snapshot.Status != LegacyWorkflowStatus.Failed || probe.Executions.Count != 1)
+        var snapshot = await SnapshotAsync(store, started.InstanceId);
+        if (snapshot.Status != WorkflowInstanceStatus.Failed || probe.Executions.Count != 1)
         {
             throw new InvalidOperationException(
                 "A non-retryable SFE-TYPE failure consumed retry budget.");
@@ -104,7 +97,7 @@ public static class DeadlineRetryScenarioHost
             .Wait(EventName.Create("Resume"), _ => CorrelationId.Create("deadline"))
             .End()
             .Build();
-        var store = new InMemoryWorkflowProvider();
+        var store = new DurableScenarioProvider(context.Services.TimeProvider);
         var first = CreateRuntime(store, definition, new ExecutionProbe(), context.Services.TimeProvider);
         var started = await first.StartOrGetAsync<string, ScenarioState>(
             "deadline-replacement",
@@ -123,10 +116,6 @@ public static class DeadlineRetryScenarioHost
             cancellationToken: CancellationToken.None);
         var definitionHandle = DurableFacadeScenarioAdapter.Register(
             replacement,
-            store,
-            store,
-            new DurableManagement(store),
-            context.Services.TimeProvider,
             definition);
         var instanceHandle = await definitionHandle.GetInstanceAsync(
             started.InstanceId,
@@ -151,7 +140,7 @@ public static class DeadlineRetryScenarioHost
         context.ReleaseBarrier(barrier);
         var probe = new ExecutionProbe
         {
-            FirstDelay = TimeSpan.FromMilliseconds(120),
+            BlockFirst = true,
             ReplaceStatePerAttempt = true
         };
         var root = Workflow.Durable<ScenarioState>(DefinitionId.New(), DefinitionVersion.Initial)
@@ -173,20 +162,21 @@ public static class DeadlineRetryScenarioHost
             },
             "WithStepTimeout did not bind to the preceding business step.");
         var definition = timeoutBuilder!.End().Build();
-        var store = new InMemoryWorkflowProvider();
+        var store = new DurableScenarioProvider(context.Services.TimeProvider);
         var runtime = CreateRuntime(store, definition, probe, context.Services.TimeProvider);
-        var started = await runtime.StartOrGetAsync<string, ScenarioState>(
+        var running = runtime.StartOrGetAsync<string, ScenarioState>(
             "attempt-copy-fence",
             definition.DefinitionId,
             definition.DefinitionVersion,
             "input",
-            CancellationToken.None);
+            CancellationToken.None).AsTask();
+        await probe.FirstStarted.Task;
+        context.AdvanceTimeBy(TimeSpan.FromMilliseconds(31));
+        await probe.SecondStarted.Task;
+        probe.ReleaseFirst.TrySetResult();
+        var started = await running;
         var definitionHandle = DurableFacadeScenarioAdapter.Register(
             runtime,
-            store,
-            store,
-            new DurableManagement(store),
-            context.Services.TimeProvider,
             definition);
         var instanceHandle = await definitionHandle.GetInstanceAsync(
             started.InstanceId,
@@ -218,18 +208,13 @@ public static class DeadlineRetryScenarioHost
             fixture.Store,
             fixture.Definition,
             probe,
-            context.Services.TimeProvider,
-            new DurableDriverBudget(1, TimeSpan.FromMinutes(1)));
-        var started = await first.StartOrGetAsync<string, ScenarioState>(
-            fixture.Key,
-            fixture.Definition.DefinitionId,
-            fixture.Definition.DefinitionVersion,
-            "input",
-            CancellationToken.None);
-        var beforeDispatch = await EnvelopeAsync(fixture.Store, started.InstanceId);
+            context.Services.TimeProvider);
+        var instanceId = await FreezeAfterAttemptAdmissionAsync(first, fixture);
+        var beforeDispatch = await EnvelopeAsync(fixture.Store, instanceId);
+        var admittedFiber = beforeDispatch.Fibers.Single();
         if (probe.Executions.Count != 0 ||
-            beforeDispatch.Fibers.Single().LogicalOperationKey is null ||
-            !beforeDispatch.Fibers.Single().AttemptInFlight)
+            admittedFiber.LogicalOperationKey is null ||
+            !admittedFiber.AttemptInFlight)
         {
             throw new InvalidOperationException("The complete attempt coordinate was not committed before dispatch.");
         }
@@ -246,6 +231,11 @@ public static class DeadlineRetryScenarioHost
             "input",
             CancellationToken.None);
         var execution = probe.Executions.Single();
+        if (execution.OperationId.Value != admittedFiber.LogicalOperationKey)
+        {
+            throw new InvalidOperationException(
+                "The replacement dispatch did not use the persisted attempt coordinate.");
+        }
         var operation = context.Observe(_ => execution.OperationId);
         Phase0Assert.Satisfies(operation, value => !string.IsNullOrWhiteSpace(value.Value), "OperationId was empty.");
         var attempt = context.Observe(_ => execution.AttemptNumber);
@@ -261,15 +251,9 @@ public static class DeadlineRetryScenarioHost
             fixture.Store,
             fixture.Definition,
             probe,
-            context.Services.TimeProvider,
-            new DurableDriverBudget(1, TimeSpan.FromMinutes(1)));
-        var started = await first.StartOrGetAsync<string, ScenarioState>(
-            fixture.Key,
-            fixture.Definition.DefinitionId,
-            fixture.Definition.DefinitionVersion,
-            "input",
-            CancellationToken.None);
-        var committed = await EnvelopeAsync(fixture.Store, started.InstanceId);
+            context.Services.TimeProvider);
+        var instanceId = await FreezeAfterAttemptAdmissionAsync(first, fixture);
+        var committed = await EnvelopeAsync(fixture.Store, instanceId);
         var committedCoordinate = committed.Fibers.Single().LogicalOperationKey;
         var committedAttempt = committed.Fibers.Single().RetryAttempt;
 
@@ -292,6 +276,50 @@ public static class DeadlineRetryScenarioHost
             committedAttempt > 0 ? committedAttempt : 1,
             attempt,
             "Replacement dispatch consumed retry budget.");
+    }
+
+    private static async Task<InstanceId> FreezeAfterAttemptAdmissionAsync(
+        DurableScenarioRuntime runtime,
+        CoordinateFixture fixture)
+    {
+        using var hostShutdown = new CancellationTokenSource();
+        fixture.Store.AfterSuccessfulAppend = batch =>
+        {
+            if (batch.Checkpoint is not { } checkpoint)
+            {
+                return;
+            }
+
+            var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint.Payload);
+            if (envelope.Fibers.Any(fiber => fiber.AttemptInFlight))
+            {
+                hostShutdown.Cancel();
+            }
+        };
+
+        try
+        {
+            _ = await runtime.StartOrGetAsync<string, ScenarioState>(
+                fixture.Key,
+                fixture.Definition.DefinitionId,
+                fixture.Definition.DefinitionVersion,
+                "input",
+                hostShutdown.Token);
+            throw new InvalidOperationException(
+                "The first host did not stop after committing attempt admission.");
+        }
+        catch (OperationCanceledException) when (hostShutdown.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            fixture.Store.AfterSuccessfulAppend = null;
+        }
+
+        var binding = await fixture.Store.GetStartedAsync(fixture.Key, CancellationToken.None);
+        return binding.HasValue
+            ? binding.Value.InstanceId
+            : throw new InvalidOperationException("Attempt admission did not retain the durable start binding.");
     }
 
     [Phase0Scenario("committed-retry-increment", "3.9")]
@@ -318,7 +346,7 @@ public static class DeadlineRetryScenarioHost
             },
             "WithRetry did not retain the approved maxAttempts policy.");
         var definition = retryBuilder!.End().Build();
-        var store = new InMemoryWorkflowProvider();
+        var store = new DurableScenarioProvider(context.Services.TimeProvider);
         var runtime = CreateRuntime(store, definition, probe, context.Services.TimeProvider);
         await runtime.StartOrGetAsync<string, ScenarioState>(
             "committed-retry-increment",
@@ -343,7 +371,7 @@ public static class DeadlineRetryScenarioHost
     {
         const string barrier = "expired-attempt";
         context.ReleaseBarrier(barrier);
-        var probe = new ExecutionProbe { FirstDelay = TimeSpan.FromMilliseconds(120) };
+        var probe = new ExecutionProbe { BlockFirst = true };
         var builder = Workflow.Durable<ScenarioState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ =>
             {
@@ -363,43 +391,77 @@ public static class DeadlineRetryScenarioHost
             },
             "WithStepTimeout did not bind the absolute attempt deadline.");
         var definition = timeoutBuilder!.End().Build();
-        var store = new InMemoryWorkflowProvider();
+        var store = new DurableScenarioProvider(context.Services.TimeProvider);
         var runtime = CreateRuntime(store, definition, probe, context.Services.TimeProvider);
-        await runtime.StartOrGetAsync<string, ScenarioState>(
+        var running = runtime.StartOrGetAsync<string, ScenarioState>(
             "expired-attempt-two",
             definition.DefinitionId,
             definition.DefinitionVersion,
             "input",
-            CancellationToken.None);
+            CancellationToken.None).AsTask();
+        await probe.FirstStarted.Task;
+        context.AdvanceTimeBy(TimeSpan.FromMilliseconds(31));
+        await probe.SecondStarted.Task;
+        probe.ReleaseFirst.TrySetResult();
+        _ = await running;
 
         var execution = probe.Executions.Single(candidate => candidate.AttemptNumber == 2);
         var observedAttempt = context.Observe(_ => execution.AttemptNumber);
         Phase0Assert.Equal(2, observedAttempt, "Expired replay redispatched attempt one.");
 
-        var singleAttemptProbe = new ExecutionProbe { FirstDelay = TimeSpan.FromMilliseconds(120) };
+        var singleAttemptProbe = new ExecutionProbe { BlockFirst = true };
         var singleDefinition = Workflow.Durable<ScenarioState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new ScenarioState())
             .Then<ProbeStep>()
             .WithRetry(1)
             .WithStepTimeout(TimeSpan.FromMilliseconds(30))
-            .End()
+            .End(_ => "unreachable")
             .Build();
-        var singleStore = new InMemoryWorkflowProvider();
-        var singleRuntime = CreateRuntime(
+        var singleStore = new DurableScenarioProvider(context.Services.TimeProvider);
+        var singleRuntime = DurableScenarioRuntime.Create(
             singleStore,
-            singleDefinition,
-            singleAttemptProbe,
-            context.Services.TimeProvider);
-        await singleRuntime.StartOrGetAsync<string, ScenarioState>(
-            "expired-attempt-one",
-            singleDefinition.DefinitionId,
-            singleDefinition.DefinitionVersion,
+            context.Services.TimeProvider,
+            configureServices: services =>
+                services.AddTransient<ProbeStep>(_ => new ProbeStep(singleAttemptProbe)));
+        var singleDefinitionHandle = singleRuntime.Register(singleDefinition);
+        var singleRunning = singleDefinitionHandle.StartOrGetAsync(
             "input",
+            StartIdempotencyKey.Create("expired-attempt-one"),
+            CancellationToken.None).AsTask();
+        await singleAttemptProbe.FirstStarted.Task;
+        var singleBinding = await singleStore.GetStartedAsync(
+            "expired-attempt-one",
             CancellationToken.None);
-        if (singleAttemptProbe.Executions.Count != 1 ||
-            (await SnapshotAsync(singleStore)).Status != LegacyWorkflowStatus.Failed)
+        if (!singleBinding.HasValue)
         {
-            throw new InvalidOperationException("maxAttempts one redispatched expired physical work.");
+            throw new InvalidOperationException(
+                "The maxAttempts-one occurrence did not retain its durable start binding.");
+        }
+
+        var singleInstance = await singleDefinitionHandle.GetInstanceAsync(
+            singleBinding.Value.InstanceId,
+            CancellationToken.None);
+        var singleTerminal = singleInstance.WaitForOutputAsync(CancellationToken.None).AsTask();
+        context.AdvanceTimeBy(TimeSpan.FromMilliseconds(31));
+        try
+        {
+            await AwaitTerminalWithoutOutputAsync(singleTerminal);
+        }
+        finally
+        {
+            singleAttemptProbe.ReleaseFirst.TrySetResult();
+        }
+
+        var singleStarted = (await singleRunning).GetHandleOrThrow();
+        var singleSnapshot = await SnapshotAsync(singleStore, singleStarted.InstanceId);
+        if (singleStarted.InstanceId != singleBinding.Value.InstanceId ||
+            singleAttemptProbe.Executions.Count != 1 ||
+            singleSnapshot.Status != WorkflowInstanceStatus.Failed)
+        {
+            throw new InvalidOperationException(
+                "maxAttempts one redispatched expired physical work. " +
+                $"Executions={singleAttemptProbe.Executions.Count}; Status={singleSnapshot.Status}; " +
+                $"ExpectedInstance={singleBinding.Value.InstanceId}; ActualInstance={singleStarted.InstanceId}.");
         }
     }
 
@@ -419,7 +481,7 @@ public static class DeadlineRetryScenarioHost
             .Then<ProbeStep>()
             .End()
             .Build();
-        var store = new InMemoryWorkflowProvider();
+        var store = new DurableScenarioProvider(context.Services.TimeProvider);
         var runtime = CreateRuntime(store, definition, probe, context.Services.TimeProvider);
         await runtime.StartOrGetAsync<string, ScenarioState>(
             "distinct-occurrences",
@@ -455,35 +517,47 @@ public static class DeadlineRetryScenarioHost
             .Then<ProbeStep>()
             .End()
             .Build();
-        return new CoordinateFixture(new InMemoryWorkflowProvider(), definition, key);
+        return new CoordinateFixture(
+            new DurableScenarioProvider(context.Services.TimeProvider),
+            definition,
+            key);
     }
 
-    private static DurableWorkflowRuntime CreateRuntime(
-        InMemoryWorkflowProvider store,
+    private static DurableScenarioRuntime CreateRuntime(
+        DurableScenarioProvider store,
         DurableWorkflowDefinition<string> definition,
         ExecutionProbe probe,
-        TimeProvider timeProvider,
-        DurableDriverBudget? budget = null)
+        TimeProvider timeProvider)
     {
-        var runtime = new DurableWorkflowRuntime(
-            new DurableCommandProcessor(store),
-            new DurableDefinitionRegistry(new ProbeServices(probe)),
+        var runtime = DurableScenarioRuntime.Create(
+            store,
             timeProvider,
-            budget ?? DurableDriverBudget.Default);
-        runtime.RegisterDefinition(RuntimeDefinition<ScenarioState>(definition));
+            configureServices: services =>
+                services.AddTransient<ProbeStep>(_ => new ProbeStep(probe)));
+        runtime.Register(definition);
         return runtime;
     }
 
-    private static WorkflowDefinition<TState> RuntimeDefinition<TState>(object publicDefinition) =>
-        (WorkflowDefinition<TState>)publicDefinition.GetType()
-            .GetProperty("RuntimeDefinition", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .GetValue(publicDefinition)!;
+    private static async Task<WorkflowProjectionSnapshot> SnapshotAsync(
+        DurableScenarioProvider store,
+        InstanceId instanceId) =>
+        (await store.GetAsync(instanceId, CancellationToken.None)).Value;
 
-    private static async Task<LegacyWorkflowInstanceSnapshot> SnapshotAsync(InMemoryWorkflowProvider store) =>
-        (await store.ListAsync(new WorkflowProjectionQuery(), CancellationToken.None)).Single();
+    private static async Task AwaitTerminalWithoutOutputAsync(Task<string> output)
+    {
+        try
+        {
+            _ = await output;
+            throw new InvalidOperationException(
+                "The expired-attempt workflow produced output instead of terminating without one.");
+        }
+        catch (WorkflowOutputUnavailableException)
+        {
+        }
+    }
 
     private static async Task<DurableExecutionEnvelopeV2> EnvelopeAsync(
-        InMemoryWorkflowProvider store,
+        DurableScenarioProvider store,
         InstanceId instanceId)
     {
         var checkpoint = await store.LoadCheckpointAsync(instanceId, CancellationToken.None);
@@ -494,7 +568,7 @@ public static class DeadlineRetryScenarioHost
         context.Services.Barrier.ReachAsync(name).GetAwaiter().GetResult();
 
     private sealed record CoordinateFixture(
-        InMemoryWorkflowProvider Store,
+        DurableScenarioProvider Store,
         DurableWorkflowDefinition<string> Definition,
         string Key);
 
@@ -507,8 +581,9 @@ public static class DeadlineRetryScenarioHost
         internal bool FailFirst { get; init; }
         internal bool BlockFirst { get; init; }
         internal bool ReplaceStatePerAttempt { get; init; }
-        internal TimeSpan FirstDelay { get; init; }
         internal TaskCompletionSource FirstStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource SecondStarted { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource ReleaseFirst { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -532,10 +607,10 @@ public static class DeadlineRetryScenarioHost
                 {
                     await probe.ReleaseFirst.Task;
                 }
-                else if (probe.FirstDelay > TimeSpan.Zero)
-                {
-                    await Task.Delay(probe.FirstDelay, TimeProvider.System, cancellationToken);
-                }
+            }
+            else if (context.Execution.AttemptNumber == 2)
+            {
+                probe.SecondStarted.TrySetResult();
             }
 
             if (probe.ReplaceStatePerAttempt)
@@ -556,12 +631,6 @@ public static class DeadlineRetryScenarioHost
     }
 
     private sealed class ScenarioFailure(string code) : OrcaCoreException(code, code);
-
-    private sealed class ProbeServices(ExecutionProbe probe) : IServiceProvider
-    {
-        public object? GetService(Type serviceType) =>
-            serviceType == typeof(ProbeStep) ? new ProbeStep(probe) : null;
-    }
 
     private static class FixedWorkflowValueCodecProxy
     {

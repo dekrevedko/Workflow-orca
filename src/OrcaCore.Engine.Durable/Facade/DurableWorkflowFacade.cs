@@ -1,20 +1,19 @@
 using System.Reflection;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Errors;
-using OrcaCore.Abstractions.Instances;
+using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Core.Definitions;
+using OrcaCore.Core.Execution;
 using OrcaCore.Engine.Durable.Execution;
-using OrcaCore.Engine.Durable.Management;
 using OrcaCore.Core.Internal;
 using OrcaCore.Internal;
-using LegacySnapshot = OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot;
-using LegacyStatus = OrcaCore.Abstractions.Instances.WorkflowStatus;
-using LegacyActiveWaitSnapshot = OrcaCore.Abstractions.Instances.ActiveWaitSnapshot;
+using ProjectionSnapshot = OrcaCore.Abstractions.Providers.WorkflowProjectionSnapshot;
+using ProjectionActiveWaitSnapshot = OrcaCore.Abstractions.Providers.WorkflowProjectionActiveWaitSnapshot;
 
 namespace OrcaCore.Engine.Durable;
 
-public sealed class DurableFacadeNotificationHub : IWorkflowRuntimeObserver
+internal sealed class DurableFacadeNotificationHub : IWorkflowRuntimeObserver
 {
     internal event Action<InstanceId>? InstanceCommitted;
 
@@ -31,11 +30,8 @@ public sealed class DurableFacadeNotificationHub : IWorkflowRuntimeObserver
     }
 }
 
-public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegistry
+internal sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegistry
 {
-    private static readonly MethodInfo RegisterRuntimeMethod = typeof(DurableWorkflowRuntime)
-        .GetMethods(BindingFlags.Instance | BindingFlags.Public)
-        .Single(method => method.Name == nameof(DurableWorkflowRuntime.RegisterDefinition));
     private static readonly MethodInfo StartRuntimeMethod = typeof(DurableWorkflowRuntime)
         .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
         .Single(method =>
@@ -51,7 +47,7 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
     private readonly DurableWorkflowRuntime runtime;
     private readonly IWorkflowProjectionStore projectionStore;
     private readonly IWorkflowEventStore eventStore;
-    private readonly DurableManagement management;
+    private readonly DurableCommandProcessor commandProcessor;
     private readonly DurableFacadeNotificationHub notifications;
     private readonly TimeProvider timeProvider;
     private readonly IReadOnlySet<string> configuredResourcePools;
@@ -60,7 +56,7 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
         DurableWorkflowRuntime runtime,
         IWorkflowProjectionStore projectionStore,
         IWorkflowEventStore eventStore,
-        DurableManagement management,
+        DurableCommandProcessor commandProcessor,
         DurableFacadeNotificationHub notifications,
         TimeProvider timeProvider,
         IEnumerable<ResourcePoolName>? configuredResourcePools = null)
@@ -68,7 +64,7 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
         this.runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
         this.projectionStore = projectionStore ?? throw new ArgumentNullException(nameof(projectionStore));
         this.eventStore = eventStore ?? throw new ArgumentNullException(nameof(eventStore));
-        this.management = management ?? throw new ArgumentNullException(nameof(management));
+        this.commandProcessor = commandProcessor ?? throw new ArgumentNullException(nameof(commandProcessor));
         this.notifications = notifications ?? throw new ArgumentNullException(nameof(notifications));
         this.timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         this.configuredResourcePools = (configuredResourcePools ?? [])
@@ -102,9 +98,9 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
         ArgumentNullException.ThrowIfNull(definition);
         return RegisterCore(
             definition,
-            WorkflowRuntimeBridge.RuntimeDefinition(definition),
-            WorkflowRuntimeBridge.RuntimeStateType(definition),
-            () => WorkflowRuntimeBridge.DurableDefinitionHandle<TInput>(
+            global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.RuntimeDefinition(definition),
+            global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.RuntimeStateType(definition),
+            () => global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DurableDefinitionHandle<TInput>(
                 definition.DefinitionId,
                 definition.DefinitionVersion,
                 definition.DefinitionFingerprint,
@@ -122,9 +118,9 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
         ArgumentNullException.ThrowIfNull(definition);
         return RegisterCore(
             definition,
-            WorkflowRuntimeBridge.RuntimeDefinition(definition),
-            WorkflowRuntimeBridge.RuntimeStateType(definition),
-            () => WorkflowRuntimeBridge.DurableDefinitionHandle<TInput, TOutput>(
+            global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.RuntimeDefinition(definition),
+            global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.RuntimeStateType(definition),
+            () => global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DurableDefinitionHandle<TInput, TOutput>(
                 definition.DefinitionId,
                 definition.DefinitionVersion,
                 definition.DefinitionFingerprint,
@@ -161,7 +157,7 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
                 return existing.Fingerprint.Equals(fingerprint)
                     ? new WorkflowRegistrationResult<THandle>.Registered((THandle)existing.Handle)
                     : new WorkflowRegistrationResult<THandle>.Conflict(
-                        WorkflowRuntimeBridge.DefinitionRegistrationConflict(
+                        global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionRegistrationConflict(
                             definitionId,
                             definitionVersion,
                             existing.Fingerprint,
@@ -179,7 +175,7 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
                     new DefinitionHostCompatibilityFailure.MissingDurableResourcePools(missing));
             }
 
-            RegisterRuntimeMethod.MakeGenericMethod(stateType).Invoke(runtime, [runtimeDefinition]);
+            runtime.RegisterDefinition(publicDefinition);
             var handle = createHandle();
             registrations.Add(key, new Registration(handle!, fingerprint, stateType));
             return new WorkflowRegistrationResult<THandle>.Registered(handle);
@@ -196,7 +192,7 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
             definition.DefinitionId,
             definition.DefinitionVersion,
             definition.DefinitionFingerprint,
-            WorkflowRuntimeBridge.RuntimeStateType(definition),
+            global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.RuntimeStateType(definition),
             input,
             idempotencyKey,
             cancellationToken).ConfigureAwait(false);
@@ -217,7 +213,7 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
             definition.DefinitionId,
             definition.DefinitionVersion,
             definition.DefinitionFingerprint,
-            WorkflowRuntimeBridge.RuntimeStateType(definition),
+            global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.RuntimeStateType(definition),
             input,
             idempotencyKey,
             cancellationToken).ConfigureAwait(false);
@@ -238,7 +234,7 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(idempotencyKey);
-        var inputFingerprint = WorkflowRuntimeBridge.PayloadFingerprint(input);
+        var inputFingerprint = global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.PayloadFingerprint(input);
 
         await startGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -266,7 +262,7 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
                     return new StartCoreResult(
                         null,
                         false,
-                        WorkflowRuntimeBridge.StartIdempotencyConflict(
+                        global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.StartIdempotencyConflict(
                             idempotencyKey,
                             existing.DefinitionId,
                             existing.DefinitionVersion,
@@ -298,7 +294,7 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
                 return new StartCoreResult(
                     null,
                     false,
-                    WorkflowRuntimeBridge.StartIdempotencyConflict(
+                    global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.StartIdempotencyConflict(
                         idempotencyKey,
                         conflict.DefinitionId,
                         conflict.DefinitionVersion,
@@ -368,15 +364,15 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
         InstanceId instanceId,
         CancellationToken cancellationToken)
     {
-        var snapshots = await projectionStore.ListAsync(
-            new WorkflowProjectionQuery { InstanceId = instanceId },
-            cancellationToken).ConfigureAwait(false);
-        var snapshot = snapshots.SingleOrDefault() ??
-            throw WorkflowRuntimeBridge.InstanceNotFound(instanceId);
+        var projected = await projectionStore.GetAsync(instanceId, cancellationToken).ConfigureAwait(false);
+        var snapshot = projected.HasValue
+            ? projected.Value
+            :
+            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.InstanceNotFound(instanceId);
         if (!snapshot.DefinitionId.Equals(expectedId) ||
             !snapshot.DefinitionVersion.Equals(expectedVersion))
         {
-            throw WorkflowRuntimeBridge.InstanceDefinitionMismatch(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.InstanceDefinitionMismatch(
                 instanceId,
                 expectedId,
                 snapshot.DefinitionId);
@@ -397,7 +393,7 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
     }
 
     private WorkflowInstanceHandle CreateInstanceHandle(InstanceBinding binding) =>
-        WorkflowRuntimeBridge.InstanceHandle(
+        global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.InstanceHandle(
             binding.InstanceId,
             token => GetSnapshotAsync(binding, token),
             (requestedType, token) => GetStateAsync(binding, requestedType, token),
@@ -405,7 +401,7 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
             token => TerminateAsync(binding, token));
 
     private WorkflowInstanceHandle<TOutput> CreateInstanceHandle<TOutput>(InstanceBinding binding) =>
-        WorkflowRuntimeBridge.InstanceHandle(
+        global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.InstanceHandle(
             binding.InstanceId,
             token => GetSnapshotAsync(binding, token),
             (requestedType, token) => GetStateAsync(binding, requestedType, token),
@@ -420,20 +416,31 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
     {
         var snapshot = await GetProjectionAsync(binding.InstanceId, cancellationToken).ConfigureAwait(false);
         var terminal = IsTerminal(snapshot.Status);
+        CheckpointWrite? checkpoint = null;
+        DurableExecutionEnvelopeV2? envelope = null;
+        if (snapshot.ActiveWaits.Count > 0)
+        {
+            checkpoint = await GetCheckpointAsync(binding.InstanceId, cancellationToken).ConfigureAwait(false);
+            envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint.Payload);
+        }
+
         return new global::OrcaCore.WorkflowInstanceSnapshot(
             snapshot.InstanceId,
             WorkflowMode.Durable,
             snapshot.DefinitionId,
             snapshot.DefinitionVersion,
             binding.DefinitionFingerprint,
-            MapStatus(snapshot.Status),
+            snapshot.Status,
             snapshot.CreatedAt,
             terminal ? snapshot.UpdatedAt : null,
             string.IsNullOrWhiteSpace(snapshot.EndOutcomeName)
                 ? null
                 : WorkflowOutcomeName.Create(snapshot.EndOutcomeName),
             MapFailure(snapshot),
-            snapshot.ActiveWaits.Select(MapWait).ToArray());
+            snapshot.ActiveWaits
+                .Select(wait => MapWait(wait, checkpoint!, envelope!))
+                .OfType<global::OrcaCore.ActiveWaitSnapshot>()
+                .ToArray());
     }
 
     private async ValueTask<object?> GetStateAsync(
@@ -443,7 +450,7 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
     {
         if (requestedType != binding.StateType)
         {
-            throw WorkflowRuntimeBridge.StateTypeMismatch(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.StateTypeMismatch(
                 binding.InstanceId,
                 binding.StateType,
                 requestedType);
@@ -457,9 +464,13 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
         InstanceBinding binding,
         CancellationToken cancellationToken)
     {
-        var result = await management.CancelAsync(
-            binding.InstanceId,
-            timeProvider.GetUtcNow(),
+        var result = await commandProcessor.ProcessAsync(
+            new CancelWorkflowCommand
+            {
+                CommandId = CommandId.New(),
+                InstanceId = binding.InstanceId,
+                RequestedAt = timeProvider.GetUtcNow()
+            },
             cancellationToken).ConfigureAwait(false);
         if (result.Outcome == DurableCommandOutcome.Conflict)
         {
@@ -491,10 +502,13 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
         InstanceBinding binding,
         CancellationToken cancellationToken)
     {
-        var result = await management.TerminateAsync(
-            binding.InstanceId,
-            timeProvider.GetUtcNow(),
-            DestructiveCommandSafety.Confirmed,
+        var result = await commandProcessor.ProcessAsync(
+            new TerminateWorkflowCommand
+            {
+                CommandId = CommandId.New(),
+                InstanceId = binding.InstanceId,
+                RequestedAt = timeProvider.GetUtcNow()
+            },
             cancellationToken).ConfigureAwait(false);
         if (result.Outcome == DurableCommandOutcome.Conflict)
         {
@@ -522,14 +536,14 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
         }
 
         var envelope = await GetEnvelopeAsync(binding.InstanceId, cancellationToken).ConfigureAwait(false);
-        if (snapshot.Status == LegacyStatus.Completed && envelope.Output is { } output)
+        if (snapshot.Status == WorkflowInstanceStatus.Completed && envelope.Output is { } output)
         {
-        var detached = (TOutput)CoreWorkflowValueCodec.Deserialize(output.Payload, typeof(TOutput))!;
+            var detached = (TOutput)CoreWorkflowValueCodec.Deserialize(output.Payload, typeof(TOutput))!;
             return new WorkflowOutputResult<TOutput>.Available(detached);
         }
 
         return new WorkflowOutputResult<TOutput>.Unavailable(
-            MapStatus(snapshot.Status),
+            snapshot.Status,
             MapFailure(snapshot));
     }
 
@@ -557,7 +571,7 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
                     case WorkflowOutputResult<TOutput>.Available available:
                         return available.Output;
                     case WorkflowOutputResult<TOutput>.Unavailable unavailable:
-                        throw WorkflowRuntimeBridge.OutputUnavailable(unavailable.Status, unavailable.Failure);
+                        throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.OutputUnavailable(unavailable.Status, unavailable.Failure);
                 }
 
                 await signal.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -569,18 +583,26 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
         }
     }
 
-    private async ValueTask<LegacySnapshot> GetProjectionAsync(
+    private async ValueTask<ProjectionSnapshot> GetProjectionAsync(
         InstanceId instanceId,
         CancellationToken cancellationToken)
     {
-        var snapshots = await projectionStore.ListAsync(
-            new WorkflowProjectionQuery { InstanceId = instanceId },
-            cancellationToken).ConfigureAwait(false);
-        return snapshots.SingleOrDefault() ??
-            throw WorkflowRuntimeBridge.InstanceNotFound(instanceId);
+        var projected = await projectionStore.GetAsync(instanceId, cancellationToken).ConfigureAwait(false);
+        return projected.HasValue
+            ? projected.Value
+            :
+            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.InstanceNotFound(instanceId);
     }
 
     private async ValueTask<DurableExecutionEnvelopeV2> GetEnvelopeAsync(
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
+    {
+        var checkpoint = await GetCheckpointAsync(instanceId, cancellationToken).ConfigureAwait(false);
+        return DurableExecutionEnvelopeV2.Deserialize(checkpoint.Payload);
+    }
+
+    private async ValueTask<CheckpointWrite> GetCheckpointAsync(
         InstanceId instanceId,
         CancellationToken cancellationToken)
     {
@@ -595,7 +617,7 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
                 $"Workflow instance '{instanceId}' has no readable committed state checkpoint.");
         }
 
-        return DurableExecutionEnvelopeV2.Deserialize(checkpoint.Value.Payload);
+        return checkpoint.Value;
     }
 
     private static IReadOnlyList<ResourcePoolName> RequiredDurablePools(object runtimeDefinition)
@@ -625,16 +647,39 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
         return names;
     }
 
-    private static global::OrcaCore.ActiveWaitSnapshot MapWait(LegacyActiveWaitSnapshot wait) =>
-        new(
+    private static global::OrcaCore.ActiveWaitSnapshot? MapWait(
+        ProjectionActiveWaitSnapshot wait,
+        CheckpointWrite checkpoint,
+        DurableExecutionEnvelopeV2 envelope)
+    {
+        var obligation = envelope.OwnedObligations.SingleOrDefault(candidate =>
+            candidate.Kind == DurableOwnedObligationKind.Wait &&
+            string.Equals(candidate.ObligationId, wait.WaitId.ToString(), StringComparison.Ordinal));
+        if (string.IsNullOrWhiteSpace(obligation?.AuthoredPath))
+        {
+            // Provider projections also contain internal resource-admission waits. Only
+            // waits authored through the application contract belong in the public view.
+            return null;
+        }
+
+        var checkpointWait = checkpoint.RuntimeState.ActiveWaits.SingleOrDefault(candidate =>
+            candidate.WaitId.Equals(wait.WaitId));
+        var deadline = checkpointWait?.TimeoutTimerId is { } timeoutTimerId
+            ? checkpoint.RuntimeState.ActiveTimers
+                .SingleOrDefault(timer => timer.TimerId.Equals(timeoutTimerId))
+                ?.FireAt
+            : null;
+
+        return new global::OrcaCore.ActiveWaitSnapshot(
             wait.WaitId,
-            WorkflowRuntimeBridge.AuthoredLocation("workflow:$"),
+            FailureProvenance.LocationFromCompilerPath(obligation.AuthoredPath),
             EventName.Create(wait.EventName),
             wait.CorrelationId,
             wait.RegisteredAt,
-            null);
+            deadline);
+    }
 
-    private static WorkflowFailure? MapFailure(LegacySnapshot snapshot)
+    private static WorkflowFailure? MapFailure(ProjectionSnapshot snapshot)
     {
         if (string.IsNullOrWhiteSpace(snapshot.ErrorSummary))
         {
@@ -646,36 +691,20 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
         var message = separator > 0
             ? snapshot.ErrorSummary[(separator + 1)..].Trim()
             : snapshot.ErrorSummary;
-        return WorkflowRuntimeBridge.WorkflowFailure(
+        return global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.WorkflowFailure(
             code,
             message,
-            WorkflowRuntimeBridge.AuthoredLocation("workflow:$"),
-            WorkflowRuntimeBridge.RootFailureOccurrence(),
+            global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.AuthoredLocation("workflow:$"),
+            global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.RootFailureOccurrence(),
             []);
     }
 
-    private static WorkflowInstanceStatus MapStatus(LegacyStatus status) => status switch
-    {
-        LegacyStatus.Running => WorkflowInstanceStatus.Running,
-        LegacyStatus.Waiting => WorkflowInstanceStatus.Waiting,
-        LegacyStatus.CancellationRequested => WorkflowInstanceStatus.CancellationRequested,
-        LegacyStatus.Completed => WorkflowInstanceStatus.Completed,
-        LegacyStatus.Failed or LegacyStatus.CompensationFailed => WorkflowInstanceStatus.Failed,
-        LegacyStatus.TimedOut => WorkflowInstanceStatus.TimedOut,
-        LegacyStatus.Cancelled or LegacyStatus.Compensated => WorkflowInstanceStatus.Cancelled,
-        LegacyStatus.Terminated => WorkflowInstanceStatus.Terminated,
-        LegacyStatus.Paused or LegacyStatus.Parked => WorkflowInstanceStatus.Waiting,
-        _ => WorkflowInstanceStatus.Pending
-    };
-
-    private static bool IsTerminal(LegacyStatus status) =>
-        status is LegacyStatus.Completed or
-            LegacyStatus.Failed or
-            LegacyStatus.TimedOut or
-            LegacyStatus.Cancelled or
-            LegacyStatus.Terminated or
-            LegacyStatus.Compensated or
-            LegacyStatus.CompensationFailed;
+    private static bool IsTerminal(WorkflowInstanceStatus status) =>
+        status is WorkflowInstanceStatus.Completed or
+            WorkflowInstanceStatus.Failed or
+            WorkflowInstanceStatus.TimedOut or
+            WorkflowInstanceStatus.Cancelled or
+            WorkflowInstanceStatus.Terminated;
 
     private sealed record DefinitionKey(DefinitionId Id, DefinitionVersion Version);
     private sealed record Registration(
@@ -700,7 +729,7 @@ public sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegis
         PayloadFingerprint InputFingerprint);
 }
 
-public sealed class DurableWorkflowEventClient(
+internal sealed class DurableWorkflowEventClient(
     DurableWorkflowRuntime runtime,
     IWorkflowProjectionStore projectionStore,
     IWorkflowInboxStore inboxStore,
@@ -770,13 +799,10 @@ public sealed class DurableWorkflowEventClient(
         TPayload payload,
         CancellationToken cancellationToken)
     {
-        var matches = await projectionStore.ListAsync(
-            new WorkflowProjectionQuery
-            {
-                DefinitionId = definitionId,
-                ActiveWaitEventName = eventName.Value,
-                ActiveWaitCorrelationId = correlationId
-            },
+        var matches = await projectionStore.FindActiveWaitsAsync(
+            definitionId,
+            eventName,
+            correlationId,
             cancellationToken).ConfigureAwait(false);
         if (matches.Count == 0)
         {
@@ -785,7 +811,7 @@ public sealed class DurableWorkflowEventClient(
 
         if (matches.Count > 1)
         {
-            throw WorkflowRuntimeBridge.AmbiguousWait(definitionId, eventName, correlationId);
+            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.AmbiguousWait(definitionId, eventName, correlationId);
         }
 
         return await DeliverToInstanceCoreAsync(
@@ -807,11 +833,11 @@ public sealed class DurableWorkflowEventClient(
         TPayload payload,
         CancellationToken cancellationToken)
     {
-        var matches = await projectionStore.ListAsync(
-            new WorkflowProjectionQuery { InstanceId = instanceId },
-            cancellationToken).ConfigureAwait(false);
-        var snapshot = matches.SingleOrDefault() ??
-            throw WorkflowRuntimeBridge.InstanceNotFound(instanceId);
+        var projected = await projectionStore.GetAsync(instanceId, cancellationToken).ConfigureAwait(false);
+        var snapshot = projected.HasValue
+            ? projected.Value
+            :
+            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.InstanceNotFound(instanceId);
         var fingerprint = DurableEventEnvelopeFingerprint.Create(
             eventName,
             correlationId,
@@ -890,13 +916,11 @@ public sealed class DurableWorkflowEventClient(
             instanceId);
     }
 
-    private static bool IsTerminal(LegacyStatus status) =>
-        status is LegacyStatus.Completed or
-            LegacyStatus.Failed or
-            LegacyStatus.TimedOut or
-            LegacyStatus.Cancelled or
-            LegacyStatus.Terminated or
-            LegacyStatus.Compensated or
-            LegacyStatus.CompensationFailed;
+    private static bool IsTerminal(WorkflowInstanceStatus status) =>
+        status is WorkflowInstanceStatus.Completed or
+            WorkflowInstanceStatus.Failed or
+            WorkflowInstanceStatus.TimedOut or
+            WorkflowInstanceStatus.Cancelled or
+            WorkflowInstanceStatus.Terminated;
 
 }

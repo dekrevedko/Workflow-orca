@@ -1,8 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using AwesomeAssertions;
-using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Building;
 using Xunit;
 
@@ -21,8 +19,10 @@ public sealed class WaitAcceptanceTests
         var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
 
         snapshot.Status.Should().Be(WorkflowInstanceStatus.Waiting);
-        snapshot.ActiveWaits.Should().ContainSingle()
-            .Which.EventName.Should().Be(EventName.Create("Approved"));
+        var wait = snapshot.ActiveWaits.Should().ContainSingle().Which;
+        wait.EventName.Should().Be(EventName.Create("Approved"));
+        wait.AuthoredLocation.Value.Should().Be("workflow:$/n:00000001");
+        wait.Deadline.Should().Be(wait.RegisteredAt.AddHours(1));
     }
 
     [Fact]
@@ -93,12 +93,12 @@ public sealed class WaitAcceptanceTests
     {
         var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
-            .Wait(EventName.Create("Approved"), _ => Correlation)
+            .Wait(EventName.Create("Approved"), _ => Correlation, TimeSpan.FromHours(1))
             .Then(context =>
             {
-                if (context.ResumedEvent is { Payload: string payload, PayloadContentType: null })
+                if (context.ResumedEvent is { } resumedEvent)
                 {
-                    context.State.Payloads.Add(payload);
+                    context.State.Payloads.Add(resumedEvent.GetPayload<string>());
                 }
 
                 return ValueTask.CompletedTask;

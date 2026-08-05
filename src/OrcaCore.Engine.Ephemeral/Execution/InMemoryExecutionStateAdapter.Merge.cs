@@ -22,12 +22,13 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
             if (scope.Kind == CompiledScopeKind.ForEach)
             {
                 var runtime = scope.ForEach ??
-                    throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException("ForEach scope runtime state is missing.");
+                    throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException("ForEach scope runtime state is missing.");
                 var outcomes = runtime.Outcomes.Values.AsEnumerable();
                 if (runtime.JoinPolicy == ForEachJoinPolicy.WhenAny)
                 {
                     var winner = scope.WinnerFiberId ??
-                        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException("ForEach WhenAny scope has no winner.");
+                        throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
+                            "ForEach WhenAny scope has no winner.");
                     var winnerIndex = runtime.ItemIndexByFiber[winner];
                     outcomes = outcomes.Where(outcome => outcome.Index == winnerIndex);
                 }
@@ -35,8 +36,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
                 replacementPayload = ScopeMergeAdapter.ExecuteForEach(
                     scopePlan,
                     parentState,
-                    outcomes.ToArray(),
-                    codec);
+                    outcomes.ToArray());
             }
             else if (scope.Kind == CompiledScopeKind.WhenAllOutcomes)
             {
@@ -52,7 +52,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
                         }
 
                         var payload = scope.CommittedResults[childId] ??
-                            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                                 "Committed branch result payload is missing.");
                         return new MaterializedBranchOutcome(
                             branch.Id,
@@ -66,8 +66,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
                 replacementPayload = ScopeMergeAdapter.ExecuteOutcomes(
                     scopePlan,
                     parentState,
-                    materializedOutcomes,
-                    codec);
+                    materializedOutcomes);
             }
             else
             {
@@ -79,7 +78,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
                     {
                         var childId = scope.ChildFiberIds[branch.Ordinal];
                         var payload = scope.CommittedResults[childId] ??
-                            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                                 "Committed branch result payload is missing.");
                         return new MaterializedBranchResult(
                             branch.Id,
@@ -92,14 +91,13 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
                 replacementPayload = ScopeMergeAdapter.Execute(
                     scopePlan,
                     parentState,
-                    materializedResults,
-                    codec);
+                    materializedResults);
             }
 
             var replacement = codec.Deserialize(replacementPayload);
             if (scope.ParentFiberId == state.RootFiberId && replacement is not TState)
             {
-                throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                     $"Structured merge did not produce '{typeof(TState).FullName}'.");
             }
 

@@ -1,7 +1,5 @@
 using System.Collections.Concurrent;
-using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
 
@@ -24,7 +22,7 @@ internal sealed class EphemeralRoutingIndex
         }
     }
 
-    public void IndexSnapshot(LegacyWorkflowInstanceSnapshot snapshot)
+    public void IndexSnapshot(EphemeralWorkflowInstanceSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
 
@@ -66,7 +64,7 @@ internal sealed class EphemeralRoutingIndex
     {
         internal static WaitRoutingKey From(EventEnvelope envelope)
         {
-            return new WaitRoutingKey(envelope.EventName, envelope.CorrelationId);
+            return new WaitRoutingKey(envelope.EventName.Value, envelope.CorrelationId);
         }
     }
 }

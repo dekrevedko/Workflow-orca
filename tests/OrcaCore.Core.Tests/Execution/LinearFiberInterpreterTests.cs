@@ -1,6 +1,5 @@
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Execution;
@@ -78,7 +77,7 @@ public sealed class ReferenceLinearFiberInterpreterTests
         var yielded = result.State.Fibers[yieldingFiberId];
         yielded.Phase.Should().Be(FiberPhase.Runnable);
         yielded.InstructionId.Should().Be(originalInstruction);
-        yielded.YieldCount.Should().Be(1);
+        yielded.QuantumRotationCount.Should().Be(1);
         result.State.Scheduler.NextFiberId.Should().Be(siblingFiberId);
     }
 

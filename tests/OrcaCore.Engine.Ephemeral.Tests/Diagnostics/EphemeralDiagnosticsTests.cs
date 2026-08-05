@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
 using OrcaCore.Engine.Ephemeral.Diagnostics;
 using Xunit;

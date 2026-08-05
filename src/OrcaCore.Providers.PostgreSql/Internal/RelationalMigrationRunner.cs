@@ -7,7 +7,7 @@ namespace OrcaCore.Providers.Relational;
 /// <summary>
 /// Applies provider-owned SQL migrations with a small Dapper-based journal.
 /// </summary>
-public static class RelationalMigrationRunner
+internal static class RelationalMigrationRunner
 {
     public static async Task ApplyAsync(
         DbConnection connection,

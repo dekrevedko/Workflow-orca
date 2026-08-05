@@ -1,10 +1,8 @@
 using System.Data;
-using System.Text.Json;
 using Npgsql;
 using NpgsqlTypes;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Abstractions.Serialization;
@@ -14,7 +12,6 @@ namespace OrcaCore.Providers.PostgreSql;
 
 internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task ApplyAsync(IReadOnlyList<ProjectionWrite> operations, CancellationToken cancellationToken)
     {
@@ -30,14 +27,58 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<LegacyWorkflowInstanceSnapshot>> ListAsync(
-        WorkflowProjectionQuery query,
+    public async Task<Option<WorkflowProjectionSnapshot>> GetAsync(
+        InstanceId instanceId,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(query);
+        ArgumentNullException.ThrowIfNull(instanceId);
+        var snapshots = await LoadAsync(
+            instanceId,
+            definitionId: null,
+            eventName: null,
+            correlationId: null,
+            cancellationToken).ConfigureAwait(false);
+        return snapshots.Count == 0
+            ? Option<WorkflowProjectionSnapshot>.None
+            : Option<WorkflowProjectionSnapshot>.Some(snapshots[0]);
+    }
 
+    /// <inheritdoc />
+    public Task<IReadOnlyList<WorkflowProjectionSnapshot>> FindActiveWaitsAsync(
+        DefinitionId? definitionId,
+        EventName eventName,
+        CorrelationId correlationId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(eventName);
+        ArgumentNullException.ThrowIfNull(correlationId);
+        return LoadAsync(
+            instanceId: null,
+            definitionId,
+            eventName,
+            correlationId,
+            cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<WorkflowProjectionSnapshot>> ListLeaseRecoveryCandidatesAsync(
+        CancellationToken cancellationToken) =>
+        LoadAsync(
+            instanceId: null,
+            definitionId: null,
+            eventName: null,
+            correlationId: null,
+            cancellationToken);
+
+    private async Task<IReadOnlyList<WorkflowProjectionSnapshot>> LoadAsync(
+        InstanceId? instanceId,
+        DefinitionId? definitionId,
+        EventName? eventName,
+        CorrelationId? correlationId,
+        CancellationToken cancellationToken)
+    {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-        var snapshots = new List<LegacyWorkflowInstanceSnapshot>();
+        var snapshots = new List<WorkflowProjectionSnapshot>();
         await using var command = new NpgsqlCommand(
             """
             select instance_id,
@@ -56,41 +97,37 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
                    stream_version
             from orcacore_instance_projections summary
             where (@instance_id is null or summary.instance_id = @instance_id)
-              and (@parent_instance_id is null or summary.parent_instance_id = @parent_instance_id)
-              and (@root_instance_id is null or summary.root_instance_id = @root_instance_id)
               and (@definition_id is null or summary.definition_id = @definition_id)
-              and (@definition_version is null or summary.definition_version = @definition_version)
-              and (@status is null or summary.status = @status)
               and ((@wait_event_name is null and @wait_correlation_id is null) or exists (
                   select 1
                   from orcacore_active_wait_projections wait
                   where wait.instance_id = summary.instance_id
-                    and (@wait_event_name is null or wait.event_name = @wait_event_name)
-                    and (@wait_correlation_id is null or wait.correlation_id = @wait_correlation_id)))
+                    and wait.event_name = @wait_event_name
+                    and wait.correlation_id = @wait_correlation_id))
             order by instance_id;
             """,
             connection);
-        AddProjectionQueryParameters(command, query);
+        AddNullableParameter(command, "instance_id", NpgsqlDbType.Uuid, instanceId?.Value);
+        AddNullableParameter(command, "definition_id", NpgsqlDbType.Uuid, definitionId?.Value);
+        AddNullableParameter(command, "wait_event_name", NpgsqlDbType.Text, eventName?.Value);
+        AddNullableParameter(command, "wait_correlation_id", NpgsqlDbType.Text, correlationId?.Value);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            var instanceId = InstanceId.Parse(reader.GetGuid(0).ToString());
-            snapshots.Add(new LegacyWorkflowInstanceSnapshot
+            snapshots.Add(new WorkflowProjectionSnapshot
             {
-                InstanceId = instanceId,
+                InstanceId = InstanceId.Parse(reader.GetGuid(0).ToString()),
                 ParentInstanceId = reader.IsDBNull(1) ? null : InstanceId.Parse(reader.GetGuid(1).ToString()),
                 RootInstanceId = reader.IsDBNull(2) ? null : InstanceId.Parse(reader.GetGuid(2).ToString()),
                 DefinitionId = DefinitionId.Parse(reader.GetGuid(3).ToString()),
                 DefinitionVersion = new DefinitionVersion(reader.GetInt32(4)),
-                Status = Enum.Parse<LegacyWorkflowStatus>(reader.GetString(5)),
+                Status = Enum.Parse<global::OrcaCore.WorkflowInstanceStatus>(reader.GetString(5)),
                 CreatedAt = reader.GetFieldValue<DateTimeOffset>(6),
                 UpdatedAt = reader.GetFieldValue<DateTimeOffset>(7),
                 ErrorSummary = reader.IsDBNull(8) ? null : reader.GetString(8),
                 EndOutcomeName = reader.IsDBNull(9) ? null : reader.GetString(9),
                 ContinueAsNewGeneration = reader.GetInt32(10),
-                ArchivedAt = reader.IsDBNull(11) ? null : reader.GetFieldValue<DateTimeOffset>(11),
-                SagaAudits = reader.IsDBNull(12) ? [] : DeserializeSagaAudits(reader.GetString(12)),
                 StreamVersion = reader.IsDBNull(13) ? null : reader.GetInt64(13)
             });
         }
@@ -110,143 +147,6 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
         }
 
         return snapshots;
-    }
-
-    /// <inheritdoc />
-    public async Task<int> CountAsync(WorkflowProjectionQuery query, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(query);
-
-        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new NpgsqlCommand(
-            """
-            select count(*)
-            from orcacore_instance_projections summary
-            where (@instance_id is null or summary.instance_id = @instance_id)
-              and (@parent_instance_id is null or summary.parent_instance_id = @parent_instance_id)
-              and (@root_instance_id is null or summary.root_instance_id = @root_instance_id)
-              and (@definition_id is null or summary.definition_id = @definition_id)
-              and (@definition_version is null or summary.definition_version = @definition_version)
-              and (@status is null or summary.status = @status)
-              and ((@wait_event_name is null and @wait_correlation_id is null) or exists (
-                  select 1
-                  from orcacore_active_wait_projections wait
-                  where wait.instance_id = summary.instance_id
-                    and (@wait_event_name is null or wait.event_name = @wait_event_name)
-                    and (@wait_correlation_id is null or wait.correlation_id = @wait_correlation_id)));
-            """,
-            connection);
-        AddProjectionQueryParameters(command, query);
-
-        var count = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return checked((int)(long)(count ?? 0L));
-    }
-
-    /// <inheritdoc />
-    public async Task<IReadOnlyList<LegacyActiveWaitSnapshot>> ListActiveWaitsAsync(
-        WorkflowProjectionQuery query,
-        CancellationToken cancellationToken)
-    {
-        return (await ListAsync(query, cancellationToken).ConfigureAwait(false))
-            .SelectMany(snapshot => snapshot.ActiveWaits)
-            .ToArray();
-    }
-
-    /// <inheritdoc />
-    public async Task<WorkflowStatistics> GetStatisticsAsync(
-        WorkflowProjectionQuery query,
-        CancellationToken cancellationToken)
-    {
-        var groups = (await ListAsync(query, cancellationToken).ConfigureAwait(false))
-            .GroupBy(snapshot => new
-            {
-                snapshot.DefinitionId,
-                snapshot.DefinitionVersion,
-                snapshot.Status
-            })
-            .Select(group => new WorkflowStatisticsGroup
-            {
-                DefinitionId = group.Key.DefinitionId,
-                DefinitionVersion = group.Key.DefinitionVersion,
-                Status = group.Key.Status,
-                Count = group.Count()
-            })
-            .ToArray();
-
-        return new WorkflowStatistics
-        {
-            Groups = groups,
-            Pressure = await LoadPressureMetricsAsync(cancellationToken).ConfigureAwait(false)
-        };
-    }
-
-    private async Task<WorkflowPressureMetrics> LoadPressureMetricsAsync(CancellationToken cancellationToken)
-    {
-        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new NpgsqlCommand(
-            """
-            select
-                (select count(*) from orcacore_events) as stream_events,
-                (select count(*) from orcacore_checkpoints) as checkpoints,
-                (select count(*) from orcacore_outbox where state in (@pending, @retryable)) as pending_outbox,
-                (select count(*) from orcacore_outbox where state = @pending) as outbox_pending,
-                (select count(*) from orcacore_outbox where state = @retryable) as outbox_retryable,
-                (select count(*) from orcacore_outbox where state = @claimed) as outbox_claimed,
-                (select count(*) from orcacore_outbox where kind = @continue_kind and state = @pending)
-                    as continuation_pending,
-                (select count(*) from orcacore_outbox where kind = @continue_kind and state = @retryable)
-                    as continuation_retryable,
-                (select count(*) from orcacore_outbox where kind = @continue_kind and state = @claimed)
-                    as continuation_claimed,
-                (select count(*) from orcacore_outbox where kind <> @continue_kind and state = @pending)
-                    as external_pending,
-                (select count(*) from orcacore_outbox where kind <> @continue_kind and state = @retryable)
-                    as external_retryable,
-                (select count(*) from orcacore_outbox where kind <> @continue_kind and state = @claimed)
-                    as external_claimed,
-                (select coalesce(max(events.max_version - coalesce(checkpoints.stream_version, 0)), 0)
-                    from (
-                        select stream_id, max(version) as max_version
-                        from orcacore_events
-                        group by stream_id
-                    ) events
-                    left join orcacore_checkpoints checkpoints on checkpoints.instance_id = events.stream_id)
-                    as checkpoint_lag,
-                (select count(*) from orcacore_instance_projections
-                    where status in (@running, @waiting, @paused)) as active_instances;
-            """,
-            connection);
-        command.Parameters.AddWithValue("pending", OutboxRecordState.Pending.ToString());
-        command.Parameters.AddWithValue("retryable", OutboxRecordState.Retryable.ToString());
-        command.Parameters.AddWithValue("claimed", OutboxRecordState.Claimed.ToString());
-        command.Parameters.AddWithValue("continue_kind", OutboxKinds.Continue);
-        command.Parameters.AddWithValue("running", LegacyWorkflowStatus.Running.ToString());
-        command.Parameters.AddWithValue("waiting", LegacyWorkflowStatus.Waiting.ToString());
-        command.Parameters.AddWithValue("paused", LegacyWorkflowStatus.Paused.ToString());
-
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-        {
-            return new WorkflowPressureMetrics();
-        }
-
-        return new WorkflowPressureMetrics
-        {
-            TotalStreamEvents = reader.GetInt64(0),
-            CheckpointCount = checked((int)reader.GetInt64(1)),
-            PendingOutboxCount = checked((int)reader.GetInt64(2)),
-            OutboxPendingCount = checked((int)reader.GetInt64(3)),
-            OutboxRetryableCount = checked((int)reader.GetInt64(4)),
-            OutboxClaimedCount = checked((int)reader.GetInt64(5)),
-            ContinuationPendingCount = checked((int)reader.GetInt64(6)),
-            ContinuationRetryableCount = checked((int)reader.GetInt64(7)),
-            ContinuationClaimedCount = checked((int)reader.GetInt64(8)),
-            ExternalOutboxPendingCount = checked((int)reader.GetInt64(9)),
-            ExternalOutboxRetryableCount = checked((int)reader.GetInt64(10)),
-            ExternalOutboxClaimedCount = checked((int)reader.GetInt64(11)),
-            CheckpointLag = reader.GetInt64(12),
-            ActiveInstanceCount = checked((int)reader.GetInt64(13))
-        };
     }
 
     /// <inheritdoc />
@@ -332,7 +232,7 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
     private static async Task UpsertSummaryProjectionAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
-        LegacyWorkflowInstanceSnapshot snapshot,
+        WorkflowProjectionSnapshot snapshot,
         CancellationToken cancellationToken)
     {
         await using var command = new NpgsqlCommand(
@@ -401,11 +301,11 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
         command.Parameters.AddWithValue("error_summary", (object?)snapshot.ErrorSummary ?? DBNull.Value);
         command.Parameters.AddWithValue("outcome_name", (object?)snapshot.EndOutcomeName ?? DBNull.Value);
         command.Parameters.AddWithValue("continue_as_new_generation", snapshot.ContinueAsNewGeneration);
-        command.Parameters.AddWithValue("archived_at", (object?)snapshot.ArchivedAt ?? DBNull.Value);
+        command.Parameters.AddWithValue("archived_at", DBNull.Value);
         command.Parameters.AddWithValue(
             "saga_audits",
             NpgsqlDbType.Jsonb,
-            JsonSerializer.Serialize(snapshot.SagaAudits, JsonOptions));
+            "[]");
 
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         foreach (var activeWait in snapshot.ActiveWaits)
@@ -423,7 +323,7 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         InstanceId instanceId,
-        LegacyActiveWaitSnapshot activeWait,
+        WorkflowProjectionActiveWaitSnapshot activeWait,
         CancellationToken cancellationToken)
     {
         await using var command = new NpgsqlCommand(
@@ -483,14 +383,14 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task<IReadOnlyDictionary<InstanceId, IReadOnlyList<LegacyActiveWaitSnapshot>>> LoadActiveWaitsAsync(
+    private static async Task<IReadOnlyDictionary<InstanceId, IReadOnlyList<WorkflowProjectionActiveWaitSnapshot>>> LoadActiveWaitsAsync(
         NpgsqlConnection connection,
         IReadOnlyList<InstanceId> instanceIds,
         CancellationToken cancellationToken)
     {
         if (instanceIds.Count == 0)
         {
-            return new Dictionary<InstanceId, IReadOnlyList<LegacyActiveWaitSnapshot>>();
+            return new Dictionary<InstanceId, IReadOnlyList<WorkflowProjectionActiveWaitSnapshot>>();
         }
 
         await using var command = new NpgsqlCommand(
@@ -510,7 +410,7 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
         command.Parameters.Add("instance_ids", NpgsqlDbType.Array | NpgsqlDbType.Uuid)
             .Value = instanceIds.Select(instanceId => instanceId.Value).ToArray();
 
-        var waits = new Dictionary<InstanceId, List<LegacyActiveWaitSnapshot>>();
+        var waits = new Dictionary<InstanceId, List<WorkflowProjectionActiveWaitSnapshot>>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
@@ -521,7 +421,7 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
                 waits.Add(instanceId, instanceWaits);
             }
 
-            instanceWaits.Add(new LegacyActiveWaitSnapshot
+            instanceWaits.Add(new WorkflowProjectionActiveWaitSnapshot
             {
                 WaitId = WaitId.Parse(reader.GetGuid(1).ToString()),
                 EventName = reader.GetString(2),
@@ -532,19 +432,9 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
             });
         }
 
-        return waits.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<LegacyActiveWaitSnapshot>)pair.Value);
-    }
-
-    private static void AddProjectionQueryParameters(NpgsqlCommand command, WorkflowProjectionQuery query)
-    {
-        AddNullableParameter(command, "instance_id", NpgsqlDbType.Uuid, query.InstanceId?.Value);
-        AddNullableParameter(command, "parent_instance_id", NpgsqlDbType.Uuid, query.ParentInstanceId?.Value);
-        AddNullableParameter(command, "root_instance_id", NpgsqlDbType.Uuid, query.RootInstanceId?.Value);
-        AddNullableParameter(command, "definition_id", NpgsqlDbType.Uuid, query.DefinitionId?.Value);
-        AddNullableParameter(command, "definition_version", NpgsqlDbType.Integer, query.DefinitionVersion?.Value);
-        AddNullableParameter(command, "status", NpgsqlDbType.Text, query.Status?.ToString());
-        AddNullableParameter(command, "wait_event_name", NpgsqlDbType.Text, query.ActiveWaitEventName);
-        AddNullableParameter(command, "wait_correlation_id", NpgsqlDbType.Text, query.ActiveWaitCorrelationId?.Value);
+        return waits.ToDictionary(
+            pair => pair.Key,
+            pair => (IReadOnlyList<WorkflowProjectionActiveWaitSnapshot>)pair.Value);
     }
 
     private static void AddNullableParameter(
@@ -557,8 +447,4 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
         parameter.Value = value ?? DBNull.Value;
     }
 
-    private static IReadOnlyList<SagaAuditScopeSnapshot> DeserializeSagaAudits(string payload)
-    {
-        return JsonSerializer.Deserialize<IReadOnlyList<SagaAuditScopeSnapshot>>(payload, JsonOptions) ?? [];
-    }
 }

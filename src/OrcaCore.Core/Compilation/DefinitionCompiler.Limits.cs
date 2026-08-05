@@ -58,8 +58,6 @@ internal static partial class DefinitionCompiler
                 SelectedStepAuthoringNode<TState> => true,
                 SelectedWaitAuthoringNode<TState> => true,
                 SelectedDelayAuthoringNode<TState> => true,
-                SelectedRunChildAuthoringNode<TState> => true,
-                SelectedRunChildrenAuthoringNode<TState> => true,
                 SelectedEndAuthoringNode<TState> => true,
                 SelectedContinueAsNewAuthoringNode<TState> => true,
                 SelectedStructuredScopeAuthoringNode<TState> => true,

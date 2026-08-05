@@ -1,7 +1,6 @@
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Abstractions.Serialization;
 using Xunit;
@@ -25,47 +24,33 @@ public sealed class WorkflowEventCodecTests
             ["WorkflowStepFailedEvent"] = "WorkflowStepFailedEvent",
             ["WorkflowWaitRegisteredEvent"] = "WorkflowWaitRegisteredEvent",
             ["WorkflowWaitMatchedEvent"] = "WorkflowWaitMatchedEvent",
+            ["WorkflowWaitCancelledEvent"] = "WorkflowWaitCancelledEvent",
+            ["WorkflowTimerCancelledEvent"] = "WorkflowTimerCancelledEvent",
+            ["WorkflowResumeConsumedEvent"] = "WorkflowResumeConsumedEvent",
+            ["WorkflowParkedEvent"] = "WorkflowParkedEvent",
+            ["WorkflowUnparkedEvent"] = "WorkflowUnparkedEvent",
+            ["WorkflowContinuationAttemptFailedEvent"] = "WorkflowContinuationAttemptFailedEvent",
+            ["WorkflowContinuationAttemptResetEvent"] = "WorkflowContinuationAttemptResetEvent",
             ["WorkflowTimerScheduledEvent"] = "WorkflowTimerScheduledEvent",
             ["WorkflowTimerFiredEvent"] = "WorkflowTimerFiredEvent",
-            ["WorkflowChildScheduledEvent"] = "WorkflowChildScheduledEvent",
-            ["WorkflowChildrenScheduledEvent"] = "WorkflowChildrenScheduledEvent",
-            ["WorkflowChildrenDispatchedEvent"] = "WorkflowChildrenDispatchedEvent",
-            ["WorkflowChildCompletedEvent"] = "WorkflowChildCompletedEvent",
-            ["WorkflowParentResumeTokenRecordedEvent"] = "WorkflowParentResumeTokenRecordedEvent",
-            ["WorkflowParentResumeTokenConsumedEvent"] = "WorkflowParentResumeTokenConsumedEvent",
-            ["WorkflowChildResidualIntentRecordedEvent"] = "WorkflowChildResidualIntentRecordedEvent",
-            ["WorkflowChildCompensationScheduledEvent"] = "WorkflowChildCompensationScheduledEvent",
             ["WorkflowResourcePoolAcquiredEvent"] = "WorkflowResourcePoolAcquiredEvent",
             ["WorkflowResourcePoolQueuedEvent"] = "WorkflowResourcePoolQueuedEvent",
             ["WorkflowResourcePoolReleasedEvent"] = "WorkflowResourcePoolReleasedEvent",
-            ["WorkflowExternalJobStartedEvent"] = "WorkflowExternalJobStartedEvent",
-            ["WorkflowExternalJobCompletedEvent"] = "WorkflowExternalJobCompletedEvent",
-            ["WorkflowExternalJobTimedOutEvent"] = "WorkflowExternalJobTimedOutEvent",
-            ["WorkflowExternalJobStopRequestedEvent"] = "WorkflowExternalJobStopRequestedEvent",
-            ["WorkflowTimerBufferedEvent"] = "WorkflowTimerBufferedEvent",
-            ["WorkflowPausedEvent"] = "WorkflowPausedEvent",
-            ["WorkflowResumedEvent"] = "WorkflowResumedEvent",
-            ["WorkflowDeliveryBufferedEvent"] = "WorkflowDeliveryBufferedEvent",
-            ["WorkflowDeliveryDiscardedEvent"] = "WorkflowDeliveryDiscardedEvent",
             ["WorkflowCompletedEvent"] = "WorkflowCompletedEvent",
-            ["WorkflowTerminalEvent"] = "WorkflowTerminalEvent",
-            ["SagaForwardActionCompletedEvent"] = "SagaForwardActionCompletedEvent",
-            ["SagaForwardActionTimedOutEvent"] = "SagaForwardActionTimedOutEvent",
-            ["SagaCompensationRequestedEvent"] = "SagaCompensationRequestedEvent",
-            ["SagaCompensationStartedEvent"] = "SagaCompensationStartedEvent",
-            ["SagaCompensationCompletedEvent"] = "SagaCompensationCompletedEvent",
-            ["SagaCompensationFailedEvent"] = "SagaCompensationFailedEvent",
-            ["SagaManualRecoveryRecordedEvent"] = "SagaManualRecoveryRecordedEvent"
+            ["WorkflowCancellationRequestedEvent"] = "WorkflowCancellationRequestedEvent",
+            ["WorkflowTerminalEvent"] = "WorkflowTerminalEvent"
         };
 
         var actual = WorkflowEventCodec.EventTypeNamesByClrTypeName;
+        var concreteEventTypeNames = typeof(DurableWorkflowEvent).Assembly
+            .GetExportedTypes()
+            .Where(type => !type.IsAbstract && typeof(DurableWorkflowEvent).IsAssignableFrom(type))
+            .Select(type => type.Name)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
 
-        foreach (var (clrTypeName, eventType) in frozen)
-        {
-            actual.Should().Contain(
-                new KeyValuePair<string, string>(clrTypeName, eventType),
-                $"'{eventType}' is a persisted stream discriminator and may never change");
-        }
+        actual.Should().BeEquivalentTo(frozen);
+        actual.Keys.Should().BeEquivalentTo(concreteEventTypeNames);
     }
 
     public static TheoryData<DurableWorkflowEvent> SupportedEvents
@@ -127,6 +112,73 @@ public sealed class WorkflowEventCodecTests
                 WaitId = WaitIdValue(6),
                 MatchedEventId = EventIdValue(60)
             });
+            events.Add(new WorkflowWaitCancelledEvent
+            {
+                EventId = EventIdValue(9),
+                InstanceId = InstanceIdValue(9),
+                CommandId = CommandIdValue(9),
+                CausationId = CausationIdValue(9),
+                OccurredAt = Timestamp(9),
+                WaitId = WaitIdValue(9)
+            });
+            events.Add(new WorkflowTimerCancelledEvent
+            {
+                EventId = EventIdValue(10),
+                InstanceId = InstanceIdValue(10),
+                CommandId = CommandIdValue(10),
+                CausationId = CausationIdValue(10),
+                OccurredAt = Timestamp(10),
+                TimerId = TimerIdValue(10)
+            });
+            events.Add(new WorkflowResumeConsumedEvent
+            {
+                EventId = EventIdValue(11),
+                InstanceId = InstanceIdValue(11),
+                CommandId = CommandIdValue(11),
+                CausationId = CausationIdValue(11),
+                OccurredAt = Timestamp(11),
+                WaitId = WaitIdValue(11)
+            });
+            events.Add(new WorkflowParkedEvent
+            {
+                EventId = EventIdValue(12),
+                InstanceId = InstanceIdValue(12),
+                CommandId = CommandIdValue(12),
+                CausationId = CausationIdValue(12),
+                OccurredAt = Timestamp(12),
+                Reason = DurableParkReason.Poison,
+                ErrorSummary = "parked",
+                FailedAttemptCount = 3,
+                PositionStreamVersion = new StreamVersion(7)
+            });
+            events.Add(new WorkflowUnparkedEvent
+            {
+                EventId = EventIdValue(13),
+                InstanceId = InstanceIdValue(13),
+                CommandId = CommandIdValue(13),
+                CausationId = CausationIdValue(13),
+                OccurredAt = Timestamp(13)
+            });
+            events.Add(new WorkflowContinuationAttemptFailedEvent
+            {
+                EventId = EventIdValue(14),
+                InstanceId = InstanceIdValue(14),
+                CommandId = CommandIdValue(14),
+                CausationId = CausationIdValue(14),
+                OccurredAt = Timestamp(14),
+                AttemptCount = 2,
+                PositionStreamVersion = new StreamVersion(8),
+                NextEligibleAt = Timestamp(140),
+                ErrorSummary = "retryable"
+            });
+            events.Add(new WorkflowContinuationAttemptResetEvent
+            {
+                EventId = EventIdValue(15),
+                InstanceId = InstanceIdValue(15),
+                CommandId = CommandIdValue(15),
+                CausationId = CausationIdValue(15),
+                OccurredAt = Timestamp(15)
+            });
             events.Add(new WorkflowTimerScheduledEvent
             {
                 EventId = EventIdValue(7),
@@ -146,104 +198,6 @@ public sealed class WorkflowEventCodecTests
                 CausationId = CausationIdValue(8),
                 OccurredAt = Timestamp(8),
                 TimerId = TimerIdValue(8)
-            });
-            events.Add(new WorkflowChildScheduledEvent
-            {
-                EventId = EventIdValue(9),
-                InstanceId = InstanceIdValue(9),
-                CommandId = CommandIdValue(9),
-                CausationId = CausationIdValue(9),
-                OccurredAt = Timestamp(9),
-                ChildInstanceId = InstanceIdValue(90),
-                ChildDefinitionId = DefinitionIdValue(9),
-                ChildDefinitionVersion = DefinitionVersion.Initial,
-                WaitId = WaitIdValue(9),
-                FailurePolicy = RunChildFailurePolicy.ContinueParent
-            });
-            events.Add(new WorkflowChildrenScheduledEvent
-            {
-                EventId = EventIdValue(10),
-                InstanceId = InstanceIdValue(10),
-                CommandId = CommandIdValue(10),
-                CausationId = CausationIdValue(10),
-                OccurredAt = Timestamp(10),
-                GroupId = "group",
-                ChildDefinitionId = DefinitionIdValue(10),
-                ChildDefinitionVersion = DefinitionVersion.Initial,
-                FailurePolicy = RunChildFailurePolicy.PropagateFailure,
-                JoinPolicy = RunChildrenJoinPolicy.WhenAll,
-                ResidualPolicy = RunChildrenResidualPolicy.CancelRemaining,
-                TotalItemCount = 2,
-                InitialDispatchCount = 1,
-                NextDispatchIndex = 1,
-                MaxConcurrency = 1,
-                Children = [Child(0)]
-            });
-            events.Add(new WorkflowChildrenDispatchedEvent
-            {
-                EventId = EventIdValue(11),
-                InstanceId = InstanceIdValue(11),
-                CommandId = CommandIdValue(11),
-                CausationId = CausationIdValue(11),
-                OccurredAt = Timestamp(11),
-                GroupId = "group",
-                PreviousDispatchIndex = 1,
-                NextDispatchIndex = 2,
-                Children = [Child(1)]
-            });
-            events.Add(new WorkflowChildCompletedEvent
-            {
-                EventId = EventIdValue(12),
-                InstanceId = InstanceIdValue(12),
-                CommandId = CommandIdValue(12),
-                CausationId = CausationIdValue(12),
-                OccurredAt = Timestamp(12),
-                ChildInstanceId = InstanceIdValue(120),
-                ChildStatus = WorkflowStatus.Completed,
-                ErrorSummary = null
-            });
-            events.Add(new WorkflowParentResumeTokenRecordedEvent
-            {
-                EventId = EventIdValue(13),
-                InstanceId = InstanceIdValue(13),
-                CommandId = CommandIdValue(13),
-                CausationId = CausationIdValue(13),
-                OccurredAt = Timestamp(13),
-                GroupId = "group",
-                ResumeTokenId = EventIdValue(130)
-            });
-            events.Add(new WorkflowParentResumeTokenConsumedEvent
-            {
-                EventId = EventIdValue(14),
-                InstanceId = InstanceIdValue(14),
-                CommandId = CommandIdValue(14),
-                CausationId = CausationIdValue(14),
-                OccurredAt = Timestamp(14),
-                GroupId = "group",
-                ResumeTokenId = EventIdValue(140)
-            });
-            events.Add(new WorkflowChildResidualIntentRecordedEvent
-            {
-                EventId = EventIdValue(15),
-                InstanceId = InstanceIdValue(15),
-                CommandId = CommandIdValue(15),
-                CausationId = CausationIdValue(15),
-                OccurredAt = Timestamp(15),
-                GroupId = "group",
-                ResidualPolicy = RunChildrenResidualPolicy.DetachRemaining,
-                ResidualChildInstanceIds = [InstanceIdValue(151), InstanceIdValue(152)]
-            });
-            events.Add(new WorkflowChildCompensationScheduledEvent
-            {
-                EventId = EventIdValue(16),
-                InstanceId = InstanceIdValue(16),
-                CommandId = CommandIdValue(16),
-                CausationId = CausationIdValue(16),
-                OccurredAt = Timestamp(16),
-                GroupId = "group",
-                CompensationDefinitionId = DefinitionIdValue(16),
-                CompensationDefinitionVersion = DefinitionVersion.Initial,
-                Compensations = [Compensation(0)]
             });
             events.Add(new WorkflowResourcePoolAcquiredEvent
             {
@@ -277,95 +231,6 @@ public sealed class WorkflowEventCodecTests
                 HolderKey = "root/resource",
                 Tickets = [Ticket(19)]
             });
-            events.Add(new WorkflowExternalJobStartedEvent
-            {
-                EventId = EventIdValue(20),
-                InstanceId = InstanceIdValue(20),
-                CommandId = CommandIdValue(20),
-                CausationId = CausationIdValue(20),
-                OccurredAt = Timestamp(20),
-                ExternalJobId = "job-1",
-                Payload = [1, 2, 3],
-                WaitId = WaitIdValue(20),
-                TimeoutTimerId = TimerIdValue(20),
-                TimeoutAt = Timestamp(200)
-            });
-            events.Add(new WorkflowExternalJobCompletedEvent
-            {
-                EventId = EventIdValue(21),
-                InstanceId = InstanceIdValue(21),
-                CommandId = CommandIdValue(21),
-                CausationId = CausationIdValue(21),
-                OccurredAt = Timestamp(21),
-                ExternalJobId = "job-1",
-                CompletionEventId = EventIdValue(210)
-            });
-            events.Add(new WorkflowExternalJobTimedOutEvent
-            {
-                EventId = EventIdValue(22),
-                InstanceId = InstanceIdValue(22),
-                CommandId = CommandIdValue(22),
-                CausationId = CausationIdValue(22),
-                OccurredAt = Timestamp(22),
-                ExternalJobId = "job-1"
-            });
-            events.Add(new WorkflowExternalJobStopRequestedEvent
-            {
-                EventId = EventIdValue(23),
-                InstanceId = InstanceIdValue(23),
-                CommandId = CommandIdValue(23),
-                CausationId = CausationIdValue(23),
-                OccurredAt = Timestamp(23),
-                ExternalJobId = "job-1"
-            });
-            events.Add(new WorkflowTimerBufferedEvent
-            {
-                EventId = EventIdValue(24),
-                InstanceId = InstanceIdValue(24),
-                CommandId = CommandIdValue(24),
-                CausationId = CausationIdValue(24),
-                OccurredAt = Timestamp(24),
-                TimerId = TimerIdValue(24),
-                WakeupName = "timer"
-            });
-            events.Add(new WorkflowPausedEvent
-            {
-                EventId = EventIdValue(25),
-                InstanceId = InstanceIdValue(25),
-                CommandId = CommandIdValue(25),
-                CausationId = CausationIdValue(25),
-                OccurredAt = Timestamp(25)
-            });
-            events.Add(new WorkflowResumedEvent
-            {
-                EventId = EventIdValue(26),
-                InstanceId = InstanceIdValue(26),
-                CommandId = CommandIdValue(26),
-                CausationId = CausationIdValue(26),
-                OccurredAt = Timestamp(26),
-                BufferHandling = "discard"
-            });
-            events.Add(new WorkflowDeliveryBufferedEvent
-            {
-                EventId = EventIdValue(27),
-                InstanceId = InstanceIdValue(27),
-                CommandId = CommandIdValue(27),
-                CausationId = CausationIdValue(27),
-                OccurredAt = Timestamp(27),
-                BufferedEventId = EventIdValue(270),
-                EventName = "approval",
-                CorrelationId = CorrelationIdValue(27),
-                BranchId = "branch-b"
-            });
-            events.Add(new WorkflowDeliveryDiscardedEvent
-            {
-                EventId = EventIdValue(28),
-                InstanceId = InstanceIdValue(28),
-                CommandId = CommandIdValue(28),
-                CausationId = CausationIdValue(28),
-                OccurredAt = Timestamp(28),
-                DiscardedEventId = EventIdValue(280)
-            });
             events.Add(new WorkflowCompletedEvent
             {
                 EventId = EventIdValue(29),
@@ -375,6 +240,14 @@ public sealed class WorkflowEventCodecTests
                 OccurredAt = Timestamp(29),
                 OutcomeName = "ok"
             });
+            events.Add(new WorkflowCancellationRequestedEvent
+            {
+                EventId = EventIdValue(28),
+                InstanceId = InstanceIdValue(28),
+                CommandId = CommandIdValue(28),
+                CausationId = CausationIdValue(28),
+                OccurredAt = Timestamp(28)
+            });
             events.Add(new WorkflowTerminalEvent
             {
                 EventId = EventIdValue(30),
@@ -382,87 +255,8 @@ public sealed class WorkflowEventCodecTests
                 CommandId = CommandIdValue(30),
                 CausationId = CausationIdValue(30),
                 OccurredAt = Timestamp(30),
-                Status = WorkflowStatus.Cancelled
+                Status = global::OrcaCore.WorkflowInstanceStatus.Cancelled
             });
-            events.Add(new SagaForwardActionCompletedEvent
-            {
-                EventId = EventIdValue(31),
-                InstanceId = InstanceIdValue(31),
-                CommandId = CommandIdValue(31),
-                CausationId = CausationIdValue(31),
-                OccurredAt = Timestamp(31),
-                ScopeId = "saga",
-                ActionKey = "reserve",
-                CompensationKey = "release"
-            });
-            events.Add(new SagaForwardActionTimedOutEvent
-            {
-                EventId = EventIdValue(32),
-                InstanceId = InstanceIdValue(32),
-                CommandId = CommandIdValue(32),
-                CausationId = CausationIdValue(32),
-                OccurredAt = Timestamp(32),
-                ScopeId = "saga",
-                ActionKey = "reserve",
-                CompensateScope = true
-            });
-            events.Add(new SagaCompensationRequestedEvent
-            {
-                EventId = EventIdValue(33),
-                InstanceId = InstanceIdValue(33),
-                CommandId = CommandIdValue(33),
-                CausationId = CausationIdValue(33),
-                OccurredAt = Timestamp(33),
-                ScopeId = "saga",
-                Reason = "rollback"
-            });
-            events.Add(new SagaCompensationStartedEvent
-            {
-                EventId = EventIdValue(34),
-                InstanceId = InstanceIdValue(34),
-                CommandId = CommandIdValue(34),
-                CausationId = CausationIdValue(34),
-                OccurredAt = Timestamp(34),
-                ScopeId = "saga",
-                ActionKey = "release",
-                Order = 0
-            });
-            events.Add(new SagaCompensationCompletedEvent
-            {
-                EventId = EventIdValue(35),
-                InstanceId = InstanceIdValue(35),
-                CommandId = CommandIdValue(35),
-                CausationId = CausationIdValue(35),
-                OccurredAt = Timestamp(35),
-                ScopeId = "saga",
-                ActionKey = "release"
-            });
-            events.Add(new SagaCompensationFailedEvent
-            {
-                EventId = EventIdValue(36),
-                InstanceId = InstanceIdValue(36),
-                CommandId = CommandIdValue(36),
-                CausationId = CausationIdValue(36),
-                OccurredAt = Timestamp(36),
-                ScopeId = "saga",
-                ActionKey = "release",
-                ErrorSummary = "failed"
-            });
-            events.Add(new SagaManualRecoveryRecordedEvent
-            {
-                EventId = EventIdValue(37),
-                InstanceId = InstanceIdValue(37),
-                CommandId = CommandIdValue(37),
-                CausationId = CausationIdValue(37),
-                OccurredAt = Timestamp(37),
-                ScopeId = "saga",
-                ActionKey = "release",
-                OperatorId = "operator",
-                RecoveryAction = "mark-complete",
-                Reason = "manual correction",
-                TargetStatus = WorkflowStatus.Completed
-            });
-
             return events;
         }
     }
@@ -526,29 +320,6 @@ public sealed class WorkflowEventCodecTests
             DefinitionId = DefinitionIdValue(value),
             DefinitionVersion = DefinitionVersion.Initial,
             IdempotencyKey = "start-key"
-        };
-    }
-
-    private static WorkflowChildMaterialization Child(int index)
-    {
-        return new WorkflowChildMaterialization
-        {
-            Index = index,
-            ChildInstanceId = InstanceIdValue(500 + index),
-            ChildDefinitionId = DefinitionIdValue(500 + index),
-            ChildDefinitionVersion = DefinitionVersion.Initial,
-            ItemSnapshot = $"item-{index}"
-        };
-    }
-
-    private static WorkflowChildCompensationMaterialization Compensation(int index)
-    {
-        return new WorkflowChildCompensationMaterialization
-        {
-            Index = index,
-            SourceChildInstanceId = InstanceIdValue(600 + index),
-            CompensationInstanceId = InstanceIdValue(700 + index),
-            ItemSnapshot = $"item-{index}"
         };
     }
 

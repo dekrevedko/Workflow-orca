@@ -1,3 +1,4 @@
-global using ActiveWaitSnapshot = OrcaCore.Abstractions.Instances.ActiveWaitSnapshot;
-global using Workflow = OrcaCore.Workflow;
-global using WorkflowInstanceSnapshot = OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot;
+global using ActiveWaitSnapshot = global::OrcaCore.ActiveWaitSnapshot;
+global using Workflow = global::OrcaCore.Workflow;
+global using WorkflowInstanceSnapshot = global::OrcaCore.WorkflowInstanceSnapshot;
+global using WorkflowStatus = global::OrcaCore.WorkflowInstanceStatus;

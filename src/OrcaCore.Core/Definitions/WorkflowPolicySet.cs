@@ -1,6 +1,6 @@
 namespace OrcaCore.Core.Definitions;
 
-public sealed record WorkflowPolicySet(
+internal sealed record WorkflowPolicySet(
     RetryPolicy? Retry = null,
     TimeoutPolicy? Timeout = null,
     bool Cancellation = false,
@@ -34,6 +34,6 @@ public sealed record WorkflowPolicySet(
     }
 }
 
-public sealed record RetryPolicy(int MaxAttempts, TimeSpan Backoff);
+internal sealed record RetryPolicy(int MaxAttempts, TimeSpan Backoff);
 
-public sealed record TimeoutPolicy(TimeSpan Duration);
+internal sealed record TimeoutPolicy(TimeSpan Duration);

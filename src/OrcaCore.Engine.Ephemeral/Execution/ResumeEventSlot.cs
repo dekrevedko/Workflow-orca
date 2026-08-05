@@ -1,4 +1,3 @@
-using OrcaCore.Abstractions.Events;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
 

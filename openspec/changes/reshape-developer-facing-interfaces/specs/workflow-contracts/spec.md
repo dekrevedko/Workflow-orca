@@ -1,15 +1,15 @@
 ## MODIFIED Requirements
 
 ### Requirement: Steps execute against typed business state
-The shared application contract layer SHALL expose named asynchronous `IStep<TState>` execution through `StepContext<TState>` and a portable `StepResult` limited to `Completed`, `Failed`, and dynamic `WaitForEvent(EventName, CorrelationId)`. `StepContext<TState>` SHALL include typed attempt-local `State`, `ReplaceState(TState)`, execution identity, resumed event, deterministic time, optional item context, and optional lease protection context. It SHALL NOT expose `Yield`, continue-as-new, external-job dispatch, or resource-acquisition result variants.
+The shared application contract layer SHALL expose named asynchronous `IStep<TState>` execution through `StepContext<TState>` and a portable `StepResult` limited to `Completed`, `Failed`, and dynamic `WaitForEvent(WorkflowEventContract, CorrelationId)` using an explicit payloadless or typed descriptor. `StepContext<TState>` SHALL include typed attempt-local `State`, `ReplaceState(TState)`, execution identity, resumed event, deterministic time, optional item context, and optional lease protection context. The resumed event SHALL preserve contract/version, event/correlation/causation identity, occurrence time, and fixed-codec payload and SHALL provide contract-checked typed materialization. `StepContext<TState>` SHALL NOT expose `Yield`, continue-as-new, external-job dispatch, provider outbox writes, or resource-acquisition result variants.
 
 #### Scenario: Business step is authored
 - **WHEN** a workflow author implements a named step for either engine
 - **THEN** the step receives typed business and execution context and returns only an approved portable orchestration result
 
 #### Scenario: Event name is selected dynamically
-- **WHEN** a business step can determine its event name only while executing
-- **THEN** it may return `WaitForEvent`, while a statically known event uses the preferred structural `Wait`
+- **WHEN** a business step can determine its event contract only while executing
+- **THEN** it may return descriptor-based `WaitForEvent`, while a statically known contract uses the preferred structural `Wait`
 
 #### Scenario: Timed attempt ignores cancellation
 - **WHEN** a timed-out body continues mutating its detached attempt copy while a retry begins
@@ -74,7 +74,7 @@ Shared contracts SHALL represent definition identity, positive authored version,
 ## ADDED Requirements
 
 ### Requirement: Workflow references expose typed external contracts
-Resultful durable definitions SHALL expose `DurableWorkflowRef<TInput,TOutput>` and resultless durable definitions SHALL expose `DurableWorkflowRef<TInput>`. A workflow reference SHALL contain immutable identity/version/fingerprint and typed input/output contract but SHALL NOT expose private workflow state or executable plan data.
+Resultful ephemeral and durable definitions SHALL expose `EphemeralWorkflowRef<TInput,TOutput>` and `DurableWorkflowRef<TInput,TOutput>` respectively; resultless definitions SHALL expose the corresponding one-arity reference. A workflow reference SHALL contain immutable mode/identity/version/fingerprint and typed input/output contract but SHALL NOT expose private workflow state or executable plan data. DAG nodes SHALL continue to accept durable references only.
 
 #### Scenario: DAG references a child workflow
 - **WHEN** a DAG node is declared with one durable workflow reference
@@ -84,12 +84,56 @@ Resultful durable definitions SHALL expose `DurableWorkflowRef<TInput,TOutput>` 
 - **WHEN** a workflow has no public output
 - **THEN** its one-arity reference avoids a synthetic `Unit` output in consumer signatures
 
+#### Scenario: Ephemeral workflow is referenced
+- **WHEN** application configuration stages an ephemeral definition and runtime code resolves its reference
+- **THEN** the same state-opaque typed declaration/registration/lookup pattern is available without making it a durable DAG target
+
+### Requirement: Event contracts have stable explicit wire identity
+`WorkflowEventContract` and `WorkflowEventContract<TPayload>` SHALL be immutable non-positional application values containing validated `EventName` and positive `EventContractVersion`. The generic form SHALL bind the fixed-codec payload type. Contract identity SHALL be exact ordinal name/version and SHALL NOT derive from CLR type name, assembly name, serializer metadata, broker destination, or runtime attributes. V1 SHALL expose no workflow/signal/event discovery attribute, assembly scanner, or reflection registration path. Third-party and unmodifiable message types SHALL be usable through an explicit descriptor.
+
+#### Scenario: Application declares an event contract
+- **WHEN** application code creates a typed descriptor for a broker message type
+- **THEN** the same descriptor is used by wait, ingress, resumed payload materialization, durable publish, and external dispatch without modifying or scanning the message type
+
+#### Scenario: CLR payload type is renamed
+- **WHEN** application code changes a CLR type name while retaining compatible payload shape and the same explicit event name/version
+- **THEN** wire identity remains unchanged, while an incompatible payload/schema change requires a new event contract version
+
+### Requirement: Inbound and outbound envelopes carry complete routing and causal metadata
+`WorkflowInboundEvent` and `WorkflowInboundEvent<TPayload>` SHALL contain one event contract, globally unique caller-created `EventId`, `CorrelationId`, optional causation `EventId`, non-default UTC occurrence time, fixed-codec-detached payload, and exactly one closed `WorkflowEventRoute`. Routes SHALL be direct instance, definition/correlation, definition fanout, or exact-definition start-or-deliver carrying definition identity/version, start idempotency key, and fixed-codec typed start input distinct from event payload. `WorkflowOutboundEvent` SHALL contain contract, replay-stable runtime event identity, correlation, optional causation, origin instance/definition/version, deterministic occurrence time, and contract-checked payload materialization. Neither envelope SHALL expose wait/fiber/scope/provider/checkpoint/outbox-record identities.
+
+#### Scenario: Broker handler forwards a self-routing event
+- **WHEN** an upstream envelope already carries its route and identifiers
+- **THEN** the handler can submit it without looking up workflow definitions, instances, waits, or engine state
+
+#### Scenario: Published event is dispatched
+- **WHEN** an application dispatcher receives a workflow outbound event
+- **THEN** it can route and deduplicate using stable contract/event/correlation/causation/origin data without receiving a provider record
+
+### Requirement: Event acceptance results are closed and transport-neutral
+`IWorkflowEventIngress` SHALL expose payloadless and typed `AcceptAsync` overloads returning `ValueTask<WorkflowEventAcceptanceResult>`. That result SHALL be the closed union of `Accepted`, `Duplicate`, and `Rejected(WorkflowEventAcceptanceRejection)`. The rejection SHALL be the closed union of `EventConflict`, `DirectInstanceNotFound`, `DirectInstanceTerminal`, `StartConflict(StartIdempotencyConflict)`, and `FanoutLimitExceeded`; it SHALL expose no broker-specific acknowledgement, delivery-tag, queue, topic, or destination type. Only `Accepted` and `Duplicate` SHALL assert durable ownership. Infrastructure, serialization, or cancellation failure SHALL remain exceptional.
+
+#### Scenario: Transport adapter maps an acceptance result
+- **WHEN** an application adapter receives a `WorkflowEventAcceptanceResult`
+- **THEN** it can acknowledge accepted/duplicate delivery and apply its own retry or dead-letter policy without OrcaCore referencing its broker SDK
+
+### Requirement: Outbound dispatch results are closed and application-shaped
+`IWorkflowEventDispatcher` SHALL expose exactly `ValueTask<WorkflowEventDispatchResult> DispatchAsync(WorkflowOutboundEvent outboundEvent, CancellationToken cancellationToken = default)`. `WorkflowEventDispatchResult` SHALL be the closed union of `Succeeded`, `RetryableFailure(WorkflowEventDispatchFailure)`, and `PermanentFailure(WorkflowEventDispatchFailure)`. `WorkflowEventDispatchFailure` SHALL be immutable, contain a nonblank stable `Code` plus optional diagnostic `Detail`, and expose no provider claim, outbox record, stream version, checkpoint, or broker SDK type.
+
+#### Scenario: Application dispatcher reports failure
+- **WHEN** the application's broker adapter cannot send one outbound event
+- **THEN** it returns a typed retryable or permanent failure carrying application diagnostics while OrcaCore retains ownership of retry/poison state
+
 ### Requirement: Workflow success projections and output waits are typed
-`WorkflowRegistrationResult<TDefinitionHandle>` SHALL be the closed union of `Registered`, `HostIncompatible(DefinitionHostCompatibilityFailure)`, and `Conflict(DefinitionRegistrationConflict)`. `DefinitionHostCompatibilityFailure` SHALL be the closed union of `EngineModeMismatch`, `MissingTransientPools`, and `MissingDurableResourcePools`; each missing-name collection SHALL be defensively copied, distinct, and ordinal-sorted. Validation SHALL perform mode mismatch first, then all statically inspectable pool references, then fingerprint conflict, with no registry mutation on failure. Ephemeral registration SHALL inspect all authored transient-pool names; durable registration SHALL inspect static lease requests, while selector-created durable names remain runtime validation. `WorkflowStartResult<TInstanceHandle>` SHALL retain its closed accepted/conflict variants. Both results SHALL expose `GetHandleOrThrow()` returning the typed handle without a cast. Host incompatibility SHALL throw `WorkflowDefinitionHostCompatibilityException` with code `WF-DEFINITION-HOST-INCOMPATIBLE` carrying the failure, registration conflict SHALL throw `WorkflowDefinitionRegistrationConflictException`, and start conflict SHALL throw `WorkflowStartIdempotencyConflictException`; each exception SHALL carry the original closed value. `WorkflowInstanceHandle<TOutput>` SHALL expose `ValueTask<TOutput> WaitForOutputAsync(CancellationToken cancellationToken = default)`. A convenience extension with the callable shape `ValueTask<TOutput> WaitForOutputAsync<TOutput>(this WorkflowStartResult<WorkflowInstanceHandle<TOutput>> start, CancellationToken cancellationToken = default)` SHALL first project through `GetHandleOrThrow()`, enabling `await start.WaitForOutputAsync(token)`. Both wait forms SHALL be notification-driven and race-free, SHALL return the fixed-codec-detached output, SHALL never poll, and SHALL treat caller cancellation as cancellation of only the local wait rather than the workflow. If the instance terminalizes without output, they SHALL throw `WorkflowOutputUnavailableException` carrying its terminal status and optional `WorkflowFailure`. Durable waiting SHALL subscribe and recheck around the committed notification boundary so a completion cannot be lost. Resultless handles and resultless start results SHALL expose no output wait.
+`WorkflowRegistrationResult<TDefinitionHandle>` SHALL be the closed union of `Registered`, `HostIncompatible(DefinitionHostCompatibilityFailure)`, and `Conflict(DefinitionRegistrationConflict)`. `DefinitionHostCompatibilityFailure` SHALL be the closed union of `EngineModeMismatch`, `MissingTransientPools`, `MissingDurableResourcePools`, and `MissingWorkflowEventDispatcher`; each missing-name collection SHALL be defensively copied, distinct, and ordinal-sorted. Validation SHALL perform mode mismatch first, then all statically inspectable host capabilities, then fingerprint conflict, with no registry mutation on failure. Ephemeral registration SHALL inspect all authored transient-pool names; durable registration SHALL inspect static lease requests and require an application dispatcher for authored `Publish`, while selector-created durable names remain runtime validation. `IWorkflowDefinitionRegistry` SHALL expose four typed `GetRequiredHandle(reference)` overloads that resolve an already registered exact mode/identity/version/fingerprint and never register; no match SHALL throw `WorkflowDefinitionNotRegisteredException` with code `WF-DEFINITION-NOT-REGISTERED`. `WorkflowStartResult<TInstanceHandle>` SHALL retain its closed accepted/conflict variants. Both results SHALL expose `GetHandleOrThrow()` returning the typed handle without a cast. Host incompatibility SHALL throw `WorkflowDefinitionHostCompatibilityException` with code `WF-DEFINITION-HOST-INCOMPATIBLE` carrying the failure, registration conflict SHALL throw `WorkflowDefinitionRegistrationConflictException`, and start conflict SHALL throw `WorkflowStartIdempotencyConflictException`; each exception SHALL carry the original closed value. `WorkflowInstanceHandle<TOutput>` SHALL expose `ValueTask<TOutput> WaitForOutputAsync(CancellationToken cancellationToken = default)`. A convenience extension with the callable shape `ValueTask<TOutput> WaitForOutputAsync<TOutput>(this WorkflowStartResult<WorkflowInstanceHandle<TOutput>> start, CancellationToken cancellationToken = default)` SHALL first project through `GetHandleOrThrow()`, enabling `await start.WaitForOutputAsync(token)`. Both wait forms SHALL be notification-driven and race-free, SHALL return the fixed-codec-detached output, SHALL never poll, and SHALL treat caller cancellation as cancellation of only the local wait rather than the workflow. If the instance terminalizes without output, they SHALL throw `WorkflowOutputUnavailableException` carrying its terminal status and optional `WorkflowFailure`. Durable waiting SHALL subscribe and recheck around the committed notification boundary so a completion cannot be lost. Resultless handles and resultless start results SHALL expose no output wait.
 
 #### Scenario: Registration succeeds on the common path
 - **WHEN** a consumer calls `GetHandleOrThrow()` on a registered workflow result
 - **THEN** the exact typed definition handle is returned without a downcast or variant pattern match
+
+#### Scenario: Configuration-registered definition is resolved
+- **WHEN** a consumer calls `GetRequiredHandle` with an exact typed reference staged and installed at startup
+- **THEN** the corresponding handle is returned without registration or keyed service resolution
 
 #### Scenario: Definition does not fit the selected host
 - **WHEN** registration observes an engine-mode mismatch or one or more missing statically inspectable pools
@@ -199,7 +243,7 @@ occurrence discriminator allowlist `root`, `branch`, and `item`.
 - **THEN** the adapter reuses the current `StepOperationId` and request fingerprint instead of deriving a new external identity from the attempt number
 
 ### Requirement: Strong values reject invalid and interchangeable primitives
-`DefinitionId` SHALL be an immutable non-defaultable reference value created through `New`, `Parse`, or `TryParse`; `New` SHALL never produce `Guid.Empty`, `Parse` SHALL reject its canonical text with `ArgumentException`, and `TryParse` SHALL return `false` with a null result. The same nonempty-Guid rules SHALL apply to runtime-created `InstanceId`, `WaitId`, and `DagRunId`. `DefinitionVersion` SHALL be an immutable non-defaultable reference value with a positive validating constructor and `Initial`. Caller-created string-backed `EventName`, `WorkflowOutcomeName`, `AuthoredBranchId`, `DagNodeId`, `ResourcePoolName`, `TransientPoolName`, `StartIdempotencyKey`, `CorrelationId`, `EventId`, `StopConfirmationId`, `ResourcePoolOperationId`, and `ResourceGovernancePartitionId` SHALL be immutable validating non-positional reference values with a private constructor and one public `Create(string)` factory. That caller-created family SHALL expose no public constructor, `New`, `Parse`/`TryParse`, implicit primitive conversion, or parallel primitive overload. `StepOperationId` and other runtime-created identifiers SHALL retain private construction plus canonical nonempty `Parse`/`TryParse` or converter round-trip without allowing author-selected runtime identity. Every public boundary SHALL reject null again. Serialized definition and envelope limits SHALL bound aggregate payload size rather than inventing per-name length constants.
+`DefinitionId` SHALL be an immutable non-defaultable reference value created through `New`, `Parse`, or `TryParse`; `New` SHALL never produce `Guid.Empty`, `Parse` SHALL reject its canonical text with `ArgumentException`, and `TryParse` SHALL return `false` with a null result. The same nonempty-Guid rules SHALL apply to runtime-created `InstanceId`, `WaitId`, and `DagRunId`. `DefinitionVersion` and `EventContractVersion` SHALL be distinct immutable non-defaultable reference values with positive validating constructors and `Initial`. Caller-created string-backed `EventName`, `WorkflowOutcomeName`, `AuthoredBranchId`, `DagNodeId`, `ResourcePoolName`, `TransientPoolName`, `StartIdempotencyKey`, `CorrelationId`, `EventId`, `StopConfirmationId`, `ResourcePoolOperationId`, and `ResourceGovernancePartitionId` SHALL be immutable validating non-positional reference values with a private constructor and one public `Create(string)` factory. That caller-created family SHALL expose no public constructor, `New`, `Parse`/`TryParse`, implicit primitive conversion, or parallel primitive overload. `StepOperationId` and other runtime-created identifiers SHALL retain private construction plus canonical nonempty `Parse`/`TryParse` or converter round-trip without allowing author-selected runtime identity. Every public boundary SHALL reject null again. Serialized definition and envelope limits SHALL bound aggregate payload size rather than inventing per-name length constants.
 
 #### Scenario: Invalid scalar is supplied
 - **WHEN** a caller supplies null, an empty identifier, a non-positive version, whitespace-only or leading/trailing whitespace text, or a sibling strong-value role
@@ -239,7 +283,7 @@ Application contract assemblies SHALL NOT reference provider-authoring or runtim
 - **THEN** no public return type, parameter, property, base type, or generic constraint leaks an advanced or implementation-only type
 
 ### Requirement: Durable values use one fixed detached codec
-V1 SHALL use the non-replaceable certified `System.Text.Json` format `orcacore-json-v1` for supported input/state/result/output/event/DAG values and idempotency bytes. Selector and query snapshots SHALL be codec-detached. Registration SHALL reject unsupported cyclic or unapproved polymorphic graphs before commit. The only collection encodings SHALL be an ordered JSON-array sequence declared as a one-dimensional `T[]`, `List<T>`, `IList<T>`, or `IReadOnlyList<T>` and materialized as an array or exact `List<T>`, plus an ordered JSON-object map declared as `Dictionary<string,T>`, `IDictionary<string,T>`, or `IReadOnlyDictionary<string,T>` and materialized as exact `Dictionary<string,T>`. Sequence enumeration order and dictionary insertion/enumeration order SHALL be semantic codec input. Dictionaries remain usable only with string keys; authors SHALL normalize insertion order when map order is not business data. Every other declared or runtime collection shape SHALL reject before commit.
+V1 SHALL use the non-replaceable certified `System.Text.Json` format `orcacore-json-v1` for supported workflow input/state/result/output, inbound event payload and start input, outbound event payload, DAG values, and idempotency bytes. Selector and query snapshots SHALL be codec-detached. Registration/acceptance SHALL reject unsupported cyclic or unapproved polymorphic graphs before commit. The only collection encodings SHALL be an ordered JSON-array sequence declared as a one-dimensional `T[]`, `List<T>`, `IList<T>`, or `IReadOnlyList<T>` and materialized as an array or exact `List<T>`, plus an ordered JSON-object map declared as `Dictionary<string,T>`, `IDictionary<string,T>`, or `IReadOnlyDictionary<string,T>` and materialized as exact `Dictionary<string,T>`. Sequence enumeration order and dictionary insertion/enumeration order SHALL be semantic codec input. Dictionaries remain usable only with string keys; authors SHALL normalize insertion order when map order is not business data. Every other declared or runtime collection shape SHALL reject before commit.
 
 #### Scenario: Persisted collection shape crosses the fixed-codec boundary
 - **WHEN** a value graph contains an allowlisted sequence or string-keyed dictionary

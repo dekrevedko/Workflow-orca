@@ -1,13 +1,8 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.DeveloperSurface.BehaviorContracts;
-using OrcaCore.Engine.Durable.Definitions;
-using OrcaCore.Engine.Durable.Execution;
-using OrcaCore.Engine.Durable.Management;
-using OrcaCore.Provider.Abstractions.ResourceGovernance;
-using OrcaCore.Providers.InMemory;
+using OrcaCore.Runtime.Protocol.ResourceGovernance;
 
 namespace OrcaCore.DeveloperSurface.BehaviorScenarios;
 
@@ -19,11 +14,11 @@ public static partial class LeaseExitScenarioHost
     {
         const string barrier = "confirmation-precedence";
         context.ReleaseBarrier(barrier);
-        var quarantined = await RunTimedOutRetryAsync(
+        using var quarantined = await RunTimedOutRetryAsync(
             context,
             barrier,
             "confirmation-precedence-quarantined");
-        var recovery = CreateRecovery(quarantined.Processor, quarantined.Store);
+        var recovery = quarantined.Runtime.LeaseRecovery;
         var confirmation = StopConfirmationId.Create("confirmation-precedence");
 
         var released = await context.ObserveAsync(
@@ -56,11 +51,11 @@ public static partial class LeaseExitScenarioHost
             conflict,
             "A confirmation ID rebound to another token did not win precedence.");
 
-        var active = await ActiveLeaseFixture.CreateAsync(
+        using var active = await ActiveLeaseFixture.CreateAsync(
             context,
             barrier,
             "confirmation-precedence-active");
-        var activeRecovery = CreateRecovery(active.Processor, active.Store);
+        var activeRecovery = active.Runtime.LeaseRecovery;
         var notConfirmable = await context.ObserveAsync(
             _ => activeRecovery.ConfirmProtectedWorkStoppedAsync(
                 active.Token,
@@ -91,8 +86,7 @@ public static partial class LeaseExitScenarioHost
     {
         const string barrier = "normal-release-race";
         context.ReleaseBarrier(barrier);
-        var store = new InMemoryWorkflowProvider();
-        var pools = await CreatePoolsAsync(("database", 1, (TimeSpan?)null));
+        using var store = new DurableScenarioProvider(context.Services.TimeProvider);
         var probe = new LeaseProbe();
         var definition = Workflow.Durable<LeaseState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ =>
@@ -103,14 +97,14 @@ public static partial class LeaseExitScenarioHost
             .AcquireResources(DatabaseRequest(), lease => lease.Then<CaptureLeaseStep>())
             .End()
             .Build();
-        var processor = new DurableCommandProcessor(store, pools);
-        var runtime = CreateRuntime(
+        using var runtime = CreateRuntime(
             store,
-            pools,
             definition,
             context.Services.TimeProvider,
-            new LeaseServices(pools, probe),
-            processor);
+            PoolDefinitions(("database", 1, (TimeSpan?)null)),
+            probe);
+        var pools = runtime.ResourcePools;
+        runtime.Register(definition);
         _ = await runtime.StartOrGetAsync<string, LeaseState>(
             "normal-release-race",
             definition.DefinitionId,
@@ -118,7 +112,7 @@ public static partial class LeaseExitScenarioHost
             "input",
             CancellationToken.None);
         var token = LeaseProtectionToken.Parse(probe.ProtectionToken!);
-        var recovery = CreateRecovery(processor, store);
+        var recovery = runtime.LeaseRecovery;
         var result = await context.ObserveAsync(
             _ => recovery.ConfirmProtectedWorkStoppedAsync(
                 token,
@@ -129,7 +123,7 @@ public static partial class LeaseExitScenarioHost
             result,
             "A late confirmation overrode a committed normal release.");
         OrcaCore.Hosting.ResourceLeases.IDurableResourcePoolManagement management =
-            new LeaseExitScenarioHost.ResourcePoolManagementView(pools);
+            runtime.ResourceManagement;
         var pool = await context.ObserveAsync(
             _ => management.GetAsync(
                 ResourcePoolName.Create("database"),
@@ -148,11 +142,11 @@ public static partial class LeaseExitScenarioHost
     {
         const string barrier = "retained-bindings";
         context.ReleaseBarrier(barrier);
-        var confirmed = await RunTimedOutRetryAsync(
+        using var confirmed = await RunTimedOutRetryAsync(
             context,
             barrier,
             "retained-bindings-confirmed");
-        var recovery = CreateRecovery(confirmed.Processor, confirmed.Store);
+        var recovery = confirmed.Runtime.LeaseRecovery;
         var acceptedId = StopConfirmationId.Create("retained-confirmation");
         var released = await context.ObserveAsync(
             _ => recovery.ConfirmProtectedWorkStoppedAsync(
@@ -183,7 +177,7 @@ public static partial class LeaseExitScenarioHost
                 "A token released by accepted confirmation lost its retained tombstone.");
         }
 
-        var confirmedDiagnostics = CreateDiagnostics(confirmed.Processor, confirmed.Store);
+        var confirmedDiagnostics = confirmed.Runtime.LeaseDiagnostics;
         var confirmedTombstone = await confirmedDiagnostics.GetAsync(
             confirmed.Token,
             CancellationToken.None);
@@ -198,8 +192,7 @@ public static partial class LeaseExitScenarioHost
                 "Exact diagnostics did not retain the accepted confirmation tombstone.");
         }
 
-        var normalStore = new InMemoryWorkflowProvider();
-        var normalPools = await CreatePoolsAsync(("database", 1, (TimeSpan?)null));
+        using var normalStore = new DurableScenarioProvider(context.Services.TimeProvider);
         var normalProbe = new LeaseProbe();
         var normalDefinition = Workflow.Durable<LeaseState>(
                 DefinitionId.New(),
@@ -208,14 +201,13 @@ public static partial class LeaseExitScenarioHost
             .AcquireResources(DatabaseRequest(), lease => lease.Then<CaptureLeaseStep>())
             .End()
             .Build();
-        var normalProcessor = new DurableCommandProcessor(normalStore, normalPools);
-        var normalRuntime = CreateRuntime(
+        using var normalRuntime = CreateRuntime(
             normalStore,
-            normalPools,
             normalDefinition,
             context.Services.TimeProvider,
-            new LeaseServices(normalPools, normalProbe),
-            normalProcessor);
+            PoolDefinitions(("database", 1, (TimeSpan?)null)),
+            normalProbe);
+        normalRuntime.Register(normalDefinition);
         var normalStart = await normalRuntime.StartOrGetAsync<string, LeaseState>(
             "retained-bindings-normal",
             normalDefinition.DefinitionId,
@@ -223,12 +215,12 @@ public static partial class LeaseExitScenarioHost
             "input",
             CancellationToken.None);
         var normalToken = LeaseProtectionToken.Parse(normalProbe.ProtectionToken!);
-        var normalRecovery = CreateRecovery(normalProcessor, normalStore);
+        var normalRecovery = normalRuntime.LeaseRecovery;
         var late = await normalRecovery.ConfirmProtectedWorkStoppedAsync(
             normalToken,
             StopConfirmationId.Create("normal-release-late"),
             CancellationToken.None);
-        var normalTombstone = await CreateDiagnostics(normalProcessor, normalStore)
+        var normalTombstone = await normalRuntime.LeaseDiagnostics
             .GetAsync(normalToken, CancellationToken.None);
         if (late != ProtectedWorkStopConfirmationStatus.TokenNotFound ||
             normalTombstone is not
@@ -241,33 +233,6 @@ public static partial class LeaseExitScenarioHost
                 "Normal release did not retain a non-confirmable token tombstone.");
         }
 
-        var purge = await ((IWorkflowRetentionStore)confirmed.Store).PurgeAsync(
-            new RetentionPolicy
-            {
-                InstanceId = confirmed.InstanceId,
-                RequestedAt = context.Services.TimeProvider.GetUtcNow(),
-                Reason = "provider dedup window elapsed"
-            },
-            CancellationToken.None);
-        if (!purge.Purged)
-        {
-            throw new InvalidOperationException(
-                $"The confirmed workflow retention purge was rejected: {purge.Reason}");
-        }
-
-        await ((IResourceLeaseGovernanceStore)confirmed.Pools).PurgeReleaseEvidenceAsync(
-            confirmed.InstanceId,
-            CancellationToken.None);
-        var afterPurge = await recovery.ConfirmProtectedWorkStoppedAsync(
-            confirmed.Token,
-            acceptedId,
-            CancellationToken.None);
-        if (afterPurge != ProtectedWorkStopConfirmationStatus.TokenNotFound)
-        {
-            throw new InvalidOperationException(
-                "Purged confirmation evidence returned a status other than TokenNotFound.");
-        }
-
         _ = normalStart;
     }
 
@@ -277,7 +242,7 @@ public static partial class LeaseExitScenarioHost
     {
         const string barrier = "causal-release-gap";
         context.ReleaseBarrier(barrier);
-        var fixture = await RunTimedOutRetryAsync(
+        using var fixture = await RunTimedOutRetryAsync(
             context,
             barrier,
             "causal-release-gap");
@@ -296,14 +261,13 @@ public static partial class LeaseExitScenarioHost
                 "The causal-gap setup did not durably release one exact provider ticket.");
         }
 
-        var replacementProcessor = new DurableCommandProcessor(fixture.Store, fixture.Pools);
-        var replacement = CreateRuntime(
+        using var replacement = CreateRuntime(
             fixture.Store,
-            fixture.Pools,
             fixture.Definition,
             context.Services.TimeProvider,
-            new LeaseServices(fixture.Pools, new LeaseProbe()),
-            replacementProcessor);
+            PoolDefinitions(("database", 1, (TimeSpan?)null)),
+            new LeaseProbe());
+        replacement.Register(fixture.Definition);
         _ = await replacement.StartOrGetAsync<string, LeaseState>(
             fixture.Key,
             fixture.Definition.DefinitionId,
@@ -311,7 +275,7 @@ public static partial class LeaseExitScenarioHost
             "input",
             CancellationToken.None);
 
-        var diagnostics = CreateDiagnostics(replacementProcessor, fixture.Store);
+        var diagnostics = replacement.LeaseDiagnostics;
         var observed = await context.ObserveAsync(
             _ => diagnostics.GetAsync(fixture.Token, CancellationToken.None));
         Phase0Assert.Satisfies(
@@ -344,11 +308,11 @@ public static partial class LeaseExitScenarioHost
     {
         const string barrier = "proof-validation";
         context.ReleaseBarrier(barrier);
-        var fixture = await ActiveLeaseFixture.CreateAsync(
+        using var fixture = await ActiveLeaseFixture.CreateAsync(
             context,
             barrier,
             "proof-validation");
-        var recovery = CreateRecovery(fixture.Processor, fixture.Store);
+        var recovery = fixture.Runtime.LeaseRecovery;
         var active = await context.ObserveAsync(
             _ => recovery.ConfirmProtectedWorkStoppedAsync(
                 fixture.Token,
@@ -368,7 +332,7 @@ public static partial class LeaseExitScenarioHost
             swapped,
             "A token-swapped confirmation bound to unrelated capacity.");
 
-        var diagnostics = CreateDiagnostics(fixture.Processor, fixture.Store);
+        var diagnostics = fixture.Runtime.LeaseDiagnostics;
         var snapshot = await diagnostics.GetAsync(fixture.Token, CancellationToken.None);
         var pool = (await fixture.Pools.GetPoolAsync("database", CancellationToken.None)).Value;
         if (snapshot?.AcceptedConfirmationId is not null ||
@@ -389,8 +353,8 @@ public static partial class LeaseExitScenarioHost
     {
         const string barrier = "mixed-pool-review";
         context.ReleaseBarrier(barrier);
-        var store = new InMemoryWorkflowProvider();
-        var pools = await CreatePoolsAsync(
+        using var store = new DurableScenarioProvider(context.Services.TimeProvider);
+        var poolDefinitions = PoolDefinitions(
             ("fast", 1, TimeSpan.FromMinutes(1)),
             ("slow", 1, TimeSpan.FromMinutes(10)));
         var gate = new LeaseGate();
@@ -406,24 +370,23 @@ public static partial class LeaseExitScenarioHost
             .AcquireResources(request, lease => lease.Then<BlockingLeaseStep>())
             .End()
             .Build();
-        var processor = new DurableCommandProcessor(store, pools);
-        var runtime = CreateRuntime(
+        using var runtime = CreateRuntime(
             store,
-            pools,
             definition,
             context.Services.TimeProvider,
-            new LeaseServices(pools, new LeaseProbe(), gate),
-            processor);
-        var running = runtime.StartOrGetAsync<string, LeaseState>(
-            "mixed-pool-review",
-            definition.DefinitionId,
-            definition.DefinitionVersion,
+            poolDefinitions,
+            new LeaseProbe(),
+            gate);
+        var pools = runtime.ResourcePools;
+        var handle = runtime.Register(definition);
+        var running = handle.StartOrGetAsync(
             "input",
-            CancellationToken.None);
+            StartIdempotencyKey.Create("mixed-pool-review"),
+            CancellationToken.None).AsTask();
         await gate.FirstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        var instanceId = (await store.ListAsync(
-            new WorkflowProjectionQuery(),
-            CancellationToken.None)).Single().InstanceId;
+        var instanceId = (await store.GetStartedAsync(
+            "mixed-pool-review",
+            CancellationToken.None)).Value.InstanceId;
         var envelope = await EnvelopeAsync(store, instanceId);
         var token = LeaseProtectionToken.Parse(
             envelope.OwnedObligations.Single(obligation => obligation.ProtectionToken is not null)
@@ -433,7 +396,7 @@ public static partial class LeaseExitScenarioHost
         _ = await pools.ExpireTicketsAsync(
             context.Services.TimeProvider.GetUtcNow(),
             CancellationToken.None);
-        var diagnostics = CreateDiagnostics(processor, store);
+        var diagnostics = runtime.LeaseDiagnostics;
         var observed = await context.ObserveAsync(
             _ => diagnostics.GetAsync(token, CancellationToken.None));
         Phase0Assert.Satisfies(
@@ -464,9 +427,7 @@ public static partial class LeaseExitScenarioHost
     {
         const string barrier = "missing-ticket";
         context.ReleaseBarrier(barrier);
-        var store = new InMemoryWorkflowProvider();
-        var underlying = await CreatePoolsAsync(("database", 1, TimeSpan.FromMinutes(5)));
-        var pools = new TicketHidingResourcePoolStore(underlying);
+        using var store = new DurableScenarioProvider(context.Services.TimeProvider);
         var firstGate = new LeaseGate();
         var definition = Workflow.Durable<LeaseState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ =>
@@ -477,49 +438,50 @@ public static partial class LeaseExitScenarioHost
             .AcquireResources(DatabaseRequest(), lease => lease.Then<BlockingLeaseStep>())
             .End()
             .Build();
-        var firstProcessor = new DurableCommandProcessor(store, pools);
-        var first = CreateRuntime(
+        TicketHidingResourcePoolStore? firstPools = null;
+        using var first = CreateRuntime(
             store,
-            pools,
             definition,
             context.Services.TimeProvider,
-            new LeaseServices(pools, new LeaseProbe(), firstGate),
-            firstProcessor);
-        var abandoned = first.StartOrGetAsync<string, LeaseState>(
-            "missing-ticket",
-            definition.DefinitionId,
-            definition.DefinitionVersion,
+            PoolDefinitions(("database", 1, TimeSpan.FromMinutes(5))),
+            new LeaseProbe(),
+            firstGate,
+            inner => firstPools = new TicketHidingResourcePoolStore(inner));
+        var firstHandle = first.Register(definition);
+        var abandoned = firstHandle.StartOrGetAsync(
             "input",
-            CancellationToken.None);
+            StartIdempotencyKey.Create("missing-ticket"),
+            CancellationToken.None).AsTask();
         await firstGate.FirstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        var instanceId = (await store.ListAsync(
-            new WorkflowProjectionQuery(),
-            CancellationToken.None)).Single().InstanceId;
+        var instanceId = (await store.GetStartedAsync(
+            "missing-ticket",
+            CancellationToken.None)).Value.InstanceId;
         var active = await EnvelopeAsync(store, instanceId);
         var token = LeaseProtectionToken.Parse(
             active.OwnedObligations.Single(obligation => obligation.ProtectionToken is not null)
                 .ProtectionToken!);
-        var ticket = (await pools.GetPoolAsync(
+        var ticket = (await firstPools!.GetPoolAsync(
             "database",
             CancellationToken.None)).Value.HeldTickets.Single();
-        pools.HideTicket(ticket.TicketId);
+        firstPools.HideTicket(ticket.TicketId);
 
         var replacementGate = new LeaseGate();
-        var replacementProcessor = new DurableCommandProcessor(store, pools);
-        var replacement = CreateRuntime(
+        TicketHidingResourcePoolStore? replacementPools = null;
+        using var replacement = CreateRuntime(
             store,
-            pools,
             definition,
             context.Services.TimeProvider,
-            new LeaseServices(pools, new LeaseProbe(), replacementGate),
-            replacementProcessor);
-        _ = await replacement.StartOrGetAsync<string, LeaseState>(
-            "missing-ticket",
-            definition.DefinitionId,
-            definition.DefinitionVersion,
+            PoolDefinitions(("database", 1, TimeSpan.FromMinutes(5))),
+            new LeaseProbe(),
+            replacementGate,
+            inner => replacementPools = new TicketHidingResourcePoolStore(inner));
+        replacementPools!.HideTicket(ticket.TicketId);
+        var replacementHandle = replacement.Register(definition);
+        _ = await replacementHandle.StartOrGetAsync(
             "input",
+            StartIdempotencyKey.Create("missing-ticket"),
             CancellationToken.None);
-        var diagnostics = CreateDiagnostics(replacementProcessor, store);
+        var diagnostics = replacement.LeaseDiagnostics;
         var lease = await context.ObserveAsync(
             _ => diagnostics.GetAsync(token, CancellationToken.None));
         Phase0Assert.Satisfies(
@@ -528,15 +490,7 @@ public static partial class LeaseExitScenarioHost
                 snapshot is not null &&
                 snapshot.Status == DurableResourceLeaseObligationStatus.LeaseLost,
             "A missing exact provider ticket was not preserved as LeaseLost.");
-        var definitionHandle = DurableFacadeScenarioAdapter.Register(
-            replacement,
-            store,
-            store,
-            new DurableManagement(store),
-            context.Services.TimeProvider,
-            definition,
-            [ResourcePoolName.Create("database")]);
-        var instance = await definitionHandle.GetInstanceAsync(
+        var instance = await replacementHandle.GetInstanceAsync(
             instanceId,
             CancellationToken.None);
         var workflow = await context.ObserveAsync(
@@ -563,8 +517,7 @@ public static partial class LeaseExitScenarioHost
     {
         const string barrier = "no-time-reclaim";
         context.ReleaseBarrier(barrier);
-        var store = new InMemoryWorkflowProvider();
-        var pools = await CreatePoolsAsync(("database", 1, TimeSpan.FromMinutes(1)));
+        using var store = new DurableScenarioProvider(context.Services.TimeProvider);
         var gate = new LeaseGate();
         var definition = Workflow.Durable<LeaseState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ =>
@@ -575,24 +528,23 @@ public static partial class LeaseExitScenarioHost
             .AcquireResources(DatabaseRequest(), lease => lease.Then<BlockingLeaseStep>())
             .End()
             .Build();
-        var processor = new DurableCommandProcessor(store, pools);
-        var runtime = CreateRuntime(
+        using var runtime = CreateRuntime(
             store,
-            pools,
             definition,
             context.Services.TimeProvider,
-            new LeaseServices(pools, new LeaseProbe(), gate),
-            processor);
-        var running = runtime.StartOrGetAsync<string, LeaseState>(
-            "no-time-reclaim",
-            definition.DefinitionId,
-            definition.DefinitionVersion,
+            PoolDefinitions(("database", 1, TimeSpan.FromMinutes(1))),
+            new LeaseProbe(),
+            gate);
+        var pools = runtime.ResourcePools;
+        var handle = runtime.Register(definition);
+        var running = handle.StartOrGetAsync(
             "input",
-            CancellationToken.None);
+            StartIdempotencyKey.Create("no-time-reclaim"),
+            CancellationToken.None).AsTask();
         await gate.FirstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        var instanceId = (await store.ListAsync(
-            new WorkflowProjectionQuery(),
-            CancellationToken.None)).Single().InstanceId;
+        var instanceId = (await store.GetStartedAsync(
+            "no-time-reclaim",
+            CancellationToken.None)).Value.InstanceId;
         var active = await EnvelopeAsync(store, instanceId);
         var token = LeaseProtectionToken.Parse(
             active.OwnedObligations.Single(obligation => obligation.ProtectionToken is not null)
@@ -602,7 +554,7 @@ public static partial class LeaseExitScenarioHost
         _ = await pools.ExpireTicketsAsync(
             context.Services.TimeProvider.GetUtcNow(),
             CancellationToken.None);
-        var recovery = CreateRecovery(processor, store);
+        var recovery = runtime.LeaseRecovery;
         var elapsed = await context.ObserveAsync(
             _ => recovery.ConfirmProtectedWorkStoppedAsync(
                 token,
@@ -618,15 +570,9 @@ public static partial class LeaseExitScenarioHost
             throw new InvalidOperationException("Elapsed time reclaimed protected capacity.");
         }
 
-        var terminal = await processor.ProcessAsync(
-            new TerminateWorkflowCommand
-            {
-                CommandId = CommandId.New(),
-                InstanceId = instanceId,
-                RequestedAt = context.Services.TimeProvider.GetUtcNow()
-            },
-            CancellationToken.None);
-        if (terminal.Outcome != DurableCommandOutcome.Committed)
+        var instance = await handle.GetInstanceAsync(instanceId, CancellationToken.None);
+        var terminal = await instance.TerminateAsync(CancellationToken.None);
+        if (terminal != WorkflowTerminationStatus.Terminated)
         {
             throw new InvalidOperationException("Trusted recovery setup did not quarantine.");
         }
@@ -701,12 +647,6 @@ public static partial class LeaseExitScenarioHost
                     })
                     .ToArray();
         }
-
-        public Task ResizePoolAsync(
-            string poolName,
-            int capacity,
-            CancellationToken cancellationToken) =>
-            inner.ResizePoolAsync(poolName, capacity, cancellationToken);
 
         public Task<ResourcePoolExpiryResult> ExpireTicketsAsync(
             DateTimeOffset now,

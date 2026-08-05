@@ -6,7 +6,7 @@ namespace OrcaCore.Core.Definitions;
 /// <summary>
 /// Immutable handle for one compiled workflow definition version.
 /// </summary>
-public sealed record WorkflowDefinition<TState>
+internal sealed record WorkflowDefinition<TState>
 {
     internal WorkflowDefinition(
         DefinitionId definitionId,
@@ -50,7 +50,7 @@ public sealed record WorkflowDefinition<TState>
 /// <summary>
 /// Cross-assembly runtime access for the implementation-only compiled definition payload.
 /// </summary>
-public static class WorkflowDefinitionRuntime
+internal static class WorkflowDefinitionRuntime
 {
     public static object GetPlan<TState>(WorkflowDefinition<TState> definition)
     {

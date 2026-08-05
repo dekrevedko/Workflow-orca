@@ -3,7 +3,7 @@ using OrcaCore.Core.Compilation;
 
 namespace OrcaCore.Core.Execution;
 
-public static class FailureProvenance
+internal static class FailureProvenance
 {
     public static FiberFailure Create(
         CompiledWorkflowPlan plan,

@@ -1,6 +1,6 @@
 using AwesomeAssertions;
+using OrcaCore;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Execution;
 using Xunit;
@@ -40,21 +40,21 @@ public sealed class ExecutionStatusDeriverTests
         var cancelled = WithRoot(initial, FiberReducer.Cancel(root, "cancelled"), runnable: false);
 
         ExecutionStatusDeriver.Derive(WorkflowExecutionMode.Ephemeral, initial).Status
-            .Should().Be(WorkflowStatus.Running);
+            .Should().Be(WorkflowInstanceStatus.Running);
         ExecutionStatusDeriver.Derive(WorkflowExecutionMode.Ephemeral, mixed).Status
-            .Should().Be(WorkflowStatus.Running);
+            .Should().Be(WorkflowInstanceStatus.Running);
         ExecutionStatusDeriver.Derive(WorkflowExecutionMode.Ephemeral, waiting).Status
-            .Should().Be(WorkflowStatus.Waiting);
+            .Should().Be(WorkflowInstanceStatus.Waiting);
         ExecutionStatusDeriver.Derive(WorkflowExecutionMode.Ephemeral, completed).Status
-            .Should().Be(WorkflowStatus.Completed);
+            .Should().Be(WorkflowInstanceStatus.Completed);
         ExecutionStatusDeriver.Derive(WorkflowExecutionMode.Ephemeral, failed).Status
-            .Should().Be(WorkflowStatus.Failed);
+            .Should().Be(WorkflowInstanceStatus.Failed);
         ExecutionStatusDeriver.Derive(WorkflowExecutionMode.Ephemeral, cancelled).Status
-            .Should().Be(WorkflowStatus.Cancelled);
+            .Should().Be(WorkflowInstanceStatus.Cancelled);
     }
 
     [Fact]
-    public void BlockingRuntimeDiagnostic_ParksOnlyDurableMode_AndIsTypedForEphemeralMode()
+    public void BlockingRuntimeDiagnostic_WaitsOnlyDurableMode_AndIsTypedForEphemeralMode()
     {
         var state = StructuredExecutionState.Create(
             InstanceId.Parse(Guid.CreateVersion7().ToString()),
@@ -73,7 +73,7 @@ public sealed class ExecutionStatusDeriverTests
             state,
             diagnostic);
 
-        durable.Status.Should().Be(WorkflowStatus.Parked);
+        durable.Status.Should().Be(WorkflowInstanceStatus.Waiting);
         durable.Failure.Should().BeNull();
         ephemeral.Status.Should().BeNull();
         ephemeral.Failure.Should().Be(new StructuredExecutionFailure(

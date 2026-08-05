@@ -1,11 +1,15 @@
 ## MODIFIED Requirements
 
 ### Requirement: Management API is scope-oriented and fluent
-The ordinary management interface SHALL use the exact typed definition and instance handles approved by the matrix. The common `IWorkflowDefinitionRegistry` SHALL expose all resultless/resultful ephemeral/durable registration overloads and return the matching typed handle only through its closed `Registered` result; engine-mode mismatch or missing statically inspectable pools SHALL return `HostIncompatible` before mutation. Each definition handle SHALL expose only typed `StartOrGetAsync` and `GetInstanceAsync`; each instance handle SHALL expose only detached snapshot/state queries, cancellation request, and termination, with typed output query added only by `WorkflowInstanceHandle<TOutput>`. State inspection SHALL remain separate from committed workflow output inspection.
+The ordinary management interface SHALL use the exact typed definition and instance handles approved by the matrix. The common `IWorkflowDefinitionRegistry` SHALL expose all resultless/resultful ephemeral/durable registration overloads and return the matching typed handle through its closed `Registered` result or resolve an already registered exact typed reference through `GetRequiredHandle`; engine-mode mismatch or missing statically inspectable host capabilities SHALL return `HostIncompatible` before mutation. Exact-reference lookup SHALL never register and SHALL throw `WorkflowDefinitionNotRegisteredException` when absent or stale. Each definition handle SHALL remain the sole owner of typed `StartOrGetAsync` and `GetInstanceAsync`; each instance handle SHALL expose only detached snapshot/state queries, cancellation request, and termination, with typed output query added only by `WorkflowInstanceHandle<TOutput>`. State inspection SHALL remain separate from committed workflow output inspection.
 
 #### Scenario: Operator targets one workflow instance
 - **WHEN** an operator selects a known instance in either execution mode
 - **THEN** `GetSnapshotAsync`, `GetStateAsync<TState>`, optional typed `GetOutputAsync`, `RequestCancellationAsync`, and `TerminateAsync` provide the exact typed results and errors
+
+#### Scenario: Application resolves a configured workflow
+- **WHEN** runtime code supplies an exact typed reference installed by the host's staged definition batch
+- **THEN** `GetRequiredHandle` returns the typed definition handle without registration, a cast, keyed DI, or another workflow client abstraction
 
 #### Scenario: Operator looks for bulk querying
 - **WHEN** an operator inspects ordinary v1 handles

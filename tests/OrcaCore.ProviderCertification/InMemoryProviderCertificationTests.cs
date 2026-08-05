@@ -1,5 +1,4 @@
 using OrcaCore.Abstractions.Providers;
-using OrcaCore.Providers.InMemory;
 
 namespace OrcaCore.ProviderCertification;
 
@@ -7,20 +6,20 @@ public sealed class InMemoryProviderCertificationTests : ContinueAsNewCertificat
 {
     protected override IProviderCertificationFixture CreateFixture()
     {
-        return new InMemoryProviderCertificationFixture(new InMemoryWorkflowProvider());
+        return new InMemoryProviderCertificationFixture(InMemoryProviderPorts.Create());
     }
 
-    private sealed class InMemoryProviderCertificationFixture(InMemoryWorkflowProvider provider)
+    private sealed class InMemoryProviderCertificationFixture(InMemoryProviderPorts provider)
         : IProviderCertificationFixture
     {
-        public IWorkflowEventStore EventStore => provider;
+        public IWorkflowEventStore EventStore => provider.EventStore;
 
-        public IWorkflowInboxStore InboxStore => provider;
+        public IWorkflowInboxStore InboxStore => provider.InboxStore;
 
-        public IWorkflowStartIdempotencyStore StartIdempotencyStore => provider;
+        public IWorkflowStartIdempotencyStore StartIdempotencyStore => provider.StartIdempotencyStore;
 
-        public IWorkflowOutboxStore OutboxStore => provider;
+        public IWorkflowOutboxStore OutboxStore => provider.OutboxStore;
 
-        public IWorkflowProjectionStore ProjectionStore => provider;
+        public IWorkflowProjectionStore ProjectionStore => provider.ProjectionStore;
     }
 }

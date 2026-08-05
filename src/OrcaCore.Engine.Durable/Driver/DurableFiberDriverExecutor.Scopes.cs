@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Core.Execution;
 using OrcaCore.Engine.Durable.Aggregates;
@@ -85,9 +84,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                     ExpectedStreamVersion = currentVersion,
                     CancelWaitIds = cleanup.WaitIds,
                     CancelTimerIds = cleanup.TimerIds,
-                    TerminalFiberIds = cleanup.TerminalFiberIds,
-                    FailedSagaScopeIds = FailedSagaScopes(execution),
-                    CoversRootSagaEligibility = RootFailed(execution)
+                    TerminalFiberIds = cleanup.TerminalFiberIds
                 },
                 cancellationToken).ConfigureAwait(false);
             return new NoRunnableResolution(
@@ -139,9 +136,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                     ExpectedStreamVersion = currentVersion,
                     CancelWaitIds = cleanup.WaitIds,
                     CancelTimerIds = cleanup.TimerIds,
-                    TerminalFiberIds = cleanup.TerminalFiberIds,
-                    FailedSagaScopeIds = FailedSagaScopes(execution),
-                    CoversRootSagaEligibility = RootFailed(execution)
+                    TerminalFiberIds = cleanup.TerminalFiberIds
                 },
                 cancellationToken).ConfigureAwait(false);
             return new NoRunnableResolution(
@@ -162,13 +157,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 $"{joinable.ScopePlanId.Value}:merge",
                 BuildEnvelope(context, execution, state, ownedObligations))
             {
-                ExpectedStreamVersion = currentVersion,
-                SagaScopeTransfers =
-                [
-                    new DurableSagaScopeTransfer(
-                        joinable.Id,
-                        execution.Fibers[joinable.ParentFiberId].OwningScopeId)
-                ]
+                ExpectedStreamVersion = currentVersion
             },
             cancellationToken).ConfigureAwait(false);
         if (merge.Outcome != DurableCommandOutcome.Committed)

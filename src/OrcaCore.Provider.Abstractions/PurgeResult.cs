@@ -3,7 +3,7 @@ namespace OrcaCore.Abstractions.Providers;
 /// <summary>
 /// Describes the outcome of a retention purge attempt.
 /// </summary>
-public sealed record PurgeResult
+internal sealed record PurgeResult
 {
     /// <summary>
     /// Gets whether instance data was purged.

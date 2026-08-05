@@ -20,29 +20,29 @@ developer guides that explain it.
 5. [Project technical overview](project-technical-overview.md) — architecture and code map.
 6. [Current refactor plan](implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md)
    — review-gated implementation order for the approved v1 surface. The April roadmap under
-   `plans/` is a historical source snapshot.
+   [`archive/plans/`](archive/plans/) is a historical source snapshot.
 7. [Durable development store reset](durable-development-store-reset.md) - required after
    provisional cursor checkpoints or incompatible compiled-plan changes.
 
 ## Active source layout
 
-This table describes the current pre-release implementation, not a compatibility promise. The
-active refactor will remove provisional members in place, add `OrcaCore.Dag` as an optional
-project/package plus `OrcaCore.Dag.Hosting` as its sole durable bridge, and keep
-Kubernetes/AWS/job scheduler code in a companion project with no
-reverse dependency into OrcaCore. The OpenSpec task graphs linked from the implementation guide
-are authoritative for that transition.
+This table describes the current pre-release implementation, not a compatibility promise.
+`OrcaCore.Dag` and `OrcaCore.Dag.Hosting` now exist at their selected package boundary, while the
+post-checkpoint refactor continues to remove provisional members and repair exact evidence. Any
+Kubernetes/AWS/job scheduler code remains a companion concern with no reverse dependency into
+OrcaCore. The OpenSpec task graphs linked from the implementation guide are authoritative for the
+remaining transition.
 
 The solution file is [`OrcaCore.slnx`](../OrcaCore.slnx). The main projects are:
 
 | Project | Purpose |
 |---------|---------|
 | [`OrcaCore.Abstractions`](../src/OrcaCore.Abstractions) | **PackageId `OrcaCore`** — application contracts, identifiers, workflow events, snapshots, facades. |
-| [`OrcaCore.Core`](../src/OrcaCore.Core) | Authoring builders, immutable definitions, lifecycle, policies, compiler. |
-| [`OrcaCore.Engine.Ephemeral`](../src/OrcaCore.Engine.Ephemeral) | In-process execution, waits, timers, governance; owns `AddOrcaCoreEphemeralEngine`. |
+| [`OrcaCore.Core`](../src/OrcaCore.Core) | Internal authoring/compiler/execution kernel; exports no consumer API. |
+| [`OrcaCore.Engine.Ephemeral`](../src/OrcaCore.Engine.Ephemeral) | Internal in-process engine plus its exact public host options and `AddOrcaCoreEphemeralEngine` registration entry. |
 | [`OrcaCore.Runtime.Protocol`](../src/OrcaCore.Runtime.Protocol) | Durable commands, committed facts, checkpoints, envelopes. |
 | [`OrcaCore.Provider.Abstractions`](../src/OrcaCore.Provider.Abstractions) | Provider ports, commit DTOs, certification contracts. |
-| [`OrcaCore.Engine.Durable`](../src/OrcaCore.Engine.Durable) | Event-sourced durable aggregate, replay, checkpointing, outbox, driver. |
+| [`OrcaCore.Engine.Durable`](../src/OrcaCore.Engine.Durable) | Internal event-sourced durable aggregate, replay, checkpointing, outbox, and driver; exports no consumer API. |
 | [`OrcaCore.Durable.Hosting`](../src/OrcaCore.Durable.Hosting) | Owns `AddOrcaCoreDurableEngine` and callback-only `AddOrcaCoreDurableEventIngress`. |
 | [`OrcaCore.Providers.InMemory`](../src/OrcaCore.Providers.InMemory) | Development/test provider; owns `AddOrcaCoreInMemoryDurableProvider`. |
 | [`OrcaCore.Providers.PostgreSql`](../src/OrcaCore.Providers.PostgreSql) | Production provider; owns `AddOrcaCorePostgreSqlDurableProvider`. |
@@ -53,7 +53,8 @@ The solution file is [`OrcaCore.slnx`](../OrcaCore.slnx). The main projects are:
 | [`samples/`](../samples) | Runnable console, generic-host, and Blazor dashboard examples. |
 | [`benchmarks/`](../benchmarks) | BenchmarkDotNet scenarios for execution, providers, management, and scheduling. |
 
-The approved v1 package direction, which the current source table is being migrated toward, is:
+The approved v1 package direction implemented by the current source table and enforced by the
+remaining cleanup is:
 
 ```text
 OrcaCore (application contracts/authoring) <- OrcaCore.Core / engines / durable hosting

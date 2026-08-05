@@ -8,11 +8,14 @@ namespace OrcaCore.Providers.PostgreSql;
 /// <summary>
 /// Persists one serialized resource-governance aggregate stream per partition.
 /// </summary>
-public sealed class PostgreSqlResourceGovernanceStore(NpgsqlDataSource dataSource)
+internal sealed class PostgreSqlResourceGovernanceStore(NpgsqlDataSource dataSource)
     : IDurableResourceGovernanceStore
 {
     private readonly SemaphoreSlim initializeGate = new(1, 1);
     private int initialized;
+
+    internal Task InitializeAsync(CancellationToken cancellationToken) =>
+        EnsureInitializedAsync(cancellationToken);
 
     /// <inheritdoc />
     public async ValueTask<ResourceGovernanceStream> LoadAsync(

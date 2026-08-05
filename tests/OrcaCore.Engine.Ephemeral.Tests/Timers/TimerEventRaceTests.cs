@@ -35,12 +35,9 @@ public sealed class TimerEventRaceTests
                 Event("timer-event-wins", clock.Now, "accepted"),
                 TestContext.Current.CancellationToken);
         clock.Advance(TimeSpan.FromMinutes(5));
-        var dueTimers = await provider
-            .GetRequiredService<EphemeralWorkflowEngine>()
-            .FireDueTimersAsync(TestContext.Current.CancellationToken);
+        await Task.Yield();
 
         delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
-        dueTimers.Should().BeEmpty();
         (await instance.GetSnapshotAsync(TestContext.Current.CancellationToken))
             .Status.Should().Be(WorkflowInstanceStatus.Completed);
         (await instance.GetStateAsync<RaceState>(
@@ -65,11 +62,7 @@ public sealed class TimerEventRaceTests
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
         clock.Advance(TimeSpan.FromMinutes(5));
 
-        var fired = await provider
-            .GetRequiredService<EphemeralWorkflowEngine>()
-            .FireDueTimersAsync(TestContext.Current.CancellationToken);
-        var snapshot = await instance.GetSnapshotAsync(
-            TestContext.Current.CancellationToken);
+        var snapshot = await WaitForStatusAsync(instance, WorkflowInstanceStatus.Failed);
         var late = await provider
             .GetRequiredService<IWorkflowEventClient>()
             .DeliverToInstanceAsync(
@@ -77,7 +70,6 @@ public sealed class TimerEventRaceTests
                 Event("timer-late-event", clock.Now, "late"),
                 TestContext.Current.CancellationToken);
 
-        fired.Should().ContainSingle();
         snapshot.Status.Should().Be(WorkflowInstanceStatus.Failed);
         snapshot.Failure.Should().NotBeNull();
         snapshot.Failure!.Code.Should().Be("WF-WAIT-TIMEOUT");
@@ -104,16 +96,12 @@ public sealed class TimerEventRaceTests
             StartIdempotencyKey.Create("timer-first-instance"),
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
         clock.Advance(TimeSpan.FromMinutes(5));
-        _ = await provider
-            .GetRequiredService<EphemeralWorkflowEngine>()
-            .FireDueTimersAsync(TestContext.Current.CancellationToken);
+        var afterTimeout = await WaitForStatusAsync(timedOut, WorkflowInstanceStatus.Failed);
 
         var freshInstance = (await handle.StartOrGetAsync(
             "start",
             StartIdempotencyKey.Create("timer-fresh-instance"),
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
-        var afterTimeout = await timedOut.GetSnapshotAsync(
-            TestContext.Current.CancellationToken);
         var fresh = await provider
             .GetRequiredService<IWorkflowEventClient>()
             .DeliverToInstanceAsync(
@@ -129,6 +117,27 @@ public sealed class TimerEventRaceTests
         (await freshInstance.GetStateAsync<RaceState>(
                 TestContext.Current.CancellationToken))
             .Outcomes.Should().Equal("event");
+    }
+
+    private static async Task<WorkflowInstanceSnapshot> WaitForStatusAsync(
+        WorkflowInstanceHandle instance,
+        WorkflowInstanceStatus expected)
+    {
+        WorkflowInstanceSnapshot? latest = null;
+        for (var attempt = 0; attempt < 10_000; attempt++)
+        {
+            TestContext.Current.CancellationToken.ThrowIfCancellationRequested();
+            latest = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
+            if (latest.Status == expected && latest.ActiveWaits.Count == 0)
+            {
+                return latest;
+            }
+
+            await Task.Yield();
+        }
+
+        throw new InvalidOperationException(
+            $"Instance '{instance.InstanceId}' did not reach '{expected}'; latest was '{latest?.Status}'.");
     }
 
     private static ServiceProvider CreateProvider(Clock clock)
@@ -190,15 +199,24 @@ public sealed class TimerEventRaceTests
             StepContext<RaceState> context,
             CancellationToken cancellationToken)
         {
-            var outcome = context.ResumedEvent switch
-            {
-                null => "timeout",
-                { Payload: string payload } => $"event:{payload}",
-                { Payload: null } => "event",
-                { Payload: var payload } => $"event-payload-type:{payload.GetType().Name}"
-            };
+            var outcome = context.ResumedEvent is null
+                ? "timeout"
+                : PayloadOutcome(context.ResumedEvent);
             context.State.Outcomes.Add(outcome);
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+
+        private static string PayloadOutcome(EventEnvelope envelope)
+        {
+            try
+            {
+                return $"event:{envelope.GetPayload<string>()}";
+            }
+            catch (InvalidOperationException exception)
+                when (exception.Message.Contains("does not contain a payload", StringComparison.Ordinal))
+            {
+                return "event";
+            }
         }
     }
 }

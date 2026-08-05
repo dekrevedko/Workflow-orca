@@ -1108,12 +1108,6 @@ public sealed class DurableLeaseExecutionTests
                     .ToArray();
         }
 
-        public Task ResizePoolAsync(
-            string poolName,
-            int capacity,
-            CancellationToken cancellationToken) =>
-            inner.ResizePoolAsync(poolName, capacity, cancellationToken);
-
         public Task<ResourcePoolExpiryResult> ExpireTicketsAsync(
             DateTimeOffset now,
             CancellationToken cancellationToken) =>

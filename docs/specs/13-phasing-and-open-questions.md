@@ -141,6 +141,11 @@ semantics. Any such change requires an explicit document-17/OpenSpec amendment f
 
 ## 13.4 Explicitly deferred or removed capabilities
 
+This section is the **future-capability registry** named by the canonical OpenSpec
+`developer-facing-surface` and `saga-orchestration` capabilities. OpenSpec defines the absence and
+re-entry obligation; this table is the human-readable inventory of those deferred capabilities and
+the questions a future amendment must close.
+
 Deferred capabilities remain documented but have no v1 member, alias, tombstone, placeholder,
 positive compile fixture, or implementation task that pretends the contract is approved:
 

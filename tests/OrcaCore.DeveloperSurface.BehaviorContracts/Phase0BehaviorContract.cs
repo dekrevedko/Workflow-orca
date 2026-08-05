@@ -524,6 +524,7 @@ public sealed class Phase0ScenarioContext
     {
         private DateTimeOffset _utcNow = new(2040, 1, 1, 0, 0, 0, TimeSpan.Zero);
         private long _timestamp;
+        private readonly List<TrackingTimer> _timers = [];
         internal bool ProductConsumed { get; private set; }
 
         public override DateTimeOffset GetUtcNow()
@@ -538,11 +539,115 @@ public sealed class Phase0ScenarioContext
             return _timestamp;
         }
 
+        public override ITimer CreateTimer(
+            TimerCallback callback,
+            object? state,
+            TimeSpan dueTime,
+            TimeSpan period)
+        {
+            ArgumentNullException.ThrowIfNull(callback);
+            var timer = new TrackingTimer(this, callback, state);
+            lock (_timers)
+            {
+                _timers.Add(timer);
+            }
+
+            timer.Change(dueTime, period);
+            return timer;
+        }
+
         internal void Advance(TimeSpan amount)
         {
             if (amount < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(amount));
             _utcNow += amount;
             _timestamp += amount.Ticks;
+
+            TrackingTimer[] due;
+            lock (_timers)
+            {
+                due = _timers.Where(timer => timer.TakeIfDue(_utcNow)).ToArray();
+            }
+
+            foreach (var timer in due)
+            {
+                timer.Fire();
+            }
+        }
+
+        private void Remove(TrackingTimer timer)
+        {
+            lock (_timers)
+            {
+                _timers.Remove(timer);
+            }
+        }
+
+        private sealed class TrackingTimer(
+            TrackingTimeProvider owner,
+            TimerCallback callback,
+            object? state) : ITimer
+        {
+            private readonly object _gate = new();
+            private DateTimeOffset? _dueAt;
+            private TimeSpan _period = Timeout.InfiniteTimeSpan;
+            private bool _disposed;
+
+            public bool Change(TimeSpan dueTime, TimeSpan period)
+            {
+                lock (_gate)
+                {
+                    if (_disposed)
+                    {
+                        return false;
+                    }
+
+                    _dueAt = dueTime == Timeout.InfiniteTimeSpan
+                        ? null
+                        : owner._utcNow.Add(dueTime);
+                    _period = period;
+                    return true;
+                }
+            }
+
+            internal bool TakeIfDue(DateTimeOffset now)
+            {
+                lock (_gate)
+                {
+                    if (_disposed || _dueAt is not { } dueAt || dueAt > now)
+                    {
+                        return false;
+                    }
+
+                    _dueAt = _period > TimeSpan.Zero && _period != Timeout.InfiniteTimeSpan
+                        ? dueAt.Add(_period)
+                        : null;
+                    return true;
+                }
+            }
+
+            internal void Fire() => callback(state);
+
+            public void Dispose()
+            {
+                lock (_gate)
+                {
+                    if (_disposed)
+                    {
+                        return;
+                    }
+
+                    _disposed = true;
+                    _dueAt = null;
+                }
+
+                owner.Remove(this);
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                Dispose();
+                return ValueTask.CompletedTask;
+            }
         }
     }
 

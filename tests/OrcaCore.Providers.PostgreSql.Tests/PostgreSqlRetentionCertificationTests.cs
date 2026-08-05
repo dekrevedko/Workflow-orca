@@ -1,4 +1,5 @@
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.Abstractions.Ids;
 using OrcaCore.ProviderCertification;
 using OrcaCore.Providers.PostgreSql;
 using OrcaCore.TestSupport;
@@ -49,7 +50,10 @@ public sealed class PostgreSqlRetentionCertificationTests : RetentionCertificati
 
         public IWorkflowProjectionStore ProjectionStore => store;
 
-        public IWorkflowRetentionStore RetentionStore => store;
+        public Task<(bool Purged, string? Reason)> PurgeForRetentionAsync(
+            InstanceId instanceId,
+            CancellationToken cancellationToken) =>
+            store.PurgeForRetentionAsync(instanceId, cancellationToken);
 
         public ITimerScheduler TimerScheduler => store;
     }

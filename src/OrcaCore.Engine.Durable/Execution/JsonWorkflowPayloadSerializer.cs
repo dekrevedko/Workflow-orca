@@ -4,19 +4,10 @@ using OrcaCore.Core.Internal;
 
 namespace OrcaCore.Engine.Durable.Execution;
 
-internal interface IWorkflowPayloadSerializer
-{
-    SerializedPayload Serialize<TPayload>(TPayload payload);
-
-    TPayload Deserialize<TPayload>(SerializedPayload payload);
-
-    object? Deserialize(SerializedPayload payload, Type payloadType);
-}
-
 /// <summary>
 /// Fixed JSON workflow payload serializer used by durable hosting.
 /// </summary>
-internal sealed class JsonWorkflowPayloadSerializer : IWorkflowPayloadSerializer
+internal sealed class JsonWorkflowPayloadSerializer
 {
     /// <summary>
     /// Gets the stable content type used for JSON workflow payloads.

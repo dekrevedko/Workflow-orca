@@ -1,16 +1,14 @@
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
-using OrcaCore.Provider.Abstractions.ResourceGovernance;
 
 namespace OrcaCore.Providers.InMemory;
 
 /// <summary>
 /// Provides an in-memory durable resource-pool store.
 /// </summary>
-public sealed class InMemoryResourcePoolStore :
-    IResourcePoolStore,
-    IResourceLeaseGovernanceStore
+internal sealed class InMemoryResourcePoolStore :
+    IResourcePoolStore
 {
     private readonly Lock gate = new();
     private readonly Dictionary<string, PoolState> pools = new(StringComparer.Ordinal);
@@ -292,26 +290,6 @@ public sealed class InMemoryResourcePoolStore :
                     .Select(pool => Snapshot(pool.Key, pool.Value))
                     .ToArray());
         }
-    }
-
-    /// <inheritdoc />
-    public Task ResizePoolAsync(string poolName, int capacity, CancellationToken cancellationToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(poolName);
-        ArgumentOutOfRangeException.ThrowIfLessThan(capacity, 1);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        lock (gate)
-        {
-            if (!pools.TryGetValue(poolName, out var state))
-            {
-                throw ResourcePoolNotConfiguredException.For([ResourcePoolName.Create(poolName)]);
-            }
-
-            pools[poolName] = state with { CurrentCapacity = capacity };
-        }
-
-        return Task.CompletedTask;
     }
 
     /// <inheritdoc />

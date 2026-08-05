@@ -5,10 +5,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="ChildCompensationAcceptanceTests.cs" />
     <Compile Remove="ChildWorkflowAcceptanceTests.cs" />
     <Compile Remove="DagAcceptanceTests.cs" />
     <Compile Remove="DagObservabilityAcceptanceTests.cs" />
+    <Compile Remove="ExternalJobAcceptanceTests.cs" />
+    <Compile Remove="LegacyManagementAcceptanceTests.cs" />
     <Compile Remove="LegacyOperationsAcceptanceTests.cs" />
+    <Compile Remove="RetentionAcceptanceTests.cs" />
     <Compile Remove="SagaAcceptanceTests.cs" />
     <Compile Remove="WhenFirstAcceptanceTests.cs" />
     <Compile Remove="YieldAcceptanceTests.cs" />

@@ -42,21 +42,6 @@ internal static partial class DefinitionCompiler
                 case SelectedDelayAuthoringNode<TState> delay:
                     builder.Append('<').Append(delay.Duration.Ticks).Append('>');
                     break;
-                case SelectedRunChildAuthoringNode<TState> child:
-                    builder.Append('<')
-                        .Append(child.ChildDefinitionId).Append(':')
-                        .Append(child.ChildDefinitionVersion).Append(':')
-                        .Append(child.FailurePolicy).Append('>');
-                    break;
-                case SelectedRunChildrenAuthoringNode<TState> children:
-                    builder.Append('<')
-                        .Append(children.ChildDefinitionId).Append(':')
-                        .Append(children.ChildDefinitionVersion).Append(':')
-                        .Append(children.MaxConcurrency).Append(':')
-                        .Append(children.FailurePolicy).Append(':')
-                        .Append(children.JoinPolicy).Append(':')
-                        .Append(children.ResidualPolicy).Append('>');
-                    break;
                 case SelectedEndAuthoringNode<TState> end:
                     builder.Append('<')
                         .Append(end.OutcomeName ?? (end.OutcomeSelector is null ? "unnamed" : "dynamic")).Append(':')

@@ -1,24 +1,30 @@
 using OrcaCore;
+using OrcaCore.Hosting;
 
-var definition = Workflow.Ephemeral<State>(DefinitionId.New(), DefinitionVersion.Initial)
-    .Init<Input>(input => new State(input.Value))
+var fixedDefinitionId = DefinitionId.Parse("53080b19-8ce5-410b-b7fd-612093ff2a03");
+var increment = WorkflowEventContract.Create(EventName.Create("increment"), EventContractVersion.Initial);
+var definition = Workflow.Ephemeral<State>(fixedDefinitionId, DefinitionVersion.Initial)
+    .Init<Input>(input => new State(input.Value, input.Correlation))
+    .Wait(increment, state => state.Value.Correlation)
     .Then(context => { context.ReplaceState(context.State with { Value = context.State.Value + 1 }); return ValueTask.CompletedTask; })
     .End(snapshot => new Output(snapshot.Value.Value), WorkflowOutcomeName.Create("completed"))
     .Build();
 
-async ValueTask<Output> RunAsync(IWorkflowDefinitionRegistry registry, Input input, CancellationToken token)
+async ValueTask<Output> RunAsync(
+    OrcaCoreEphemeralEngineBuilder catalog,
+    IWorkflowDefinitionRegistry registry,
+    Input input,
+    CancellationToken token)
 {
-    var registration = registry.Register(definition);
-    var handle = registration.GetHandleOrThrow();
+    catalog.AddWorkflow(definition);
+    EphemeralWorkflowRef<Input, Output> reference = definition.Reference;
+    var handle = registry.GetRequiredHandle(reference);
     var start = await handle.StartOrGetAsync(input, StartIdempotencyKey.Create("ephemeral-start"), token);
-    var output = await start.WaitForOutputAsync(token);
-    var reopened = await handle.GetInstanceAsync(start.GetHandleOrThrow().InstanceId, token);
-    _ = await reopened.GetSnapshotAsync(token);
-    return output;
+    return await start.WaitForOutputAsync(token);
 }
 
-_ = (Func<IWorkflowDefinitionRegistry, Input, CancellationToken, ValueTask<Output>>)RunAsync;
+_ = (Func<OrcaCoreEphemeralEngineBuilder, IWorkflowDefinitionRegistry, Input, CancellationToken, ValueTask<Output>>)RunAsync;
 
-internal sealed record Input(int Value);
-internal sealed record State(int Value);
+internal sealed record Input(int Value, CorrelationId Correlation);
+internal sealed record State(int Value, CorrelationId Correlation);
 internal sealed record Output(int Value);

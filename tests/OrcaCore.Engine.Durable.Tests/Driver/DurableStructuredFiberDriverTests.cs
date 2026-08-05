@@ -2,11 +2,9 @@ using System.Text.Json;
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Errors;
-using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Building;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Execution;
@@ -3108,9 +3106,9 @@ public sealed class DurableStructuredFiberDriverTests
             StepContext<TestState> context,
             CancellationToken cancellationToken)
         {
-            if (context.ResumedEvent?.Payload is JsonElement { ValueKind: JsonValueKind.String } payload)
+            if (context.ResumedEvent is not null)
             {
-                context.State.Log.Add(payload.GetString()!);
+                context.State.Log.Add(context.ResumedEvent.GetPayload<string>());
             }
 
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());

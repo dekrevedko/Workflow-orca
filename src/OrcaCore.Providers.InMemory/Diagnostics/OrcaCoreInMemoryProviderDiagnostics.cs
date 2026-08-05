@@ -4,7 +4,7 @@ using OrcaCore.Abstractions.Diagnostics;
 
 namespace OrcaCore.Providers.InMemory.Diagnostics;
 
-public static class OrcaCoreInMemoryProviderDiagnostics
+internal static class OrcaCoreInMemoryProviderDiagnostics
 {
     public const string SourceName = OrcaCoreDiagnostics.InMemoryProviderSourceName;
 

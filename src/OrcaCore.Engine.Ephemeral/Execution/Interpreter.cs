@@ -1,6 +1,5 @@
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Core.Lifecycle;
@@ -80,7 +79,7 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
         TInput input,
         InstanceId instanceId,
         Action<WorkflowInstance<TState>> onInitialized,
-        Action<LegacyWorkflowInstanceSnapshot> onSnapshotCommitted,
+        Action<EphemeralWorkflowInstanceSnapshot> onSnapshotCommitted,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -158,7 +157,7 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
                     }
                     catch (Exception exception)
                     {
-                        throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+                        throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                             $"Workflow definition '{context.DefinitionId}' Init failed while creating state.",
                             exception);
                     }
@@ -198,14 +197,6 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
                 case WhileNode<TState> whileNode:
                     EnsureInitialized(context.RunState);
                     await whileRunner.RunAsync(whileNode, context, index, this, cancellationToken).ConfigureAwait(false);
-                    return false;
-
-                case RunChildNode<TState>:
-                case RunChildrenNode<TState>:
-                    failureHandler.Fail(
-                        EnsureInitialized(context.RunState),
-                        new NotSupportedException("Durable child workflow nodes require the durable engine."),
-                        node.NodeId);
                     return false;
 
                 case WaitNode<TState> waitNode:
@@ -284,6 +275,7 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
                     stepResult.EventName!,
                     stepResult.CorrelationId!,
                     timeout: null,
+                    nodeId,
                     context,
                     nextIndex: stepIndex + 1,
                     this,
@@ -358,7 +350,7 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
     {
         if (!runState.Initialized || runState.Instance is null)
         {
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException("Workflow execution reached a node before Init created state.");
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException("Workflow execution reached a node before Init created state.");
         }
 
         return runState.Instance;

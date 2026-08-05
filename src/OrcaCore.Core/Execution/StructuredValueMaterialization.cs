@@ -1,9 +1,10 @@
 using OrcaCore.Core.Building;
 using OrcaCore.Core.Compilation;
+using OrcaCore.Core.Internal;
 
 namespace OrcaCore.Core.Execution;
 
-public sealed record StructuredSerializedValue
+internal sealed record StructuredSerializedValue
 {
     public StructuredSerializedValue(Type declaredType, string schemaIdentity, byte[] payload)
     {
@@ -23,23 +24,14 @@ public sealed record StructuredSerializedValue
     public byte[] Payload { get; }
 }
 
-public interface IStructuredValueCodec
-{
-    StructuredSerializedValue Serialize(object? value, Type declaredType, string schemaIdentity);
-
-    object? Deserialize(StructuredSerializedValue value);
-}
-
-public static class BranchInputMaterializer
+internal static class BranchInputMaterializer
 {
     public static StructuredSerializedValue Materialize(
         CompiledBranchInputPlan inputPlan,
-        object parentState,
-        IStructuredValueCodec codec)
+        object parentState)
     {
         ArgumentNullException.ThrowIfNull(inputPlan);
         ArgumentNullException.ThrowIfNull(parentState);
-        ArgumentNullException.ThrowIfNull(codec);
         if (!inputPlan.ParentStateType.IsInstanceOfType(parentState))
         {
             throw new ArgumentException(
@@ -58,9 +50,11 @@ public static class BranchInputMaterializer
                 $"'{inputPlan.BranchStateType.FullName}'.");
         }
 
-        return codec.Serialize(
-            projected,
+        return new StructuredSerializedValue(
             inputPlan.BranchStateType,
-            inputPlan.BranchStateSchemaIdentity);
+            inputPlan.BranchStateSchemaIdentity,
+            CoreWorkflowValueCodec.Serialize(
+            projected,
+            inputPlan.BranchStateType));
     }
 }

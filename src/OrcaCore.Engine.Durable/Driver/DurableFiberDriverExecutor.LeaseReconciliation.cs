@@ -78,7 +78,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                     continue;
                 }
 
-                var failure = WorkflowRuntimeBridge.LeaseLost(token, missing);
+                var failure = global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.LeaseLost(token, missing);
                 ownedObligations[index] = obligation with
                 {
                     LeasePhase = nameof(DurableLeaseObligationPhase.LeaseLost)

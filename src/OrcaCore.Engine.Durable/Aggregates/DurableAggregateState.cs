@@ -1,9 +1,10 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 
 namespace OrcaCore.Engine.Durable.Aggregates;
+
+using WorkflowStatus = global::OrcaCore.WorkflowInstanceStatus;
 
 /// <summary>
 /// Memento carrying the full construction state of a <see cref="DurableWorkflowAggregate"/>.
@@ -43,29 +44,7 @@ internal sealed record DurableAggregateState
 
     internal IReadOnlyList<DurableActiveWait> ActiveWaits { get; init; } = [];
 
-    internal IReadOnlyList<DurableBufferedDelivery> BufferedDeliveries { get; init; } = [];
-
-    internal IReadOnlyList<DurableBufferedTimer> BufferedTimers { get; init; } = [];
-
-    internal IReadOnlyList<DurableActiveChild> ActiveChildren { get; init; } = [];
-
-    internal IReadOnlyList<DurableActiveChildGroup> ActiveChildGroups { get; init; } = [];
-
     internal IReadOnlyList<ResourcePoolTicket> ActiveResourceTickets { get; init; } = [];
-
-    internal IReadOnlyList<DurableActiveExternalJob> ActiveExternalJobs { get; init; } = [];
-
-    internal IReadOnlyList<DurableSagaForwardAction> CompletedSagaForwardActions { get; init; } = [];
-
-    internal IReadOnlyList<DurableSagaCompensationAction> SagaCompensationActions { get; init; } = [];
-
-    internal IReadOnlyList<DurableSagaRecoveryIntervention> SagaRecoveryInterventions { get; init; } = [];
-
-    internal IReadOnlyList<string> RequestedSagaCompensationScopes { get; init; } = [];
-
-    internal IReadOnlyList<EventId> RecordedParentResumeTokens { get; init; } = [];
-
-    internal IReadOnlyList<EventId> ConsumedParentResumeTokens { get; init; } = [];
 
     internal IReadOnlyList<DurablePendingResume> PendingResumes { get; init; } = [];
 

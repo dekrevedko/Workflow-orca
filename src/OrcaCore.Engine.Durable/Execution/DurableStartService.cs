@@ -119,7 +119,7 @@ internal sealed record StartOrGetRequest(
     DefinitionVersion DefinitionVersion,
     string DefinitionFingerprint,
     string InputFingerprint,
-    Abstractions.Providers.SerializedPayload? Input,
+    SerializedPayload? Input,
     DateTimeOffset RequestedAt);
 
 internal sealed record StartOrGetResult(

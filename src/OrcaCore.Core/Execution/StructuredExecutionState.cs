@@ -5,7 +5,7 @@ using OrcaCore.Core.Definitions;
 
 namespace OrcaCore.Core.Execution;
 
-public sealed record StructuredExecutionState(
+internal sealed record StructuredExecutionState(
     InstanceId InstanceId,
     long ContinueAsNewGeneration,
     FiberId RootFiberId,
@@ -17,7 +17,7 @@ public sealed record StructuredExecutionState(
 
     public TimerId? WorkflowDeadlineTimerId { get; init; }
 
-    public long CompletedYieldCount { get; init; }
+    public long CompletedQuantumRotationCount { get; init; }
 
     public long CompletedForcedRotationCount { get; init; }
 
@@ -39,7 +39,7 @@ public sealed record StructuredExecutionState(
     }
 }
 
-public enum ExecutionScopePhase
+internal enum ExecutionScopePhase
 {
     Created = 0,
     Running = 1,
@@ -50,7 +50,7 @@ public enum ExecutionScopePhase
     Cancelled = 6
 }
 
-public sealed record ExecutionScopeRecord(
+internal sealed record ExecutionScopeRecord(
     ScopeId Id,
     ScopePlanId ScopePlanId,
     long ScopeEntrySequence,
@@ -65,15 +65,15 @@ public sealed record ExecutionScopeRecord(
     public ForEachRuntimeState? ForEach { get; init; }
 }
 
-public sealed record ForEachItemDescriptor(int Index, byte[] LocalStatePayload);
+internal sealed record ForEachItemDescriptor(int Index, byte[] LocalStatePayload);
 
-public sealed record ForEachTerminalOutcome(
+internal sealed record ForEachTerminalOutcome(
     int Index,
     ForEachItemTerminalStatus Status,
     byte[]? ResultPayload,
     FiberFailure? Failure);
 
-public sealed record ForEachRuntimeState(
+internal sealed record ForEachRuntimeState(
     IReadOnlyList<ForEachItemDescriptor> Descriptors,
     int NextAdmissionOffset,
     int MaxConcurrency,
@@ -82,23 +82,23 @@ public sealed record ForEachRuntimeState(
     IReadOnlyDictionary<FiberId, int> ItemIndexByFiber,
     IReadOnlyDictionary<int, ForEachTerminalOutcome> Outcomes);
 
-public sealed record ScopeStartTransition(
+internal sealed record ScopeStartTransition(
     StructuredExecutionState State,
     ScopeId ScopeId,
     IReadOnlyList<FiberId> ChildFiberIds);
 
-public sealed record ScopeChildTransition(
+internal sealed record ScopeChildTransition(
     StructuredExecutionState State,
     ScopeId ScopeId,
     bool ScopeBecameJoinable);
 
-public sealed record ForEachScopeTransition(
+internal sealed record ForEachScopeTransition(
     StructuredExecutionState State,
     ScopeId ScopeId,
     bool ScopeBecameJoinable,
     IReadOnlyList<FiberId> AdmittedFiberIds);
 
-public sealed record ChildTerminalOutcome(
+internal sealed record ChildTerminalOutcome(
     FiberId FiberId,
     byte[]? ResultPayload,
     FiberFailure? Failure)

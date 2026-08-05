@@ -556,7 +556,8 @@ public static class StructuredExecutionComparisonHarness
                 {
                     [fiberId] = state.Fibers[fiberId] with
                     {
-                        YieldCount = checked(state.Fibers[fiberId].YieldCount + 1)
+                QuantumRotationCount = checked(
+                    state.Fibers[fiberId].QuantumRotationCount + 1)
                     }
                 };
                 return state with

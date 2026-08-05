@@ -1,6 +1,5 @@
 using OrcaCore.Abstractions.Durable;
-using OrcaCore.Abstractions.Instances;
-using ProjectionWorkflowInstanceSnapshot = global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot;
+using ProjectionWorkflowInstanceSnapshot = global::OrcaCore.Abstractions.Providers.WorkflowProjectionSnapshot;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Core.Execution;
 using OrcaCore.Engine.Durable.Execution;
@@ -9,7 +8,7 @@ using OrcaCore.Runtime.Protocol.ResourceGovernance;
 
 namespace OrcaCore.Engine.Durable.Driver;
 
-public sealed class DurableResourceLeaseDiagnostics(
+internal sealed class DurableResourceLeaseDiagnostics(
     DurableCommandProcessor processor,
     IWorkflowProjectionStore projections)
 {
@@ -17,9 +16,7 @@ public sealed class DurableResourceLeaseDiagnostics(
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var materialized = new List<DurableResourceLeaseObligationSnapshot>();
-        var snapshots = await projections.ListAsync(
-            new WorkflowProjectionQuery(),
-            cancellationToken).ConfigureAwait(false);
+        var snapshots = await projections.ListLeaseRecoveryCandidatesAsync(cancellationToken).ConfigureAwait(false);
         var pools = await processor.ListResourcePoolsAsync(cancellationToken).ConfigureAwait(false);
         foreach (var workflow in snapshots.OrderBy(snapshot => snapshot.InstanceId.ToString(), StringComparer.Ordinal))
         {
@@ -58,9 +55,7 @@ public sealed class DurableResourceLeaseDiagnostics(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(protectionToken);
-        var snapshots = await projections.ListAsync(
-            new WorkflowProjectionQuery(),
-            cancellationToken).ConfigureAwait(false);
+        var snapshots = await projections.ListLeaseRecoveryCandidatesAsync(cancellationToken).ConfigureAwait(false);
         var pools = await processor.ListResourcePoolsAsync(cancellationToken).ConfigureAwait(false);
         foreach (var workflow in snapshots.OrderBy(
                      snapshot => snapshot.InstanceId.ToString(),

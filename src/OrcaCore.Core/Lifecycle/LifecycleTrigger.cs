@@ -1,6 +1,6 @@
 namespace OrcaCore.Core.Lifecycle;
 
-public enum LifecycleTrigger
+internal enum LifecycleTrigger
 {
     Start,
     EnterWait,
@@ -9,10 +9,6 @@ public enum LifecycleTrigger
     Fail,
     Cancel,
     Terminate,
-    Compensate,
-    FailCompensation,
-    Pause,
-    Resume,
     Park,
     Unpark,
     Timeout

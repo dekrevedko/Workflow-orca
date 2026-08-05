@@ -32,20 +32,6 @@ internal static partial class DefinitionCompiler
                 SelectedDelayAuthoringNode<TState> delay => new DelayNode<TState>(
                     nodeId,
                     delay.Duration),
-                SelectedRunChildAuthoringNode<TState> child => new RunChildNode<TState>(
-                    nodeId,
-                    child.ChildDefinitionId,
-                    child.ChildDefinitionVersion,
-                    child.FailurePolicy),
-                SelectedRunChildrenAuthoringNode<TState> children => new RunChildrenNode<TState>(
-                    nodeId,
-                    children.ChildDefinitionId,
-                    children.ChildDefinitionVersion,
-                    children.ItemSnapshotSelector,
-                    children.FailurePolicy,
-                    children.MaxConcurrency,
-                    children.JoinPolicy,
-                    children.ResidualPolicy),
                 SelectedEndAuthoringNode<TState> end => new EndNode<TState>(
                     nodeId,
                     end.OutcomeName,

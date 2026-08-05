@@ -90,10 +90,14 @@ public sealed class AuthoringContractInfrastructureGuards
         var root = FixtureDefinitions.RepositoryRoot();
         var fixture = File.ReadAllText(Path.Combine(root, "tests", "OrcaCore.DeveloperSurface.Guards",
             "CompileFixtures", "ProductAuthoring", "ProductAuthoring.csproj"));
+        var positive = File.ReadAllText(Path.Combine(root, "tests", "OrcaCore.DeveloperSurface.Guards",
+            "CompileFixtures", "ProductAuthoring", "ProductPositiveUsage.cs"));
         fixture.Should().Contain("<PackageReference Include=\"OrcaCore\"");
-        fixture.Should().Contain("../ExactAuthoring/PositiveUsage.cs");
         fixture.Should().Contain("<TreatWarningsAsErrors>true</TreatWarningsAsErrors>");
         fixture.Should().Contain("<RestorePackagesPath>$(MSBuildThisFileDirectory)obj\\package-cache\\$(Phase0PackageVersion)</RestorePackagesPath>");
+        positive.Should().Contain("ExerciseCurrentNonMessagingAuthoring").And.Contain("DurableLeaseItemBuilder")
+            .And.NotContain(".Wait(").And.NotContain(".Publish(");
+        fixture.Should().NotContain("../ExactAuthoring/PositiveUsage.cs");
         fixture.Should().NotContain("Authoring.cs\"");
         fixture.Should().NotContain("SupportTypes.cs");
 
@@ -181,7 +185,9 @@ public sealed class ProductAuthoringGreenGuards
             {
                 "WhenFirst", "WaitLong", "Yield", "RunChild", "RunChildren", "RunExternalJob"
             });
-        typeof(OrcaCore.Core.Definitions.WorkflowDefinition<>).GetProperty("RequiresDurableEngine")
+        Assembly.Load("OrcaCore.Core")
+            .GetType("OrcaCore.Core.Definitions.WorkflowDefinition`1", throwOnError: true)!
+            .GetProperty("RequiresDurableEngine")
             .Should().BeNull();
         Directory.GetFiles(
                 Path.Combine(FixtureDefinitions.RepositoryRoot(), "src"),
@@ -190,11 +196,9 @@ public sealed class ProductAuthoringGreenGuards
             .SelectMany(File.ReadLines)
             .Should().NotContain(line => line.Contains("FromLegacy", StringComparison.Ordinal));
 
-        var durableManagement = Assembly.Load("OrcaCore.Engine.Durable")
-            .GetType("OrcaCore.Engine.Durable.Management.DurableManagement", throwOnError: true)!;
-        durableManagement.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-            .Select(method => method.Name)
-            .Should().NotContain(new[] { "PauseAsync", "ResumeAsync", "ArchiveAsync", "PurgeAsync" });
+        Assembly.Load("OrcaCore.Engine.Durable")
+            .GetType("OrcaCore.Engine.Durable.Management.DurableManagement", throwOnError: false)
+            .Should().BeNull("the superseded management surface must remain absent");
     }
 
     [Fact]

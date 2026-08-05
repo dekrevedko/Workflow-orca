@@ -47,20 +47,3 @@ public abstract record StepResult
     }
 
 }
-
-// Transitional engine-only intents remain non-public and deliberately are not nested under the
-// portable StepResult contract. Staged authoring replaces each one before the package split.
-internal sealed record EngineYieldStepResult : StepResult;
-
-internal sealed record EngineContinueAsNewStepResult<TState>(TState State) : StepResult;
-
-internal sealed record EngineExternalJobStepResult(
-    string ExternalJobId,
-    byte[] Payload,
-    IReadOnlyList<Abstractions.Providers.ResourcePoolRequirement>? Requirements = null,
-    TimeSpan? Timeout = null) : StepResult;
-
-internal sealed record EngineAcquireResourcesStepResult(
-    string HolderKey,
-    IReadOnlyList<Abstractions.Providers.ResourcePoolRequirement> Requirements,
-    TimeSpan? LeaseDuration = null) : StepResult;

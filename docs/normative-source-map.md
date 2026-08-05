@@ -15,7 +15,7 @@ by nothing structurally connecting these sources — see
 | Tree | Role | Shape | How it changes |
 |---|---|---|---|
 | [`docs/specs/`](specs/README.md) | **WHAT** — product requirements + acceptance criteria | Hand-maintained prose; requirement IDs (`CR`/`EV`/`DU`/…) and `AC-` entries | Edited directly, under a change's gate task |
-| [`openspec/specs/`](../openspec/specs) | **WHAT** — capability specs in `SHALL`/scenario form | **Derived artifact** | Delta in `openspec/changes/<id>/specs/` → approval → `openspec archive` |
+| [`openspec/specs/`](../openspec/specs) | **WHAT** — capability specs in `SHALL`/scenario form | **Derived artifact** | Delta in `openspec/changes/<id>/specs/` → approval → canonical sync; archive when the whole change is complete |
 
 A third tree is binding but not a requirements source:
 
@@ -36,15 +36,19 @@ approved change covers it, that is itself the finding.
 
 ## 2. Crosswalk — OpenSpec capability ↔ `docs/specs`
 
-Verified 2026-07-31. When you change one side, check the other side's listed files.
+Verified 2026-08-01. The table names each capability's **primary owner**, not an exhaustive
+occurrence allowlist. When changing either side, check the listed owners and then run a reverse
+occurrence sweep across every active numbered spec and matrix/compile-shaped contract. Every hit
+must be classified as an owning rule, a cross-capability dependency, or an acceptance reference;
+an unclassified hit blocks synchronization.
 
-| OpenSpec capability | `docs/specs` counterpart | Req. prefix |
+| OpenSpec capability | Primary `docs/specs` owner | Req. prefix |
 |---|---|---|
 | `workflow-authoring` | `04`, `08`, `17-matrix`, `17-public-authoring-contract.cs` | `CR`, `CP` |
 | `workflow-contracts` | `03`, `04`, `17-public-authoring-contract.cs` | `CR` |
 | `state-driven-runtime` | `04` | `CR` |
 | `structured-fiber-execution` | `04`, `08` | `CR`, `CP` |
-| `event-routing-and-waits` | `05` | `EV` |
+| `event-routing-and-waits` | `05`; current cross-capability occurrences also exist in `01`, `03`, `06`, `09`, `10`, `12`, `13`, `14`, `16`, and `17-matrix` | `EV` |
 | `durable-runtime` | `06`, `16` | `DU`, `DR` |
 | `durable-persistence-and-outbox` | `06`, `10` | `DU`, `PR` |
 | `management-and-querying` | `09`, `15` | `MG`, `OB` |
@@ -116,14 +120,19 @@ the distinction greppable — exclude `docs/archive/` and the noise is gone.
 | Area | Files | Status | Notes |
 |---|---|---|---|
 | `specs/` | 20 | NORMATIVE | `18` is non-normative by declaration |
-| `implementation/` | 10 | BINDING | Stack decisions, conventions, TDD discipline, task protocol, active refactor plan |
-| `review/` | 148 | RECORD | Dated verdicts and manifests; frozen provenance |
+| `implementation/` | 9 | BINDING | Stack decisions, conventions, TDD discipline, task protocol, active refactor plan |
+| `review/` | 147 | RECORD | Dated verdicts and manifests; frozen provenance |
 | `observability/` | 2 | GUIDE | |
-| `orleans-engine/` | 25 | PLANNED | Future variant; **not** superseded, so not archived |
-| root `*.md` | 13 | GUIDE | `README`, `production-readiness`, `project-technical-overview`, this map, engine guides |
-| `archive/` | 171 | HISTORICAL | `implementation-phases/` 109, `architecture/` 24, `requirements/` 13, `plans/` 8, `research/` 7, `durable/` 5, `reviews/` 1 |
+| `orleans-engine/` | 1 | PLANNED | Clean future-hosting boundary; implementation requires a new approved change |
+| root `*.md` | 11 | GUIDE | `README`, `production-readiness`, `project-technical-overview`, this map, current engine guides |
+| `archive/` | 199 | HISTORICAL | Root `README` 1, `implementation-phases/` 109, `architecture/` 24, `requirements/` 13, `plans/` 39, `research/` 7, `durable/` 5, `reviews/` 1 |
 
-Archived on 2026-07-31, all with `git mv` so `git log --follow` still works:
+The directory migrations below were archived on 2026-07-31 with `git mv` so
+`git log --follow` still works. On 2026-08-01 the historical Phase-0 kickoff, pre-v1 ephemeral
+guide/diagrams, dated durable driver status/audit, superseded end-to-end plan, and the superseded
+25-file Orleans plan were also moved into `archive/plans/` while current ephemeral guides, a
+gate-oriented end-to-end plan, and a clean Orleans boundary note were authored at their active
+paths. The archive's own `README.md` is an index created in place, not a moved historical file.
 
 | Moved | Why |
 |---|---|
@@ -135,8 +144,9 @@ Archived on 2026-07-31, all with `git mv` so `git log --follow` still works:
 | `durable/` → `archive/durable/` | All five files "Saved on 2026-03-16" |
 | `implementation/phases/` → `archive/implementation-phases/` | 109 files its own README declares historical; includes task docs for removed/deferred `WaitLong`, `RunExternalJob`, and Saga. The OpenSpec task graphs are the active checklists. |
 
-Still to verify: `durable-driver-audit.md` and `durable-driver-status.md` at the docs root are dated
-status documents (2026-07-13/14) predating Sections 4–7; confirm they are current or archive them.
+The dated durable driver audit/status, superseded pre-v1 ephemeral guide/diagrams, and superseded
+Orleans task plan now live under `archive/plans/`. Their active-path replacements, where present,
+describe only the selected v1 contract.
 
 ---
 

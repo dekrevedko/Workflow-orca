@@ -1,6 +1,5 @@
 using System.Text.Json;
 using OrcaCore.Abstractions.Durable;
-using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;

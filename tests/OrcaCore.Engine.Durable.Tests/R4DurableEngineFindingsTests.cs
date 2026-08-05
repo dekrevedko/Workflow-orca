@@ -1,13 +1,10 @@
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Durable;
-using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Definitions;
 using OrcaCore.Engine.Durable.Execution;
-using OrcaCore.Engine.Durable.Management;
 using OrcaCore.Engine.Durable.Outbox;
 using OrcaCore.Providers.InMemory;
 using OrcaCore.TestSupport.Providers;
@@ -244,11 +241,6 @@ public sealed class R4DurableEngineFindingsTests
             store,
             resourcePoolStore,
             notifications);
-        var management = new DurableManagement(
-            store,
-            resourcePoolStore,
-            store,
-            processor);
         var definitions = stepServices is null
             ? new DurableDefinitionRegistry()
             : new DurableDefinitionRegistry(stepServices);
@@ -256,14 +248,13 @@ public sealed class R4DurableEngineFindingsTests
             processor,
             definitions,
             TimeProvider.System,
-            projectionStore: store,
-            management: management);
+            projectionStore: store);
         return new FacadeServices(
             new DurableWorkflowDefinitionRegistry(
                 runtime,
                 store,
                 store,
-                management,
+                processor,
                 notifications,
                 TimeProvider.System,
                 configuredResourcePools),
@@ -411,25 +402,25 @@ public sealed class R4DurableEngineFindingsTests
             CancellationToken cancellationToken) =>
             inner.ApplyAsync(operations, cancellationToken);
 
-        public Task<IReadOnlyList<global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot>> ListAsync(
-            WorkflowProjectionQuery query,
+        public Task<Option<WorkflowProjectionSnapshot>> GetAsync(
+            InstanceId instanceId,
             CancellationToken cancellationToken) =>
-            inner.ListAsync(query, cancellationToken);
+            inner.GetAsync(instanceId, cancellationToken);
 
-        public Task<int> CountAsync(
-            WorkflowProjectionQuery query,
+        public Task<IReadOnlyList<WorkflowProjectionSnapshot>> FindActiveWaitsAsync(
+            DefinitionId? definitionId,
+            EventName eventName,
+            CorrelationId correlationId,
             CancellationToken cancellationToken) =>
-            inner.CountAsync(query, cancellationToken);
+            inner.FindActiveWaitsAsync(
+                definitionId,
+                eventName,
+                correlationId,
+                cancellationToken);
 
-        public Task<IReadOnlyList<global::OrcaCore.Abstractions.Instances.ActiveWaitSnapshot>> ListActiveWaitsAsync(
-            WorkflowProjectionQuery query,
+        public Task<IReadOnlyList<WorkflowProjectionSnapshot>> ListLeaseRecoveryCandidatesAsync(
             CancellationToken cancellationToken) =>
-            inner.ListActiveWaitsAsync(query, cancellationToken);
-
-        public Task<WorkflowStatistics> GetStatisticsAsync(
-            WorkflowProjectionQuery query,
-            CancellationToken cancellationToken) =>
-            inner.GetStatisticsAsync(query, cancellationToken);
+            inner.ListLeaseRecoveryCandidatesAsync(cancellationToken);
     }
 
     private sealed class FlakyReleasePoolStore : IResourcePoolStore
@@ -468,11 +459,6 @@ public sealed class R4DurableEngineFindingsTests
         public Task<Option<ResourcePoolSnapshot>> GetPoolAsync(string poolName, CancellationToken cancellationToken)
         {
             return inner.GetPoolAsync(poolName, cancellationToken);
-        }
-
-        public Task ResizePoolAsync(string poolName, int capacity, CancellationToken cancellationToken)
-        {
-            return inner.ResizePoolAsync(poolName, capacity, cancellationToken);
         }
 
         public Task<ResourcePoolExpiryResult> ExpireTicketsAsync(DateTimeOffset now, CancellationToken cancellationToken)

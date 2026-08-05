@@ -10,7 +10,7 @@ namespace OrcaCore.Core.Compilation;
 /// <summary>
 /// Identifies the execution mode selected before workflow authoring.
 /// </summary>
-public enum WorkflowExecutionMode
+internal enum WorkflowExecutionMode
 {
     /// <summary>
     /// In-memory execution with no restart guarantee.
@@ -26,7 +26,7 @@ public enum WorkflowExecutionMode
 /// <summary>
 /// Immutable compiler output bound to a workflow definition.
 /// </summary>
-public sealed record CompiledWorkflowPlan
+internal sealed record CompiledWorkflowPlan
 {
     internal const string CodecFormat = FixedWorkflowValueCodec.Format;
 
@@ -43,7 +43,6 @@ public sealed record CompiledWorkflowPlan
         IReadOnlyList<CompiledScopePlan>? scopes = null,
         IReadOnlySet<CompiledInstructionKind>? allowedInstructions = null,
         DefinitionCompilerOptions? compilerOptions = null,
-        IWorkflowTypeSerializerRegistry? serializerRegistry = null,
         bool detachedAttemptState = false,
         TimeSpan? workflowTimeout = null)
     {
@@ -64,7 +63,6 @@ public sealed record CompiledWorkflowPlan
         scopesById = Scopes.ToFrozenDictionary(scope => scope.Id);
         AllowedInstructions = (allowedInstructions ?? new HashSet<CompiledInstructionKind>()).ToFrozenSet();
         CompilerOptions = compilerOptions ?? new DefinitionCompilerOptions();
-        SerializerRegistry = serializerRegistry ?? DefaultWorkflowTypeSerializerRegistry.Instance;
         DetachedAttemptState = detachedAttemptState;
         WorkflowTimeout = workflowTimeout;
         Fingerprint = ComputeFingerprint($"{CodecFormat}|{canonicalStructure}");
@@ -120,8 +118,6 @@ public sealed record CompiledWorkflowPlan
     /// Gets validated runtime/compiler options that do not contribute to structural identity.
     /// </summary>
     public DefinitionCompilerOptions CompilerOptions { get; }
-
-    public IWorkflowTypeSerializerRegistry SerializerRegistry { get; }
 
     public bool DetachedAttemptState { get; }
 

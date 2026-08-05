@@ -3,7 +3,7 @@ using OrcaCore.Core.Compilation;
 
 namespace OrcaCore.Core.Execution;
 
-public enum FiberPhase
+internal enum FiberPhase
 {
     Runnable = 0,
     Blocked = 1,
@@ -12,20 +12,18 @@ public enum FiberPhase
     Cancelled = 4
 }
 
-public enum FiberBlockedReason
+internal enum FiberBlockedReason
 {
     Wait = 0,
     Timer = 1,
     Scope = 2,
-    ExternalJob = 3,
-    ChildGroup = 4,
-    Resource = 5,
-    Retry = 6
+    Resource = 3,
+    Retry = 4
 }
 
-public sealed record FiberBlock(FiberBlockedReason Reason, string ObligationId);
+internal sealed record FiberBlock(FiberBlockedReason Reason, string ObligationId);
 
-public sealed record FiberFailure
+internal sealed record FiberFailure
 {
     public FiberFailure(
         string code,
@@ -54,7 +52,7 @@ public sealed record FiberFailure
     public FailureOccurrence Occurrence { get; }
 }
 
-public sealed record FiberRecord(
+internal sealed record FiberRecord(
     FiberId Id,
     ScopeId? OwningScopeId,
     InstructionId InstructionId,
@@ -67,7 +65,7 @@ public sealed record FiberRecord(
     FiberFailure? Failure,
     string? CancellationReason)
 {
-    public long YieldCount { get; init; }
+    public long QuantumRotationCount { get; init; }
 
     public long ForcedRotationCount { get; init; }
 

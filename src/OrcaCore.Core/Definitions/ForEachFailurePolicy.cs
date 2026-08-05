@@ -1,6 +1,6 @@
 namespace OrcaCore.Core.Definitions;
 
-public enum ForEachFailurePolicy
+internal enum ForEachFailurePolicy
 {
     FailFast,
     WaitAllThenFail,

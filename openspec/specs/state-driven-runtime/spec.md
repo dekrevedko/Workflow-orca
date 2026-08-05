@@ -1,6 +1,7 @@
 ## Purpose
 
-Define the behavior of the primary state-driven OrcaCore runtime in ephemeral and non-event-stream execution modes.
+Define the behavior of the primary state-driven OrcaCore runtime, including ephemeral execution
+where ordinary `Wait` residency is runtime and hosting policy rather than a separate authored node.
 ## Requirements
 
 ### Requirement: One logical mutator advances each instance at a time
@@ -38,11 +39,15 @@ The runtime SHALL model workflow lifecycle transitions explicitly and SHALL reje
 - **THEN** the runtime rejects or ignores the request according to explicit terminal-state policy instead of resuming work
 
 ### Requirement: Ephemeral mode has explicit limitations
-When the runtime is used without durable persistence, it SHALL support short-lived orchestration and waits in memory while explicitly rejecting durable-only features such as `WaitLong` and restart-safe rehydration.
+When the runtime is used without durable persistence, it SHALL support short-lived orchestration and in-memory waits while providing no restart-safe rehydration. Wait residency SHALL remain a runtime and hosting policy rather than an authored node distinction, so ephemeral `Wait` SHALL NOT survive process loss and SHALL NOT be distinguished by a separate authored member. The ephemeral builder SHALL NOT expose durable-only capabilities such as root `ContinueAsNew` or scoped `AcquireResources`.
 
 #### Scenario: Host restarts in ephemeral mode
 - **WHEN** an in-memory workflow instance is waiting and the process restarts
-- **THEN** the prior instance state is not recoverable and durable-only wait features remain unavailable
+- **THEN** the prior instance state is not recoverable and no cold wait residency is claimed
+
+#### Scenario: Ephemeral author looks for durable-only capabilities
+- **WHEN** an ephemeral author looks for root `ContinueAsNew` or scoped `AcquireResources`
+- **THEN** the members are absent from the statically selected ephemeral builder
 
 ### Requirement: Optional resource governance composes with instance serialization
 When host-level concurrency or named resource pools are enabled (see `runtime-resource-governance`), those limits SHALL apply to operational capacity and shared external resources without replacing the requirement that at most one logical mutator advances a given instance at a time.

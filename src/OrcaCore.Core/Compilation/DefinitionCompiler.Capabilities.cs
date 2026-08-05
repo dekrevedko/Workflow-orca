@@ -33,15 +33,6 @@ internal static partial class DefinitionCompiler
                     nodePath));
             }
 
-            if (node is SelectedRunChildAuthoringNode<TState> or SelectedRunChildrenAuthoringNode<TState> &&
-                mode != WorkflowExecutionMode.Durable)
-            {
-                errors.Add(Error(
-                    DefinitionCompilerCodes.UnsupportedInstruction,
-                    "Child workflows are not supported by the ephemeral selected-mode compiler.",
-                    nodePath));
-            }
-
             if (node is SelectedResourceLeaseAuthoringNode<TState> && mode != WorkflowExecutionMode.Durable)
             {
                 errors.Add(Error(

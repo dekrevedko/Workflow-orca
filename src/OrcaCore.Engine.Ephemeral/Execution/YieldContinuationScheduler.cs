@@ -1,5 +1,4 @@
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 namespace OrcaCore.Engine.Ephemeral.Execution;
 
 internal sealed class YieldContinuationScheduler(
@@ -21,10 +20,10 @@ internal sealed class YieldContinuationScheduler(
             continuationToken));
     }
 
-    internal async Task<LegacyWorkflowInstanceSnapshot> DrainAsync(
+    internal async Task<EphemeralWorkflowInstanceSnapshot> DrainAsync(
         IWorkflowInstance instance,
         InstanceId instanceId,
-        Action<LegacyWorkflowInstanceSnapshot> onSnapshotCommitted,
+        Action<EphemeralWorkflowInstanceSnapshot> onSnapshotCommitted,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(instance);
@@ -56,11 +55,11 @@ internal sealed class YieldContinuationScheduler(
         }
     }
 
-    internal async Task<LegacyWorkflowInstanceSnapshot> ResumeAsync<TState>(
+    internal async Task<EphemeralWorkflowInstanceSnapshot> ResumeAsync<TState>(
         WorkflowInstance<TState> instance,
         InstanceId instanceId,
         Func<CancellationToken, Task> continuation,
-        Action<LegacyWorkflowInstanceSnapshot> onSnapshotCommitted,
+        Action<EphemeralWorkflowInstanceSnapshot> onSnapshotCommitted,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(instance);
@@ -81,6 +80,6 @@ internal sealed class YieldContinuationScheduler(
     }
 
     private sealed record YieldDrainResult(
-        LegacyWorkflowInstanceSnapshot Snapshot,
+        EphemeralWorkflowInstanceSnapshot Snapshot,
         bool DrainedContinuation);
 }

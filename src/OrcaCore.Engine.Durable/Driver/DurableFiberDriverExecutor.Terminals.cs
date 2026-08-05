@@ -43,7 +43,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
 
         if (instruction.Operation is not Func<TState, TState> stateSelector)
         {
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
                 $"Compiled ContinueAsNew '{instruction.Path}' has no typed state selector.");
         }
 
@@ -90,9 +90,9 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
     {
         QuarantineCapacityReservations(ownedObligations);
         var deadline = execution.WorkflowDeadline ??
-            throw global::OrcaCore.Core.Authoring.PublicAuthoringContracts.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
                 "Workflow timeout was requested without a persisted deadline.");
-        var exception = global::OrcaCore.Core.Authoring.PublicAuthoringContracts.WorkflowDeadline(deadline);
+        var exception = global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.WorkflowDeadline(deadline);
         var timedOut = await context.Processor.ProcessAsync(
             new DurableTimeoutCommand(
                 CommandId.New(),

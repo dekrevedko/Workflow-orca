@@ -1,12 +1,10 @@
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Definitions;
 using OrcaCore.Engine.Durable.Execution;
-using OrcaCore.Engine.Durable.Management;
 using OrcaCore.Providers.InMemory;
 using Xunit;
 
@@ -200,22 +198,17 @@ public sealed class DurableRecoveryTests
     {
         var notifications = new DurableFacadeNotificationHub();
         var processor = new DurableCommandProcessor(eventStore, runtimeObserver: notifications);
-        var management = new DurableManagement(
-            projectionStore,
-            eventStore: eventStore,
-            commandProcessor: processor);
         var runtime = new DurableWorkflowRuntime(
             processor,
             new DurableDefinitionRegistry(),
             TimeProvider.System,
-            projectionStore: projectionStore,
-            management: management);
+            projectionStore: projectionStore);
         return new FacadeServices(
             new DurableWorkflowDefinitionRegistry(
                 runtime,
                 projectionStore,
                 eventStore,
-                management,
+                processor,
                 notifications,
                 TimeProvider.System),
             new DurableWorkflowEventClient(

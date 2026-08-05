@@ -1,14 +1,13 @@
-using OrcaCore.Abstractions.Events;
+using System.Reflection;
 using OrcaCore.Abstractions.Errors;
+using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Internal;
 using OrcaCore.Engine.Durable.Definitions;
 using OrcaCore.Engine.Durable.Driver;
-using OrcaCore.Engine.Durable.Management;
 
 namespace OrcaCore.Engine.Durable.Execution;
 
@@ -17,15 +16,22 @@ namespace OrcaCore.Engine.Durable.Execution;
 /// delivery. Registered definitions are driven by the durable driver — no caller ever issues
 /// kernel commands by hand (DR-032/DR-061).
 /// </summary>
-public sealed class DurableWorkflowRuntime
+internal sealed class DurableWorkflowRuntime
 {
+    private static readonly MethodInfo RegisterRuntimeDefinitionMethod = typeof(DurableWorkflowRuntime)
+        .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+        .Single(method =>
+            method.Name == nameof(RegisterDefinition) &&
+            method.IsGenericMethodDefinition &&
+            method.GetParameters() is [{ ParameterType.IsGenericType: true } parameter] &&
+            parameter.ParameterType.GetGenericTypeDefinition() == typeof(WorkflowDefinition<>));
+
     private readonly DurableCommandProcessor commandProcessor;
     private readonly DurableDefinitionRegistry definitions;
     private readonly TimeProvider timeProvider;
-    private readonly IWorkflowPayloadSerializer payloadSerializer;
+    private readonly JsonWorkflowPayloadSerializer payloadSerializer;
     private readonly DurableStartService startService;
     private readonly IWorkflowProjectionStore? projectionStore;
-    private readonly DurableManagement? management;
     private readonly DurableDriverCatalog driverCatalog;
     private readonly DurableWorkflowDriver driver;
 
@@ -38,43 +44,19 @@ public sealed class DurableWorkflowRuntime
         TimeProvider timeProvider,
         DurableDriverBudget? driverBudget = null,
         IWorkflowProjectionStore? projectionStore = null,
-        DurableManagement? management = null,
-        IDurableDriverObserver? driverObserver = null)
-        : this(
-            commandProcessor,
-            definitions,
-            timeProvider,
-            new JsonWorkflowPayloadSerializer(),
-            driverBudget,
-            projectionStore,
-            management,
-            driverObserver)
-    {
-    }
-
-    internal DurableWorkflowRuntime(
-        DurableCommandProcessor commandProcessor,
-        DurableDefinitionRegistry definitions,
-        TimeProvider timeProvider,
-        IWorkflowPayloadSerializer payloadSerializer,
-        DurableDriverBudget? driverBudget = null,
-        IWorkflowProjectionStore? projectionStore = null,
-        DurableManagement? management = null,
         IDurableDriverObserver? driverObserver = null)
     {
         ArgumentNullException.ThrowIfNull(commandProcessor);
         ArgumentNullException.ThrowIfNull(definitions);
         ArgumentNullException.ThrowIfNull(timeProvider);
-        ArgumentNullException.ThrowIfNull(payloadSerializer);
 
         this.commandProcessor = commandProcessor;
         this.definitions = definitions;
         this.timeProvider = timeProvider;
-        this.payloadSerializer = payloadSerializer;
+        payloadSerializer = new JsonWorkflowPayloadSerializer();
         this.projectionStore =
             projectionStore ??
             commandProcessor.EventStore as IWorkflowProjectionStore;
-        this.management = management;
         driverCatalog = new DurableDriverCatalog(definitions);
         startService = new DurableStartService(commandProcessor);
         driver = new DurableWorkflowDriver(
@@ -87,12 +69,6 @@ public sealed class DurableWorkflowRuntime
     }
 
     /// <summary>
-    /// Gets the durable management surface configured for this runtime.
-    /// </summary>
-    public DurableManagement Management => management ?? throw new InvalidOperationException(
-        "Durable management is unavailable because no management surface was configured.");
-
-    /// <summary>
     /// Registers one durable workflow definition version. Definition shapes the durable driver
     /// cannot execute fail fast here with a capability diagnostic (DR-010).
     /// </summary>
@@ -101,6 +77,20 @@ public sealed class DurableWorkflowRuntime
         ArgumentNullException.ThrowIfNull(definition);
 
         driverCatalog.Register(definition);
+    }
+
+    internal void RegisterDefinition(object applicationDefinition)
+    {
+        ArgumentNullException.ThrowIfNull(applicationDefinition);
+        var runtimeDefinition =
+            global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.RuntimeDefinition(
+                applicationDefinition);
+        var stateType =
+            global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.RuntimeStateType(
+                applicationDefinition);
+        RegisterRuntimeDefinitionMethod
+            .MakeGenericMethod(stateType)
+            .Invoke(this, [runtimeDefinition]);
     }
 
     /// <summary>
@@ -124,7 +114,7 @@ public sealed class DurableWorkflowRuntime
                 definitionId,
                 definitionVersion,
                 plan.Fingerprint,
-                WorkflowRuntimeBridge.PayloadFingerprint(input).Value,
+                global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.PayloadFingerprint(input).Value,
                 input,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -162,7 +152,7 @@ public sealed class DurableWorkflowRuntime
                 definitionId,
                 definitionVersion,
                 definitionFingerprint.Value,
-                WorkflowRuntimeBridge.PayloadFingerprint(input).Value,
+                global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.PayloadFingerprint(input).Value,
                 input,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -276,7 +266,7 @@ public sealed class DurableWorkflowRuntime
             CommandId = CommandId.New(),
             InstanceId = instanceId,
             RequestedAt = timeProvider.GetUtcNow(),
-            Envelope = new EventEnvelope
+            Envelope = new DurableEventEnvelope
             {
                 EventId = eventId,
                 EventName = eventName.Value,
@@ -327,12 +317,10 @@ public sealed class DurableWorkflowRuntime
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
         var matches = await RequiredProjectionStore()
-            .ListAsync(
-                new WorkflowProjectionQuery
-                {
-                    ActiveWaitEventName = eventName,
-                    ActiveWaitCorrelationId = correlationId
-                },
+            .FindActiveWaitsAsync(
+                definitionId: null,
+                EventName.Create(eventName),
+                correlationId,
                 cancellationToken)
             .ConfigureAwait(false);
         if (matches.Count == 0)
@@ -345,7 +333,7 @@ public sealed class DurableWorkflowRuntime
         {
             throw new WorkflowRoutingException(
                 $"Event '{eventName}' and correlation '{correlationId}' match {matches.Count} instances; " +
-                "use instance-targeted or definition-targeted delivery.");
+                "the correlation route requires exactly one active wait.");
         }
 
         var instanceId = matches[0].InstanceId;
@@ -357,45 +345,6 @@ public sealed class DurableWorkflowRuntime
             eventId,
             cancellationToken).ConfigureAwait(false);
         return new DurableEventDeliveryResult(instanceId, result);
-    }
-
-    /// <summary>
-    /// Delivers one logical event to every projected instance of a definition. Each target gets
-    /// its own event identity so durable inbox deduplication remains instance-local (EV-010).
-    /// </summary>
-    public async Task<IReadOnlyList<DurableEventDeliveryResult>> RaiseEventToDefinitionAsync<TPayload>(
-        DefinitionId definitionId,
-        string eventName,
-        CorrelationId correlationId,
-        TPayload payload,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(definitionId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
-        var instances = await RequiredProjectionStore()
-            .ListAsync(
-                new WorkflowProjectionQuery
-                {
-                    DefinitionId = definitionId,
-                    ActiveWaitEventName = eventName,
-                    ActiveWaitCorrelationId = correlationId
-                },
-                cancellationToken)
-            .ConfigureAwait(false);
-        var results = new List<DurableEventDeliveryResult>(instances.Count);
-        foreach (var instance in instances)
-        {
-            var result = await RaiseEventAsync(
-                instance.InstanceId,
-                eventName,
-                correlationId,
-                payload,
-                EventId.Create(Guid.CreateVersion7().ToString()),
-                cancellationToken).ConfigureAwait(false);
-            results.Add(new DurableEventDeliveryResult(instance.InstanceId, result));
-        }
-
-        return results;
     }
 
     /// <summary>
@@ -443,7 +392,7 @@ public sealed class DurableWorkflowRuntime
 /// <summary>
 /// Result of a durable start-or-get request.
 /// </summary>
-public sealed record DurableWorkflowStartResult(
+internal sealed record DurableWorkflowStartResult(
     InstanceId InstanceId,
     DefinitionId DefinitionId,
     DefinitionVersion DefinitionVersion,
@@ -457,13 +406,13 @@ internal sealed record DurableFacadeStartResult(
 /// <summary>
 /// Preconditions supplied by an operator when explicitly re-arming a parked durable instance.
 /// </summary>
-public sealed record DurableRearmRequest(
+internal sealed record DurableRearmRequest(
     StreamVersion ExpectedStreamVersion,
     bool AcknowledgePoison = false);
 
 /// <summary>
 /// Result of routing one durable event to a resolved instance.
 /// </summary>
-public sealed record DurableEventDeliveryResult(
+internal sealed record DurableEventDeliveryResult(
     InstanceId InstanceId,
     DurableCommandResult Result);

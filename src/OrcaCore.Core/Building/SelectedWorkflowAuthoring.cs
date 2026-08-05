@@ -1,7 +1,4 @@
-using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
-using OrcaCore.Abstractions.Steps;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Definitions;
 
@@ -118,28 +115,6 @@ internal sealed record SelectedResourceLeaseAuthoringNode<TState>(
     : SelectedAuthoringNode<TState>
 {
     internal override string Kind => "AcquireResources";
-}
-
-internal sealed record SelectedRunChildAuthoringNode<TState>(
-    DefinitionId ChildDefinitionId,
-    DefinitionVersion ChildDefinitionVersion,
-    RunChildFailurePolicy FailurePolicy)
-    : SelectedAuthoringNode<TState>
-{
-    internal override string Kind => "RunChild";
-}
-
-internal sealed record SelectedRunChildrenAuthoringNode<TState>(
-    DefinitionId ChildDefinitionId,
-    DefinitionVersion ChildDefinitionVersion,
-    Func<TState, IReadOnlyList<string>> ItemSnapshotSelector,
-    int? MaxConcurrency,
-    RunChildFailurePolicy FailurePolicy,
-    RunChildrenJoinPolicy JoinPolicy,
-    RunChildrenResidualPolicy ResidualPolicy)
-    : SelectedAuthoringNode<TState>
-{
-    internal override string Kind => "RunChildren";
 }
 
 internal sealed record SelectedStructuredScopeAuthoringNode<TState>(

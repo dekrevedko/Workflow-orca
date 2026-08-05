@@ -5,7 +5,7 @@ namespace OrcaCore.Providers.Relational;
 /// <summary>
 /// Loads SQL migrations embedded in a provider assembly.
 /// </summary>
-public static class EmbeddedSqlMigrations
+internal static class EmbeddedSqlMigrations
 {
     public static IReadOnlyList<RelationalMigration> Load(Assembly assembly, string resourcePrefix)
     {

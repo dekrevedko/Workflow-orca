@@ -499,8 +499,9 @@ public static class FacadeHostingScenarioHost
                              "orca_v1"))
                  })
         {
+            using var partialPort = new DurableScenarioProvider();
             var partial = new ServiceCollection();
-            partial.AddSingleton<IWorkflowEventStore>(new InMemoryWorkflowProvider());
+            partial.AddSingleton<IWorkflowEventStore>(partialPort);
             try
             {
                 registerProvider(partial);

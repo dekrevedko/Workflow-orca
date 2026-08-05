@@ -4,7 +4,7 @@ using OrcaCore.Abstractions.Ids;
 
 namespace OrcaCore.Core.Concurrency;
 
-public sealed class InstanceLane
+internal sealed class InstanceLane
 {
     private const int LaneCapacity = 1024;
 

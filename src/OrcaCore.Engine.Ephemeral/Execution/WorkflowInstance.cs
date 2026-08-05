@@ -1,7 +1,5 @@
-using OrcaCore.Abstractions.Events;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Core.Execution;
@@ -17,9 +15,9 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     private readonly Queue<EventId> consumedEventOrder = [];
     private readonly HashSet<WaitSignature> consumedWaits = [];
     private readonly Dictionary<WaitSignature, DateTimeOffset> timedOutWaits = [];
-    private readonly List<CompositionBranchOutcomeSnapshot> compositionOutcomes = [];
+    private readonly List<EphemeralCompositionBranchOutcomeSnapshot> compositionOutcomes = [];
     private readonly List<ForEachGroupRecord> forEachGroups = [];
-    private readonly List<LifecycleEventSnapshot> lifecycleEvents = [];
+    private readonly List<EphemeralLifecycleEventSnapshot> lifecycleEvents = [];
     private readonly List<EventEnvelope> pendingEvents = [];
     private readonly List<RuntimeTimerRecord> activeTimers = [];
     private readonly Dictionary<string, long> stepOccurrences = new(StringComparer.Ordinal);
@@ -29,7 +27,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     private readonly int maxConsumedEventIds;
     private readonly int maxLifecycleEvents;
     private readonly int maxPendingEvents;
-    private ActiveStepSnapshot? activeStep;
+    private EphemeralActiveStepSnapshot? activeStep;
     private readonly Queue<Func<CancellationToken, Task>> yieldContinuations = [];
     private bool hasStuckStep;
     private bool isStuck;
@@ -38,7 +36,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     private DateTimeOffset? stuckDetectedAt;
     private string? stuckStepPath;
     private long nextWaitSequence;
-    private LegacyWorkflowInstanceSnapshot? publishedSnapshot;
+    private EphemeralWorkflowInstanceSnapshot? publishedSnapshot;
     private TState? publishedState;
     private bool hasPublishedState;
     private int cancellationRequested;
@@ -68,8 +66,8 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         UpdatedAt = createdAt;
         CurrentStatusEnteredAt = createdAt;
         LastActiveAt = createdAt;
-        Status = LegacyWorkflowStatus.Running;
-        RecordLifecycleEvent("InstanceStarted", null, LegacyWorkflowStatus.Running, createdAt);
+        Status = global::OrcaCore.WorkflowInstanceStatus.Running;
+        RecordLifecycleEvent("InstanceStarted", null, global::OrcaCore.WorkflowInstanceStatus.Running, createdAt);
         ToSnapshot();
     }
 
@@ -81,11 +79,11 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
     internal TState State { get; private set; }
 
-    internal LegacyWorkflowStatus Status { get; private set; }
+    internal global::OrcaCore.WorkflowInstanceStatus Status { get; private set; }
 
-    internal void ApplyStructuredStatus(LegacyWorkflowStatus status, DateTimeOffset observedAt)
+    internal void ApplyStructuredStatus(global::OrcaCore.WorkflowInstanceStatus status, DateTimeOffset observedAt)
     {
-        if (status is not (LegacyWorkflowStatus.Running or LegacyWorkflowStatus.Waiting))
+        if (status is not (global::OrcaCore.WorkflowInstanceStatus.Running or global::OrcaCore.WorkflowInstanceStatus.Waiting))
         {
             throw new ArgumentOutOfRangeException(
                 nameof(status),
@@ -166,11 +164,13 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         CorrelationId correlationId,
         BranchId? branchId,
         DateTimeOffset registeredAt,
+        string authoredPath,
+        DateTimeOffset? deadline,
         Func<EventEnvelope, CancellationToken, Task> resumeAsync,
         FiberId? fiberId = null,
         ScopeId? scopeId = null)
     {
-        Status = LegacyWorkflowStatus.Waiting;
+        Status = global::OrcaCore.WorkflowInstanceStatus.Waiting;
         UpdatedAt = registeredAt;
         CurrentStatusEnteredAt = registeredAt;
         var wait = new RuntimeWaitRecord(
@@ -178,6 +178,8 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
             correlationId,
             branchId,
             registeredAt,
+            authoredPath,
+            deadline,
             resumeAsync,
             checked(++nextWaitSequence),
             fiberId,
@@ -197,7 +199,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         RestoreRunningWhenRuntimeWorkIsClear();
     }
 
-    internal async Task<LegacyWorkflowInstanceSnapshot> RaiseEventAsync(
+    internal async Task<EphemeralWorkflowInstanceSnapshot> RaiseEventAsync(
         EventEnvelope envelope,
         DateTimeOffset processedAt,
         CancellationToken cancellationToken)
@@ -252,7 +254,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
             .ConfigureAwait(false);
     }
 
-    internal async Task<LegacyWorkflowInstanceSnapshot> MatchPendingEventAsync(
+    internal async Task<EphemeralWorkflowInstanceSnapshot> MatchPendingEventAsync(
         RuntimeWaitRecord wait,
         DateTimeOffset processedAt,
         CancellationToken cancellationToken)
@@ -269,7 +271,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
     internal RuntimeTimerRecord EnterDelay(BranchId? branchId, DateTimeOffset registeredAt)
     {
-        Status = LegacyWorkflowStatus.Waiting;
+        Status = global::OrcaCore.WorkflowInstanceStatus.Waiting;
         UpdatedAt = registeredAt;
         CurrentStatusEnteredAt = registeredAt;
         var timer = new RuntimeTimerRecord(branchId, registeredAt);
@@ -290,13 +292,13 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
     private void RestoreRunningWhenRuntimeWorkIsClear()
     {
-        if (Status == LegacyWorkflowStatus.Waiting && activeWaits.Count == 0 && activeTimers.Count == 0)
+        if (Status == global::OrcaCore.WorkflowInstanceStatus.Waiting && activeWaits.Count == 0 && activeTimers.Count == 0)
         {
-            Status = LegacyWorkflowStatus.Running;
+            Status = global::OrcaCore.WorkflowInstanceStatus.Running;
         }
     }
 
-    internal async Task<LegacyWorkflowInstanceSnapshot> FireDelayAsync(
+    internal async Task<EphemeralWorkflowInstanceSnapshot> FireDelayAsync(
         RuntimeTimerRecord timer,
         DateTimeOffset firedAt,
         Func<CancellationToken, Task> resumeAsync,
@@ -305,13 +307,14 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         ArgumentNullException.ThrowIfNull(timer);
         ArgumentNullException.ThrowIfNull(resumeAsync);
 
-        if (!activeTimers.Remove(timer))
+        var removed = activeTimers.Remove(timer);
+        if (!removed)
         {
             return ToSnapshot();
         }
 
         FireOrThrow(LifecycleTrigger.MatchWait);
-        Status = LegacyWorkflowStatus.Running;
+        Status = global::OrcaCore.WorkflowInstanceStatus.Running;
         UpdatedAt = firedAt;
         CurrentStatusEnteredAt = firedAt;
         LastActiveAt = firedAt;
@@ -327,22 +330,22 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
                 activeTimers.Add(timer);
             }
 
-            Status = LegacyWorkflowStatus.Waiting;
+            Status = global::OrcaCore.WorkflowInstanceStatus.Waiting;
             UpdatedAt = timer.RegisteredAt;
             CurrentStatusEnteredAt = timer.RegisteredAt;
             throw;
         }
 
-        if (Status == LegacyWorkflowStatus.Running && (activeWaits.Count > 0 || activeTimers.Count > 0))
+        if (Status == global::OrcaCore.WorkflowInstanceStatus.Running && (activeWaits.Count > 0 || activeTimers.Count > 0))
         {
-            Status = LegacyWorkflowStatus.Waiting;
+            Status = global::OrcaCore.WorkflowInstanceStatus.Waiting;
             CurrentStatusEnteredAt = firedAt;
         }
 
         return ToSnapshot();
     }
 
-    internal async Task<LegacyWorkflowInstanceSnapshot> FireWaitTimeoutAsync(
+    internal async Task<EphemeralWorkflowInstanceSnapshot> FireWaitTimeoutAsync(
         RuntimeWaitRecord wait,
         DateTimeOffset firedAt,
         Func<CancellationToken, Task> resumeAsync,
@@ -362,11 +365,11 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         var hadPreviousTimeout = timedOutWaits.TryGetValue(signature, out var previousTimeout);
         timedOutWaits[signature] = firedAt;
         var removedPendingEvents = pendingEvents
-            .Where(candidate => WaitSignature.From(candidate) == signature)
+            .Where(signature.Matches)
             .ToArray();
-        pendingEvents.RemoveAll(candidate => WaitSignature.From(candidate) == signature);
+        pendingEvents.RemoveAll(candidate => signature.Matches(candidate));
         FireOrThrow(LifecycleTrigger.MatchWait);
-        Status = LegacyWorkflowStatus.Running;
+        Status = global::OrcaCore.WorkflowInstanceStatus.Running;
         UpdatedAt = firedAt;
         CurrentStatusEnteredAt = firedAt;
         LastActiveAt = firedAt;
@@ -401,22 +404,22 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
                 }
             }
 
-            Status = LegacyWorkflowStatus.Waiting;
+            Status = global::OrcaCore.WorkflowInstanceStatus.Waiting;
             UpdatedAt = wait.RegisteredAt;
             CurrentStatusEnteredAt = wait.RegisteredAt;
             throw;
         }
 
-        if (Status == LegacyWorkflowStatus.Running && (activeWaits.Count > 0 || activeTimers.Count > 0))
+        if (Status == global::OrcaCore.WorkflowInstanceStatus.Running && (activeWaits.Count > 0 || activeTimers.Count > 0))
         {
-            Status = LegacyWorkflowStatus.Waiting;
+            Status = global::OrcaCore.WorkflowInstanceStatus.Waiting;
             CurrentStatusEnteredAt = firedAt;
         }
 
         return ToSnapshot();
     }
 
-    private async Task<LegacyWorkflowInstanceSnapshot> ResumeWaitAsync(
+    private async Task<EphemeralWorkflowInstanceSnapshot> ResumeWaitAsync(
         RuntimeWaitRecord wait,
         EventEnvelope envelope,
         DateTimeOffset processedAt,
@@ -426,7 +429,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         wait.MarkMatched();
         activeWaits.Remove(wait);
         FireOrThrow(LifecycleTrigger.MatchWait);
-        Status = LegacyWorkflowStatus.Running;
+        Status = global::OrcaCore.WorkflowInstanceStatus.Running;
         UpdatedAt = processedAt;
         CurrentStatusEnteredAt = processedAt;
         LastActiveAt = processedAt;
@@ -451,7 +454,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
                 pendingEvents.Add(envelope);
             }
 
-            Status = LegacyWorkflowStatus.Waiting;
+            Status = global::OrcaCore.WorkflowInstanceStatus.Waiting;
             UpdatedAt = wait.RegisteredAt;
             CurrentStatusEnteredAt = wait.RegisteredAt;
             throw;
@@ -460,9 +463,9 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         wait.CancelLoser();
         RecordConsumedEvent(envelope.EventId);
         consumedWaits.Add(new WaitSignature(wait.EventName, wait.CorrelationId, wait.BranchId));
-        if (Status == LegacyWorkflowStatus.Running && (activeWaits.Count > 0 || activeTimers.Count > 0))
+        if (Status == global::OrcaCore.WorkflowInstanceStatus.Running && (activeWaits.Count > 0 || activeTimers.Count > 0))
         {
-            Status = LegacyWorkflowStatus.Waiting;
+            Status = global::OrcaCore.WorkflowInstanceStatus.Waiting;
             CurrentStatusEnteredAt = processedAt;
         }
 
@@ -481,7 +484,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         compositionOutcomes.RemoveAll(outcome =>
             string.Equals(outcome.CompositionId, compositionId, StringComparison.Ordinal) &&
             string.Equals(outcome.BranchId, branchId.ToString(), StringComparison.Ordinal));
-        compositionOutcomes.Add(new CompositionBranchOutcomeSnapshot
+        compositionOutcomes.Add(new EphemeralCompositionBranchOutcomeSnapshot
         {
             CompositionId = compositionId,
             BranchId = branchId.ToString(),
@@ -493,7 +496,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
     internal ForEachGroupRecord RecordForEachGroup(
         string groupId,
-        IReadOnlyList<ForEachWorkItemSnapshot> workItems,
+        IReadOnlyList<EphemeralForEachWorkItemSnapshot> workItems,
         int? maxConcurrency,
         DateTimeOffset recordedAt)
     {
@@ -577,7 +580,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         }
     }
 
-    internal LegacyWorkflowInstanceSnapshot MarkStuckIfNoProgress(DateTimeOffset now, TimeSpan threshold)
+    internal EphemeralWorkflowInstanceSnapshot MarkStuckIfNoProgress(DateTimeOffset now, TimeSpan threshold)
     {
         if (threshold <= TimeSpan.Zero || LifecycleMachine.TerminalStatuses.Contains(Status) || isStuck)
         {
@@ -609,16 +612,16 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
             timer.Cancel();
         }
 
-        if (Status == LegacyWorkflowStatus.Waiting && activeWaits.Count == 0 && activeTimers.Count == 0)
+        if (Status == global::OrcaCore.WorkflowInstanceStatus.Waiting && activeWaits.Count == 0 && activeTimers.Count == 0)
         {
-            Status = LegacyWorkflowStatus.Running;
+            Status = global::OrcaCore.WorkflowInstanceStatus.Running;
         }
     }
 
     internal void RecordLifecycleEvent(
         string eventName,
         string? stepPath,
-        LegacyWorkflowStatus? status,
+        global::OrcaCore.WorkflowInstanceStatus? status,
         DateTimeOffset occurredAt)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
@@ -630,7 +633,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
                 lifecycleEvents.RemoveAt(0);
             }
 
-            lifecycleEvents.Add(new LifecycleEventSnapshot
+            lifecycleEvents.Add(new EphemeralLifecycleEventSnapshot
             {
                 InstanceId = InstanceId,
                 EventName = eventName,
@@ -648,7 +651,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
         lock (snapshotGate)
         {
-            activeStep = new ActiveStepSnapshot
+            activeStep = new EphemeralActiveStepSnapshot
             {
                 StepPath = stepPath,
                 StartedAt = startedAt,
@@ -680,16 +683,16 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         DateTimeOffset updatedAt,
         StructuredSerializedValue? output = null)
     {
-        Status = LegacyWorkflowStatus.Completed;
+        Status = global::OrcaCore.WorkflowInstanceStatus.Completed;
         EndOutcomeName = outcomeName;
         Output = output;
         UpdatedAt = updatedAt;
         CurrentStatusEnteredAt = updatedAt;
         LastActiveAt = updatedAt;
-        RecordLifecycleEvent("InstanceCompleted", null, LegacyWorkflowStatus.Completed, updatedAt);
+        RecordLifecycleEvent("InstanceCompleted", null, global::OrcaCore.WorkflowInstanceStatus.Completed, updatedAt);
     }
 
-    internal LegacyWorkflowInstanceSnapshot Timeout(
+    internal EphemeralWorkflowInstanceSnapshot Timeout(
         DateTimeOffset deadline,
         DateTimeOffset observedAt)
     {
@@ -700,7 +703,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
         SignalCancellation();
         ApplyTerminalTrigger(LifecycleTrigger.Timeout, observedAt);
-        var exception = global::OrcaCore.Core.Authoring.PublicAuthoringContracts.WorkflowDeadline(deadline);
+        var exception = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.WorkflowDeadline(deadline);
         ErrorDetails = new WorkflowErrorDetails(
             exception.Code,
             exception.Message,
@@ -711,63 +714,29 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
     internal void Fail(WorkflowErrorDetails errorDetails)
     {
-        if (Status is not LegacyWorkflowStatus.Running and not LegacyWorkflowStatus.Waiting)
+        if (Status is not global::OrcaCore.WorkflowInstanceStatus.Running and not global::OrcaCore.WorkflowInstanceStatus.Waiting)
         {
             throw new WorkflowLifecycleException(
                 $"Lifecycle trigger '{LifecycleTrigger.Fail}' is not valid from workflow status '{Status}'.");
         }
 
-        Status = LegacyWorkflowStatus.Failed;
+        Status = global::OrcaCore.WorkflowInstanceStatus.Failed;
         ErrorDetails = errorDetails;
         UpdatedAt = errorDetails.OccurredAt;
         CurrentStatusEnteredAt = errorDetails.OccurredAt;
         LastActiveAt = errorDetails.OccurredAt;
-        RecordLifecycleEvent("InstanceFailed", null, LegacyWorkflowStatus.Failed, errorDetails.OccurredAt);
+        RecordLifecycleEvent("InstanceFailed", null, global::OrcaCore.WorkflowInstanceStatus.Failed, errorDetails.OccurredAt);
         ClearRuntimeWork();
     }
 
-    internal void Compensate(DateTimeOffset updatedAt)
-    {
-        // Explicit operator compensation is allowed after a saga has completed.
-        // The shared lifecycle machine models only forward-execution compensation,
-        // so keep this ephemeral-only transition local to the saga runtime.
-        if (Status == LegacyWorkflowStatus.Completed)
-        {
-            Status = LegacyWorkflowStatus.Compensated;
-            UpdatedAt = updatedAt;
-            CurrentStatusEnteredAt = updatedAt;
-            LastActiveAt = updatedAt;
-            RecordLifecycleEvent("InstanceCompensated", null, LegacyWorkflowStatus.Compensated, updatedAt);
-            ClearRuntimeWork();
-            return;
-        }
-
-        ApplyTerminalTrigger(LifecycleTrigger.Compensate, updatedAt);
-    }
-
-    internal void FailCompensation(WorkflowErrorDetails errorDetails)
-    {
-        FireOrThrow(LifecycleTrigger.FailCompensation);
-        Status = LegacyWorkflowStatus.CompensationFailed;
-        ErrorDetails = errorDetails;
-        UpdatedAt = errorDetails.OccurredAt;
-        CurrentStatusEnteredAt = errorDetails.OccurredAt;
-        LastActiveAt = errorDetails.OccurredAt;
-        RecordLifecycleEvent(
-            "InstanceCompensationFailed",
-            errorDetails.StepPath,
-            LegacyWorkflowStatus.CompensationFailed,
-            errorDetails.OccurredAt);
-    }
-
-    internal LegacyWorkflowInstanceSnapshot Cancel(DateTimeOffset updatedAt)
+    internal EphemeralWorkflowInstanceSnapshot Cancel(DateTimeOffset updatedAt)
     {
         SignalCancellation();
         ApplyTerminalTrigger(LifecycleTrigger.Cancel, updatedAt);
         return ToSnapshot();
     }
 
-    internal LegacyWorkflowInstanceSnapshot Terminate(DateTimeOffset updatedAt)
+    internal EphemeralWorkflowInstanceSnapshot Terminate(DateTimeOffset updatedAt)
     {
         ApplyTerminalTrigger(LifecycleTrigger.Terminate, updatedAt);
         return ToSnapshot();
@@ -843,11 +812,11 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         }
     }
 
-    internal LegacyWorkflowInstanceSnapshot ToSnapshot()
+    internal EphemeralWorkflowInstanceSnapshot ToSnapshot()
     {
         lock (snapshotGate)
         {
-            var snapshot = new LegacyWorkflowInstanceSnapshot
+            var snapshot = new EphemeralWorkflowInstanceSnapshot
             {
                 InstanceId = InstanceId,
                 DefinitionId = DefinitionId,
@@ -927,27 +896,27 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         return (TState)CoreWorkflowValueCodec.Deserialize(payload, typeof(TState))!;
     }
 
-    LegacyWorkflowInstanceSnapshot IWorkflowInstance.ToSnapshot()
+    EphemeralWorkflowInstanceSnapshot IWorkflowInstance.ToSnapshot()
     {
         return ToSnapshot();
     }
 
-    LegacyWorkflowInstanceSnapshot IWorkflowInstance.GetPublishedSnapshot()
+    EphemeralWorkflowInstanceSnapshot IWorkflowInstance.GetPublishedSnapshot()
     {
         return Volatile.Read(ref publishedSnapshot) ?? ToSnapshot();
     }
 
-    LegacyWorkflowInstanceSnapshot IWorkflowInstance.Cancel(DateTimeOffset updatedAt)
+    EphemeralWorkflowInstanceSnapshot IWorkflowInstance.Cancel(DateTimeOffset updatedAt)
     {
         return Cancel(updatedAt);
     }
 
-    LegacyWorkflowInstanceSnapshot IWorkflowInstance.Terminate(DateTimeOffset updatedAt)
+    EphemeralWorkflowInstanceSnapshot IWorkflowInstance.Terminate(DateTimeOffset updatedAt)
     {
         return Terminate(updatedAt);
     }
 
-    LegacyWorkflowInstanceSnapshot IWorkflowInstance.MarkStuckIfNoProgress(DateTimeOffset now, TimeSpan threshold)
+    EphemeralWorkflowInstanceSnapshot IWorkflowInstance.MarkStuckIfNoProgress(DateTimeOffset now, TimeSpan threshold)
     {
         return MarkStuckIfNoProgress(now, threshold);
     }
@@ -1065,55 +1034,20 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
     private bool HasConsumedWait(EventEnvelope envelope)
     {
-        var signature = WaitSignature.From(envelope);
-        return consumedWaits.Contains(signature) ||
-            (string.IsNullOrWhiteSpace(envelope.BranchId) && consumedWaits.Any(wait =>
-                string.Equals(wait.EventName, envelope.EventName, StringComparison.Ordinal) &&
-                wait.CorrelationId.Equals(envelope.CorrelationId) &&
-                wait.BranchId is null));
+        return consumedWaits.Any(wait => wait.Matches(envelope));
     }
 
     private bool HasTimedOutWait(EventEnvelope envelope)
     {
-        var signature = WaitSignature.From(envelope);
-        return IsStaleForTimedOutWait(signature, envelope.OccurredAt) ||
-            (string.IsNullOrWhiteSpace(envelope.BranchId) && timedOutWaits.Any(wait =>
-                string.Equals(wait.Key.EventName, envelope.EventName, StringComparison.Ordinal) &&
-                wait.Key.CorrelationId.Equals(envelope.CorrelationId) &&
-                wait.Key.BranchId is null &&
-                envelope.OccurredAt < wait.Value));
-    }
-
-    private bool IsStaleForTimedOutWait(WaitSignature signature, DateTimeOffset occurredAt)
-    {
-        return timedOutWaits.TryGetValue(signature, out var timedOutAt) && occurredAt < timedOutAt;
+        return timedOutWaits.Any(wait =>
+            wait.Key.Matches(envelope) && envelope.OccurredAt < wait.Value);
     }
 
     private readonly record struct WaitSignature(string EventName, CorrelationId CorrelationId, BranchId? BranchId)
     {
-        internal static WaitSignature From(EventEnvelope envelope)
-        {
-            BranchId? branchId = string.IsNullOrWhiteSpace(envelope.BranchId)
-                ? null
-                : ParseBranchId(envelope.BranchId);
-            return new WaitSignature(envelope.EventName, envelope.CorrelationId, branchId);
-        }
-
-        private static BranchId ParseBranchId(string value)
-        {
-            var separator = value.IndexOf(':', StringComparison.Ordinal);
-            if (separator <= 0 || separator == value.Length - 1)
-            {
-                throw new WorkflowRoutingException($"BranchId '{value}' is not in '<ordinal>:<name>' format.");
-            }
-
-            if (!int.TryParse(value[..separator], out var ordinal))
-            {
-                throw new WorkflowRoutingException($"BranchId '{value}' does not start with a numeric ordinal.");
-            }
-
-            return new BranchId(ordinal, value[(separator + 1)..]);
-        }
+        internal bool Matches(EventEnvelope envelope) =>
+            string.Equals(EventName, envelope.EventName.Value, StringComparison.Ordinal) &&
+            CorrelationId.Equals(envelope.CorrelationId);
     }
 
     internal sealed class ForEachGroupRecord
@@ -1122,7 +1056,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
         internal ForEachGroupRecord(
             string groupId,
-            IReadOnlyList<ForEachWorkItemSnapshot> workItems,
+            IReadOnlyList<EphemeralForEachWorkItemSnapshot> workItems,
             int? maxConcurrency)
         {
             GroupId = groupId;
@@ -1138,32 +1072,32 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
         internal int Count => workItems.Count;
 
-        internal int ActiveCount => workItems.Count(workItem => workItem.Status == ForEachWorkItemStatus.Active);
+        internal int ActiveCount => workItems.Count(workItem => workItem.Status == EphemeralForEachWorkItemStatus.Active);
 
-        internal int CompletedCount => workItems.Count(workItem => workItem.Status == ForEachWorkItemStatus.Completed);
+        internal int CompletedCount => workItems.Count(workItem => workItem.Status == EphemeralForEachWorkItemStatus.Completed);
 
-        internal int FailedCount => workItems.Count(workItem => workItem.Status == ForEachWorkItemStatus.Failed);
+        internal int FailedCount => workItems.Count(workItem => workItem.Status == EphemeralForEachWorkItemStatus.Failed);
 
-        internal int CancelledCount => workItems.Count(workItem => workItem.Status == ForEachWorkItemStatus.Cancelled);
+        internal int CancelledCount => workItems.Count(workItem => workItem.Status == EphemeralForEachWorkItemStatus.Cancelled);
 
         internal void Start(int index, DateTimeOffset startedAt)
         {
             var workItem = Get(index);
-            workItem.Status = ForEachWorkItemStatus.Active;
+            workItem.Status = EphemeralForEachWorkItemStatus.Active;
             workItem.StartedAt ??= startedAt;
         }
 
         internal void Complete(int index, DateTimeOffset completedAt)
         {
             var workItem = Get(index);
-            workItem.Status = ForEachWorkItemStatus.Completed;
+            workItem.Status = EphemeralForEachWorkItemStatus.Completed;
             workItem.CompletedAt = completedAt;
         }
 
         internal void Fail(int index, string errorSummary, DateTimeOffset failedAt)
         {
             var workItem = Get(index);
-            workItem.Status = ForEachWorkItemStatus.Failed;
+            workItem.Status = EphemeralForEachWorkItemStatus.Failed;
             workItem.CompletedAt = failedAt;
             workItem.ErrorSummary = errorSummary;
         }
@@ -1173,9 +1107,9 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
             var cancelled = new List<int>();
             foreach (var workItem in workItems.Where(workItem =>
                          workItem.Index != completedIndex &&
-                         workItem.Status is not ForEachWorkItemStatus.Completed and not ForEachWorkItemStatus.Failed))
+                         workItem.Status is not EphemeralForEachWorkItemStatus.Completed and not EphemeralForEachWorkItemStatus.Failed))
             {
-                workItem.Status = ForEachWorkItemStatus.Cancelled;
+                workItem.Status = EphemeralForEachWorkItemStatus.Cancelled;
                 workItem.CompletedAt = cancelledAt;
                 cancelled.Add(workItem.Index);
             }
@@ -1183,9 +1117,9 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
             return cancelled;
         }
 
-        internal ForEachGroupSnapshot ToSnapshot()
+        internal EphemeralForEachGroupSnapshot ToSnapshot()
         {
-            return new ForEachGroupSnapshot
+            return new EphemeralForEachGroupSnapshot
             {
                 GroupId = GroupId,
                 TotalItems = workItems.Sum(workItem => workItem.Items.Count),
@@ -1209,7 +1143,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
     private sealed class ForEachWorkItemRecord
     {
-        internal ForEachWorkItemRecord(ForEachWorkItemSnapshot snapshot)
+        internal ForEachWorkItemRecord(EphemeralForEachWorkItemSnapshot snapshot)
         {
             Index = snapshot.Index;
             Items = snapshot.Items.ToArray();
@@ -1223,7 +1157,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
         internal IReadOnlyList<object?> Items { get; }
 
-        internal ForEachWorkItemStatus Status { get; set; }
+        internal EphemeralForEachWorkItemStatus Status { get; set; }
 
         internal DateTimeOffset? StartedAt { get; set; }
 
@@ -1231,9 +1165,9 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
         internal string? ErrorSummary { get; set; }
 
-        internal ForEachWorkItemSnapshot ToSnapshot()
+        internal EphemeralForEachWorkItemSnapshot ToSnapshot()
         {
-            return new ForEachWorkItemSnapshot
+            return new EphemeralForEachWorkItemSnapshot
             {
                 Index = Index,
                 Items = Items,

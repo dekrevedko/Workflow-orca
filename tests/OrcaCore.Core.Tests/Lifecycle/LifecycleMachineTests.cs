@@ -1,5 +1,5 @@
 using AwesomeAssertions;
-using OrcaCore.Abstractions.Instances;
+using OrcaCore;
 using OrcaCore.Core.Lifecycle;
 using Xunit;
 
@@ -8,29 +8,21 @@ namespace OrcaCore.Core.Tests.Lifecycle;
 public sealed class LifecycleMachineTests
 {
     [Theory]
-    [InlineData(WorkflowStatus.Running, (int)LifecycleTrigger.EnterWait, WorkflowStatus.Waiting)]
-    [InlineData(WorkflowStatus.Waiting, (int)LifecycleTrigger.MatchWait, WorkflowStatus.Running)]
-    [InlineData(WorkflowStatus.Running, (int)LifecycleTrigger.Complete, WorkflowStatus.Completed)]
-    [InlineData(WorkflowStatus.Running, (int)LifecycleTrigger.Fail, WorkflowStatus.Failed)]
-    [InlineData(WorkflowStatus.Running, (int)LifecycleTrigger.Cancel, WorkflowStatus.Cancelled)]
-    [InlineData(WorkflowStatus.Waiting, (int)LifecycleTrigger.Cancel, WorkflowStatus.Cancelled)]
-    [InlineData(WorkflowStatus.Running, (int)LifecycleTrigger.Terminate, WorkflowStatus.Terminated)]
-    [InlineData(WorkflowStatus.Waiting, (int)LifecycleTrigger.Terminate, WorkflowStatus.Terminated)]
-    [InlineData(WorkflowStatus.Running, (int)LifecycleTrigger.Compensate, WorkflowStatus.Compensated)]
-    [InlineData(WorkflowStatus.Waiting, (int)LifecycleTrigger.Compensate, WorkflowStatus.Compensated)]
-    [InlineData(WorkflowStatus.Running, (int)LifecycleTrigger.FailCompensation, WorkflowStatus.CompensationFailed)]
-    [InlineData(WorkflowStatus.Waiting, (int)LifecycleTrigger.FailCompensation, WorkflowStatus.CompensationFailed)]
-    [InlineData(WorkflowStatus.Running, (int)LifecycleTrigger.Pause, WorkflowStatus.Paused)]
-    [InlineData(WorkflowStatus.Waiting, (int)LifecycleTrigger.Pause, WorkflowStatus.Paused)]
-    [InlineData(WorkflowStatus.Paused, (int)LifecycleTrigger.Resume, WorkflowStatus.Running)]
-    [InlineData(WorkflowStatus.Paused, (int)LifecycleTrigger.Terminate, WorkflowStatus.Terminated)]
-    [InlineData(WorkflowStatus.Paused, (int)LifecycleTrigger.Cancel, WorkflowStatus.Cancelled)]
-    [InlineData(WorkflowStatus.CancellationRequested, (int)LifecycleTrigger.Cancel, WorkflowStatus.Cancelled)]
-    [InlineData(WorkflowStatus.CancellationRequested, (int)LifecycleTrigger.Terminate, WorkflowStatus.Terminated)]
+    [InlineData(WorkflowInstanceStatus.Pending, (int)LifecycleTrigger.Start, WorkflowInstanceStatus.Running)]
+    [InlineData(WorkflowInstanceStatus.Running, (int)LifecycleTrigger.EnterWait, WorkflowInstanceStatus.Waiting)]
+    [InlineData(WorkflowInstanceStatus.Waiting, (int)LifecycleTrigger.MatchWait, WorkflowInstanceStatus.Running)]
+    [InlineData(WorkflowInstanceStatus.Running, (int)LifecycleTrigger.Complete, WorkflowInstanceStatus.Completed)]
+    [InlineData(WorkflowInstanceStatus.Running, (int)LifecycleTrigger.Fail, WorkflowInstanceStatus.Failed)]
+    [InlineData(WorkflowInstanceStatus.Running, (int)LifecycleTrigger.Cancel, WorkflowInstanceStatus.Cancelled)]
+    [InlineData(WorkflowInstanceStatus.Waiting, (int)LifecycleTrigger.Cancel, WorkflowInstanceStatus.Cancelled)]
+    [InlineData(WorkflowInstanceStatus.Running, (int)LifecycleTrigger.Terminate, WorkflowInstanceStatus.Terminated)]
+    [InlineData(WorkflowInstanceStatus.Waiting, (int)LifecycleTrigger.Terminate, WorkflowInstanceStatus.Terminated)]
+    [InlineData(WorkflowInstanceStatus.CancellationRequested, (int)LifecycleTrigger.Cancel, WorkflowInstanceStatus.Cancelled)]
+    [InlineData(WorkflowInstanceStatus.CancellationRequested, (int)LifecycleTrigger.Terminate, WorkflowInstanceStatus.Terminated)]
     public void Fire_LegalTransitions_ReturnTargetStatus(
-        WorkflowStatus current,
+        WorkflowInstanceStatus current,
         int triggerValue,
-        WorkflowStatus expected)
+        WorkflowInstanceStatus expected)
     {
         var trigger = (LifecycleTrigger)triggerValue;
 
@@ -42,7 +34,7 @@ public sealed class LifecycleMachineTests
 
     [Theory]
     [MemberData(nameof(IllegalTransitions))]
-    public void Fire_IllegalTrigger_FailsWithClearMessage(WorkflowStatus current, int triggerValue)
+    public void Fire_IllegalTrigger_FailsWithClearMessage(WorkflowInstanceStatus current, int triggerValue)
     {
         var trigger = (LifecycleTrigger)triggerValue;
 
@@ -58,7 +50,7 @@ public sealed class LifecycleMachineTests
     {
         var coveredSources = LifecycleMachine.Transitions.Keys.Select(key => key.Current).ToHashSet();
 
-        foreach (var status in Enum.GetValues<WorkflowStatus>())
+        foreach (var status in Enum.GetValues<WorkflowInstanceStatus>())
         {
             (coveredSources.Contains(status) || LifecycleMachine.TerminalStatuses.Contains(status))
                 .Should().BeTrue($"{status} must be a source status or declared terminal");
@@ -66,31 +58,28 @@ public sealed class LifecycleMachineTests
     }
 
     [Fact]
-    public void TerminalStatuses_AreExactly_RegularAndSagaTerminalStates()
+    public void TerminalStatuses_AreExactly_V1TerminalStates()
     {
         LifecycleMachine.TerminalStatuses.Order().Should().Equal(
             [
-                WorkflowStatus.Completed,
-                WorkflowStatus.Failed,
-                WorkflowStatus.Cancelled,
-                WorkflowStatus.Terminated,
-                WorkflowStatus.Compensated,
-                WorkflowStatus.CompensationFailed,
-                WorkflowStatus.TimedOut
+                WorkflowInstanceStatus.Completed,
+                WorkflowInstanceStatus.Failed,
+                WorkflowInstanceStatus.TimedOut,
+                WorkflowInstanceStatus.Cancelled,
+                WorkflowInstanceStatus.Terminated
             ]);
     }
 
-    public static TheoryData<WorkflowStatus, int> IllegalTransitions()
+    public static TheoryData<WorkflowInstanceStatus, int> IllegalTransitions()
     {
-        var data = new TheoryData<WorkflowStatus, int>();
+        var data = new TheoryData<WorkflowInstanceStatus, int>();
         foreach (var terminalStatus in new[]
                  {
-                     WorkflowStatus.Completed,
-                     WorkflowStatus.Failed,
-                     WorkflowStatus.Cancelled,
-                     WorkflowStatus.Terminated,
-                     WorkflowStatus.Compensated,
-                     WorkflowStatus.CompensationFailed
+                     WorkflowInstanceStatus.Completed,
+                     WorkflowInstanceStatus.Failed,
+                     WorkflowInstanceStatus.TimedOut,
+                     WorkflowInstanceStatus.Cancelled,
+                     WorkflowInstanceStatus.Terminated
                  })
         {
             foreach (var trigger in Enum.GetValues<LifecycleTrigger>())
@@ -99,8 +88,7 @@ public sealed class LifecycleMachineTests
             }
         }
 
-        data.Add(WorkflowStatus.Waiting, (int)LifecycleTrigger.Complete);
-        data.Add(WorkflowStatus.Paused, (int)LifecycleTrigger.MatchWait);
+        data.Add(WorkflowInstanceStatus.Waiting, (int)LifecycleTrigger.Complete);
 
         return data;
     }
