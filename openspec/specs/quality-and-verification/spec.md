@@ -84,7 +84,12 @@ Acceptance coverage SHALL execute equivalent portable definitions in both modes 
 - **THEN** both modes produce the same typed parent output and leave no orphan waits, timers, or obligations
 
 ### Requirement: Public surfaces are approved mechanically
-Every application, `OrcaCore.Dag`, provider-authoring, and runtime-protocol assembly SHALL have an approved public type/signature baseline. Verification SHALL fail on unreviewed additions, removals, placeholder symbols, wrong-tier placement, or aliases for superseded APIs.
+Each of the exact 11 packaged assemblies SHALL have one approved deterministic public baseline
+covering every externally visible type, constructor, method, property, field, event, generic
+arity/constraint, modifier, and signature. Verification SHALL compare the current build and fresh
+packages, reject missing or extra inventory, and fail on unreviewed additions, removals,
+placeholder symbols, wrong-tier placement, or aliases for superseded APIs. Qualified metadata and
+source guards SHALL additionally reject non-public placeholders for removed concepts.
 
 #### Scenario: Implementation type becomes public
 - **WHEN** a contributor publishes a hosted loop, checkpoint mapper, converter, compiler type, test profile, or integration-specific DTO
