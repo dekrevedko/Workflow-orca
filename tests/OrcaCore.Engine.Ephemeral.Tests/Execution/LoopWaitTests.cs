@@ -221,7 +221,7 @@ public sealed class LoopWaitTests
             .While(
                 current => current.Value.Iteration < 2,
                 body => body
-                    .Wait(Tick, current => IterationCorrelation(current.Value.Iteration))
+                    .Wait(WorkflowEventContract.Create(Tick, EventContractVersion.Initial), current => IterationCorrelation(current.Value.Iteration))
                     .Then<CaptureAndIncrementStep>())
             .End()
             .Build();
@@ -233,7 +233,7 @@ public sealed class LoopWaitTests
                 current => current.Value.PostWaitCount < 2,
                 body => body
                     .Then<CountPreWaitStep>()
-                    .Wait(Approval, _ => CorrelationId.Create("corr-1"))
+                    .Wait(WorkflowEventContract.Create(Approval, EventContractVersion.Initial), _ => CorrelationId.Create("corr-1"))
                     .Then<CountPostWaitStep>())
             .End()
             .Build();

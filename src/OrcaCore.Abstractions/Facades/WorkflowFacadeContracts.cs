@@ -183,7 +183,7 @@ public abstract record WorkflowStartResult<TInstanceHandle>
 public sealed record ActiveWaitSnapshot(
     WaitId WaitId,
     AuthoredLocation AuthoredLocation,
-    EventName EventName,
+    WorkflowEventContract EventContract,
     CorrelationId CorrelationId,
     DateTimeOffset RegisteredAt,
     DateTimeOffset? Deadline);
@@ -540,19 +540,20 @@ public sealed class AmbiguousWaitRegistrationException : OrcaCoreException
 {
     internal AmbiguousWaitRegistrationException(
         DefinitionId definitionId,
-        EventName eventName,
+        WorkflowEventContract eventContract,
         CorrelationId correlationId)
         : base(
             "WF-WAIT-AMBIGUOUS",
-            $"More than one active wait matches definition '{definitionId}', event '{eventName}', and correlation '{correlationId}'.")
+            $"More than one active wait matches definition '{definitionId}', event " +
+            $"'{eventContract?.EventName}' version '{eventContract?.Version}', and correlation '{correlationId}'.")
     {
         DefinitionId = definitionId ?? throw new ArgumentNullException(nameof(definitionId));
-        EventName = eventName ?? throw new ArgumentNullException(nameof(eventName));
+        EventContract = eventContract ?? throw new ArgumentNullException(nameof(eventContract));
         CorrelationId = correlationId ?? throw new ArgumentNullException(nameof(correlationId));
     }
 
     public DefinitionId DefinitionId { get; }
-    public EventName EventName { get; }
+    public WorkflowEventContract EventContract { get; }
     public CorrelationId CorrelationId { get; }
 }
 

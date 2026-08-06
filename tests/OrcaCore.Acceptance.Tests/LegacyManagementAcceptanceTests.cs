@@ -37,7 +37,7 @@ public sealed class LegacyManagementAcceptanceTests
     {
         return global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(input => new TestState { Name = input })
-            .Wait(EventName.Create("Ready"), state => CorrelationId.Create(state.Value.Name))
+            .Wait(WorkflowEventContract.Create(EventName.Create("Ready"), EventContractVersion.Initial), state => CorrelationId.Create(state.Value.Name))
             .Then(_ => ValueTask.CompletedTask)
             .End()
             .Build();

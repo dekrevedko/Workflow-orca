@@ -91,6 +91,7 @@ internal sealed class DurableWaitState
                     waitRegistered.BranchId,
                     waitRegistered.TimeoutTimerId)
                 {
+                    EventContractVersion = waitRegistered.EventContractVersion,
                     WaitSequence = waitRegistered.WaitSequence,
                     FiberId = waitRegistered.FiberId,
                     ScopeId = waitRegistered.ScopeId
@@ -113,6 +114,7 @@ internal sealed class DurableWaitState
                     waitMatched.Payload,
                     waitMatched.OccurredAt)
                 {
+                    EventContractVersion = waitMatched.EventContractVersion ?? matchedWait?.EventContractVersion,
                     WaitSequence = waitMatched.WaitSequence != 0
                         ? waitMatched.WaitSequence
                         : matchedWait?.WaitSequence ?? 0,
@@ -161,6 +163,7 @@ internal sealed class DurableWaitState
                 wait.BranchId,
                 wait.TimeoutTimerId)
             {
+                EventContractVersion = wait.EventContractVersion,
                 WaitSequence = wait.WaitSequence,
                 FiberId = wait.FiberId,
                 ScopeId = wait.ScopeId
@@ -181,6 +184,7 @@ internal sealed class DurableWaitState
                 pending.Payload,
                 pending.MatchedAt)
             {
+                EventContractVersion = pending.EventContractVersion,
                 WaitSequence = pending.WaitSequence,
                 FiberId = pending.FiberId,
                 ScopeId = pending.ScopeId
@@ -191,6 +195,7 @@ internal sealed class DurableWaitState
     private static bool Matches(DurableActiveWait wait, DurableEventEnvelope envelope)
     {
         return wait.EventName == envelope.EventName &&
+            wait.EventContractVersion == envelope.EventContractVersion &&
             wait.CorrelationId.Equals(envelope.CorrelationId);
     }
 

@@ -187,28 +187,28 @@ public sealed class StagedWorkflowBuilderTests
 
         Workflow.Ephemeral<State>(definitionId, DefinitionVersion.Initial)
             .Init<Input>(input => new State(input.Value))
-            .Wait(eventName, _ => CorrelationId.Create("same"), TimeSpan.FromMinutes(1))
+            .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => CorrelationId.Create("same"), TimeSpan.FromMinutes(1))
             .End()
             .Build()
             .DefinitionFingerprint
             .Should().NotBe(
                 Workflow.Ephemeral<State>(definitionId, DefinitionVersion.Initial)
                     .Init<Input>(input => new State(input.Value))
-                    .Wait(eventName, _ => CorrelationId.Create("same"), TimeSpan.FromMinutes(2))
+                    .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => CorrelationId.Create("same"), TimeSpan.FromMinutes(2))
                     .End()
                     .Build()
                     .DefinitionFingerprint);
 
         Workflow.Durable<State>(definitionId, DefinitionVersion.Initial)
             .Init<Input>(input => new State(input.Value))
-            .Wait(eventName, _ => CorrelationId.Create("same"), TimeSpan.FromMinutes(1))
+            .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => CorrelationId.Create("same"), TimeSpan.FromMinutes(1))
             .End()
             .Build()
             .DefinitionFingerprint
             .Should().NotBe(
                 Workflow.Durable<State>(definitionId, DefinitionVersion.Initial)
                     .Init<Input>(input => new State(input.Value))
-                    .Wait(eventName, _ => CorrelationId.Create("same"), TimeSpan.FromMinutes(2))
+                    .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => CorrelationId.Create("same"), TimeSpan.FromMinutes(2))
                     .End()
                     .Build()
                     .DefinitionFingerprint);

@@ -60,7 +60,7 @@ public sealed class LegacyOperationsAcceptanceTests
         var definition = Workflow
             .Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
-            .Wait(EventName.Create("Ready"), _ => CorrelationId.Create("item-1"))
+            .Wait(WorkflowEventContract.Create(EventName.Create("Ready"), EventContractVersion.Initial), _ => CorrelationId.Create("item-1"))
             .End()
             .Build();
         var definitionHandle = provider.GetRequiredService<IWorkflowDefinitionRegistry>()

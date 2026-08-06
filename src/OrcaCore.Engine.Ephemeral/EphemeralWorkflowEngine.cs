@@ -312,7 +312,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
             snapshot.ActiveWaits.Select(wait => new global::OrcaCore.ActiveWaitSnapshot(
                 wait.WaitId,
                 FailureProvenance.LocationFromCompilerPath(wait.AuthoredPath),
-                global::OrcaCore.EventName.Create(wait.EventName),
+                wait.EventContract,
                 wait.CorrelationId,
                 wait.RegisteredAt,
                 wait.Deadline)).ToArray());
@@ -657,7 +657,8 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         if (candidateIds.Count == 0)
         {
             throw new WorkflowRoutingException(
-                $"No active wait exists for event '{envelope.EventName}' and correlation '{envelope.CorrelationId}'.");
+                $"No active wait exists for event '{envelope.EventContract.EventName}' version " +
+                $"'{envelope.EventContract.Version}' and correlation '{envelope.CorrelationId}'.");
         }
 
         var matches = instanceRegistry.GetMany(candidateIds)
@@ -668,13 +669,15 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         if (matches.Length == 0)
         {
             throw new WorkflowRoutingException(
-                $"No active wait exists for event '{envelope.EventName}' and correlation '{envelope.CorrelationId}'.");
+                $"No active wait exists for event '{envelope.EventContract.EventName}' version " +
+                $"'{envelope.EventContract.Version}' and correlation '{envelope.CorrelationId}'.");
         }
 
         if (matches.Length > 1)
         {
             throw new WorkflowRoutingException(
-                $"Correlation-targeted delivery for event '{envelope.EventName}' and correlation " +
+                $"Correlation-targeted delivery for event '{envelope.EventContract.EventName}' version " +
+                $"'{envelope.EventContract.Version}' and correlation " +
                 $"'{envelope.CorrelationId}' is ambiguous; the correlation route requires exactly one active wait.");
         }
 
@@ -721,7 +724,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
     {
         ArgumentNullException.ThrowIfNull(envelope.EventId);
 
-        if (string.IsNullOrWhiteSpace(envelope.EventName.Value))
+        if (string.IsNullOrWhiteSpace(envelope.EventContract.EventName.Value))
         {
             throw new ArgumentException("EventName must not be empty.", nameof(envelope));
         }

@@ -85,29 +85,29 @@ internal static class EphemeralApplicationContractFactory
             causes);
 
     internal static WorkflowWaitTimeoutException WaitTimeout(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         CorrelationId correlationId) =>
         Construct<WorkflowWaitTimeoutException>(
-            [typeof(EventName), typeof(CorrelationId)],
-            eventName,
+            [typeof(WorkflowEventContract), typeof(CorrelationId)],
+            eventContract,
             correlationId);
 
     internal static EventEnvelope EventEnvelope(
         EventId eventId,
-        EventName eventName,
+        WorkflowEventContract eventContract,
         CorrelationId correlationId,
         DateTimeOffset occurredAt,
         ReadOnlyMemory<byte> payload) =>
         Construct<EventEnvelope>(
             [
                 typeof(EventId),
-                typeof(EventName),
+                typeof(WorkflowEventContract),
                 typeof(CorrelationId),
                 typeof(DateTimeOffset),
                 typeof(ReadOnlyMemory<byte>)
             ],
             eventId,
-            eventName,
+            eventContract,
             correlationId,
             occurredAt,
             payload);

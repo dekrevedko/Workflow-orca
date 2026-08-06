@@ -103,7 +103,7 @@ public sealed class ForEachAcceptanceTests
                 item => new ItemState(item.Index, item.Item),
                 body => body
                     .Then<FailSecondItemStep>()
-                    .Wait(EventName.Create("ItemDone"), item => CorrelationId.Create($"item-{item.Value.Index}"))
+                    .Wait(WorkflowEventContract.Create(EventName.Create("ItemDone"), EventContractVersion.Initial), item => CorrelationId.Create($"item-{item.Value.Index}"))
                     .Return(item => item.Value.Index))
             .WhenAll(MergeResults)
             .Then(context =>
@@ -193,7 +193,7 @@ public sealed class ForEachAcceptanceTests
                 ForEachOptions.Create(itemCount, maxConcurrency),
                 item => new ItemState(item.Index, item.Item),
                 body => body
-                    .Wait(EventName.Create("ItemDone"), item => CorrelationId.Create($"item-{item.Value.Index}"))
+                    .Wait(WorkflowEventContract.Create(EventName.Create("ItemDone"), EventContractVersion.Initial), item => CorrelationId.Create($"item-{item.Value.Index}"))
                     .Return(item => item.Value.Index))
             .WhenAll(MergeResults)
             .Then(context =>

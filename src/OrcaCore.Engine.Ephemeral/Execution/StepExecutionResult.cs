@@ -13,7 +13,7 @@ internal enum StepExecutionStatus
 
 internal sealed record StepExecutionResult(
     StepExecutionStatus Status,
-    string? EventName,
+    WorkflowEventContract? EventContract,
     CorrelationId? CorrelationId,
     Exception? Error)
 {
@@ -27,9 +27,11 @@ internal sealed record StepExecutionResult(
         return new StepExecutionResult(StepExecutionStatus.Stop, null, null, null);
     }
 
-    internal static StepExecutionResult Wait(string eventName, CorrelationId correlationId)
+    internal static StepExecutionResult Wait(
+        WorkflowEventContract eventContract,
+        CorrelationId correlationId)
     {
-        return new StepExecutionResult(StepExecutionStatus.Wait, eventName, correlationId, null);
+        return new StepExecutionResult(StepExecutionStatus.Wait, eventContract, correlationId, null);
     }
 
     internal static StepExecutionResult Yield()

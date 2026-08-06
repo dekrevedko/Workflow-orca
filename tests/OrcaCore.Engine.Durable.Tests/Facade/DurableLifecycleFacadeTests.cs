@@ -18,7 +18,7 @@ public sealed class DurableLifecycleFacadeTests
         var correlation = CorrelationId.Create("durable-cancellation-request");
         var definition = Workflow.Durable<State>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<Input>(input => new State(input.Value))
-            .Wait(eventName, _ => correlation)
+            .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => correlation)
             .Then<CancellationGateStep>()
             .End()
             .Build();
@@ -90,7 +90,7 @@ public sealed class DurableLifecycleFacadeTests
         var definition = Workflow.Durable<State>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<Input>(input => new State(input.Value))
             .Wait(
-                EventName.Create("never"),
+                WorkflowEventContract.Create(EventName.Create("never"), EventContractVersion.Initial),
                 _ => CorrelationId.Create("durable-termination-race"))
             .End()
             .Build();
@@ -122,7 +122,7 @@ public sealed class DurableLifecycleFacadeTests
         var correlation = CorrelationId.Create("replacement-cancellation");
         var definition = Workflow.Durable<State>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<Input>(input => new State(input.Value))
-            .Wait(eventName, _ => correlation)
+            .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => correlation)
             .Then<CancellationGateStep>()
             .End()
             .Build();

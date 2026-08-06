@@ -65,30 +65,40 @@ internal sealed class EphemeralNestedBuilder<TInput, TState>
     }
 
     public EphemeralNestedBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
     {
-        ArgumentNullException.ThrowIfNull(eventName);
+        ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlation);
-        builder.Wait(eventName.Value, state => correlation(AuthoringContractFactory.Snapshot(state)));
+        builder.Wait(eventContract, state => correlation(AuthoringContractFactory.Snapshot(state)));
         return this;
     }
 
     public EphemeralNestedBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout)
     {
         PublicAuthoringValidation.Positive(timeout, nameof(timeout));
-        ArgumentNullException.ThrowIfNull(eventName);
+        ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlation);
         builder.AddWait(
-            eventName.Value,
+            eventContract,
             state => correlation(AuthoringContractFactory.Snapshot(state)),
             WaitMode.Resident,
             timeout);
         return this;
     }
+
+    public EphemeralNestedBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        Wait((WorkflowEventContract)eventContract, correlation);
+
+    public EphemeralNestedBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        TimeSpan timeout) => Wait((WorkflowEventContract)eventContract, correlation, timeout);
 
     public EphemeralNestedBuilder<TInput, TState> Delay(TimeSpan duration)
     {
@@ -138,30 +148,40 @@ internal sealed class DurableNestedBuilder<TInput, TState>
     }
 
     public DurableNestedBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
     {
-        ArgumentNullException.ThrowIfNull(eventName);
+        ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlation);
-        builder.AddWait(eventName.Value, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold);
+        builder.AddWait(eventContract, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold);
         return this;
     }
 
     public DurableNestedBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout)
     {
         PublicAuthoringValidation.Positive(timeout, nameof(timeout));
-        ArgumentNullException.ThrowIfNull(eventName);
+        ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlation);
         builder.AddWait(
-            eventName.Value,
+            eventContract,
             state => correlation(AuthoringContractFactory.Snapshot(state)),
             WaitMode.Cold,
             timeout);
         return this;
     }
+
+    public DurableNestedBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        Wait((WorkflowEventContract)eventContract, correlation);
+
+    public DurableNestedBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        TimeSpan timeout) => Wait((WorkflowEventContract)eventContract, correlation, timeout);
 
     public DurableNestedBuilder<TInput, TState> Delay(TimeSpan duration)
     {
@@ -235,30 +255,40 @@ internal sealed class DurableLeaseWorkflowBuilder<TInput, TState>
     }
 
     public DurableLeaseWorkflowBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
     {
-        ArgumentNullException.ThrowIfNull(eventName);
+        ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlation);
-        builder.AddWait(eventName.Value, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold);
+        builder.AddWait(eventContract, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold);
         return this;
     }
 
     public DurableLeaseWorkflowBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout)
     {
         PublicAuthoringValidation.Positive(timeout, nameof(timeout));
-        ArgumentNullException.ThrowIfNull(eventName);
+        ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlation);
         builder.AddWait(
-            eventName.Value,
+            eventContract,
             state => correlation(AuthoringContractFactory.Snapshot(state)),
             WaitMode.Cold,
             timeout);
         return this;
     }
+
+    public DurableLeaseWorkflowBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        Wait((WorkflowEventContract)eventContract, correlation);
+
+    public DurableLeaseWorkflowBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        TimeSpan timeout) => Wait((WorkflowEventContract)eventContract, correlation, timeout);
 
     public DurableLeaseWorkflowBuilder<TInput, TState> Delay(TimeSpan duration)
     {
@@ -308,30 +338,40 @@ internal sealed class DurableLeaseNestedBuilder<TInput, TState>
     }
 
     public DurableLeaseNestedBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
     {
-        ArgumentNullException.ThrowIfNull(eventName);
+        ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlation);
-        builder.AddWait(eventName.Value, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold);
+        builder.AddWait(eventContract, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold);
         return this;
     }
 
     public DurableLeaseNestedBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout)
     {
         PublicAuthoringValidation.Positive(timeout, nameof(timeout));
-        ArgumentNullException.ThrowIfNull(eventName);
+        ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlation);
         builder.AddWait(
-            eventName.Value,
+            eventContract,
             state => correlation(AuthoringContractFactory.Snapshot(state)),
             WaitMode.Cold,
             timeout);
         return this;
     }
+
+    public DurableLeaseNestedBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        Wait((WorkflowEventContract)eventContract, correlation);
+
+    public DurableLeaseNestedBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        TimeSpan timeout) => Wait((WorkflowEventContract)eventContract, correlation, timeout);
 
     public DurableLeaseNestedBuilder<TInput, TState> Delay(TimeSpan duration)
     {

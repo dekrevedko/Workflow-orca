@@ -152,6 +152,9 @@ public sealed record WorkflowWaitRegisteredEvent : WorkflowEvent
     /// </summary>
     public required string EventName { get; init; }
 
+    /// <summary>Gets the positive application-owned event-contract version.</summary>
+    public int EventContractVersion { get; init; } = 1;
+
     /// <summary>
     /// Gets the wait correlation identity.
     /// </summary>
@@ -200,6 +203,9 @@ public sealed record WorkflowWaitMatchedEvent : WorkflowEvent
     /// compaction between the match and its consumption by the driver.
     /// </summary>
     public string? EventName { get; init; }
+
+    /// <summary>Gets the matched application-owned event-contract version, when event-backed.</summary>
+    public int? EventContractVersion { get; init; }
 
     /// <summary>
     /// Gets the matched event correlation identity.

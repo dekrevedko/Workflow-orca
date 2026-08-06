@@ -35,7 +35,7 @@ public sealed class DurablePostgreSqlApplicationJourneyTests : IAsyncLifetime
                 DefinitionId.New(),
                 DefinitionVersion.Initial)
             .Init<JourneyInput>(input => new JourneyState(input.Value))
-            .Wait(continueEvent, _ => correlation)
+            .Wait(WorkflowEventContract.Create(continueEvent, EventContractVersion.Initial), _ => correlation)
             .End(
                 state => new JourneyOutput(state.Value.Value + 1),
                 WorkflowOutcomeName.Create("finished"))

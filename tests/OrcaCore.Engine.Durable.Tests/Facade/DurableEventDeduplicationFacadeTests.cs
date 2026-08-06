@@ -175,7 +175,7 @@ public sealed class DurableEventDeduplicationFacadeTests
     {
         return Workflow.Durable<State>(definitionId, DefinitionVersion.Initial)
             .Init<Input>(input => new State(input.Correlation))
-            .Wait(eventName, state => CorrelationId.Create(state.Value.Correlation))
+            .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), state => CorrelationId.Create(state.Value.Correlation))
             .End(WorkflowOutcomeName.Create("completed"))
             .Build();
     }

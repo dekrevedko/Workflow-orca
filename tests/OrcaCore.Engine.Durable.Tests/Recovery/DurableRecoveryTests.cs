@@ -173,7 +173,7 @@ public sealed class DurableRecoveryTests
     {
         return Workflow.Durable<RecoveryState>(definitionId, DefinitionVersion.Initial)
             .Init<Input>(input => new RecoveryState(input.Correlation))
-            .Wait(eventName, state => CorrelationId.Create(state.Value.Correlation))
+            .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), state => CorrelationId.Create(state.Value.Correlation))
             .End(WorkflowOutcomeName.Create("recovered"))
             .Build();
     }

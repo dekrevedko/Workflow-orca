@@ -121,6 +121,8 @@ internal sealed record DurableActiveWait(
     string? BranchId = null,
     TimerId? TimeoutTimerId = null)
 {
+    public int EventContractVersion { get; init; } = 1;
+
     public FiberId? FiberId { get; init; }
 
     public ScopeId? ScopeId { get; init; }
@@ -138,6 +140,8 @@ internal sealed record DurablePendingResume(
     byte[]? Payload,
     DateTimeOffset MatchedAt)
 {
+    public int? EventContractVersion { get; init; }
+
     public FiberId? FiberId { get; init; }
 
     public ScopeId? ScopeId { get; init; }
@@ -256,6 +260,8 @@ internal sealed record DurableWaitRegisteredCommand(
     WaitMode Mode = WaitMode.Resident,
     string? BranchId = null)
 {
+    public int EventContractVersion { get; init; } = 1;
+
     public FiberId? FiberId { get; init; }
 
     public ScopeId? ScopeId { get; init; }

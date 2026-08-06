@@ -262,7 +262,9 @@ internal sealed class BranchBuilder<TBranchState, TResult>
         ArgumentNullException.ThrowIfNull(correlationSelector);
         using var operation = Mutate();
         instructions.Add(new BranchWaitAuthoringInstruction(
-            eventName,
+            global::OrcaCore.WorkflowEventContract.Create(
+                global::OrcaCore.EventName.Create(eventName),
+                global::OrcaCore.EventContractVersion.Initial),
             correlationSelector,
             WaitMode.Resident,
             Timeout: null));
@@ -270,16 +272,16 @@ internal sealed class BranchBuilder<TBranchState, TResult>
     }
 
     internal void AddWait(
-        string eventName,
+        global::OrcaCore.WorkflowEventContract eventContract,
         Func<TBranchState, CorrelationId> correlationSelector,
         WaitMode mode,
         TimeSpan? timeout = null)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
+        ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlationSelector);
         using var operation = Mutate();
         instructions.Add(new BranchWaitAuthoringInstruction(
-            eventName,
+            eventContract,
             correlationSelector,
             mode,
             timeout));
@@ -422,7 +424,7 @@ internal sealed record BranchStepAuthoringInstruction(
     WorkflowPolicySet Policies) : BranchAuthoringInstruction;
 
 internal sealed record BranchWaitAuthoringInstruction(
-    string EventName,
+    global::OrcaCore.WorkflowEventContract EventContract,
     Delegate CorrelationSelector,
     WaitMode Mode,
     TimeSpan? Timeout) : BranchAuthoringInstruction;

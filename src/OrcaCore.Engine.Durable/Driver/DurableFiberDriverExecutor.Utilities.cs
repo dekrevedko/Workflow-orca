@@ -25,7 +25,9 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         consumedWaitId = pending.WaitId;
         return RuntimeStepContextFactory.CreateResumedEvent(
             pending.MatchedEventId,
-            EventName.Create(pending.EventName ?? "(unnamed)"),
+            WorkflowEventContract.Create(
+                EventName.Create(pending.EventName ?? "(unnamed)"),
+                new EventContractVersion(pending.EventContractVersion ?? 1)),
             pending.CorrelationId ?? CorrelationId.Create("(uncorrelated)"),
             pending.MatchedAt,
             pending.Payload ?? []);

@@ -85,7 +85,7 @@ public sealed class MailboxAcceptanceTests
         global::OrcaCore.Workflow
             .Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
-            .Wait(EventName.Create("First"), _ => FirstCorrelation)
+            .Wait(WorkflowEventContract.Create(EventName.Create("First"), EventContractVersion.Initial), _ => FirstCorrelation)
             .Then(CapturePayload)
             .End()
             .Build();
@@ -94,9 +94,9 @@ public sealed class MailboxAcceptanceTests
         global::OrcaCore.Workflow
             .Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
-            .Wait(EventName.Create("First"), _ => FirstCorrelation)
+            .Wait(WorkflowEventContract.Create(EventName.Create("First"), EventContractVersion.Initial), _ => FirstCorrelation)
             .Then(CapturePayload)
-            .Wait(EventName.Create("Second"), _ => SecondCorrelation)
+            .Wait(WorkflowEventContract.Create(EventName.Create("Second"), EventContractVersion.Initial), _ => SecondCorrelation)
             .Then(CapturePayload)
             .End()
             .Build();
@@ -121,7 +121,9 @@ public sealed class MailboxAcceptanceTests
     private static string ReadPayload(EventEnvelope? resumedEvent)
     {
         resumedEvent.Should().NotBeNull();
-        return resumedEvent!.GetPayload<string>();
+        return resumedEvent!.GetPayload(WorkflowEventContract<string>.Create(
+            resumedEvent.EventContract.EventName,
+            resumedEvent.EventContract.Version));
     }
 
     public sealed class TestState

@@ -29,7 +29,7 @@ public sealed class EphemeralApplicationJourneyTests
                 DefinitionId.New(),
                 DefinitionVersion.Initial)
             .Init<JourneyInput>(input => new JourneyState(input.Value))
-            .Wait(ready, _ => correlation)
+            .Wait(WorkflowEventContract.Create(ready, EventContractVersion.Initial), _ => correlation)
             .End(
                 state => new JourneyOutput(state.Value.Value + 1),
                 WorkflowOutcomeName.Create("finished"))

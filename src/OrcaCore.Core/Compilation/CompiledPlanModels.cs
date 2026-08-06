@@ -109,7 +109,7 @@ internal sealed record CompiledInstruction(
 
     public InstructionId? AlternateInstructionId { get; init; }
 
-    public string? EventName { get; init; }
+    public global::OrcaCore.WorkflowEventContract? EventContract { get; init; }
 
     public WaitMode? WaitMode { get; init; }
 

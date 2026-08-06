@@ -294,7 +294,7 @@ public sealed class StructuredFiberExecutionPublicTests
                 DefinitionId.New(),
                 DefinitionVersion.Initial)
             .Init<string>(value => new ParentState(value, []))
-            .Wait(StartWork, _ => WaitCorrelation)
+            .Wait(WorkflowEventContract.Create(StartWork, EventContractVersion.Initial), _ => WaitCorrelation)
             .Parallel<string>(branches => branches
                 .Branch<BranchState>(
                     AuthoredBranchId.Create("pooled"),
@@ -379,7 +379,7 @@ public sealed class StructuredFiberExecutionPublicTests
                 DefinitionId.New(),
                 DefinitionVersion.Initial)
             .Init<string>(value => new ParentState(value, []))
-            .Wait(StartWork, _ => WaitCorrelation)
+            .Wait(WorkflowEventContract.Create(StartWork, EventContractVersion.Initial), _ => WaitCorrelation)
             .Then(_ => ValueTask.FromException(
                 new InvalidOperationException("resource continuation exploded")))
             .WithTransientPool(pool)
@@ -470,8 +470,8 @@ public sealed class StructuredFiberExecutionPublicTests
                 DefinitionId.New(),
                 DefinitionVersion.Initial)
             .Init<string>(value => new ParentState(value, []))
-            .Wait(first, _ => WaitCorrelation)
-            .Wait(second, _ => throw new InvalidOperationException("correlation exploded"))
+            .Wait(WorkflowEventContract.Create(first, EventContractVersion.Initial), _ => WaitCorrelation)
+            .Wait(WorkflowEventContract.Create(second, EventContractVersion.Initial), _ => throw new InvalidOperationException("correlation exploded"))
             .End()
             .Build();
         var instance = await StartAsync(provider, definition, "throwing-correlation");
@@ -561,13 +561,13 @@ public sealed class StructuredFiberExecutionPublicTests
                 DefinitionId.New(),
                 DefinitionVersion.Initial)
             .Init<string>(value => new ParentState(value, []))
-            .Wait(StartWork, _ => WaitCorrelation)
+            .Wait(WorkflowEventContract.Create(StartWork, EventContractVersion.Initial), _ => WaitCorrelation)
             .Parallel<string>(branches => branches
                 .Branch<BranchState>(
                     AuthoredBranchId.Create("waiting"),
                     _ => new BranchState("waiting"),
                     branch => branch
-                        .Wait(Continue, _ => WaitCorrelation)
+                        .Wait(WorkflowEventContract.Create(Continue, EventContractVersion.Initial), _ => WaitCorrelation)
                         .Return(state => state.Value.Name))
                 .Branch<BranchState>(
                     AuthoredBranchId.Create("running"),
@@ -598,7 +598,7 @@ public sealed class StructuredFiberExecutionPublicTests
 
         active.Status.Should().Be(WorkflowInstanceStatus.Running);
         active.ActiveWaits.Should().ContainSingle()
-            .Which.EventName.Should().Be(Continue);
+            .Which.EventContract.EventName.Should().Be(Continue);
 
         running.Release();
         _ = await startFanout;
@@ -624,19 +624,19 @@ public sealed class StructuredFiberExecutionPublicTests
                 DefinitionId.New(),
                 DefinitionVersion.Initial)
             .Init<string>(value => new ParentState(value, []))
-            .Wait(StartWork, _ => WaitCorrelation)
+            .Wait(WorkflowEventContract.Create(StartWork, EventContractVersion.Initial), _ => WaitCorrelation)
             .Parallel<string>(branches => branches
                 .Branch<BranchState>(
                     AuthoredBranchId.Create("first"),
                     _ => new BranchState("first"),
                     branch => branch
-                        .Wait(Ready, _ => WaitCorrelation)
+                        .Wait(WorkflowEventContract.Create(Ready, EventContractVersion.Initial), _ => WaitCorrelation)
                         .Return(state => state.Value.Name))
                 .Branch<BranchState>(
                     AuthoredBranchId.Create("second"),
                     _ => new BranchState("second"),
                     branch => branch
-                        .Wait(Ready, _ => WaitCorrelation)
+                        .Wait(WorkflowEventContract.Create(Ready, EventContractVersion.Initial), _ => WaitCorrelation)
                         .Return(state => state.Value.Name)))
             .WhenAll((parent, results) => parent.Value with
             {
@@ -754,7 +754,7 @@ public sealed class StructuredFiberExecutionPublicTests
                 DefinitionId.New(),
                 DefinitionVersion.Initial)
             .Init<string>(value => new ParentState(value, []))
-            .Wait(Continue, _ => WaitCorrelation)
+            .Wait(WorkflowEventContract.Create(Continue, EventContractVersion.Initial), _ => WaitCorrelation)
             .Then<CapturePayloadStep>()
             .End()
             .Build();
@@ -1035,13 +1035,13 @@ public sealed class StructuredFiberExecutionPublicTests
                     AuthoredBranchId.Create("first"),
                     _ => new BranchState("first"),
                     branch => branch
-                        .Wait(Continue, _ => CorrelationId.Create("first"))
+                        .Wait(WorkflowEventContract.Create(Continue, EventContractVersion.Initial), _ => CorrelationId.Create("first"))
                         .Return(state => state.Value.Name))
                 .Branch<BranchState>(
                     AuthoredBranchId.Create("second"),
                     _ => new BranchState("second"),
                     branch => branch
-                        .Wait(Continue, _ => CorrelationId.Create("second"))
+                        .Wait(WorkflowEventContract.Create(Continue, EventContractVersion.Initial), _ => CorrelationId.Create("second"))
                         .Return(state => state.Value.Name)))
             .WhenAllOutcomes((parent, _) =>
             {
@@ -1081,7 +1081,7 @@ public sealed class StructuredFiberExecutionPublicTests
                 ForEachOptions.Create(2, 2),
                 item => new ItemState(item.Index, item.Item),
                 body => body
-                    .Wait(Continue, state => CorrelationId.Create(state.Value.Value))
+                    .Wait(WorkflowEventContract.Create(Continue, EventContractVersion.Initial), state => CorrelationId.Create(state.Value.Value))
                     .Return(state => state.Value.Value))
             .WhenAll((parent, _) =>
             {
@@ -1128,7 +1128,7 @@ public sealed class StructuredFiberExecutionPublicTests
                             _ => new BranchState(captured.ToString()),
                             branch => branch
                                 .Wait(
-                                    Ready,
+                                    WorkflowEventContract.Create(Ready, EventContractVersion.Initial),
                                     _ => CorrelationId.Create($"branch-{captured}"))
                                 .Return(state => state.Value.Name));
                     }
@@ -1184,7 +1184,7 @@ public sealed class StructuredFiberExecutionPublicTests
                     item => new ItemState(item.Index, item.Item.ToString()),
                     body => body
                         .Wait(
-                            Ready,
+                            WorkflowEventContract.Create(Ready, EventContractVersion.Initial),
                             state => CorrelationId.Create($"item-{state.Value.Index}"))
                         .Return(state => state.Value.Value))
                 .WhenAll((parent, results) =>
@@ -1364,7 +1364,7 @@ public sealed class StructuredFiberExecutionPublicTests
                         then => then.Then(_ => ValueTask.FromException(
                             new WorkflowLifecycleException("item failed"))),
                         otherwise => otherwise.Wait(
-                            Continue,
+                            WorkflowEventContract.Create(Continue, EventContractVersion.Initial),
                             state => CorrelationId.Create(
                                 $"item-{state.Value.Index}")))
                     .Return(state => state.Value.Value))
@@ -1549,7 +1549,7 @@ public sealed class StructuredFiberExecutionPublicTests
                 DefinitionId.New(),
                 DefinitionVersion.Initial)
             .Init<string>(value => new ParentState(value, []))
-            .Wait(StartWork, _ => WaitCorrelation)
+            .Wait(WorkflowEventContract.Create(StartWork, EventContractVersion.Initial), _ => WaitCorrelation)
             .Parallel<string>(branches => branches.Branch(
                 branchId,
                 _ => new BranchState(name),
@@ -1571,7 +1571,7 @@ public sealed class StructuredFiberExecutionPublicTests
                 item => new ItemState(item.Index, item.Item),
                 body => body
                     .Wait(
-                        Continue,
+                        WorkflowEventContract.Create(Continue, EventContractVersion.Initial),
                         state => CorrelationId.Create(
                             $"item-{state.Value.Index}"))
                     .Return(state => state.Value.Value))
@@ -1695,7 +1695,9 @@ public sealed class StructuredFiberExecutionPublicTests
             StepContext<ParentState> context,
             CancellationToken cancellationToken) =>
             ValueTask.FromResult<StepResult>(
-                new StepResult.WaitForEvent(Continue, WaitCorrelation));
+                new StepResult.WaitForEvent(
+                    WorkflowEventContract.Create(Continue, EventContractVersion.Initial),
+                    WaitCorrelation));
     }
 
     private sealed class CapturePayloadStep : IStep<ParentState>
@@ -1707,7 +1709,9 @@ public sealed class StructuredFiberExecutionPublicTests
             context.State.Results.Add(
                 context.ResumedEvent is null
                     ? "unexpected:null"
-                    : context.ResumedEvent.GetPayload<string>());
+                    : context.ResumedEvent.GetPayload(WorkflowEventContract<string>.Create(
+                        context.ResumedEvent.EventContract.EventName,
+                        context.ResumedEvent.EventContract.Version)));
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
         }
     }

@@ -8,6 +8,10 @@ namespace OrcaCore.Engine.Ephemeral.Tests.Execution;
 public sealed class StepContextPublicContractTests
 {
     private static readonly EventName Resume = EventName.Create("step-context-resume");
+    private static readonly WorkflowEventContract<ResumePayload> TypedDynamicResume =
+        WorkflowEventContract<ResumePayload>.Create(
+            EventName.Create("step-context-dynamic-resume"),
+            EventContractVersion.Initial);
     private static readonly CorrelationId ResumeCorrelation = CorrelationId.Create("step-context-correlation");
 
     [Fact]
@@ -16,11 +20,14 @@ public sealed class StepContextPublicContractTests
         using var provider = CreateProvider();
         var definition = Workflow.Ephemeral<ResumeState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new ResumeState([]))
-            .Wait(Resume, _ => ResumeCorrelation)
+            .Wait(WorkflowEventContract.Create(Resume, EventContractVersion.Initial), _ => ResumeCorrelation)
             .Then(context =>
             {
-                var first = context.ResumedEvent!.GetPayload<ResumePayload>();
-                var second = context.ResumedEvent.GetPayload<ResumePayload>();
+                var descriptor = WorkflowEventContract<ResumePayload>.Create(
+                    context.ResumedEvent!.EventContract.EventName,
+                    context.ResumedEvent.EventContract.Version);
+                var first = context.ResumedEvent.GetPayload(descriptor);
+                var second = context.ResumedEvent.GetPayload(descriptor);
                 first.Values.Add("changed-in-step");
                 context.State.Observations.Add($"{first.Name}:{string.Join(',', first.Values)}");
                 context.State.Observations.Add($"detached:{!ReferenceEquals(first, second)}");
@@ -51,11 +58,14 @@ public sealed class StepContextPublicContractTests
         using var provider = CreateProvider();
         var definition = Workflow.Ephemeral<ResumeState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new ResumeState([]))
-            .Wait(Resume, _ => ResumeCorrelation)
+            .Wait(WorkflowEventContract.Create(Resume, EventContractVersion.Initial), _ => ResumeCorrelation)
             .Then(context =>
             {
                 context.State.Observations.Add(
-                    $"first:{context.ResumedEvent?.GetPayload<string>() ?? "missing"}");
+                    $"first:{(context.ResumedEvent is { } resumed ? resumed.GetPayload(
+                        WorkflowEventContract<string>.Create(
+                            resumed.EventContract.EventName,
+                            resumed.EventContract.Version)) : "missing")}");
                 return ValueTask.CompletedTask;
             })
             .Then(context =>
@@ -75,6 +85,90 @@ public sealed class StepContextPublicContractTests
     }
 
     [Fact]
+    public async Task WaitMatching_RequiresTheExactEventContractVersion()
+    {
+        using var provider = CreateProvider();
+        var expected = WorkflowEventContract.Create(Resume, new EventContractVersion(2));
+        var definition = Workflow.Ephemeral<ResumeState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(_ => new ResumeState([]))
+            .Wait(expected, _ => ResumeCorrelation)
+            .End()
+            .Build();
+        var instance = await StartAsync(provider, definition, "versioned-wait");
+        var engine = provider.GetRequiredService<EphemeralWorkflowEngine>();
+
+        var wrongVersion = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.EventEnvelope(
+            EventId.Create("versioned-wait-v1"),
+            WorkflowEventContract.Create(Resume, EventContractVersion.Initial),
+            ResumeCorrelation,
+            DateTimeOffset.UtcNow,
+            ReadOnlyMemory<byte>.Empty);
+        var stillWaiting = await engine.RaiseEventAsync<ResumeState>(
+            instance.InstanceId,
+            wrongVersion,
+            TestContext.Current.CancellationToken);
+
+        stillWaiting.Status.Should().Be(WorkflowInstanceStatus.Waiting);
+        stillWaiting.ActiveWaits.Should().ContainSingle()
+            .Which.EventContract.Should().Be(expected);
+
+        using var matchingProvider = CreateProvider();
+        var matchingInstance = await StartAsync(matchingProvider, definition, "versioned-wait-match");
+        var matchingEngine = matchingProvider.GetRequiredService<EphemeralWorkflowEngine>();
+        var exactVersion = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.EventEnvelope(
+            EventId.Create("versioned-wait-v2"),
+            WorkflowEventContract.Create(Resume, new EventContractVersion(2)),
+            ResumeCorrelation,
+            DateTimeOffset.UtcNow,
+            ReadOnlyMemory<byte>.Empty);
+        var completed = await matchingEngine.RaiseEventAsync<ResumeState>(
+            matchingInstance.InstanceId,
+            exactVersion,
+            TestContext.Current.CancellationToken);
+
+        completed.Status.Should().Be(
+            WorkflowInstanceStatus.Completed,
+            completed.Failure?.Message);
+    }
+
+    [Fact]
+    public async Task TypedDynamicWait_IsRegisteredAndResumedThroughItsDescriptor()
+    {
+        using var provider = CreateProvider();
+        var definition = Workflow.Ephemeral<ResumeState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(_ => new ResumeState([]))
+            .Then<TypedDynamicWaitStep>()
+            .Then(context =>
+            {
+                var payload = context.ResumedEvent!.GetPayload(TypedDynamicResume);
+                context.State.Observations.Add(payload.Name);
+                return ValueTask.CompletedTask;
+            })
+            .End()
+            .Build();
+        var instance = await StartAsync(provider, definition, "typed-dynamic-wait");
+
+        var waiting = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        waiting.Status.Should().Be(WorkflowInstanceStatus.Waiting, waiting.Failure?.Message);
+        waiting.ActiveWaits.Should().ContainSingle()
+            .Which.EventContract.Should().Be(TypedDynamicResume);
+
+        var delivery = await provider.GetRequiredService<IWorkflowEventClient>().DeliverToInstanceAsync(
+            instance.InstanceId,
+            WorkflowEvent<ResumePayload>.Create(
+                EventId.Create("typed-dynamic-wait-event"),
+                TypedDynamicResume.EventName,
+                ResumeCorrelation,
+                new ResumePayload("typed-payload", []),
+                DateTimeOffset.UtcNow),
+            TestContext.Current.CancellationToken);
+        var state = await instance.GetStateAsync<ResumeState>(TestContext.Current.CancellationToken);
+
+        delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
+        state.Observations.Should().Equal("typed-payload");
+    }
+
+    [Fact]
     public async Task ForEachItemIndex_RemainsStableAcrossInterleavedConcurrentResumes()
     {
         using var provider = CreateProvider(maxConcurrentPaths: 4);
@@ -91,7 +185,7 @@ public sealed class StepContextPublicContractTests
                         return ValueTask.CompletedTask;
                     })
                     .Wait(
-                        Resume,
+                        WorkflowEventContract.Create(Resume, EventContractVersion.Initial),
                         state => CorrelationId.Create($"item-{state.Value.ExpectedIndex}"))
                     .Then(context =>
                     {
@@ -183,6 +277,7 @@ public sealed class StepContextPublicContractTests
     private static ServiceProvider CreateProvider(int maxConcurrentPaths = 4)
     {
         var services = new ServiceCollection();
+        services.AddTransient<TypedDynamicWaitStep>();
         services.AddOrcaCoreEphemeralEngine(new EphemeralEngineHostOptions
         {
             StructuredExecution = new StructuredExecutionHostOptions
@@ -245,6 +340,15 @@ public sealed class StepContextPublicContractTests
     private sealed record ResumeState(List<string> Observations);
 
     private sealed record ResumePayload(string Name, List<string> Values);
+
+    private sealed class TypedDynamicWaitStep : IStep<ResumeState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<ResumeState> context,
+            CancellationToken cancellationToken) =>
+            ValueTask.FromResult<StepResult>(
+                new StepResult.WaitForEvent<ResumePayload>(TypedDynamicResume, ResumeCorrelation));
+    }
 
     private sealed record ForEachRootState(List<string> Results);
 

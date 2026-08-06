@@ -559,7 +559,7 @@ public static class LeaseAdmissionScenarioHost
                 snapshot => snapshot.Value,
                 branch => branch
                     .Wait(
-                        EventName.Create("Resume-Forged-Ancestry"),
+                        WorkflowEventContract.Create(EventName.Create("Resume-Forged-Ancestry"), EventContractVersion.Initial),
                         _ => CorrelationId.Create("forged-ancestry"))
                     .AcquireResources(
                         request,

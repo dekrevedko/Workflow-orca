@@ -220,7 +220,7 @@ public static class FacadeHostingScenarioHost
         var events = provider.GetRequiredService<IWorkflowEventClient>();
         var definition = Workflow.Ephemeral<FacadeState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<FacadeInput>(input => new FacadeState(input.Value))
-            .Wait(eventName, _ => correlation)
+            .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => correlation)
             .Then<BarrierFacadeStep>()
             .End(snapshot => new FacadeOutput(snapshot.Value.Value + 1))
             .Build();
@@ -684,7 +684,7 @@ public static class FacadeHostingScenarioHost
             _ = Workflow.Ephemeral<FacadeState>(DefinitionId.New(), DefinitionVersion.Initial)
                 .Init<FacadeInput>(input => new FacadeState(input.Value))
                 .Wait(
-                    EventName.Create("not-a-step"),
+                    WorkflowEventContract.Create(EventName.Create("not-a-step"), EventContractVersion.Initial),
                     _ => CorrelationId.Create("not-a-step"))
                 .WithTransientPool(poolName);
             throw new InvalidOperationException("A transient pool decorated a structural wait.");
@@ -762,7 +762,7 @@ public static class FacadeHostingScenarioHost
         var correlation = CorrelationId.Create($"route-{suffix}");
         var definition = Workflow.Ephemeral<FacadeState>(definitionId, DefinitionVersion.Initial)
             .Init<FacadeInput>(input => new FacadeState(input.Value))
-            .Wait(eventName, _ => correlation)
+            .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => correlation)
             .End()
             .Build();
         var handle = registry.Register(definition).GetHandleOrThrow();

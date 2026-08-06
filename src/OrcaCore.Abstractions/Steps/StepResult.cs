@@ -33,15 +33,35 @@ public abstract record StepResult
     /// </summary>
     public sealed record WaitForEvent : StepResult
     {
-        public WaitForEvent(EventName eventName, CorrelationId correlationId)
+        public WaitForEvent(WorkflowEventContract eventContract, CorrelationId correlationId)
         {
-            ArgumentNullException.ThrowIfNull(eventName);
+            ArgumentNullException.ThrowIfNull(eventContract);
             ArgumentNullException.ThrowIfNull(correlationId);
-            EventName = eventName;
+            EventContract = eventContract;
             CorrelationId = correlationId;
         }
 
-        public EventName EventName { get; }
+        public WorkflowEventContract EventContract { get; }
+
+        public CorrelationId CorrelationId { get; }
+    }
+
+    /// <summary>
+    /// Indicates that execution should wait for a matching typed event.
+    /// </summary>
+    public sealed record WaitForEvent<TPayload> : StepResult
+    {
+        public WaitForEvent(
+            WorkflowEventContract<TPayload> eventContract,
+            CorrelationId correlationId)
+        {
+            ArgumentNullException.ThrowIfNull(eventContract);
+            ArgumentNullException.ThrowIfNull(correlationId);
+            EventContract = eventContract;
+            CorrelationId = correlationId;
+        }
+
+        public WorkflowEventContract<TPayload> EventContract { get; }
 
         public CorrelationId CorrelationId { get; }
     }

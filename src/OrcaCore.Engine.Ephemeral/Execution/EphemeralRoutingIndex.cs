@@ -44,7 +44,10 @@ internal sealed class EphemeralRoutingIndex
             }
 
             var activeKeys = snapshot.ActiveWaits
-                .Select(wait => new WaitRoutingKey(wait.EventName, wait.CorrelationId))
+                .Select(wait => new WaitRoutingKey(
+                    wait.EventContract.EventName.Value,
+                    wait.EventContract.Version.Value,
+                    wait.CorrelationId))
                 .Distinct()
                 .ToArray();
             if (activeKeys.Length == 0)
@@ -60,11 +63,17 @@ internal sealed class EphemeralRoutingIndex
         }
     }
 
-    private readonly record struct WaitRoutingKey(string EventName, CorrelationId CorrelationId)
+    private readonly record struct WaitRoutingKey(
+        string EventName,
+        int EventContractVersion,
+        CorrelationId CorrelationId)
     {
         internal static WaitRoutingKey From(EventEnvelope envelope)
         {
-            return new WaitRoutingKey(envelope.EventName.Value, envelope.CorrelationId);
+            return new WaitRoutingKey(
+                envelope.EventContract.EventName.Value,
+                envelope.EventContract.Version.Value,
+                envelope.CorrelationId);
         }
     }
 }

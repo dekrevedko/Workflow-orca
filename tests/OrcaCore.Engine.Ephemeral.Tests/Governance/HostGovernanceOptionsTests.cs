@@ -92,7 +92,7 @@ public sealed class HostGovernanceOptionsTests
                 DefinitionVersion.Initial)
             .Init<string>(_ => new State())
             .Wait(
-                EventName.Create("continue"),
+                WorkflowEventContract.Create(EventName.Create("continue"), EventContractVersion.Initial),
                 _ => CorrelationId.Create("unrelated"))
             .Then<OtherStep>()
             .End()

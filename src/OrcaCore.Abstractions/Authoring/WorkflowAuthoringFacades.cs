@@ -134,15 +134,15 @@ public sealed class EphemeralWorkflowBuilder<TInput, TState>
     }
 
     public EphemeralWorkflowBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
     {
-        AuthoringKernelProxy.Invoke(implementation, nameof(Wait), Type.EmptyTypes, eventName, correlation);
+        AuthoringKernelProxy.Invoke(implementation, nameof(Wait), Type.EmptyTypes, eventContract, correlation);
         return this;
     }
 
     public EphemeralWorkflowBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout)
     {
@@ -150,9 +150,26 @@ public sealed class EphemeralWorkflowBuilder<TInput, TState>
             implementation,
             nameof(Wait),
             Type.EmptyTypes,
-            eventName,
+            eventContract,
             correlation,
             timeout);
+        return this;
+    }
+
+    public EphemeralWorkflowBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
+    {
+        AuthoringKernelProxy.Invoke(implementation, nameof(Wait), [typeof(TPayload)], eventContract, correlation);
+        return this;
+    }
+
+    public EphemeralWorkflowBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        TimeSpan timeout)
+    {
+        AuthoringKernelProxy.Invoke(implementation, nameof(Wait), [typeof(TPayload)], eventContract, correlation, timeout);
         return this;
     }
 
@@ -264,15 +281,15 @@ public sealed class DurableWorkflowBuilder<TInput, TState>
     }
 
     public DurableWorkflowBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
     {
-        AuthoringKernelProxy.Invoke(implementation, nameof(Wait), Type.EmptyTypes, eventName, correlation);
+        AuthoringKernelProxy.Invoke(implementation, nameof(Wait), Type.EmptyTypes, eventContract, correlation);
         return this;
     }
 
     public DurableWorkflowBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout)
     {
@@ -280,9 +297,26 @@ public sealed class DurableWorkflowBuilder<TInput, TState>
             implementation,
             nameof(Wait),
             Type.EmptyTypes,
-            eventName,
+            eventContract,
             correlation,
             timeout);
+        return this;
+    }
+
+    public DurableWorkflowBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
+    {
+        AuthoringKernelProxy.Invoke(implementation, nameof(Wait), [typeof(TPayload)], eventContract, correlation);
+        return this;
+    }
+
+    public DurableWorkflowBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        TimeSpan timeout)
+    {
+        AuthoringKernelProxy.Invoke(implementation, nameof(Wait), [typeof(TPayload)], eventContract, correlation, timeout);
         return this;
     }
 

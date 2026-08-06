@@ -131,13 +131,13 @@ public sealed class ModeFirstWorkflowBuilderTests
             .Build();
         var ephemeral = Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
-            .Wait(EventName.Create("ready"), _ => correlation)
+            .Wait(WorkflowEventContract.Create(EventName.Create("ready"), EventContractVersion.Initial), _ => correlation)
             .Delay(TimeSpan.FromSeconds(5))
             .End()
             .Build();
         var durable = Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
-            .Wait(EventName.Create("approved"), _ => correlation)
+            .Wait(WorkflowEventContract.Create(EventName.Create("approved"), EventContractVersion.Initial), _ => correlation)
             .End()
             .Build();
 
@@ -158,7 +158,7 @@ public sealed class ModeFirstWorkflowBuilderTests
             definitionId,
             branch => branch
                 .Wait(
-                    EventName.Create("branch-ready"),
+                    WorkflowEventContract.Create(EventName.Create("branch-ready"), EventContractVersion.Initial),
                     _ => CorrelationId.Create("branch"))
                 .Delay(TimeSpan.FromSeconds(1))
                 .Return(_ => "done"));

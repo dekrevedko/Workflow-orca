@@ -186,7 +186,7 @@ public sealed class ResourceGovernanceTests
                 DefinitionId.New(),
                 DefinitionVersion.Initial)
             .Init<string>(_ => new State("serialized-governance"))
-            .Wait(eventName, _ => correlation)
+            .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => correlation)
             .Then<BlockingStep>()
             .End()
             .Build();
@@ -248,7 +248,7 @@ public sealed class ResourceGovernanceTests
                 DefinitionVersion.Initial)
             .Init<string>(correlation => new State(correlation))
             .Wait(
-                StartWork,
+                WorkflowEventContract.Create(StartWork, EventContractVersion.Initial),
                 state => CorrelationId.Create(state.Value.Correlation))
             .Then<BlockingStep>();
         if (pool is not null)
@@ -267,7 +267,7 @@ public sealed class ResourceGovernanceTests
                 DefinitionVersion.Initial)
             .Init<string>(correlation => new State(correlation))
             .Wait(
-                StartWork,
+                WorkflowEventContract.Create(StartWork, EventContractVersion.Initial),
                 state => CorrelationId.Create(state.Value.Correlation))
             .Then<FirstInvocationBlocksStep>();
         if (timeout is { } value)

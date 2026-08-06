@@ -211,12 +211,12 @@ internal static class DurableApplicationContractFactory
 
     internal static AmbiguousWaitRegistrationException AmbiguousWait(
         DefinitionId definitionId,
-        EventName eventName,
+        WorkflowEventContract eventContract,
         CorrelationId correlationId) =>
         Construct<AmbiguousWaitRegistrationException>(
-            [typeof(DefinitionId), typeof(EventName), typeof(CorrelationId)],
+            [typeof(DefinitionId), typeof(WorkflowEventContract), typeof(CorrelationId)],
             definitionId,
-            eventName,
+            eventContract,
             correlationId);
 
     internal static WorkflowInstanceNotFoundException InstanceNotFound(InstanceId instanceId) =>
@@ -265,11 +265,11 @@ internal static class DurableApplicationContractFactory
             missingPools);
 
     internal static WorkflowWaitTimeoutException WaitTimeout(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         CorrelationId correlationId) =>
         Construct<WorkflowWaitTimeoutException>(
-            [typeof(EventName), typeof(CorrelationId)],
-            eventName,
+            [typeof(WorkflowEventContract), typeof(CorrelationId)],
+            eventContract,
             correlationId);
 
     internal static StepAttemptTimeoutException StepTimeout(

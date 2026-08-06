@@ -92,7 +92,8 @@ public sealed class ParallelAcceptanceTests
 
         delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
         snapshot.Status.Should().Be(WorkflowInstanceStatus.Waiting);
-        snapshot.ActiveWaits.Should().ContainSingle(wait => wait.EventName.Equals(EventName.Create("B")));
+        snapshot.ActiveWaits.Should().ContainSingle(wait =>
+            wait.EventContract.EventName.Equals(EventName.Create("B")));
         state.Values.Should().BeEmpty();
     }
 
@@ -143,13 +144,13 @@ public sealed class ParallelAcceptanceTests
                         AuthoredBranchId.Create("a"),
                         _ => new BranchState("a", "A"),
                         branch => branch
-                            .Wait(EventName.Create("A"), _ => CorrelationId.Create("a"))
+                            .Wait(WorkflowEventContract.Create(EventName.Create("A"), EventContractVersion.Initial), _ => CorrelationId.Create("a"))
                             .Return(state => state.Value.Name))
                     .Branch<BranchState>(
                         AuthoredBranchId.Create("b"),
                         _ => new BranchState("b", "B"),
                         branch => branch
-                            .Wait(EventName.Create("B"), _ => CorrelationId.Create("b"))
+                            .Wait(WorkflowEventContract.Create(EventName.Create("B"), EventContractVersion.Initial), _ => CorrelationId.Create("b"))
                             .Return(state => state.Value.Name)))
             .WhenAll(MergeResults)
             .Then(context =>

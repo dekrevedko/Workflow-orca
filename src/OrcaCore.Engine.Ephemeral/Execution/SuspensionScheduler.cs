@@ -11,7 +11,7 @@ internal sealed class SuspensionScheduler<TState>(
 {
     internal async Task RegisterWaitAsync<TInput>(
         WorkflowInstance<TState> instance,
-        string eventName,
+        WorkflowEventContract eventContract,
         CorrelationId correlationId,
         TimeSpan? timeout,
         string authoredPath,
@@ -28,7 +28,7 @@ internal sealed class SuspensionScheduler<TState>(
         var registeredAt = timeProvider.GetUtcNow();
         var deadline = timeout.HasValue ? registeredAt.Add(timeout.Value) : (DateTimeOffset?)null;
         var wait = instance.EnterWait(
-            eventName,
+            eventContract,
             correlationId,
             context.BranchId,
             registeredAt,

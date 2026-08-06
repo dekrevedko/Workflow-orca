@@ -19,7 +19,7 @@ public sealed class LoopWaitAcceptanceTests
                 snapshot => snapshot.Value.Iteration < 2,
                 body => body
                     .Wait(
-                        EventName.Create("Tick"),
+                        WorkflowEventContract.Create(EventName.Create("Tick"), EventContractVersion.Initial),
                         snapshot => IterationCorrelation(snapshot.Value.Iteration))
                     .Then(context =>
                     {
@@ -75,7 +75,9 @@ public sealed class LoopWaitAcceptanceTests
     private static string ReadPayload(EventEnvelope? resumedEvent)
     {
         resumedEvent.Should().NotBeNull();
-        return resumedEvent!.GetPayload<string>();
+        return resumedEvent!.GetPayload(WorkflowEventContract<string>.Create(
+            resumedEvent.EventContract.EventName,
+            resumedEvent.EventContract.Version));
     }
 
     public sealed class TestState

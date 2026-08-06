@@ -100,7 +100,7 @@ public sealed class EphemeralWorkflowFacadeTests
         var correlation = CorrelationId.Create("cancellation-request");
         var definition = Workflow.Ephemeral<State>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<Input>(input => new State(input.Value))
-            .Wait(eventName, _ => correlation)
+            .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => correlation)
             .Then((_, cancellationToken) => gate.RunAsync(cancellationToken))
             .End()
             .Build();
@@ -189,7 +189,7 @@ public sealed class EphemeralWorkflowFacadeTests
         var correlation = CorrelationId.Create("termination-race");
         var definition = Workflow.Ephemeral<State>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<Input>(input => new State(input.Value))
-            .Wait(eventName, _ => correlation)
+            .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => correlation)
             .Then((_, cancellationToken) => gate.RunAsync(cancellationToken))
             .End()
             .Build();

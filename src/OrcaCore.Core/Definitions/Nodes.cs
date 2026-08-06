@@ -157,20 +157,20 @@ internal sealed record WaitNode<TState> : WorkflowNode<TState>
 {
     public WaitNode(
         string nodeId,
-        string eventName,
+        global::OrcaCore.WorkflowEventContract eventContract,
         Func<TState, CorrelationId> correlationSelector,
         TimeSpan? timeout = null)
         : base(nodeId)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
+        ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlationSelector);
 
-        EventName = eventName;
+        EventContract = eventContract;
         CorrelationSelector = correlationSelector;
         Timeout = timeout;
     }
 
-    public string EventName { get; }
+    public global::OrcaCore.WorkflowEventContract EventContract { get; }
 
     public Func<TState, CorrelationId> CorrelationSelector { get; }
 

@@ -813,7 +813,7 @@ internal static partial class DefinitionCompiler
                         CompiledInstructionKind.Wait,
                         nodePath,
                         wait.CorrelationSelector,
-                        eventName: wait.EventName,
+                        eventContract: wait.EventContract,
                         waitMode: wait.Mode,
                         waitTimeout: wait.Timeout);
                     break;

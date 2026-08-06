@@ -693,7 +693,7 @@ public abstract class EventStoreCertificationTests
                         AuthoredBranchId.Create("blocked"),
                         _ => new HostBranchState { Name = "blocked" },
                         branch => branch
-                            .Wait(EventName.Create("ReleaseBlockedFiber"), _ => HostCorrelation)
+                            .Wait(WorkflowEventContract.Create(EventName.Create("ReleaseBlockedFiber"), EventContractVersion.Initial), _ => HostCorrelation)
                             .Return(state => state.Value.Name))
                     .Branch<HostBranchState>(
                         AuthoredBranchId.Create("completed"),

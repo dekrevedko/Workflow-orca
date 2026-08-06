@@ -16,6 +16,7 @@ internal static class DurableEventEnvelopeFingerprint
             : CoreWorkflowValueCodec.Serialize(payload, typeof(TPayload));
         return Create(
             eventName.Value,
+            EventContractVersion.Initial.Value,
             correlationId,
             occurredAt,
             serializedPayload is null ? null : JsonWorkflowPayloadSerializer.JsonContentType,
@@ -27,6 +28,7 @@ internal static class DurableEventEnvelopeFingerprint
         ArgumentNullException.ThrowIfNull(envelope);
         return Create(
             envelope.EventName,
+            envelope.EventContractVersion,
             envelope.CorrelationId,
             envelope.OccurredAt,
             envelope.PayloadContentType,
@@ -35,17 +37,26 @@ internal static class DurableEventEnvelopeFingerprint
 
     internal static string Create(
         string eventName,
+        int eventContractVersion,
         CorrelationId correlationId,
         DateTimeOffset occurredAt,
         string? payloadContentType,
         byte[]? payload)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
+        if (eventContractVersion <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(eventContractVersion),
+                eventContractVersion,
+                "Event contract version must be positive.");
+        }
         ArgumentNullException.ThrowIfNull(correlationId);
 
         var normalized = CoreWorkflowValueCodec.Serialize(
             new NormalizedEnvelope(
                 eventName,
+                eventContractVersion,
                 correlationId.Value,
                 occurredAt.ToUniversalTime(),
                 payloadContentType,
@@ -56,6 +67,7 @@ internal static class DurableEventEnvelopeFingerprint
 
     private sealed record NormalizedEnvelope(
         string EventName,
+        int EventContractVersion,
         string CorrelationId,
         DateTimeOffset OccurredAt,
         string? PayloadContentType,

@@ -60,7 +60,7 @@ internal sealed record SelectedStepAuthoringNode<TState>(
 }
 
 internal sealed record SelectedWaitAuthoringNode<TState>(
-    string EventName,
+    global::OrcaCore.WorkflowEventContract EventContract,
     Func<TState, CorrelationId> CorrelationSelector,
     WaitMode Mode,
     TimeSpan? Timeout)

@@ -131,14 +131,14 @@ public static class StructuredFanoutScenarioHost
                     AuthoredBranchId.Create("first"),
                     _ => new BranchState("first", "Fail-First"),
                     branch => branch
-                        .Wait(EventName.Create("Fail-First"), _ => FanoutCorrelation)
+                        .Wait(WorkflowEventContract.Create(EventName.Create("Fail-First"), EventContractVersion.Initial), _ => FanoutCorrelation)
                         .Then<FailByNameStep>()
                         .Return(state => state.Value.Name))
                 .Branch<BranchState>(
                     AuthoredBranchId.Create("second"),
                     _ => new BranchState("second", "Fail-Second"),
                     branch => branch
-                        .Wait(EventName.Create("Fail-Second"), _ => FanoutCorrelation)
+                        .Wait(WorkflowEventContract.Create(EventName.Create("Fail-Second"), EventContractVersion.Initial), _ => FanoutCorrelation)
                         .Then<FailByNameStep>()
                         .Return(state => state.Value.Name));
         });
@@ -213,13 +213,13 @@ public static class StructuredFanoutScenarioHost
                     AuthoredBranchId.Create("first"),
                     _ => new BranchState("first", "Deadline-Branch-0"),
                     branch => branch
-                        .Wait(EventName.Create("Resume"), state => CorrelationId.Create(state.Value.EventName))
+                        .Wait(WorkflowEventContract.Create(EventName.Create("Resume"), EventContractVersion.Initial), state => CorrelationId.Create(state.Value.EventName))
                         .Return(state => state.Value.Name))
                 .Branch<BranchState>(
                     AuthoredBranchId.Create("second"),
                     _ => new BranchState("second", "Deadline-Branch-1"),
                     branch => branch
-                        .Wait(EventName.Create("Resume"), state => CorrelationId.Create(state.Value.EventName))
+                        .Wait(WorkflowEventContract.Create(EventName.Create("Resume"), EventContractVersion.Initial), state => CorrelationId.Create(state.Value.EventName))
                         .Return(state => state.Value.Name)));
         Func<ReadOnlyStateSnapshot<FanoutState>, IReadOnlyList<BranchOutcome<string>>, FanoutState> observedMerge =
             (parent, _) =>
@@ -370,7 +370,7 @@ public static class StructuredFanoutScenarioHost
             body =>
             {
                 ConsumeBarrier(context, "foreach-snapshot-authoring");
-                body.Wait(EventName.Create("Resume"), state => CorrelationId.Create(state.Value.EventName))
+                body.Wait(WorkflowEventContract.Create(EventName.Create("Resume"), EventContractVersion.Initial), state => CorrelationId.Create(state.Value.EventName))
                     .Return(state => state.Value.Value);
             });
         Func<ReadOnlyStateSnapshot<FanoutState>, IReadOnlyList<ForEachItemResult<string>>, FanoutState> merge =
@@ -442,13 +442,13 @@ public static class StructuredFanoutScenarioHost
                     AuthoredBranchId.Create("first"),
                     _ => new BranchState("first", "Branch-0"),
                     branch => branch
-                        .Wait(EventName.Create("Branch-0"), _ => FanoutCorrelation)
+                        .Wait(WorkflowEventContract.Create(EventName.Create("Branch-0"), EventContractVersion.Initial), _ => FanoutCorrelation)
                         .Return(state => state.Value.Name))
                 .Branch<BranchState>(
                     AuthoredBranchId.Create("second"),
                     _ => new BranchState("second", "Branch-1"),
                     branch => branch
-                        .Wait(EventName.Create("Branch-1"), _ => FanoutCorrelation)
+                        .Wait(WorkflowEventContract.Create(EventName.Create("Branch-1"), EventContractVersion.Initial), _ => FanoutCorrelation)
                         .Return(state => state.Value.Name));
         });
         var mergeCalls = 0;
@@ -542,7 +542,7 @@ public static class StructuredFanoutScenarioHost
             body =>
             {
                 ConsumeBarrier(context, "foreach-lower-authoring");
-                body.Wait(EventName.Create("Resume"), state => CorrelationId.Create(state.Value.EventName))
+                body.Wait(WorkflowEventContract.Create(EventName.Create("Resume"), EventContractVersion.Initial), state => CorrelationId.Create(state.Value.EventName))
                     .Return(state => state.Value.Value);
             });
         Func<ReadOnlyStateSnapshot<FanoutState>, IReadOnlyList<ForEachItemOutcome<string>>, FanoutState> merge =
@@ -607,7 +607,7 @@ public static class StructuredFanoutScenarioHost
             body =>
             {
                 ConsumeBarrier(context, "foreach-restart-snapshot");
-                body.Wait(EventName.Create("Resume"), state => CorrelationId.Create(state.Value.EventName))
+                body.Wait(WorkflowEventContract.Create(EventName.Create("Resume"), EventContractVersion.Initial), state => CorrelationId.Create(state.Value.EventName))
                     .Return(state => state.Value.Value);
             });
         Func<ReadOnlyStateSnapshot<FanoutState>, IReadOnlyList<ForEachItemOutcome<string>>, FanoutState> merge =
@@ -855,13 +855,13 @@ public static class StructuredFanoutScenarioHost
                     AuthoredBranchId.Create("first"),
                     _ => new BranchState("first", "Deadline-Branch-0"),
                     branch => branch
-                        .Wait(EventName.Create("Resume"), state => CorrelationId.Create(state.Value.EventName))
+                        .Wait(WorkflowEventContract.Create(EventName.Create("Resume"), EventContractVersion.Initial), state => CorrelationId.Create(state.Value.EventName))
                         .Return(state => state.Value.Name))
                 .Branch<BranchState>(
                     AuthoredBranchId.Create("second"),
                     _ => new BranchState("second", "Deadline-Branch-1"),
                     branch => branch
-                        .Wait(EventName.Create("Resume"), state => CorrelationId.Create(state.Value.EventName))
+                        .Wait(WorkflowEventContract.Create(EventName.Create("Resume"), EventContractVersion.Initial), state => CorrelationId.Create(state.Value.EventName))
                         .Return(state => state.Value.Name)));
             return collectOutcomes
                 ? join.WhenAllOutcomes((parent, _) => RecordMerge(parent, onMerge))
@@ -875,7 +875,7 @@ public static class StructuredFanoutScenarioHost
             ForEachOptions.Create(2, 2),
             item => new ItemState(item.Index, item.Item, $"Deadline-Item-{item.Index}"),
             item => item
-                .Wait(EventName.Create("Resume"), state => CorrelationId.Create(state.Value.EventName))
+                .Wait(WorkflowEventContract.Create(EventName.Create("Resume"), EventContractVersion.Initial), state => CorrelationId.Create(state.Value.EventName))
                 .Return(state => state.Value.Value));
         return collectOutcomes
             ? forEach.WhenAllOutcomes((parent, _) => RecordMerge(parent, onMerge))
@@ -899,13 +899,13 @@ public static class StructuredFanoutScenarioHost
                     AuthoredBranchId.Create("first"),
                     _ => new BranchState("first", "Deadline-Branch-0"),
                     branch => branch
-                        .Wait(EventName.Create("Resume"), state => CorrelationId.Create(state.Value.EventName))
+                        .Wait(WorkflowEventContract.Create(EventName.Create("Resume"), EventContractVersion.Initial), state => CorrelationId.Create(state.Value.EventName))
                         .Return(state => state.Value.Name))
                 .Branch<BranchState>(
                     AuthoredBranchId.Create("second"),
                     _ => new BranchState("second", "Deadline-Branch-1"),
                     branch => branch
-                        .Wait(EventName.Create("Resume"), state => CorrelationId.Create(state.Value.EventName))
+                        .Wait(WorkflowEventContract.Create(EventName.Create("Resume"), EventContractVersion.Initial), state => CorrelationId.Create(state.Value.EventName))
                         .Return(state => state.Value.Name)));
             return collectOutcomes
                 ? join.WhenAllOutcomes((parent, _) => RecordMerge(parent, onMerge))
@@ -919,7 +919,7 @@ public static class StructuredFanoutScenarioHost
             ForEachOptions.Create(2, 2),
             item => new ItemState(item.Index, item.Item, $"Deadline-Item-{item.Index}"),
             item => item
-                .Wait(EventName.Create("Resume"), state => CorrelationId.Create(state.Value.EventName))
+                .Wait(WorkflowEventContract.Create(EventName.Create("Resume"), EventContractVersion.Initial), state => CorrelationId.Create(state.Value.EventName))
                 .Return(state => state.Value.Value));
         return collectOutcomes
             ? forEach.WhenAllOutcomes((parent, _) => RecordMerge(parent, onMerge))

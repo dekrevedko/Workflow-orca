@@ -5,19 +5,22 @@ namespace OrcaCore;
 /// <summary>Reports that a structural event wait reached its authored deadline.</summary>
 public sealed class WorkflowWaitTimeoutException : OrcaCoreException
 {
-    internal WorkflowWaitTimeoutException(EventName eventName, CorrelationId correlationId)
+    internal WorkflowWaitTimeoutException(
+        WorkflowEventContract eventContract,
+        CorrelationId correlationId)
         : base(
             "WF-WAIT-TIMEOUT",
-            $"Wait for event '{eventName}' with correlation '{correlationId}' timed out.")
+            $"Wait for event '{eventContract?.EventName}' version " +
+            $"'{eventContract?.Version}' with correlation '{correlationId}' timed out.")
     {
-        ArgumentNullException.ThrowIfNull(eventName);
+        ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlationId);
-        EventName = eventName;
+        EventContract = eventContract;
         CorrelationId = correlationId;
     }
 
-    /// <summary>Gets the event name whose wait timed out.</summary>
-    public EventName EventName { get; }
+    /// <summary>Gets the event contract whose wait timed out.</summary>
+    public WorkflowEventContract EventContract { get; }
 
     /// <summary>Gets the correlation identity whose wait timed out.</summary>
     public CorrelationId CorrelationId { get; }

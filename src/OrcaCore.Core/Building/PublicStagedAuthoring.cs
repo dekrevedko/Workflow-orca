@@ -177,31 +177,41 @@ internal sealed class EphemeralWorkflowBuilder<TInput, TState>
 
     /// <summary>Adds a structural event wait.</summary>
     public EphemeralWorkflowBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
     {
-        ArgumentNullException.ThrowIfNull(eventName);
+        ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlation);
-        builder.Wait(eventName.Value, state => correlation(AuthoringContractFactory.Snapshot(state)));
+        builder.Wait(eventContract, state => correlation(AuthoringContractFactory.Snapshot(state)));
         return this;
     }
 
     /// <summary>Adds a structural event wait with a timeout.</summary>
     public EphemeralWorkflowBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout)
     {
         PublicAuthoringValidation.Positive(timeout, nameof(timeout));
-        ArgumentNullException.ThrowIfNull(eventName);
+        ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlation);
         builder.AddWait(
-            eventName.Value,
+            eventContract,
             state => correlation(AuthoringContractFactory.Snapshot(state)),
             WaitMode.Resident,
             timeout);
         return this;
     }
+
+    public EphemeralWorkflowBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        Wait((WorkflowEventContract)eventContract, correlation);
+
+    public EphemeralWorkflowBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        TimeSpan timeout) => Wait((WorkflowEventContract)eventContract, correlation, timeout);
 
     /// <summary>Adds a structural delay.</summary>
     public EphemeralWorkflowBuilder<TInput, TState> Delay(TimeSpan duration)
@@ -376,31 +386,41 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
 
     /// <summary>Adds a cold-capable structural event wait.</summary>
     public DurableWorkflowBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
     {
-        ArgumentNullException.ThrowIfNull(eventName);
+        ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlation);
-        builder.AddWait(eventName.Value, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold);
+        builder.AddWait(eventContract, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold);
         return this;
     }
 
     /// <summary>Adds a cold-capable structural event wait with a timeout.</summary>
     public DurableWorkflowBuilder<TInput, TState> Wait(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout)
     {
         PublicAuthoringValidation.Positive(timeout, nameof(timeout));
-        ArgumentNullException.ThrowIfNull(eventName);
+        ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlation);
         builder.AddWait(
-            eventName.Value,
+            eventContract,
             state => correlation(AuthoringContractFactory.Snapshot(state)),
             WaitMode.Cold,
             timeout);
         return this;
     }
+
+    public DurableWorkflowBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) =>
+        Wait((WorkflowEventContract)eventContract, correlation);
+
+    public DurableWorkflowBuilder<TInput, TState> Wait<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        TimeSpan timeout) => Wait((WorkflowEventContract)eventContract, correlation, timeout);
 
     /// <summary>Adds a structural delay.</summary>
     public DurableWorkflowBuilder<TInput, TState> Delay(TimeSpan duration)
@@ -769,12 +789,12 @@ internal static class AuthoringContractFactory
     }
 
     public static WorkflowWaitTimeoutException WaitTimeout(
-        EventName eventName,
+        WorkflowEventContract eventContract,
         CorrelationId correlationId) =>
         (WorkflowWaitTimeoutException)typeof(WorkflowWaitTimeoutException)
             .GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance)
             .Single()
-            .Invoke([eventName, correlationId]);
+            .Invoke([eventContract, correlationId]);
 
     public static StepAttemptTimeoutException StepTimeout(
         StepOperationId operationId,

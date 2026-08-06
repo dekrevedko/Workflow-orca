@@ -84,8 +84,8 @@ public static class ApplicationJourneyScenarioHost
         var events = provider.GetRequiredService<IWorkflowEventClient>();
         var definition = Workflow.Ephemeral<JourneyState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<JourneyInput>(input => new JourneyState(input.Value))
-            .Wait(unlockName, _ => unlockCorrelation)
-            .Wait(targetName, _ => targetCorrelation)
+            .Wait(WorkflowEventContract.Create(unlockName, EventContractVersion.Initial), _ => unlockCorrelation)
+            .Wait(WorkflowEventContract.Create(targetName, EventContractVersion.Initial), _ => targetCorrelation)
             .Then<NamedBarrierStep>()
             .End()
             .Build();
@@ -166,13 +166,13 @@ public static class ApplicationJourneyScenarioHost
                     AuthoredBranchId.Create("first"),
                     parent => new JourneyBranchState(parent.Value.Value),
                     branch => branch
-                        .Wait(eventName, _ => correlation)
+                        .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => correlation)
                         .Return(state => state.Value.Value.ToString()))
                 .Branch<JourneyBranchState>(
                     AuthoredBranchId.Create("second"),
                     parent => new JourneyBranchState(parent.Value.Value),
                     branch => branch
-                        .Wait(eventName, _ => correlation)
+                        .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => correlation)
                         .Return(state => state.Value.Value.ToString())))
             .WhenAll((parent, _) => parent.Value)
             .End()
@@ -187,7 +187,7 @@ public static class ApplicationJourneyScenarioHost
         }
         catch (AmbiguousWaitRegistrationException exception)
             when (exception.DefinitionId.Value == definitionId.Value &&
-                  exception.EventName.Value == eventName.Value &&
+                exception.EventContract.EventName.Value == eventName.Value &&
                   exception.CorrelationId.Value == correlation.Value)
         {
         }
@@ -207,7 +207,7 @@ public static class ApplicationJourneyScenarioHost
         var crossDefinitionId = DefinitionId.New();
         var cross = Workflow.Ephemeral<JourneyState>(crossDefinitionId, DefinitionVersion.Initial)
             .Init<JourneyInput>(input => new JourneyState(input.Value))
-            .Wait(eventName, _ => correlation)
+            .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => correlation)
             .End()
             .Build();
         var crossHandle = registry.Register(cross).GetHandleOrThrow();
@@ -255,8 +255,8 @@ public static class ApplicationJourneyScenarioHost
         var definitionId = DefinitionId.New();
         var definition = Workflow.Ephemeral<JourneyState>(definitionId, DefinitionVersion.Initial)
             .Init<JourneyInput>(input => new JourneyState(input.Value))
-            .Wait(eventName, _ => correlation)
-            .Wait(eventName, _ => correlation)
+            .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => correlation)
+            .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => correlation)
             .Then<NamedBarrierStep>()
             .End()
             .Build();
@@ -313,7 +313,7 @@ public static class ApplicationJourneyScenarioHost
             executionCount);
         var definition = Workflow.Durable<JourneyState>(definitionId, DefinitionVersion.Initial)
             .Init<JourneyInput>(input => new JourneyState(input.Value))
-            .Wait(eventName, _ => correlation)
+            .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => correlation)
             .Then<HandoffBarrierStep>()
             .End()
             .Build();
@@ -485,7 +485,7 @@ public static class ApplicationJourneyScenarioHost
         var correlation = CorrelationId.Create($"route-{suffix}");
         var definition = Workflow.Ephemeral<JourneyState>(definitionId, DefinitionVersion.Initial)
             .Init<JourneyInput>(input => new JourneyState(input.Value))
-            .Wait(eventName, _ => correlation)
+            .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => correlation)
             .End()
             .Build();
         var handle = registry.Register(definition).GetHandleOrThrow();

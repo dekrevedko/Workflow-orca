@@ -157,7 +157,7 @@ public sealed class HostGovernanceExecutionTests
                 DefinitionVersion.Initial)
             .Init<string>(correlation => new State(correlation))
             .Wait(
-                StartWork,
+                WorkflowEventContract.Create(StartWork, EventContractVersion.Initial),
                 state => CorrelationId.Create(state.Value.Correlation))
             .Then<BlockingNamedStep>();
         if (pool is not null)

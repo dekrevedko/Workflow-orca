@@ -44,7 +44,7 @@ internal sealed class WaitExecutor<TState>(
 
         await suspensionScheduler.RegisterWaitAsync(
             instance,
-            waitNode.EventName,
+            waitNode.EventContract,
             correlationId,
             waitNode.Timeout,
             nodeId,

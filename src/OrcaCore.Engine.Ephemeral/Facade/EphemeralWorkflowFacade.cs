@@ -259,7 +259,9 @@ internal sealed class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionR
                     CancellationToken.None).ConfigureAwait(false);
                 throw FacadeValueFactory.AmbiguousWait(
                     definitionId,
-                    EventName.Create(ambiguous.Value.EventName),
+                    WorkflowEventContract.Create(
+                        EventName.Create(ambiguous.Value.EventName),
+                        new EventContractVersion(ambiguous.Value.EventContractVersion)),
                     CorrelationId.Create(ambiguous.Value.CorrelationId));
             }
 
@@ -291,12 +293,15 @@ internal sealed class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionR
         }
     }
 
-    private (string EventName, string CorrelationId)? FindAmbiguousWait(
+    private (string EventName, int EventContractVersion, string CorrelationId)? FindAmbiguousWait(
         DefinitionId definitionId,
         LegacySnapshot candidate)
     {
         var candidatePairs = candidate.ActiveWaits
-            .Select(wait => (wait.EventName, wait.CorrelationId.Value))
+            .Select(wait => (
+                wait.EventContract.EventName.Value,
+                wait.EventContract.Version.Value,
+                wait.CorrelationId.Value))
             .ToArray();
         var duplicateInsideCandidate = candidatePairs
             .GroupBy(pair => pair)
@@ -312,7 +317,10 @@ internal sealed class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionR
             .SelectMany(binding => RequireRuntimeInstance(binding.InstanceId)
                 .GetPublishedSnapshot()
                 .ActiveWaits)
-            .Select(wait => (wait.EventName, wait.CorrelationId.Value))
+            .Select(wait => (
+                wait.EventContract.EventName.Value,
+                wait.EventContract.Version.Value,
+                wait.CorrelationId.Value))
             .ToHashSet();
         foreach (var pair in candidatePairs)
         {
@@ -530,7 +538,7 @@ internal sealed class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionR
         new(
             wait.WaitId,
             FailureProvenance.LocationFromCompilerPath(wait.AuthoredPath),
-            EventName.Create(wait.EventName),
+            wait.EventContract,
             wait.CorrelationId,
             wait.RegisteredAt,
             wait.Deadline);
@@ -681,7 +689,8 @@ internal sealed class EphemeralWorkflowEventClient(
             .Where(binding => binding.DefinitionId.Equals(definitionId))
             .Where(binding => engine.TryGetFacadeInstance(binding.InstanceId, out var instance) &&
                 instance!.GetPublishedSnapshot().ActiveWaits.Any(wait =>
-                    string.Equals(wait.EventName, eventName.Value, StringComparison.Ordinal) &&
+                    wait.EventContract.Version.Equals(EventContractVersion.Initial) &&
+                    wait.EventContract.EventName.Equals(eventName) &&
                     wait.CorrelationId.Equals(correlationId)))
             .ToArray();
         if (matches.Length == 0)
@@ -693,7 +702,7 @@ internal sealed class EphemeralWorkflowEventClient(
         {
             throw FacadeValueFactory.AmbiguousWait(
                 definitionId,
-                eventName,
+                WorkflowEventContract.Create(eventName, EventContractVersion.Initial),
                 correlationId);
         }
 
@@ -748,7 +757,8 @@ internal sealed class EphemeralWorkflowEventClient(
         }
 
         var hasWait = snapshot.ActiveWaits.Any(wait =>
-            string.Equals(wait.EventName, eventName.Value, StringComparison.Ordinal) &&
+            wait.EventContract.Version.Equals(EventContractVersion.Initial) &&
+            wait.EventContract.EventName.Equals(eventName) &&
             wait.CorrelationId.Equals(correlationId));
         if (!hasWait)
         {
@@ -757,7 +767,7 @@ internal sealed class EphemeralWorkflowEventClient(
 
         var envelope = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.EventEnvelope(
             eventId,
-            eventName,
+            WorkflowEventContract.Create(eventName, EventContractVersion.Initial),
             correlationId,
             occurredAt,
             payloadBytes ?? []);
@@ -894,9 +904,9 @@ file static class FacadeValueFactory
 
     internal static AmbiguousWaitRegistrationException AmbiguousWait(
         DefinitionId definitionId,
-        EventName eventName,
+        WorkflowEventContract eventContract,
         CorrelationId correlationId) =>
-        Construct<AmbiguousWaitRegistrationException>(definitionId, eventName, correlationId);
+        Construct<AmbiguousWaitRegistrationException>(definitionId, eventContract, correlationId);
 
     internal static AuthoredLocation RootLocation() =>
         Construct<AuthoredLocation>("workflow:$");

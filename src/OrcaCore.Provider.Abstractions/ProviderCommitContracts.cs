@@ -192,6 +192,9 @@ public sealed record CheckpointPendingResume(
     byte[]? Payload,
     DateTimeOffset MatchedAt)
 {
+    /// <summary>Gets the matched application-owned event-contract version, when event-backed.</summary>
+    public int? EventContractVersion { get; init; }
+
     public FiberId? FiberId { get; init; }
 
     public ScopeId? ScopeId { get; init; }
@@ -225,6 +228,9 @@ public sealed record CheckpointActiveWait(
     string? BranchId,
     TimerId? TimeoutTimerId = null)
 {
+    /// <summary>Gets the positive application-owned event-contract version.</summary>
+    public int EventContractVersion { get; init; } = 1;
+
     public FiberId? FiberId { get; init; }
 
     public ScopeId? ScopeId { get; init; }

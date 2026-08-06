@@ -160,7 +160,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     }
 
     internal RuntimeWaitRecord EnterWait(
-        string eventName,
+        WorkflowEventContract eventContract,
         CorrelationId correlationId,
         BranchId? branchId,
         DateTimeOffset registeredAt,
@@ -174,7 +174,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         UpdatedAt = registeredAt;
         CurrentStatusEnteredAt = registeredAt;
         var wait = new RuntimeWaitRecord(
-            eventName,
+            eventContract,
             correlationId,
             branchId,
             registeredAt,
@@ -360,7 +360,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         }
 
         wait.MarkMatched();
-        var signature = new WaitSignature(wait.EventName, wait.CorrelationId, wait.BranchId);
+        var signature = new WaitSignature(wait.EventContract, wait.CorrelationId, wait.BranchId);
         var consumedWaitAdded = consumedWaits.Add(signature);
         var hadPreviousTimeout = timedOutWaits.TryGetValue(signature, out var previousTimeout);
         timedOutWaits[signature] = firedAt;
@@ -462,7 +462,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
         wait.CancelLoser();
         RecordConsumedEvent(envelope.EventId);
-        consumedWaits.Add(new WaitSignature(wait.EventName, wait.CorrelationId, wait.BranchId));
+        consumedWaits.Add(new WaitSignature(wait.EventContract, wait.CorrelationId, wait.BranchId));
         if (Status == global::OrcaCore.WorkflowInstanceStatus.Running && (activeWaits.Count > 0 || activeTimers.Count > 0))
         {
             Status = global::OrcaCore.WorkflowInstanceStatus.Waiting;
@@ -1043,10 +1043,13 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
             wait.Key.Matches(envelope) && envelope.OccurredAt < wait.Value);
     }
 
-    private readonly record struct WaitSignature(string EventName, CorrelationId CorrelationId, BranchId? BranchId)
+    private readonly record struct WaitSignature(
+        WorkflowEventContract EventContract,
+        CorrelationId CorrelationId,
+        BranchId? BranchId)
     {
         internal bool Matches(EventEnvelope envelope) =>
-            string.Equals(EventName, envelope.EventName.Value, StringComparison.Ordinal) &&
+            EventContract.Equals(envelope.EventContract) &&
             CorrelationId.Equals(envelope.CorrelationId);
     }
 

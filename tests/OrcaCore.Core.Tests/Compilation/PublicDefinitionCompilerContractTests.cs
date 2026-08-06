@@ -122,6 +122,29 @@ public sealed class PublicDefinitionCompilerContractTests
     }
 
     [Fact]
+    public void Fingerprint_UsesOnlyTheExplicitEventNameAndVersionForContractIdentity()
+    {
+        var definitionId = DefinitionId.New();
+        var name = EventName.Create("OrderApproved");
+        var versionOne = BuildWait(
+            definitionId,
+            WorkflowEventContract.Create(name, EventContractVersion.Initial));
+        var versionTwo = BuildWait(
+            definitionId,
+            WorkflowEventContract.Create(name, new EventContractVersion(2)));
+        var typed = BuildTypedWait(
+            definitionId,
+            WorkflowEventContract<ThirdPartyEvent>.Create(name, EventContractVersion.Initial));
+
+        versionTwo.DefinitionFingerprint.Should().NotBe(versionOne.DefinitionFingerprint);
+        typed.DefinitionFingerprint.Should().Be(versionOne.DefinitionFingerprint);
+        BuildWait(
+            definitionId,
+            WorkflowEventContract.Create(EventName.Create("OrderApproved"), EventContractVersion.Initial))
+            .DefinitionFingerprint.Should().Be(versionOne.DefinitionFingerprint);
+    }
+
+    [Fact]
     public void Fingerprint_IgnoresCapturedOpaqueSelectorConfiguration()
     {
         var definitionId = DefinitionId.New();
@@ -300,6 +323,24 @@ public sealed class PublicDefinitionCompilerContractTests
             .End(_ => output)
             .Build();
 
+    private static EphemeralWorkflowDefinition<int[]> BuildWait(
+        DefinitionId definitionId,
+        WorkflowEventContract eventContract) =>
+        Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
+            .Init<int[]>(_ => new TestState([]))
+            .Wait(eventContract, _ => CorrelationId.Create("order-1"))
+            .End()
+            .Build();
+
+    private static EphemeralWorkflowDefinition<int[]> BuildTypedWait<TPayload>(
+        DefinitionId definitionId,
+        WorkflowEventContract<TPayload> eventContract) =>
+        Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
+            .Init<int[]>(_ => new TestState([]))
+            .Wait(eventContract, _ => CorrelationId.Create("order-1"))
+            .End()
+            .Build();
+
     private static string[] DeclaredMethods(Type type) => type
         .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
         .Select(method => method.Name)
@@ -310,6 +351,11 @@ public sealed class PublicDefinitionCompilerContractTests
     private sealed record TestState(IReadOnlyList<int> Items);
 
     private sealed record BranchState;
+
+    private sealed class ThirdPartyEvent
+    {
+        public string Value { get; init; } = string.Empty;
+    }
 
     [JsonConverter(typeof(ApplicationConvertedStateConverter))]
     private sealed record ApplicationConvertedState(string Value);

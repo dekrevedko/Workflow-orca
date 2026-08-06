@@ -27,7 +27,7 @@ internal static partial class DefinitionCompiler
                     step.Policies),
                 SelectedWaitAuthoringNode<TState> wait => new WaitNode<TState>(
                     nodeId,
-                    wait.EventName,
+                    wait.EventContract,
                     wait.CorrelationSelector),
                 SelectedDelayAuthoringNode<TState> delay => new DelayNode<TState>(
                     nodeId,

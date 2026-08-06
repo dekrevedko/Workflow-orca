@@ -211,7 +211,7 @@ public sealed class R4DurableEngineFindingsTests
     {
         return Workflow.Durable<R4State>(definitionId, DefinitionVersion.Initial)
             .Init<string>(value => new R4State(value))
-            .Wait(eventName, state => CorrelationId.Create(state.Value.Value))
+            .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), state => CorrelationId.Create(state.Value.Value))
             .End(WorkflowOutcomeName.Create("matched"))
             .Build();
     }

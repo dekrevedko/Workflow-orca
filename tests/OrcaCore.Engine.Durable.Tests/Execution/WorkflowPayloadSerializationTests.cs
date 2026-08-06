@@ -190,7 +190,7 @@ public sealed class WorkflowPayloadSerializationTests
     {
         return Workflow.Durable<WaitState>(definitionId, DefinitionVersion.Initial)
             .Init<Input>(input => new WaitState(input.Correlation))
-            .Wait(eventName, state => CorrelationId.Create(state.Value.Correlation))
+            .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), state => CorrelationId.Create(state.Value.Correlation))
             .End(WorkflowOutcomeName.Create("completed"))
             .Build();
     }

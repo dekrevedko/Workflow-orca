@@ -118,7 +118,7 @@ public sealed class RoutingAcceptanceTests
         global::OrcaCore.Workflow
             .Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
-            .Wait(EventName.Create("Approved"), _ => Correlation)
+            .Wait(WorkflowEventContract.Create(EventName.Create("Approved"), EventContractVersion.Initial), _ => Correlation)
             .Then(context =>
             {
                 context.State.Payloads.Add(ReadPayload(context.ResumedEvent));
@@ -138,7 +138,9 @@ public sealed class RoutingAcceptanceTests
     private static string ReadPayload(EventEnvelope? resumedEvent)
     {
         resumedEvent.Should().NotBeNull();
-        return resumedEvent!.GetPayload<string>();
+        return resumedEvent!.GetPayload(WorkflowEventContract<string>.Create(
+            resumedEvent.EventContract.EventName,
+            resumedEvent.EventContract.Version));
     }
 
     public sealed class TestState

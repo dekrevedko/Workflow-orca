@@ -44,7 +44,7 @@ public sealed class WorkflowBuilderTests
                 state => state.Value.ShouldRoute,
                 then => then
                     .Wait(
-                        EventName.Create("approved"),
+                        WorkflowEventContract.Create(EventName.Create("approved"), EventContractVersion.Initial),
                         state => CorrelationId.Create(state.Value.CorrelationId))
                     .Then<TestStep>(),
                 otherwise => otherwise.Then<TestStep>())

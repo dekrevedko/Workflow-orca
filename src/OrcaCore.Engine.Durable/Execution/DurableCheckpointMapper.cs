@@ -44,6 +44,7 @@ internal static class DurableCheckpointMapper
                     wait.BranchId,
                     wait.TimeoutTimerId)
                 {
+                    EventContractVersion = wait.EventContractVersion,
                     WaitSequence = wait.WaitSequence,
                     FiberId = wait.FiberId,
                     ScopeId = wait.ScopeId
@@ -64,6 +65,7 @@ internal static class DurableCheckpointMapper
                     pending.Payload,
                     pending.MatchedAt)
                 {
+                    EventContractVersion = pending.EventContractVersion,
                     WaitSequence = pending.WaitSequence,
                     FiberId = pending.FiberId,
                     ScopeId = pending.ScopeId

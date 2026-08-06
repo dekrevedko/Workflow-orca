@@ -272,7 +272,7 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
             case StepExecutionStatus.Wait:
                 await suspensionScheduler.RegisterWaitAsync(
                     instance,
-                    stepResult.EventName!,
+                    stepResult.EventContract!,
                     stepResult.CorrelationId!,
                     timeout: null,
                     nodeId,

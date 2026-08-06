@@ -259,14 +259,14 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         var instruction = plan.GetInstruction(new InstructionId(instructionId));
         if (instruction.Kind != CompiledInstructionKind.Wait ||
             instruction.WaitTimeout is null ||
-            instruction.EventName is null)
+            instruction.EventContract is null)
         {
             return null;
         }
 
         var correlation = ResolveWaitCorrelation(execution, fiber, state, instruction);
         var exception = global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.WaitTimeout(
-            EventName.Create(instruction.EventName),
+            instruction.EventContract,
             correlation);
         var failure = FailureProvenance.Create(
             plan,

@@ -6,7 +6,7 @@ namespace OrcaCore.Engine.Ephemeral.Execution;
 internal sealed class RuntimeWaitRecord
 {
     internal RuntimeWaitRecord(
-        string eventName,
+        WorkflowEventContract eventContract,
         CorrelationId correlationId,
         BranchId? branchId,
         DateTimeOffset registeredAt,
@@ -17,12 +17,12 @@ internal sealed class RuntimeWaitRecord
         FiberId? fiberId,
         ScopeId? scopeId)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
+        ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentException.ThrowIfNullOrWhiteSpace(authoredPath);
         ArgumentNullException.ThrowIfNull(resumeAsync);
 
         WaitId = WaitId.Parse(Guid.CreateVersion7().ToString());
-        EventName = eventName;
+        EventContract = eventContract;
         CorrelationId = correlationId;
         BranchId = branchId;
         RegisteredAt = registeredAt;
@@ -36,7 +36,7 @@ internal sealed class RuntimeWaitRecord
 
     internal WaitId WaitId { get; }
 
-    internal string EventName { get; }
+    internal WorkflowEventContract EventContract { get; }
 
     internal CorrelationId CorrelationId { get; }
 
@@ -78,7 +78,7 @@ internal sealed class RuntimeWaitRecord
     internal bool Matches(EventEnvelope envelope)
     {
         return Status == "Active" &&
-            string.Equals(EventName, envelope.EventName.Value, StringComparison.Ordinal) &&
+            EventContract.Equals(envelope.EventContract) &&
             CorrelationId.Equals(envelope.CorrelationId);
     }
 
@@ -97,7 +97,7 @@ internal sealed class RuntimeWaitRecord
         return new EphemeralActiveWaitSnapshot
         {
             WaitId = WaitId,
-            EventName = EventName,
+            EventContract = EventContract,
             CorrelationId = CorrelationId,
             RegisteredAt = RegisteredAt,
             AuthoredPath = AuthoredPath,

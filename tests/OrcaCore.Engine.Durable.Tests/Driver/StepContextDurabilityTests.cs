@@ -12,6 +12,11 @@ namespace OrcaCore.Engine.Durable.Tests.Driver;
 
 public sealed class StepContextDurabilityTests
 {
+    private static readonly WorkflowEventContract<ResumePayload> TypedDynamicResume =
+        WorkflowEventContract<ResumePayload>.Create(
+            EventName.Create("typed-dynamic-resume"),
+            EventContractVersion.Initial);
+
     [Fact]
     public async Task ResumedEventPayload_IsDetachedAcrossCheckpointAndVisibleOnlyToFirstStep()
     {
@@ -22,7 +27,7 @@ public sealed class StepContextDurabilityTests
                 DefinitionVersion.Initial)
             .Init<string>(_ => new ResumeState())
             .Wait(
-                EventName.Create("resume"),
+                WorkflowEventContract.Create(EventName.Create("resume"), EventContractVersion.Initial),
                 _ => CorrelationId.Create("resume-context"))
             .Then<CaptureFirstResumeStep>()
             .Then<CaptureSecondResumeStep>()
@@ -87,7 +92,7 @@ public sealed class StepContextDurabilityTests
                 },
                 body => body
                     .Wait(
-                        EventName.Create("item-ready"),
+                        WorkflowEventContract.Create(EventName.Create("item-ready"), EventContractVersion.Initial),
                         state => CorrelationId.Create(state.Value.Correlation))
                     .Then<CaptureForEachItemStep>()
                     .Return(state => state.Value.Value))
@@ -134,12 +139,56 @@ public sealed class StepContextDurabilityTests
         recorder.OutsideContexts.Should().Equal("none", "none");
     }
 
+    [Fact]
+    public async Task TypedDynamicWait_SurvivesDurableRegistrationAndResume()
+    {
+        using var store = new DurableTestStore();
+        var recorder = new ResumeRecorder();
+        var definition = Workflow.Durable<ResumeState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(_ => new ResumeState())
+            .Then<TypedDynamicWaitStep>()
+            .Then<CaptureFirstResumeStep>()
+            .End()
+            .Build();
+
+        using var services = StepServices(recorder);
+        var runtime = CreateRuntime(store, services);
+        runtime.RegisterDefinition(definition);
+        var started = await runtime.StartOrGetAsync<string, ResumeState>(
+            "typed-dynamic-wait",
+            definition.DefinitionId,
+            definition.DefinitionVersion,
+            "input",
+            TestContext.Current.CancellationToken);
+
+        var checkpoint = await store.LoadCheckpointAsync(
+            started.InstanceId,
+            TestContext.Current.CancellationToken);
+        checkpoint.HasValue.Should().BeTrue();
+        checkpoint.Value.RuntimeState.ActiveWaits.Should().ContainSingle(wait =>
+            wait.EventName == TypedDynamicResume.EventName.Value &&
+            wait.EventContractVersion == TypedDynamicResume.Version.Value);
+
+        var delivered = await runtime.RaiseFacadeEventAsync(
+            started.InstanceId,
+            EventId.Create("typed-dynamic-wait-event"),
+            TypedDynamicResume.EventName,
+            CorrelationId.Create("typed-dynamic-correlation"),
+            DateTimeOffset.UtcNow,
+            new ResumePayload { Value = "typed" },
+            TestContext.Current.CancellationToken);
+
+        delivered.Outcome.Should().Be(DurableCommandOutcome.Committed);
+        recorder.Observations.Should().Equal("first:typed");
+    }
+
     private static ServiceProvider StepServices(object recorder)
     {
         var services = new ServiceCollection();
         services.AddSingleton(recorder.GetType(), recorder);
         services.AddTransient<CaptureFirstResumeStep>();
         services.AddTransient<CaptureSecondResumeStep>();
+        services.AddTransient<TypedDynamicWaitStep>();
         services.AddTransient<CaptureOutsideForEachStep>();
         services.AddTransient<CaptureForEachItemStep>();
         return services.BuildServiceProvider();
@@ -166,13 +215,28 @@ public sealed class StepContextDurabilityTests
         internal List<string> Observations { get; } = [];
     }
 
+    private sealed class TypedDynamicWaitStep : IStep<ResumeState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(
+            StepContext<ResumeState> context,
+            CancellationToken cancellationToken) =>
+            ValueTask.FromResult<StepResult>(
+                new StepResult.WaitForEvent<ResumePayload>(
+                    TypedDynamicResume,
+                    CorrelationId.Create("typed-dynamic-correlation")));
+    }
+
     private sealed class CaptureFirstResumeStep(ResumeRecorder recorder) : IStep<ResumeState>
     {
         public ValueTask<StepResult> ExecuteAsync(
             StepContext<ResumeState> context,
             CancellationToken cancellationToken)
         {
-            var value = context.ResumedEvent?.GetPayload<ResumePayload>().Value ?? "none";
+            var value = context.ResumedEvent is { } resumed
+                ? resumed.GetPayload(WorkflowEventContract<ResumePayload>.Create(
+                    resumed.EventContract.EventName,
+                    resumed.EventContract.Version)).Value
+                : "none";
             recorder.Observations.Add($"first:{value}");
             return ValueTask.FromResult<StepResult>(new StepResult.Completed());
         }

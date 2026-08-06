@@ -220,7 +220,7 @@ public static class StateProjectionScenarioHost
                 DefinitionId.New(),
                 DefinitionVersion.Initial)
             .Init<ProjectionInput>(input => new ProjectionState(input.Value, [.. input.Items]))
-            .Wait(eventName, _ => correlation)
+            .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => correlation)
             .Then<CompletionBarrierStep>()
             .End(snapshot => new ProjectionOutput(snapshot.Value.Value + 1), outcome)
             .Build();
@@ -275,7 +275,7 @@ public static class StateProjectionScenarioHost
                     parent => new ProjectionBranchState(parent.Value.Value + 10),
                     branch => branch
                         .Wait(
-                            EventName.Create("projection-first"),
+                            WorkflowEventContract.Create(EventName.Create("projection-first"), EventContractVersion.Initial),
                             _ => CorrelationId.Create("projection-first"))
                         .Return(state => state.Value.PrivateValue.ToString()))
                 .Branch<ProjectionBranchState>(
@@ -283,7 +283,7 @@ public static class StateProjectionScenarioHost
                     parent => new ProjectionBranchState(parent.Value.Value + 20),
                     branch => branch
                         .Wait(
-                            EventName.Create("projection-second"),
+                            WorkflowEventContract.Create(EventName.Create("projection-second"), EventContractVersion.Initial),
                             _ => CorrelationId.Create("projection-second"))
                         .Return(state => state.Value.PrivateValue.ToString())))
             .WhenAll((parent, _) => parent.Value)

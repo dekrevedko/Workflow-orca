@@ -140,6 +140,135 @@ public sealed class FacadeHostingInfrastructureGuards
         }
     }
 
+    [Fact]
+    public void Product_Task725DescriptorsAndResumedEnvelopeHaveTheExactShape()
+    {
+        var exported = PublicSurfaceCatalog.Assemblies.SelectMany(assembly => assembly.GetExportedTypes()).ToArray();
+        Type Required(string name) => exported.Should()
+            .ContainSingle(type => type.FullName == name).Subject;
+
+        var version = Required("OrcaCore.EventContractVersion");
+        version.IsSealed.Should().BeTrue();
+        version.GetConstructors().Should().ContainSingle()
+            .Which.GetParameters().Select(parameter => parameter.ParameterType).Should().Equal(typeof(int));
+        version.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Select(property => property.Name).Should().Equal("Value");
+
+        var descriptor = Required("OrcaCore.WorkflowEventContract");
+        descriptor.GetConstructors(BindingFlags.Public | BindingFlags.Instance).Should().BeEmpty();
+        descriptor.GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance).Should().ContainSingle()
+            .Which.IsFamilyAndAssembly.Should().BeTrue();
+        descriptor.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Select(property => property.Name).Should().Equal("EventName", "Version");
+
+        var typedDescriptor = Required("OrcaCore.WorkflowEventContract`1");
+        typedDescriptor.IsSealed.Should().BeTrue();
+        typedDescriptor.BaseType.Should().Be(descriptor);
+        typedDescriptor.GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance).Should().ContainSingle()
+            .Which.IsPrivate.Should().BeTrue();
+
+        var stepResult = Required("OrcaCore.StepResult");
+        stepResult.GetNestedTypes(BindingFlags.Public)
+            .OrderBy(type => type.Name, StringComparer.Ordinal)
+            .Select(type => type.Name).Should().Equal(
+                "Completed", "Failed", "WaitForEvent", "WaitForEvent`1");
+        foreach (var waitResult in stepResult.GetNestedTypes(BindingFlags.Public)
+                     .Where(type => type.Name.StartsWith("WaitForEvent", StringComparison.Ordinal)))
+        {
+            waitResult.IsSealed.Should().BeTrue();
+            var expectedDescriptorType = waitResult.IsGenericTypeDefinition
+                ? typeof(WorkflowEventContract<>).MakeGenericType(waitResult.GetGenericArguments()[0])
+                : typeof(WorkflowEventContract);
+            waitResult.GetConstructors(BindingFlags.Public | BindingFlags.Instance).Should().ContainSingle()
+                .Which.GetParameters().Select(parameter => parameter.ParameterType).Should().Equal(
+                    expectedDescriptorType,
+                    typeof(CorrelationId));
+            waitResult.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                .OrderBy(property => property.Name, StringComparer.Ordinal)
+                .Select(property => property.Name).Should().Equal("CorrelationId", "EventContract");
+        }
+
+        Required("OrcaCore.WorkflowWaitTimeoutException")
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .OrderBy(property => property.Name, StringComparer.Ordinal)
+            .Select(property => property.Name).Should().Equal("CorrelationId", "EventContract");
+        Required("OrcaCore.AmbiguousWaitRegistrationException")
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .OrderBy(property => property.Name, StringComparer.Ordinal)
+            .Select(property => property.Name).Should().Equal(
+                "CorrelationId", "DefinitionId", "EventContract");
+
+        var envelope = Required("OrcaCore.EventEnvelope");
+        envelope.GetConstructors(BindingFlags.Public | BindingFlags.Instance).Should().BeEmpty();
+        envelope.GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance).Should().ContainSingle()
+            .Which.GetParameters().Select(parameter => Task725Canonical(parameter.ParameterType)).Should().Equal(
+                "OrcaCore.EventId", "OrcaCore.WorkflowEventContract", "OrcaCore.CorrelationId",
+                "System.DateTimeOffset", "System.ReadOnlyMemory<System.Byte>");
+        envelope.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .OrderBy(property => property.Name, StringComparer.Ordinal)
+            .Select(property => property.Name).Should().Equal(
+                "CorrelationId", "EventContract", "EventId", "OccurredAt");
+        envelope.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Where(method => !method.IsSpecialName).Should().ContainSingle(method =>
+                method.Name == "GetPayload" &&
+                method.IsGenericMethodDefinition &&
+                method.GetParameters().Length == 1 &&
+                method.GetParameters()[0].ParameterType.GetGenericTypeDefinition() ==
+                    typeof(WorkflowEventContract<>));
+    }
+
+    [Fact]
+    public void Product_Task725WaitsHaveTheFourExactDescriptorOverloads()
+    {
+        var exported = PublicSurfaceCatalog.Assemblies.SelectMany(assembly => assembly.GetExportedTypes()).ToArray();
+        foreach (var builderName in WaitBuilders)
+        {
+            var builder = exported.Should().ContainSingle(type =>
+                type.Namespace == "OrcaCore" &&
+                type.Name.StartsWith($"{builderName}`", StringComparison.Ordinal)).Subject;
+            var waits = builder.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                .Where(method => method.Name == "Wait").ToArray();
+            waits.Should().HaveCount(4);
+            waits.Should().OnlyContain(method => method.ReturnType == builder);
+            waits.Count(method => !method.IsGenericMethodDefinition).Should().Be(2);
+            waits.Count(method => method.IsGenericMethodDefinition).Should().Be(2);
+            waits.Should().OnlyContain(method =>
+                method.GetParameters()[1].ParameterType.IsGenericType &&
+                method.GetParameters()[1].ParameterType.GetGenericTypeDefinition() == typeof(Func<,>) &&
+                method.GetParameters()[1].ParameterType.GetGenericArguments()[0].IsGenericType &&
+                method.GetParameters()[1].ParameterType.GetGenericArguments()[0].GetGenericTypeDefinition() ==
+                    typeof(ReadOnlyStateSnapshot<>) &&
+                method.GetParameters()[1].ParameterType.GetGenericArguments()[1] == typeof(CorrelationId));
+            waits.Count(method => method.GetParameters().Length == 2).Should().Be(2);
+            waits.Count(method => method.GetParameters().Length == 3 &&
+                method.GetParameters()[2].ParameterType == typeof(TimeSpan)).Should().Be(2);
+            waits.Should().ContainSingle(method =>
+                !method.IsGenericMethodDefinition && method.GetParameters().Length == 2 &&
+                method.GetParameters()[0].ParameterType == typeof(WorkflowEventContract));
+            waits.Should().ContainSingle(method =>
+                !method.IsGenericMethodDefinition && method.GetParameters().Length == 3 &&
+                method.GetParameters()[0].ParameterType == typeof(WorkflowEventContract) &&
+                method.GetParameters()[2].ParameterType == typeof(TimeSpan));
+            waits.Where(method => method.IsGenericMethodDefinition).Should().OnlyContain(method =>
+                method.GetParameters()[0].ParameterType.IsGenericType &&
+                method.GetParameters()[0].ParameterType.GetGenericTypeDefinition() ==
+                    typeof(WorkflowEventContract<>) &&
+                method.GetParameters()[0].ParameterType.GetGenericArguments()[0] ==
+                    method.GetGenericArguments()[0]);
+        }
+    }
+
+    private static string Task725Canonical(Type type)
+    {
+        if (type.IsGenericType)
+        {
+            var name = type.GetGenericTypeDefinition().FullName![..^2];
+            return $"{name}<{string.Join(',', type.GetGenericArguments().Select(Task725Canonical))}>";
+        }
+
+        return type.FullName ?? type.Name;
+    }
+
     private static int CountDeclaredMethods(string source, string typeName, string methodName)
     {
         var block = DeclaredTypeBlocks(source).Single(candidate => candidate.Name == typeName);

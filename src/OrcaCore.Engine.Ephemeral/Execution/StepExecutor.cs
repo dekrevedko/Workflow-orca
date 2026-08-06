@@ -1,4 +1,5 @@
 using OrcaCore.Core.Definitions;
+using OrcaCore.Core.Execution;
 using OrcaCore.Engine.Ephemeral.Governance;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
@@ -174,9 +175,12 @@ internal sealed class StepExecutor<TState>
 
                 Fail(instance, failed.Error, stepPath);
                 return StepExecutionResult.Stop();
-            case StepResult.WaitForEvent wait:
-                return StepExecutionResult.Wait(wait.EventName.Value, wait.CorrelationId);
             default:
+                if (StepResultWaitAccessor.TryGetWait(result, out var eventContract, out var correlationId))
+                {
+                    return StepExecutionResult.Wait(eventContract, correlationId);
+                }
+
                 throw new NotSupportedException(
                     $"Step result '{result.GetType().Name}' is not supported by the ephemeral engine.");
         }

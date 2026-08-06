@@ -25,6 +25,8 @@ public sealed class PortableAuthoringIntersectionGuards
             "Then`1(0)",
             "Wait`0(2)",
             "Wait`0(3)",
+            "Wait`1(2)",
+            "Wait`1(3)",
             "While`0(2)",
             "WithRetry`0(2)",
             "WithStepTimeout`0(1)");
@@ -37,6 +39,8 @@ public sealed class PortableAuthoringIntersectionGuards
             "Then`1(0)",
             "Wait`0(2)",
             "Wait`0(3)",
+            "Wait`1(2)",
+            "Wait`1(3)",
             "WithRetry`0(2)",
             "WithStepTimeout`0(1)");
 
@@ -49,6 +53,8 @@ public sealed class PortableAuthoringIntersectionGuards
             "Then`1(0)",
             "Wait`0(2)",
             "Wait`0(3)",
+            "Wait`1(2)",
+            "Wait`1(3)",
             "WithRetry`0(2)",
             "WithStepTimeout`0(1)");
 
@@ -61,6 +67,8 @@ public sealed class PortableAuthoringIntersectionGuards
             "Then`1(0)",
             "Wait`0(2)",
             "Wait`0(3)",
+            "Wait`1(2)",
+            "Wait`1(3)",
             "WithRetry`0(2)",
             "WithStepTimeout`0(1)");
 
@@ -72,6 +80,8 @@ public sealed class PortableAuthoringIntersectionGuards
             "Then`1(0)",
             "Wait`0(2)",
             "Wait`0(3)",
+            "Wait`1(2)",
+            "Wait`1(3)",
             "WithRetry`0(2)",
             "WithStepTimeout`0(1)");
 
@@ -83,6 +93,8 @@ public sealed class PortableAuthoringIntersectionGuards
             "Then`1(0)",
             "Wait`0(2)",
             "Wait`0(3)",
+            "Wait`1(2)",
+            "Wait`1(3)",
             "WithRetry`0(2)",
             "WithStepTimeout`0(1)");
 
@@ -95,6 +107,8 @@ public sealed class PortableAuthoringIntersectionGuards
             "Then`1(0)",
             "Wait`0(2)",
             "Wait`0(3)",
+            "Wait`1(2)",
+            "Wait`1(3)",
             "WithRetry`0(2)",
             "WithStepTimeout`0(1)");
 
@@ -107,6 +121,8 @@ public sealed class PortableAuthoringIntersectionGuards
             "Then`1(0)",
             "Wait`0(2)",
             "Wait`0(3)",
+            "Wait`1(2)",
+            "Wait`1(3)",
             "WithRetry`0(2)",
             "WithStepTimeout`0(1)");
     }

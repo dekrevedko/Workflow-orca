@@ -40,7 +40,7 @@ internal static class RuntimeStepContextFactory
 
     internal static EventEnvelope CreateResumedEvent(
         EventId eventId,
-        EventName eventName,
+        WorkflowEventContract eventContract,
         CorrelationId correlationId,
         DateTimeOffset occurredAt,
         ReadOnlyMemory<byte> payload)
@@ -48,9 +48,9 @@ internal static class RuntimeStepContextFactory
         var constructor = typeof(EventEnvelope).GetConstructor(
             BindingFlags.Instance | BindingFlags.NonPublic,
             binder: null,
-            [typeof(EventId), typeof(EventName), typeof(CorrelationId), typeof(DateTimeOffset), typeof(ReadOnlyMemory<byte>)],
+            [typeof(EventId), typeof(WorkflowEventContract), typeof(CorrelationId), typeof(DateTimeOffset), typeof(ReadOnlyMemory<byte>)],
             modifiers: null) ?? throw new InvalidOperationException(
                 "The approved EventEnvelope constructor was not found.");
-        return (EventEnvelope)constructor.Invoke([eventId, eventName, correlationId, occurredAt, payload]);
+        return (EventEnvelope)constructor.Invoke([eventId, eventContract, correlationId, occurredAt, payload]);
     }
 }

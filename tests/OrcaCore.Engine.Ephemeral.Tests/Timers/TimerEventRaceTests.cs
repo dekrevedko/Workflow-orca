@@ -163,7 +163,7 @@ public sealed class TimerEventRaceTests
                 DefinitionId.New(),
                 DefinitionVersion.Initial)
             .Init<string>(_ => new RaceState([]))
-            .Wait(Approved, _ => Correlation, timeout)
+            .Wait(WorkflowEventContract.Create(Approved, EventContractVersion.Initial), _ => Correlation, timeout)
             .Then<RecordOutcomeStep>()
             .End()
             .Build();
@@ -210,7 +210,9 @@ public sealed class TimerEventRaceTests
         {
             try
             {
-                return $"event:{envelope.GetPayload<string>()}";
+                return $"event:{envelope.GetPayload(WorkflowEventContract<string>.Create(
+                    envelope.EventContract.EventName,
+                    envelope.EventContract.Version))}";
             }
             catch (InvalidOperationException exception)
                 when (exception.Message.Contains("does not contain a payload", StringComparison.Ordinal))

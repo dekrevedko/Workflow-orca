@@ -91,7 +91,7 @@ public sealed class DurableWorkflowFacadeTests
         var definition = Workflow.Durable<State>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<Input>(input => new State(input.Value))
             .Wait(
-                EventName.Create("approval"),
+                WorkflowEventContract.Create(EventName.Create("approval"), EventContractVersion.Initial),
                 _ => CorrelationId.Create("durable-active-wait"),
                 TimeSpan.FromHours(1))
             .End()

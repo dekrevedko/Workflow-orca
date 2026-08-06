@@ -170,7 +170,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                 case CompiledInstructionKind.Wait:
                 {
                     if (instruction.Operation is null ||
-                        string.IsNullOrWhiteSpace(instruction.EventName) ||
+                        instruction.EventContract is null ||
                         instruction.WaitMode is not { } waitMode)
                     {
                         throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
@@ -184,7 +184,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                         instruction,
                         state,
                         ownedObligations,
-                        instruction.EventName,
+                        instruction.EventContract,
                         ResolveWaitCorrelation(execution, fiber, state, instruction),
                         waitMode,
                         currentVersion,
@@ -973,7 +973,10 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                                 ? DurableSegmentResult.Terminal
                                 : Conflict(failedResult);
                         }
-                        case StepResult.WaitForEvent wait:
+                        case var waitResult when StepResultWaitAccessor.TryGetWait(
+                            waitResult,
+                            out var waitEventContract,
+                            out var waitCorrelationId):
                         {
                             fiber = ClearStepPolicyState(ClearResume(fiber));
                             execution = execution with
@@ -990,8 +993,8 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                                 instruction,
                                 state,
                                 ownedObligations,
-                                wait.EventName.Value,
-                                wait.CorrelationId,
+                                waitEventContract,
+                                waitCorrelationId,
                                 WaitMode.Resident,
                                 currentVersion,
                                 consumedWaitId,

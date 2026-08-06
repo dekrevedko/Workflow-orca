@@ -673,7 +673,9 @@ internal sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionReg
         return new global::OrcaCore.ActiveWaitSnapshot(
             wait.WaitId,
             FailureProvenance.LocationFromCompilerPath(obligation.AuthoredPath),
-            EventName.Create(wait.EventName),
+            WorkflowEventContract.Create(
+                EventName.Create(wait.EventName),
+                new EventContractVersion(checkpointWait?.EventContractVersion ?? 1)),
             wait.CorrelationId,
             wait.RegisteredAt,
             deadline);
@@ -811,7 +813,10 @@ internal sealed class DurableWorkflowEventClient(
 
         if (matches.Count > 1)
         {
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.AmbiguousWait(definitionId, eventName, correlationId);
+            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.AmbiguousWait(
+                definitionId,
+                WorkflowEventContract.Create(eventName, EventContractVersion.Initial),
+                correlationId);
         }
 
         return await DeliverToInstanceCoreAsync(

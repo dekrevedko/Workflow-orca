@@ -14,7 +14,7 @@ internal sealed record EphemeralActiveStepSnapshot
 internal sealed record EphemeralActiveWaitSnapshot
 {
     internal required WaitId WaitId { get; init; }
-    internal required string EventName { get; init; }
+    internal required WorkflowEventContract EventContract { get; init; }
     internal required CorrelationId CorrelationId { get; init; }
     internal required DateTimeOffset RegisteredAt { get; init; }
     internal required string AuthoredPath { get; init; }

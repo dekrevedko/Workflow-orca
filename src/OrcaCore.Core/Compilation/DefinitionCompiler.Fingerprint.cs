@@ -35,7 +35,9 @@ internal static partial class DefinitionCompiler
                     break;
                 case SelectedWaitAuthoringNode<TState> wait:
                     builder.Append('<')
-                        .Append(wait.EventName).Append(':').Append(wait.Mode).Append(':')
+                        .Append(wait.EventContract.EventName.Value).Append(':')
+                        .Append(wait.EventContract.Version.Value).Append(':')
+                        .Append(wait.Mode).Append(':')
                         .Append(wait.Timeout?.Ticks).Append(':')
                         .Append("opaque>");
                     break;
@@ -117,7 +119,9 @@ internal static partial class DefinitionCompiler
                     break;
                 case BranchWaitAuthoringInstruction wait:
                     builder.Append("Wait<")
-                        .Append(wait.EventName).Append(':').Append(wait.Mode).Append(':')
+                        .Append(wait.EventContract.EventName.Value).Append(':')
+                        .Append(wait.EventContract.Version.Value).Append(':')
+                        .Append(wait.Mode).Append(':')
                         .Append(wait.Timeout?.Ticks).Append('>');
                     break;
                 case BranchDelayAuthoringInstruction delay:

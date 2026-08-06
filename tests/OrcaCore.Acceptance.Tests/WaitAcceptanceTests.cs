@@ -20,7 +20,8 @@ public sealed class WaitAcceptanceTests
 
         snapshot.Status.Should().Be(WorkflowInstanceStatus.Waiting);
         var wait = snapshot.ActiveWaits.Should().ContainSingle().Which;
-        wait.EventName.Should().Be(EventName.Create("Approved"));
+        wait.EventContract.Should().Be(WorkflowEventContract.Create(
+            EventName.Create("Approved"), EventContractVersion.Initial));
         wait.AuthoredLocation.Value.Should().Be("workflow:$/n:00000001");
         wait.Deadline.Should().Be(wait.RegisteredAt.AddHours(1));
     }
@@ -93,12 +94,15 @@ public sealed class WaitAcceptanceTests
     {
         var definition = global::OrcaCore.Workflow.Ephemeral<TestState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new TestState())
-            .Wait(EventName.Create("Approved"), _ => Correlation, TimeSpan.FromHours(1))
+            .Wait(WorkflowEventContract.Create(EventName.Create("Approved"), EventContractVersion.Initial), _ => Correlation, TimeSpan.FromHours(1))
             .Then(context =>
             {
                 if (context.ResumedEvent is { } resumedEvent)
                 {
-                    context.State.Payloads.Add(resumedEvent.GetPayload<string>());
+                    context.State.Payloads.Add(resumedEvent.GetPayload(
+                        WorkflowEventContract<string>.Create(
+                            resumedEvent.EventContract.EventName,
+                            resumedEvent.EventContract.Version)));
                 }
 
                 return ValueTask.CompletedTask;

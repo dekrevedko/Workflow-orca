@@ -21,7 +21,7 @@ public sealed class ContinueAsNewAcceptanceTests
             .If(
                 snapshot => snapshot.Value.Generation > 0,
                 resumed => resumed.Wait(
-                    EventName.Create("continue-as-new-hold"),
+                    WorkflowEventContract.Create(EventName.Create("continue-as-new-hold"), EventContractVersion.Initial),
                     _ => CorrelationId.Create("continued-generation")))
             .ContinueAsNew(snapshot => snapshot.Value with { Generation = 1 })
             .Build();

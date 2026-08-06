@@ -851,7 +851,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         CompiledInstruction instruction,
         TState state,
         List<DurableOwnedObligationState> ownedObligations,
-        string eventName,
+        WorkflowEventContract eventContract,
         CorrelationId correlationId,
         WaitMode mode,
         StreamVersion currentVersion,
@@ -895,11 +895,12 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 context.InstanceId,
                 now,
                 waitId,
-                eventName,
+                eventContract.EventName.Value,
                 correlationId,
                 mode,
                 fiber.OwningScopeId?.Value)
             {
+                EventContractVersion = eventContract.Version.Value,
                 WaitSequence = waitSequence,
                 FiberId = fiber.Id,
                 ScopeId = fiber.OwningScopeId,

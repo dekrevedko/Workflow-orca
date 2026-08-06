@@ -251,9 +251,11 @@ internal abstract class WorkflowAuthoringSession<TState, TSelf>
     /// <summary>
     /// Adds a structural resident wait for a statically known event name.
     /// </summary>
-    internal TSelf Wait(string eventName, Func<TState, CorrelationId> correlationSelector)
+    internal TSelf Wait(
+        global::OrcaCore.WorkflowEventContract eventContract,
+        Func<TState, CorrelationId> correlationSelector)
     {
-        AddWait(eventName, correlationSelector, WaitMode.Resident, timeout: null);
+        AddWait(eventContract, correlationSelector, WaitMode.Resident, timeout: null);
         return Self;
     }
 
@@ -470,15 +472,15 @@ internal abstract class WorkflowAuthoringSession<TState, TSelf>
     }
 
     internal void AddWait(
-        string eventName,
+        global::OrcaCore.WorkflowEventContract eventContract,
         Func<TState, CorrelationId> correlationSelector,
         WaitMode mode,
         TimeSpan? timeout = null)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
+        ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlationSelector);
         using var operation = Mutate();
-        nodes.Add(new SelectedWaitAuthoringNode<TState>(eventName, correlationSelector, mode, timeout));
+        nodes.Add(new SelectedWaitAuthoringNode<TState>(eventContract, correlationSelector, mode, timeout));
     }
 
     internal void AddDurableNode(SelectedAuthoringNode<TState> node)
@@ -783,7 +785,12 @@ internal sealed class DurableWorkflowBuilder<TState>
         string eventName,
         Func<TState, CorrelationId> correlationSelector)
     {
-        AddWait(eventName, correlationSelector, WaitMode.Cold);
+        AddWait(
+            global::OrcaCore.WorkflowEventContract.Create(
+                global::OrcaCore.EventName.Create(eventName),
+                global::OrcaCore.EventContractVersion.Initial),
+            correlationSelector,
+            WaitMode.Cold);
         return this;
     }
 

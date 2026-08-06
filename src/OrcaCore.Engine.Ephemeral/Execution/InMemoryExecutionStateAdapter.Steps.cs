@@ -14,7 +14,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         FiberRecord fiber,
         CompiledInstruction instruction,
         WorkflowInstance<TState> instance,
-        string eventName,
+        WorkflowEventContract eventContract,
         CorrelationId correlationId,
         CancellationToken cancellationToken)
     {
@@ -30,7 +30,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
             ? registeredAt.Add(instruction.WaitTimeout.Value)
             : (DateTimeOffset?)null;
         var runtimeWait = instance.EnterWait(
-            eventName,
+            eventContract,
             correlationId,
             BranchIdForFiber(plan, state, fiber),
             registeredAt,
@@ -49,7 +49,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
                 timeoutToken => FailTimedOutWaitAsync(
                     fiber.Id,
                     instruction,
-                    EventName.Create(eventName),
+                    eventContract,
                     correlationId,
                     timeoutToken));
         }
@@ -79,7 +79,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
     private async Task FailTimedOutWaitAsync(
         FiberId fiberId,
         CompiledInstruction instruction,
-        EventName eventName,
+        WorkflowEventContract eventContract,
         CorrelationId correlationId,
         CancellationToken cancellationToken)
     {
@@ -95,7 +95,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
 
         waitsByFiber.Remove(fiberId);
         var exception = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.WaitTimeout(
-            eventName,
+            eventContract,
             correlationId);
         var failure = CreateFiberFailure(execution, fiber, instruction, exception);
         activeExecution = FailFiberAndAncestors(execution, fiber, failure);

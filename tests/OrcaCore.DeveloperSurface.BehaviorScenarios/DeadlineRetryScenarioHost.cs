@@ -94,7 +94,7 @@ public static class DeadlineRetryScenarioHost
             },
             "CompleteWithin did not create a deadline-bearing successor.");
         var definition = deadlineBuilder!
-            .Wait(EventName.Create("Resume"), _ => CorrelationId.Create("deadline"))
+            .Wait(WorkflowEventContract.Create(EventName.Create("Resume"), EventContractVersion.Initial), _ => CorrelationId.Create("deadline"))
             .End()
             .Build();
         var store = new DurableScenarioProvider(context.Services.TimeProvider);

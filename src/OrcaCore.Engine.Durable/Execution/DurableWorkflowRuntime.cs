@@ -277,6 +277,7 @@ internal sealed class DurableWorkflowRuntime
             },
             EnvelopeFingerprint = envelopeFingerprint ?? DurableEventEnvelopeFingerprint.Create(
                 eventName.Value,
+                EventContractVersion.Initial.Value,
                 correlationId,
                 occurredAt,
                 serialized?.ContentType,

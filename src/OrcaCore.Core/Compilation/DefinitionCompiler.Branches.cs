@@ -82,7 +82,7 @@ internal static partial class DefinitionCompiler
                 kind,
                 $"{path}/{index}",
                 operation,
-                waitInstruction?.EventName,
+                waitInstruction?.EventContract,
                 waitInstruction?.Mode,
                 delayInstruction?.Duration,
                 policy: stepInstruction is null ? null : CompilePolicy(stepInstruction.Policies),

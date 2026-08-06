@@ -177,7 +177,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     break;
                 case CompiledInstructionKind.Wait:
                 {
-                    if (instruction.Operation is null || string.IsNullOrWhiteSpace(instruction.EventName))
+                    if (instruction.Operation is null || instruction.EventContract is null)
                     {
                         throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                             $"Compiled wait '{instruction.Path}' has no typed executable binding.");
@@ -191,7 +191,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                             fiber,
                             instruction,
                             instance,
-                            instruction.EventName,
+                            instruction.EventContract,
                             ResolveWaitCorrelation(plan, execution, fiber, instance.State, instruction),
                             cancellationToken).ConfigureAwait(false);
                     }
@@ -677,23 +677,24 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     timeProvider.GetUtcNow()));
                 return new StepTransition(state, InstanceTerminated: true);
             }
-            case StepResult.WaitForEvent wait:
-            {
-                activeExecution = await RegisterFiberWaitAsync(
-                    plan,
-                    state,
-                    updatedFiber,
-                    instruction,
-                    instance,
-                    wait.EventName.Value,
-                    wait.CorrelationId,
-                    cancellationToken).ConfigureAwait(false);
-                return new StepTransition(
-                    activeExecution,
-                    LifecycleMachine.TerminalStatuses.Contains(instance.Status));
-            }
             default:
             {
+                if (StepResultWaitAccessor.TryGetWait(result, out var eventContract, out var correlationId))
+                {
+                    activeExecution = await RegisterFiberWaitAsync(
+                        plan,
+                        state,
+                        updatedFiber,
+                        instruction,
+                        instance,
+                        eventContract,
+                        correlationId,
+                        cancellationToken).ConfigureAwait(false);
+                    return new StepTransition(
+                        activeExecution,
+                        LifecycleMachine.TerminalStatuses.Contains(instance.Status));
+                }
+
                 var exception = new NotSupportedException(
                     $"Step result '{result.GetType().Name}' is durable-only and is not supported " +
                     "by the structured ephemeral adapter.");
