@@ -15,6 +15,7 @@ public sealed class EphemeralWorkflowDefinition<TInput>
         DefinitionFingerprint = definitionFingerprint;
         RuntimeDefinition = runtimeDefinition;
         RuntimeStateType = runtimeStateType;
+        Reference = new EphemeralWorkflowRef<TInput>(this);
     }
 
     public WorkflowMode Mode => WorkflowMode.Ephemeral;
@@ -24,6 +25,8 @@ public sealed class EphemeralWorkflowDefinition<TInput>
     public DefinitionVersion DefinitionVersion { get; }
 
     public DefinitionFingerprint DefinitionFingerprint { get; }
+
+    public EphemeralWorkflowRef<TInput> Reference { get; }
 
     internal object RuntimeDefinition { get; }
 
@@ -45,6 +48,7 @@ public sealed class EphemeralWorkflowDefinition<TInput, TOutput>
         DefinitionFingerprint = definitionFingerprint;
         RuntimeDefinition = runtimeDefinition;
         RuntimeStateType = runtimeStateType;
+        Reference = new EphemeralWorkflowRef<TInput, TOutput>(this);
     }
 
     public WorkflowMode Mode => WorkflowMode.Ephemeral;
@@ -55,9 +59,51 @@ public sealed class EphemeralWorkflowDefinition<TInput, TOutput>
 
     public DefinitionFingerprint DefinitionFingerprint { get; }
 
+    public EphemeralWorkflowRef<TInput, TOutput> Reference { get; }
+
     internal object RuntimeDefinition { get; }
 
     internal Type RuntimeStateType { get; }
+}
+
+/// <summary>A state-opaque resultless ephemeral workflow reference.</summary>
+public sealed class EphemeralWorkflowRef<TInput>
+{
+    internal EphemeralWorkflowRef(EphemeralWorkflowDefinition<TInput> definition)
+    {
+        Mode = definition.Mode;
+        DefinitionId = definition.DefinitionId;
+        DefinitionVersion = definition.DefinitionVersion;
+        DefinitionFingerprint = definition.DefinitionFingerprint;
+    }
+
+    public WorkflowMode Mode { get; }
+
+    public DefinitionId DefinitionId { get; }
+
+    public DefinitionVersion DefinitionVersion { get; }
+
+    public DefinitionFingerprint DefinitionFingerprint { get; }
+}
+
+/// <summary>A state-opaque resultful ephemeral workflow reference.</summary>
+public sealed class EphemeralWorkflowRef<TInput, TOutput>
+{
+    internal EphemeralWorkflowRef(EphemeralWorkflowDefinition<TInput, TOutput> definition)
+    {
+        Mode = definition.Mode;
+        DefinitionId = definition.DefinitionId;
+        DefinitionVersion = definition.DefinitionVersion;
+        DefinitionFingerprint = definition.DefinitionFingerprint;
+    }
+
+    public WorkflowMode Mode { get; }
+
+    public DefinitionId DefinitionId { get; }
+
+    public DefinitionVersion DefinitionVersion { get; }
+
+    public DefinitionFingerprint DefinitionFingerprint { get; }
 }
 
 /// <summary>An immutable resultless durable workflow definition.</summary>

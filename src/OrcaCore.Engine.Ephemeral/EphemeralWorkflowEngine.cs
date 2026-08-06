@@ -17,7 +17,7 @@ namespace OrcaCore.Engine.Ephemeral;
 /// </summary>
 internal sealed class EphemeralWorkflowEngine : IDisposable
 {
-    private readonly ConcurrentDictionary<DefinitionId, RegisteredDefinition> definitions = [];
+    private readonly ConcurrentDictionary<DefinitionKey, RegisteredDefinition> definitions = [];
     private readonly InstanceExecutionLane executionLane;
     private readonly ResourceGovernanceCoordinator governance;
     private readonly IInstanceRegistry instanceRegistry;
@@ -130,6 +130,43 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
     public void RegisterDefinition<TState>(WorkflowDefinition<TState> definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
+        ValidateDefinition(definition);
+
+        var plan = (global::OrcaCore.Core.Compilation.CompiledWorkflowPlan)
+            WorkflowDefinitionRuntime.GetPlan(definition);
+        var registered = new RegisteredDefinition(
+            definition,
+            definition.DefinitionVersion,
+            typeof(TState),
+            plan.Fingerprint);
+        definitions.AddOrUpdate(
+            new DefinitionKey(definition.DefinitionId, definition.DefinitionVersion),
+            registered,
+            (_, existing) => SameRegistration(existing, registered)
+                ? existing
+                : throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
+                    $"Workflow definition '{definition.DefinitionId}' is already registered with " +
+                    $"version '{existing.DefinitionVersion}', state type '{existing.StateType.FullName}', " +
+                    $"and fingerprint '{existing.Fingerprint}'. Candidate version: " +
+                    $"'{registered.DefinitionVersion}', candidate fingerprint: '{registered.Fingerprint}'."));
+    }
+
+    internal void ValidateDefinition<TState>(WorkflowDefinition<TState> definition)
+    {
+        var missingTransientPools = PreflightDefinition(definition);
+        if (missingTransientPools.Count > 0)
+        {
+            OrcaCoreEphemeralDiagnostics.RecordHostCompatibilityFailure("missing_transient_pools");
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
+                "HostIncompatible.MissingTransientPools: " +
+                string.Join(", ", missingTransientPools.Select(pool => pool.Value)));
+        }
+    }
+
+    internal IReadOnlyList<TransientPoolName> PreflightDefinition<TState>(
+        WorkflowDefinition<TState> definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
         var plan = (global::OrcaCore.Core.Compilation.CompiledWorkflowPlan)
             WorkflowDefinitionRuntime.GetPlan(definition);
         if (plan.Mode == global::OrcaCore.Core.Compilation.WorkflowExecutionMode.Durable)
@@ -152,30 +189,9 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
             .Cast<string>()
             .Distinct(StringComparer.Ordinal)
             .OrderBy(pool => pool, StringComparer.Ordinal)
+            .Select(TransientPoolName.Create)
             .ToArray();
-        if (missingTransientPools.Length > 0)
-        {
-            OrcaCoreEphemeralDiagnostics.RecordHostCompatibilityFailure("missing_transient_pools");
-            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
-                "HostIncompatible.MissingTransientPools: " +
-                string.Join(", ", missingTransientPools));
-        }
-
-        var registered = new RegisteredDefinition(
-            definition,
-            definition.DefinitionVersion,
-            typeof(TState),
-            plan.Fingerprint);
-        definitions.AddOrUpdate(
-            definition.DefinitionId,
-            registered,
-            (_, existing) => SameRegistration(existing, registered)
-                ? existing
-                : throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
-                    $"Workflow definition '{definition.DefinitionId}' is already registered with " +
-                    $"version '{existing.DefinitionVersion}', state type '{existing.StateType.FullName}', " +
-                    $"and fingerprint '{existing.Fingerprint}'. Candidate version: " +
-                    $"'{registered.DefinitionVersion}', candidate fingerprint: '{registered.Fingerprint}'."));
+        return missingTransientPools;
     }
 
     /// <summary>
@@ -187,13 +203,50 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definitionId);
-        using var activity = OrcaCoreEphemeralDiagnostics.StartOperation("start");
-        cancellationToken.ThrowIfCancellationRequested();
-
-        if (!definitions.TryGetValue(definitionId, out var registeredDefinition))
+        var matches = definitions
+            .Where(pair => pair.Key.DefinitionId.Equals(definitionId))
+            .Select(pair => pair.Key.DefinitionVersion)
+            .ToArray();
+        if (matches.Length == 0)
         {
             throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
                 $"No workflow definition is registered for definition id '{definitionId}'.");
+        }
+
+        if (matches.Length > 1)
+        {
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
+                $"Multiple workflow definition versions are registered for definition id '{definitionId}'. " +
+                "Start through an exact definition handle.");
+        }
+
+        return await StartCoreAsync<TInput, TState>(
+            definitionId,
+            matches[0],
+            input,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Starts an exact registered workflow version for a catalog-resolved definition handle.
+    /// </summary>
+    internal async Task<EphemeralWorkflowInstanceSnapshot> StartCoreAsync<TInput, TState>(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        TInput input,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(definitionId);
+        using var activity = OrcaCoreEphemeralDiagnostics.StartOperation("start");
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!definitions.TryGetValue(
+                new DefinitionKey(definitionId, definitionVersion),
+                out var registeredDefinition))
+        {
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
+                $"No workflow definition is registered for definition id '{definitionId}' " +
+                $"and version '{definitionVersion}'.");
         }
 
         if (registeredDefinition.Definition is not WorkflowDefinition<TState> definition)
@@ -288,7 +341,9 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
     private global::OrcaCore.WorkflowInstanceSnapshot ToApplicationSnapshot(
         EphemeralWorkflowInstanceSnapshot snapshot)
     {
-        if (!definitions.TryGetValue(snapshot.DefinitionId, out var registration))
+        if (!definitions.TryGetValue(
+                new DefinitionKey(snapshot.DefinitionId, snapshot.DefinitionVersion),
+                out var registration))
         {
             throw new InvalidOperationException(
                 $"Definition '{snapshot.DefinitionId}' is not registered for snapshot projection.");
@@ -356,6 +411,10 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         DefinitionVersion DefinitionVersion,
         Type StateType,
         string Fingerprint);
+
+    private readonly record struct DefinitionKey(
+        DefinitionId DefinitionId,
+        DefinitionVersion DefinitionVersion);
 
     internal DateTimeOffset GetUtcNow()
     {

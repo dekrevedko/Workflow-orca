@@ -222,6 +222,28 @@ internal static class DurableApplicationContractFactory
     internal static WorkflowInstanceNotFoundException InstanceNotFound(InstanceId instanceId) =>
         Construct<WorkflowInstanceNotFoundException>([typeof(InstanceId)], instanceId);
 
+    internal static WorkflowDefinitionNotRegisteredException DefinitionNotRegistered(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        DefinitionFingerprint definitionFingerprint) =>
+        Construct<WorkflowDefinitionNotRegisteredException>(
+            [typeof(DefinitionId), typeof(DefinitionVersion), typeof(DefinitionFingerprint)],
+            definitionId,
+            definitionVersion,
+            definitionFingerprint);
+
+    internal static WorkflowDefinitionHostCompatibilityException HostCompatibility(
+        DefinitionHostCompatibilityFailure failure) =>
+        Construct<WorkflowDefinitionHostCompatibilityException>(
+            [typeof(DefinitionHostCompatibilityFailure)],
+            failure);
+
+    internal static WorkflowDefinitionRegistrationConflictException RegistrationConflict(
+        DefinitionRegistrationConflict conflict) =>
+        Construct<WorkflowDefinitionRegistrationConflictException>(
+            [typeof(DefinitionRegistrationConflict)],
+            conflict);
+
     internal static WorkflowInstanceDefinitionMismatchException InstanceDefinitionMismatch(
         InstanceId instanceId,
         DefinitionId expectedDefinitionId,

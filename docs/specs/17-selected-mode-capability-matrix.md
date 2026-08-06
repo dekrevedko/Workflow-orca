@@ -1586,6 +1586,7 @@ All public `OrcaCoreException` codes and runtime failure projection codes are fi
 | `WF-RESOURCE-POOL-NOT-CONFIGURED` | `ResourcePoolNotConfiguredException` |
 | `WF-INSTANCE-NOT-FOUND` | `WorkflowInstanceNotFoundException` |
 | `WF-INSTANCE-DEFINITION-MISMATCH` | `WorkflowInstanceDefinitionMismatchException` |
+| `WF-DEFINITION-NOT-REGISTERED` | `WorkflowDefinitionNotRegisteredException` |
 | `WF-DEFINITION-HOST-INCOMPATIBLE` | `WorkflowDefinitionHostCompatibilityException` |
 | `WF-DEFINITION-REGISTRATION-CONFLICT` | `WorkflowDefinitionRegistrationConflictException` |
 | `WF-START-IDEMPOTENCY-CONFLICT` | `WorkflowStartIdempotencyConflictException` |
@@ -2234,6 +2235,17 @@ public sealed class WorkflowDefinitionRegistrationConflictException : OrcaCoreEx
     internal WorkflowDefinitionRegistrationConflictException(
         DefinitionRegistrationConflict conflict);
     public DefinitionRegistrationConflict Conflict { get; }
+}
+
+public sealed class WorkflowDefinitionNotRegisteredException : OrcaCoreException
+{
+    internal WorkflowDefinitionNotRegisteredException(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        DefinitionFingerprint definitionFingerprint);
+    public DefinitionId DefinitionId { get; }
+    public DefinitionVersion DefinitionVersion { get; }
+    public DefinitionFingerprint DefinitionFingerprint { get; }
 }
 
 public sealed class WorkflowDefinitionHostCompatibilityException : OrcaCoreException

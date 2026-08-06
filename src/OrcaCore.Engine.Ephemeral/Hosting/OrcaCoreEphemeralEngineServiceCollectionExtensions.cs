@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using OrcaCore.Engine.Ephemeral;
 
 namespace OrcaCore.Hosting;
@@ -7,7 +8,7 @@ namespace OrcaCore.Hosting;
 /// <summary>Registers the explicit ephemeral engine role.</summary>
 public static class OrcaCoreEphemeralEngineServiceCollectionExtensions
 {
-    public static IServiceCollection AddOrcaCoreEphemeralEngine(
+    public static OrcaCoreEphemeralEngineBuilder AddOrcaCoreEphemeralEngine(
         this IServiceCollection services,
         EphemeralEngineHostOptions options)
     {
@@ -20,7 +21,7 @@ public static class OrcaCoreEphemeralEngineServiceCollectionExtensions
                 "ephemeral-engine",
                 fingerprint))
         {
-            return services;
+            return new OrcaCoreEphemeralEngineBuilder(services);
         }
 
         services.TryAddSingleton(TimeProvider.System);
@@ -28,12 +29,21 @@ public static class OrcaCoreEphemeralEngineServiceCollectionExtensions
             provider.GetRequiredService<TimeProvider>(),
             copied,
             provider));
-        services.TryAddSingleton<EphemeralWorkflowDefinitionRegistry>();
+        services.TryAddSingleton(provider =>
+        {
+            var registry = new EphemeralWorkflowDefinitionRegistry(
+                provider.GetRequiredService<EphemeralWorkflowEngine>());
+            registry.InstallStagedBatch(
+                provider.GetServices<IEphemeralStagedWorkflowDefinition>());
+            return registry;
+        });
         services.TryAddSingleton<IWorkflowDefinitionRegistry>(provider =>
             provider.GetRequiredService<EphemeralWorkflowDefinitionRegistry>());
         services.TryAddSingleton<IWorkflowEventClient, EphemeralWorkflowEventClient>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, OrcaCoreEphemeralWorkflowCatalogReadinessHostedService>());
         services.AddSingleton(new EngineRoleRegistration("ephemeral-engine", fingerprint));
-        return services;
+        return new OrcaCoreEphemeralEngineBuilder(services);
     }
 
     private static string ProfileFingerprint(EphemeralWorkflowEngineOptions options)
@@ -50,6 +60,48 @@ public static class OrcaCoreEphemeralEngineServiceCollectionExtensions
             string.Join(",", throttles),
             string.Join(",", pools));
     }
+}
+
+/// <summary>Stages immutable ephemeral definitions for one engine host.</summary>
+public sealed class OrcaCoreEphemeralEngineBuilder
+{
+    private readonly IServiceCollection services;
+
+    internal OrcaCoreEphemeralEngineBuilder(IServiceCollection services)
+    {
+        this.services = services ?? throw new ArgumentNullException(nameof(services));
+    }
+
+    public OrcaCoreEphemeralEngineBuilder AddWorkflow<TInput>(
+        EphemeralWorkflowDefinition<TInput> definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        services.AddSingleton<IEphemeralStagedWorkflowDefinition>(
+            new EphemeralStagedWorkflowDefinition<TInput>(definition));
+        return this;
+    }
+
+    public OrcaCoreEphemeralEngineBuilder AddWorkflow<TInput, TOutput>(
+        EphemeralWorkflowDefinition<TInput, TOutput> definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        services.AddSingleton<IEphemeralStagedWorkflowDefinition>(
+            new EphemeralStagedWorkflowDefinition<TInput, TOutput>(definition));
+        return this;
+    }
+}
+
+internal sealed class OrcaCoreEphemeralWorkflowCatalogReadinessHostedService : IHostedService
+{
+    public OrcaCoreEphemeralWorkflowCatalogReadinessHostedService(
+        IWorkflowDefinitionRegistry registry)
+    {
+        ArgumentNullException.ThrowIfNull(registry);
+    }
+
+    public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
 internal sealed record EngineRoleRegistration(string Role, string OptionsFingerprint)

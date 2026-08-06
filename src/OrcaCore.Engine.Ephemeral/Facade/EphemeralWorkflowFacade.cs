@@ -11,14 +11,19 @@ using LegacyStatus = OrcaCore.WorkflowInstanceStatus;
 
 namespace OrcaCore.Engine.Ephemeral;
 
-internal sealed class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionRegistry
+internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionRegistry
 {
     private static readonly MethodInfo RegisterRuntimeMethod = typeof(EphemeralWorkflowEngine)
         .GetMethods(BindingFlags.Instance | BindingFlags.Public)
         .Single(method => method.Name == nameof(EphemeralWorkflowEngine.RegisterDefinition));
+    private static readonly MethodInfo PreflightRuntimeMethod = typeof(EphemeralWorkflowEngine)
+        .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
+        .Single(method => method.Name == nameof(EphemeralWorkflowEngine.PreflightDefinition));
     private static readonly MethodInfo StartRuntimeMethod = typeof(EphemeralWorkflowEngine)
         .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
-        .Single(method => method.Name == nameof(EphemeralWorkflowEngine.StartCoreAsync));
+        .Single(method =>
+            method.Name == nameof(EphemeralWorkflowEngine.StartCoreAsync) &&
+            method.GetParameters().Length == 4);
 
     private readonly object gate = new();
     private readonly SemaphoreSlim startGate = new(1, 1);
@@ -92,6 +97,46 @@ internal sealed class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionR
                 WorkflowMode.Durable));
     }
 
+    public EphemeralDefinitionHandle<TInput> GetRequiredHandle<TInput>(
+        EphemeralWorkflowRef<TInput> reference)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+        return GetRequiredHandleCore<EphemeralDefinitionHandle<TInput>>(
+            reference.DefinitionId,
+            reference.DefinitionVersion,
+            reference.DefinitionFingerprint);
+    }
+
+    public EphemeralDefinitionHandle<TInput, TOutput> GetRequiredHandle<TInput, TOutput>(
+        EphemeralWorkflowRef<TInput, TOutput> reference)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+        return GetRequiredHandleCore<EphemeralDefinitionHandle<TInput, TOutput>>(
+            reference.DefinitionId,
+            reference.DefinitionVersion,
+            reference.DefinitionFingerprint);
+    }
+
+    public DurableDefinitionHandle<TInput> GetRequiredHandle<TInput>(
+        DurableWorkflowRef<TInput> reference)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+        return GetRequiredHandleCore<DurableDefinitionHandle<TInput>>(
+            reference.DefinitionId,
+            reference.DefinitionVersion,
+            reference.DefinitionFingerprint);
+    }
+
+    public DurableDefinitionHandle<TInput, TOutput> GetRequiredHandle<TInput, TOutput>(
+        DurableWorkflowRef<TInput, TOutput> reference)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+        return GetRequiredHandleCore<DurableDefinitionHandle<TInput, TOutput>>(
+            reference.DefinitionId,
+            reference.DefinitionVersion,
+            reference.DefinitionFingerprint);
+    }
+
     internal IReadOnlyList<InstanceBinding> ListInstances() =>
         GetInstancesSnapshot();
 
@@ -119,6 +164,12 @@ internal sealed class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionR
             .GetProperty(nameof(EphemeralWorkflowDefinition<object>.DefinitionFingerprint))!
             .GetValue(publicDefinition)!;
         var key = new DefinitionKey(definitionId, definitionVersion);
+        var missingPools = MissingTransientPools(runtimeDefinition, stateType);
+        if (missingPools.Count > 0)
+        {
+            return new WorkflowRegistrationResult<THandle>.HostIncompatible(
+                new DefinitionHostCompatibilityFailure.MissingTransientPools(missingPools));
+        }
 
         lock (gate)
         {
@@ -134,26 +185,7 @@ internal sealed class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionR
                             fingerprint));
             }
 
-            try
-            {
-                RegisterRuntimeMethod.MakeGenericMethod(stateType).Invoke(engine, [runtimeDefinition]);
-            }
-            catch (TargetInvocationException exception)
-                when (exception.InnerException is WorkflowDefinitionException definitionException &&
-                      definitionException.Message.Contains(
-                          "HostIncompatible.MissingTransientPools:",
-                          StringComparison.Ordinal))
-            {
-                const string marker = "HostIncompatible.MissingTransientPools:";
-                var names = definitionException.Message[
-                        (definitionException.Message.IndexOf(marker, StringComparison.Ordinal) + marker.Length)..]
-                    .Split('(', 2)[0]
-                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .Select(TransientPoolName.Create)
-                    .ToArray();
-                return new WorkflowRegistrationResult<THandle>.HostIncompatible(
-                    new DefinitionHostCompatibilityFailure.MissingTransientPools(names));
-            }
+            RegisterRuntimeMethod.MakeGenericMethod(stateType).Invoke(engine, [runtimeDefinition]);
 
             var handle = createHandle();
             registrations.Add(
@@ -161,6 +193,42 @@ internal sealed class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionR
                 new Registration(handle!, fingerprint, stateType, runtimeDefinition));
             return new WorkflowRegistrationResult<THandle>.Registered(handle);
         }
+    }
+
+    private THandle GetRequiredHandleCore<THandle>(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        DefinitionFingerprint definitionFingerprint)
+    {
+        lock (gate)
+        {
+            if (registrations.TryGetValue(
+                    new DefinitionKey(definitionId, definitionVersion),
+                    out var registration) &&
+                registration.Fingerprint.Equals(definitionFingerprint) &&
+                registration.Handle is THandle handle)
+            {
+                return handle;
+            }
+        }
+
+        throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionNotRegistered(
+            definitionId,
+            definitionVersion,
+            definitionFingerprint);
+    }
+
+    private static WorkflowDefinitionRegistrationConflictException StagedRegistrationConflict(
+        IEphemeralStagedWorkflowDefinition definition,
+        DefinitionFingerprint existingFingerprint)
+    {
+        var conflict = FacadeValueFactory.RegistrationConflict(
+            definition.DefinitionId,
+            definition.DefinitionVersion,
+            existingFingerprint,
+            definition.DefinitionFingerprint);
+        return global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RegistrationConflict(
+            conflict);
     }
 
     private async ValueTask<WorkflowStartResult<WorkflowInstanceHandle>> StartAsync<TInput>(
@@ -248,7 +316,7 @@ internal sealed class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionR
 
             var task = (Task)StartRuntimeMethod
                 .MakeGenericMethod(typeof(TInput), stateType)
-                .Invoke(engine, [definitionId, input, cancellationToken])!;
+                .Invoke(engine, [definitionId, definitionVersion, input, cancellationToken])!;
             await task.ConfigureAwait(false);
             var snapshot = (LegacySnapshot)task.GetType().GetProperty("Result")!.GetValue(task)!;
             var ambiguous = FindAmbiguousWait(definitionId, snapshot);

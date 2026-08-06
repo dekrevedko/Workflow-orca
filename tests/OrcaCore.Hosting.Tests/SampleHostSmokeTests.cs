@@ -20,10 +20,11 @@ public sealed class SampleHostSmokeTests
         host.Services.GetServices<IHostedService>()
             .Select(service => service.GetType().Name)
             .Should()
-            .BeEquivalentTo(
+            .Equal(
+                "OrcaCoreDurableWorkflowCatalogReadinessHostedService",
                 "OrcaCoreContinuationPumpHostedService",
-                "OrcaCoreOutboxPumpHostedService",
                 "OrcaCoreTimerHostedService",
-                "OrcaCoreOperationalSweepHostedService");
+                "OrcaCoreOperationalSweepHostedService",
+                "OrcaCoreOutboxPumpHostedService");
     }
 }

@@ -17,6 +17,7 @@ public sealed class PublicSurfaceBoundaryTests
                 "OrcaCore.Hosting.DurableEngineHostOptions",
                 "OrcaCore.Hosting.DurableResourcePoolDefinition",
                 "OrcaCore.Hosting.DurableResourcePoolOptions",
+                "OrcaCore.Hosting.OrcaCoreDurableEngineBuilder",
                 "OrcaCore.Hosting.OrcaCoreDurableEngineServiceCollectionExtensions",
                 "OrcaCore.Hosting.ResourceLeases.IDurableResourcePoolManagement",
                 "OrcaCore.Hosting.ResourceLeases.IDurableResourceLeaseRecovery",

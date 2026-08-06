@@ -14,6 +14,18 @@ public interface IWorkflowDefinitionRegistry
 
     WorkflowRegistrationResult<DurableDefinitionHandle<TInput, TOutput>> Register<TInput, TOutput>(
         DurableWorkflowDefinition<TInput, TOutput> definition);
+
+    EphemeralDefinitionHandle<TInput> GetRequiredHandle<TInput>(
+        EphemeralWorkflowRef<TInput> reference);
+
+    EphemeralDefinitionHandle<TInput, TOutput> GetRequiredHandle<TInput, TOutput>(
+        EphemeralWorkflowRef<TInput, TOutput> reference);
+
+    DurableDefinitionHandle<TInput> GetRequiredHandle<TInput>(
+        DurableWorkflowRef<TInput> reference);
+
+    DurableDefinitionHandle<TInput, TOutput> GetRequiredHandle<TInput, TOutput>(
+        DurableWorkflowRef<TInput, TOutput> reference);
 }
 
 public sealed class EphemeralDefinitionHandle<TInput>

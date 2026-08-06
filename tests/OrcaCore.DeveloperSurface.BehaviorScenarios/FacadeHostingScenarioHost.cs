@@ -400,8 +400,8 @@ public static class FacadeHostingScenarioHost
             ephemeral.AddOrcaCoreEphemeralEngine(EphemeralOptions()));
         Phase0Assert.Satisfies(
             ephemeralRegistration,
-            services => ReferenceEquals(services, ephemeral),
-            "Ephemeral engine registration did not return the supplied service collection.");
+            builder => builder is not null,
+            "Ephemeral engine registration did not return its composition builder.");
 
         var durable = new ServiceCollection();
         durable.AddOrcaCoreInMemoryDurableProvider();
@@ -409,8 +409,8 @@ public static class FacadeHostingScenarioHost
             durable.AddOrcaCoreDurableEngine(DurableOptions()));
         Phase0Assert.Satisfies(
             durableRegistration,
-            services => ReferenceEquals(services, durable),
-            "Durable engine registration did not return the supplied service collection.");
+            builder => builder is not null,
+            "Durable engine registration did not return its composition builder.");
 
         var dagRegistration = context.Observe(_ =>
             durable.AddOrcaCoreDag(new DagHostOptions { MaxConcurrentNodes = 2 }));
@@ -456,7 +456,7 @@ public static class FacadeHostingScenarioHost
             durable.AddOrcaCoreDurableEngine(DurableOptions()));
         Phase0Assert.Satisfies(
             registered,
-            services => ReferenceEquals(services, durable),
+            builder => builder is not null,
             "The durable engine role was not registered with one complete provider.");
 
         var conflicting = context.ObserveThrows<InvalidOperationException, IServiceCollection>(_ =>

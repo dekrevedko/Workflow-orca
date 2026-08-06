@@ -23,7 +23,7 @@ namespace OrcaCore.Hosting;
 public static class OrcaCoreDurableEngineServiceCollectionExtensions
 {
     /// <summary>Registers one durable engine role using one complete provider role set.</summary>
-    public static IServiceCollection AddOrcaCoreDurableEngine(
+    public static OrcaCoreDurableEngineBuilder AddOrcaCoreDurableEngine(
         this IServiceCollection services,
         DurableEngineHostOptions options)
     {
@@ -34,7 +34,7 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
         var fingerprint = ProfileFingerprint(copied);
         if (RequireAvailableOrSame(services, "durable-engine", fingerprint))
         {
-            return services;
+            return new OrcaCoreDurableEngineBuilder(services);
         }
 
         AddCommonServices(services);
@@ -61,14 +61,20 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
             DurableDriverBudget.Default,
             provider.GetRequiredService<IWorkflowProjectionStore>(),
             provider.GetService<IDurableDriverObserver>()));
-        services.TryAddSingleton(provider => new DurableWorkflowDefinitionRegistry(
-            provider.GetRequiredService<DurableWorkflowRuntime>(),
-            provider.GetRequiredService<IWorkflowProjectionStore>(),
-            provider.GetRequiredService<IWorkflowEventStore>(),
-            provider.GetRequiredService<DurableCommandProcessor>(),
-            provider.GetRequiredService<DurableFacadeNotificationHub>(),
-            provider.GetRequiredService<TimeProvider>(),
-            copied.ResourcePools.Values.Select(pool => pool.Name)));
+        services.TryAddSingleton(provider =>
+        {
+            var registry = new DurableWorkflowDefinitionRegistry(
+                provider.GetRequiredService<DurableWorkflowRuntime>(),
+                provider.GetRequiredService<IWorkflowProjectionStore>(),
+                provider.GetRequiredService<IWorkflowEventStore>(),
+                provider.GetRequiredService<DurableCommandProcessor>(),
+                provider.GetRequiredService<DurableFacadeNotificationHub>(),
+                provider.GetRequiredService<TimeProvider>(),
+                copied.ResourcePools.Values.Select(pool => pool.Name));
+            registry.InstallStagedBatch(
+                provider.GetServices<IDurableStagedWorkflowDefinition>());
+            return registry;
+        });
         services.TryAddSingleton<IWorkflowDefinitionRegistry>(provider =>
             provider.GetRequiredService<DurableWorkflowDefinitionRegistry>());
         services.TryAddSingleton<IWorkflowEventClient>(provider =>
@@ -99,7 +105,7 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
 
         AddProgressionLoops(services);
         services.AddSingleton(new DurableEngineRoleRegistration("durable-engine", fingerprint));
-        return services;
+        return new OrcaCoreDurableEngineBuilder(services);
     }
 
     /// <summary>
@@ -158,6 +164,8 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
 
     private static void AddProgressionLoops(IServiceCollection services)
     {
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, OrcaCoreDurableWorkflowCatalogReadinessHostedService>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, OrcaCoreContinuationPumpHostedService>());
         services.TryAddEnumerable(
@@ -243,6 +251,48 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
             options.PartitionId.Value,
             string.Join(",", pools));
     }
+}
+
+/// <summary>Stages immutable durable definitions for one engine host.</summary>
+public sealed class OrcaCoreDurableEngineBuilder
+{
+    private readonly IServiceCollection services;
+
+    internal OrcaCoreDurableEngineBuilder(IServiceCollection services)
+    {
+        this.services = services ?? throw new ArgumentNullException(nameof(services));
+    }
+
+    public OrcaCoreDurableEngineBuilder AddWorkflow<TInput>(
+        DurableWorkflowDefinition<TInput> definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        services.AddSingleton<IDurableStagedWorkflowDefinition>(
+            new DurableStagedWorkflowDefinition<TInput>(definition));
+        return this;
+    }
+
+    public OrcaCoreDurableEngineBuilder AddWorkflow<TInput, TOutput>(
+        DurableWorkflowDefinition<TInput, TOutput> definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        services.AddSingleton<IDurableStagedWorkflowDefinition>(
+            new DurableStagedWorkflowDefinition<TInput, TOutput>(definition));
+        return this;
+    }
+}
+
+internal sealed class OrcaCoreDurableWorkflowCatalogReadinessHostedService : IHostedService
+{
+    public OrcaCoreDurableWorkflowCatalogReadinessHostedService(
+        IWorkflowDefinitionRegistry registry)
+    {
+        ArgumentNullException.ThrowIfNull(registry);
+    }
+
+    public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
 internal sealed record DurableEngineRoleRegistration(

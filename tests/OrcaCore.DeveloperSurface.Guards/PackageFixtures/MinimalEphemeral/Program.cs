@@ -23,7 +23,13 @@ async ValueTask<Output> RunAsync(
     return await start.WaitForOutputAsync(token);
 }
 
+static (DefinitionId, DefinitionVersion, DefinitionFingerprint) MissingDefinitionIdentity(
+    WorkflowDefinitionNotRegisteredException exception) =>
+    (exception.DefinitionId, exception.DefinitionVersion, exception.DefinitionFingerprint);
+
 _ = (Func<OrcaCoreEphemeralEngineBuilder, IWorkflowDefinitionRegistry, Input, CancellationToken, ValueTask<Output>>)RunAsync;
+_ = (Func<WorkflowDefinitionNotRegisteredException,
+    (DefinitionId, DefinitionVersion, DefinitionFingerprint)>)MissingDefinitionIdentity;
 
 internal sealed record Input(int Value, CorrelationId Correlation);
 internal sealed record State(int Value, CorrelationId Correlation);

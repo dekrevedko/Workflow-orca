@@ -30,7 +30,7 @@ internal sealed class DurableFacadeNotificationHub : IWorkflowRuntimeObserver
     }
 }
 
-internal sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegistry
+internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegistry
 {
     private static readonly MethodInfo StartRuntimeMethod = typeof(DurableWorkflowRuntime)
         .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
@@ -132,6 +132,46 @@ internal sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionReg
                     token)));
     }
 
+    public EphemeralDefinitionHandle<TInput> GetRequiredHandle<TInput>(
+        EphemeralWorkflowRef<TInput> reference)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+        return GetRequiredHandleCore<EphemeralDefinitionHandle<TInput>>(
+            reference.DefinitionId,
+            reference.DefinitionVersion,
+            reference.DefinitionFingerprint);
+    }
+
+    public EphemeralDefinitionHandle<TInput, TOutput> GetRequiredHandle<TInput, TOutput>(
+        EphemeralWorkflowRef<TInput, TOutput> reference)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+        return GetRequiredHandleCore<EphemeralDefinitionHandle<TInput, TOutput>>(
+            reference.DefinitionId,
+            reference.DefinitionVersion,
+            reference.DefinitionFingerprint);
+    }
+
+    public DurableDefinitionHandle<TInput> GetRequiredHandle<TInput>(
+        DurableWorkflowRef<TInput> reference)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+        return GetRequiredHandleCore<DurableDefinitionHandle<TInput>>(
+            reference.DefinitionId,
+            reference.DefinitionVersion,
+            reference.DefinitionFingerprint);
+    }
+
+    public DurableDefinitionHandle<TInput, TOutput> GetRequiredHandle<TInput, TOutput>(
+        DurableWorkflowRef<TInput, TOutput> reference)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+        return GetRequiredHandleCore<DurableDefinitionHandle<TInput, TOutput>>(
+            reference.DefinitionId,
+            reference.DefinitionVersion,
+            reference.DefinitionFingerprint);
+    }
+
     private WorkflowRegistrationResult<THandle> RegisterCore<THandle>(
         object publicDefinition,
         object runtimeDefinition,
@@ -149,6 +189,12 @@ internal sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionReg
             .GetProperty(nameof(DurableWorkflowDefinition<object>.DefinitionFingerprint))!
             .GetValue(publicDefinition)!;
         var key = new DefinitionKey(definitionId, definitionVersion);
+        var missing = MissingDurablePools(runtimeDefinition);
+        if (missing.Count > 0)
+        {
+            return new WorkflowRegistrationResult<THandle>.HostIncompatible(
+                new DefinitionHostCompatibilityFailure.MissingDurableResourcePools(missing));
+        }
 
         lock (gate)
         {
@@ -164,22 +210,34 @@ internal sealed class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionReg
                             fingerprint));
             }
 
-            var missing = RequiredDurablePools(runtimeDefinition)
-                .Where(pool => !configuredResourcePools.Contains(pool.Value))
-                .Distinct()
-                .OrderBy(pool => pool.Value, StringComparer.Ordinal)
-                .ToArray();
-            if (missing.Length > 0)
-            {
-                return new WorkflowRegistrationResult<THandle>.HostIncompatible(
-                    new DefinitionHostCompatibilityFailure.MissingDurableResourcePools(missing));
-            }
-
             runtime.RegisterDefinition(publicDefinition);
             var handle = createHandle();
             registrations.Add(key, new Registration(handle!, fingerprint, stateType));
             return new WorkflowRegistrationResult<THandle>.Registered(handle);
         }
+    }
+
+    private THandle GetRequiredHandleCore<THandle>(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        DefinitionFingerprint definitionFingerprint)
+    {
+        lock (gate)
+        {
+            if (registrations.TryGetValue(
+                    new DefinitionKey(definitionId, definitionVersion),
+                    out var registration) &&
+                registration.Fingerprint.Equals(definitionFingerprint) &&
+                registration.Handle is THandle handle)
+            {
+                return handle;
+            }
+        }
+
+        throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionNotRegistered(
+            definitionId,
+            definitionVersion,
+            definitionFingerprint);
     }
 
     private async ValueTask<WorkflowStartResult<WorkflowInstanceHandle>> StartAsync<TInput>(

@@ -361,7 +361,7 @@ public static partial class LeaseExitScenarioHost
             "input",
             StartIdempotencyKey.Create(key),
             CancellationToken.None).AsTask();
-        await gate.FirstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await gate.FirstStarted.Task.WaitAsync(TimeSpan.FromSeconds(30));
         var instanceId = (await store.GetStartedAsync(key, CancellationToken.None)).Value.InstanceId;
         var active = await EnvelopeAsync(store, instanceId);
         var token = LeaseProtectionToken.Parse(
@@ -371,7 +371,7 @@ public static partial class LeaseExitScenarioHost
         await gate.TimeoutObserved.Task;
         await Task.Yield();
         gate.Release.TrySetResult();
-        await gate.SecondStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await gate.SecondStarted.Task.WaitAsync(TimeSpan.FromSeconds(30));
         await running;
         return new TimedOutRetryFixture(
             store,

@@ -466,6 +466,30 @@ public sealed class WorkflowDefinitionHostCompatibilityException : OrcaCoreExcep
     public DefinitionHostCompatibilityFailure Failure { get; }
 }
 
+/// <summary>Thrown when an exact workflow reference is not installed in the selected host catalog.</summary>
+public sealed class WorkflowDefinitionNotRegisteredException : OrcaCoreException
+{
+    internal WorkflowDefinitionNotRegisteredException(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        DefinitionFingerprint definitionFingerprint)
+        : base(
+            "WF-DEFINITION-NOT-REGISTERED",
+            $"Workflow definition '{definitionId}' version '{definitionVersion}' with fingerprint " +
+            $"'{definitionFingerprint}' is not registered.")
+    {
+        DefinitionId = definitionId;
+        DefinitionVersion = definitionVersion;
+        DefinitionFingerprint = definitionFingerprint;
+    }
+
+    public DefinitionId DefinitionId { get; }
+
+    public DefinitionVersion DefinitionVersion { get; }
+
+    public DefinitionFingerprint DefinitionFingerprint { get; }
+}
+
 public sealed class WorkflowDefinitionRegistrationConflictException : OrcaCoreException
 {
     internal WorkflowDefinitionRegistrationConflictException(DefinitionRegistrationConflict conflict)

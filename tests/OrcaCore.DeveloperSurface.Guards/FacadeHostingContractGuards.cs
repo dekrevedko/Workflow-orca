@@ -326,6 +326,7 @@ public sealed class FacadeHostingExpectedRedGuards
             ["OrcaCore.EphemeralWorkflowRef`2"] = "OrcaCore",
             ["OrcaCore.DurableWorkflowRef`1"] = "OrcaCore",
             ["OrcaCore.DurableWorkflowRef`2"] = "OrcaCore",
+            ["OrcaCore.WorkflowDefinitionNotRegisteredException"] = "OrcaCore",
             ["OrcaCore.WorkflowEventDispatchFailure"] = "OrcaCore.Durable.Hosting",
             ["OrcaCore.WorkflowEventDispatchResult"] = "OrcaCore.Durable.Hosting",
             ["OrcaCore.Durable.Hosting.IWorkflowEventIngress"] = "OrcaCore.Durable.Hosting",
@@ -493,6 +494,14 @@ public sealed class FacadeHostingExpectedRedGuards
             "OrcaCore.DurableWorkflowRef`1", "OrcaCore.DurableWorkflowRef`2"
         }) RequiredType(reference).GetProperties(DeclaredPublicInstance).Select(property => property.Name)
             .Should().BeEquivalentTo("Mode", "DefinitionId", "DefinitionVersion", "DefinitionFingerprint");
+
+        RequiredType("OrcaCore.WorkflowDefinitionNotRegisteredException")
+            .GetProperties(DeclaredPublicInstance)
+            .Select(property => $"{property.Name}:{property.PropertyType.FullName}")
+            .Should().Equal(
+                "DefinitionId:OrcaCore.DefinitionId",
+                "DefinitionVersion:OrcaCore.DefinitionVersion",
+                "DefinitionFingerprint:OrcaCore.DefinitionFingerprint");
 
         var lookups = RequiredType("OrcaCore.IWorkflowDefinitionRegistry").GetMethods(DeclaredPublicInstance)
             .Where(method => method.Name == "GetRequiredHandle").ToArray();

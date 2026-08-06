@@ -28,20 +28,4 @@ internal static class RuntimeStepContextFactory
         return (StepContext<TState>)constructor.Invoke(
             [state, execution, resumedEvent, timeProvider, forEachItem, resourceLease]);
     }
-
-    internal static EventEnvelope CreateResumedEvent(
-        EventId eventId,
-        EventName eventName,
-        CorrelationId correlationId,
-        DateTimeOffset occurredAt,
-        ReadOnlyMemory<byte> payload)
-    {
-        var constructor = typeof(EventEnvelope).GetConstructor(
-            BindingFlags.Instance | BindingFlags.NonPublic,
-            binder: null,
-            [typeof(EventId), typeof(EventName), typeof(CorrelationId), typeof(DateTimeOffset), typeof(ReadOnlyMemory<byte>)],
-            modifiers: null) ?? throw new InvalidOperationException(
-                "The approved EventEnvelope constructor was not found.");
-        return (EventEnvelope)constructor.Invoke([eventId, eventName, correlationId, occurredAt, payload]);
-    }
 }
