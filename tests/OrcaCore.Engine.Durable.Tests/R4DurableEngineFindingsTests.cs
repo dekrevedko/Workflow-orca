@@ -408,12 +408,44 @@ public sealed class R4DurableEngineFindingsTests
             CancellationToken cancellationToken) =>
             inner.GetMatchSnapshotAsync(request, cancellationToken);
 
+        public Task<IReadOnlyList<InboxRecord>> ListReceivedAsync(
+            long afterAcceptanceSequence,
+            int maxCount,
+            CancellationToken cancellationToken) =>
+            inner.ListReceivedAsync(afterAcceptanceSequence, maxCount, cancellationToken);
+
+        public Task<IReadOnlyList<InboxRecord>> ListHandoffRetriesAsync(
+            DateTimeOffset eligibleAt,
+            int maxCount,
+            CancellationToken cancellationToken) =>
+            inner.ListHandoffRetriesAsync(eligibleAt, maxCount, cancellationToken);
+
         public Task MarkPoisonedAsync(
             EventId eventId,
+            InboxRecordState expectedState,
             string code,
             string? detail,
             CancellationToken cancellationToken) =>
-            inner.MarkPoisonedAsync(eventId, code, detail, cancellationToken);
+            inner.MarkPoisonedAsync(eventId, expectedState, code, detail, cancellationToken);
+
+        public Task RecordHandoffFailureAsync(
+            EventId eventId,
+            InboxRecordState expectedState,
+            int expectedFailureCount,
+            int maxFailureCount,
+            DateTimeOffset retryNotBefore,
+            string code,
+            string? detail,
+            CancellationToken cancellationToken) =>
+            inner.RecordHandoffFailureAsync(
+                eventId,
+                expectedState,
+                expectedFailureCount,
+                maxFailureCount,
+                retryNotBefore,
+                code,
+                detail,
+                cancellationToken);
 
         public Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedAsync(
             string idempotencyKey,

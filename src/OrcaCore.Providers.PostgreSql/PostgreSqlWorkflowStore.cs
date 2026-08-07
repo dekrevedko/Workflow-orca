@@ -522,8 +522,105 @@ internal sealed class PostgreSqlWorkflowStore :
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<InboxRecord>> ListReceivedAsync(
+        long afterAcceptanceSequence,
+        int maxCount,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(afterAcceptanceSequence);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxCount);
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new NpgsqlCommand(
+            """
+            select event_id
+            from orcacore_inbox
+            where state = @state
+              and acceptance_sequence > @after_acceptance_sequence
+            order by acceptance_sequence, event_id
+            limit @max_count;
+            """,
+            connection);
+        command.Parameters.AddWithValue("state", InboxRecordState.Received.ToString());
+        command.Parameters.AddWithValue("after_acceptance_sequence", afterAcceptanceSequence);
+        command.Parameters.AddWithValue("max_count", maxCount);
+        var eventIds = new List<EventId>(maxCount);
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+        {
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                eventIds.Add(EventId.Create(reader.GetString(0)));
+            }
+        }
+
+        var records = new List<InboxRecord>(eventIds.Count);
+        foreach (var eventId in eventIds)
+        {
+            var record = await GetByEventIdAsync(eventId, cancellationToken).ConfigureAwait(false);
+            if (record.HasValue && record.Value.State == InboxRecordState.Received)
+            {
+                records.Add(record.Value);
+            }
+        }
+
+        return records;
+    }
+
+    Task<IReadOnlyList<InboxRecord>> IWorkflowInboxStore.ListReceivedAsync(
+        long afterAcceptanceSequence,
+        int maxCount,
+        CancellationToken cancellationToken) =>
+        ListReceivedAsync(afterAcceptanceSequence, maxCount, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<InboxRecord>> ListHandoffRetriesAsync(
+        DateTimeOffset eligibleAt,
+        int maxCount,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxCount);
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new NpgsqlCommand(
+            """
+            select event_id
+            from orcacore_inbox
+            where state = @state
+              and handoff_failure_count > 0
+              and handoff_retry_not_before <= @eligible_at
+            order by handoff_retry_not_before, acceptance_sequence, event_id
+            limit @max_count;
+            """,
+            connection);
+        command.Parameters.AddWithValue("state", InboxRecordState.Received.ToString());
+        command.Parameters.AddWithValue("eligible_at", eligibleAt);
+        command.Parameters.AddWithValue("max_count", maxCount);
+        var eventIds = new List<EventId>(maxCount);
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+        {
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                eventIds.Add(EventId.Create(reader.GetString(0)));
+            }
+        }
+
+        var records = new List<InboxRecord>(eventIds.Count);
+        foreach (var eventId in eventIds)
+        {
+            var record = await GetByEventIdAsync(eventId, cancellationToken).ConfigureAwait(false);
+            if (record.HasValue && record.Value.State == InboxRecordState.Received)
+            {
+                records.Add(record.Value);
+            }
+        }
+
+        return records;
+    }
+
+    /// <inheritdoc />
     public async Task MarkPoisonedAsync(
         EventId eventId,
+        InboxRecordState expectedState,
         string code,
         string? detail,
         CancellationToken cancellationToken)
@@ -531,7 +628,7 @@ internal sealed class PostgreSqlWorkflowStore :
         ArgumentNullException.ThrowIfNull(eventId);
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
         var existing = await GetByEventIdAsync(eventId, cancellationToken).ConfigureAwait(false);
-        if (!existing.HasValue || existing.Value.State == InboxRecordState.Applied)
+        if (!existing.HasValue)
         {
             return;
         }
@@ -540,10 +637,10 @@ internal sealed class PostgreSqlWorkflowStore :
         await using var transaction = await connection
             .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
             .ConfigureAwait(false);
-        var route = existing.Value.Route ?? throw new InvalidOperationException(
-            "A pending inbox record must retain its serialized route identity.");
-        var revision = await LockInboxRouteAsync(connection, transaction, route, cancellationToken)
-            .ConfigureAwait(false);
+        var route = existing.Value.Route;
+        var revision = route is null
+            ? (long?)null
+            : await LockInboxRouteAsync(connection, transaction, route, cancellationToken).ConfigureAwait(false);
         await using var command = new NpgsqlCommand(
             """
             update orcacore_inbox
@@ -551,7 +648,7 @@ internal sealed class PostgreSqlWorkflowStore :
                 poison_code = @poison_code,
                 poison_detail = @poison_detail
             where event_id = @event_id
-              and state <> @applied;
+              and state = @expected_state;
             """,
             connection,
             transaction);
@@ -559,14 +656,104 @@ internal sealed class PostgreSqlWorkflowStore :
         command.Parameters.AddWithValue("poison_code", code);
         command.Parameters.Add("poison_detail", NpgsqlDbType.Text).Value = (object?)detail ?? DBNull.Value;
         command.Parameters.AddWithValue("event_id", eventId.Value);
-        command.Parameters.AddWithValue("applied", InboxRecordState.Applied.ToString());
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        await SetInboxRouteRevisionAsync(
+        command.Parameters.AddWithValue("expected_state", expectedState.ToString());
+        var changed = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        if (changed != 0 && route is not null && revision is not null)
+        {
+            await SetInboxRouteRevisionAsync(
+                connection,
+                transaction,
+                route,
+                revision.Value + 1,
+                cancellationToken).ConfigureAwait(false);
+        }
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task RecordHandoffFailureAsync(
+        EventId eventId,
+        InboxRecordState expectedState,
+        int expectedFailureCount,
+        int maxFailureCount,
+        DateTimeOffset retryNotBefore,
+        string code,
+        string? detail,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(eventId);
+        ArgumentOutOfRangeException.ThrowIfNegative(expectedFailureCount);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFailureCount);
+        if (expectedFailureCount >= maxFailureCount)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(expectedFailureCount),
+                expectedFailureCount,
+                "The observed failure count must be below the terminal failure count.");
+        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+
+        var existing = await GetByEventIdAsync(eventId, cancellationToken).ConfigureAwait(false);
+        if (!existing.HasValue)
+        {
+            return;
+        }
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = await connection
+            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
+            .ConfigureAwait(false);
+        var route = existing.Value.Route;
+        var revision = route is null
+            ? (long?)null
+            : await LockInboxRouteAsync(connection, transaction, route, cancellationToken).ConfigureAwait(false);
+        await using var command = new NpgsqlCommand(
+            """
+            update orcacore_inbox
+            set handoff_failure_count = handoff_failure_count + 1,
+                handoff_retry_not_before = case
+                    when handoff_failure_count + 1 >= @max_failure_count then null
+                    else @retry_not_before
+                end,
+                state = case
+                    when handoff_failure_count + 1 >= @max_failure_count then @poisoned_state
+                    else state
+                end,
+                poison_code = case
+                    when handoff_failure_count + 1 >= @max_failure_count then @poison_code
+                    else poison_code
+                end,
+                poison_detail = case
+                    when handoff_failure_count + 1 >= @max_failure_count then @poison_detail
+                    else poison_detail
+                end
+            where event_id = @event_id
+              and state = @expected_state
+              and handoff_failure_count = @expected_failure_count
+            returning state;
+            """,
             connection,
-            transaction,
-            route,
-            revision + 1,
-            cancellationToken).ConfigureAwait(false);
+            transaction);
+        command.Parameters.AddWithValue("max_failure_count", maxFailureCount);
+        command.Parameters.AddWithValue("retry_not_before", retryNotBefore);
+        command.Parameters.AddWithValue("poisoned_state", InboxRecordState.Poisoned.ToString());
+        command.Parameters.AddWithValue("poison_code", code);
+        command.Parameters.Add("poison_detail", NpgsqlDbType.Text).Value = (object?)detail ?? DBNull.Value;
+        command.Parameters.AddWithValue("event_id", eventId.Value);
+        command.Parameters.AddWithValue("expected_state", expectedState.ToString());
+        command.Parameters.AddWithValue("expected_failure_count", expectedFailureCount);
+        var resultingState = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) as string;
+        if (string.Equals(resultingState, InboxRecordState.Poisoned.ToString(), StringComparison.Ordinal) &&
+            route is not null &&
+            revision is not null)
+        {
+            await SetInboxRouteRevisionAsync(
+                connection,
+                transaction,
+                route,
+                revision.Value + 1,
+                cancellationToken).ConfigureAwait(false);
+        }
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -611,7 +798,9 @@ internal sealed class PostgreSqlWorkflowStore :
                 acceptance_sequence,
                 accepted_at,
                 poison_code,
-                poison_detail
+                poison_detail,
+                handoff_failure_count,
+                handoff_retry_not_before
             from orcacore_inbox
             where event_id = @event_id;
             """,
@@ -659,7 +848,9 @@ internal sealed class PostgreSqlWorkflowStore :
             AcceptanceSequence = reader.IsDBNull(17) ? 0 : reader.GetInt64(17),
             AcceptedAt = reader.GetFieldValue<DateTimeOffset>(18),
             PoisonCode = reader.IsDBNull(19) ? null : reader.GetString(19),
-            PoisonDetail = reader.IsDBNull(20) ? null : reader.GetString(20)
+            PoisonDetail = reader.IsDBNull(20) ? null : reader.GetString(20),
+            HandoffFailureCount = reader.GetInt32(21),
+            HandoffRetryNotBefore = reader.IsDBNull(22) ? null : reader.GetFieldValue<DateTimeOffset>(22)
         });
     }
 

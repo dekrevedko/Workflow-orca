@@ -13,6 +13,7 @@ namespace OrcaCore.Hosting.Services;
 /// bounded drain window instead of being torn mid-advancement.
 /// </summary>
 internal sealed class OrcaCoreContinuationPumpHostedService(
+    DurableInboxContinuationPump inboxPump,
     DurableContinuationPump pump,
     IOptions<DurableHostedServiceOptions> options,
     TimeProvider timeProvider,
@@ -63,15 +64,43 @@ internal sealed class OrcaCoreContinuationPumpHostedService(
         }
     }
 
-    private Task RunOnceAsync(
+    private async Task RunOnceAsync(
         DurableHostedServiceOptions value,
         CancellationToken drainToken)
     {
-        return pump.PumpOnceAsync(
-            new OutboxClaimRequest(
-                value.ContinuationPumpBatchSize,
-                timeProvider.GetUtcNow(),
-                value.ContinuationClaimLeaseDuration),
-            drainToken);
+        await RunPumpsOnceAsync(
+            token => inboxPump.PumpOnceAsync(value.ContinuationPumpBatchSize, token),
+            token => pump.PumpOnceAsync(
+                new OutboxClaimRequest(
+                    value.ContinuationPumpBatchSize,
+                    timeProvider.GetUtcNow(),
+                    value.ContinuationClaimLeaseDuration),
+                token),
+            logger,
+            drainToken).ConfigureAwait(false);
+    }
+
+    internal static async Task RunPumpsOnceAsync(
+        Func<CancellationToken, Task> pumpInbox,
+        Func<CancellationToken, Task> pumpContinuations,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await pumpInbox(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(
+                exception,
+                "The durable inbox handoff sweep failed; the shared continuation lane will still run.");
+        }
+
+        await pumpContinuations(cancellationToken).ConfigureAwait(false);
     }
 }

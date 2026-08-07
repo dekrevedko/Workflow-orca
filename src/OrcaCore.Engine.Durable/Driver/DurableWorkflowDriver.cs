@@ -90,7 +90,7 @@ internal sealed class DurableWorkflowDriver(
                 return new DurableSegmentResult(DurableSegmentOutcome.Parked, aggregate.ErrorSummary);
             }
 
-            var executor = ResolveExecutor(aggregate);
+            var executor = ResolveExecutor(aggregate, checkpointOption);
             if (executor is null)
             {
                 // Opportunistic drives (start-or-get, event delivery on kernel-level flows) skip
@@ -106,14 +106,14 @@ internal sealed class DurableWorkflowDriver(
                 {
                     return new DurableSegmentResult(
                         DurableSegmentOutcome.Suspended,
-                        VersionBindingSummary(aggregate));
+                        VersionBindingSummary(aggregate, checkpointOption));
                 }
 
                 await ParkVersionBindingAsync(aggregate, instanceId, checkpointOption, cancellationToken)
                     .ConfigureAwait(false);
                 return new DurableSegmentResult(
                     DurableSegmentOutcome.Parked,
-                    VersionBindingSummary(aggregate));
+                    VersionBindingSummary(aggregate, checkpointOption));
             }
 
             DurableExecutionEnvelopeV2? fiberEnvelope = null;
@@ -254,10 +254,16 @@ internal sealed class DurableWorkflowDriver(
             .ConfigureAwait(false);
     }
 
-    private IDurableDriverExecutor? ResolveExecutor(DurableWorkflowAggregate aggregate)
+    private IDurableDriverExecutor? ResolveExecutor(
+        DurableWorkflowAggregate aggregate,
+        Abstractions.Primitives.Option<CheckpointWrite> checkpoint)
     {
+        var planFingerprint = checkpoint.HasValue &&
+            checkpoint.Value.ContentType == DurableExecutionEnvelopeV2.ContentType
+                ? DurableExecutionEnvelopeV2.Deserialize(checkpoint.Value.Payload).PlanBinding.PlanFingerprint
+                : null;
         return aggregate.DefinitionId is { } definitionId && aggregate.DefinitionVersion is { } definitionVersion
-            ? catalog.Resolve(definitionId, definitionVersion)
+            ? catalog.Resolve(definitionId, definitionVersion, planFingerprint)
             : null;
     }
 
@@ -270,9 +276,14 @@ internal sealed class DurableWorkflowDriver(
         switch (reason)
         {
             case DurableParkReason.VersionBinding:
-                return ResolveExecutor(aggregate) is null
+            {
+                var checkpoint = await processor.EventStore
+                    .LoadCheckpointAsync(aggregate.InstanceId, cancellationToken)
+                    .ConfigureAwait(false);
+                return ResolveExecutor(aggregate, checkpoint) is null
                     ? "The definition version bound at start is still unavailable or incompatible."
                     : null;
+            }
             case DurableParkReason.RuntimeStateVersion:
             {
                 var checkpoint = await processor.EventStore
@@ -316,16 +327,24 @@ internal sealed class DurableWorkflowDriver(
         await ParkAsync(
             instanceId,
             DurableParkReason.VersionBinding,
-            VersionBindingSummary(aggregate),
+            VersionBindingSummary(aggregate, checkpointOption),
             checkpointOption.HasValue ? checkpointOption.Value.StreamVersion : null,
             aggregate.StreamVersion,
             cancellationToken).ConfigureAwait(false);
     }
 
-    private static string VersionBindingSummary(DurableWorkflowAggregate aggregate)
+    private static string VersionBindingSummary(
+        DurableWorkflowAggregate aggregate,
+        Abstractions.Primitives.Option<CheckpointWrite> checkpoint)
     {
-        return $"Definition '{aggregate.DefinitionId}' version '{aggregate.DefinitionVersion}' bound at " +
-            "start is not registered on this host (DU-040); register the version, then explicitly re-arm the instance.";
+        var fingerprint = checkpoint.HasValue &&
+            checkpoint.Value.ContentType == DurableExecutionEnvelopeV2.ContentType
+                ? DurableExecutionEnvelopeV2.Deserialize(checkpoint.Value.Payload).PlanBinding.PlanFingerprint
+                : null;
+        return $"Definition '{aggregate.DefinitionId}' version '{aggregate.DefinitionVersion}'" +
+            (fingerprint is null ? string.Empty : $" fingerprint '{fingerprint}'") +
+            " bound at start is not registered on this host (DU-040); register the exact binding, " +
+            "then explicitly re-arm the instance.";
     }
 
     private async Task ParkAsync(

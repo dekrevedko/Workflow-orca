@@ -283,8 +283,64 @@ internal sealed class InMemoryWorkflowProvider :
     }
 
     /// <inheritdoc />
+    public Task<IReadOnlyList<InboxRecord>> ListReceivedAsync(
+        long afterAcceptanceSequence,
+        int maxCount,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(afterAcceptanceSequence);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxCount);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            return Task.FromResult<IReadOnlyList<InboxRecord>>(
+                inbox.Values
+                    .Where(record => record.State == InboxRecordState.Received &&
+                        record.AcceptanceSequence > afterAcceptanceSequence)
+                    .OrderBy(record => record.AcceptanceSequence)
+                    .ThenBy(record => record.EventId.Value, StringComparer.Ordinal)
+                    .Take(maxCount)
+                    .Select(CloneInboxRecord)
+                    .ToArray());
+        }
+    }
+
+    Task<IReadOnlyList<InboxRecord>> IWorkflowInboxStore.ListReceivedAsync(
+        long afterAcceptanceSequence,
+        int maxCount,
+        CancellationToken cancellationToken) =>
+        ListReceivedAsync(afterAcceptanceSequence, maxCount, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<InboxRecord>> ListHandoffRetriesAsync(
+        DateTimeOffset eligibleAt,
+        int maxCount,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxCount);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            return Task.FromResult<IReadOnlyList<InboxRecord>>(
+                inbox.Values
+                    .Where(record => record.State == InboxRecordState.Received &&
+                        record.HandoffFailureCount > 0 &&
+                        record.HandoffRetryNotBefore <= eligibleAt)
+                    .OrderBy(record => record.HandoffRetryNotBefore)
+                    .ThenBy(record => record.AcceptanceSequence)
+                    .ThenBy(record => record.EventId.Value, StringComparer.Ordinal)
+                    .Take(maxCount)
+                    .Select(CloneInboxRecord)
+                    .ToArray());
+        }
+    }
+
+    /// <inheritdoc />
     public Task MarkPoisonedAsync(
         EventId eventId,
+        InboxRecordState expectedState,
         string code,
         string? detail,
         CancellationToken cancellationToken)
@@ -295,7 +351,7 @@ internal sealed class InMemoryWorkflowProvider :
 
         lock (gate)
         {
-            if (inbox.TryGetValue(eventId, out var record) && record.State != InboxRecordState.Applied)
+            if (inbox.TryGetValue(eventId, out var record) && record.State == expectedState)
             {
                 inbox[eventId] = record with
                 {
@@ -307,6 +363,58 @@ internal sealed class InMemoryWorkflowProvider :
                 {
                     inboxRouteRevisions[route] = CurrentRouteRevision(route) + 1;
                 }
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task RecordHandoffFailureAsync(
+        EventId eventId,
+        InboxRecordState expectedState,
+        int expectedFailureCount,
+        int maxFailureCount,
+        DateTimeOffset retryNotBefore,
+        string code,
+        string? detail,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(eventId);
+        ArgumentOutOfRangeException.ThrowIfNegative(expectedFailureCount);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFailureCount);
+        if (expectedFailureCount >= maxFailureCount)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(expectedFailureCount),
+                expectedFailureCount,
+                "The observed failure count must be below the terminal failure count.");
+        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            if (!inbox.TryGetValue(eventId, out var record) ||
+                record.State != expectedState ||
+                record.HandoffFailureCount != expectedFailureCount)
+            {
+                return Task.CompletedTask;
+            }
+
+            var failureCount = expectedFailureCount + 1;
+            var poisoned = failureCount >= maxFailureCount;
+            inbox[eventId] = record with
+            {
+                State = poisoned ? InboxRecordState.Poisoned : record.State,
+                HandoffFailureCount = failureCount,
+                HandoffRetryNotBefore = poisoned ? null : retryNotBefore,
+                PoisonCode = poisoned ? code : record.PoisonCode,
+                PoisonDetail = poisoned ? detail : record.PoisonDetail
+            };
+            if (poisoned && record.Route is { } route)
+            {
+                inboxRouteRevisions[route] = CurrentRouteRevision(route) + 1;
             }
         }
 
@@ -805,6 +913,15 @@ internal sealed class InMemoryWorkflowProvider :
         return snapshot with
         {
             ActiveWaits = snapshot.ActiveWaits.Select(CloneActiveWait).ToArray()
+        };
+    }
+
+    private static InboxRecord CloneInboxRecord(InboxRecord record)
+    {
+        return record with
+        {
+            Envelope = record.Envelope is null ? null : CloneEnvelope(record.Envelope),
+            Route = record.Route
         };
     }
 

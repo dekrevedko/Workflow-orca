@@ -199,6 +199,29 @@ public abstract class EventStoreCertificationTests
         stored.Value.EnvelopeFingerprint.Should().Be(Fingerprint);
         stored.Value.State.Should().Be(InboxRecordState.Applied);
         stored.Value.Envelope.Should().BeEquivalentTo(envelope);
+
+        await fixture.InboxStore.MarkPoisonedAsync(
+            eventId,
+            InboxRecordState.Received,
+            "stale-received-observation",
+            "A stale worker must not overwrite an applied event.",
+            TestContext.Current.CancellationToken);
+        var stillApplied = await fixture.InboxStore.GetByEventIdAsync(
+            eventId,
+            TestContext.Current.CancellationToken);
+        stillApplied.Value.State.Should().Be(InboxRecordState.Applied);
+
+        await fixture.InboxStore.MarkPoisonedAsync(
+            eventId,
+            InboxRecordState.Applied,
+            "definition-binding-unavailable",
+            "The exact continuation binding is unavailable.",
+            TestContext.Current.CancellationToken);
+        var poisoned = await fixture.InboxStore.GetByEventIdAsync(
+            eventId,
+            TestContext.Current.CancellationToken);
+        poisoned.Value.State.Should().Be(InboxRecordState.Poisoned);
+        poisoned.Value.PoisonCode.Should().Be("definition-binding-unavailable");
     }
 
     [Fact]
@@ -261,6 +284,44 @@ public abstract class EventStoreCertificationTests
     }
 
     [Fact]
+    public async Task PendingInbox_DiscoveryPagesOnlyReceivedRecordsInAcceptanceOrder()
+    {
+        var fixture = CreateFixture();
+        var definitionId = DefinitionId.New();
+        var eventName = EventName.Create("pending-discovery-certification");
+        var version = new EventContractVersion(2);
+        var correlation = CorrelationId.Create("pending-discovery-certification");
+        var envelopes = Enumerable.Range(0, 3)
+            .Select(index => PendingEnvelope(
+                EventId.Create($"pending-discovery-{index}"),
+                eventName,
+                version,
+                correlation,
+                new DurableEventRouteEnvelope { Kind = "correlation", DefinitionId = definitionId },
+                Timestamp(30 + index)))
+            .ToArray();
+        foreach (var envelope in envelopes)
+        {
+            await fixture.InboxStore.AcceptAsync(
+                new InboxAcceptance(envelope, $"fingerprint-{envelope.EventId.Value}", envelope.OccurredAt),
+                TestContext.Current.CancellationToken);
+        }
+
+        var firstPage = await fixture.InboxStore.ListReceivedAsync(
+            afterAcceptanceSequence: 0,
+            maxCount: 2,
+            cancellationToken: TestContext.Current.CancellationToken);
+        var secondPage = await fixture.InboxStore.ListReceivedAsync(
+            firstPage[^1].AcceptanceSequence,
+            maxCount: 2,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        firstPage.Select(record => record.EventId).Should().Equal(envelopes[0].EventId, envelopes[1].EventId);
+        secondPage.Select(record => record.EventId).Should().Equal(envelopes[2].EventId);
+        firstPage.Concat(secondPage).Should().OnlyContain(record => record.State == InboxRecordState.Received);
+    }
+
+    [Fact]
     public async Task PendingInbox_PoisonRetainsEnvelopeAndOperatorReason()
     {
         var fixture = CreateFixture();
@@ -278,6 +339,18 @@ public abstract class EventStoreCertificationTests
 
         await fixture.InboxStore.MarkPoisonedAsync(
             envelope.EventId,
+            InboxRecordState.Applied,
+            "premature-applied-poison",
+            "A definition owner must not poison a still-pending event.",
+            TestContext.Current.CancellationToken);
+        var stillReceived = await fixture.InboxStore.GetByEventIdAsync(
+            envelope.EventId,
+            TestContext.Current.CancellationToken);
+        stillReceived.Value.State.Should().Be(InboxRecordState.Received);
+
+        await fixture.InboxStore.MarkPoisonedAsync(
+            envelope.EventId,
+            InboxRecordState.Received,
             "unresolvable",
             "The exact definition is unavailable.",
             TestContext.Current.CancellationToken);
@@ -289,6 +362,78 @@ public abstract class EventStoreCertificationTests
         stored.Value.PoisonCode.Should().Be("unresolvable");
         stored.Value.PoisonDetail.Should().Be("The exact definition is unavailable.");
         stored.Value.Envelope.Should().BeEquivalentTo(envelope);
+    }
+
+    [Fact]
+    public async Task PendingInbox_HandoffFailuresRetryAndPoisonConditionally()
+    {
+        var fixture = CreateFixture();
+        var envelope = PendingEnvelope(
+            EventId.Create(Guid.CreateVersion7().ToString()),
+            EventName.Create("handoff-failure-certification"),
+            EventContractVersion.Initial,
+            CorrelationId.Create("handoff-failure-certification"),
+            new DurableEventRouteEnvelope { Kind = "correlation", DefinitionId = DefinitionId.New() },
+            Timestamp(23));
+        await fixture.InboxStore.AcceptAsync(
+            new InboxAcceptance(envelope, "handoff-failure-certification", Timestamp(23)),
+            TestContext.Current.CancellationToken);
+
+        await fixture.InboxStore.RecordHandoffFailureAsync(
+            envelope.EventId,
+            InboxRecordState.Received,
+            expectedFailureCount: 0,
+            maxFailureCount: 2,
+            retryNotBefore: Timestamp(30),
+            code: "handoff-failed",
+            detail: "first failure",
+            cancellationToken: TestContext.Current.CancellationToken);
+        var retryable = await fixture.InboxStore.GetByEventIdAsync(
+            envelope.EventId,
+            TestContext.Current.CancellationToken);
+        retryable.Value.State.Should().Be(InboxRecordState.Received);
+        retryable.Value.HandoffFailureCount.Should().Be(1);
+        retryable.Value.HandoffRetryNotBefore.Should().Be(Timestamp(30));
+        retryable.Value.PoisonCode.Should().BeNull();
+        var retryPage = await fixture.InboxStore.ListHandoffRetriesAsync(
+            eligibleAt: Timestamp(30),
+            maxCount: 10,
+            cancellationToken: TestContext.Current.CancellationToken);
+        retryPage.Should().ContainSingle().Which.EventId.Should().Be(envelope.EventId);
+
+        await fixture.InboxStore.RecordHandoffFailureAsync(
+            envelope.EventId,
+            InboxRecordState.Received,
+            expectedFailureCount: 0,
+            maxFailureCount: 2,
+            retryNotBefore: Timestamp(31),
+            code: "stale-observation",
+            detail: null,
+            cancellationToken: TestContext.Current.CancellationToken);
+        (await fixture.InboxStore.GetByEventIdAsync(
+                envelope.EventId,
+                TestContext.Current.CancellationToken))
+            .Value.HandoffFailureCount.Should().Be(1, "a stale competing observation must not double-count");
+
+        await fixture.InboxStore.RecordHandoffFailureAsync(
+            envelope.EventId,
+            InboxRecordState.Received,
+            expectedFailureCount: 1,
+            maxFailureCount: 2,
+            retryNotBefore: Timestamp(32),
+            code: "handoff-failed",
+            detail: "second failure",
+            cancellationToken: TestContext.Current.CancellationToken);
+        var poisoned = await fixture.InboxStore.GetByEventIdAsync(
+            envelope.EventId,
+            TestContext.Current.CancellationToken);
+
+        poisoned.Value.State.Should().Be(InboxRecordState.Poisoned);
+        poisoned.Value.HandoffFailureCount.Should().Be(2);
+        poisoned.Value.HandoffRetryNotBefore.Should().BeNull();
+        poisoned.Value.PoisonCode.Should().Be("handoff-failed");
+        poisoned.Value.PoisonDetail.Should().Be("second failure");
+        poisoned.Value.Envelope.Should().BeEquivalentTo(envelope);
     }
 
     [Fact]

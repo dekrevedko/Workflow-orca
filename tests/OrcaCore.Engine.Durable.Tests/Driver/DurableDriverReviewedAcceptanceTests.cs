@@ -1098,5 +1098,11 @@ public sealed class DurableDriverReviewedAcceptanceTests
             EventId eventId,
             CancellationToken cancellationToken) =>
             inner.GetAsync(eventId, cancellationToken);
+
+        public Task<IReadOnlyList<InboxRecord>> ListReceivedAsync(
+            long afterAcceptanceSequence,
+            int maxCount,
+            CancellationToken cancellationToken) =>
+            inner.ListReceivedAsync(afterAcceptanceSequence, maxCount, cancellationToken);
     }
 }

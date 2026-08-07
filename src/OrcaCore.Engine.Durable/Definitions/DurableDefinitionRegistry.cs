@@ -162,11 +162,16 @@ internal sealed class DurableDefinitionRegistry
 
     internal IDurableDriverExecutor? ResolveExecutor(
         DefinitionId definitionId,
-        DefinitionVersion definitionVersion)
+        DefinitionVersion definitionVersion,
+        string? planFingerprint = null)
     {
         return definitions.TryGetValue(
             new DurableDefinitionKey(definitionId, definitionVersion),
-            out var registered)
+            out var registered) &&
+            (planFingerprint is null || string.Equals(
+                registered.Fingerprint,
+                planFingerprint,
+                StringComparison.Ordinal))
             ? registered.Executor
             : null;
     }

@@ -41,10 +41,10 @@ internal sealed class DurableWorkflowEventIngressCore(
             var classified = ClassifyExisting(prior.Value, normalized.Fingerprint);
             if (classified is WorkflowEventAcceptanceResult.Duplicate)
             {
-                await TryDeliverPreviouslyAcceptedAsync(
+                await TryDeliverOwnedAsync(() => TryDeliverPreviouslyAcceptedAsync(
                     inboundEvent,
                     normalized.Envelope.CorrelationId,
-                    cancellationToken).ConfigureAwait(false);
+                    cancellationToken)).ConfigureAwait(false);
             }
 
             return classified;
@@ -134,12 +134,28 @@ internal sealed class DurableWorkflowEventIngressCore(
             return ownership;
         }
 
-        await TryDeliverPendingAsync(
-            snapshot,
-            eventContract,
-            normalized.Envelope.CorrelationId,
-            cancellationToken).ConfigureAwait(false);
+        await TryDeliverOwnedAsync(() => TryDeliverPendingAsync(
+                snapshot,
+                eventContract,
+                normalized.Envelope.CorrelationId,
+                cancellationToken))
+            .ConfigureAwait(false);
         return ownership;
+    }
+
+    private static async ValueTask TryDeliverOwnedAsync(Func<ValueTask> delivery)
+    {
+        try
+        {
+            await delivery().ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // Acceptance already established durable ownership. Inline delivery is only an
+            // optimization after that boundary: provider failure, cancellation, or host loss
+            // leaves the record Received and the definition-owning inbox pump retries it without
+            // requiring broker redelivery.
+        }
     }
 
     private async ValueTask TryDeliverPendingAsync(

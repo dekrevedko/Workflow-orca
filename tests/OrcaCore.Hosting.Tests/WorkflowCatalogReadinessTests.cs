@@ -1,6 +1,9 @@
 using AwesomeAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using OrcaCore.Hosting.Services;
 using OrcaCore.Providers.InMemory;
 using Xunit;
 
@@ -8,6 +11,41 @@ namespace OrcaCore.Hosting.Tests;
 
 public sealed class WorkflowCatalogReadinessTests
 {
+    [Fact]
+    public void InboxContinuationPump_IsOwnedOnlyByTheDefinitionEngineRole()
+    {
+        var engine = new ServiceCollection();
+        engine.AddOrcaCoreInMemoryDurableProvider();
+        engine.AddOrcaCoreDurableEngine(HostOptions());
+        var callback = new ServiceCollection();
+        callback.AddOrcaCoreInMemoryDurableProvider();
+        callback.AddOrcaCoreDurableEventIngress();
+
+        engine.Select(descriptor => descriptor.ServiceType.FullName).Should().Contain(
+            "OrcaCore.Engine.Durable.Driver.DurableInboxContinuationPump");
+        callback.Select(descriptor => descriptor.ServiceType.FullName).Should().NotContain(
+            "OrcaCore.Engine.Durable.Driver.DurableInboxContinuationPump");
+        callback.Where(descriptor => descriptor.ServiceType == typeof(IHostedService)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task InboxSweepFailure_DoesNotGateTheSharedContinuationLane()
+    {
+        var continuationRan = false;
+
+        await OrcaCoreContinuationPumpHostedService.RunPumpsOnceAsync(
+            _ => Task.FromException(new InvalidOperationException("Injected inbox sweep failure.")),
+            _ =>
+            {
+                continuationRan = true;
+                return Task.CompletedTask;
+            },
+            NullLogger<OrcaCoreContinuationPumpHostedService>.Instance,
+            TestContext.Current.CancellationToken);
+
+        continuationRan.Should().BeTrue();
+    }
+
     [Fact]
     public async Task DurableHost_RejectsAConflictingStagedBatchAtReadiness()
     {

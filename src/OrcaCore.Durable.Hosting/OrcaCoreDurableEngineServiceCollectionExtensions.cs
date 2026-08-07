@@ -83,12 +83,17 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
                 provider.GetRequiredService<DurableWorkflowRuntime>(),
                 provider.GetRequiredService<IWorkflowProjectionStore>(),
                 provider.GetRequiredService<IWorkflowInboxStore>()));
+        services.TryAddSingleton(provider => new DurableInboxContinuationPump(
+            provider.GetRequiredService<IWorkflowInboxStore>(),
+            provider.GetRequiredService<IWorkflowProjectionStore>(),
+            provider.GetRequiredService<DurableWorkflowRuntime>()));
         services.TryAddSingleton(provider => new DurableContinuationPump(
             provider.GetRequiredService<IWorkflowOutboxStore>(),
             provider.GetRequiredService<DurableWorkflowRuntime>(),
             provider.GetRequiredService<DurableCommandProcessor>(),
             provider.GetRequiredService<TimeProvider>(),
-            observer: provider.GetService<IDurableDriverObserver>()));
+            observer: provider.GetService<IDurableDriverObserver>(),
+            inboxStore: provider.GetRequiredService<IWorkflowInboxStore>()));
         services.TryAddSingleton<IDurableResourcePoolManagement>(provider =>
             new DurableResourcePoolManagement(
                 provider.GetRequiredService<SerializedResourceGovernanceAggregate>()));

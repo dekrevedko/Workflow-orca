@@ -71,13 +71,56 @@ public interface IWorkflowInboxStore
         CancellationToken cancellationToken) =>
         throw new NotSupportedException("This provider does not implement durable pending-event matching.");
 
-    /// <summary>Records an operator-visible terminal disposition without deleting ownership.</summary>
+    /// <summary>
+    /// Reads one stable page of globally accepted <see cref="InboxRecordState.Received"/> records
+    /// after the supplied acceptance sequence. The caller uses the durable acceptance order as a
+    /// restart-safe scan cursor; consuming commits remain serialized by route revision and inbox
+    /// expected-state checks.
+    /// </summary>
+    Task<IReadOnlyList<InboxRecord>> ListReceivedAsync(
+        long afterAcceptanceSequence,
+        int maxCount,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Reads a stable page of failed handoffs that are eligible for another attempt. This retry
+    /// lane is independent of the forward acceptance cursor so continuous new acceptance cannot
+    /// starve an older failed record.
+    /// </summary>
+    Task<IReadOnlyList<InboxRecord>> ListHandoffRetriesAsync(
+        DateTimeOffset eligibleAt,
+        int maxCount,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Records an operator-visible terminal disposition without deleting ownership when the
+    /// current state still equals <paramref name="expectedState"/>.
+    /// </summary>
     Task MarkPoisonedAsync(
         EventId eventId,
+        InboxRecordState expectedState,
         string code,
         string? detail,
         CancellationToken cancellationToken) =>
         throw new NotSupportedException("This provider does not implement observable inbox poison state.");
+
+    /// <summary>
+    /// Conditionally records one failed autonomous handoff attempt. The update applies only while
+    /// the record remains in <paramref name="expectedState"/> with the observed failure count.
+    /// Reaching <paramref name="maxFailureCount"/> terminalizes the accepted record as poison;
+    /// otherwise the record remains owned and becomes eligible again at
+    /// <paramref name="retryNotBefore"/>.
+    /// </summary>
+    Task RecordHandoffFailureAsync(
+        EventId eventId,
+        InboxRecordState expectedState,
+        int expectedFailureCount,
+        int maxFailureCount,
+        DateTimeOffset retryNotBefore,
+        string code,
+        string? detail,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This provider does not implement durable inbox handoff retries.");
 }
 
 /// <summary>Identifies one serialized direct-target or correlation inbox route.</summary>
@@ -196,6 +239,12 @@ public sealed record InboxRecord(
 
     /// <summary>Gets optional operator-facing poison/dead-letter detail.</summary>
     public string? PoisonDetail { get; init; }
+
+    /// <summary>Gets the number of failed autonomous handoff attempts observed for this record.</summary>
+    public int HandoffFailureCount { get; init; }
+
+    /// <summary>Gets the earliest instant at which another autonomous handoff attempt is eligible.</summary>
+    public DateTimeOffset? HandoffRetryNotBefore { get; init; }
 }
 
 /// <summary>

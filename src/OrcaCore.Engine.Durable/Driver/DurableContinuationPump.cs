@@ -26,7 +26,8 @@ internal sealed class DurableContinuationPump(
     int maxDriveAttemptsBeforePark = DurableContinuationPump.DefaultMaxDriveAttemptsBeforePark,
     int maxDegreeOfParallelism = DurableContinuationPump.DefaultMaxDegreeOfParallelism,
     TimeSpan? initialFailureBackoff = null,
-    IDurableDriverObserver? observer = null)
+    IDurableDriverObserver? observer = null,
+    IWorkflowInboxStore? inboxStore = null)
 {
     /// <summary>
     /// Default bounded drive attempts before a failing instance parks as poison (DR-036).
@@ -175,6 +176,26 @@ internal sealed class DurableContinuationPump(
             return 0;
         }
 
+        if (result.Outcome == DurableSegmentOutcome.Parked)
+        {
+            var inboxPoisoned = await TryMarkVersionBindingInboxPoisonAsync(
+                    instanceId,
+                    recordIds,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (inboxPoisoned is null)
+            {
+                return 0;
+            }
+
+            if (inboxPoisoned.Value)
+            {
+                await MarkAllAsync(recordIds, OutboxRecordState.Poisoned, cancellationToken)
+                    .ConfigureAwait(false);
+                return 0;
+            }
+        }
+
         if (!await ResetFailureStateAsync(instanceId, cancellationToken).ConfigureAwait(false))
         {
             await MarkAllAsync(recordIds, OutboxRecordState.Retryable, cancellationToken).ConfigureAwait(false);
@@ -183,6 +204,58 @@ internal sealed class DurableContinuationPump(
 
         await MarkAllAsync(recordIds, OutboxRecordState.Dispatched, cancellationToken).ConfigureAwait(false);
         return recordIds.Count;
+    }
+
+    private async Task<bool?> TryMarkVersionBindingInboxPoisonAsync(
+        InstanceId instanceId,
+        IReadOnlyList<OutboxRecordId> recordIds,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await MarkVersionBindingInboxPoisonAsync(instanceId, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            await MarkAllAsync(recordIds, OutboxRecordState.Retryable, CancellationToken.None)
+                .ConfigureAwait(false);
+            throw;
+        }
+        catch (Exception exception)
+        {
+            await HandleDriveFailureAsync(instanceId, recordIds, exception).ConfigureAwait(false);
+            return null;
+        }
+    }
+
+    private async Task<bool> MarkVersionBindingInboxPoisonAsync(
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
+    {
+        if (inboxStore is null)
+        {
+            return false;
+        }
+
+        var aggregate = await aggregateLoader.LoadAsync(instanceId, cancellationToken).ConfigureAwait(false);
+        if (aggregate.ParkReason != DurableParkReason.VersionBinding)
+        {
+            return false;
+        }
+
+        foreach (var eventId in aggregate.Snapshot.PendingResumes
+                     .Select(resume => resume.MatchedEventId)
+                     .Distinct())
+        {
+            await inboxStore.MarkPoisonedAsync(
+                eventId,
+                InboxRecordState.Applied,
+                "definition-binding-unavailable",
+                aggregate.ErrorSummary,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        return true;
     }
 
     private async Task<int> HandleDriveFailureAsync(

@@ -25,9 +25,12 @@ internal sealed class DurableDriverCatalog
         definitions.Register(definition);
     }
 
-    internal IDurableDriverExecutor? Resolve(DefinitionId definitionId, DefinitionVersion definitionVersion)
+    internal IDurableDriverExecutor? Resolve(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        string? planFingerprint = null)
     {
-        return definitions.ResolveExecutor(definitionId, definitionVersion);
+        return definitions.ResolveExecutor(definitionId, definitionVersion, planFingerprint);
     }
 
     internal static IDurableDriverExecutor CreateExecutor<TState>(

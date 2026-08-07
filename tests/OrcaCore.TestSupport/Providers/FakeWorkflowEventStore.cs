@@ -302,8 +302,52 @@ public sealed class FakeWorkflowEventStore :
         }
     }
 
+    public Task<IReadOnlyList<InboxRecord>> ListReceivedAsync(
+        long afterAcceptanceSequence,
+        int maxCount,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(afterAcceptanceSequence);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxCount);
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (gate)
+        {
+            return Task.FromResult<IReadOnlyList<InboxRecord>>(
+                inbox.Values
+                    .Where(record => record.State == InboxRecordState.Received &&
+                        record.AcceptanceSequence > afterAcceptanceSequence)
+                    .OrderBy(record => record.AcceptanceSequence)
+                    .ThenBy(record => record.EventId.Value, StringComparer.Ordinal)
+                    .Take(maxCount)
+                    .ToArray());
+        }
+    }
+
+    public Task<IReadOnlyList<InboxRecord>> ListHandoffRetriesAsync(
+        DateTimeOffset eligibleAt,
+        int maxCount,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxCount);
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (gate)
+        {
+            return Task.FromResult<IReadOnlyList<InboxRecord>>(
+                inbox.Values
+                    .Where(record => record.State == InboxRecordState.Received &&
+                        record.HandoffFailureCount > 0 &&
+                        record.HandoffRetryNotBefore <= eligibleAt)
+                    .OrderBy(record => record.HandoffRetryNotBefore)
+                    .ThenBy(record => record.AcceptanceSequence)
+                    .ThenBy(record => record.EventId.Value, StringComparer.Ordinal)
+                    .Take(maxCount)
+                    .ToArray());
+        }
+    }
+
     public Task MarkPoisonedAsync(
         EventId eventId,
+        InboxRecordState expectedState,
         string code,
         string? detail,
         CancellationToken cancellationToken)
@@ -311,7 +355,7 @@ public sealed class FakeWorkflowEventStore :
         cancellationToken.ThrowIfCancellationRequested();
         lock (gate)
         {
-            if (inbox.TryGetValue(eventId, out var record) && record.State != InboxRecordState.Applied)
+            if (inbox.TryGetValue(eventId, out var record) && record.State == expectedState)
             {
                 inbox[eventId] = record with
                 {
@@ -323,6 +367,52 @@ public sealed class FakeWorkflowEventStore :
                 {
                     inboxRouteRevisions[route] = CurrentRouteRevision(route) + 1;
                 }
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task RecordHandoffFailureAsync(
+        EventId eventId,
+        InboxRecordState expectedState,
+        int expectedFailureCount,
+        int maxFailureCount,
+        DateTimeOffset retryNotBefore,
+        string code,
+        string? detail,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(expectedFailureCount);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFailureCount);
+        if (expectedFailureCount >= maxFailureCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(expectedFailureCount));
+        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (gate)
+        {
+            if (!inbox.TryGetValue(eventId, out var record) ||
+                record.State != expectedState ||
+                record.HandoffFailureCount != expectedFailureCount)
+            {
+                return Task.CompletedTask;
+            }
+
+            var failureCount = expectedFailureCount + 1;
+            var poisoned = failureCount >= maxFailureCount;
+            inbox[eventId] = record with
+            {
+                State = poisoned ? InboxRecordState.Poisoned : record.State,
+                HandoffFailureCount = failureCount,
+                HandoffRetryNotBefore = poisoned ? null : retryNotBefore,
+                PoisonCode = poisoned ? code : record.PoisonCode,
+                PoisonDetail = poisoned ? detail : record.PoisonDetail
+            };
+            if (poisoned && record.Route is { } route)
+            {
+                inboxRouteRevisions[route] = CurrentRouteRevision(route) + 1;
             }
         }
 

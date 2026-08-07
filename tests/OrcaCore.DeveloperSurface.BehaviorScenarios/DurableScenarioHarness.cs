@@ -118,12 +118,44 @@ internal sealed class DurableScenarioProvider :
         CancellationToken cancellationToken) =>
         inboxStore.GetMatchSnapshotAsync(request, cancellationToken);
 
+    public Task<IReadOnlyList<InboxRecord>> ListReceivedAsync(
+        long afterAcceptanceSequence,
+        int maxCount,
+        CancellationToken cancellationToken) =>
+        inboxStore.ListReceivedAsync(afterAcceptanceSequence, maxCount, cancellationToken);
+
+    public Task<IReadOnlyList<InboxRecord>> ListHandoffRetriesAsync(
+        DateTimeOffset eligibleAt,
+        int maxCount,
+        CancellationToken cancellationToken) =>
+        inboxStore.ListHandoffRetriesAsync(eligibleAt, maxCount, cancellationToken);
+
     public Task MarkPoisonedAsync(
         EventId eventId,
+        InboxRecordState expectedState,
         string code,
         string? detail,
         CancellationToken cancellationToken) =>
-        inboxStore.MarkPoisonedAsync(eventId, code, detail, cancellationToken);
+        inboxStore.MarkPoisonedAsync(eventId, expectedState, code, detail, cancellationToken);
+
+    public Task RecordHandoffFailureAsync(
+        EventId eventId,
+        InboxRecordState expectedState,
+        int expectedFailureCount,
+        int maxFailureCount,
+        DateTimeOffset retryNotBefore,
+        string code,
+        string? detail,
+        CancellationToken cancellationToken) =>
+        inboxStore.RecordHandoffFailureAsync(
+            eventId,
+            expectedState,
+            expectedFailureCount,
+            maxFailureCount,
+            retryNotBefore,
+            code,
+            detail,
+            cancellationToken);
 
     public Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedAsync(
         string idempotencyKey,
