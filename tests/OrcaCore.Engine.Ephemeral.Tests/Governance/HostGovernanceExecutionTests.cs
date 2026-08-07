@@ -39,8 +39,8 @@ public sealed class HostGovernanceExecutionTests
         step.MaxObserved.Should().Be(1);
         step.ReleaseOne();
 
-        (await firstDelivery).Status.Should().Be(EventDeliveryStatus.Accepted);
-        (await secondDelivery).Status.Should().Be(EventDeliveryStatus.Accepted);
+        (await firstDelivery).Status.Should().Be(EphemeralEventRouteStatus.Accepted);
+        (await secondDelivery).Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         (await first.GetSnapshotAsync(TestContext.Current.CancellationToken))
             .Status.Should().Be(WorkflowInstanceStatus.Completed);
         (await second.GetSnapshotAsync(TestContext.Current.CancellationToken))
@@ -78,8 +78,8 @@ public sealed class HostGovernanceExecutionTests
         step.MaxObserved.Should().Be(1);
         step.ReleaseOne();
 
-        (await firstDelivery).Status.Should().Be(EventDeliveryStatus.Accepted);
-        (await secondDelivery).Status.Should().Be(EventDeliveryStatus.Accepted);
+        (await firstDelivery).Status.Should().Be(EphemeralEventRouteStatus.Accepted);
+        (await secondDelivery).Status.Should().Be(EphemeralEventRouteStatus.Accepted);
     }
 
     [Fact]
@@ -176,13 +176,13 @@ public sealed class HostGovernanceExecutionTests
             StartIdempotencyKey.Create($"start-{correlation}"),
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
 
-    private static ValueTask<EventDeliveryResult> DeliverAsync(
+    private static ValueTask<EphemeralEventRouteResult> DeliverAsync(
         ServiceProvider provider,
         WorkflowInstanceHandle instance,
         string correlation) =>
-        provider.GetRequiredService<IWorkflowEventClient>().DeliverToInstanceAsync(
+        provider.GetRequiredService<EphemeralWorkflowEventRouter>().RouteToInstanceAsync(
             instance.InstanceId,
-            WorkflowEvent.Create(
+            EphemeralTestEvent.Create(
                 EventId.Create($"event-{correlation}"),
                 StartWork,
                 CorrelationId.Create(correlation),

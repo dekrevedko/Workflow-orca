@@ -342,8 +342,8 @@ public sealed class StructuredFiberExecutionPublicTests
         targetDelivery.IsCompleted.Should().BeFalse();
 
         holder.Release();
-        (await holderDelivery).Status.Should().Be(EventDeliveryStatus.Accepted);
-        (await targetDelivery).Status.Should().Be(EventDeliveryStatus.Accepted);
+        (await holderDelivery).Status.Should().Be(EphemeralEventRouteStatus.Accepted);
+        (await targetDelivery).Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         (await WaitForStatusAsync(targetInstance, WorkflowInstanceStatus.Completed))
             .Status.Should().Be(WorkflowInstanceStatus.Completed);
         trace.Should().Equal("sibling", "pooled");
@@ -484,7 +484,7 @@ public sealed class StructuredFiberExecutionPublicTests
             "throwing-correlation-first");
         var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
 
-        delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
+        delivery.Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         snapshot.Status.Should().Be(WorkflowInstanceStatus.Failed);
         snapshot.ActiveWaits.Should().BeEmpty();
         snapshot.Failure!.Message.Should().Contain("correlation exploded");
@@ -611,7 +611,7 @@ public sealed class StructuredFiberExecutionPublicTests
             Continue,
             WaitCorrelation,
             "running-and-waiting-continue");
-        resume.Status.Should().Be(EventDeliveryStatus.Accepted);
+        resume.Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         (await WaitForStatusAsync(instance, WorkflowInstanceStatus.Completed))
             .Status.Should().Be(WorkflowInstanceStatus.Completed);
     }
@@ -666,7 +666,7 @@ public sealed class StructuredFiberExecutionPublicTests
 
         bothWaiting.ActiveWaits.Should().HaveCount(2);
         bothWaiting.ActiveWaits.Select(wait => wait.WaitId).Should().OnlyHaveUniqueItems();
-        first.Status.Should().Be(EventDeliveryStatus.Accepted);
+        first.Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         oneWaiting.ActiveWaits.Should().ContainSingle()
             .Which.WaitId.Should().Be(authored[1].WaitId);
 
@@ -676,7 +676,7 @@ public sealed class StructuredFiberExecutionPublicTests
             Ready,
             WaitCorrelation,
             "ceiling-one-second");
-        second.Status.Should().Be(EventDeliveryStatus.Accepted);
+        second.Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         (await WaitForStatusAsync(instance, WorkflowInstanceStatus.Completed))
             .Status.Should().Be(WorkflowInstanceStatus.Completed);
     }
@@ -739,7 +739,7 @@ public sealed class StructuredFiberExecutionPublicTests
 
         waiting.Status.Should().Be(WorkflowInstanceStatus.Waiting);
         waiting.ActiveWaits.Should().ContainSingle();
-        delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
+        delivery.Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         completed.Status.Should().Be(WorkflowInstanceStatus.Completed);
         completed.ActiveWaits.Should().BeEmpty();
         state.Results.Should().Equal("portable-payload");
@@ -771,7 +771,7 @@ public sealed class StructuredFiberExecutionPublicTests
         var state = await instance.GetStateAsync<ParentState>(
             TestContext.Current.CancellationToken);
 
-        delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
+        delivery.Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         completed.Status.Should().Be(WorkflowInstanceStatus.Completed);
         state.Results.Should().Equal("structural-payload");
     }
@@ -1153,7 +1153,7 @@ public sealed class StructuredFiberExecutionPublicTests
                     Ready,
                     CorrelationId.Create($"branch-{index}"),
                     $"parallel-order-{seed}-{index}");
-                result.Status.Should().Be(EventDeliveryStatus.Accepted);
+                result.Status.Should().Be(EphemeralEventRouteStatus.Accepted);
             }
 
             var completed = await instance.GetSnapshotAsync(
@@ -1208,7 +1208,7 @@ public sealed class StructuredFiberExecutionPublicTests
                     Ready,
                     CorrelationId.Create($"item-{index}"),
                     $"foreach-order-{seed}-{index}");
-                result.Status.Should().Be(EventDeliveryStatus.Accepted);
+                result.Status.Should().Be(EphemeralEventRouteStatus.Accepted);
             }
 
             var completed = await instance.GetSnapshotAsync(
@@ -1478,33 +1478,33 @@ public sealed class StructuredFiberExecutionPublicTests
             StartIdempotencyKey.Create($"structured-{input}"),
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
 
-    private static ValueTask<EventDeliveryResult> DeliverAsync(
+    private static ValueTask<EphemeralEventRouteResult> DeliverAsync(
         ServiceProvider provider,
         WorkflowInstanceHandle instance,
         EventName eventName,
         CorrelationId correlation,
         string eventId) =>
-        provider.GetRequiredService<IWorkflowEventClient>()
-            .DeliverToInstanceAsync(
+        provider.GetRequiredService<EphemeralWorkflowEventRouter>()
+            .RouteToInstanceAsync(
                 instance.InstanceId,
-                WorkflowEvent.Create(
+                EphemeralTestEvent.Create(
                     EventId.Create(eventId),
                     eventName,
                     correlation,
                     DateTimeOffset.UtcNow),
                 TestContext.Current.CancellationToken);
 
-    private static ValueTask<EventDeliveryResult> DeliverAsync<TPayload>(
+    private static ValueTask<EphemeralEventRouteResult> DeliverAsync<TPayload>(
         ServiceProvider provider,
         WorkflowInstanceHandle instance,
         EventName eventName,
         CorrelationId correlation,
         string eventId,
         TPayload payload) =>
-        provider.GetRequiredService<IWorkflowEventClient>()
-            .DeliverToInstanceAsync(
+        provider.GetRequiredService<EphemeralWorkflowEventRouter>()
+            .RouteToInstanceAsync(
                 instance.InstanceId,
-                WorkflowEvent<TPayload>.Create(
+                EphemeralTestEvent<TPayload>.Create(
                     EventId.Create(eventId),
                     eventName,
                     correlation,

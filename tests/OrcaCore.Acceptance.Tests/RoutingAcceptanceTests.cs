@@ -20,16 +20,16 @@ public sealed class RoutingAcceptanceTests
                 StartIdempotencyKey.Create("correlation-one"),
                 TestContext.Current.CancellationToken))
             .GetHandleOrThrow();
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var events = provider.GetRequiredService<ProcessLocalEventRouter>();
 
-        var delivery = await events.DeliverByCorrelationAsync(
+        var delivery = await events.RouteByCorrelationAsync(
             definitionHandle.DefinitionId,
             Event("payload"),
             TestContext.Current.CancellationToken);
         var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
         var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
-        delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
+        delivery.Status.Should().Be(ProcessLocalEventRouteStatus.Accepted);
         delivery.InstanceId.Should().Be(instance.InstanceId);
         snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
         state.Payloads.Should().Equal(["payload"]);
@@ -41,14 +41,14 @@ public sealed class RoutingAcceptanceTests
     {
         using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
         var definitionHandle = Register(provider, Definition());
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var events = provider.GetRequiredService<ProcessLocalEventRouter>();
 
-        var missing = await events.DeliverByCorrelationAsync(
+        var missing = await events.RouteByCorrelationAsync(
             definitionHandle.DefinitionId,
             Event("missing"),
             TestContext.Current.CancellationToken);
 
-        missing.Status.Should().Be(EventDeliveryStatus.NoActiveWait);
+        missing.Status.Should().Be(ProcessLocalEventRouteStatus.NoActiveWait);
         missing.InstanceId.Should().BeNull();
 
         var first = (await definitionHandle.StartOrGetAsync(
@@ -63,12 +63,12 @@ public sealed class RoutingAcceptanceTests
 
         await ambiguous.Should().ThrowAsync<AmbiguousWaitRegistrationException>();
 
-        var accepted = await events.DeliverByCorrelationAsync(
+        var accepted = await events.RouteByCorrelationAsync(
             definitionHandle.DefinitionId,
             Event("accepted"),
             TestContext.Current.CancellationToken);
 
-        accepted.Status.Should().Be(EventDeliveryStatus.Accepted);
+        accepted.Status.Should().Be(ProcessLocalEventRouteStatus.Accepted);
         accepted.InstanceId.Should().Be(first.InstanceId);
     }
 
@@ -88,9 +88,9 @@ public sealed class RoutingAcceptanceTests
                 StartIdempotencyKey.Create("other-definition"),
                 TestContext.Current.CancellationToken))
             .GetHandleOrThrow();
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var events = provider.GetRequiredService<ProcessLocalEventRouter>();
 
-        var delivery = await events.DeliverByCorrelationAsync(
+        var delivery = await events.RouteByCorrelationAsync(
             target.DefinitionId,
             Event("payload"),
             TestContext.Current.CancellationToken);
@@ -127,8 +127,8 @@ public sealed class RoutingAcceptanceTests
             .End()
             .Build();
 
-    private static WorkflowEvent<string> Event(string payload) =>
-        WorkflowEvent<string>.Create(
+    private static ProcessLocalInboundEvent<string> Event(string payload) =>
+        ProcessLocalInboundEvent<string>.Create(
             EventId.Create(Guid.CreateVersion7().ToString()),
             EventName.Create("Approved"),
             Correlation,

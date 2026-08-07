@@ -18,7 +18,7 @@ public sealed class FakeWorkflowEventStore :
     private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
 
     private readonly object gate = new();
-    private readonly ConcurrentDictionary<(InstanceId InstanceId, EventId EventId), InboxRecord> inbox = [];
+    private readonly ConcurrentDictionary<EventId, InboxRecord> inbox = [];
     private readonly ConcurrentDictionary<string, StartedWorkflowIdempotencyRecord> startIdempotency =
         new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<OutboxRecordId, FakeOutboxRecord> outbox = [];
@@ -66,6 +66,21 @@ public sealed class FakeWorkflowEventStore :
                     batch.ExpectedVersion));
             }
 
+            var conflictingEventId = batch.InboxOperations
+                .Where(operation => operation.EnvelopeFingerprint is not null)
+                .Where(operation => inbox.TryGetValue(operation.EventId, out var existing) &&
+                    (!existing.InstanceId.Equals(batch.StreamId.InstanceId) ||
+                     !string.Equals(
+                         existing.EnvelopeFingerprint,
+                         operation.EnvelopeFingerprint,
+                         StringComparison.Ordinal)))
+                .Select(operation => operation.EventId)
+                .FirstOrDefault();
+            if (conflictingEventId is not null)
+            {
+                return Task.FromResult(EventStoreConflict.EventIdAlreadyExists(conflictingEventId));
+            }
+
             var stream = streams.GetOrAdd(batch.StreamId, _ => []);
             var actualVersion = new StreamVersion(stream.Count);
             if (actualVersion != batch.ExpectedVersion)
@@ -84,10 +99,9 @@ public sealed class FakeWorkflowEventStore :
             stream.AddRange(batch.Events);
             foreach (var operation in batch.InboxOperations)
             {
-                var key = (batch.StreamId.InstanceId, operation.EventId);
-                if (inbox.TryGetValue(key, out var existing))
+                if (inbox.TryGetValue(operation.EventId, out var existing))
                 {
-                    inbox[key] = existing with
+                    inbox[operation.EventId] = existing with
                     {
                         State = existing.State == InboxRecordState.Applied
                             ? existing.State
@@ -103,11 +117,14 @@ public sealed class FakeWorkflowEventStore :
                         $"'{batch.StreamId.InstanceId}' must carry an envelope fingerprint.");
                 }
 
-                inbox[key] = new InboxRecord(
+                inbox[operation.EventId] = new InboxRecord(
                     batch.StreamId.InstanceId,
                     operation.EventId,
                     operation.EnvelopeFingerprint,
-                    operation.State);
+                    operation.State)
+                {
+                    Envelope = CloneEnvelope(operation.Envelope)
+                };
             }
 
             foreach (var operation in batch.StartIdempotencyOperations)
@@ -163,7 +180,17 @@ public sealed class FakeWorkflowEventStore :
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        return Task.FromResult(inbox.TryGetValue((instanceId, eventId), out var record)
+        return Task.FromResult(inbox.TryGetValue(eventId, out var record) && record.InstanceId.Equals(instanceId)
+            ? Option<InboxRecord>.Some(record)
+            : Option<InboxRecord>.None);
+    }
+
+    public Task<Option<InboxRecord>> GetByEventIdAsync(
+        EventId eventId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(inbox.TryGetValue(eventId, out var record)
             ? Option<InboxRecord>.Some(record)
             : Option<InboxRecord>.None);
     }
@@ -326,6 +353,22 @@ public sealed class FakeWorkflowEventStore :
     public void FailNextCommitBeforeApply()
     {
         Interlocked.Exchange(ref failNextCommitBeforeApply, 1);
+    }
+
+    private static DurableEventEnvelope? CloneEnvelope(DurableEventEnvelope? envelope)
+    {
+        return envelope is null
+            ? null
+            : envelope with
+            {
+                Payload = envelope.Payload is null ? null : [.. envelope.Payload],
+                Route = envelope.Route with
+                {
+                    WorkflowInputPayload = envelope.Route.WorkflowInputPayload is null
+                        ? null
+                        : [.. envelope.Route.WorkflowInputPayload]
+                }
+            };
     }
 
     private static CheckpointWrite CloneCheckpointWrite(CheckpointWrite checkpoint)

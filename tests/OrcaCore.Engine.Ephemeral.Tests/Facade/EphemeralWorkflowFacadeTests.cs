@@ -95,7 +95,7 @@ public sealed class EphemeralWorkflowFacadeTests
         var gate = new CancellationGate();
         using var provider = CreateServices().BuildServiceProvider();
         var registry = provider.GetRequiredService<IWorkflowDefinitionRegistry>();
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var events = provider.GetRequiredService<EphemeralWorkflowEventRouter>();
         var eventName = EventName.Create("continue");
         var correlation = CorrelationId.Create("cancellation-request");
         var definition = Workflow.Ephemeral<State>(DefinitionId.New(), DefinitionVersion.Initial)
@@ -109,9 +109,9 @@ public sealed class EphemeralWorkflowFacadeTests
             new Input(1),
             StartIdempotencyKey.Create("cancellation-request"),
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
-        var delivery = events.DeliverToInstanceAsync(
+        var delivery = events.RouteToInstanceAsync(
             instance.InstanceId,
-            WorkflowEvent.Create(
+            EphemeralTestEvent.Create(
                 EventId.Create("start-in-flight-step"),
                 eventName,
                 correlation,
@@ -184,7 +184,7 @@ public sealed class EphemeralWorkflowFacadeTests
         var gate = new CancellationGate();
         using var provider = CreateServices().BuildServiceProvider();
         var registry = provider.GetRequiredService<IWorkflowDefinitionRegistry>();
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var events = provider.GetRequiredService<EphemeralWorkflowEventRouter>();
         var eventName = EventName.Create("continue");
         var correlation = CorrelationId.Create("termination-race");
         var definition = Workflow.Ephemeral<State>(DefinitionId.New(), DefinitionVersion.Initial)
@@ -198,9 +198,9 @@ public sealed class EphemeralWorkflowFacadeTests
             new Input(1),
             StartIdempotencyKey.Create("termination-race"),
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
-        var delivery = events.DeliverToInstanceAsync(
+        var delivery = events.RouteToInstanceAsync(
             instance.InstanceId,
-            WorkflowEvent.Create(
+            EphemeralTestEvent.Create(
                 EventId.Create("start-termination-race"),
                 eventName,
                 correlation,

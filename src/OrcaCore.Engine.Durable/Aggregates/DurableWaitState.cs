@@ -139,6 +139,7 @@ internal sealed class DurableWaitState
             {
                 WaitId = wait.WaitId,
                 EventName = wait.EventName,
+                EventContractVersion = wait.EventContractVersion,
                 CorrelationId = wait.CorrelationId,
                 RegisteredAt = wait.RegisteredAt,
                 BranchId = wait.BranchId,

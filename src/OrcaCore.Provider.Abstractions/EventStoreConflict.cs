@@ -32,4 +32,13 @@ public static class EventStoreConflict
             new WorkflowConcurrencyException(
                 $"Start idempotency key '{idempotencyKey}' is already bound to a workflow instance."));
     }
+
+    /// <summary>Creates a conflict result when a globally owned event identity already exists.</summary>
+    public static Result<AppendEventsResult> EventIdAlreadyExists(EventId eventId)
+    {
+        ArgumentNullException.ThrowIfNull(eventId);
+        return Result<AppendEventsResult>.Failure(
+            new WorkflowConcurrencyException(
+                $"Inbound event identity '{eventId}' is already durably owned."));
+    }
 }

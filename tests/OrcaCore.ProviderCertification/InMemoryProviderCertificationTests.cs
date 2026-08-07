@@ -1,9 +1,29 @@
+using AwesomeAssertions;
 using OrcaCore.Abstractions.Providers;
+using Xunit;
 
 namespace OrcaCore.ProviderCertification;
 
 public sealed class InMemoryProviderCertificationTests : ContinueAsNewCertificationTests
 {
+    [Fact]
+    public void ActiveWaitQuery_ImplementsTheVersionAwareProviderOverload()
+    {
+        var projectionStore = InMemoryProviderPorts.Create().ProjectionStore;
+
+        projectionStore.GetType().GetMethod(
+                nameof(IWorkflowProjectionStore.FindActiveWaitsAsync),
+                [
+                    typeof(global::OrcaCore.DefinitionId),
+                    typeof(global::OrcaCore.EventName),
+                    typeof(global::OrcaCore.EventContractVersion),
+                    typeof(global::OrcaCore.CorrelationId),
+                    typeof(CancellationToken)
+                ])
+            .Should().NotBeNull(
+                "the selected in-memory provider must filter version identity without the interface fallback");
+    }
+
     protected override IProviderCertificationFixture CreateFixture()
     {
         return new InMemoryProviderCertificationFixture(InMemoryProviderPorts.Create());

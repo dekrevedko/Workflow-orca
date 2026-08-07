@@ -91,7 +91,7 @@ public abstract class EventStoreCertificationTests
 
     [Fact]
     [Trait("AC", "AC-305")]
-    public async Task SameInboxEventId_OnDifferentTargets_IsRecordedIndependently()
+    public async Task SameInboxEventId_OnDifferentTargets_ConflictsGloballyBeforeSecondStreamMutation()
     {
         var fixture = CreateFixture();
         var inboxEventId = EventId.Create(Guid.CreateVersion7().ToString());
@@ -121,11 +121,85 @@ public abstract class EventStoreCertificationTests
             secondInstanceId,
             inboxEventId,
             TestContext.Current.CancellationToken);
+        var globalRecord = await fixture.InboxStore.GetByEventIdAsync(
+            inboxEventId,
+            TestContext.Current.CancellationToken);
 
         first.IsSuccess.Should().BeTrue();
-        second.IsSuccess.Should().BeTrue();
+        second.IsFailure.Should().BeTrue();
+        second.Error.Message.Should().Contain("already durably owned");
         firstRecord.Value.EnvelopeFingerprint.Should().Be("first-envelope");
-        secondRecord.Value.EnvelopeFingerprint.Should().Be("second-envelope");
+        secondRecord.HasValue.Should().BeFalse();
+        globalRecord.Value.InstanceId.Should().Be(firstInstanceId);
+        globalRecord.Value.EnvelopeFingerprint.Should().Be("first-envelope");
+    }
+
+    [Fact]
+    [Trait("AC", "AC-305")]
+    public async Task AcceptedInboxEnvelope_CanTransitionFromPendingToApplied()
+    {
+        var fixture = CreateFixture();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var eventId = EventId.Create(Guid.CreateVersion7().ToString());
+        var envelope = new DurableEventEnvelope
+        {
+            EventId = eventId,
+            EventName = "certification-transition",
+            EventContractVersion = 2,
+            CorrelationId = CorrelationId.Create("certification-transition"),
+            OccurredAt = Timestamp(9),
+            Route = new DurableEventRouteEnvelope
+            {
+                Kind = "direct",
+                InstanceId = instanceId
+            }
+        };
+        const string Fingerprint = "certification-transition-envelope";
+        var first = Batch(
+            new WorkflowStreamId(instanceId),
+            StreamVersion.Empty,
+            eventId,
+            inboxEnvelopeFingerprint: Fingerprint) with
+        {
+            InboxOperations =
+            [
+                new InboxWrite(eventId, InboxRecordState.Received)
+                {
+                    EnvelopeFingerprint = Fingerprint,
+                    Envelope = envelope
+                }
+            ]
+        };
+        var second = new ProviderCommitBatch
+        {
+            StreamId = new WorkflowStreamId(instanceId),
+            ExpectedVersion = new StreamVersion(1),
+            InboxOperations =
+            [
+                new InboxWrite(eventId, InboxRecordState.Applied)
+                {
+                    EnvelopeFingerprint = Fingerprint,
+                    Envelope = envelope
+                }
+            ]
+        };
+
+        var accepted = await fixture.EventStore.AppendAsync(
+            first,
+            TestContext.Current.CancellationToken);
+        var applied = await fixture.EventStore.AppendAsync(
+            second,
+            TestContext.Current.CancellationToken);
+        var stored = await fixture.InboxStore.GetByEventIdAsync(
+            eventId,
+            TestContext.Current.CancellationToken);
+
+        accepted.IsSuccess.Should().BeTrue();
+        applied.IsSuccess.Should().BeTrue();
+        stored.Value.InstanceId.Should().Be(instanceId);
+        stored.Value.EnvelopeFingerprint.Should().Be(Fingerprint);
+        stored.Value.State.Should().Be(InboxRecordState.Applied);
+        stored.Value.Envelope.Should().BeEquivalentTo(envelope);
     }
 
     [Fact]
@@ -468,6 +542,32 @@ public abstract class EventStoreCertificationTests
 
         listed.Should().ContainSingle().Which.InstanceId.Should().Be(targetId);
         listed.Single().ActiveWaits.Should().Contain(targetWait);
+    }
+
+    [Fact]
+    [Trait("AC", "AC-501")]
+    [Trait("AC", "PR-013")]
+    public async Task ProjectionQuery_EventContractVersionIsAnExactMatch()
+    {
+        var fixture = CreateFixture();
+        var definitionId = DefinitionId.New();
+        var v1Id = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var v2Id = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        await fixture.ProjectionStore.ApplyAsync(
+            [
+                Projection(v1Id, definitionId, [ActiveWait("approved", "order-1")]),
+                Projection(v2Id, definitionId, [ActiveWait("approved", "order-1", 2)])
+            ],
+            TestContext.Current.CancellationToken);
+
+        var listed = await fixture.ProjectionStore.FindActiveWaitsAsync(
+            definitionId,
+            EventName.Create("approved"),
+            new EventContractVersion(2),
+            CorrelationId.Create("order-1"),
+            TestContext.Current.CancellationToken);
+
+        listed.Should().ContainSingle().Which.InstanceId.Should().Be(v2Id);
     }
 
     [Fact]
@@ -1177,12 +1277,14 @@ public abstract class EventStoreCertificationTests
 
     private static global::OrcaCore.Abstractions.Providers.WorkflowProjectionActiveWaitSnapshot ActiveWait(
         string eventName,
-        string correlationId)
+        string correlationId,
+        int eventContractVersion = 1)
     {
         return new global::OrcaCore.Abstractions.Providers.WorkflowProjectionActiveWaitSnapshot
         {
             WaitId = WaitId.Parse(Guid.CreateVersion7().ToString()),
             EventName = eventName,
+            EventContractVersion = eventContractVersion,
             CorrelationId = CorrelationId.Create(correlationId),
             RegisteredAt = Timestamp(1),
             Status = "active",

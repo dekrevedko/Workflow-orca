@@ -56,7 +56,7 @@ public sealed class ForEachAcceptanceTests
             "start",
             StartIdempotencyKey.Create("foreach-when-all"),
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var events = provider.GetRequiredService<ProcessLocalEventRouter>();
 
         foreach (var index in Enumerable.Range(0, 3))
         {
@@ -120,7 +120,7 @@ public sealed class ForEachAcceptanceTests
             "start",
             StartIdempotencyKey.Create("foreach-wait-all-failure"),
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var events = provider.GetRequiredService<ProcessLocalEventRouter>();
         var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
         snapshot.ActiveWaits.Should().HaveCount(2);
         await RaiseItemAsync(events, instance, 0);
@@ -219,19 +219,19 @@ public sealed class ForEachAcceptanceTests
     }
 
     private static async Task RaiseItemAsync(
-        IWorkflowEventClient events,
+        ProcessLocalEventRouter events,
         WorkflowInstanceHandle instance,
         int index)
     {
-        var delivery = await events.DeliverToInstanceAsync(
+        var delivery = await events.RouteToInstanceAsync(
             instance.InstanceId,
-            WorkflowEvent.Create(
+            ProcessLocalInboundEvent.Create(
                 EventId.Create(Guid.CreateVersion7().ToString()),
                 EventName.Create("ItemDone"),
                 CorrelationId.Create($"item-{index}"),
                 DateTimeOffset.UtcNow),
             TestContext.Current.CancellationToken);
-        delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
+        delivery.Status.Should().Be(ProcessLocalEventRouteStatus.Accepted);
     }
 
     private sealed record TestState(int[] Items)

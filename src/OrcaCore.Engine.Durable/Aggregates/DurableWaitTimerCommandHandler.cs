@@ -15,6 +15,24 @@ internal static class DurableWaitTimerCommandHandler
             return DurableDecision.Empty;
         }
 
+        var cancelledWaitIds = command.CancelWaitIds.ToHashSet();
+        if (aggregate.WaitState.ActiveWaits.Any(wait =>
+                !cancelledWaitIds.Contains(wait.WaitId) &&
+                string.Equals(wait.EventName, command.EventName, StringComparison.Ordinal) &&
+                wait.EventContractVersion == command.EventContractVersion &&
+                wait.CorrelationId.Equals(command.CorrelationId)))
+        {
+            var definitionId = aggregate.DefinitionId ??
+                throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                    "A durable wait cannot be registered before its definition identity is available.");
+            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.AmbiguousWait(
+                definitionId,
+                WorkflowEventContract.Create(
+                    EventName.Create(command.EventName),
+                    new EventContractVersion(command.EventContractVersion)),
+                command.CorrelationId);
+        }
+
         var registerTimeoutTimer = command.TimeoutTimerId is not null;
         var events = new List<DurableWorkflowEvent>();
         AddConsumeAndCancelEvents(events, aggregate, command);

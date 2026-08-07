@@ -165,6 +165,26 @@ internal sealed class PostgreSqlWorkflowStore :
 
         try
         {
+            foreach (var inboxWrite in batch.InboxOperations.Where(operation =>
+                         operation.EnvelopeFingerprint is not null))
+            {
+                var existing = await GetInboxIdentityAsync(
+                    connection,
+                    transaction,
+                    inboxWrite.EventId,
+                    cancellationToken).ConfigureAwait(false);
+                if (existing is not null &&
+                    (!existing.InstanceId.Equals(batch.StreamId.InstanceId) ||
+                     !string.Equals(
+                         existing.EnvelopeFingerprint,
+                         inboxWrite.EnvelopeFingerprint,
+                         StringComparison.Ordinal)))
+                {
+                    await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                    return EventStoreConflict.EventIdAlreadyExists(inboxWrite.EventId);
+                }
+            }
+
             var actualVersion = await LoadActualVersionAsync(
                 connection,
                 transaction,
@@ -238,6 +258,16 @@ internal sealed class PostgreSqlWorkflowStore :
                 }
             }
 
+            if (batch.InboxOperations.FirstOrDefault(operation => operation.EnvelopeFingerprint is not null) is { } inboxWrite)
+            {
+                var existingEvent = await GetByEventIdAsync(inboxWrite.EventId, cancellationToken)
+                    .ConfigureAwait(false);
+                if (existingEvent.HasValue)
+                {
+                    return EventStoreConflict.EventIdAlreadyExists(inboxWrite.EventId);
+                }
+            }
+
             var actualVersion = await LoadActualVersionAsync(connection, null, batch.StreamId, cancellationToken)
                 .ConfigureAwait(false);
             return EventStoreConflict.ExpectedVersionMismatch(batch.ExpectedVersion, actualVersion);
@@ -278,16 +308,42 @@ internal sealed class PostgreSqlWorkflowStore :
         EventId eventId,
         CancellationToken cancellationToken)
     {
+        var record = await GetByEventIdAsync(eventId, cancellationToken).ConfigureAwait(false);
+        return record.HasValue && record.Value.InstanceId.Equals(instanceId)
+            ? record
+            : Option<InboxRecord>.None;
+    }
+
+    /// <inheritdoc />
+    public async Task<Option<InboxRecord>> GetByEventIdAsync(
+        EventId eventId,
+        CancellationToken cancellationToken)
+    {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var command = new NpgsqlCommand(
             """
-            select envelope_fingerprint, state
+            select
+                instance_id,
+                envelope_fingerprint,
+                state,
+                event_name,
+                event_contract_version,
+                correlation_id,
+                causation_event_id,
+                occurred_at,
+                route_kind,
+                route_instance_id,
+                route_definition_id,
+                route_definition_version,
+                start_idempotency_key,
+                workflow_input_content_type,
+                workflow_input_payload,
+                payload_content_type,
+                payload
             from orcacore_inbox
-            where instance_id = @instance_id
-              and event_id = @event_id;
+            where event_id = @event_id;
             """,
             connection);
-        command.Parameters.AddWithValue("instance_id", instanceId.Value);
         command.Parameters.AddWithValue("event_id", eventId.Value);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
@@ -296,11 +352,37 @@ internal sealed class PostgreSqlWorkflowStore :
             return Option<InboxRecord>.None;
         }
 
+        var instanceId = InstanceId.Parse(reader.GetGuid(0).ToString());
         return Option<InboxRecord>.Some(new InboxRecord(
             instanceId,
             eventId,
-            reader.GetString(0),
-            Enum.Parse<InboxRecordState>(reader.GetString(1))));
+            reader.GetString(1),
+            Enum.Parse<InboxRecordState>(reader.GetString(2)))
+        {
+            Envelope = reader.IsDBNull(3)
+                ? null
+                : new DurableEventEnvelope
+                {
+                    EventId = eventId,
+                    EventName = reader.GetString(3),
+                    EventContractVersion = reader.GetInt32(4),
+                    CorrelationId = CorrelationId.Create(reader.GetString(5)),
+                    CausationEventId = reader.IsDBNull(6) ? null : EventId.Create(reader.GetString(6)),
+                    OccurredAt = reader.GetFieldValue<DateTimeOffset>(7),
+                    Route = new DurableEventRouteEnvelope
+                    {
+                        Kind = reader.GetString(8),
+                        InstanceId = reader.IsDBNull(9) ? null : InstanceId.Parse(reader.GetGuid(9).ToString()),
+                        DefinitionId = reader.IsDBNull(10) ? null : DefinitionId.Parse(reader.GetGuid(10).ToString()),
+                        DefinitionVersion = reader.IsDBNull(11) ? null : new DefinitionVersion(reader.GetInt32(11)),
+                        StartIdempotencyKey = reader.IsDBNull(12) ? null : reader.GetString(12),
+                        WorkflowInputContentType = reader.IsDBNull(13) ? null : reader.GetString(13),
+                        WorkflowInputPayload = reader.IsDBNull(14) ? null : reader.GetFieldValue<byte[]>(14)
+                    },
+                    PayloadContentType = reader.IsDBNull(15) ? null : reader.GetString(15),
+                    Payload = reader.IsDBNull(16) ? null : reader.GetFieldValue<byte[]>(16)
+                }
+        });
     }
 
     /// <inheritdoc />
@@ -513,6 +595,20 @@ internal sealed class PostgreSqlWorkflowStore :
         CorrelationId correlationId,
         CancellationToken cancellationToken) =>
         projectionStore.FindActiveWaitsAsync(definitionId, eventName, correlationId, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<WorkflowProjectionSnapshot>> FindActiveWaitsAsync(
+        DefinitionId? definitionId,
+        EventName eventName,
+        EventContractVersion eventContractVersion,
+        CorrelationId correlationId,
+        CancellationToken cancellationToken) =>
+        projectionStore.FindActiveWaitsAsync(
+            definitionId,
+            eventName,
+            eventContractVersion,
+            correlationId,
+            cancellationToken);
 
     /// <inheritdoc />
     public Task<IReadOnlyList<WorkflowProjectionSnapshot>> ListLeaseRecoveryCandidatesAsync(
@@ -731,6 +827,29 @@ internal sealed class PostgreSqlWorkflowStore :
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    private static async Task<ExistingInboxIdentity?> GetInboxIdentityAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        EventId eventId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new NpgsqlCommand(
+            """
+            select instance_id, envelope_fingerprint
+            from orcacore_inbox
+            where event_id = @event_id;
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("event_id", eventId.Value);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        return await reader.ReadAsync(cancellationToken).ConfigureAwait(false)
+            ? new ExistingInboxIdentity(
+                InstanceId.Parse(reader.GetGuid(0).ToString()),
+                reader.GetString(1))
+            : null;
+    }
+
     private static async Task ApplyInboxOperationsAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
@@ -768,23 +887,71 @@ internal sealed class PostgreSqlWorkflowStore :
                 continue;
             }
 
+            await using (var transition = new NpgsqlCommand(
+                """
+                update orcacore_inbox
+                set state = case
+                    when state = @applied then state
+                    else @state
+                end
+                where instance_id = @instance_id
+                  and event_id = @event_id
+                  and envelope_fingerprint = @envelope_fingerprint;
+                """,
+                connection,
+                transaction))
+            {
+                transition.Parameters.AddWithValue("instance_id", instanceId.Value);
+                transition.Parameters.AddWithValue("event_id", operation.EventId.Value);
+                transition.Parameters.AddWithValue("envelope_fingerprint", operation.EnvelopeFingerprint);
+                transition.Parameters.AddWithValue("state", operation.State.ToString());
+                transition.Parameters.AddWithValue("applied", InboxRecordState.Applied.ToString());
+                if (await transition.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) == 1)
+                {
+                    continue;
+                }
+            }
+
             await using var command = new NpgsqlCommand(
                 """
                 insert into orcacore_inbox (
                     instance_id,
                     event_id,
                     envelope_fingerprint,
-                    state)
+                    state,
+                    event_name,
+                    event_contract_version,
+                    correlation_id,
+                    causation_event_id,
+                    occurred_at,
+                    route_kind,
+                    route_instance_id,
+                    route_definition_id,
+                    route_definition_version,
+                    start_idempotency_key,
+                    workflow_input_content_type,
+                    workflow_input_payload,
+                    payload_content_type,
+                    payload)
                 values (
                     @instance_id,
                     @event_id,
                     @envelope_fingerprint,
-                    @state)
-                on conflict (instance_id, event_id) do update set
-                    state = case
-                        when orcacore_inbox.state = @applied then orcacore_inbox.state
-                        else excluded.state
-                    end;
+                    @state,
+                    @event_name,
+                    @event_contract_version,
+                    @correlation_id,
+                    @causation_event_id,
+                    @occurred_at,
+                    @route_kind,
+                    @route_instance_id,
+                    @route_definition_id,
+                    @route_definition_version,
+                    @start_idempotency_key,
+                    @workflow_input_content_type,
+                    @workflow_input_payload,
+                    @payload_content_type,
+                    @payload);
                 """,
                 connection,
                 transaction);
@@ -792,11 +959,46 @@ internal sealed class PostgreSqlWorkflowStore :
             command.Parameters.AddWithValue("event_id", operation.EventId.Value);
             command.Parameters.AddWithValue("envelope_fingerprint", operation.EnvelopeFingerprint);
             command.Parameters.AddWithValue("state", operation.State.ToString());
-            command.Parameters.AddWithValue("applied", InboxRecordState.Applied.ToString());
+            AddEnvelopeParameters(command, operation.Envelope);
 
             await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
     }
+
+    private static void AddEnvelopeParameters(NpgsqlCommand command, DurableEventEnvelope? envelope)
+    {
+        command.Parameters.Add("event_name", NpgsqlDbType.Text).Value =
+            (object?)envelope?.EventName ?? DBNull.Value;
+        command.Parameters.Add("event_contract_version", NpgsqlDbType.Integer).Value =
+            (object?)envelope?.EventContractVersion ?? DBNull.Value;
+        command.Parameters.Add("correlation_id", NpgsqlDbType.Text).Value =
+            (object?)envelope?.CorrelationId.Value ?? DBNull.Value;
+        command.Parameters.Add("causation_event_id", NpgsqlDbType.Text).Value =
+            (object?)envelope?.CausationEventId?.Value ?? DBNull.Value;
+        command.Parameters.Add("occurred_at", NpgsqlDbType.TimestampTz).Value =
+            (object?)envelope?.OccurredAt ?? DBNull.Value;
+        command.Parameters.Add("route_kind", NpgsqlDbType.Text).Value =
+            (object?)envelope?.Route.Kind ?? DBNull.Value;
+        command.Parameters.Add("route_instance_id", NpgsqlDbType.Uuid).Value =
+            (object?)envelope?.Route.InstanceId?.Value ?? DBNull.Value;
+        command.Parameters.Add("route_definition_id", NpgsqlDbType.Uuid).Value =
+            (object?)envelope?.Route.DefinitionId?.Value ?? DBNull.Value;
+        command.Parameters.Add("route_definition_version", NpgsqlDbType.Integer).Value =
+            (object?)envelope?.Route.DefinitionVersion?.Value ?? DBNull.Value;
+        command.Parameters.Add("start_idempotency_key", NpgsqlDbType.Text).Value =
+            (object?)envelope?.Route.StartIdempotencyKey ?? DBNull.Value;
+        command.Parameters.Add("workflow_input_content_type", NpgsqlDbType.Text).Value =
+            (object?)envelope?.Route.WorkflowInputContentType ?? DBNull.Value;
+        command.Parameters.Add("workflow_input_payload", NpgsqlDbType.Bytea).Value =
+            (object?)envelope?.Route.WorkflowInputPayload ?? DBNull.Value;
+        command.Parameters.Add("payload_content_type", NpgsqlDbType.Text).Value =
+            (object?)envelope?.PayloadContentType ?? DBNull.Value;
+        command.Parameters.Add("payload", NpgsqlDbType.Bytea).Value = (object?)envelope?.Payload ?? DBNull.Value;
+    }
+
+    private sealed record ExistingInboxIdentity(
+        InstanceId InstanceId,
+        string EnvelopeFingerprint);
 
     private static async Task ApplyStartIdempotencyOperationsAsync(
         NpgsqlConnection connection,

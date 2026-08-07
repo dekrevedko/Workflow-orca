@@ -2,6 +2,7 @@ using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OrcaCore.Hosting;
+using OrcaCore.Durable.Hosting;
 using OrcaCore.Providers.InMemory;
 
 namespace OrcaCore.Integration.Tests.CurrentSurface;
@@ -17,7 +18,7 @@ public sealed class HostingRoleCompositionTests
 
         using var engine = engineServices.BuildServiceProvider();
         engine.GetRequiredService<IWorkflowDefinitionRegistry>().Should().NotBeNull();
-        engine.GetRequiredService<IWorkflowEventClient>().Should().NotBeNull();
+        engine.GetRequiredService<IWorkflowEventIngress>().Should().NotBeNull();
         engine.GetServices<IHostedService>().Should().NotBeEmpty();
 
         var ingressServices = new ServiceCollection();
@@ -25,9 +26,22 @@ public sealed class HostingRoleCompositionTests
         ingressServices.AddOrcaCoreDurableEventIngress();
 
         using var ingress = ingressServices.BuildServiceProvider();
-        ingress.GetRequiredService<IWorkflowEventClient>().Should().NotBeNull();
+        ingress.GetRequiredService<IWorkflowEventIngress>().Should().NotBeNull();
         ingress.GetService<IWorkflowDefinitionRegistry>().Should().BeNull();
         ingress.GetServices<IHostedService>().Should().BeEmpty();
+
+        var ephemeralServices = new ServiceCollection();
+        ephemeralServices.AddOrcaCoreEphemeralEngine(new EphemeralEngineHostOptions
+        {
+            StructuredExecution = new StructuredExecutionHostOptions
+            {
+                MaxConcurrentExecutionPathsPerInstance = 1,
+                StepThrottles = []
+            },
+            TransientPools = []
+        });
+        using var ephemeral = ephemeralServices.BuildServiceProvider();
+        ephemeral.GetService<IWorkflowEventIngress>().Should().BeNull();
     }
 
     [Fact]

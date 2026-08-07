@@ -170,14 +170,17 @@ public sealed class WorkflowPayloadGraphPositionTests
                 .Build()).GetHandleOrThrow();
     }
 
-    private static WorkflowEvent<TPayload> CreateEvent<TPayload>(TPayload payload)
+    private static WorkflowInboundEvent<TPayload> CreateEvent<TPayload>(TPayload payload)
     {
-        return WorkflowEvent<TPayload>.Create(
+        var eventName = EventName.Create("graph-event");
+        return WorkflowInboundEvent<TPayload>.Create(
+            WorkflowEventContract<TPayload>.Create(eventName, EventContractVersion.Initial),
             EventId.Create("graph-event"),
-            EventName.Create("graph-event"),
             CorrelationId.Create("graph-correlation"),
-            payload,
-            DateTimeOffset.Parse("2026-07-30T12:00:00Z"));
+            causationEventId: null,
+            DateTimeOffset.Parse("2026-07-30T12:00:00Z"),
+            new WorkflowEventRoute.Direct(InstanceId.Parse(Guid.CreateVersion7().ToString())),
+            payload);
     }
 
     private static async Task AssertNoStartMutationAsync(

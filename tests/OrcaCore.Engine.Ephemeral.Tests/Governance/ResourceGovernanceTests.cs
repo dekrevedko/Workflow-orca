@@ -46,8 +46,8 @@ public sealed class ResourceGovernanceTests
         gate.MaxObserved.Should().Be(1);
         gate.ReleaseOne();
 
-        (await firstDelivery).Status.Should().Be(EventDeliveryStatus.Accepted);
-        (await secondDelivery).Status.Should().Be(EventDeliveryStatus.Accepted);
+        (await firstDelivery).Status.Should().Be(EphemeralEventRouteStatus.Accepted);
+        (await secondDelivery).Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         (await WaitForStatusAsync(
                 first,
                 WorkflowInstanceStatus.Completed,
@@ -99,8 +99,8 @@ public sealed class ResourceGovernanceTests
         gate.MaxObserved.Should().Be(1);
         gate.ReleaseOne();
 
-        (await firstDelivery).Status.Should().Be(EventDeliveryStatus.Accepted);
-        (await secondDelivery).Status.Should().Be(EventDeliveryStatus.Accepted);
+        (await firstDelivery).Status.Should().Be(EphemeralEventRouteStatus.Accepted);
+        (await secondDelivery).Status.Should().Be(EphemeralEventRouteStatus.Accepted);
     }
 
     [Fact]
@@ -179,7 +179,7 @@ public sealed class ResourceGovernanceTests
                 TransientPools = []
             });
         var registry = provider.GetRequiredService<IWorkflowDefinitionRegistry>();
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var events = provider.GetRequiredService<EphemeralWorkflowEventRouter>();
         var eventName = EventName.Create("ready");
         var correlation = CorrelationId.Create("serialized-governance");
         var definition = Workflow.Ephemeral<State>(
@@ -196,12 +196,12 @@ public sealed class ResourceGovernanceTests
             StartIdempotencyKey.Create("serialized-governance"),
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
 
-        var first = events.DeliverToInstanceAsync(
+        var first = events.RouteToInstanceAsync(
             instance.InstanceId,
             Event("serialized-first", eventName, correlation),
             TestContext.Current.CancellationToken).AsTask();
         await gate.WaitForEntriesAsync(1, TestContext.Current.CancellationToken);
-        var second = events.DeliverToInstanceAsync(
+        var second = events.RouteToInstanceAsync(
             instance.InstanceId,
             Event("serialized-second", eventName, correlation),
             TestContext.Current.CancellationToken).AsTask();
@@ -211,8 +211,8 @@ public sealed class ResourceGovernanceTests
         gate.EnteredCount.Should().Be(1);
         gate.ReleaseOne();
 
-        (await first).Status.Should().Be(EventDeliveryStatus.Accepted);
-        (await second).Status.Should().Be(EventDeliveryStatus.Accepted);
+        (await first).Status.Should().Be(EphemeralEventRouteStatus.Accepted);
+        (await second).Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         gate.EnteredCount.Should().Be(1);
         (await instance.GetSnapshotAsync(TestContext.Current.CancellationToken))
             .Status.Should().Be(WorkflowInstanceStatus.Completed);
@@ -286,11 +286,11 @@ public sealed class ResourceGovernanceTests
             StartIdempotencyKey.Create($"start-{correlation}"),
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
 
-    private static ValueTask<EventDeliveryResult> DeliverWorkAsync(
+    private static ValueTask<EphemeralEventRouteResult> DeliverWorkAsync(
         ServiceProvider provider,
         WorkflowInstanceHandle instance,
         string correlation) =>
-        provider.GetRequiredService<IWorkflowEventClient>().DeliverToInstanceAsync(
+        provider.GetRequiredService<EphemeralWorkflowEventRouter>().RouteToInstanceAsync(
             instance.InstanceId,
             Event(
                 $"event-{correlation}",
@@ -316,11 +316,11 @@ public sealed class ResourceGovernanceTests
         }
     }
 
-    private static WorkflowEvent Event(
+    private static EphemeralTestEvent Event(
         string eventId,
         EventName eventName,
         CorrelationId correlation) =>
-        WorkflowEvent.Create(
+        EphemeralTestEvent.Create(
             EventId.Create(eventId),
             eventName,
             correlation,

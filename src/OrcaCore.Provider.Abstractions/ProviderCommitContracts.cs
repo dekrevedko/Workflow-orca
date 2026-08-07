@@ -248,6 +248,12 @@ public sealed record InboxWrite(EventId EventId, InboxRecordState State)
     /// State-only transitions preserve the fingerprint already stored for the target/event pair.
     /// </summary>
     public string? EnvelopeFingerprint { get; init; }
+
+    /// <summary>
+    /// Gets the complete normalized envelope and route for an initial acceptance write.
+    /// State-only transitions preserve the envelope already stored for the global event identity.
+    /// </summary>
+    public DurableEventEnvelope? Envelope { get; init; }
 }
 
 /// <summary>

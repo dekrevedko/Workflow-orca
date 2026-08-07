@@ -84,11 +84,35 @@ public sealed record DurableEventEnvelope
 
     public required CorrelationId CorrelationId { get; init; }
 
+    /// <summary>Gets the optional inbound event that caused this event.</summary>
+    public EventId? CausationEventId { get; init; }
+
     public string? PayloadContentType { get; init; }
 
     public byte[]? Payload { get; init; }
 
     public required DateTimeOffset OccurredAt { get; init; }
+
+    /// <summary>Gets the complete normalized routing intent accepted with the envelope.</summary>
+    public required DurableEventRouteEnvelope Route { get; init; }
+}
+
+/// <summary>Provider-neutral persisted routing facts for one accepted inbound event.</summary>
+public sealed record DurableEventRouteEnvelope
+{
+    public required string Kind { get; init; }
+
+    public InstanceId? InstanceId { get; init; }
+
+    public DefinitionId? DefinitionId { get; init; }
+
+    public DefinitionVersion? DefinitionVersion { get; init; }
+
+    public string? StartIdempotencyKey { get; init; }
+
+    public string? WorkflowInputContentType { get; init; }
+
+    public byte[]? WorkflowInputPayload { get; init; }
 }
 
 /// <summary>

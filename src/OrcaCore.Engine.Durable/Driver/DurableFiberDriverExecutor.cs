@@ -159,7 +159,9 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
             }
 
             var resumedEvent = TakeResumedEvent(
+                plan,
                 fiber,
+                ownedObligations,
                 context.Aggregate.WaitState.PendingResumes,
                 out var consumedWaitId);
             switch (instruction.Kind)

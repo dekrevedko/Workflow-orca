@@ -51,7 +51,8 @@ internal sealed class DurableCommitMaterializer
             [
                 new InboxWrite(delivery.EventId, state)
                 {
-                    EnvelopeFingerprint = delivery.EnvelopeFingerprint
+                    EnvelopeFingerprint = delivery.EnvelopeFingerprint,
+                    Envelope = delivery.Envelope
                 }
             ]
         };
@@ -199,7 +200,8 @@ internal sealed class DurableCommitMaterializer
             [
                 new InboxWrite(delivery.EventId, InboxRecordState.Applied)
                 {
-                    EnvelopeFingerprint = delivery.EnvelopeFingerprint
+                    EnvelopeFingerprint = delivery.EnvelopeFingerprint,
+                    Envelope = delivery.Envelope
                 },
                 .. decision.InboxOperations
             ]

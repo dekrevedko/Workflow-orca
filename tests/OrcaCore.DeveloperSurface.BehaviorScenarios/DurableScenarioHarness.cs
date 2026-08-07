@@ -103,6 +103,11 @@ internal sealed class DurableScenarioProvider :
         CancellationToken cancellationToken) =>
         inboxStore.GetAsync(instanceId, eventId, cancellationToken);
 
+    public Task<Option<InboxRecord>> GetByEventIdAsync(
+        EventId eventId,
+        CancellationToken cancellationToken) =>
+        inboxStore.GetByEventIdAsync(eventId, cancellationToken);
+
     public Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedAsync(
         string idempotencyKey,
         CancellationToken cancellationToken) =>
@@ -261,7 +266,7 @@ internal sealed class DurableScenarioRuntime : IDisposable
 {
     private readonly ServiceProvider services;
     private readonly IWorkflowDefinitionRegistry registry;
-    private readonly IWorkflowEventClient events;
+    private readonly ProcessLocalEventRouter events;
     private readonly Dictionary<DefinitionId, object> handles = [];
     private readonly Dictionary<InstanceId, WorkflowInstanceHandle> instances = [];
     private readonly string eventSourceId = Guid.NewGuid().ToString("N");
@@ -271,7 +276,7 @@ internal sealed class DurableScenarioRuntime : IDisposable
     {
         this.services = services;
         registry = services.GetRequiredService<IWorkflowDefinitionRegistry>();
-        events = services.GetRequiredService<IWorkflowEventClient>();
+        events = services.GetRequiredService<ProcessLocalEventRouter>();
     }
 
     internal IServiceProvider Services => services;
@@ -314,6 +319,7 @@ internal sealed class DurableScenarioRuntime : IDisposable
                 Pools = resourcePools?.ToArray() ?? []
             }
         });
+        registrations.AddSingleton<ProcessLocalEventRouter>();
         if (decorateResourcePools is not null)
         {
             var original = registrations.Last(descriptor =>
@@ -379,16 +385,16 @@ internal sealed class DurableScenarioRuntime : IDisposable
         return new DurableScenarioStartResult(instance.InstanceId, instance);
     }
 
-    internal async ValueTask<EventDeliveryResult> RaiseEventAsync(
+    internal async ValueTask<ProcessLocalEventRouteResult> RaiseEventAsync(
         InstanceId instanceId,
         string eventName,
         CorrelationId correlationId,
         CancellationToken cancellationToken = default)
     {
         var sequence = Interlocked.Increment(ref eventSequence);
-        return await events.DeliverToInstanceAsync(
+        return await events.RouteToInstanceAsync(
             instanceId,
-            WorkflowEvent.Create(
+            ProcessLocalInboundEvent.Create(
                 EventId.Create($"scenario-event-{eventSourceId}-{sequence}"),
                 EventName.Create(eventName),
                 correlationId,

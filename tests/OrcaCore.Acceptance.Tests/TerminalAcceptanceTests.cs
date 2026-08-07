@@ -68,17 +68,17 @@ public sealed class TerminalAcceptanceTests
         var instance = await StartAsync(provider, definition, "forced-terminate",
             "wait",
             TestContext.Current.CancellationToken);
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var events = provider.GetRequiredService<ProcessLocalEventRouter>();
 
         var termination = await instance.TerminateAsync(TestContext.Current.CancellationToken);
-        var delivery = await events.DeliverToInstanceAsync(
+        var delivery = await events.RouteToInstanceAsync(
             instance.InstanceId,
             Event("Ready", "wait"),
             TestContext.Current.CancellationToken);
         var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
 
         termination.Should().Be(WorkflowTerminationStatus.Terminated);
-        delivery.Status.Should().Be(EventDeliveryStatus.InstanceTerminal);
+        delivery.Status.Should().Be(ProcessLocalEventRouteStatus.InstanceTerminal);
         snapshot.Status.Should().Be(WorkflowInstanceStatus.Terminated);
     }
 
@@ -117,9 +117,9 @@ public sealed class TerminalAcceptanceTests
             .Build();
     }
 
-    private static WorkflowEvent Event(string eventName, string correlationId)
+    private static ProcessLocalInboundEvent Event(string eventName, string correlationId)
     {
-        return WorkflowEvent.Create(
+        return ProcessLocalInboundEvent.Create(
             EventId.Create(Guid.CreateVersion7().ToString()),
             EventName.Create(eventName),
             CorrelationId.Create(correlationId),

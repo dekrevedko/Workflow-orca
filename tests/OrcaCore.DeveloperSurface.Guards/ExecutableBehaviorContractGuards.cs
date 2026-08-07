@@ -46,13 +46,6 @@ public sealed class ExecutableBehaviorInfrastructureGuards
         var authority = File.ReadAllText(Path.Combine(root, "docs", "specs", "17-selected-mode-capability-matrix.md")) +
             Environment.NewLine +
             File.ReadAllText(Path.Combine(root, "docs", "specs", "17-public-authoring-contract.cs"));
-        var tasks = File.ReadAllText(Path.Combine(root, "openspec", "changes",
-            "reshape-developer-facing-interfaces", "tasks.md"));
-        var productSource = string.Join(Environment.NewLine,
-            Directory.GetFiles(Path.Combine(root, "src"), "*.cs", SearchOption.AllDirectories)
-                .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal) &&
-                               !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
-                .Select(File.ReadAllText));
         using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "tests",
             "OrcaCore.DeveloperSurface.Guards", "Fixtures", "v1-public-contract.json")));
         var packageIds = manifest.RootElement.GetProperty("packages").EnumerateArray()
@@ -71,14 +64,6 @@ public sealed class ExecutableBehaviorInfrastructureGuards
             foreach (var call in resolved.Calls)
             {
                 packageIds.Should().Contain(call.Assembly);
-                if (call.Type == "OrcaCore.IWorkflowEventClient")
-                {
-                    tasks.Should().Contain("Completed against the superseded pre-7B contract",
-                        "the old event-client executable remains current-product evidence only until Section 7B implementation replaces it");
-                    productSource.Should().Contain(call.Type.Split('.').Last().Split('`')[0]);
-                    productSource.Should().Contain(call.Member);
-                    continue;
-                }
                 authority.Should().Contain(call.Type.Split('.').Last().Split('`')[0],
                     $"{contract.TaskId}/{contract.Id} type must be anchored in the normative matrix/companion");
                 authority.Should().Contain(call.Member.StartsWith("get_", StringComparison.Ordinal) ? call.Member[4..] : call.Member,

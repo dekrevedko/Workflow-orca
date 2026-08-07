@@ -15,5 +15,6 @@
     <ProjectReference Include="../../src/OrcaCore.Providers.InMemory/OrcaCore.Providers.InMemory.csproj" />
     <ProjectReference Include="../../src/OrcaCore.Providers.PostgreSql/OrcaCore.Providers.PostgreSql.csproj" />
     <ProjectReference Include="../../src/OrcaCore.Dag.Hosting/OrcaCore.Dag.Hosting.csproj" />
+    <ProjectReference Include="../OrcaCore.TestSupport/OrcaCore.TestSupport.csproj" />
   </ItemGroup>
 </Project>

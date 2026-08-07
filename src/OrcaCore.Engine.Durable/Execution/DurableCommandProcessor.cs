@@ -557,7 +557,8 @@ internal sealed class DurableCommandProcessor
             cancellationToken,
             new DurableInboxDelivery(
                 command.Envelope.EventId,
-                command.EnvelopeFingerprint ?? DurableEventEnvelopeFingerprint.Create(command.Envelope)));
+                command.EnvelopeFingerprint ?? DurableEventEnvelopeFingerprint.Create(command.Envelope),
+                command.Envelope));
     }
 
     internal Task<DurableCommandResult> ProcessAsync(

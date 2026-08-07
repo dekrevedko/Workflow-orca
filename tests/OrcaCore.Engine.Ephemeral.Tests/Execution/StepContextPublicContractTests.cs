@@ -45,7 +45,7 @@ public sealed class StepContextPublicContractTests
             callerPayload);
         var state = await instance.GetStateAsync<ResumeState>(TestContext.Current.CancellationToken);
 
-        delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
+        delivery.Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         state.Observations.Should().Equal(
             "authored:original,changed-in-step",
             "detached:True");
@@ -153,9 +153,9 @@ public sealed class StepContextPublicContractTests
         waiting.ActiveWaits.Should().ContainSingle()
             .Which.EventContract.Should().Be(TypedDynamicResume);
 
-        var delivery = await provider.GetRequiredService<IWorkflowEventClient>().DeliverToInstanceAsync(
+        var delivery = await provider.GetRequiredService<EphemeralWorkflowEventRouter>().RouteToInstanceAsync(
             instance.InstanceId,
-            WorkflowEvent<ResumePayload>.Create(
+            EphemeralTestEvent<ResumePayload>.Create(
                 EventId.Create("typed-dynamic-wait-event"),
                 TypedDynamicResume.EventName,
                 ResumeCorrelation,
@@ -164,7 +164,7 @@ public sealed class StepContextPublicContractTests
             TestContext.Current.CancellationToken);
         var state = await instance.GetStateAsync<ResumeState>(TestContext.Current.CancellationToken);
 
-        delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
+        delivery.Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         state.Observations.Should().Equal("typed-payload");
     }
 
@@ -217,7 +217,7 @@ public sealed class StepContextPublicContractTests
                 $"foreach-index-{index}",
                 $"payload-{index}",
                 CorrelationId.Create($"item-{index}"));
-            delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
+            delivery.Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         }
 
         var completed = await WaitForStatusAsync(instance, WorkflowInstanceStatus.Completed);
@@ -304,15 +304,15 @@ public sealed class StepContextPublicContractTests
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
     }
 
-    private static ValueTask<EventDeliveryResult> DeliverAsync<TPayload>(
+    private static ValueTask<EphemeralEventRouteResult> DeliverAsync<TPayload>(
         ServiceProvider provider,
         WorkflowInstanceHandle instance,
         string eventId,
         TPayload payload,
         CorrelationId? correlationId = null) =>
-        provider.GetRequiredService<IWorkflowEventClient>().DeliverToInstanceAsync(
+        provider.GetRequiredService<EphemeralWorkflowEventRouter>().RouteToInstanceAsync(
             instance.InstanceId,
-            WorkflowEvent<TPayload>.Create(
+            EphemeralTestEvent<TPayload>.Create(
                 EventId.Create(eventId),
                 Resume,
                 correlationId ?? ResumeCorrelation,

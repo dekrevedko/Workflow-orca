@@ -115,17 +115,17 @@ public sealed class HostGovernanceOptionsTests
             "second",
             StartIdempotencyKey.Create("copied-options-second"),
             TestContext.Current.CancellationToken).AsTask();
-        var delivery = await provider.GetRequiredService<IWorkflowEventClient>()
-            .DeliverToInstanceAsync(
+        var delivery = await provider.GetRequiredService<EphemeralWorkflowEventRouter>()
+            .RouteToInstanceAsync(
                 independent.InstanceId,
-                WorkflowEvent.Create(
+                EphemeralTestEvent.Create(
                     EventId.Create("copied-options-continue"),
                     EventName.Create("continue"),
                     CorrelationId.Create("unrelated"),
                     DateTimeOffset.UtcNow),
                 TestContext.Current.CancellationToken);
 
-        delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
+        delivery.Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         (await independent.GetSnapshotAsync(TestContext.Current.CancellationToken))
             .Status.Should().Be(WorkflowInstanceStatus.Completed);
         second.IsCompleted.Should().BeFalse();

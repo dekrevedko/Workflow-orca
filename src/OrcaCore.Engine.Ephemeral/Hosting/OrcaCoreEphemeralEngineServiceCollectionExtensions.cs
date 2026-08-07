@@ -39,7 +39,7 @@ public static class OrcaCoreEphemeralEngineServiceCollectionExtensions
         });
         services.TryAddSingleton<IWorkflowDefinitionRegistry>(provider =>
             provider.GetRequiredService<EphemeralWorkflowDefinitionRegistry>());
-        services.TryAddSingleton<IWorkflowEventClient, EphemeralWorkflowEventClient>();
+        services.TryAddSingleton<EphemeralWorkflowEventRouter>();
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, OrcaCoreEphemeralWorkflowCatalogReadinessHostedService>());
         services.AddSingleton(new EngineRoleRegistration("ephemeral-engine", fingerprint));

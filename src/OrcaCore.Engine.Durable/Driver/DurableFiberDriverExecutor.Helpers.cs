@@ -858,6 +858,16 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         WaitId? consumedWaitId,
         CancellationToken cancellationToken)
     {
+        await EnsureWaitRegistrationIsUnambiguousAsync(
+            context,
+            execution,
+            fiber,
+            state,
+            eventContract,
+            correlationId,
+            consumedWaitId,
+            cancellationToken).ConfigureAwait(false);
+
         var waitId = WaitId.Parse(Guid.CreateVersion7().ToString());
         var advanced = ClearResume(fiber) with
         {
@@ -914,6 +924,65 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             },
             cancellationToken).ConfigureAwait(false);
         return new OwnedWaitRegistration(execution, registered);
+    }
+
+    private async Task EnsureWaitRegistrationIsUnambiguousAsync(
+        DurableDriverContext context,
+        StructuredExecutionState execution,
+        FiberRecord fiber,
+        TState state,
+        WorkflowEventContract eventContract,
+        CorrelationId correlationId,
+        WaitId? consumedWaitId,
+        CancellationToken cancellationToken)
+    {
+        var definitionId = context.Aggregate.DefinitionId ??
+            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                "A durable wait cannot be registered before its definition identity is available.");
+        var siblingConflict = execution.Fibers.Values
+            .Where(candidate => candidate.Id != fiber.Id && candidate.Phase == FiberPhase.Runnable)
+            .Select(candidate => (Fiber: candidate, Instruction: plan.GetInstruction(candidate.InstructionId)))
+            .Where(candidate =>
+                candidate.Instruction.Kind == CompiledInstructionKind.Wait &&
+                candidate.Instruction.EventContract is not null &&
+                candidate.Instruction.Operation is not null)
+            .Any(candidate =>
+                candidate.Instruction.EventContract!.Equals(eventContract) &&
+                ResolveWaitCorrelation(execution, candidate.Fiber, state, candidate.Instruction)
+                    .Equals(correlationId));
+        if (siblingConflict)
+        {
+            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.AmbiguousWait(
+                definitionId,
+                eventContract,
+                correlationId);
+        }
+
+        if (context.Processor.EventStore is not IWorkflowProjectionStore projectionStore)
+        {
+            return;
+        }
+
+        var candidates = await projectionStore.FindActiveWaitsAsync(
+            definitionId,
+            eventContract.EventName,
+            eventContract.Version,
+            correlationId,
+            cancellationToken).ConfigureAwait(false);
+        var existingConflict = candidates.Any(snapshot =>
+            snapshot.InstanceId != context.InstanceId ||
+            snapshot.ActiveWaits.Any(wait =>
+                string.Equals(wait.EventName, eventContract.EventName.Value, StringComparison.Ordinal) &&
+                wait.EventContractVersion == eventContract.Version.Value &&
+                wait.CorrelationId.Equals(correlationId) &&
+                (consumedWaitId is null || !wait.WaitId.Equals(consumedWaitId.Value))));
+        if (existingConflict)
+        {
+            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.AmbiguousWait(
+                definitionId,
+                eventContract,
+                correlationId);
+        }
     }
 
     private static StructuredExecutionState ReconcilePendingResumes(

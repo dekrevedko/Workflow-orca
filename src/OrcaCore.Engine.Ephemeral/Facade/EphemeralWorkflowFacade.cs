@@ -684,71 +684,49 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
         PayloadFingerprint InputFingerprint);
 }
 
-internal sealed class EphemeralWorkflowEventClient(
+internal sealed class EphemeralWorkflowEventRouter(
     EphemeralWorkflowEngine engine,
-    EphemeralWorkflowDefinitionRegistry registry) : IWorkflowEventClient
+    EphemeralWorkflowDefinitionRegistry registry)
 {
     private readonly object gate = new();
     private readonly Dictionary<(InstanceId InstanceId, string EventId), string> accepted = [];
 
-    public ValueTask<EventDeliveryResult> DeliverToInstanceAsync(
-        InstanceId instanceId,
-        global::OrcaCore.WorkflowEvent @event,
+    internal ValueTask<EphemeralEventRouteResult> RouteAsync(
+        WorkflowInboundEvent inboundEvent,
         CancellationToken cancellationToken = default) =>
-        DeliverToInstanceCoreAsync(
-            instanceId,
-            @event.EventId,
-            @event.EventName,
-            @event.CorrelationId,
-            @event.OccurredAt,
-            null,
+        RouteCoreAsync(inboundEvent, payloadBytes: null, cancellationToken);
+
+    internal ValueTask<EphemeralEventRouteResult> RouteAsync<TPayload>(
+        WorkflowInboundEvent<TPayload> inboundEvent,
+        CancellationToken cancellationToken = default) =>
+        RouteCoreAsync(
+            inboundEvent,
+            CoreWorkflowValueCodec.Serialize(inboundEvent.Payload, typeof(TPayload)),
             cancellationToken);
 
-    public ValueTask<EventDeliveryResult> DeliverToInstanceAsync<TPayload>(
-        InstanceId instanceId,
-        global::OrcaCore.WorkflowEvent<TPayload> @event,
-        CancellationToken cancellationToken = default) =>
-        DeliverToInstanceCoreAsync(
-            instanceId,
-            @event.EventId,
-            @event.EventName,
-            @event.CorrelationId,
-            @event.OccurredAt,
-            CoreWorkflowValueCodec.Serialize(@event.Payload, typeof(TPayload)),
-            cancellationToken);
+    private ValueTask<EphemeralEventRouteResult> RouteCoreAsync(
+        WorkflowInboundEvent inboundEvent,
+        byte[]? payloadBytes,
+        CancellationToken cancellationToken) =>
+        inboundEvent.Route switch
+        {
+            WorkflowEventRoute.Direct direct => RouteToInstanceCoreAsync(
+                direct.InstanceId,
+                inboundEvent,
+                payloadBytes,
+                cancellationToken),
+            WorkflowEventRoute.Correlation correlation => RouteByCorrelationCoreAsync(
+                correlation.DefinitionId,
+                inboundEvent,
+                payloadBytes,
+                cancellationToken),
+            _ => throw new InvalidOperationException(
+                "Ephemeral routing supports only direct and correlation routes without durable ownership.")
+        };
 
-    public ValueTask<EventDeliveryResult> DeliverByCorrelationAsync(
+    private async ValueTask<EphemeralEventRouteResult> RouteByCorrelationCoreAsync(
         DefinitionId definitionId,
-        global::OrcaCore.WorkflowEvent @event,
-        CancellationToken cancellationToken = default) =>
-        DeliverByCorrelationCoreAsync(
-            definitionId,
-            @event.EventId,
-            @event.EventName,
-            @event.CorrelationId,
-            @event.OccurredAt,
-            null,
-            cancellationToken);
-
-    public ValueTask<EventDeliveryResult> DeliverByCorrelationAsync<TPayload>(
-        DefinitionId definitionId,
-        global::OrcaCore.WorkflowEvent<TPayload> @event,
-        CancellationToken cancellationToken = default) =>
-        DeliverByCorrelationCoreAsync(
-            definitionId,
-            @event.EventId,
-            @event.EventName,
-            @event.CorrelationId,
-            @event.OccurredAt,
-            CoreWorkflowValueCodec.Serialize(@event.Payload, typeof(TPayload)),
-            cancellationToken);
-
-    private async ValueTask<EventDeliveryResult> DeliverByCorrelationCoreAsync(
-        DefinitionId definitionId,
-        EventId eventId,
-        EventName eventName,
-        CorrelationId correlationId,
-        DateTimeOffset occurredAt,
+        WorkflowInboundEvent inboundEvent,
         byte[]? payloadBytes,
         CancellationToken cancellationToken)
     {
@@ -757,39 +735,32 @@ internal sealed class EphemeralWorkflowEventClient(
             .Where(binding => binding.DefinitionId.Equals(definitionId))
             .Where(binding => engine.TryGetFacadeInstance(binding.InstanceId, out var instance) &&
                 instance!.GetPublishedSnapshot().ActiveWaits.Any(wait =>
-                    wait.EventContract.Version.Equals(EventContractVersion.Initial) &&
-                    wait.EventContract.EventName.Equals(eventName) &&
-                    wait.CorrelationId.Equals(correlationId)))
+                    wait.EventContract.Equals(inboundEvent.EventContract) &&
+                    wait.CorrelationId.Equals(inboundEvent.CorrelationId)))
             .ToArray();
         if (matches.Length == 0)
         {
-            return new EventDeliveryResult(EventDeliveryStatus.NoActiveWait, null);
+            return new EphemeralEventRouteResult(EphemeralEventRouteStatus.NoActiveWait, null);
         }
 
         if (matches.Length > 1)
         {
             throw FacadeValueFactory.AmbiguousWait(
                 definitionId,
-                WorkflowEventContract.Create(eventName, EventContractVersion.Initial),
-                correlationId);
+                inboundEvent.EventContract,
+                inboundEvent.CorrelationId);
         }
 
-        return await DeliverToInstanceCoreAsync(
+        return await RouteToInstanceCoreAsync(
             matches[0].InstanceId,
-            eventId,
-            eventName,
-            correlationId,
-            occurredAt,
+            inboundEvent,
             payloadBytes,
             cancellationToken).ConfigureAwait(false);
     }
 
-    private async ValueTask<EventDeliveryResult> DeliverToInstanceCoreAsync(
+    private async ValueTask<EphemeralEventRouteResult> RouteToInstanceCoreAsync(
         InstanceId instanceId,
-        EventId eventId,
-        EventName eventName,
-        CorrelationId correlationId,
-        DateTimeOffset occurredAt,
+        WorkflowInboundEvent inboundEvent,
         byte[]? payloadBytes,
         CancellationToken cancellationToken)
     {
@@ -801,15 +772,15 @@ internal sealed class EphemeralWorkflowEventClient(
             throw FacadeValueFactory.InstanceNotFound(instanceId);
         }
 
-        var fingerprint = EventFingerprint(eventName, correlationId, occurredAt, payloadBytes);
+        var fingerprint = EventFingerprint(inboundEvent, payloadBytes);
         lock (gate)
         {
-            if (accepted.TryGetValue((instanceId, eventId.Value), out var existing))
+            if (accepted.TryGetValue((instanceId, inboundEvent.EventId.Value), out var existing))
             {
-                return new EventDeliveryResult(
+                return new EphemeralEventRouteResult(
                     string.Equals(existing, fingerprint, StringComparison.Ordinal)
-                        ? EventDeliveryStatus.Duplicate
-                        : EventDeliveryStatus.EventConflict,
+                        ? EphemeralEventRouteStatus.Duplicate
+                        : EphemeralEventRouteStatus.EventConflict,
                     instanceId);
             }
         }
@@ -821,31 +792,30 @@ internal sealed class EphemeralWorkflowEventClient(
             LegacyStatus.Cancelled or
             LegacyStatus.Terminated)
         {
-            return new EventDeliveryResult(EventDeliveryStatus.InstanceTerminal, instanceId);
+            return new EphemeralEventRouteResult(EphemeralEventRouteStatus.InstanceTerminal, instanceId);
         }
 
         var hasWait = snapshot.ActiveWaits.Any(wait =>
-            wait.EventContract.Version.Equals(EventContractVersion.Initial) &&
-            wait.EventContract.EventName.Equals(eventName) &&
-            wait.CorrelationId.Equals(correlationId));
+            wait.EventContract.Equals(inboundEvent.EventContract) &&
+            wait.CorrelationId.Equals(inboundEvent.CorrelationId));
         if (!hasWait)
         {
-            return new EventDeliveryResult(EventDeliveryStatus.NoActiveWait, instanceId);
+            return new EphemeralEventRouteResult(EphemeralEventRouteStatus.NoActiveWait, instanceId);
         }
 
         var envelope = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.EventEnvelope(
-            eventId,
-            WorkflowEventContract.Create(eventName, EventContractVersion.Initial),
-            correlationId,
-            occurredAt,
+            inboundEvent.EventId,
+            inboundEvent.EventContract,
+            inboundEvent.CorrelationId,
+            inboundEvent.OccurredAt,
             payloadBytes ?? []);
         await RaiseEventAsync(binding!.StateType, instanceId, envelope, cancellationToken).ConfigureAwait(false);
         lock (gate)
         {
-            accepted[(instanceId, eventId.Value)] = fingerprint;
+            accepted[(instanceId, inboundEvent.EventId.Value)] = fingerprint;
         }
 
-        return new EventDeliveryResult(EventDeliveryStatus.Accepted, instanceId);
+        return new EphemeralEventRouteResult(EphemeralEventRouteStatus.Accepted, instanceId);
     }
 
     private async Task RaiseEventAsync(
@@ -864,19 +834,31 @@ internal sealed class EphemeralWorkflowEventClient(
     }
 
     private static string EventFingerprint(
-        EventName eventName,
-        CorrelationId correlationId,
-        DateTimeOffset occurredAt,
+        WorkflowInboundEvent inboundEvent,
         byte[]? payload)
     {
         var prefix = Encoding.UTF8.GetBytes(
-            $"{eventName.Value}\n{correlationId.Value}\n{occurredAt.ToUniversalTime():O}\n");
+            $"{inboundEvent.EventContract.EventName.Value}\n{inboundEvent.EventContract.Version.Value}\n" +
+            $"{inboundEvent.CorrelationId.Value}\n{inboundEvent.OccurredAt.ToUniversalTime():O}\n");
         var buffer = new byte[prefix.Length + (payload?.Length ?? 0)];
         prefix.CopyTo(buffer, 0);
         payload?.CopyTo(buffer, prefix.Length);
         return Convert.ToHexString(SHA256.HashData(buffer));
     }
 }
+
+internal enum EphemeralEventRouteStatus
+{
+    Accepted,
+    Duplicate,
+    NoActiveWait,
+    InstanceTerminal,
+    EventConflict
+}
+
+internal sealed record EphemeralEventRouteResult(
+    EphemeralEventRouteStatus Status,
+    InstanceId? InstanceId);
 
 file static class FacadeHandleFactory
 {

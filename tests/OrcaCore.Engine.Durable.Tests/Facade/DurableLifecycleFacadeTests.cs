@@ -27,9 +27,9 @@ public sealed class DurableLifecycleFacadeTests
             new Input(1),
             StartIdempotencyKey.Create("durable-cancellation-request"),
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
-        var delivery = facade.Events.DeliverToInstanceAsync(
-            instance.InstanceId,
-            WorkflowEvent.Create(
+        var delivery = facade.Events.AcceptAsync(
+            Inbound(
+                instance.InstanceId,
                 EventId.Create("start-durable-cancellation-step"),
                 eventName,
                 correlation,
@@ -131,9 +131,9 @@ public sealed class DurableLifecycleFacadeTests
             new Input(1),
             StartIdempotencyKey.Create("replacement-cancellation"),
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
-        var delivery = original.Events.DeliverToInstanceAsync(
-            instance.InstanceId,
-            WorkflowEvent.Create(
+        var delivery = original.Events.AcceptAsync(
+            Inbound(
+                instance.InstanceId,
                 EventId.Create("replacement-start-step"),
                 eventName,
                 correlation,
@@ -190,12 +190,26 @@ public sealed class DurableLifecycleFacadeTests
                 processor,
                 notifications,
                 TimeProvider.System),
-            new DurableWorkflowEventClient(runtime, store, store));
+            new DurableWorkflowEventIngressCore(runtime, store, store));
     }
+
+    private static WorkflowInboundEvent Inbound(
+        InstanceId instanceId,
+        EventId eventId,
+        EventName eventName,
+        CorrelationId correlationId,
+        DateTimeOffset occurredAt) =>
+        WorkflowInboundEvent.Create(
+            WorkflowEventContract.Create(eventName, EventContractVersion.Initial),
+            eventId,
+            correlationId,
+            causationEventId: null,
+            occurredAt,
+            new WorkflowEventRoute.Direct(instanceId));
 
     private sealed record FacadeServices(
         DurableWorkflowDefinitionRegistry Registry,
-        DurableWorkflowEventClient Events);
+        DurableWorkflowEventIngressCore Events);
 
     private sealed record Input(int Value);
     private sealed record State(int Value);

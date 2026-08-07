@@ -196,7 +196,7 @@ public static class StateProjectionScenarioHost
         services.AddSingleton(new CompletionBarrierStep(context.Services.Barrier));
         using var provider = services.BuildServiceProvider();
         var registry = provider.GetRequiredService<IWorkflowDefinitionRegistry>();
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var events = provider.GetRequiredService<ProcessLocalEventRouter>();
 
         var resultlessDefinition = Workflow.Ephemeral<ProjectionState>(
                 DefinitionId.New(),
@@ -229,9 +229,9 @@ public static class StateProjectionScenarioHost
             new ProjectionInput(41, []),
             StartIdempotencyKey.Create("typed-resultful"))).GetHandleOrThrow();
         var outputTask = context.ObserveAsync(_ => resultful.WaitForOutputAsync()).AsTask();
-        var deliveryTask = events.DeliverToInstanceAsync(
+        var deliveryTask = events.RouteToInstanceAsync(
             resultful.InstanceId,
-            WorkflowEvent.Create(
+            ProcessLocalInboundEvent.Create(
                 EventId.Create("typed-completion-event"),
                 eventName,
                 correlation,
@@ -348,6 +348,7 @@ public static class StateProjectionScenarioHost
             },
             TransientPools = []
         });
+        services.AddSingleton<ProcessLocalEventRouter>();
         return services;
     }
 

@@ -29,15 +29,15 @@ public sealed class TimerEventRaceTests
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
 
         var delivery = await provider
-            .GetRequiredService<IWorkflowEventClient>()
-            .DeliverToInstanceAsync(
+            .GetRequiredService<EphemeralWorkflowEventRouter>()
+            .RouteToInstanceAsync(
                 instance.InstanceId,
                 Event("timer-event-wins", clock.Now, "accepted"),
                 TestContext.Current.CancellationToken);
         clock.Advance(TimeSpan.FromMinutes(5));
         await Task.Yield();
 
-        delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
+        delivery.Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         (await instance.GetSnapshotAsync(TestContext.Current.CancellationToken))
             .Status.Should().Be(WorkflowInstanceStatus.Completed);
         (await instance.GetStateAsync<RaceState>(
@@ -64,8 +64,8 @@ public sealed class TimerEventRaceTests
 
         var snapshot = await WaitForStatusAsync(instance, WorkflowInstanceStatus.Failed);
         var late = await provider
-            .GetRequiredService<IWorkflowEventClient>()
-            .DeliverToInstanceAsync(
+            .GetRequiredService<EphemeralWorkflowEventRouter>()
+            .RouteToInstanceAsync(
                 instance.InstanceId,
                 Event("timer-late-event", clock.Now, "late"),
                 TestContext.Current.CancellationToken);
@@ -74,7 +74,7 @@ public sealed class TimerEventRaceTests
         snapshot.Failure.Should().NotBeNull();
         snapshot.Failure!.Code.Should().Be("WF-WAIT-TIMEOUT");
         snapshot.ActiveWaits.Should().BeEmpty();
-        late.Status.Should().Be(EventDeliveryStatus.InstanceTerminal);
+        late.Status.Should().Be(EphemeralEventRouteStatus.InstanceTerminal);
         (await instance.GetStateAsync<RaceState>(
                 TestContext.Current.CancellationToken))
             .Outcomes.Should().BeEmpty();
@@ -103,15 +103,15 @@ public sealed class TimerEventRaceTests
             StartIdempotencyKey.Create("timer-fresh-instance"),
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
         var fresh = await provider
-            .GetRequiredService<IWorkflowEventClient>()
-            .DeliverToInstanceAsync(
+            .GetRequiredService<EphemeralWorkflowEventRouter>()
+            .RouteToInstanceAsync(
                 freshInstance.InstanceId,
                 PayloadlessEvent("timer-fresh-event", clock.Now),
                 TestContext.Current.CancellationToken);
 
         afterTimeout.Status.Should().Be(WorkflowInstanceStatus.Failed);
         afterTimeout.Failure!.Code.Should().Be("WF-WAIT-TIMEOUT");
-        fresh.Status.Should().Be(EventDeliveryStatus.Accepted);
+        fresh.Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         (await freshInstance.GetSnapshotAsync(TestContext.Current.CancellationToken))
             .Status.Should().Be(WorkflowInstanceStatus.Completed);
         (await freshInstance.GetStateAsync<RaceState>(
@@ -169,12 +169,12 @@ public sealed class TimerEventRaceTests
             .Build();
     }
 
-    private static WorkflowEvent<string> Event(
+    private static EphemeralTestEvent<string> Event(
         string eventId,
         DateTimeOffset occurredAt,
         string payload)
     {
-        return WorkflowEvent<string>.Create(
+        return EphemeralTestEvent<string>.Create(
             EventId.Create(eventId),
             Approved,
             Correlation,
@@ -182,10 +182,10 @@ public sealed class TimerEventRaceTests
             occurredAt);
     }
 
-    private static WorkflowEvent PayloadlessEvent(
+    private static EphemeralTestEvent PayloadlessEvent(
         string eventId,
         DateTimeOffset occurredAt) =>
-        WorkflowEvent.Create(
+        EphemeralTestEvent.Create(
             EventId.Create(eventId),
             Approved,
             Correlation,

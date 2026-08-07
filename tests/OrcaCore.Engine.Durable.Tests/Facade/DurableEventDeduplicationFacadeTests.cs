@@ -9,6 +9,66 @@ namespace OrcaCore.Engine.Durable.Tests.Facade;
 public sealed class DurableEventDeduplicationFacadeTests
 {
     [Fact]
+    public async Task MissingDirectTarget_IsRejectedWithoutRecordingEventOwnership()
+    {
+        var store = new InMemoryWorkflowProvider();
+        var facade = CreateFacade(store, driveAfterDelivery: true);
+        var eventId = EventId.Create("missing-target-event");
+
+        var result = await facade.Events.AcceptAsync(
+            Inbound(
+                InstanceId.Parse(Guid.CreateVersion7().ToString()),
+                eventId,
+                EventName.Create("resume"),
+                CorrelationId.Create("missing-target"),
+                DateTimeOffset.Parse("2026-07-30T12:00:00Z")),
+            TestContext.Current.CancellationToken);
+
+        result.Should().BeOfType<WorkflowEventAcceptanceResult.Rejected>()
+            .Which.Reason.Should().BeOfType<WorkflowEventAcceptanceRejection.DirectInstanceNotFound>();
+        (await store.GetByEventIdAsync(eventId, TestContext.Current.CancellationToken))
+            .HasValue.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task TerminalDirectTarget_IsRejectedWithoutRecordingEventOwnership()
+    {
+        var store = new InMemoryWorkflowProvider();
+        var eventName = EventName.Create("resume");
+        var correlation = CorrelationId.Create("terminal-rejection");
+        var facade = CreateFacade(store, driveAfterDelivery: true);
+        var handle = facade.Registry.Register(WaitingDefinition(DefinitionId.New(), eventName))
+            .GetHandleOrThrow();
+        var instanceId = (await handle.StartOrGetAsync(
+            new Input(correlation.Value),
+            StartIdempotencyKey.Create("terminal-rejection-start"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow().InstanceId;
+        _ = await facade.Events.AcceptAsync(
+            Inbound(
+                instanceId,
+                EventId.Create("terminal-rejection-complete"),
+                eventName,
+                correlation,
+                DateTimeOffset.Parse("2026-07-30T12:00:00Z")),
+            TestContext.Current.CancellationToken);
+        var rejectedEventId = EventId.Create("terminal-rejection-after-complete");
+
+        var result = await facade.Events.AcceptAsync(
+            Inbound(
+                instanceId,
+                rejectedEventId,
+                eventName,
+                correlation,
+                DateTimeOffset.Parse("2026-07-30T12:00:01Z")),
+            TestContext.Current.CancellationToken);
+
+        result.Should().BeOfType<WorkflowEventAcceptanceResult.Rejected>()
+            .Which.Reason.Should().BeOfType<WorkflowEventAcceptanceRejection.DirectInstanceTerminal>();
+        (await store.GetByEventIdAsync(rejectedEventId, TestContext.Current.CancellationToken))
+            .HasValue.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task ReplacementRuntime_IdenticalAcceptedReplayToSameTarget_ReturnsDuplicate()
     {
         var store = new InMemoryWorkflowProvider();
@@ -22,27 +82,25 @@ public sealed class DurableEventDeduplicationFacadeTests
             StartIdempotencyKey.Create("same-target-start"),
             TestContext.Current.CancellationToken);
         var instanceId = started.GetHandleOrThrow().InstanceId;
-        var envelope = WorkflowEvent.Create(
+        var envelope = Inbound(
+            instanceId,
             EventId.Create("same-target-event"),
             eventName,
             correlation,
             DateTimeOffset.Parse("2026-07-30T12:00:00Z"));
 
-        var accepted = await first.Events.DeliverToInstanceAsync(
-            instanceId,
+        var accepted = await first.Events.AcceptAsync(
             envelope,
             TestContext.Current.CancellationToken);
 
         var replacement = CreateFacade(store, driveAfterDelivery: false);
         _ = replacement.Registry.Register(definition).GetHandleOrThrow();
-        var replay = await replacement.Events.DeliverToInstanceAsync(
-            instanceId,
+        var replay = await replacement.Events.AcceptAsync(
             envelope,
             TestContext.Current.CancellationToken);
 
-        accepted.Status.Should().Be(EventDeliveryStatus.Accepted);
-        replay.Status.Should().Be(EventDeliveryStatus.Duplicate);
-        replay.InstanceId.Should().Be(instanceId);
+        accepted.Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
+        replay.Should().BeOfType<WorkflowEventAcceptanceResult.Duplicate>();
     }
 
     [Fact]
@@ -61,9 +119,9 @@ public sealed class DurableEventDeduplicationFacadeTests
         var instanceId = started.GetHandleOrThrow().InstanceId;
         var eventId = EventId.Create("changed-envelope-event");
 
-        var accepted = await first.Events.DeliverToInstanceAsync(
-            instanceId,
-            WorkflowEvent.Create(
+        var accepted = await first.Events.AcceptAsync(
+            Inbound(
+                instanceId,
                 eventId,
                 eventName,
                 correlation,
@@ -72,27 +130,26 @@ public sealed class DurableEventDeduplicationFacadeTests
 
         var replacement = CreateFacade(store, driveAfterDelivery: false);
         _ = replacement.Registry.Register(definition).GetHandleOrThrow();
-        var replay = await replacement.Events.DeliverToInstanceAsync(
-            instanceId,
-            WorkflowEvent.Create(
+        var replay = await replacement.Events.AcceptAsync(
+            Inbound(
+                instanceId,
                 eventId,
                 eventName,
                 correlation,
                 DateTimeOffset.Parse("2026-07-30T12:00:01Z")),
             TestContext.Current.CancellationToken);
 
-        accepted.Status.Should().Be(EventDeliveryStatus.Accepted);
-        replay.Status.Should().Be(EventDeliveryStatus.EventConflict);
-        replay.InstanceId.Should().Be(instanceId);
+        accepted.Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
+        replay.Should().BeOfType<WorkflowEventAcceptanceResult.Rejected>()
+            .Which.Reason.Should().BeOfType<WorkflowEventAcceptanceRejection.EventConflict>();
     }
 
     [Fact]
-    public async Task SameEventId_DifferentTargets_AreIndependent()
+    public async Task SameEventId_DifferentTargets_ConflictsGloballyBeforeSecondTargetState()
     {
         var store = new InMemoryWorkflowProvider();
         var eventName = EventName.Create("resume");
         var firstCorrelation = CorrelationId.Create("first-target");
-        var secondCorrelation = CorrelationId.Create("second-target");
         var definition = WaitingDefinition(DefinitionId.New(), eventName);
         var facade = CreateFacade(store, driveAfterDelivery: false);
         var handle = facade.Registry.Register(definition).GetHandleOrThrow();
@@ -100,32 +157,30 @@ public sealed class DurableEventDeduplicationFacadeTests
             new Input(firstCorrelation.Value),
             StartIdempotencyKey.Create("first-target-start"),
             TestContext.Current.CancellationToken)).GetHandleOrThrow().InstanceId;
-        var secondInstance = (await handle.StartOrGetAsync(
-            new Input(secondCorrelation.Value),
-            StartIdempotencyKey.Create("second-target-start"),
-            TestContext.Current.CancellationToken)).GetHandleOrThrow().InstanceId;
+        var missingSecondInstance = InstanceId.Parse(Guid.CreateVersion7().ToString());
         var eventId = EventId.Create("shared-event-id");
         var occurredAt = DateTimeOffset.Parse("2026-07-30T12:00:00Z");
 
-        var firstDelivery = await facade.Events.DeliverToInstanceAsync(
-            firstInstance,
-            WorkflowEvent.Create(
+        var firstDelivery = await facade.Events.AcceptAsync(
+            Inbound(
+                firstInstance,
                 eventId,
                 eventName,
                 firstCorrelation,
                 occurredAt),
             TestContext.Current.CancellationToken);
-        var secondDelivery = await facade.Events.DeliverToInstanceAsync(
-            secondInstance,
-            WorkflowEvent.Create(
+        var secondDelivery = await facade.Events.AcceptAsync(
+            Inbound(
+                missingSecondInstance,
                 eventId,
                 eventName,
-                secondCorrelation,
+                CorrelationId.Create("second-target"),
                 occurredAt),
             TestContext.Current.CancellationToken);
 
-        firstDelivery.Status.Should().Be(EventDeliveryStatus.Accepted);
-        secondDelivery.Status.Should().Be(EventDeliveryStatus.Accepted);
+        firstDelivery.Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
+        secondDelivery.Should().BeOfType<WorkflowEventAcceptanceResult.Rejected>()
+            .Which.Reason.Should().BeOfType<WorkflowEventAcceptanceRejection.EventConflict>();
     }
 
     [Fact]
@@ -144,29 +199,28 @@ public sealed class DurableEventDeduplicationFacadeTests
         var eventId = EventId.Create("terminal-target-event");
         var occurredAt = DateTimeOffset.Parse("2026-07-30T12:00:00Z");
 
-        var accepted = await first.Events.DeliverToInstanceAsync(
-            instanceId,
-            WorkflowEvent.Create(eventId, eventName, correlation, occurredAt),
+        var accepted = await first.Events.AcceptAsync(
+            Inbound(instanceId, eventId, eventName, correlation, occurredAt),
             TestContext.Current.CancellationToken);
 
         var replacement = CreateFacade(store, driveAfterDelivery: true);
         _ = replacement.Registry.Register(definition).GetHandleOrThrow();
-        var duplicate = await replacement.Events.DeliverToInstanceAsync(
-            instanceId,
-            WorkflowEvent.Create(eventId, eventName, correlation, occurredAt),
+        var duplicate = await replacement.Events.AcceptAsync(
+            Inbound(instanceId, eventId, eventName, correlation, occurredAt),
             TestContext.Current.CancellationToken);
-        var conflict = await replacement.Events.DeliverToInstanceAsync(
-            instanceId,
-            WorkflowEvent.Create(
+        var conflict = await replacement.Events.AcceptAsync(
+            Inbound(
+                instanceId,
                 eventId,
                 eventName,
                 correlation,
                 occurredAt.AddSeconds(1)),
             TestContext.Current.CancellationToken);
 
-        accepted.Status.Should().Be(EventDeliveryStatus.Accepted);
-        duplicate.Status.Should().Be(EventDeliveryStatus.Duplicate);
-        conflict.Status.Should().Be(EventDeliveryStatus.EventConflict);
+        accepted.Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
+        duplicate.Should().BeOfType<WorkflowEventAcceptanceResult.Duplicate>();
+        conflict.Should().BeOfType<WorkflowEventAcceptanceResult.Rejected>()
+            .Which.Reason.Should().BeOfType<WorkflowEventAcceptanceRejection.EventConflict>();
     }
 
     private static DurableWorkflowDefinition<Input> WaitingDefinition(
@@ -199,12 +253,26 @@ public sealed class DurableEventDeduplicationFacadeTests
                 processor,
                 notifications,
                 TimeProvider.System),
-            new DurableWorkflowEventClient(runtime, store, store, driveAfterDelivery));
+            new DurableWorkflowEventIngressCore(runtime, store, store, driveAfterDelivery));
     }
+
+    private static WorkflowInboundEvent Inbound(
+        InstanceId instanceId,
+        EventId eventId,
+        EventName eventName,
+        CorrelationId correlationId,
+        DateTimeOffset occurredAt) =>
+        WorkflowInboundEvent.Create(
+            WorkflowEventContract.Create(eventName, EventContractVersion.Initial),
+            eventId,
+            correlationId,
+            causationEventId: null,
+            occurredAt,
+            new WorkflowEventRoute.Direct(instanceId));
 
     private sealed record FacadeServices(
         DurableWorkflowDefinitionRegistry Registry,
-        DurableWorkflowEventClient Events);
+        DurableWorkflowEventIngressCore Events);
 
     private sealed record Input(string Correlation);
     private sealed record State(string Correlation);

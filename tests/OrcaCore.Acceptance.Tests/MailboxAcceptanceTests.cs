@@ -20,27 +20,27 @@ public sealed class MailboxAcceptanceTests
                 StartIdempotencyKey.Create("out-of-order-redelivery"),
                 TestContext.Current.CancellationToken))
             .GetHandleOrThrow();
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var events = provider.GetRequiredService<ProcessLocalEventRouter>();
         var second = Event("Second", SecondCorrelation, "early");
 
-        var early = await events.DeliverToInstanceAsync(
+        var early = await events.RouteToInstanceAsync(
             instance.InstanceId,
             second,
             TestContext.Current.CancellationToken);
-        var first = await events.DeliverToInstanceAsync(
+        var first = await events.RouteToInstanceAsync(
             instance.InstanceId,
             Event("First", FirstCorrelation, "first"),
             TestContext.Current.CancellationToken);
-        var redelivery = await events.DeliverToInstanceAsync(
+        var redelivery = await events.RouteToInstanceAsync(
             instance.InstanceId,
             second,
             TestContext.Current.CancellationToken);
         var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
         var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
-        early.Status.Should().Be(EventDeliveryStatus.NoActiveWait);
-        first.Status.Should().Be(EventDeliveryStatus.Accepted);
-        redelivery.Status.Should().Be(EventDeliveryStatus.Accepted);
+        early.Status.Should().Be(ProcessLocalEventRouteStatus.NoActiveWait);
+        first.Status.Should().Be(ProcessLocalEventRouteStatus.Accepted);
+        redelivery.Status.Should().Be(ProcessLocalEventRouteStatus.Accepted);
         snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
         state.Payloads.Should().Equal(["first", "early"]);
     }
@@ -56,21 +56,21 @@ public sealed class MailboxAcceptanceTests
                 StartIdempotencyKey.Create("duplicate-event"),
                 TestContext.Current.CancellationToken))
             .GetHandleOrThrow();
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var events = provider.GetRequiredService<ProcessLocalEventRouter>();
         var acceptedEvent = Event("First", FirstCorrelation, "accepted");
 
-        var accepted = await events.DeliverToInstanceAsync(
+        var accepted = await events.RouteToInstanceAsync(
             instance.InstanceId,
             acceptedEvent,
             TestContext.Current.CancellationToken);
-        var duplicate = await events.DeliverToInstanceAsync(
+        var duplicate = await events.RouteToInstanceAsync(
             instance.InstanceId,
             acceptedEvent,
             TestContext.Current.CancellationToken);
         var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
-        accepted.Status.Should().Be(EventDeliveryStatus.Accepted);
-        duplicate.Status.Should().Be(EventDeliveryStatus.Duplicate);
+        accepted.Status.Should().Be(ProcessLocalEventRouteStatus.Accepted);
+        duplicate.Status.Should().Be(ProcessLocalEventRouteStatus.Duplicate);
         state.Payloads.Should().Equal(["accepted"]);
     }
 
@@ -107,11 +107,11 @@ public sealed class MailboxAcceptanceTests
         return ValueTask.CompletedTask;
     }
 
-    private static WorkflowEvent<string> Event(
+    private static ProcessLocalInboundEvent<string> Event(
         string name,
         CorrelationId correlationId,
         string payload) =>
-        WorkflowEvent<string>.Create(
+        ProcessLocalInboundEvent<string>.Create(
             EventId.Create(Guid.CreateVersion7().ToString()),
             EventName.Create(name),
             correlationId,

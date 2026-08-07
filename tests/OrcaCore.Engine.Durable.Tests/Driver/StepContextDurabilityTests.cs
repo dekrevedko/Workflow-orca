@@ -16,6 +16,10 @@ public sealed class StepContextDurabilityTests
         WorkflowEventContract<ResumePayload>.Create(
             EventName.Create("typed-dynamic-resume"),
             EventContractVersion.Initial);
+    private static readonly WorkflowEventContract<ResumePayload> TypedStructuralResume =
+        WorkflowEventContract<ResumePayload>.Create(
+            EventName.Create("resume"),
+            EventContractVersion.Initial);
 
     [Fact]
     public async Task ResumedEventPayload_IsDetachedAcrossCheckpointAndVisibleOnlyToFirstStep()
@@ -27,7 +31,7 @@ public sealed class StepContextDurabilityTests
                 DefinitionVersion.Initial)
             .Init<string>(_ => new ResumeState())
             .Wait(
-                WorkflowEventContract.Create(EventName.Create("resume"), EventContractVersion.Initial),
+                TypedStructuralResume,
                 _ => CorrelationId.Create("resume-context"))
             .Then<CaptureFirstResumeStep>()
             .Then<CaptureSecondResumeStep>()

@@ -261,27 +261,45 @@ internal sealed class DurableWorkflowRuntime
         string? envelopeFingerprint = null)
     {
         var serialized = payload is null ? null : payloadSerializer.Serialize(payload);
+        var envelope = new DurableEventEnvelope
+        {
+            EventId = eventId,
+            EventName = eventName.Value,
+            EventContractVersion = EventContractVersion.Initial.Value,
+            CorrelationId = correlationId,
+            Payload = serialized?.Payload,
+            PayloadContentType = serialized?.ContentType,
+            OccurredAt = occurredAt,
+            Route = new DurableEventRouteEnvelope
+            {
+                Kind = "direct",
+                InstanceId = instanceId
+            }
+        };
+        return await RaiseFacadeEventAsync(
+            instanceId,
+            envelope,
+            cancellationToken,
+            driveAfterDelivery,
+            envelopeFingerprint).ConfigureAwait(false);
+    }
+
+    internal async Task<DurableCommandResult> RaiseFacadeEventAsync(
+        InstanceId instanceId,
+        DurableEventEnvelope envelope,
+        CancellationToken cancellationToken,
+        bool driveAfterDelivery = true,
+        string? envelopeFingerprint = null)
+    {
+        ArgumentNullException.ThrowIfNull(instanceId);
+        ArgumentNullException.ThrowIfNull(envelope);
         var command = new Abstractions.Durable.DeliverEventCommand
         {
             CommandId = CommandId.New(),
             InstanceId = instanceId,
             RequestedAt = timeProvider.GetUtcNow(),
-            Envelope = new DurableEventEnvelope
-            {
-                EventId = eventId,
-                EventName = eventName.Value,
-                CorrelationId = correlationId,
-                Payload = serialized?.Payload,
-                PayloadContentType = serialized?.ContentType,
-                OccurredAt = occurredAt
-            },
-            EnvelopeFingerprint = envelopeFingerprint ?? DurableEventEnvelopeFingerprint.Create(
-                eventName.Value,
-                EventContractVersion.Initial.Value,
-                correlationId,
-                occurredAt,
-                serialized?.ContentType,
-                serialized?.Payload)
+            Envelope = envelope,
+            EnvelopeFingerprint = envelopeFingerprint ?? DurableEventEnvelopeFingerprint.Create(envelope)
         };
         var result = await commandProcessor.ProcessAsync(command, cancellationToken).ConfigureAwait(false);
         if (driveAfterDelivery && result.Outcome == DurableCommandOutcome.Committed)
@@ -309,7 +327,7 @@ internal sealed class DurableWorkflowRuntime
     /// Resolves exactly one active wait by event name and correlation, then delivers through the
     /// normal instance-targeted durable inbox path (EV-010/012).
     /// </summary>
-    public async Task<DurableEventDeliveryResult> RaiseEventByCorrelationAsync<TPayload>(
+    public async Task<DurableCorrelationRouteResult> RaiseEventByCorrelationAsync<TPayload>(
         string eventName,
         CorrelationId correlationId,
         TPayload payload,
@@ -345,7 +363,7 @@ internal sealed class DurableWorkflowRuntime
             payload,
             eventId,
             cancellationToken).ConfigureAwait(false);
-        return new DurableEventDeliveryResult(instanceId, result);
+        return new DurableCorrelationRouteResult(instanceId, result);
     }
 
     /// <summary>
@@ -414,6 +432,6 @@ internal sealed record DurableRearmRequest(
 /// <summary>
 /// Result of routing one durable event to a resolved instance.
 /// </summary>
-internal sealed record DurableEventDeliveryResult(
+internal sealed record DurableCorrelationRouteResult(
     InstanceId InstanceId,
     DurableCommandResult Result);

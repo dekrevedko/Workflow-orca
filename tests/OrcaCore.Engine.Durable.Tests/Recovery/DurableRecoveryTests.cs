@@ -31,16 +31,15 @@ public sealed class DurableRecoveryTests
 
         var replacement = CreateFacade(store, store, store, driveAfterDelivery: true);
         var replacementHandle = replacement.Registry.Register(definition).GetHandleOrThrow();
-        var result = await replacement.Events.DeliverToInstanceAsync(
-            instanceId,
-            RecoveryEvent("waiting-restart-event", eventName, correlation),
+        var result = await replacement.Events.AcceptAsync(
+            RecoveryEvent(instanceId, "waiting-restart-event", eventName, correlation),
             TestContext.Current.CancellationToken);
         var snapshot = await (await replacementHandle.GetInstanceAsync(
                 instanceId,
                 TestContext.Current.CancellationToken))
             .GetSnapshotAsync(TestContext.Current.CancellationToken);
 
-        result.Status.Should().Be(EventDeliveryStatus.Accepted);
+        result.Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
         snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
     }
 
@@ -59,21 +58,20 @@ public sealed class DurableRecoveryTests
             new Input(correlation.Value),
             StartIdempotencyKey.Create("crash-before-commit-start"),
             TestContext.Current.CancellationToken)).GetHandleOrThrow().InstanceId;
-        var workflowEvent = RecoveryEvent("crash-before-commit-event", eventName, correlation);
+        var workflowEvent = RecoveryEvent(instanceId, "crash-before-commit-event", eventName, correlation);
         eventStore.FailNextCommitBeforeApply();
 
-        _ = await first.Events.DeliverToInstanceAsync(
-            instanceId,
+        Func<Task> failedAcceptance = async () => await first.Events.AcceptAsync(
             workflowEvent,
             TestContext.Current.CancellationToken);
+        await failedAcceptance.Should().ThrowAsync<global::OrcaCore.Abstractions.Errors.WorkflowConcurrencyException>();
         var afterFailure = await store.LoadTailAsync(
             new WorkflowStreamId(instanceId),
             StreamVersion.Empty,
             TestContext.Current.CancellationToken);
         var replacement = CreateFacade(eventStore, store, store, driveAfterDelivery: false);
         _ = replacement.Registry.Register(definition).GetHandleOrThrow();
-        var recovered = await replacement.Events.DeliverToInstanceAsync(
-            instanceId,
+        var recovered = await replacement.Events.AcceptAsync(
             workflowEvent,
             TestContext.Current.CancellationToken);
         var events = await store.LoadTailAsync(
@@ -82,7 +80,7 @@ public sealed class DurableRecoveryTests
             TestContext.Current.CancellationToken);
 
         afterFailure.OfType<WorkflowWaitMatchedEvent>().Should().BeEmpty();
-        recovered.Status.Should().Be(EventDeliveryStatus.Accepted);
+        recovered.Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
         events.OfType<WorkflowWaitMatchedEvent>().Should().ContainSingle();
     }
 
@@ -101,9 +99,8 @@ public sealed class DurableRecoveryTests
             new Input(correlation.Value),
             idempotencyKey,
             TestContext.Current.CancellationToken)).GetHandleOrThrow().InstanceId;
-        var accepted = await first.Events.DeliverToInstanceAsync(
-            instanceId,
-            RecoveryEvent("host-killed-event", eventName, correlation),
+        var accepted = await first.Events.AcceptAsync(
+            RecoveryEvent(instanceId, "host-killed-event", eventName, correlation),
             TestContext.Current.CancellationToken);
 
         var replacement = CreateFacade(store, store, store, driveAfterDelivery: true);
@@ -119,7 +116,7 @@ public sealed class DurableRecoveryTests
             StreamVersion.Empty,
             TestContext.Current.CancellationToken);
 
-        accepted.Status.Should().Be(EventDeliveryStatus.Accepted);
+        accepted.Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
         restarted.Should()
             .BeOfType<WorkflowStartResult<WorkflowInstanceHandle>.Accepted>()
             .Which.WasExisting.Should().BeTrue();
@@ -144,9 +141,8 @@ public sealed class DurableRecoveryTests
             TestContext.Current.CancellationToken)).GetHandleOrThrow().InstanceId;
         var checkpoint = await store.LoadCheckpointAsync(instanceId, TestContext.Current.CancellationToken);
 
-        await first.Events.DeliverToInstanceAsync(
-            instanceId,
-            RecoveryEvent("checkpoint-tail-event", eventName, correlation),
+        await first.Events.AcceptAsync(
+            RecoveryEvent(instanceId, "checkpoint-tail-event", eventName, correlation),
             TestContext.Current.CancellationToken);
         var replacement = CreateFacade(store, store, store, driveAfterDelivery: true);
         var replacementHandle = replacement.Registry.Register(definition).GetHandleOrThrow();
@@ -178,16 +174,19 @@ public sealed class DurableRecoveryTests
             .Build();
     }
 
-    private static WorkflowEvent RecoveryEvent(
+    private static WorkflowInboundEvent RecoveryEvent(
+        InstanceId instanceId,
         string eventId,
         EventName eventName,
         CorrelationId correlation)
     {
-        return WorkflowEvent.Create(
+        return WorkflowInboundEvent.Create(
+            WorkflowEventContract.Create(eventName, EventContractVersion.Initial),
             EventId.Create(eventId),
-            eventName,
             correlation,
-            DateTimeOffset.Parse("2026-07-30T12:00:00Z"));
+            causationEventId: null,
+            DateTimeOffset.Parse("2026-07-30T12:00:00Z"),
+            new WorkflowEventRoute.Direct(instanceId));
     }
 
     private static FacadeServices CreateFacade(
@@ -211,7 +210,7 @@ public sealed class DurableRecoveryTests
                 processor,
                 notifications,
                 TimeProvider.System),
-            new DurableWorkflowEventClient(
+            new DurableWorkflowEventIngressCore(
                 runtime,
                 projectionStore,
                 inboxStore,
@@ -220,7 +219,7 @@ public sealed class DurableRecoveryTests
 
     private sealed record FacadeServices(
         DurableWorkflowDefinitionRegistry Registry,
-        DurableWorkflowEventClient Events);
+        DurableWorkflowEventIngressCore Events);
 
     private sealed class FailOnceEventStore(InMemoryWorkflowProvider inner) :
         IWorkflowEventStore,
@@ -266,6 +265,11 @@ public sealed class DurableRecoveryTests
             EventId eventId,
             CancellationToken cancellationToken) =>
             inner.GetAsync(instanceId, eventId, cancellationToken);
+
+        public Task<Option<InboxRecord>> GetByEventIdAsync(
+            EventId eventId,
+            CancellationToken cancellationToken) =>
+            inner.GetByEventIdAsync(eventId, cancellationToken);
     }
 
     private sealed record Input(string Correlation);

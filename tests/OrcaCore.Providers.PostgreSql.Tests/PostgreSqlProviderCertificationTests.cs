@@ -49,6 +49,26 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
     }
 
     [Fact]
+    public void ActiveWaitQuery_ImplementsTheVersionAwareProviderOverload()
+    {
+        var projectionStore = certificationStore ??
+            throw new InvalidOperationException("PostgreSQL certification store is not initialized.");
+
+        projectionStore.GetType().GetMethod(
+                nameof(IWorkflowProjectionStore.FindActiveWaitsAsync),
+                [
+                    typeof(DefinitionId),
+                    typeof(EventName),
+                    typeof(EventContractVersion),
+                    typeof(CorrelationId),
+                    typeof(CancellationToken)
+                ])
+            .Should().NotBeNull(
+                "the PostgreSQL provider must push version identity into its indexed SQL query");
+    }
+
+
+    [Fact]
     public async Task InitializeAsync_AppliesRelationalSqlMigrations()
     {
         var initialMigrationId = await ScalarAsync<string>(

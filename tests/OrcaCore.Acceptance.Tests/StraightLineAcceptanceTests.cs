@@ -108,6 +108,7 @@ internal static class PublicAcceptanceHost
             },
             TransientPools = []
         });
+        services.AddSingleton<ProcessLocalEventRouter>();
         return services.BuildServiceProvider();
     }
 }

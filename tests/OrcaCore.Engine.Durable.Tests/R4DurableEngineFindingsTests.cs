@@ -106,8 +106,8 @@ public sealed class R4DurableEngineFindingsTests
     [Fact]
     public void R4_PublicWorkflowEvents_DoNotExposeBranchIdentity()
     {
-        typeof(WorkflowEvent).GetProperty("BranchId").Should().BeNull();
-        typeof(WorkflowEvent<string>).GetProperty("BranchId").Should().BeNull();
+        typeof(WorkflowInboundEvent).GetProperty("BranchId").Should().BeNull();
+        typeof(WorkflowInboundEvent<string>).GetProperty("BranchId").Should().BeNull();
     }
 
     [Fact]
@@ -128,18 +128,19 @@ public sealed class R4DurableEngineFindingsTests
 
         var replacement = CreateFacade(store);
         _ = replacement.Registry.Register(definition).GetHandleOrThrow();
-        var delivered = await replacement.Events.DeliverToInstanceAsync(
-            instanceId,
-            WorkflowEvent.Create(
+        var delivered = await replacement.Events.AcceptAsync(
+            WorkflowInboundEvent.Create(
+                WorkflowEventContract.Create(eventName, EventContractVersion.Initial),
                 EventId.Create("checkpoint-resume-event"),
-                eventName,
                 CorrelationId.Create("order-1"),
-                DateTimeOffset.Parse("2026-07-30T12:00:00Z")),
+                causationEventId: null,
+                DateTimeOffset.Parse("2026-07-30T12:00:00Z"),
+                new WorkflowEventRoute.Direct(instanceId)),
             TestContext.Current.CancellationToken);
 
         checkpoint.HasValue.Should().BeTrue();
         checkpoint.Value.RuntimeState.ActiveWaits.Should().ContainSingle();
-        delivered.Status.Should().Be(EventDeliveryStatus.Accepted);
+        delivered.Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
     }
 
     [Fact]
@@ -258,7 +259,7 @@ public sealed class R4DurableEngineFindingsTests
                 notifications,
                 TimeProvider.System,
                 configuredResourcePools),
-            new DurableWorkflowEventClient(runtime, store, store));
+            new DurableWorkflowEventIngressCore(runtime, store, store));
     }
 
     private static ResourcePoolDefinition Pool(string name, int capacity)
@@ -325,7 +326,7 @@ public sealed class R4DurableEngineFindingsTests
 
     private sealed record FacadeServices(
         DurableWorkflowDefinitionRegistry Registry,
-        DurableWorkflowEventClient Events);
+        DurableWorkflowEventIngressCore Events);
 
     private sealed record R4State(string Value);
 
@@ -391,6 +392,11 @@ public sealed class R4DurableEngineFindingsTests
             EventId eventId,
             CancellationToken cancellationToken) =>
             inner.GetAsync(instanceId, eventId, cancellationToken);
+
+        public Task<Option<InboxRecord>> GetByEventIdAsync(
+            EventId eventId,
+            CancellationToken cancellationToken) =>
+            inner.GetByEventIdAsync(eventId, cancellationToken);
 
         public Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedAsync(
             string idempotencyKey,

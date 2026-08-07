@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Durable.Hosting;
 using OrcaCore.Providers.PostgreSql;
 using Testcontainers.PostgreSql;
 
@@ -78,17 +79,18 @@ public sealed class DurablePostgreSqlApplicationJourneyTests : IAsyncLifetime
         replay.GetHandleOrThrow().InstanceId.Should().Be(firstInstanceId);
 
         var delivery = await replacementHost.Services
-            .GetRequiredService<IWorkflowEventClient>()
-            .DeliverToInstanceAsync(
-                firstInstanceId,
-                WorkflowEvent.Create(
+            .GetRequiredService<IWorkflowEventIngress>()
+            .AcceptAsync(
+                WorkflowInboundEvent.Create(
+                    WorkflowEventContract.Create(continueEvent, EventContractVersion.Initial),
                     EventId.Create("durable-postgresql-continue"),
-                    continueEvent,
                     correlation,
-                    DateTimeOffset.UtcNow),
+                    causationEventId: null,
+                    DateTimeOffset.UtcNow,
+                    new WorkflowEventRoute.Direct(firstInstanceId)),
                 TestContext.Current.CancellationToken);
 
-        delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
+        delivery.Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
         (await replay.WaitForOutputAsync(TestContext.Current.CancellationToken))
             .Should().Be(new JourneyOutput(42));
         var completed = await replay.GetHandleOrThrow().GetSnapshotAsync(

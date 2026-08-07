@@ -44,12 +44,14 @@ public sealed class EventEnvelopeContractTests
             EventContractVersion.Initial);
         var correlationId = CorrelationId.Create("order-123");
         var occurredAt = new DateTimeOffset(2026, 7, 2, 10, 15, 0, TimeSpan.FromHours(2));
-        var workflowEvent = WorkflowEvent<Payload>.Create(
+        var workflowEvent = WorkflowInboundEvent<Payload>.Create(
+            eventContract,
             eventId,
-            eventContract.EventName,
             correlationId,
-            authored,
-            occurredAt);
+            causationEventId: null,
+            occurredAt,
+            new WorkflowEventRoute.Direct(InstanceId.Parse(Guid.CreateVersion7().ToString())),
+            authored);
         authored.Values.Add("mutated-after-create");
 
         var envelope = CreateEnvelope(
@@ -92,12 +94,14 @@ public sealed class EventEnvelopeContractTests
         var expected = WorkflowEventContract<ThirdPartyMessage>.Create(
             EventName.Create("ThirdPartyReceived"),
             new EventContractVersion(2));
-        var bytes = ReadPayloadBytes(WorkflowEvent<ThirdPartyMessage>.Create(
+        var bytes = ReadPayloadBytes(WorkflowInboundEvent<ThirdPartyMessage>.Create(
+            expected,
             EventId.Create(Guid.CreateVersion7().ToString()),
-            expected.EventName,
             CorrelationId.Create("third-party-7"),
-            new ThirdPartyMessage { Code = "external" },
-            DateTimeOffset.UtcNow));
+            causationEventId: null,
+            DateTimeOffset.UtcNow,
+            new WorkflowEventRoute.Direct(InstanceId.Parse(Guid.CreateVersion7().ToString())),
+            new ThirdPartyMessage { Code = "external" }));
         var envelope = CreateEnvelope(
             EventId.Create(Guid.CreateVersion7().ToString()),
             expected,
@@ -123,12 +127,14 @@ public sealed class EventEnvelopeContractTests
             EventName.Create("ThirdPartyReceived"),
             new EventContractVersion(2));
         var correlationId = CorrelationId.Create("third-party-8");
-        var bytes = ReadPayloadBytes(WorkflowEvent<ThirdPartyMessage>.Create(
+        var bytes = ReadPayloadBytes(WorkflowInboundEvent<ThirdPartyMessage>.Create(
+            expected,
             EventId.Create(Guid.CreateVersion7().ToString()),
-            expected.EventName,
             correlationId,
-            new ThirdPartyMessage { Code = "external" },
-            DateTimeOffset.UtcNow));
+            causationEventId: null,
+            DateTimeOffset.UtcNow,
+            new WorkflowEventRoute.Direct(InstanceId.Parse(Guid.CreateVersion7().ToString())),
+            new ThirdPartyMessage { Code = "external" }));
         var envelope = CreateEnvelope(
             EventId.Create(Guid.CreateVersion7().ToString()),
             expected,
@@ -144,9 +150,9 @@ public sealed class EventEnvelopeContractTests
             .WithParameterName("eventContract");
     }
 
-    private static ReadOnlyMemory<byte> ReadPayloadBytes<TPayload>(WorkflowEvent<TPayload> workflowEvent)
+    private static ReadOnlyMemory<byte> ReadPayloadBytes<TPayload>(WorkflowInboundEvent<TPayload> workflowEvent)
     {
-        var property = typeof(WorkflowEvent<TPayload>).GetProperty(
+        var property = typeof(WorkflowInboundEvent<TPayload>).GetProperty(
             "PayloadBytes",
             BindingFlags.Instance | BindingFlags.NonPublic)!;
         return (ReadOnlyMemory<byte>)property.GetValue(workflowEvent)!;

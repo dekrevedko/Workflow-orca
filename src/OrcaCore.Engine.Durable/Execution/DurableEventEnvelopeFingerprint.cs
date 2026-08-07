@@ -5,32 +5,17 @@ namespace OrcaCore.Engine.Durable.Execution;
 
 internal static class DurableEventEnvelopeFingerprint
 {
-    internal static string Create<TPayload>(
-        EventName eventName,
-        CorrelationId correlationId,
-        DateTimeOffset occurredAt,
-        TPayload payload)
-    {
-        var serializedPayload = payload is null
-            ? null
-            : CoreWorkflowValueCodec.Serialize(payload, typeof(TPayload));
-        return Create(
-            eventName.Value,
-            EventContractVersion.Initial.Value,
-            correlationId,
-            occurredAt,
-            serializedPayload is null ? null : JsonWorkflowPayloadSerializer.JsonContentType,
-            serializedPayload);
-    }
-
     internal static string Create(DurableEventEnvelope envelope)
     {
         ArgumentNullException.ThrowIfNull(envelope);
         return Create(
             envelope.EventName,
             envelope.EventContractVersion,
+            envelope.EventId,
             envelope.CorrelationId,
+            envelope.CausationEventId,
             envelope.OccurredAt,
+            envelope.Route,
             envelope.PayloadContentType,
             envelope.Payload);
     }
@@ -38,8 +23,11 @@ internal static class DurableEventEnvelopeFingerprint
     internal static string Create(
         string eventName,
         int eventContractVersion,
+        EventId? eventId,
         CorrelationId correlationId,
+        EventId? causationEventId,
         DateTimeOffset occurredAt,
+        DurableEventRouteEnvelope? route,
         string? payloadContentType,
         byte[]? payload)
     {
@@ -57,8 +45,11 @@ internal static class DurableEventEnvelopeFingerprint
             new NormalizedEnvelope(
                 eventName,
                 eventContractVersion,
+                eventId?.Value,
                 correlationId.Value,
+                causationEventId?.Value,
                 occurredAt.ToUniversalTime(),
+                route is null ? null : NormalizeRoute(route),
                 payloadContentType,
                 payload),
             typeof(NormalizedEnvelope));
@@ -68,8 +59,34 @@ internal static class DurableEventEnvelopeFingerprint
     private sealed record NormalizedEnvelope(
         string EventName,
         int EventContractVersion,
+        string? EventId,
         string CorrelationId,
+        string? CausationEventId,
         DateTimeOffset OccurredAt,
+        NormalizedRoute? Route,
         string? PayloadContentType,
         byte[]? Payload);
+
+    private static NormalizedRoute NormalizeRoute(DurableEventRouteEnvelope route)
+    {
+        ArgumentNullException.ThrowIfNull(route);
+        ArgumentException.ThrowIfNullOrWhiteSpace(route.Kind);
+        return new NormalizedRoute(
+            route.Kind,
+            route.InstanceId?.Value,
+            route.DefinitionId?.Value,
+            route.DefinitionVersion?.Value,
+            route.StartIdempotencyKey,
+            route.WorkflowInputContentType,
+            route.WorkflowInputPayload);
+    }
+
+    private sealed record NormalizedRoute(
+        string Kind,
+        Guid? InstanceId,
+        Guid? DefinitionId,
+        int? DefinitionVersion,
+        string? StartIdempotencyKey,
+        string? WorkflowInputContentType,
+        byte[]? WorkflowInputPayload);
 }

@@ -72,6 +72,11 @@ internal sealed class DurableTestStore :
         CancellationToken cancellationToken) =>
         inboxStore.GetAsync(instanceId, eventId, cancellationToken);
 
+    public Task<Option<InboxRecord>> GetByEventIdAsync(
+        EventId eventId,
+        CancellationToken cancellationToken) =>
+        inboxStore.GetByEventIdAsync(eventId, cancellationToken);
+
     public Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedAsync(
         string idempotencyKey,
         CancellationToken cancellationToken) =>

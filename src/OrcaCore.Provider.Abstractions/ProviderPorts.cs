@@ -40,6 +40,13 @@ public interface IWorkflowEventStore
 public interface IWorkflowInboxStore
 {
     /// <summary>
+    /// Gets the globally owned envelope for one event identity before route or target-state evaluation.
+    /// </summary>
+    Task<Option<InboxRecord>> GetByEventIdAsync(
+        EventId eventId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Gets an inbox record by its target instance and event identity.
     /// </summary>
     Task<Option<InboxRecord>> GetAsync(
@@ -55,7 +62,11 @@ public sealed record InboxRecord(
     InstanceId InstanceId,
     EventId EventId,
     string EnvelopeFingerprint,
-    InboxRecordState State);
+    InboxRecordState State)
+{
+    /// <summary>Gets the complete normalized envelope and route persisted at first acceptance.</summary>
+    public DurableEventEnvelope? Envelope { get; init; }
+}
 
 /// <summary>
 /// Stores durable start idempotency mappings.
@@ -144,6 +155,28 @@ public interface IWorkflowProjectionStore
         EventName eventName,
         CorrelationId correlationId,
         CancellationToken cancellationToken);
+
+    /// <summary>Resolves exact active-wait candidates including event-contract version identity.</summary>
+    async Task<IReadOnlyList<ProjectionWorkflowInstanceSnapshot>> FindActiveWaitsAsync(
+        DefinitionId? definitionId,
+        EventName eventName,
+        EventContractVersion eventContractVersion,
+        CorrelationId correlationId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(eventContractVersion);
+        var candidates = await FindActiveWaitsAsync(
+            definitionId,
+            eventName,
+            correlationId,
+            cancellationToken).ConfigureAwait(false);
+        return candidates
+            .Where(snapshot => snapshot.ActiveWaits.Any(wait =>
+                string.Equals(wait.EventName, eventName.Value, StringComparison.Ordinal) &&
+                wait.EventContractVersion == eventContractVersion.Value &&
+                wait.CorrelationId.Equals(correlationId)))
+            .ToArray();
+    }
 
     /// <summary>
     /// Lists the runtime candidates inspected by trusted lease recovery and diagnostics.

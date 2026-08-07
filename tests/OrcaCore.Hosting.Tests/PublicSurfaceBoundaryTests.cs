@@ -14,6 +14,7 @@ public sealed class PublicSurfaceBoundaryTests
             .GetExportedTypes()
             .Select(type => type.FullName)
             .Should().BeEquivalentTo(
+                "OrcaCore.Durable.Hosting.IWorkflowEventIngress",
                 "OrcaCore.Hosting.DurableEngineHostOptions",
                 "OrcaCore.Hosting.DurableResourcePoolDefinition",
                 "OrcaCore.Hosting.DurableResourcePoolOptions",

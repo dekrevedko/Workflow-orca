@@ -21,7 +21,7 @@ internal sealed class InMemoryWorkflowProvider :
     private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
 
     private readonly Lock gate = new();
-    private readonly Dictionary<(InstanceId InstanceId, EventId EventId), InboxRecord> inbox = [];
+    private readonly Dictionary<EventId, InboxRecord> inbox = [];
     private readonly Dictionary<string, StartedWorkflowIdempotencyRecord> startIdempotency = new(StringComparer.Ordinal);
     private readonly Dictionary<OutboxRecordId, InMemoryOutboxRecord> outbox = [];
     private readonly List<OutboxWrite> dispatched = [];
@@ -66,6 +66,21 @@ internal sealed class InMemoryWorkflowProvider :
 
         lock (gate)
         {
+            var conflictingEventId = batch.InboxOperations
+                .Where(operation => operation.EnvelopeFingerprint is not null)
+                .Where(operation => inbox.TryGetValue(operation.EventId, out var existing) &&
+                    (!existing.InstanceId.Equals(batch.StreamId.InstanceId) ||
+                     !string.Equals(
+                         existing.EnvelopeFingerprint,
+                         operation.EnvelopeFingerprint,
+                         StringComparison.Ordinal)))
+                .Select(operation => operation.EventId)
+                .FirstOrDefault();
+            if (conflictingEventId is not null)
+            {
+                return Task.FromResult(EventStoreConflict.EventIdAlreadyExists(conflictingEventId));
+            }
+
             var stream = GetStream(batch.StreamId);
             var actualVersion = new StreamVersion(stream.Count);
             if (actualVersion != batch.ExpectedVersion)
@@ -80,7 +95,6 @@ internal sealed class InMemoryWorkflowProvider :
             {
                 return Task.FromResult(EventStoreConflict.StartIdempotencyKeyAlreadyExists(conflictingStartKey));
             }
-
             stream.AddRange(batch.Events);
             ApplyInboxOperations(batch.StreamId.InstanceId, batch.InboxOperations);
             ApplyStartIdempotencyOperations(batch.StartIdempotencyOperations);
@@ -137,7 +151,23 @@ internal sealed class InMemoryWorkflowProvider :
 
         lock (gate)
         {
-            return Task.FromResult(inbox.TryGetValue((instanceId, eventId), out var record)
+            return Task.FromResult(inbox.TryGetValue(eventId, out var record) && record.InstanceId.Equals(instanceId)
+                ? Option<InboxRecord>.Some(record)
+                : Option<InboxRecord>.None);
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<Option<InboxRecord>> GetByEventIdAsync(
+        EventId eventId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(eventId);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            return Task.FromResult(inbox.TryGetValue(eventId, out var record)
                 ? Option<InboxRecord>.Some(record)
                 : Option<InboxRecord>.None);
         }
@@ -312,6 +342,33 @@ internal sealed class InMemoryWorkflowProvider :
     }
 
     /// <inheritdoc />
+    public Task<IReadOnlyList<WorkflowProjectionSnapshot>> FindActiveWaitsAsync(
+        DefinitionId? definitionId,
+        EventName eventName,
+        EventContractVersion eventContractVersion,
+        CorrelationId correlationId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(eventName);
+        ArgumentNullException.ThrowIfNull(eventContractVersion);
+        ArgumentNullException.ThrowIfNull(correlationId);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            return Task.FromResult<IReadOnlyList<WorkflowProjectionSnapshot>>(
+                summaries.Values
+                    .Where(snapshot => definitionId is null || snapshot.DefinitionId.Equals(definitionId))
+                    .Where(snapshot => snapshot.ActiveWaits.Any(wait =>
+                        string.Equals(wait.EventName, eventName.Value, StringComparison.Ordinal) &&
+                        wait.EventContractVersion == eventContractVersion.Value &&
+                        wait.CorrelationId.Equals(correlationId)))
+                    .Select(CloneSnapshot)
+                    .ToArray());
+        }
+    }
+
+    /// <inheritdoc />
     public Task<IReadOnlyList<WorkflowProjectionSnapshot>> ListLeaseRecoveryCandidatesAsync(
         CancellationToken cancellationToken)
     {
@@ -467,10 +524,9 @@ internal sealed class InMemoryWorkflowProvider :
     {
         foreach (var operation in operations)
         {
-            var key = (instanceId, operation.EventId);
-            if (inbox.TryGetValue(key, out var existing))
+            if (inbox.TryGetValue(operation.EventId, out var existing))
             {
-                inbox[key] = existing with
+                inbox[operation.EventId] = existing with
                 {
                     State = existing.State == InboxRecordState.Applied
                         ? existing.State
@@ -486,12 +542,31 @@ internal sealed class InMemoryWorkflowProvider :
                     "must carry an envelope fingerprint.");
             }
 
-            inbox[key] = new InboxRecord(
+            inbox[operation.EventId] = new InboxRecord(
                 instanceId,
                 operation.EventId,
                 operation.EnvelopeFingerprint,
-                operation.State);
+                operation.State)
+            {
+                Envelope = CloneEnvelope(operation.Envelope)
+            };
         }
+    }
+
+    private static DurableEventEnvelope? CloneEnvelope(DurableEventEnvelope? envelope)
+    {
+        return envelope is null
+            ? null
+            : envelope with
+            {
+                Payload = envelope.Payload is null ? null : [.. envelope.Payload],
+                Route = envelope.Route with
+                {
+                    WorkflowInputPayload = envelope.Route.WorkflowInputPayload is null
+                        ? null
+                        : [.. envelope.Route.WorkflowInputPayload]
+                }
+            };
     }
 
     private void ApplyStartIdempotencyOperations(IEnumerable<StartIdempotencyWrite> operations)

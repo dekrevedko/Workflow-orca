@@ -125,4 +125,7 @@ internal sealed class DurableCommitPipeline(
     }
 }
 
-internal sealed record DurableInboxDelivery(EventId EventId, string EnvelopeFingerprint);
+internal sealed record DurableInboxDelivery(
+    EventId EventId,
+    string EnvelopeFingerprint,
+    DurableEventEnvelope Envelope);

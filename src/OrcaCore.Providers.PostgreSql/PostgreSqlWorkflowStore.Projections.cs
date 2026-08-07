@@ -36,6 +36,7 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
             instanceId,
             definitionId: null,
             eventName: null,
+            eventContractVersion: null,
             correlationId: null,
             cancellationToken).ConfigureAwait(false);
         return snapshots.Count == 0
@@ -56,6 +57,27 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
             instanceId: null,
             definitionId,
             eventName,
+            eventContractVersion: null,
+            correlationId,
+            cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<WorkflowProjectionSnapshot>> FindActiveWaitsAsync(
+        DefinitionId? definitionId,
+        EventName eventName,
+        EventContractVersion eventContractVersion,
+        CorrelationId correlationId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(eventName);
+        ArgumentNullException.ThrowIfNull(eventContractVersion);
+        ArgumentNullException.ThrowIfNull(correlationId);
+        return LoadAsync(
+            instanceId: null,
+            definitionId,
+            eventName,
+            eventContractVersion,
             correlationId,
             cancellationToken);
     }
@@ -67,6 +89,7 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
             instanceId: null,
             definitionId: null,
             eventName: null,
+            eventContractVersion: null,
             correlationId: null,
             cancellationToken);
 
@@ -74,6 +97,7 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
         InstanceId? instanceId,
         DefinitionId? definitionId,
         EventName? eventName,
+        EventContractVersion? eventContractVersion,
         CorrelationId? correlationId,
         CancellationToken cancellationToken)
     {
@@ -98,11 +122,12 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
             from orcacore_instance_projections summary
             where (@instance_id is null or summary.instance_id = @instance_id)
               and (@definition_id is null or summary.definition_id = @definition_id)
-              and ((@wait_event_name is null and @wait_correlation_id is null) or exists (
+              and ((@wait_event_name is null and @wait_event_contract_version is null and @wait_correlation_id is null) or exists (
                   select 1
                   from orcacore_active_wait_projections wait
                   where wait.instance_id = summary.instance_id
                     and wait.event_name = @wait_event_name
+                    and (@wait_event_contract_version is null or wait.event_contract_version = @wait_event_contract_version)
                     and wait.correlation_id = @wait_correlation_id))
             order by instance_id;
             """,
@@ -110,6 +135,11 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
         AddNullableParameter(command, "instance_id", NpgsqlDbType.Uuid, instanceId?.Value);
         AddNullableParameter(command, "definition_id", NpgsqlDbType.Uuid, definitionId?.Value);
         AddNullableParameter(command, "wait_event_name", NpgsqlDbType.Text, eventName?.Value);
+        AddNullableParameter(
+            command,
+            "wait_event_contract_version",
+            NpgsqlDbType.Integer,
+            eventContractVersion?.Value);
         AddNullableParameter(command, "wait_correlation_id", NpgsqlDbType.Text, correlationId?.Value);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
@@ -332,6 +362,7 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
                 wait_id,
                 instance_id,
                 event_name,
+                event_contract_version,
                 correlation_id,
                 registered_at,
                 status,
@@ -340,6 +371,7 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
                 @wait_id,
                 @instance_id,
                 @event_name,
+                @event_contract_version,
                 @correlation_id,
                 @registered_at,
                 @status,
@@ -347,6 +379,7 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
             on conflict (wait_id) do update set
                 instance_id = excluded.instance_id,
                 event_name = excluded.event_name,
+                event_contract_version = excluded.event_contract_version,
                 correlation_id = excluded.correlation_id,
                 registered_at = excluded.registered_at,
                 status = excluded.status,
@@ -357,6 +390,7 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
         command.Parameters.AddWithValue("wait_id", activeWait.WaitId.Value);
         command.Parameters.AddWithValue("instance_id", instanceId.Value);
         command.Parameters.AddWithValue("event_name", activeWait.EventName);
+        command.Parameters.AddWithValue("event_contract_version", activeWait.EventContractVersion);
         command.Parameters.AddWithValue("correlation_id", activeWait.CorrelationId.Value);
         command.Parameters.AddWithValue("registered_at", activeWait.RegisteredAt);
         command.Parameters.AddWithValue("status", activeWait.Status);
@@ -398,6 +432,7 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
             select instance_id,
                    wait_id,
                    event_name,
+                   event_contract_version,
                    correlation_id,
                    registered_at,
                    status,
@@ -425,10 +460,11 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
             {
                 WaitId = WaitId.Parse(reader.GetGuid(1).ToString()),
                 EventName = reader.GetString(2),
-                CorrelationId = CorrelationId.Create(reader.GetString(3)),
-                RegisteredAt = reader.GetFieldValue<DateTimeOffset>(4),
-                Status = reader.GetString(5),
-                Mode = reader.GetString(6)
+                EventContractVersion = reader.GetInt32(3),
+                CorrelationId = CorrelationId.Create(reader.GetString(4)),
+                RegisteredAt = reader.GetFieldValue<DateTimeOffset>(5),
+                Status = reader.GetString(6),
+                Mode = reader.GetString(7)
             });
         }
 

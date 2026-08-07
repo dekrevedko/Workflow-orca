@@ -37,26 +37,26 @@ public sealed class LoopWaitAcceptanceTests
                 StartIdempotencyKey.Create("loop-wait"),
                 TestContext.Current.CancellationToken))
             .GetHandleOrThrow();
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var events = provider.GetRequiredService<ProcessLocalEventRouter>();
 
-        var first = await events.DeliverToInstanceAsync(
+        var first = await events.RouteToInstanceAsync(
             instance.InstanceId,
             Event(IterationCorrelation(0), "first"),
             TestContext.Current.CancellationToken);
-        var stale = await events.DeliverToInstanceAsync(
+        var stale = await events.RouteToInstanceAsync(
             instance.InstanceId,
             Event(IterationCorrelation(0), "stale"),
             TestContext.Current.CancellationToken);
-        var second = await events.DeliverToInstanceAsync(
+        var second = await events.RouteToInstanceAsync(
             instance.InstanceId,
             Event(IterationCorrelation(1), "second"),
             TestContext.Current.CancellationToken);
         var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
         var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
-        first.Status.Should().Be(EventDeliveryStatus.Accepted);
-        stale.Status.Should().Be(EventDeliveryStatus.NoActiveWait);
-        second.Status.Should().Be(EventDeliveryStatus.Accepted);
+        first.Status.Should().Be(ProcessLocalEventRouteStatus.Accepted);
+        stale.Status.Should().Be(ProcessLocalEventRouteStatus.NoActiveWait);
+        second.Status.Should().Be(ProcessLocalEventRouteStatus.Accepted);
         snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
         state.Payloads.Should().Equal(["first", "second"]);
     }
@@ -64,8 +64,8 @@ public sealed class LoopWaitAcceptanceTests
     private static CorrelationId IterationCorrelation(int iteration) =>
         CorrelationId.Create($"iteration-{iteration}");
 
-    private static WorkflowEvent<string> Event(CorrelationId correlationId, string payload) =>
-        WorkflowEvent<string>.Create(
+    private static ProcessLocalInboundEvent<string> Event(CorrelationId correlationId, string payload) =>
+        ProcessLocalInboundEvent<string>.Create(
             EventId.Create(Guid.CreateVersion7().ToString()),
             EventName.Create("Tick"),
             correlationId,

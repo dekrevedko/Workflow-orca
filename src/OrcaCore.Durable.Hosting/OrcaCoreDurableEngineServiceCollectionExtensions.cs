@@ -12,6 +12,7 @@ using OrcaCore.Engine.Durable.Diagnostics;
 using OrcaCore.Engine.Durable.Driver;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Engine.Durable.Outbox;
+using OrcaCore.Durable.Hosting;
 using OrcaCore.Hosting.Services;
 using OrcaCore.Hosting.ResourceLeases;
 using OrcaCore.Provider.Abstractions;
@@ -77,8 +78,8 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
         });
         services.TryAddSingleton<IWorkflowDefinitionRegistry>(provider =>
             provider.GetRequiredService<DurableWorkflowDefinitionRegistry>());
-        services.TryAddSingleton<IWorkflowEventClient>(provider =>
-            new DurableWorkflowEventClient(
+        services.TryAddSingleton<IWorkflowEventIngress>(provider =>
+            new DurableWorkflowEventIngress(
                 provider.GetRequiredService<DurableWorkflowRuntime>(),
                 provider.GetRequiredService<IWorkflowProjectionStore>(),
                 provider.GetRequiredService<IWorkflowInboxStore>()));
@@ -123,7 +124,7 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
 
         AddCommonServices(services);
         AddDurableCommandServices(services);
-        services.TryAddSingleton<IWorkflowEventClient>(provider =>
+        services.TryAddSingleton<IWorkflowEventIngress>(provider =>
         {
             var definitions = new DurableDefinitionRegistry();
             var runtime = new DurableWorkflowRuntime(
@@ -132,11 +133,11 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
                 provider.GetRequiredService<TimeProvider>(),
                 DurableDriverBudget.Default,
                 provider.GetRequiredService<IWorkflowProjectionStore>());
-            return new DurableWorkflowEventClient(
+            return new DurableWorkflowEventIngress(
                 runtime,
                 provider.GetRequiredService<IWorkflowProjectionStore>(),
                 provider.GetRequiredService<IWorkflowInboxStore>(),
-                driveAfterDelivery: false);
+                driveAfterAcceptance: false);
         });
         services.AddSingleton(new DurableEngineRoleRegistration("durable-event-ingress", "v1"));
         return services;

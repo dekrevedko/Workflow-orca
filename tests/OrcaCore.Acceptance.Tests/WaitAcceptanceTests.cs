@@ -32,16 +32,16 @@ public sealed class WaitAcceptanceTests
     {
         using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
         var instance = await StartWaitingAsync(provider, "matching-event");
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var events = provider.GetRequiredService<ProcessLocalEventRouter>();
 
-        var delivery = await events.DeliverToInstanceAsync(
+        var delivery = await events.RouteToInstanceAsync(
             instance.InstanceId,
             Event("Approved", Correlation, "accepted"),
             TestContext.Current.CancellationToken);
         var resumed = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
         var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
-        delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
+        delivery.Status.Should().Be(ProcessLocalEventRouteStatus.Accepted);
         resumed.Status.Should().Be(WorkflowInstanceStatus.Completed);
         state.Payloads.Should().Equal(["accepted"]);
     }
@@ -52,16 +52,16 @@ public sealed class WaitAcceptanceTests
     {
         using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
         var instance = await StartWaitingAsync(provider, "non-matching-event");
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var events = provider.GetRequiredService<ProcessLocalEventRouter>();
 
-        var delivery = await events.DeliverToInstanceAsync(
+        var delivery = await events.RouteToInstanceAsync(
             instance.InstanceId,
             Event("Approved", CorrelationId.Create("other"), "ignored"),
             TestContext.Current.CancellationToken);
         var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
         var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
-        delivery.Status.Should().Be(EventDeliveryStatus.NoActiveWait);
+        delivery.Status.Should().Be(ProcessLocalEventRouteStatus.NoActiveWait);
         snapshot.Status.Should().Be(WorkflowInstanceStatus.Waiting);
         state.Payloads.Should().BeEmpty();
     }
@@ -72,12 +72,12 @@ public sealed class WaitAcceptanceTests
     {
         using var provider = PublicAcceptanceHost.CreateEphemeralProvider();
         var instance = await StartWaitingAsync(provider, "concurrent-resume");
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
-        var first = events.DeliverToInstanceAsync(
+        var events = provider.GetRequiredService<ProcessLocalEventRouter>();
+        var first = events.RouteToInstanceAsync(
             instance.InstanceId,
             Event("Approved", Correlation, "first"),
             TestContext.Current.CancellationToken).AsTask();
-        var second = events.DeliverToInstanceAsync(
+        var second = events.RouteToInstanceAsync(
             instance.InstanceId,
             Event("Approved", Correlation, "second"),
             TestContext.Current.CancellationToken).AsTask();
@@ -119,9 +119,9 @@ public sealed class WaitAcceptanceTests
             .GetHandleOrThrow();
     }
 
-    private static WorkflowEvent<string> Event(string name, CorrelationId correlationId, string payload)
+    private static ProcessLocalInboundEvent<string> Event(string name, CorrelationId correlationId, string payload)
     {
-        return WorkflowEvent<string>.Create(
+        return ProcessLocalInboundEvent<string>.Create(
             EventId.Create(Guid.CreateVersion7().ToString()),
             EventName.Create(name),
             correlationId,

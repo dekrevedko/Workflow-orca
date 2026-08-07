@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.DeveloperSurface.BehaviorContracts;
 using OrcaCore.Dag.Hosting;
+using OrcaCore.Durable.Hosting;
 using OrcaCore.Hosting;
 using OrcaCore.Providers.InMemory;
 using OrcaCore.Providers.PostgreSql;
@@ -217,7 +218,7 @@ public static class FacadeHostingScenarioHost
         services.AddSingleton(new BarrierFacadeStep(context.Services.Barrier));
         using var provider = services.BuildServiceProvider();
         var registry = provider.GetRequiredService<IWorkflowDefinitionRegistry>();
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var events = provider.GetRequiredService<ProcessLocalEventRouter>();
         var definition = Workflow.Ephemeral<FacadeState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<FacadeInput>(input => new FacadeState(input.Value))
             .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => correlation)
@@ -251,9 +252,9 @@ public static class FacadeHostingScenarioHost
         }
 
         var observedWait = context.ObserveAsync(_ => instance.WaitForOutputAsync()).AsTask();
-        var delivery = events.DeliverToInstanceAsync(
+        var delivery = events.RouteToInstanceAsync(
             instance.InstanceId,
-            WorkflowEvent.Create(
+            ProcessLocalInboundEvent.Create(
                 EventId.Create("typed-output-event"),
                 eventName,
                 correlation,
@@ -266,7 +267,7 @@ public static class FacadeHostingScenarioHost
 
         context.ReleaseBarrier("typed-output");
         var delivered = await delivery;
-        if (delivered.Status != EventDeliveryStatus.Accepted)
+        if (delivered.Status != ProcessLocalEventRouteStatus.Accepted)
         {
             throw new InvalidOperationException("The event did not resume the typed output workflow.");
         }
@@ -332,63 +333,64 @@ public static class FacadeHostingScenarioHost
     }
 
     [Phase0Scenario("two-event-routes-four-overloads", "3.7")]
-    public static async Task EventClientHasExactlyTwoRoutesAndFourOverloads(Phase0ScenarioContext context)
+    public static async Task DurableIngressHasTwoSelfRoutingOverloadsAndClosedResults(
+        Phase0ScenarioContext context)
     {
-        using var provider = EphemeralServices().BuildServiceProvider();
+        var services = new ServiceCollection();
+        services.AddOrcaCoreInMemoryDurableProvider();
+        services.AddOrcaCoreDurableEngine(DurableOptions());
+        using var provider = services.BuildServiceProvider();
         var registry = provider.GetRequiredService<IWorkflowDefinitionRegistry>();
-        var client = provider.GetRequiredService<IWorkflowEventClient>();
+        var ingress = provider.GetRequiredService<IWorkflowEventIngress>();
         var eventName = EventName.Create("route");
 
-        var first = await StartWaitingAsync(registry, "instance-empty", eventName);
-        var instancePayloadless = await context.ObserveAsync(_ => client.DeliverToInstanceAsync(
-            first.InstanceId,
-            Event("route-instance-empty", eventName, first.Correlation)));
+        var first = await StartDurableWaitingAsync(registry, "instance-empty", eventName);
+        var instancePayloadless = await context.ObserveAsync(_ => ingress.AcceptAsync(
+            WorkflowInboundEvent.Create(
+                WorkflowEventContract.Create(eventName, EventContractVersion.Initial),
+                EventId.Create("route-instance-empty"),
+                first.Correlation,
+                causationEventId: null,
+                DateTimeOffset.UtcNow,
+                new WorkflowEventRoute.Direct(first.InstanceId))));
         Phase0Assert.Satisfies(
             instancePayloadless,
-            result => result.Status == EventDeliveryStatus.Accepted &&
-                      result.InstanceId == first.InstanceId,
-            "Payloadless instance delivery did not select the exact waiting instance.");
+            result => result is WorkflowEventAcceptanceResult.Accepted,
+            "Payloadless direct ingress did not acquire durable event ownership.");
 
-        var second = await StartWaitingAsync(registry, "instance-payload", eventName);
-        var instancePayload = await context.ObserveAsync(_ => client.DeliverToInstanceAsync(
-            second.InstanceId,
-            PayloadEvent("route-instance-payload", eventName, second.Correlation, 2)));
-        Phase0Assert.Satisfies(
-            instancePayload,
-            result => result.Status == EventDeliveryStatus.Accepted &&
-                      result.InstanceId == second.InstanceId,
-            "Payload instance delivery did not select the exact waiting instance.");
-
-        var third = await StartWaitingAsync(registry, "correlation-empty", eventName);
-        var correlationPayloadless = await context.ObserveAsync(_ => client.DeliverByCorrelationAsync(
-            third.DefinitionId,
-            Event("route-correlation-empty", eventName, third.Correlation)));
-        Phase0Assert.Satisfies(
-            correlationPayloadless,
-            result => result.Status == EventDeliveryStatus.Accepted &&
-                      result.InstanceId == third.InstanceId,
-            "Payloadless correlation delivery did not select the one active pair.");
-
-        var fourth = await StartWaitingAsync(registry, "correlation-payload", eventName);
-        var correlationPayload = await context.ObserveAsync(_ => client.DeliverByCorrelationAsync(
-            fourth.DefinitionId,
-            PayloadEvent("route-correlation-payload", eventName, fourth.Correlation, 4)));
+        var second = await StartDurableTypedWaitingAsync(registry, "correlation-payload", eventName);
+        var correlationPayload = await context.ObserveAsync(_ => ingress.AcceptAsync(
+            WorkflowInboundEvent<FacadeEventPayload>.Create(
+                WorkflowEventContract<FacadeEventPayload>.Create(
+                    eventName,
+                    EventContractVersion.Initial),
+                EventId.Create("route-correlation-payload"),
+                second.Correlation,
+                causationEventId: null,
+                DateTimeOffset.UtcNow,
+                new WorkflowEventRoute.Correlation(second.DefinitionId),
+                new FacadeEventPayload(2))));
         Phase0Assert.Satisfies(
             correlationPayload,
-            result => result.Status == EventDeliveryStatus.Accepted &&
-                      result.InstanceId == fourth.InstanceId,
-            "Payload correlation delivery did not select the one active pair.");
+            result => result is WorkflowEventAcceptanceResult.Accepted,
+            "Typed correlation ingress did not acquire durable event ownership.");
 
-        var methods = typeof(IWorkflowEventClient).GetMethods();
-        if (methods.Length != 4 ||
-            methods.Select(method => method.Name).Distinct(StringComparer.Ordinal)
-                .OrderBy(name => name, StringComparer.Ordinal)
-                .SequenceEqual(["DeliverByCorrelationAsync", "DeliverToInstanceAsync"]) is false ||
-            !Enum.GetNames<EventDeliveryStatus>().SequenceEqual(
-                ["Accepted", "Duplicate", "NoActiveWait", "InstanceTerminal", "EventConflict"]))
+        var methods = typeof(IWorkflowEventIngress).GetMethods();
+        var resultCases = typeof(WorkflowEventAcceptanceResult).GetNestedTypes()
+            .Select(type => type.Name)
+            .OrderBy(name => name, StringComparer.Ordinal);
+        var rejectionCases = typeof(WorkflowEventAcceptanceRejection).GetNestedTypes()
+            .Select(type => type.Name)
+            .OrderBy(name => name, StringComparer.Ordinal);
+        if (methods.Length != 2 ||
+            methods.Any(method => method.Name != "AcceptAsync" || method.GetParameters().Length != 2) ||
+            methods.Count(method => method.IsGenericMethodDefinition) != 1 ||
+            !resultCases.SequenceEqual(["Accepted", "Duplicate", "Rejected"]) ||
+            !rejectionCases.SequenceEqual(
+                ["DirectInstanceNotFound", "DirectInstanceTerminal", "EventConflict", "FanoutLimitExceeded", "StartConflict"]))
         {
             throw new InvalidOperationException(
-                "IWorkflowEventClient did not expose exactly two route names, four overloads, and five statuses.");
+                "Durable ingress did not expose the exact two self-routing overloads and closed acceptance/rejection unions.");
         }
     }
 
@@ -471,7 +473,7 @@ public static class FacadeHostingScenarioHost
         ingress.AddOrcaCoreDurableEventIngress();
         using (var ingressProvider = ingress.BuildServiceProvider())
         {
-            if (ingressProvider.GetService<IWorkflowEventClient>() is null ||
+            if (ingressProvider.GetService<IWorkflowEventIngress>() is null ||
                 ingressProvider.GetService<IWorkflowDefinitionRegistry>() is not null ||
                 ingressProvider.GetServices<IHostedService>().Any())
             {
@@ -700,6 +702,7 @@ public static class FacadeHostingScenarioHost
     {
         var services = new ServiceCollection();
         services.AddOrcaCoreEphemeralEngine(EphemeralOptions());
+        services.AddSingleton<ProcessLocalEventRouter>();
         return services;
     }
 
@@ -772,22 +775,64 @@ public static class FacadeHostingScenarioHost
         return new WaitingInstance(definitionId, instance.InstanceId, correlation);
     }
 
-    private static WorkflowEvent Event(
+    private static async Task<WaitingInstance> StartDurableWaitingAsync(
+        IWorkflowDefinitionRegistry registry,
+        string suffix,
+        EventName eventName)
+    {
+        var definitionId = DefinitionId.New();
+        var correlation = CorrelationId.Create($"route-{suffix}");
+        var definition = Workflow.Durable<FacadeState>(definitionId, DefinitionVersion.Initial)
+            .Init<FacadeInput>(input => new FacadeState(input.Value))
+            .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => correlation)
+            .End()
+            .Build();
+        var handle = registry.Register(definition).GetHandleOrThrow();
+        var instance = (await handle.StartOrGetAsync(
+            new FacadeInput(1),
+            StartIdempotencyKey.Create($"route-{suffix}"))).GetHandleOrThrow();
+        return new WaitingInstance(definitionId, instance.InstanceId, correlation);
+    }
+
+    private static async Task<WaitingInstance> StartDurableTypedWaitingAsync(
+        IWorkflowDefinitionRegistry registry,
+        string suffix,
+        EventName eventName)
+    {
+        var definitionId = DefinitionId.New();
+        var correlation = CorrelationId.Create($"route-{suffix}");
+        var definition = Workflow.Durable<FacadeState>(definitionId, DefinitionVersion.Initial)
+            .Init<FacadeInput>(input => new FacadeState(input.Value))
+            .Wait(
+                WorkflowEventContract<FacadeEventPayload>.Create(
+                    eventName,
+                    EventContractVersion.Initial),
+                _ => correlation)
+            .End()
+            .Build();
+        var handle = registry.Register(definition).GetHandleOrThrow();
+        var instance = (await handle.StartOrGetAsync(
+            new FacadeInput(1),
+            StartIdempotencyKey.Create($"route-{suffix}"))).GetHandleOrThrow();
+        return new WaitingInstance(definitionId, instance.InstanceId, correlation);
+    }
+
+    private static ProcessLocalInboundEvent Event(
         string id,
         EventName eventName,
         CorrelationId correlation) =>
-        WorkflowEvent.Create(
+        ProcessLocalInboundEvent.Create(
             EventId.Create(id),
             eventName,
             correlation,
             DateTimeOffset.UtcNow);
 
-    private static WorkflowEvent<FacadeEventPayload> PayloadEvent(
+    private static ProcessLocalInboundEvent<FacadeEventPayload> PayloadEvent(
         string id,
         EventName eventName,
         CorrelationId correlation,
         int value) =>
-        WorkflowEvent<FacadeEventPayload>.Create(
+        ProcessLocalInboundEvent<FacadeEventPayload>.Create(
             EventId.Create(id),
             eventName,
             correlation,

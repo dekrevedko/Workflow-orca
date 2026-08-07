@@ -27,7 +27,7 @@ public sealed class LoopWaitTests
             "fresh-waits-first");
         var second = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
 
-        delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
+        delivery.Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         second.Status.Should().Be(WorkflowInstanceStatus.Waiting);
         second.ActiveWaits.Should().ContainSingle()
             .Which.WaitId.Should().NotBe(firstWaitId);
@@ -55,7 +55,7 @@ public sealed class LoopWaitTests
         var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
         var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
-        stale.Status.Should().Be(EventDeliveryStatus.NoActiveWait);
+        stale.Status.Should().Be(EphemeralEventRouteStatus.NoActiveWait);
         snapshot.Status.Should().Be(WorkflowInstanceStatus.Waiting);
         snapshot.ActiveWaits.Should().ContainSingle()
             .Which.CorrelationId.Should().Be(IterationCorrelation(1));
@@ -84,7 +84,7 @@ public sealed class LoopWaitTests
         var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
         var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
-        current.Status.Should().Be(EventDeliveryStatus.Accepted);
+        current.Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
         state.Iteration.Should().Be(2);
     }
@@ -117,8 +117,8 @@ public sealed class LoopWaitTests
         var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
         var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
-        stale.Status.Should().Be(EventDeliveryStatus.NoActiveWait);
-        current.Status.Should().Be(EventDeliveryStatus.Accepted);
+        stale.Status.Should().Be(EphemeralEventRouteStatus.NoActiveWait);
+        current.Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
         snapshot.Failure.Should().BeNull();
         state.Iteration.Should().Be(2);
@@ -200,15 +200,15 @@ public sealed class LoopWaitTests
             StartIdempotencyKey.Create(key),
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
 
-    private static ValueTask<EventDeliveryResult> DeliverAsync(
+    private static ValueTask<EphemeralEventRouteResult> DeliverAsync(
         ServiceProvider provider,
         InstanceId instanceId,
         EventName eventName,
         CorrelationId correlationId,
         string eventId) =>
-        provider.GetRequiredService<IWorkflowEventClient>().DeliverToInstanceAsync(
+        provider.GetRequiredService<EphemeralWorkflowEventRouter>().RouteToInstanceAsync(
             instanceId,
-            WorkflowEvent.Create(
+            EphemeralTestEvent.Create(
                 EventId.Create(eventId),
                 eventName,
                 correlationId,

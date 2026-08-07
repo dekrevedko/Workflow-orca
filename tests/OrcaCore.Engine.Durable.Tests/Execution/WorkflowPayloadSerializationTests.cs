@@ -24,41 +24,47 @@ public sealed class WorkflowPayloadSerializationTests
             new Input(correlation.Value),
             StartIdempotencyKey.Create("codec-first"),
             TestContext.Current.CancellationToken)).GetHandleOrThrow().InstanceId;
-        var secondInstanceId = (await handle.StartOrGetAsync(
-            new Input(correlation.Value),
-            StartIdempotencyKey.Create("codec-second"),
-            TestContext.Current.CancellationToken)).GetHandleOrThrow().InstanceId;
         var source = new TestPayload("value", ["first", "second"]);
-        var workflowEvent = WorkflowEvent<TestPayload>.Create(
+        var causationEventId = EventId.Create("codec-cause-id");
+        var occurredAt = DateTimeOffset.Parse("2026-07-30T12:00:00-07:00");
+        var workflowEvent = WorkflowInboundEvent<TestPayload>.Create(
+            WorkflowEventContract<TestPayload>.Create(eventName, EventContractVersion.Initial),
             EventId.Create("codec-event-id"),
-            eventName,
             correlation,
-            source,
-            DateTimeOffset.Parse("2026-07-30T12:00:00Z"));
+            causationEventId,
+            occurredAt,
+            new WorkflowEventRoute.Direct(firstInstanceId),
+            source);
         source.Items[0] = "mutated";
 
-        await facade.Events.DeliverToInstanceAsync(
-            firstInstanceId,
-            workflowEvent,
-            TestContext.Current.CancellationToken);
-        await facade.Events.DeliverToInstanceAsync(
-            secondInstanceId,
+        var accepted = await facade.Events.AcceptAsync(
             workflowEvent,
             TestContext.Current.CancellationToken);
         var first = await store.GetAsync(
             firstInstanceId,
             workflowEvent.EventId,
             TestContext.Current.CancellationToken);
-        var second = await store.GetAsync(
-            secondInstanceId,
+        var global = await store.GetByEventIdAsync(
             workflowEvent.EventId,
             TestContext.Current.CancellationToken);
-
+        accepted.Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
         workflowEvent.Payload.Should().BeEquivalentTo(
             new TestPayload("value", ["first", "second"]));
         workflowEvent.Payload.Should().NotBeSameAs(source);
         workflowEvent.Payload.Items.Should().NotBeSameAs(source.Items);
-        first.Value.EnvelopeFingerprint.Should().Be(second.Value.EnvelopeFingerprint);
+        first.Value.Envelope.Should().NotBeNull();
+        first.Value.Envelope!.EventId.Should().Be(workflowEvent.EventId);
+        first.Value.Envelope.EventName.Should().Be(eventName.Value);
+        first.Value.Envelope.EventContractVersion.Should().Be(EventContractVersion.Initial.Value);
+        first.Value.Envelope.CorrelationId.Should().Be(correlation);
+        first.Value.Envelope.CausationEventId.Should().Be(causationEventId);
+        first.Value.Envelope.OccurredAt.Should().Be(occurredAt.ToUniversalTime());
+        first.Value.Envelope.Route.Kind.Should().Be("direct");
+        first.Value.Envelope.Route.InstanceId.Should().Be(firstInstanceId);
+        first.Value.Envelope.PayloadContentType.Should().Be(JsonWorkflowPayloadSerializer.JsonContentType);
+        first.Value.Envelope.Payload.Should().NotBeEmpty();
+        first.Value.EnvelopeFingerprint.Should().NotBeNullOrWhiteSpace();
+        global.Value.Should().Be(first.Value);
     }
 
     [Fact]
@@ -136,13 +142,13 @@ public sealed class WorkflowPayloadSerializationTests
     [Fact]
     public void PublicTypedEvent_ExposesNoContentTypeReplacement()
     {
-        typeof(WorkflowEvent<string>)
+        typeof(WorkflowInboundEvent<string>)
             .GetProperties()
             .Should().NotContain(property => property.Name.Contains("ContentType", StringComparison.Ordinal));
-        typeof(WorkflowEvent<string>)
+        typeof(WorkflowInboundEvent<string>)
             .GetMethods()
             .Where(method => method.IsPublic && method.IsStatic)
-            .Should().ContainSingle(method => method.Name == nameof(WorkflowEvent<string>.Create));
+            .Should().ContainSingle(method => method.Name == nameof(WorkflowInboundEvent<string>.Create));
     }
 
     [Fact]
@@ -174,14 +180,17 @@ public sealed class WorkflowPayloadSerializationTests
         persisted.HasValue.Should().BeFalse();
     }
 
-    private static WorkflowEvent<TPayload> CreateEvent<TPayload>(TPayload payload)
+    private static WorkflowInboundEvent<TPayload> CreateEvent<TPayload>(TPayload payload)
     {
-        return WorkflowEvent<TPayload>.Create(
+        var eventName = EventName.Create("codec-event");
+        return WorkflowInboundEvent<TPayload>.Create(
+            WorkflowEventContract<TPayload>.Create(eventName, EventContractVersion.Initial),
             EventId.Create("codec-event"),
-            EventName.Create("codec-event"),
             CorrelationId.Create("codec-correlation"),
-            payload,
-            DateTimeOffset.Parse("2026-07-30T12:00:00Z"));
+            causationEventId: null,
+            DateTimeOffset.Parse("2026-07-30T12:00:00Z"),
+            new WorkflowEventRoute.Direct(InstanceId.Parse(Guid.CreateVersion7().ToString())),
+            payload);
     }
 
     private static DurableWorkflowDefinition<Input> WaitingDefinition(
@@ -212,11 +221,11 @@ public sealed class WorkflowPayloadSerializationTests
                 processor,
                 notifications,
                 TimeProvider.System),
-            new DurableWorkflowEventClient(
+            new DurableWorkflowEventIngressCore(
                 runtime,
                 store,
                 store,
-                driveAfterDelivery: false));
+                driveAfterAcceptance: false));
     }
 
     private sealed record TestPayload(string Value, List<string> Items);
@@ -244,5 +253,5 @@ public sealed class WorkflowPayloadSerializationTests
 
     private sealed record FacadeServices(
         DurableWorkflowDefinitionRegistry Registry,
-        DurableWorkflowEventClient Events);
+        DurableWorkflowEventIngressCore Events);
 }

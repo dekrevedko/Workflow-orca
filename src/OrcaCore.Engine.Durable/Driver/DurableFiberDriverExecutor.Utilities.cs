@@ -11,7 +11,9 @@ namespace OrcaCore.Engine.Durable.Driver;
 internal sealed partial class DurableFiberDriverExecutor<TState>
 {
     private static EventEnvelope? TakeResumedEvent(
+        CompiledWorkflowPlan plan,
         FiberRecord fiber,
+        IReadOnlyList<DurableOwnedObligationState> ownedObligations,
         IReadOnlyList<DurablePendingResume> pendingResumes,
         out WaitId? consumedWaitId)
     {
@@ -23,11 +25,24 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         }
 
         consumedWaitId = pending.WaitId;
+        var authoredContract = ownedObligations
+            .FirstOrDefault(obligation =>
+                obligation.ObligationId == waitId &&
+                obligation.InstructionId is not null) is { InstructionId: { } instructionId }
+            ? plan.GetInstruction(new InstructionId(instructionId)).EventContract
+            : null;
+        var eventName = EventName.Create(pending.EventName ?? "(unnamed)");
+        var eventVersion = new EventContractVersion(pending.EventContractVersion ?? 1);
+        if (authoredContract is not null &&
+            (!authoredContract.EventName.Equals(eventName) || !authoredContract.Version.Equals(eventVersion)))
+        {
+            throw new InvalidOperationException(
+                $"Pending resume '{pending.WaitId}' does not match its authored event contract.");
+        }
+
         return RuntimeStepContextFactory.CreateResumedEvent(
             pending.MatchedEventId,
-            WorkflowEventContract.Create(
-                EventName.Create(pending.EventName ?? "(unnamed)"),
-                new EventContractVersion(pending.EventContractVersion ?? 1)),
+            authoredContract ?? WorkflowEventContract.Create(eventName, eventVersion),
             pending.CorrelationId ?? CorrelationId.Create("(uncorrelated)"),
             pending.MatchedAt,
             pending.Payload ?? []);

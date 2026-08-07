@@ -82,15 +82,15 @@ public sealed class ParallelAcceptanceTests
             "start",
             StartIdempotencyKey.Create("parallel-single-branch"),
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
-        var delivery = await events.DeliverToInstanceAsync(
+        var events = provider.GetRequiredService<ProcessLocalEventRouter>();
+        var delivery = await events.RouteToInstanceAsync(
             instance.InstanceId,
             Event("A", CorrelationId.Create("a")),
             TestContext.Current.CancellationToken);
         var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
         var state = await instance.GetStateAsync<TestState>(TestContext.Current.CancellationToken);
 
-        delivery.Status.Should().Be(EventDeliveryStatus.Accepted);
+        delivery.Status.Should().Be(ProcessLocalEventRouteStatus.Accepted);
         snapshot.Status.Should().Be(WorkflowInstanceStatus.Waiting);
         snapshot.ActiveWaits.Should().ContainSingle(wait =>
             wait.EventContract.EventName.Equals(EventName.Create("B")));
@@ -120,11 +120,11 @@ public sealed class ParallelAcceptanceTests
             "start",
             StartIdempotencyKey.Create($"parallel-{Guid.CreateVersion7():N}"),
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var events = provider.GetRequiredService<ProcessLocalEventRouter>();
 
         foreach (var eventName in eventOrder)
         {
-            _ = await events.DeliverToInstanceAsync(
+            _ = await events.RouteToInstanceAsync(
                 instance.InstanceId,
                 Event(eventName, CorrelationId.Create(eventName.ToLowerInvariant())),
                 TestContext.Current.CancellationToken);
@@ -169,9 +169,9 @@ public sealed class ParallelAcceptanceTests
         return new TestState(results.Select(result => result.Result).ToArray(), parent.Value.ContinuationCount);
     }
 
-    private static WorkflowEvent Event(string name, CorrelationId correlationId)
+    private static ProcessLocalInboundEvent Event(string name, CorrelationId correlationId)
     {
-        return WorkflowEvent.Create(
+        return ProcessLocalInboundEvent.Create(
             EventId.Create(Guid.CreateVersion7().ToString()),
             EventName.Create(name),
             correlationId,

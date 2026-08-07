@@ -54,6 +54,9 @@ public sealed record WorkflowProjectionActiveWaitSnapshot
 
     public required string EventName { get; init; }
 
+    /// <summary>Gets the positive application-owned event-contract version.</summary>
+    public int EventContractVersion { get; init; } = 1;
+
     public required CorrelationId CorrelationId { get; init; }
 
     public required DateTimeOffset RegisteredAt { get; init; }

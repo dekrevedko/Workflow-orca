@@ -56,6 +56,11 @@ public sealed class DurableEventContractVersionTests
         EventName = "Approved",
         EventContractVersion = version,
         CorrelationId = CorrelationId.Create("order-1"),
-        OccurredAt = DateTimeOffset.UtcNow
+        OccurredAt = DateTimeOffset.UtcNow,
+        Route = new DurableEventRouteEnvelope
+        {
+            Kind = "direct",
+            InstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString())
+        }
     };
 }

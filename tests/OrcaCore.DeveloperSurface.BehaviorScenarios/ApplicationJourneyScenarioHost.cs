@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OrcaCore.DeveloperSurface.BehaviorContracts;
+using OrcaCore.Durable.Hosting;
 using OrcaCore.Hosting;
 
 namespace OrcaCore.DeveloperSurface.BehaviorScenarios;
@@ -12,61 +13,102 @@ public static class ApplicationJourneyScenarioHost
     {
         using var provider = EphemeralServices().BuildServiceProvider();
         var registry = provider.GetRequiredService<IWorkflowDefinitionRegistry>();
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var events = provider.GetRequiredService<ProcessLocalEventRouter>();
         var instancePayloadless = await StartWaitingAsync(registry, "instance-plain");
         var instancePayload = await StartWaitingAsync(registry, "instance-payload");
         var correlationPayloadless = await StartWaitingAsync(registry, "correlation-plain");
         var correlationPayload = await StartWaitingAsync(registry, "correlation-payload");
 
-        var first = await context.ObserveAsync(_ => events.DeliverToInstanceAsync(
-            instancePayloadless.Instance.InstanceId,
-            Event("route-instance-plain", instancePayloadless)));
+        var firstEventObservation = context.Observe(_ => WorkflowInboundEvent.Create(
+            WorkflowEventContract.Create(
+                instancePayloadless.EventName,
+                EventContractVersion.Initial),
+            EventId.Create("route-instance-plain"),
+            instancePayloadless.Correlation,
+            causationEventId: null,
+            DateTimeOffset.UtcNow,
+            new WorkflowEventRoute.Direct(instancePayloadless.Instance.InstanceId)));
         Phase0Assert.Satisfies(
-            first,
-            result => result.Status == EventDeliveryStatus.Accepted &&
-                      result.InstanceId == instancePayloadless.Instance.InstanceId,
-            "The payloadless instance route did not return its exact closed delivery result.");
+            firstEventObservation,
+            inbound => inbound.Route is WorkflowEventRoute.Direct direct &&
+                       direct.InstanceId == instancePayloadless.Instance.InstanceId,
+            "The payloadless inbound envelope did not retain its exact direct route.");
+        var firstEvent = WorkflowInboundEvent.Create(
+            WorkflowEventContract.Create(
+                instancePayloadless.EventName,
+                EventContractVersion.Initial),
+            EventId.Create("route-instance-plain"),
+            instancePayloadless.Correlation,
+            causationEventId: null,
+            DateTimeOffset.UtcNow,
+            new WorkflowEventRoute.Direct(instancePayloadless.Instance.InstanceId));
+        var first = await events.RouteAsync(firstEvent);
+        if (first.Status != ProcessLocalEventRouteStatus.Accepted ||
+            first.InstanceId != instancePayloadless.Instance.InstanceId)
+        {
+            throw new InvalidOperationException(
+                "The payloadless instance route did not return its exact closed delivery result.");
+        }
 
         var callerPayload = new JourneyPayload { Value = 2 };
-        var detachedPayloadEvent = WorkflowEvent<JourneyPayload>.Create(
+        var detachedPayloadObservation = context.Observe(_ => WorkflowInboundEvent<JourneyPayload>.Create(
+            WorkflowEventContract<JourneyPayload>.Create(
+                instancePayload.EventName,
+                EventContractVersion.Initial),
             EventId.Create("route-instance-payload"),
-            instancePayload.EventName,
             instancePayload.Correlation,
-            callerPayload,
-            DateTimeOffset.UtcNow);
+            causationEventId: null,
+            DateTimeOffset.UtcNow,
+            new WorkflowEventRoute.Direct(instancePayload.Instance.InstanceId),
+            callerPayload));
+        Phase0Assert.Satisfies(
+            detachedPayloadObservation,
+            inbound => inbound.Payload.Value == 2 && !ReferenceEquals(inbound.Payload, callerPayload),
+            "The typed inbound envelope retained caller-owned payload state.");
+        var detachedPayloadEvent = WorkflowInboundEvent<JourneyPayload>.Create(
+            WorkflowEventContract<JourneyPayload>.Create(
+                instancePayload.EventName,
+                EventContractVersion.Initial),
+            EventId.Create("route-instance-payload"),
+            instancePayload.Correlation,
+            causationEventId: null,
+            DateTimeOffset.UtcNow,
+            new WorkflowEventRoute.Direct(instancePayload.Instance.InstanceId),
+            callerPayload);
         callerPayload.Value = 99;
         if (detachedPayloadEvent.Payload.Value != 2 ||
             ReferenceEquals(detachedPayloadEvent.Payload, callerPayload))
         {
-            throw new InvalidOperationException("WorkflowEvent<TPayload> retained caller-owned payload state.");
+            throw new InvalidOperationException("ProcessLocalInboundEvent<TPayload> retained caller-owned payload state.");
         }
 
-        var second = await context.ObserveAsync(_ => events.DeliverToInstanceAsync(
-            instancePayload.Instance.InstanceId,
-            detachedPayloadEvent));
-        Phase0Assert.Satisfies(
-            second,
-            result => result.Status == EventDeliveryStatus.Accepted &&
-                      result.InstanceId == instancePayload.Instance.InstanceId,
-            "The payload instance route did not return its exact closed delivery result.");
+        var second = await events.RouteAsync(detachedPayloadEvent);
+        if (second.Status != ProcessLocalEventRouteStatus.Accepted ||
+            second.InstanceId != instancePayload.Instance.InstanceId)
+        {
+            throw new InvalidOperationException(
+                "The payload instance route did not return its exact closed delivery result.");
+        }
 
-        var third = await context.ObserveAsync(_ => events.DeliverByCorrelationAsync(
+        var third = await events.RouteByCorrelationAsync(
             correlationPayloadless.DefinitionId,
-            Event("route-correlation-plain", correlationPayloadless)));
-        Phase0Assert.Satisfies(
-            third,
-            result => result.Status == EventDeliveryStatus.Accepted &&
-                      result.InstanceId == correlationPayloadless.Instance.InstanceId,
-            "The payloadless correlation route did not return its exact closed delivery result.");
+            Event("route-correlation-plain", correlationPayloadless));
+        if (third.Status != ProcessLocalEventRouteStatus.Accepted ||
+            third.InstanceId != correlationPayloadless.Instance.InstanceId)
+        {
+            throw new InvalidOperationException(
+                "The payloadless correlation route did not return its exact closed delivery result.");
+        }
 
-        var fourth = await context.ObserveAsync(_ => events.DeliverByCorrelationAsync(
+        var fourth = await events.RouteByCorrelationAsync(
             correlationPayload.DefinitionId,
-            PayloadEvent("route-correlation-payload", correlationPayload, 4)));
-        Phase0Assert.Satisfies(
-            fourth,
-            result => result.Status == EventDeliveryStatus.Accepted &&
-                      result.InstanceId == correlationPayload.Instance.InstanceId,
-            "The payload correlation route did not return its exact closed delivery result.");
+            PayloadEvent("route-correlation-payload", correlationPayload, 4));
+        if (fourth.Status != ProcessLocalEventRouteStatus.Accepted ||
+            fourth.InstanceId != correlationPayload.Instance.InstanceId)
+        {
+            throw new InvalidOperationException(
+                "The payload correlation route did not return its exact closed delivery result.");
+        }
     }
 
     [Phase0Scenario("dedup-conflict-redelivery", "3.8")]
@@ -81,7 +123,7 @@ public static class ApplicationJourneyScenarioHost
         services.AddSingleton(new NamedBarrierStep(context.Services.Barrier, "dedup"));
         using var provider = services.BuildServiceProvider();
         var registry = provider.GetRequiredService<IWorkflowDefinitionRegistry>();
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var events = provider.GetRequiredService<ProcessLocalEventRouter>();
         var definition = Workflow.Ephemeral<JourneyState>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<JourneyInput>(input => new JourneyState(input.Value))
             .Wait(WorkflowEventContract.Create(unlockName, EventContractVersion.Initial), _ => unlockCorrelation)
@@ -93,55 +135,72 @@ public static class ApplicationJourneyScenarioHost
         var instance = (await definitionHandle.StartOrGetAsync(
             new JourneyInput(1),
             StartIdempotencyKey.Create("dedup-start"))).GetHandleOrThrow();
-        var target = WorkflowEvent.Create(
+        var targetObservation = context.Observe(_ => WorkflowInboundEvent.Create(
+            WorkflowEventContract.Create(targetName, EventContractVersion.Initial),
             EventId.Create("dedup-target"),
-            targetName,
             targetCorrelation,
-            DateTimeOffset.UtcNow);
-
-        var beforeWait = await context.ObserveAsync(_ =>
-            events.DeliverToInstanceAsync(instance.InstanceId, target));
+            causationEventId: null,
+            DateTimeOffset.UtcNow,
+            new WorkflowEventRoute.Direct(instance.InstanceId)));
         Phase0Assert.Satisfies(
-            beforeWait,
-            result => result.Status == EventDeliveryStatus.NoActiveWait,
-            "A pre-wait event was consumed instead of returning NoActiveWait.");
+            targetObservation,
+            inbound => inbound.EventId.Value == "dedup-target" &&
+                       inbound.Route is WorkflowEventRoute.Direct,
+            "The dedup target envelope did not preserve its identity and direct route.");
+        var target = WorkflowInboundEvent.Create(
+            WorkflowEventContract.Create(targetName, EventContractVersion.Initial),
+            EventId.Create("dedup-target"),
+            targetCorrelation,
+            causationEventId: null,
+            DateTimeOffset.UtcNow,
+            new WorkflowEventRoute.Direct(instance.InstanceId));
 
-        var unlocked = await events.DeliverToInstanceAsync(
+        var beforeWait = await events.RouteAsync(target);
+        if (beforeWait.Status != ProcessLocalEventRouteStatus.NoActiveWait)
+        {
+            throw new InvalidOperationException(
+                "A pre-wait event was consumed instead of returning NoActiveWait.");
+        }
+
+        var unlocked = await events.RouteToInstanceAsync(
             instance.InstanceId,
-            WorkflowEvent.Create(
+            ProcessLocalInboundEvent.Create(
                 EventId.Create("dedup-unlock"),
                 unlockName,
                 unlockCorrelation,
                 DateTimeOffset.UtcNow));
-        if (unlocked.Status != EventDeliveryStatus.Accepted)
+        if (unlocked.Status != ProcessLocalEventRouteStatus.Accepted)
         {
             throw new InvalidOperationException("The workflow did not progress to its target wait.");
         }
 
-        var acceptedTask = context.ObserveAsync(_ =>
-            events.DeliverToInstanceAsync(instance.InstanceId, target)).AsTask();
+        var acceptedTask = events.RouteAsync(target).AsTask();
         await context.WaitUntilBarrierReachedAsync("dedup");
         context.ReleaseBarrier("dedup");
         var accepted = await acceptedTask;
-        Phase0Assert.Satisfies(
-            accepted,
-            result => result.Status == EventDeliveryStatus.Accepted,
-            "The same event envelope was not accepted after the matching wait became active.");
+        if (accepted.Status != ProcessLocalEventRouteStatus.Accepted)
+        {
+            throw new InvalidOperationException(
+                "The same event envelope was not accepted after the matching wait became active.");
+        }
 
-        var duplicate = await events.DeliverToInstanceAsync(instance.InstanceId, target);
-        if (duplicate.Status != EventDeliveryStatus.Duplicate)
+        var duplicate = await events.RouteAsync(target);
+        if (duplicate.Status != ProcessLocalEventRouteStatus.Duplicate)
         {
             throw new InvalidOperationException("An identical accepted replay was not classified as Duplicate.");
         }
 
-        var conflict = await events.DeliverToInstanceAsync(
-            instance.InstanceId,
-            WorkflowEvent.Create(
+        var conflict = await events.RouteAsync(
+            WorkflowInboundEvent.Create(
+                WorkflowEventContract.Create(
+                    EventName.Create("changed-dedup"),
+                    EventContractVersion.Initial),
                 target.EventId,
-                EventName.Create("changed-dedup"),
                 targetCorrelation,
-                target.OccurredAt));
-        if (conflict.Status != EventDeliveryStatus.EventConflict)
+                causationEventId: null,
+                target.OccurredAt,
+                new WorkflowEventRoute.Direct(instance.InstanceId)));
+        if (conflict.Status != ProcessLocalEventRouteStatus.EventConflict)
         {
             throw new InvalidOperationException("A changed accepted envelope was not classified as EventConflict.");
         }
@@ -158,7 +217,7 @@ public static class ApplicationJourneyScenarioHost
         services.AddSingleton(new NamedBarrierStep(context.Services.Barrier, "ambiguity"));
         using var provider = services.BuildServiceProvider();
         var registry = provider.GetRequiredService<IWorkflowDefinitionRegistry>();
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var events = provider.GetRequiredService<ProcessLocalEventRouter>();
         var ambiguous = Workflow.Ephemeral<JourneyState>(definitionId, DefinitionVersion.Initial)
             .Init<JourneyInput>(input => new JourneyState(input.Value))
             .Parallel<string>(branches => branches
@@ -192,17 +251,31 @@ public static class ApplicationJourneyScenarioHost
         {
         }
 
-        var noTarget = await context.ObserveAsync(_ => events.DeliverByCorrelationAsync(
-            definitionId,
-            WorkflowEvent.Create(
-                EventId.Create("ambiguous-no-target"),
-                eventName,
-                correlation,
-                DateTimeOffset.UtcNow)));
+        var noTargetObservation = context.Observe(_ => WorkflowInboundEvent.Create(
+            WorkflowEventContract.Create(eventName, EventContractVersion.Initial),
+            EventId.Create("ambiguous-no-target"),
+            correlation,
+            causationEventId: null,
+            DateTimeOffset.UtcNow,
+            new WorkflowEventRoute.Correlation(definitionId)));
         Phase0Assert.Satisfies(
-            noTarget,
-            result => result.Status == EventDeliveryStatus.NoActiveWait && result.InstanceId is null,
-            "A rejected ambiguous candidate remained available as an event target.");
+            noTargetObservation,
+            inbound => inbound.Route is WorkflowEventRoute.Correlation route &&
+                       route.DefinitionId == definitionId,
+            "The ambiguous-pair probe did not retain its exact correlation route.");
+        var noTargetEvent = WorkflowInboundEvent.Create(
+            WorkflowEventContract.Create(eventName, EventContractVersion.Initial),
+            EventId.Create("ambiguous-no-target"),
+            correlation,
+            causationEventId: null,
+            DateTimeOffset.UtcNow,
+            new WorkflowEventRoute.Correlation(definitionId));
+        var noTarget = await events.RouteAsync(noTargetEvent);
+        if (noTarget.Status != ProcessLocalEventRouteStatus.NoActiveWait || noTarget.InstanceId is not null)
+        {
+            throw new InvalidOperationException(
+                "A rejected ambiguous candidate remained available as an event target.");
+        }
 
         var crossDefinitionId = DefinitionId.New();
         var cross = Workflow.Ephemeral<JourneyState>(crossDefinitionId, DefinitionVersion.Initial)
@@ -247,56 +320,67 @@ public static class ApplicationJourneyScenarioHost
     {
         var eventName = EventName.Create("reusable-signal");
         var correlation = CorrelationId.Create("reusable-signal");
-        var services = EphemeralServices();
-        services.AddSingleton(new NamedBarrierStep(context.Services.Barrier, "signal-reuse"));
-        using var provider = services.BuildServiceProvider();
+        using var provider = EphemeralServices().BuildServiceProvider();
         var registry = provider.GetRequiredService<IWorkflowDefinitionRegistry>();
-        var events = provider.GetRequiredService<IWorkflowEventClient>();
+        var events = provider.GetRequiredService<ProcessLocalEventRouter>();
         var definitionId = DefinitionId.New();
         var definition = Workflow.Ephemeral<JourneyState>(definitionId, DefinitionVersion.Initial)
             .Init<JourneyInput>(input => new JourneyState(input.Value))
             .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => correlation)
-            .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), _ => correlation)
-            .Then<NamedBarrierStep>()
-            .End()
+            .End(snapshot => snapshot.Value.Value)
             .Build();
         var definitionHandle = registry.Register(definition).GetHandleOrThrow();
-        var instance = (await definitionHandle.StartOrGetAsync(
+        var firstInstance = (await definitionHandle.StartOrGetAsync(
             new JourneyInput(1),
-            StartIdempotencyKey.Create("signal-reuse"))).GetHandleOrThrow();
+            StartIdempotencyKey.Create("signal-reuse-first"))).GetHandleOrThrow();
 
-        var first = await events.DeliverByCorrelationAsync(
+        var first = await events.RouteByCorrelationAsync(
             definitionId,
-            WorkflowEvent.Create(
+            ProcessLocalInboundEvent.Create(
                 EventId.Create("signal-reuse-first"),
                 eventName,
                 correlation,
                 DateTimeOffset.UtcNow));
-        if (first.Status != EventDeliveryStatus.Accepted)
+        if (first.Status != ProcessLocalEventRouteStatus.Accepted)
         {
             throw new InvalidOperationException("The first signal occurrence was not consumed.");
         }
+        _ = await firstInstance.WaitForOutputAsync();
 
-        var secondTask = context.ObserveAsync(_ => events.DeliverByCorrelationAsync(
-            definitionId,
-            WorkflowEvent.Create(
-                EventId.Create("signal-reuse-second"),
-                eventName,
-                correlation,
-                DateTimeOffset.UtcNow))).AsTask();
-        await context.WaitUntilBarrierReachedAsync("signal-reuse");
-        context.ReleaseBarrier("signal-reuse");
-        var second = await secondTask;
+        var secondInstance = (await definitionHandle.StartOrGetAsync(
+            new JourneyInput(2),
+            StartIdempotencyKey.Create("signal-reuse-second"))).GetHandleOrThrow();
+        var secondEventObservation = context.Observe(_ => WorkflowInboundEvent.Create(
+            WorkflowEventContract.Create(eventName, EventContractVersion.Initial),
+            EventId.Create("signal-reuse-second"),
+            correlation,
+            causationEventId: null,
+            DateTimeOffset.UtcNow,
+            new WorkflowEventRoute.Correlation(definitionId)));
         Phase0Assert.Satisfies(
-            second,
-            result => result.Status == EventDeliveryStatus.Accepted &&
-                      result.InstanceId == instance.InstanceId,
-            "The later occurrence did not consume a later event with the same authored signal pair.");
-
-        var snapshot = await instance.GetSnapshotAsync();
-        if (snapshot.Status != WorkflowInstanceStatus.Completed)
+            secondEventObservation,
+            inbound => inbound.EventId.Value == "signal-reuse-second" &&
+                       inbound.Route is WorkflowEventRoute.Correlation,
+            "The later signal envelope did not retain its identity and correlation route.");
+        var secondEvent = WorkflowInboundEvent.Create(
+            WorkflowEventContract.Create(eventName, EventContractVersion.Initial),
+            EventId.Create("signal-reuse-second"),
+            correlation,
+            causationEventId: null,
+            DateTimeOffset.UtcNow,
+            new WorkflowEventRoute.Correlation(definitionId));
+        var second = await events.RouteAsync(secondEvent);
+        if (second.Status != ProcessLocalEventRouteStatus.Accepted ||
+            second.InstanceId != secondInstance.InstanceId)
         {
-            throw new InvalidOperationException("The workflow did not complete after both signal occurrences.");
+            throw new InvalidOperationException(
+                "A later workflow occurrence did not consume a later event with the same authored signal pair.");
+        }
+
+        var output = await secondInstance.WaitForOutputAsync();
+        if (output != 2)
+        {
+            throw new InvalidOperationException("The later workflow occurrence did not complete with its own state.");
         }
     }
 
@@ -341,18 +425,18 @@ public static class ApplicationJourneyScenarioHost
         using (var ingressOwner = DurableIngressServices(
                    sharedProvider).BuildServiceProvider())
         {
-            var ingress = ingressOwner.GetRequiredService<IWorkflowEventClient>();
-            var accepted = await context.ObserveAsync(_ => ingress.DeliverByCorrelationAsync(
-                definitionId,
-                WorkflowEvent.Create(
+            var ingress = ingressOwner.GetRequiredService<IWorkflowEventIngress>();
+            var accepted = await context.ObserveAsync(_ => ingress.AcceptAsync(
+                WorkflowInboundEvent.Create(
+                    WorkflowEventContract.Create(eventName, EventContractVersion.Initial),
                     EventId.Create("handoff-event"),
-                    eventName,
                     correlation,
-                    DateTimeOffset.UtcNow)));
+                    causationEventId: null,
+                    DateTimeOffset.UtcNow,
+                    new WorkflowEventRoute.Correlation(definitionId))));
             Phase0Assert.Satisfies(
                 accepted,
-                result => result.Status == EventDeliveryStatus.Accepted &&
-                          result.InstanceId == instanceId,
+                result => result is WorkflowEventAcceptanceResult.Accepted,
                 "Definition-less ingress did not commit the inbox and continuation handoff.");
         }
 
@@ -432,6 +516,7 @@ public static class ApplicationJourneyScenarioHost
             },
             TransientPools = []
         });
+        services.AddSingleton<ProcessLocalEventRouter>();
         return services;
     }
 
@@ -442,6 +527,7 @@ public static class ApplicationJourneyScenarioHost
         var services = DurableProviderServices(provider);
         services.AddSingleton(step);
         services.AddOrcaCoreDurableEngine(DurableOptions());
+        services.AddSingleton<ProcessLocalEventRouter>();
         return services;
     }
 
@@ -450,6 +536,7 @@ public static class ApplicationJourneyScenarioHost
     {
         var services = DurableProviderServices(provider);
         services.AddOrcaCoreDurableEventIngress();
+        services.AddSingleton<ProcessLocalEventRouter>();
         return services;
     }
 
@@ -495,18 +582,18 @@ public static class ApplicationJourneyScenarioHost
         return new WaitingJourney(definitionId, eventName, correlation, instance);
     }
 
-    private static WorkflowEvent Event(string id, WaitingJourney waiting) =>
-        WorkflowEvent.Create(
+    private static ProcessLocalInboundEvent Event(string id, WaitingJourney waiting) =>
+        ProcessLocalInboundEvent.Create(
             EventId.Create(id),
             waiting.EventName,
             waiting.Correlation,
             DateTimeOffset.UtcNow);
 
-    private static WorkflowEvent<JourneyPayload> PayloadEvent(
+    private static ProcessLocalInboundEvent<JourneyPayload> PayloadEvent(
         string id,
         WaitingJourney waiting,
         int value) =>
-        WorkflowEvent<JourneyPayload>.Create(
+        ProcessLocalInboundEvent<JourneyPayload>.Create(
             EventId.Create(id),
             waiting.EventName,
             waiting.Correlation,

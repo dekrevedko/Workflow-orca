@@ -683,7 +683,7 @@ public static class StructuredFanoutScenarioHost
 
         using var finalHost = CreateDurableRuntime(store, maxConcurrentExecutionPaths: 1);
         finalHost.Register(definition);
-        var finalDeliveries = new List<EventDeliveryStatus>();
+        var finalDeliveries = new List<ProcessLocalEventRouteStatus>();
         foreach (var index in new[] { 1, 2 })
         {
             var delivered = await finalHost.RaiseEventAsync(
