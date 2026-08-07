@@ -12,12 +12,14 @@ internal sealed record DurableDecision
         IReadOnlyList<DurableWorkflowEvent> events,
         CheckpointWrite? checkpoint = null,
         bool evictAfterCommit = false,
-        IReadOnlyList<InboxWrite>? inboxOperations = null)
+        IReadOnlyList<InboxWrite>? inboxOperations = null,
+        IReadOnlyList<InboxRouteMutation>? inboxRouteMutations = null)
     {
         Events = events;
         Checkpoint = checkpoint;
         EvictAfterCommit = evictAfterCommit;
         InboxOperations = inboxOperations ?? [];
+        InboxRouteMutations = inboxRouteMutations ?? [];
     }
 
     internal IReadOnlyList<DurableWorkflowEvent> Events { get; }
@@ -27,6 +29,8 @@ internal sealed record DurableDecision
     internal bool EvictAfterCommit { get; }
 
     internal IReadOnlyList<InboxWrite> InboxOperations { get; }
+
+    internal IReadOnlyList<InboxRouteMutation> InboxRouteMutations { get; }
 
     internal static DurableDecision Empty { get; } = new([]);
 }
@@ -291,6 +295,9 @@ internal sealed record DurableWaitRegisteredCommand(
     public IReadOnlyList<WaitId> CancelWaitIds { get; init; } = [];
 
     public IReadOnlyList<TimerId> CancelTimerIds { get; init; } = [];
+
+    /// <summary>Gets the provider snapshot serialized with this wait registration.</summary>
+    public InboxMatchSnapshot? InboxMatch { get; init; }
 }
 
 internal sealed record DurableWaitMatchedCommand(

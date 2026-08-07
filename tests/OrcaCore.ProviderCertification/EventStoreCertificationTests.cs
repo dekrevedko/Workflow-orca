@@ -82,11 +82,10 @@ public abstract class EventStoreCertificationTests
             TestContext.Current.CancellationToken);
 
         recorded.HasValue.Should().BeTrue();
-        recorded.Value.Should().Be(new InboxRecord(
-            instanceId,
-            inboxEventId,
-            "certification-envelope",
-            InboxRecordState.Applied));
+        recorded.Value.InstanceId.Should().Be(instanceId);
+        recorded.Value.EventId.Should().Be(inboxEventId);
+        recorded.Value.EnvelopeFingerprint.Should().Be("certification-envelope");
+        recorded.Value.State.Should().Be(InboxRecordState.Applied);
     }
 
     [Fact]
@@ -201,6 +200,213 @@ public abstract class EventStoreCertificationTests
         stored.Value.State.Should().Be(InboxRecordState.Applied);
         stored.Value.Envelope.Should().BeEquivalentTo(envelope);
     }
+
+    [Fact]
+    public async Task PendingInbox_UsesDurableAcceptanceOrderAndRejectsAStaleRouteCommit()
+    {
+        var fixture = CreateFixture();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var definitionId = DefinitionId.New();
+        var eventName = EventName.Create("pending-certification");
+        var version = new EventContractVersion(2);
+        var correlation = CorrelationId.Create("pending-certification");
+        var firstEnvelope = PendingEnvelope(
+            EventId.Create(Guid.CreateVersion7().ToString()),
+            eventName,
+            version,
+            correlation,
+            new DurableEventRouteEnvelope { Kind = "correlation", DefinitionId = definitionId },
+            Timestamp(20));
+        var secondEnvelope = PendingEnvelope(
+            EventId.Create(Guid.CreateVersion7().ToString()),
+            eventName,
+            version,
+            correlation,
+            new DurableEventRouteEnvelope { Kind = "correlation", DefinitionId = definitionId },
+            Timestamp(21));
+        await fixture.InboxStore.AcceptAsync(
+            new InboxAcceptance(firstEnvelope, "pending-first", Timestamp(20)),
+            TestContext.Current.CancellationToken);
+        var stale = await fixture.InboxStore.GetMatchSnapshotAsync(
+            new InboxMatchRequest(instanceId, definitionId, eventName, version, correlation),
+            TestContext.Current.CancellationToken);
+        await fixture.InboxStore.AcceptAsync(
+            new InboxAcceptance(secondEnvelope, "pending-second", Timestamp(21)),
+            TestContext.Current.CancellationToken);
+
+        var staleCommit = await fixture.EventStore.AppendAsync(
+            PendingApplyBatch(instanceId, stale),
+            TestContext.Current.CancellationToken);
+        var fresh = await fixture.InboxStore.GetMatchSnapshotAsync(
+            new InboxMatchRequest(instanceId, definitionId, eventName, version, correlation),
+            TestContext.Current.CancellationToken);
+        var applied = await fixture.EventStore.AppendAsync(
+            PendingApplyBatch(instanceId, fresh),
+            TestContext.Current.CancellationToken);
+        var first = await fixture.InboxStore.GetByEventIdAsync(
+            firstEnvelope.EventId,
+            TestContext.Current.CancellationToken);
+        var second = await fixture.InboxStore.GetByEventIdAsync(
+            secondEnvelope.EventId,
+            TestContext.Current.CancellationToken);
+
+        stale.PendingEvent!.EventId.Should().Be(firstEnvelope.EventId);
+        staleCommit.IsFailure.Should().BeTrue();
+        fresh.PendingEvent!.EventId.Should().Be(firstEnvelope.EventId);
+        applied.IsSuccess.Should().BeTrue();
+        first.Value.State.Should().Be(InboxRecordState.Applied);
+        first.Value.InstanceId.Should().Be(instanceId);
+        second.Value.State.Should().Be(InboxRecordState.Received);
+        second.Value.AcceptanceSequence.Should().BeGreaterThan(first.Value.AcceptanceSequence);
+    }
+
+    [Fact]
+    public async Task PendingInbox_PoisonRetainsEnvelopeAndOperatorReason()
+    {
+        var fixture = CreateFixture();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var envelope = PendingEnvelope(
+            EventId.Create(Guid.CreateVersion7().ToString()),
+            EventName.Create("poison-certification"),
+            EventContractVersion.Initial,
+            CorrelationId.Create("poison-certification"),
+            new DurableEventRouteEnvelope { Kind = "correlation", DefinitionId = DefinitionId.New() },
+            Timestamp(22));
+        await fixture.InboxStore.AcceptAsync(
+            new InboxAcceptance(envelope, "poison-certification", Timestamp(22)),
+            TestContext.Current.CancellationToken);
+
+        await fixture.InboxStore.MarkPoisonedAsync(
+            envelope.EventId,
+            "unresolvable",
+            "The exact definition is unavailable.",
+            TestContext.Current.CancellationToken);
+        var stored = await fixture.InboxStore.GetByEventIdAsync(
+            envelope.EventId,
+            TestContext.Current.CancellationToken);
+
+        stored.Value.State.Should().Be(InboxRecordState.Poisoned);
+        stored.Value.PoisonCode.Should().Be("unresolvable");
+        stored.Value.PoisonDetail.Should().Be("The exact definition is unavailable.");
+        stored.Value.Envelope.Should().BeEquivalentTo(envelope);
+    }
+
+    [Fact]
+    public async Task DirectInboxAcceptance_IsSerializedWithTargetLifecycle()
+    {
+        var fixture = CreateFixture();
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var definitionId = DefinitionId.New();
+        var eventName = EventName.Create("direct-lifecycle-certification");
+        var correlationId = CorrelationId.Create("direct-lifecycle-certification");
+        var missingEnvelope = PendingEnvelope(
+            EventId.Create(Guid.CreateVersion7().ToString()),
+            eventName,
+            EventContractVersion.Initial,
+            correlationId,
+            new DurableEventRouteEnvelope { Kind = "direct", InstanceId = instanceId },
+            Timestamp(23));
+        var missing = await fixture.InboxStore.AcceptAsync(
+            new InboxAcceptance(missingEnvelope, "direct-missing", Timestamp(23)),
+            TestContext.Current.CancellationToken);
+
+        await fixture.ProjectionStore.ApplyAsync(
+            [Projection(instanceId, definitionId, [])],
+            TestContext.Current.CancellationToken);
+        var acceptedEnvelope = missingEnvelope with
+        {
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
+            OccurredAt = Timestamp(24)
+        };
+        var accepted = await fixture.InboxStore.AcceptAsync(
+            new InboxAcceptance(acceptedEnvelope, "direct-accepted", Timestamp(24)),
+            TestContext.Current.CancellationToken);
+
+        var terminal = await fixture.EventStore.AppendAsync(
+            new ProviderCommitBatch
+            {
+                StreamId = new WorkflowStreamId(instanceId),
+                ExpectedVersion = StreamVersion.Empty,
+                InboxTargetPoisonOperations =
+                [
+                    new InboxTargetPoisonWrite(instanceId, "target-terminal")
+                ],
+                ProjectionOperations =
+                [
+                    new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
+                    {
+                        InstanceSnapshot = new global::OrcaCore.Abstractions.Providers.WorkflowProjectionSnapshot
+                        {
+                            InstanceId = instanceId,
+                            RootInstanceId = instanceId,
+                            DefinitionId = definitionId,
+                            DefinitionVersion = DefinitionVersion.Initial,
+                            Status = WorkflowStatus.Completed,
+                            CreatedAt = Timestamp(1),
+                            UpdatedAt = Timestamp(25)
+                        }
+                    }
+                ]
+            },
+            TestContext.Current.CancellationToken);
+        var terminalEnvelope = acceptedEnvelope with
+        {
+            EventId = EventId.Create(Guid.CreateVersion7().ToString()),
+            OccurredAt = Timestamp(26)
+        };
+        var afterTerminal = await fixture.InboxStore.AcceptAsync(
+            new InboxAcceptance(terminalEnvelope, "direct-terminal", Timestamp(26)),
+            TestContext.Current.CancellationToken);
+        var retained = await fixture.InboxStore.GetByEventIdAsync(
+            acceptedEnvelope.EventId,
+            TestContext.Current.CancellationToken);
+
+        missing.Disposition.Should().Be(InboxAcceptanceCommitDisposition.DirectInstanceNotFound);
+        missing.Record.Should().BeNull();
+        accepted.Disposition.Should().Be(InboxAcceptanceCommitDisposition.Accepted);
+        terminal.IsSuccess.Should().BeTrue();
+        retained.Value.State.Should().Be(InboxRecordState.Poisoned);
+        retained.Value.PoisonCode.Should().Be("target-terminal");
+        afterTerminal.Disposition.Should().Be(InboxAcceptanceCommitDisposition.DirectInstanceTerminal);
+        afterTerminal.Record.Should().BeNull();
+    }
+
+    private static ProviderCommitBatch PendingApplyBatch(
+        InstanceId instanceId,
+        InboxMatchSnapshot snapshot) =>
+        new()
+        {
+            StreamId = new WorkflowStreamId(instanceId),
+            ExpectedVersion = StreamVersion.Empty,
+            InboxRouteMutations = snapshot.RouteRevisions
+                .Select(revision => new InboxRouteMutation(revision.Route, revision.Revision))
+                .ToArray(),
+            InboxOperations =
+            [
+                new InboxWrite(snapshot.PendingEvent!.EventId, InboxRecordState.Applied)
+                {
+                    ExpectedState = InboxRecordState.Received,
+                    TargetInstanceId = instanceId
+                }
+            ]
+        };
+
+    private static DurableEventEnvelope PendingEnvelope(
+        EventId eventId,
+        EventName eventName,
+        EventContractVersion version,
+        CorrelationId correlationId,
+        DurableEventRouteEnvelope route,
+        DateTimeOffset occurredAt) =>
+        new()
+        {
+            EventId = eventId,
+            EventName = eventName.Value,
+            EventContractVersion = version.Value,
+            CorrelationId = correlationId,
+            OccurredAt = occurredAt,
+            Route = route
+        };
 
     [Fact]
     [Trait("AC", "AC-310")]

@@ -22,6 +22,8 @@ internal sealed class InMemoryWorkflowProvider :
 
     private readonly Lock gate = new();
     private readonly Dictionary<EventId, InboxRecord> inbox = [];
+    private readonly Dictionary<InboxRouteKey, long> inboxRouteRevisions = [];
+    private long nextInboxAcceptanceSequence;
     private readonly Dictionary<string, StartedWorkflowIdempotencyRecord> startIdempotency = new(StringComparer.Ordinal);
     private readonly Dictionary<OutboxRecordId, InMemoryOutboxRecord> outbox = [];
     private readonly List<OutboxWrite> dispatched = [];
@@ -69,7 +71,7 @@ internal sealed class InMemoryWorkflowProvider :
             var conflictingEventId = batch.InboxOperations
                 .Where(operation => operation.EnvelopeFingerprint is not null)
                 .Where(operation => inbox.TryGetValue(operation.EventId, out var existing) &&
-                    (!existing.InstanceId.Equals(batch.StreamId.InstanceId) ||
+                    (existing.InstanceId is null || !existing.InstanceId.Equals(batch.StreamId.InstanceId) ||
                      !string.Equals(
                          existing.EnvelopeFingerprint,
                          operation.EnvelopeFingerprint,
@@ -79,6 +81,28 @@ internal sealed class InMemoryWorkflowProvider :
             if (conflictingEventId is not null)
             {
                 return Task.FromResult(EventStoreConflict.EventIdAlreadyExists(conflictingEventId));
+            }
+
+
+            var changedRoute = batch.InboxRouteMutations.FirstOrDefault(mutation =>
+                CurrentRouteRevision(mutation.Route) != mutation.ExpectedRevision);
+            if (changedRoute is not null)
+            {
+                return Task.FromResult(EventStoreConflict.InboxRouteChanged(changedRoute.Route));
+            }
+
+            var invalidInboxTransition = batch.InboxOperations.FirstOrDefault(operation =>
+                operation.ExpectedState is { } expected &&
+                (!inbox.TryGetValue(operation.EventId, out var existing) || existing.State != expected));
+            if (invalidInboxTransition is not null)
+            {
+                var route = batch.InboxRouteMutations.FirstOrDefault()?.Route ??
+                    InboxRouteKey.Direct(
+                        batch.StreamId.InstanceId,
+                        EventName.Create("inbox-transition"),
+                        EventContractVersion.Initial,
+                        CorrelationId.Create("inbox-transition"));
+                return Task.FromResult(EventStoreConflict.InboxRouteChanged(route));
             }
 
             var stream = GetStream(batch.StreamId);
@@ -97,6 +121,8 @@ internal sealed class InMemoryWorkflowProvider :
             }
             stream.AddRange(batch.Events);
             ApplyInboxOperations(batch.StreamId.InstanceId, batch.InboxOperations);
+            AdvanceInboxRoutes(batch.InboxRouteMutations);
+            ApplyInboxTargetPoisonOperations(batch.InboxTargetPoisonOperations);
             ApplyStartIdempotencyOperations(batch.StartIdempotencyOperations);
             foreach (var record in batch.OutboxRecords)
             {
@@ -119,6 +145,66 @@ internal sealed class InMemoryWorkflowProvider :
 
             return Task.FromResult(Result<AppendEventsResult>.Success(
                 new AppendEventsResult(new StreamVersion(stream.Count))));
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<InboxAcceptanceCommitResult> AcceptAsync(
+        InboxAcceptance acceptance,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(acceptance);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            if (inbox.TryGetValue(acceptance.Envelope.EventId, out var existing))
+            {
+                var disposition = string.Equals(
+                    existing.EnvelopeFingerprint,
+                    acceptance.EnvelopeFingerprint,
+                    StringComparison.Ordinal)
+                    ? InboxAcceptanceCommitDisposition.Duplicate
+                    : InboxAcceptanceCommitDisposition.Conflict;
+                return Task.FromResult(new InboxAcceptanceCommitResult(disposition, existing));
+            }
+
+            var route = CreateInboxRoute(acceptance.Envelope);
+            if (route.Kind == "direct")
+            {
+                var instanceId = route.InstanceId ?? throw new InvalidOperationException(
+                    "A direct inbox route requires an instance.");
+                if (!summaries.TryGetValue(instanceId, out var target))
+                {
+                    return Task.FromResult(new InboxAcceptanceCommitResult(
+                        InboxAcceptanceCommitDisposition.DirectInstanceNotFound,
+                        null));
+                }
+
+                if (IsTerminal(target.Status))
+                {
+                    return Task.FromResult(new InboxAcceptanceCommitResult(
+                        InboxAcceptanceCommitDisposition.DirectInstanceTerminal,
+                        null));
+                }
+            }
+
+            var record = new InboxRecord(
+                acceptance.Envelope.Route.Kind == "direct" ? acceptance.Envelope.Route.InstanceId : null,
+                acceptance.Envelope.EventId,
+                acceptance.EnvelopeFingerprint,
+                InboxRecordState.Received)
+            {
+                Envelope = CloneEnvelope(acceptance.Envelope),
+                Route = route,
+                AcceptanceSequence = ++nextInboxAcceptanceSequence,
+                AcceptedAt = acceptance.AcceptedAt
+            };
+            inbox.Add(record.EventId, record);
+            inboxRouteRevisions[route] = CurrentRouteRevision(route) + 1;
+            return Task.FromResult(new InboxAcceptanceCommitResult(
+                InboxAcceptanceCommitDisposition.Accepted,
+                record));
         }
     }
 
@@ -151,7 +237,7 @@ internal sealed class InMemoryWorkflowProvider :
 
         lock (gate)
         {
-            return Task.FromResult(inbox.TryGetValue(eventId, out var record) && record.InstanceId.Equals(instanceId)
+            return Task.FromResult(inbox.TryGetValue(eventId, out var record) && record.InstanceId?.Equals(instanceId) == true
                 ? Option<InboxRecord>.Some(record)
                 : Option<InboxRecord>.None);
         }
@@ -171,6 +257,60 @@ internal sealed class InMemoryWorkflowProvider :
                 ? Option<InboxRecord>.Some(record)
                 : Option<InboxRecord>.None);
         }
+    }
+
+    /// <inheritdoc />
+    public Task<InboxMatchSnapshot> GetMatchSnapshotAsync(
+        InboxMatchRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            var routes = request.Routes.ToHashSet();
+            var pending = inbox.Values
+                .Where(record => record.State == InboxRecordState.Received &&
+                    record.Route is not null && routes.Contains(record.Route))
+                .OrderBy(record => record.AcceptanceSequence)
+                .ThenBy(record => record.EventId.Value, StringComparer.Ordinal)
+                .FirstOrDefault();
+            return Task.FromResult(new InboxMatchSnapshot(
+                pending,
+                request.Routes.Select(route => new InboxRouteRevision(route, CurrentRouteRevision(route))).ToArray()));
+        }
+    }
+
+    /// <inheritdoc />
+    public Task MarkPoisonedAsync(
+        EventId eventId,
+        string code,
+        string? detail,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(eventId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            if (inbox.TryGetValue(eventId, out var record) && record.State != InboxRecordState.Applied)
+            {
+                inbox[eventId] = record with
+                {
+                    State = InboxRecordState.Poisoned,
+                    PoisonCode = code,
+                    PoisonDetail = detail
+                };
+                if (record.Route is { } route)
+                {
+                    inboxRouteRevisions[route] = CurrentRouteRevision(route) + 1;
+                }
+            }
+        }
+
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
@@ -530,7 +670,8 @@ internal sealed class InMemoryWorkflowProvider :
                 {
                     State = existing.State == InboxRecordState.Applied
                         ? existing.State
-                        : operation.State
+                        : operation.State,
+                    InstanceId = operation.TargetInstanceId ?? existing.InstanceId
                 };
                 continue;
             }
@@ -552,6 +693,54 @@ internal sealed class InMemoryWorkflowProvider :
             };
         }
     }
+
+    private long CurrentRouteRevision(InboxRouteKey route) =>
+        inboxRouteRevisions.TryGetValue(route, out var revision) ? revision : 0;
+
+    private void AdvanceInboxRoutes(IEnumerable<InboxRouteMutation> mutations)
+    {
+        foreach (var mutation in mutations)
+        {
+            inboxRouteRevisions[mutation.Route] = mutation.ExpectedRevision + 1;
+        }
+    }
+
+    private void ApplyInboxTargetPoisonOperations(IEnumerable<InboxTargetPoisonWrite> operations)
+    {
+        foreach (var operation in operations)
+        {
+            foreach (var record in inbox.Values
+                         .Where(record => record.State == InboxRecordState.Received &&
+                             record.Route?.Kind == "direct" &&
+                             record.Route.InstanceId?.Equals(operation.InstanceId) == true)
+                         .ToArray())
+            {
+                inbox[record.EventId] = record with
+                {
+                    State = InboxRecordState.Poisoned,
+                    PoisonCode = operation.Code,
+                    PoisonDetail = operation.Detail
+                };
+            }
+        }
+    }
+
+    private static InboxRouteKey CreateInboxRoute(DurableEventEnvelope envelope) =>
+        envelope.Route.Kind switch
+        {
+            "direct" => InboxRouteKey.Direct(
+                envelope.Route.InstanceId ?? throw new InvalidOperationException("A direct inbox route requires an instance."),
+                EventName.Create(envelope.EventName),
+                new EventContractVersion(envelope.EventContractVersion),
+                envelope.CorrelationId),
+            "correlation" => InboxRouteKey.Correlation(
+                envelope.Route.DefinitionId ?? throw new InvalidOperationException("A correlation inbox route requires a definition."),
+                EventName.Create(envelope.EventName),
+                new EventContractVersion(envelope.EventContractVersion),
+                envelope.CorrelationId),
+            _ => throw new NotSupportedException(
+                $"Inbox buffering for route '{envelope.Route.Kind}' is owned by a later Section 7B task.")
+        };
 
     private static DurableEventEnvelope? CloneEnvelope(DurableEventEnvelope? envelope)
     {
@@ -664,6 +853,13 @@ internal sealed class InMemoryWorkflowProvider :
             global::OrcaCore.WorkflowInstanceStatus.Waiting or
             global::OrcaCore.WorkflowInstanceStatus.CancellationRequested;
     }
+
+    private static bool IsTerminal(global::OrcaCore.WorkflowInstanceStatus status) =>
+        status is global::OrcaCore.WorkflowInstanceStatus.Completed or
+            global::OrcaCore.WorkflowInstanceStatus.Failed or
+            global::OrcaCore.WorkflowInstanceStatus.TimedOut or
+            global::OrcaCore.WorkflowInstanceStatus.Cancelled or
+            global::OrcaCore.WorkflowInstanceStatus.Terminated;
 
     private bool HasClaimedOutbox(InstanceId instanceId)
     {

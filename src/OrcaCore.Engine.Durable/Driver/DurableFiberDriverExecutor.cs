@@ -200,6 +200,13 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
 
                     currentVersion = registration.Commit.StreamVersion;
                     commands++;
+                    if (registration.MatchedPendingEvent)
+                    {
+                        return new DurableSegmentResult(
+                            DurableSegmentOutcome.Yielded,
+                            CommittedProgress: true);
+                    }
+
                     if (BudgetReached(context, commands, elapsed))
                     {
                         return new DurableSegmentResult(
@@ -1009,6 +1016,13 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
 
                             currentVersion = registration.Commit.StreamVersion;
                             commands++;
+                            if (registration.MatchedPendingEvent)
+                            {
+                                return new DurableSegmentResult(
+                                    DurableSegmentOutcome.Yielded,
+                                    CommittedProgress: true);
+                            }
+
                             if (BudgetReached(context, commands, elapsed))
                             {
                                 return new DurableSegmentResult(

@@ -77,6 +77,23 @@ internal sealed class DurableTestStore :
         CancellationToken cancellationToken) =>
         inboxStore.GetByEventIdAsync(eventId, cancellationToken);
 
+    public Task<InboxAcceptanceCommitResult> AcceptAsync(
+        InboxAcceptance acceptance,
+        CancellationToken cancellationToken) =>
+        inboxStore.AcceptAsync(acceptance, cancellationToken);
+
+    public Task<InboxMatchSnapshot> GetMatchSnapshotAsync(
+        InboxMatchRequest request,
+        CancellationToken cancellationToken) =>
+        inboxStore.GetMatchSnapshotAsync(request, cancellationToken);
+
+    public Task MarkPoisonedAsync(
+        EventId eventId,
+        string code,
+        string? detail,
+        CancellationToken cancellationToken) =>
+        inboxStore.MarkPoisonedAsync(eventId, code, detail, cancellationToken);
+
     public Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedAsync(
         string idempotencyKey,
         CancellationToken cancellationToken) =>

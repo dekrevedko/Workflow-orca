@@ -41,4 +41,13 @@ public static class EventStoreConflict
             new WorkflowConcurrencyException(
                 $"Inbound event identity '{eventId}' is already durably owned."));
     }
+
+    /// <summary>Creates a conflict when an inbox route changed after it was inspected.</summary>
+    public static Result<AppendEventsResult> InboxRouteChanged(InboxRouteKey route)
+    {
+        ArgumentNullException.ThrowIfNull(route);
+        return Result<AppendEventsResult>.Failure(
+            new WorkflowConcurrencyException(
+                $"Inbox route '{route.Kind}' changed while a wait/event mutation was being committed."));
+    }
 }

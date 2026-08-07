@@ -37,6 +37,14 @@ public sealed record ProviderCommitBatch
     public IReadOnlyList<InboxWrite> InboxOperations { get; init; } = [];
 
     /// <summary>
+    /// Gets inbox-route revisions compared and advanced in the same transaction as this commit.
+    /// </summary>
+    public IReadOnlyList<InboxRouteMutation> InboxRouteMutations { get; init; } = [];
+
+    /// <summary>Gets direct-target pending records terminalized without deleting ownership.</summary>
+    public IReadOnlyList<InboxTargetPoisonWrite> InboxTargetPoisonOperations { get; init; } = [];
+
+    /// <summary>
     /// Gets outbox records derived in the commit.
     /// </summary>
     public IReadOnlyList<OutboxWrite> OutboxRecords { get; init; } = [];
@@ -254,7 +262,19 @@ public sealed record InboxWrite(EventId EventId, InboxRecordState State)
     /// State-only transitions preserve the envelope already stored for the global event identity.
     /// </summary>
     public DurableEventEnvelope? Envelope { get; init; }
+
+    /// <summary>Gets the state that must still own the record when this transition commits.</summary>
+    public InboxRecordState? ExpectedState { get; init; }
+
+    /// <summary>Gets the instance that atomically claims a route-level record.</summary>
+    public InstanceId? TargetInstanceId { get; init; }
 }
+
+/// <summary>Compares and advances one serialized inbox route boundary.</summary>
+public sealed record InboxRouteMutation(InboxRouteKey Route, long ExpectedRevision);
+
+/// <summary>Marks unmatched direct events observable when their target becomes terminal.</summary>
+public sealed record InboxTargetPoisonWrite(InstanceId InstanceId, string Code, string? Detail = null);
 
 /// <summary>
 /// Describes a durable inbox record state.

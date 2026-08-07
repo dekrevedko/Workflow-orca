@@ -548,6 +548,12 @@ internal sealed class DurableCommandProcessor
 
     internal Task<DurableCommandResult> ProcessAsync(
         DeliverEventCommand command,
+        CancellationToken cancellationToken) =>
+        ProcessAsync(command, inboxMatch: null, cancellationToken);
+
+    internal Task<DurableCommandResult> ProcessAsync(
+        DeliverEventCommand command,
+        InboxMatchSnapshot? inboxMatch,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -558,7 +564,11 @@ internal sealed class DurableCommandProcessor
             new DurableInboxDelivery(
                 command.Envelope.EventId,
                 command.EnvelopeFingerprint ?? DurableEventEnvelopeFingerprint.Create(command.Envelope),
-                command.Envelope));
+                command.Envelope)
+            {
+                Match = inboxMatch,
+                TargetInstanceId = command.InstanceId
+            });
     }
 
     internal Task<DurableCommandResult> ProcessAsync(

@@ -68,6 +68,8 @@ internal sealed class DurableWorkflowRuntime
             driverObserver);
     }
 
+    internal DateTimeOffset UtcNow => timeProvider.GetUtcNow();
+
     /// <summary>
     /// Registers one durable workflow definition version. Definition shapes the durable driver
     /// cannot execute fail fast here with a capability diagnostic (DR-010).
@@ -258,7 +260,8 @@ internal sealed class DurableWorkflowRuntime
         TPayload payload,
         CancellationToken cancellationToken,
         bool driveAfterDelivery = true,
-        string? envelopeFingerprint = null)
+        string? envelopeFingerprint = null,
+        InboxMatchSnapshot? inboxMatch = null)
     {
         var serialized = payload is null ? null : payloadSerializer.Serialize(payload);
         var envelope = new DurableEventEnvelope
@@ -281,7 +284,8 @@ internal sealed class DurableWorkflowRuntime
             envelope,
             cancellationToken,
             driveAfterDelivery,
-            envelopeFingerprint).ConfigureAwait(false);
+            envelopeFingerprint,
+            inboxMatch).ConfigureAwait(false);
     }
 
     internal async Task<DurableCommandResult> RaiseFacadeEventAsync(
@@ -289,7 +293,8 @@ internal sealed class DurableWorkflowRuntime
         DurableEventEnvelope envelope,
         CancellationToken cancellationToken,
         bool driveAfterDelivery = true,
-        string? envelopeFingerprint = null)
+        string? envelopeFingerprint = null,
+        InboxMatchSnapshot? inboxMatch = null)
     {
         ArgumentNullException.ThrowIfNull(instanceId);
         ArgumentNullException.ThrowIfNull(envelope);
@@ -301,7 +306,7 @@ internal sealed class DurableWorkflowRuntime
             Envelope = envelope,
             EnvelopeFingerprint = envelopeFingerprint ?? DurableEventEnvelopeFingerprint.Create(envelope)
         };
-        var result = await commandProcessor.ProcessAsync(command, cancellationToken).ConfigureAwait(false);
+        var result = await commandProcessor.ProcessAsync(command, inboxMatch, cancellationToken).ConfigureAwait(false);
         if (driveAfterDelivery && result.Outcome == DurableCommandOutcome.Committed)
         {
             await driver.DriveAsync(instanceId, cancellationToken).ConfigureAwait(false);

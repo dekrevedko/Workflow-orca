@@ -1,12 +1,176 @@
 using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Providers;
 using OrcaCore.Durable.Hosting;
 
 namespace OrcaCore.Integration.Tests.CurrentSurface;
 
 public sealed class DurableInMemoryApplicationJourneyTests
 {
+    [Fact]
+    public async Task CorrelationEventsAcceptedBeforeStart_ConsumeOldestWhenTheWaitRegisters()
+    {
+        using var stores = DurableTestHosts.CreateSharedInMemoryStores();
+        using var host = DurableTestHosts.BuildInMemory(stores);
+        var definitionId = DefinitionId.New();
+        var eventContract = WorkflowEventContract.Create(
+            EventName.Create("before-wait-correlation"),
+            EventContractVersion.Initial);
+        var correlation = CorrelationId.Create("before-wait-correlation");
+        var definition = Workflow.Durable<JourneyState>(definitionId, DefinitionVersion.Initial)
+            .Init<JourneyInput>(input => new JourneyState(input.Value))
+            .Wait(eventContract, _ => correlation)
+            .End(WorkflowOutcomeName.Create("finished"))
+            .Build();
+        var handle = host.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        var ingress = host.GetRequiredService<IWorkflowEventIngress>();
+
+        foreach (var eventId in new[] { "before-wait-first", "before-wait-second" })
+        {
+            var accepted = await ingress.AcceptAsync(
+                WorkflowInboundEvent.Create(
+                    eventContract,
+                    EventId.Create(eventId),
+                    correlation,
+                    causationEventId: null,
+                    DateTimeOffset.Parse("2026-08-06T12:00:00Z"),
+                    new WorkflowEventRoute.Correlation(definitionId)),
+                TestContext.Current.CancellationToken);
+            accepted.Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
+        }
+
+        var started = await handle.StartOrGetAsync(
+            new JourneyInput(1),
+            StartIdempotencyKey.Create("before-wait-correlation"),
+            TestContext.Current.CancellationToken);
+
+        (await started.GetHandleOrThrow().GetSnapshotAsync(TestContext.Current.CancellationToken))
+            .Status.Should().Be(WorkflowInstanceStatus.Completed);
+        var first = await stores.InboxStore.GetByEventIdAsync(
+            EventId.Create("before-wait-first"),
+            TestContext.Current.CancellationToken);
+        var second = await stores.InboxStore.GetByEventIdAsync(
+            EventId.Create("before-wait-second"),
+            TestContext.Current.CancellationToken);
+        first.Value.State.Should().Be(InboxRecordState.Applied);
+        first.Value.InstanceId.Should().Be(started.GetHandleOrThrow().InstanceId);
+        second.Value.State.Should().Be(InboxRecordState.Received);
+        second.Value.AcceptanceSequence.Should().BeGreaterThan(first.Value.AcceptanceSequence);
+    }
+
+    [Fact]
+    public async Task DirectEventAcceptedBeforeItsWait_RemainsPendingAndResumesTheLaterWait()
+    {
+        using var stores = DurableTestHosts.CreateSharedInMemoryStores();
+        using var host = DurableTestHosts.BuildInMemory(stores);
+        var definitionId = DefinitionId.New();
+        var eventName = EventName.Create("before-wait-direct");
+        var correlation = CorrelationId.Create("before-wait-direct");
+        var v1 = WorkflowEventContract.Create(eventName, EventContractVersion.Initial);
+        var v2 = WorkflowEventContract.Create(eventName, new EventContractVersion(2));
+        var definition = Workflow.Durable<JourneyState>(definitionId, DefinitionVersion.Initial)
+            .Init<JourneyInput>(input => new JourneyState(input.Value))
+            .Wait(v1, _ => correlation)
+            .Wait(v2, _ => correlation)
+            .End(WorkflowOutcomeName.Create("finished"))
+            .Build();
+        var handle = host.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        var started = await handle.StartOrGetAsync(
+            new JourneyInput(1),
+            StartIdempotencyKey.Create("before-wait-direct"),
+            TestContext.Current.CancellationToken);
+        var instance = started.GetHandleOrThrow();
+        var ingress = host.GetRequiredService<IWorkflowEventIngress>();
+
+        var early = await ingress.AcceptAsync(
+            WorkflowInboundEvent.Create(
+                v2,
+                EventId.Create("before-wait-direct-v2"),
+                correlation,
+                causationEventId: null,
+                DateTimeOffset.Parse("2026-08-06T12:00:00Z"),
+                new WorkflowEventRoute.Direct(instance.InstanceId)),
+            TestContext.Current.CancellationToken);
+        early.Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
+        (await stores.InboxStore.GetByEventIdAsync(
+                EventId.Create("before-wait-direct-v2"),
+                TestContext.Current.CancellationToken))
+            .Value.State.Should().Be(InboxRecordState.Received);
+
+        var firstWait = await ingress.AcceptAsync(
+            WorkflowInboundEvent.Create(
+                v1,
+                EventId.Create("before-wait-direct-v1"),
+                correlation,
+                causationEventId: null,
+                DateTimeOffset.Parse("2026-08-06T12:00:01Z"),
+                new WorkflowEventRoute.Direct(instance.InstanceId)),
+            TestContext.Current.CancellationToken);
+
+        firstWait.Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
+        (await instance.GetSnapshotAsync(TestContext.Current.CancellationToken))
+            .Status.Should().Be(WorkflowInstanceStatus.Completed);
+        (await stores.InboxStore.GetByEventIdAsync(
+                EventId.Create("before-wait-direct-v2"),
+                TestContext.Current.CancellationToken))
+            .Value.State.Should().Be(InboxRecordState.Applied);
+    }
+
+    [Fact]
+    public async Task UnmatchedDirectEvent_RemainsObservableAsPoisonWhenItsTargetCompletes()
+    {
+        using var stores = DurableTestHosts.CreateSharedInMemoryStores();
+        using var host = DurableTestHosts.BuildInMemory(stores);
+        var eventName = EventName.Create("terminal-pending-direct");
+        var correlation = CorrelationId.Create("terminal-pending-direct");
+        var v1 = WorkflowEventContract.Create(eventName, EventContractVersion.Initial);
+        var v2 = WorkflowEventContract.Create(eventName, new EventContractVersion(2));
+        var definition = Workflow.Durable<JourneyState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<JourneyInput>(input => new JourneyState(input.Value))
+            .Wait(v1, _ => correlation)
+            .End(WorkflowOutcomeName.Create("finished"))
+            .Build();
+        var definitionHandle = host.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .Register(definition)
+            .GetHandleOrThrow();
+        var instance = (await definitionHandle.StartOrGetAsync(
+            new JourneyInput(1),
+            StartIdempotencyKey.Create("terminal-pending-direct"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
+        var ingress = host.GetRequiredService<IWorkflowEventIngress>();
+
+        await ingress.AcceptAsync(
+            WorkflowInboundEvent.Create(
+                v2,
+                EventId.Create("terminal-pending-direct-v2"),
+                correlation,
+                causationEventId: null,
+                DateTimeOffset.Parse("2026-08-06T12:00:00Z"),
+                new WorkflowEventRoute.Direct(instance.InstanceId)),
+            TestContext.Current.CancellationToken);
+        await ingress.AcceptAsync(
+            WorkflowInboundEvent.Create(
+                v1,
+                EventId.Create("terminal-pending-direct-v1"),
+                correlation,
+                causationEventId: null,
+                DateTimeOffset.Parse("2026-08-06T12:00:01Z"),
+                new WorkflowEventRoute.Direct(instance.InstanceId)),
+            TestContext.Current.CancellationToken);
+
+        var poison = await stores.InboxStore.GetByEventIdAsync(
+            EventId.Create("terminal-pending-direct-v2"),
+            TestContext.Current.CancellationToken);
+        poison.Value.State.Should().Be(InboxRecordState.Poisoned);
+        poison.Value.PoisonCode.Should().Be("target-terminal");
+        poison.Value.Envelope.Should().NotBeNull();
+    }
+
     [Fact]
     public async Task ParallelDuplicateWaits_AreRejectedBeforeEitherWaitBecomesRoutable()
     {
@@ -49,7 +213,7 @@ public sealed class DurableInMemoryApplicationJourneyTests
         exception.Which.EventContract.Should().Be(eventContract);
         exception.Which.CorrelationId.Should().Be(correlation);
 
-        var delivery = async () => await host.GetRequiredService<IWorkflowEventIngress>().AcceptAsync(
+        var delivery = await host.GetRequiredService<IWorkflowEventIngress>().AcceptAsync(
             WorkflowInboundEvent.Create(
                 eventContract,
                 EventId.Create("ambiguous-durable-wait-probe"),
@@ -59,8 +223,12 @@ public sealed class DurableInMemoryApplicationJourneyTests
                 new WorkflowEventRoute.Correlation(definitionId)),
             TestContext.Current.CancellationToken);
 
-        await delivery.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*task 7.28 route inbox*");
+        delivery.Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
+        var pending = await stores.InboxStore.GetByEventIdAsync(
+            EventId.Create("ambiguous-durable-wait-probe"),
+            TestContext.Current.CancellationToken);
+        pending.Value.State.Should().Be(InboxRecordState.Received);
+        pending.Value.InstanceId.Should().BeNull();
     }
 
     [Fact]
@@ -92,7 +260,7 @@ public sealed class DurableInMemoryApplicationJourneyTests
         var ingress = host.GetRequiredService<IWorkflowEventIngress>();
         var v2Contract = WorkflowEventContract.Create(eventName, new EventContractVersion(2));
 
-        var wrongVersion = async () => await ingress.AcceptAsync(
+        var wrongVersion = await ingress.AcceptAsync(
             WorkflowInboundEvent.Create(
                 v2Contract,
                 EventId.Create("versioned-v2-to-v1"),
@@ -102,8 +270,11 @@ public sealed class DurableInMemoryApplicationJourneyTests
                 new WorkflowEventRoute.Direct(v1Instance.InstanceId)),
             TestContext.Current.CancellationToken);
 
-        await wrongVersion.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*task 7.28 target inbox*");
+        wrongVersion.Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
+        var pendingWrongVersion = await stores.InboxStore.GetByEventIdAsync(
+            EventId.Create("versioned-v2-to-v1"),
+            TestContext.Current.CancellationToken);
+        pendingWrongVersion.Value.State.Should().Be(InboxRecordState.Received);
         (await v1Instance.GetSnapshotAsync(TestContext.Current.CancellationToken))
             .Status.Should().Be(WorkflowInstanceStatus.Waiting);
 

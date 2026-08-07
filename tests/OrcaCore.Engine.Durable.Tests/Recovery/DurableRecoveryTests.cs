@@ -61,10 +61,9 @@ public sealed class DurableRecoveryTests
         var workflowEvent = RecoveryEvent(instanceId, "crash-before-commit-event", eventName, correlation);
         eventStore.FailNextCommitBeforeApply();
 
-        Func<Task> failedAcceptance = async () => await first.Events.AcceptAsync(
+        var accepted = await first.Events.AcceptAsync(
             workflowEvent,
             TestContext.Current.CancellationToken);
-        await failedAcceptance.Should().ThrowAsync<global::OrcaCore.Abstractions.Errors.WorkflowConcurrencyException>();
         var afterFailure = await store.LoadTailAsync(
             new WorkflowStreamId(instanceId),
             StreamVersion.Empty,
@@ -80,7 +79,8 @@ public sealed class DurableRecoveryTests
             TestContext.Current.CancellationToken);
 
         afterFailure.OfType<WorkflowWaitMatchedEvent>().Should().BeEmpty();
-        recovered.Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
+        accepted.Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
+        recovered.Should().BeOfType<WorkflowEventAcceptanceResult.Duplicate>();
         events.OfType<WorkflowWaitMatchedEvent>().Should().ContainSingle();
     }
 
@@ -270,6 +270,23 @@ public sealed class DurableRecoveryTests
             EventId eventId,
             CancellationToken cancellationToken) =>
             inner.GetByEventIdAsync(eventId, cancellationToken);
+
+        public Task<InboxAcceptanceCommitResult> AcceptAsync(
+            InboxAcceptance acceptance,
+            CancellationToken cancellationToken) =>
+            inner.AcceptAsync(acceptance, cancellationToken);
+
+        public Task<InboxMatchSnapshot> GetMatchSnapshotAsync(
+            InboxMatchRequest request,
+            CancellationToken cancellationToken) =>
+            inner.GetMatchSnapshotAsync(request, cancellationToken);
+
+        public Task MarkPoisonedAsync(
+            EventId eventId,
+            string code,
+            string? detail,
+            CancellationToken cancellationToken) =>
+            inner.MarkPoisonedAsync(eventId, code, detail, cancellationToken);
     }
 
     private sealed record Input(string Correlation);

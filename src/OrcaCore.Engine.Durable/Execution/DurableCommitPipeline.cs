@@ -76,6 +76,14 @@ internal sealed class DurableCommitPipeline(
         DurableInboxDelivery? inboxDelivery,
         CancellationToken cancellationToken)
     {
+        if (inboxDelivery is { Match: not null })
+        {
+            return new DurableCommandResult(
+                DurableCommandOutcome.NoOp,
+                "The pending event lost the serialized wait/timer race and remains available.",
+                expectedVersion);
+        }
+
         if (inboxDelivery is { } poisonedDelivery)
         {
             return await CommitInboxOnlyAsync(
@@ -128,4 +136,9 @@ internal sealed class DurableCommitPipeline(
 internal sealed record DurableInboxDelivery(
     EventId EventId,
     string EnvelopeFingerprint,
-    DurableEventEnvelope Envelope);
+    DurableEventEnvelope Envelope)
+{
+    internal InboxMatchSnapshot? Match { get; init; }
+
+    internal InstanceId? TargetInstanceId { get; init; }
+}

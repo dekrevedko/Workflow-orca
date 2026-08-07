@@ -19,6 +19,8 @@ public sealed class FakeWorkflowEventStore :
 
     private readonly object gate = new();
     private readonly ConcurrentDictionary<EventId, InboxRecord> inbox = [];
+    private readonly Dictionary<InboxRouteKey, long> inboxRouteRevisions = [];
+    private long nextInboxAcceptanceSequence;
     private readonly ConcurrentDictionary<string, StartedWorkflowIdempotencyRecord> startIdempotency =
         new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<OutboxRecordId, FakeOutboxRecord> outbox = [];
@@ -69,7 +71,7 @@ public sealed class FakeWorkflowEventStore :
             var conflictingEventId = batch.InboxOperations
                 .Where(operation => operation.EnvelopeFingerprint is not null)
                 .Where(operation => inbox.TryGetValue(operation.EventId, out var existing) &&
-                    (!existing.InstanceId.Equals(batch.StreamId.InstanceId) ||
+                    (existing.InstanceId is null || !existing.InstanceId.Equals(batch.StreamId.InstanceId) ||
                      !string.Equals(
                          existing.EnvelopeFingerprint,
                          operation.EnvelopeFingerprint,
@@ -79,6 +81,13 @@ public sealed class FakeWorkflowEventStore :
             if (conflictingEventId is not null)
             {
                 return Task.FromResult(EventStoreConflict.EventIdAlreadyExists(conflictingEventId));
+            }
+
+            var changedRoute = batch.InboxRouteMutations.FirstOrDefault(mutation =>
+                CurrentRouteRevision(mutation.Route) != mutation.ExpectedRevision);
+            if (changedRoute is not null)
+            {
+                return Task.FromResult(EventStoreConflict.InboxRouteChanged(changedRoute.Route));
             }
 
             var stream = streams.GetOrAdd(batch.StreamId, _ => []);
@@ -105,7 +114,8 @@ public sealed class FakeWorkflowEventStore :
                     {
                         State = existing.State == InboxRecordState.Applied
                             ? existing.State
-                            : operation.State
+                            : operation.State,
+                        InstanceId = operation.TargetInstanceId ?? existing.InstanceId
                     };
                     continue;
                 }
@@ -126,6 +136,30 @@ public sealed class FakeWorkflowEventStore :
                     Envelope = CloneEnvelope(operation.Envelope)
                 };
             }
+
+
+            foreach (var mutation in batch.InboxRouteMutations)
+            {
+                inboxRouteRevisions[mutation.Route] = mutation.ExpectedRevision + 1;
+            }
+
+            foreach (var operation in batch.InboxTargetPoisonOperations)
+            {
+                foreach (var record in inbox.Values.Where(record =>
+                             record.State == InboxRecordState.Received &&
+                             record.Route?.Kind == "direct" &&
+                             record.Route.InstanceId?.Equals(operation.InstanceId) == true).ToArray())
+                {
+                    inbox[record.EventId] = record with
+                    {
+                        State = InboxRecordState.Poisoned,
+                        PoisonCode = operation.Code,
+                        PoisonDetail = operation.Detail
+                    };
+                }
+            }
+
+            ApplyProjectionOperations(batch.ProjectionOperations);
 
             foreach (var operation in batch.StartIdempotencyOperations)
             {
@@ -180,7 +214,7 @@ public sealed class FakeWorkflowEventStore :
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        return Task.FromResult(inbox.TryGetValue(eventId, out var record) && record.InstanceId.Equals(instanceId)
+        return Task.FromResult(inbox.TryGetValue(eventId, out var record) && record.InstanceId?.Equals(instanceId) == true
             ? Option<InboxRecord>.Some(record)
             : Option<InboxRecord>.None);
     }
@@ -194,6 +228,125 @@ public sealed class FakeWorkflowEventStore :
             ? Option<InboxRecord>.Some(record)
             : Option<InboxRecord>.None);
     }
+
+    public Task<InboxAcceptanceCommitResult> AcceptAsync(
+        InboxAcceptance acceptance,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (gate)
+        {
+            if (inbox.TryGetValue(acceptance.Envelope.EventId, out var existing))
+            {
+                return Task.FromResult(new InboxAcceptanceCommitResult(
+                    string.Equals(existing.EnvelopeFingerprint, acceptance.EnvelopeFingerprint, StringComparison.Ordinal)
+                        ? InboxAcceptanceCommitDisposition.Duplicate
+                        : InboxAcceptanceCommitDisposition.Conflict,
+                    existing));
+            }
+
+            var route = CreateInboxRoute(acceptance.Envelope);
+            if (route.Kind == "direct")
+            {
+                var instanceId = route.InstanceId ?? throw new InvalidOperationException(
+                    "A direct inbox route requires an instance.");
+                if (!projectedSummaries.TryGetValue(instanceId, out var target))
+                {
+                    return Task.FromResult(new InboxAcceptanceCommitResult(
+                        InboxAcceptanceCommitDisposition.DirectInstanceNotFound,
+                        null));
+                }
+
+                if (IsTerminal(target.Status))
+                {
+                    return Task.FromResult(new InboxAcceptanceCommitResult(
+                        InboxAcceptanceCommitDisposition.DirectInstanceTerminal,
+                        null));
+                }
+            }
+
+            var record = new InboxRecord(
+                acceptance.Envelope.Route.InstanceId,
+                acceptance.Envelope.EventId,
+                acceptance.EnvelopeFingerprint,
+                InboxRecordState.Received)
+            {
+                Envelope = CloneEnvelope(acceptance.Envelope),
+                Route = route,
+                AcceptanceSequence = ++nextInboxAcceptanceSequence,
+                AcceptedAt = acceptance.AcceptedAt
+            };
+            inbox[record.EventId] = record;
+            inboxRouteRevisions[route] = CurrentRouteRevision(route) + 1;
+            return Task.FromResult(new InboxAcceptanceCommitResult(InboxAcceptanceCommitDisposition.Accepted, record));
+        }
+    }
+
+    public Task<InboxMatchSnapshot> GetMatchSnapshotAsync(
+        InboxMatchRequest request,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (gate)
+        {
+            var routes = request.Routes.ToHashSet();
+            var pending = inbox.Values
+                .Where(record => record.State == InboxRecordState.Received &&
+                    record.Route is not null && routes.Contains(record.Route))
+                .OrderBy(record => record.AcceptanceSequence)
+                .ThenBy(record => record.EventId.Value, StringComparer.Ordinal)
+                .FirstOrDefault();
+            return Task.FromResult(new InboxMatchSnapshot(
+                pending,
+                request.Routes.Select(route => new InboxRouteRevision(route, CurrentRouteRevision(route))).ToArray()));
+        }
+    }
+
+    public Task MarkPoisonedAsync(
+        EventId eventId,
+        string code,
+        string? detail,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (gate)
+        {
+            if (inbox.TryGetValue(eventId, out var record) && record.State != InboxRecordState.Applied)
+            {
+                inbox[eventId] = record with
+                {
+                    State = InboxRecordState.Poisoned,
+                    PoisonCode = code,
+                    PoisonDetail = detail
+                };
+                if (record.Route is { } route)
+                {
+                    inboxRouteRevisions[route] = CurrentRouteRevision(route) + 1;
+                }
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private long CurrentRouteRevision(InboxRouteKey route) =>
+        inboxRouteRevisions.TryGetValue(route, out var revision) ? revision : 0;
+
+    private static InboxRouteKey CreateInboxRoute(DurableEventEnvelope envelope) =>
+        envelope.Route.Kind switch
+        {
+            "direct" => InboxRouteKey.Direct(
+                envelope.Route.InstanceId!,
+                EventName.Create(envelope.EventName),
+                new EventContractVersion(envelope.EventContractVersion),
+                envelope.CorrelationId),
+            "correlation" => InboxRouteKey.Correlation(
+                envelope.Route.DefinitionId!,
+                EventName.Create(envelope.EventName),
+                new EventContractVersion(envelope.EventContractVersion),
+                envelope.CorrelationId),
+            _ => throw new NotSupportedException()
+        };
 
     public Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedAsync(
         string idempotencyKey,
@@ -302,6 +455,16 @@ public sealed class FakeWorkflowEventStore :
     public Task ApplyAsync(IReadOnlyList<ProjectionWrite> operations, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        lock (gate)
+        {
+            ApplyProjectionOperations(operations);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private void ApplyProjectionOperations(IEnumerable<ProjectionWrite> operations)
+    {
         foreach (var operation in operations)
         {
             if (operation is { Kind: ProjectionOperationKind.UpsertSummary, InstanceSnapshot: { } snapshot })
@@ -309,8 +472,6 @@ public sealed class FakeWorkflowEventStore :
                 projectedSummaries[operation.InstanceId] = snapshot;
             }
         }
-
-        return Task.CompletedTask;
     }
 
     public Task<Option<ProjectionWorkflowInstanceSnapshot>> GetAsync(
@@ -370,6 +531,13 @@ public sealed class FakeWorkflowEventStore :
                 }
             };
     }
+
+    private static bool IsTerminal(global::OrcaCore.WorkflowInstanceStatus status) =>
+        status is global::OrcaCore.WorkflowInstanceStatus.Completed or
+            global::OrcaCore.WorkflowInstanceStatus.Failed or
+            global::OrcaCore.WorkflowInstanceStatus.TimedOut or
+            global::OrcaCore.WorkflowInstanceStatus.Cancelled or
+            global::OrcaCore.WorkflowInstanceStatus.Terminated;
 
     private static CheckpointWrite CloneCheckpointWrite(CheckpointWrite checkpoint)
     {

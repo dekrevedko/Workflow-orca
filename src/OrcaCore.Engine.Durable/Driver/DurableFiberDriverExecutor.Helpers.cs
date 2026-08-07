@@ -869,6 +869,19 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             cancellationToken).ConfigureAwait(false);
 
         var waitId = WaitId.Parse(Guid.CreateVersion7().ToString());
+        var definitionId = context.Aggregate.DefinitionId ??
+            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                "A durable wait cannot be registered before its definition identity is available.");
+        var inboxMatch = context.Processor.EventStore is IWorkflowInboxStore inboxStore
+            ? await inboxStore.GetMatchSnapshotAsync(
+                new InboxMatchRequest(
+                    context.InstanceId,
+                    definitionId,
+                    eventContract.EventName,
+                    eventContract.Version,
+                    correlationId),
+                cancellationToken).ConfigureAwait(false)
+            : null;
         var advanced = ClearResume(fiber) with
         {
             InstructionId = RequiredNext(instruction)
@@ -920,10 +933,11 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                     : null,
                 Envelope = BuildEnvelope(context, execution, state, ownedObligations),
                 ExpectedStreamVersion = currentVersion,
-                ConsumedResumeWaitIds = ConsumedWaitIds(consumedWaitId)
+                ConsumedResumeWaitIds = ConsumedWaitIds(consumedWaitId),
+                InboxMatch = inboxMatch
             },
             cancellationToken).ConfigureAwait(false);
-        return new OwnedWaitRegistration(execution, registered);
+        return new OwnedWaitRegistration(execution, registered, inboxMatch?.PendingEvent is not null);
     }
 
     private async Task EnsureWaitRegistrationIsUnambiguousAsync(
@@ -1104,7 +1118,8 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
 
     private sealed record OwnedWaitRegistration(
         StructuredExecutionState Execution,
-        DurableCommandResult Commit);
+        DurableCommandResult Commit,
+        bool MatchedPendingEvent);
 
     private sealed record PolicyExecutedStep(
         StructuredExecutionState Execution,

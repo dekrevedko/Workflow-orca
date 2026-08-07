@@ -30,12 +30,31 @@ internal sealed class DurableCommitMaterializer
             Events = decision.Events,
             Checkpoint = decision.Checkpoint,
             InboxOperations = CreateInboxOperations(inboxDelivery, decision),
+            InboxRouteMutations = inboxDelivery?.Match?.RouteRevisions
+                .Select(revision => new InboxRouteMutation(revision.Route, revision.Revision))
+                .Concat(decision.InboxRouteMutations)
+                .Distinct()
+                .ToArray() ?? decision.InboxRouteMutations,
+            InboxTargetPoisonOperations = CreatesTerminalState(decision.Events)
+                ?
+                [
+                    new InboxTargetPoisonWrite(
+                        instanceId,
+                        "target-terminal",
+                        "The direct target became terminal before this accepted event matched a wait.")
+                ]
+                : [],
             OutboxRecords = CreateOutboxRecords(decision, aggregate, projectionOperations),
             ProjectionOperations = projectionOperations,
             StartIdempotencyOperations = CreateStartIdempotencyWrites(decision.Events),
             TimerSchedules = CreateTimerSchedules(decision.Events)
         };
     }
+
+    private static bool CreatesTerminalState(IReadOnlyList<DurableWorkflowEvent> events) =>
+        events.Any(workflowEvent => workflowEvent is
+            WorkflowCompletedEvent or
+            WorkflowTerminalEvent);
 
     internal ProviderCommitBatch CreateInboxOnlyBatch(
         InstanceId instanceId,
@@ -195,13 +214,23 @@ internal sealed class DurableCommitMaterializer
         DurableInboxDelivery? inboxDelivery,
         DurableDecision decision)
     {
-        return inboxDelivery is { } delivery
+        return inboxDelivery is { Match: not null } delivery
             ?
             [
                 new InboxWrite(delivery.EventId, InboxRecordState.Applied)
                 {
-                    EnvelopeFingerprint = delivery.EnvelopeFingerprint,
-                    Envelope = delivery.Envelope
+                    ExpectedState = InboxRecordState.Received,
+                    TargetInstanceId = delivery.TargetInstanceId
+                },
+                .. decision.InboxOperations
+            ]
+            : inboxDelivery is { } legacyDelivery
+            ?
+            [
+                new InboxWrite(legacyDelivery.EventId, InboxRecordState.Applied)
+                {
+                    EnvelopeFingerprint = legacyDelivery.EnvelopeFingerprint,
+                    Envelope = legacyDelivery.Envelope
                 },
                 .. decision.InboxOperations
             ]

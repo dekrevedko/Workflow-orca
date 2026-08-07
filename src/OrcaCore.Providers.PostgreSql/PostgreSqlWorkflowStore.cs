@@ -1,4 +1,5 @@
 using System.Data;
+using System.Text;
 using System.Text.Json;
 using Npgsql;
 using NpgsqlTypes;
@@ -165,6 +166,34 @@ internal sealed class PostgreSqlWorkflowStore :
 
         try
         {
+            var targetStorageKeys = batch.InboxTargetPoisonOperations
+                .Select(operation => InboxTargetStorageKey(operation.InstanceId))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            var lockedStorageRevisions = new Dictionary<string, long>(StringComparer.Ordinal);
+            foreach (var storageKey in batch.InboxRouteMutations
+                         .Select(mutation => InboxRouteStorageKey(mutation.Route))
+                         .Concat(targetStorageKeys)
+                         .Distinct(StringComparer.Ordinal)
+                         .OrderBy(key => key, StringComparer.Ordinal))
+            {
+                lockedStorageRevisions[storageKey] = await LockInboxStorageKeyAsync(
+                    connection,
+                    transaction,
+                    storageKey,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            foreach (var routeMutation in batch.InboxRouteMutations)
+            {
+                var actualRevision = lockedStorageRevisions[InboxRouteStorageKey(routeMutation.Route)];
+                if (actualRevision != routeMutation.ExpectedRevision)
+                {
+                    await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                    return EventStoreConflict.InboxRouteChanged(routeMutation.Route);
+                }
+            }
+
             foreach (var inboxWrite in batch.InboxOperations.Where(operation =>
                          operation.EnvelopeFingerprint is not null))
             {
@@ -174,7 +203,7 @@ internal sealed class PostgreSqlWorkflowStore :
                     inboxWrite.EventId,
                     cancellationToken).ConfigureAwait(false);
                 if (existing is not null &&
-                    (!existing.InstanceId.Equals(batch.StreamId.InstanceId) ||
+                    (existing.InstanceId is null || !existing.InstanceId.Equals(batch.StreamId.InstanceId) ||
                      !string.Equals(
                          existing.EnvelopeFingerprint,
                          inboxWrite.EnvelopeFingerprint,
@@ -222,6 +251,26 @@ internal sealed class PostgreSqlWorkflowStore :
                     batch.InboxOperations,
                     cancellationToken)
                 .ConfigureAwait(false);
+            await AdvanceInboxRoutesAsync(
+                connection,
+                transaction,
+                batch.InboxRouteMutations,
+                cancellationToken).ConfigureAwait(false);
+            await ApplyInboxTargetPoisonOperationsAsync(
+                connection,
+                transaction,
+                batch.InboxTargetPoisonOperations,
+                cancellationToken).ConfigureAwait(false);
+            foreach (var targetStorageKey in targetStorageKeys)
+            {
+                await SetInboxStorageRevisionAsync(
+                    connection,
+                    transaction,
+                    targetStorageKey,
+                    lockedStorageRevisions[targetStorageKey] + 1,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
             await ApplyStartIdempotencyOperationsAsync(connection, transaction, batch.StartIdempotencyOperations, cancellationToken)
                 .ConfigureAwait(false);
             await InsertOutboxRecordsAsync(connection, transaction, batch.StreamId.InstanceId, batch.OutboxRecords, cancellationToken)
@@ -303,13 +352,232 @@ internal sealed class PostgreSqlWorkflowStore :
     }
 
     /// <inheritdoc />
+    public async Task<InboxAcceptanceCommitResult> AcceptAsync(
+        InboxAcceptance acceptance,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(acceptance);
+        var existing = await GetByEventIdAsync(acceptance.Envelope.EventId, cancellationToken).ConfigureAwait(false);
+        if (existing.HasValue)
+        {
+            return ClassifyInboxAcceptance(existing.Value, acceptance.EnvelopeFingerprint);
+        }
+
+        var route = CreateInboxRoute(acceptance.Envelope);
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = await connection
+            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
+            .ConfigureAwait(false);
+        try
+        {
+            var routeStorageKey = InboxRouteStorageKey(route);
+            var targetStorageKey = route.Kind == "direct"
+                ? InboxTargetStorageKey(route.InstanceId ?? throw new InvalidOperationException(
+                    "A direct inbox route requires an instance."))
+                : null;
+            var lockedStorageRevisions = new Dictionary<string, long>(StringComparer.Ordinal);
+            foreach (var storageKey in new[] { routeStorageKey, targetStorageKey }
+                         .Where(key => key is not null)
+                         .Cast<string>()
+                         .Distinct(StringComparer.Ordinal)
+                         .OrderBy(key => key, StringComparer.Ordinal))
+            {
+                lockedStorageRevisions[storageKey] = await LockInboxStorageKeyAsync(
+                    connection,
+                    transaction,
+                    storageKey,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (route.InstanceId is { } targetInstanceId)
+            {
+                var targetStatus = await LoadInboxTargetStatusAsync(
+                    connection,
+                    transaction,
+                    targetInstanceId,
+                    cancellationToken).ConfigureAwait(false);
+                if (targetStatus is null)
+                {
+                    await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                    return new InboxAcceptanceCommitResult(
+                        InboxAcceptanceCommitDisposition.DirectInstanceNotFound,
+                        null);
+                }
+
+                if (IsTerminal(targetStatus.Value))
+                {
+                    await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                    return new InboxAcceptanceCommitResult(
+                        InboxAcceptanceCommitDisposition.DirectInstanceTerminal,
+                        null);
+                }
+            }
+
+            await using var command = new NpgsqlCommand(
+                """
+                insert into orcacore_inbox (
+                    instance_id, event_id, envelope_fingerprint, state, route_key, accepted_at,
+                    event_name, event_contract_version, correlation_id, causation_event_id, occurred_at,
+                    route_kind, route_instance_id, route_definition_id, route_definition_version,
+                    start_idempotency_key, workflow_input_content_type, workflow_input_payload,
+                    payload_content_type, payload)
+                values (
+                    @instance_id, @event_id, @envelope_fingerprint, @state, @route_key, @accepted_at,
+                    @event_name, @event_contract_version, @correlation_id, @causation_event_id, @occurred_at,
+                    @route_kind, @route_instance_id, @route_definition_id, @route_definition_version,
+                    @start_idempotency_key, @workflow_input_content_type, @workflow_input_payload,
+                    @payload_content_type, @payload)
+                returning acceptance_sequence;
+                """,
+                connection,
+                transaction);
+            command.Parameters.Add("instance_id", NpgsqlDbType.Uuid).Value =
+                (object?)acceptance.Envelope.Route.InstanceId?.Value ?? DBNull.Value;
+            command.Parameters.AddWithValue("event_id", acceptance.Envelope.EventId.Value);
+            command.Parameters.AddWithValue("envelope_fingerprint", acceptance.EnvelopeFingerprint);
+            command.Parameters.AddWithValue("state", InboxRecordState.Received.ToString());
+            command.Parameters.AddWithValue("route_key", InboxRouteStorageKey(route));
+            command.Parameters.AddWithValue("accepted_at", acceptance.AcceptedAt);
+            AddEnvelopeParameters(command, acceptance.Envelope);
+            var sequence = (long)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false)
+                ?? throw new InvalidOperationException("PostgreSQL did not return an inbox acceptance sequence."));
+            await SetInboxStorageRevisionAsync(
+                connection,
+                transaction,
+                routeStorageKey,
+                lockedStorageRevisions[routeStorageKey] + 1,
+                cancellationToken).ConfigureAwait(false);
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+            return new InboxAcceptanceCommitResult(
+                InboxAcceptanceCommitDisposition.Accepted,
+                new InboxRecord(
+                    acceptance.Envelope.Route.InstanceId,
+                    acceptance.Envelope.EventId,
+                    acceptance.EnvelopeFingerprint,
+                    InboxRecordState.Received)
+                {
+                    Envelope = acceptance.Envelope,
+                    Route = route,
+                    AcceptanceSequence = sequence,
+                    AcceptedAt = acceptance.AcceptedAt
+                });
+        }
+        catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.UniqueViolation)
+        {
+            await RollbackQuietlyAsync(transaction, cancellationToken).ConfigureAwait(false);
+            var raced = await GetByEventIdAsync(acceptance.Envelope.EventId, cancellationToken).ConfigureAwait(false);
+            if (!raced.HasValue)
+            {
+                throw;
+            }
+
+            return ClassifyInboxAcceptance(raced.Value, acceptance.EnvelopeFingerprint);
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<InboxMatchSnapshot> GetMatchSnapshotAsync(
+        InboxMatchRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = await connection
+            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
+            .ConfigureAwait(false);
+        var revisions = new List<InboxRouteRevision>(request.Routes.Count);
+        foreach (var route in request.Routes.OrderBy(InboxRouteStorageKey, StringComparer.Ordinal))
+        {
+            revisions.Add(new InboxRouteRevision(
+                route,
+                await LockInboxRouteAsync(connection, transaction, route, cancellationToken).ConfigureAwait(false)));
+        }
+
+        await using var command = new NpgsqlCommand(
+            """
+            select event_id
+            from orcacore_inbox
+            where state = @state
+              and route_key = any(@route_keys)
+            order by acceptance_sequence, event_id
+            limit 1;
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("state", InboxRecordState.Received.ToString());
+        command.Parameters.AddWithValue(
+            "route_keys",
+            request.Routes.Select(InboxRouteStorageKey).ToArray());
+        var eventIdValue = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) as string;
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        InboxRecord? pending = null;
+        if (eventIdValue is not null)
+        {
+            var loaded = await GetByEventIdAsync(EventId.Create(eventIdValue), cancellationToken).ConfigureAwait(false);
+            pending = loaded.HasValue ? loaded.Value : null;
+        }
+
+        return new InboxMatchSnapshot(pending, revisions);
+    }
+
+    /// <inheritdoc />
+    public async Task MarkPoisonedAsync(
+        EventId eventId,
+        string code,
+        string? detail,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(eventId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        var existing = await GetByEventIdAsync(eventId, cancellationToken).ConfigureAwait(false);
+        if (!existing.HasValue || existing.Value.State == InboxRecordState.Applied)
+        {
+            return;
+        }
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = await connection
+            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
+            .ConfigureAwait(false);
+        var route = existing.Value.Route ?? throw new InvalidOperationException(
+            "A pending inbox record must retain its serialized route identity.");
+        var revision = await LockInboxRouteAsync(connection, transaction, route, cancellationToken)
+            .ConfigureAwait(false);
+        await using var command = new NpgsqlCommand(
+            """
+            update orcacore_inbox
+            set state = @state,
+                poison_code = @poison_code,
+                poison_detail = @poison_detail
+            where event_id = @event_id
+              and state <> @applied;
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("state", InboxRecordState.Poisoned.ToString());
+        command.Parameters.AddWithValue("poison_code", code);
+        command.Parameters.Add("poison_detail", NpgsqlDbType.Text).Value = (object?)detail ?? DBNull.Value;
+        command.Parameters.AddWithValue("event_id", eventId.Value);
+        command.Parameters.AddWithValue("applied", InboxRecordState.Applied.ToString());
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        await SetInboxRouteRevisionAsync(
+            connection,
+            transaction,
+            route,
+            revision + 1,
+            cancellationToken).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
     public async Task<Option<InboxRecord>> GetAsync(
         InstanceId instanceId,
         EventId eventId,
         CancellationToken cancellationToken)
     {
         var record = await GetByEventIdAsync(eventId, cancellationToken).ConfigureAwait(false);
-        return record.HasValue && record.Value.InstanceId.Equals(instanceId)
+        return record.HasValue && record.Value.InstanceId?.Equals(instanceId) == true
             ? record
             : Option<InboxRecord>.None;
     }
@@ -339,7 +607,11 @@ internal sealed class PostgreSqlWorkflowStore :
                 workflow_input_content_type,
                 workflow_input_payload,
                 payload_content_type,
-                payload
+                payload,
+                acceptance_sequence,
+                accepted_at,
+                poison_code,
+                poison_detail
             from orcacore_inbox
             where event_id = @event_id;
             """,
@@ -352,36 +624,42 @@ internal sealed class PostgreSqlWorkflowStore :
             return Option<InboxRecord>.None;
         }
 
-        var instanceId = InstanceId.Parse(reader.GetGuid(0).ToString());
+        var instanceId = reader.IsDBNull(0) ? null : InstanceId.Parse(reader.GetGuid(0).ToString());
+        var envelope = reader.IsDBNull(3)
+            ? null
+            : new DurableEventEnvelope
+            {
+                EventId = eventId,
+                EventName = reader.GetString(3),
+                EventContractVersion = reader.GetInt32(4),
+                CorrelationId = CorrelationId.Create(reader.GetString(5)),
+                CausationEventId = reader.IsDBNull(6) ? null : EventId.Create(reader.GetString(6)),
+                OccurredAt = reader.GetFieldValue<DateTimeOffset>(7),
+                Route = new DurableEventRouteEnvelope
+                {
+                    Kind = reader.GetString(8),
+                    InstanceId = reader.IsDBNull(9) ? null : InstanceId.Parse(reader.GetGuid(9).ToString()),
+                    DefinitionId = reader.IsDBNull(10) ? null : DefinitionId.Parse(reader.GetGuid(10).ToString()),
+                    DefinitionVersion = reader.IsDBNull(11) ? null : new DefinitionVersion(reader.GetInt32(11)),
+                    StartIdempotencyKey = reader.IsDBNull(12) ? null : reader.GetString(12),
+                    WorkflowInputContentType = reader.IsDBNull(13) ? null : reader.GetString(13),
+                    WorkflowInputPayload = reader.IsDBNull(14) ? null : reader.GetFieldValue<byte[]>(14)
+                },
+                PayloadContentType = reader.IsDBNull(15) ? null : reader.GetString(15),
+                Payload = reader.IsDBNull(16) ? null : reader.GetFieldValue<byte[]>(16)
+            };
         return Option<InboxRecord>.Some(new InboxRecord(
             instanceId,
             eventId,
             reader.GetString(1),
             Enum.Parse<InboxRecordState>(reader.GetString(2)))
         {
-            Envelope = reader.IsDBNull(3)
-                ? null
-                : new DurableEventEnvelope
-                {
-                    EventId = eventId,
-                    EventName = reader.GetString(3),
-                    EventContractVersion = reader.GetInt32(4),
-                    CorrelationId = CorrelationId.Create(reader.GetString(5)),
-                    CausationEventId = reader.IsDBNull(6) ? null : EventId.Create(reader.GetString(6)),
-                    OccurredAt = reader.GetFieldValue<DateTimeOffset>(7),
-                    Route = new DurableEventRouteEnvelope
-                    {
-                        Kind = reader.GetString(8),
-                        InstanceId = reader.IsDBNull(9) ? null : InstanceId.Parse(reader.GetGuid(9).ToString()),
-                        DefinitionId = reader.IsDBNull(10) ? null : DefinitionId.Parse(reader.GetGuid(10).ToString()),
-                        DefinitionVersion = reader.IsDBNull(11) ? null : new DefinitionVersion(reader.GetInt32(11)),
-                        StartIdempotencyKey = reader.IsDBNull(12) ? null : reader.GetString(12),
-                        WorkflowInputContentType = reader.IsDBNull(13) ? null : reader.GetString(13),
-                        WorkflowInputPayload = reader.IsDBNull(14) ? null : reader.GetFieldValue<byte[]>(14)
-                    },
-                    PayloadContentType = reader.IsDBNull(15) ? null : reader.GetString(15),
-                    Payload = reader.IsDBNull(16) ? null : reader.GetFieldValue<byte[]>(16)
-                }
+            Envelope = envelope,
+            Route = envelope is null ? null : CreateInboxRoute(envelope),
+            AcceptanceSequence = reader.IsDBNull(17) ? 0 : reader.GetInt64(17),
+            AcceptedAt = reader.GetFieldValue<DateTimeOffset>(18),
+            PoisonCode = reader.IsDBNull(19) ? null : reader.GetString(19),
+            PoisonDetail = reader.IsDBNull(20) ? null : reader.GetString(20)
         });
     }
 
@@ -845,7 +1123,7 @@ internal sealed class PostgreSqlWorkflowStore :
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         return await reader.ReadAsync(cancellationToken).ConfigureAwait(false)
             ? new ExistingInboxIdentity(
-                InstanceId.Parse(reader.GetGuid(0).ToString()),
+                reader.IsDBNull(0) ? null : InstanceId.Parse(reader.GetGuid(0).ToString()),
                 reader.GetString(1))
             : null;
     }
@@ -867,9 +1145,12 @@ internal sealed class PostgreSqlWorkflowStore :
                     set state = case
                         when state = @applied then state
                         else @state
-                    end
-                    where instance_id = @instance_id
-                      and event_id = @event_id;
+                    end,
+                        instance_id = coalesce(@target_instance_id, instance_id)
+                    where event_id = @event_id
+                      and (instance_id = @instance_id or
+                           (instance_id is null and @target_instance_id = @instance_id))
+                      and (@expected_state is null or state = @expected_state);
                     """,
                     connection,
                     transaction);
@@ -877,6 +1158,10 @@ internal sealed class PostgreSqlWorkflowStore :
                 update.Parameters.AddWithValue("event_id", operation.EventId.Value);
                 update.Parameters.AddWithValue("state", operation.State.ToString());
                 update.Parameters.AddWithValue("applied", InboxRecordState.Applied.ToString());
+                update.Parameters.Add("target_instance_id", NpgsqlDbType.Uuid).Value =
+                    (object?)operation.TargetInstanceId?.Value ?? DBNull.Value;
+                update.Parameters.Add("expected_state", NpgsqlDbType.Text).Value =
+                    (object?)operation.ExpectedState?.ToString() ?? DBNull.Value;
                 if (await update.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) != 1)
                 {
                     throw new InvalidOperationException(
@@ -893,9 +1178,9 @@ internal sealed class PostgreSqlWorkflowStore :
                 set state = case
                     when state = @applied then state
                     else @state
-                end
-                where instance_id = @instance_id
-                  and event_id = @event_id
+                end,
+                    instance_id = coalesce(@target_instance_id, instance_id)
+                where event_id = @event_id
                   and envelope_fingerprint = @envelope_fingerprint;
                 """,
                 connection,
@@ -906,6 +1191,8 @@ internal sealed class PostgreSqlWorkflowStore :
                 transition.Parameters.AddWithValue("envelope_fingerprint", operation.EnvelopeFingerprint);
                 transition.Parameters.AddWithValue("state", operation.State.ToString());
                 transition.Parameters.AddWithValue("applied", InboxRecordState.Applied.ToString());
+                transition.Parameters.Add("target_instance_id", NpgsqlDbType.Uuid).Value =
+                    (object?)operation.TargetInstanceId?.Value ?? DBNull.Value;
                 if (await transition.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) == 1)
                 {
                     continue;
@@ -996,8 +1283,179 @@ internal sealed class PostgreSqlWorkflowStore :
         command.Parameters.Add("payload", NpgsqlDbType.Bytea).Value = (object?)envelope?.Payload ?? DBNull.Value;
     }
 
+    private static InboxAcceptanceCommitResult ClassifyInboxAcceptance(
+        InboxRecord existing,
+        string fingerprint) =>
+        new(
+            string.Equals(existing.EnvelopeFingerprint, fingerprint, StringComparison.Ordinal)
+                ? InboxAcceptanceCommitDisposition.Duplicate
+                : InboxAcceptanceCommitDisposition.Conflict,
+            existing);
+
+    private static InboxRouteKey CreateInboxRoute(DurableEventEnvelope envelope) =>
+        envelope.Route.Kind switch
+        {
+            "direct" => InboxRouteKey.Direct(
+                envelope.Route.InstanceId ?? throw new InvalidOperationException("A direct inbox route requires an instance."),
+                EventName.Create(envelope.EventName),
+                new EventContractVersion(envelope.EventContractVersion),
+                envelope.CorrelationId),
+            "correlation" => InboxRouteKey.Correlation(
+                envelope.Route.DefinitionId ?? throw new InvalidOperationException("A correlation inbox route requires a definition."),
+                EventName.Create(envelope.EventName),
+                new EventContractVersion(envelope.EventContractVersion),
+                envelope.CorrelationId),
+            _ => throw new NotSupportedException(
+                $"Inbox buffering for route '{envelope.Route.Kind}' is owned by a later Section 7B task.")
+        };
+
+    private static string InboxRouteStorageKey(InboxRouteKey route)
+    {
+        static string Encode(string value) => Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
+
+        return route.Kind == "direct"
+            ? $"direct|{route.InstanceId!.Value:D}|{route.EventContractVersion.Value}|" +
+              $"{Encode(route.EventName.Value)}|{Encode(route.CorrelationId.Value)}"
+            : $"correlation|{route.DefinitionId!.Value:D}|{route.EventContractVersion.Value}|" +
+              $"{Encode(route.EventName.Value)}|{Encode(route.CorrelationId.Value)}";
+    }
+
+    private static string InboxTargetStorageKey(InstanceId instanceId) =>
+        $"direct-target|{instanceId.Value:D}";
+
+    private static Task<long> LockInboxRouteAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        InboxRouteKey route,
+        CancellationToken cancellationToken)
+        => LockInboxStorageKeyAsync(connection, transaction, InboxRouteStorageKey(route), cancellationToken);
+
+    private static async Task<long> LockInboxStorageKeyAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string storageKey,
+        CancellationToken cancellationToken)
+    {
+        await using (var insert = new NpgsqlCommand(
+            "insert into orcacore_inbox_routes (route_key, revision) values (@route_key, 0) on conflict do nothing;",
+            connection,
+            transaction))
+        {
+            insert.Parameters.AddWithValue("route_key", storageKey);
+            await insert.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        await using var select = new NpgsqlCommand(
+            "select revision from orcacore_inbox_routes where route_key = @route_key for update;",
+            connection,
+            transaction);
+        select.Parameters.AddWithValue("route_key", storageKey);
+        return (long)(await select.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false)
+            ?? throw new InvalidOperationException("The inbox route revision was not materialized."));
+    }
+
+    private static Task SetInboxRouteRevisionAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        InboxRouteKey route,
+        long revision,
+        CancellationToken cancellationToken)
+        => SetInboxStorageRevisionAsync(
+            connection,
+            transaction,
+            InboxRouteStorageKey(route),
+            revision,
+            cancellationToken);
+
+    private static async Task SetInboxStorageRevisionAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string storageKey,
+        long revision,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new NpgsqlCommand(
+            "update orcacore_inbox_routes set revision = @revision where route_key = @route_key;",
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("revision", revision);
+        command.Parameters.AddWithValue("route_key", storageKey);
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<global::OrcaCore.WorkflowInstanceStatus?> LoadInboxTargetStatusAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new NpgsqlCommand(
+            "select status from orcacore_instance_projections where instance_id = @instance_id;",
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("instance_id", instanceId.Value);
+        var value = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) as string;
+        return value is null
+            ? null
+            : Enum.Parse<global::OrcaCore.WorkflowInstanceStatus>(value, ignoreCase: false);
+    }
+
+    private static bool IsTerminal(global::OrcaCore.WorkflowInstanceStatus status) =>
+        status is global::OrcaCore.WorkflowInstanceStatus.Completed or
+            global::OrcaCore.WorkflowInstanceStatus.Failed or
+            global::OrcaCore.WorkflowInstanceStatus.TimedOut or
+            global::OrcaCore.WorkflowInstanceStatus.Cancelled or
+            global::OrcaCore.WorkflowInstanceStatus.Terminated;
+
+    private static async Task AdvanceInboxRoutesAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        IEnumerable<InboxRouteMutation> mutations,
+        CancellationToken cancellationToken)
+    {
+        foreach (var mutation in mutations)
+        {
+            await SetInboxRouteRevisionAsync(
+                connection,
+                transaction,
+                mutation.Route,
+                mutation.ExpectedRevision + 1,
+                cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task ApplyInboxTargetPoisonOperationsAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        IEnumerable<InboxTargetPoisonWrite> operations,
+        CancellationToken cancellationToken)
+    {
+        foreach (var operation in operations)
+        {
+            await using var command = new NpgsqlCommand(
+                """
+                update orcacore_inbox
+                set state = @poisoned,
+                    poison_code = @poison_code,
+                    poison_detail = @poison_detail
+                where state = @received
+                  and route_kind = 'direct'
+                  and route_instance_id = @instance_id;
+                """,
+                connection,
+                transaction);
+            command.Parameters.AddWithValue("poisoned", InboxRecordState.Poisoned.ToString());
+            command.Parameters.AddWithValue("received", InboxRecordState.Received.ToString());
+            command.Parameters.AddWithValue("poison_code", operation.Code);
+            command.Parameters.Add("poison_detail", NpgsqlDbType.Text).Value =
+                (object?)operation.Detail ?? DBNull.Value;
+            command.Parameters.AddWithValue("instance_id", operation.InstanceId.Value);
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     private sealed record ExistingInboxIdentity(
-        InstanceId InstanceId,
+        InstanceId? InstanceId,
         string EnvelopeFingerprint);
 
     private static async Task ApplyStartIdempotencyOperationsAsync(

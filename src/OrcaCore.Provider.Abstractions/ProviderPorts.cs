@@ -40,6 +40,14 @@ public interface IWorkflowEventStore
 public interface IWorkflowInboxStore
 {
     /// <summary>
+    /// Atomically owns a normalized inbound envelope and advances its exact route revision.
+    /// </summary>
+    Task<InboxAcceptanceCommitResult> AcceptAsync(
+        InboxAcceptance acceptance,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This provider does not implement durable pending-event acceptance.");
+
+    /// <summary>
     /// Gets the globally owned envelope for one event identity before route or target-state evaluation.
     /// </summary>
     Task<Option<InboxRecord>> GetByEventIdAsync(
@@ -53,19 +61,141 @@ public interface IWorkflowInboxStore
         InstanceId instanceId,
         EventId eventId,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Reads the oldest eligible pending event and the route revisions that make a later
+    /// wait/match commit conditional on this exact view.
+    /// </summary>
+    Task<InboxMatchSnapshot> GetMatchSnapshotAsync(
+        InboxMatchRequest request,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This provider does not implement durable pending-event matching.");
+
+    /// <summary>Records an operator-visible terminal disposition without deleting ownership.</summary>
+    Task MarkPoisonedAsync(
+        EventId eventId,
+        string code,
+        string? detail,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This provider does not implement observable inbox poison state.");
 }
+
+/// <summary>Identifies one serialized direct-target or correlation inbox route.</summary>
+public sealed record InboxRouteKey
+{
+    private InboxRouteKey(
+        string kind,
+        InstanceId? instanceId,
+        DefinitionId? definitionId,
+        EventName eventName,
+        EventContractVersion eventContractVersion,
+        CorrelationId correlationId)
+    {
+        Kind = kind;
+        InstanceId = instanceId;
+        DefinitionId = definitionId;
+        EventName = eventName;
+        EventContractVersion = eventContractVersion;
+        CorrelationId = correlationId;
+    }
+
+    public string Kind { get; }
+
+    public InstanceId? InstanceId { get; }
+
+    public DefinitionId? DefinitionId { get; }
+
+    public EventName EventName { get; }
+
+    public EventContractVersion EventContractVersion { get; }
+
+    public CorrelationId CorrelationId { get; }
+
+    public static InboxRouteKey Direct(
+        InstanceId instanceId,
+        EventName eventName,
+        EventContractVersion eventContractVersion,
+        CorrelationId correlationId) =>
+        new("direct", instanceId, null, eventName, eventContractVersion, correlationId);
+
+    public static InboxRouteKey Correlation(
+        DefinitionId definitionId,
+        EventName eventName,
+        EventContractVersion eventContractVersion,
+        CorrelationId correlationId) =>
+        new("correlation", null, definitionId, eventName, eventContractVersion, correlationId);
+}
+
+/// <summary>Requests durable ownership of one normalized inbound envelope.</summary>
+public sealed record InboxAcceptance(
+    DurableEventEnvelope Envelope,
+    string EnvelopeFingerprint,
+    DateTimeOffset AcceptedAt);
+
+/// <summary>Describes how an inbox acceptance attempt resolved.</summary>
+public sealed record InboxAcceptanceCommitResult(
+    InboxAcceptanceCommitDisposition Disposition,
+    InboxRecord? Record);
+
+/// <summary>Closed provider result for global inbound-event ownership.</summary>
+public enum InboxAcceptanceCommitDisposition
+{
+    Accepted,
+    Duplicate,
+    Conflict,
+    DirectInstanceNotFound,
+    DirectInstanceTerminal
+}
+
+/// <summary>Describes the exact wait route whose pending event is being inspected.</summary>
+public sealed record InboxMatchRequest(
+    InstanceId InstanceId,
+    DefinitionId DefinitionId,
+    EventName EventName,
+    EventContractVersion EventContractVersion,
+    CorrelationId CorrelationId)
+{
+    public IReadOnlyList<InboxRouteKey> Routes { get; } =
+    [
+        InboxRouteKey.Direct(InstanceId, EventName, EventContractVersion, CorrelationId),
+        InboxRouteKey.Correlation(DefinitionId, EventName, EventContractVersion, CorrelationId)
+    ];
+}
+
+/// <summary>Captures one route revision observed while matching a pending event.</summary>
+public sealed record InboxRouteRevision(InboxRouteKey Route, long Revision);
+
+/// <summary>Captures the oldest pending event and the exact route revisions observed with it.</summary>
+public sealed record InboxMatchSnapshot(
+    InboxRecord? PendingEvent,
+    IReadOnlyList<InboxRouteRevision> RouteRevisions);
 
 /// <summary>
 /// Describes the durable identity and state of one accepted inbound envelope.
 /// </summary>
 public sealed record InboxRecord(
-    InstanceId InstanceId,
+    InstanceId? InstanceId,
     EventId EventId,
     string EnvelopeFingerprint,
     InboxRecordState State)
 {
     /// <summary>Gets the complete normalized envelope and route persisted at first acceptance.</summary>
     public DurableEventEnvelope? Envelope { get; init; }
+
+    /// <summary>Gets the serialized route boundary that owns this record.</summary>
+    public InboxRouteKey? Route { get; init; }
+
+    /// <summary>Gets the provider-assigned global durable acceptance order.</summary>
+    public long AcceptanceSequence { get; init; }
+
+    /// <summary>Gets when durable ownership completed.</summary>
+    public DateTimeOffset AcceptedAt { get; init; }
+
+    /// <summary>Gets the stable operator-facing poison/dead-letter code, when terminal.</summary>
+    public string? PoisonCode { get; init; }
+
+    /// <summary>Gets optional operator-facing poison/dead-letter detail.</summary>
+    public string? PoisonDetail { get; init; }
 }
 
 /// <summary>

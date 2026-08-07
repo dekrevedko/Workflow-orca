@@ -1,5 +1,4 @@
 using OrcaCore.Abstractions.Durable;
-using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Engine.Durable.Internal;
@@ -39,7 +38,16 @@ internal sealed class DurableWorkflowEventIngressCore(
             .ConfigureAwait(false);
         if (prior.HasValue)
         {
-            return ClassifyExisting(prior.Value, normalized.Fingerprint);
+            var classified = ClassifyExisting(prior.Value, normalized.Fingerprint);
+            if (classified is WorkflowEventAcceptanceResult.Duplicate)
+            {
+                await TryDeliverPreviouslyAcceptedAsync(
+                    inboundEvent,
+                    normalized.Envelope.CorrelationId,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            return classified;
         }
 
         return inboundEvent.Route switch
@@ -69,8 +77,7 @@ internal sealed class DurableWorkflowEventIngressCore(
             cancellationToken).ConfigureAwait(false);
         if (matches.Count == 0)
         {
-            throw new InvalidOperationException(
-                "Correlation acceptance without an active matching wait requires the task 7.28 route inbox.");
+            return await PersistAcceptanceAsync(normalized, cancellationToken).ConfigureAwait(false);
         }
 
         if (matches.Count > 1)
@@ -79,7 +86,7 @@ internal sealed class DurableWorkflowEventIngressCore(
                 definitionId, eventContract, normalized.Envelope.CorrelationId);
         }
 
-        return await AcceptToActiveInstanceAsync(
+        return await AcceptAndTryDeliverAsync(
             matches[0], eventContract, normalized, cancellationToken).ConfigureAwait(false);
     }
 
@@ -102,45 +109,140 @@ internal sealed class DurableWorkflowEventIngressCore(
                 new WorkflowEventAcceptanceRejection.DirectInstanceTerminal());
         }
 
-        return await AcceptToActiveInstanceAsync(
+        return await AcceptAndTryDeliverAsync(
             projected.Value, eventContract, normalized, cancellationToken).ConfigureAwait(false);
     }
 
-    private async ValueTask<WorkflowEventAcceptanceResult> AcceptToActiveInstanceAsync(
+    private async ValueTask<WorkflowEventAcceptanceResult> AcceptAndTryDeliverAsync(
         WorkflowProjectionSnapshot snapshot,
         WorkflowEventContract eventContract,
         NormalizedDurableInboundEvent normalized,
         CancellationToken cancellationToken)
     {
+        var ownership = await PersistAcceptanceAsync(normalized, cancellationToken).ConfigureAwait(false);
+        if (ownership is not WorkflowEventAcceptanceResult.Accepted &&
+            ownership is not WorkflowEventAcceptanceResult.Duplicate)
+        {
+            return ownership;
+        }
+
         if (!snapshot.ActiveWaits.Any(wait =>
                 string.Equals(wait.EventName, eventContract.EventName.Value, StringComparison.Ordinal) &&
                 wait.EventContractVersion == eventContract.Version.Value &&
                 wait.CorrelationId.Equals(normalized.Envelope.CorrelationId)))
         {
-            throw new InvalidOperationException(
-                "Direct acceptance without an active matching wait requires the task 7.28 target inbox.");
+            return ownership;
         }
 
-        var result = await runtime.RaiseFacadeEventAsync(
+        await TryDeliverPendingAsync(
+            snapshot,
+            eventContract,
+            normalized.Envelope.CorrelationId,
+            cancellationToken).ConfigureAwait(false);
+        return ownership;
+    }
+
+    private async ValueTask TryDeliverPendingAsync(
+        WorkflowProjectionSnapshot snapshot,
+        WorkflowEventContract eventContract,
+        CorrelationId correlationId,
+        CancellationToken cancellationToken)
+    {
+        var match = await inboxStore.GetMatchSnapshotAsync(
+            new InboxMatchRequest(
+                snapshot.InstanceId,
+                snapshot.DefinitionId,
+                eventContract.EventName,
+                eventContract.Version,
+                correlationId),
+            cancellationToken).ConfigureAwait(false);
+        if (match.PendingEvent?.Envelope is not { } pendingEnvelope)
+        {
+            return;
+        }
+
+        await runtime.RaiseFacadeEventAsync(
             snapshot.InstanceId,
-            normalized.Envelope,
+            pendingEnvelope,
             cancellationToken,
             driveAfterAcceptance,
-            normalized.Fingerprint).ConfigureAwait(false);
-        if (result.Outcome is DurableCommandOutcome.Committed or DurableCommandOutcome.Poisoned)
+            match.PendingEvent.EnvelopeFingerprint,
+            match).ConfigureAwait(false);
+    }
+
+    private async ValueTask TryDeliverPreviouslyAcceptedAsync(
+        WorkflowInboundEvent inboundEvent,
+        CorrelationId correlationId,
+        CancellationToken cancellationToken)
+    {
+        WorkflowProjectionSnapshot? target = null;
+        switch (inboundEvent.Route)
         {
-            return new WorkflowEventAcceptanceResult.Accepted();
+            case WorkflowEventRoute.Direct direct:
+            {
+                var projected = await projectionStore.GetAsync(direct.InstanceId, cancellationToken)
+                    .ConfigureAwait(false);
+                if (projected.HasValue && !IsTerminal(projected.Value.Status))
+                {
+                    target = projected.Value;
+                }
+
+                break;
+            }
+            case WorkflowEventRoute.Correlation correlation:
+            {
+                var matches = await projectionStore.FindActiveWaitsAsync(
+                    correlation.DefinitionId,
+                    inboundEvent.EventContract.EventName,
+                    inboundEvent.EventContract.Version,
+                    correlationId,
+                    cancellationToken).ConfigureAwait(false);
+                if (matches.Count == 1)
+                {
+                    target = matches[0];
+                }
+
+                break;
+            }
         }
 
-        var committed = await inboxStore.GetByEventIdAsync(normalized.Envelope.EventId, cancellationToken)
-            .ConfigureAwait(false);
-        if (committed.HasValue)
+        if (target is not null && target.ActiveWaits.Any(wait =>
+                string.Equals(wait.EventName, inboundEvent.EventContract.EventName.Value, StringComparison.Ordinal) &&
+                wait.EventContractVersion == inboundEvent.EventContract.Version.Value &&
+                wait.CorrelationId.Equals(correlationId)))
         {
-            return ClassifyExisting(committed.Value, normalized.Fingerprint);
+            await TryDeliverPendingAsync(
+                target,
+                inboundEvent.EventContract,
+                correlationId,
+                cancellationToken).ConfigureAwait(false);
         }
+    }
 
-        throw new WorkflowConcurrencyException(
-            result.Message ?? "Durable event acceptance lost commit authority before ownership was recorded.");
+    private async ValueTask<WorkflowEventAcceptanceResult> PersistAcceptanceAsync(
+        NormalizedDurableInboundEvent normalized,
+        CancellationToken cancellationToken)
+    {
+        var commit = await inboxStore.AcceptAsync(
+            new InboxAcceptance(
+                normalized.Envelope,
+                normalized.Fingerprint,
+                runtime.UtcNow),
+            cancellationToken).ConfigureAwait(false);
+        return commit.Disposition switch
+        {
+            InboxAcceptanceCommitDisposition.Accepted => new WorkflowEventAcceptanceResult.Accepted(),
+            InboxAcceptanceCommitDisposition.Duplicate => new WorkflowEventAcceptanceResult.Duplicate(),
+            InboxAcceptanceCommitDisposition.Conflict =>
+                new WorkflowEventAcceptanceResult.Rejected(new WorkflowEventAcceptanceRejection.EventConflict()),
+            InboxAcceptanceCommitDisposition.DirectInstanceNotFound =>
+                new WorkflowEventAcceptanceResult.Rejected(
+                    new WorkflowEventAcceptanceRejection.DirectInstanceNotFound()),
+            InboxAcceptanceCommitDisposition.DirectInstanceTerminal =>
+                new WorkflowEventAcceptanceResult.Rejected(
+                    new WorkflowEventAcceptanceRejection.DirectInstanceTerminal()),
+            _ => throw new ArgumentOutOfRangeException(nameof(commit), commit.Disposition, "Unknown inbox acceptance result.")
+        };
     }
 
     private static WorkflowEventAcceptanceResult ClassifyExisting(InboxRecord existing, string fingerprint) =>

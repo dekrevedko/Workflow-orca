@@ -1,5 +1,6 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Providers;
 
 using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
 
@@ -33,7 +34,8 @@ internal static class DurableWaitTimerCommandHandler
                 command.CorrelationId);
         }
 
-        var registerTimeoutTimer = command.TimeoutTimerId is not null;
+        var pendingInbox = command.InboxMatch?.PendingEvent;
+        var registerTimeoutTimer = command.TimeoutTimerId is not null && pendingInbox is null;
         var events = new List<DurableWorkflowEvent>();
         AddConsumeAndCancelEvents(events, aggregate, command);
         events.Add(new WorkflowWaitRegisteredEvent
@@ -54,6 +56,29 @@ internal static class DurableWaitTimerCommandHandler
             FiberId = command.FiberId,
             ScopeId = command.ScopeId
         });
+
+        if (pendingInbox is { Envelope: { } pendingEnvelope })
+        {
+            events.Add(new WorkflowWaitMatchedEvent
+            {
+                EventId = EventId.Create(Guid.CreateVersion7().ToString()),
+                InstanceId = command.InstanceId,
+                CommandId = command.CommandId,
+                CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
+                OccurredAt = command.RequestedAt,
+                WaitId = command.WaitId,
+                MatchedEventId = pendingEnvelope.EventId,
+                EventName = pendingEnvelope.EventName,
+                EventContractVersion = pendingEnvelope.EventContractVersion,
+                CorrelationId = pendingEnvelope.CorrelationId,
+                BranchId = command.BranchId,
+                PayloadContentType = pendingEnvelope.PayloadContentType,
+                Payload = pendingEnvelope.Payload,
+                WaitSequence = command.WaitSequence,
+                FiberId = command.FiberId,
+                ScopeId = command.ScopeId
+            });
+        }
 
         if (registerTimeoutTimer)
         {
@@ -83,7 +108,20 @@ internal static class DurableWaitTimerCommandHandler
         return new DurableDecision(
             events,
             checkpoint,
-            command.Mode == WaitMode.Cold);
+            command.Mode == WaitMode.Cold && pendingInbox is null,
+            pendingInbox is null
+                ? []
+                :
+                [
+                    new InboxWrite(pendingInbox.EventId, InboxRecordState.Applied)
+                    {
+                        ExpectedState = InboxRecordState.Received,
+                        TargetInstanceId = command.InstanceId
+                    }
+                ],
+            command.InboxMatch?.RouteRevisions
+                .Select(revision => new InboxRouteMutation(revision.Route, revision.Revision))
+                .ToArray() ?? []);
     }
 
     internal static void AddResumeConsumedEvents(
