@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Definitions;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Providers.InMemory;
@@ -8,6 +9,79 @@ namespace OrcaCore.Engine.Durable.Tests.Facade;
 
 public sealed class DurableEventDeduplicationFacadeTests
 {
+    [Fact]
+    public async Task DefinitionFanout_EmptySnapshotIsOwnedAndStableOnRedelivery()
+    {
+        var store = new InMemoryWorkflowProvider();
+        var facade = CreateFacade(store, driveAfterDelivery: false);
+        var definitionId = DefinitionId.New();
+        var eventId = EventId.Create("empty-fanout-event");
+        var inbound = WorkflowInboundEvent.Create(
+            WorkflowEventContract.Create(EventName.Create("empty-fanout"), EventContractVersion.Initial),
+            eventId,
+            CorrelationId.Create("empty-fanout"),
+            causationEventId: null,
+            DateTimeOffset.Parse("2026-07-30T12:00:00Z"),
+            new WorkflowEventRoute.DefinitionFanout(definitionId));
+
+        var accepted = await facade.Events.AcceptAsync(inbound, TestContext.Current.CancellationToken);
+        var duplicate = await facade.Events.AcceptAsync(inbound, TestContext.Current.CancellationToken);
+
+        accepted.Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
+        duplicate.Should().BeOfType<WorkflowEventAcceptanceResult.Duplicate>();
+        (await store.GetByEventIdAsync(eventId, TestContext.Current.CancellationToken))
+            .HasValue.Should().BeTrue();
+        (await store.ListDefinitionFanoutTargetsAsync(eventId, TestContext.Current.CancellationToken))
+            .Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task DefinitionFanout_OverAtomicLimitReturnsClosedRejectionWithoutOwnership()
+    {
+        const int Limit = 1024;
+        var store = new InMemoryWorkflowProvider();
+        var definitionId = DefinitionId.New();
+        await store.ApplyAsync(
+            Enumerable.Range(0, Limit + 1)
+                .Select(_ =>
+                {
+                    var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
+                    return new ProjectionWrite(instanceId, ProjectionOperationKind.UpsertSummary)
+                    {
+                        InstanceSnapshot = new WorkflowProjectionSnapshot
+                        {
+                            InstanceId = instanceId,
+                            RootInstanceId = instanceId,
+                            DefinitionId = definitionId,
+                            DefinitionVersion = DefinitionVersion.Initial,
+                            Status = WorkflowInstanceStatus.Running,
+                            CreatedAt = DateTimeOffset.UnixEpoch,
+                            UpdatedAt = DateTimeOffset.UnixEpoch
+                        }
+                    };
+                })
+                .ToArray(),
+            TestContext.Current.CancellationToken);
+        var facade = CreateFacade(store, driveAfterDelivery: false);
+        var eventId = EventId.Create("fanout-limit-event");
+        var inbound = WorkflowInboundEvent.Create(
+            WorkflowEventContract.Create(EventName.Create("fanout-limit"), EventContractVersion.Initial),
+            eventId,
+            CorrelationId.Create("fanout-limit"),
+            causationEventId: null,
+            DateTimeOffset.Parse("2026-07-30T12:00:00Z"),
+            new WorkflowEventRoute.DefinitionFanout(definitionId));
+
+        var result = await facade.Events.AcceptAsync(inbound, TestContext.Current.CancellationToken);
+
+        result.Should().BeOfType<WorkflowEventAcceptanceResult.Rejected>()
+            .Which.Reason.Should().BeOfType<WorkflowEventAcceptanceRejection.FanoutLimitExceeded>();
+        (await store.GetByEventIdAsync(eventId, TestContext.Current.CancellationToken))
+            .HasValue.Should().BeFalse();
+        (await store.ListDefinitionFanoutTargetsAsync(eventId, TestContext.Current.CancellationToken))
+            .Should().BeEmpty();
+    }
+
     [Fact]
     public async Task MissingDirectTarget_IsRejectedWithoutRecordingEventOwnership()
     {

@@ -248,7 +248,7 @@ internal sealed class DurableContinuationPump(
                      .Distinct())
         {
             await inboxStore.MarkPoisonedAsync(
-                eventId,
+                new InboxRecordIdentity(eventId, instanceId),
                 InboxRecordState.Applied,
                 "definition-binding-unavailable",
                 aggregate.ErrorSummary,

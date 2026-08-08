@@ -82,6 +82,16 @@ internal sealed class DurableTestStore :
         CancellationToken cancellationToken) =>
         inboxStore.AcceptAsync(acceptance, cancellationToken);
 
+    public Task<InboxAcceptanceCommitResult> AcceptDefinitionFanoutAsync(
+        InboxDefinitionFanoutAcceptance acceptance,
+        CancellationToken cancellationToken) =>
+        inboxStore.AcceptDefinitionFanoutAsync(acceptance, cancellationToken);
+
+    public Task<IReadOnlyList<InboxRecord>> ListDefinitionFanoutTargetsAsync(
+        EventId eventId,
+        CancellationToken cancellationToken) =>
+        inboxStore.ListDefinitionFanoutTargetsAsync(eventId, cancellationToken);
+
     public Task<InboxMatchSnapshot> GetMatchSnapshotAsync(
         InboxMatchRequest request,
         CancellationToken cancellationToken) =>
@@ -107,6 +117,14 @@ internal sealed class DurableTestStore :
         CancellationToken cancellationToken) =>
         inboxStore.MarkPoisonedAsync(eventId, expectedState, code, detail, cancellationToken);
 
+    public Task MarkPoisonedAsync(
+        InboxRecordIdentity recordIdentity,
+        InboxRecordState expectedState,
+        string code,
+        string? detail,
+        CancellationToken cancellationToken) =>
+        inboxStore.MarkPoisonedAsync(recordIdentity, expectedState, code, detail, cancellationToken);
+
     public Task RecordHandoffFailureAsync(
         EventId eventId,
         InboxRecordState expectedState,
@@ -118,6 +136,25 @@ internal sealed class DurableTestStore :
         CancellationToken cancellationToken) =>
         inboxStore.RecordHandoffFailureAsync(
             eventId,
+            expectedState,
+            expectedFailureCount,
+            maxFailureCount,
+            retryNotBefore,
+            code,
+            detail,
+            cancellationToken);
+
+    public Task RecordHandoffFailureAsync(
+        InboxRecordIdentity recordIdentity,
+        InboxRecordState expectedState,
+        int expectedFailureCount,
+        int maxFailureCount,
+        DateTimeOffset retryNotBefore,
+        string code,
+        string? detail,
+        CancellationToken cancellationToken) =>
+        inboxStore.RecordHandoffFailureAsync(
+            recordIdentity,
             expectedState,
             expectedFailureCount,
             maxFailureCount,

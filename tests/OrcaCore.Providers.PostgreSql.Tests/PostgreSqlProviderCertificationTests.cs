@@ -49,6 +49,59 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
     }
 
     [Fact]
+    public Task DefinitionFanoutInbox_UsesAtomicStablePerTargetOwnership() =>
+        DefinitionFanoutInboxCertification.RunAsync(CreateFixture());
+
+    [Fact]
+    public async Task DefinitionFanoutInbox_RestartRetainsEnvelopeAndExactMembership()
+    {
+        var store = certificationStore ??
+            throw new InvalidOperationException("PostgreSQL certification store is not initialized.");
+        var definitionId = DefinitionId.New();
+        var firstInstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var secondInstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var eventId = EventId.Create(Guid.CreateVersion7().ToString());
+        var envelope = new DurableEventEnvelope
+        {
+            EventId = eventId,
+            EventName = "definition-fanout-restart",
+            EventContractVersion = 3,
+            CorrelationId = CorrelationId.Create("definition-fanout-restart"),
+            OccurredAt = MigrationAppliedAt(),
+            Route = new DurableEventRouteEnvelope
+            {
+                Kind = "definition-fanout",
+                DefinitionId = definitionId
+            }
+        };
+        await store.ApplyAsync(
+            [
+                FanoutSnapshot(firstInstanceId, definitionId, DefinitionVersion.Initial),
+                FanoutSnapshot(secondInstanceId, definitionId, new DefinitionVersion(2))
+            ],
+            TestContext.Current.CancellationToken);
+        var request = new InboxDefinitionFanoutAcceptance(
+            new InboxAcceptance(envelope, "definition-fanout-restart-envelope", envelope.OccurredAt),
+            definitionId,
+            MaximumTargetCount: 2);
+        (await store.AcceptDefinitionFanoutAsync(request, TestContext.Current.CancellationToken))
+            .Disposition.Should().Be(InboxAcceptanceCommitDisposition.Accepted);
+
+        await using var replacement = await CreateStoreAsync();
+        var targets = await replacement.ListDefinitionFanoutTargetsAsync(
+            eventId,
+            TestContext.Current.CancellationToken);
+        var duplicate = await replacement.AcceptDefinitionFanoutAsync(
+            request,
+            TestContext.Current.CancellationToken);
+
+        targets.Select(target => target.InstanceId).Should().BeEquivalentTo([firstInstanceId, secondInstanceId]);
+        targets.Should().OnlyContain(target => target.EnvelopeFingerprint == "definition-fanout-restart-envelope");
+        duplicate.Disposition.Should().Be(InboxAcceptanceCommitDisposition.Duplicate);
+        duplicate.DefinitionFanoutTargets.Should().BeEquivalentTo([firstInstanceId, secondInstanceId]);
+    }
+
+    [Fact]
     public void ActiveWaitQuery_ImplementsTheVersionAwareProviderOverload()
     {
         var projectionStore = certificationStore ??
@@ -83,11 +136,15 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         var ownershipCompatibilityMigrationCount = await ScalarAsync<long>(
             "select count(*) from orcacore_schema_migrations where migration_id = @migration_id;",
             "007_resource_ownership");
+        var fanoutMigrationId = await ScalarAsync<string>(
+            "select migration_id from orcacore_schema_migrations where migration_id = @migration_id;",
+            "011_definition_fanout_inbox");
 
         initialMigrationId.Should().Be("001_initial");
         leaseMigrationId.Should().Be("002_claim_leases");
         startIdempotencyMigrationId.Should().Be("003_start_idempotency");
         ownershipCompatibilityMigrationCount.Should().Be(0);
+        fanoutMigrationId.Should().Be("011_definition_fanout_inbox");
     }
 
     [Fact]
@@ -600,6 +657,24 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
     {
         return Snapshot(instanceId, WorkflowStatus.Running);
     }
+
+    private static ProjectionWrite FanoutSnapshot(
+        InstanceId instanceId,
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion) =>
+        new(instanceId, ProjectionOperationKind.UpsertSummary)
+        {
+            InstanceSnapshot = new ProjectionWorkflowInstanceSnapshot
+            {
+                InstanceId = instanceId,
+                RootInstanceId = instanceId,
+                DefinitionId = definitionId,
+                DefinitionVersion = definitionVersion,
+                Status = WorkflowStatus.Running,
+                CreatedAt = MigrationAppliedAt(),
+                UpdatedAt = MigrationAppliedAt()
+            }
+        };
 
     private static ProjectionWorkflowInstanceSnapshot CompletedSnapshot(InstanceId instanceId)
     {

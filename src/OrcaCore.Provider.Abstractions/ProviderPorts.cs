@@ -48,6 +48,16 @@ public interface IWorkflowInboxStore
         throw new NotSupportedException("This provider does not implement durable pending-event acceptance.");
 
     /// <summary>
+    /// Atomically owns one definition-fanout envelope together with the complete provider-visible
+    /// snapshot of current nonterminal targets. A rejected limit check commits neither ownership
+    /// nor a partial target set.
+    /// </summary>
+    Task<InboxAcceptanceCommitResult> AcceptDefinitionFanoutAsync(
+        InboxDefinitionFanoutAcceptance acceptance,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This provider does not implement durable definition fanout.");
+
+    /// <summary>
     /// Gets the globally owned envelope for one event identity before route or target-state evaluation.
     /// </summary>
     Task<Option<InboxRecord>> GetByEventIdAsync(
@@ -61,6 +71,12 @@ public interface IWorkflowInboxStore
         InstanceId instanceId,
         EventId eventId,
         CancellationToken cancellationToken);
+
+    /// <summary>Lists the immutable per-instance target records captured for one accepted fanout event.</summary>
+    Task<IReadOnlyList<InboxRecord>> ListDefinitionFanoutTargetsAsync(
+        EventId eventId,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This provider does not implement durable definition fanout.");
 
     /// <summary>
     /// Reads the oldest eligible pending event and the route revisions that make a later
@@ -104,6 +120,15 @@ public interface IWorkflowInboxStore
         CancellationToken cancellationToken) =>
         throw new NotSupportedException("This provider does not implement observable inbox poison state.");
 
+    /// <summary>Marks one exact route or fanout-target inbox record as terminal poison.</summary>
+    Task MarkPoisonedAsync(
+        InboxRecordIdentity recordIdentity,
+        InboxRecordState expectedState,
+        string code,
+        string? detail,
+        CancellationToken cancellationToken) =>
+        MarkPoisonedAsync(recordIdentity.EventId, expectedState, code, detail, cancellationToken);
+
     /// <summary>
     /// Conditionally records one failed autonomous handoff attempt. The update applies only while
     /// the record remains in <paramref name="expectedState"/> with the observed failure count.
@@ -121,9 +146,29 @@ public interface IWorkflowInboxStore
         string? detail,
         CancellationToken cancellationToken) =>
         throw new NotSupportedException("This provider does not implement durable inbox handoff retries.");
+
+    /// <summary>Conditionally records one failed handoff for an exact route or fanout-target record.</summary>
+    Task RecordHandoffFailureAsync(
+        InboxRecordIdentity recordIdentity,
+        InboxRecordState expectedState,
+        int expectedFailureCount,
+        int maxFailureCount,
+        DateTimeOffset retryNotBefore,
+        string code,
+        string? detail,
+        CancellationToken cancellationToken) =>
+        RecordHandoffFailureAsync(
+            recordIdentity.EventId,
+            expectedState,
+            expectedFailureCount,
+            maxFailureCount,
+            retryNotBefore,
+            code,
+            detail,
+            cancellationToken);
 }
 
-/// <summary>Identifies one serialized direct-target or correlation inbox route.</summary>
+/// <summary>Identifies one serialized direct, correlation, or per-instance fanout inbox route.</summary>
 public sealed record InboxRouteKey
 {
     private InboxRouteKey(
@@ -167,6 +212,14 @@ public sealed record InboxRouteKey
         EventContractVersion eventContractVersion,
         CorrelationId correlationId) =>
         new("correlation", null, definitionId, eventName, eventContractVersion, correlationId);
+
+    public static InboxRouteKey DefinitionFanoutTarget(
+        InstanceId instanceId,
+        DefinitionId definitionId,
+        EventName eventName,
+        EventContractVersion eventContractVersion,
+        CorrelationId correlationId) =>
+        new("definition-fanout-target", instanceId, definitionId, eventName, eventContractVersion, correlationId);
 }
 
 /// <summary>Requests durable ownership of one normalized inbound envelope.</summary>
@@ -175,10 +228,20 @@ public sealed record InboxAcceptance(
     string EnvelopeFingerprint,
     DateTimeOffset AcceptedAt);
 
+/// <summary>Requests atomic ownership and target snapshotting for one definition-fanout envelope.</summary>
+public sealed record InboxDefinitionFanoutAcceptance(
+    InboxAcceptance Acceptance,
+    DefinitionId DefinitionId,
+    int MaximumTargetCount);
+
 /// <summary>Describes how an inbox acceptance attempt resolved.</summary>
 public sealed record InboxAcceptanceCommitResult(
     InboxAcceptanceCommitDisposition Disposition,
-    InboxRecord? Record);
+    InboxRecord? Record)
+{
+    /// <summary>Gets the immutable target membership committed for definition fanout.</summary>
+    public IReadOnlyList<InstanceId> DefinitionFanoutTargets { get; init; } = [];
+}
 
 /// <summary>Closed provider result for global inbound-event ownership.</summary>
 public enum InboxAcceptanceCommitDisposition
@@ -187,7 +250,8 @@ public enum InboxAcceptanceCommitDisposition
     Duplicate,
     Conflict,
     DirectInstanceNotFound,
-    DirectInstanceTerminal
+    DirectInstanceTerminal,
+    FanoutLimitExceeded
 }
 
 /// <summary>Describes the exact wait route whose pending event is being inspected.</summary>
@@ -201,7 +265,13 @@ public sealed record InboxMatchRequest(
     public IReadOnlyList<InboxRouteKey> Routes { get; } =
     [
         InboxRouteKey.Direct(InstanceId, EventName, EventContractVersion, CorrelationId),
-        InboxRouteKey.Correlation(DefinitionId, EventName, EventContractVersion, CorrelationId)
+        InboxRouteKey.Correlation(DefinitionId, EventName, EventContractVersion, CorrelationId),
+        InboxRouteKey.DefinitionFanoutTarget(
+            InstanceId,
+            DefinitionId,
+            EventName,
+            EventContractVersion,
+            CorrelationId)
     ];
 }
 
@@ -246,6 +316,9 @@ public sealed record InboxRecord(
     /// <summary>Gets the earliest instant at which another autonomous handoff attempt is eligible.</summary>
     public DateTimeOffset? HandoffRetryNotBefore { get; init; }
 }
+
+/// <summary>Identifies one route-level record or one independent fanout target.</summary>
+public sealed record InboxRecordIdentity(EventId EventId, InstanceId? TargetInstanceId = null);
 
 /// <summary>
 /// Stores durable start idempotency mappings.

@@ -11,6 +11,8 @@ internal sealed class DurableWorkflowEventIngressCore(
     IWorkflowInboxStore inboxStore,
     bool driveAfterAcceptance = true)
 {
+    private const int MaximumDefinitionFanoutTargets = 1024;
+
     internal ValueTask<WorkflowEventAcceptanceResult> AcceptAsync(
         WorkflowInboundEvent inboundEvent,
         CancellationToken cancellationToken = default) =>
@@ -56,11 +58,42 @@ internal sealed class DurableWorkflowEventIngressCore(
                 direct.InstanceId, inboundEvent.EventContract, normalized, cancellationToken).ConfigureAwait(false),
             WorkflowEventRoute.Correlation correlation => await AcceptByCorrelationAsync(
                 correlation.DefinitionId, inboundEvent.EventContract, normalized, cancellationToken).ConfigureAwait(false),
-            WorkflowEventRoute.DefinitionFanout => throw new InvalidOperationException(
-                "Definition-fanout acceptance requires the task 7.30 atomic provider snapshot implementation."),
+            WorkflowEventRoute.DefinitionFanout fanout => await AcceptDefinitionFanoutAsync(
+                fanout.DefinitionId,
+                inboundEvent.EventContract,
+                normalized,
+                cancellationToken).ConfigureAwait(false),
             _ => throw new InvalidOperationException(
                 "Start-or-deliver acceptance requires the task 7.31 pending start-intent implementation.")
         };
+    }
+
+    private async ValueTask<WorkflowEventAcceptanceResult> AcceptDefinitionFanoutAsync(
+        DefinitionId definitionId,
+        WorkflowEventContract eventContract,
+        NormalizedDurableInboundEvent normalized,
+        CancellationToken cancellationToken)
+    {
+        var commit = await inboxStore.AcceptDefinitionFanoutAsync(
+            new InboxDefinitionFanoutAcceptance(
+                new InboxAcceptance(
+                    normalized.Envelope,
+                    normalized.Fingerprint,
+                    runtime.UtcNow),
+                definitionId,
+                MaximumDefinitionFanoutTargets),
+            cancellationToken).ConfigureAwait(false);
+        var ownership = MapCommit(commit);
+        if (ownership is WorkflowEventAcceptanceResult.Accepted or WorkflowEventAcceptanceResult.Duplicate)
+        {
+            await TryDeliverOwnedAsync(() => TryDeliverFanoutTargetsAsync(
+                commit.DefinitionFanoutTargets,
+                eventContract,
+                normalized.Envelope.CorrelationId,
+                cancellationToken)).ConfigureAwait(false);
+        }
+
+        return ownership;
     }
 
     private async ValueTask<WorkflowEventAcceptanceResult> AcceptByCorrelationAsync(
@@ -220,6 +253,18 @@ internal sealed class DurableWorkflowEventIngressCore(
 
                 break;
             }
+            case WorkflowEventRoute.DefinitionFanout:
+            {
+                var targets = await inboxStore.ListDefinitionFanoutTargetsAsync(
+                    inboundEvent.EventId,
+                    cancellationToken).ConfigureAwait(false);
+                await TryDeliverFanoutTargetsAsync(
+                    targets.Select(record => record.InstanceId!).ToArray(),
+                    inboundEvent.EventContract,
+                    correlationId,
+                    cancellationToken).ConfigureAwait(false);
+                return;
+            }
         }
 
         if (target is not null && target.ActiveWaits.Any(wait =>
@@ -235,6 +280,32 @@ internal sealed class DurableWorkflowEventIngressCore(
         }
     }
 
+    private async ValueTask TryDeliverFanoutTargetsAsync(
+        IReadOnlyList<InstanceId> targetIds,
+        WorkflowEventContract eventContract,
+        CorrelationId correlationId,
+        CancellationToken cancellationToken)
+    {
+        foreach (var targetId in targetIds)
+        {
+            var projected = await projectionStore.GetAsync(targetId, cancellationToken).ConfigureAwait(false);
+            if (!projected.HasValue || IsTerminal(projected.Value.Status) ||
+                !projected.Value.ActiveWaits.Any(wait =>
+                    string.Equals(wait.EventName, eventContract.EventName.Value, StringComparison.Ordinal) &&
+                    wait.EventContractVersion == eventContract.Version.Value &&
+                    wait.CorrelationId.Equals(correlationId)))
+            {
+                continue;
+            }
+
+            await TryDeliverPendingAsync(
+                projected.Value,
+                eventContract,
+                correlationId,
+                cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     private async ValueTask<WorkflowEventAcceptanceResult> PersistAcceptanceAsync(
         NormalizedDurableInboundEvent normalized,
         CancellationToken cancellationToken)
@@ -245,6 +316,11 @@ internal sealed class DurableWorkflowEventIngressCore(
                 normalized.Fingerprint,
                 runtime.UtcNow),
             cancellationToken).ConfigureAwait(false);
+        return MapCommit(commit);
+    }
+
+    private static WorkflowEventAcceptanceResult MapCommit(InboxAcceptanceCommitResult commit)
+    {
         return commit.Disposition switch
         {
             InboxAcceptanceCommitDisposition.Accepted => new WorkflowEventAcceptanceResult.Accepted(),
@@ -257,6 +333,9 @@ internal sealed class DurableWorkflowEventIngressCore(
             InboxAcceptanceCommitDisposition.DirectInstanceTerminal =>
                 new WorkflowEventAcceptanceResult.Rejected(
                     new WorkflowEventAcceptanceRejection.DirectInstanceTerminal()),
+            InboxAcceptanceCommitDisposition.FanoutLimitExceeded =>
+                new WorkflowEventAcceptanceResult.Rejected(
+                    new WorkflowEventAcceptanceRejection.FanoutLimitExceeded()),
             _ => throw new ArgumentOutOfRangeException(nameof(commit), commit.Disposition, "Unknown inbox acceptance result.")
         };
     }

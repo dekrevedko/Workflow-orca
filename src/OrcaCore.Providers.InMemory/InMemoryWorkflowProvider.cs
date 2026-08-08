@@ -22,6 +22,7 @@ internal sealed class InMemoryWorkflowProvider :
 
     private readonly Lock gate = new();
     private readonly Dictionary<EventId, InboxRecord> inbox = [];
+    private readonly Dictionary<(EventId EventId, InstanceId InstanceId), InboxRecord> definitionFanoutTargets = [];
     private readonly Dictionary<InboxRouteKey, long> inboxRouteRevisions = [];
     private long nextInboxAcceptanceSequence;
     private readonly Dictionary<string, StartedWorkflowIdempotencyRecord> startIdempotency = new(StringComparer.Ordinal);
@@ -93,7 +94,7 @@ internal sealed class InMemoryWorkflowProvider :
 
             var invalidInboxTransition = batch.InboxOperations.FirstOrDefault(operation =>
                 operation.ExpectedState is { } expected &&
-                (!inbox.TryGetValue(operation.EventId, out var existing) || existing.State != expected));
+                (!TryGetInboxOperationRecord(operation, out var existing) || existing.State != expected));
             if (invalidInboxTransition is not null)
             {
                 var route = batch.InboxRouteMutations.FirstOrDefault()?.Route ??
@@ -209,6 +210,90 @@ internal sealed class InMemoryWorkflowProvider :
     }
 
     /// <inheritdoc />
+    public Task<InboxAcceptanceCommitResult> AcceptDefinitionFanoutAsync(
+        InboxDefinitionFanoutAcceptance request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentOutOfRangeException.ThrowIfNegative(request.MaximumTargetCount);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (request.Acceptance.Envelope.Route.Kind != "definition-fanout" ||
+            !Equals(request.Acceptance.Envelope.Route.DefinitionId, request.DefinitionId))
+        {
+            throw new ArgumentException(
+                "Definition fanout requires a matching definition-fanout envelope route.",
+                nameof(request));
+        }
+
+        lock (gate)
+        {
+            var acceptance = request.Acceptance;
+            if (inbox.TryGetValue(acceptance.Envelope.EventId, out var existing))
+            {
+                var disposition = string.Equals(
+                    existing.EnvelopeFingerprint,
+                    acceptance.EnvelopeFingerprint,
+                    StringComparison.Ordinal)
+                    ? InboxAcceptanceCommitDisposition.Duplicate
+                    : InboxAcceptanceCommitDisposition.Conflict;
+                return Task.FromResult(new InboxAcceptanceCommitResult(disposition, CloneInboxRecord(existing))
+                {
+                    DefinitionFanoutTargets = LoadDefinitionFanoutTargetIds(existing.EventId)
+                });
+            }
+
+            var targetIds = summaries.Values
+                .Where(snapshot => snapshot.DefinitionId.Equals(request.DefinitionId) && !IsTerminal(snapshot.Status))
+                .Select(snapshot => snapshot.InstanceId)
+                .OrderBy(instanceId => instanceId.Value)
+                .ToArray();
+            if (targetIds.Length > request.MaximumTargetCount)
+            {
+                return Task.FromResult(new InboxAcceptanceCommitResult(
+                    InboxAcceptanceCommitDisposition.FanoutLimitExceeded,
+                    null));
+            }
+
+            var root = new InboxRecord(
+                null,
+                acceptance.Envelope.EventId,
+                acceptance.EnvelopeFingerprint,
+                InboxRecordState.Received)
+            {
+                Envelope = CloneEnvelope(acceptance.Envelope),
+                AcceptedAt = acceptance.AcceptedAt
+            };
+            inbox.Add(root.EventId, root);
+
+            foreach (var instanceId in targetIds)
+            {
+                var route = InboxRouteKey.DefinitionFanoutTarget(
+                    instanceId,
+                    request.DefinitionId,
+                    EventName.Create(acceptance.Envelope.EventName),
+                    new EventContractVersion(acceptance.Envelope.EventContractVersion),
+                    acceptance.Envelope.CorrelationId);
+                definitionFanoutTargets.Add(
+                    (root.EventId, instanceId),
+                    root with
+                    {
+                        InstanceId = instanceId,
+                        Route = route,
+                        AcceptanceSequence = ++nextInboxAcceptanceSequence
+                    });
+                inboxRouteRevisions[route] = CurrentRouteRevision(route) + 1;
+            }
+
+            return Task.FromResult(new InboxAcceptanceCommitResult(
+                InboxAcceptanceCommitDisposition.Accepted,
+                CloneInboxRecord(root))
+            {
+                DefinitionFanoutTargets = targetIds
+            });
+        }
+    }
+
+    /// <inheritdoc />
     public Task<IReadOnlyList<DurableWorkflowEvent>> LoadTailAsync(
         WorkflowStreamId streamId,
         StreamVersion afterVersion,
@@ -237,9 +322,32 @@ internal sealed class InMemoryWorkflowProvider :
 
         lock (gate)
         {
+            if (definitionFanoutTargets.TryGetValue((eventId, instanceId), out var target))
+            {
+                return Task.FromResult(Option<InboxRecord>.Some(CloneInboxRecord(target)));
+            }
+
             return Task.FromResult(inbox.TryGetValue(eventId, out var record) && record.InstanceId?.Equals(instanceId) == true
                 ? Option<InboxRecord>.Some(record)
                 : Option<InboxRecord>.None);
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<InboxRecord>> ListDefinitionFanoutTargetsAsync(
+        EventId eventId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(eventId);
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (gate)
+        {
+            return Task.FromResult<IReadOnlyList<InboxRecord>>(
+                definitionFanoutTargets.Values
+                    .Where(record => record.EventId.Equals(eventId))
+                    .OrderBy(record => record.InstanceId!.Value)
+                    .Select(CloneInboxRecord)
+                    .ToArray());
         }
     }
 
@@ -270,7 +378,7 @@ internal sealed class InMemoryWorkflowProvider :
         lock (gate)
         {
             var routes = request.Routes.ToHashSet();
-            var pending = inbox.Values
+            var pending = DeliveryRecords()
                 .Where(record => record.State == InboxRecordState.Received &&
                     record.Route is not null && routes.Contains(record.Route))
                 .OrderBy(record => record.AcceptanceSequence)
@@ -295,7 +403,7 @@ internal sealed class InMemoryWorkflowProvider :
         lock (gate)
         {
             return Task.FromResult<IReadOnlyList<InboxRecord>>(
-                inbox.Values
+                DeliveryRecords()
                     .Where(record => record.State == InboxRecordState.Received &&
                         record.AcceptanceSequence > afterAcceptanceSequence)
                     .OrderBy(record => record.AcceptanceSequence)
@@ -324,7 +432,7 @@ internal sealed class InMemoryWorkflowProvider :
         lock (gate)
         {
             return Task.FromResult<IReadOnlyList<InboxRecord>>(
-                inbox.Values
+                DeliveryRecords()
                     .Where(record => record.State == InboxRecordState.Received &&
                         record.HandoffFailureCount > 0 &&
                         record.HandoffRetryNotBefore <= eligibleAt)
@@ -363,6 +471,50 @@ internal sealed class InMemoryWorkflowProvider :
                 {
                     inboxRouteRevisions[route] = CurrentRouteRevision(route) + 1;
                 }
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task MarkPoisonedAsync(
+        InboxRecordIdentity recordIdentity,
+        InboxRecordState expectedState,
+        string code,
+        string? detail,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(recordIdentity);
+        bool isFanoutTarget;
+        lock (gate)
+        {
+            isFanoutTarget = recordIdentity.TargetInstanceId is { } targetInstanceId &&
+                definitionFanoutTargets.ContainsKey((recordIdentity.EventId, targetInstanceId));
+        }
+        if (!isFanoutTarget)
+        {
+            return MarkPoisonedAsync(
+                recordIdentity.EventId,
+                expectedState,
+                code,
+                detail,
+                cancellationToken);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (gate)
+        {
+            var key = (recordIdentity.EventId, recordIdentity.TargetInstanceId!);
+            if (definitionFanoutTargets.TryGetValue(key, out var record) && record.State == expectedState)
+            {
+                definitionFanoutTargets[key] = record with
+                {
+                    State = InboxRecordState.Poisoned,
+                    PoisonCode = code,
+                    PoisonDetail = detail
+                };
+                inboxRouteRevisions[record.Route!] = CurrentRouteRevision(record.Route!) + 1;
             }
         }
 
@@ -415,6 +567,75 @@ internal sealed class InMemoryWorkflowProvider :
             if (poisoned && record.Route is { } route)
             {
                 inboxRouteRevisions[route] = CurrentRouteRevision(route) + 1;
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task RecordHandoffFailureAsync(
+        InboxRecordIdentity recordIdentity,
+        InboxRecordState expectedState,
+        int expectedFailureCount,
+        int maxFailureCount,
+        DateTimeOffset retryNotBefore,
+        string code,
+        string? detail,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(recordIdentity);
+        bool isFanoutTarget;
+        lock (gate)
+        {
+            isFanoutTarget = recordIdentity.TargetInstanceId is { } targetInstanceId &&
+                definitionFanoutTargets.ContainsKey((recordIdentity.EventId, targetInstanceId));
+        }
+        if (!isFanoutTarget)
+        {
+            return RecordHandoffFailureAsync(
+                recordIdentity.EventId,
+                expectedState,
+                expectedFailureCount,
+                maxFailureCount,
+                retryNotBefore,
+                code,
+                detail,
+                cancellationToken);
+        }
+
+        ArgumentOutOfRangeException.ThrowIfNegative(expectedFailureCount);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFailureCount);
+        if (expectedFailureCount >= maxFailureCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(expectedFailureCount));
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (gate)
+        {
+            var key = (recordIdentity.EventId, recordIdentity.TargetInstanceId!);
+            if (!definitionFanoutTargets.TryGetValue(key, out var record) ||
+                record.State != expectedState ||
+                record.HandoffFailureCount != expectedFailureCount)
+            {
+                return Task.CompletedTask;
+            }
+
+            var failureCount = expectedFailureCount + 1;
+            var poisoned = failureCount >= maxFailureCount;
+            definitionFanoutTargets[key] = record with
+            {
+                State = poisoned ? InboxRecordState.Poisoned : record.State,
+                HandoffFailureCount = failureCount,
+                HandoffRetryNotBefore = poisoned ? null : retryNotBefore,
+                PoisonCode = poisoned ? code : record.PoisonCode,
+                PoisonDetail = poisoned ? detail : record.PoisonDetail
+            };
+            if (poisoned)
+            {
+                inboxRouteRevisions[record.Route!] = CurrentRouteRevision(record.Route!) + 1;
             }
         }
 
@@ -772,6 +993,22 @@ internal sealed class InMemoryWorkflowProvider :
     {
         foreach (var operation in operations)
         {
+            if (operation.TargetInstanceId is { } fanoutTarget &&
+                definitionFanoutTargets.TryGetValue((operation.EventId, fanoutTarget), out var fanoutRecord))
+            {
+                if (operation.ExpectedState is null || fanoutRecord.State == operation.ExpectedState)
+                {
+                    definitionFanoutTargets[(operation.EventId, fanoutTarget)] = fanoutRecord with
+                    {
+                        State = fanoutRecord.State == InboxRecordState.Applied
+                            ? fanoutRecord.State
+                            : operation.State
+                    };
+                }
+
+                continue;
+            }
+
             if (inbox.TryGetValue(operation.EventId, out var existing))
             {
                 inbox[operation.EventId] = existing with
@@ -800,6 +1037,30 @@ internal sealed class InMemoryWorkflowProvider :
                 Envelope = CloneEnvelope(operation.Envelope)
             };
         }
+    }
+
+    private bool TryGetInboxOperationRecord(InboxWrite operation, out InboxRecord record)
+    {
+        if (operation.TargetInstanceId is { } targetInstanceId &&
+            definitionFanoutTargets.TryGetValue((operation.EventId, targetInstanceId), out record!))
+        {
+            return true;
+        }
+
+        if (!inbox.TryGetValue(operation.EventId, out record!))
+        {
+            record = null!;
+            return false;
+        }
+
+        if (string.Equals(record.Envelope?.Route.Kind, "definition-fanout", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Fanout inbox transition '{operation.EventId}' for instance " +
+                $"'{operation.TargetInstanceId}' is outside the committed target snapshot.");
+        }
+
+        return true;
     }
 
     private long CurrentRouteRevision(InboxRouteKey route) =>
@@ -849,6 +1110,21 @@ internal sealed class InMemoryWorkflowProvider :
             _ => throw new NotSupportedException(
                 $"Inbox buffering for route '{envelope.Route.Kind}' is owned by a later Section 7B task.")
         };
+
+    private IEnumerable<InboxRecord> DeliveryRecords() =>
+        inbox.Values
+            .Where(record => !string.Equals(
+                record.Envelope?.Route.Kind,
+                "definition-fanout",
+                StringComparison.Ordinal))
+            .Concat(definitionFanoutTargets.Values);
+
+    private IReadOnlyList<InstanceId> LoadDefinitionFanoutTargetIds(EventId eventId) =>
+        definitionFanoutTargets.Keys
+            .Where(key => key.EventId.Equals(eventId))
+            .Select(key => key.InstanceId)
+            .OrderBy(instanceId => instanceId.Value)
+            .ToArray();
 
     private static DurableEventEnvelope? CloneEnvelope(DurableEventEnvelope? envelope)
     {

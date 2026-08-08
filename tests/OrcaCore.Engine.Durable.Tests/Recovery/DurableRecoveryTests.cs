@@ -247,6 +247,103 @@ public sealed class DurableRecoveryTests
         events.OfType<WorkflowResumeConsumedEvent>().Should().ContainSingle();
     }
 
+    [Fact]
+    public async Task DefinitionFanout_SnapshotsAllCurrentVersionsAndColdOwnerAppliesEachTargetOnce()
+    {
+        var store = new InMemoryWorkflowProvider();
+        var definitionId = DefinitionId.New();
+        var eventName = EventName.Create("definition-fanout-cold");
+        var correlation = CorrelationId.Create("definition-fanout-cold");
+        var stageEventName = EventName.Create("definition-fanout-stage");
+        var versionOne = WaitingDefinition(definitionId, DefinitionVersion.Initial, eventName);
+        var versionTwo = StagedFanoutDefinition(
+            definitionId,
+            new DefinitionVersion(2),
+            stageEventName,
+            eventName,
+            correlation);
+        var starter = CreateFacade(store, store, store, driveAfterDelivery: false);
+        var versionOneHandle = starter.Registry.Register(versionOne).GetHandleOrThrow();
+        var versionTwoHandle = starter.Registry.Register(versionTwo).GetHandleOrThrow();
+        var first = (await versionOneHandle.StartOrGetAsync(
+            new Input(correlation.Value),
+            StartIdempotencyKey.Create("definition-fanout-v1"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
+        var second = (await versionTwoHandle.StartOrGetAsync(
+            new Input("definition-fanout-release-v2"),
+            StartIdempotencyKey.Create("definition-fanout-v2"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
+
+        var callbackOnly = CreateFacade(store, store, store, driveAfterDelivery: false);
+        var inbound = RecoveryFanoutEvent(
+            definitionId,
+            "definition-fanout-event",
+            eventName,
+            correlation);
+        var accepted = await callbackOnly.Events.AcceptAsync(inbound, TestContext.Current.CancellationToken);
+        var beforeOwner = await store.ListDefinitionFanoutTargetsAsync(
+            inbound.EventId,
+            TestContext.Current.CancellationToken);
+
+        var later = (await versionOneHandle.StartOrGetAsync(
+            new Input("definition-fanout-later-correlation"),
+            StartIdempotencyKey.Create("definition-fanout-later"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
+        var replacement = CreateFacade(store, store, store, driveAfterDelivery: false);
+        _ = replacement.Registry.Register(versionOne).GetHandleOrThrow();
+        _ = replacement.Registry.Register(versionTwo).GetHandleOrThrow();
+        var inboxPump = new DurableInboxContinuationPump(store, store, replacement.Runtime);
+        var continuationPump = new DurableContinuationPump(
+            store,
+            replacement.Runtime,
+            replacement.Processor,
+            inboxStore: store);
+
+        var matched = await inboxPump.PumpOnceAsync(10, TestContext.Current.CancellationToken);
+        var firstContinued = await continuationPump.PumpOnceAsync(
+            PumpRequest(),
+            TestContext.Current.CancellationToken);
+        var staged = await replacement.Events.AcceptAsync(
+            RecoveryEvent(
+                second.InstanceId,
+                "definition-fanout-release-event",
+                stageEventName,
+                CorrelationId.Create("definition-fanout-release-v2")),
+            TestContext.Current.CancellationToken);
+        var secondContinued = await continuationPump.PumpOnceAsync(
+            PumpRequest(),
+            TestContext.Current.CancellationToken);
+        var finalContinued = await continuationPump.PumpOnceAsync(
+            PumpRequest(),
+            TestContext.Current.CancellationToken);
+        var duplicate = await callbackOnly.Events.AcceptAsync(inbound, TestContext.Current.CancellationToken);
+        var afterOwner = await store.ListDefinitionFanoutTargetsAsync(
+            inbound.EventId,
+            TestContext.Current.CancellationToken);
+        var firstSnapshot = await first.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var secondSnapshot = await second.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var laterSnapshot = await later.GetSnapshotAsync(TestContext.Current.CancellationToken);
+
+        accepted.Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
+        beforeOwner.Select(record => record.InstanceId).Should().BeEquivalentTo(
+            [first.InstanceId, second.InstanceId]);
+        beforeOwner.Count(record => record.State == InboxRecordState.Applied).Should().Be(1,
+            "definition-less ingress may commit the matching wait but must leave execution to an owner");
+        beforeOwner.Count(record => record.State == InboxRecordState.Received).Should().Be(1);
+        matched.Should().Be(0);
+        firstContinued.Should().BePositive();
+        staged.Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
+        secondContinued.Should().BePositive();
+        finalContinued.Should().BePositive();
+        duplicate.Should().BeOfType<WorkflowEventAcceptanceResult.Duplicate>();
+        afterOwner.Should().OnlyContain(record => record.State == InboxRecordState.Applied);
+        firstSnapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
+        secondSnapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
+        laterSnapshot.Status.Should().Be(WorkflowInstanceStatus.Waiting);
+        (await store.GetAsync(later.InstanceId, inbound.EventId, TestContext.Current.CancellationToken))
+            .HasValue.Should().BeFalse("instances created after the committed snapshot are excluded");
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -446,12 +543,52 @@ public sealed class DurableRecoveryTests
     private static DurableWorkflowDefinition<Input> WaitingDefinition(
         DefinitionId definitionId,
         EventName eventName)
+        => WaitingDefinition(definitionId, DefinitionVersion.Initial, eventName);
+
+    private static DurableWorkflowDefinition<Input> WaitingDefinition(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        EventName eventName)
     {
-        return Workflow.Durable<RecoveryState>(definitionId, DefinitionVersion.Initial)
+        return Workflow.Durable<RecoveryState>(definitionId, definitionVersion)
             .Init<Input>(input => new RecoveryState(input.Correlation))
             .Wait(WorkflowEventContract.Create(eventName, EventContractVersion.Initial), state => CorrelationId.Create(state.Value.Correlation))
             .End(WorkflowOutcomeName.Create("recovered"))
             .Build();
+    }
+
+    private static DurableWorkflowDefinition<Input> StagedFanoutDefinition(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        EventName stageEventName,
+        EventName fanoutEventName,
+        CorrelationId fanoutCorrelation)
+    {
+        return Workflow.Durable<RecoveryState>(definitionId, definitionVersion)
+            .Init<Input>(input => new RecoveryState(input.Correlation))
+            .Wait(
+                WorkflowEventContract.Create(stageEventName, EventContractVersion.Initial),
+                state => CorrelationId.Create(state.Value.Correlation))
+            .Wait(
+                WorkflowEventContract.Create(fanoutEventName, EventContractVersion.Initial),
+                _ => fanoutCorrelation)
+            .End(WorkflowOutcomeName.Create("recovered"))
+            .Build();
+    }
+
+    private static WorkflowInboundEvent RecoveryFanoutEvent(
+        DefinitionId definitionId,
+        string eventId,
+        EventName eventName,
+        CorrelationId correlation)
+    {
+        return WorkflowInboundEvent.Create(
+            WorkflowEventContract.Create(eventName, EventContractVersion.Initial),
+            EventId.Create(eventId),
+            correlation,
+            causationEventId: null,
+            DateTimeOffset.Parse("2026-07-30T12:00:00Z"),
+            new WorkflowEventRoute.DefinitionFanout(definitionId));
     }
 
     private static WorkflowInboundEvent RecoveryEvent(

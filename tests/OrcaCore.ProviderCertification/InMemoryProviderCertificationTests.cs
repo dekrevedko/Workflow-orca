@@ -7,6 +7,10 @@ namespace OrcaCore.ProviderCertification;
 public sealed class InMemoryProviderCertificationTests : ContinueAsNewCertificationTests
 {
     [Fact]
+    public Task DefinitionFanoutInbox_UsesAtomicStablePerTargetOwnership() =>
+        DefinitionFanoutInboxCertification.RunAsync(CreateFixture());
+
+    [Fact]
     public void ActiveWaitQuery_ImplementsTheVersionAwareProviderOverload()
     {
         var projectionStore = InMemoryProviderPorts.Create().ProjectionStore;

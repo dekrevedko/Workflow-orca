@@ -104,13 +104,15 @@ internal sealed class DurableInboxContinuationPump(
                 .ConfigureAwait(false);
         }
 
-        var retriedEventIds = retryRecords.Select(record => record.EventId).ToHashSet();
+        var retriedRecords = retryRecords
+            .Select(record => new InboxRecordIdentity(record.EventId, record.InstanceId))
+            .ToHashSet();
         var selectedForwardRecords = new List<InboxRecord>(forwardBudget);
         long? forwardCursor = null;
         foreach (var record in forwardRecords)
         {
             forwardCursor = record.AcceptanceSequence;
-            if (!retriedEventIds.Contains(record.EventId))
+            if (!retriedRecords.Contains(new InboxRecordIdentity(record.EventId, record.InstanceId)))
             {
                 selectedForwardRecords.Add(record);
             }
@@ -140,7 +142,7 @@ internal sealed class DurableInboxContinuationPump(
         try
         {
             await inboxStore.RecordHandoffFailureAsync(
-                record.EventId,
+                new InboxRecordIdentity(record.EventId, record.InstanceId),
                 InboxRecordState.Received,
                 record.HandoffFailureCount,
                 maxHandoffFailuresBeforePoison,
@@ -197,7 +199,7 @@ internal sealed class DurableInboxContinuationPump(
         if (record.Envelope is not { } envelope)
         {
             await inboxStore.MarkPoisonedAsync(
-                record.EventId,
+                new InboxRecordIdentity(record.EventId, record.InstanceId),
                 InboxRecordState.Received,
                 "inbox-envelope-missing",
                 "The accepted inbox record has no normalized event envelope.",
@@ -277,7 +279,7 @@ internal sealed class DurableInboxContinuationPump(
                 if (!target.HasValue)
                 {
                     await inboxStore.MarkPoisonedAsync(
-                        record.EventId,
+                        new InboxRecordIdentity(record.EventId, record.InstanceId),
                         InboxRecordState.Received,
                         "direct-target-missing",
                         "The accepted direct target is no longer present in the provider projection.",
@@ -288,7 +290,7 @@ internal sealed class DurableInboxContinuationPump(
                 if (IsTerminal(target.Value.Status))
                 {
                     await inboxStore.MarkPoisonedAsync(
-                        record.EventId,
+                        new InboxRecordIdentity(record.EventId, record.InstanceId),
                         InboxRecordState.Received,
                         "target-terminal",
                         "The direct target became terminal before this accepted event matched a wait.",
@@ -312,16 +314,43 @@ internal sealed class DurableInboxContinuationPump(
                 }
 
                 await inboxStore.MarkPoisonedAsync(
-                    record.EventId,
+                    new InboxRecordIdentity(record.EventId, record.InstanceId),
                     InboxRecordState.Received,
                     "ambiguous-active-wait",
                     "More than one persisted wait is eligible for the accepted correlation route.",
                     cancellationToken).ConfigureAwait(false);
                 return null;
             }
+            case "definition-fanout" when record.InstanceId is { } fanoutTargetId:
+            {
+                var target = await projectionStore.GetAsync(fanoutTargetId, cancellationToken).ConfigureAwait(false);
+                if (!target.HasValue)
+                {
+                    await inboxStore.MarkPoisonedAsync(
+                        new InboxRecordIdentity(record.EventId, fanoutTargetId),
+                        InboxRecordState.Received,
+                        "fanout-target-missing",
+                        "The instance captured by the committed fanout snapshot is no longer present.",
+                        cancellationToken).ConfigureAwait(false);
+                    return null;
+                }
+
+                if (IsTerminal(target.Value.Status))
+                {
+                    await inboxStore.MarkPoisonedAsync(
+                        new InboxRecordIdentity(record.EventId, fanoutTargetId),
+                        InboxRecordState.Received,
+                        "fanout-target-terminal",
+                        "The instance captured by the fanout snapshot became terminal before delivery.",
+                        cancellationToken).ConfigureAwait(false);
+                    return null;
+                }
+
+                return target.Value;
+            }
             default:
-                // Fanout and start-or-deliver retain their accepted records for tasks 7.30 and
-                // 7.31, whose materializers feed the same continuation outbox lane.
+                // Start-or-deliver retains its accepted record for task 7.31, whose materializer
+                // feeds the same continuation outbox lane.
                 return null;
         }
     }
