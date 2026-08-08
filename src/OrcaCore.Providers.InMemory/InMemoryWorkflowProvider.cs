@@ -486,11 +486,29 @@ internal sealed class InMemoryWorkflowProvider :
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(recordIdentity);
+        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (recordIdentity.TargetInstanceId is null)
+        {
+            return MarkPoisonedAsync(
+                recordIdentity.EventId,
+                expectedState,
+                code,
+                detail,
+                cancellationToken);
+        }
+
         bool isFanoutTarget;
         lock (gate)
         {
-            isFanoutTarget = recordIdentity.TargetInstanceId is { } targetInstanceId &&
-                definitionFanoutTargets.ContainsKey((recordIdentity.EventId, targetInstanceId));
+            isFanoutTarget = definitionFanoutTargets.ContainsKey(
+                (recordIdentity.EventId, recordIdentity.TargetInstanceId));
+            if (!isFanoutTarget &&
+                (!inbox.TryGetValue(recordIdentity.EventId, out var directRecord) ||
+                 directRecord.InstanceId?.Equals(recordIdentity.TargetInstanceId) != true))
+            {
+                return Task.CompletedTask;
+            }
         }
         if (!isFanoutTarget)
         {
@@ -502,7 +520,6 @@ internal sealed class InMemoryWorkflowProvider :
                 cancellationToken);
         }
 
-        cancellationToken.ThrowIfCancellationRequested();
         lock (gate)
         {
             var key = (recordIdentity.EventId, recordIdentity.TargetInstanceId!);
@@ -585,11 +602,39 @@ internal sealed class InMemoryWorkflowProvider :
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(recordIdentity);
+        ArgumentOutOfRangeException.ThrowIfNegative(expectedFailureCount);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFailureCount);
+        if (expectedFailureCount >= maxFailureCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(expectedFailureCount));
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (recordIdentity.TargetInstanceId is null)
+        {
+            return RecordHandoffFailureAsync(
+                recordIdentity.EventId,
+                expectedState,
+                expectedFailureCount,
+                maxFailureCount,
+                retryNotBefore,
+                code,
+                detail,
+                cancellationToken);
+        }
+
         bool isFanoutTarget;
         lock (gate)
         {
-            isFanoutTarget = recordIdentity.TargetInstanceId is { } targetInstanceId &&
-                definitionFanoutTargets.ContainsKey((recordIdentity.EventId, targetInstanceId));
+            isFanoutTarget = definitionFanoutTargets.ContainsKey(
+                (recordIdentity.EventId, recordIdentity.TargetInstanceId));
+            if (!isFanoutTarget &&
+                (!inbox.TryGetValue(recordIdentity.EventId, out var directRecord) ||
+                 directRecord.InstanceId?.Equals(recordIdentity.TargetInstanceId) != true))
+            {
+                return Task.CompletedTask;
+            }
         }
         if (!isFanoutTarget)
         {
@@ -604,15 +649,6 @@ internal sealed class InMemoryWorkflowProvider :
                 cancellationToken);
         }
 
-        ArgumentOutOfRangeException.ThrowIfNegative(expectedFailureCount);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFailureCount);
-        if (expectedFailureCount >= maxFailureCount)
-        {
-            throw new ArgumentOutOfRangeException(nameof(expectedFailureCount));
-        }
-
-        ArgumentException.ThrowIfNullOrWhiteSpace(code);
-        cancellationToken.ThrowIfCancellationRequested();
         lock (gate)
         {
             var key = (recordIdentity.EventId, recordIdentity.TargetInstanceId!);

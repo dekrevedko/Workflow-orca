@@ -119,6 +119,32 @@ public static class DefinitionFanoutInboxCertification
         await fixture.ProjectionStore.ApplyAsync(
             [Projection(laterInstanceId, definitionId, new DefinitionVersion(3), WorkflowInstanceStatus.Running)],
             cancellationToken);
+        var excludedTargetIdentity = new InboxRecordIdentity(eventId, laterInstanceId);
+        await fixture.InboxStore.RecordHandoffFailureAsync(
+            excludedTargetIdentity,
+            InboxRecordState.Received,
+            expectedFailureCount: 0,
+            maxFailureCount: 2,
+            retryNotBefore: DateTimeOffset.UnixEpoch.AddMinutes(1),
+            code: "fanout-handoff-failed",
+            detail: "certification retry",
+            cancellationToken);
+        var rootAfterExcludedTargetFailure = await fixture.InboxStore.GetByEventIdAsync(
+            eventId,
+            cancellationToken);
+        rootAfterExcludedTargetFailure.Value.State.Should().Be(InboxRecordState.Received);
+        rootAfterExcludedTargetFailure.Value.HandoffFailureCount.Should().Be(0,
+            "a non-member target identity must not update the global ownership root");
+        await fixture.InboxStore.MarkPoisonedAsync(
+            excludedTargetIdentity,
+            InboxRecordState.Received,
+            "stale-fanout-observation",
+            "A stale target observation must not poison the global ownership root.",
+            cancellationToken);
+        (await fixture.InboxStore.GetByEventIdAsync(eventId, cancellationToken))
+            .Value.State.Should().Be(InboxRecordState.Received);
+        (await fixture.InboxStore.GetAsync(laterInstanceId, eventId, cancellationToken))
+            .HasValue.Should().BeFalse();
         var excludedTargetTransition = async () => await fixture.EventStore.AppendAsync(
             new ProviderCommitBatch
             {
