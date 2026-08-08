@@ -204,6 +204,16 @@ internal sealed class DurableCommandProcessor
             : await startIdempotencyStore.GetStartedAsync(idempotencyKey, cancellationToken).ConfigureAwait(false);
     }
 
+    internal async Task<Option<InboxStartIntentRecord>> GetStartIntentAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        return inboxStore is null
+            ? Option<InboxStartIntentRecord>.None
+            : await inboxStore.GetStartIntentAsync(idempotencyKey, cancellationToken).ConfigureAwait(false);
+    }
+
     public Task<DurableCommandResult> ProcessAsync(
         StartWorkflowCommand command,
         CancellationToken cancellationToken)

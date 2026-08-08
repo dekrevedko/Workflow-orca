@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using AwesomeAssertions;
 using Npgsql;
 using OrcaCore.Abstractions.Durable;
@@ -53,6 +54,10 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         DefinitionFanoutInboxCertification.RunAsync(CreateFixture());
 
     [Fact]
+    public Task StartOrDeliverInbox_UsesAtomicInputBoundIntentOwnership() =>
+        StartOrDeliverInboxCertification.RunAsync(CreateFixture());
+
+    [Fact]
     public async Task DefinitionFanoutInbox_RestartRetainsEnvelopeAndExactMembership()
     {
         var store = certificationStore ??
@@ -102,6 +107,82 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
     }
 
     [Fact]
+    public async Task StartOrDeliverInbox_RestartRetainsIntentThenMaterializesAllBoundEvents()
+    {
+        var store = certificationStore ??
+            throw new InvalidOperationException("PostgreSQL certification store is not initialized.");
+        var definitionId = DefinitionId.New();
+        var definitionVersion = new DefinitionVersion(4);
+        var startKey = $"start-restart-{Guid.CreateVersion7():N}";
+        var input = "restart-workflow-input"u8.ToArray();
+        var inputFingerprint = Convert.ToHexString(SHA256.HashData(input));
+        var eventId = EventId.Create(Guid.CreateVersion7().ToString());
+        var envelope = new DurableEventEnvelope
+        {
+            EventId = eventId,
+            EventName = "start-or-deliver-restart",
+            EventContractVersion = 2,
+            CorrelationId = CorrelationId.Create("start-or-deliver-restart"),
+            OccurredAt = MigrationAppliedAt(),
+            PayloadContentType = "application/vnd.orcacore.fixed+json;v=1",
+            Payload = "restart-event-payload"u8.ToArray(),
+            Route = new DurableEventRouteEnvelope
+            {
+                Kind = "start-or-deliver",
+                DefinitionId = definitionId,
+                DefinitionVersion = definitionVersion,
+                StartIdempotencyKey = startKey,
+                WorkflowInputContentType = "application/vnd.orcacore.fixed+json;v=1",
+                WorkflowInputPayload = input
+            }
+        };
+        var request = new InboxStartOrDeliverAcceptance(
+            new InboxAcceptance(envelope, "start-or-deliver-restart-envelope", envelope.OccurredAt),
+            definitionId,
+            definitionVersion,
+            startKey,
+            envelope.Route.WorkflowInputContentType,
+            [.. input],
+            inputFingerprint);
+        (await store.AcceptStartOrDeliverAsync(request, TestContext.Current.CancellationToken))
+            .Disposition.Should().Be(InboxAcceptanceCommitDisposition.Accepted);
+
+        await using var replacement = await CreateStoreAsync();
+        (await replacement.GetStartIntentAsync(startKey, TestContext.Current.CancellationToken))
+            .Value.State.Should().Be(InboxStartIntentState.Pending);
+        (await replacement.GetByEventIdAsync(eventId, TestContext.Current.CancellationToken))
+            .Value.InstanceId.Should().BeNull();
+
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        (await replacement.AppendAsync(
+            new ProviderCommitBatch
+            {
+                StreamId = new WorkflowStreamId(instanceId),
+                ExpectedVersion = StreamVersion.Empty,
+                StartIdempotencyOperations =
+                [
+                    new StartIdempotencyWrite(
+                        startKey,
+                        instanceId,
+                        definitionId,
+                        definitionVersion,
+                        "restart-definition-fingerprint",
+                        inputFingerprint)
+                ]
+            },
+            TestContext.Current.CancellationToken)).IsSuccess.Should().BeTrue();
+
+        await using var secondReplacement = await CreateStoreAsync();
+        var materialized = await secondReplacement.GetStartIntentAsync(
+            startKey,
+            TestContext.Current.CancellationToken);
+        materialized.Value.State.Should().Be(InboxStartIntentState.Materialized);
+        materialized.Value.InstanceId.Should().Be(instanceId);
+        (await secondReplacement.GetAsync(instanceId, eventId, TestContext.Current.CancellationToken))
+            .Value.Route!.Kind.Should().Be("direct");
+    }
+
+    [Fact]
     public void ActiveWaitQuery_ImplementsTheVersionAwareProviderOverload()
     {
         var projectionStore = certificationStore ??
@@ -139,12 +220,16 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         var fanoutMigrationId = await ScalarAsync<string>(
             "select migration_id from orcacore_schema_migrations where migration_id = @migration_id;",
             "011_definition_fanout_inbox");
+        var pendingStartMigrationId = await ScalarAsync<string>(
+            "select migration_id from orcacore_schema_migrations where migration_id = @migration_id;",
+            "012_pending_start_intents");
 
         initialMigrationId.Should().Be("001_initial");
         leaseMigrationId.Should().Be("002_claim_leases");
         startIdempotencyMigrationId.Should().Be("003_start_idempotency");
         ownershipCompatibilityMigrationCount.Should().Be(0);
         fanoutMigrationId.Should().Be("011_definition_fanout_inbox");
+        pendingStartMigrationId.Should().Be("012_pending_start_intents");
     }
 
     [Fact]

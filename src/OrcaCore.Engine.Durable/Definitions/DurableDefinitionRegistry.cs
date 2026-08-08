@@ -176,6 +176,23 @@ internal sealed class DurableDefinitionRegistry
             : null;
     }
 
+    internal bool OwnsDefinition(DefinitionId definitionId) =>
+        definitions.Keys.Any(key => key.DefinitionId.Equals(definitionId));
+
+    internal DurableRegisteredDefinitionBinding? ResolveBinding(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion)
+    {
+        return definitions.TryGetValue(
+            new DurableDefinitionKey(definitionId, definitionVersion),
+            out var registered)
+            ? new DurableRegisteredDefinitionBinding(
+                definitionId,
+                definitionVersion,
+                registered.Fingerprint)
+            : null;
+    }
+
     internal IReadOnlyList<StepThrottleDebugSnapshot> StepThrottleSnapshots =>
         stepThrottles.Snapshot();
 
@@ -208,3 +225,8 @@ internal sealed record DurableRegisteredDefinition(
     DefinitionId DefinitionId,
     DefinitionVersion DefinitionVersion,
     Type StateType);
+
+internal sealed record DurableRegisteredDefinitionBinding(
+    DefinitionId DefinitionId,
+    DefinitionVersion DefinitionVersion,
+    string Fingerprint);

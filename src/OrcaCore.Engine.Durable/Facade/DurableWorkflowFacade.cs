@@ -364,8 +364,24 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
                         inputFingerprint));
             }
 
+            if (result.ConflictingPendingIntent is { } pendingConflict)
+            {
+                return new StartCoreResult(
+                    null,
+                    false,
+                    global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory
+                        .PendingStartIdempotencyConflict(
+                            idempotencyKey,
+                            pendingConflict,
+                            definitionId,
+                            definitionVersion,
+                            definitionFingerprint,
+                            inputFingerprint));
+            }
+
             var binding = new InstanceBinding(
-                result.InstanceId,
+                result.InstanceId ?? throw new InvalidOperationException(
+                    "A successful durable start did not return an instance identity."),
                 definitionId,
                 definitionVersion,
                 definitionFingerprint,

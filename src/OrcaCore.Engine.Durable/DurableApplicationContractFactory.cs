@@ -10,6 +10,7 @@ namespace OrcaCore.Engine.Durable.Internal;
 /// </summary>
 internal static class DurableApplicationContractFactory
 {
+    private const string PendingDefinitionFingerprintPrefix = "pending-definition:";
     internal static object RuntimeDefinition(object definition) =>
         ReadNonPublicProperty<object>(definition, "RuntimeDefinition");
 
@@ -108,6 +109,53 @@ internal static class DurableApplicationContractFactory
             attemptedDefinitionVersion,
             attemptedDefinitionFingerprint,
             attemptedInputFingerprint);
+
+    internal static StartIdempotencyConflict PendingStartIdempotencyConflict(
+        StartIdempotencyKey key,
+        Abstractions.Providers.InboxStartBindingConflict conflict) =>
+        StartIdempotencyConflict(
+            key,
+            conflict.ExistingDefinitionId,
+            conflict.ExistingDefinitionVersion,
+            conflict.ExistingDefinitionFingerprint ?? PendingDefinitionFingerprint(
+                conflict.ExistingDefinitionId,
+                conflict.ExistingDefinitionVersion),
+            conflict.ExistingInputFingerprint,
+            conflict.AttemptedDefinitionId,
+            conflict.AttemptedDefinitionVersion,
+            Construct<DefinitionFingerprint>(
+                [typeof(string)],
+                PendingDefinitionFingerprint(
+                    conflict.AttemptedDefinitionId,
+                    conflict.AttemptedDefinitionVersion)),
+            Construct<PayloadFingerprint>([typeof(string)], conflict.AttemptedInputFingerprint));
+
+    internal static StartIdempotencyConflict PendingStartIdempotencyConflict(
+        StartIdempotencyKey key,
+        Abstractions.Providers.InboxStartIntentRecord conflict,
+        DefinitionId attemptedDefinitionId,
+        DefinitionVersion attemptedDefinitionVersion,
+        DefinitionFingerprint attemptedDefinitionFingerprint,
+        PayloadFingerprint attemptedInputFingerprint) =>
+        StartIdempotencyConflict(
+            key,
+            conflict.DefinitionId,
+            conflict.DefinitionVersion,
+            conflict.DefinitionFingerprint ?? PendingDefinitionFingerprint(
+                conflict.DefinitionId,
+                conflict.DefinitionVersion),
+            conflict.WorkflowInputFingerprint,
+            attemptedDefinitionId,
+            attemptedDefinitionVersion,
+            attemptedDefinitionFingerprint,
+            attemptedInputFingerprint);
+
+    // A callback-only route binds identity/version but has no structural definition to hash.
+    // Use one deterministic provisional value until the owning host materializes the exact binding.
+    private static string PendingDefinitionFingerprint(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion) =>
+        $"{PendingDefinitionFingerprintPrefix}{definitionId.Value:N}:{definitionVersion.Value}";
 
     internal static StartIdempotencyConflict StartIdempotencyConflict(
         StartIdempotencyKey key,

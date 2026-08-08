@@ -87,6 +87,16 @@ internal sealed class DurableTestStore :
         CancellationToken cancellationToken) =>
         inboxStore.AcceptDefinitionFanoutAsync(acceptance, cancellationToken);
 
+    public Task<InboxAcceptanceCommitResult> AcceptStartOrDeliverAsync(
+        InboxStartOrDeliverAcceptance acceptance,
+        CancellationToken cancellationToken) =>
+        inboxStore.AcceptStartOrDeliverAsync(acceptance, cancellationToken);
+
+    public Task<Option<InboxStartIntentRecord>> GetStartIntentAsync(
+        string startIdempotencyKey,
+        CancellationToken cancellationToken) =>
+        inboxStore.GetStartIntentAsync(startIdempotencyKey, cancellationToken);
+
     public Task<IReadOnlyList<InboxRecord>> ListDefinitionFanoutTargetsAsync(
         EventId eventId,
         CancellationToken cancellationToken) =>

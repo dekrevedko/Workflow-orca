@@ -11,6 +11,10 @@ public sealed class InMemoryProviderCertificationTests : ContinueAsNewCertificat
         DefinitionFanoutInboxCertification.RunAsync(CreateFixture());
 
     [Fact]
+    public Task StartOrDeliverInbox_UsesAtomicInputBoundIntentOwnership() =>
+        StartOrDeliverInboxCertification.RunAsync(CreateFixture());
+
+    [Fact]
     public void ActiveWaitQuery_ImplementsTheVersionAwareProviderOverload()
     {
         var projectionStore = InMemoryProviderPorts.Create().ProjectionStore;

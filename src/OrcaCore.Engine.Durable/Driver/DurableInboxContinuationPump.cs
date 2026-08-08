@@ -207,6 +207,31 @@ internal sealed class DurableInboxContinuationPump(
             return false;
         }
 
+        if (string.Equals(envelope.Route.Kind, "start-or-deliver", StringComparison.Ordinal) &&
+            record.InstanceId is null)
+        {
+            var materialization = await runtime
+                .TryMaterializePendingStartAsync(envelope, cancellationToken)
+                .ConfigureAwait(false);
+            if (materialization.Disposition == PendingStartMaterializationDisposition.NotOwned)
+            {
+                return false;
+            }
+
+            if (materialization.Disposition == PendingStartMaterializationDisposition.Unresolvable)
+            {
+                await inboxStore.MarkPoisonedAsync(
+                    new InboxRecordIdentity(record.EventId),
+                    InboxRecordState.Received,
+                    materialization.PoisonCode ?? "start-intent-unresolvable",
+                    materialization.PoisonDetail,
+                    cancellationToken).ConfigureAwait(false);
+                return false;
+            }
+
+            return true;
+        }
+
         var target = await ResolveTargetAsync(record, envelope, cancellationToken).ConfigureAwait(false);
         if (target is null)
         {
@@ -348,9 +373,34 @@ internal sealed class DurableInboxContinuationPump(
 
                 return target.Value;
             }
+            case "start-or-deliver" when record.InstanceId is { } startTargetId:
+            {
+                var target = await projectionStore.GetAsync(startTargetId, cancellationToken).ConfigureAwait(false);
+                if (!target.HasValue)
+                {
+                    await inboxStore.MarkPoisonedAsync(
+                        new InboxRecordIdentity(record.EventId, startTargetId),
+                        InboxRecordState.Received,
+                        "start-target-missing",
+                        "The materialized start target is no longer present in the provider projection.",
+                        cancellationToken).ConfigureAwait(false);
+                    return null;
+                }
+
+                if (IsTerminal(target.Value.Status))
+                {
+                    await inboxStore.MarkPoisonedAsync(
+                        new InboxRecordIdentity(record.EventId, startTargetId),
+                        InboxRecordState.Received,
+                        "start-target-terminal",
+                        "The materialized start target became terminal before delivery.",
+                        cancellationToken).ConfigureAwait(false);
+                    return null;
+                }
+
+                return target.Value;
+            }
             default:
-                // Start-or-deliver retains its accepted record for task 7.31, whose materializer
-                // feeds the same continuation outbox lane.
                 return null;
         }
     }

@@ -21,8 +21,8 @@ internal sealed class DurableStartService(DurableCommandProcessor commandProcess
             if (startedInstances.TryGetValue(request.IdempotencyKey, out var existing))
             {
                 return Matches(existing, request)
-                    ? new StartOrGetResult(existing.InstanceId, false, null)
-                    : new StartOrGetResult(existing.InstanceId, false, existing);
+                    ? StartOrGetResult.Existing(existing.InstanceId)
+                    : StartOrGetResult.StartedConflict(existing);
             }
 
             var durableExisting = await TryGetDurableExistingAsync(request, cancellationToken).ConfigureAwait(false);
@@ -57,12 +57,18 @@ internal sealed class DurableStartService(DurableCommandProcessor commandProcess
                     return winner;
                 }
 
+                var pendingConflict = await TryGetPendingConflictAsync(request, cancellationToken).ConfigureAwait(false);
+                if (pendingConflict is not null)
+                {
+                    return StartOrGetResult.PendingConflict(pendingConflict);
+                }
+
                 throw new InvalidOperationException(
                     $"StartOrGet could not start workflow for key '{request.IdempotencyKey}': {result.Message}");
             }
 
             startedInstances.Add(request.IdempotencyKey, ToRecord(request, instanceId));
-            return new StartOrGetResult(instanceId, true, null);
+            return StartOrGetResult.NewlyCreated(instanceId);
         }
         finally
         {
@@ -84,8 +90,32 @@ internal sealed class DurableStartService(DurableCommandProcessor commandProcess
 
         startedInstances[request.IdempotencyKey] = durableExisting.Value;
         return Matches(durableExisting.Value, request)
-            ? new StartOrGetResult(durableExisting.Value.InstanceId, false, null)
-            : new StartOrGetResult(durableExisting.Value.InstanceId, false, durableExisting.Value);
+            ? StartOrGetResult.Existing(durableExisting.Value.InstanceId)
+            : StartOrGetResult.StartedConflict(durableExisting.Value);
+    }
+
+    private async Task<InboxStartIntentRecord?> TryGetPendingConflictAsync(
+        StartOrGetRequest request,
+        CancellationToken cancellationToken)
+    {
+        var pending = await commandProcessor
+            .GetStartIntentAsync(request.IdempotencyKey, cancellationToken)
+            .ConfigureAwait(false);
+        if (!pending.HasValue)
+        {
+            return null;
+        }
+
+        var intent = pending.Value;
+        return intent.State == InboxStartIntentState.Poisoned ||
+               !intent.DefinitionId.Equals(request.DefinitionId) ||
+               !intent.DefinitionVersion.Equals(request.DefinitionVersion) ||
+               !string.Equals(
+                   intent.WorkflowInputFingerprint,
+                   request.InputFingerprint,
+                   StringComparison.Ordinal)
+            ? intent
+            : null;
     }
 
     private static bool Matches(StartedWorkflowIdempotencyRecord existing, StartOrGetRequest request)
@@ -123,6 +153,20 @@ internal sealed record StartOrGetRequest(
     DateTimeOffset RequestedAt);
 
 internal sealed record StartOrGetResult(
-    InstanceId InstanceId,
+    InstanceId? InstanceId,
     bool Created,
-    StartedWorkflowIdempotencyRecord? ConflictingBinding);
+    StartedWorkflowIdempotencyRecord? ConflictingBinding,
+    InboxStartIntentRecord? ConflictingPendingIntent)
+{
+    internal static StartOrGetResult NewlyCreated(InstanceId instanceId) =>
+        new(instanceId, true, null, null);
+
+    internal static StartOrGetResult Existing(InstanceId instanceId) =>
+        new(instanceId, false, null, null);
+
+    internal static StartOrGetResult StartedConflict(StartedWorkflowIdempotencyRecord conflict) =>
+        new(conflict.InstanceId, false, conflict, null);
+
+    internal static StartOrGetResult PendingConflict(InboxStartIntentRecord conflict) =>
+        new(null, false, null, conflict);
+}

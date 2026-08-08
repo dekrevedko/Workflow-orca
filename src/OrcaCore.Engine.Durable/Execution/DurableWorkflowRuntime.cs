@@ -128,8 +128,16 @@ internal sealed class DurableWorkflowRuntime
                 "definition or fixed-codec input bytes.");
         }
 
+        if (result.ConflictingPendingIntent is { } pendingConflict)
+        {
+            throw new WorkflowVersionException(
+                $"Start idempotency key '{idempotencyKey}' is reserved by pending definition " +
+                $"'{pendingConflict.DefinitionId}' version '{pendingConflict.DefinitionVersion}' with different " +
+                "definition or fixed-codec input bytes.");
+        }
+
         return new DurableWorkflowStartResult(
-            result.InstanceId,
+            RequireStartedInstance(result),
             definitionId,
             definitionVersion,
             result.Created);
@@ -161,7 +169,8 @@ internal sealed class DurableWorkflowRuntime
         return new DurableFacadeStartResult(
             result.InstanceId,
             result.Created,
-            result.ConflictingBinding);
+            result.ConflictingBinding,
+            result.ConflictingPendingIntent);
     }
 
     private async Task<StartOrGetResult> StartOrGetCoreAsync<TInput>(
@@ -174,6 +183,25 @@ internal sealed class DurableWorkflowRuntime
         CancellationToken cancellationToken)
     {
         var serializedInput = input is null ? null : payloadSerializer.Serialize(input);
+        return await StartOrGetSerializedCoreAsync(
+            idempotencyKey,
+            definitionId,
+            definitionVersion,
+            definitionFingerprint,
+            inputFingerprint,
+            serializedInput,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<StartOrGetResult> StartOrGetSerializedCoreAsync(
+        string idempotencyKey,
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        string definitionFingerprint,
+        string inputFingerprint,
+        SerializedPayload? serializedInput,
+        CancellationToken cancellationToken)
+    {
         var result = await startService
             .StartOrGetAsync(
                 new StartOrGetRequest(
@@ -186,10 +214,12 @@ internal sealed class DurableWorkflowRuntime
                     timeProvider.GetUtcNow()),
                 cancellationToken)
             .ConfigureAwait(false);
-        if (result.ConflictingBinding is not null)
+        if (result.ConflictingBinding is not null || result.ConflictingPendingIntent is not null)
         {
             return result;
         }
+
+        var instanceId = RequireStartedInstance(result);
 
         if (projectionStore is not null)
         {
@@ -197,13 +227,71 @@ internal sealed class DurableWorkflowRuntime
                     commandProcessor,
                     projectionStore,
                     timeProvider)
-                .ReconcileReleaseGapsAsync(result.InstanceId, cancellationToken)
+                .ReconcileReleaseGapsAsync(instanceId, cancellationToken)
                 .ConfigureAwait(false);
         }
 
-        await driver.DriveAsync(result.InstanceId, cancellationToken).ConfigureAwait(false);
+        await driver.DriveAsync(instanceId, cancellationToken).ConfigureAwait(false);
         return result;
     }
+
+    internal async Task<PendingStartMaterializationResult> TryMaterializePendingStartAsync(
+        DurableEventEnvelope envelope,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(envelope);
+        var route = envelope.Route;
+        if (!string.Equals(route.Kind, "start-or-deliver", StringComparison.Ordinal) ||
+            route.DefinitionId is not { } definitionId ||
+            route.DefinitionVersion is not { } definitionVersion ||
+            string.IsNullOrWhiteSpace(route.StartIdempotencyKey) ||
+            string.IsNullOrWhiteSpace(route.WorkflowInputContentType) ||
+            route.WorkflowInputPayload is null)
+        {
+            return PendingStartMaterializationResult.Unresolvable(
+                "start-intent-invalid",
+                "The accepted start intent is missing its exact definition or fixed-codec input binding.");
+        }
+
+        var binding = definitions.ResolveBinding(definitionId, definitionVersion);
+        if (binding is null)
+        {
+            return definitions.OwnsDefinition(definitionId)
+                ? PendingStartMaterializationResult.Unresolvable(
+                    "start-definition-version-unavailable",
+                    $"Definition '{definitionId}' version '{definitionVersion}' is not registered on its owning host.")
+                : PendingStartMaterializationResult.NotOwned;
+        }
+
+        var inputFingerprint = DurableWorkflowValueFingerprint.Create(route.WorkflowInputPayload);
+        var result = await StartOrGetSerializedCoreAsync(
+            route.StartIdempotencyKey,
+            definitionId,
+            definitionVersion,
+            binding.Fingerprint,
+            inputFingerprint,
+            new SerializedPayload(route.WorkflowInputContentType, [.. route.WorkflowInputPayload]),
+            cancellationToken).ConfigureAwait(false);
+        if (result.ConflictingBinding is { } conflict)
+        {
+            return PendingStartMaterializationResult.Unresolvable(
+                "start-binding-incompatible",
+                $"The accepted start intent conflicts with instance '{conflict.InstanceId}'.");
+        }
+
+        if (result.ConflictingPendingIntent is not null)
+        {
+            return PendingStartMaterializationResult.Unresolvable(
+                "start-binding-incompatible",
+                "The accepted start intent conflicts with the durable pending-start binding.");
+        }
+
+        return PendingStartMaterializationResult.Materialized(RequireStartedInstance(result));
+    }
+
+    private static InstanceId RequireStartedInstance(StartOrGetResult result) =>
+        result.InstanceId ?? throw new InvalidOperationException(
+            "A successful durable start did not return an instance identity.");
 
     /// <summary>
     /// Starts the supplied definition version or returns the instance previously started with the same key.
@@ -413,6 +501,29 @@ internal sealed class DurableWorkflowRuntime
     }
 }
 
+internal enum PendingStartMaterializationDisposition
+{
+    NotOwned,
+    Materialized,
+    Unresolvable
+}
+
+internal sealed record PendingStartMaterializationResult(
+    PendingStartMaterializationDisposition Disposition,
+    InstanceId? InstanceId,
+    string? PoisonCode,
+    string? PoisonDetail)
+{
+    internal static PendingStartMaterializationResult NotOwned { get; } =
+        new(PendingStartMaterializationDisposition.NotOwned, null, null, null);
+
+    internal static PendingStartMaterializationResult Materialized(InstanceId instanceId) =>
+        new(PendingStartMaterializationDisposition.Materialized, instanceId, null, null);
+
+    internal static PendingStartMaterializationResult Unresolvable(string code, string detail) =>
+        new(PendingStartMaterializationDisposition.Unresolvable, null, code, detail);
+}
+
 /// <summary>
 /// Result of a durable start-or-get request.
 /// </summary>
@@ -423,9 +534,10 @@ internal sealed record DurableWorkflowStartResult(
     bool Created);
 
 internal sealed record DurableFacadeStartResult(
-    InstanceId InstanceId,
+    InstanceId? InstanceId,
     bool Created,
-    StartedWorkflowIdempotencyRecord? ConflictingBinding);
+    StartedWorkflowIdempotencyRecord? ConflictingBinding,
+    InboxStartIntentRecord? ConflictingPendingIntent);
 
 /// <summary>
 /// Preconditions supplied by an operator when explicitly re-arming a parked durable instance.

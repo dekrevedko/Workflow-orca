@@ -344,6 +344,160 @@ public sealed class DurableRecoveryTests
             .HasValue.Should().BeFalse("instances created after the committed snapshot are excluded");
     }
 
+    [Fact]
+    public async Task CallbackOnlyStartOrDeliver_PersistsDistinctInputThenColdOwnerMaterializesOnce()
+    {
+        var store = new InMemoryWorkflowProvider();
+        var definitionId = DefinitionId.New();
+        var eventName = EventName.Create("start-or-deliver-cold");
+        var workflowInput = new Input("workflow-input-correlation");
+        var eventPayload = new Input("event-payload-correlation");
+        var startKey = StartIdempotencyKey.Create("start-or-deliver-cold-start");
+        var definition = WaitingDefinition(definitionId, eventName);
+        var callbackOnly = CreateFacade(store, store, store, driveAfterDelivery: false);
+        var inbound = WorkflowInboundEvent<Input>.Create(
+            WorkflowEventContract<Input>.Create(eventName, EventContractVersion.Initial),
+            EventId.Create("start-or-deliver-cold-event"),
+            CorrelationId.Create(workflowInput.Correlation),
+            causationEventId: null,
+            DateTimeOffset.Parse("2026-08-07T12:00:00Z"),
+            new WorkflowEventRoute.StartOrDeliver<Input>(
+                definitionId,
+                DefinitionVersion.Initial,
+                startKey,
+                workflowInput),
+            eventPayload);
+
+        var accepted = await callbackOnly.Events.AcceptAsync(
+            inbound,
+            TestContext.Current.CancellationToken);
+        var pending = await store.GetStartIntentAsync(startKey.Value, TestContext.Current.CancellationToken);
+        var beforeOwner = await store.GetByEventIdAsync(inbound.EventId, TestContext.Current.CancellationToken);
+        var startedBeforeOwner = await store.GetStartedAsync(startKey.Value, TestContext.Current.CancellationToken);
+        var callbackOutbox = await store.ClaimAsync(10, TestContext.Current.CancellationToken);
+
+        accepted.Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
+        pending.Value.State.Should().Be(InboxStartIntentState.Pending);
+        beforeOwner.Value.State.Should().Be(InboxRecordState.Received);
+        beforeOwner.Value.InstanceId.Should().BeNull();
+        startedBeforeOwner.HasValue.Should().BeFalse();
+        callbackOutbox.Should().BeEmpty(
+            "definition-less callback acceptance must not execute workflow code or dispatch work");
+
+        var conflictingInput = new Input("different-workflow-input");
+        var conflictingInbound = WorkflowInboundEvent<Input>.Create(
+            WorkflowEventContract<Input>.Create(eventName, EventContractVersion.Initial),
+            EventId.Create("start-or-deliver-conflicting-event"),
+            CorrelationId.Create(conflictingInput.Correlation),
+            causationEventId: null,
+            DateTimeOffset.Parse("2026-08-07T12:00:01Z"),
+            new WorkflowEventRoute.StartOrDeliver<Input>(
+                definitionId,
+                DefinitionVersion.Initial,
+                startKey,
+                conflictingInput),
+            eventPayload);
+        var rejected = await callbackOnly.Events.AcceptAsync(
+            conflictingInbound,
+            TestContext.Current.CancellationToken);
+        var startConflict = rejected.Should()
+            .BeOfType<WorkflowEventAcceptanceResult.Rejected>().Subject.Reason.Should()
+            .BeOfType<WorkflowEventAcceptanceRejection.StartConflict>().Subject.Conflict;
+        startConflict.Key.Should().Be(startKey);
+        startConflict.ExistingDefinitionId.Should().Be(definitionId);
+        startConflict.ExistingDefinitionVersion.Should().Be(DefinitionVersion.Initial);
+        startConflict.ExistingInputFingerprint.Should().NotBe(startConflict.AttemptedInputFingerprint);
+        (await store.GetByEventIdAsync(
+                conflictingInbound.EventId,
+                TestContext.Current.CancellationToken))
+            .HasValue.Should().BeFalse("known incompatible start bindings reject before event ownership");
+
+        var owner = CreateFacade(store, store, store, driveAfterDelivery: false);
+        var handle = owner.Registry.Register(definition).GetHandleOrThrow();
+        var directStartConflict = await handle.StartOrGetAsync(
+            conflictingInput,
+            startKey,
+            TestContext.Current.CancellationToken);
+        var directConflict = directStartConflict.Should()
+            .BeOfType<WorkflowStartResult<WorkflowInstanceHandle>.Conflict>()
+            .Which.Error;
+        directConflict.AttemptedInputFingerprint.Should().NotBe(
+            directConflict.ExistingInputFingerprint,
+            "a direct start must observe the incompatible pending reservation as a typed conflict");
+        var inboxPump = new DurableInboxContinuationPump(store, store, owner.Runtime);
+        var continuationPump = new DurableContinuationPump(
+            store,
+            owner.Runtime,
+            owner.Processor,
+            inboxStore: store);
+        (await inboxPump.PumpOnceAsync(10, TestContext.Current.CancellationToken)).Should().BePositive();
+        _ = await continuationPump.PumpOnceAsync(PumpRequest(), TestContext.Current.CancellationToken);
+        _ = await continuationPump.PumpOnceAsync(PumpRequest(), TestContext.Current.CancellationToken);
+
+        var materialized = await store.GetStartIntentAsync(startKey.Value, TestContext.Current.CancellationToken);
+        var instance = await handle.GetInstanceAsync(
+            materialized.Value.InstanceId!,
+            TestContext.Current.CancellationToken);
+        var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var events = await store.LoadTailAsync(
+            new WorkflowStreamId(instance.InstanceId),
+            StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+        var ownedEvent = await store.GetByEventIdAsync(inbound.EventId, TestContext.Current.CancellationToken);
+
+        materialized.Value.State.Should().Be(InboxStartIntentState.Materialized);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed,
+            "the workflow input correlation, not the distinct event payload, must register the matching wait");
+        ownedEvent.Value.State.Should().Be(InboxRecordState.Applied);
+        events.OfType<WorkflowStartedEvent>().Should().ContainSingle();
+        events.OfType<WorkflowWaitMatchedEvent>().Should().ContainSingle();
+        events.OfType<WorkflowResumeConsumedEvent>().Should().ContainSingle();
+
+        var duplicate = await callbackOnly.Events.AcceptAsync(inbound, TestContext.Current.CancellationToken);
+        duplicate.Should().BeOfType<WorkflowEventAcceptanceResult.Duplicate>();
+        (await store.LoadTailAsync(
+                new WorkflowStreamId(instance.InstanceId),
+                StreamVersion.Empty,
+                TestContext.Current.CancellationToken))
+            .OfType<WorkflowStartedEvent>().Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task OwningStartPump_PoisonsAcceptedIntentWhenExactVersionIsUnavailable()
+    {
+        var store = new InMemoryWorkflowProvider();
+        var definitionId = DefinitionId.New();
+        var eventName = EventName.Create("start-or-deliver-missing-version");
+        var startKey = StartIdempotencyKey.Create("start-or-deliver-missing-version");
+        var callbackOnly = CreateFacade(store, store, store, driveAfterDelivery: false);
+        var inbound = WorkflowInboundEvent.Create(
+            WorkflowEventContract.Create(eventName, EventContractVersion.Initial),
+            EventId.Create("start-or-deliver-missing-version-event"),
+            CorrelationId.Create("start-or-deliver-missing-version"),
+            causationEventId: null,
+            DateTimeOffset.Parse("2026-08-07T12:00:00Z"),
+            new WorkflowEventRoute.StartOrDeliver<Input>(
+                definitionId,
+                new DefinitionVersion(2),
+                startKey,
+                new Input("start-or-deliver-missing-version")));
+        _ = await callbackOnly.Events.AcceptAsync(inbound, TestContext.Current.CancellationToken);
+
+        var owner = CreateFacade(store, store, store, driveAfterDelivery: false);
+        _ = owner.Registry.Register(WaitingDefinition(definitionId, eventName)).GetHandleOrThrow();
+        var pump = new DurableInboxContinuationPump(store, store, owner.Runtime);
+        (await pump.PumpOnceAsync(10, TestContext.Current.CancellationToken)).Should().Be(0);
+
+        var intent = await store.GetStartIntentAsync(startKey.Value, TestContext.Current.CancellationToken);
+        var ownedEvent = await store.GetByEventIdAsync(inbound.EventId, TestContext.Current.CancellationToken);
+        intent.Value.State.Should().Be(InboxStartIntentState.Poisoned);
+        intent.Value.PoisonCode.Should().Be("start-definition-version-unavailable");
+        ownedEvent.Value.State.Should().Be(InboxRecordState.Poisoned);
+        ownedEvent.Value.PoisonCode.Should().Be("start-definition-version-unavailable");
+        (await store.GetStartedAsync(startKey.Value, TestContext.Current.CancellationToken))
+            .HasValue.Should().BeFalse();
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

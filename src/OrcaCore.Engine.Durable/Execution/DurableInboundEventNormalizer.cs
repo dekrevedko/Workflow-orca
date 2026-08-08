@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Security.Cryptography;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Core.Internal;
 
@@ -111,3 +112,9 @@ internal static class DurableInboundEventNormalizer
 internal sealed record NormalizedDurableInboundEvent(
     DurableEventEnvelope Envelope,
     string Fingerprint);
+
+internal static class DurableWorkflowValueFingerprint
+{
+    internal static string Create(ReadOnlySpan<byte> payload) =>
+        Convert.ToHexString(SHA256.HashData(payload));
+}

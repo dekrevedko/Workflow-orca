@@ -26,6 +26,7 @@ internal sealed class InMemoryWorkflowProvider :
     private readonly Dictionary<InboxRouteKey, long> inboxRouteRevisions = [];
     private long nextInboxAcceptanceSequence;
     private readonly Dictionary<string, StartedWorkflowIdempotencyRecord> startIdempotency = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, InboxStartIntentRecord> startIntents = new(StringComparer.Ordinal);
     private readonly Dictionary<OutboxRecordId, InMemoryOutboxRecord> outbox = [];
     private readonly List<OutboxWrite> dispatched = [];
     private readonly List<ProjectionWrite> projections = [];
@@ -120,11 +121,18 @@ internal sealed class InMemoryWorkflowProvider :
             {
                 return Task.FromResult(EventStoreConflict.StartIdempotencyKeyAlreadyExists(conflictingStartKey));
             }
+
+            var incompatiblePendingStart = FindIncompatiblePendingStart(batch.StartIdempotencyOperations);
+            if (incompatiblePendingStart is not null)
+            {
+                return Task.FromResult(EventStoreConflict.StartIdempotencyKeyAlreadyExists(incompatiblePendingStart));
+            }
             stream.AddRange(batch.Events);
             ApplyInboxOperations(batch.StreamId.InstanceId, batch.InboxOperations);
             AdvanceInboxRoutes(batch.InboxRouteMutations);
             ApplyInboxTargetPoisonOperations(batch.InboxTargetPoisonOperations);
             ApplyStartIdempotencyOperations(batch.StartIdempotencyOperations);
+            MaterializePendingStarts(batch.StartIdempotencyOperations);
             foreach (var record in batch.OutboxRecords)
             {
                 outbox[record.OutboxRecordId] = new InMemoryOutboxRecord(
@@ -290,6 +298,100 @@ internal sealed class InMemoryWorkflowProvider :
             {
                 DefinitionFanoutTargets = targetIds
             });
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<InboxAcceptanceCommitResult> AcceptStartOrDeliverAsync(
+        InboxStartOrDeliverAcceptance request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.StartIdempotencyKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.WorkflowInputContentType);
+        ArgumentNullException.ThrowIfNull(request.WorkflowInputPayload);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.WorkflowInputFingerprint);
+        cancellationToken.ThrowIfCancellationRequested();
+        ValidateStartOrDeliverRoute(request);
+
+        lock (gate)
+        {
+            var acceptance = request.Acceptance;
+            if (inbox.TryGetValue(acceptance.Envelope.EventId, out var existingEvent))
+            {
+                return Task.FromResult(ClassifyInboxAcceptance(existingEvent, acceptance.EnvelopeFingerprint));
+            }
+
+            if (TryCreateStartConflict(request, out var conflict))
+            {
+                return Task.FromResult(new InboxAcceptanceCommitResult(
+                    InboxAcceptanceCommitDisposition.StartConflict,
+                    null)
+                {
+                    StartConflict = conflict
+                });
+            }
+
+            startIdempotency.TryGetValue(request.StartIdempotencyKey, out var started);
+            if (!startIntents.TryGetValue(request.StartIdempotencyKey, out var intent))
+            {
+                intent = new InboxStartIntentRecord(
+                    request.StartIdempotencyKey,
+                    request.DefinitionId,
+                    request.DefinitionVersion,
+                    request.WorkflowInputContentType,
+                    [.. request.WorkflowInputPayload],
+                    request.WorkflowInputFingerprint,
+                    started is null ? InboxStartIntentState.Pending : InboxStartIntentState.Materialized)
+                {
+                    InstanceId = started?.InstanceId,
+                    DefinitionFingerprint = started?.DefinitionFingerprint
+                };
+                startIntents.Add(intent.StartIdempotencyKey, intent);
+            }
+
+            var route = started is null
+                ? null
+                : InboxRouteKey.Direct(
+                    started.InstanceId,
+                    EventName.Create(acceptance.Envelope.EventName),
+                    new EventContractVersion(acceptance.Envelope.EventContractVersion),
+                    acceptance.Envelope.CorrelationId);
+            var record = new InboxRecord(
+                started?.InstanceId,
+                acceptance.Envelope.EventId,
+                acceptance.EnvelopeFingerprint,
+                InboxRecordState.Received)
+            {
+                Envelope = CloneEnvelope(acceptance.Envelope),
+                Route = route,
+                AcceptanceSequence = ++nextInboxAcceptanceSequence,
+                AcceptedAt = acceptance.AcceptedAt
+            };
+            inbox.Add(record.EventId, record);
+            if (route is not null)
+            {
+                inboxRouteRevisions[route] = CurrentRouteRevision(route) + 1;
+            }
+
+            return Task.FromResult(new InboxAcceptanceCommitResult(
+                InboxAcceptanceCommitDisposition.Accepted,
+                CloneInboxRecord(record)));
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<Option<InboxStartIntentRecord>> GetStartIntentAsync(
+        string startIdempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(startIdempotencyKey);
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (gate)
+        {
+            return Task.FromResult(startIntents.TryGetValue(startIdempotencyKey, out var intent)
+                ? Option<InboxStartIntentRecord>.Some(CloneStartIntent(intent))
+                : Option<InboxStartIntentRecord>.None);
         }
     }
 
@@ -461,6 +563,37 @@ internal sealed class InMemoryWorkflowProvider :
         {
             if (inbox.TryGetValue(eventId, out var record) && record.State == expectedState)
             {
+                if (record.Envelope?.Route is
+                        { Kind: "start-or-deliver", StartIdempotencyKey: { } startKey } &&
+                    startIntents.TryGetValue(startKey, out var intent) &&
+                    intent.State == InboxStartIntentState.Pending)
+                {
+                    startIntents[startKey] = intent with
+                    {
+                        State = InboxStartIntentState.Poisoned,
+                        PoisonCode = code,
+                        PoisonDetail = detail
+                    };
+                    foreach (var pending in inbox
+                                 .Where(pair =>
+                                     pair.Value.State == expectedState &&
+                                     string.Equals(
+                                         pair.Value.Envelope?.Route.StartIdempotencyKey,
+                                         startKey,
+                                         StringComparison.Ordinal))
+                                 .ToArray())
+                    {
+                        inbox[pending.Key] = pending.Value with
+                        {
+                            State = InboxRecordState.Poisoned,
+                            PoisonCode = code,
+                            PoisonDetail = detail
+                        };
+                    }
+
+                    return Task.CompletedTask;
+                }
+
                 inbox[eventId] = record with
                 {
                     State = InboxRecordState.Poisoned,
@@ -1177,6 +1310,153 @@ internal sealed class InMemoryWorkflowProvider :
                 }
             };
     }
+
+    private static InboxAcceptanceCommitResult ClassifyInboxAcceptance(
+        InboxRecord existing,
+        string envelopeFingerprint) =>
+        new(
+            string.Equals(existing.EnvelopeFingerprint, envelopeFingerprint, StringComparison.Ordinal)
+                ? InboxAcceptanceCommitDisposition.Duplicate
+                : InboxAcceptanceCommitDisposition.Conflict,
+            CloneInboxRecord(existing));
+
+    private static void ValidateStartOrDeliverRoute(InboxStartOrDeliverAcceptance request)
+    {
+        var route = request.Acceptance.Envelope.Route;
+        if (!string.Equals(route.Kind, "start-or-deliver", StringComparison.Ordinal) ||
+            !Equals(route.DefinitionId, request.DefinitionId) ||
+            !Equals(route.DefinitionVersion, request.DefinitionVersion) ||
+            !string.Equals(route.StartIdempotencyKey, request.StartIdempotencyKey, StringComparison.Ordinal) ||
+            !string.Equals(route.WorkflowInputContentType, request.WorkflowInputContentType, StringComparison.Ordinal) ||
+            route.WorkflowInputPayload is null ||
+            !route.WorkflowInputPayload.AsSpan().SequenceEqual(request.WorkflowInputPayload))
+        {
+            throw new ArgumentException(
+                "Start-or-deliver acceptance must match the normalized envelope route.",
+                nameof(request));
+        }
+    }
+
+    private bool TryCreateStartConflict(
+        InboxStartOrDeliverAcceptance request,
+        out InboxStartBindingConflict? conflict)
+    {
+        if (startIdempotency.TryGetValue(request.StartIdempotencyKey, out var started) &&
+            !MatchesStartBinding(
+                started.DefinitionId,
+                started.DefinitionVersion,
+                started.InputFingerprint,
+                request))
+        {
+            conflict = new InboxStartBindingConflict(
+                started.DefinitionId,
+                started.DefinitionVersion,
+                started.DefinitionFingerprint,
+                started.InputFingerprint,
+                request.DefinitionId,
+                request.DefinitionVersion,
+                request.WorkflowInputFingerprint);
+            return true;
+        }
+
+        if (startIntents.TryGetValue(request.StartIdempotencyKey, out var intent) &&
+            (!MatchesStartBinding(
+                 intent.DefinitionId,
+                 intent.DefinitionVersion,
+                 intent.WorkflowInputFingerprint,
+                 request) ||
+             intent.State == InboxStartIntentState.Poisoned))
+        {
+            conflict = new InboxStartBindingConflict(
+                intent.DefinitionId,
+                intent.DefinitionVersion,
+                intent.DefinitionFingerprint,
+                intent.WorkflowInputFingerprint,
+                request.DefinitionId,
+                request.DefinitionVersion,
+                request.WorkflowInputFingerprint);
+            return true;
+        }
+
+        conflict = null;
+        return false;
+    }
+
+    private static bool MatchesStartBinding(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        string inputFingerprint,
+        InboxStartOrDeliverAcceptance request) =>
+        definitionId.Equals(request.DefinitionId) &&
+        definitionVersion.Equals(request.DefinitionVersion) &&
+        string.Equals(inputFingerprint, request.WorkflowInputFingerprint, StringComparison.Ordinal);
+
+    private string? FindIncompatiblePendingStart(IReadOnlyList<StartIdempotencyWrite> operations)
+    {
+        foreach (var operation in operations)
+        {
+            if (!startIntents.TryGetValue(operation.IdempotencyKey, out var intent))
+            {
+                continue;
+            }
+
+            if (intent.State == InboxStartIntentState.Poisoned ||
+                !intent.DefinitionId.Equals(operation.DefinitionId) ||
+                !intent.DefinitionVersion.Equals(operation.DefinitionVersion) ||
+                !string.Equals(intent.WorkflowInputFingerprint, operation.InputFingerprint, StringComparison.Ordinal))
+            {
+                return operation.IdempotencyKey;
+            }
+        }
+
+        return null;
+    }
+
+    private void MaterializePendingStarts(IEnumerable<StartIdempotencyWrite> operations)
+    {
+        foreach (var operation in operations)
+        {
+            if (!startIntents.TryGetValue(operation.IdempotencyKey, out var intent) ||
+                intent.State == InboxStartIntentState.Materialized)
+            {
+                continue;
+            }
+
+            startIntents[operation.IdempotencyKey] = intent with
+            {
+                State = InboxStartIntentState.Materialized,
+                InstanceId = operation.InstanceId,
+                DefinitionFingerprint = operation.DefinitionFingerprint
+            };
+            foreach (var pair in inbox
+                         .Where(pair =>
+                             pair.Value.State == InboxRecordState.Received &&
+                             pair.Value.InstanceId is null &&
+                             string.Equals(
+                                 pair.Value.Envelope?.Route.StartIdempotencyKey,
+                                 operation.IdempotencyKey,
+                                 StringComparison.Ordinal))
+                         .ToArray())
+            {
+                var envelope = pair.Value.Envelope ?? throw new InvalidOperationException(
+                    "A pending start event must retain its normalized envelope.");
+                var route = InboxRouteKey.Direct(
+                    operation.InstanceId,
+                    EventName.Create(envelope.EventName),
+                    new EventContractVersion(envelope.EventContractVersion),
+                    envelope.CorrelationId);
+                inbox[pair.Key] = pair.Value with
+                {
+                    InstanceId = operation.InstanceId,
+                    Route = route
+                };
+                inboxRouteRevisions[route] = CurrentRouteRevision(route) + 1;
+            }
+        }
+    }
+
+    private static InboxStartIntentRecord CloneStartIntent(InboxStartIntentRecord intent) =>
+        intent with { WorkflowInputPayload = [.. intent.WorkflowInputPayload] };
 
     private void ApplyStartIdempotencyOperations(IEnumerable<StartIdempotencyWrite> operations)
     {

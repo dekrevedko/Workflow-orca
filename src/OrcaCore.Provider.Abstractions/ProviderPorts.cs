@@ -58,6 +58,21 @@ public interface IWorkflowInboxStore
         throw new NotSupportedException("This provider does not implement durable definition fanout.");
 
     /// <summary>
+    /// Atomically owns one start-or-deliver envelope and reserves or reuses its exact
+    /// definition/version/fixed-codec-input binding.
+    /// </summary>
+    Task<InboxAcceptanceCommitResult> AcceptStartOrDeliverAsync(
+        InboxStartOrDeliverAcceptance acceptance,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This provider does not implement durable pending start intents.");
+
+    /// <summary>Gets the durable intent bound to one start idempotency key.</summary>
+    Task<Option<InboxStartIntentRecord>> GetStartIntentAsync(
+        string startIdempotencyKey,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This provider does not implement durable pending start intents.");
+
+    /// <summary>
     /// Gets the globally owned envelope for one event identity before route or target-state evaluation.
     /// </summary>
     Task<Option<InboxRecord>> GetByEventIdAsync(
@@ -234,6 +249,53 @@ public sealed record InboxDefinitionFanoutAcceptance(
     DefinitionId DefinitionId,
     int MaximumTargetCount);
 
+/// <summary>Requests atomic ownership of one exact-definition start-or-deliver envelope.</summary>
+public sealed record InboxStartOrDeliverAcceptance(
+    InboxAcceptance Acceptance,
+    DefinitionId DefinitionId,
+    DefinitionVersion DefinitionVersion,
+    string StartIdempotencyKey,
+    string WorkflowInputContentType,
+    byte[] WorkflowInputPayload,
+    string WorkflowInputFingerprint);
+
+/// <summary>Describes the durable state of one input-bound pending start intent.</summary>
+public enum InboxStartIntentState
+{
+    Pending,
+    Materialized,
+    Poisoned
+}
+
+/// <summary>Describes one durable start intent keyed independently of its retained events.</summary>
+public sealed record InboxStartIntentRecord(
+    string StartIdempotencyKey,
+    DefinitionId DefinitionId,
+    DefinitionVersion DefinitionVersion,
+    string WorkflowInputContentType,
+    byte[] WorkflowInputPayload,
+    string WorkflowInputFingerprint,
+    InboxStartIntentState State)
+{
+    public InstanceId? InstanceId { get; init; }
+
+    public string? DefinitionFingerprint { get; init; }
+
+    public string? PoisonCode { get; init; }
+
+    public string? PoisonDetail { get; init; }
+}
+
+/// <summary>Captures a known incompatible reuse of a durable pending-start binding.</summary>
+public sealed record InboxStartBindingConflict(
+    DefinitionId ExistingDefinitionId,
+    DefinitionVersion ExistingDefinitionVersion,
+    string? ExistingDefinitionFingerprint,
+    string ExistingInputFingerprint,
+    DefinitionId AttemptedDefinitionId,
+    DefinitionVersion AttemptedDefinitionVersion,
+    string AttemptedInputFingerprint);
+
 /// <summary>Describes how an inbox acceptance attempt resolved.</summary>
 public sealed record InboxAcceptanceCommitResult(
     InboxAcceptanceCommitDisposition Disposition,
@@ -241,6 +303,9 @@ public sealed record InboxAcceptanceCommitResult(
 {
     /// <summary>Gets the immutable target membership committed for definition fanout.</summary>
     public IReadOnlyList<InstanceId> DefinitionFanoutTargets { get; init; } = [];
+
+    /// <summary>Gets the incompatible start binding when the disposition is StartConflict.</summary>
+    public InboxStartBindingConflict? StartConflict { get; init; }
 }
 
 /// <summary>Closed provider result for global inbound-event ownership.</summary>
@@ -251,6 +316,7 @@ public enum InboxAcceptanceCommitDisposition
     Conflict,
     DirectInstanceNotFound,
     DirectInstanceTerminal,
+    StartConflict,
     FanoutLimitExceeded
 }
 

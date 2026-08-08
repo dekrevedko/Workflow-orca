@@ -45,6 +45,7 @@ internal sealed class DurableWorkflowEventIngressCore(
             {
                 await TryDeliverOwnedAsync(() => TryDeliverPreviouslyAcceptedAsync(
                     inboundEvent,
+                    normalized.Envelope,
                     normalized.Envelope.CorrelationId,
                     cancellationToken)).ConfigureAwait(false);
             }
@@ -63,9 +64,44 @@ internal sealed class DurableWorkflowEventIngressCore(
                 inboundEvent.EventContract,
                 normalized,
                 cancellationToken).ConfigureAwait(false),
-            _ => throw new InvalidOperationException(
-                "Start-or-deliver acceptance requires the task 7.31 pending start-intent implementation.")
+            _ => await AcceptStartOrDeliverAsync(normalized, cancellationToken).ConfigureAwait(false)
         };
+    }
+
+    private async ValueTask<WorkflowEventAcceptanceResult> AcceptStartOrDeliverAsync(
+        NormalizedDurableInboundEvent normalized,
+        CancellationToken cancellationToken)
+    {
+        var route = normalized.Envelope.Route;
+        var definitionId = route.DefinitionId ?? throw new InvalidOperationException(
+            "A start-or-deliver route requires a definition identity.");
+        var definitionVersion = route.DefinitionVersion ?? throw new InvalidOperationException(
+            "A start-or-deliver route requires a definition version.");
+        var startKey = route.StartIdempotencyKey ?? throw new InvalidOperationException(
+            "A start-or-deliver route requires a start idempotency key.");
+        var inputContentType = route.WorkflowInputContentType ?? throw new InvalidOperationException(
+            "A start-or-deliver route requires a fixed-codec workflow input content type.");
+        var inputPayload = route.WorkflowInputPayload ?? throw new InvalidOperationException(
+            "A start-or-deliver route requires fixed-codec workflow input bytes.");
+        var commit = await inboxStore.AcceptStartOrDeliverAsync(
+            new InboxStartOrDeliverAcceptance(
+                new InboxAcceptance(normalized.Envelope, normalized.Fingerprint, runtime.UtcNow),
+                definitionId,
+                definitionVersion,
+                startKey,
+                inputContentType,
+                [.. inputPayload],
+                DurableWorkflowValueFingerprint.Create(inputPayload)),
+            cancellationToken).ConfigureAwait(false);
+        var ownership = MapCommit(commit, startKey);
+        if (ownership is WorkflowEventAcceptanceResult.Accepted or WorkflowEventAcceptanceResult.Duplicate)
+        {
+            await TryDeliverOwnedAsync(() => TryMaterializePendingStartAsync(
+                normalized.Envelope,
+                cancellationToken)).ConfigureAwait(false);
+        }
+
+        return ownership;
     }
 
     private async ValueTask<WorkflowEventAcceptanceResult> AcceptDefinitionFanoutAsync(
@@ -221,6 +257,7 @@ internal sealed class DurableWorkflowEventIngressCore(
 
     private async ValueTask TryDeliverPreviouslyAcceptedAsync(
         WorkflowInboundEvent inboundEvent,
+        DurableEventEnvelope normalizedEnvelope,
         CorrelationId correlationId,
         CancellationToken cancellationToken)
     {
@@ -265,6 +302,12 @@ internal sealed class DurableWorkflowEventIngressCore(
                     cancellationToken).ConfigureAwait(false);
                 return;
             }
+            default:
+            {
+                await TryMaterializePendingStartAsync(normalizedEnvelope, cancellationToken)
+                    .ConfigureAwait(false);
+                return;
+            }
         }
 
         if (target is not null && target.ActiveWaits.Any(wait =>
@@ -306,6 +349,25 @@ internal sealed class DurableWorkflowEventIngressCore(
         }
     }
 
+    private async ValueTask TryMaterializePendingStartAsync(
+        DurableEventEnvelope envelope,
+        CancellationToken cancellationToken)
+    {
+        var materialization = await runtime.TryMaterializePendingStartAsync(envelope, cancellationToken)
+            .ConfigureAwait(false);
+        if (materialization.Disposition != PendingStartMaterializationDisposition.Unresolvable)
+        {
+            return;
+        }
+
+        await inboxStore.MarkPoisonedAsync(
+            envelope.EventId,
+            InboxRecordState.Received,
+            materialization.PoisonCode ?? "start-intent-unresolvable",
+            materialization.PoisonDetail,
+            cancellationToken).ConfigureAwait(false);
+    }
+
     private async ValueTask<WorkflowEventAcceptanceResult> PersistAcceptanceAsync(
         NormalizedDurableInboundEvent normalized,
         CancellationToken cancellationToken)
@@ -319,7 +381,9 @@ internal sealed class DurableWorkflowEventIngressCore(
         return MapCommit(commit);
     }
 
-    private static WorkflowEventAcceptanceResult MapCommit(InboxAcceptanceCommitResult commit)
+    private static WorkflowEventAcceptanceResult MapCommit(
+        InboxAcceptanceCommitResult commit,
+        string? startIdempotencyKey = null)
     {
         return commit.Disposition switch
         {
@@ -333,6 +397,13 @@ internal sealed class DurableWorkflowEventIngressCore(
             InboxAcceptanceCommitDisposition.DirectInstanceTerminal =>
                 new WorkflowEventAcceptanceResult.Rejected(
                     new WorkflowEventAcceptanceRejection.DirectInstanceTerminal()),
+            InboxAcceptanceCommitDisposition.StartConflict when
+                commit.StartConflict is { } conflict && startIdempotencyKey is not null =>
+                new WorkflowEventAcceptanceResult.Rejected(
+                    new WorkflowEventAcceptanceRejection.StartConflict(
+                        DurableApplicationContractFactory.PendingStartIdempotencyConflict(
+                            StartIdempotencyKey.Create(startIdempotencyKey),
+                            conflict))),
             InboxAcceptanceCommitDisposition.FanoutLimitExceeded =>
                 new WorkflowEventAcceptanceResult.Rejected(
                     new WorkflowEventAcceptanceRejection.FanoutLimitExceeded()),
