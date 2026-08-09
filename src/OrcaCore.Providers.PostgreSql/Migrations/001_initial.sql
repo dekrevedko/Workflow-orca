@@ -52,7 +52,9 @@ create table if not exists orcacore_outbox (
     kind text not null,
     payload bytea not null,
     state text not null,
-    claimed_until timestamp with time zone null
+    claimed_until timestamp with time zone null,
+    poison_code text null,
+    poison_detail text null
 );
 
 create index if not exists ix_orcacore_outbox_state

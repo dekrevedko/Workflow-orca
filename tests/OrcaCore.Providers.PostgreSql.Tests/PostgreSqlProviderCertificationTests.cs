@@ -223,6 +223,9 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         var pendingStartMigrationId = await ScalarAsync<string>(
             "select migration_id from orcacore_schema_migrations where migration_id = @migration_id;",
             "012_pending_start_intents");
+        var outboxPoisonRetrofitMigrationCount = await ScalarAsync<long>(
+            "select count(*) from orcacore_schema_migrations where migration_id = @migration_id;",
+            "013_outbox_poison");
 
         initialMigrationId.Should().Be("001_initial");
         leaseMigrationId.Should().Be("002_claim_leases");
@@ -230,6 +233,8 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         ownershipCompatibilityMigrationCount.Should().Be(0);
         fanoutMigrationId.Should().Be("011_definition_fanout_inbox");
         pendingStartMigrationId.Should().Be("012_pending_start_intents");
+        outboxPoisonRetrofitMigrationCount.Should().Be(0,
+            "the unreleased outbox poison columns belong in the greenfield initial schema");
     }
 
     [Fact]

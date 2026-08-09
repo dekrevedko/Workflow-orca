@@ -2,6 +2,8 @@ using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Internal;
 using OrcaCore.Engine.Durable.Outbox;
 using OrcaCore.Durable.Hosting;
+using System.Reflection;
+using System.Text.Json;
 
 namespace OrcaCore.Hosting.Services;
 
@@ -46,8 +48,20 @@ internal sealed class WorkflowEventMessageDispatcher(IWorkflowEventDispatcher di
             throw new InvalidOperationException("Only workflow-event outbox records may reach the application dispatcher.");
         }
 
-        var data = DurableWorkflowOutboundEventCodec.Decode(record.Payload);
-        var outboundEvent = DurableApplicationContractFactory.WorkflowOutboundEvent(data);
+        WorkflowOutboundEvent outboundEvent;
+        try
+        {
+            var data = DurableWorkflowOutboundEventCodec.Decode(record.Payload);
+            outboundEvent = DurableApplicationContractFactory.WorkflowOutboundEvent(data);
+        }
+        catch (Exception exception) when (IsPermanentMaterializationFailure(exception))
+        {
+            return new OutboxDispatchOutcome(
+                DispatchResult.PermanentFailure,
+                WorkflowEventDispatchFailureCodes.MaterializationFailed,
+                exception.Message);
+        }
+
         var result = await dispatcher.DispatchAsync(outboundEvent, cancellationToken).ConfigureAwait(false) ??
             throw new InvalidOperationException("The workflow-event dispatcher returned no result.");
         return result switch
@@ -64,4 +78,17 @@ internal sealed class WorkflowEventMessageDispatcher(IWorkflowEventDispatcher di
             _ => throw new InvalidOperationException("The workflow-event dispatcher returned an unknown result.")
         };
     }
+
+    private static bool IsPermanentMaterializationFailure(Exception exception) =>
+        exception is ArgumentException or
+            InvalidOperationException or
+            JsonException or
+            MissingMemberException or
+            TargetInvocationException or
+            TypeLoadException;
+}
+
+internal static class WorkflowEventDispatchFailureCodes
+{
+    internal const string MaterializationFailed = "workflow-event-materialization-failed";
 }

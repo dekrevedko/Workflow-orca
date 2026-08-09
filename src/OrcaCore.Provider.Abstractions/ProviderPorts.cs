@@ -458,8 +458,11 @@ public interface IWorkflowOutboxStore
         OutboxRecordId outboxRecordId,
         string code,
         string? detail,
-        CancellationToken cancellationToken) =>
-        throw new NotSupportedException("This provider does not persist durable outbox poison details.");
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        return MarkAsync(outboxRecordId, OutboxRecordState.Poisoned, cancellationToken);
+    }
 
     /// <summary>
     /// Releases one claimed outbox record so it can be retried.

@@ -108,6 +108,44 @@ public sealed class DurableOutboxTests
 
         workflowEventStore.Released.Should().ContainSingle().Which.Should().Be(unrelated.OutboxRecordId);
         workflowEventDispatcher.Dispatched.Should().BeEmpty();
+
+        var continuation = new OutboxWrite(
+            OutboxRecordId.New(),
+            OutboxKinds.Continue,
+            [3]);
+        var continuationStore = new SelectorIgnoringOutboxStore(continuation);
+        var continuationDispatcher = new FakeMessageDispatcher();
+        var continuationRequest = new OutboxClaimRequest(1, DateTimeOffset.UtcNow, TimeSpan.FromMinutes(1))
+        {
+            KindSelector = OutboxKindSelector.Including(OutboxKinds.Continue)
+        };
+
+        await new DurableOutboxPump(continuationStore, continuationDispatcher)
+            .PumpOnceAsync(continuationRequest, TestContext.Current.CancellationToken);
+
+        continuationStore.Released.Should().ContainSingle().Which.Should().Be(continuation.OutboxRecordId);
+        continuationDispatcher.Dispatched.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task OutboxPump_LegacyStorePreservesPermanentTerminalityAndOneObservation()
+    {
+        var record = new OutboxWrite(OutboxRecordId.New(), "external-message", [1]);
+        var store = new SelectorIgnoringOutboxStore(record);
+        var observer = new RecordingObserver();
+        var pump = new DurableOutboxPump(store, new PermanentDetailedDispatcher(), observer);
+
+        var count = await pump.PumpOnceAsync(
+            new OutboxClaimRequest(1, DateTimeOffset.UtcNow, TimeSpan.FromMinutes(1))
+            {
+                KindSelector = OutboxKindSelector.Including(record.Kind)
+            },
+            TestContext.Current.CancellationToken);
+
+        count.Should().Be(1);
+        store.MarkedStates.Should().ContainSingle().Which.Should().Be(OutboxRecordState.Poisoned);
+        observer.DispatchObservations.Should().ContainSingle()
+            .Which.Result.Should().Be(DispatchResult.PermanentFailure);
     }
 
     [Fact]
@@ -335,6 +373,16 @@ public sealed class DurableOutboxTests
     {
         internal List<OutboxPumpObservation> Observations { get; } = [];
 
+        internal List<OutboxDispatchObservation> DispatchObservations { get; } = [];
+
+        public ValueTask OnDispatchCompletedAsync(
+            OutboxDispatchObservation observation,
+            CancellationToken cancellationToken)
+        {
+            DispatchObservations.Add(observation);
+            return ValueTask.CompletedTask;
+        }
+
         public ValueTask OnPumpCompletedAsync(
             OutboxPumpObservation observation,
             CancellationToken cancellationToken)
@@ -398,6 +446,8 @@ public sealed class DurableOutboxTests
 
         public List<OutboxRecordId> Released { get; } = [];
 
+        public List<OutboxRecordState> MarkedStates { get; } = [];
+
         public Task<IReadOnlyList<OutboxWrite>> ClaimAsync(
             int maxCount,
             CancellationToken cancellationToken) =>
@@ -419,14 +469,35 @@ public sealed class DurableOutboxTests
         public Task MarkAsync(
             OutboxRecordId outboxRecordId,
             OutboxRecordState state,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
+            CancellationToken cancellationToken)
+        {
+            MarkedStates.Add(state);
+            return Task.CompletedTask;
+        }
 
         public Task ReleaseAsync(OutboxRecordId outboxRecordId, CancellationToken cancellationToken)
         {
             Released.Add(outboxRecordId);
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class PermanentDetailedDispatcher :
+        IMessageDispatcher,
+        IDetailedOutboxMessageDispatcher
+    {
+        public Task<DispatchResult> DispatchAsync(
+            OutboxWrite record,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(DispatchResult.PermanentFailure);
+
+        public Task<OutboxDispatchOutcome> DispatchDetailedAsync(
+            OutboxWrite record,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new OutboxDispatchOutcome(
+                DispatchResult.PermanentFailure,
+                "destination-rejected",
+                "destination is unavailable"));
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider

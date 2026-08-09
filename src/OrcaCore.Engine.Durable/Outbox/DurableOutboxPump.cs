@@ -30,8 +30,8 @@ internal sealed class DurableOutboxPump(
 
     /// <summary>
     /// DR-037: the legacy dispatcher pump excludes every runtime-owned or application-event lane.
-    /// A caller-supplied selector is honored, and any provider record outside that selector is
-    /// released rather than dispatched.
+    /// A caller-supplied selector is honored, but continuation records remain unconditionally
+    /// internal and any provider record outside the selected lane is released rather than dispatched.
     /// </summary>
     private static OutboxClaimRequest SelectDispatchLane(OutboxClaimRequest request)
     {
@@ -78,7 +78,8 @@ internal sealed class DurableOutboxPump(
         var permanentFailures = 0;
         foreach (var record in records)
         {
-            if (dispatchRequest.KindSelector is { } selector && !selector.Matches(record.Kind))
+            if (string.Equals(record.Kind, OutboxKinds.Continue, StringComparison.Ordinal) ||
+                dispatchRequest.KindSelector is { } selector && !selector.Matches(record.Kind))
             {
                 await outboxStore
                     .ReleaseAsync(record.OutboxRecordId, cancellationToken)

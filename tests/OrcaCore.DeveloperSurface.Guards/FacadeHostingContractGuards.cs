@@ -291,6 +291,11 @@ public sealed class FacadeHostingInfrastructureGuards
             "OrcaCore.Durable.Hosting",
             "Services",
             "WorkflowEventOutboxPump.cs"));
+        var applicationFactorySource = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "src",
+            "OrcaCore.Engine.Durable",
+            "DurableApplicationContractFactory.cs"));
 
         facadeSource.Should().Contain("WorkflowDefinitionRuntimeMetadata");
         definitionSource.Should().Contain("instruction.Kind == CompiledInstructionKind.Publish");
@@ -300,6 +305,8 @@ public sealed class FacadeHostingInfrastructureGuards
         hostingPumpSource.Should().Contain("DurableApplicationContractFactory.WorkflowOutboundEvent(data)");
         hostingPumpSource.Should().NotContain("BindingFlags.NonPublic");
         hostingPumpSource.Should().NotContain("ConstructorInfo");
+        applicationFactorySource.Should().Contain("ConstructorCache<TContract>.Get(parameterTypes)");
+        applicationFactorySource.Should().Contain("TypedWorkflowEventContractFactories.GetOrAdd");
     }
 
     private static int CountDeclaredMethods(string source, string typeName, string methodName)

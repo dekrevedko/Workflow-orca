@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Security.Cryptography;
 using OrcaCore.Core.Internal;
@@ -12,6 +13,9 @@ namespace OrcaCore.Engine.Durable.Internal;
 internal static class DurableApplicationContractFactory
 {
     private const string PendingDefinitionFingerprintPrefix = "pending-definition:";
+    private static readonly ConcurrentDictionary<string, TypedWorkflowEventContractFactory>
+        TypedWorkflowEventContractFactories = new(StringComparer.Ordinal);
+
     internal static object RuntimeDefinition(object definition) =>
         ReadNonPublicProperty<object>(definition, "RuntimeDefinition");
 
@@ -430,17 +434,26 @@ internal static class DurableApplicationContractFactory
             return global::OrcaCore.WorkflowEventContract.Create(eventName, version);
         }
 
-        var payloadType = Type.GetType(data.PayloadTypeName, throwOnError: false) ??
-            throw new InvalidOperationException(
-                $"The workflow-event payload type '{data.PayloadTypeName}' is unavailable.");
-        var expectedSchemaIdentity = payloadType.AssemblyQualifiedName ?? payloadType.FullName ?? payloadType.Name;
-        if (!string.Equals(data.PayloadSchemaIdentity, expectedSchemaIdentity, StringComparison.Ordinal))
+        var factory = TypedWorkflowEventContractFactories.GetOrAdd(
+            data.PayloadTypeName,
+            static payloadTypeName => CreateTypedWorkflowEventContractFactory(payloadTypeName));
+        if (!string.Equals(data.PayloadSchemaIdentity, factory.SchemaIdentity, StringComparison.Ordinal))
         {
             throw new InvalidOperationException(
                 $"The workflow-event payload schema identity '{data.PayloadSchemaIdentity}' does not match " +
-                $"the declared payload type identity '{expectedSchemaIdentity}'.");
+                $"the declared payload type identity '{factory.SchemaIdentity}'.");
         }
 
+        return factory.Create(eventName, version);
+    }
+
+    private static TypedWorkflowEventContractFactory CreateTypedWorkflowEventContractFactory(
+        string payloadTypeName)
+    {
+        var payloadType = Type.GetType(payloadTypeName, throwOnError: false) ??
+            throw new InvalidOperationException(
+                $"The workflow-event payload type '{payloadTypeName}' is unavailable.");
+        var schemaIdentity = payloadType.AssemblyQualifiedName ?? payloadType.FullName ?? payloadType.Name;
         var descriptorType = typeof(WorkflowEventContract<>).MakeGenericType(payloadType);
         var create = descriptorType.GetMethod(
             nameof(global::OrcaCore.WorkflowEventContract.Create),
@@ -452,19 +465,54 @@ internal static class DurableApplicationContractFactory
                 descriptorType.FullName,
                 $"{nameof(global::OrcaCore.WorkflowEventContract.Create)}({typeof(EventName).FullName}, " +
                 $"{typeof(EventContractVersion).FullName})");
-        return (WorkflowEventContract)(create.Invoke(null, [eventName, version]) ??
-            throw new InvalidOperationException("The typed workflow-event descriptor factory returned no descriptor."));
+        return new TypedWorkflowEventContractFactory(schemaIdentity, create);
     }
 
     private static TContract Construct<TContract>(Type[] parameterTypes, params object?[] arguments)
     {
-        var constructor = typeof(TContract).GetConstructor(
-            BindingFlags.Instance | BindingFlags.NonPublic,
-            binder: null,
-            parameterTypes,
-            modifiers: null) ?? throw new MissingMethodException(
-                typeof(TContract).FullName,
-                $".ctor({string.Join(", ", parameterTypes.Select(type => type.FullName))})");
+        var constructor = ConstructorCache<TContract>.Get(parameterTypes);
         return (TContract)constructor.Invoke(arguments);
+    }
+
+    private sealed record TypedWorkflowEventContractFactory(
+        string SchemaIdentity,
+        MethodInfo CreateMethod)
+    {
+        internal WorkflowEventContract Create(EventName eventName, EventContractVersion version) =>
+            (WorkflowEventContract)(CreateMethod.Invoke(null, [eventName, version]) ??
+                throw new InvalidOperationException(
+                    "The typed workflow-event descriptor factory returned no descriptor."));
+    }
+
+    private static class ConstructorCache<TContract>
+    {
+        private static readonly object Sync = new();
+        private static ConstructorInfo? constructor;
+        private static Type[]? signature;
+
+        internal static ConstructorInfo Get(Type[] parameterTypes)
+        {
+            lock (Sync)
+            {
+                if (constructor is null)
+                {
+                    signature = [.. parameterTypes];
+                    constructor = typeof(TContract).GetConstructor(
+                        BindingFlags.Instance | BindingFlags.NonPublic,
+                        binder: null,
+                        signature,
+                        modifiers: null) ?? throw new MissingMethodException(
+                            typeof(TContract).FullName,
+                            $".ctor({string.Join(", ", signature.Select(type => type.FullName))})");
+                }
+                else if (!signature!.SequenceEqual(parameterTypes))
+                {
+                    throw new InvalidOperationException(
+                        $"The cached constructor signature for '{typeof(TContract).FullName}' does not match the request.");
+                }
+
+                return constructor;
+            }
+        }
     }
 }

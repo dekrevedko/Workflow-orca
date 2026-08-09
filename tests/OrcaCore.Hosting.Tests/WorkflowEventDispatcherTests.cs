@@ -12,6 +12,8 @@ namespace OrcaCore.Hosting.Tests;
 
 public sealed class WorkflowEventDispatcherTests
 {
+    private const string MaterializationFailureCode = "workflow-event-materialization-failed";
+
     [Fact]
     public async Task Adapter_ExposesOnlyTheCompleteApplicationEventAndMapsClosedResults()
     {
@@ -68,7 +70,7 @@ public sealed class WorkflowEventDispatcherTests
     }
 
     [Fact]
-    public async Task Adapter_RejectsPayloadSchemaIdentityThatDoesNotMatchTheDeclaredType()
+    public async Task Adapter_ClassifiesPayloadSchemaMismatchAsPermanentBeforeApplicationDispatch()
     {
         var contract = WorkflowEventContract<DispatchPayload>.Create(
             EventName.Create("invoice-issued"),
@@ -80,11 +82,63 @@ public sealed class WorkflowEventDispatcherTests
             new DispatchPayload("invoice-19"),
             payloadSchemaIdentity: "wrong-schema");
 
-        Func<Task> act = () => adapter.DispatchAsync(record, TestContext.Current.CancellationToken);
+        var result = await adapter.DispatchAsync(record, TestContext.Current.CancellationToken);
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*payload schema identity*does not match*");
+        result.Should().Be(DispatchResult.PermanentFailure);
         application.Events.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task PublicOutboxPump_PoisonsStructurallyInvalidRecordsWithoutApplicationDispatch()
+    {
+        var services = new ServiceCollection();
+        services.AddOrcaCoreInMemoryDurableProvider();
+        await using var provider = services.BuildServiceProvider();
+        var eventStore = provider.GetRequiredService<IWorkflowEventStore>();
+        var outboxStore = provider.GetRequiredService<IWorkflowOutboxStore>();
+        var contract = WorkflowEventContract<DispatchPayload>.Create(
+            EventName.Create("invoice-issued"),
+            new EventContractVersion(4));
+        var wrongSchema = Outbox(
+            contract,
+            new DispatchPayload("invoice-19"),
+            payloadSchemaIdentity: "wrong-schema");
+        var missingType = Outbox(
+            contract,
+            new DispatchPayload("invoice-20"),
+            payloadSchemaIdentity: "Missing.Payload, Missing.Assembly",
+            payloadTypeName: "Missing.Payload, Missing.Assembly");
+        await eventStore.AppendAsync(
+            new ProviderCommitBatch
+            {
+                StreamId = new WorkflowStreamId(InstanceId.Parse(Guid.CreateVersion7().ToString())),
+                ExpectedVersion = StreamVersion.Empty,
+                OutboxRecords = [wrongSchema, missingType]
+            },
+            TestContext.Current.CancellationToken);
+        var application = new RecordingDispatcher();
+        var pump = new WorkflowEventOutboxPump(
+            outboxStore,
+            application,
+            observer: null,
+            TimeProvider.System);
+
+        var count = await pump.PumpOnceAsync(
+            new OutboxClaimRequest(2, DateTimeOffset.UtcNow, TimeSpan.FromMinutes(1)),
+            TestContext.Current.CancellationToken);
+        var wrongSchemaSnapshot = await outboxStore.GetDispatchSnapshotAsync(
+            wrongSchema.OutboxRecordId,
+            TestContext.Current.CancellationToken);
+        var missingTypeSnapshot = await outboxStore.GetDispatchSnapshotAsync(
+            missingType.OutboxRecordId,
+            TestContext.Current.CancellationToken);
+
+        count.Should().Be(2);
+        application.Events.Should().BeEmpty();
+        wrongSchemaSnapshot.Value.State.Should().Be(OutboxRecordState.Poisoned);
+        wrongSchemaSnapshot.Value.PoisonCode.Should().Be(MaterializationFailureCode);
+        missingTypeSnapshot.Value.State.Should().Be(OutboxRecordState.Poisoned);
+        missingTypeSnapshot.Value.PoisonCode.Should().Be(MaterializationFailureCode);
     }
 
     [Fact]
@@ -236,7 +290,8 @@ public sealed class WorkflowEventDispatcherTests
     private static OutboxWrite Outbox(
         WorkflowEventContract<DispatchPayload> contract,
         DispatchPayload payload,
-        string? payloadSchemaIdentity = null) =>
+        string? payloadSchemaIdentity = null,
+        string? payloadTypeName = null) =>
         new(
             OutboxRecordId.New(),
             OutboxKinds.WorkflowEvent,
@@ -244,7 +299,7 @@ public sealed class WorkflowEventDispatcherTests
             {
                 EventName = contract.EventName.Value,
                 EventContractVersion = contract.Version.Value,
-                PayloadTypeName = typeof(DispatchPayload).AssemblyQualifiedName,
+                PayloadTypeName = payloadTypeName ?? typeof(DispatchPayload).AssemblyQualifiedName,
                 PayloadSchemaIdentity = payloadSchemaIdentity ?? typeof(DispatchPayload).AssemblyQualifiedName,
                 EventId = "outbound-event-19",
                 CorrelationId = "invoice-correlation-19",
