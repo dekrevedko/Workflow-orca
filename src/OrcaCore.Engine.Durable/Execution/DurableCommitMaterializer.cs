@@ -99,7 +99,9 @@ internal sealed class DurableCommitMaterializer
         DurableWorkflowAggregate aggregate,
         IReadOnlyList<ProjectionWrite> projectionOperations)
     {
-        return CreateContinuationOutboxRecords(decision, aggregate, projectionOperations);
+        return decision.OutboxRecords
+            .Concat(CreateContinuationOutboxRecords(decision, aggregate, projectionOperations))
+            .ToArray();
     }
 
     /// <summary>

@@ -18,6 +18,12 @@ internal sealed partial class DurableWorkflowDefinitionRegistry
             var candidates = new Dictionary<DefinitionKey, IDurableStagedWorkflowDefinition>();
             foreach (var definition in staged)
             {
+                if (ContainsPublish(definition.RuntimeDefinition) && !hasWorkflowEventDispatcher)
+                {
+                    throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.HostCompatibility(
+                        new DefinitionHostCompatibilityFailure.MissingWorkflowEventDispatcher());
+                }
+
                 var missingPools = MissingDurablePools(definition.RuntimeDefinition);
                 if (missingPools.Count > 0)
                 {

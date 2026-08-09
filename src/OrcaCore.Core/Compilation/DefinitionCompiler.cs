@@ -423,6 +423,9 @@ internal static partial class DefinitionCompiler
                 case SelectedEndAuthoringNode<TState> end when end.OutputType is not null:
                     requiredTypes.Add((end.OutputType, $"{nodePath}/output"));
                     break;
+                case SelectedPublishAuthoringNode<TState> publish when publish.PayloadType is not null:
+                    requiredTypes.Add((publish.PayloadType, $"{nodePath}/payload"));
+                    break;
                 case SelectedIfAuthoringNode<TState> conditional:
                     CollectTypes(conditional.Then, $"{nodePath}/then", requiredTypes);
                     CollectTypes(conditional.Else, $"{nodePath}/else", requiredTypes);
@@ -458,6 +461,13 @@ internal static partial class DefinitionCompiler
             requiredTypes.Add((branch.BranchStateType, $"{branchPath}/state"));
             for (var index = 0; index < branch.Instructions.Count; index++)
             {
+                if (branch.Instructions[index] is BranchPublishAuthoringInstruction publish &&
+                    publish.PayloadType is not null)
+                {
+                    requiredTypes.Add((publish.PayloadType, $"{branchPath}/{index}/payload"));
+                    continue;
+                }
+
                 if (branch.Instructions[index] is BranchIfAuthoringInstruction conditional)
                 {
                     CollectBranchInstructionTypes(
@@ -502,6 +512,9 @@ internal static partial class DefinitionCompiler
         {
             switch (instructions[index])
             {
+                case BranchPublishAuthoringInstruction publish when publish.PayloadType is not null:
+                    requiredTypes.Add((publish.PayloadType, $"{path}/{index}/payload"));
+                    break;
                 case BranchStructuredScopeAuthoringInstruction nested:
                 {
                     var nestedPath = $"{path}/{index}";
@@ -553,6 +566,7 @@ internal static partial class DefinitionCompiler
             allowed.Add(CompiledInstructionKind.ContinueAsNew);
             allowed.Add(CompiledInstructionKind.AcquireResources);
             allowed.Add(CompiledInstructionKind.ReleaseResources);
+            allowed.Add(CompiledInstructionKind.Publish);
         }
 
         return new LoweredPlan(instructions, scopes, allowed);
@@ -816,6 +830,19 @@ internal static partial class DefinitionCompiler
                         eventContract: wait.EventContract,
                         waitMode: wait.Mode,
                         waitTimeout: wait.Timeout);
+                    break;
+                case SelectedPublishAuthoringNode<TState> publish:
+                    AddInstruction(
+                        instructions,
+                        CompiledInstructionKind.Publish,
+                        nodePath,
+                        eventContract: publish.EventContract,
+                        publishCorrelationSelector: publish.CorrelationSelector,
+                        publishPayloadType: publish.PayloadType,
+                        publishPayloadSchemaIdentity: publish.PayloadType is null
+                            ? null
+                            : schemaIdentities[publish.PayloadType],
+                        publishPayloadSelector: publish.PayloadSelector);
                     break;
                 case SelectedDelayAuthoringNode<TState> delay:
                     AddInstruction(

@@ -25,6 +25,7 @@ public sealed class SampleHostSmokeTests
                 "OrcaCoreContinuationPumpHostedService",
                 "OrcaCoreTimerHostedService",
                 "OrcaCoreOperationalSweepHostedService",
+                "OrcaCoreWorkflowEventOutboxPumpHostedService",
                 "OrcaCoreOutboxPumpHostedService");
     }
 }

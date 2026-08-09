@@ -422,6 +422,23 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout) => Wait((WorkflowEventContract)eventContract, correlation, timeout);
 
+    public DurableWorkflowBuilder<TInput, TState> Publish(
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
+    {
+        PublicPublishAuthoring.Add(builder, eventContract, correlation);
+        return this;
+    }
+
+    public DurableWorkflowBuilder<TInput, TState> Publish<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload)
+    {
+        PublicPublishAuthoring.Add(builder, eventContract, correlation, payload);
+        return this;
+    }
+
     /// <summary>Adds a structural delay.</summary>
     public DurableWorkflowBuilder<TInput, TState> Delay(TimeSpan duration)
     {

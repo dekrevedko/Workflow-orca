@@ -45,6 +45,7 @@ internal enum CompiledInstructionKind
     ScopeJoin,
     ScopeExit,
     Wait,
+    Publish,
     Delay,
     ContinueAsNew,
     AcquireResources,
@@ -114,6 +115,14 @@ internal sealed record CompiledInstruction(
     public WaitMode? WaitMode { get; init; }
 
     public TimeSpan? WaitTimeout { get; init; }
+
+    public Delegate? PublishCorrelationSelector { get; init; }
+
+    public Type? PublishPayloadType { get; init; }
+
+    public string? PublishPayloadSchemaIdentity { get; init; }
+
+    public Delegate? PublishPayloadSelector { get; init; }
 
     public TimeSpan? DelayDuration { get; init; }
 

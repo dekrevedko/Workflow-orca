@@ -154,6 +154,8 @@ public sealed record DurableFiberState
     public DateTimeOffset? TimeoutDeadline { get; init; }
 
     public string? ResumeFromWaitId { get; init; }
+
+    public string? CurrentCausationEventId { get; init; }
 }
 
 public sealed record DurableFiberBlock

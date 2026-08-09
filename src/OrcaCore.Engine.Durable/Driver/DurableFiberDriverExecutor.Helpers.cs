@@ -8,6 +8,7 @@ using OrcaCore.Core.Building;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Core.Execution;
+using OrcaCore.Core.Internal;
 using OrcaCore.Engine.Durable.Aggregates;
 using OrcaCore.Engine.Durable.Execution;
 
@@ -538,6 +539,42 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         {
             throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
                 $"Compiled wait selector '{instruction.Path}' failed.",
+                exception.InnerException);
+        }
+    }
+
+    private (CorrelationId CorrelationId, byte[] Payload) ResolvePublish(
+        StructuredExecutionState execution,
+        FiberRecord fiber,
+        TState rootState,
+        CompiledInstruction instruction)
+    {
+        try
+        {
+            var fiberState = ResolveFiberState(execution, fiber, rootState);
+            var correlationId = StructuredInvocationCache.Invoke(
+                    instruction.PublishCorrelationSelector ??
+                        throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                            $"Compiled publish '{instruction.Path}' has no correlation selector."),
+                    fiberState) as CorrelationId ??
+                throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                    $"Compiled publish '{instruction.Path}' did not return a CorrelationId.");
+            if (instruction.PublishPayloadType is null)
+            {
+                return (correlationId, []);
+            }
+
+            var payload = StructuredInvocationCache.Invoke(
+                instruction.PublishPayloadSelector ??
+                    throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                        $"Compiled publish '{instruction.Path}' has no payload selector."),
+                fiberState);
+            return (correlationId, CoreWorkflowValueCodec.Serialize(payload, instruction.PublishPayloadType));
+        }
+        catch (TargetInvocationException exception) when (exception.InnerException is not null)
+        {
+            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                $"Compiled publish selector '{instruction.Path}' failed.",
                 exception.InnerException);
         }
     }

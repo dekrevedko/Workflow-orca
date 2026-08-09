@@ -31,7 +31,9 @@ internal sealed class FiberQuantumBudget(int maxInternalInstructions)
     }
 
     public static bool IsInternal(CompiledInstructionKind instructionKind) =>
-        instructionKind != CompiledInstructionKind.Step;
+        instructionKind is not (
+            CompiledInstructionKind.Step or
+            CompiledInstructionKind.Publish);
 
     private void Select(FiberId fiberId)
     {

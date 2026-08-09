@@ -177,6 +177,23 @@ public sealed class DurableNestedBuilder<TInput, TState>
         return this;
     }
 
+    public DurableNestedBuilder<TInput, TState> Publish(
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
+    {
+        AuthoringKernelProxy.Invoke(implementation, nameof(Publish), Type.EmptyTypes, eventContract, correlation);
+        return this;
+    }
+
+    public DurableNestedBuilder<TInput, TState> Publish<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload)
+    {
+        AuthoringKernelProxy.Invoke(implementation, nameof(Publish), [typeof(TPayload)], eventContract, correlation, payload);
+        return this;
+    }
+
     public DurableNestedBuilder<TInput, TState> Wait<TPayload>(
         WorkflowEventContract<TPayload> eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
@@ -289,6 +306,23 @@ public sealed class DurableLeaseWorkflowBuilder<TInput, TState>
         return this;
     }
 
+    public DurableLeaseWorkflowBuilder<TInput, TState> Publish(
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
+    {
+        AuthoringKernelProxy.Invoke(implementation, nameof(Publish), Type.EmptyTypes, eventContract, correlation);
+        return this;
+    }
+
+    public DurableLeaseWorkflowBuilder<TInput, TState> Publish<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload)
+    {
+        AuthoringKernelProxy.Invoke(implementation, nameof(Publish), [typeof(TPayload)], eventContract, correlation, payload);
+        return this;
+    }
+
     public DurableLeaseWorkflowBuilder<TInput, TState> Wait<TPayload>(
         WorkflowEventContract<TPayload> eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
@@ -372,6 +406,23 @@ public sealed class DurableLeaseNestedBuilder<TInput, TState>
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
     {
         AuthoringKernelProxy.Invoke(implementation, nameof(Wait), [typeof(TPayload)], eventContract, correlation);
+        return this;
+    }
+
+    public DurableLeaseNestedBuilder<TInput, TState> Publish(
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
+    {
+        AuthoringKernelProxy.Invoke(implementation, nameof(Publish), Type.EmptyTypes, eventContract, correlation);
+        return this;
+    }
+
+    public DurableLeaseNestedBuilder<TInput, TState> Publish<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload)
+    {
+        AuthoringKernelProxy.Invoke(implementation, nameof(Publish), [typeof(TPayload)], eventContract, correlation, payload);
         return this;
     }
 

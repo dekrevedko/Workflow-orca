@@ -659,6 +659,9 @@ public sealed record OutboxKindSelector
 /// </summary>
 public static class OutboxKinds
 {
+    /// <summary>Application-shaped workflow event dispatched through the public dispatcher.</summary>
+    public const string WorkflowEvent = "workflow-event";
+
     /// <summary>
     /// Internal restart-safe continuation signal consumed only by the continuation pump (DR-034).
     /// External message dispatchers never receive this kind.

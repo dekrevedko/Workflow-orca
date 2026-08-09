@@ -145,6 +145,32 @@ public sealed class PublicDefinitionCompilerContractTests
     }
 
     [Fact]
+    public void PublishFingerprint_BindsTheEventContractAndPayloadTypeButNotSelectorCaptures()
+    {
+        var definitionId = DefinitionId.New();
+        var name = EventName.Create("OrderPublished");
+        var versionOne = BuildPublish(
+            definitionId,
+            WorkflowEventContract.Create(name, EventContractVersion.Initial),
+            "order-1");
+        var versionTwo = BuildPublish(
+            definitionId,
+            WorkflowEventContract.Create(name, new EventContractVersion(2)),
+            "order-1");
+        var typed = BuildTypedPublish(
+            definitionId,
+            WorkflowEventContract<ThirdPartyEvent>.Create(name, EventContractVersion.Initial));
+
+        versionTwo.DefinitionFingerprint.Should().NotBe(versionOne.DefinitionFingerprint);
+        typed.DefinitionFingerprint.Should().NotBe(versionOne.DefinitionFingerprint);
+        BuildPublish(
+                definitionId,
+                WorkflowEventContract.Create(name, EventContractVersion.Initial),
+                "another-captured-correlation")
+            .DefinitionFingerprint.Should().Be(versionOne.DefinitionFingerprint);
+    }
+
+    [Fact]
     public void Fingerprint_IgnoresCapturedOpaqueSelectorConfiguration()
     {
         var definitionId = DefinitionId.New();
@@ -338,6 +364,25 @@ public sealed class PublicDefinitionCompilerContractTests
         Workflow.Ephemeral<TestState>(definitionId, DefinitionVersion.Initial)
             .Init<int[]>(_ => new TestState([]))
             .Wait(eventContract, _ => CorrelationId.Create("order-1"))
+            .End()
+            .Build();
+
+    private static DurableWorkflowDefinition<int[]> BuildPublish(
+        DefinitionId definitionId,
+        WorkflowEventContract eventContract,
+        string correlationId) =>
+        Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
+            .Init<int[]>(_ => new TestState([]))
+            .Publish(eventContract, _ => CorrelationId.Create(correlationId))
+            .End()
+            .Build();
+
+    private static DurableWorkflowDefinition<int[]> BuildTypedPublish(
+        DefinitionId definitionId,
+        WorkflowEventContract<ThirdPartyEvent> eventContract) =>
+        Workflow.Durable<TestState>(definitionId, DefinitionVersion.Initial)
+            .Init<int[]>(_ => new TestState([]))
+            .Publish(eventContract, _ => CorrelationId.Create("order-1"), _ => new ThirdPartyEvent())
             .End()
             .Build();
 

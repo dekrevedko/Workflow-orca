@@ -41,6 +41,14 @@ internal static partial class DefinitionCompiler
                     nodePath));
             }
 
+            if (node is SelectedPublishAuthoringNode<TState> && mode != WorkflowExecutionMode.Durable)
+            {
+                errors.Add(Error(
+                    DefinitionCompilerCodes.UnsupportedInstruction,
+                    "Publish is not supported by the ephemeral selected-mode compiler.",
+                    nodePath));
+            }
+
             if (node is SelectedStepAuthoringNode<TState> { Policies.PoolKey: not null } &&
                 mode != WorkflowExecutionMode.Ephemeral)
             {
@@ -121,6 +129,14 @@ internal static partial class DefinitionCompiler
                 mode != WorkflowExecutionMode.Ephemeral)
             {
                 AddTransientPoolError(instructionPath, errors);
+            }
+
+            if (instruction is BranchPublishAuthoringInstruction && mode != WorkflowExecutionMode.Durable)
+            {
+                errors.Add(Error(
+                    DefinitionCompilerCodes.UnsupportedInstruction,
+                    "Publish is not supported by the ephemeral selected-mode compiler.",
+                    instructionPath));
             }
 
             if (instruction is BranchStructuredScopeAuthoringInstruction nested)

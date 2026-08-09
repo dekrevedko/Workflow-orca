@@ -19,6 +19,10 @@ internal static partial class DefinitionCompiler
         Delegate? outputSelector = null,
         string? fixedOutcomeName = null,
         TimeSpan? waitTimeout = null,
+        Delegate? publishCorrelationSelector = null,
+        Type? publishPayloadType = null,
+        string? publishPayloadSchemaIdentity = null,
+        Delegate? publishPayloadSelector = null,
         global::OrcaCore.ResourceLeaseRequest? staticLeaseRequest = null,
         Delegate? leaseRequestSelector = null)
     {
@@ -37,6 +41,10 @@ internal static partial class DefinitionCompiler
             EventContract = eventContract,
             WaitMode = waitMode,
             WaitTimeout = waitTimeout,
+            PublishCorrelationSelector = publishCorrelationSelector,
+            PublishPayloadType = publishPayloadType,
+            PublishPayloadSchemaIdentity = publishPayloadSchemaIdentity,
+            PublishPayloadSelector = publishPayloadSelector,
             StaticLeaseRequest = staticLeaseRequest,
             LeaseRequestSelector = leaseRequestSelector,
             DelayDuration = delayDuration,

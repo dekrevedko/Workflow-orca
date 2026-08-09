@@ -1,0 +1,241 @@
+using AwesomeAssertions;
+using Microsoft.Extensions.DependencyInjection;
+using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Providers;
+using OrcaCore.Durable.Hosting;
+using OrcaCore.Hosting;
+using OrcaCore.Hosting.Services;
+using OrcaCore.Providers.InMemory;
+using Xunit;
+
+namespace OrcaCore.Hosting.Tests;
+
+public sealed class WorkflowEventDispatcherTests
+{
+    [Fact]
+    public async Task Adapter_ExposesOnlyTheCompleteApplicationEventAndMapsClosedResults()
+    {
+        var contract = WorkflowEventContract<DispatchPayload>.Create(
+            EventName.Create("invoice-issued"),
+            new EventContractVersion(4));
+        var application = new RecordingDispatcher(
+            new WorkflowEventDispatchResult.Succeeded(),
+            new WorkflowEventDispatchResult.RetryableFailure(
+                WorkflowEventDispatchFailure.Create("broker-unavailable", "try again")),
+            new WorkflowEventDispatchResult.PermanentFailure(
+                WorkflowEventDispatchFailure.Create("route-rejected")));
+        var adapter = new WorkflowEventMessageDispatcher(application);
+        var record = Outbox(contract, new DispatchPayload("invoice-19"));
+
+        (await adapter.DispatchAsync(record, TestContext.Current.CancellationToken))
+            .Should().Be(DispatchResult.Success);
+        (await adapter.DispatchAsync(record, TestContext.Current.CancellationToken))
+            .Should().Be(DispatchResult.RetryableFailure);
+        (await adapter.DispatchAsync(record, TestContext.Current.CancellationToken))
+            .Should().Be(DispatchResult.PermanentFailure);
+
+        application.Events.Should().HaveCount(3);
+        var outbound = application.Events[0];
+        outbound.EventContract.Should().BeEquivalentTo(contract);
+        outbound.EventId.Should().Be(EventId.Create("outbound-event-19"));
+        outbound.CorrelationId.Should().Be(CorrelationId.Create("invoice-correlation-19"));
+        outbound.CausationEventId.Should().Be(EventId.Create("inbound-event-18"));
+        outbound.OccurredAt.Should().Be(new DateTimeOffset(2026, 8, 7, 18, 0, 0, TimeSpan.Zero));
+        outbound.OriginInstanceId.Should().Be(InstanceId.Parse("0198df32-5ae4-7000-8000-000000000019"));
+        outbound.OriginDefinitionId.Should().Be(DefinitionId.Parse("0198df32-5ae4-7000-8000-000000000020"));
+        outbound.OriginDefinitionVersion.Should().Be(new DefinitionVersion(6));
+        outbound.GetPayload(contract).Should().Be(new DispatchPayload("invoice-19"));
+        var wrongContract = WorkflowEventContract<WrongDispatchPayload>.Create(
+            contract.EventName,
+            contract.Version);
+        Action materializeWrongType = () => outbound.GetPayload(wrongContract);
+        materializeWrongType.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public async Task Adapter_RejectsInternalContinuationBeforeInvokingTheApplication()
+    {
+        var application = new RecordingDispatcher(new WorkflowEventDispatchResult.Succeeded());
+        var adapter = new WorkflowEventMessageDispatcher(application);
+
+        Func<Task> act = () => adapter.DispatchAsync(
+            new OutboxWrite(OutboxRecordId.New(), OutboxKinds.Continue, []),
+            TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*Only workflow-event*");
+        application.Events.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task PublicOutboxPump_RetryRedispatchesTheSameOutboundEventIdentity()
+    {
+        var services = new ServiceCollection();
+        services.AddOrcaCoreInMemoryDurableProvider();
+        await using var provider = services.BuildServiceProvider();
+        var eventStore = provider.GetRequiredService<IWorkflowEventStore>();
+        var outboxStore = provider.GetRequiredService<IWorkflowOutboxStore>();
+        var contract = WorkflowEventContract<DispatchPayload>.Create(
+            EventName.Create("invoice-issued"),
+            new EventContractVersion(4));
+        var record = Outbox(contract, new DispatchPayload("invoice-19"));
+        var committed = await eventStore.AppendAsync(
+            new ProviderCommitBatch
+            {
+                StreamId = new WorkflowStreamId(InstanceId.Parse(Guid.CreateVersion7().ToString())),
+                ExpectedVersion = StreamVersion.Empty,
+                OutboxRecords = [record]
+            },
+            TestContext.Current.CancellationToken);
+        committed.IsSuccess.Should().BeTrue();
+        var application = new RecordingDispatcher(
+            new WorkflowEventDispatchResult.RetryableFailure(
+                WorkflowEventDispatchFailure.Create("broker-unavailable")),
+            new WorkflowEventDispatchResult.Succeeded());
+        var pump = new WorkflowEventOutboxPump(
+            outboxStore,
+            application,
+            observer: null,
+            TimeProvider.System);
+        var claim = new OutboxClaimRequest(1, DateTimeOffset.UtcNow, TimeSpan.FromMinutes(1));
+
+        await pump.PumpOnceAsync(claim, TestContext.Current.CancellationToken);
+        (await outboxStore.GetStateAsync(record.OutboxRecordId, TestContext.Current.CancellationToken))
+            .Value.Should().Be(OutboxRecordState.Retryable);
+        await pump.PumpOnceAsync(claim with { ClaimedAt = claim.ClaimedAt.AddSeconds(1) }, TestContext.Current.CancellationToken);
+
+        application.Events.Select(outbound => outbound.EventId.Value)
+            .Should().Equal("outbound-event-19", "outbound-event-19");
+        (await outboxStore.GetStateAsync(record.OutboxRecordId, TestContext.Current.CancellationToken))
+            .Value.Should().Be(OutboxRecordState.Dispatched);
+    }
+
+    [Fact]
+    public void PublishDefinition_RequiresTheApplicationDispatcherBeforeRegistryMutation()
+    {
+        var definition = PublishDefinition();
+        var services = new ServiceCollection();
+        services.AddOrcaCoreInMemoryDurableProvider();
+        services.AddOrcaCoreDurableEngine(HostOptions()).AddWorkflow(definition);
+        using var provider = services.BuildServiceProvider();
+
+        Action resolve = () => provider.GetRequiredService<IWorkflowDefinitionRegistry>();
+
+        resolve.Should().Throw<WorkflowDefinitionHostCompatibilityException>()
+            .Which.Failure.Should()
+            .BeOfType<DefinitionHostCompatibilityFailure.MissingWorkflowEventDispatcher>();
+    }
+
+    [Fact]
+    public void PublishDefinition_RegistersWhenTheApplicationDispatcherIsPresent()
+    {
+        var definition = PublishDefinition();
+        var services = new ServiceCollection();
+        services.AddSingleton<IWorkflowEventDispatcher>(
+            new RecordingDispatcher(new WorkflowEventDispatchResult.Succeeded()));
+        services.AddOrcaCoreInMemoryDurableProvider();
+        services.AddOrcaCoreDurableEngine(HostOptions()).AddWorkflow(definition);
+        using var provider = services.BuildServiceProvider();
+
+        var registry = provider.GetRequiredService<IWorkflowDefinitionRegistry>();
+
+        registry.GetRequiredHandle(definition.Reference).DefinitionId.Should().Be(definition.DefinitionId);
+        provider.GetServices<Microsoft.Extensions.Hosting.IHostedService>()
+            .Should().Contain(service => service is OrcaCoreWorkflowEventOutboxPumpHostedService);
+    }
+
+    [Fact]
+    public void DispatcherRegistrationOrder_DoesNotDisablePublishProgression()
+    {
+        var definition = PublishDefinition();
+        var services = new ServiceCollection();
+        services.AddOrcaCoreInMemoryDurableProvider();
+        services.AddOrcaCoreDurableEngine(HostOptions()).AddWorkflow(definition);
+        services.AddSingleton<IWorkflowEventDispatcher>(
+            new RecordingDispatcher(new WorkflowEventDispatchResult.Succeeded()));
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IWorkflowDefinitionRegistry>()
+            .GetRequiredHandle(definition.Reference).Should().NotBeNull();
+        provider.GetServices<Microsoft.Extensions.Hosting.IHostedService>()
+            .Should().Contain(service => service is OrcaCoreWorkflowEventOutboxPumpHostedService);
+    }
+
+    [Fact]
+    public void DispatchFailure_RequiresANonblankStableCode()
+    {
+        Action create = () => WorkflowEventDispatchFailure.Create(" ");
+
+        create.Should().Throw<ArgumentException>();
+    }
+
+    private static OutboxWrite Outbox(
+        WorkflowEventContract<DispatchPayload> contract,
+        DispatchPayload payload) =>
+        new(
+            OutboxRecordId.New(),
+            OutboxKinds.WorkflowEvent,
+            System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                EventName = contract.EventName.Value,
+                EventContractVersion = contract.Version.Value,
+                PayloadTypeName = typeof(DispatchPayload).AssemblyQualifiedName,
+                EventId = "outbound-event-19",
+                CorrelationId = "invoice-correlation-19",
+                CausationEventId = "inbound-event-18",
+                OccurredAt = new DateTimeOffset(2026, 8, 7, 18, 0, 0, TimeSpan.Zero),
+                OriginInstanceId = "0198df32-5ae4-7000-8000-000000000019",
+                OriginDefinitionId = "0198df32-5ae4-7000-8000-000000000020",
+                OriginDefinitionVersion = 6,
+                Payload = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(payload)
+            }));
+
+    private static DurableWorkflowDefinition<PublishInput> PublishDefinition()
+    {
+        var contract = WorkflowEventContract.Create(
+            EventName.Create("published"),
+            EventContractVersion.Initial);
+        return Workflow.Durable<PublishState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<PublishInput>(input => new PublishState(input.Value))
+            .Publish(contract, state => CorrelationId.Create(state.Value.Value))
+            .End()
+            .Build();
+    }
+
+    private static DurableEngineHostOptions HostOptions() => new()
+    {
+        StructuredExecution = new StructuredExecutionHostOptions
+        {
+            MaxConcurrentExecutionPathsPerInstance = 2,
+            StepThrottles = []
+        },
+        ResourcePools = new DurableResourcePoolOptions
+        {
+            PartitionId = ResourceGovernancePartitionId.Create("publish-dispatch-tests"),
+            Pools = []
+        }
+    };
+
+    private sealed class RecordingDispatcher(params WorkflowEventDispatchResult[] results)
+        : IWorkflowEventDispatcher
+    {
+        private readonly Queue<WorkflowEventDispatchResult> results = new(results);
+
+        internal List<WorkflowOutboundEvent> Events { get; } = [];
+
+        public ValueTask<WorkflowEventDispatchResult> DispatchAsync(
+            WorkflowOutboundEvent outboundEvent,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Events.Add(outboundEvent);
+
+            return ValueTask.FromResult(results.Dequeue());
+        }
+    }
+
+    private sealed record DispatchPayload(string Value);
+    private sealed record WrongDispatchPayload(string Value);
+    private sealed record PublishInput(string Value);
+    private sealed record PublishState(string Value);
+}

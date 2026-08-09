@@ -29,6 +29,12 @@ internal static partial class DefinitionCompiler
                     nodeId,
                     wait.EventContract,
                     wait.CorrelationSelector),
+                SelectedPublishAuthoringNode<TState> publish => new PublishNode<TState>(
+                    nodeId,
+                    publish.EventContract,
+                    publish.CorrelationSelector,
+                    publish.PayloadType,
+                    publish.PayloadSelector),
                 SelectedDelayAuthoringNode<TState> delay => new DelayNode<TState>(
                     nodeId,
                     delay.Duration),

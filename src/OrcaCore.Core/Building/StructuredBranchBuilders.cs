@@ -287,6 +287,27 @@ internal sealed class BranchBuilder<TBranchState, TResult>
             timeout));
     }
 
+    internal void AddPublish(
+        global::OrcaCore.WorkflowEventContract eventContract,
+        Func<TBranchState, CorrelationId> correlationSelector,
+        Type? payloadType = null,
+        Delegate? payloadSelector = null)
+    {
+        ArgumentNullException.ThrowIfNull(eventContract);
+        ArgumentNullException.ThrowIfNull(correlationSelector);
+        if ((payloadType is null) != (payloadSelector is null))
+        {
+            throw new ArgumentException("A typed publish requires both a payload type and selector.");
+        }
+
+        using var operation = Mutate();
+        instructions.Add(new BranchPublishAuthoringInstruction(
+            eventContract,
+            correlationSelector,
+            payloadType,
+            payloadSelector));
+    }
+
     /// <summary>
     /// Adds a structural delay owned by this branch fiber.
     /// </summary>
@@ -428,6 +449,12 @@ internal sealed record BranchWaitAuthoringInstruction(
     Delegate CorrelationSelector,
     WaitMode Mode,
     TimeSpan? Timeout) : BranchAuthoringInstruction;
+
+internal sealed record BranchPublishAuthoringInstruction(
+    global::OrcaCore.WorkflowEventContract EventContract,
+    Delegate CorrelationSelector,
+    Type? PayloadType,
+    Delegate? PayloadSelector) : BranchAuthoringInstruction;
 
 internal sealed record BranchDelayAuthoringInstruction(TimeSpan Duration) : BranchAuthoringInstruction;
 

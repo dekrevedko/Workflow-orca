@@ -377,7 +377,7 @@ internal static class DurableApplicationContractFactory
             detail);
         return Construct<WorkflowDefinitionException>(
             [typeof(IReadOnlyList<WorkflowDiagnostic>)],
-            new[] { diagnostic });
+            (IReadOnlyList<WorkflowDiagnostic>)[diagnostic]);
     }
 
     private static TProperty ReadNonPublicProperty<TProperty>(object instance, string propertyName)

@@ -259,7 +259,12 @@ internal static class ScopeReducer
         {
             var descriptor = admittedDescriptors[index];
             var fiberId = admittedIds[index];
-            fibers.Add(fiberId, CreateForEachFiber(fiberId, scopeId, template, descriptor));
+            fibers.Add(fiberId, CreateForEachFiber(
+                fiberId,
+                scopeId,
+                template,
+                descriptor,
+                parent.CurrentCausationEventId));
             itemIndexByFiber.Add(fiberId, descriptor.Index);
         }
 
@@ -526,7 +531,12 @@ internal static class ScopeReducer
         {
             fibers.Add(
                 admitted[index],
-                CreateForEachFiber(admitted[index], scope.Id, template, descriptors[index]));
+                CreateForEachFiber(
+                    admitted[index],
+                    scope.Id,
+                    template,
+                    descriptors[index],
+                    fibers[scope.ParentFiberId].CurrentCausationEventId));
             itemIndexByFiber.Add(admitted[index], descriptors[index].Index);
         }
 
@@ -625,7 +635,8 @@ internal static class ScopeReducer
         FiberId fiberId,
         ScopeId scopeId,
         CompiledBranchPlan template,
-        ForEachItemDescriptor descriptor)
+        ForEachItemDescriptor descriptor,
+        string? currentCausationEventId)
     {
         return new FiberRecord(
             fiberId,
@@ -638,7 +649,10 @@ internal static class ScopeReducer
             ResultPayload: null,
             Blocked: null,
             Failure: null,
-            CancellationReason: null);
+            CancellationReason: null)
+        {
+            CurrentCausationEventId = currentCausationEventId
+        };
     }
 
     private static void ApplyOutcome(
@@ -788,7 +802,10 @@ internal static class ScopeReducer
                 ResultPayload: null,
                 Blocked: null,
                 Failure: null,
-                CancellationReason: null));
+                CancellationReason: null)
+            {
+                CurrentCausationEventId = parent.CurrentCausationEventId
+            });
         }
 
         var scopes = new Dictionary<ScopeId, ExecutionScopeRecord>(state.Scopes)

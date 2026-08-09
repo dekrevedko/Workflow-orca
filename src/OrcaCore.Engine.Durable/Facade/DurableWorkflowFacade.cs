@@ -51,6 +51,7 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
     private readonly DurableFacadeNotificationHub notifications;
     private readonly TimeProvider timeProvider;
     private readonly IReadOnlySet<string> configuredResourcePools;
+    private readonly bool hasWorkflowEventDispatcher;
 
     public DurableWorkflowDefinitionRegistry(
         DurableWorkflowRuntime runtime,
@@ -59,7 +60,8 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
         DurableCommandProcessor commandProcessor,
         DurableFacadeNotificationHub notifications,
         TimeProvider timeProvider,
-        IEnumerable<ResourcePoolName>? configuredResourcePools = null)
+        IEnumerable<ResourcePoolName>? configuredResourcePools = null,
+        bool hasWorkflowEventDispatcher = false)
     {
         this.runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
         this.projectionStore = projectionStore ?? throw new ArgumentNullException(nameof(projectionStore));
@@ -70,6 +72,7 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
         this.configuredResourcePools = (configuredResourcePools ?? [])
             .Select(pool => pool.Value)
             .ToHashSet(StringComparer.Ordinal);
+        this.hasWorkflowEventDispatcher = hasWorkflowEventDispatcher;
     }
 
     public WorkflowRegistrationResult<EphemeralDefinitionHandle<TInput>> Register<TInput>(
@@ -189,6 +192,12 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
             .GetProperty(nameof(DurableWorkflowDefinition<object>.DefinitionFingerprint))!
             .GetValue(publicDefinition)!;
         var key = new DefinitionKey(definitionId, definitionVersion);
+        if (ContainsPublish(runtimeDefinition) && !hasWorkflowEventDispatcher)
+        {
+            return new WorkflowRegistrationResult<THandle>.HostIncompatible(
+                new DefinitionHostCompatibilityFailure.MissingWorkflowEventDispatcher());
+        }
+
         var missing = MissingDurablePools(runtimeDefinition);
         if (missing.Count > 0)
         {
@@ -719,6 +728,23 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
         }
 
         return names;
+    }
+
+    private static bool ContainsPublish(object runtimeDefinition)
+    {
+        var compiledPlan = runtimeDefinition.GetType()
+            .GetProperty(
+                "CompiledPlan",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
+            .GetValue(runtimeDefinition)!;
+        var instructions = (System.Collections.IEnumerable)compiledPlan.GetType()
+            .GetProperty("Instructions")!
+            .GetValue(compiledPlan)!;
+        return instructions.Cast<object>().Any(instruction =>
+            string.Equals(
+                instruction.GetType().GetProperty("Kind")!.GetValue(instruction)?.ToString(),
+                "Publish",
+                StringComparison.Ordinal));
     }
 
     private static global::OrcaCore.ActiveWaitSnapshot? MapWait(

@@ -77,6 +77,8 @@ public sealed class PortableAuthoringIntersectionGuards
             typeof(DurableLeaseWorkflowBuilder<,>)).Should().Equal(
             "Delay`0(1)",
             "If`0(3)",
+            "Publish`0(2)",
+            "Publish`1(3)",
             "Then`1(0)",
             "Wait`0(2)",
             "Wait`0(3)",
@@ -90,6 +92,8 @@ public sealed class PortableAuthoringIntersectionGuards
             typeof(DurableLeaseNestedBuilder<,>)).Should().Equal(
             "Delay`0(1)",
             "If`0(3)",
+            "Publish`0(2)",
+            "Publish`1(3)",
             "Then`1(0)",
             "Wait`0(2)",
             "Wait`0(3)",
@@ -103,6 +107,8 @@ public sealed class PortableAuthoringIntersectionGuards
             typeof(DurableLeaseBranchBuilder<,>)).Should().Equal(
             "Delay`0(1)",
             "If`0(3)",
+            "Publish`0(2)",
+            "Publish`1(3)",
             "Return`0(1)",
             "Then`1(0)",
             "Wait`0(2)",
@@ -117,6 +123,8 @@ public sealed class PortableAuthoringIntersectionGuards
             typeof(DurableLeaseItemBuilder<,>)).Should().Equal(
             "Delay`0(1)",
             "If`0(3)",
+            "Publish`0(2)",
+            "Publish`1(3)",
             "Return`0(1)",
             "Then`1(0)",
             "Wait`0(2)",

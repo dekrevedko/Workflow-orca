@@ -117,6 +117,7 @@ public sealed class StateAndCodecGreenGuards
             ["OrcaCore.Runtime.Protocol/Durable/DurableContinuationSignal.cs"] = 2,
             ["OrcaCore.Runtime.Protocol/Durable/DurableExecutionEnvelopeV2.cs"] = 2,
             ["OrcaCore.Runtime.Protocol/Serialization/WorkflowEventCodec.cs"] = 2,
+            ["OrcaCore.Engine.Durable/Outbox/DurableWorkflowOutboundEventCodec.cs"] = 2,
             ["OrcaCore.Durable.Hosting/ResourceLeases/SerializedResourceGovernanceAggregate.cs"] = 2,
             ["OrcaCore.Providers.PostgreSql/PostgreSqlResourcePoolStore.cs"] = 4,
             ["OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs"] = 2

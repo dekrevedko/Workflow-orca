@@ -13,13 +13,15 @@ internal sealed record DurableDecision
         CheckpointWrite? checkpoint = null,
         bool evictAfterCommit = false,
         IReadOnlyList<InboxWrite>? inboxOperations = null,
-        IReadOnlyList<InboxRouteMutation>? inboxRouteMutations = null)
+        IReadOnlyList<InboxRouteMutation>? inboxRouteMutations = null,
+        IReadOnlyList<OutboxWrite>? outboxRecords = null)
     {
         Events = events;
         Checkpoint = checkpoint;
         EvictAfterCommit = evictAfterCommit;
         InboxOperations = inboxOperations ?? [];
         InboxRouteMutations = inboxRouteMutations ?? [];
+        OutboxRecords = outboxRecords ?? [];
     }
 
     internal IReadOnlyList<DurableWorkflowEvent> Events { get; }
@@ -31,6 +33,8 @@ internal sealed record DurableDecision
     internal IReadOnlyList<InboxWrite> InboxOperations { get; }
 
     internal IReadOnlyList<InboxRouteMutation> InboxRouteMutations { get; }
+
+    internal IReadOnlyList<OutboxWrite> OutboxRecords { get; }
 
     internal static DurableDecision Empty { get; } = new([]);
 }
@@ -165,6 +169,9 @@ internal sealed record DurableStepCompletedCommand(
     /// rejects the commit as a conflict when the stream moved past it (DU-022).
     /// </summary>
     public StreamVersion? ExpectedStreamVersion { get; init; }
+
+    /// <summary>Gets external outbox records committed atomically with this advancement.</summary>
+    public IReadOnlyList<OutboxWrite> OutboxRecords { get; init; } = [];
 
     /// <summary>
     /// Gets pending matched-wait resumes this advancement consumed.

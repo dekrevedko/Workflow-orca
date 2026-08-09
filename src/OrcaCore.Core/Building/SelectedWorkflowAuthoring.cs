@@ -69,6 +69,16 @@ internal sealed record SelectedWaitAuthoringNode<TState>(
     internal override string Kind => "Wait";
 }
 
+internal sealed record SelectedPublishAuthoringNode<TState>(
+    global::OrcaCore.WorkflowEventContract EventContract,
+    Func<TState, CorrelationId> CorrelationSelector,
+    Type? PayloadType,
+    Delegate? PayloadSelector)
+    : SelectedAuthoringNode<TState>
+{
+    internal override string Kind => "Publish";
+}
+
 internal sealed record SelectedDelayAuthoringNode<TState>(TimeSpan Duration)
     : SelectedAuthoringNode<TState>
 {

@@ -183,6 +183,23 @@ internal sealed class DurableNestedBuilder<TInput, TState>
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout) => Wait((WorkflowEventContract)eventContract, correlation, timeout);
 
+    public DurableNestedBuilder<TInput, TState> Publish(
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
+    {
+        PublicPublishAuthoring.Add(builder, eventContract, correlation);
+        return this;
+    }
+
+    public DurableNestedBuilder<TInput, TState> Publish<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload)
+    {
+        PublicPublishAuthoring.Add(builder, eventContract, correlation, payload);
+        return this;
+    }
+
     public DurableNestedBuilder<TInput, TState> Delay(TimeSpan duration)
     {
         builder.Delay(duration);
@@ -290,6 +307,23 @@ internal sealed class DurableLeaseWorkflowBuilder<TInput, TState>
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout) => Wait((WorkflowEventContract)eventContract, correlation, timeout);
 
+    public DurableLeaseWorkflowBuilder<TInput, TState> Publish(
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
+    {
+        PublicPublishAuthoring.Add(builder, eventContract, correlation);
+        return this;
+    }
+
+    public DurableLeaseWorkflowBuilder<TInput, TState> Publish<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload)
+    {
+        PublicPublishAuthoring.Add(builder, eventContract, correlation, payload);
+        return this;
+    }
+
     public DurableLeaseWorkflowBuilder<TInput, TState> Delay(TimeSpan duration)
     {
         builder.Delay(duration);
@@ -373,9 +407,55 @@ internal sealed class DurableLeaseNestedBuilder<TInput, TState>
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
         TimeSpan timeout) => Wait((WorkflowEventContract)eventContract, correlation, timeout);
 
+    public DurableLeaseNestedBuilder<TInput, TState> Publish(
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
+    {
+        PublicPublishAuthoring.Add(builder, eventContract, correlation);
+        return this;
+    }
+
+    public DurableLeaseNestedBuilder<TInput, TState> Publish<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload)
+    {
+        PublicPublishAuthoring.Add(builder, eventContract, correlation, payload);
+        return this;
+    }
+
     public DurableLeaseNestedBuilder<TInput, TState> Delay(TimeSpan duration)
     {
         builder.Delay(duration);
         return this;
+    }
+}
+
+internal static class PublicPublishAuthoring
+{
+    internal static void Add<TState>(
+        global::OrcaCore.Core.Building.DurableWorkflowBuilder<TState> builder,
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
+    {
+        ArgumentNullException.ThrowIfNull(eventContract);
+        ArgumentNullException.ThrowIfNull(correlation);
+        builder.AddPublish(eventContract, state => correlation(AuthoringContractFactory.Snapshot(state)));
+    }
+
+    internal static void Add<TState, TPayload>(
+        global::OrcaCore.Core.Building.DurableWorkflowBuilder<TState> builder,
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload)
+    {
+        ArgumentNullException.ThrowIfNull(eventContract);
+        ArgumentNullException.ThrowIfNull(correlation);
+        ArgumentNullException.ThrowIfNull(payload);
+        builder.AddPublish(
+            eventContract,
+            state => correlation(AuthoringContractFactory.Snapshot(state)),
+            typeof(TPayload),
+            (Func<TState, TPayload>)(state => payload(AuthoringContractFactory.Snapshot(state))));
     }
 }

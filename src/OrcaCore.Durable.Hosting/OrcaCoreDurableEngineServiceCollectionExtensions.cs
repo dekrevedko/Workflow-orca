@@ -71,7 +71,8 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
                 provider.GetRequiredService<DurableCommandProcessor>(),
                 provider.GetRequiredService<DurableFacadeNotificationHub>(),
                 provider.GetRequiredService<TimeProvider>(),
-                copied.ResourcePools.Values.Select(pool => pool.Name));
+                copied.ResourcePools.Values.Select(pool => pool.Name),
+                provider.GetService<IWorkflowEventDispatcher>() is not null);
             registry.InstallStagedBatch(
                 provider.GetServices<IDurableStagedWorkflowDefinition>());
             return registry;
@@ -178,6 +179,8 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
             ServiceDescriptor.Singleton<IHostedService, OrcaCoreTimerHostedService>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, OrcaCoreOperationalSweepHostedService>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, OrcaCoreWorkflowEventOutboxPumpHostedService>());
 
         if (services.Any(descriptor => descriptor.ServiceType == typeof(IMessageDispatcher)))
         {
@@ -189,6 +192,7 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
             services.TryAddEnumerable(
                 ServiceDescriptor.Singleton<IHostedService, OrcaCoreOutboxPumpHostedService>());
         }
+
     }
 
     private static IDurableProviderRole RequireProviderRole(IServiceCollection services)

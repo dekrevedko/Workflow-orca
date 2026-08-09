@@ -296,6 +296,23 @@ public sealed class DurableBranchBuilder<TState, TResult>
         return this;
     }
 
+    public DurableBranchBuilder<TState, TResult> Publish(
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
+    {
+        AuthoringKernelProxy.Invoke(implementation, nameof(Publish), Type.EmptyTypes, eventContract, correlation);
+        return this;
+    }
+
+    public DurableBranchBuilder<TState, TResult> Publish<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload)
+    {
+        AuthoringKernelProxy.Invoke(implementation, nameof(Publish), [typeof(TPayload)], eventContract, correlation, payload);
+        return this;
+    }
+
     public DurableBranchBuilder<TState, TResult> Wait<TPayload>(
         WorkflowEventContract<TPayload> eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
@@ -412,6 +429,23 @@ public sealed class DurableItemBuilder<TState, TResult>
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
     {
         AuthoringKernelProxy.Invoke(implementation, nameof(Wait), [typeof(TPayload)], eventContract, correlation);
+        return this;
+    }
+
+    public DurableItemBuilder<TState, TResult> Publish(
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
+    {
+        AuthoringKernelProxy.Invoke(implementation, nameof(Publish), Type.EmptyTypes, eventContract, correlation);
+        return this;
+    }
+
+    public DurableItemBuilder<TState, TResult> Publish<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload)
+    {
+        AuthoringKernelProxy.Invoke(implementation, nameof(Publish), [typeof(TPayload)], eventContract, correlation, payload);
         return this;
     }
 
@@ -534,6 +568,23 @@ public sealed class DurableLeaseBranchBuilder<TState, TResult>
         return this;
     }
 
+    public DurableLeaseBranchBuilder<TState, TResult> Publish(
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
+    {
+        AuthoringKernelProxy.Invoke(implementation, nameof(Publish), Type.EmptyTypes, eventContract, correlation);
+        return this;
+    }
+
+    public DurableLeaseBranchBuilder<TState, TResult> Publish<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload)
+    {
+        AuthoringKernelProxy.Invoke(implementation, nameof(Publish), [typeof(TPayload)], eventContract, correlation, payload);
+        return this;
+    }
+
     public DurableLeaseBranchBuilder<TState, TResult> Wait<TPayload>(
         WorkflowEventContract<TPayload> eventContract,
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
@@ -624,6 +675,23 @@ public sealed class DurableLeaseItemBuilder<TState, TResult>
         Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
     {
         AuthoringKernelProxy.Invoke(implementation, nameof(Wait), [typeof(TPayload)], eventContract, correlation);
+        return this;
+    }
+
+    public DurableLeaseItemBuilder<TState, TResult> Publish(
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
+    {
+        AuthoringKernelProxy.Invoke(implementation, nameof(Publish), Type.EmptyTypes, eventContract, correlation);
+        return this;
+    }
+
+    public DurableLeaseItemBuilder<TState, TResult> Publish<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload)
+    {
+        AuthoringKernelProxy.Invoke(implementation, nameof(Publish), [typeof(TPayload)], eventContract, correlation, payload);
         return this;
     }
 

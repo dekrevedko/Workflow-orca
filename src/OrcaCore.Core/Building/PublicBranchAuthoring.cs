@@ -131,6 +131,8 @@ internal sealed class DurableBranchBuilder<TState, TResult>
 { PublicAuthoringValidation.Positive(timeout, nameof(timeout)); ArgumentNullException.ThrowIfNull(eventContract); ArgumentNullException.ThrowIfNull(correlation); builder.AddWait(eventContract, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold, timeout); return this; }
     public DurableBranchBuilder<TState, TResult> Wait<TPayload>(WorkflowEventContract<TPayload> eventContract, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) { Wait((WorkflowEventContract)eventContract, correlation); return this; }
     public DurableBranchBuilder<TState, TResult> Wait<TPayload>(WorkflowEventContract<TPayload> eventContract, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation, TimeSpan timeout) { Wait((WorkflowEventContract)eventContract, correlation, timeout); return this; }
+    public DurableBranchBuilder<TState, TResult> Publish(WorkflowEventContract eventContract, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) { PublicBranchPublishAuthoring.Add(builder, eventContract, correlation); return this; }
+    public DurableBranchBuilder<TState, TResult> Publish<TPayload>(WorkflowEventContract<TPayload> eventContract, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation, Func<ReadOnlyStateSnapshot<TState>, TPayload> payload) { PublicBranchPublishAuthoring.Add(builder, eventContract, correlation, payload); return this; }
     public DurableBranchBuilder<TState, TResult> Delay(TimeSpan duration)
     { builder.Delay(duration); return this; }
     public DurableBranchBuilder<TState, TResult> AcquireResources(ResourceLeaseRequest request, Action<DurableLeaseBranchBuilder<TState, TResult>> body)
@@ -165,6 +167,8 @@ internal sealed class DurableItemBuilder<TState, TResult>
     public DurableItemBuilder<TState, TResult> Wait(WorkflowEventContract eventContract, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation, TimeSpan timeout) { branch.Wait(eventContract, correlation, timeout); return this; }
     public DurableItemBuilder<TState, TResult> Wait<TPayload>(WorkflowEventContract<TPayload> eventContract, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) { branch.Wait(eventContract, correlation); return this; }
     public DurableItemBuilder<TState, TResult> Wait<TPayload>(WorkflowEventContract<TPayload> eventContract, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation, TimeSpan timeout) { branch.Wait(eventContract, correlation, timeout); return this; }
+    public DurableItemBuilder<TState, TResult> Publish(WorkflowEventContract eventContract, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) { branch.Publish(eventContract, correlation); return this; }
+    public DurableItemBuilder<TState, TResult> Publish<TPayload>(WorkflowEventContract<TPayload> eventContract, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation, Func<ReadOnlyStateSnapshot<TState>, TPayload> payload) { branch.Publish(eventContract, correlation, payload); return this; }
     public DurableItemBuilder<TState, TResult> Delay(TimeSpan duration) { branch.Delay(duration); return this; }
     public DurableItemBuilder<TState, TResult> AcquireResources(ResourceLeaseRequest request, Action<DurableLeaseItemBuilder<TState, TResult>> body) { ArgumentNullException.ThrowIfNull(request); ArgumentNullException.ThrowIfNull(body); branch.RuntimeBuilder.AddResourceLease(request, nested => body(new DurableLeaseItemBuilder<TState, TResult>(new DurableBranchBuilder<TState, TResult>(nested)))); return this; }
     public DurableItemBuilder<TState, TResult> AcquireResources(Func<ReadOnlyStateSnapshot<TState>, ResourceLeaseRequest> request, Action<DurableLeaseItemBuilder<TState, TResult>> body) { ArgumentNullException.ThrowIfNull(request); ArgumentNullException.ThrowIfNull(body); branch.RuntimeBuilder.AddResourceLease(state => request(AuthoringContractFactory.Snapshot(state)), nested => body(new DurableLeaseItemBuilder<TState, TResult>(new DurableBranchBuilder<TState, TResult>(nested)))); return this; }
@@ -196,6 +200,8 @@ public DurableLeaseBranchBuilder<TState, TResult> Wait(WorkflowEventContract eve
 public DurableLeaseBranchBuilder<TState, TResult> Wait(WorkflowEventContract eventContract, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation, TimeSpan timeout) { PublicAuthoringValidation.Positive(timeout, nameof(timeout)); ArgumentNullException.ThrowIfNull(eventContract); ArgumentNullException.ThrowIfNull(correlation); builder.AddWait(eventContract, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold, timeout); return this; }
 public DurableLeaseBranchBuilder<TState, TResult> Wait<TPayload>(WorkflowEventContract<TPayload> eventContract, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) { Wait((WorkflowEventContract)eventContract, correlation); return this; }
 public DurableLeaseBranchBuilder<TState, TResult> Wait<TPayload>(WorkflowEventContract<TPayload> eventContract, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation, TimeSpan timeout) { Wait((WorkflowEventContract)eventContract, correlation, timeout); return this; }
+    public DurableLeaseBranchBuilder<TState, TResult> Publish(WorkflowEventContract eventContract, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) { PublicBranchPublishAuthoring.Add(builder, eventContract, correlation); return this; }
+    public DurableLeaseBranchBuilder<TState, TResult> Publish<TPayload>(WorkflowEventContract<TPayload> eventContract, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation, Func<ReadOnlyStateSnapshot<TState>, TPayload> payload) { PublicBranchPublishAuthoring.Add(builder, eventContract, correlation, payload); return this; }
     public DurableLeaseBranchBuilder<TState, TResult> Delay(TimeSpan duration) { builder.Delay(duration); return this; }
     public DurableLeaseBranchBuilder<TState, TResult> Return(Func<ReadOnlyStateSnapshot<TState>, TResult> result) { ArgumentNullException.ThrowIfNull(result); builder.Return(snapshot => result(AuthoringContractFactory.Snapshot(snapshot.Value))); return this; }
 }
@@ -224,8 +230,39 @@ internal sealed class DurableLeaseItemBuilder<TState, TResult>
     public DurableLeaseItemBuilder<TState, TResult> Wait(WorkflowEventContract eventContract, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation, TimeSpan timeout) { branch.Wait(eventContract, correlation, timeout); return this; }
     public DurableLeaseItemBuilder<TState, TResult> Wait<TPayload>(WorkflowEventContract<TPayload> eventContract, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) { branch.Wait(eventContract, correlation); return this; }
     public DurableLeaseItemBuilder<TState, TResult> Wait<TPayload>(WorkflowEventContract<TPayload> eventContract, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation, TimeSpan timeout) { branch.Wait(eventContract, correlation, timeout); return this; }
+    public DurableLeaseItemBuilder<TState, TResult> Publish(WorkflowEventContract eventContract, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation) { branch.Publish(eventContract, correlation); return this; }
+    public DurableLeaseItemBuilder<TState, TResult> Publish<TPayload>(WorkflowEventContract<TPayload> eventContract, Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation, Func<ReadOnlyStateSnapshot<TState>, TPayload> payload) { branch.Publish(eventContract, correlation, payload); return this; }
     public DurableLeaseItemBuilder<TState, TResult> Delay(TimeSpan duration) { branch.Delay(duration); return this; }
     public DurableLeaseItemBuilder<TState, TResult> Return(Func<ReadOnlyStateSnapshot<TState>, TResult> result) { branch.Return(result); return this; }
+}
+
+internal static class PublicBranchPublishAuthoring
+{
+    internal static void Add<TState, TResult>(
+        global::OrcaCore.Core.Building.BranchBuilder<TState, TResult> builder,
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
+    {
+        ArgumentNullException.ThrowIfNull(eventContract);
+        ArgumentNullException.ThrowIfNull(correlation);
+        builder.AddPublish(eventContract, state => correlation(AuthoringContractFactory.Snapshot(state)));
+    }
+
+    internal static void Add<TState, TResult, TPayload>(
+        global::OrcaCore.Core.Building.BranchBuilder<TState, TResult> builder,
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload)
+    {
+        ArgumentNullException.ThrowIfNull(eventContract);
+        ArgumentNullException.ThrowIfNull(correlation);
+        ArgumentNullException.ThrowIfNull(payload);
+        builder.AddPublish(
+            eventContract,
+            state => correlation(AuthoringContractFactory.Snapshot(state)),
+            typeof(TPayload),
+            (Func<TState, TPayload>)(state => payload(AuthoringContractFactory.Snapshot(state))));
+    }
 }
 
 /// <summary>Authors fixed ephemeral root branches.</summary>

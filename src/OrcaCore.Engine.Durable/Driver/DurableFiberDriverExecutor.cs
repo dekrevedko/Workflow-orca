@@ -11,6 +11,7 @@ using OrcaCore.Core.Definitions;
 using OrcaCore.Core.Execution;
 using OrcaCore.Engine.Durable.Aggregates;
 using OrcaCore.Engine.Durable.Execution;
+using OrcaCore.Engine.Durable.Outbox;
 using OrcaCore.Engine.Durable.ResourceGovernance;
 
 namespace OrcaCore.Engine.Durable.Driver;
@@ -153,7 +154,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
             }
 
             quantumBudget.Record(fiber.Id, instruction.Kind);
-            if (instruction.Kind == CompiledInstructionKind.Step)
+            if (instruction.Kind is CompiledInstructionKind.Step or CompiledInstructionKind.Publish)
             {
                 quantumBudget.EndTurn();
             }
@@ -164,6 +165,17 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                 ownedObligations,
                 context.Aggregate.WaitState.PendingResumes,
                 out var consumedWaitId);
+            if (resumedEvent is not null)
+            {
+                fiber = fiber with { CurrentCausationEventId = resumedEvent.EventId.Value };
+                execution = execution with
+                {
+                    Fibers = new Dictionary<FiberId, FiberRecord>(execution.Fibers)
+                    {
+                        [fiber.Id] = fiber
+                    }
+                };
+            }
             switch (instruction.Kind)
             {
                 case CompiledInstructionKind.Init:
@@ -207,6 +219,70 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                             CommittedProgress: true);
                     }
 
+                    if (BudgetReached(context, commands, elapsed))
+                    {
+                        return new DurableSegmentResult(
+                            DurableSegmentOutcome.BudgetExhausted,
+                            CommittedProgress: true);
+                    }
+
+                    break;
+                }
+                case CompiledInstructionKind.Publish:
+                {
+                    var eventContract = instruction.EventContract ??
+                        throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                            $"Compiled publish '{instruction.Path}' has no event contract.");
+                    var definitionId = context.Aggregate.DefinitionId ??
+                        throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                            "A durable publish cannot execute before its definition identity is available.");
+                    var definitionVersion = context.Aggregate.DefinitionVersion ??
+                        throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                            "A durable publish cannot execute before its definition version is available.");
+                    var resolved = ResolvePublish(execution, fiber, state, instruction);
+                    var now = context.TimeProvider.GetUtcNow();
+                    var outboundEventId = EventId.Create(Guid.CreateVersion7().ToString());
+                    var outbound = new DurableWorkflowOutboundEventData(
+                        eventContract.EventName.Value,
+                        eventContract.Version.Value,
+                        instruction.PublishPayloadType?.AssemblyQualifiedName,
+                        outboundEventId.Value,
+                        resolved.CorrelationId.Value,
+                        fiber.CurrentCausationEventId,
+                        now,
+                        context.InstanceId.Value.ToString(),
+                        definitionId.Value.ToString(),
+                        definitionVersion.Value,
+                        resolved.Payload);
+                    fiber = ClearResume(fiber);
+                    execution = CompleteStepTurn(execution, fiber, instruction);
+                    RemoveConsumedObligation(ownedObligations, consumedWaitId);
+                    var published = await context.Processor.ProcessAsync(
+                        new DurableStepCompletedCommand(
+                            CommandId.New(),
+                            context.InstanceId,
+                            now,
+                            instruction.Path,
+                            BuildEnvelope(context, execution, state, ownedObligations))
+                        {
+                            ExpectedStreamVersion = currentVersion,
+                            ConsumedResumeWaitIds = ConsumedWaitIds(consumedWaitId),
+                            OutboxRecords =
+                            [
+                                new OutboxWrite(
+                                    OutboxRecordId.New(),
+                                    OutboxKinds.WorkflowEvent,
+                                    DurableWorkflowOutboundEventCodec.Encode(outbound))
+                            ]
+                        },
+                        CancellationToken.None).ConfigureAwait(false);
+                    if (published.Outcome != DurableCommandOutcome.Committed)
+                    {
+                        return Conflict(published);
+                    }
+
+                    currentVersion = published.StreamVersion;
+                    commands++;
                     if (BudgetReached(context, commands, elapsed))
                     {
                         return new DurableSegmentResult(

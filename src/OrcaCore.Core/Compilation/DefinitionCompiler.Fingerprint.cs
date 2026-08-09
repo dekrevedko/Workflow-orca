@@ -41,6 +41,13 @@ internal static partial class DefinitionCompiler
                         .Append(wait.Timeout?.Ticks).Append(':')
                         .Append("opaque>");
                     break;
+                case SelectedPublishAuthoringNode<TState> publish:
+                    builder.Append('<')
+                        .Append(publish.EventContract.EventName.Value).Append(':')
+                        .Append(publish.EventContract.Version.Value).Append(':')
+                        .Append(publish.PayloadType?.AssemblyQualifiedName).Append(':')
+                        .Append("opaque>");
+                    break;
                 case SelectedDelayAuthoringNode<TState> delay:
                     builder.Append('<').Append(delay.Duration.Ticks).Append('>');
                     break;
@@ -123,6 +130,13 @@ internal static partial class DefinitionCompiler
                         .Append(wait.EventContract.Version.Value).Append(':')
                         .Append(wait.Mode).Append(':')
                         .Append(wait.Timeout?.Ticks).Append('>');
+                    break;
+                case BranchPublishAuthoringInstruction publish:
+                    builder.Append("Publish<")
+                        .Append(publish.EventContract.EventName.Value).Append(':')
+                        .Append(publish.EventContract.Version.Value).Append(':')
+                        .Append(publish.PayloadType?.AssemblyQualifiedName).Append(':')
+                        .Append("opaque>");
                     break;
                 case BranchDelayAuthoringInstruction delay:
                     builder.Append("Delay<").Append(delay.Duration.Ticks).Append('>');

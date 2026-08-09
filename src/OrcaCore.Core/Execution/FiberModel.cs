@@ -81,6 +81,8 @@ internal sealed record FiberRecord(
 
     public string? ResumeFromWaitId { get; init; }
 
+    public string? CurrentCausationEventId { get; init; }
+
     public static FiberRecord CreateRoot(
         InstanceId instanceId,
         long generation,

@@ -483,6 +483,27 @@ internal abstract class WorkflowAuthoringSession<TState, TSelf>
         nodes.Add(new SelectedWaitAuthoringNode<TState>(eventContract, correlationSelector, mode, timeout));
     }
 
+    internal void AddPublish(
+        global::OrcaCore.WorkflowEventContract eventContract,
+        Func<TState, CorrelationId> correlationSelector,
+        Type? payloadType = null,
+        Delegate? payloadSelector = null)
+    {
+        ArgumentNullException.ThrowIfNull(eventContract);
+        ArgumentNullException.ThrowIfNull(correlationSelector);
+        if ((payloadType is null) != (payloadSelector is null))
+        {
+            throw new ArgumentException("A typed publish requires both a payload type and selector.");
+        }
+
+        using var operation = Mutate();
+        nodes.Add(new SelectedPublishAuthoringNode<TState>(
+            eventContract,
+            correlationSelector,
+            payloadType,
+            payloadSelector));
+    }
+
     internal void AddDurableNode(SelectedAuthoringNode<TState> node)
     {
         ArgumentNullException.ThrowIfNull(node);

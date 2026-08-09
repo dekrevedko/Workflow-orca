@@ -139,7 +139,8 @@ internal static class DurableFiberEnvelopeMapper
             LogicalOperationKey = fiber.LogicalOperationKey,
             AttemptInFlight = fiber.AttemptInFlight,
             TimeoutDeadline = fiber.TimeoutDeadline,
-            ResumeFromWaitId = fiber.ResumeFromWaitId
+            ResumeFromWaitId = fiber.ResumeFromWaitId,
+            CurrentCausationEventId = fiber.CurrentCausationEventId
         };
     }
 
@@ -171,7 +172,8 @@ internal static class DurableFiberEnvelopeMapper
             LogicalOperationKey = fiber.LogicalOperationKey,
             AttemptInFlight = fiber.AttemptInFlight,
             TimeoutDeadline = fiber.TimeoutDeadline,
-            ResumeFromWaitId = fiber.ResumeFromWaitId
+            ResumeFromWaitId = fiber.ResumeFromWaitId,
+            CurrentCausationEventId = fiber.CurrentCausationEventId
         };
     }
 

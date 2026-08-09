@@ -14,6 +14,12 @@ public sealed class PublicSurfaceBoundaryTests
             .GetExportedTypes()
             .Select(type => type.FullName)
             .Should().BeEquivalentTo(
+                "OrcaCore.WorkflowEventDispatchFailure",
+                "OrcaCore.WorkflowEventDispatchResult",
+                "OrcaCore.WorkflowEventDispatchResult+Succeeded",
+                "OrcaCore.WorkflowEventDispatchResult+RetryableFailure",
+                "OrcaCore.WorkflowEventDispatchResult+PermanentFailure",
+                "OrcaCore.Durable.Hosting.IWorkflowEventDispatcher",
                 "OrcaCore.Durable.Hosting.IWorkflowEventIngress",
                 "OrcaCore.Hosting.DurableEngineHostOptions",
                 "OrcaCore.Hosting.DurableResourcePoolDefinition",

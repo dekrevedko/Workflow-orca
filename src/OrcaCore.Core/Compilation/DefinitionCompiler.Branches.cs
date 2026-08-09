@@ -64,6 +64,7 @@ internal static partial class DefinitionCompiler
             {
                 BranchReturnAuthoringInstruction => CompiledInstructionKind.BranchReturn,
                 BranchWaitAuthoringInstruction => CompiledInstructionKind.Wait,
+                BranchPublishAuthoringInstruction => CompiledInstructionKind.Publish,
                 BranchDelayAuthoringInstruction => CompiledInstructionKind.Delay,
                 _ => CompiledInstructionKind.Step
             };
@@ -77,17 +78,24 @@ internal static partial class DefinitionCompiler
             var waitInstruction = authored as BranchWaitAuthoringInstruction;
             var delayInstruction = authored as BranchDelayAuthoringInstruction;
             var stepInstruction = authored as BranchStepAuthoringInstruction;
+            var publishInstruction = authored as BranchPublishAuthoringInstruction;
             ids.Add(AddInstruction(
                 instructions,
                 kind,
                 $"{path}/{index}",
                 operation,
-                waitInstruction?.EventContract,
+                waitInstruction?.EventContract ?? publishInstruction?.EventContract,
                 waitInstruction?.Mode,
                 delayInstruction?.Duration,
                 policy: stepInstruction is null ? null : CompilePolicy(stepInstruction.Policies),
                 stepType: stepInstruction?.StepType,
-                waitTimeout: waitInstruction?.Timeout).Id);
+                waitTimeout: waitInstruction?.Timeout,
+                publishCorrelationSelector: publishInstruction?.CorrelationSelector,
+                publishPayloadType: publishInstruction?.PayloadType,
+                publishPayloadSchemaIdentity: publishInstruction?.PayloadType is null
+                    ? null
+                    : schemaIdentities[publishInstruction.PayloadType],
+                publishPayloadSelector: publishInstruction?.PayloadSelector).Id);
         }
 
         return ids;

@@ -114,7 +114,8 @@ internal static class DurableLifecycleCommandHandler
 
         return new DurableDecision(
             events,
-            CreateEnvelopeCheckpoint(aggregate, command.InstanceId, events, command.Envelope, command.StepPath));
+            CreateEnvelopeCheckpoint(aggregate, command.InstanceId, events, command.Envelope, command.StepPath),
+            outboxRecords: command.OutboxRecords);
     }
 
     internal static DurableDecision Handle(DurableWorkflowAggregate aggregate, DurableYieldCommand command)

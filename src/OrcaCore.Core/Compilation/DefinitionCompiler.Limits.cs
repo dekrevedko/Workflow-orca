@@ -57,6 +57,7 @@ internal static partial class DefinitionCompiler
             {
                 SelectedStepAuthoringNode<TState> => true,
                 SelectedWaitAuthoringNode<TState> => true,
+                SelectedPublishAuthoringNode<TState> => true,
                 SelectedDelayAuthoringNode<TState> => true,
                 SelectedEndAuthoringNode<TState> => true,
                 SelectedContinueAsNewAuthoringNode<TState> => true,

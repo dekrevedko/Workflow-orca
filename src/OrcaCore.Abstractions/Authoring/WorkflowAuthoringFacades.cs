@@ -320,6 +320,29 @@ public sealed class DurableWorkflowBuilder<TInput, TState>
         return this;
     }
 
+    public DurableWorkflowBuilder<TInput, TState> Publish(
+        WorkflowEventContract eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation)
+    {
+        AuthoringKernelProxy.Invoke(implementation, nameof(Publish), Type.EmptyTypes, eventContract, correlation);
+        return this;
+    }
+
+    public DurableWorkflowBuilder<TInput, TState> Publish<TPayload>(
+        WorkflowEventContract<TPayload> eventContract,
+        Func<ReadOnlyStateSnapshot<TState>, CorrelationId> correlation,
+        Func<ReadOnlyStateSnapshot<TState>, TPayload> payload)
+    {
+        AuthoringKernelProxy.Invoke(
+            implementation,
+            nameof(Publish),
+            [typeof(TPayload)],
+            eventContract,
+            correlation,
+            payload);
+        return this;
+    }
+
     public DurableWorkflowBuilder<TInput, TState> Delay(TimeSpan duration)
     {
         AuthoringKernelProxy.Invoke(implementation, nameof(Delay), Type.EmptyTypes, duration);

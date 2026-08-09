@@ -177,6 +177,31 @@ internal sealed record WaitNode<TState> : WorkflowNode<TState>
     public TimeSpan? Timeout { get; }
 }
 
+internal sealed record PublishNode<TState> : WorkflowNode<TState>
+{
+    public PublishNode(
+        string nodeId,
+        global::OrcaCore.WorkflowEventContract eventContract,
+        Func<TState, CorrelationId> correlationSelector,
+        Type? payloadType,
+        Delegate? payloadSelector)
+        : base(nodeId)
+    {
+        EventContract = eventContract ?? throw new ArgumentNullException(nameof(eventContract));
+        CorrelationSelector = correlationSelector ?? throw new ArgumentNullException(nameof(correlationSelector));
+        PayloadType = payloadType;
+        PayloadSelector = payloadSelector;
+    }
+
+    public global::OrcaCore.WorkflowEventContract EventContract { get; }
+
+    public Func<TState, CorrelationId> CorrelationSelector { get; }
+
+    public Type? PayloadType { get; }
+
+    public Delegate? PayloadSelector { get; }
+}
+
 internal sealed record DelayNode<TState> : WorkflowNode<TState>
 {
     public DelayNode(string nodeId, TimeSpan duration)

@@ -52,6 +52,8 @@ public abstract record DefinitionHostCompatibilityFailure
         public IReadOnlyList<ResourcePoolName> PoolNames { get; }
     }
 
+    public sealed record MissingWorkflowEventDispatcher : DefinitionHostCompatibilityFailure;
+
     private static IReadOnlyList<TName> CopyPoolNames<TName>(IReadOnlyList<TName> poolNames)
     {
         ArgumentNullException.ThrowIfNull(poolNames);
