@@ -29,5 +29,6 @@
     <ProjectReference Include="..\..\src\OrcaCore.Durable.Hosting\OrcaCore.Durable.Hosting.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Providers.InMemory\OrcaCore.Providers.InMemory.csproj" />
     <ProjectReference Include="..\..\samples\OrcaCore.SampleHost\OrcaCore.SampleHost.csproj" />
+    <ProjectReference Include="..\..\samples\OrcaCore.SampleHost\BrokerAdapters\OrcaCore.SampleHost.BrokerAdapters.csproj" />
   </ItemGroup>
 </Project>

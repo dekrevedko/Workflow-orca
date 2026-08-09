@@ -13,6 +13,10 @@ Use `OrcaCore.Examples` first when learning the public API. Use
 `OrcaCore.Dashboard` when you want to inspect the advanced durable operational
 surface in a browser.
 
+`OrcaCore.SampleHost/BrokerAdapters` contains compile-checked MassTransit-, Rebus-, and
+SNS/SQS-style application adapters. They demonstrate durable ingress acknowledgement and outbound
+dispatch-result mapping while keeping every broker SDK outside OrcaCore packages.
+
 The Kubernetes dashboard sample uses the active `kubectl` context and the
 `default` namespace. It starts one scheduled Kubernetes `Job` every 15 minutes
 with a random 1-15 minute runtime, can start a 2-5 job dependency chain, and can

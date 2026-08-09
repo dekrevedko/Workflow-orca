@@ -6,6 +6,7 @@ using OrcaCore.Durable.Hosting;
 using OrcaCore.Hosting;
 using OrcaCore.Hosting.Services;
 using OrcaCore.Providers.InMemory;
+using OrcaCore.SampleHost.BrokerAdapters;
 using Xunit;
 
 namespace OrcaCore.Hosting.Tests;
@@ -13,6 +14,94 @@ namespace OrcaCore.Hosting.Tests;
 public sealed class WorkflowEventDispatcherTests
 {
     private const string MaterializationFailureCode = "workflow-event-materialization-failed";
+
+    [Fact]
+    public async Task BrokerAdapterExamples_AcknowledgeOnlyDurablyOwnedInboundEvents()
+    {
+        var contract = WorkflowEventContract.Create(
+            EventName.Create("broker-adapter-inbound"),
+            EventContractVersion.Initial);
+        var inbound = WorkflowInboundEvent.Create(
+            contract,
+            EventId.Create("broker-adapter-inbound-event"),
+            CorrelationId.Create("broker-adapter-inbound-correlation"),
+            causationEventId: null,
+            new DateTimeOffset(2026, 8, 8, 12, 0, 0, TimeSpan.Zero),
+            new WorkflowEventRoute.Direct(InstanceId.Parse("0198e442-b700-7000-8000-000000000001")));
+        var ingress = new RecordingIngress(
+            new WorkflowEventAcceptanceResult.Accepted(),
+            new WorkflowEventAcceptanceResult.Duplicate(),
+            new WorkflowEventAcceptanceResult.Rejected(
+                new WorkflowEventAcceptanceRejection.DirectInstanceTerminal()));
+        static ValueTask<BrokerPublishOutcome> PublishAsync(
+            WorkflowOutboundEvent _,
+            CancellationToken __) =>
+            ValueTask.FromResult<BrokerPublishOutcome>(new BrokerPublishOutcome.Published());
+        var massTransit = new MassTransitStyleWorkflowEventAdapter(ingress, PublishAsync);
+        var rebus = new RebusStyleWorkflowEventAdapter(ingress, PublishAsync);
+        var snsSqs = new SnsSqsStyleWorkflowEventAdapter(ingress, PublishAsync);
+
+        (await massTransit.ConsumeAsync(inbound, TestContext.Current.CancellationToken))
+            .Should().Be(BrokerReceiveDisposition.Acknowledge);
+        (await rebus.HandleAsync(inbound, TestContext.Current.CancellationToken))
+            .Should().Be(BrokerReceiveDisposition.Acknowledge);
+        (await snsSqs.ReceiveAsync(inbound, TestContext.Current.CancellationToken))
+            .Should().Be(BrokerReceiveDisposition.DeadLetter);
+    }
+
+    [Fact]
+    public async Task BrokerAdapterExamples_MapApplicationPublishOutcomesWithoutProviderTypes()
+    {
+        var contract = WorkflowEventContract<DispatchPayload>.Create(
+            EventName.Create("invoice-issued"),
+            new EventContractVersion(4));
+        var outcomes = new Queue<BrokerPublishOutcome>(
+        [
+            new BrokerPublishOutcome.Published(),
+            new BrokerPublishOutcome.Retryable("broker-unavailable", "try again"),
+            new BrokerPublishOutcome.Permanent("destination-rejected", "topic disabled")
+        ]);
+        var application = new MassTransitStyleWorkflowEventAdapter(
+            new RecordingIngress(),
+            (_, cancellationToken) =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return ValueTask.FromResult(outcomes.Dequeue());
+            });
+        var adapter = new WorkflowEventMessageDispatcher(application);
+        var record = Outbox(contract, new DispatchPayload("invoice-19"));
+
+        (await adapter.DispatchAsync(record, TestContext.Current.CancellationToken))
+            .Should().Be(DispatchResult.Success);
+        (await adapter.DispatchAsync(record, TestContext.Current.CancellationToken))
+            .Should().Be(DispatchResult.RetryableFailure);
+        (await adapter.DispatchAsync(record, TestContext.Current.CancellationToken))
+            .Should().Be(DispatchResult.PermanentFailure);
+    }
+
+    [Fact]
+    public void BrokerAdapterExamples_FailureCodesRemainValidatedWhenCopied()
+    {
+        var retryable = new BrokerPublishOutcome.Retryable("broker-unavailable") with
+        {
+            Code = "broker-overloaded",
+            Detail = "retry later"
+        };
+        var permanent = new BrokerPublishOutcome.Permanent("destination-rejected") with
+        {
+            Code = "destination-disabled",
+            Detail = "operator action required"
+        };
+
+        retryable.Code.Should().Be("broker-overloaded");
+        retryable.Detail.Should().Be("retry later");
+        permanent.Code.Should().Be("destination-disabled");
+        permanent.Detail.Should().Be("operator action required");
+        Action copyBlankRetryable = () => _ = retryable with { Code = " " };
+        Action copyBlankPermanent = () => _ = permanent with { Code = "" };
+        copyBlankRetryable.Should().Throw<ArgumentException>();
+        copyBlankPermanent.Should().Throw<ArgumentException>();
+    }
 
     [Fact]
     public async Task Adapter_ExposesOnlyTheCompleteApplicationEventAndMapsClosedResults()
@@ -351,6 +440,30 @@ public sealed class WorkflowEventDispatcherTests
             cancellationToken.ThrowIfCancellationRequested();
             Events.Add(outboundEvent);
 
+            return ValueTask.FromResult(results.Dequeue());
+        }
+    }
+
+    private sealed class RecordingIngress(params WorkflowEventAcceptanceResult[] results)
+        : IWorkflowEventIngress
+    {
+        private readonly Queue<WorkflowEventAcceptanceResult> results = new(results);
+
+        public ValueTask<WorkflowEventAcceptanceResult> AcceptAsync(
+            WorkflowInboundEvent inboundEvent,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(inboundEvent);
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult(results.Dequeue());
+        }
+
+        public ValueTask<WorkflowEventAcceptanceResult> AcceptAsync<TPayload>(
+            WorkflowInboundEvent<TPayload> inboundEvent,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(inboundEvent);
+            cancellationToken.ThrowIfCancellationRequested();
             return ValueTask.FromResult(results.Dequeue());
         }
     }

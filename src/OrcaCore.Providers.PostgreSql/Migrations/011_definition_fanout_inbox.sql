@@ -1,17 +1,3 @@
-alter table orcacore_inbox
-    alter column acceptance_sequence drop identity if exists;
-
-create sequence if not exists orcacore_inbox_delivery_sequence;
-
-select setval(
-    'orcacore_inbox_delivery_sequence',
-    greatest(coalesce(max(acceptance_sequence), 0) + 1, 1),
-    false)
-from orcacore_inbox;
-
-alter table orcacore_inbox
-    alter column acceptance_sequence set default nextval('orcacore_inbox_delivery_sequence');
-
 create table if not exists orcacore_inbox_fanout_targets (
     event_id text not null references orcacore_inbox(event_id),
     instance_id uuid not null,

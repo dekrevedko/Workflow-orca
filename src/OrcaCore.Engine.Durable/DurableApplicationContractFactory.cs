@@ -486,33 +486,34 @@ internal static class DurableApplicationContractFactory
 
     private static class ConstructorCache<TContract>
     {
-        private static readonly object Sync = new();
-        private static ConstructorInfo? constructor;
-        private static Type[]? signature;
+        private static ConstructorBinding? binding;
 
         internal static ConstructorInfo Get(Type[] parameterTypes)
         {
-            lock (Sync)
+            var current = Volatile.Read(ref binding);
+            if (current is null)
             {
-                if (constructor is null)
-                {
-                    signature = [.. parameterTypes];
-                    constructor = typeof(TContract).GetConstructor(
-                        BindingFlags.Instance | BindingFlags.NonPublic,
-                        binder: null,
-                        signature,
-                        modifiers: null) ?? throw new MissingMethodException(
-                            typeof(TContract).FullName,
-                            $".ctor({string.Join(", ", signature.Select(type => type.FullName))})");
-                }
-                else if (!signature!.SequenceEqual(parameterTypes))
-                {
-                    throw new InvalidOperationException(
-                        $"The cached constructor signature for '{typeof(TContract).FullName}' does not match the request.");
-                }
-
-                return constructor;
+                var signature = parameterTypes.ToArray();
+                var constructor = typeof(TContract).GetConstructor(
+                    BindingFlags.Instance | BindingFlags.NonPublic,
+                    binder: null,
+                    signature,
+                    modifiers: null) ?? throw new MissingMethodException(
+                    typeof(TContract).FullName,
+                    $".ctor({string.Join(", ", signature.Select(type => type.FullName))})");
+                var candidate = new ConstructorBinding(constructor, signature);
+                current = Interlocked.CompareExchange(ref binding, candidate, null) ?? candidate;
             }
+
+            if (!current.Signature.SequenceEqual(parameterTypes))
+            {
+                throw new InvalidOperationException(
+                    $"The cached constructor signature for '{typeof(TContract).FullName}' does not match the request.");
+            }
+
+            return current.Constructor;
         }
+
+        private sealed record ConstructorBinding(ConstructorInfo Constructor, Type[] Signature);
     }
 }

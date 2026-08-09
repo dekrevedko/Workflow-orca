@@ -25,6 +25,7 @@ internal sealed class PostgreSqlWorkflowStore :
     ITimerScheduler,
     IAsyncDisposable
 {
+    private const long StartIdempotencyAdvisoryLockHashSeed = 0;
     private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
     private static readonly global::OrcaCore.WorkflowInstanceStatus[] TerminalStatuses =
     [
@@ -174,6 +175,12 @@ internal sealed class PostgreSqlWorkflowStore :
 
         try
         {
+            await LockStartIdempotencyKeysAsync(
+                connection,
+                transaction,
+                batch.StartIdempotencyOperations.Select(operation => operation.IdempotencyKey),
+                cancellationToken).ConfigureAwait(false);
+
             var targetStorageKeys = batch.InboxTargetPoisonOperations
                 .Select(operation => InboxTargetStorageKey(operation.InstanceId))
                 .Distinct(StringComparer.Ordinal)
@@ -690,15 +697,34 @@ internal sealed class PostgreSqlWorkflowStore :
             .ConfigureAwait(false);
         if (existingEvent.HasValue)
         {
+            if (existingEvent.Value.InstanceId is null &&
+                string.Equals(
+                    existingEvent.Value.EnvelopeFingerprint,
+                    acceptance.EnvelopeFingerprint,
+                    StringComparison.Ordinal))
+            {
+                await RepairCommittedStartOrDeliverAsync(request, cancellationToken).ConfigureAwait(false);
+                existingEvent = await GetByEventIdAsync(acceptance.Envelope.EventId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
             return ClassifyInboxAcceptance(existingEvent.Value, acceptance.EnvelopeFingerprint);
         }
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var transaction = await connection
-            .BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+            // The key lock serializes compatible start ownership. ReadCommitted is intentional:
+            // after waiting for the prior key holder, the binding reads must observe its commit.
+            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
             .ConfigureAwait(false);
         try
         {
+            await LockStartIdempotencyKeyAsync(
+                connection,
+                transaction,
+                request.StartIdempotencyKey,
+                cancellationToken).ConfigureAwait(false);
+
             var started = await GetStartedAsync(
                 connection,
                 transaction,
@@ -722,6 +748,14 @@ internal sealed class PostgreSqlWorkflowStore :
                 };
             }
 
+            await options.InvokeAfterStartOrDeliverBindingReadAsync(
+                    new PostgreSqlStartOrDeliverReadContext(
+                        request.StartIdempotencyKey,
+                        started.HasValue,
+                        intent.HasValue),
+                    cancellationToken)
+                .ConfigureAwait(false);
+
             if (!intent.HasValue)
             {
                 await InsertStartIntentAsync(
@@ -734,6 +768,11 @@ internal sealed class PostgreSqlWorkflowStore :
             else if (started.HasValue && intent.Value.State == InboxStartIntentState.Pending)
             {
                 await MarkStartIntentMaterializedAsync(
+                    connection,
+                    transaction,
+                    started.Value,
+                    cancellationToken).ConfigureAwait(false);
+                await AttachPendingStartEventsAsync(
                     connection,
                     transaction,
                     started.Value,
@@ -794,6 +833,22 @@ internal sealed class PostgreSqlWorkflowStore :
             }
 
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            if (!started.HasValue)
+            {
+                // The shared key lock prevents a new symmetric miss. This post-commit pass also
+                // repairs a compatible binding left by an interrupted or previously deployed path;
+                // a later direct start performs the symmetric attachment in AppendAsync.
+                await RepairCommittedStartOrDeliverAsync(request, cancellationToken).ConfigureAwait(false);
+                var repaired = await GetByEventIdAsync(acceptance.Envelope.EventId, cancellationToken)
+                    .ConfigureAwait(false);
+                if (repaired.HasValue)
+                {
+                    return new InboxAcceptanceCommitResult(
+                        InboxAcceptanceCommitDisposition.Accepted,
+                        repaired.Value);
+                }
+            }
+
             return new InboxAcceptanceCommitResult(
                 InboxAcceptanceCommitDisposition.Accepted,
                 new InboxRecord(
@@ -2541,82 +2596,181 @@ internal sealed class PostgreSqlWorkflowStore :
     {
         foreach (var operation in operations)
         {
+            var started = new StartedWorkflowIdempotencyRecord(
+                operation.IdempotencyKey,
+                operation.InstanceId,
+                operation.DefinitionId,
+                operation.DefinitionVersion,
+                operation.DefinitionFingerprint,
+                operation.InputFingerprint);
             await MarkStartIntentMaterializedAsync(
                 connection,
                 transaction,
-                new StartedWorkflowIdempotencyRecord(
-                    operation.IdempotencyKey,
-                    operation.InstanceId,
-                    operation.DefinitionId,
-                    operation.DefinitionVersion,
-                    operation.DefinitionFingerprint,
-                    operation.InputFingerprint),
+                started,
                 cancellationToken).ConfigureAwait(false);
 
-            var pendingEvents = new List<(EventId EventId, string EventName, int Version, CorrelationId CorrelationId)>();
-            await using (var load = new NpgsqlCommand(
+            await AttachPendingStartEventsAsync(
+                connection,
+                transaction,
+                started,
+                cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task RepairCommittedStartOrDeliverAsync(
+        InboxStartOrDeliverAcceptance request,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = await connection
+            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
+            .ConfigureAwait(false);
+        await LockStartIdempotencyKeyAsync(
+            connection,
+            transaction,
+            request.StartIdempotencyKey,
+            cancellationToken).ConfigureAwait(false);
+        var started = await GetStartedAsync(
+            connection,
+            transaction,
+            request.StartIdempotencyKey,
+            forUpdate: true,
+            cancellationToken).ConfigureAwait(false);
+        if (!started.HasValue)
+        {
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        var intent = await GetStartIntentAsync(
+            connection,
+            transaction,
+            request.StartIdempotencyKey,
+            forUpdate: true,
+            cancellationToken).ConfigureAwait(false);
+        if (!intent.HasValue ||
+            intent.Value.State != InboxStartIntentState.Pending ||
+            CreateStartConflict(started, intent, request) is not null)
+        {
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        await MarkStartIntentMaterializedAsync(
+            connection,
+            transaction,
+            started.Value,
+            cancellationToken).ConfigureAwait(false);
+        await AttachPendingStartEventsAsync(
+            connection,
+            transaction,
+            started.Value,
+            cancellationToken).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task LockStartIdempotencyKeysAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        IEnumerable<string> startIdempotencyKeys,
+        CancellationToken cancellationToken)
+    {
+        foreach (var key in startIdempotencyKeys
+                     .Distinct(StringComparer.Ordinal)
+                     .OrderBy(key => key, StringComparer.Ordinal))
+        {
+            await LockStartIdempotencyKeyAsync(connection, transaction, key, cancellationToken)
+                .ConfigureAwait(false);
+        }
+    }
+
+    private static async Task LockStartIdempotencyKeyAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string startIdempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new NpgsqlCommand(
+            "select pg_advisory_xact_lock(hashtextextended(@start_idempotency_key, @hash_seed));",
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("start_idempotency_key", startIdempotencyKey);
+        command.Parameters.AddWithValue(
+            "hash_seed",
+            NpgsqlDbType.Bigint,
+            StartIdempotencyAdvisoryLockHashSeed);
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task AttachPendingStartEventsAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        StartedWorkflowIdempotencyRecord started,
+        CancellationToken cancellationToken)
+    {
+        var pendingEvents = new List<(EventId EventId, string EventName, int Version, CorrelationId CorrelationId)>();
+        await using (var load = new NpgsqlCommand(
+            """
+            select event_id, event_name, event_contract_version, correlation_id
+            from orcacore_inbox
+            where start_idempotency_key = @start_idempotency_key
+              and route_kind = 'start-or-deliver'
+              and state = @state
+              and instance_id is null
+            order by acceptance_sequence, event_id
+            for update;
+            """,
+            connection,
+            transaction))
+        {
+            load.Parameters.AddWithValue("start_idempotency_key", started.IdempotencyKey);
+            load.Parameters.AddWithValue("state", InboxRecordState.Received.ToString());
+            await using var reader = await load.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                pendingEvents.Add((
+                    EventId.Create(reader.GetString(0)),
+                    reader.GetString(1),
+                    reader.GetInt32(2),
+                    CorrelationId.Create(reader.GetString(3))));
+            }
+        }
+
+        foreach (var pending in pendingEvents)
+        {
+            var route = InboxRouteKey.Direct(
+                started.InstanceId,
+                EventName.Create(pending.EventName),
+                new EventContractVersion(pending.Version),
+                pending.CorrelationId);
+            var revision = await LockInboxRouteAsync(
+                connection,
+                transaction,
+                route,
+                cancellationToken).ConfigureAwait(false);
+            await using var attach = new NpgsqlCommand(
                 """
-                select event_id, event_name, event_contract_version, correlation_id
-                from orcacore_inbox
-                where start_idempotency_key = @start_idempotency_key
-                  and route_kind = 'start-or-deliver'
+                update orcacore_inbox
+                set instance_id = @instance_id,
+                    route_key = @route_key
+                where event_id = @event_id
                   and state = @state
-                  and instance_id is null
-                order by acceptance_sequence, event_id
-                for update;
+                  and instance_id is null;
                 """,
                 connection,
-                transaction))
+                transaction);
+            attach.Parameters.AddWithValue("instance_id", started.InstanceId.Value);
+            attach.Parameters.AddWithValue("route_key", InboxRouteStorageKey(route));
+            attach.Parameters.AddWithValue("event_id", pending.EventId.Value);
+            attach.Parameters.AddWithValue("state", InboxRecordState.Received.ToString());
+            if (await attach.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) != 0)
             {
-                load.Parameters.AddWithValue("start_idempotency_key", operation.IdempotencyKey);
-                load.Parameters.AddWithValue("state", InboxRecordState.Received.ToString());
-                await using var reader = await load.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-                while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    pendingEvents.Add((
-                        EventId.Create(reader.GetString(0)),
-                        reader.GetString(1),
-                        reader.GetInt32(2),
-                        CorrelationId.Create(reader.GetString(3))));
-                }
-            }
-
-            foreach (var pending in pendingEvents)
-            {
-                var route = InboxRouteKey.Direct(
-                    operation.InstanceId,
-                    EventName.Create(pending.EventName),
-                    new EventContractVersion(pending.Version),
-                    pending.CorrelationId);
-                var revision = await LockInboxRouteAsync(
+                await SetInboxRouteRevisionAsync(
                     connection,
                     transaction,
                     route,
+                    revision + 1,
                     cancellationToken).ConfigureAwait(false);
-                await using var attach = new NpgsqlCommand(
-                    """
-                    update orcacore_inbox
-                    set instance_id = @instance_id,
-                        route_key = @route_key
-                    where event_id = @event_id
-                      and state = @state
-                      and instance_id is null;
-                    """,
-                    connection,
-                    transaction);
-                attach.Parameters.AddWithValue("instance_id", operation.InstanceId.Value);
-                attach.Parameters.AddWithValue("route_key", InboxRouteStorageKey(route));
-                attach.Parameters.AddWithValue("event_id", pending.EventId.Value);
-                attach.Parameters.AddWithValue("state", InboxRecordState.Received.ToString());
-                if (await attach.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) != 0)
-                {
-                    await SetInboxRouteRevisionAsync(
-                        connection,
-                        transaction,
-                        route,
-                        revision + 1,
-                        cancellationToken).ConfigureAwait(false);
-                }
             }
         }
     }

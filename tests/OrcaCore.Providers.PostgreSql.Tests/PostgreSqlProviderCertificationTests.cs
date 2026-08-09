@@ -1,8 +1,11 @@
+using System.Collections.Concurrent;
 using System.Security.Cryptography;
+using System.Text;
 using AwesomeAssertions;
 using Npgsql;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.ProviderCertification;
 using OrcaCore.Providers.PostgreSql;
@@ -182,6 +185,227 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
             .Value.Route!.Kind.Should().Be("direct");
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task StartOrDeliverInbox_DirectStartRaceReattachesEveryRetainedEvent(int acceptanceCount)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var definitionId = DefinitionId.New();
+        var definitionVersion = new DefinitionVersion(5);
+        var startKey = $"start-race-{Guid.CreateVersion7():N}";
+        var input = "race-workflow-input"u8.ToArray();
+        var inputFingerprint = Convert.ToHexString(SHA256.HashData(input));
+        var firstReadReached = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseReads = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var observedReads = new ConcurrentQueue<PostgreSqlStartOrDeliverReadContext>();
+        var options = new PostgreSqlWorkflowStoreOptions
+        {
+            AfterStartOrDeliverBindingReadAsync = async (context, token) =>
+            {
+                if (!string.Equals(context.StartIdempotencyKey, startKey, StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                observedReads.Enqueue(context);
+                firstReadReached.TrySetResult(true);
+                await releaseReads.Task.WaitAsync(token).ConfigureAwait(false);
+            }
+        };
+        await using var acceptingStore = new PostgreSqlWorkflowStore(
+            container.GetConnectionString(),
+            new FixedTimeProvider(MigrationAppliedAt()),
+            options);
+        await acceptingStore.InitializeAsync(cancellationToken);
+        var requests = Enumerable.Range(1, acceptanceCount)
+            .Select(index => StartOrDeliverAcceptance(
+                EventId.Create(Guid.CreateVersion7().ToString()),
+                definitionId,
+                definitionVersion,
+                startKey,
+                input,
+                inputFingerprint,
+                $"race-event-{index}"))
+            .ToArray();
+        var acceptTasks = requests
+            .Select(request => acceptingStore.AcceptStartOrDeliverAsync(request, cancellationToken))
+            .ToArray();
+
+        await firstReadReached.Task.WaitAsync(cancellationToken);
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var directStartTask = (certificationStore ??
+                throw new InvalidOperationException("PostgreSQL certification store is not initialized."))
+            .AppendAsync(
+                new ProviderCommitBatch
+                {
+                    StreamId = new WorkflowStreamId(instanceId),
+                    ExpectedVersion = StreamVersion.Empty,
+                    StartIdempotencyOperations =
+                    [
+                        new StartIdempotencyWrite(
+                            startKey,
+                            instanceId,
+                            definitionId,
+                            definitionVersion,
+                            "race-definition-fingerprint",
+                            inputFingerprint)
+                    ]
+                },
+                cancellationToken);
+        releaseReads.TrySetResult(true);
+
+        var directStart = await directStartTask.WaitAsync(cancellationToken);
+        var acceptances = await Task.WhenAll(acceptTasks).WaitAsync(cancellationToken);
+
+        directStart.IsSuccess.Should().BeTrue();
+        observedReads.Should().NotBeEmpty();
+        observedReads.First().Should().Match<PostgreSqlStartOrDeliverReadContext>(context =>
+                !context.HasStartedBinding && !context.HasStartIntent,
+            "the first acceptance must own the empty key before the direct start competes for it");
+        acceptances.Should().OnlyContain(result =>
+            result.Disposition == InboxAcceptanceCommitDisposition.Accepted);
+        var intent = await acceptingStore.GetStartIntentAsync(startKey, cancellationToken);
+        intent.Value.State.Should().Be(InboxStartIntentState.Materialized);
+        intent.Value.InstanceId.Should().Be(instanceId);
+        foreach (var request in requests)
+        {
+            var attached = await acceptingStore.GetAsync(
+                instanceId,
+                request.Acceptance.Envelope.EventId,
+                cancellationToken);
+            attached.HasValue.Should().BeTrue(
+                "the repairing acceptance must reattach every retained event from the losing interleaving");
+            attached.Value.InstanceId.Should().Be(instanceId);
+            attached.Value.Route!.Kind.Should().Be("direct");
+            attached.Value.State.Should().Be(InboxRecordState.Received);
+        }
+    }
+
+    [Fact]
+    public async Task StartOrDeliverInbox_DirectStartCommitWindowSerializesAcceptanceByKey()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var definitionId = DefinitionId.New();
+        var definitionVersion = new DefinitionVersion(6);
+        var startKey = $"start-commit-window-{Guid.CreateVersion7():N}";
+        var input = "commit-window-workflow-input"u8.ToArray();
+        var inputFingerprint = Convert.ToHexString(SHA256.HashData(input));
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var startReachedCommit = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseStartCommit = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var startOptions = new PostgreSqlWorkflowStoreOptions
+        {
+            BeforeCommitAsync = async (context, token) =>
+            {
+                if (!context.StreamId.InstanceId.Equals(instanceId))
+                {
+                    return;
+                }
+
+                startReachedCommit.TrySetResult(true);
+                await releaseStartCommit.Task.WaitAsync(token).ConfigureAwait(false);
+            }
+        };
+        await using var startingStore = new PostgreSqlWorkflowStore(
+            container.GetConnectionString(),
+            new FixedTimeProvider(MigrationAppliedAt()),
+            startOptions);
+        await startingStore.InitializeAsync(cancellationToken);
+
+        var acceptanceApplicationName = $"orcacore-start-accept-{Guid.CreateVersion7():N}";
+        var acceptingConnectionString = new NpgsqlConnectionStringBuilder(container.GetConnectionString())
+        {
+            ApplicationName = acceptanceApplicationName
+        }.ConnectionString;
+        var bindingRead = new TaskCompletionSource<PostgreSqlStartOrDeliverReadContext>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var acceptanceOptions = new PostgreSqlWorkflowStoreOptions
+        {
+            AfterStartOrDeliverBindingReadAsync = (context, _) =>
+            {
+                if (string.Equals(context.StartIdempotencyKey, startKey, StringComparison.Ordinal))
+                {
+                    bindingRead.TrySetResult(context);
+                }
+
+                return ValueTask.CompletedTask;
+            }
+        };
+        await using var acceptingStore = new PostgreSqlWorkflowStore(
+            acceptingConnectionString,
+            new FixedTimeProvider(MigrationAppliedAt()),
+            acceptanceOptions);
+        await acceptingStore.InitializeAsync(cancellationToken);
+
+        var directStartTask = startingStore.AppendAsync(
+            new ProviderCommitBatch
+            {
+                StreamId = new WorkflowStreamId(instanceId),
+                ExpectedVersion = StreamVersion.Empty,
+                StartIdempotencyOperations =
+                [
+                    new StartIdempotencyWrite(
+                        startKey,
+                        instanceId,
+                        definitionId,
+                        definitionVersion,
+                        "commit-window-definition-fingerprint",
+                        inputFingerprint)
+                ]
+            },
+            cancellationToken);
+        await startReachedCommit.Task.WaitAsync(cancellationToken);
+
+        var request = StartOrDeliverAcceptance(
+            EventId.Create(Guid.CreateVersion7().ToString()),
+            definitionId,
+            definitionVersion,
+            startKey,
+            input,
+            inputFingerprint,
+            "commit-window-event");
+        var acceptanceTask = acceptingStore.AcceptStartOrDeliverAsync(request, cancellationToken);
+        bool acceptanceWaitedForStart;
+        try
+        {
+            acceptanceWaitedForStart = await WaitForAdvisoryLockOrBindingReadAsync(
+                acceptanceApplicationName,
+                bindingRead.Task,
+                cancellationToken);
+        }
+        finally
+        {
+            releaseStartCommit.TrySetResult(true);
+        }
+
+        var directStart = await directStartTask.WaitAsync(cancellationToken);
+        var acceptance = await acceptanceTask.WaitAsync(cancellationToken);
+        var observedRead = await bindingRead.Task.WaitAsync(cancellationToken);
+
+        acceptanceWaitedForStart.Should().BeTrue(
+            "acceptance must wait on the same per-key transaction lock while the direct start is uncommitted");
+        directStart.IsSuccess.Should().BeTrue();
+        observedRead.HasStartedBinding.Should().BeTrue(
+            "the binding read must occur after the preceding key-lock holder commits");
+        observedRead.HasStartIntent.Should().BeFalse();
+        acceptance.Disposition.Should().Be(InboxAcceptanceCommitDisposition.Accepted);
+        acceptance.Record!.InstanceId.Should().Be(instanceId);
+        acceptance.Record.Route!.Kind.Should().Be("direct");
+
+        var intent = await acceptingStore.GetStartIntentAsync(startKey, cancellationToken);
+        intent.Value.State.Should().Be(InboxStartIntentState.Materialized);
+        intent.Value.InstanceId.Should().Be(instanceId);
+        var attached = await acceptingStore.GetAsync(
+            instanceId,
+            request.Acceptance.Envelope.EventId,
+            cancellationToken);
+        attached.HasValue.Should().BeTrue();
+        attached.Value.InstanceId.Should().Be(instanceId);
+        attached.Value.Route!.Kind.Should().Be("direct");
+        attached.Value.State.Should().Be(InboxRecordState.Received);
+    }
+
     [Fact]
     public void ActiveWaitQuery_ImplementsTheVersionAwareProviderOverload()
     {
@@ -226,6 +450,8 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         var outboxPoisonRetrofitMigrationCount = await ScalarAsync<long>(
             "select count(*) from orcacore_schema_migrations where migration_id = @migration_id;",
             "013_outbox_poison");
+        var inboxDeliverySequence = await ScalarAsync<string>(
+            "select pg_get_serial_sequence('orcacore_inbox', 'acceptance_sequence');");
 
         initialMigrationId.Should().Be("001_initial");
         leaseMigrationId.Should().Be("002_claim_leases");
@@ -235,6 +461,8 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         pendingStartMigrationId.Should().Be("012_pending_start_intents");
         outboxPoisonRetrofitMigrationCount.Should().Be(0,
             "the unreleased outbox poison columns belong in the greenfield initial schema");
+        inboxDeliverySequence.Should().EndWith("orcacore_inbox_delivery_sequence",
+            "dropping the owning inbox table must also remove its greenfield delivery sequence");
     }
 
     [Fact]
@@ -693,6 +921,51 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         return store;
     }
 
+    private async Task<bool> WaitForAdvisoryLockOrBindingReadAsync(
+        string applicationName,
+        Task bindingRead,
+        CancellationToken cancellationToken)
+    {
+        const string lockWaitEventType = "Lock";
+        const string advisoryLockWaitEvent = "advisory";
+        await using var connection = new NpgsqlConnection(container.GetConnectionString());
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(
+            """
+            select exists (
+                select 1
+                from pg_stat_activity
+                where application_name = @application_name
+                  and wait_event_type = @wait_event_type
+                  and wait_event = @wait_event);
+            """,
+            connection);
+        command.Parameters.AddWithValue("application_name", applicationName);
+        command.Parameters.AddWithValue("wait_event_type", lockWaitEventType);
+        command.Parameters.AddWithValue("wait_event", advisoryLockWaitEvent);
+
+        while (!bindingRead.IsCompleted)
+        {
+            if ((bool)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) ?? false))
+            {
+                return true;
+            }
+
+            await Task.Yield();
+        }
+
+        return false;
+    }
+
+    private async Task<T> ScalarAsync<T>(string sql)
+    {
+        await using var connection = new NpgsqlConnection(container.GetConnectionString());
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        return (T)(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken) ??
+            throw new InvalidOperationException());
+    }
+
     private async Task<T> ScalarAsync<T>(string sql, InstanceId instanceId)
     {
         await using var connection = new NpgsqlConnection(container.GetConnectionString());
@@ -765,6 +1038,44 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
                 UpdatedAt = MigrationAppliedAt()
             }
         };
+
+    private static InboxStartOrDeliverAcceptance StartOrDeliverAcceptance(
+        EventId eventId,
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        string startKey,
+        byte[] input,
+        string inputFingerprint,
+        string eventPayload)
+    {
+        var envelope = new DurableEventEnvelope
+        {
+            EventId = eventId,
+            EventName = "start-or-deliver-race",
+            EventContractVersion = 1,
+            CorrelationId = CorrelationId.Create("start-or-deliver-race"),
+            OccurredAt = MigrationAppliedAt(),
+            PayloadContentType = "application/vnd.orcacore.fixed+json;v=1",
+            Payload = Encoding.UTF8.GetBytes(eventPayload),
+            Route = new DurableEventRouteEnvelope
+            {
+                Kind = "start-or-deliver",
+                DefinitionId = definitionId,
+                DefinitionVersion = definitionVersion,
+                StartIdempotencyKey = startKey,
+                WorkflowInputContentType = "application/vnd.orcacore.fixed+json;v=1",
+                WorkflowInputPayload = [.. input]
+            }
+        };
+        return new InboxStartOrDeliverAcceptance(
+            new InboxAcceptance(envelope, $"race-envelope-{eventId.Value}", envelope.OccurredAt),
+            definitionId,
+            definitionVersion,
+            startKey,
+            envelope.Route.WorkflowInputContentType,
+            [.. input],
+            inputFingerprint);
+    }
 
     private static ProjectionWorkflowInstanceSnapshot CompletedSnapshot(InstanceId instanceId)
     {

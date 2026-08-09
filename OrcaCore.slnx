@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/samples/">
     <Project Path="samples/OrcaCore.SampleHost/OrcaCore.SampleHost.csproj" />
+    <Project Path="samples/OrcaCore.SampleHost/BrokerAdapters/OrcaCore.SampleHost.BrokerAdapters.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/OrcaCore.Abstractions/OrcaCore.csproj" />

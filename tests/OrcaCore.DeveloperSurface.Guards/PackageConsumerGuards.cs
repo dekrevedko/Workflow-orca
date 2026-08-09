@@ -175,8 +175,54 @@ public sealed class PackageConsumerProductGuards
         references.Should().NotContain(reference =>
             reference.Package!.StartsWith("OpenTelemetry", StringComparison.Ordinal),
             "SDK and exporter registration is host-owned");
+        references.Should().NotContain(reference =>
+            reference.Package!.StartsWith("MassTransit", StringComparison.Ordinal) ||
+            reference.Package.StartsWith("Rebus", StringComparison.Ordinal) ||
+            reference.Package.StartsWith("AWSSDK.SimpleNotificationService", StringComparison.Ordinal) ||
+            reference.Package.StartsWith("AWSSDK.SQS", StringComparison.Ordinal) ||
+            reference.Package.StartsWith("RabbitMQ.Client", StringComparison.Ordinal),
+            "broker SDK dependencies belong to application-owned adapters, never OrcaCore product packages");
         references.Where(reference => reference.Package is "Npgsql" or "Dapper")
             .Should().OnlyContain(reference => reference.Project == "OrcaCore.Providers.PostgreSql",
                 "provider-native dependencies stay inside their owning provider");
+    }
+
+    [Fact]
+    public void BrokerAdapterExamples_UseOnlyTheApplicationIngressAndDispatcherBoundary()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        var sampleRoot = Path.Combine(root, "samples", "OrcaCore.SampleHost");
+        var adapterRoot = Path.Combine(sampleRoot, "BrokerAdapters");
+        var project = XDocument.Load(Path.Combine(
+            adapterRoot,
+            "OrcaCore.SampleHost.BrokerAdapters.csproj"));
+        var source = File.ReadAllText(Path.Combine(
+            adapterRoot,
+            "BrokerAdapterExamples.cs"));
+
+        project.Descendants("DisableTransitiveProjectReferences")
+            .Should().ContainSingle()
+            .Which.Value.Should().Be("true");
+        project.Descendants("ProjectReference")
+            .Select(reference => Path.GetFileNameWithoutExtension(reference.Attribute("Include")?.Value))
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .Should().Equal("OrcaCore", "OrcaCore.Durable.Hosting");
+        project.Descendants("PackageReference")
+            .Select(reference => reference.Attribute("Include")?.Value)
+            .Should().NotContain(package =>
+                package != null &&
+                (package.StartsWith("MassTransit", StringComparison.Ordinal) ||
+                 package.StartsWith("Rebus", StringComparison.Ordinal) ||
+                 package.StartsWith("AWSSDK.", StringComparison.Ordinal) ||
+                 package.StartsWith("RabbitMQ.Client", StringComparison.Ordinal)));
+        source.Should().Contain("MassTransitStyleWorkflowEventAdapter")
+            .And.Contain("RebusStyleWorkflowEventAdapter")
+            .And.Contain("SnsSqsStyleWorkflowEventAdapter")
+            .And.Contain("IWorkflowEventIngress")
+            .And.Contain("IWorkflowEventDispatcher")
+            .And.Contain("WorkflowEventAcceptanceResult.Accepted")
+            .And.Contain("WorkflowEventAcceptanceResult.Duplicate")
+            .And.NotContain("OrcaCore.Abstractions.Providers")
+            .And.NotContain("OrcaCore.Runtime.Protocol");
     }
 }
