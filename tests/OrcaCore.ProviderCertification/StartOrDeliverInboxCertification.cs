@@ -123,7 +123,7 @@ public static class StartOrDeliverInboxCertification
         postStartAcceptance.Disposition.Should().Be(InboxAcceptanceCommitDisposition.Accepted);
         postStartAcceptance.Record!.InstanceId.Should().Be(instanceId);
         (await fixture.InboxStore.GetAsync(instanceId, postStartEvent.EventId, cancellationToken))
-            .Value.Route!.Kind.Should().Be("direct",
+            .Value.Route!.Kind.Should().Be(InboxRouteKinds.Direct,
                 "a compatible previously materialized binding attaches in the acceptance transaction");
 
         await fixture.InboxStore.MarkPoisonedAsync(

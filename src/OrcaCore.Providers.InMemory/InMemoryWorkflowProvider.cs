@@ -179,7 +179,7 @@ internal sealed class InMemoryWorkflowProvider :
             }
 
             var route = CreateInboxRoute(acceptance.Envelope);
-            if (route.Kind == "direct")
+            if (route.Kind == InboxRouteKinds.Direct)
             {
                 var instanceId = route.InstanceId ?? throw new InvalidOperationException(
                     "A direct inbox route requires an instance.");
@@ -199,7 +199,9 @@ internal sealed class InMemoryWorkflowProvider :
             }
 
             var record = new InboxRecord(
-                acceptance.Envelope.Route.Kind == "direct" ? acceptance.Envelope.Route.InstanceId : null,
+                acceptance.Envelope.Route.Kind == InboxRouteKinds.Direct
+                    ? acceptance.Envelope.Route.InstanceId
+                    : null,
                 acceptance.Envelope.EventId,
                 acceptance.EnvelopeFingerprint,
                 InboxRecordState.Received)
@@ -225,7 +227,7 @@ internal sealed class InMemoryWorkflowProvider :
         ArgumentNullException.ThrowIfNull(request);
         ArgumentOutOfRangeException.ThrowIfNegative(request.MaximumTargetCount);
         cancellationToken.ThrowIfCancellationRequested();
-        if (request.Acceptance.Envelope.Route.Kind != "definition-fanout" ||
+        if (request.Acceptance.Envelope.Route.Kind != InboxRouteKinds.DefinitionFanout ||
             !Equals(request.Acceptance.Envelope.Route.DefinitionId, request.DefinitionId))
         {
             throw new ArgumentException(
@@ -564,7 +566,7 @@ internal sealed class InMemoryWorkflowProvider :
             if (inbox.TryGetValue(eventId, out var record) && record.State == expectedState)
             {
                 if (record.Envelope?.Route is
-                        { Kind: "start-or-deliver", StartIdempotencyKey: { } startKey } &&
+                        { Kind: InboxRouteKinds.StartOrDeliver, StartIdempotencyKey: { } startKey } &&
                     startIntents.TryGetValue(startKey, out var intent) &&
                     intent.State == InboxStartIntentState.Pending)
                 {
@@ -631,19 +633,12 @@ internal sealed class InMemoryWorkflowProvider :
                 cancellationToken);
         }
 
-        bool isFanoutTarget;
-        lock (gate)
+        var identityKind = ResolveInboxIdentityKind(recordIdentity);
+        if (identityKind == InboxIdentityKind.Missing)
         {
-            isFanoutTarget = definitionFanoutTargets.ContainsKey(
-                (recordIdentity.EventId, recordIdentity.TargetInstanceId));
-            if (!isFanoutTarget &&
-                (!inbox.TryGetValue(recordIdentity.EventId, out var directRecord) ||
-                 directRecord.InstanceId?.Equals(recordIdentity.TargetInstanceId) != true))
-            {
-                return Task.CompletedTask;
-            }
+            return Task.CompletedTask;
         }
-        if (!isFanoutTarget)
+        if (identityKind == InboxIdentityKind.Root)
         {
             return MarkPoisonedAsync(
                 recordIdentity.EventId,
@@ -683,16 +678,7 @@ internal sealed class InMemoryWorkflowProvider :
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(eventId);
-        ArgumentOutOfRangeException.ThrowIfNegative(expectedFailureCount);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFailureCount);
-        if (expectedFailureCount >= maxFailureCount)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(expectedFailureCount),
-                expectedFailureCount,
-                "The observed failure count must be below the terminal failure count.");
-        }
-        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        ValidateHandoffFailureArguments(expectedFailureCount, maxFailureCount, code);
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (gate)
@@ -735,14 +721,7 @@ internal sealed class InMemoryWorkflowProvider :
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(recordIdentity);
-        ArgumentOutOfRangeException.ThrowIfNegative(expectedFailureCount);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFailureCount);
-        if (expectedFailureCount >= maxFailureCount)
-        {
-            throw new ArgumentOutOfRangeException(nameof(expectedFailureCount));
-        }
-
-        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        ValidateHandoffFailureArguments(expectedFailureCount, maxFailureCount, code);
         cancellationToken.ThrowIfCancellationRequested();
         if (recordIdentity.TargetInstanceId is null)
         {
@@ -757,19 +736,12 @@ internal sealed class InMemoryWorkflowProvider :
                 cancellationToken);
         }
 
-        bool isFanoutTarget;
-        lock (gate)
+        var identityKind = ResolveInboxIdentityKind(recordIdentity);
+        if (identityKind == InboxIdentityKind.Missing)
         {
-            isFanoutTarget = definitionFanoutTargets.ContainsKey(
-                (recordIdentity.EventId, recordIdentity.TargetInstanceId));
-            if (!isFanoutTarget &&
-                (!inbox.TryGetValue(recordIdentity.EventId, out var directRecord) ||
-                 directRecord.InstanceId?.Equals(recordIdentity.TargetInstanceId) != true))
-            {
-                return Task.CompletedTask;
-            }
+            return Task.CompletedTask;
         }
-        if (!isFanoutTarget)
+        if (identityKind == InboxIdentityKind.Root)
         {
             return RecordHandoffFailureAsync(
                 recordIdentity.EventId,
@@ -809,6 +781,53 @@ internal sealed class InMemoryWorkflowProvider :
         }
 
         return Task.CompletedTask;
+    }
+
+    private InboxIdentityKind ResolveInboxIdentityKind(InboxRecordIdentity recordIdentity)
+    {
+        if (recordIdentity.TargetInstanceId is null)
+        {
+            return InboxIdentityKind.Root;
+        }
+
+        lock (gate)
+        {
+            if (definitionFanoutTargets.ContainsKey(
+                    (recordIdentity.EventId, recordIdentity.TargetInstanceId)))
+            {
+                return InboxIdentityKind.FanoutTarget;
+            }
+
+            return inbox.TryGetValue(recordIdentity.EventId, out var directRecord) &&
+                   directRecord.InstanceId?.Equals(recordIdentity.TargetInstanceId) == true
+                ? InboxIdentityKind.Root
+                : InboxIdentityKind.Missing;
+        }
+    }
+
+    private static void ValidateHandoffFailureArguments(
+        int expectedFailureCount,
+        int maxFailureCount,
+        string code)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(expectedFailureCount);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFailureCount);
+        if (expectedFailureCount >= maxFailureCount)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(expectedFailureCount),
+                expectedFailureCount,
+                "The observed failure count must be below the terminal failure count.");
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+    }
+
+    private enum InboxIdentityKind
+    {
+        Missing,
+        Root,
+        FanoutTarget
     }
 
     /// <inheritdoc />
@@ -1270,7 +1289,10 @@ internal sealed class InMemoryWorkflowProvider :
             return false;
         }
 
-        if (string.Equals(record.Envelope?.Route.Kind, "definition-fanout", StringComparison.Ordinal))
+        if (string.Equals(
+                record.Envelope?.Route.Kind,
+                InboxRouteKinds.DefinitionFanout,
+                StringComparison.Ordinal))
         {
             throw new InvalidOperationException(
                 $"Fanout inbox transition '{operation.EventId}' for instance " +
@@ -1297,7 +1319,7 @@ internal sealed class InMemoryWorkflowProvider :
         {
             foreach (var record in inbox.Values
                          .Where(record => record.State == InboxRecordState.Received &&
-                             record.Route?.Kind == "direct" &&
+                             record.Route?.Kind == InboxRouteKinds.Direct &&
                              record.Route.InstanceId?.Equals(operation.InstanceId) == true)
                          .ToArray())
             {
@@ -1314,12 +1336,12 @@ internal sealed class InMemoryWorkflowProvider :
     private static InboxRouteKey CreateInboxRoute(DurableEventEnvelope envelope) =>
         envelope.Route.Kind switch
         {
-            "direct" => InboxRouteKey.Direct(
+            InboxRouteKinds.Direct => InboxRouteKey.Direct(
                 envelope.Route.InstanceId ?? throw new InvalidOperationException("A direct inbox route requires an instance."),
                 EventName.Create(envelope.EventName),
                 new EventContractVersion(envelope.EventContractVersion),
                 envelope.CorrelationId),
-            "correlation" => InboxRouteKey.Correlation(
+            InboxRouteKinds.Correlation => InboxRouteKey.Correlation(
                 envelope.Route.DefinitionId ?? throw new InvalidOperationException("A correlation inbox route requires a definition."),
                 EventName.Create(envelope.EventName),
                 new EventContractVersion(envelope.EventContractVersion),
@@ -1332,7 +1354,7 @@ internal sealed class InMemoryWorkflowProvider :
         inbox.Values
             .Where(record => !string.Equals(
                 record.Envelope?.Route.Kind,
-                "definition-fanout",
+                InboxRouteKinds.DefinitionFanout,
                 StringComparison.Ordinal))
             .Concat(definitionFanoutTargets.Values);
 
@@ -1371,7 +1393,7 @@ internal sealed class InMemoryWorkflowProvider :
     private static void ValidateStartOrDeliverRoute(InboxStartOrDeliverAcceptance request)
     {
         var route = request.Acceptance.Envelope.Route;
-        if (!string.Equals(route.Kind, "start-or-deliver", StringComparison.Ordinal) ||
+        if (!string.Equals(route.Kind, InboxRouteKinds.StartOrDeliver, StringComparison.Ordinal) ||
             !Equals(route.DefinitionId, request.DefinitionId) ||
             !Equals(route.DefinitionVersion, request.DefinitionVersion) ||
             !string.Equals(route.StartIdempotencyKey, request.StartIdempotencyKey, StringComparison.Ordinal) ||

@@ -45,8 +45,8 @@ public static class DefinitionFanoutInboxCertification
         targets.Select(target => target.InstanceId).Should().BeEquivalentTo([firstInstanceId, secondInstanceId]);
         targets.Should().OnlyContain(target =>
             target.State == InboxRecordState.Received &&
-            target.Envelope!.Route.Kind == "definition-fanout" &&
-            target.Route!.Kind == "definition-fanout-target");
+            target.Envelope!.Route.Kind == InboxRouteKinds.DefinitionFanout &&
+            target.Route!.Kind == InboxRouteKinds.DefinitionFanoutTarget);
         var firstPage = await fixture.InboxStore.ListReceivedAsync(
             accepted.Record!.AcceptanceSequence,
             maxCount: 1,
@@ -115,6 +115,30 @@ public static class DefinitionFanoutInboxCertification
                 cancellationToken))
             .Should().Contain(record =>
                 record.EventId.Equals(eventId) && record.InstanceId!.Equals(secondInstanceId));
+
+        var invalidRootFailure = async () => await fixture.InboxStore.RecordHandoffFailureAsync(
+            eventId,
+            InboxRecordState.Received,
+            expectedFailureCount: 1,
+            maxFailureCount: 1,
+            retryNotBefore: DateTimeOffset.UnixEpoch,
+            code: "invalid-count",
+            detail: null,
+            cancellationToken);
+        var invalidTargetFailure = async () => await fixture.InboxStore.RecordHandoffFailureAsync(
+            new InboxRecordIdentity(eventId, secondInstanceId),
+            InboxRecordState.Received,
+            expectedFailureCount: 1,
+            maxFailureCount: 1,
+            retryNotBefore: DateTimeOffset.UnixEpoch,
+            code: "invalid-count",
+            detail: null,
+            cancellationToken);
+        var rootFailure = (await invalidRootFailure.Should().ThrowAsync<ArgumentOutOfRangeException>()).Which;
+        var targetFailure = (await invalidTargetFailure.Should().ThrowAsync<ArgumentOutOfRangeException>()).Which;
+        targetFailure.ParamName.Should().Be(rootFailure.ParamName);
+        targetFailure.Message.Should().Be(rootFailure.Message,
+            "identity dispatch must not change validation ordering or diagnostics");
 
         await fixture.ProjectionStore.ApplyAsync(
             [Projection(laterInstanceId, definitionId, new DefinitionVersion(3), WorkflowInstanceStatus.Running)],

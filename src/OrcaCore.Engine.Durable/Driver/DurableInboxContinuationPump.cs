@@ -1,6 +1,7 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Execution;
+using OrcaCore.Engine.Durable.Internal;
 
 namespace OrcaCore.Engine.Durable.Driver;
 
@@ -147,7 +148,7 @@ internal sealed class DurableInboxContinuationPump(
                 record.HandoffFailureCount,
                 maxHandoffFailuresBeforePoison,
                 timeProvider.GetUtcNow().Add(FailureBackoff(attempt)),
-                "inbox-continuation-failed",
+                DurableInboxPoisonCodes.InboxContinuationFailed,
                 $"Autonomous inbox handoff failed {attempt} times; last: {errorSummary}",
                 cancellationToken).ConfigureAwait(false);
         }
@@ -201,13 +202,13 @@ internal sealed class DurableInboxContinuationPump(
             await inboxStore.MarkPoisonedAsync(
                 new InboxRecordIdentity(record.EventId, record.InstanceId),
                 InboxRecordState.Received,
-                "inbox-envelope-missing",
+                DurableInboxPoisonCodes.InboxEnvelopeMissing,
                 "The accepted inbox record has no normalized event envelope.",
                 cancellationToken).ConfigureAwait(false);
             return false;
         }
 
-        if (string.Equals(envelope.Route.Kind, "start-or-deliver", StringComparison.Ordinal) &&
+        if (string.Equals(envelope.Route.Kind, InboxRouteKinds.StartOrDeliver, StringComparison.Ordinal) &&
             record.InstanceId is null)
         {
             var materialization = await runtime
@@ -223,7 +224,7 @@ internal sealed class DurableInboxContinuationPump(
                 await inboxStore.MarkPoisonedAsync(
                     new InboxRecordIdentity(record.EventId),
                     InboxRecordState.Received,
-                    materialization.PoisonCode ?? "start-intent-unresolvable",
+                    materialization.PoisonCode ?? DurableInboxPoisonCodes.StartIntentUnresolvable,
                     materialization.PoisonDetail,
                     cancellationToken).ConfigureAwait(false);
                 return false;
@@ -298,7 +299,7 @@ internal sealed class DurableInboxContinuationPump(
     {
         switch (envelope.Route.Kind)
         {
-            case "direct" when envelope.Route.InstanceId is { } instanceId:
+            case InboxRouteKinds.Direct when envelope.Route.InstanceId is { } instanceId:
             {
                 var target = await projectionStore.GetAsync(instanceId, cancellationToken).ConfigureAwait(false);
                 if (!target.HasValue)
@@ -306,7 +307,7 @@ internal sealed class DurableInboxContinuationPump(
                     await inboxStore.MarkPoisonedAsync(
                         new InboxRecordIdentity(record.EventId, record.InstanceId),
                         InboxRecordState.Received,
-                        "direct-target-missing",
+                        DurableInboxPoisonCodes.DirectTargetMissing,
                         "The accepted direct target is no longer present in the provider projection.",
                         cancellationToken).ConfigureAwait(false);
                     return null;
@@ -317,7 +318,7 @@ internal sealed class DurableInboxContinuationPump(
                     await inboxStore.MarkPoisonedAsync(
                         new InboxRecordIdentity(record.EventId, record.InstanceId),
                         InboxRecordState.Received,
-                        "target-terminal",
+                        DurableInboxPoisonCodes.TargetTerminal,
                         "The direct target became terminal before this accepted event matched a wait.",
                         cancellationToken).ConfigureAwait(false);
                     return null;
@@ -325,7 +326,7 @@ internal sealed class DurableInboxContinuationPump(
 
                 return target.Value;
             }
-            case "correlation" when envelope.Route.DefinitionId is { } definitionId:
+            case InboxRouteKinds.Correlation when envelope.Route.DefinitionId is { } definitionId:
             {
                 var candidates = await projectionStore.FindActiveWaitsAsync(
                     definitionId,
@@ -341,12 +342,12 @@ internal sealed class DurableInboxContinuationPump(
                 await inboxStore.MarkPoisonedAsync(
                     new InboxRecordIdentity(record.EventId, record.InstanceId),
                     InboxRecordState.Received,
-                    "ambiguous-active-wait",
+                    DurableInboxPoisonCodes.AmbiguousActiveWait,
                     "More than one persisted wait is eligible for the accepted correlation route.",
                     cancellationToken).ConfigureAwait(false);
                 return null;
             }
-            case "definition-fanout" when record.InstanceId is { } fanoutTargetId:
+            case InboxRouteKinds.DefinitionFanout when record.InstanceId is { } fanoutTargetId:
             {
                 var target = await projectionStore.GetAsync(fanoutTargetId, cancellationToken).ConfigureAwait(false);
                 if (!target.HasValue)
@@ -354,7 +355,7 @@ internal sealed class DurableInboxContinuationPump(
                     await inboxStore.MarkPoisonedAsync(
                         new InboxRecordIdentity(record.EventId, fanoutTargetId),
                         InboxRecordState.Received,
-                        "fanout-target-missing",
+                        DurableInboxPoisonCodes.FanoutTargetMissing,
                         "The instance captured by the committed fanout snapshot is no longer present.",
                         cancellationToken).ConfigureAwait(false);
                     return null;
@@ -365,7 +366,7 @@ internal sealed class DurableInboxContinuationPump(
                     await inboxStore.MarkPoisonedAsync(
                         new InboxRecordIdentity(record.EventId, fanoutTargetId),
                         InboxRecordState.Received,
-                        "fanout-target-terminal",
+                        DurableInboxPoisonCodes.FanoutTargetTerminal,
                         "The instance captured by the fanout snapshot became terminal before delivery.",
                         cancellationToken).ConfigureAwait(false);
                     return null;
@@ -373,7 +374,7 @@ internal sealed class DurableInboxContinuationPump(
 
                 return target.Value;
             }
-            case "start-or-deliver" when record.InstanceId is { } startTargetId:
+            case InboxRouteKinds.StartOrDeliver when record.InstanceId is { } startTargetId:
             {
                 var target = await projectionStore.GetAsync(startTargetId, cancellationToken).ConfigureAwait(false);
                 if (!target.HasValue)
@@ -381,7 +382,7 @@ internal sealed class DurableInboxContinuationPump(
                     await inboxStore.MarkPoisonedAsync(
                         new InboxRecordIdentity(record.EventId, startTargetId),
                         InboxRecordState.Received,
-                        "start-target-missing",
+                        DurableInboxPoisonCodes.StartTargetMissing,
                         "The materialized start target is no longer present in the provider projection.",
                         cancellationToken).ConfigureAwait(false);
                     return null;
@@ -392,7 +393,7 @@ internal sealed class DurableInboxContinuationPump(
                     await inboxStore.MarkPoisonedAsync(
                         new InboxRecordIdentity(record.EventId, startTargetId),
                         InboxRecordState.Received,
-                        "start-target-terminal",
+                        DurableInboxPoisonCodes.StartTargetTerminal,
                         "The materialized start target became terminal before delivery.",
                         cancellationToken).ConfigureAwait(false);
                     return null;

@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Reflection;
-using System.Security.Cryptography;
 using OrcaCore.Core.Internal;
+using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Engine.Durable.Outbox;
 
 namespace OrcaCore.Engine.Durable.Internal;
@@ -211,8 +211,7 @@ internal static class DurableApplicationContractFactory
 
     internal static PayloadFingerprint PayloadFingerprint<T>(T value)
     {
-        var bytes = CoreWorkflowValueCodec.Serialize(value, typeof(T));
-        var digest = Convert.ToHexString(SHA256.HashData(bytes));
+        var digest = DurableWorkflowInputFingerprint.Create(value);
         return Construct<PayloadFingerprint>([typeof(string)], digest);
     }
 

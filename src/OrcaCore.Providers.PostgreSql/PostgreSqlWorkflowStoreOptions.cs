@@ -8,6 +8,13 @@ namespace OrcaCore.Providers.PostgreSql;
 /// </summary>
 internal sealed class PostgreSqlWorkflowStoreOptions
 {
+    internal const int DefaultStartIntentConflictRetryLimit = 3;
+
+    /// <summary>
+    /// Gets or sets the maximum number of start-intent acceptance attempts after provider conflicts.
+    /// </summary>
+    public int StartIntentConflictRetryLimit { get; set; } = DefaultStartIntentConflictRetryLimit;
+
     /// <summary>
     /// Optional hook invoked inside the append transaction after all writes are staged and before commit.
     /// </summary>

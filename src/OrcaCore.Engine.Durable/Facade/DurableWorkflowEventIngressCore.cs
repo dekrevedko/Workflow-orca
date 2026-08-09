@@ -91,7 +91,7 @@ internal sealed class DurableWorkflowEventIngressCore(
                 startKey,
                 inputContentType,
                 [.. inputPayload],
-                DurableWorkflowValueFingerprint.Create(inputPayload)),
+                DurableWorkflowInputFingerprint.Create(inputPayload)),
             cancellationToken).ConfigureAwait(false);
         var ownership = MapCommit(commit, startKey);
         if (ownership is WorkflowEventAcceptanceResult.Accepted or WorkflowEventAcceptanceResult.Duplicate)
@@ -363,7 +363,7 @@ internal sealed class DurableWorkflowEventIngressCore(
         await inboxStore.MarkPoisonedAsync(
             envelope.EventId,
             InboxRecordState.Received,
-            materialization.PoisonCode ?? "start-intent-unresolvable",
+            materialization.PoisonCode ?? DurableInboxPoisonCodes.StartIntentUnresolvable,
             materialization.PoisonDetail,
             cancellationToken).ConfigureAwait(false);
     }

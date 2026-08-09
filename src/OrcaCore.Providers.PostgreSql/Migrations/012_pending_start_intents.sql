@@ -13,5 +13,4 @@ create table if not exists orcacore_pending_start_intents (
 );
 
 create index if not exists ix_orcacore_inbox_pending_start
-    on orcacore_inbox (start_idempotency_key, state, acceptance_sequence, event_id)
-    where route_kind = 'start-or-deliver';
+    on orcacore_inbox (route_kind, start_idempotency_key, state, acceptance_sequence, event_id);

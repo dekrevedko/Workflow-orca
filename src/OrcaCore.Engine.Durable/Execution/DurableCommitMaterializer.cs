@@ -3,6 +3,7 @@ using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Aggregates;
+using OrcaCore.Engine.Durable.Internal;
 
 using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
 
@@ -40,7 +41,7 @@ internal sealed class DurableCommitMaterializer
                 [
                     new InboxTargetPoisonWrite(
                         instanceId,
-                        "target-terminal",
+                        DurableInboxPoisonCodes.TargetTerminal,
                         "The direct target became terminal before this accepted event matched a wait.")
                 ]
                 : [],

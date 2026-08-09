@@ -407,6 +407,51 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
     }
 
     [Fact]
+    public async Task StartOrDeliverInbox_ProviderConflictsStopAtTheConfiguredAttemptLimit()
+    {
+        const int retryLimit = 2;
+        var attempts = 0;
+        var options = new PostgreSqlWorkflowStoreOptions
+        {
+            StartIntentConflictRetryLimit = retryLimit,
+            AfterStartOrDeliverBindingReadAsync = (_, _) =>
+            {
+                attempts++;
+                throw new PostgresException(
+                    "simulated start-intent serialization conflict",
+                    "ERROR",
+                    "ERROR",
+                    PostgresErrorCodes.SerializationFailure);
+            }
+        };
+        await using var store = new PostgreSqlWorkflowStore(
+            container.GetConnectionString(),
+            new FixedTimeProvider(MigrationAppliedAt()),
+            options);
+        await store.InitializeAsync(TestContext.Current.CancellationToken);
+        var request = StartOrDeliverAcceptance(
+            EventId.Create(Guid.CreateVersion7().ToString()),
+            DefinitionId.New(),
+            DefinitionVersion.Initial,
+            $"bounded-conflict-{Guid.CreateVersion7():N}",
+            "bounded-conflict-input"u8.ToArray(),
+            "bounded-conflict-fingerprint",
+            "bounded-conflict-event");
+
+        var act = () => store.AcceptStartOrDeliverAsync(
+            request,
+            TestContext.Current.CancellationToken);
+
+        (await act.Should().ThrowAsync<PostgresException>())
+            .Which.SqlState.Should().Be(PostgresErrorCodes.SerializationFailure);
+        attempts.Should().Be(retryLimit);
+        (await store.GetByEventIdAsync(
+                request.Acceptance.Envelope.EventId,
+                TestContext.Current.CancellationToken))
+            .HasValue.Should().BeFalse();
+    }
+
+    [Fact]
     public void ActiveWaitQuery_ImplementsTheVersionAwareProviderOverload()
     {
         var projectionStore = certificationStore ??

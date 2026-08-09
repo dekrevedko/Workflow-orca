@@ -14,6 +14,7 @@ internal static class PublicApiBaseline
     internal const int FormatVersion = 1;
     internal const string CandidateDirectoryVariable = "ORCACORE_PUBLIC_API_CANDIDATE_DIR";
     internal const string PackageFeedVariable = "ORCACORE_PUBLIC_API_PACKAGE_FEED";
+    private const int ExtractionCleanupAttemptLimit = 3;
 
     private static readonly HashSet<string> SignatureAttributeNames = new(StringComparer.Ordinal)
     {
@@ -74,7 +75,7 @@ internal static class PublicApiBaseline
         }
         finally
         {
-            Directory.Delete(extractionRoot, recursive: true);
+            DeleteExtractionRoot(extractionRoot);
         }
     }
 
@@ -225,7 +226,7 @@ internal static class PublicApiBaseline
         }
         finally
         {
-            Directory.Delete(extractionRoot, recursive: true);
+            DeleteExtractionRoot(extractionRoot);
         }
     }
 
@@ -254,7 +255,7 @@ internal static class PublicApiBaseline
         }
         finally
         {
-            Directory.Delete(extractionRoot, recursive: true);
+            DeleteExtractionRoot(extractionRoot);
         }
     }
 
@@ -283,7 +284,7 @@ internal static class PublicApiBaseline
         }
         finally
         {
-            Directory.Delete(extractionRoot, recursive: true);
+            DeleteExtractionRoot(extractionRoot);
         }
     }
 
@@ -369,6 +370,23 @@ internal static class PublicApiBaseline
         }
 
         return result;
+    }
+
+    private static void DeleteExtractionRoot(string extractionRoot)
+    {
+        for (var attempt = 1; attempt <= ExtractionCleanupAttemptLimit; attempt++)
+        {
+            try
+            {
+                Directory.Delete(extractionRoot, recursive: true);
+                return;
+            }
+            catch (UnauthorizedAccessException) when (attempt < ExtractionCleanupAttemptLimit)
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
+        }
     }
 
     private static IReadOnlyDictionary<string, string> ExtractPackageAssemblies(string feed, string extractionRoot)

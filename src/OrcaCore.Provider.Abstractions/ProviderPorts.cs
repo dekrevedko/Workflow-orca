@@ -183,6 +183,25 @@ public interface IWorkflowInboxStore
             cancellationToken);
 }
 
+/// <summary>Well-known durable inbox route discriminators.</summary>
+public static class InboxRouteKinds
+{
+    /// <summary>Routes an event to one exact workflow instance.</summary>
+    public const string Direct = "direct";
+
+    /// <summary>Routes an event through an exact definition and correlation identity.</summary>
+    public const string Correlation = "correlation";
+
+    /// <summary>Owns one definition-wide fanout envelope root.</summary>
+    public const string DefinitionFanout = "definition-fanout";
+
+    /// <summary>Owns one per-instance member of a definition-wide fanout.</summary>
+    public const string DefinitionFanoutTarget = "definition-fanout-target";
+
+    /// <summary>Owns one exact-definition start-or-deliver intent.</summary>
+    public const string StartOrDeliver = "start-or-deliver";
+}
+
 /// <summary>Identifies one serialized direct, correlation, or per-instance fanout inbox route.</summary>
 public sealed record InboxRouteKey
 {
@@ -219,14 +238,14 @@ public sealed record InboxRouteKey
         EventName eventName,
         EventContractVersion eventContractVersion,
         CorrelationId correlationId) =>
-        new("direct", instanceId, null, eventName, eventContractVersion, correlationId);
+        new(InboxRouteKinds.Direct, instanceId, null, eventName, eventContractVersion, correlationId);
 
     public static InboxRouteKey Correlation(
         DefinitionId definitionId,
         EventName eventName,
         EventContractVersion eventContractVersion,
         CorrelationId correlationId) =>
-        new("correlation", null, definitionId, eventName, eventContractVersion, correlationId);
+        new(InboxRouteKinds.Correlation, null, definitionId, eventName, eventContractVersion, correlationId);
 
     public static InboxRouteKey DefinitionFanoutTarget(
         InstanceId instanceId,
@@ -234,7 +253,13 @@ public sealed record InboxRouteKey
         EventName eventName,
         EventContractVersion eventContractVersion,
         CorrelationId correlationId) =>
-        new("definition-fanout-target", instanceId, definitionId, eventName, eventContractVersion, correlationId);
+        new(
+            InboxRouteKinds.DefinitionFanoutTarget,
+            instanceId,
+            definitionId,
+            eventName,
+            eventContractVersion,
+            correlationId);
 }
 
 /// <summary>Requests durable ownership of one normalized inbound envelope.</summary>

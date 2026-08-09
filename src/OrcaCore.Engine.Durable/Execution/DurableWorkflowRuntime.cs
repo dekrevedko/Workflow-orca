@@ -8,6 +8,7 @@ using OrcaCore.Core.Definitions;
 using OrcaCore.Internal;
 using OrcaCore.Engine.Durable.Definitions;
 using OrcaCore.Engine.Durable.Driver;
+using OrcaCore.Engine.Durable.Internal;
 
 namespace OrcaCore.Engine.Durable.Execution;
 
@@ -241,7 +242,7 @@ internal sealed class DurableWorkflowRuntime
     {
         ArgumentNullException.ThrowIfNull(envelope);
         var route = envelope.Route;
-        if (!string.Equals(route.Kind, "start-or-deliver", StringComparison.Ordinal) ||
+        if (!string.Equals(route.Kind, InboxRouteKinds.StartOrDeliver, StringComparison.Ordinal) ||
             route.DefinitionId is not { } definitionId ||
             route.DefinitionVersion is not { } definitionVersion ||
             string.IsNullOrWhiteSpace(route.StartIdempotencyKey) ||
@@ -249,7 +250,7 @@ internal sealed class DurableWorkflowRuntime
             route.WorkflowInputPayload is null)
         {
             return PendingStartMaterializationResult.Unresolvable(
-                "start-intent-invalid",
+                DurableInboxPoisonCodes.StartIntentInvalid,
                 "The accepted start intent is missing its exact definition or fixed-codec input binding.");
         }
 
@@ -258,12 +259,12 @@ internal sealed class DurableWorkflowRuntime
         {
             return definitions.OwnsDefinition(definitionId)
                 ? PendingStartMaterializationResult.Unresolvable(
-                    "start-definition-version-unavailable",
+                    DurableInboxPoisonCodes.StartDefinitionVersionUnavailable,
                     $"Definition '{definitionId}' version '{definitionVersion}' is not registered on its owning host.")
                 : PendingStartMaterializationResult.NotOwned;
         }
 
-        var inputFingerprint = DurableWorkflowValueFingerprint.Create(route.WorkflowInputPayload);
+        var inputFingerprint = DurableWorkflowInputFingerprint.Create(route.WorkflowInputPayload);
         var result = await StartOrGetSerializedCoreAsync(
             route.StartIdempotencyKey,
             definitionId,
@@ -275,14 +276,14 @@ internal sealed class DurableWorkflowRuntime
         if (result.ConflictingBinding is { } conflict)
         {
             return PendingStartMaterializationResult.Unresolvable(
-                "start-binding-incompatible",
+                DurableInboxPoisonCodes.StartBindingIncompatible,
                 $"The accepted start intent conflicts with instance '{conflict.InstanceId}'.");
         }
 
         if (result.ConflictingPendingIntent is not null)
         {
             return PendingStartMaterializationResult.Unresolvable(
-                "start-binding-incompatible",
+                DurableInboxPoisonCodes.StartBindingIncompatible,
                 "The accepted start intent conflicts with the durable pending-start binding.");
         }
 
@@ -363,7 +364,7 @@ internal sealed class DurableWorkflowRuntime
             OccurredAt = occurredAt,
             Route = new DurableEventRouteEnvelope
             {
-                Kind = "direct",
+                Kind = InboxRouteKinds.Direct,
                 InstanceId = instanceId
             }
         };

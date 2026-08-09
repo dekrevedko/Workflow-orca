@@ -128,7 +128,22 @@ depend outward on `OrcaCore.Dag.Hosting`, but no OrcaCore package depends on or
   (`IWorkflowEventStore`); fakes in TestSupport are `Fake<PortName>`.
 - No abbreviations in public API (`definition`, not `def`).
 
-## 5. Errors and logging
+## 5. Semantic values
+
+- Every domain-significant route/discriminator/state/error/storage key, limit, retry count,
+  timeout, version, and policy value has exactly one named owner: an enum member, value object,
+  named constant, or validated options member. Product code and provider SQL bind to that owner;
+  they do not repeat the representation as an unexplained inline literal.
+- Keep ownership at the narrowest shared boundary that consumes the value. Public constants are
+  appropriate only when independently shipped packages must share a persisted representation;
+  otherwise prefer an internal owner. Schema indexes should use general key columns instead of
+  embedding a duplicated discriminator solely as a partial-index predicate.
+- Intrinsic language and algorithmic values remain local when their meaning is self-evident:
+  `null`, booleans, empty collections, zero/one used for indexing or arithmetic identity, and
+  one-off test fixture data are not domain policy. Name them when changing the value would alter
+  a workflow, provider, wire, storage, retry, timeout, capacity, or compatibility contract.
+
+## 6. Errors and logging
 
 - Exception taxonomy (Abstractions): `OrcaCoreException` base →
   `WorkflowDefinitionException` (build/validation), `WorkflowConcurrencyException`,
@@ -138,14 +153,14 @@ depend outward on `OrcaCore.Dag.Hosting`, but no OrcaCore package depends on or
 - Logging via `ILogger<T>` abstractions with source-generated `LoggerMessage` definitions;
   no string interpolation in log calls; no logging in Abstractions.
 
-## 6. Comments & docs
+## 7. Comments & docs
 
 - XML docs on all public contracts: state the *contract* (guarantees, failure modes,
   threading), not the implementation.
 - Inline comments only for non-obvious constraints ("commit must precede mailbox removal —
   EV-032"), citing spec IDs. No narrative/change-log comments.
 
-## 7. Git hygiene (per task)
+## 8. Git hygiene (per task)
 
 - One task = one commit (or a small series); message: `T1-04: builder validation
   accumulates errors (CR-002)` — task id first, spec IDs in parentheses.

@@ -1,5 +1,6 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 
 namespace OrcaCore.Engine.Durable.Execution;
@@ -98,9 +99,18 @@ internal sealed class DurableStartService(DurableCommandProcessor commandProcess
         StartOrGetRequest request,
         CancellationToken cancellationToken)
     {
-        var pending = await commandProcessor
-            .GetStartIntentAsync(request.IdempotencyKey, cancellationToken)
-            .ConfigureAwait(false);
+        Option<InboxStartIntentRecord> pending;
+        try
+        {
+            pending = await commandProcessor
+                .GetStartIntentAsync(request.IdempotencyKey, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
+
         if (!pending.HasValue)
         {
             return null;

@@ -26,6 +26,10 @@ internal sealed class PostgreSqlWorkflowStore :
     IAsyncDisposable
 {
     private const long StartIdempotencyAdvisoryLockHashSeed = 0;
+    private const string DirectRouteStoragePrefix = "direct|";
+    private const string CorrelationRouteStoragePrefix = "correlation|";
+    private const string DefinitionFanoutTargetRouteStoragePrefix = "definition-fanout-target|";
+    private const string DirectTargetStoragePrefix = "direct-target|";
     private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
     private static readonly global::OrcaCore.WorkflowInstanceStatus[] TerminalStatuses =
     [
@@ -77,6 +81,7 @@ internal sealed class PostgreSqlWorkflowStore :
         this.ownsDataSource = ownsDataSource;
         this.timeProvider = timeProvider ?? TimeProvider.System;
         this.options = options ?? new PostgreSqlWorkflowStoreOptions();
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(this.options.StartIntentConflictRetryLimit);
         projectionStore = new PostgreSqlProjectionStore(dataSource);
         timerScheduler = new PostgreSqlTimerScheduler(dataSource);
         retentionStore = new PostgreSqlWorkflowRetentionStore(dataSource);
@@ -414,7 +419,7 @@ internal sealed class PostgreSqlWorkflowStore :
         try
         {
             var routeStorageKey = InboxRouteStorageKey(route);
-            var targetStorageKey = route.Kind == "direct"
+            var targetStorageKey = route.Kind == InboxRouteKinds.Direct
                 ? InboxTargetStorageKey(route.InstanceId ?? throw new InvalidOperationException(
                     "A direct inbox route requires an instance."))
                 : null;
@@ -526,7 +531,7 @@ internal sealed class PostgreSqlWorkflowStore :
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentOutOfRangeException.ThrowIfNegative(request.MaximumTargetCount);
-        if (request.Acceptance.Envelope.Route.Kind != "definition-fanout" ||
+        if (request.Acceptance.Envelope.Route.Kind != InboxRouteKinds.DefinitionFanout ||
             !Equals(request.Acceptance.Envelope.Route.DefinitionId, request.DefinitionId))
         {
             throw new ArgumentException(
@@ -681,8 +686,14 @@ internal sealed class PostgreSqlWorkflowStore :
     }
 
     /// <inheritdoc />
-    public async Task<InboxAcceptanceCommitResult> AcceptStartOrDeliverAsync(
+    public Task<InboxAcceptanceCommitResult> AcceptStartOrDeliverAsync(
         InboxStartOrDeliverAcceptance request,
+        CancellationToken cancellationToken) =>
+        AcceptStartOrDeliverCoreAsync(request, attempt: 1, cancellationToken);
+
+    private async Task<InboxAcceptanceCommitResult> AcceptStartOrDeliverCoreAsync(
+        InboxStartOrDeliverAcceptance request,
+        int attempt,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -874,7 +885,13 @@ internal sealed class PostgreSqlWorkflowStore :
                 return ClassifyInboxAcceptance(racedEvent.Value, acceptance.EnvelopeFingerprint);
             }
 
-            return await AcceptStartOrDeliverAsync(request, cancellationToken).ConfigureAwait(false);
+            if (attempt >= options.StartIntentConflictRetryLimit)
+            {
+                throw;
+            }
+
+            return await AcceptStartOrDeliverCoreAsync(request, attempt + 1, cancellationToken)
+                .ConfigureAwait(false);
         }
     }
 
@@ -976,7 +993,7 @@ internal sealed class PostgreSqlWorkflowStore :
                 select event_id, instance_id, acceptance_sequence
                 from orcacore_inbox
                 where state = @state
-                  and route_kind is distinct from 'definition-fanout'
+                  and route_kind is distinct from @definition_fanout_route_kind
                   and acceptance_sequence > @after_acceptance_sequence
                 union all
                 select event_id, instance_id, acceptance_sequence
@@ -989,6 +1006,9 @@ internal sealed class PostgreSqlWorkflowStore :
             """,
             connection);
         command.Parameters.AddWithValue("state", InboxRecordState.Received.ToString());
+        command.Parameters.AddWithValue(
+            "definition_fanout_route_kind",
+            InboxRouteKinds.DefinitionFanout);
         command.Parameters.AddWithValue("after_acceptance_sequence", afterAcceptanceSequence);
         command.Parameters.AddWithValue("max_count", maxCount);
         var identities = new List<InboxRecordIdentity>(maxCount);
@@ -1102,7 +1122,7 @@ internal sealed class PostgreSqlWorkflowStore :
             .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
             .ConfigureAwait(false);
         if (existing.Value.Envelope?.Route is
-                { Kind: "start-or-deliver", StartIdempotencyKey: { } startKey })
+                { Kind: InboxRouteKinds.StartOrDeliver, StartIdempotencyKey: { } startKey })
         {
             var intent = await GetStartIntentAsync(
                 connection,
@@ -1201,7 +1221,13 @@ internal sealed class PostgreSqlWorkflowStore :
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(recordIdentity);
-        if (recordIdentity.TargetInstanceId is null)
+        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        var identity = await ResolveInboxIdentityAsync(recordIdentity, cancellationToken).ConfigureAwait(false);
+        if (identity.Kind == InboxIdentityKind.Missing)
+        {
+            return;
+        }
+        if (identity.Kind == InboxIdentityKind.Root)
         {
             await MarkPoisonedAsync(
                 recordIdentity.EventId,
@@ -1212,25 +1238,8 @@ internal sealed class PostgreSqlWorkflowStore :
             return;
         }
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(code);
-        var existing = await GetAsync(
-            recordIdentity.TargetInstanceId,
-            recordIdentity.EventId,
-            cancellationToken).ConfigureAwait(false);
-        if (!existing.HasValue || existing.Value.Route is not { } route)
-        {
-            return;
-        }
-        if (route.Kind != "definition-fanout-target")
-        {
-            await MarkPoisonedAsync(
-                recordIdentity.EventId,
-                expectedState,
-                code,
-                detail,
-                cancellationToken).ConfigureAwait(false);
-            return;
-        }
+        var route = identity.Route ?? throw new InvalidOperationException(
+            "A fanout-target identity resolution requires an inbox route.");
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var transaction = await connection
@@ -1253,7 +1262,7 @@ internal sealed class PostgreSqlWorkflowStore :
         command.Parameters.AddWithValue("poison_code", code);
         command.Parameters.Add("poison_detail", NpgsqlDbType.Text).Value = (object?)detail ?? DBNull.Value;
         command.Parameters.AddWithValue("event_id", recordIdentity.EventId.Value);
-        command.Parameters.AddWithValue("instance_id", recordIdentity.TargetInstanceId.Value);
+        command.Parameters.AddWithValue("instance_id", recordIdentity.TargetInstanceId!.Value);
         command.Parameters.AddWithValue("expected_state", expectedState.ToString());
         if (await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) != 0)
         {
@@ -1280,16 +1289,7 @@ internal sealed class PostgreSqlWorkflowStore :
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(eventId);
-        ArgumentOutOfRangeException.ThrowIfNegative(expectedFailureCount);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFailureCount);
-        if (expectedFailureCount >= maxFailureCount)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(expectedFailureCount),
-                expectedFailureCount,
-                "The observed failure count must be below the terminal failure count.");
-        }
-        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        ValidateHandoffFailureArguments(expectedFailureCount, maxFailureCount, code);
 
         var existing = await GetByEventIdAsync(eventId, cancellationToken).ConfigureAwait(false);
         if (!existing.HasValue)
@@ -1367,7 +1367,13 @@ internal sealed class PostgreSqlWorkflowStore :
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(recordIdentity);
-        if (recordIdentity.TargetInstanceId is null)
+        ValidateHandoffFailureArguments(expectedFailureCount, maxFailureCount, code);
+        var identity = await ResolveInboxIdentityAsync(recordIdentity, cancellationToken).ConfigureAwait(false);
+        if (identity.Kind == InboxIdentityKind.Missing)
+        {
+            return;
+        }
+        if (identity.Kind == InboxIdentityKind.Root)
         {
             await RecordHandoffFailureAsync(
                 recordIdentity.EventId,
@@ -1381,35 +1387,8 @@ internal sealed class PostgreSqlWorkflowStore :
             return;
         }
 
-        ArgumentOutOfRangeException.ThrowIfNegative(expectedFailureCount);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFailureCount);
-        if (expectedFailureCount >= maxFailureCount)
-        {
-            throw new ArgumentOutOfRangeException(nameof(expectedFailureCount));
-        }
-
-        ArgumentException.ThrowIfNullOrWhiteSpace(code);
-        var existing = await GetAsync(
-            recordIdentity.TargetInstanceId,
-            recordIdentity.EventId,
-            cancellationToken).ConfigureAwait(false);
-        if (!existing.HasValue || existing.Value.Route is not { } route)
-        {
-            return;
-        }
-        if (route.Kind != "definition-fanout-target")
-        {
-            await RecordHandoffFailureAsync(
-                recordIdentity.EventId,
-                expectedState,
-                expectedFailureCount,
-                maxFailureCount,
-                retryNotBefore,
-                code,
-                detail,
-                cancellationToken).ConfigureAwait(false);
-            return;
-        }
+        var route = identity.Route ?? throw new InvalidOperationException(
+            "A fanout-target identity resolution requires an inbox route.");
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var transaction = await connection
@@ -1450,7 +1429,7 @@ internal sealed class PostgreSqlWorkflowStore :
         command.Parameters.AddWithValue("poison_code", code);
         command.Parameters.Add("poison_detail", NpgsqlDbType.Text).Value = (object?)detail ?? DBNull.Value;
         command.Parameters.AddWithValue("event_id", recordIdentity.EventId.Value);
-        command.Parameters.AddWithValue("instance_id", recordIdentity.TargetInstanceId.Value);
+        command.Parameters.AddWithValue("instance_id", recordIdentity.TargetInstanceId!.Value);
         command.Parameters.AddWithValue("expected_state", expectedState.ToString());
         command.Parameters.AddWithValue("expected_failure_count", expectedFailureCount);
         var resultingState = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) as string;
@@ -1465,6 +1444,56 @@ internal sealed class PostgreSqlWorkflowStore :
         }
 
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<InboxIdentityResolution> ResolveInboxIdentityAsync(
+        InboxRecordIdentity recordIdentity,
+        CancellationToken cancellationToken)
+    {
+        if (recordIdentity.TargetInstanceId is null)
+        {
+            return new InboxIdentityResolution(InboxIdentityKind.Root, Route: null);
+        }
+
+        var existing = await GetAsync(
+            recordIdentity.TargetInstanceId,
+            recordIdentity.EventId,
+            cancellationToken).ConfigureAwait(false);
+        if (!existing.HasValue || existing.Value.Route is not { } route)
+        {
+            return new InboxIdentityResolution(InboxIdentityKind.Missing, Route: null);
+        }
+
+        return route.Kind == InboxRouteKinds.DefinitionFanoutTarget
+            ? new InboxIdentityResolution(InboxIdentityKind.FanoutTarget, route)
+            : new InboxIdentityResolution(InboxIdentityKind.Root, Route: null);
+    }
+
+    private static void ValidateHandoffFailureArguments(
+        int expectedFailureCount,
+        int maxFailureCount,
+        string code)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(expectedFailureCount);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFailureCount);
+        if (expectedFailureCount >= maxFailureCount)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(expectedFailureCount),
+                expectedFailureCount,
+                "The observed failure count must be below the terminal failure count.");
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+    }
+
+    private sealed record InboxIdentityResolution(InboxIdentityKind Kind, InboxRouteKey? Route);
+
+    private enum InboxIdentityKind
+    {
+        Missing,
+        Root,
+        FanoutTarget
     }
 
     /// <inheritdoc />
@@ -1629,8 +1658,8 @@ internal sealed class PostgreSqlWorkflowStore :
         {
             Envelope = envelope,
             Route = envelope is null ||
-                envelope.Route.Kind == "definition-fanout" ||
-                (envelope.Route.Kind == "start-or-deliver" && instanceId is null)
+                envelope.Route.Kind == InboxRouteKinds.DefinitionFanout ||
+                (envelope.Route.Kind == InboxRouteKinds.StartOrDeliver && instanceId is null)
                 ? null
                 : CreateInboxRoute(envelope, instanceId),
             AcceptanceSequence = reader.IsDBNull(17) ? 0 : reader.GetInt64(17),
@@ -2277,7 +2306,7 @@ internal sealed class PostgreSqlWorkflowStore :
                     end,
                         instance_id = coalesce(@target_instance_id, instance_id)
                     where event_id = @event_id
-                      and route_kind is distinct from 'definition-fanout'
+                      and route_kind is distinct from @definition_fanout_route_kind
                       and (instance_id = @instance_id or
                            (instance_id is null and @target_instance_id = @instance_id))
                       and (@expected_state is null or state = @expected_state);
@@ -2288,6 +2317,9 @@ internal sealed class PostgreSqlWorkflowStore :
                 update.Parameters.AddWithValue("event_id", operation.EventId.Value);
                 update.Parameters.AddWithValue("state", operation.State.ToString());
                 update.Parameters.AddWithValue("applied", InboxRecordState.Applied.ToString());
+                update.Parameters.AddWithValue(
+                    "definition_fanout_route_kind",
+                    InboxRouteKinds.DefinitionFanout);
                 update.Parameters.Add("target_instance_id", NpgsqlDbType.Uuid).Value =
                     (object?)operation.TargetInstanceId?.Value ?? DBNull.Value;
                 update.Parameters.Add("expected_state", NpgsqlDbType.Text).Value =
@@ -2311,7 +2343,7 @@ internal sealed class PostgreSqlWorkflowStore :
                 end,
                     instance_id = coalesce(@target_instance_id, instance_id)
                 where event_id = @event_id
-                  and route_kind is distinct from 'definition-fanout'
+                  and route_kind is distinct from @definition_fanout_route_kind
                   and envelope_fingerprint = @envelope_fingerprint;
                 """,
                 connection,
@@ -2322,6 +2354,9 @@ internal sealed class PostgreSqlWorkflowStore :
                 transition.Parameters.AddWithValue("envelope_fingerprint", operation.EnvelopeFingerprint);
                 transition.Parameters.AddWithValue("state", operation.State.ToString());
                 transition.Parameters.AddWithValue("applied", InboxRecordState.Applied.ToString());
+                transition.Parameters.AddWithValue(
+                    "definition_fanout_route_kind",
+                    InboxRouteKinds.DefinitionFanout);
                 transition.Parameters.Add("target_instance_id", NpgsqlDbType.Uuid).Value =
                     (object?)operation.TargetInstanceId?.Value ?? DBNull.Value;
                 if (await transition.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) == 1)
@@ -2426,7 +2461,7 @@ internal sealed class PostgreSqlWorkflowStore :
     private static void ValidateStartOrDeliverRoute(InboxStartOrDeliverAcceptance request)
     {
         var route = request.Acceptance.Envelope.Route;
-        if (!string.Equals(route.Kind, "start-or-deliver", StringComparison.Ordinal) ||
+        if (!string.Equals(route.Kind, InboxRouteKinds.StartOrDeliver, StringComparison.Ordinal) ||
             !Equals(route.DefinitionId, request.DefinitionId) ||
             !Equals(route.DefinitionVersion, request.DefinitionVersion) ||
             !string.Equals(route.StartIdempotencyKey, request.StartIdempotencyKey, StringComparison.Ordinal) ||
@@ -2714,7 +2749,7 @@ internal sealed class PostgreSqlWorkflowStore :
             select event_id, event_name, event_contract_version, correlation_id
             from orcacore_inbox
             where start_idempotency_key = @start_idempotency_key
-              and route_kind = 'start-or-deliver'
+              and route_kind = @start_or_deliver_route_kind
               and state = @state
               and instance_id is null
             order by acceptance_sequence, event_id
@@ -2724,6 +2759,9 @@ internal sealed class PostgreSqlWorkflowStore :
             transaction))
         {
             load.Parameters.AddWithValue("start_idempotency_key", started.IdempotencyKey);
+            load.Parameters.AddWithValue(
+                "start_or_deliver_route_kind",
+                InboxRouteKinds.StartOrDeliver);
             load.Parameters.AddWithValue("state", InboxRecordState.Received.ToString());
             await using var reader = await load.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -2804,17 +2842,17 @@ internal sealed class PostgreSqlWorkflowStore :
         InstanceId? persistedInstanceId = null) =>
         envelope.Route.Kind switch
         {
-            "direct" => InboxRouteKey.Direct(
+            InboxRouteKinds.Direct => InboxRouteKey.Direct(
                 envelope.Route.InstanceId ?? throw new InvalidOperationException("A direct inbox route requires an instance."),
                 EventName.Create(envelope.EventName),
                 new EventContractVersion(envelope.EventContractVersion),
                 envelope.CorrelationId),
-            "correlation" => InboxRouteKey.Correlation(
+            InboxRouteKinds.Correlation => InboxRouteKey.Correlation(
                 envelope.Route.DefinitionId ?? throw new InvalidOperationException("A correlation inbox route requires a definition."),
                 EventName.Create(envelope.EventName),
                 new EventContractVersion(envelope.EventContractVersion),
                 envelope.CorrelationId),
-            "start-or-deliver" when persistedInstanceId is not null => InboxRouteKey.Direct(
+            InboxRouteKinds.StartOrDeliver when persistedInstanceId is not null => InboxRouteKey.Direct(
                 persistedInstanceId,
                 EventName.Create(envelope.EventName),
                 new EventContractVersion(envelope.EventContractVersion),
@@ -2827,19 +2865,21 @@ internal sealed class PostgreSqlWorkflowStore :
     {
         static string Encode(string value) => Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
 
-        return route.Kind == "direct"
-            ? $"direct|{route.InstanceId!.Value:D}|{route.EventContractVersion.Value}|" +
+        return route.Kind == InboxRouteKinds.Direct
+            ? $"{DirectRouteStoragePrefix}{route.InstanceId!.Value:D}|{route.EventContractVersion.Value}|" +
               $"{Encode(route.EventName.Value)}|{Encode(route.CorrelationId.Value)}"
-            : route.Kind == "correlation"
-                ? $"correlation|{route.DefinitionId!.Value:D}|{route.EventContractVersion.Value}|" +
+            : route.Kind == InboxRouteKinds.Correlation
+                ? $"{CorrelationRouteStoragePrefix}{route.DefinitionId!.Value:D}|" +
+                  $"{route.EventContractVersion.Value}|" +
                   $"{Encode(route.EventName.Value)}|{Encode(route.CorrelationId.Value)}"
-                : $"definition-fanout-target|{route.InstanceId!.Value:D}|{route.DefinitionId!.Value:D}|" +
+                : $"{DefinitionFanoutTargetRouteStoragePrefix}{route.InstanceId!.Value:D}|" +
+                  $"{route.DefinitionId!.Value:D}|" +
                   $"{route.EventContractVersion.Value}|{Encode(route.EventName.Value)}|" +
                   Encode(route.CorrelationId.Value);
     }
 
     private static string InboxTargetStorageKey(InstanceId instanceId) =>
-        $"direct-target|{instanceId.Value:D}";
+        $"{DirectTargetStoragePrefix}{instanceId.Value:D}";
 
     private static Task<long> LockInboxRouteAsync(
         NpgsqlConnection connection,
@@ -2957,13 +2997,14 @@ internal sealed class PostgreSqlWorkflowStore :
                     poison_code = @poison_code,
                     poison_detail = @poison_detail
                 where state = @received
-                  and route_kind = 'direct'
+                  and route_kind = @direct_route_kind
                   and route_instance_id = @instance_id;
                 """,
                 connection,
                 transaction);
             command.Parameters.AddWithValue("poisoned", InboxRecordState.Poisoned.ToString());
             command.Parameters.AddWithValue("received", InboxRecordState.Received.ToString());
+            command.Parameters.AddWithValue("direct_route_kind", InboxRouteKinds.Direct);
             command.Parameters.AddWithValue("poison_code", operation.Code);
             command.Parameters.Add("poison_detail", NpgsqlDbType.Text).Value =
                 (object?)operation.Detail ?? DBNull.Value;

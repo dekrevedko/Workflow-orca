@@ -5,6 +5,7 @@ using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Aggregates;
 using OrcaCore.Engine.Durable.Execution;
+using OrcaCore.Engine.Durable.Internal;
 
 namespace OrcaCore.Engine.Durable.Driver;
 
@@ -250,7 +251,7 @@ internal sealed class DurableContinuationPump(
             await inboxStore.MarkPoisonedAsync(
                 new InboxRecordIdentity(eventId, instanceId),
                 InboxRecordState.Applied,
-                "definition-binding-unavailable",
+                DurableInboxPoisonCodes.DefinitionBindingUnavailable,
                 aggregate.ErrorSummary,
                 cancellationToken).ConfigureAwait(false);
         }

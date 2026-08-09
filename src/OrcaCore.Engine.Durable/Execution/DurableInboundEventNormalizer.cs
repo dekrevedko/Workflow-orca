@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
-using System.Security.Cryptography;
 using OrcaCore.Abstractions.Durable;
+using OrcaCore.Abstractions.Providers;
 using OrcaCore.Core.Internal;
 
 namespace OrcaCore.Engine.Durable.Execution;
@@ -51,17 +51,17 @@ internal static class DurableInboundEventNormalizer
         {
             WorkflowEventRoute.Direct direct => new DurableEventRouteEnvelope
             {
-                Kind = "direct",
+                Kind = InboxRouteKinds.Direct,
                 InstanceId = direct.InstanceId
             },
             WorkflowEventRoute.Correlation correlation => new DurableEventRouteEnvelope
             {
-                Kind = "correlation",
+                Kind = InboxRouteKinds.Correlation,
                 DefinitionId = correlation.DefinitionId
             },
             WorkflowEventRoute.DefinitionFanout fanout => new DurableEventRouteEnvelope
             {
-                Kind = "definition-fanout",
+                Kind = InboxRouteKinds.DefinitionFanout,
                 DefinitionId = fanout.DefinitionId
             },
             _ => NormalizeStartOrDeliver(route)
@@ -96,7 +96,7 @@ internal static class DurableInboundEventNormalizer
             var startOrDeliver = (WorkflowEventRoute.StartOrDeliver<TInput>)route;
             return new DurableEventRouteEnvelope
             {
-                Kind = "start-or-deliver",
+                Kind = InboxRouteKinds.StartOrDeliver,
                 DefinitionId = startOrDeliver.DefinitionId,
                 DefinitionVersion = startOrDeliver.DefinitionVersion,
                 StartIdempotencyKey = startOrDeliver.StartIdempotencyKey.Value,
@@ -112,9 +112,3 @@ internal static class DurableInboundEventNormalizer
 internal sealed record NormalizedDurableInboundEvent(
     DurableEventEnvelope Envelope,
     string Fingerprint);
-
-internal static class DurableWorkflowValueFingerprint
-{
-    internal static string Create(ReadOnlySpan<byte> payload) =>
-        Convert.ToHexString(SHA256.HashData(payload));
-}
