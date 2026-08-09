@@ -747,6 +747,43 @@ public abstract class EventStoreCertificationTests
     }
 
     [Fact]
+    public async Task OutboxPermanentFailure_PersistsImmutablePoisonCodeAndDetail()
+    {
+        var fixture = CreateFixture();
+        var outboxRecordId = OutboxRecordId.New();
+        await fixture.EventStore.AppendAsync(
+            Batch(
+                new WorkflowStreamId(InstanceId.Parse(Guid.CreateVersion7().ToString())),
+                StreamVersion.Empty,
+                outboxRecordId: outboxRecordId),
+            TestContext.Current.CancellationToken);
+        (await fixture.OutboxStore.ClaimAsync(1, TestContext.Current.CancellationToken))
+            .Should().ContainSingle();
+
+        await fixture.OutboxStore.MarkPoisonedAsync(
+            outboxRecordId,
+            "destination-rejected",
+            "topic is disabled",
+            TestContext.Current.CancellationToken);
+        await fixture.OutboxStore.MarkAsync(
+            outboxRecordId,
+            OutboxRecordState.Retryable,
+            TestContext.Current.CancellationToken);
+        await fixture.OutboxStore.MarkPoisonedAsync(
+            outboxRecordId,
+            "replacement-code",
+            "replacement-detail",
+            TestContext.Current.CancellationToken);
+        var snapshot = await fixture.OutboxStore.GetDispatchSnapshotAsync(
+            outboxRecordId,
+            TestContext.Current.CancellationToken);
+
+        snapshot.Value.State.Should().Be(OutboxRecordState.Poisoned);
+        snapshot.Value.PoisonCode.Should().Be("destination-rejected");
+        snapshot.Value.PoisonDetail.Should().Be("topic is disabled");
+    }
+
+    [Fact]
     [Trait("AC", "DU-032")]
     public async Task ClaimAsync_LeaseExpires_RecordCanBeClaimedAgain()
     {

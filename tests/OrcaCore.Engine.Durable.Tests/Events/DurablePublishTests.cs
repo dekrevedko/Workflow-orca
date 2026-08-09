@@ -1,7 +1,7 @@
-using System.Text.Json;
 using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Definitions;
 using OrcaCore.Engine.Durable.Execution;
@@ -55,14 +55,19 @@ public sealed class DurablePublishTests
         outbound.EventName.Should().Be(eventContract.EventName.Value);
         outbound.EventContractVersion.Should().Be(2);
         outbound.PayloadTypeName.Should().Be(typeof(PublishedPayload).AssemblyQualifiedName);
+        outbound.PayloadSchemaIdentity.Should().Be(typeof(PublishedPayload).AssemblyQualifiedName);
+        outbound.EventId.Should().NotBeNullOrWhiteSpace();
+        Guid.TryParse(outbound.EventId, out var eventId).Should().BeTrue();
+        eventId.Should().NotBe(Guid.Empty);
         outbound.CorrelationId.Should().Be(correlationId.Value);
         outbound.CausationEventId.Should().BeNull();
         outbound.OccurredAt.Should().Be(PublishedAt);
         outbound.OriginInstanceId.Should().Be(started.InstanceId.Value.ToString());
         outbound.OriginDefinitionId.Should().Be(definition.DefinitionId.Value.ToString());
         outbound.OriginDefinitionVersion.Should().Be(3);
-        JsonSerializer.Deserialize<PublishedPayload>(outbound.Payload)
-            .Should().Be(new PublishedPayload("accepted"));
+        var applicationEvent = global::OrcaCore.Engine.Durable.Internal
+            .DurableApplicationContractFactory.WorkflowOutboundEvent(outbound);
+        applicationEvent.GetPayload(eventContract).Should().Be(new PublishedPayload("accepted"));
     }
 
     [Fact]
@@ -158,8 +163,89 @@ public sealed class DurablePublishTests
 
         var projection = await store.GetAsync(started.InstanceId, TestContext.Current.CancellationToken);
         projection.Value.Status.Should().Be(WorkflowInstanceStatus.Completed);
-        DurableWorkflowOutboundEventCodec.Decode(claimed.Should().ContainSingle().Subject.Payload)
-            .CausationEventId.Should().BeNull();
+        var outbound = DurableWorkflowOutboundEventCodec.Decode(claimed.Should().ContainSingle().Subject.Payload);
+        outbound.EventName.Should().Be(outboundContract.EventName.Value);
+        outbound.EventContractVersion.Should().Be(outboundContract.Version.Value);
+        outbound.CorrelationId.Should().Be(correlationId.Value);
+        outbound.CausationEventId.Should().BeNull();
+    }
+
+    [Fact]
+    public void DefinitionExceptionFactory_ReturnsTheApprovedDiagnosticException()
+    {
+        var exception = global::OrcaCore.Engine.Durable.Internal
+            .DurableApplicationContractFactory.DefinitionException("publish definition is incomplete");
+
+        exception.Should().BeOfType<WorkflowDefinitionException>();
+        exception.Diagnostics.Should().ContainSingle()
+            .Which.Message.Should().Be("publish definition is incomplete");
+    }
+
+    [Theory]
+    [InlineData(PublishCommitFailure.BeforeApply)]
+    [InlineData(PublishCommitFailure.AfterApply)]
+    public async Task HostFailureAroundPublishCommit_RecoversNeitherOrBothWithoutDuplicateOutboundRecords(
+        PublishCommitFailure failure)
+    {
+        var store = new InMemoryWorkflowProvider();
+        var faultingStore = new PublishCommitFaultStore(store, failure);
+        var eventContract = WorkflowEventContract.Create(
+            EventName.Create("publish-crash-boundary"),
+            EventContractVersion.Initial);
+        var definition = Workflow.Durable<PublishState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(value => new PublishState(value))
+            .Publish(eventContract, state => CorrelationId.Create(state.Value.Value))
+            .End()
+            .Build();
+        var runtime = CreateRuntime(faultingStore, store, new FixedTimeProvider(PublishedAt));
+        runtime.RegisterDefinition(definition);
+
+        Func<Task> failAroundCommit = async () => await runtime.StartOrGetAsync<string, PublishState>(
+            $"publish-crash-{failure}",
+            definition.DefinitionId,
+            definition.DefinitionVersion,
+            "accepted",
+            TestContext.Current.CancellationToken);
+
+        await failAroundCommit.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("simulated host failure around publish commit");
+        var started = await store.GetStartedAsync(
+            $"publish-crash-{failure}",
+            TestContext.Current.CancellationToken);
+        var committedOutboxState = await store.GetStateAsync(
+            faultingStore.ObservedOutboxRecordId!.Value,
+            TestContext.Current.CancellationToken);
+        if (failure == PublishCommitFailure.BeforeApply)
+        {
+            committedOutboxState.HasValue.Should().BeFalse();
+        }
+        else
+        {
+            committedOutboxState.Value.Should().Be(OutboxRecordState.Pending);
+        }
+
+        var recoveredRuntime = CreateRuntime(store, new FixedTimeProvider(PublishedAt));
+        recoveredRuntime.RegisterDefinition(definition);
+        await recoveredRuntime.StartOrGetAsync<string, PublishState>(
+            $"publish-crash-{failure}",
+            definition.DefinitionId,
+            definition.DefinitionVersion,
+            "accepted",
+            TestContext.Current.CancellationToken);
+        var claimed = await store.ClaimAsync(
+            new OutboxClaimRequest(10, PublishedAt.AddMinutes(1), TimeSpan.FromMinutes(1))
+            {
+                KindSelector = OutboxKindSelector.Including(OutboxKinds.WorkflowEvent)
+            },
+            TestContext.Current.CancellationToken);
+        var afterRecovery = await store.GetAsync(
+            started.Value.InstanceId,
+            TestContext.Current.CancellationToken);
+
+        afterRecovery.Value.Status.Should().Be(WorkflowInstanceStatus.Completed);
+        var record = claimed.Should().ContainSingle().Subject;
+        DurableWorkflowOutboundEventCodec.Decode(record.Payload).EventName
+            .Should().Be(eventContract.EventName.Value);
     }
 
     private static DurableWorkflowRuntime CreateRuntime(
@@ -175,9 +261,75 @@ public sealed class DurablePublishTests
             projectionStore: store);
     }
 
+    private static DurableWorkflowRuntime CreateRuntime(
+        IWorkflowEventStore eventStore,
+        IWorkflowProjectionStore projectionStore,
+        TimeProvider timeProvider)
+    {
+        var processor = new DurableCommandProcessor(eventStore);
+        return new DurableWorkflowRuntime(
+            processor,
+            new DurableDefinitionRegistry(int.MaxValue),
+            timeProvider,
+            projectionStore: projectionStore);
+    }
+
     private sealed class FixedTimeProvider(DateTimeOffset value) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => value;
+    }
+
+    public enum PublishCommitFailure
+    {
+        BeforeApply,
+        AfterApply
+    }
+
+    private sealed class PublishCommitFaultStore(
+        InMemoryWorkflowProvider inner,
+        PublishCommitFailure failure) : IWorkflowEventStore, IWorkflowStartIdempotencyStore
+    {
+        private int armed = 1;
+
+        internal OutboxRecordId? ObservedOutboxRecordId { get; private set; }
+
+        public Task<Option<CheckpointWrite>> LoadCheckpointAsync(
+            InstanceId instanceId,
+            CancellationToken cancellationToken) =>
+            inner.LoadCheckpointAsync(instanceId, cancellationToken);
+
+        public async Task<Result<AppendEventsResult>> AppendAsync(
+            ProviderCommitBatch batch,
+            CancellationToken cancellationToken)
+        {
+            if (batch.OutboxRecords.Any(record => record.Kind == OutboxKinds.WorkflowEvent) &&
+                Interlocked.Exchange(ref armed, 0) == 1)
+            {
+                ObservedOutboxRecordId = batch.OutboxRecords
+                    .Single(record => record.Kind == OutboxKinds.WorkflowEvent)
+                    .OutboxRecordId;
+                if (failure == PublishCommitFailure.BeforeApply)
+                {
+                    throw new InvalidOperationException("simulated host failure around publish commit");
+                }
+
+                _ = await inner.AppendAsync(batch, cancellationToken).ConfigureAwait(false);
+                throw new InvalidOperationException("simulated host failure around publish commit");
+            }
+
+            return await inner.AppendAsync(batch, cancellationToken).ConfigureAwait(false);
+        }
+
+        public Task<IReadOnlyList<global::OrcaCore.Abstractions.Durable.WorkflowEvent>> LoadTailAsync(
+            WorkflowStreamId streamId,
+            StreamVersion afterVersion,
+            CancellationToken cancellationToken) =>
+            inner.LoadTailAsync(streamId, afterVersion, cancellationToken);
+
+        public Task<Option<StartedWorkflowIdempotencyRecord>> GetStartedAsync(
+            string idempotencyKey,
+            CancellationToken cancellationToken) =>
+            inner.GetStartedAsync(idempotencyKey, cancellationToken);
     }
 
     public sealed record PublishState(string Value);

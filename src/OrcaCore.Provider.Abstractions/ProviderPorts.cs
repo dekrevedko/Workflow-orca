@@ -434,6 +434,17 @@ public interface IWorkflowOutboxStore
         OutboxRecordId outboxRecordId,
         CancellationToken cancellationToken);
 
+    /// <summary>Gets the dispatch state and immutable terminal poison detail for one record.</summary>
+    async Task<Option<OutboxDispatchSnapshot>> GetDispatchSnapshotAsync(
+        OutboxRecordId outboxRecordId,
+        CancellationToken cancellationToken)
+    {
+        var state = await GetStateAsync(outboxRecordId, cancellationToken).ConfigureAwait(false);
+        return state.HasValue
+            ? Option<OutboxDispatchSnapshot>.Some(new OutboxDispatchSnapshot(state.Value))
+            : Option<OutboxDispatchSnapshot>.None;
+    }
+
     /// <summary>
     /// Marks one outbox record with a dispatch state.
     /// </summary>
@@ -441,6 +452,14 @@ public interface IWorkflowOutboxStore
         OutboxRecordId outboxRecordId,
         OutboxRecordState state,
         CancellationToken cancellationToken);
+
+    /// <summary>Atomically terminalizes one claimed record with immutable poison detail.</summary>
+    Task MarkPoisonedAsync(
+        OutboxRecordId outboxRecordId,
+        string code,
+        string? detail,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This provider does not persist durable outbox poison details.");
 
     /// <summary>
     /// Releases one claimed outbox record so it can be retried.

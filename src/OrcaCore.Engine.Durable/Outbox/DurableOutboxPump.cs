@@ -29,15 +29,19 @@ internal sealed class DurableOutboxPump(
     }
 
     /// <summary>
-    /// DR-037: this pump feeds <see cref="IMessageDispatcher"/>, which never receives internal
-    /// continuation records. A missing selector claims everything except <c>continue</c>; a
-    /// caller-supplied selector is honored but continuation records are still released, never
-    /// dispatched.
+    /// DR-037: the legacy dispatcher pump excludes every runtime-owned or application-event lane.
+    /// A caller-supplied selector is honored, and any provider record outside that selector is
+    /// released rather than dispatched.
     /// </summary>
-    private static OutboxClaimRequest ExcludeContinuations(OutboxClaimRequest request)
+    private static OutboxClaimRequest SelectDispatchLane(OutboxClaimRequest request)
     {
         return request.KindSelector is null
-            ? request with { KindSelector = OutboxKindSelector.Excluding(OutboxKinds.Continue) }
+            ? request with
+            {
+                KindSelector = OutboxKindSelector.Excluding(
+                    OutboxKinds.Continue,
+                    OutboxKinds.WorkflowEvent)
+            }
             : request;
     }
 
@@ -61,8 +65,9 @@ internal sealed class DurableOutboxPump(
         using var activity = OrcaCoreDurableDiagnostics.ActivitySource.StartActivity("orca.outbox.pump_cycle");
         activity?.SetTag(OrcaCoreDiagnostics.OutboxMaxCountKey, request.MaxCount);
 
+        var dispatchRequest = SelectDispatchLane(request);
         var records = await outboxStore
-            .ClaimAsync(ExcludeContinuations(request), cancellationToken)
+            .ClaimAsync(dispatchRequest, cancellationToken)
             .ConfigureAwait(false);
         activity?.SetTag(OrcaCoreDiagnostics.OutboxClaimedCountKey, records.Count);
 
@@ -73,7 +78,7 @@ internal sealed class DurableOutboxPump(
         var permanentFailures = 0;
         foreach (var record in records)
         {
-            if (record.Kind == OutboxKinds.Continue)
+            if (dispatchRequest.KindSelector is { } selector && !selector.Matches(record.Kind))
             {
                 await outboxStore
                     .ReleaseAsync(record.OutboxRecordId, cancellationToken)
@@ -89,7 +94,13 @@ internal sealed class DurableOutboxPump(
             try
             {
                 dispatchAttempts++;
-                var result = await dispatcher.DispatchAsync(record, cancellationToken).ConfigureAwait(false);
+                var outcome = dispatcher is IDetailedOutboxMessageDispatcher detailedDispatcher
+                    ? await detailedDispatcher
+                        .DispatchDetailedAsync(record, cancellationToken)
+                        .ConfigureAwait(false)
+                    : new OutboxDispatchOutcome(
+                        await dispatcher.DispatchAsync(record, cancellationToken).ConfigureAwait(false));
+                var result = outcome.Result;
                 dispatchStopwatch.Stop();
                 dispatchActivity?.SetTag(OrcaCoreDiagnostics.OutboxResultKey, ToResultTag(result));
                 if (result is not DispatchResult.Success)
@@ -117,9 +128,22 @@ internal sealed class DurableOutboxPump(
                     null,
                     cancellationToken)
                     .ConfigureAwait(false);
-                await outboxStore
-                    .MarkAsync(record.OutboxRecordId, ToState(result), cancellationToken)
-                    .ConfigureAwait(false);
+                if (result == DispatchResult.PermanentFailure && outcome.FailureCode is { } failureCode)
+                {
+                    await outboxStore
+                        .MarkPoisonedAsync(
+                            record.OutboxRecordId,
+                            failureCode,
+                            outcome.FailureDetail,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    await outboxStore
+                        .MarkAsync(record.OutboxRecordId, ToState(result), cancellationToken)
+                        .ConfigureAwait(false);
+                }
                 dispatched++;
             }
             catch (OperationCanceledException)

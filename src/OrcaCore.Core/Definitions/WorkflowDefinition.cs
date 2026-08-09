@@ -6,7 +6,14 @@ namespace OrcaCore.Core.Definitions;
 /// <summary>
 /// Immutable handle for one compiled workflow definition version.
 /// </summary>
-internal sealed record WorkflowDefinition<TState>
+internal abstract record WorkflowDefinitionRuntimeMetadata
+{
+    internal abstract IReadOnlyList<ResourcePoolName> RequiredDurablePools { get; }
+
+    internal abstract bool ContainsPublish { get; }
+}
+
+internal sealed record WorkflowDefinition<TState> : WorkflowDefinitionRuntimeMetadata
 {
     internal WorkflowDefinition(
         DefinitionId definitionId,
@@ -41,6 +48,16 @@ internal sealed record WorkflowDefinition<TState>
     /// Gets the immutable compiler output bound to this definition.
     /// </summary>
     internal CompiledWorkflowPlan CompiledPlan { get; }
+
+    internal override IReadOnlyList<ResourcePoolName> RequiredDurablePools =>
+        CompiledPlan.Instructions
+            .Where(instruction => instruction.StaticLeaseRequest is not null)
+            .SelectMany(instruction => instruction.StaticLeaseRequest!.Requirements)
+            .Select(requirement => requirement.Pool)
+            .ToArray();
+
+    internal override bool ContainsPublish =>
+        CompiledPlan.Instructions.Any(instruction => instruction.Kind == CompiledInstructionKind.Publish);
 
     public SequenceNode<TState> RootSequence { get; }
 

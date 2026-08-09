@@ -882,6 +882,25 @@ internal sealed class InMemoryWorkflowProvider :
     }
 
     /// <inheritdoc />
+    public Task<Option<OutboxDispatchSnapshot>> GetDispatchSnapshotAsync(
+        OutboxRecordId outboxRecordId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            return Task.FromResult(outbox.TryGetValue(outboxRecordId, out var record)
+                ? Option<OutboxDispatchSnapshot>.Some(new OutboxDispatchSnapshot(record.State)
+                {
+                    PoisonCode = record.PoisonCode,
+                    PoisonDetail = record.PoisonDetail
+                })
+                : Option<OutboxDispatchSnapshot>.None);
+        }
+    }
+
+    /// <inheritdoc />
     public Task MarkAsync(
         OutboxRecordId outboxRecordId,
         OutboxRecordState state,
@@ -891,12 +910,41 @@ internal sealed class InMemoryWorkflowProvider :
 
         lock (gate)
         {
-            if (outbox.TryGetValue(outboxRecordId, out var record))
+            if (outbox.TryGetValue(outboxRecordId, out var record) &&
+                record.State != OutboxRecordState.Poisoned)
             {
                 outbox[outboxRecordId] = record with
                 {
                     State = state,
                     ClaimedUntil = state == OutboxRecordState.Claimed ? record.ClaimedUntil : null
+                };
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task MarkPoisonedAsync(
+        OutboxRecordId outboxRecordId,
+        string code,
+        string? detail,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            if (outbox.TryGetValue(outboxRecordId, out var record) &&
+                record.State == OutboxRecordState.Claimed)
+            {
+                outbox[outboxRecordId] = record with
+                {
+                    State = OutboxRecordState.Poisoned,
+                    ClaimedUntil = null,
+                    PoisonCode = code,
+                    PoisonDetail = detail
                 };
             }
         }
@@ -1623,7 +1671,9 @@ internal sealed class InMemoryWorkflowProvider :
         InstanceId InstanceId,
         OutboxWrite Write,
         OutboxRecordState State,
-        DateTimeOffset? ClaimedUntil = null);
+        DateTimeOffset? ClaimedUntil = null,
+        string? PoisonCode = null,
+        string? PoisonDetail = null);
 
     private sealed record InMemoryTimerSchedule(TimerScheduleRequest Request, DateTimeOffset? ClaimedUntil);
 }

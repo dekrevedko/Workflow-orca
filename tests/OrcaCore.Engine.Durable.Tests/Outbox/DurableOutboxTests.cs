@@ -78,6 +78,39 @@ public sealed class DurableOutboxTests
     }
 
     [Fact]
+    public async Task OutboxPump_ReleasesProviderRecordsOutsideTheSelectedLane()
+    {
+        var workflowEvent = new OutboxWrite(
+            OutboxRecordId.New(),
+            OutboxKinds.WorkflowEvent,
+            [1]);
+        var legacyStore = new SelectorIgnoringOutboxStore(workflowEvent);
+        var legacyDispatcher = new FakeMessageDispatcher();
+
+        await new DurableOutboxPump(legacyStore, legacyDispatcher)
+            .PumpOnceAsync(1, TestContext.Current.CancellationToken);
+
+        legacyStore.CapturedRequest!.KindSelector!.Exclude.Should()
+            .BeEquivalentTo(OutboxKinds.Continue, OutboxKinds.WorkflowEvent);
+        legacyStore.Released.Should().ContainSingle().Which.Should().Be(workflowEvent.OutboxRecordId);
+        legacyDispatcher.Dispatched.Should().BeEmpty();
+
+        var unrelated = new OutboxWrite(OutboxRecordId.New(), "status", [2]);
+        var workflowEventStore = new SelectorIgnoringOutboxStore(unrelated);
+        var workflowEventDispatcher = new FakeMessageDispatcher();
+        var request = new OutboxClaimRequest(1, DateTimeOffset.UtcNow, TimeSpan.FromMinutes(1))
+        {
+            KindSelector = OutboxKindSelector.Including(OutboxKinds.WorkflowEvent)
+        };
+
+        await new DurableOutboxPump(workflowEventStore, workflowEventDispatcher)
+            .PumpOnceAsync(request, TestContext.Current.CancellationToken);
+
+        workflowEventStore.Released.Should().ContainSingle().Which.Should().Be(unrelated.OutboxRecordId);
+        workflowEventDispatcher.Dispatched.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task OutboxPump_DefaultClaimRequest_UsesInjectedTimeProvider()
     {
         var now = new DateTimeOffset(2026, 7, 4, 10, 15, 0, TimeSpan.Zero);
@@ -356,6 +389,43 @@ public sealed class DurableOutboxTests
         public Task ReleaseAsync(OutboxRecordId outboxRecordId, CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
+        }
+    }
+
+    private sealed class SelectorIgnoringOutboxStore(OutboxWrite record) : IWorkflowOutboxStore
+    {
+        public OutboxClaimRequest? CapturedRequest { get; private set; }
+
+        public List<OutboxRecordId> Released { get; } = [];
+
+        public Task<IReadOnlyList<OutboxWrite>> ClaimAsync(
+            int maxCount,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<OutboxWrite>> ClaimAsync(
+            OutboxClaimRequest request,
+            CancellationToken cancellationToken)
+        {
+            CapturedRequest = request;
+            return Task.FromResult<IReadOnlyList<OutboxWrite>>([record]);
+        }
+
+        public Task<Option<OutboxRecordState>> GetStateAsync(
+            OutboxRecordId outboxRecordId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task MarkAsync(
+            OutboxRecordId outboxRecordId,
+            OutboxRecordState state,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task ReleaseAsync(OutboxRecordId outboxRecordId, CancellationToken cancellationToken)
+        {
+            Released.Add(outboxRecordId);
+            return Task.CompletedTask;
         }
     }
 

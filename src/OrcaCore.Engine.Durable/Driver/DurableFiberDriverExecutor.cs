@@ -246,6 +246,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                         eventContract.EventName.Value,
                         eventContract.Version.Value,
                         instruction.PublishPayloadType?.AssemblyQualifiedName,
+                        instruction.PublishPayloadSchemaIdentity,
                         outboundEventId.Value,
                         resolved.CorrelationId.Value,
                         fiber.CurrentCausationEventId,

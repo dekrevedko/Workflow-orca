@@ -506,6 +506,21 @@ public sealed class FakeWorkflowEventStore :
             : Option<OutboxRecordState>.None);
     }
 
+    public Task<Option<OutboxDispatchSnapshot>> GetDispatchSnapshotAsync(
+        OutboxRecordId outboxRecordId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.FromResult(outbox.TryGetValue(outboxRecordId, out var record)
+            ? Option<OutboxDispatchSnapshot>.Some(new OutboxDispatchSnapshot(record.State)
+            {
+                PoisonCode = record.PoisonCode,
+                PoisonDetail = record.PoisonDetail
+            })
+            : Option<OutboxDispatchSnapshot>.None);
+    }
+
     public Task MarkAsync(
         OutboxRecordId outboxRecordId,
         OutboxRecordState state,
@@ -513,7 +528,8 @@ public sealed class FakeWorkflowEventStore :
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (outbox.TryGetValue(outboxRecordId, out var record))
+        if (outbox.TryGetValue(outboxRecordId, out var record) &&
+            record.State != OutboxRecordState.Poisoned)
         {
             outbox[outboxRecordId] = record with
             {
@@ -548,6 +564,30 @@ public sealed class FakeWorkflowEventStore :
         lock (gate)
         {
             ApplyProjectionOperations(operations);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task MarkPoisonedAsync(
+        OutboxRecordId outboxRecordId,
+        string code,
+        string? detail,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (outbox.TryGetValue(outboxRecordId, out var record) &&
+            record.State == OutboxRecordState.Claimed)
+        {
+            outbox[outboxRecordId] = record with
+            {
+                State = OutboxRecordState.Poisoned,
+                ClaimedUntil = null,
+                PoisonCode = code,
+                PoisonDetail = detail
+            };
         }
 
         return Task.CompletedTask;
@@ -668,5 +708,7 @@ public sealed class FakeWorkflowEventStore :
     private sealed record FakeOutboxRecord(
         OutboxWrite Write,
         OutboxRecordState State,
-        DateTimeOffset? ClaimedUntil = null);
+        DateTimeOffset? ClaimedUntil = null,
+        string? PoisonCode = null,
+        string? PoisonDetail = null);
 }

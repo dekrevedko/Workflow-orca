@@ -269,6 +269,39 @@ public sealed class FacadeHostingInfrastructureGuards
         return type.FullName ?? type.Name;
     }
 
+    [Fact]
+    public void Source_DurablePublishGateAndOutboundMaterializationRemainTypedAndFailClosed()
+    {
+        var repositoryRoot = FixtureDefinitions.RepositoryRoot();
+        var facadeSource = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "src",
+            "OrcaCore.Engine.Durable",
+            "Facade",
+            "DurableWorkflowFacade.cs"));
+        var definitionSource = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "src",
+            "OrcaCore.Core",
+            "Definitions",
+            "WorkflowDefinition.cs"));
+        var hostingPumpSource = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "src",
+            "OrcaCore.Durable.Hosting",
+            "Services",
+            "WorkflowEventOutboxPump.cs"));
+
+        facadeSource.Should().Contain("WorkflowDefinitionRuntimeMetadata");
+        definitionSource.Should().Contain("instruction.Kind == CompiledInstructionKind.Publish");
+        definitionSource.Should().Contain("instruction.StaticLeaseRequest");
+        facadeSource.Should().NotContain("GetProperty(\"Kind\")");
+        facadeSource.Should().NotContain("GetProperty(\"StaticLeaseRequest\")");
+        hostingPumpSource.Should().Contain("DurableApplicationContractFactory.WorkflowOutboundEvent(data)");
+        hostingPumpSource.Should().NotContain("BindingFlags.NonPublic");
+        hostingPumpSource.Should().NotContain("ConstructorInfo");
+    }
+
     private static int CountDeclaredMethods(string source, string typeName, string methodName)
     {
         var block = DeclaredTypeBlocks(source).Single(candidate => candidate.Name == typeName);

@@ -68,6 +68,26 @@ public sealed class WorkflowEventDispatcherTests
     }
 
     [Fact]
+    public async Task Adapter_RejectsPayloadSchemaIdentityThatDoesNotMatchTheDeclaredType()
+    {
+        var contract = WorkflowEventContract<DispatchPayload>.Create(
+            EventName.Create("invoice-issued"),
+            new EventContractVersion(4));
+        var application = new RecordingDispatcher(new WorkflowEventDispatchResult.Succeeded());
+        var adapter = new WorkflowEventMessageDispatcher(application);
+        var record = Outbox(
+            contract,
+            new DispatchPayload("invoice-19"),
+            payloadSchemaIdentity: "wrong-schema");
+
+        Func<Task> act = () => adapter.DispatchAsync(record, TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*payload schema identity*does not match*");
+        application.Events.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task PublicOutboxPump_RetryRedispatchesTheSameOutboundEventIdentity()
     {
         var services = new ServiceCollection();
@@ -108,6 +128,50 @@ public sealed class WorkflowEventDispatcherTests
             .Should().Equal("outbound-event-19", "outbound-event-19");
         (await outboxStore.GetStateAsync(record.OutboxRecordId, TestContext.Current.CancellationToken))
             .Value.Should().Be(OutboxRecordState.Dispatched);
+    }
+
+    [Fact]
+    public async Task PublicOutboxPump_PermanentFailurePersistsImmutableFailureCodeAndDetail()
+    {
+        var services = new ServiceCollection();
+        services.AddOrcaCoreInMemoryDurableProvider();
+        await using var provider = services.BuildServiceProvider();
+        var eventStore = provider.GetRequiredService<IWorkflowEventStore>();
+        var outboxStore = provider.GetRequiredService<IWorkflowOutboxStore>();
+        var contract = WorkflowEventContract<DispatchPayload>.Create(
+            EventName.Create("invoice-issued"),
+            new EventContractVersion(4));
+        var record = Outbox(contract, new DispatchPayload("invoice-19"));
+        await eventStore.AppendAsync(
+            new ProviderCommitBatch
+            {
+                StreamId = new WorkflowStreamId(InstanceId.Parse(Guid.CreateVersion7().ToString())),
+                ExpectedVersion = StreamVersion.Empty,
+                OutboxRecords = [record]
+            },
+            TestContext.Current.CancellationToken);
+        var application = new RecordingDispatcher(
+            new WorkflowEventDispatchResult.PermanentFailure(
+                WorkflowEventDispatchFailure.Create("destination-rejected", "topic is disabled")));
+        var pump = new WorkflowEventOutboxPump(
+            outboxStore,
+            application,
+            observer: null,
+            TimeProvider.System);
+        var claim = new OutboxClaimRequest(1, DateTimeOffset.UtcNow, TimeSpan.FromMinutes(1));
+
+        await pump.PumpOnceAsync(claim, TestContext.Current.CancellationToken);
+        await outboxStore.MarkAsync(
+            record.OutboxRecordId,
+            OutboxRecordState.Retryable,
+            TestContext.Current.CancellationToken);
+        var snapshot = await outboxStore.GetDispatchSnapshotAsync(
+            record.OutboxRecordId,
+            TestContext.Current.CancellationToken);
+
+        snapshot.Value.State.Should().Be(OutboxRecordState.Poisoned);
+        snapshot.Value.PoisonCode.Should().Be("destination-rejected");
+        snapshot.Value.PoisonDetail.Should().Be("topic is disabled");
     }
 
     [Fact]
@@ -171,7 +235,8 @@ public sealed class WorkflowEventDispatcherTests
 
     private static OutboxWrite Outbox(
         WorkflowEventContract<DispatchPayload> contract,
-        DispatchPayload payload) =>
+        DispatchPayload payload,
+        string? payloadSchemaIdentity = null) =>
         new(
             OutboxRecordId.New(),
             OutboxKinds.WorkflowEvent,
@@ -180,6 +245,7 @@ public sealed class WorkflowEventDispatcherTests
                 EventName = contract.EventName.Value,
                 EventContractVersion = contract.Version.Value,
                 PayloadTypeName = typeof(DispatchPayload).AssemblyQualifiedName,
+                PayloadSchemaIdentity = payloadSchemaIdentity ?? typeof(DispatchPayload).AssemblyQualifiedName,
                 EventId = "outbound-event-19",
                 CorrelationId = "invoice-correlation-19",
                 CausationEventId = "inbound-event-18",

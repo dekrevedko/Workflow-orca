@@ -1,5 +1,5 @@
-using System.Reflection;
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.Engine.Durable.Internal;
 using OrcaCore.Engine.Durable.Outbox;
 using OrcaCore.Durable.Hosting;
 
@@ -28,27 +28,15 @@ internal sealed class WorkflowEventOutboxPump
             cancellationToken);
 }
 
-internal sealed class WorkflowEventMessageDispatcher(IWorkflowEventDispatcher dispatcher) : IMessageDispatcher
+internal sealed class WorkflowEventMessageDispatcher(IWorkflowEventDispatcher dispatcher)
+    : IMessageDispatcher, IDetailedOutboxMessageDispatcher
 {
-    private static readonly ConstructorInfo OutboundEventConstructor = typeof(WorkflowOutboundEvent)
-        .GetConstructor(
-            BindingFlags.Instance | BindingFlags.NonPublic,
-            binder: null,
-            [
-                typeof(WorkflowEventContract),
-                typeof(EventId),
-                typeof(CorrelationId),
-                typeof(EventId),
-                typeof(DateTimeOffset),
-                typeof(InstanceId),
-                typeof(DefinitionId),
-                typeof(DefinitionVersion),
-                typeof(ReadOnlyMemory<byte>)
-            ],
-            modifiers: null) ??
-        throw new InvalidOperationException("The approved WorkflowOutboundEvent constructor was not found.");
-
     public async Task<DispatchResult> DispatchAsync(
+        OutboxWrite record,
+        CancellationToken cancellationToken) =>
+        (await DispatchDetailedAsync(record, cancellationToken).ConfigureAwait(false)).Result;
+
+    public async Task<OutboxDispatchOutcome> DispatchDetailedAsync(
         OutboxWrite record,
         CancellationToken cancellationToken)
     {
@@ -59,51 +47,21 @@ internal sealed class WorkflowEventMessageDispatcher(IWorkflowEventDispatcher di
         }
 
         var data = DurableWorkflowOutboundEventCodec.Decode(record.Payload);
-        var eventContract = CreateEventContract(data);
-        var outboundEvent = (WorkflowOutboundEvent)OutboundEventConstructor.Invoke(
-        [
-            eventContract,
-            EventId.Create(data.EventId),
-            CorrelationId.Create(data.CorrelationId),
-            data.CausationEventId is null ? null : EventId.Create(data.CausationEventId),
-            data.OccurredAt,
-            InstanceId.Parse(data.OriginInstanceId),
-            DefinitionId.Parse(data.OriginDefinitionId),
-            new DefinitionVersion(data.OriginDefinitionVersion),
-            new ReadOnlyMemory<byte>(data.Payload)
-        ]);
+        var outboundEvent = DurableApplicationContractFactory.WorkflowOutboundEvent(data);
         var result = await dispatcher.DispatchAsync(outboundEvent, cancellationToken).ConfigureAwait(false) ??
             throw new InvalidOperationException("The workflow-event dispatcher returned no result.");
         return result switch
         {
-            WorkflowEventDispatchResult.Succeeded => DispatchResult.Success,
-            WorkflowEventDispatchResult.RetryableFailure => DispatchResult.RetryableFailure,
-            WorkflowEventDispatchResult.PermanentFailure => DispatchResult.PermanentFailure,
+            WorkflowEventDispatchResult.Succeeded => new OutboxDispatchOutcome(DispatchResult.Success),
+            WorkflowEventDispatchResult.RetryableFailure retryable => new OutboxDispatchOutcome(
+                DispatchResult.RetryableFailure,
+                retryable.Failure.Code,
+                retryable.Failure.Detail),
+            WorkflowEventDispatchResult.PermanentFailure permanent => new OutboxDispatchOutcome(
+                DispatchResult.PermanentFailure,
+                permanent.Failure.Code,
+                permanent.Failure.Detail),
             _ => throw new InvalidOperationException("The workflow-event dispatcher returned an unknown result.")
         };
-    }
-
-    private static WorkflowEventContract CreateEventContract(DurableWorkflowOutboundEventData data)
-    {
-        var eventName = EventName.Create(data.EventName);
-        var version = new EventContractVersion(data.EventContractVersion);
-        if (data.PayloadTypeName is null)
-        {
-            return WorkflowEventContract.Create(eventName, version);
-        }
-
-        var payloadType = Type.GetType(data.PayloadTypeName, throwOnError: false) ??
-            throw new InvalidOperationException(
-                $"The workflow-event payload type '{data.PayloadTypeName}' is unavailable.");
-        var descriptorType = typeof(WorkflowEventContract<>).MakeGenericType(payloadType);
-        var create = descriptorType.GetMethod(
-            nameof(WorkflowEventContract.Create),
-            BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly,
-            binder: null,
-            [typeof(EventName), typeof(EventContractVersion)],
-            modifiers: null) ??
-            throw new InvalidOperationException("The typed workflow-event descriptor factory was not found.");
-        return (WorkflowEventContract)(create.Invoke(null, [eventName, version]) ??
-            throw new InvalidOperationException("The typed workflow-event descriptor factory returned no descriptor."));
     }
 }

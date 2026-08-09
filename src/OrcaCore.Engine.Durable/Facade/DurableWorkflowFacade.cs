@@ -705,46 +705,18 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
 
     private static IReadOnlyList<ResourcePoolName> RequiredDurablePools(object runtimeDefinition)
     {
-        var compiledPlan = runtimeDefinition.GetType()
-            .GetProperty(
-                "CompiledPlan",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
-            .GetValue(runtimeDefinition)!;
-        var instructions = (System.Collections.IEnumerable)compiledPlan.GetType()
-            .GetProperty("Instructions")!
-            .GetValue(compiledPlan)!;
-        var names = new List<ResourcePoolName>();
-        foreach (var instruction in instructions)
-        {
-            var request = instruction!.GetType()
-                .GetProperty(
-                    "StaticLeaseRequest",
-                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
-                .GetValue(instruction) as ResourceLeaseRequest;
-            if (request is not null)
-            {
-                names.AddRange(request.Requirements.Select(requirement => requirement.Pool));
-            }
-        }
-
-        return names;
+        var metadata = runtimeDefinition as WorkflowDefinitionRuntimeMetadata ??
+            throw new InvalidOperationException(
+                $"Runtime definition '{runtimeDefinition.GetType().FullName}' does not expose runtime metadata.");
+        return metadata.RequiredDurablePools;
     }
 
     private static bool ContainsPublish(object runtimeDefinition)
     {
-        var compiledPlan = runtimeDefinition.GetType()
-            .GetProperty(
-                "CompiledPlan",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
-            .GetValue(runtimeDefinition)!;
-        var instructions = (System.Collections.IEnumerable)compiledPlan.GetType()
-            .GetProperty("Instructions")!
-            .GetValue(compiledPlan)!;
-        return instructions.Cast<object>().Any(instruction =>
-            string.Equals(
-                instruction.GetType().GetProperty("Kind")!.GetValue(instruction)?.ToString(),
-                "Publish",
-                StringComparison.Ordinal));
+        var metadata = runtimeDefinition as WorkflowDefinitionRuntimeMetadata ??
+            throw new InvalidOperationException(
+                $"Runtime definition '{runtimeDefinition.GetType().FullName}' does not expose runtime metadata.");
+        return metadata.ContainsPublish;
     }
 
     private static global::OrcaCore.ActiveWaitSnapshot? MapWait(

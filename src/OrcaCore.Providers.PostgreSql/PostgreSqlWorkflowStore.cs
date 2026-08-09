@@ -1805,6 +1805,35 @@ internal sealed class PostgreSqlWorkflowStore :
     }
 
     /// <inheritdoc />
+    public async Task<Option<OutboxDispatchSnapshot>> GetDispatchSnapshotAsync(
+        OutboxRecordId outboxRecordId,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new NpgsqlCommand(
+            """
+            select state, poison_code, poison_detail
+            from orcacore_outbox
+            where outbox_record_id = @outbox_record_id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("outbox_record_id", outboxRecordId.Value);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return Option<OutboxDispatchSnapshot>.None;
+        }
+
+        return Option<OutboxDispatchSnapshot>.Some(
+            new OutboxDispatchSnapshot(Enum.Parse<OutboxRecordState>(reader.GetString(0)))
+            {
+                PoisonCode = reader.IsDBNull(1) ? null : reader.GetString(1),
+                PoisonDetail = reader.IsDBNull(2) ? null : reader.GetString(2)
+            });
+    }
+
+    /// <inheritdoc />
     public async Task MarkAsync(
         OutboxRecordId outboxRecordId,
         OutboxRecordState state,
@@ -1820,12 +1849,14 @@ internal sealed class PostgreSqlWorkflowStore :
                     when @state = @claimed then claimed_until
                     else null
                 end
-            where outbox_record_id = @outbox_record_id;
+            where outbox_record_id = @outbox_record_id
+              and state <> @poisoned;
             """,
             connection);
         command.Parameters.AddWithValue("outbox_record_id", outboxRecordId.Value);
         command.Parameters.AddWithValue("state", state.ToString());
         command.Parameters.AddWithValue("claimed", OutboxRecordState.Claimed.ToString());
+        command.Parameters.AddWithValue("poisoned", OutboxRecordState.Poisoned.ToString());
 
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -2444,6 +2475,36 @@ internal sealed class PostgreSqlWorkflowStore :
             started is null ? DBNull.Value : started.InstanceId.Value;
         command.Parameters.Add("definition_fingerprint", NpgsqlDbType.Text).Value =
             (object?)started?.DefinitionFingerprint ?? DBNull.Value;
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task MarkPoisonedAsync(
+        OutboxRecordId outboxRecordId,
+        string code,
+        string? detail,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new NpgsqlCommand(
+            """
+            update orcacore_outbox
+            set
+                state = @poisoned,
+                claimed_until = null,
+                poison_code = @poison_code,
+                poison_detail = @poison_detail
+            where outbox_record_id = @outbox_record_id
+              and state = @claimed;
+            """,
+            connection);
+        command.Parameters.AddWithValue("outbox_record_id", outboxRecordId.Value);
+        command.Parameters.AddWithValue("poisoned", OutboxRecordState.Poisoned.ToString());
+        command.Parameters.AddWithValue("claimed", OutboxRecordState.Claimed.ToString());
+        command.Parameters.AddWithValue("poison_code", code);
+        command.Parameters.Add("poison_detail", NpgsqlDbType.Text).Value = (object?)detail ?? DBNull.Value;
+
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 

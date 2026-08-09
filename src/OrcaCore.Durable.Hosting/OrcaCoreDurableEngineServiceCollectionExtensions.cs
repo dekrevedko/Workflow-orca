@@ -192,7 +192,6 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
             services.TryAddEnumerable(
                 ServiceDescriptor.Singleton<IHostedService, OrcaCoreOutboxPumpHostedService>());
         }
-
     }
 
     private static IDurableProviderRole RequireProviderRole(IServiceCollection services)

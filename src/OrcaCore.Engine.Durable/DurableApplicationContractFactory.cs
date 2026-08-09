@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Security.Cryptography;
 using OrcaCore.Core.Internal;
+using OrcaCore.Engine.Durable.Outbox;
 
 namespace OrcaCore.Engine.Durable.Internal;
 
@@ -16,6 +17,32 @@ internal static class DurableApplicationContractFactory
 
     internal static Type RuntimeStateType(object definition) =>
         ReadNonPublicProperty<Type>(definition, "RuntimeStateType");
+
+    internal static WorkflowOutboundEvent WorkflowOutboundEvent(DurableWorkflowOutboundEventData data)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        return Construct<WorkflowOutboundEvent>(
+            [
+                typeof(WorkflowEventContract),
+                typeof(EventId),
+                typeof(CorrelationId),
+                typeof(EventId),
+                typeof(DateTimeOffset),
+                typeof(InstanceId),
+                typeof(DefinitionId),
+                typeof(DefinitionVersion),
+                typeof(ReadOnlyMemory<byte>)
+            ],
+            CreateWorkflowEventContract(data),
+            EventId.Create(data.EventId),
+            CorrelationId.Create(data.CorrelationId),
+            data.CausationEventId is null ? null : EventId.Create(data.CausationEventId),
+            data.OccurredAt,
+            InstanceId.Parse(data.OriginInstanceId),
+            DefinitionId.Parse(data.OriginDefinitionId),
+            new DefinitionVersion(data.OriginDefinitionVersion),
+            new ReadOnlyMemory<byte>(data.Payload));
+    }
 
     internal static DefinitionRegistrationConflict DefinitionRegistrationConflict(
         DefinitionId definitionId,
@@ -392,6 +419,41 @@ internal static class DurableApplicationContractFactory
             modifiers: null) ?? throw new MissingMemberException(instance.GetType().FullName, propertyName);
         return (TProperty)(property.GetValue(instance) ?? throw new InvalidOperationException(
             $"Property '{instance.GetType().FullName}.{propertyName}' returned null."));
+    }
+
+    private static WorkflowEventContract CreateWorkflowEventContract(DurableWorkflowOutboundEventData data)
+    {
+        var eventName = EventName.Create(data.EventName);
+        var version = new EventContractVersion(data.EventContractVersion);
+        if (data.PayloadTypeName is null)
+        {
+            return global::OrcaCore.WorkflowEventContract.Create(eventName, version);
+        }
+
+        var payloadType = Type.GetType(data.PayloadTypeName, throwOnError: false) ??
+            throw new InvalidOperationException(
+                $"The workflow-event payload type '{data.PayloadTypeName}' is unavailable.");
+        var expectedSchemaIdentity = payloadType.AssemblyQualifiedName ?? payloadType.FullName ?? payloadType.Name;
+        if (!string.Equals(data.PayloadSchemaIdentity, expectedSchemaIdentity, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"The workflow-event payload schema identity '{data.PayloadSchemaIdentity}' does not match " +
+                $"the declared payload type identity '{expectedSchemaIdentity}'.");
+        }
+
+        var descriptorType = typeof(WorkflowEventContract<>).MakeGenericType(payloadType);
+        var create = descriptorType.GetMethod(
+            nameof(global::OrcaCore.WorkflowEventContract.Create),
+            BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly,
+            binder: null,
+            [typeof(EventName), typeof(EventContractVersion)],
+            modifiers: null) ??
+            throw new MissingMethodException(
+                descriptorType.FullName,
+                $"{nameof(global::OrcaCore.WorkflowEventContract.Create)}({typeof(EventName).FullName}, " +
+                $"{typeof(EventContractVersion).FullName})");
+        return (WorkflowEventContract)(create.Invoke(null, [eventName, version]) ??
+            throw new InvalidOperationException("The typed workflow-event descriptor factory returned no descriptor."));
     }
 
     private static TContract Construct<TContract>(Type[] parameterTypes, params object?[] arguments)

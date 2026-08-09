@@ -6,6 +6,7 @@ internal sealed record DurableWorkflowOutboundEventData(
     string EventName,
     int EventContractVersion,
     string? PayloadTypeName,
+    string? PayloadSchemaIdentity,
     string EventId,
     string CorrelationId,
     string? CausationEventId,
@@ -32,6 +33,12 @@ internal static class DurableWorkflowOutboundEventCodec
         if (outboundEvent.PayloadTypeName is { } payloadTypeName)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(payloadTypeName);
+            ArgumentException.ThrowIfNullOrWhiteSpace(outboundEvent.PayloadSchemaIdentity);
+        }
+        else if (outboundEvent.PayloadSchemaIdentity is not null)
+        {
+            throw new InvalidOperationException(
+                "A payloadless workflow-event outbox record cannot carry a payload schema identity.");
         }
 
         ArgumentException.ThrowIfNullOrWhiteSpace(outboundEvent.EventId);

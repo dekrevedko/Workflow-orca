@@ -343,6 +343,16 @@ public enum OutboxRecordState
     Poisoned
 }
 
+/// <summary>Describes one durable outbox record's dispatch state and terminal poison detail.</summary>
+public sealed record OutboxDispatchSnapshot(OutboxRecordState State)
+{
+    /// <summary>Gets the immutable stable failure code when the record is poisoned.</summary>
+    public string? PoisonCode { get; init; }
+
+    /// <summary>Gets optional diagnostic detail when the record is poisoned.</summary>
+    public string? PoisonDetail { get; init; }
+}
+
 /// <summary>
 /// Describes a projection write kind.
 /// </summary>
