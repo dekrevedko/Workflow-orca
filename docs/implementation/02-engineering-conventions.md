@@ -155,11 +155,16 @@ depend outward on `OrcaCore.Dag.Hosting`, but no OrcaCore package depends on or
 - Runtime diagnostics use only BCL `ActivitySource`, `Meter`, and `ILogger<T>` owners. Every
   shipped instrument starts with `orca.`; OpenTelemetry SDKs, exporters, authorization, and
   redaction remain host-owned. Durable gauges and direct operator inspection consume the same
-  immutable provider snapshot within one operational sweep interval.
+  immutable provider snapshot within one operational sweep interval. Durable last activity is
+  authored by committed engine progress; a provider snapshot evaluates stuck candidates against
+  its explicit observation time and validated threshold. PostgreSQL pressure queries operate on
+  the one-row-per-instance projection/checkpoint join and never periodically aggregate the
+  append-only event relation.
 - Retention is a provider-maintenance concern, not an application workflow operation. Physical
   cleanup must re-check active instances and live inbox/outbox references atomically and retain
   confirmation, idempotency, and monotonic route-revision tombstones while delayed observations
-  can still arrive.
+  can still arrive. Archive timestamps are provider-owned and survive later aggregate projection
+  writes; a stream without a current instance projection is not archivable.
 
 ## 7. Comments & docs
 

@@ -71,14 +71,28 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
             store,
             store,
             store,
+            store,
             TestContext.Current.CancellationToken);
         await using var restarted = new PostgreSqlWorkflowStore(
             container.GetConnectionString(),
             new FixedTimeProvider(MigrationAppliedAt()));
         await restarted.InitializeAsync(TestContext.Current.CancellationToken);
-        var afterRestart = await restarted.GetOperatorStatisticsAsync(TestContext.Current.CancellationToken);
+        var afterRestart = await restarted.GetOperatorStatisticsAsync(
+            new WorkflowOperatorStatisticsRequest(MigrationAppliedAt(), TimeSpan.FromMinutes(5)),
+            TestContext.Current.CancellationToken);
         afterRestart.Groups.Should().NotBeEmpty();
         afterRestart.Pressure.StreamEventCount.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public void OperationalPressure_DoesNotAggregateTheAppendOnlyEventTable()
+    {
+        PostgreSqlWorkflowStore.OperatorStatisticsPressureSql.Should()
+            .NotContain("from orcacore_events",
+                "a periodic fleet snapshot must not scan the append-only event relation");
+        PostgreSqlWorkflowStore.OperatorStatisticsPressureSql.Should()
+            .Contain("sum(summary.stream_version)",
+                "event growth is available from the one-row-per-instance projection");
     }
 
     [Fact]
@@ -612,6 +626,27 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
             "the unreleased outbox poison columns belong in the greenfield initial schema");
         inboxDeliverySequence.Should().EndWith("orcacore_inbox_delivery_sequence",
             "dropping the owning inbox table must also remove its greenfield delivery sequence");
+    }
+
+    [Fact]
+    public void InitialMigration_DefinesOperationalProjectionColumnsOnlyInTheGreenfieldTable()
+    {
+        var initial = PostgreSqlWorkflowStoreMigrations.All
+            .Single(migration => migration.MigrationId == "001_initial")
+            .Sql;
+
+        foreach (var column in new[]
+                 {
+                     "last_active_at",
+                     "is_stuck",
+                     "has_stuck_step",
+                     "stuck_step_path",
+                     "stuck_detected_at"
+                 })
+        {
+            initial.Should().NotContain($"add column if not exists {column}",
+                "unreleased schema belongs in the first-create table, not compatibility DDL");
+        }
     }
 
     [Fact]

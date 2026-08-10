@@ -330,7 +330,6 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
                 error_summary = excluded.error_summary,
                 outcome_name = excluded.outcome_name,
                 continue_as_new_generation = excluded.continue_as_new_generation,
-                archived_at = excluded.archived_at,
                 last_active_at = excluded.last_active_at,
                 is_stuck = excluded.is_stuck,
                 has_stuck_step = excluded.has_stuck_step,

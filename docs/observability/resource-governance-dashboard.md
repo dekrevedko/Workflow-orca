@@ -28,11 +28,18 @@ configured operational sweep. The same immutable `WorkflowOperatorStatistics` sn
 advanced operator view and the source of the observable measurements, so dashboards and direct
 inspection cannot disagree within one sweep interval. Queue gauges carry `state` and
 `orca.queue.lane`; instance gauges carry execution mode, definition, version, and status.
+Durable stuck series are evaluated from engine-authored last activity using the sweep's explicit
+observation time and the named five-minute host/operator inactivity threshold. Pending, running,
+and cancellation-requested instances may become stuck; an ordinary external wait is not inferred
+stuck from elapsed time alone. PostgreSQL obtains event growth and checkpoint lag from the compact
+instance-projection/checkpoint join rather than scanning the append-only event table on every host.
 
 Physical cleanup is reachable only through the provider-authoring
 `IWorkflowProviderMaintenanceStore`. It rejects active instances and live inbox/outbox references,
 retains accepted-event confirmations, start bindings, and monotonic inbox-route revisions as
-tombstones, and exposes no ordinary application archive or purge handle.
+tombstones, preserves provider-owned archive timestamps across later projection writes, and exposes
+no ordinary application archive or purge handle. A stream-only artifact without an instance
+projection is inspectable/purgeable but is not reported as archived.
 
 `IDurableResourceLeaseDiagnostics` is an advanced in-process contract, not a remote management
 endpoint. A host adapter that publishes its snapshots must authenticate and authorize the

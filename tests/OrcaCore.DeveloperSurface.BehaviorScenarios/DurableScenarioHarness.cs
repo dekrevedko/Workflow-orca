@@ -78,8 +78,9 @@ internal sealed class DurableScenarioProvider :
     }
 
     public Task<WorkflowOperatorStatistics> GetOperatorStatisticsAsync(
+        WorkflowOperatorStatisticsRequest request,
         CancellationToken cancellationToken) =>
-        operationalStore.GetOperatorStatisticsAsync(cancellationToken);
+        operationalStore.GetOperatorStatisticsAsync(request, cancellationToken);
 
     public Task<Option<CheckpointWrite>> LoadCheckpointAsync(
         InstanceId instanceId,

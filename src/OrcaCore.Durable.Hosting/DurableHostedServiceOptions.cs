@@ -2,6 +2,11 @@ using OrcaCore.Engine.Durable.Driver;
 
 namespace OrcaCore.Hosting;
 
+internal static class DurableOperationalDefaults
+{
+    internal static readonly TimeSpan StuckDetectionThreshold = TimeSpan.FromMinutes(5);
+}
+
 /// <summary>
 /// Configures OrcaCore background hosted services.
 /// </summary>
@@ -92,6 +97,11 @@ internal sealed class DurableHostedServiceOptions
     public TimeSpan OperationalSweepInterval { get; set; } = TimeSpan.FromMinutes(1);
 
     /// <summary>
+    /// Gets or sets the host/operator inactivity threshold used by durable stuck detection.
+    /// </summary>
+    public TimeSpan StuckDetectionThreshold { get; set; } = DurableOperationalDefaults.StuckDetectionThreshold;
+
+    /// <summary>
     /// Gets or sets how long a hosted service waits before retrying after one transient cycle failure.
     /// </summary>
     public TimeSpan TransientFailureBackoff { get; set; } = TimeSpan.FromSeconds(1);
@@ -179,6 +189,11 @@ internal sealed class DurableHostedServiceOptions
         if (OperationalSweepInterval <= TimeSpan.Zero)
         {
             throw new InvalidOperationException("Operational sweep interval must be positive.");
+        }
+
+        if (StuckDetectionThreshold <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException("The stuck-detection threshold must be positive.");
         }
 
         if (TransientFailureBackoff <= TimeSpan.Zero)

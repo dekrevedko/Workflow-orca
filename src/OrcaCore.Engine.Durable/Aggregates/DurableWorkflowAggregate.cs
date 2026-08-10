@@ -461,6 +461,7 @@ internal sealed class DurableWorkflowAggregate
             StreamVersion = StreamVersion.Value,
             CreatedAt = createdAt,
             UpdatedAt = updatedAt,
+            LastActiveAt = updatedAt,
             ErrorSummary = ErrorSummary,
             EndOutcomeName = OutcomeName,
             ContinueAsNewGeneration = ContinueAsNewGeneration,

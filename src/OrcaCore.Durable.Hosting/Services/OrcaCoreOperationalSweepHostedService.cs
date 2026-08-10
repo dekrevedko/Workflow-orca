@@ -45,11 +45,13 @@ internal sealed class OrcaCoreOperationalSweepHostedService(
 
     private async Task RunOnceAsync(CancellationToken stoppingToken)
     {
+        var value = options.Value;
         await CollectOnceAsync(
             resourcePoolStore,
             operationalStore,
             leaseDiagnostics,
             timeProvider,
+            value.StuckDetectionThreshold,
             stoppingToken).ConfigureAwait(false);
     }
 
@@ -64,6 +66,7 @@ internal sealed class OrcaCoreOperationalSweepHostedService(
             operations,
             leaseDiagnostics: null,
             clock,
+            DurableOperationalDefaults.StuckDetectionThreshold,
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -72,6 +75,7 @@ internal sealed class OrcaCoreOperationalSweepHostedService(
         IWorkflowOperationalStore operations,
         DurableResourceLeaseDiagnostics? leaseDiagnostics,
         TimeProvider clock,
+        TimeSpan stuckDetectionThreshold,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(resourcePools);
@@ -90,7 +94,9 @@ internal sealed class OrcaCoreOperationalSweepHostedService(
         }
 
         var statistics = await operations
-            .GetOperatorStatisticsAsync(cancellationToken)
+            .GetOperatorStatisticsAsync(
+                new WorkflowOperatorStatisticsRequest(clock.GetUtcNow(), stuckDetectionThreshold),
+                cancellationToken)
             .ConfigureAwait(false);
         var pools = await resourcePools.ListPoolsAsync(cancellationToken).ConfigureAwait(false);
         OrcaCoreDurableDiagnostics.RefreshOperatorStatistics(statistics, pools);

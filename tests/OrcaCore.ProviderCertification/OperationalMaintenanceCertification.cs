@@ -13,22 +13,34 @@ public static class OperationalMaintenanceCertification
         IWorkflowInboxStore inboxStore,
         IWorkflowOutboxStore outboxStore,
         IWorkflowOperationalStore operationalStore,
+        IWorkflowProjectionStore projectionStore,
         IWorkflowProviderMaintenanceStore maintenanceStore,
         CancellationToken cancellationToken)
     {
         var definitionId = global::OrcaCore.DefinitionId.New();
         var runningId = global::OrcaCore.InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var waitingId = global::OrcaCore.InstanceId.Parse(Guid.CreateVersion7().ToString());
         var pressureId = global::OrcaCore.InstanceId.Parse(Guid.CreateVersion7().ToString());
         var continuationId = new OutboxRecordId(Guid.CreateVersion7());
         var externalId = new OutboxRecordId(Guid.CreateVersion7());
+        var statisticsRequest = new WorkflowOperatorStatisticsRequest(
+            Timestamp(10),
+            TimeSpan.FromSeconds(5));
         await eventStore.AppendAsync(
             SeedBatch(
                 runningId,
                 definitionId,
                 global::OrcaCore.DefinitionVersion.Initial,
                 global::OrcaCore.WorkflowInstanceStatus.Running,
-                checkpoint: true,
-                stuck: true),
+                checkpoint: true),
+            cancellationToken).ConfigureAwait(false);
+        await eventStore.AppendAsync(
+            SeedBatch(
+                waitingId,
+                definitionId,
+                global::OrcaCore.DefinitionVersion.Initial,
+                global::OrcaCore.WorkflowInstanceStatus.Waiting,
+                checkpoint: false),
             cancellationToken).ConfigureAwait(false);
         await eventStore.AppendAsync(
             SeedBatch(
@@ -44,7 +56,9 @@ public static class OperationalMaintenanceCertification
                 ]),
             cancellationToken).ConfigureAwait(false);
 
-        var initial = await operationalStore.GetOperatorStatisticsAsync(cancellationToken).ConfigureAwait(false);
+        var initial = await operationalStore
+            .GetOperatorStatisticsAsync(statisticsRequest, cancellationToken)
+            .ConfigureAwait(false);
         initial.Groups.Should().Contain(group =>
             group.DefinitionId.Equals(definitionId) &&
             group.DefinitionVersion.Equals(global::OrcaCore.DefinitionVersion.Initial) &&
@@ -55,11 +69,20 @@ public static class OperationalMaintenanceCertification
             group.DefinitionVersion.Equals(new global::OrcaCore.DefinitionVersion(2)) &&
             group.Status == global::OrcaCore.WorkflowInstanceStatus.Completed &&
             group.Count == 1);
-        initial.Pressure.ActiveInstanceCount.Should().Be(1);
+        initial.Pressure.ActiveInstanceCount.Should().Be(2);
         initial.Pressure.StuckInstanceCount.Should().Be(1);
         initial.Pressure.ActiveWaitCount.Should().Be(1);
         initial.StuckGroups.Should().ContainSingle().Which.Should().Be(
             new WorkflowOperatorStuckGroup(definitionId, 1));
+        var markedRunning = await projectionStore.GetAsync(runningId, cancellationToken).ConfigureAwait(false);
+        markedRunning.HasValue.Should().BeTrue();
+        markedRunning.Value.LastActiveAt.Should().Be(Timestamp(1));
+        markedRunning.Value.IsStuck.Should().BeTrue();
+        markedRunning.Value.StuckDetectedAt.Should().Be(Timestamp(10));
+        var healthyWaiting = await projectionStore.GetAsync(waitingId, cancellationToken).ConfigureAwait(false);
+        healthyWaiting.HasValue.Should().BeTrue();
+        healthyWaiting.Value.IsStuck.Should().BeFalse(
+            "an ordinary external wait is not stuck solely because its last transition is old");
         initial.ActiveWaitGroups.Should().ContainSingle().Which.Should().Be(
             new WorkflowOperatorActiveWaitGroup(
                 definitionId,
@@ -78,14 +101,14 @@ public static class OperationalMaintenanceCertification
             },
             cancellationToken).ConfigureAwait(false);
         claimed.Should().ContainSingle().Which.OutboxRecordId.Should().Be(externalId);
-        (await operationalStore.GetOperatorStatisticsAsync(cancellationToken).ConfigureAwait(false))
+        (await operationalStore.GetOperatorStatisticsAsync(statisticsRequest, cancellationToken).ConfigureAwait(false))
             .Pressure.ExternalOutboxClaimedCount.Should().Be(1);
         await outboxStore.MarkPoisonedAsync(
             externalId,
             "operator-certification-permanent",
             "certified permanent failure",
             cancellationToken).ConfigureAwait(false);
-        (await operationalStore.GetOperatorStatisticsAsync(cancellationToken).ConfigureAwait(false))
+        (await operationalStore.GetOperatorStatisticsAsync(statisticsRequest, cancellationToken).ConfigureAwait(false))
             .Pressure.ExternalOutboxPoisonedCount.Should().Be(1);
 
         var blocked = await maintenanceStore.PurgeForMaintenanceAsync(
@@ -101,6 +124,84 @@ public static class OperationalMaintenanceCertification
             maintenanceStore,
             definitionId,
             cancellationToken).ConfigureAwait(false);
+        await CertifyArchiveOwnershipAndArtifactParityAsync(
+            eventStore,
+            maintenanceStore,
+            definitionId,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task CertifyArchiveOwnershipAndArtifactParityAsync(
+        IWorkflowEventStore eventStore,
+        IWorkflowProviderMaintenanceStore maintenanceStore,
+        global::OrcaCore.DefinitionId definitionId,
+        CancellationToken cancellationToken)
+    {
+        var instanceId = global::OrcaCore.InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var seeded = await eventStore.AppendAsync(
+            SeedBatch(
+                instanceId,
+                definitionId,
+                global::OrcaCore.DefinitionVersion.Initial,
+                global::OrcaCore.WorkflowInstanceStatus.Completed,
+                checkpoint: false),
+            cancellationToken).ConfigureAwait(false);
+        seeded.IsSuccess.Should().BeTrue();
+
+        var archived = await maintenanceStore.ArchiveForMaintenanceAsync(
+            new WorkflowProviderMaintenanceRequest(instanceId, Timestamp(24)),
+            cancellationToken).ConfigureAwait(false);
+        archived.Disposition.Should().Be(WorkflowProviderMaintenanceDisposition.Archived);
+
+        var laterProjection = await eventStore.AppendAsync(
+            new ProviderCommitBatch
+            {
+                StreamId = new WorkflowStreamId(instanceId),
+                ExpectedVersion = new StreamVersion(1),
+                ProjectionOperations =
+                [
+                    Projection(
+                        instanceId,
+                        definitionId,
+                        global::OrcaCore.DefinitionVersion.Initial,
+                        global::OrcaCore.WorkflowInstanceStatus.Completed,
+                        new StreamVersion(1))
+                ]
+            },
+            cancellationToken).ConfigureAwait(false);
+        laterProjection.IsSuccess.Should().BeTrue();
+        (await maintenanceStore.InspectForMaintenanceAsync(instanceId, cancellationToken).ConfigureAwait(false))
+            .ArchivedAt.Should().Be(Timestamp(24),
+                "archive time is provider-owned metadata and must survive later aggregate projections");
+
+        var streamOnlyId = global::OrcaCore.InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var streamOnly = await eventStore.AppendAsync(
+            new ProviderCommitBatch
+            {
+                StreamId = new WorkflowStreamId(streamOnlyId),
+                ExpectedVersion = StreamVersion.Empty,
+                Events =
+                [
+                    new WorkflowStartedEvent
+                    {
+                        EventId = global::OrcaCore.EventId.Create(Guid.CreateVersion7().ToString()),
+                        InstanceId = streamOnlyId,
+                        CommandId = CommandId.New(),
+                        CausationId = CausationId.New(),
+                        OccurredAt = Timestamp(25),
+                        RootInstanceId = streamOnlyId,
+                        DefinitionId = definitionId,
+                        DefinitionVersion = global::OrcaCore.DefinitionVersion.Initial
+                    }
+                ]
+            },
+            cancellationToken).ConfigureAwait(false);
+        streamOnly.IsSuccess.Should().BeTrue();
+        (await maintenanceStore.ArchiveForMaintenanceAsync(
+                new WorkflowProviderMaintenanceRequest(streamOnlyId, Timestamp(26)),
+                cancellationToken).ConfigureAwait(false))
+            .Disposition.Should().Be(WorkflowProviderMaintenanceDisposition.NotFound,
+                "archive owns projection metadata and a stream without a projection is not archivable");
     }
 
     private static async Task CertifyMonotonicRouteTombstoneAsync(

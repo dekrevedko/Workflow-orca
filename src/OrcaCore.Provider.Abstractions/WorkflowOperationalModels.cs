@@ -69,9 +69,51 @@ public sealed record WorkflowOperatorStatistics
     public required WorkflowOperationalPressure Pressure { get; init; }
 }
 
+/// <summary>
+/// Defines the provider-authoritative observation time and validated inactivity threshold for one
+/// operational snapshot.
+/// </summary>
+public sealed record WorkflowOperatorStatisticsRequest
+{
+    /// <summary>Initializes one deterministic operational-snapshot request.</summary>
+    public WorkflowOperatorStatisticsRequest(DateTimeOffset observedAt, TimeSpan stuckThreshold)
+    {
+        if (stuckThreshold <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(stuckThreshold),
+                stuckThreshold,
+                "The stuck-detection threshold must be positive.");
+        }
+
+        try
+        {
+            _ = observedAt.Subtract(stuckThreshold);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(stuckThreshold),
+                stuckThreshold,
+                "The stuck-detection threshold must produce a representable cutoff.");
+        }
+
+        ObservedAt = observedAt;
+        StuckThreshold = stuckThreshold;
+    }
+
+    /// <summary>Gets the runtime-owned observation time.</summary>
+    public DateTimeOffset ObservedAt { get; }
+
+    /// <summary>Gets the positive host/operator inactivity threshold.</summary>
+    public TimeSpan StuckThreshold { get; }
+}
+
 /// <summary>Exposes provider-authoritative operational projections without application enumeration.</summary>
 public interface IWorkflowOperationalStore
 {
     /// <summary>Captures one immutable grouped statistics and pressure snapshot.</summary>
-    Task<WorkflowOperatorStatistics> GetOperatorStatisticsAsync(CancellationToken cancellationToken);
+    Task<WorkflowOperatorStatistics> GetOperatorStatisticsAsync(
+        WorkflowOperatorStatisticsRequest request,
+        CancellationToken cancellationToken);
 }

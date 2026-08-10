@@ -1195,12 +1195,15 @@ internal sealed class InMemoryWorkflowProvider :
     }
 
     public Task<WorkflowOperatorStatistics> GetOperatorStatisticsAsync(
+        WorkflowOperatorStatisticsRequest request,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (gate)
         {
+            MarkStuckInstances(request);
             var groups = summaries.Values
                 .GroupBy(snapshot => new
                 {
@@ -1350,6 +1353,28 @@ internal sealed class InMemoryWorkflowProvider :
     private long CountExternalOutbox(OutboxRecordState state) =>
         outbox.Values.LongCount(record =>
             !string.Equals(record.Write.Kind, OutboxKinds.Continue, StringComparison.Ordinal) && record.State == state);
+
+    private void MarkStuckInstances(WorkflowOperatorStatisticsRequest request)
+    {
+        var cutoff = request.ObservedAt.Subtract(request.StuckThreshold);
+        foreach (var (instanceId, snapshot) in summaries.ToArray())
+        {
+            if (snapshot.IsStuck ||
+                snapshot.Status is not (global::OrcaCore.WorkflowInstanceStatus.Pending or
+                    global::OrcaCore.WorkflowInstanceStatus.Running or
+                    global::OrcaCore.WorkflowInstanceStatus.CancellationRequested) ||
+                (snapshot.LastActiveAt ?? snapshot.UpdatedAt) > cutoff)
+            {
+                continue;
+            }
+
+            summaries[instanceId] = snapshot with
+            {
+                IsStuck = true,
+                StuckDetectedAt = snapshot.StuckDetectedAt ?? request.ObservedAt
+            };
+        }
+    }
 
     private WorkflowProviderMaintenanceBlocker? FindMaintenanceBlocker(InstanceId instanceId)
     {
@@ -1732,7 +1757,10 @@ internal sealed class InMemoryWorkflowProvider :
             projections.Add(operation);
             if (operation.InstanceSnapshot is { } snapshot)
             {
-                summaries[operation.InstanceId] = CloneSnapshot(snapshot);
+                var archivedAt = summaries.TryGetValue(operation.InstanceId, out var existing)
+                    ? existing.ArchivedAt
+                    : snapshot.ArchivedAt;
+                summaries[operation.InstanceId] = CloneSnapshot(snapshot with { ArchivedAt = archivedAt });
             }
 
             if (operation.Kind == ProjectionOperationKind.AppendHistory && operation.History is { } entry)

@@ -23,6 +23,7 @@ public sealed class InMemoryProviderCertificationTests : ContinueAsNewCertificat
             provider.InboxStore,
             provider.OutboxStore,
             provider.OperationalStore,
+            provider.ProjectionStore,
             provider.MaintenanceStore,
             TestContext.Current.CancellationToken);
     }

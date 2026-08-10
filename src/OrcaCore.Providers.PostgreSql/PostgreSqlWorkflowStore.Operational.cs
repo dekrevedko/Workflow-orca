@@ -7,13 +7,56 @@ namespace OrcaCore.Providers.PostgreSql;
 
 internal sealed partial class PostgreSqlWorkflowStore
 {
+    internal const string OperatorStatisticsPressureSql =
+        """
+        select
+            (select count(*) from orcacore_instance_projections
+                where status = any(@active_statuses)) as active_instances,
+            (select count(*) from orcacore_instance_projections
+                where is_stuck or has_stuck_step) as stuck_instances,
+            (select count(*) from orcacore_active_wait_projections) as active_waits,
+            storage.stream_events,
+            storage.checkpoints,
+            storage.checkpoint_lag,
+            (select count(*) from orcacore_outbox where kind = @continue_kind and state = @pending)
+                as continuation_pending,
+            (select count(*) from orcacore_outbox where kind = @continue_kind and state = @retryable)
+                as continuation_retryable,
+            (select count(*) from orcacore_outbox where kind = @continue_kind and state = @claimed)
+                as continuation_claimed,
+            (select count(*) from orcacore_outbox where kind = @continue_kind and state = @poisoned)
+                as continuation_poisoned,
+            (select count(*) from orcacore_outbox where kind <> @continue_kind and state = @pending)
+                as external_pending,
+            (select count(*) from orcacore_outbox where kind <> @continue_kind and state = @retryable)
+                as external_retryable,
+            (select count(*) from orcacore_outbox where kind <> @continue_kind and state = @claimed)
+                as external_claimed,
+            (select count(*) from orcacore_outbox where kind <> @continue_kind and state = @poisoned)
+                as external_poisoned
+        from (
+            select
+                coalesce(sum(summary.stream_version), 0)::bigint as stream_events,
+                count(checkpoint.instance_id)::bigint as checkpoints,
+                coalesce(max(
+                    coalesce(summary.stream_version, 0) - coalesce(checkpoint.stream_version, 0)), 0)::bigint
+                    as checkpoint_lag
+            from orcacore_instance_projections summary
+            left join orcacore_checkpoints checkpoint on checkpoint.instance_id = summary.instance_id
+        ) storage;
+        """;
+
     public async Task<WorkflowOperatorStatistics> GetOperatorStatisticsAsync(
+        WorkflowOperatorStatisticsRequest request,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(request);
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var transaction = await connection
             .BeginTransactionAsync(IsolationLevel.RepeatableRead, cancellationToken)
             .ConfigureAwait(false);
+
+        await MarkStuckInstancesAsync(connection, transaction, request, cancellationToken).ConfigureAwait(false);
 
         var groups = new List<WorkflowOperatorStatisticsGroup>();
         await using (var groupCommand = new NpgsqlCommand(
@@ -81,40 +124,7 @@ internal sealed partial class PostgreSqlWorkflowStore
         }
 
         await using var pressureCommand = new NpgsqlCommand(
-            """
-            select
-                (select count(*) from orcacore_instance_projections
-                    where status = any(@active_statuses)) as active_instances,
-                (select count(*) from orcacore_instance_projections
-                    where is_stuck or has_stuck_step) as stuck_instances,
-                (select count(*) from orcacore_active_wait_projections) as active_waits,
-                (select count(*) from orcacore_events) as stream_events,
-                (select count(*) from orcacore_checkpoints) as checkpoints,
-                (select coalesce(max(events.max_version - coalesce(checkpoints.stream_version, 0)), 0)
-                    from (
-                        select stream_id, max(version) as max_version
-                        from orcacore_events
-                        group by stream_id
-                    ) events
-                    left join orcacore_checkpoints checkpoints on checkpoints.instance_id = events.stream_id)
-                    as checkpoint_lag,
-                (select count(*) from orcacore_outbox where kind = @continue_kind and state = @pending)
-                    as continuation_pending,
-                (select count(*) from orcacore_outbox where kind = @continue_kind and state = @retryable)
-                    as continuation_retryable,
-                (select count(*) from orcacore_outbox where kind = @continue_kind and state = @claimed)
-                    as continuation_claimed,
-                (select count(*) from orcacore_outbox where kind = @continue_kind and state = @poisoned)
-                    as continuation_poisoned,
-                (select count(*) from orcacore_outbox where kind <> @continue_kind and state = @pending)
-                    as external_pending,
-                (select count(*) from orcacore_outbox where kind <> @continue_kind and state = @retryable)
-                    as external_retryable,
-                (select count(*) from orcacore_outbox where kind <> @continue_kind and state = @claimed)
-                    as external_claimed,
-                (select count(*) from orcacore_outbox where kind <> @continue_kind and state = @poisoned)
-                    as external_poisoned;
-            """,
+            OperatorStatisticsPressureSql,
             connection,
             transaction);
         pressureCommand.Parameters.AddWithValue(
@@ -167,5 +177,36 @@ internal sealed partial class PostgreSqlWorkflowStore
             ActiveWaitGroups = activeWaitGroups,
             Pressure = pressure
         };
+    }
+
+    private static async Task MarkStuckInstancesAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        WorkflowOperatorStatisticsRequest request,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new NpgsqlCommand(
+            """
+            update orcacore_instance_projections
+            set
+                is_stuck = true,
+                stuck_detected_at = coalesce(stuck_detected_at, @observed_at)
+            where status = any(@stuck_candidate_statuses)
+              and coalesce(last_active_at, updated_at) <= @cutoff
+              and not is_stuck;
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue(
+            "stuck_candidate_statuses",
+            new[]
+            {
+                global::OrcaCore.WorkflowInstanceStatus.Pending.ToString(),
+                global::OrcaCore.WorkflowInstanceStatus.Running.ToString(),
+                global::OrcaCore.WorkflowInstanceStatus.CancellationRequested.ToString()
+            });
+        command.Parameters.AddWithValue("observed_at", request.ObservedAt);
+        command.Parameters.AddWithValue("cutoff", request.ObservedAt.Subtract(request.StuckThreshold));
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 }

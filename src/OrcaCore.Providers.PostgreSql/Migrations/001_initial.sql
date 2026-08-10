@@ -99,21 +99,6 @@ alter table orcacore_instance_projections
 alter table orcacore_instance_projections
     add column if not exists archived_at timestamp with time zone null;
 
-alter table orcacore_instance_projections
-    add column if not exists last_active_at timestamp with time zone null;
-
-alter table orcacore_instance_projections
-    add column if not exists is_stuck boolean not null default false;
-
-alter table orcacore_instance_projections
-    add column if not exists has_stuck_step boolean not null default false;
-
-alter table orcacore_instance_projections
-    add column if not exists stuck_step_path text null;
-
-alter table orcacore_instance_projections
-    add column if not exists stuck_detected_at timestamp with time zone null;
-
 create table if not exists orcacore_active_wait_projections (
     wait_id uuid primary key,
     instance_id uuid not null,

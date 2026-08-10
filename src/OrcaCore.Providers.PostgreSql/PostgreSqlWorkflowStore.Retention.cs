@@ -78,7 +78,7 @@ internal sealed class PostgreSqlWorkflowRetentionStore(NpgsqlDataSource dataSour
             .ConfigureAwait(false);
         await LockMaintenanceTablesAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
 
-        if (!await InstanceArtifactExistsAsync(
+        if (!await ProjectionExistsAsync(
                 connection,
                 transaction,
                 request.InstanceId,
@@ -111,6 +111,20 @@ internal sealed class PostgreSqlWorkflowRetentionStore(NpgsqlDataSource dataSour
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         return new WorkflowProviderMaintenanceResult(WorkflowProviderMaintenanceDisposition.Archived);
+    }
+
+    private static async Task<bool> ProjectionExistsAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new NpgsqlCommand(
+            "select exists (select 1 from orcacore_instance_projections where instance_id = @instance_id);",
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("instance_id", instanceId.Value);
+        return (bool)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) ?? false);
     }
 
     internal async Task<WorkflowProviderMaintenanceResult> PurgeForMaintenanceAsync(

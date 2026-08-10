@@ -15,6 +15,25 @@ namespace OrcaCore.Hosting.Tests;
 public sealed class OperationalTelemetryAndMaintenanceTests
 {
     [Fact]
+    public void DurableOperationalPolicy_RejectsNonpositiveOrUnrepresentableThresholds()
+    {
+        var options = new DurableHostedServiceOptions { StuckDetectionThreshold = TimeSpan.Zero };
+
+        Action validateOptions = options.Validate;
+        Action rejectZero = () => new WorkflowOperatorStatisticsRequest(DateTimeOffset.UnixEpoch, TimeSpan.Zero);
+        Action rejectUnderflow = () => new WorkflowOperatorStatisticsRequest(
+            DateTimeOffset.MinValue,
+            TimeSpan.FromTicks(1));
+
+        validateOptions.Should().Throw<InvalidOperationException>()
+            .WithMessage("*stuck-detection threshold*");
+        rejectZero.Should().Throw<ArgumentOutOfRangeException>()
+            .WithParameterName("stuckThreshold");
+        rejectUnderflow.Should().Throw<ArgumentOutOfRangeException>()
+            .WithParameterName("stuckThreshold");
+    }
+
+    [Fact]
     public void DurableHost_UsesProviderOwnedOperationalAndMaintenancePorts()
     {
         var services = CreateServices();

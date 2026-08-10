@@ -67,6 +67,9 @@ records, lease obligations, confirmation tombstones, poison evidence required by
 state needed for supported inspection. Public application `Archive` and `Purge` members SHALL remain
 deferred and absent. Cleanup SHALL be reachable through a documented host/provider maintenance
 owner and certified against live references; a test-only provider helper is insufficient.
+Archive timestamps SHALL be provider-owned metadata: an aggregate projection upsert SHALL preserve
+an existing archive timestamp, and an event stream without an instance projection SHALL NOT be
+reported as successfully archived.
 
 #### Scenario: Old operational artifacts are purged
 - **WHEN** provider maintenance evaluates an artifact that has passed the configured retention boundary
@@ -99,8 +102,18 @@ poison counts separately for internal continuations and external application eve
 stream growth, checkpoint count/lag, and active-instance pressure required by the canonical
 management and observability contracts. Corresponding BCL observable gauges SHALL derive from the
 same authoritative projections within the documented scrape interval without adding public
-application enumeration or `Statistics()` APIs.
+application enumeration or `Statistics()` APIs. Durable aggregate projection writes SHALL record
+runtime-owned last activity from committed progress. Each provider snapshot request SHALL carry a
+runtime-owned observation time and positive host/operator inactivity threshold; before grouping,
+providers SHALL mark stale pending, running, or cancellation-requested instances as stuck without
+classifying an ordinary external wait solely by age. PostgreSQL periodic pressure collection SHALL
+derive event growth and checkpoint lag from the one-row-per-instance projection/checkpoint join and
+SHALL NOT aggregate the append-only event relation on every host sweep.
 
 #### Scenario: Operator compares projection and telemetry
 - **WHEN** a fixture creates pending continuation, external dispatch retry, poison, stream, and checkpoint states
 - **THEN** the grouped operator projection and matching `orca.*` gauges report the same classified values within one scrape interval
+
+#### Scenario: Durable instance stops making committed progress
+- **WHEN** a pending, running, or cancellation-requested durable instance exceeds the validated host/operator inactivity threshold
+- **THEN** provider-authoritative statistics and `orca.instances.stuck` include it using engine-authored last activity rather than a fixture-seeded flag
