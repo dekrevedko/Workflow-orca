@@ -47,19 +47,19 @@ file accounting alone, including in-place member removal and forbidden compatibi
 | Runtime commands, facts, continuation envelope, park reason, wait mode | Replace/relocate | `OrcaCore.Runtime.Protocol` | Runtime protocol moved out of the application assembly; application APIs remain protocol-free. |
 | Application project identity | Replace/relocate | `OrcaCore` | `OrcaCore.Abstractions.csproj` became the exact `OrcaCore` package/assembly project. |
 | Provider ports, commit/resource records, protocol JSON framing | Replace/relocate | `OrcaCore.Provider.Abstractions` and `OrcaCore.Runtime.Protocol` | Provider-author and runtime-protocol ownership is explicit. |
-| Archive/purge vocabulary and provider retention behavior | Defer | task 7.17b | Public archive/purge is absent; current provider safety evidence is retained, while production reachability must be restored before replacement credit. |
+| Archive/purge vocabulary and provider retention behavior | Replace / relocate | `OrcaCore.Provider.Abstractions` + certified providers | Public archive/purge stays absent. Provider maintenance owns inspection, archival, and reference-safe cleanup; accepted-event and monotonic route-revision tombstones remain durable. |
 | Saga authoring, protocol, state, and audit source | Defer | task 9.6 registry | Saga is future/non-v1; recovery source remains addressable and earns no current capability credit. |
 | Public children and generic external jobs | Defer | task 9.6 registry | The public concepts are future/non-v1; excluded runtime source is retained only for recovery. |
 | Monolithic workflow builder | Replace/relocate | `OrcaCore.Core` typed authoring | Mode-specific staged authoring replaces the former builder. |
 | DAG builder and durable runner | Defer | task 8.5, `OrcaCore.Dag*` | Package ownership exists, but runnable DAG semantics remain Section 8 work and receive no replacement credit yet. |
 | Content-type serializer and raw runtime event-name catalog | Replace/relocate | fixed codec and event descriptors | One fixed codec and typed descriptors replace selectable serialization and raw names. |
-| Broad management/query and legacy instance/statistics projections | Defer | task 7.17b | Forbidden application enumeration stays absent; grouped operator statistics/pressure has no active equivalent yet and must be restored under internal/provider owners. |
+| Broad management/query and legacy instance/statistics projections | Replace / relocate | provider operational store + ephemeral diagnostics | Forbidden application enumeration stays absent. Provider-authoritative durable pressure and internal ephemeral grouped statistics supply host/operator views and BCL gauges. |
 | Application-replaceable ephemeral snapshotter | Remove | `OrcaCore.Engine.Ephemeral` | The fixed runtime-owned snapshot/codec path has no application serializer hook. |
 | Legacy validation helper | Replace/relocate | `OrcaCore.Core` and `OrcaCore` strong values | The internal helper remains load-bearing in Core and was physically relocated; public strong values own their exact validation. |
 | Reflection/name-dispatched construction bridges | Replace/relocate | typed application/Core/engine contracts | A closed generic authoring boundary plus exact application friends replace name dispatch and non-public constructor/property reflection. |
 | Catch-all hosting package, registration, SDK facade, serializer options | Remove | mode-specific hosting | Explicit mode registration and host-owned SDK configuration replace the catch-all package. |
 | Durable hosted loops and failure boundary | Replace/relocate | `OrcaCore.Durable.Hosting` | Durable progression moved outward into its owning hosting package. |
-| BCL telemetry instruments, gauges, observer, logging | Defer | tasks 7.12 and 7.17b | The SDK facade stays removed; the partial active catalog is not replacement credit, and complete `orca.*` BCL behavior must be restored with operator projections. |
+| BCL telemetry instruments, gauges, observer, logging | Replace / relocate | engine diagnostics + durable host observer | The SDK facade stays removed. Runtime owners emit the complete `orca.*` BCL catalog, structured logs, and exact spans; the host refreshes gauges from the same provider snapshot used for inspection. |
 | PostgreSQL resource-ownership migration | Replace/relocate | PostgreSQL greenfield schema | `007_resource_governance.sql` is the first-create replacement, not compatibility DDL. |
 | PostgreSQL registration extension | Replace/relocate | PostgreSQL provider package | The role-named provider registration extension is the supported owner. |
 | RabbitMQ adapter project/package | Defer | task 7.17c | Source is orphaned and the package is outside v1; task 7.17c must restore/certify or approve deletion. |
@@ -84,4 +84,4 @@ file accounting alone, including in-place member removal and forbidden compatibi
 The five provider trees are therefore classified, but not resolved as products. Task 7.17c remains
 responsible for converting each `Defer` row into a certified active owner or an approved removal.
 Likewise, the telemetry/statistics/retention rows make the current capability gap explicit and keep
-tasks 7.12/7.17b load-bearing.
+task 8.5 load-bearing for the remaining DAG capability gap.

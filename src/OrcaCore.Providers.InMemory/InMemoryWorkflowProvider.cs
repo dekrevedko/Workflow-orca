@@ -1,4 +1,5 @@
 using OrcaCore.Abstractions.Durable;
+using OrcaCore.Abstractions.Diagnostics;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
@@ -15,6 +16,8 @@ internal sealed class InMemoryWorkflowProvider :
     IWorkflowStartIdempotencyStore,
     IWorkflowOutboxStore,
     IWorkflowProjectionStore,
+    IWorkflowOperationalStore,
+    IWorkflowProviderMaintenanceStore,
     ITimerScheduler,
     IMessageDispatcher
 {
@@ -1191,28 +1194,197 @@ internal sealed class InMemoryWorkflowProvider :
         return Task.FromResult(DispatchResult.Success);
     }
 
-    internal Task<(bool Purged, string? Reason)> PurgeForRetentionAsync(
-        InstanceId instanceId,
+    public Task<WorkflowOperatorStatistics> GetOperatorStatisticsAsync(
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (gate)
         {
-            if (IsActive(instanceId))
+            var groups = summaries.Values
+                .GroupBy(snapshot => new
+                {
+                    snapshot.DefinitionId,
+                    snapshot.DefinitionVersion,
+                    snapshot.Status
+                })
+                .OrderBy(group => group.Key.DefinitionId.Value)
+                .ThenBy(group => group.Key.DefinitionVersion.Value)
+                .ThenBy(group => group.Key.Status)
+                .Select(group => new WorkflowOperatorStatisticsGroup(
+                    group.Key.DefinitionId,
+                    group.Key.DefinitionVersion,
+                    group.Key.Status,
+                    group.LongCount()))
+                .ToArray();
+            var pressure = new WorkflowOperationalPressure
             {
-                return Task.FromResult((false, (string?)"Instance is active."));
-            }
-
-            if (HasClaimedOutbox(instanceId))
+                ActiveInstanceCount = summaries.Values.LongCount(snapshot => IsActive(snapshot.InstanceId)),
+                StuckInstanceCount = summaries.Values.LongCount(snapshot => snapshot.IsStuck || snapshot.HasStuckStep),
+                ActiveWaitCount = summaries.Values.Sum(snapshot => (long)snapshot.ActiveWaits.Count),
+                StreamEventCount = streams.Values.Sum(stream => (long)stream.Count),
+                CheckpointCount = checkpoints.Count,
+                CheckpointLag = streams
+                    .Select(stream => Math.Max(
+                        0,
+                        stream.Value.Count - (checkpoints.TryGetValue(stream.Key.InstanceId, out var checkpoint)
+                            ? checkpoint.StreamVersion.Value
+                            : 0)))
+                    .DefaultIfEmpty()
+                    .Max(),
+                ContinuationPendingCount = CountOutbox(OutboxKinds.Continue, OutboxRecordState.Pending),
+                ContinuationRetryableCount = CountOutbox(OutboxKinds.Continue, OutboxRecordState.Retryable),
+                ContinuationClaimedCount = CountOutbox(OutboxKinds.Continue, OutboxRecordState.Claimed),
+                ContinuationPoisonedCount = CountOutbox(OutboxKinds.Continue, OutboxRecordState.Poisoned),
+                ExternalOutboxPendingCount = CountExternalOutbox(OutboxRecordState.Pending),
+                ExternalOutboxRetryableCount = CountExternalOutbox(OutboxRecordState.Retryable),
+                ExternalOutboxClaimedCount = CountExternalOutbox(OutboxRecordState.Claimed),
+                ExternalOutboxPoisonedCount = CountExternalOutbox(OutboxRecordState.Poisoned)
+            };
+            return Task.FromResult(new WorkflowOperatorStatistics
             {
-                return Task.FromResult((false, (string?)"Instance has claimed outbox records."));
-            }
-
-            DeleteInstanceData(instanceId);
-            return Task.FromResult((true, (string?)null));
+                ProviderName = OrcaCoreDiagnostics.InMemoryProviderName,
+                Groups = groups,
+                StuckGroups = summaries.Values
+                    .Where(snapshot => snapshot.IsStuck || snapshot.HasStuckStep)
+                    .GroupBy(snapshot => snapshot.DefinitionId)
+                    .OrderBy(group => group.Key.Value)
+                    .Select(group => new WorkflowOperatorStuckGroup(group.Key, group.LongCount()))
+                    .ToArray(),
+                ActiveWaitGroups = summaries.Values
+                    .SelectMany(snapshot => snapshot.ActiveWaits.Select(wait => new
+                    {
+                        snapshot.DefinitionId,
+                        EventName = global::OrcaCore.EventName.Create(wait.EventName)
+                    }))
+                    .GroupBy(wait => new { wait.DefinitionId, wait.EventName })
+                    .OrderBy(group => group.Key.DefinitionId.Value)
+                    .ThenBy(group => group.Key.EventName.Value, StringComparer.Ordinal)
+                    .Select(group => new WorkflowOperatorActiveWaitGroup(
+                        group.Key.DefinitionId,
+                        group.Key.EventName,
+                        group.LongCount()))
+                    .ToArray(),
+                Pressure = pressure
+            });
         }
     }
+
+    public Task<WorkflowProviderMaintenanceResult> ArchiveForMaintenanceAsync(
+        WorkflowProviderMaintenanceRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            if (!summaries.ContainsKey(request.InstanceId))
+            {
+                return Task.FromResult(new WorkflowProviderMaintenanceResult(
+                    WorkflowProviderMaintenanceDisposition.NotFound));
+            }
+
+            if (IsActive(request.InstanceId))
+            {
+                return Task.FromResult(Rejected(WorkflowProviderMaintenanceBlocker.ActiveInstance));
+            }
+
+            summaries[request.InstanceId] = summaries[request.InstanceId] with
+            {
+                ArchivedAt = request.RequestedAt
+            };
+            return Task.FromResult(new WorkflowProviderMaintenanceResult(
+                WorkflowProviderMaintenanceDisposition.Archived));
+        }
+    }
+
+    public Task<WorkflowProviderMaintenanceResult> PurgeForMaintenanceAsync(
+        WorkflowProviderMaintenanceRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
+            if (!summaries.ContainsKey(request.InstanceId) &&
+                !streams.ContainsKey(new WorkflowStreamId(request.InstanceId)))
+            {
+                return Task.FromResult(new WorkflowProviderMaintenanceResult(
+                    WorkflowProviderMaintenanceDisposition.NotFound));
+            }
+
+            if (FindMaintenanceBlocker(request.InstanceId) is { } blocker)
+            {
+                return Task.FromResult(Rejected(blocker));
+            }
+
+            DeleteInstanceData(request.InstanceId);
+            return Task.FromResult(new WorkflowProviderMaintenanceResult(
+                WorkflowProviderMaintenanceDisposition.Purged));
+        }
+    }
+
+    public Task<WorkflowProviderMaintenanceInspection> InspectForMaintenanceAsync(
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(instanceId);
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (gate)
+        {
+            var exists = summaries.TryGetValue(instanceId, out var snapshot) ||
+                streams.ContainsKey(new WorkflowStreamId(instanceId));
+            return Task.FromResult(new WorkflowProviderMaintenanceInspection(
+                exists,
+                snapshot?.ArchivedAt,
+                exists ? FindMaintenanceBlocker(instanceId) : null));
+        }
+    }
+
+    private long CountOutbox(string kind, OutboxRecordState state) =>
+        outbox.Values.LongCount(record =>
+            string.Equals(record.Write.Kind, kind, StringComparison.Ordinal) && record.State == state);
+
+    private long CountExternalOutbox(OutboxRecordState state) =>
+        outbox.Values.LongCount(record =>
+            !string.Equals(record.Write.Kind, OutboxKinds.Continue, StringComparison.Ordinal) && record.State == state);
+
+    private WorkflowProviderMaintenanceBlocker? FindMaintenanceBlocker(InstanceId instanceId)
+    {
+        if (IsActive(instanceId))
+        {
+            return WorkflowProviderMaintenanceBlocker.ActiveInstance;
+        }
+
+        if (DeliveryRecords().Any(record =>
+                record.InstanceId?.Equals(instanceId) == true && record.State == InboxRecordState.Received))
+        {
+            return WorkflowProviderMaintenanceBlocker.PendingInboxDelivery;
+        }
+
+        var states = outbox.Values
+            .Where(record => record.InstanceId.Equals(instanceId))
+            .Select(record => record.State)
+            .ToHashSet();
+        if (states.Contains(OutboxRecordState.Claimed))
+        {
+            return WorkflowProviderMaintenanceBlocker.ClaimedOutboxDispatch;
+        }
+
+        if (states.Contains(OutboxRecordState.Pending) || states.Contains(OutboxRecordState.Retryable))
+        {
+            return WorkflowProviderMaintenanceBlocker.PendingOutboxDispatch;
+        }
+
+        return states.Contains(OutboxRecordState.Poisoned)
+            ? WorkflowProviderMaintenanceBlocker.PoisonedOutboxDispatch
+            : null;
+    }
+
+    private static WorkflowProviderMaintenanceResult Rejected(WorkflowProviderMaintenanceBlocker blocker) =>
+        new(WorkflowProviderMaintenanceDisposition.Rejected, blocker);
 
     private List<DurableWorkflowEvent> GetStream(WorkflowStreamId streamId)
     {

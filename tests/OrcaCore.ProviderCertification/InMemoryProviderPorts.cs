@@ -25,6 +25,11 @@ internal sealed class InMemoryProviderPorts : IDisposable
 
     internal IWorkflowProjectionStore ProjectionStore => services.GetRequiredService<IWorkflowProjectionStore>();
 
+    internal IWorkflowOperationalStore OperationalStore => services.GetRequiredService<IWorkflowOperationalStore>();
+
+    internal IWorkflowProviderMaintenanceStore MaintenanceStore =>
+        services.GetRequiredService<IWorkflowProviderMaintenanceStore>();
+
     internal ITimerScheduler TimerScheduler => services.GetRequiredService<ITimerScheduler>();
 
     internal IResourcePoolStore ResourcePoolStore => services.GetRequiredService<IResourcePoolStore>();

@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Reflection;
+using OrcaCore.Abstractions.Diagnostics;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Core.Definitions;
@@ -156,7 +158,8 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         var missingTransientPools = PreflightDefinition(definition);
         if (missingTransientPools.Count > 0)
         {
-            OrcaCoreEphemeralDiagnostics.RecordHostCompatibilityFailure("missing_transient_pools");
+            OrcaCoreEphemeralDiagnostics.RecordHostCompatibilityFailure(
+                OrcaCoreDiagnostics.MissingTransientPoolsError);
             throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
                 "HostIncompatible.MissingTransientPools: " +
                 string.Join(", ", missingTransientPools.Select(pool => pool.Value)));
@@ -237,7 +240,8 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definitionId);
-        using var activity = OrcaCoreEphemeralDiagnostics.StartOperation("start");
+        var commandStopwatch = Stopwatch.StartNew();
+        using var activity = OrcaCoreEphemeralDiagnostics.StartOperation(OrcaCoreDiagnostics.StartOperation);
         cancellationToken.ThrowIfCancellationRequested();
 
         if (!definitions.TryGetValue(
@@ -283,9 +287,16 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
             : await yieldContinuationScheduler
                 .DrainAsync(instance, instanceId, committed => CommitSnapshot(committed), cancellationToken)
                 .ConfigureAwait(false);
-        activity?.SetTag("workflow.instance_id", snapshot.InstanceId.ToString());
-        activity?.SetTag("workflow.status", snapshot.Status.ToString());
-        OrcaCoreEphemeralDiagnostics.RecordWorkflowStarted(snapshot.Status);
+        commandStopwatch.Stop();
+        activity?.SetTag(OrcaCoreDiagnostics.InstanceIdKey, snapshot.InstanceId.ToString());
+        activity?.SetTag(OrcaCoreDiagnostics.DefinitionIdKey, snapshot.DefinitionId.ToString());
+        activity?.SetTag(OrcaCoreDiagnostics.StatusKey, snapshot.Status.ToString());
+        OrcaCoreEphemeralDiagnostics.RecordCommand(
+            snapshot.DefinitionId,
+            OrcaCoreDiagnostics.StartOperation,
+            snapshot.Status,
+            commandStopwatch.Elapsed);
+        OrcaCoreEphemeralDiagnostics.RecordWorkflowStarted(snapshot.DefinitionId);
         return snapshot;
     }
 
@@ -449,7 +460,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
     internal async Task<IReadOnlyList<EphemeralWorkflowInstanceSnapshot>> FireDueTimersCoreAsync(
         CancellationToken cancellationToken)
     {
-        using var activity = OrcaCoreEphemeralDiagnostics.StartOperation("fire_due_timers");
+        using var activity = OrcaCoreEphemeralDiagnostics.StartOperation(OrcaCoreDiagnostics.FireDueTimersOperation);
         cancellationToken.ThrowIfCancellationRequested();
 
         var dueTimers = timerService.ClaimDueTimers();
@@ -462,6 +473,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         for (var index = 0; index < dueTimers.Count; index++)
         {
             var timer = dueTimers[index];
+            var commandStopwatch = Stopwatch.StartNew();
             try
             {
                 instanceRegistry.TryGet(timer.InstanceId, out var registeredInstance);
@@ -487,7 +499,12 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                 }
 
                 snapshots.Add(snapshot);
-                OrcaCoreEphemeralDiagnostics.RecordTimerFired(snapshot.Status);
+                commandStopwatch.Stop();
+                OrcaCoreEphemeralDiagnostics.RecordCommand(
+                    snapshot.DefinitionId,
+                    OrcaCoreDiagnostics.FireDueTimersOperation,
+                    snapshot.Status,
+                    commandStopwatch.Elapsed);
                 timerService.Complete(timer);
             }
             catch
@@ -512,7 +529,8 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         EventEnvelope envelope,
         CancellationToken cancellationToken)
     {
-        using var activity = OrcaCoreEphemeralDiagnostics.StartOperation("raise_event");
+        var commandStopwatch = Stopwatch.StartNew();
+        using var activity = OrcaCoreEphemeralDiagnostics.StartOperation(OrcaCoreDiagnostics.RaiseEventOperation);
         ArgumentNullException.ThrowIfNull(envelope);
         ValidateEventEnvelope(envelope);
         cancellationToken.ThrowIfCancellationRequested();
@@ -529,6 +547,10 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                 $"Workflow instance '{instanceId}' is not using state type '{typeof(TState).Name}'.");
         }
 
+        var matchedWait = instance.ToSnapshot().ActiveWaits.FirstOrDefault(wait =>
+            wait.EventContract.Equals(envelope.EventContract) &&
+            wait.CorrelationId.Equals(envelope.CorrelationId));
+
         var snapshot = await executionLane.RunAsync(
                 instanceId,
                 async laneCancellationToken =>
@@ -543,9 +565,28 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         snapshot = await yieldContinuationScheduler
             .DrainAsync(instance, instanceId, committed => CommitSnapshot(committed), cancellationToken)
             .ConfigureAwait(false);
-        activity?.SetTag("workflow.instance_id", snapshot.InstanceId.ToString());
-        activity?.SetTag("workflow.status", snapshot.Status.ToString());
-        OrcaCoreEphemeralDiagnostics.RecordEventDelivered(snapshot.Status);
+        commandStopwatch.Stop();
+        activity?.SetTag(OrcaCoreDiagnostics.InstanceIdKey, snapshot.InstanceId.ToString());
+        activity?.SetTag(OrcaCoreDiagnostics.DefinitionIdKey, snapshot.DefinitionId.ToString());
+        activity?.SetTag(OrcaCoreDiagnostics.StatusKey, snapshot.Status.ToString());
+        activity?.SetTag(OrcaCoreDiagnostics.EventTypeKey, envelope.EventContract.EventName.Value);
+        OrcaCoreEphemeralDiagnostics.RecordCommand(
+            snapshot.DefinitionId,
+            OrcaCoreDiagnostics.RaiseEventOperation,
+            snapshot.Status,
+            commandStopwatch.Elapsed);
+        OrcaCoreEphemeralDiagnostics.RecordEventDelivered(
+            snapshot.DefinitionId,
+            envelope.EventContract.EventName,
+            snapshot.Status);
+        if (matchedWait is not null && snapshot.ActiveWaits.All(wait => !wait.WaitId.Equals(matchedWait.WaitId)))
+        {
+            OrcaCoreEphemeralDiagnostics.RecordWaitMatched(
+                snapshot.DefinitionId,
+                matchedWait.EventContract.EventName,
+                timeProvider.GetUtcNow() - matchedWait.RegisteredAt);
+        }
+
         return snapshot;
     }
 
@@ -553,6 +594,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         InstanceId instanceId,
         CancellationToken cancellationToken)
     {
+        var commandStopwatch = Stopwatch.StartNew();
         cancellationToken.ThrowIfCancellationRequested();
 
         if (!instanceRegistry.TryGet(instanceId, out var registeredInstance) ||
@@ -574,7 +616,13 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                 instanceId,
                 _ => Task.FromResult(CommitSnapshot(instance.Cancel(timeProvider.GetUtcNow()))),
                 CancellationToken.None).ConfigureAwait(false);
-        OrcaCoreEphemeralDiagnostics.RecordTerminalCommand(snapshot.Status);
+        commandStopwatch.Stop();
+        OrcaCoreEphemeralDiagnostics.RecordCommand(
+            snapshot.DefinitionId,
+            OrcaCoreDiagnostics.RequestCancellationOperation,
+            snapshot.Status,
+            commandStopwatch.Elapsed);
+        OrcaCoreEphemeralDiagnostics.RecordTerminalLifecycle(snapshot.DefinitionId, snapshot.Status);
         return disposition;
     }
 
@@ -594,6 +642,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         InstanceId instanceId,
         CancellationToken cancellationToken)
     {
+        var commandStopwatch = Stopwatch.StartNew();
         cancellationToken.ThrowIfCancellationRequested();
 
         if (!instanceRegistry.TryGet(instanceId, out var registeredInstance) ||
@@ -621,7 +670,15 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                         Snapshot: CommitSnapshot(instance.Terminate(timeProvider.GetUtcNow()))));
                 },
                 CancellationToken.None).ConfigureAwait(false);
-        OrcaCoreEphemeralDiagnostics.RecordTerminalCommand(result.Snapshot.Status);
+        commandStopwatch.Stop();
+        OrcaCoreEphemeralDiagnostics.RecordCommand(
+            result.Snapshot.DefinitionId,
+            OrcaCoreDiagnostics.RequestTerminationOperation,
+            result.Snapshot.Status,
+            commandStopwatch.Elapsed);
+        OrcaCoreEphemeralDiagnostics.RecordTerminalLifecycle(
+            result.Snapshot.DefinitionId,
+            result.Snapshot.Status);
         return result.Status;
     }
 
@@ -659,6 +716,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
 
         var removed = instanceRegistry.Remove(instanceId);
         IndexSnapshot(snapshot);
+        OrcaCoreEphemeralDiagnostics.RefreshStatistics(CurrentSnapshots());
         return removed;
     }
 
@@ -689,8 +747,12 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
             IndexSnapshot(snapshot);
         }
 
+        OrcaCoreEphemeralDiagnostics.RefreshStatistics(CurrentSnapshots());
         return purged;
     }
+
+    internal EphemeralOperatorStatistics GetOperatorStatistics() =>
+        OrcaCoreEphemeralDiagnostics.CaptureStatistics(CurrentSnapshots());
 
     private static WorkflowErrorDetails ToWorkflowError(Exception exception, string stepPath, DateTimeOffset occurredAt)
     {
@@ -760,9 +822,16 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         }
 
         IndexSnapshot(snapshot);
+        OrcaCoreEphemeralDiagnostics.RefreshStatistics(CurrentSnapshots());
         InstanceCommitted?.Invoke(snapshot.InstanceId);
         return snapshot;
     }
+
+    private EphemeralWorkflowInstanceSnapshot[] CurrentSnapshots() =>
+        instanceRegistry.List()
+            .OfType<IWorkflowInstance>()
+            .Select(instance => instance.GetPublishedSnapshot())
+            .ToArray();
 
     internal bool TryGetFacadeInstance(
         InstanceId instanceId,

@@ -71,6 +71,8 @@ public static class OrcaCorePostgreSqlProviderServiceCollectionExtensions
             typeof(IWorkflowStartIdempotencyStore),
             typeof(IWorkflowOutboxStore),
             typeof(IWorkflowProjectionStore),
+            typeof(IWorkflowOperationalStore),
+            typeof(IWorkflowProviderMaintenanceStore),
             typeof(ITimerScheduler),
             typeof(IResourcePoolStore),
             typeof(IDurableResourceGovernanceStore)
@@ -106,6 +108,10 @@ public static class OrcaCorePostgreSqlProviderServiceCollectionExtensions
         services.TryAddSingleton<IWorkflowOutboxStore>(provider =>
             provider.GetRequiredService<PostgreSqlWorkflowStore>());
         services.TryAddSingleton<IWorkflowProjectionStore>(provider =>
+            provider.GetRequiredService<PostgreSqlWorkflowStore>());
+        services.TryAddSingleton<IWorkflowOperationalStore>(provider =>
+            provider.GetRequiredService<PostgreSqlWorkflowStore>());
+        services.TryAddSingleton<IWorkflowProviderMaintenanceStore>(provider =>
             provider.GetRequiredService<PostgreSqlWorkflowStore>());
         services.TryAddSingleton<ITimerScheduler>(provider =>
             provider.GetRequiredService<PostgreSqlWorkflowStore>());

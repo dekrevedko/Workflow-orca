@@ -152,6 +152,14 @@ depend outward on `OrcaCore.Dag.Hosting`, but no OrcaCore package depends on or
   `WorkflowVersionException` (DU-041). Messages must state what the caller should do.
 - Logging via `ILogger<T>` abstractions with source-generated `LoggerMessage` definitions;
   no string interpolation in log calls; no logging in Abstractions.
+- Runtime diagnostics use only BCL `ActivitySource`, `Meter`, and `ILogger<T>` owners. Every
+  shipped instrument starts with `orca.`; OpenTelemetry SDKs, exporters, authorization, and
+  redaction remain host-owned. Durable gauges and direct operator inspection consume the same
+  immutable provider snapshot within one operational sweep interval.
+- Retention is a provider-maintenance concern, not an application workflow operation. Physical
+  cleanup must re-check active instances and live inbox/outbox references atomically and retain
+  confirmation, idempotency, and monotonic route-revision tombstones while delayed observations
+  can still arrive.
 
 ## 7. Comments & docs
 

@@ -43,7 +43,7 @@ internal sealed class DurableResourceLeaseDiagnostics(
             }
         }
 
-        OrcaCoreDurableDiagnostics.RefreshQuarantine(materialized);
+        OrcaCoreDurableDiagnostics.RefreshLeaseObligations(materialized);
         foreach (var snapshot in materialized)
         {
             yield return snapshot;

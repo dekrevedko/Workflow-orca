@@ -6,6 +6,7 @@ using OrcaCore.Abstractions.Providers;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Core.Execution;
 using OrcaCore.Engine.Durable.Execution;
+using OrcaCore.Engine.Durable.Diagnostics;
 using OrcaCore.Core.Internal;
 using OrcaCore.Internal;
 using ProjectionSnapshot = OrcaCore.Abstractions.Providers.WorkflowProjectionSnapshot;
@@ -209,14 +210,18 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
         {
             if (registrations.TryGetValue(key, out var existing))
             {
-                return existing.Fingerprint.Equals(fingerprint)
-                    ? new WorkflowRegistrationResult<THandle>.Registered((THandle)existing.Handle)
-                    : new WorkflowRegistrationResult<THandle>.Conflict(
-                        global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionRegistrationConflict(
-                            definitionId,
-                            definitionVersion,
-                            existing.Fingerprint,
-                            fingerprint));
+                if (existing.Fingerprint.Equals(fingerprint))
+                {
+                    return new WorkflowRegistrationResult<THandle>.Registered((THandle)existing.Handle);
+                }
+
+                OrcaCoreDurableDiagnostics.RecordRegistrationConflict();
+                return new WorkflowRegistrationResult<THandle>.Conflict(
+                    global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionRegistrationConflict(
+                        definitionId,
+                        definitionVersion,
+                        existing.Fingerprint,
+                        fingerprint));
             }
 
             runtime.RegisterDefinition(publicDefinition);

@@ -132,7 +132,8 @@ internal sealed class DurableCommandTelemetry(IWorkflowRuntimeObserver runtimeOb
     {
         foreach (var workflowEvent in events)
         {
-            using var activity = OrcaCoreDurableDiagnostics.ActivitySource.StartActivity("orca.event.apply");
+            using var activity = OrcaCoreDurableDiagnostics.ActivitySource.StartActivity(
+                OrcaCoreDiagnostics.EventApplyActivity);
             activity?.SetTag(OrcaCoreDiagnostics.EventTypeKey, workflowEvent.EventType);
             activity?.SetTag(OrcaCoreDiagnostics.InstanceIdKey, instanceId.ToString());
             if (workflowEvent.DefinitionId is { } definitionId)
@@ -148,7 +149,8 @@ internal sealed class DurableCommandTelemetry(IWorkflowRuntimeObserver runtimeOb
     {
         foreach (var workflowEvent in events.Where(workflowEvent => workflowEvent.StepPath is not null))
         {
-            using var activity = OrcaCoreDurableDiagnostics.ActivitySource.StartActivity("orca.step.execute");
+            using var activity = OrcaCoreDurableDiagnostics.ActivitySource.StartActivity(
+                OrcaCoreDiagnostics.StepExecuteActivity);
             activity?.SetTag(OrcaCoreDiagnostics.StepPathKey, workflowEvent.StepPath);
             activity?.SetTag(OrcaCoreDiagnostics.InstanceIdKey, instanceId.ToString());
             if (workflowEvent.DefinitionId is { } definitionId)

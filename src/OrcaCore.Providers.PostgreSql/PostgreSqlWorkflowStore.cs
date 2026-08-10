@@ -16,12 +16,14 @@ namespace OrcaCore.Providers.PostgreSql;
 /// <summary>
 /// Stores durable workflow events and checkpoints in PostgreSQL.
 /// </summary>
-internal sealed class PostgreSqlWorkflowStore :
+internal sealed partial class PostgreSqlWorkflowStore :
     IWorkflowEventStore,
     IWorkflowInboxStore,
     IWorkflowStartIdempotencyStore,
     IWorkflowOutboxStore,
     IWorkflowProjectionStore,
+    IWorkflowOperationalStore,
+    IWorkflowProviderMaintenanceStore,
     ITimerScheduler,
     IAsyncDisposable
 {
@@ -2040,11 +2042,49 @@ internal sealed class PostgreSqlWorkflowStore :
         return timerScheduler.ReleaseAsync(timerId, cancellationToken);
     }
 
-    internal Task<(bool Purged, string? Reason)> PurgeForRetentionAsync(
+    public Task<WorkflowProviderMaintenanceResult> ArchiveForMaintenanceAsync(
+        WorkflowProviderMaintenanceRequest request,
+        CancellationToken cancellationToken)
+    {
+        return retentionStore.ArchiveForMaintenanceAsync(request, cancellationToken);
+    }
+
+    public Task<WorkflowProviderMaintenanceInspection> InspectForMaintenanceAsync(
         InstanceId instanceId,
         CancellationToken cancellationToken)
     {
-        return retentionStore.PurgeForRetentionAsync(instanceId, cancellationToken);
+        return retentionStore.InspectForMaintenanceAsync(instanceId, cancellationToken);
+    }
+
+    public Task<WorkflowProviderMaintenanceResult> PurgeForMaintenanceAsync(
+        WorkflowProviderMaintenanceRequest request,
+        CancellationToken cancellationToken)
+    {
+        return retentionStore.PurgeForMaintenanceAsync(request, cancellationToken);
+    }
+
+    internal async Task<(bool Purged, string? Reason)> PurgeForRetentionAsync(
+        InstanceId instanceId,
+        CancellationToken cancellationToken)
+    {
+        var result = await PurgeForMaintenanceAsync(
+            new WorkflowProviderMaintenanceRequest(instanceId, timeProvider.GetUtcNow()),
+            cancellationToken).ConfigureAwait(false);
+        return result.Disposition == WorkflowProviderMaintenanceDisposition.Purged
+            ? (true, null)
+            : (false, result.Blocker switch
+            {
+                WorkflowProviderMaintenanceBlocker.ActiveInstance => "Instance is active.",
+                WorkflowProviderMaintenanceBlocker.ClaimedOutboxDispatch =>
+                    "Instance has claimed outbox records.",
+                WorkflowProviderMaintenanceBlocker.PendingInboxDelivery =>
+                    "Instance has pending inbox records.",
+                WorkflowProviderMaintenanceBlocker.PendingOutboxDispatch =>
+                    "Instance has pending outbox records.",
+                WorkflowProviderMaintenanceBlocker.PoisonedOutboxDispatch =>
+                    "Instance has poisoned outbox records.",
+                _ => "Instance was not found."
+            });
     }
 
     /// <inheritdoc />

@@ -1,6 +1,7 @@
 using System.Diagnostics.Metrics;
 using System.Threading.Channels;
 using OrcaCore.Engine.Ephemeral.Diagnostics;
+using OrcaCore.Abstractions.Diagnostics;
 
 namespace OrcaCore.Engine.Ephemeral.Governance;
 
@@ -37,16 +38,16 @@ internal sealed class ResourceGovernanceCoordinator
         gauges =
         [
             OrcaCoreEphemeralDiagnostics.Meter.CreateObservableGauge<long>(
-                "orcacore.governance.configured_limit",
+                OrcaCoreMetrics.GovernanceConfiguredLimit,
                 () => Observe(snapshot => snapshot.ConfiguredLimit)),
             OrcaCoreEphemeralDiagnostics.Meter.CreateObservableGauge<long>(
-                "orcacore.governance.active_slots",
+                OrcaCoreMetrics.GovernanceActiveSlots,
                 () => Observe(snapshot => snapshot.ActiveSlots)),
             OrcaCoreEphemeralDiagnostics.Meter.CreateObservableGauge<long>(
-                "orcacore.governance.wait_depth",
+                OrcaCoreMetrics.GovernanceWaitDepth,
                 () => Observe(snapshot => snapshot.WaitDepth)),
             OrcaCoreEphemeralDiagnostics.Meter.CreateObservableGauge<long>(
-                "orcacore.governance.cancellations",
+                OrcaCoreMetrics.GovernanceCancellations,
                 () => Observe(snapshot => snapshot.Cancellations))
         ];
     }

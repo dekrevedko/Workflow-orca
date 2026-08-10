@@ -1,5 +1,8 @@
+using System.Diagnostics;
+using OrcaCore.Abstractions.Diagnostics;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Core.Execution;
+using OrcaCore.Engine.Ephemeral.Diagnostics;
 using OrcaCore.Engine.Ephemeral.Governance;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
@@ -58,6 +61,7 @@ internal sealed class StepExecutor<TState>
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
             var stepStartedAt = timeProvider.GetUtcNow();
+            using var activity = OrcaCoreEphemeralDiagnostics.StartStep(instance.DefinitionId, stepPath);
             instance.StartStep(stepPath, stepStartedAt, stepNode.Policies.Timeout?.Duration);
             using var stuckTimer = stuckStepThreshold is { } threshold
                 ? timeProvider.CreateTimer(
@@ -77,7 +81,19 @@ internal sealed class StepExecutor<TState>
                     forEachItem);
                 var result = await step.ExecuteAsync(context, executionToken).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
-                instance.CompleteStep(stepPath, timeProvider.GetUtcNow());
+                var stepCompletedAt = timeProvider.GetUtcNow();
+                instance.CompleteStep(stepPath, stepCompletedAt);
+                var errorKind = result is StepResult.Failed failed ? failed.Error.GetType().Name : null;
+                OrcaCoreEphemeralDiagnostics.RecordStep(
+                    instance.DefinitionId,
+                    stepPath,
+                    stepCompletedAt - stepStartedAt,
+                    errorKind);
+                if (errorKind is not null)
+                {
+                    activity?.SetTag(OrcaCoreDiagnostics.ErrorKindKey, errorKind);
+                    activity?.SetStatus(ActivityStatusCode.Error, errorKind);
+                }
                 RecordStuckStepIfNeeded(instance, stepPath, stepStartedAt);
                 if (result is StepResult.Failed && attempt < maxAttempts)
                 {
@@ -100,9 +116,17 @@ internal sealed class StepExecutor<TState>
                 Volatile.Read(ref timedOut) == 1 &&
                 !cancellationToken.IsCancellationRequested)
             {
-                instance.CompleteStep(stepPath, timeProvider.GetUtcNow());
+                var stepCompletedAt = timeProvider.GetUtcNow();
+                instance.CompleteStep(stepPath, stepCompletedAt);
                 var timeoutException = new TimeoutException(
                     $"Step '{stepPath}' timed out after {stepNode.Policies.Timeout!.Duration}.");
+                OrcaCoreEphemeralDiagnostics.RecordStep(
+                    instance.DefinitionId,
+                    stepPath,
+                    stepCompletedAt - stepStartedAt,
+                    timeoutException.GetType().Name);
+                activity?.SetStatus(ActivityStatusCode.Error, timeoutException.Message);
+                activity?.AddException(timeoutException);
                 if (deferFailures)
                 {
                     return StepExecutionResult.Failed(timeoutException);
@@ -113,7 +137,15 @@ internal sealed class StepExecutor<TState>
             }
             catch (Exception exception) when (exception is not OperationCanceledException and not NotSupportedException)
             {
-                instance.CompleteStep(stepPath, timeProvider.GetUtcNow());
+                var stepCompletedAt = timeProvider.GetUtcNow();
+                instance.CompleteStep(stepPath, stepCompletedAt);
+                OrcaCoreEphemeralDiagnostics.RecordStep(
+                    instance.DefinitionId,
+                    stepPath,
+                    stepCompletedAt - stepStartedAt,
+                    exception.GetType().Name);
+                activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
+                activity?.AddException(exception);
                 RecordStuckStepIfNeeded(instance, stepPath, stepStartedAt);
                 if (attempt < maxAttempts)
                 {

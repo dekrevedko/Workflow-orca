@@ -15,6 +15,19 @@ public sealed class InMemoryProviderCertificationTests : ContinueAsNewCertificat
         StartOrDeliverInboxCertification.RunAsync(CreateFixture());
 
     [Fact]
+    public async Task OperationalStatisticsAndMaintenance_AreProviderAuthoritativeAndReferenceSafe()
+    {
+        using var provider = InMemoryProviderPorts.Create();
+        await OperationalMaintenanceCertification.RunAsync(
+            provider.EventStore,
+            provider.InboxStore,
+            provider.OutboxStore,
+            provider.OperationalStore,
+            provider.MaintenanceStore,
+            TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
     public void ActiveWaitQuery_ImplementsTheVersionAwareProviderOverload()
     {
         var projectionStore = InMemoryProviderPorts.Create().ProjectionStore;

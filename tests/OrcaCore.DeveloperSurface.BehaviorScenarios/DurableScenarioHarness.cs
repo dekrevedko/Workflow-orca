@@ -19,6 +19,7 @@ internal sealed class DurableScenarioProvider :
     IWorkflowStartIdempotencyStore,
     IWorkflowOutboxStore,
     IWorkflowProjectionStore,
+    IWorkflowOperationalStore,
     ITimerScheduler,
     IMessageDispatcher,
     IResourcePoolStore,
@@ -31,6 +32,7 @@ internal sealed class DurableScenarioProvider :
     private readonly IWorkflowStartIdempotencyStore startStore;
     private readonly IWorkflowOutboxStore outboxStore;
     private readonly IWorkflowProjectionStore projectionStore;
+    private readonly IWorkflowOperationalStore operationalStore;
     private readonly ITimerScheduler timerScheduler;
     private readonly IMessageDispatcher dispatcher;
     private readonly IResourcePoolStore resourcePoolStore;
@@ -53,6 +55,7 @@ internal sealed class DurableScenarioProvider :
         startStore = services.GetRequiredService<IWorkflowStartIdempotencyStore>();
         outboxStore = services.GetRequiredService<IWorkflowOutboxStore>();
         projectionStore = services.GetRequiredService<IWorkflowProjectionStore>();
+        operationalStore = services.GetRequiredService<IWorkflowOperationalStore>();
         timerScheduler = services.GetRequiredService<ITimerScheduler>();
         dispatcher = services.GetRequiredService<IMessageDispatcher>();
         resourcePoolStore = services.GetRequiredService<IResourcePoolStore>();
@@ -66,12 +69,17 @@ internal sealed class DurableScenarioProvider :
         target.AddSingleton<IWorkflowStartIdempotencyStore>(this);
         target.AddSingleton<IWorkflowOutboxStore>(this);
         target.AddSingleton<IWorkflowProjectionStore>(this);
+        target.AddSingleton<IWorkflowOperationalStore>(this);
         target.AddSingleton<ITimerScheduler>(this);
         target.AddSingleton<IMessageDispatcher>(this);
         target.AddSingleton<IResourcePoolStore>(this);
         target.AddSingleton<IDurableResourceGovernanceStore>(this);
         target.AddSingleton<IDurableProviderRole>(ScenarioProviderRole.Instance);
     }
+
+    public Task<WorkflowOperatorStatistics> GetOperatorStatisticsAsync(
+        CancellationToken cancellationToken) =>
+        operationalStore.GetOperatorStatisticsAsync(cancellationToken);
 
     public Task<Option<CheckpointWrite>> LoadCheckpointAsync(
         InstanceId instanceId,

@@ -30,6 +30,8 @@ public sealed class PostgreSqlServiceCollectionTests
         provider.GetRequiredService<IWorkflowStartIdempotencyStore>().Should().BeOfType<PostgreSqlWorkflowStore>();
         provider.GetRequiredService<IWorkflowOutboxStore>().Should().BeOfType<PostgreSqlWorkflowStore>();
         provider.GetRequiredService<IWorkflowProjectionStore>().Should().BeOfType<PostgreSqlWorkflowStore>();
+        provider.GetRequiredService<IWorkflowOperationalStore>().Should().BeOfType<PostgreSqlWorkflowStore>();
+        provider.GetRequiredService<IWorkflowProviderMaintenanceStore>().Should().BeOfType<PostgreSqlWorkflowStore>();
         provider.GetRequiredService<ITimerScheduler>().Should().BeOfType<PostgreSqlWorkflowStore>();
         provider.GetRequiredService<IResourcePoolStore>().Should().BeOfType<PostgreSqlResourcePoolStore>();
         provider.GetServices<IHostedService>()

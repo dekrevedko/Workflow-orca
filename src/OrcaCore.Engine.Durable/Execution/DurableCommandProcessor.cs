@@ -813,7 +813,8 @@ internal sealed class DurableCommandProcessor
         StreamVersion? expectedVersion = null)
     {
         var stopwatch = Stopwatch.StartNew();
-        using var activity = OrcaCoreDurableDiagnostics.ActivitySource.StartActivity("orca.command.process");
+        using var activity = OrcaCoreDurableDiagnostics.ActivitySource.StartActivity(
+            OrcaCoreDiagnostics.CommandProcessActivity);
         activity?.SetTag(OrcaCoreDiagnostics.CommandTypeKey, commandType);
         activity?.SetTag(OrcaCoreDiagnostics.InstanceIdKey, instanceId.ToString());
 
@@ -1047,9 +1048,10 @@ internal sealed class DurableCommandProcessor
                 .ConfigureAwait(false);
         }
 
-        using var activity = OrcaCoreDurableDiagnostics.ActivitySource.StartActivity("orca.provider.commit");
+        using var activity = OrcaCoreDurableDiagnostics.ActivitySource.StartActivity(
+            OrcaCoreDiagnostics.ProviderCommitActivity);
         activity?.SetTag(OrcaCoreDiagnostics.ProviderNameKey, providerName);
-        activity?.SetTag(OrcaCoreDiagnostics.ProviderOperationKey, "append");
+        activity?.SetTag(OrcaCoreDiagnostics.ProviderOperationKey, OrcaCoreDiagnostics.AppendProviderOperation);
         activity?.SetTag(OrcaCoreDiagnostics.InstanceIdKey, instanceId.ToString());
 
         try

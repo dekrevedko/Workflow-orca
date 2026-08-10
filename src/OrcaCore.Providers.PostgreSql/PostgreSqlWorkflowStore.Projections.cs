@@ -117,6 +117,11 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
                    outcome_name,
                    continue_as_new_generation,
                    archived_at,
+                   last_active_at,
+                   is_stuck,
+                   has_stuck_step,
+                   stuck_step_path,
+                   stuck_detected_at,
                    saga_audits,
                    stream_version
             from orcacore_instance_projections summary
@@ -155,10 +160,16 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
                 Status = Enum.Parse<global::OrcaCore.WorkflowInstanceStatus>(reader.GetString(5)),
                 CreatedAt = reader.GetFieldValue<DateTimeOffset>(6),
                 UpdatedAt = reader.GetFieldValue<DateTimeOffset>(7),
+                ArchivedAt = reader.IsDBNull(11) ? null : reader.GetFieldValue<DateTimeOffset>(11),
+                LastActiveAt = reader.IsDBNull(12) ? null : reader.GetFieldValue<DateTimeOffset>(12),
+                IsStuck = reader.GetBoolean(13),
+                HasStuckStep = reader.GetBoolean(14),
+                StuckStepPath = reader.IsDBNull(15) ? null : reader.GetString(15),
+                StuckDetectedAt = reader.IsDBNull(16) ? null : reader.GetFieldValue<DateTimeOffset>(16),
                 ErrorSummary = reader.IsDBNull(8) ? null : reader.GetString(8),
                 EndOutcomeName = reader.IsDBNull(9) ? null : reader.GetString(9),
                 ContinueAsNewGeneration = reader.GetInt32(10),
-                StreamVersion = reader.IsDBNull(13) ? null : reader.GetInt64(13)
+                StreamVersion = reader.IsDBNull(18) ? null : reader.GetInt64(18)
             });
         }
 
@@ -281,6 +292,11 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
                 outcome_name,
                 continue_as_new_generation,
                 archived_at,
+                last_active_at,
+                is_stuck,
+                has_stuck_step,
+                stuck_step_path,
+                stuck_detected_at,
                 saga_audits)
             values (
                 @instance_id,
@@ -296,6 +312,11 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
                 @outcome_name,
                 @continue_as_new_generation,
                 @archived_at,
+                @last_active_at,
+                @is_stuck,
+                @has_stuck_step,
+                @stuck_step_path,
+                @stuck_detected_at,
                 @saga_audits)
             on conflict (instance_id) do update set
                 parent_instance_id = excluded.parent_instance_id,
@@ -310,6 +331,11 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
                 outcome_name = excluded.outcome_name,
                 continue_as_new_generation = excluded.continue_as_new_generation,
                 archived_at = excluded.archived_at,
+                last_active_at = excluded.last_active_at,
+                is_stuck = excluded.is_stuck,
+                has_stuck_step = excluded.has_stuck_step,
+                stuck_step_path = excluded.stuck_step_path,
+                stuck_detected_at = excluded.stuck_detected_at,
                 saga_audits = excluded.saga_audits;
             delete from orcacore_active_wait_projections
             where instance_id = @instance_id;
@@ -331,7 +357,12 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
         command.Parameters.AddWithValue("error_summary", (object?)snapshot.ErrorSummary ?? DBNull.Value);
         command.Parameters.AddWithValue("outcome_name", (object?)snapshot.EndOutcomeName ?? DBNull.Value);
         command.Parameters.AddWithValue("continue_as_new_generation", snapshot.ContinueAsNewGeneration);
-        command.Parameters.AddWithValue("archived_at", DBNull.Value);
+        command.Parameters.AddWithValue("archived_at", (object?)snapshot.ArchivedAt ?? DBNull.Value);
+        command.Parameters.AddWithValue("last_active_at", (object?)snapshot.LastActiveAt ?? DBNull.Value);
+        command.Parameters.AddWithValue("is_stuck", snapshot.IsStuck);
+        command.Parameters.AddWithValue("has_stuck_step", snapshot.HasStuckStep);
+        command.Parameters.AddWithValue("stuck_step_path", (object?)snapshot.StuckStepPath ?? DBNull.Value);
+        command.Parameters.AddWithValue("stuck_detected_at", (object?)snapshot.StuckDetectedAt ?? DBNull.Value);
         command.Parameters.AddWithValue(
             "saga_audits",
             NpgsqlDbType.Jsonb,

@@ -134,10 +134,7 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
             .ToDictionary(family => RequiredString(family, "id"), StringComparer.Ordinal);
         var requiredDeferrals = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["provider-retention-capability-replacement"] = "task:7.17b",
-            ["dag-authoring-and-runner-relocation"] = "task:8.5",
-            ["management-and-operational-projection-replacement"] = "task:7.17b",
-            ["bcl-telemetry-relocation"] = "task:7.12+7.17b"
+            ["dag-authoring-and-runner-relocation"] = "task:8.5"
         };
 
         foreach (var (familyId, owner) in requiredDeferrals)
@@ -148,13 +145,29 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
             RequiredString(families[familyId], "owner").Should().Be(owner);
         }
 
+        var restoredCapabilities = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["provider-retention-capability-replacement"] =
+                "active:OrcaCore.Provider.Abstractions+OrcaCore.Providers.InMemory+OrcaCore.Providers.PostgreSql",
+            ["management-and-operational-projection-replacement"] =
+                "active:OrcaCore.Provider.Abstractions+OrcaCore.Engine.Ephemeral",
+            ["bcl-telemetry-relocation"] =
+                "active:OrcaCore.Engine.Durable+OrcaCore.Engine.Ephemeral+OrcaCore.Durable.Hosting"
+        };
+        foreach (var (familyId, owner) in restoredCapabilities)
+        {
+            families.Should().ContainKey(familyId);
+            RequiredString(families[familyId], "disposition").Should().Be("ReplaceOrRelocate");
+            RequiredString(families[familyId], "owner").Should().Be(owner);
+        }
+
         var tasks = File.ReadAllText(Path.Combine(
             root,
             "openspec",
             "changes",
             "reshape-developer-facing-interfaces",
             "tasks.md"));
-        foreach (var taskId in new[] { "7.12", "7.17b", "8.5" })
+        foreach (var taskId in new[] { "8.5" })
         {
             Regex.Matches(tasks, $@"(?m)^\s*-\s+\[ \]\s+{Regex.Escape(taskId)}\b")
                 .Should().ContainSingle("load-bearing owner task '{0}' must remain explicitly pending", taskId);

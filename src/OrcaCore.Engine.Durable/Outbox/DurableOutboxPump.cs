@@ -62,7 +62,8 @@ internal sealed class DurableOutboxPump(
                 "Lease duration must be positive.");
         }
 
-        using var activity = OrcaCoreDurableDiagnostics.ActivitySource.StartActivity("orca.outbox.pump_cycle");
+        using var activity = OrcaCoreDurableDiagnostics.ActivitySource.StartActivity(
+            OrcaCoreDiagnostics.OutboxPumpCycleActivity);
         activity?.SetTag(OrcaCoreDiagnostics.OutboxMaxCountKey, request.MaxCount);
 
         var dispatchRequest = SelectDispatchLane(request);
@@ -89,7 +90,8 @@ internal sealed class DurableOutboxPump(
 
             var dispatchStopwatch = Stopwatch.StartNew();
             using var dispatchActivity =
-                OrcaCoreDurableDiagnostics.ActivitySource.StartActivity("orca.outbox.dispatch");
+                OrcaCoreDurableDiagnostics.ActivitySource.StartActivity(
+                    OrcaCoreDiagnostics.OutboxDispatchActivity);
             dispatchActivity?.SetTag(OrcaCoreDiagnostics.OutboxKindKey, record.Kind);
             dispatchActivity?.SetTag(OrcaCoreDiagnostics.OutboxRecordIdKey, record.OutboxRecordId.ToString());
             try
@@ -158,7 +160,9 @@ internal sealed class DurableOutboxPump(
             {
                 dispatchStopwatch.Stop();
                 retryableFailures++;
-                dispatchActivity?.SetTag(OrcaCoreDiagnostics.OutboxResultKey, "retryable");
+                dispatchActivity?.SetTag(
+                    OrcaCoreDiagnostics.OutboxResultKey,
+                    OrcaCoreDiagnostics.RetryableDispatchResult);
                 dispatchActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
                 dispatchActivity?.AddException(ex);
                 await ObserveDispatchCompletedAsync(
@@ -251,9 +255,9 @@ internal sealed class DurableOutboxPump(
     {
         return result switch
         {
-            DispatchResult.Success => "success",
-            DispatchResult.RetryableFailure => "retryable",
-            DispatchResult.PermanentFailure => "permanent",
+            DispatchResult.Success => OrcaCoreDiagnostics.SuccessDispatchResult,
+            DispatchResult.RetryableFailure => OrcaCoreDiagnostics.RetryableDispatchResult,
+            DispatchResult.PermanentFailure => OrcaCoreDiagnostics.PermanentDispatchResult,
             _ => throw new UnreachableException()
         };
     }

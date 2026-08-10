@@ -38,6 +38,8 @@ public static class OrcaCoreInMemoryProviderServiceCollectionExtensions
             typeof(IWorkflowStartIdempotencyStore),
             typeof(IWorkflowOutboxStore),
             typeof(IWorkflowProjectionStore),
+            typeof(IWorkflowOperationalStore),
+            typeof(IWorkflowProviderMaintenanceStore),
             typeof(ITimerScheduler),
             typeof(IResourcePoolStore),
             typeof(IDurableResourceGovernanceStore)
@@ -67,6 +69,10 @@ public static class OrcaCoreInMemoryProviderServiceCollectionExtensions
         services.TryAddSingleton<IWorkflowOutboxStore>(provider =>
             provider.GetRequiredService<InMemoryWorkflowProvider>());
         services.TryAddSingleton<IWorkflowProjectionStore>(provider =>
+            provider.GetRequiredService<InMemoryWorkflowProvider>());
+        services.TryAddSingleton<IWorkflowOperationalStore>(provider =>
+            provider.GetRequiredService<InMemoryWorkflowProvider>());
+        services.TryAddSingleton<IWorkflowProviderMaintenanceStore>(provider =>
             provider.GetRequiredService<InMemoryWorkflowProvider>());
         services.TryAddSingleton<ITimerScheduler>(provider =>
             provider.GetRequiredService<InMemoryWorkflowProvider>());

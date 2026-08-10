@@ -61,6 +61,110 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         StartOrDeliverInboxCertification.RunAsync(CreateFixture());
 
     [Fact]
+    public async Task OperationalStatisticsAndMaintenance_AreProviderAuthoritativeAndReferenceSafe()
+    {
+        var store = certificationStore ??
+            throw new InvalidOperationException("PostgreSQL certification store is not initialized.");
+        await OperationalMaintenanceCertification.RunAsync(
+            store,
+            store,
+            store,
+            store,
+            store,
+            TestContext.Current.CancellationToken);
+        await using var restarted = new PostgreSqlWorkflowStore(
+            container.GetConnectionString(),
+            new FixedTimeProvider(MigrationAppliedAt()));
+        await restarted.InitializeAsync(TestContext.Current.CancellationToken);
+        var afterRestart = await restarted.GetOperatorStatisticsAsync(TestContext.Current.CancellationToken);
+        afterRestart.Groups.Should().NotBeEmpty();
+        afterRestart.Pressure.StreamEventCount.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task MaintenancePurge_SerializesWithAConcurrentProviderCommitBeforeCheckingReferences()
+    {
+        const string relationLockWaitEvent = "relation";
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var store = certificationStore ??
+            throw new InvalidOperationException("PostgreSQL certification store is not initialized.");
+        (await store.AppendAsync(
+                Batch(
+                    instanceId,
+                    StreamVersion.Empty,
+                    projection: Snapshot(instanceId, WorkflowStatus.Completed)),
+                cancellationToken))
+            .IsSuccess.Should().BeTrue();
+
+        var writerReachedCommit = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseWriter = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var writerOptions = new PostgreSqlWorkflowStoreOptions
+        {
+            BeforeCommitAsync = async (context, token) =>
+            {
+                if (!context.StreamId.InstanceId.Equals(instanceId))
+                {
+                    return;
+                }
+
+                writerReachedCommit.TrySetResult(true);
+                await releaseWriter.Task.WaitAsync(token).ConfigureAwait(false);
+            }
+        };
+        await using var writer = new PostgreSqlWorkflowStore(
+            container.GetConnectionString(),
+            new FixedTimeProvider(MigrationAppliedAt()),
+            writerOptions);
+        await writer.InitializeAsync(cancellationToken);
+
+        var maintenanceApplicationName = $"orcacore-maintenance-{Guid.CreateVersion7():N}";
+        var maintenanceConnectionString = new NpgsqlConnectionStringBuilder(container.GetConnectionString())
+        {
+            ApplicationName = maintenanceApplicationName
+        }.ConnectionString;
+        await using var maintenance = new PostgreSqlWorkflowStore(
+            maintenanceConnectionString,
+            new FixedTimeProvider(MigrationAppliedAt()));
+        await maintenance.InitializeAsync(cancellationToken);
+
+        var outboxRecordId = new OutboxRecordId(Guid.CreateVersion7());
+        var writerTask = writer.AppendAsync(
+            Batch(
+                instanceId,
+                new StreamVersion(1),
+                outbox: [new OutboxWrite(outboxRecordId, "maintenance-reference", [1])]),
+            cancellationToken);
+        await writerReachedCommit.Task.WaitAsync(cancellationToken);
+
+        var purgeTask = maintenance.PurgeForMaintenanceAsync(
+            new WorkflowProviderMaintenanceRequest(instanceId, MigrationAppliedAt()),
+            cancellationToken);
+        bool waitedForWriter;
+        try
+        {
+            waitedForWriter = await WaitForLockOrCompletionAsync(
+                maintenanceApplicationName,
+                relationLockWaitEvent,
+                purgeTask,
+                cancellationToken);
+        }
+        finally
+        {
+            releaseWriter.TrySetResult(true);
+        }
+
+        (await writerTask.WaitAsync(cancellationToken)).IsSuccess.Should().BeTrue();
+        waitedForWriter.Should().BeTrue(
+            "maintenance must serialize with provider writes before it checks live references");
+        (await purgeTask.WaitAsync(cancellationToken)).Should().Be(
+            new WorkflowProviderMaintenanceResult(
+                WorkflowProviderMaintenanceDisposition.Rejected,
+                WorkflowProviderMaintenanceBlocker.PendingOutboxDispatch));
+        (await store.GetStateAsync(outboxRecordId, cancellationToken)).HasValue.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task DefinitionFanoutInbox_RestartRetainsEnvelopeAndExactMembership()
     {
         var store = certificationStore ??
@@ -990,6 +1094,42 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         command.Parameters.AddWithValue("wait_event", advisoryLockWaitEvent);
 
         while (!bindingRead.IsCompleted)
+        {
+            if ((bool)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) ?? false))
+            {
+                return true;
+            }
+
+            await Task.Yield();
+        }
+
+        return false;
+    }
+
+    private async Task<bool> WaitForLockOrCompletionAsync(
+        string applicationName,
+        string waitEvent,
+        Task competingOperation,
+        CancellationToken cancellationToken)
+    {
+        const string lockWaitEventType = "Lock";
+        await using var connection = new NpgsqlConnection(container.GetConnectionString());
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(
+            """
+            select exists (
+                select 1
+                from pg_stat_activity
+                where application_name = @application_name
+                  and wait_event_type = @wait_event_type
+                  and wait_event = @wait_event);
+            """,
+            connection);
+        command.Parameters.AddWithValue("application_name", applicationName);
+        command.Parameters.AddWithValue("wait_event_type", lockWaitEventType);
+        command.Parameters.AddWithValue("wait_event", waitEvent);
+
+        while (!competingOperation.IsCompleted)
         {
             if ((bool)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) ?? false))
             {

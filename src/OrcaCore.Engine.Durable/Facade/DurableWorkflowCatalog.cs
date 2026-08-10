@@ -1,3 +1,5 @@
+using OrcaCore.Engine.Durable.Diagnostics;
+
 namespace OrcaCore.Engine.Durable;
 
 internal sealed partial class DurableWorkflowDefinitionRegistry
@@ -75,6 +77,7 @@ internal sealed partial class DurableWorkflowDefinitionRegistry
         IDurableStagedWorkflowDefinition definition,
         DefinitionFingerprint existingFingerprint)
     {
+        OrcaCoreDurableDiagnostics.RecordRegistrationConflict();
         var conflict = global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionRegistrationConflict(
             definition.DefinitionId,
             definition.DefinitionVersion,

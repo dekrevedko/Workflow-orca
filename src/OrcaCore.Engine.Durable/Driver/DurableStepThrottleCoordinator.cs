@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics.Metrics;
 using System.Threading.Channels;
 using OrcaCore.Engine.Durable.Diagnostics;
+using OrcaCore.Abstractions.Diagnostics;
 
 namespace OrcaCore.Engine.Durable.Driver;
 
@@ -30,16 +31,16 @@ internal sealed class DurableStepThrottleCoordinator
         gauges =
         [
             OrcaCoreDurableDiagnostics.Meter.CreateObservableGauge<long>(
-                "orcacore.governance.configured_limit",
+                OrcaCoreMetrics.GovernanceConfiguredLimit,
                 () => Observe(snapshot => snapshot.ConfiguredLimit)),
             OrcaCoreDurableDiagnostics.Meter.CreateObservableGauge<long>(
-                "orcacore.governance.active_slots",
+                OrcaCoreMetrics.GovernanceActiveSlots,
                 () => Observe(snapshot => snapshot.ActiveSlots)),
             OrcaCoreDurableDiagnostics.Meter.CreateObservableGauge<long>(
-                "orcacore.governance.wait_depth",
+                OrcaCoreMetrics.GovernanceWaitDepth,
                 () => Observe(snapshot => snapshot.WaitDepth)),
             OrcaCoreDurableDiagnostics.Meter.CreateObservableGauge<long>(
-                "orcacore.governance.cancellations",
+                OrcaCoreMetrics.GovernanceCancellations,
                 () => Observe(snapshot => snapshot.Cancellations))
         ];
     }

@@ -108,22 +108,25 @@
     },
     {
       "id": "provider-retention-capability-replacement",
-      "disposition": "Defer",
+      "disposition": "ReplaceOrRelocate",
       "normativeIds": [
         "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
         "durable-persistence-and-outbox::Retention and purge preserve runtime correctness"
       ],
-      "owner": "task:7.17b",
+      "owner": "active:OrcaCore.Provider.Abstractions+OrcaCore.Providers.InMemory+OrcaCore.Providers.PostgreSql",
       "recoveryPaths": [
         "git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Abstractions/Providers/ArchiveResult.cs",
         "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Provider.Abstractions/RetentionPolicy.cs"
       ],
-      "successorPaths": ["src/OrcaCore.Provider.Abstractions", "src/OrcaCore.Providers.InMemory", "src/OrcaCore.Providers.PostgreSql"],
+      "successorPaths": [
+        "src/OrcaCore.Provider.Abstractions/WorkflowProviderMaintenance.cs",
+        "src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs",
+        "src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.Retention.cs"
+      ],
       "symbolFamilies": ["archive/purge application vocabulary", "provider-owned retention policy and cleanup reachability"],
       "executableEvidence": [
-        "test:tests/OrcaCore.ProviderCertification/RetentionCertificationTests.cs#PurgePolicy_InactiveTerminalInstance_RemovesProjectionAndStream",
-        "test:tests/OrcaCore.ProviderCertification/RetentionCertificationTests.cs#PurgePolicy_InFlightOutbox_IsRejectedWithoutBreakingDispatch",
-        "test:tests/OrcaCore.DeveloperSurface.Guards/ProductionDeletionLedgerGuards.cs#Ledger_RequiredCapabilityGapsStayDeferredToTheirLoadBearingTasks"
+        "test:tests/OrcaCore.ProviderCertification/OperationalMaintenanceCertification.cs#RunAsync",
+        "test:tests/OrcaCore.Hosting.Tests/OperationalTelemetryAndMaintenanceTests.cs#DurableHost_UsesProviderOwnedOperationalAndMaintenancePorts"
       ],
       "deletedPaths": [
         "src/OrcaCore.Abstractions/Providers/ArchiveResult.cs",
@@ -224,19 +227,22 @@
     },
     {
       "id": "management-and-operational-projection-replacement",
-      "disposition": "Defer",
+      "disposition": "ReplaceOrRelocate",
       "normativeIds": [
         "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
         "management-and-querying::Deferred management operations have no placeholder",
         "durable-persistence-and-outbox::Operational projections expose durable messaging pressure"
       ],
-      "owner": "task:7.17b",
+      "owner": "active:OrcaCore.Provider.Abstractions+OrcaCore.Engine.Ephemeral",
       "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Engine.Durable/Management", "git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Engine.Ephemeral/Management/EphemeralManagement.cs"],
-      "successorPaths": ["src/OrcaCore.Provider.Abstractions/WorkflowProjectionModels.cs", "src/OrcaCore.Engine.Ephemeral/Execution/EphemeralProjectionModels.cs"],
+      "successorPaths": [
+        "src/OrcaCore.Provider.Abstractions/WorkflowOperationalModels.cs",
+        "src/OrcaCore.Engine.Ephemeral/Diagnostics/OrcaCoreEphemeralDiagnostics.cs"
+      ],
       "symbolFamilies": ["broad application management/query", "legacy instance/status snapshots", "grouped operational statistics and pressure"],
       "executableEvidence": [
-        "test:tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs#RemovedDeferredAndWrongOwnerPublicSymbols_AreAbsentBeforeBaselineApproval",
-        "test:tests/OrcaCore.DeveloperSurface.Guards/ProductionDeletionLedgerGuards.cs#Ledger_RequiredCapabilityGapsStayDeferredToTheirLoadBearingTasks"
+        "test:tests/OrcaCore.ProviderCertification/OperationalMaintenanceCertification.cs#RunAsync",
+        "test:tests/OrcaCore.Engine.Ephemeral.Tests/EphemeralOperatorStatisticsTelemetryTests.cs#Start_UpdatesGroupedStatisticsAndCanonicalBclDiagnostics"
       ],
       "deletedPaths": [
         "src/OrcaCore.Abstractions/Instances/ActiveStepSnapshot.cs",
@@ -366,18 +372,23 @@
     },
     {
       "id": "bcl-telemetry-relocation",
-      "disposition": "Defer",
+      "disposition": "ReplaceOrRelocate",
       "normativeIds": [
         "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
         "durable-persistence-and-outbox::Operational projections expose durable messaging pressure"
       ],
-      "owner": "task:7.12+7.17b",
+      "owner": "active:OrcaCore.Engine.Durable+OrcaCore.Engine.Ephemeral+OrcaCore.Durable.Hosting",
       "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Hosting/Telemetry"],
-      "successorPaths": ["src/OrcaCore.Engine.Durable/Diagnostics", "src/OrcaCore.Engine.Ephemeral/Diagnostics"],
+      "successorPaths": [
+        "src/OrcaCore.Engine.Durable/Diagnostics/OrcaCoreDurableDiagnostics.cs",
+        "src/OrcaCore.Engine.Ephemeral/Diagnostics/OrcaCoreEphemeralDiagnostics.cs",
+        "src/OrcaCore.Durable.Hosting/Diagnostics/DurableRuntimeTelemetryObserver.cs"
+      ],
       "symbolFamilies": ["BCL meters/activities/logging", "operator gauge collection", "runtime telemetry observer"],
       "executableEvidence": [
-        "test:tests/OrcaCore.DeveloperSurface.Guards/OperationalTelemetryContractGuards.cs#DurableEngine_PublishesTheThreeExactBclOperationalInstruments",
-        "test:tests/OrcaCore.DeveloperSurface.Guards/ProductionDeletionLedgerGuards.cs#Ledger_RequiredCapabilityGapsStayDeferredToTheirLoadBearingTasks"
+        "test:tests/OrcaCore.DeveloperSurface.Guards/OperationalTelemetryContractGuards.cs#RuntimeOwners_PublishTheCompleteCanonicalOrcaMetricCatalog",
+        "test:tests/OrcaCore.DeveloperSurface.Guards/OperationalTelemetryContractGuards.cs#DurableGauges_UseTheSameAuthoritativeStatisticsSnapshotWithExactTags",
+        "test:tests/OrcaCore.DeveloperSurface.Guards/OperationalTelemetryContractGuards.cs#Product_EmitsTheExactBclSpanAndStructuredLogFamiliesWithoutAnSdkDependency"
       ],
       "deletedPaths": [
         "src/OrcaCore.Hosting/Telemetry/OrcaCoreOpenTelemetryOptions.cs",

@@ -14,6 +14,7 @@ using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Engine.Durable.Outbox;
 using OrcaCore.Durable.Hosting;
 using OrcaCore.Hosting.Services;
+using OrcaCore.Hosting.Diagnostics;
 using OrcaCore.Hosting.ResourceLeases;
 using OrcaCore.Provider.Abstractions;
 using OrcaCore.Provider.Abstractions.ResourceGovernance;
@@ -159,8 +160,15 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
     private static void AddDurableCommandServices(IServiceCollection services)
     {
         services.TryAddSingleton<DurableFacadeNotificationHub>();
+        services.TryAddSingleton<DurableRuntimeTelemetryObserver>();
         services.TryAddSingleton<IWorkflowRuntimeObserver>(provider =>
-            provider.GetRequiredService<DurableFacadeNotificationHub>());
+            new CompositeWorkflowRuntimeObserver(
+                provider.GetRequiredService<DurableFacadeNotificationHub>(),
+                provider.GetRequiredService<DurableRuntimeTelemetryObserver>()));
+        services.TryAddSingleton<IOutboxPumpObserver>(provider =>
+            provider.GetRequiredService<DurableRuntimeTelemetryObserver>());
+        services.TryAddSingleton<IDurableDriverObserver>(provider =>
+            provider.GetRequiredService<DurableRuntimeTelemetryObserver>());
         services.TryAddSingleton(provider => new DurableCommandRuntime(
             provider.GetRequiredService<IWorkflowEventStore>(),
             provider.GetService<IResourcePoolStore>()));

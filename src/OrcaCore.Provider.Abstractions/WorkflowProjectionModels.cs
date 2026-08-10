@@ -26,6 +26,8 @@ public sealed record WorkflowProjectionSnapshot
 
     public required DateTimeOffset UpdatedAt { get; init; }
 
+    public DateTimeOffset? ArchivedAt { get; init; }
+
     public DateTimeOffset? CurrentStatusEnteredAt { get; init; }
 
     public DateTimeOffset? LastActiveAt { get; init; }
