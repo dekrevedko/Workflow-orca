@@ -21,8 +21,8 @@ diagnostic. Registering a new definition does not reinterpret or silently unpark
 
 Repository tests construct format-2 envelopes directly. Delete local copied snapshots or
 golden payloads created before this refactor and regenerate them from the current helpers.
-Testcontainers-based PostgreSQL and SQL Server suites create disposable databases; stopping
-and recreating the failed test container is sufficient.
+The Testcontainers-based PostgreSQL suite creates a disposable database; stopping and recreating
+the failed test container is sufficient.
 
 The in-memory provider has no on-disk state. Restart the test or host process to reset it.
 
@@ -39,19 +39,6 @@ CREATE DATABASE orcacore_dev;
 
 Do not run this against a shared or production database. OrcaCore does not provide an
 in-place format-1-to-format-2 migration.
-
-## SQL Server development database
-
-Connect to `master`, drop and recreate the dedicated development database, then rerun the
-provider migration runner.
-
-```sql
-ALTER DATABASE [OrcaCoreDev] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-DROP DATABASE [OrcaCoreDev];
-CREATE DATABASE [OrcaCoreDev];
-```
-
-Do not run this against a shared or production database.
 
 ## Verification
 

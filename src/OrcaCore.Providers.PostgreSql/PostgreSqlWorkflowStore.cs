@@ -8,7 +8,7 @@ using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Abstractions.Serialization;
-using OrcaCore.Providers.Relational;
+using OrcaCore.Providers.PostgreSql.Internal;
 using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
 
 namespace OrcaCore.Providers.PostgreSql;

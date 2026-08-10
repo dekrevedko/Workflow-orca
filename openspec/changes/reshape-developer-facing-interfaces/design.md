@@ -524,6 +524,11 @@ provider retention and cleanup safety, BCL diagnostics, and deferred DAG/compani
 reimplemented or preserved behind their correct owners. Provider projects and migrations receive
 explicit ship, defer, replace, or remove dispositions; greenfield schema creation contains the
 complete current schema and retains no compatibility DDL or provisional upgrade path.
+The exact v1 provider set is InMemory plus PostgreSQL. The orphan RabbitMQ, Redis, shared
+Relational, SQL Server, and ZeroMQ source/test roots are removed: broker mappings remain
+application/companion-owned, shared migration helpers remain internal to PostgreSQL, and any
+additional durable storage provider re-enters through a future amendment with complete current-port
+certification rather than through a provisional project resurrection.
 
 An exported-API baseline and a deletion ledger are reviewed together. A source slice cannot claim
 completion while the baseline is missing, the local package feed is stale, a reflection bridge

@@ -2,7 +2,7 @@ using System.Data;
 using System.Data.Common;
 using Dapper;
 
-namespace OrcaCore.Providers.Relational;
+namespace OrcaCore.Providers.PostgreSql.Internal;
 
 /// <summary>
 /// Applies provider-owned SQL migrations with a small Dapper-based journal.

@@ -6,7 +6,7 @@ using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Abstractions.Serialization;
-using OrcaCore.Providers.Relational;
+using OrcaCore.Providers.PostgreSql.Internal;
 
 namespace OrcaCore.Providers.PostgreSql;
 

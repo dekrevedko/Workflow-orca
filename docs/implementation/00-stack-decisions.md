@@ -12,7 +12,7 @@ phase; do not improvise earlier).
 | Test framework | **xUnit v3** | Most agent training data; parallel-by-default; first-class `dotnet test` + Testcontainers |
 | Concurrency substrate | **`System.Threading.Channels` + TPL** | Per-instance mailboxes, outbox pump, timer queue — all bounded channels + `Task`. Zero extra dependencies, simple failure model |
 | First durable-store plugin | **PostgreSQL** (`Npgsql`) | Append-only stream + JSONB projections fit natively; free; excellent Testcontainers story |
-| First transport plugin | **RabbitMQ** (`RabbitMQ.Client`) | Canonical outbox target; exercises retry/poison paths well |
+| Transport integration | **Application/companion-owned `IWorkflowEventDispatcher` adapters** | OrcaCore owns durable outbox retry/poison semantics but ships no broker SDK package; the isolated sample demonstrates the boundary. |
 | First-release workflow surface | **Typed workflow input/output, root `Parallel`/`WhenAll`/`WhenAllOutcomes`, root bounded `ForEach`, root `While`, nested `If`, scoped durable resource acquisition, workflow/step deadlines, and stable step-operation identity** | Smallest coherent surface for the initial ephemeral engine and advanced durable scheduler use case. Of the conditional/loop/fanout operators, only `If` nests; `WaitLong`, `Yield`, public `RunExternalJob`, public `RunChildren`, Saga, `WhenFirst`, nested `Parallel`, nested `While`, and nested `ForEach`/dynamic expansion are not first-release members. |
 | DAG packaging | **`OrcaCore.Dag` plus `OrcaCore.Dag.Hosting` are separate first-release projects in `OrcaCore.slnx`** | `OrcaCore.Dag` is the typed compile front-end. `OrcaCore.Dag.Hosting` is the only friend bridge to the versioned internal child start/join seam in `OrcaCore.Durable.Hosting`; no public `RunChildren` member is exposed. |
 | External scheduler boundary | **Kubernetes, EKS/AWS, and job-adapter code lives in a separate outward-dependent companion project, which may remain in this solution initially** | `OrcaCore`, `OrcaCore.Dag`, engines, hosting, and provider packages never reference Kubernetes or AWS SDKs. The companion scheduler consumes public OrcaCore contracts. |
@@ -40,7 +40,7 @@ IOQ-2.
 | Durable projections | **Same commit boundary as event append** (resolved 2026-07-02, IOQ-3) | Projection writes are included in the provider commit batch with events, checkpoint, inbox, and outbox records so routing/query correctness is immediately consistent after accepted mutations. |
 | PostgreSQL event schema | **Single provider-owned `events` table for all instances; engine facts stored as `jsonb`; checkpoint business payloads stored as `bytea` with content type** (resolved 2026-07-02, IOQ-1) | Table-per-definition would leak workflow definitions into provider schema and complicate cross-definition management queries; JSONB keeps engine facts inspectable for projections/history, while checkpoint byte payloads preserve the explicit serialization seam. |
 | Outbox pump implementation | **Channels + TPL only** (resolved 2026-07-02, IOQ-2) | Current pump requirements are satisfied without `System.Threading.Tasks.Dataflow`; avoiding a new dependency keeps the pump interface and failure model simple. |
-| SQL plugin query helpers | **Raw Npgsql only; no Dapper** (resolved 2026-07-02, IOQ-4) | The PostgreSQL provider needs full control of SQL, transactions, and append/projection commit boundaries; no read-query complexity currently justifies adding Dapper. |
+| SQL plugin query helpers | **Raw Npgsql for provider behavior; Dapper confined to the internal migration journal** (amended 2026-08-09, IOQ-4) | Provider transactions and append/projection queries remain explicit; the small journal runner uses no application-query abstraction. |
 | Snapshot/approval testing | **No Verify dependency; use behavior-first AwesomeAssertions checks** (resolved 2026-07-02, IOQ-7) | Builder diagnostics and history projections remain asserted through stable codes, fields, and targeted message fragments; snapshot approval testing can be revisited only if broad text/layout churn becomes a real maintenance cost. |
 | Lifecycle event durability split | **Ephemeral lifecycle events are in-process/queryable only; durable terminal and significant lifecycle events are outbox-backed in the same commit as state** (resolved 2026-07-02, spec open question 9) | Product lifecycle events are first-class records, not telemetry spans. Durable mode commits terminal, cancellation-request, wait-suspension/resume, timer, and step-failure/completion publications with state. Public pause/resume/retry/archive/purge are deferred. |
 | Benchmarks | **BenchmarkDotNet in `benchmarks/OrcaCore.Benchmarks`; PR CI builds only** (resolved 2026-07-02, IOQ-8) | Benchmarks cover the ephemeral execution loop, provider serialization/materialization, management query/projection path, resource pool and timer scheduling, and provider commit path. Normal PR CI builds the benchmark project but does not run benchmarks. |
@@ -49,7 +49,7 @@ IOQ-2.
 | Internal visibility | **Public-API-first with one exact closed friend graph** (amended 2026-08-01, Decision 22) | Product friends are Core→both engines, Durable Engine→Durable Hosting, and Durable Hosting→DAG Hosting. Exact owning white-box test friends cover Core, both engines, Durable Hosting, and PostgreSQL; Durable Engine→ProviderCertification is the sole cross-package test edge. Acceptance, behavior-scenario, compile-fixture, and integration projects receive no internals. |
 | Mocking | **Hand-rolled fakes first**, NSubstitute allowed | Fakes of ports live in a shared test-support project and double as executable documentation; NSubstitute only for narrow one-off stubs |
 | Assertions | **AwesomeAssertions** (FluentAssertions API, Apache-2.0 community fork) | Same `FluentAssertions` namespace and `Should()` syntax — tests read as classic FluentAssertions; maintained and xUnit v3-aware. Original `FluentAssertions` v8+ is banned (commercial license); pinning original FA **7.x** (last Apache release) is the recorded fallback if the fork ever misbehaves. Plain xUnit `Assert` remains acceptable where clearer (e.g. structural checks) |
-| Integration tests | **Testcontainers for .NET** | Postgres, RabbitMQ, later Redis/MSSQL/DynamoDB(-local) |
+| Integration tests | **Testcontainers for .NET** | PostgreSQL is the exact v1 production-provider container lane; another storage provider re-enters through a future amendment. |
 | Coverage | `coverlet.collector` | Reported in CI; no hard gate before Phase 2 |
 | Package management | **Central Package Management** (`Directory.Packages.props`) | One version per package, repo-wide |
 | Build props | Shared `Directory.Build.props` | `Nullable=enable`, `TreatWarningsAsErrors=true`, `AnalysisLevel=latest`, `ImplicitUsings=enable` |
@@ -73,10 +73,9 @@ IOQ-2.
 
 | Plugin | Package |
 |--------|---------|
-| `OrcaCore.Providers.PostgreSql` | `Npgsql` (raw ADO — no ORM, no Dapper: full SQL control for the append/commit boundary; resolved 2026-07-02, IOQ-4) |
-| `OrcaCore.Providers.RabbitMq` | `RabbitMQ.Client` |
-| `OrcaCore.Providers.Redis` / `OrcaCore.Providers.SqlServer` / `OrcaCore.Providers.ZeroMq` | `StackExchange.Redis` / `Microsoft.Data.SqlClient` / `NetMQ` |
-| Future DynamoDB adapter | Deferred for this run; preserve provider-port compatibility only, no AWS package reference |
+| `OrcaCore.Providers.PostgreSql` | `Npgsql` for provider SQL plus Dapper only inside the internal migration journal runner; no ORM or application-query abstraction |
+| Future durable storage provider, including SQL Server or DynamoDB | Deferred; no provider project or SDK reference exists until a future amendment certifies the complete current port and greenfield schema |
+| Application/companion transport adapter | Its selected broker SDK; never an OrcaCore package dependency |
 | Companion Kubernetes scheduler project(s) | Official Kubernetes client and optional AWS SDKs are allowed only in the separate scheduler/application boundary; never in an OrcaCore application, engine, provider, advanced, or DAG package |
 
 **Banned everywhere** (agents: do not add these even if they seem convenient):
@@ -122,7 +121,7 @@ task; if a task cannot proceed without a resolution, stop and surface it.
   window plus essential operational facts required for management, recovery, audit, and
   compliance-oriented queries.
 - 2026-07-02: **Spec open question 4 resolved** - Fanout semantics are library-defined, but
-  providers may use native fanout mechanics when available, such as RabbitMQ publish/routing,
+  storage providers may use native set/snapshot mechanics when available,
   if OrcaCore delivery, deduplication, batching, correlation, and observability contracts are
   preserved. Providers without native fanout use projection-driven command emission with
   pagination.

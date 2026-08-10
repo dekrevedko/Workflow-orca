@@ -96,6 +96,20 @@ SHALL NOT establish durable support.
 - **WHEN** the complete target set exceeds the provider's approved atomic acceptance limit
 - **THEN** ingress returns `Rejected(FanoutLimitExceeded)` before committing the envelope or any target ownership
 
+### Requirement: First-release provider ownership and schemas are exact
+The first release SHALL ship exactly the InMemory development provider and PostgreSQL production
+provider named by the package manifest. Provisional RabbitMQ, Redis, shared Relational, SQL Server,
+and ZeroMQ provider projects, inactive tests, SDK dependencies, packages, and orphan source roots
+SHALL be absent. Broker-specific mapping SHALL remain application/companion-owned through
+`IWorkflowEventDispatcher`; an additional durable storage provider, including SQL Server, SHALL
+require a future amendment and complete current-port certification. The PostgreSQL first-create
+schema SHALL contain the complete current table/index/sequence shape and provider migrations SHALL
+contain no compatibility `ALTER TABLE` upgrade DDL or renamed equivalent.
+
+#### Scenario: Repository provider set is inspected
+- **WHEN** project, package, source-root, SDK-version, migration, and future-registry guards run
+- **THEN** only the two approved v1 providers remain, PostgreSQL initializes the complete schema from its first migration, and every removed provider family has an explicit recoverable disposition
+
 ### Requirement: Operational projections expose durable messaging pressure
 Provider/host operator projections SHALL expose pending, retryable, claimed, permanent-failure, and
 poison counts separately for internal continuations and external application events, together with

@@ -59,21 +59,11 @@ public static class OrcaCoreDiagnostics
 
     public const string InMemoryProviderSourceName = "OrcaCore.Providers.InMemory";
     public const string PostgreSqlProviderSourceName = "OrcaCore.Providers.PostgreSql";
-    public const string RabbitMqProviderSourceName = "OrcaCore.Providers.RabbitMq";
-    public const string RedisProviderSourceName = "OrcaCore.Providers.Redis";
-    public const string RelationalProviderSourceName = "OrcaCore.Providers.Relational";
-    public const string SqlServerProviderSourceName = "OrcaCore.Providers.SqlServer";
-    public const string ZeroMqProviderSourceName = "OrcaCore.Providers.ZeroMq";
 
     public static readonly string[] ProviderSourceNames =
     [
         InMemoryProviderSourceName,
-        PostgreSqlProviderSourceName,
-        RabbitMqProviderSourceName,
-        RedisProviderSourceName,
-        RelationalProviderSourceName,
-        SqlServerProviderSourceName,
-        ZeroMqProviderSourceName
+        PostgreSqlProviderSourceName
     ];
 
     public static readonly string[] MeterNames =

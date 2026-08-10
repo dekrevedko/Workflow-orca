@@ -34,8 +34,8 @@ public sealed partial class TaskAccountingGuards
         var pending = entries.Length - completed;
 
         entries.Should().HaveCount(158);
-        completed.Should().Be(122);
-        pending.Should().Be(36);
+        completed.Should().Be(123);
+        pending.Should().Be(35);
     }
 
     [GeneratedRegex(@"^\s*-\s+\[[ xX]\]\s+", RegexOptions.CultureInvariant)]

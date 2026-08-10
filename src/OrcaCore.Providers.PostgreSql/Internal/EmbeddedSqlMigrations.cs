@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace OrcaCore.Providers.Relational;
+namespace OrcaCore.Providers.PostgreSql.Internal;
 
 /// <summary>
 /// Loads SQL migrations embedded in a provider assembly.

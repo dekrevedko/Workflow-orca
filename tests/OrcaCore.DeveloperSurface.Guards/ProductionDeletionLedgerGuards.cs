@@ -27,7 +27,10 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
         families.Should().HaveCount(expectedCounts.GetProperty("families").GetInt32());
         families.Select(family => family.GetProperty("id").GetString()).Should().OnlyHaveUniqueItems();
 
-        var recordedDeletedPaths = ReadFamilyStrings(families, "deletedPaths");
+        var recordedDeletedPaths = ReadFamilyStrings(families, "deletedPaths")
+            .Concat(ReadFamilyStrings(families, "closureDeletedPaths"))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
         recordedDeletedPaths.Should().HaveCount(expectedCounts.GetProperty("physicallyDeletedPaths").GetInt32());
         recordedDeletedPaths.Should().OnlyHaveUniqueItems();
         recordedDeletedPaths.Should().Equal(ReadPhysicalDeletions(
@@ -105,6 +108,12 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
             {
                 PathExists(root, successorPath).Should().BeTrue(
                     "family '{0}' successor '{1}' must exist", id, successorPath);
+            }
+
+            foreach (var resolvedRoot in OptionalStrings(family, "resolvedRoots"))
+            {
+                EnumerateNonBuildFiles(Path.Combine(root, resolvedRoot)).Should().BeEmpty(
+                    "family '{0}' resolved root '{1}' must contain no production or test source", id, resolvedRoot);
             }
 
             RequiredStrings(family, "symbolFamilies").Should().OnlyHaveUniqueItems();
@@ -245,6 +254,16 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
         families.SelectMany(family => OptionalStrings(family, propertyName))
             .Order(StringComparer.Ordinal)
             .ToArray();
+
+    private static string[] EnumerateNonBuildFiles(string root)
+    {
+        return Directory.Exists(root)
+            ? Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+                .Where(path => !IsBuildOutput(path))
+                .Order(StringComparer.Ordinal)
+                .ToArray()
+            : [];
+    }
 
     private static string[] ReadCompileRemoves(IEnumerable<JsonElement> families) =>
         families.SelectMany(family => family.TryGetProperty("compileRemoves", out var values)

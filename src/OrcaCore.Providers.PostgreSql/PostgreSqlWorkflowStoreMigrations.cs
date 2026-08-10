@@ -1,5 +1,5 @@
 using System.Reflection;
-using OrcaCore.Providers.Relational;
+using OrcaCore.Providers.PostgreSql.Internal;
 
 namespace OrcaCore.Providers.PostgreSql;
 

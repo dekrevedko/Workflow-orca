@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using AwesomeAssertions;
 
 namespace OrcaCore.DeveloperSurface.Guards;
@@ -10,34 +9,14 @@ namespace OrcaCore.DeveloperSurface.Guards;
 [Collection(CompileFixtureCollection.Name)]
 public sealed class InfrastructureGuards
 {
-    private static readonly Regex OwnershipCompatibilityAlter = new(
-        """
-        \balter\s+table\s+
-        (?:if\s+exists\s+)?
-        (?:only\s+)?
-        (?:
-            (?:"[^"]+"|\[[^\]]+\]|[a-z_][a-z0-9_$]*)\s*\.\s*
-        )?
-        (?:
-            "orcacore_resource_(?:tickets|waiters)"
-            |\[orcacore_resource_(?:tickets|waiters)\]
-            |orcacore_resource_(?:tickets|waiters)
-        )
-        (?:\s*\*)?
-        \s+add\s+
-        (?:column\s+)?
-        (?:if\s+not\s+exists\s+)?
-        (?:
-            "(?:fiber_id|scope_id)"
-            |\[(?:fiber_id|scope_id)\]
-            |(?:fiber_id|scope_id)
-        )
-        (?=\s|[;,]|$)
-        """,
-        RegexOptions.IgnoreCase |
-        RegexOptions.Singleline |
-        RegexOptions.CultureInvariant |
-        RegexOptions.IgnorePatternWhitespace);
+    private static readonly string[] RetiredProviderRoots =
+    [
+        "OrcaCore.Providers.RabbitMq",
+        "OrcaCore.Providers.Redis",
+        "OrcaCore.Providers.Relational",
+        "OrcaCore.Providers.SqlServer",
+        "OrcaCore.Providers.ZeroMq"
+    ];
 
     [Fact]
     public void FrozenTargetCatalog_ModelsEveryAssemblyAndRequiredAudienceTier()
@@ -67,99 +46,263 @@ public sealed class InfrastructureGuards
     }
 
     [Fact]
-    public void RelationalResourcePoolOwnership_UsesGreenfieldFirstCreateSchemasOnly()
+    public void ExactV1Manifest_HasNoOrphanedProviderSourcesTestsOrSdkVersions()
     {
         var root = FixtureDefinitions.RepositoryRoot();
-        var postgreSqlRoot = Path.Combine(root, "src", "OrcaCore.Providers.PostgreSql");
-        var sqlServerRoot = Path.Combine(root, "src", "OrcaCore.Providers.SqlServer");
-
-        File.Exists(Path.Combine(postgreSqlRoot, "Migrations", "007_resource_ownership.sql"))
-            .Should().BeFalse("the greenfield PostgreSQL schema must not retain an ownership upgrade migration");
-        File.Exists(Path.Combine(sqlServerRoot, "Migrations", "008_resource_ownership.sql"))
-            .Should().BeFalse("the greenfield SQL Server schema must not retain an ownership upgrade migration");
-
-        var postgreSqlInitializer = File.ReadAllText(
-            Path.Combine(postgreSqlRoot, "PostgreSqlResourcePoolStore.cs"));
-
-        foreach (var firstCreateSchema in new[] { "001_initial.sql", "003_resource_pools.sql" })
+        foreach (var provider in RetiredProviderRoots)
         {
-            var sql = File.ReadAllText(Path.Combine(sqlServerRoot, "Migrations", firstCreateSchema));
-            sql.Split("fiber_id nvarchar(256) null", StringSplitOptions.None)
-                .Should().HaveCount(3, "tickets and waiters must both own fiber identity from first creation");
-            sql.Split("scope_id nvarchar(256) null", StringSplitOptions.None)
-                .Should().HaveCount(3, "tickets and waiters must both own scope identity from first creation");
+            EnumerateNonBuildFiles(Path.Combine(root, "src", provider))
+                .Should().BeEmpty($"{provider} is outside the exact v1 manifest and has no approved source owner");
+            EnumerateNonBuildFiles(Path.Combine(root, "tests", $"{provider}.Tests"))
+                .Should().BeEmpty($"{provider} has no active certification project in v1");
         }
 
-        var compatibilityAlters = FindOwnershipCompatibilityAlters(
-            Path.Combine(postgreSqlRoot, "PostgreSqlResourcePoolStore.cs"),
-            postgreSqlInitializer);
-        foreach (var migrationRoot in new[]
-                 {
-                     Path.Combine(postgreSqlRoot, "Migrations"),
-                     Path.Combine(sqlServerRoot, "Migrations")
-                 })
-        {
-            foreach (var migration in Directory.EnumerateFiles(migrationRoot, "*.sql"))
-            {
-                compatibilityAlters.AddRange(FindOwnershipCompatibilityAlters(
-                    migration,
-                    File.ReadAllText(migration)));
-            }
-        }
+        var packageVersions = File.ReadAllText(Path.Combine(root, "Directory.Packages.props"));
+        packageVersions.Should().NotContainAny(
+            "Microsoft.Data.SqlClient",
+            "NetMQ",
+            "RabbitMQ.Client",
+            "StackExchange.Redis",
+            "Testcontainers.MsSql",
+            "Testcontainers.RabbitMq",
+            "Testcontainers.Redis");
 
-        compatibilityAlters.Should().BeEmpty(
-            "ownership columns belong in greenfield first-create schemas, but compatibility DDL was found:{0}{1}",
-            Environment.NewLine,
-            string.Join(Environment.NewLine, compatibilityAlters));
+        var registry = File.ReadAllText(Path.Combine(root, "docs", "specs", "13-phasing-and-open-questions.md"));
+        registry.Should().Contain("Additional durable storage providers");
+        registry.Should().Contain("SQL Server");
     }
 
     [Fact]
-    public void RelationalResourcePoolOwnership_ScannerRejectsRenamedFormerPostgreSqlMigration()
+    public void RelationalSchemas_ContainNoCompatibilityAlterTableStatements()
     {
-        const string renamedMigration = "Migrations/999_renamed_resource_ownership.sql";
-        const string formerPostgreSqlMigration =
-            """
-            alter table if exists orcacore_resource_tickets
-                add column if not exists fiber_id text null;
+        var root = FixtureDefinitions.RepositoryRoot();
+        var findings = Directory
+            .EnumerateDirectories(Path.Combine(root, "src"), "OrcaCore.Providers.*")
+            .SelectMany(providerRoot => Directory.Exists(Path.Combine(providerRoot, "Migrations"))
+                ? Directory.EnumerateFiles(Path.Combine(providerRoot, "Migrations"), "*.sql")
+                : [])
+            .SelectMany(path => FindCompatibilityAlterTables(path, File.ReadAllText(path)))
+            .ToArray();
 
-            alter table if exists orcacore_resource_tickets
-                add column if not exists scope_id text null;
-
-            alter table if exists orcacore_resource_waiters
-                add column if not exists fiber_id text null;
-
-            alter table if exists orcacore_resource_waiters
-                add column if not exists scope_id text null;
-            """;
-
-        var formerMigrationFindings = FindOwnershipCompatibilityAlters(
-            renamedMigration,
-            formerPostgreSqlMigration);
-
-        formerMigrationFindings.Should().HaveCount(
-            4,
-            "the exact deleted PostgreSQL ownership migration must remain rejected under any filename");
-        formerMigrationFindings.Should().OnlyContain(
-            finding => finding.StartsWith(renamedMigration, StringComparison.Ordinal));
-
-        var qualifiedVariants = new[]
-        {
-            """alter table if exists public.orcacore_resource_tickets add column if not exists fiber_id text null;""",
-            """alter table if exists only "public"."orcacore_resource_waiters" add column if not exists "scope_id" text null;""",
-            """alter table [dbo].[orcacore_resource_tickets] add [fiber_id] nvarchar(256) null;"""
-        };
-
-        qualifiedVariants.Should().OnlyContain(
-            sql => FindOwnershipCompatibilityAlters(renamedMigration, sql).Count == 1,
-            "optional PostgreSQL clauses, schema qualification, and quoted identifiers must not bypass the scanner");
+        findings.Should().BeEmpty(
+            "greenfield provider schemas must create the complete current shape and retain no upgrade ALTER TABLE DDL");
     }
 
-    private static List<string> FindOwnershipCompatibilityAlters(string sourcePath, string source)
+    [Fact]
+    public void RelationalSchemaScanner_ParsesQualifiedIdentifiersAndIgnoresCommentsAndLiterals()
     {
-        return OwnershipCompatibilityAlter
-            .Matches(source)
-            .Select(match => $"{sourcePath}: {match.Value}")
-            .ToList();
+        const string sql =
+            """
+            alter table if exists public.orcacore_inbox add column payload bytea;
+            ALTER TABLE [dbo].[orcacore_outbox] ADD [poison_code] nvarchar(256) null;
+            alter table only "custom"."orcacore_checkpoints" add column "runtime_state" jsonb;
+            -- alter table orcacore_commented add column ignored integer;
+            select 'alter table orcacore_literal add column ignored integer;';
+            select $$alter table orcacore_dollar_literal add column ignored integer;$$;
+            select $body$alter table orcacore_tagged_literal add column ignored integer;$body$;
+            /* alter table orcacore_block_comment add column ignored integer; */
+            alter table application_table add column allowed integer;
+            """;
+
+        FindCompatibilityAlterTables("renamed.sql", sql)
+            .Should().Equal(
+                "renamed.sql: public.orcacore_inbox",
+                "renamed.sql: dbo.orcacore_outbox",
+                "renamed.sql: custom.orcacore_checkpoints");
+    }
+
+    private static string[] EnumerateNonBuildFiles(string root)
+    {
+        if (!Directory.Exists(root))
+        {
+            return [];
+        }
+
+        return Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
+            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static IReadOnlyList<string> FindCompatibilityAlterTables(string sourcePath, string source)
+    {
+        var tokens = TokenizeSql(source);
+        var findings = new List<string>();
+        for (var index = 0; index + 2 < tokens.Count; index++)
+        {
+            if (!tokens[index].Is("alter") || !tokens[index + 1].Is("table"))
+            {
+                continue;
+            }
+
+            var cursor = index + 2;
+            if (tokens[cursor].Is("if") && cursor + 1 < tokens.Count && tokens[cursor + 1].Is("exists"))
+            {
+                cursor += 2;
+            }
+
+            if (cursor < tokens.Count && tokens[cursor].Is("only"))
+            {
+                cursor++;
+            }
+
+            if (cursor >= tokens.Count || !tokens[cursor].Identifier)
+            {
+                continue;
+            }
+
+            var qualifiedName = tokens[cursor].Text;
+            var tableName = tokens[cursor].Text;
+            while (cursor + 2 < tokens.Count && tokens[cursor + 1].Text == "." && tokens[cursor + 2].Identifier)
+            {
+                cursor += 2;
+                tableName = tokens[cursor].Text;
+                qualifiedName = $"{qualifiedName}.{tokens[cursor].Text}";
+            }
+
+            if (tableName.StartsWith("orcacore_", StringComparison.OrdinalIgnoreCase))
+            {
+                findings.Add($"{sourcePath}: {qualifiedName}");
+            }
+        }
+
+        return findings;
+    }
+
+    private static IReadOnlyList<SqlToken> TokenizeSql(string source)
+    {
+        var tokens = new List<SqlToken>();
+        for (var index = 0; index < source.Length;)
+        {
+            if (char.IsWhiteSpace(source[index]))
+            {
+                index++;
+                continue;
+            }
+
+            if (index + 1 < source.Length && source[index] == '-' && source[index + 1] == '-')
+            {
+                index += 2;
+                while (index < source.Length && source[index] is not '\r' and not '\n')
+                {
+                    index++;
+                }
+                continue;
+            }
+
+            if (index + 1 < source.Length && source[index] == '/' && source[index + 1] == '*')
+            {
+                var depth = 1;
+                index += 2;
+                while (index < source.Length && depth > 0)
+                {
+                    if (index + 1 < source.Length && source[index] == '/' && source[index + 1] == '*')
+                    {
+                        depth++;
+                        index += 2;
+                    }
+                    else if (index + 1 < source.Length && source[index] == '*' && source[index + 1] == '/')
+                    {
+                        depth--;
+                        index += 2;
+                    }
+                    else
+                    {
+                        index++;
+                    }
+                }
+                continue;
+            }
+
+            if (source[index] == '$')
+            {
+                var delimiterEnd = index + 1;
+                while (delimiterEnd < source.Length &&
+                       (char.IsLetterOrDigit(source[delimiterEnd]) || source[delimiterEnd] == '_'))
+                {
+                    delimiterEnd++;
+                }
+
+                if (delimiterEnd < source.Length && source[delimiterEnd] == '$')
+                {
+                    var delimiter = source[index..(delimiterEnd + 1)];
+                    var bodyEnd = source.IndexOf(delimiter, delimiterEnd + 1, StringComparison.Ordinal);
+                    index = bodyEnd < 0 ? source.Length : bodyEnd + delimiter.Length;
+                    continue;
+                }
+            }
+
+            if (source[index] == '\'')
+            {
+                index++;
+                while (index < source.Length)
+                {
+                    if (source[index] != '\'')
+                    {
+                        index++;
+                        continue;
+                    }
+
+                    if (index + 1 < source.Length && source[index + 1] == '\'')
+                    {
+                        index += 2;
+                        continue;
+                    }
+
+                    index++;
+                    break;
+                }
+                continue;
+            }
+
+            if (source[index] is '"' or '[')
+            {
+                var opening = source[index++];
+                var closing = opening == '"' ? '"' : ']';
+                var value = new System.Text.StringBuilder();
+                while (index < source.Length)
+                {
+                    if (source[index] != closing)
+                    {
+                        value.Append(source[index++]);
+                        continue;
+                    }
+
+                    if (index + 1 < source.Length && source[index + 1] == closing)
+                    {
+                        value.Append(closing);
+                        index += 2;
+                        continue;
+                    }
+
+                    index++;
+                    break;
+                }
+                tokens.Add(new SqlToken(value.ToString(), true));
+                continue;
+            }
+
+            if (char.IsLetter(source[index]) || source[index] == '_')
+            {
+                var start = index++;
+                while (index < source.Length && (char.IsLetterOrDigit(source[index]) || source[index] is '_' or '$'))
+                {
+                    index++;
+                }
+                tokens.Add(new SqlToken(source[start..index], true));
+                continue;
+            }
+
+            tokens.Add(new SqlToken(source[index++].ToString(), false));
+        }
+
+        return tokens;
+    }
+
+    private readonly record struct SqlToken(string Text, bool Identifier)
+    {
+        public bool Is(string value) => Identifier && Text.Equals(value, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

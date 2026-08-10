@@ -1,4 +1,4 @@
-namespace OrcaCore.Providers.Relational;
+namespace OrcaCore.Providers.PostgreSql.Internal;
 
 /// <summary>
 /// Describes one provider-owned SQL migration.

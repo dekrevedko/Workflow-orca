@@ -48,7 +48,7 @@ The solution file is [`OrcaCore.slnx`](../OrcaCore.slnx). The main projects are:
 | [`OrcaCore.Providers.PostgreSql`](../src/OrcaCore.Providers.PostgreSql) | Production provider; owns `AddOrcaCorePostgreSqlDurableProvider`. |
 | [`OrcaCore.Dag`](../src/OrcaCore.Dag) | Typed DAG planning and operation contracts. |
 | [`OrcaCore.Dag.Hosting`](../src/OrcaCore.Dag.Hosting) | Sole DAG-to-durable bridge; owns `AddOrcaCoreDag`. |
-| *provisional — not in the v1 manifest* | `OrcaCore.Hosting`, `OrcaCore.Providers.SqlServer`, `.RabbitMq`, `.Redis`, `.ZeroMq`, `.Relational`. Slated for removal or relocation; do not build new work on them. |
+| *removed / future* | The catch-all hosting and provisional SQL Server, RabbitMQ, Redis, shared Relational, and ZeroMQ project roots are absent. Broker adapters are application/companion-owned; additional durable storage providers require a future amendment. |
 | [`tests/`](../tests) | Core, engine, hosting, provider certification, integration, and support test projects. |
 | [`samples/`](../samples) | Runnable console, generic-host, and Blazor dashboard examples. |
 | [`benchmarks/`](../benchmarks) | BenchmarkDotNet scenarios for execution, providers, management, and scheduling. |

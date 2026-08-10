@@ -595,41 +595,22 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         var initialMigrationId = await ScalarAsync<string>(
             "select migration_id from orcacore_schema_migrations where migration_id = @migration_id;",
             "001_initial");
-        var leaseMigrationId = await ScalarAsync<string>(
-            "select migration_id from orcacore_schema_migrations where migration_id = @migration_id;",
-            "002_claim_leases");
-        var startIdempotencyMigrationId = await ScalarAsync<string>(
-            "select migration_id from orcacore_schema_migrations where migration_id = @migration_id;",
-            "003_start_idempotency");
-        var ownershipCompatibilityMigrationCount = await ScalarAsync<long>(
-            "select count(*) from orcacore_schema_migrations where migration_id = @migration_id;",
-            "007_resource_ownership");
-        var fanoutMigrationId = await ScalarAsync<string>(
-            "select migration_id from orcacore_schema_migrations where migration_id = @migration_id;",
-            "011_definition_fanout_inbox");
-        var pendingStartMigrationId = await ScalarAsync<string>(
-            "select migration_id from orcacore_schema_migrations where migration_id = @migration_id;",
-            "012_pending_start_intents");
-        var outboxPoisonRetrofitMigrationCount = await ScalarAsync<long>(
-            "select count(*) from orcacore_schema_migrations where migration_id = @migration_id;",
-            "013_outbox_poison");
+        var migrationCount = await ScalarAsync<long>(
+            "select count(*) from orcacore_schema_migrations;");
         var inboxDeliverySequence = await ScalarAsync<string>(
             "select pg_get_serial_sequence('orcacore_inbox', 'acceptance_sequence');");
 
         initialMigrationId.Should().Be("001_initial");
-        leaseMigrationId.Should().Be("002_claim_leases");
-        startIdempotencyMigrationId.Should().Be("003_start_idempotency");
-        ownershipCompatibilityMigrationCount.Should().Be(0);
-        fanoutMigrationId.Should().Be("011_definition_fanout_inbox");
-        pendingStartMigrationId.Should().Be("012_pending_start_intents");
-        outboxPoisonRetrofitMigrationCount.Should().Be(0,
-            "the unreleased outbox poison columns belong in the greenfield initial schema");
+        migrationCount.Should().Be(1,
+            "the unreleased provider must create its complete schema without compatibility migrations");
+        PostgreSqlWorkflowStoreMigrations.All.Should().ContainSingle()
+            .Which.MigrationId.Should().Be("001_initial");
         inboxDeliverySequence.Should().EndWith("orcacore_inbox_delivery_sequence",
             "dropping the owning inbox table must also remove its greenfield delivery sequence");
     }
 
     [Fact]
-    public void InitialMigration_DefinesOperationalProjectionColumnsOnlyInTheGreenfieldTable()
+    public void InitialMigration_DefinesTheCompleteSchemaWithoutCompatibilityAlterTables()
     {
         var initial = PostgreSqlWorkflowStoreMigrations.All
             .Single(migration => migration.MigrationId == "001_initial")
@@ -644,9 +625,10 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
                      "stuck_detected_at"
                  })
         {
-            initial.Should().NotContain($"add column if not exists {column}",
-                "unreleased schema belongs in the first-create table, not compatibility DDL");
+            initial.Should().Contain(column, "every current operational column belongs in the first-create table");
         }
+
+        initial.Should().NotContain("alter table", "the greenfield schema has no upgrade DDL");
     }
 
     [Fact]

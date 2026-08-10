@@ -304,19 +304,21 @@ public sealed partial class RepositoryGuardTests
     }
 
     [Fact]
-    public void SqlServerProjectionQueries_DoNotFilterOrCountByMaterializingAllSnapshots()
+    public void RemovedProviderRoots_ContainNoProductionOrTestSources()
     {
         var repoRoot = FindRepoRoot();
-        var source = File.ReadAllText(Path.Combine(
-            repoRoot,
-
-            "src",
-            "OrcaCore.Providers.SqlServer",
-            "SqlServerWorkflowStore.Projections.cs"));
-
-        source.Should().Contain("SqlServerProjectionQueryBuilder.SummaryWhereClause");
-        source.Should().NotContain(".Where(snapshot => Matches(snapshot, query))");
-        source.Should().NotContain("var snapshots = await ListCoreAsync(query");
+        foreach (var provider in new[]
+                 {
+                     "OrcaCore.Providers.RabbitMq",
+                     "OrcaCore.Providers.Redis",
+                     "OrcaCore.Providers.Relational",
+                     "OrcaCore.Providers.SqlServer",
+                     "OrcaCore.Providers.ZeroMq"
+                 })
+        {
+            EnumerateNonBuildFiles(Path.Combine(repoRoot, "src", provider)).Should().BeEmpty();
+            EnumerateNonBuildFiles(Path.Combine(repoRoot, "tests", $"{provider}.Tests")).Should().BeEmpty();
+        }
     }
 
     [Fact]
@@ -548,6 +550,16 @@ public sealed partial class RepositoryGuardTests
         var parts = path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         return parts.Contains("bin", StringComparer.OrdinalIgnoreCase) ||
             parts.Contains("obj", StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string[] EnumerateNonBuildFiles(string root)
+    {
+        return Directory.Exists(root)
+            ? Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+                .Where(file => !IsBuildOutput(file))
+                .Order(StringComparer.Ordinal)
+                .ToArray()
+            : [];
     }
 
     private static bool IsWorkspaceCommand(string line)

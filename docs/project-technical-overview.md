@@ -28,8 +28,9 @@ compiler/execution kernel in `OrcaCore.Core`:
    segment until it completes or yields a restart-safe continuation.
 
 PostgreSQL and the development/test in-memory provider implement the exact first-release durable
-provider roles. SQL Server and other provider source is provisional and outside the v1 package
-manifest. Hosting packages register internal runtimes, continuation processing, operational
+provider roles. The provisional SQL Server, broker, Redis, and shared Relational source/test roots
+are removed; additional durable storage providers require a future amendment and complete current
+certification. Hosting packages register internal runtimes, continuation processing, operational
 services, and telemetry.
 
 ## Approved v1 target boundaries
@@ -82,7 +83,7 @@ catch-all registration or separate hosted-service switch.
 | Durable engine | `src/OrcaCore.Engine.Durable/` | Internal aggregate decisions, replay, checkpoint interpretation, command handling, outbox materialization, and continuation signals. |
 | Durable hosting | `src/OrcaCore.Durable.Hosting/` | Public durable engine/ingress registration, management and diagnostics facades, plus internal hosted pumps and operational sweeps. |
 | Provider contract and protocol | `src/OrcaCore.Provider.Abstractions/`, `src/OrcaCore.Runtime.Protocol/` | Advanced split provider ports/commit records and advanced durable wire/storage records; neither is an ordinary application surface. |
-| V1 providers | `src/OrcaCore.Providers.InMemory/`, `src/OrcaCore.Providers.PostgreSql/` | Development/test in-memory registration and the complete production PostgreSQL role set. Other provider experiments are not v1 package roles. |
+| V1 providers | `src/OrcaCore.Providers.InMemory/`, `src/OrcaCore.Providers.PostgreSql/` | Development/test in-memory registration and the complete production PostgreSQL role set. No other provider source root is present. |
 | DAG boundary | `src/OrcaCore.Dag/`, `src/OrcaCore.Dag.Hosting/` | Reserved v1 DAG packages; Section 8 implementation remains gated. |
 | Tests | `tests/` | Unit, acceptance, hosting, provider certification, integration, and support fixtures. |
 | Samples | `samples/` | Public-API console examples, generic host, and Blazor operations dashboard. |

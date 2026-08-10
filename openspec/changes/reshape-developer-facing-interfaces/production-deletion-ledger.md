@@ -62,11 +62,11 @@ file accounting alone, including in-place member removal and forbidden compatibi
 | BCL telemetry instruments, gauges, observer, logging | Replace / relocate | engine diagnostics + durable host observer | The SDK facade stays removed. Runtime owners emit the complete `orca.*` BCL catalog, structured logs, and exact spans; the host refreshes gauges from the same provider snapshot used for inspection. |
 | PostgreSQL resource-ownership migration | Replace/relocate | PostgreSQL greenfield schema | `007_resource_governance.sql` is the first-create replacement, not compatibility DDL. |
 | PostgreSQL registration extension | Replace/relocate | PostgreSQL provider package | The role-named provider registration extension is the supported owner. |
-| RabbitMQ adapter project/package | Defer | task 7.17c | Source is orphaned and the package is outside v1; task 7.17c must restore/certify or approve deletion. |
-| Redis adapter project/package | Defer | task 7.17c | Source is orphaned and the package is outside v1; task 7.17c must restore/certify or approve deletion. |
-| Shared relational project/package | Defer | task 7.17c | PostgreSQL owns relocated helpers, while the orphaned diagnostic/project family still needs explicit disposition. |
-| SQL Server project/package and migration | Defer | tasks 7.17c and 10.2 | Source/tests and the future certification obligation remain; no deletion credit is taken. |
-| ZeroMQ adapter project/package | Defer | task 7.17c | Source is orphaned and the package is outside v1; task 7.17c must restore/certify or approve deletion. |
+| RabbitMQ adapter project/package | Remove | application-owned dispatcher adapters | The provisional broker-SDK package and inactive tests are deleted; transport mapping stays outward through `IWorkflowEventDispatcher` and the isolated broker-adapter sample. |
+| Redis adapter project/package | Remove | future additional-provider amendment | The obsolete projection-only adapter and inactive tests are deleted. Any future Redis-backed durable provider must re-enter through the provider registry and certify the complete current port. |
+| Shared relational project/package | Replace/relocate | `OrcaCore.Providers.PostgreSql/Internal` | PostgreSQL owns the migration helpers; the duplicate orphan diagnostic root is deleted. |
+| SQL Server project/package and migration | Remove | future additional-provider amendment | The incomplete provisional provider and inactive tests are deleted, task 10.2 no longer claims current certification, and the future registry owns a complete greenfield re-entry. |
+| ZeroMQ adapter project/package | Remove | application-owned dispatcher adapters | The provisional broker-SDK package and inactive tests are deleted; transport mapping stays outward through `IWorkflowEventDispatcher` and the isolated broker-adapter sample. |
 | Broker-adapter sample source | Replace/relocate | isolated broker-adapter sample project | The parent sample excludes the files because a package-isolated project compiles and tests them. |
 
 ## Interpretation rules

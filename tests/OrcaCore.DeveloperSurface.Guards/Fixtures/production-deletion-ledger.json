@@ -10,9 +10,9 @@
   ],
   "expectedCounts": {
     "families": 24,
-    "physicallyDeletedPaths": 89,
+    "physicallyDeletedPaths": 136,
     "compileExcludedEntries": 1,
-    "orphanedProductionRoots": 5,
+    "orphanedProductionRoots": 0,
     "retiredPackageArtifacts": 6,
     "symbolInventories": 3
   },
@@ -139,7 +139,7 @@
     },
     {
       "id": "saga-recovery-source",
-      "disposition": "Defer",
+      "disposition": "Remove",
       "normativeIds": [
         "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
         "saga-orchestration::Saga remains an explicit deferred capability"
@@ -398,7 +398,7 @@
       ]
     },
     {
-      "id": "postgresql-greenfield-resource-migration",
+      "id": "postgresql-greenfield-schema-consolidation",
       "disposition": "ReplaceOrRelocate",
       "normativeIds": [
         "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
@@ -406,10 +406,23 @@
       ],
       "owner": "active:OrcaCore.Providers.PostgreSql",
       "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Providers.PostgreSql/Migrations/007_resource_ownership.sql"],
-      "successorPaths": ["src/OrcaCore.Providers.PostgreSql/Migrations/007_resource_governance.sql"],
-      "symbolFamilies": ["resource-ownership compatibility DDL"],
-      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/InfrastructureGuards.cs#RelationalResourcePoolOwnership_ScannerRejectsRenamedFormerPostgreSqlMigration"],
-      "deletedPaths": ["src/OrcaCore.Providers.PostgreSql/Migrations/007_resource_ownership.sql"]
+      "successorPaths": ["src/OrcaCore.Providers.PostgreSql/Migrations/001_initial.sql"],
+      "symbolFamilies": ["all PostgreSQL compatibility DDL and incremental first-release migrations"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/InfrastructureGuards.cs#RelationalSchemas_ContainNoCompatibilityAlterTableStatements", "test:tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlProviderCertificationTests.cs#InitializeAsync_AppliesRelationalSqlMigrations"],
+      "deletedPaths": [
+        "src/OrcaCore.Providers.PostgreSql/Migrations/002_claim_leases.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/003_start_idempotency.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/004_stream_version.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/005_checkpoint_runtime_state.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/006_outbox_kind.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/007_resource_governance.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/007_resource_ownership.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/008_global_event_ingress.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/009_pending_event_inbox.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/010_inbox_handoff_scan.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/011_definition_fanout_inbox.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/012_pending_start_intents.sql"
+      ]
     },
     {
       "id": "postgresql-registration-relocation",
@@ -427,87 +440,131 @@
     },
     {
       "id": "rabbitmq-provider-orphan",
-      "disposition": "Defer",
+      "disposition": "Remove",
       "normativeIds": [
         "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
         "developer-facing-surface::Package distribution preserves tier boundaries"
       ],
-      "owner": "task:7.17c",
-      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Providers.RabbitMq/OrcaCore.Providers.RabbitMq.csproj", "current:src/OrcaCore.Providers.RabbitMq"],
-      "successorPaths": [],
+      "owner": "active:application-owned-IWorkflowEventDispatcher-adapters",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Providers.RabbitMq/OrcaCore.Providers.RabbitMq.csproj", "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Providers.RabbitMq"],
+      "successorPaths": ["samples/OrcaCore.SampleHost/BrokerAdapters"],
       "symbolFamilies": ["RabbitMQ outbound adapter project and package"],
-      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/PackageConsumerGuards.cs#LocalFeed_ContainsEveryExactManifestPackageWithDeclaredDependencies"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/InfrastructureGuards.cs#ExactV1Manifest_HasNoOrphanedProviderSourcesTestsOrSdkVersions", "test:tests/OrcaCore.DeveloperSurface.Guards/PackageConsumerGuards.cs#BrokerAdapterExamples_UseOnlyTheApplicationIngressAndDispatcherBoundary"],
       "deletedPaths": ["src/OrcaCore.Providers.RabbitMq/OrcaCore.Providers.RabbitMq.csproj"],
-      "orphanedRoots": ["src/OrcaCore.Providers.RabbitMq"],
+      "closureDeletedPaths": [
+        "src/OrcaCore.Providers.RabbitMq/Diagnostics/OrcaCoreRabbitMqProviderDiagnostics.cs",
+        "src/OrcaCore.Providers.RabbitMq/IRabbitMqPublisher.cs",
+        "src/OrcaCore.Providers.RabbitMq/OrcaCoreRabbitMqServiceCollectionExtensions.cs",
+        "src/OrcaCore.Providers.RabbitMq/RabbitMqClientPublisher.cs",
+        "src/OrcaCore.Providers.RabbitMq/RabbitMqMessageDispatcher.cs",
+        "src/OrcaCore.Providers.RabbitMq/RabbitMqMessageDispatcherOptions.cs",
+        "src/OrcaCore.Providers.RabbitMq/RabbitMqOutboundMessage.cs",
+        "src/OrcaCore.Providers.RabbitMq/RabbitMqPublishOutcome.cs"
+      ],
+      "resolvedRoots": ["src/OrcaCore.Providers.RabbitMq", "tests/OrcaCore.Providers.RabbitMq.Tests"],
       "packageArtifacts": ["OrcaCore.Providers.RabbitMq"]
     },
     {
       "id": "redis-provider-orphan",
-      "disposition": "Defer",
+      "disposition": "Remove",
       "normativeIds": [
         "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
         "developer-facing-surface::Package distribution preserves tier boundaries"
       ],
-      "owner": "task:7.17c",
-      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Providers.Redis/OrcaCore.Providers.Redis.csproj", "current:src/OrcaCore.Providers.Redis"],
+      "owner": "task:future-additional-durable-storage-provider-amendment",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Providers.Redis/OrcaCore.Providers.Redis.csproj", "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Providers.Redis"],
       "successorPaths": [],
       "symbolFamilies": ["Redis projection adapter project and package"],
-      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/PackageConsumerGuards.cs#LocalFeed_ContainsEveryExactManifestPackageWithDeclaredDependencies"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/InfrastructureGuards.cs#ExactV1Manifest_HasNoOrphanedProviderSourcesTestsOrSdkVersions"],
       "deletedPaths": ["src/OrcaCore.Providers.Redis/OrcaCore.Providers.Redis.csproj"],
-      "orphanedRoots": ["src/OrcaCore.Providers.Redis"],
+      "closureDeletedPaths": [
+        "src/OrcaCore.Providers.Redis/Diagnostics/OrcaCoreRedisProviderDiagnostics.cs",
+        "src/OrcaCore.Providers.Redis/OrcaCoreRedisServiceCollectionExtensions.cs",
+        "src/OrcaCore.Providers.Redis/RedisProjectionStore.cs",
+        "src/OrcaCore.Providers.Redis/RedisProviderProfile.cs"
+      ],
+      "resolvedRoots": ["src/OrcaCore.Providers.Redis", "tests/OrcaCore.Providers.Redis.Tests"],
       "packageArtifacts": ["OrcaCore.Providers.Redis"]
     },
     {
       "id": "relational-provider-orphan",
-      "disposition": "Defer",
+      "disposition": "ReplaceOrRelocate",
       "normativeIds": [
         "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
         "developer-facing-surface::Package distribution preserves tier boundaries"
       ],
-      "owner": "task:7.17c",
-      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Providers.Relational/OrcaCore.Providers.Relational.csproj", "current:src/OrcaCore.Providers.Relational"],
+      "owner": "active:OrcaCore.Providers.PostgreSql/Internal",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Providers.Relational/OrcaCore.Providers.Relational.csproj", "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Providers.Relational"],
       "successorPaths": ["src/OrcaCore.Providers.PostgreSql/Internal"],
       "symbolFamilies": ["shared relational migration helper project and package"],
-      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/PackageConsumerGuards.cs#LocalFeed_ContainsEveryExactManifestPackageWithDeclaredDependencies"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/InfrastructureGuards.cs#ExactV1Manifest_HasNoOrphanedProviderSourcesTestsOrSdkVersions", "test:tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlProviderCertificationTests.cs#InitializeAsync_AppliesRelationalSqlMigrations"],
       "deletedPaths": [
         "src/OrcaCore.Providers.Relational/EmbeddedSqlMigrations.cs",
         "src/OrcaCore.Providers.Relational/OrcaCore.Providers.Relational.csproj",
         "src/OrcaCore.Providers.Relational/RelationalMigration.cs",
         "src/OrcaCore.Providers.Relational/RelationalMigrationRunner.cs"
       ],
-      "orphanedRoots": ["src/OrcaCore.Providers.Relational"],
+      "closureDeletedPaths": ["src/OrcaCore.Providers.Relational/Diagnostics/OrcaCoreRelationalProviderDiagnostics.cs"],
+      "resolvedRoots": ["src/OrcaCore.Providers.Relational"],
       "packageArtifacts": ["OrcaCore.Providers.Relational"]
     },
     {
       "id": "sqlserver-provider-orphan",
-      "disposition": "Defer",
+      "disposition": "Remove",
       "normativeIds": [
         "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
         "durable-persistence-and-outbox::Provider implementations certify messaging ownership parity"
       ],
-      "owner": "task:7.17c+10.2",
-      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj", "current:src/OrcaCore.Providers.SqlServer"],
+      "owner": "task:future-additional-durable-storage-provider-amendment",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj", "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Providers.SqlServer"],
       "successorPaths": [],
       "symbolFamilies": ["SQL Server provider project/package", "SQL Server resource-ownership migration"],
-      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/PackageConsumerGuards.cs#LocalFeed_ContainsEveryExactManifestPackageWithDeclaredDependencies"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/InfrastructureGuards.cs#ExactV1Manifest_HasNoOrphanedProviderSourcesTestsOrSdkVersions"],
       "deletedPaths": ["src/OrcaCore.Providers.SqlServer/Migrations/008_resource_ownership.sql", "src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj"],
-      "orphanedRoots": ["src/OrcaCore.Providers.SqlServer"],
+      "closureDeletedPaths": [
+        "src/OrcaCore.Providers.SqlServer/Diagnostics/OrcaCoreSqlServerProviderDiagnostics.cs",
+        "src/OrcaCore.Providers.SqlServer/Migrations/001_initial.sql",
+        "src/OrcaCore.Providers.SqlServer/Migrations/002_claim_leases.sql",
+        "src/OrcaCore.Providers.SqlServer/Migrations/003_resource_pools.sql",
+        "src/OrcaCore.Providers.SqlServer/Migrations/004_history_projections.sql",
+        "src/OrcaCore.Providers.SqlServer/Migrations/005_stream_version.sql",
+        "src/OrcaCore.Providers.SqlServer/Migrations/006_checkpoint_runtime_state.sql",
+        "src/OrcaCore.Providers.SqlServer/Migrations/007_outbox_kind.sql",
+        "src/OrcaCore.Providers.SqlServer/OrcaCoreSqlServerServiceCollectionExtensions.cs",
+        "src/OrcaCore.Providers.SqlServer/SqlServerProjectionQueryBuilder.cs",
+        "src/OrcaCore.Providers.SqlServer/SqlServerResourcePoolStore.cs",
+        "src/OrcaCore.Providers.SqlServer/SqlServerRetentionStore.cs",
+        "src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.Projections.cs",
+        "src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.Timers.cs",
+        "src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs",
+        "src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStoreMigrations.cs"
+      ],
+      "resolvedRoots": ["src/OrcaCore.Providers.SqlServer", "tests/OrcaCore.Providers.SqlServer.Tests"],
       "packageArtifacts": ["OrcaCore.Providers.SqlServer"]
     },
     {
       "id": "zeromq-provider-orphan",
-      "disposition": "Defer",
+      "disposition": "Remove",
       "normativeIds": [
         "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
         "developer-facing-surface::Package distribution preserves tier boundaries"
       ],
-      "owner": "task:7.17c",
-      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Providers.ZeroMq/OrcaCore.Providers.ZeroMq.csproj", "current:src/OrcaCore.Providers.ZeroMq"],
-      "successorPaths": [],
+      "owner": "active:application-owned-IWorkflowEventDispatcher-adapters",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Providers.ZeroMq/OrcaCore.Providers.ZeroMq.csproj", "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Providers.ZeroMq"],
+      "successorPaths": ["samples/OrcaCore.SampleHost/BrokerAdapters"],
       "symbolFamilies": ["ZeroMQ outbound adapter project and package"],
-      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/PackageConsumerGuards.cs#LocalFeed_ContainsEveryExactManifestPackageWithDeclaredDependencies"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/InfrastructureGuards.cs#ExactV1Manifest_HasNoOrphanedProviderSourcesTestsOrSdkVersions", "test:tests/OrcaCore.DeveloperSurface.Guards/PackageConsumerGuards.cs#BrokerAdapterExamples_UseOnlyTheApplicationIngressAndDispatcherBoundary"],
       "deletedPaths": ["src/OrcaCore.Providers.ZeroMq/OrcaCore.Providers.ZeroMq.csproj"],
-      "orphanedRoots": ["src/OrcaCore.Providers.ZeroMq"],
+      "closureDeletedPaths": [
+        "src/OrcaCore.Providers.ZeroMq/Diagnostics/OrcaCoreZeroMqProviderDiagnostics.cs",
+        "src/OrcaCore.Providers.ZeroMq/IZeroMqPublisher.cs",
+        "src/OrcaCore.Providers.ZeroMq/NetMqPublisher.cs",
+        "src/OrcaCore.Providers.ZeroMq/ZeroMqMessageDispatcher.cs",
+        "src/OrcaCore.Providers.ZeroMq/ZeroMqMessageDispatcherOptions.cs",
+        "src/OrcaCore.Providers.ZeroMq/ZeroMqOutboundMessage.cs",
+        "src/OrcaCore.Providers.ZeroMq/ZeroMqPublishOutcome.cs"
+      ],
+      "resolvedRoots": ["src/OrcaCore.Providers.ZeroMq", "tests/OrcaCore.Providers.ZeroMq.Tests"],
       "packageArtifacts": ["OrcaCore.Providers.ZeroMq"]
     },
     {

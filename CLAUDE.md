@@ -96,8 +96,11 @@ DAG hosting. Exact owning unit-test assemblies plus Durable to ProviderCertifica
 internals; acceptance, behavior, compile-fixture, and integration assemblies may not. No other
 friend or public reflection bridge is allowed.
 
-Not in the v1 manifest (present in `src/`, provisional): `OrcaCore.Hosting`,
-`OrcaCore.Providers.SqlServer`, `.RabbitMq`, `.Redis`, `.ZeroMq`, `.Relational`.
+Not in the v1 manifest: the removed catch-all `OrcaCore.Hosting` package and the provisional
+`OrcaCore.Providers.SqlServer`, `.RabbitMq`, `.Redis`, `.ZeroMq`, and `.Relational` packages. Their
+source/test roots are absent. Broker SDK mapping belongs to application/companion adapters over
+`IWorkflowEventDispatcher`; an additional durable storage provider, including SQL Server, requires
+a future amendment plus complete current-port and greenfield-schema certification.
 
 Hosting is **role-specific**. There is no catch-all `AddOrcaCore()`, no separate
 `AddOrcaCoreHostedServices()` toggle, no implicit mode selection, no options-binder facade, and no

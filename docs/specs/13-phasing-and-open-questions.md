@@ -163,6 +163,7 @@ positive compile fixture, or implementation task that pretends the contract is a
 | Failed-instance/step management retry | new-generation identity, retained state/input, output invalidation, lineage, authorization |
 | Public pause/resume | lifecycle/admission, in-flight attempt, wait/timer buffering, restart, lease interaction |
 | Public archive/purge | authorization, retention/reference safety, provider certification |
+| Additional durable storage providers, including SQL Server | complete current provider-port coverage, greenfield first-create schema, restart/competing-host certification, retention/poison parity, package ownership and dependency boundaries |
 | Workflow-authored `Publish` | payload/destination, event identity, commit/dispatch/dedup contract |
 | Workflow-authored `Cancel` | target, terminal outcome, descendant/lease cleanup, authorization |
 | Definition-targeted event fanout | committed target set, per-target dedup, retry/late-registration rule |
@@ -170,3 +171,9 @@ positive compile fixture, or implementation task that pretends the contract is a
 `WaitLong` and author `Yield` are **removed**, not deferred: their useful behavior is supplied by
 durable `Wait` residency and runtime-owned quanta. Their names must disappear from public
 assemblies after the refactor.
+
+Broker-SDK-specific OrcaCore packages and the old Redis projection-only adapter are also removed,
+not deferred v1 placeholders. Applications or outward companion projects adapt
+`IWorkflowEventDispatcher` to RabbitMQ, ZeroMQ, or another transport. A future durable storage
+provider re-enters only through the registry row above and must implement the complete provider
+contract rather than revive one of the provisional project shapes.
