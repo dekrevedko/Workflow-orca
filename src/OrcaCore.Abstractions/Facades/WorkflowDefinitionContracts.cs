@@ -1,7 +1,14 @@
 namespace OrcaCore;
 
+internal interface IWorkflowDefinitionRuntimeMetadata
+{
+    object RuntimeDefinition { get; }
+
+    Type RuntimeStateType { get; }
+}
+
 /// <summary>An immutable resultless ephemeral workflow definition.</summary>
-public sealed class EphemeralWorkflowDefinition<TInput>
+public sealed class EphemeralWorkflowDefinition<TInput> : IWorkflowDefinitionRuntimeMetadata
 {
     internal EphemeralWorkflowDefinition(
         DefinitionId definitionId,
@@ -31,10 +38,14 @@ public sealed class EphemeralWorkflowDefinition<TInput>
     internal object RuntimeDefinition { get; }
 
     internal Type RuntimeStateType { get; }
+
+    object IWorkflowDefinitionRuntimeMetadata.RuntimeDefinition => RuntimeDefinition;
+
+    Type IWorkflowDefinitionRuntimeMetadata.RuntimeStateType => RuntimeStateType;
 }
 
 /// <summary>An immutable resultful ephemeral workflow definition.</summary>
-public sealed class EphemeralWorkflowDefinition<TInput, TOutput>
+public sealed class EphemeralWorkflowDefinition<TInput, TOutput> : IWorkflowDefinitionRuntimeMetadata
 {
     internal EphemeralWorkflowDefinition(
         DefinitionId definitionId,
@@ -64,6 +75,10 @@ public sealed class EphemeralWorkflowDefinition<TInput, TOutput>
     internal object RuntimeDefinition { get; }
 
     internal Type RuntimeStateType { get; }
+
+    object IWorkflowDefinitionRuntimeMetadata.RuntimeDefinition => RuntimeDefinition;
+
+    Type IWorkflowDefinitionRuntimeMetadata.RuntimeStateType => RuntimeStateType;
 }
 
 /// <summary>A state-opaque resultless ephemeral workflow reference.</summary>
@@ -107,7 +122,7 @@ public sealed class EphemeralWorkflowRef<TInput, TOutput>
 }
 
 /// <summary>An immutable resultless durable workflow definition.</summary>
-public sealed class DurableWorkflowDefinition<TInput>
+public sealed class DurableWorkflowDefinition<TInput> : IWorkflowDefinitionRuntimeMetadata
 {
     internal DurableWorkflowDefinition(
         DefinitionId definitionId,
@@ -137,10 +152,14 @@ public sealed class DurableWorkflowDefinition<TInput>
     internal object RuntimeDefinition { get; }
 
     internal Type RuntimeStateType { get; }
+
+    object IWorkflowDefinitionRuntimeMetadata.RuntimeDefinition => RuntimeDefinition;
+
+    Type IWorkflowDefinitionRuntimeMetadata.RuntimeStateType => RuntimeStateType;
 }
 
 /// <summary>An immutable resultful durable workflow definition.</summary>
-public sealed class DurableWorkflowDefinition<TInput, TOutput>
+public sealed class DurableWorkflowDefinition<TInput, TOutput> : IWorkflowDefinitionRuntimeMetadata
 {
     internal DurableWorkflowDefinition(
         DefinitionId definitionId,
@@ -170,6 +189,10 @@ public sealed class DurableWorkflowDefinition<TInput, TOutput>
     internal object RuntimeDefinition { get; }
 
     internal Type RuntimeStateType { get; }
+
+    object IWorkflowDefinitionRuntimeMetadata.RuntimeDefinition => RuntimeDefinition;
+
+    Type IWorkflowDefinitionRuntimeMetadata.RuntimeStateType => RuntimeStateType;
 }
 
 /// <summary>A state-opaque resultless durable workflow reference.</summary>

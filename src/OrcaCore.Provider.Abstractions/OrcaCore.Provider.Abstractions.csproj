@@ -4,9 +4,6 @@
     <PackageId>OrcaCore.Provider.Abstractions</PackageId>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="ArchiveResult.cs" />
-    <Compile Remove="PurgeResult.cs" />
-    <Compile Remove="RetentionPolicy.cs" />
     <ProjectReference Include="..\OrcaCore.Abstractions\OrcaCore.csproj" />
     <ProjectReference Include="..\OrcaCore.Runtime.Protocol\OrcaCore.Runtime.Protocol.csproj" />
   </ItemGroup>

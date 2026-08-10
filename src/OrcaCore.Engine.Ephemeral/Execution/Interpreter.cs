@@ -157,7 +157,7 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
                     }
                     catch (Exception exception)
                     {
-                        throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
+                        throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
                             $"Workflow definition '{context.DefinitionId}' Init failed while creating state.",
                             exception);
                     }
@@ -350,7 +350,7 @@ internal sealed class Interpreter<TState> : ISequenceExecutionEngine<TState>
     {
         if (!runState.Initialized || runState.Instance is null)
         {
-            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException("Workflow execution reached a node before Init created state.");
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException("Workflow execution reached a node before Init created state.");
         }
 
         return runState.Instance;

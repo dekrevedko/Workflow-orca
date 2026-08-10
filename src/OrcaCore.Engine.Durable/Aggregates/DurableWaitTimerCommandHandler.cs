@@ -24,9 +24,9 @@ internal static class DurableWaitTimerCommandHandler
                 wait.CorrelationId.Equals(command.CorrelationId)))
         {
             var definitionId = aggregate.DefinitionId ??
-                throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                     "A durable wait cannot be registered before its definition identity is available.");
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.AmbiguousWait(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.AmbiguousWait(
                 definitionId,
                 WorkflowEventContract.Create(
                     EventName.Create(command.EventName),

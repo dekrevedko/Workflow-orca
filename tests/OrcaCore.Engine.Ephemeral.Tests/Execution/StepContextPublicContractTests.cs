@@ -97,7 +97,7 @@ public sealed class StepContextPublicContractTests
         var instance = await StartAsync(provider, definition, "versioned-wait");
         var engine = provider.GetRequiredService<EphemeralWorkflowEngine>();
 
-        var wrongVersion = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.EventEnvelope(
+        var wrongVersion = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.EventEnvelope(
             EventId.Create("versioned-wait-v1"),
             WorkflowEventContract.Create(Resume, EventContractVersion.Initial),
             ResumeCorrelation,
@@ -115,7 +115,7 @@ public sealed class StepContextPublicContractTests
         using var matchingProvider = CreateProvider();
         var matchingInstance = await StartAsync(matchingProvider, definition, "versioned-wait-match");
         var matchingEngine = matchingProvider.GetRequiredService<EphemeralWorkflowEngine>();
-        var exactVersion = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.EventEnvelope(
+        var exactVersion = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.EventEnvelope(
             EventId.Create("versioned-wait-v2"),
             WorkflowEventContract.Create(Resume, new EventContractVersion(2)),
             ResumeCorrelation,

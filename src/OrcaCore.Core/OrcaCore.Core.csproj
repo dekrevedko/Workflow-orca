@@ -7,8 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\OrcaCore.Abstractions\OrcaCore.csproj" />
-    <Compile Include="..\OrcaCore.Abstractions\Primitives\Validation.cs"
-             Link="Primitives\Validation.cs" />
     <Compile Include="..\OrcaCore.Abstractions\Serialization\FixedWorkflowValueCodec.cs"
              Link="Internal\FixedWorkflowValueCodec.cs" />
     <Compile Include="..\OrcaCore.Abstractions\Serialization\WorkflowFailureJsonConverters.cs"

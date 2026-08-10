@@ -12,11 +12,15 @@ The system SHALL separate application, provider-authoring, runtime-protocol, and
 - **THEN** provider ports and certification contracts are available with only the declared runtime-protocol dependency and no engine implementation dependency
 
 ### Requirement: Implementation package boundaries use exact internal friends
-Compiler, execution-kernel, concrete engine, provider, and hosted-loop implementation types SHALL remain internal even when another first-release implementation package consumes them. Cross-assembly implementation access SHALL use only the exact reviewed product friends `OrcaCore.Core` to `OrcaCore.Engine.Ephemeral` and `OrcaCore.Engine.Durable`, `OrcaCore.Engine.Durable` to `OrcaCore.Durable.Hosting`, and `OrcaCore.Durable.Hosting` to `OrcaCore.Dag.Hosting`. Exact owning white-box test friends and the durable provider-certification barrier friend MAY inspect internals; acceptance, behavior-scenario, compile-fixture, and integration assemblies SHALL NOT. No other friend, public reflection bridge, or exported test helper SHALL exist.
+Compiler, execution-kernel, concrete engine, provider, and hosted-loop implementation types SHALL remain internal even when another first-release implementation package consumes them. Cross-assembly implementation access SHALL use only the exact reviewed product friends `OrcaCore` to `OrcaCore.Core`, `OrcaCore.Engine.Ephemeral`, and `OrcaCore.Engine.Durable` for application-owned internal authoring/runtime contracts; `OrcaCore.Core` to `OrcaCore.Engine.Ephemeral` and `OrcaCore.Engine.Durable`; `OrcaCore.Engine.Durable` to `OrcaCore.Durable.Hosting`; and `OrcaCore.Durable.Hosting` to `OrcaCore.Dag.Hosting`. Exact owning white-box test friends and the durable provider-certification barrier friend MAY inspect internals; acceptance, behavior-scenario, compile-fixture, and integration assemblies SHALL NOT. No other friend, public reflection bridge, or exported test helper SHALL exist. Friend grants SHALL NOT create reverse package references.
 
 #### Scenario: Engine consumes the shared execution kernel
 - **WHEN** either engine compiles against `OrcaCore.Core`
 - **THEN** it receives type-safe friend access to internal kernel types without making those types externally visible
+
+#### Scenario: Internal application contracts cross implementation packages
+- **WHEN** Core or an engine constructs or reads an application-owned internal authoring/runtime contract
+- **THEN** it uses compile-checked `OrcaCore` friend access and no reflection, CLR-name lookup, or public compatibility bridge
 
 #### Scenario: Consumer inspects an implementation package
 - **WHEN** a fresh-package consumer or exported-API baseline inspects Core, an engine, hosting, or a provider package

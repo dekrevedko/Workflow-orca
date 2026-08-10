@@ -1978,6 +1978,9 @@ Implementation package boundaries use exact type-safe internal friends so the pa
 forces compiler, execution-kernel, concrete engine, provider, or hosted-loop types into exported
 metadata. The complete product-friend set is:
 
+- `OrcaCore -> OrcaCore.Core`, `OrcaCore.Engine.Ephemeral`, and `OrcaCore.Engine.Durable` for
+  compile-checked application-owned internal authoring/runtime contracts; these access grants do
+  not create reverse package references;
 - `OrcaCore.Core -> OrcaCore.Engine.Ephemeral` and `OrcaCore.Engine.Durable` for the shared internal
   compiler/execution kernel;
 - `OrcaCore.Engine.Durable -> OrcaCore.Durable.Hosting` for the internal durable role bootstrap;

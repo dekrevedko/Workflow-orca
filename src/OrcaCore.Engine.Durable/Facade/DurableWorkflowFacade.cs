@@ -101,9 +101,9 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
         ArgumentNullException.ThrowIfNull(definition);
         return RegisterCore(
             definition,
-            global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.RuntimeDefinition(definition),
-            global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.RuntimeStateType(definition),
-            () => global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DurableDefinitionHandle<TInput>(
+            global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.RuntimeDefinition(definition),
+            global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.RuntimeStateType(definition),
+            () => global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DurableDefinitionHandle<TInput>(
                 definition.DefinitionId,
                 definition.DefinitionVersion,
                 definition.DefinitionFingerprint,
@@ -121,9 +121,9 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
         ArgumentNullException.ThrowIfNull(definition);
         return RegisterCore(
             definition,
-            global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.RuntimeDefinition(definition),
-            global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.RuntimeStateType(definition),
-            () => global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DurableDefinitionHandle<TInput, TOutput>(
+            global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.RuntimeDefinition(definition),
+            global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.RuntimeStateType(definition),
+            () => global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DurableDefinitionHandle<TInput, TOutput>(
                 definition.DefinitionId,
                 definition.DefinitionVersion,
                 definition.DefinitionFingerprint,
@@ -212,7 +212,7 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
                 return existing.Fingerprint.Equals(fingerprint)
                     ? new WorkflowRegistrationResult<THandle>.Registered((THandle)existing.Handle)
                     : new WorkflowRegistrationResult<THandle>.Conflict(
-                        global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionRegistrationConflict(
+                        global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionRegistrationConflict(
                             definitionId,
                             definitionVersion,
                             existing.Fingerprint,
@@ -243,7 +243,7 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
             }
         }
 
-        throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionNotRegistered(
+        throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionNotRegistered(
             definitionId,
             definitionVersion,
             definitionFingerprint);
@@ -259,7 +259,7 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
             definition.DefinitionId,
             definition.DefinitionVersion,
             definition.DefinitionFingerprint,
-            global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.RuntimeStateType(definition),
+            global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.RuntimeStateType(definition),
             input,
             idempotencyKey,
             cancellationToken).ConfigureAwait(false);
@@ -280,7 +280,7 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
             definition.DefinitionId,
             definition.DefinitionVersion,
             definition.DefinitionFingerprint,
-            global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.RuntimeStateType(definition),
+            global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.RuntimeStateType(definition),
             input,
             idempotencyKey,
             cancellationToken).ConfigureAwait(false);
@@ -301,7 +301,7 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(idempotencyKey);
-        var inputFingerprint = global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.PayloadFingerprint(input);
+        var inputFingerprint = global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.PayloadFingerprint(input);
 
         await startGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -329,7 +329,7 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
                     return new StartCoreResult(
                         null,
                         false,
-                        global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.StartIdempotencyConflict(
+                        global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.StartIdempotencyConflict(
                             idempotencyKey,
                             existing.DefinitionId,
                             existing.DefinitionVersion,
@@ -361,7 +361,7 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
                 return new StartCoreResult(
                     null,
                     false,
-                    global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.StartIdempotencyConflict(
+                    global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.StartIdempotencyConflict(
                         idempotencyKey,
                         conflict.DefinitionId,
                         conflict.DefinitionVersion,
@@ -378,7 +378,7 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
                 return new StartCoreResult(
                     null,
                     false,
-                    global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory
+                    global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter
                         .PendingStartIdempotencyConflict(
                             idempotencyKey,
                             pendingConflict,
@@ -451,11 +451,11 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
         var snapshot = projected.HasValue
             ? projected.Value
             :
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.InstanceNotFound(instanceId);
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.InstanceNotFound(instanceId);
         if (!snapshot.DefinitionId.Equals(expectedId) ||
             !snapshot.DefinitionVersion.Equals(expectedVersion))
         {
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.InstanceDefinitionMismatch(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.InstanceDefinitionMismatch(
                 instanceId,
                 expectedId,
                 snapshot.DefinitionId);
@@ -476,7 +476,7 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
     }
 
     private WorkflowInstanceHandle CreateInstanceHandle(InstanceBinding binding) =>
-        global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.InstanceHandle(
+        global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.InstanceHandle(
             binding.InstanceId,
             token => GetSnapshotAsync(binding, token),
             (requestedType, token) => GetStateAsync(binding, requestedType, token),
@@ -484,7 +484,7 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
             token => TerminateAsync(binding, token));
 
     private WorkflowInstanceHandle<TOutput> CreateInstanceHandle<TOutput>(InstanceBinding binding) =>
-        global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.InstanceHandle(
+        global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.InstanceHandle(
             binding.InstanceId,
             token => GetSnapshotAsync(binding, token),
             (requestedType, token) => GetStateAsync(binding, requestedType, token),
@@ -533,7 +533,7 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
     {
         if (requestedType != binding.StateType)
         {
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.StateTypeMismatch(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.StateTypeMismatch(
                 binding.InstanceId,
                 binding.StateType,
                 requestedType);
@@ -654,7 +654,7 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
                     case WorkflowOutputResult<TOutput>.Available available:
                         return available.Output;
                     case WorkflowOutputResult<TOutput>.Unavailable unavailable:
-                        throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.OutputUnavailable(unavailable.Status, unavailable.Failure);
+                        throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.OutputUnavailable(unavailable.Status, unavailable.Failure);
                 }
 
                 await signal.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -674,7 +674,7 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
         return projected.HasValue
             ? projected.Value
             :
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.InstanceNotFound(instanceId);
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.InstanceNotFound(instanceId);
     }
 
     private async ValueTask<DurableExecutionEnvelopeV2> GetEnvelopeAsync(
@@ -765,11 +765,11 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
         var message = separator > 0
             ? snapshot.ErrorSummary[(separator + 1)..].Trim()
             : snapshot.ErrorSummary;
-        return global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.WorkflowFailure(
+        return global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.WorkflowFailure(
             code,
             message,
-            global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.AuthoredLocation("workflow:$"),
-            global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.RootFailureOccurrence(),
+            global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.AuthoredLocation("workflow:$"),
+            global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.RootFailureOccurrence(),
             []);
     }
 

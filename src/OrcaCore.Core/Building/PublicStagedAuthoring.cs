@@ -1,4 +1,3 @@
-using System.Reflection;
 using OrcaCore;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Core.Definitions;
@@ -154,7 +153,7 @@ internal sealed class EphemeralWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(then);
         builder.If(
-            state => condition(AuthoringContractFactory.Snapshot(state)),
+            state => condition(AuthoringContracts.Snapshot(state)),
             nested => then(new EphemeralNestedBuilder<TInput, TState>(nested)),
             otherwise is null
                 ? null
@@ -170,7 +169,7 @@ internal sealed class EphemeralWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(body);
         builder.While(
-            state => condition(AuthoringContractFactory.Snapshot(state)),
+            state => condition(AuthoringContracts.Snapshot(state)),
             nested => body(new EphemeralNestedBuilder<TInput, TState>(nested)));
         return this;
     }
@@ -182,7 +181,7 @@ internal sealed class EphemeralWorkflowBuilder<TInput, TState>
     {
         ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlation);
-        builder.Wait(eventContract, state => correlation(AuthoringContractFactory.Snapshot(state)));
+        builder.Wait(eventContract, state => correlation(AuthoringContracts.Snapshot(state)));
         return this;
     }
 
@@ -197,7 +196,7 @@ internal sealed class EphemeralWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(correlation);
         builder.AddWait(
             eventContract,
-            state => correlation(AuthoringContractFactory.Snapshot(state)),
+            state => correlation(AuthoringContracts.Snapshot(state)),
             WaitMode.Resident,
             timeout);
         return this;
@@ -247,8 +246,8 @@ internal sealed class EphemeralWorkflowBuilder<TInput, TState>
             this,
             merge => builder.CompleteRootForEach<TItem, TItemState, TResult>(
                 join,
-                parent => AuthoringContractFactory.BoundedItems(
-                    items(AuthoringContractFactory.Snapshot(parent.Value)), options.MaxItems),
+                parent => AuthoringContracts.BoundedItems(
+                    items(AuthoringContracts.Snapshot(parent.Value)), options.MaxItems),
                 global::OrcaCore.Core.Definitions.WorkflowPartitioner<TItem>.Items(),
                 item => input(new ForEachItemInput<TItem>(item.Index, item.Items.Single())),
                 branch => body(new EphemeralItemBuilder<TItemState, TResult>(branch)),
@@ -257,12 +256,12 @@ internal sealed class EphemeralWorkflowBuilder<TInput, TState>
                 options.MaxItems,
                 options.MaxConcurrency,
                 (parent, outcomes) => ((Func<ReadOnlyStateSnapshot<TState>, IReadOnlyList<ForEachItemResult<TResult>>, TState>)merge)(
-                    AuthoringContractFactory.Snapshot(parent.Value),
-                    outcomes.Select(AuthoringContractFactory.ItemResult).ToArray())),
+                    AuthoringContracts.Snapshot(parent.Value),
+                    outcomes.Select(AuthoringContracts.ItemResult).ToArray())),
             merge => builder.CompleteRootForEach<TItem, TItemState, TResult>(
                 join,
-                parent => AuthoringContractFactory.BoundedItems(
-                    items(AuthoringContractFactory.Snapshot(parent.Value)), options.MaxItems),
+                parent => AuthoringContracts.BoundedItems(
+                    items(AuthoringContracts.Snapshot(parent.Value)), options.MaxItems),
                 global::OrcaCore.Core.Definitions.WorkflowPartitioner<TItem>.Items(),
                 item => input(new ForEachItemInput<TItem>(item.Index, item.Items.Single())),
                 branch => body(new EphemeralItemBuilder<TItemState, TResult>(branch)),
@@ -271,8 +270,8 @@ internal sealed class EphemeralWorkflowBuilder<TInput, TState>
                 options.MaxItems,
                 options.MaxConcurrency,
                 (parent, outcomes) => ((Func<ReadOnlyStateSnapshot<TState>, IReadOnlyList<ForEachItemOutcome<TResult>>, TState>)merge)(
-                    AuthoringContractFactory.Snapshot(parent.Value),
-                    outcomes.Select(AuthoringContractFactory.ItemOutcome).ToArray())));
+                    AuthoringContracts.Snapshot(parent.Value),
+                    outcomes.Select(AuthoringContracts.ItemOutcome).ToArray())));
     }
 
     /// <summary>Selects resultless completion.</summary>
@@ -295,7 +294,7 @@ internal sealed class EphemeralWorkflowBuilder<TInput, TState>
         Func<ReadOnlyStateSnapshot<TState>, TOutput> output)
     {
         ArgumentNullException.ThrowIfNull(output);
-        builder.AddTypedEnd(state => output(AuthoringContractFactory.Snapshot(state)));
+        builder.AddTypedEnd(state => output(AuthoringContracts.Snapshot(state)));
         return new EphemeralWorkflowCompletionBuilder<TInput, TOutput>(
             PublicDefinitionBuilder.TryBuild(builder));
     }
@@ -308,7 +307,7 @@ internal sealed class EphemeralWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(outcome);
         builder.AddTypedEnd(
-            state => output(AuthoringContractFactory.Snapshot(state)),
+            state => output(AuthoringContracts.Snapshot(state)),
             outcome.Value);
         return new EphemeralWorkflowCompletionBuilder<TInput, TOutput>(
             PublicDefinitionBuilder.TryBuild(builder));
@@ -365,7 +364,7 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(then);
         builder.If(
-            state => condition(AuthoringContractFactory.Snapshot(state)),
+            state => condition(AuthoringContracts.Snapshot(state)),
             nested => then(new DurableNestedBuilder<TInput, TState>(nested)),
             otherwise is null ? null : nested => otherwise(new DurableNestedBuilder<TInput, TState>(nested)));
         return this;
@@ -379,7 +378,7 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(body);
         builder.While(
-            state => condition(AuthoringContractFactory.Snapshot(state)),
+            state => condition(AuthoringContracts.Snapshot(state)),
             nested => body(new DurableNestedBuilder<TInput, TState>(nested)));
         return this;
     }
@@ -391,7 +390,7 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
     {
         ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlation);
-        builder.AddWait(eventContract, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold);
+        builder.AddWait(eventContract, state => correlation(AuthoringContracts.Snapshot(state)), WaitMode.Cold);
         return this;
     }
 
@@ -406,7 +405,7 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(correlation);
         builder.AddWait(
             eventContract,
-            state => correlation(AuthoringContractFactory.Snapshot(state)),
+            state => correlation(AuthoringContracts.Snapshot(state)),
             WaitMode.Cold,
             timeout);
         return this;
@@ -473,8 +472,8 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
             this,
             merge => builder.CompleteRootForEach<TItem, TItemState, TResult>(
                 join,
-                parent => AuthoringContractFactory.BoundedItems(
-                    items(AuthoringContractFactory.Snapshot(parent.Value)), options.MaxItems),
+                parent => AuthoringContracts.BoundedItems(
+                    items(AuthoringContracts.Snapshot(parent.Value)), options.MaxItems),
                 global::OrcaCore.Core.Definitions.WorkflowPartitioner<TItem>.Items(),
                 item => input(new ForEachItemInput<TItem>(item.Index, item.Items.Single())),
                 branch => body(new DurableItemBuilder<TItemState, TResult>(branch)),
@@ -483,12 +482,12 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
                 options.MaxItems,
                 options.MaxConcurrency,
                 (parent, outcomes) => ((Func<ReadOnlyStateSnapshot<TState>, IReadOnlyList<ForEachItemResult<TResult>>, TState>)merge)(
-                    AuthoringContractFactory.Snapshot(parent.Value),
-                    outcomes.Select(AuthoringContractFactory.ItemResult).ToArray())),
+                    AuthoringContracts.Snapshot(parent.Value),
+                    outcomes.Select(AuthoringContracts.ItemResult).ToArray())),
             merge => builder.CompleteRootForEach<TItem, TItemState, TResult>(
                 join,
-                parent => AuthoringContractFactory.BoundedItems(
-                    items(AuthoringContractFactory.Snapshot(parent.Value)), options.MaxItems),
+                parent => AuthoringContracts.BoundedItems(
+                    items(AuthoringContracts.Snapshot(parent.Value)), options.MaxItems),
                 global::OrcaCore.Core.Definitions.WorkflowPartitioner<TItem>.Items(),
                 item => input(new ForEachItemInput<TItem>(item.Index, item.Items.Single())),
                 branch => body(new DurableItemBuilder<TItemState, TResult>(branch)),
@@ -497,8 +496,8 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
                 options.MaxItems,
                 options.MaxConcurrency,
                 (parent, outcomes) => ((Func<ReadOnlyStateSnapshot<TState>, IReadOnlyList<ForEachItemOutcome<TResult>>, TState>)merge)(
-                    AuthoringContractFactory.Snapshot(parent.Value),
-                    outcomes.Select(AuthoringContractFactory.ItemOutcome).ToArray())));
+                    AuthoringContracts.Snapshot(parent.Value),
+                    outcomes.Select(AuthoringContracts.ItemOutcome).ToArray())));
     }
 
     /// <summary>Authors a static durable resource scope.</summary>
@@ -522,7 +521,7 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(body);
         builder.AddResourceLease(
-            state => request(AuthoringContractFactory.Snapshot(state)),
+            state => request(AuthoringContracts.Snapshot(state)),
             nested => body(new DurableLeaseWorkflowBuilder<TInput, TState>(nested)));
         return this;
     }
@@ -532,7 +531,7 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
         Func<ReadOnlyStateSnapshot<TState>, TState> replacementState)
     {
         ArgumentNullException.ThrowIfNull(replacementState);
-        builder.ContinueAsNew(state => replacementState(AuthoringContractFactory.Snapshot(state)));
+        builder.ContinueAsNew(state => replacementState(AuthoringContracts.Snapshot(state)));
         return new DurableWorkflowCompletionBuilder<TInput>(PublicDefinitionBuilder.TryBuild(builder));
     }
 
@@ -556,7 +555,7 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
         Func<ReadOnlyStateSnapshot<TState>, TOutput> output)
     {
         ArgumentNullException.ThrowIfNull(output);
-        builder.AddTypedEnd(state => output(AuthoringContractFactory.Snapshot(state)));
+        builder.AddTypedEnd(state => output(AuthoringContracts.Snapshot(state)));
         return new DurableWorkflowCompletionBuilder<TInput, TOutput>(
             PublicDefinitionBuilder.TryBuild(builder));
     }
@@ -569,7 +568,7 @@ internal sealed class DurableWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(outcome);
         builder.AddTypedEnd(
-            state => output(AuthoringContractFactory.Snapshot(state)),
+            state => output(AuthoringContracts.Snapshot(state)),
             outcome.Value);
         return new DurableWorkflowCompletionBuilder<TInput, TOutput>(
             PublicDefinitionBuilder.TryBuild(builder));
@@ -599,7 +598,7 @@ internal static class PublicAuthoringValidation
     }
 }
 
-internal static class AuthoringContractFactory
+internal static class AuthoringContracts
 {
     internal static EphemeralWorkflowDefinition<TInput> EphemeralDefinition<TInput>(
         DefinitionId definitionId,
@@ -607,14 +606,7 @@ internal static class AuthoringContractFactory
         DefinitionFingerprint definitionFingerprint,
         object runtimeDefinition,
         Type runtimeStateType) =>
-        Construct<EphemeralWorkflowDefinition<TInput>>(
-            [
-                typeof(DefinitionId),
-                typeof(DefinitionVersion),
-                typeof(DefinitionFingerprint),
-                typeof(object),
-                typeof(Type)
-            ],
+        new EphemeralWorkflowDefinition<TInput>(
             definitionId,
             definitionVersion,
             definitionFingerprint,
@@ -627,14 +619,7 @@ internal static class AuthoringContractFactory
         DefinitionFingerprint definitionFingerprint,
         object runtimeDefinition,
         Type runtimeStateType) =>
-        Construct<EphemeralWorkflowDefinition<TInput, TOutput>>(
-            [
-                typeof(DefinitionId),
-                typeof(DefinitionVersion),
-                typeof(DefinitionFingerprint),
-                typeof(object),
-                typeof(Type)
-            ],
+        new EphemeralWorkflowDefinition<TInput, TOutput>(
             definitionId,
             definitionVersion,
             definitionFingerprint,
@@ -647,14 +632,7 @@ internal static class AuthoringContractFactory
         DefinitionFingerprint definitionFingerprint,
         object runtimeDefinition,
         Type runtimeStateType) =>
-        Construct<DurableWorkflowDefinition<TInput>>(
-            [
-                typeof(DefinitionId),
-                typeof(DefinitionVersion),
-                typeof(DefinitionFingerprint),
-                typeof(object),
-                typeof(Type)
-            ],
+        new DurableWorkflowDefinition<TInput>(
             definitionId,
             definitionVersion,
             definitionFingerprint,
@@ -667,32 +645,16 @@ internal static class AuthoringContractFactory
         DefinitionFingerprint definitionFingerprint,
         object runtimeDefinition,
         Type runtimeStateType) =>
-        Construct<DurableWorkflowDefinition<TInput, TOutput>>(
-            [
-                typeof(DefinitionId),
-                typeof(DefinitionVersion),
-                typeof(DefinitionFingerprint),
-                typeof(object),
-                typeof(Type)
-            ],
+        new DurableWorkflowDefinition<TInput, TOutput>(
             definitionId,
             definitionVersion,
             definitionFingerprint,
             runtimeDefinition,
             runtimeStateType);
 
-    public static ReadOnlyStateSnapshot<TState> Snapshot<TState>(TState state)
-    {
-        var constructor = typeof(ReadOnlyStateSnapshot<TState>).GetConstructors(
-            BindingFlags.NonPublic | BindingFlags.Instance).Single();
-        return (ReadOnlyStateSnapshot<TState>)constructor.Invoke([state]);
-    }
+    public static ReadOnlyStateSnapshot<TState> Snapshot<TState>(TState state) => new(state);
 
-    public static DefinitionFingerprint Fingerprint(string value)
-    {
-        return (DefinitionFingerprint)typeof(DefinitionFingerprint).GetConstructors(
-            BindingFlags.NonPublic | BindingFlags.Instance).Single().Invoke([value]);
-    }
+    public static DefinitionFingerprint Fingerprint(string value) => new(value);
 
     public static Validation<T> Valid<T>(T value)
     {
@@ -738,16 +700,18 @@ internal static class AuthoringContractFactory
         var relatedLocations = error.RelatedPath is null
             ? Array.Empty<AuthoredLocation>()
             : [LocationFromCompilerPath(error.RelatedPath)];
-        return (WorkflowDiagnostic)typeof(WorkflowDiagnostic).GetConstructors(
-            BindingFlags.NonPublic | BindingFlags.Instance).Single().Invoke(
-                [code, WorkflowDiagnosticSeverity.Error, location, relatedLocations, error.Message]);
+        return new WorkflowDiagnostic(
+            code,
+            WorkflowDiagnosticSeverity.Error,
+            location,
+            relatedLocations,
+            error.Message);
     }
 
     public static WorkflowDefinitionException DefinitionException(
         IReadOnlyList<WorkflowDiagnostic> diagnostics)
     {
-        return (WorkflowDefinitionException)typeof(WorkflowDefinitionException).GetConstructors(
-            BindingFlags.NonPublic | BindingFlags.Instance).Single().Invoke([diagnostics]);
+        return new WorkflowDefinitionException(diagnostics);
     }
 
     public static WorkflowDefinitionException DefinitionException(
@@ -808,48 +772,27 @@ internal static class AuthoringContractFactory
     public static WorkflowWaitTimeoutException WaitTimeout(
         WorkflowEventContract eventContract,
         CorrelationId correlationId) =>
-        (WorkflowWaitTimeoutException)typeof(WorkflowWaitTimeoutException)
-            .GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance)
-            .Single()
-            .Invoke([eventContract, correlationId]);
+        new(eventContract, correlationId);
 
     public static StepAttemptTimeoutException StepTimeout(
         StepOperationId operationId,
         int attemptNumber,
         TimeSpan timeout) =>
-        (StepAttemptTimeoutException)typeof(StepAttemptTimeoutException)
-            .GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance)
-            .Single()
-            .Invoke([operationId, attemptNumber, timeout]);
+        new(operationId, attemptNumber, timeout);
 
     public static WorkflowDeadlineExceededException WorkflowDeadline(
         DateTimeOffset deadline) =>
-        (WorkflowDeadlineExceededException)typeof(WorkflowDeadlineExceededException)
-            .GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance)
-            .Single()
-            .Invoke([deadline]);
+        new(deadline);
 
     public static ResourcePoolNotConfiguredException ResourcePoolsNotConfigured(
         IReadOnlyList<ResourcePoolName> missingPools) =>
-        (ResourcePoolNotConfiguredException)typeof(ResourcePoolNotConfiguredException)
-            .GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance)
-            .Single()
-            .Invoke([missingPools]);
+        new(missingPools);
 
     public static BranchOutcome<TResult> BranchSucceeded<TResult>(
         AuthoredBranchId branchId,
         TResult result)
     {
-        return (BranchOutcome<TResult>)typeof(BranchOutcome<TResult>.Succeeded).GetConstructors(
-                BindingFlags.NonPublic | BindingFlags.Instance)
-            .Single(constructor => constructor.GetParameters() is
-                [
-                    { ParameterType: var branchIdType },
-                    { ParameterType: var resultType }
-                ] &&
-                branchIdType == typeof(AuthoredBranchId) &&
-                resultType == typeof(TResult))
-            .Invoke([branchId, result]);
+        return new BranchOutcome<TResult>.Succeeded(branchId, result);
     }
 
     public static BranchOutcome<TResult> BranchFailed<TResult>(
@@ -857,16 +800,7 @@ internal static class AuthoringContractFactory
         global::OrcaCore.Core.Execution.FiberFailure failure)
     {
         var detached = Failure(failure);
-        return (BranchOutcome<TResult>)typeof(BranchOutcome<TResult>.Failed).GetConstructors(
-                BindingFlags.NonPublic | BindingFlags.Instance)
-            .Single(constructor => constructor.GetParameters() is
-                [
-                    { ParameterType: var branchIdType },
-                    { ParameterType: var failureType }
-                ] &&
-                branchIdType == typeof(AuthoredBranchId) &&
-                failureType == typeof(WorkflowFailure))
-            .Invoke([branchId, detached]);
+        return new BranchOutcome<TResult>.Failed(branchId, detached);
     }
 
     public static IReadOnlyList<TItem> BoundedItems<TItem>(IReadOnlyList<TItem> items, int maxItems)
@@ -890,27 +824,13 @@ internal static class AuthoringContractFactory
     public static ForEachItemOutcome<TResult> ItemOutcome<TResult>(
         global::OrcaCore.Core.Building.ForEachItemOutcome<TResult> outcome)
     {
-        var outcomeType = outcome.Status == global::OrcaCore.Core.Building.ForEachItemTerminalStatus.Succeeded
-            ? typeof(ForEachItemOutcome<TResult>.Succeeded)
-            : typeof(ForEachItemOutcome<TResult>.Failed);
-        var arguments = outcome.Status == global::OrcaCore.Core.Building.ForEachItemTerminalStatus.Succeeded
-            ? new object?[] { outcome.Index, outcome.Result }
-            : new object?[]
-            {
+        return outcome.Status == global::OrcaCore.Core.Building.ForEachItemTerminalStatus.Succeeded
+            ? new ForEachItemOutcome<TResult>.Succeeded(outcome.Index, outcome.Result!)
+            : new ForEachItemOutcome<TResult>.Failed(
                 outcome.Index,
                 outcome.Failure is null
                     ? Failure("SFE-JOIN-FAILED", "Item did not succeed.")
-                    : Failure(outcome.Failure)
-            };
-        return (ForEachItemOutcome<TResult>)outcomeType.GetConstructors(
-                BindingFlags.NonPublic | BindingFlags.Instance)
-            .Single(constructor => constructor.GetParameters() is
-                [
-                    { ParameterType: var indexType },
-                    _
-                ] &&
-                indexType == typeof(int))
-            .Invoke(arguments);
+                    : Failure(outcome.Failure));
     }
 
     private static WorkflowFailure Failure(string message) =>
@@ -920,25 +840,19 @@ internal static class AuthoringContractFactory
         Failure(new global::OrcaCore.Core.Execution.FiberFailure(code, message));
 
     private static WorkflowFailure Failure(global::OrcaCore.Core.Execution.FiberFailure failure) =>
-        (WorkflowFailure)typeof(WorkflowFailure).GetConstructors(
-            BindingFlags.NonPublic | BindingFlags.Instance).Single().Invoke(
-                [
-                    failure.Code,
-                    failure.Message,
-                    global::OrcaCore.Core.Execution.FailureProvenance.Clone(failure.AuthoredLocation),
-                    global::OrcaCore.Core.Execution.FailureProvenance.Clone(failure.Occurrence),
-                    failure.Causes.Select(Failure).ToArray()
-                ]);
+        new(
+            failure.Code,
+            failure.Message,
+            global::OrcaCore.Core.Execution.FailureProvenance.Clone(failure.AuthoredLocation),
+            global::OrcaCore.Core.Execution.FailureProvenance.Clone(failure.Occurrence),
+            failure.Causes.Select(Failure).ToArray());
 
     private static Validation<T> CreateValidation<T>(T? value, IReadOnlyList<WorkflowDiagnostic> diagnostics)
     {
-        return (Validation<T>)typeof(Validation<T>).GetConstructors(
-            BindingFlags.NonPublic | BindingFlags.Instance).Single().Invoke([value, diagnostics]);
+        return new Validation<T>(value, diagnostics);
     }
 
-    private static AuthoredLocation Location(string value) =>
-        (AuthoredLocation)typeof(AuthoredLocation).GetConstructors(
-            BindingFlags.NonPublic | BindingFlags.Instance).Single().Invoke([value]);
+    private static AuthoredLocation Location(string value) => new(value);
 
     private static AuthoredLocation LocationFromCompilerPath(string? path)
     {
@@ -977,19 +891,10 @@ internal static class AuthoringContractFactory
         AuthoredLocation location,
         IReadOnlyList<AuthoredLocation> relatedLocations,
         string message) =>
-        (WorkflowDiagnostic)typeof(WorkflowDiagnostic).GetConstructors(
-            BindingFlags.NonPublic | BindingFlags.Instance).Single().Invoke(
-                [code, WorkflowDiagnosticSeverity.Error, location, relatedLocations, message]);
-
-    private static TContract Construct<TContract>(Type[] parameterTypes, params object?[] arguments)
-    {
-        var constructor = typeof(TContract).GetConstructor(
-            BindingFlags.Instance | BindingFlags.NonPublic,
-            binder: null,
-            parameterTypes,
-            modifiers: null) ?? throw new MissingMethodException(
-                typeof(TContract).FullName,
-                $".ctor({string.Join(", ", parameterTypes.Select(type => type.FullName))})");
-        return (TContract)constructor.Invoke(arguments);
-    }
+        new WorkflowDiagnostic(
+            code,
+            WorkflowDiagnosticSeverity.Error,
+            location,
+            relatedLocations,
+            message);
 }

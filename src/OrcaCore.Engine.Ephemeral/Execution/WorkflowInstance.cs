@@ -703,7 +703,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
         SignalCancellation();
         ApplyTerminalTrigger(LifecycleTrigger.Timeout, observedAt);
-        var exception = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.WorkflowDeadline(deadline);
+        var exception = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.WorkflowDeadline(deadline);
         ErrorDetails = new WorkflowErrorDetails(
             exception.Code,
             exception.Message,

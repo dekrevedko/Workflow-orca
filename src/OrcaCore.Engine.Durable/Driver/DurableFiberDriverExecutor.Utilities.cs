@@ -40,7 +40,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 $"Pending resume '{pending.WaitId}' does not match its authored event contract.");
         }
 
-        return RuntimeStepContextFactory.CreateResumedEvent(
+        return StepContextContracts.CreateResumedEvent(
             pending.MatchedEventId,
             authoredContract ?? WorkflowEventContract.Create(eventName, eventVersion),
             pending.CorrelationId ?? CorrelationId.Create("(uncorrelated)"),

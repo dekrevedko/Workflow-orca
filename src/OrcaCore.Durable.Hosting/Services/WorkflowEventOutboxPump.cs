@@ -52,7 +52,7 @@ internal sealed class WorkflowEventMessageDispatcher(IWorkflowEventDispatcher di
         try
         {
             var data = DurableWorkflowOutboundEventCodec.Decode(record.Payload);
-            outboundEvent = DurableApplicationContractFactory.WorkflowOutboundEvent(data);
+            outboundEvent = DurableContractAdapter.WorkflowOutboundEvent(data);
         }
         catch (Exception exception) when (IsPermanentMaterializationFailure(exception))
         {

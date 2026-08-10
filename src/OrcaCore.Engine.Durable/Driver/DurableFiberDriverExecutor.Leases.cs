@@ -24,18 +24,18 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         }
 
         var selector = instruction.LeaseRequestSelector ??
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 $"Compiled lease '{instruction.Path}' has no request.");
         var state = ResolveFiberState(execution, fiber, rootState);
         try
         {
             return StructuredInvocationCache.Invoke(selector, state) as global::OrcaCore.ResourceLeaseRequest ??
-                throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                     $"Lease selector '{instruction.Path}' returned null.");
         }
         catch (TargetInvocationException exception) when (exception.InnerException is not null)
         {
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 $"Lease selector '{instruction.Path}' failed.",
                 exception.InnerException);
         }
@@ -71,7 +71,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                    nameof(DurableLeaseObligationPhase.ReviewMarked) or
                    nameof(DurableLeaseObligationPhase.AmbiguousHeld))
             ? null
-            : RuntimeStepContextFactory.CreateLease(
+            : StepContextContracts.CreateLease(
                 LeaseProtectionToken.Parse(lease.ProtectionToken!));
     }
 

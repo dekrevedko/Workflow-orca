@@ -80,7 +80,7 @@ public sealed class FailureProvenanceTests
             FailureProvenance.Location("workflow:$/n:00000001"),
             FailureProvenance.RootOccurrence());
 
-        var detached = AuthoringContractFactory.ItemOutcome(
+        var detached = AuthoringContracts.ItemOutcome(
             new global::OrcaCore.Core.Building.ForEachItemOutcome<int>(
                 0,
                 ForEachItemTerminalStatus.Failed,
@@ -100,7 +100,7 @@ public sealed class FailureProvenanceTests
         publicFailure.Causes[0].Occurrence.Should().Be(child.Occurrence);
         publicFailure.Causes[0].Occurrence.Should().NotBeSameAs(child.Occurrence);
 
-        var second = AuthoringContractFactory.ItemOutcome(
+        var second = AuthoringContracts.ItemOutcome(
             new global::OrcaCore.Core.Building.ForEachItemOutcome<int>(
                 0,
                 ForEachItemTerminalStatus.Failed,

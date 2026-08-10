@@ -58,7 +58,7 @@ internal sealed class EphemeralNestedBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(then);
         builder.If(
-            state => condition(AuthoringContractFactory.Snapshot(state)),
+            state => condition(AuthoringContracts.Snapshot(state)),
             nested => then(new EphemeralNestedBuilder<TInput, TState>(nested)),
             otherwise is null ? null : nested => otherwise(new EphemeralNestedBuilder<TInput, TState>(nested)));
         return this;
@@ -70,7 +70,7 @@ internal sealed class EphemeralNestedBuilder<TInput, TState>
     {
         ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlation);
-        builder.Wait(eventContract, state => correlation(AuthoringContractFactory.Snapshot(state)));
+        builder.Wait(eventContract, state => correlation(AuthoringContracts.Snapshot(state)));
         return this;
     }
 
@@ -84,7 +84,7 @@ internal sealed class EphemeralNestedBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(correlation);
         builder.AddWait(
             eventContract,
-            state => correlation(AuthoringContractFactory.Snapshot(state)),
+            state => correlation(AuthoringContracts.Snapshot(state)),
             WaitMode.Resident,
             timeout);
         return this;
@@ -141,7 +141,7 @@ internal sealed class DurableNestedBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(then);
         builder.If(
-            state => condition(AuthoringContractFactory.Snapshot(state)),
+            state => condition(AuthoringContracts.Snapshot(state)),
             nested => then(new DurableNestedBuilder<TInput, TState>(nested)),
             otherwise is null ? null : nested => otherwise(new DurableNestedBuilder<TInput, TState>(nested)));
         return this;
@@ -153,7 +153,7 @@ internal sealed class DurableNestedBuilder<TInput, TState>
     {
         ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlation);
-        builder.AddWait(eventContract, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold);
+        builder.AddWait(eventContract, state => correlation(AuthoringContracts.Snapshot(state)), WaitMode.Cold);
         return this;
     }
 
@@ -167,7 +167,7 @@ internal sealed class DurableNestedBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(correlation);
         builder.AddWait(
             eventContract,
-            state => correlation(AuthoringContractFactory.Snapshot(state)),
+            state => correlation(AuthoringContracts.Snapshot(state)),
             WaitMode.Cold,
             timeout);
         return this;
@@ -225,7 +225,7 @@ internal sealed class DurableNestedBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(body);
         builder.AddResourceLease(
-            state => request(AuthoringContractFactory.Snapshot(state)),
+            state => request(AuthoringContracts.Snapshot(state)),
             nested => body(new DurableLeaseNestedBuilder<TInput, TState>(nested)));
         return this;
     }
@@ -265,7 +265,7 @@ internal sealed class DurableLeaseWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(then);
         builder.If(
-            state => condition(AuthoringContractFactory.Snapshot(state)),
+            state => condition(AuthoringContracts.Snapshot(state)),
             nested => then(new DurableLeaseNestedBuilder<TInput, TState>(nested)),
             otherwise is null ? null : nested => otherwise(new DurableLeaseNestedBuilder<TInput, TState>(nested)));
         return this;
@@ -277,7 +277,7 @@ internal sealed class DurableLeaseWorkflowBuilder<TInput, TState>
     {
         ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlation);
-        builder.AddWait(eventContract, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold);
+        builder.AddWait(eventContract, state => correlation(AuthoringContracts.Snapshot(state)), WaitMode.Cold);
         return this;
     }
 
@@ -291,7 +291,7 @@ internal sealed class DurableLeaseWorkflowBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(correlation);
         builder.AddWait(
             eventContract,
-            state => correlation(AuthoringContractFactory.Snapshot(state)),
+            state => correlation(AuthoringContracts.Snapshot(state)),
             WaitMode.Cold,
             timeout);
         return this;
@@ -365,7 +365,7 @@ internal sealed class DurableLeaseNestedBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(then);
         builder.If(
-            state => condition(AuthoringContractFactory.Snapshot(state)),
+            state => condition(AuthoringContracts.Snapshot(state)),
             nested => then(new DurableLeaseNestedBuilder<TInput, TState>(nested)),
             otherwise is null ? null : nested => otherwise(new DurableLeaseNestedBuilder<TInput, TState>(nested)));
         return this;
@@ -377,7 +377,7 @@ internal sealed class DurableLeaseNestedBuilder<TInput, TState>
     {
         ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlation);
-        builder.AddWait(eventContract, state => correlation(AuthoringContractFactory.Snapshot(state)), WaitMode.Cold);
+        builder.AddWait(eventContract, state => correlation(AuthoringContracts.Snapshot(state)), WaitMode.Cold);
         return this;
     }
 
@@ -391,7 +391,7 @@ internal sealed class DurableLeaseNestedBuilder<TInput, TState>
         ArgumentNullException.ThrowIfNull(correlation);
         builder.AddWait(
             eventContract,
-            state => correlation(AuthoringContractFactory.Snapshot(state)),
+            state => correlation(AuthoringContracts.Snapshot(state)),
             WaitMode.Cold,
             timeout);
         return this;
@@ -440,7 +440,7 @@ internal static class PublicPublishAuthoring
     {
         ArgumentNullException.ThrowIfNull(eventContract);
         ArgumentNullException.ThrowIfNull(correlation);
-        builder.AddPublish(eventContract, state => correlation(AuthoringContractFactory.Snapshot(state)));
+        builder.AddPublish(eventContract, state => correlation(AuthoringContracts.Snapshot(state)));
     }
 
     internal static void Add<TState, TPayload>(
@@ -454,8 +454,8 @@ internal static class PublicPublishAuthoring
         ArgumentNullException.ThrowIfNull(payload);
         builder.AddPublish(
             eventContract,
-            state => correlation(AuthoringContractFactory.Snapshot(state)),
+            state => correlation(AuthoringContracts.Snapshot(state)),
             typeof(TPayload),
-            (Func<TState, TPayload>)(state => payload(AuthoringContractFactory.Snapshot(state))));
+            (Func<TState, TPayload>)(state => payload(AuthoringContracts.Snapshot(state))));
     }
 }

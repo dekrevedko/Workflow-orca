@@ -333,14 +333,14 @@ internal static class ScopeMergeAdapter
         var listType = typeof(List<>).MakeGenericType(outcomeType);
         var list = (IList)(Activator.CreateInstance(listType) ??
             throw new InvalidOperationException("Could not create the typed branch-outcome list."));
-        var succeeded = typeof(global::OrcaCore.Core.Authoring.AuthoringContractFactory)
+        var succeeded = typeof(global::OrcaCore.Core.Authoring.AuthoringContracts)
             .GetMethod(
-                nameof(global::OrcaCore.Core.Authoring.AuthoringContractFactory.BranchSucceeded),
+                nameof(global::OrcaCore.Core.Authoring.AuthoringContracts.BranchSucceeded),
                 BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)!
             .MakeGenericMethod(scopePlan.ResultType);
-        var failed = typeof(global::OrcaCore.Core.Authoring.AuthoringContractFactory)
+        var failed = typeof(global::OrcaCore.Core.Authoring.AuthoringContracts)
             .GetMethod(
-                nameof(global::OrcaCore.Core.Authoring.AuthoringContractFactory.BranchFailed),
+                nameof(global::OrcaCore.Core.Authoring.AuthoringContracts.BranchFailed),
                 BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)!
             .MakeGenericMethod(scopePlan.ResultType);
 

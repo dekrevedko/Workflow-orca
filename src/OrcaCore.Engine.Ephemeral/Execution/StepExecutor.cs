@@ -69,9 +69,9 @@ internal sealed class StepExecutor<TState>
             try
             {
                 var step = stepNode.StepFactory();
-                var context = RuntimeStepContextFactory.Create(
+                var context = StepContextContracts.Create(
                     instance.State,
-                    RuntimeStepContextFactory.CreateExecution(instance.InstanceId, operationId, attempt),
+                    StepContextContracts.CreateExecution(instance.InstanceId, operationId, attempt),
                     resumedEvent,
                     timeProvider,
                     forEachItem);

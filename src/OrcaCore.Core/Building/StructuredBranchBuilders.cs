@@ -178,7 +178,7 @@ internal sealed class BranchBuilder<TBranchState, TResult>
         var step = PreviousDecoratableStep("retry");
         if (step.Policies.Retry is not null)
         {
-            throw AuthoringContractFactory.MisplacedDecorator("retry", instructions.Count - 1);
+            throw AuthoringContracts.MisplacedDecorator("retry", instructions.Count - 1);
         }
 
         instructions[^1] = step with { Policies = step.Policies.WithRetry(maxAttempts, backoff ?? TimeSpan.Zero) };
@@ -210,7 +210,7 @@ internal sealed class BranchBuilder<TBranchState, TResult>
         var step = PreviousDecoratableStep("timeout");
         if (step.Policies.Timeout is not null)
         {
-            throw AuthoringContractFactory.MisplacedDecorator("timeout", instructions.Count - 1);
+            throw AuthoringContracts.MisplacedDecorator("timeout", instructions.Count - 1);
         }
 
         instructions[^1] = step with { Policies = step.Policies.WithTimeout(duration) };
@@ -245,7 +245,7 @@ internal sealed class BranchBuilder<TBranchState, TResult>
         var step = PreviousDecoratableStep("transient pool");
         if (step.Policies.PoolKey is not null)
         {
-            throw AuthoringContractFactory.MisplacedDecorator("transient pool", instructions.Count - 1);
+            throw AuthoringContracts.MisplacedDecorator("transient pool", instructions.Count - 1);
         }
 
         instructions[^1] = step with { Policies = step.Policies.WithPoolKey(poolKey) };
@@ -424,7 +424,7 @@ internal sealed class BranchBuilder<TBranchState, TResult>
     {
         if (instructions.Count == 0 || instructions[^1] is not BranchStepAuthoringInstruction step)
         {
-            throw AuthoringContractFactory.MisplacedDecorator(decorator, Math.Max(0, instructions.Count));
+            throw AuthoringContracts.MisplacedDecorator(decorator, Math.Max(0, instructions.Count));
         }
 
         return step;

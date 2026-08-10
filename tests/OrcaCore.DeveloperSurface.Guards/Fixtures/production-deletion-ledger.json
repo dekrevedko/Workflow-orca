@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "recoveryCheckpoint": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
-  "productionTarget": "ce1b103047b4e1702c1710818f730ef23e800024",
+  "productionTarget": "76d6b4b91456177db44dabd6e7ee519e17ae8d2d",
   "allowedDispositions": [
     "Remove",
     "ReplaceOrRelocate",
@@ -9,9 +9,9 @@
     "DeadOrDuplicate"
   ],
   "expectedCounts": {
-    "families": 23,
-    "physicallyDeletedPaths": 58,
-    "compileExcludedEntries": 28,
+    "families": 24,
+    "physicallyDeletedPaths": 89,
+    "compileExcludedEntries": 1,
     "orphanedProductionRoots": 5,
     "retiredPackageArtifacts": 6,
     "symbolInventories": 3
@@ -66,10 +66,8 @@
         "src/OrcaCore.Abstractions/Durable/DurableExecutionEnvelopeV2.cs",
         "src/OrcaCore.Abstractions/Durable/DurableParkReason.cs",
         "src/OrcaCore.Abstractions/Durable/WorkflowCommand.cs",
-        "src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs"
-      ],
-      "compileRemoves": [
-        {"project": "src/OrcaCore.Abstractions/OrcaCore.csproj", "remove": "Instances/WaitMode.cs"}
+        "src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs",
+        "src/OrcaCore.Abstractions/Instances/WaitMode.cs"
       ]
     },
     {
@@ -118,7 +116,7 @@
       "owner": "task:7.17b",
       "recoveryPaths": [
         "git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Abstractions/Providers/ArchiveResult.cs",
-        "current:src/OrcaCore.Provider.Abstractions/RetentionPolicy.cs"
+        "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Provider.Abstractions/RetentionPolicy.cs"
       ],
       "successorPaths": ["src/OrcaCore.Provider.Abstractions", "src/OrcaCore.Providers.InMemory", "src/OrcaCore.Providers.PostgreSql"],
       "symbolFamilies": ["archive/purge application vocabulary", "provider-owned retention policy and cleanup reachability"],
@@ -130,12 +128,10 @@
       "deletedPaths": [
         "src/OrcaCore.Abstractions/Providers/ArchiveResult.cs",
         "src/OrcaCore.Abstractions/Providers/PurgeResult.cs",
-        "src/OrcaCore.Abstractions/Providers/RetentionPolicy.cs"
-      ],
-      "compileRemoves": [
-        {"project": "src/OrcaCore.Provider.Abstractions/OrcaCore.Provider.Abstractions.csproj", "remove": "ArchiveResult.cs"},
-        {"project": "src/OrcaCore.Provider.Abstractions/OrcaCore.Provider.Abstractions.csproj", "remove": "PurgeResult.cs"},
-        {"project": "src/OrcaCore.Provider.Abstractions/OrcaCore.Provider.Abstractions.csproj", "remove": "RetentionPolicy.cs"}
+        "src/OrcaCore.Abstractions/Providers/RetentionPolicy.cs",
+        "src/OrcaCore.Provider.Abstractions/ArchiveResult.cs",
+        "src/OrcaCore.Provider.Abstractions/PurgeResult.cs",
+        "src/OrcaCore.Provider.Abstractions/RetentionPolicy.cs"
       ]
     },
     {
@@ -146,19 +142,17 @@
         "saga-orchestration::Saga remains an explicit deferred capability"
       ],
       "owner": "task:9.6",
-      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Core/Building/SagaBuilder.cs", "current:src/OrcaCore.Engine.Durable/Aggregates/DurableSagaState.cs"],
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Core/Building/SagaBuilder.cs", "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Engine.Durable/Aggregates/DurableSagaState.cs"],
       "successorPaths": [],
       "symbolFamilies": ["Saga authoring/definition", "Saga command adapter", "Saga audit/progression recovery source"],
       "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs#RemovedDeferredAndWrongOwnerPublicSymbols_AreAbsentBeforeBaselineApproval"],
       "deletedPaths": [
         "src/OrcaCore.Core/Building/SagaBuilder.cs",
         "src/OrcaCore.Core/Definitions/SagaDefinition.cs",
-        "src/OrcaCore.Engine.Durable/Execution/DurableSagaCommandAdapter.cs"
-      ],
-      "compileRemoves": [
-        {"project": "src/OrcaCore.Abstractions/OrcaCore.csproj", "remove": "Instances/SagaAuditSnapshot.cs"},
-        {"project": "src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj", "remove": "Aggregates/DurableSagaCommandHandler.cs"},
-        {"project": "src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj", "remove": "Aggregates/DurableSagaState.cs"}
+        "src/OrcaCore.Engine.Durable/Execution/DurableSagaCommandAdapter.cs",
+        "src/OrcaCore.Abstractions/Instances/SagaAuditSnapshot.cs",
+        "src/OrcaCore.Engine.Durable/Aggregates/DurableSagaCommandHandler.cs",
+        "src/OrcaCore.Engine.Durable/Aggregates/DurableSagaState.cs"
       ]
     },
     {
@@ -169,18 +163,18 @@
         "developer-facing-surface::Deferred capabilities are documented without public placeholders"
       ],
       "owner": "task:9.6",
-      "recoveryPaths": ["current:src/OrcaCore.Engine.Durable/Aggregates/DurableChildWorkflowState.cs", "current:src/OrcaCore.Engine.Durable/Aggregates/DurableExternalJobState.cs"],
+      "recoveryPaths": ["git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Engine.Durable/Aggregates/DurableChildWorkflowState.cs", "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Engine.Durable/Aggregates/DurableExternalJobState.cs"],
       "successorPaths": [],
       "symbolFamilies": ["public child policies and runtime state", "generic external-job runtime state"],
       "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs#RemovedDeferredAndWrongOwnerPublicSymbols_AreAbsentBeforeBaselineApproval"],
-      "compileRemoves": [
-        {"project": "src/OrcaCore.Abstractions/OrcaCore.csproj", "remove": "Durable/RunChildFailurePolicy.cs"},
-        {"project": "src/OrcaCore.Abstractions/OrcaCore.csproj", "remove": "Durable/RunChildrenPolicies.cs"},
-        {"project": "src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj", "remove": "Aggregates/DurableChildWorkflowCommandHandler.cs"},
-        {"project": "src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj", "remove": "Aggregates/DurableChildWorkflowState.cs"},
-        {"project": "src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj", "remove": "Aggregates/DurableExternalJobCommandHandler.cs"},
-        {"project": "src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj", "remove": "Aggregates/DurableExternalJobState.cs"},
-        {"project": "src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj", "remove": "Driver/DurableFiberDriverExecutor.Children.cs"}
+      "deletedPaths": [
+        "src/OrcaCore.Abstractions/Durable/RunChildFailurePolicy.cs",
+        "src/OrcaCore.Abstractions/Durable/RunChildrenPolicies.cs",
+        "src/OrcaCore.Engine.Durable/Aggregates/DurableChildWorkflowCommandHandler.cs",
+        "src/OrcaCore.Engine.Durable/Aggregates/DurableChildWorkflowState.cs",
+        "src/OrcaCore.Engine.Durable/Aggregates/DurableExternalJobCommandHandler.cs",
+        "src/OrcaCore.Engine.Durable/Aggregates/DurableExternalJobState.cs",
+        "src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Children.cs"
       ]
     },
     {
@@ -245,25 +239,23 @@
         "test:tests/OrcaCore.DeveloperSurface.Guards/ProductionDeletionLedgerGuards.cs#Ledger_RequiredCapabilityGapsStayDeferredToTheirLoadBearingTasks"
       ],
       "deletedPaths": [
+        "src/OrcaCore.Abstractions/Instances/ActiveStepSnapshot.cs",
+        "src/OrcaCore.Abstractions/Instances/ActiveWaitSnapshot.cs",
+        "src/OrcaCore.Abstractions/Instances/CompositionBranchOutcomeSnapshot.cs",
+        "src/OrcaCore.Abstractions/Instances/ForEachGroupSnapshot.cs",
+        "src/OrcaCore.Abstractions/Instances/ForEachWorkItemSnapshot.cs",
+        "src/OrcaCore.Abstractions/Instances/ForEachWorkItemStatus.cs",
+        "src/OrcaCore.Abstractions/Instances/LifecycleEventSnapshot.cs",
+        "src/OrcaCore.Abstractions/Instances/WorkflowInstanceSnapshot.cs",
+        "src/OrcaCore.Abstractions/Instances/WorkflowPressureMetrics.cs",
+        "src/OrcaCore.Abstractions/Instances/WorkflowStatistics.cs",
+        "src/OrcaCore.Abstractions/Instances/WorkflowStatisticsGroup.cs",
+        "src/OrcaCore.Abstractions/Instances/WorkflowStatus.cs",
         "src/OrcaCore.Engine.Durable/Management/DurableManagement.cs",
         "src/OrcaCore.Engine.Durable/Management/DurableManagementQuery.cs",
         "src/OrcaCore.Engine.Durable/Management/ProjectionPredicateTranslator.cs",
         "src/OrcaCore.Engine.Durable/Management/WorkflowInstanceQueryModel.cs",
         "src/OrcaCore.Engine.Ephemeral/Management/EphemeralManagement.cs"
-      ],
-      "compileRemoves": [
-        {"project": "src/OrcaCore.Abstractions/OrcaCore.csproj", "remove": "Instances/ActiveStepSnapshot.cs"},
-        {"project": "src/OrcaCore.Abstractions/OrcaCore.csproj", "remove": "Instances/ActiveWaitSnapshot.cs"},
-        {"project": "src/OrcaCore.Abstractions/OrcaCore.csproj", "remove": "Instances/CompositionBranchOutcomeSnapshot.cs"},
-        {"project": "src/OrcaCore.Abstractions/OrcaCore.csproj", "remove": "Instances/ForEachGroupSnapshot.cs"},
-        {"project": "src/OrcaCore.Abstractions/OrcaCore.csproj", "remove": "Instances/ForEachWorkItemSnapshot.cs"},
-        {"project": "src/OrcaCore.Abstractions/OrcaCore.csproj", "remove": "Instances/ForEachWorkItemStatus.cs"},
-        {"project": "src/OrcaCore.Abstractions/OrcaCore.csproj", "remove": "Instances/LifecycleEventSnapshot.cs"},
-        {"project": "src/OrcaCore.Abstractions/OrcaCore.csproj", "remove": "Instances/WorkflowInstanceSnapshot.cs"},
-        {"project": "src/OrcaCore.Abstractions/OrcaCore.csproj", "remove": "Instances/WorkflowPressureMetrics.cs"},
-        {"project": "src/OrcaCore.Abstractions/OrcaCore.csproj", "remove": "Instances/WorkflowStatistics.cs"},
-        {"project": "src/OrcaCore.Abstractions/OrcaCore.csproj", "remove": "Instances/WorkflowStatisticsGroup.cs"},
-        {"project": "src/OrcaCore.Abstractions/OrcaCore.csproj", "remove": "Instances/WorkflowStatus.cs"}
       ]
     },
     {
@@ -281,19 +273,51 @@
       "deletedPaths": ["src/OrcaCore.Engine.Ephemeral/Management/IEphemeralStateSnapshotter.cs"]
     },
     {
-      "id": "legacy-validation-duplicate",
-      "disposition": "DeadOrDuplicate",
+      "id": "legacy-validation-relocation",
+      "disposition": "ReplaceOrRelocate",
       "normativeIds": [
         "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
         "developer-facing-surface::Strong identity and matching contracts remain distinct"
       ],
-      "owner": "active:OrcaCore",
-      "recoveryPaths": ["current:src/OrcaCore.Abstractions/Primitives/Validation.cs"],
-      "successorPaths": ["src/OrcaCore.Abstractions/Ids/StrongValues.cs"],
-      "symbolFamilies": ["legacy unowned validation helper"],
+      "owner": "active:OrcaCore.Core",
+      "recoveryPaths": ["git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Abstractions/Primitives/Validation.cs"],
+      "successorPaths": ["src/OrcaCore.Core/Primitives/InternalValidation.cs", "src/OrcaCore.Abstractions/Ids/StrongValues.cs"],
+      "symbolFamilies": ["internal validation helper", "public strong-value validation"],
       "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs#RemovedCapabilitiesAndConstructionHelpers_HaveNoProductSourceBridge"],
-      "compileRemoves": [
-        {"project": "src/OrcaCore.Abstractions/OrcaCore.csproj", "remove": "Primitives/Validation.cs"}
+      "deletedPaths": ["src/OrcaCore.Abstractions/Primitives/Validation.cs"]
+    },
+    {
+      "id": "typed-application-construction-boundary",
+      "disposition": "ReplaceOrRelocate",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "developer-facing-surface::Implementation package boundaries use exact internal friends"
+      ],
+      "owner": "active:typed-authoring-and-runtime-contracts",
+      "recoveryPaths": [
+        "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Abstractions/Internal/AuthoringKernelProxy.cs",
+        "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Engine.Ephemeral/EphemeralApplicationContractFactory.cs",
+        "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Engine.Durable/Driver/RuntimeStepContextFactory.cs",
+        "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Engine.Ephemeral/Execution/RuntimeStepContextFactory.cs"
+      ],
+      "successorPaths": [
+        "src/OrcaCore.Abstractions/Internal/TypedAuthoringBoundary.cs",
+        "src/OrcaCore.Core/Building/TypedAuthoringOperations.cs",
+        "src/OrcaCore.Engine.Durable/DurableApplicationContractFactory.cs",
+        "src/OrcaCore.Engine.Durable/Driver/StepContextContracts.cs",
+        "src/OrcaCore.Engine.Ephemeral/EphemeralContractAdapter.cs",
+        "src/OrcaCore.Engine.Ephemeral/Execution/StepContextContracts.cs"
+      ],
+      "symbolFamilies": ["reflection/name-dispatched authoring proxy", "non-public constructor/property reflection factories"],
+      "executableEvidence": [
+        "test:tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs#TypedAuthoringBoundary_UsesClosedGenericOperationsAndNoReflectionNameDispatch",
+        "test:tests/OrcaCore.DeveloperSurface.Guards/NormativeContractGuards.cs#ProductFriendAssemblies_AreExactlyApproved"
+      ],
+      "deletedPaths": [
+        "src/OrcaCore.Abstractions/Internal/AuthoringKernelProxy.cs",
+        "src/OrcaCore.Engine.Durable/Driver/RuntimeStepContextFactory.cs",
+        "src/OrcaCore.Engine.Ephemeral/EphemeralApplicationContractFactory.cs",
+        "src/OrcaCore.Engine.Ephemeral/Execution/RuntimeStepContextFactory.cs"
       ]
     },
     {

@@ -22,12 +22,12 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
             if (scope.Kind == CompiledScopeKind.ForEach)
             {
                 var runtime = scope.ForEach ??
-                    throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException("ForEach scope runtime state is missing.");
+                    throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException("ForEach scope runtime state is missing.");
                 var outcomes = runtime.Outcomes.Values.AsEnumerable();
                 if (runtime.JoinPolicy == ForEachJoinPolicy.WhenAny)
                 {
                     var winner = scope.WinnerFiberId ??
-                        throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
+                        throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
                             "ForEach WhenAny scope has no winner.");
                     var winnerIndex = runtime.ItemIndexByFiber[winner];
                     outcomes = outcomes.Where(outcome => outcome.Index == winnerIndex);
@@ -52,7 +52,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
                         }
 
                         var payload = scope.CommittedResults[childId] ??
-                            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
+                            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
                                 "Committed branch result payload is missing.");
                         return new MaterializedBranchOutcome(
                             branch.Id,
@@ -78,7 +78,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
                     {
                         var childId = scope.ChildFiberIds[branch.Ordinal];
                         var payload = scope.CommittedResults[childId] ??
-                            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
+                            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
                                 "Committed branch result payload is missing.");
                         return new MaterializedBranchResult(
                             branch.Id,
@@ -97,7 +97,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
             var replacement = codec.Deserialize(replacementPayload);
             if (scope.ParentFiberId == state.RootFiberId && replacement is not TState)
             {
-                throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
+                throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
                     $"Structured merge did not produce '{typeof(TState).FullName}'.");
             }
 

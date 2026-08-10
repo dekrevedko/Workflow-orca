@@ -25,13 +25,13 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
     {
         if (instruction.Operation is not { } condition)
         {
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 $"Compiled condition '{instruction.Path}' has no typed binding.");
         }
 
         var conditionState = ResolveFiberState(execution, fiber, state);
         var matched = StructuredInvocationCache.Invoke(condition, conditionState) as bool? ??
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 $"Compiled condition '{instruction.Path}' did not return a Boolean value.");
         return MoveTo(
             execution,
@@ -39,7 +39,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             matched
                 ? RequiredNext(instruction)
                 : instruction.AlternateInstructionId ??
-                    throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                    throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                         $"Condition '{instruction.Path}' has no alternate target."));
     }
 

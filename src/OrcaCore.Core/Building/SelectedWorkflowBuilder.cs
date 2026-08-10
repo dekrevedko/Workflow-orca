@@ -179,7 +179,7 @@ internal abstract class WorkflowAuthoringSession<TState, TSelf>
         var step = PreviousDecoratableStep("retry");
         if (step.Policies.Retry is not null)
         {
-            throw AuthoringContractFactory.MisplacedDecorator("retry", nodes.Count - 1);
+            throw AuthoringContracts.MisplacedDecorator("retry", nodes.Count - 1);
         }
 
         nodes[^1] = step with { Policies = step.Policies.WithRetry(maxAttempts, backoff ?? TimeSpan.Zero) };
@@ -211,7 +211,7 @@ internal abstract class WorkflowAuthoringSession<TState, TSelf>
         var step = PreviousDecoratableStep("timeout");
         if (step.Policies.Timeout is not null)
         {
-            throw AuthoringContractFactory.MisplacedDecorator("timeout", nodes.Count - 1);
+            throw AuthoringContracts.MisplacedDecorator("timeout", nodes.Count - 1);
         }
 
         nodes[^1] = step with { Policies = step.Policies.WithTimeout(duration) };
@@ -242,7 +242,7 @@ internal abstract class WorkflowAuthoringSession<TState, TSelf>
         var step = PreviousDecoratableStep("transient pool");
         if (step.Policies.PoolKey is not null)
         {
-            throw AuthoringContractFactory.MisplacedDecorator("transient pool", nodes.Count - 1);
+            throw AuthoringContracts.MisplacedDecorator("transient pool", nodes.Count - 1);
         }
 
         nodes[^1] = step with { Policies = step.Policies.WithPoolKey(poolKey) };
@@ -394,7 +394,7 @@ internal abstract class WorkflowAuthoringSession<TState, TSelf>
         var message = string.Join(
             Environment.NewLine,
             validation.Errors.Select(error => $"{error.Code}: {error.Message} ({error.Path})"));
-        throw global::OrcaCore.Core.Authoring.AuthoringContractFactory.DefinitionException(message);
+        throw global::OrcaCore.Core.Authoring.AuthoringContracts.DefinitionException(message);
     }
 
     /// <summary>
@@ -673,7 +673,7 @@ internal abstract class WorkflowAuthoringSession<TState, TSelf>
     {
         if (nodes.Count == 0 || nodes[^1] is not SelectedStepAuthoringNode<TState> step)
         {
-            throw AuthoringContractFactory.MisplacedDecorator(decorator, Math.Max(0, nodes.Count));
+            throw AuthoringContracts.MisplacedDecorator(decorator, Math.Max(0, nodes.Count));
         }
 
         return step;

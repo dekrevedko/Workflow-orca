@@ -144,7 +144,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
             registered,
             (_, existing) => SameRegistration(existing, registered)
                 ? existing
-                : throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
+                : throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
                     $"Workflow definition '{definition.DefinitionId}' is already registered with " +
                     $"version '{existing.DefinitionVersion}', state type '{existing.StateType.FullName}', " +
                     $"and fingerprint '{existing.Fingerprint}'. Candidate version: " +
@@ -157,7 +157,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         if (missingTransientPools.Count > 0)
         {
             OrcaCoreEphemeralDiagnostics.RecordHostCompatibilityFailure("missing_transient_pools");
-            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
                 "HostIncompatible.MissingTransientPools: " +
                 string.Join(", ", missingTransientPools.Select(pool => pool.Value)));
         }
@@ -171,14 +171,14 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
             WorkflowDefinitionRuntime.GetPlan(definition);
         if (plan.Mode == global::OrcaCore.Core.Compilation.WorkflowExecutionMode.Durable)
         {
-            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
                 $"Workflow definition '{definition.DefinitionId}' contains durable-only nodes " +
                 "(RunChild/RunChildren) and cannot be registered on the ephemeral engine.");
         }
 
         if (definition.Policies.Retry is not null)
         {
-            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
                 "Definition-level retry is not supported by the ephemeral engine because replaying the whole " +
                 "definition could duplicate completed side effects. Apply retry to individual steps instead.");
         }
@@ -209,13 +209,13 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
             .ToArray();
         if (matches.Length == 0)
         {
-            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
                 $"No workflow definition is registered for definition id '{definitionId}'.");
         }
 
         if (matches.Length > 1)
         {
-            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
                 $"Multiple workflow definition versions are registered for definition id '{definitionId}'. " +
                 "Start through an exact definition handle.");
         }
@@ -244,14 +244,14 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                 new DefinitionKey(definitionId, definitionVersion),
                 out var registeredDefinition))
         {
-            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
                 $"No workflow definition is registered for definition id '{definitionId}' " +
                 $"and version '{definitionVersion}'.");
         }
 
         if (registeredDefinition.Definition is not WorkflowDefinition<TState> definition)
         {
-            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
                 $"Workflow definition '{definitionId}' was not registered for state type '{typeof(TState).Name}'.");
         }
 
@@ -383,11 +383,11 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         var separator = errorSummary.IndexOf(':', StringComparison.Ordinal);
         var code = separator > 0 ? errorSummary[..separator] : "WF-RUNTIME-FAILED";
         var message = separator > 0 ? errorSummary[(separator + 1)..].Trim() : errorSummary;
-        return global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.WorkflowFailure(
+        return global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.WorkflowFailure(
             code,
             message,
-            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.AuthoredLocation("workflow:$"),
-            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RootFailureOccurrence(),
+            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.AuthoredLocation("workflow:$"),
+            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.RootFailureOccurrence(),
             []);
     }
 
@@ -525,7 +525,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
 
         if (registeredInstance is not WorkflowInstance<TState> instance)
         {
-            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
                 $"Workflow instance '{instanceId}' is not using state type '{typeof(TState).Name}'.");
         }
 

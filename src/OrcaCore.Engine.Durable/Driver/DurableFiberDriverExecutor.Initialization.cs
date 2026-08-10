@@ -53,7 +53,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         {
             DateTimeOffset? workflowDeadline = plan.WorkflowTimeout is { } timeout
                 ? (context.Aggregate.CreatedAt ??
-                    throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                    throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                         "A started durable workflow has no creation timestamp.")).Add(timeout)
                 : null;
             var initialExecution = StructuredExecutionState.Create(
@@ -265,7 +265,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         }
 
         var correlation = ResolveWaitCorrelation(execution, fiber, state, instruction);
-        var exception = global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.WaitTimeout(
+        var exception = global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.WaitTimeout(
             instruction.EventContract,
             correlation);
         var failure = FailureProvenance.Create(

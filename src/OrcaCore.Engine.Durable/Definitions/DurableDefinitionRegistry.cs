@@ -102,7 +102,7 @@ internal sealed class DurableDefinitionRegistry
             registered,
             (_, existing) => SameRegistration(existing, registered)
                 ? existing
-                : throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                : throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                     $"Workflow definition '{key.DefinitionId}' version '{key.DefinitionVersion}' " +
                     $"is already registered with state type '{existing.StateType.FullName}' and " +
                     $"fingerprint '{existing.Fingerprint}'. Candidate fingerprint: '{registered.Fingerprint}'."));
@@ -131,7 +131,7 @@ internal sealed class DurableDefinitionRegistry
         var key = new DurableDefinitionKey(definitionId, definitionVersion);
         if (!definitions.TryGetValue(key, out var registered))
         {
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 $"Workflow definition '{definitionId}' version '{definitionVersion}' is not registered.");
         }
 
@@ -140,7 +140,7 @@ internal sealed class DurableDefinitionRegistry
             return typed;
         }
 
-        throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+        throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
             $"Workflow definition '{definitionId}' version '{definitionVersion}' is registered for " +
             $"state type '{registered.StateType.FullName}', not '{typeof(TState).FullName}'.");
     }

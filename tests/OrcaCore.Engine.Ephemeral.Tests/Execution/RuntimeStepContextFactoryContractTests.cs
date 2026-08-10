@@ -5,12 +5,12 @@ using Xunit;
 
 namespace OrcaCore.Engine.Ephemeral.Tests.Execution;
 
-public sealed class RuntimeStepContextFactoryContractTests
+public sealed class StepContextContractsContractTests
 {
     [Fact]
     public void Factory_HasNoDeadResumedEventReflectionBridge()
     {
-        typeof(RuntimeStepContextFactory)
+        typeof(StepContextContracts)
             .GetMethod(
                 "CreateResumedEvent",
                 BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)

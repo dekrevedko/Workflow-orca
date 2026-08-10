@@ -10,7 +10,9 @@ dispositions; it does not replace those exact coordinates.
 
 The inventory begins at recovery checkpoint
 `d76192f089dd07f68e310c21fe4e5a38dd93cf7f` and describes production target
-`ce1b103047b4e1702c1710818f730ef23e800024`. Ledger-only commits after that target do not alter the
+`76d6b4b91456177db44dabd6e7ee519e17ae8d2d`. The deletion inventory is the union of production
+paths present at the recovery checkpoint and at this reviewed target, so later-created bridges cannot
+escape the older baseline. Ledger-only commits after that target do not alter the
 production inventory. Any later change to `src/`, `samples/`, a production `<Compile Remove>`, an
 orphaned source root, a retired symbol inventory, or the v1 package manifest must update the ledger
 in the same target or the infrastructure guards fail.
@@ -19,9 +21,9 @@ in the same target or the infrastructure guards fail.
 
 | Inventory | Exact count | Enforcement |
 |---|---:|---|
-| Disposition families | 23 | unique family IDs and one closed disposition each |
-| Physically deleted production paths | 58 | recovery tree compared with the current filesystem |
-| Production `<Compile Remove>` entries | 28 | every `src/` and `samples/` project parsed as XML |
+| Disposition families | 24 | unique family IDs and one closed disposition each |
+| Physically deleted production paths | 89 | union of recovery/target trees compared with the current filesystem |
+| Production `<Compile Remove>` entries | 1 | every `src/` and `samples/` project parsed as XML |
 | Orphaned production roots | 5 | source/SQL roots with no project file |
 | Retired/deferred package artifacts | 6 | deleted project identities absent from the exact v1 manifest |
 | Retired public/member symbols | 120 | ordered inventory and SHA-256 pinned |
@@ -34,7 +36,7 @@ metadata absence are executable. The ledger pins their field names, counts, orde
 owners, and test methods so they cannot drift independently.
 
 Every declaration contained by a physically deleted `.cs` path inherits that path's one family
-disposition; this is enforced by the exact 58-path recovery comparison. The three ordered symbol
+disposition; this is enforced by the exact 89-path recovery/target comparison. The three ordered symbol
 inventories separately cover public/member and internal removals that are not safely represented by
 file accounting alone, including in-place member removal and forbidden compatibility bridges.
 
@@ -53,7 +55,8 @@ file accounting alone, including in-place member removal and forbidden compatibi
 | Content-type serializer and raw runtime event-name catalog | Replace/relocate | fixed codec and event descriptors | One fixed codec and typed descriptors replace selectable serialization and raw names. |
 | Broad management/query and legacy instance/statistics projections | Defer | task 7.17b | Forbidden application enumeration stays absent; grouped operator statistics/pressure has no active equivalent yet and must be restored under internal/provider owners. |
 | Application-replaceable ephemeral snapshotter | Remove | `OrcaCore.Engine.Ephemeral` | The fixed runtime-owned snapshot/codec path has no application serializer hook. |
-| Legacy validation helper | Dead/duplicate | `OrcaCore` strong values | Strong-value constructors and exact validators own the surviving checks. |
+| Legacy validation helper | Replace/relocate | `OrcaCore.Core` and `OrcaCore` strong values | The internal helper remains load-bearing in Core and was physically relocated; public strong values own their exact validation. |
+| Reflection/name-dispatched construction bridges | Replace/relocate | typed application/Core/engine contracts | A closed generic authoring boundary plus exact application friends replace name dispatch and non-public constructor/property reflection. |
 | Catch-all hosting package, registration, SDK facade, serializer options | Remove | mode-specific hosting | Explicit mode registration and host-owned SDK configuration replace the catch-all package. |
 | Durable hosted loops and failure boundary | Replace/relocate | `OrcaCore.Durable.Hosting` | Durable progression moved outward into its owning hosting package. |
 | BCL telemetry instruments, gauges, observer, logging | Defer | tasks 7.12 and 7.17b | The SDK facade stays removed; the partial active catalog is not replacement credit, and complete `orca.*` BCL behavior must be restored with operator projections. |

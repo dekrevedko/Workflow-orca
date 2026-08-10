@@ -38,7 +38,7 @@ public sealed class DurableStartServiceContractTests
     {
         const string input = "order-42";
         var serializedPath = DurableWorkflowInputFingerprint.Create(input);
-        var applicationPath = DurableApplicationContractFactory.PayloadFingerprint(input).Value;
+        var applicationPath = DurableContractAdapter.PayloadFingerprint(input).Value;
 
         applicationPath.Should().Be(serializedPath);
     }

@@ -7,36 +7,25 @@ using OrcaCore.Engine.Durable.Outbox;
 namespace OrcaCore.Engine.Durable.Internal;
 
 /// <summary>
-/// Constructs application contracts owned by OrcaCore without widening their constructors
-/// or introducing a cross-assembly friend relationship.
+/// Adapts durable runtime values to application-owned contracts through the exact typed friend
+/// boundary declared by OrcaCore.
 /// </summary>
-internal static class DurableApplicationContractFactory
+internal static class DurableContractAdapter
 {
     private const string PendingDefinitionFingerprintPrefix = "pending-definition:";
     private static readonly ConcurrentDictionary<string, TypedWorkflowEventContractFactory>
         TypedWorkflowEventContractFactories = new(StringComparer.Ordinal);
 
     internal static object RuntimeDefinition(object definition) =>
-        ReadNonPublicProperty<object>(definition, "RuntimeDefinition");
+        RuntimeMetadata(definition).RuntimeDefinition;
 
     internal static Type RuntimeStateType(object definition) =>
-        ReadNonPublicProperty<Type>(definition, "RuntimeStateType");
+        RuntimeMetadata(definition).RuntimeStateType;
 
     internal static WorkflowOutboundEvent WorkflowOutboundEvent(DurableWorkflowOutboundEventData data)
     {
         ArgumentNullException.ThrowIfNull(data);
-        return Construct<WorkflowOutboundEvent>(
-            [
-                typeof(WorkflowEventContract),
-                typeof(EventId),
-                typeof(CorrelationId),
-                typeof(EventId),
-                typeof(DateTimeOffset),
-                typeof(InstanceId),
-                typeof(DefinitionId),
-                typeof(DefinitionVersion),
-                typeof(ReadOnlyMemory<byte>)
-            ],
+        return new WorkflowOutboundEvent(
             CreateWorkflowEventContract(data),
             EventId.Create(data.EventId),
             CorrelationId.Create(data.CorrelationId),
@@ -53,13 +42,7 @@ internal static class DurableApplicationContractFactory
         DefinitionVersion definitionVersion,
         DefinitionFingerprint existingFingerprint,
         DefinitionFingerprint attemptedFingerprint) =>
-        Construct<DefinitionRegistrationConflict>(
-            [
-                typeof(DefinitionId),
-                typeof(DefinitionVersion),
-                typeof(DefinitionFingerprint),
-                typeof(DefinitionFingerprint)
-            ],
+        new DefinitionRegistrationConflict(
             definitionId,
             definitionVersion,
             existingFingerprint,
@@ -72,15 +55,7 @@ internal static class DurableApplicationContractFactory
         Func<TInput, StartIdempotencyKey, CancellationToken,
             ValueTask<WorkflowStartResult<WorkflowInstanceHandle>>> startOrGet,
         Func<InstanceId, CancellationToken, ValueTask<WorkflowInstanceHandle>> getInstance) =>
-        Construct<DurableDefinitionHandle<TInput>>(
-            [
-                typeof(DefinitionId),
-                typeof(DefinitionVersion),
-                typeof(DefinitionFingerprint),
-                typeof(Func<TInput, StartIdempotencyKey, CancellationToken,
-                    ValueTask<WorkflowStartResult<WorkflowInstanceHandle>>>),
-                typeof(Func<InstanceId, CancellationToken, ValueTask<WorkflowInstanceHandle>>)
-            ],
+        new DurableDefinitionHandle<TInput>(
             definitionId,
             definitionVersion,
             definitionFingerprint,
@@ -94,15 +69,7 @@ internal static class DurableApplicationContractFactory
         Func<TInput, StartIdempotencyKey, CancellationToken,
             ValueTask<WorkflowStartResult<WorkflowInstanceHandle<TOutput>>>> startOrGet,
         Func<InstanceId, CancellationToken, ValueTask<WorkflowInstanceHandle<TOutput>>> getInstance) =>
-        Construct<DurableDefinitionHandle<TInput, TOutput>>(
-            [
-                typeof(DefinitionId),
-                typeof(DefinitionVersion),
-                typeof(DefinitionFingerprint),
-                typeof(Func<TInput, StartIdempotencyKey, CancellationToken,
-                    ValueTask<WorkflowStartResult<WorkflowInstanceHandle<TOutput>>>>),
-                typeof(Func<InstanceId, CancellationToken, ValueTask<WorkflowInstanceHandle<TOutput>>>)
-            ],
+        new DurableDefinitionHandle<TInput, TOutput>(
             definitionId,
             definitionVersion,
             definitionFingerprint,
@@ -119,18 +86,7 @@ internal static class DurableApplicationContractFactory
         DefinitionVersion attemptedDefinitionVersion,
         DefinitionFingerprint attemptedDefinitionFingerprint,
         PayloadFingerprint attemptedInputFingerprint) =>
-        Construct<StartIdempotencyConflict>(
-            [
-                typeof(StartIdempotencyKey),
-                typeof(DefinitionId),
-                typeof(DefinitionVersion),
-                typeof(DefinitionFingerprint),
-                typeof(PayloadFingerprint),
-                typeof(DefinitionId),
-                typeof(DefinitionVersion),
-                typeof(DefinitionFingerprint),
-                typeof(PayloadFingerprint)
-            ],
+        new StartIdempotencyConflict(
             key,
             existingDefinitionId,
             existingDefinitionVersion,
@@ -154,12 +110,11 @@ internal static class DurableApplicationContractFactory
             conflict.ExistingInputFingerprint,
             conflict.AttemptedDefinitionId,
             conflict.AttemptedDefinitionVersion,
-            Construct<DefinitionFingerprint>(
-                [typeof(string)],
+            new DefinitionFingerprint(
                 PendingDefinitionFingerprint(
                     conflict.AttemptedDefinitionId,
                     conflict.AttemptedDefinitionVersion)),
-            Construct<PayloadFingerprint>([typeof(string)], conflict.AttemptedInputFingerprint));
+            new PayloadFingerprint(conflict.AttemptedInputFingerprint));
 
     internal static StartIdempotencyConflict PendingStartIdempotencyConflict(
         StartIdempotencyKey key,
@@ -202,8 +157,8 @@ internal static class DurableApplicationContractFactory
             key,
             existingDefinitionId,
             existingDefinitionVersion,
-            Construct<DefinitionFingerprint>([typeof(string)], existingDefinitionFingerprint),
-            Construct<PayloadFingerprint>([typeof(string)], existingInputFingerprint),
+            new DefinitionFingerprint(existingDefinitionFingerprint),
+            new PayloadFingerprint(existingInputFingerprint),
             attemptedDefinitionId,
             attemptedDefinitionVersion,
             attemptedDefinitionFingerprint,
@@ -212,7 +167,7 @@ internal static class DurableApplicationContractFactory
     internal static PayloadFingerprint PayloadFingerprint<T>(T value)
     {
         var digest = DurableWorkflowInputFingerprint.Create(value);
-        return Construct<PayloadFingerprint>([typeof(string)], digest);
+        return new PayloadFingerprint(digest);
     }
 
     internal static WorkflowInstanceHandle InstanceHandle(
@@ -221,14 +176,7 @@ internal static class DurableApplicationContractFactory
         Func<Type, CancellationToken, ValueTask<object?>> getState,
         Func<CancellationToken, ValueTask<WorkflowCancellationRequestStatus>> requestCancellation,
         Func<CancellationToken, ValueTask<WorkflowTerminationStatus>> terminate) =>
-        Construct<WorkflowInstanceHandle>(
-            [
-                typeof(InstanceId),
-                typeof(Func<CancellationToken, ValueTask<WorkflowInstanceSnapshot>>),
-                typeof(Func<Type, CancellationToken, ValueTask<object?>>),
-                typeof(Func<CancellationToken, ValueTask<WorkflowCancellationRequestStatus>>),
-                typeof(Func<CancellationToken, ValueTask<WorkflowTerminationStatus>>)
-            ],
+        new WorkflowInstanceHandle(
             instanceId,
             getSnapshot,
             getState,
@@ -243,16 +191,7 @@ internal static class DurableApplicationContractFactory
         Func<CancellationToken, ValueTask<WorkflowTerminationStatus>> terminate,
         Func<CancellationToken, ValueTask<WorkflowOutputResult<TOutput>>> getOutput,
         Func<CancellationToken, ValueTask<TOutput>> waitForOutput) =>
-        Construct<WorkflowInstanceHandle<TOutput>>(
-            [
-                typeof(InstanceId),
-                typeof(Func<CancellationToken, ValueTask<WorkflowInstanceSnapshot>>),
-                typeof(Func<Type, CancellationToken, ValueTask<object?>>),
-                typeof(Func<CancellationToken, ValueTask<WorkflowCancellationRequestStatus>>),
-                typeof(Func<CancellationToken, ValueTask<WorkflowTerminationStatus>>),
-                typeof(Func<CancellationToken, ValueTask<WorkflowOutputResult<TOutput>>>),
-                typeof(Func<CancellationToken, ValueTask<TOutput>>)
-            ],
+        new WorkflowInstanceHandle<TOutput>(
             instanceId,
             getSnapshot,
             getState,
@@ -261,11 +200,9 @@ internal static class DurableApplicationContractFactory
             getOutput,
             waitForOutput);
 
-    internal static AuthoredLocation AuthoredLocation(string value) =>
-        Construct<AuthoredLocation>([typeof(string)], value);
+    internal static AuthoredLocation AuthoredLocation(string value) => new(value);
 
-    internal static FailureOccurrence RootFailureOccurrence() =>
-        Construct<FailureOccurrence.Root>(Type.EmptyTypes);
+    internal static FailureOccurrence RootFailureOccurrence() => new FailureOccurrence.Root();
 
     internal static WorkflowFailure WorkflowFailure(
         string code,
@@ -273,14 +210,7 @@ internal static class DurableApplicationContractFactory
         AuthoredLocation authoredLocation,
         FailureOccurrence occurrence,
         IReadOnlyList<WorkflowFailure> causes) =>
-        Construct<WorkflowFailure>(
-            [
-                typeof(string),
-                typeof(string),
-                typeof(AuthoredLocation),
-                typeof(FailureOccurrence),
-                typeof(IReadOnlyList<WorkflowFailure>)
-            ],
+        new WorkflowFailure(
             code,
             message,
             authoredLocation,
@@ -291,43 +221,36 @@ internal static class DurableApplicationContractFactory
         DefinitionId definitionId,
         WorkflowEventContract eventContract,
         CorrelationId correlationId) =>
-        Construct<AmbiguousWaitRegistrationException>(
-            [typeof(DefinitionId), typeof(WorkflowEventContract), typeof(CorrelationId)],
+        new AmbiguousWaitRegistrationException(
             definitionId,
             eventContract,
             correlationId);
 
     internal static WorkflowInstanceNotFoundException InstanceNotFound(InstanceId instanceId) =>
-        Construct<WorkflowInstanceNotFoundException>([typeof(InstanceId)], instanceId);
+        new(instanceId);
 
     internal static WorkflowDefinitionNotRegisteredException DefinitionNotRegistered(
         DefinitionId definitionId,
         DefinitionVersion definitionVersion,
         DefinitionFingerprint definitionFingerprint) =>
-        Construct<WorkflowDefinitionNotRegisteredException>(
-            [typeof(DefinitionId), typeof(DefinitionVersion), typeof(DefinitionFingerprint)],
+        new WorkflowDefinitionNotRegisteredException(
             definitionId,
             definitionVersion,
             definitionFingerprint);
 
     internal static WorkflowDefinitionHostCompatibilityException HostCompatibility(
         DefinitionHostCompatibilityFailure failure) =>
-        Construct<WorkflowDefinitionHostCompatibilityException>(
-            [typeof(DefinitionHostCompatibilityFailure)],
-            failure);
+        new WorkflowDefinitionHostCompatibilityException(failure);
 
     internal static WorkflowDefinitionRegistrationConflictException RegistrationConflict(
         DefinitionRegistrationConflict conflict) =>
-        Construct<WorkflowDefinitionRegistrationConflictException>(
-            [typeof(DefinitionRegistrationConflict)],
-            conflict);
+        new WorkflowDefinitionRegistrationConflictException(conflict);
 
     internal static WorkflowInstanceDefinitionMismatchException InstanceDefinitionMismatch(
         InstanceId instanceId,
         DefinitionId expectedDefinitionId,
         DefinitionId actualDefinitionId) =>
-        Construct<WorkflowInstanceDefinitionMismatchException>(
-            [typeof(InstanceId), typeof(DefinitionId), typeof(DefinitionId)],
+        new WorkflowInstanceDefinitionMismatchException(
             instanceId,
             expectedDefinitionId,
             actualDefinitionId);
@@ -336,8 +259,7 @@ internal static class DurableApplicationContractFactory
         InstanceId instanceId,
         Type actualType,
         Type requestedType) =>
-        Construct<WorkflowStateTypeMismatchException>(
-            [typeof(InstanceId), typeof(Type), typeof(Type)],
+        new WorkflowStateTypeMismatchException(
             instanceId,
             actualType,
             requestedType);
@@ -345,30 +267,25 @@ internal static class DurableApplicationContractFactory
     internal static WorkflowOutputUnavailableException OutputUnavailable(
         WorkflowInstanceStatus status,
         WorkflowFailure? failure) =>
-        Construct<WorkflowOutputUnavailableException>(
-            [typeof(WorkflowInstanceStatus), typeof(WorkflowFailure)],
+        new WorkflowOutputUnavailableException(
             status,
             failure);
 
     internal static LeaseLostException LeaseLost(
         LeaseProtectionToken protectionToken,
         IReadOnlyList<ResourcePoolName> missingPools) =>
-        Construct<LeaseLostException>(
-            [typeof(LeaseProtectionToken), typeof(IReadOnlyList<ResourcePoolName>)],
+        new LeaseLostException(
             protectionToken,
             missingPools);
 
     internal static ResourcePoolNotConfiguredException ResourcePoolsNotConfigured(
         IReadOnlyList<ResourcePoolName> missingPools) =>
-        Construct<ResourcePoolNotConfiguredException>(
-            [typeof(IReadOnlyList<ResourcePoolName>)],
-            missingPools);
+        new ResourcePoolNotConfiguredException(missingPools);
 
     internal static WorkflowWaitTimeoutException WaitTimeout(
         WorkflowEventContract eventContract,
         CorrelationId correlationId) =>
-        Construct<WorkflowWaitTimeoutException>(
-            [typeof(WorkflowEventContract), typeof(CorrelationId)],
+        new WorkflowWaitTimeoutException(
             eventContract,
             correlationId);
 
@@ -376,14 +293,13 @@ internal static class DurableApplicationContractFactory
         StepOperationId operationId,
         int attemptNumber,
         TimeSpan timeout) =>
-        Construct<StepAttemptTimeoutException>(
-            [typeof(StepOperationId), typeof(int), typeof(TimeSpan)],
+        new StepAttemptTimeoutException(
             operationId,
             attemptNumber,
             timeout);
 
     internal static WorkflowDeadlineExceededException WorkflowDeadline(DateTimeOffset deadline) =>
-        Construct<WorkflowDeadlineExceededException>([typeof(DateTimeOffset)], deadline);
+        new(deadline);
 
     internal static WorkflowDefinitionException DefinitionException(
         string message,
@@ -392,36 +308,22 @@ internal static class DurableApplicationContractFactory
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
         var detail = innerException is null ? message : $"{message} {innerException.Message}";
         var location = AuthoredLocation("workflow:$");
-        var diagnostic = Construct<WorkflowDiagnostic>(
-            [
-                typeof(string),
-                typeof(WorkflowDiagnosticSeverity),
-                typeof(AuthoredLocation),
-                typeof(IReadOnlyList<AuthoredLocation>),
-                typeof(string)
-            ],
+        var diagnostic = new WorkflowDiagnostic(
             "SFE-AUTH-CAP-001",
             WorkflowDiagnosticSeverity.Error,
             location,
             Array.Empty<AuthoredLocation>(),
             detail);
-        return Construct<WorkflowDefinitionException>(
-            [typeof(IReadOnlyList<WorkflowDiagnostic>)],
-            (IReadOnlyList<WorkflowDiagnostic>)[diagnostic]);
+        return new WorkflowDefinitionException([diagnostic]);
     }
 
-    private static TProperty ReadNonPublicProperty<TProperty>(object instance, string propertyName)
+    private static IWorkflowDefinitionRuntimeMetadata RuntimeMetadata(object definition)
     {
-        ArgumentNullException.ThrowIfNull(instance);
-        var property = instance.GetType().GetProperty(
-            propertyName,
-            BindingFlags.Instance | BindingFlags.NonPublic,
-            binder: null,
-            returnType: typeof(TProperty),
-            types: Type.EmptyTypes,
-            modifiers: null) ?? throw new MissingMemberException(instance.GetType().FullName, propertyName);
-        return (TProperty)(property.GetValue(instance) ?? throw new InvalidOperationException(
-            $"Property '{instance.GetType().FullName}.{propertyName}' returned null."));
+        ArgumentNullException.ThrowIfNull(definition);
+        return definition as IWorkflowDefinitionRuntimeMetadata ??
+            throw new ArgumentException(
+                "The definition does not expose the approved runtime metadata contract.",
+                nameof(definition));
     }
 
     private static WorkflowEventContract CreateWorkflowEventContract(DurableWorkflowOutboundEventData data)
@@ -467,12 +369,6 @@ internal static class DurableApplicationContractFactory
         return new TypedWorkflowEventContractFactory(schemaIdentity, create);
     }
 
-    private static TContract Construct<TContract>(Type[] parameterTypes, params object?[] arguments)
-    {
-        var constructor = ConstructorCache<TContract>.Get(parameterTypes);
-        return (TContract)constructor.Invoke(arguments);
-    }
-
     private sealed record TypedWorkflowEventContractFactory(
         string SchemaIdentity,
         MethodInfo CreateMethod)
@@ -483,36 +379,4 @@ internal static class DurableApplicationContractFactory
                     "The typed workflow-event descriptor factory returned no descriptor."));
     }
 
-    private static class ConstructorCache<TContract>
-    {
-        private static ConstructorBinding? binding;
-
-        internal static ConstructorInfo Get(Type[] parameterTypes)
-        {
-            var current = Volatile.Read(ref binding);
-            if (current is null)
-            {
-                var signature = parameterTypes.ToArray();
-                var constructor = typeof(TContract).GetConstructor(
-                    BindingFlags.Instance | BindingFlags.NonPublic,
-                    binder: null,
-                    signature,
-                    modifiers: null) ?? throw new MissingMethodException(
-                    typeof(TContract).FullName,
-                    $".ctor({string.Join(", ", signature.Select(type => type.FullName))})");
-                var candidate = new ConstructorBinding(constructor, signature);
-                current = Interlocked.CompareExchange(ref binding, candidate, null) ?? candidate;
-            }
-
-            if (!current.Signature.SequenceEqual(parameterTypes))
-            {
-                throw new InvalidOperationException(
-                    $"The cached constructor signature for '{typeof(TContract).FullName}' does not match the request.");
-            }
-
-            return current.Constructor;
-        }
-
-        private sealed record ConstructorBinding(ConstructorInfo Constructor, Type[] Signature);
-    }
 }

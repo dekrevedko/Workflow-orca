@@ -26,7 +26,7 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry
                     definition.RuntimeStateType);
                 if (missingPools.Count > 0)
                 {
-                    throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.HostCompatibility(
+                    throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.HostCompatibility(
                         new DefinitionHostCompatibilityFailure.MissingTransientPools(missingPools));
                 }
 
@@ -99,8 +99,8 @@ internal sealed class EphemeralStagedWorkflowDefinition<TInput> : IEphemeralStag
     internal EphemeralStagedWorkflowDefinition(EphemeralWorkflowDefinition<TInput> definition)
     {
         this.definition = definition ?? throw new ArgumentNullException(nameof(definition));
-        RuntimeDefinition = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RuntimeDefinition(definition);
-        RuntimeStateType = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RuntimeStateType(definition);
+        RuntimeDefinition = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.RuntimeDefinition(definition);
+        RuntimeStateType = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.RuntimeStateType(definition);
     }
 
     public DefinitionId DefinitionId => definition.DefinitionId;
@@ -121,8 +121,8 @@ internal sealed class EphemeralStagedWorkflowDefinition<TInput, TOutput> : IEphe
     internal EphemeralStagedWorkflowDefinition(EphemeralWorkflowDefinition<TInput, TOutput> definition)
     {
         this.definition = definition ?? throw new ArgumentNullException(nameof(definition));
-        RuntimeDefinition = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RuntimeDefinition(definition);
-        RuntimeStateType = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RuntimeStateType(definition);
+        RuntimeDefinition = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.RuntimeDefinition(definition);
+        RuntimeStateType = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.RuntimeStateType(definition);
     }
 
     public DefinitionId DefinitionId => definition.DefinitionId;

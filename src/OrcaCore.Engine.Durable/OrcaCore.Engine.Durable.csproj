@@ -9,14 +9,4 @@
     <ProjectReference Include="..\OrcaCore.Runtime.Protocol\OrcaCore.Runtime.Protocol.csproj" />
     <ProjectReference Include="..\OrcaCore.Provider.Abstractions\OrcaCore.Provider.Abstractions.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <!-- Section 8 owns these deferred child, external-job, and saga implementation lanes. -->
-    <Compile Remove="Aggregates\DurableChildWorkflowCommandHandler.cs" />
-    <Compile Remove="Aggregates\DurableChildWorkflowState.cs" />
-    <Compile Remove="Aggregates\DurableExternalJobCommandHandler.cs" />
-    <Compile Remove="Aggregates\DurableExternalJobState.cs" />
-    <Compile Remove="Aggregates\DurableSagaCommandHandler.cs" />
-    <Compile Remove="Aggregates\DurableSagaState.cs" />
-    <Compile Remove="Driver\DurableFiberDriverExecutor.Children.cs" />
-  </ItemGroup>
 </Project>

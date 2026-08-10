@@ -99,7 +99,7 @@ internal sealed class DurableCommandProcessor
 
         if (missing.Count > 0)
         {
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.ResourcePoolsNotConfigured(missing);
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.ResourcePoolsNotConfigured(missing);
         }
     }
 

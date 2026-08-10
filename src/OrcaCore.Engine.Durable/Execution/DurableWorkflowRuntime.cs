@@ -86,10 +86,10 @@ internal sealed class DurableWorkflowRuntime
     {
         ArgumentNullException.ThrowIfNull(applicationDefinition);
         var runtimeDefinition =
-            global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.RuntimeDefinition(
+            global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.RuntimeDefinition(
                 applicationDefinition);
         var stateType =
-            global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.RuntimeStateType(
+            global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.RuntimeStateType(
                 applicationDefinition);
         RegisterRuntimeDefinitionMethod
             .MakeGenericMethod(stateType)
@@ -117,7 +117,7 @@ internal sealed class DurableWorkflowRuntime
                 definitionId,
                 definitionVersion,
                 plan.Fingerprint,
-                global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.PayloadFingerprint(input).Value,
+                global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.PayloadFingerprint(input).Value,
                 input,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -163,7 +163,7 @@ internal sealed class DurableWorkflowRuntime
                 definitionId,
                 definitionVersion,
                 definitionFingerprint.Value,
-                global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.PayloadFingerprint(input).Value,
+                global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.PayloadFingerprint(input).Value,
                 input,
                 cancellationToken)
             .ConfigureAwait(false);

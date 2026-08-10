@@ -44,7 +44,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
     {
         var operationId = StepOperationId.Parse(
             fiber.LogicalOperationKey ?? LogicalOperationKey(execution, fiber, instruction));
-        var stepExecution = RuntimeStepContextFactory.CreateExecution(
+        var stepExecution = StepContextContracts.CreateExecution(
             execution.InstanceId,
             operationId,
             fiber.RetryAttempt > 0 ? fiber.RetryAttempt : 1);
@@ -57,7 +57,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         }
         catch (TargetInvocationException exception) when (exception.InnerException is not null)
         {
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 $"Compiled step factory '{instruction.Path}' failed.",
                 exception.InnerException);
         }
@@ -66,7 +66,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         {
             if (step is not IStep<TState> rootStep)
             {
-                throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                     $"Compiled root step '{instruction.Path}' does not implement " +
                     $"IStep<{typeof(TState).Name}>.");
             }
@@ -74,7 +74,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             var attemptState = plan.DetachedAttemptState
                 ? serializer.Deserialize<TState>(serializer.Serialize(rootState))
                 : rootState;
-            var stepContext = RuntimeStepContextFactory.Create(
+            var stepContext = StepContextContracts.Create(
                 attemptState,
                 stepExecution,
                 resumedEvent,
@@ -95,9 +95,9 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             branch.Input.BranchStateType,
             branch.Input.BranchStateSchemaIdentity,
             fiber.LocalStatePayload ??
-                throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException("Branch state payload is missing."));
+                throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException("Branch state payload is missing."));
         var localState = codec.Deserialize(localPayload) ??
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException("Branch state deserialized to null.");
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException("Branch state deserialized to null.");
         StepResult branchResult;
         try
         {
@@ -116,7 +116,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         }
         catch (TargetInvocationException exception) when (exception.InnerException is not null)
         {
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 $"Compiled branch step '{instruction.Path}' failed.",
                 exception.InnerException);
         }
@@ -161,17 +161,17 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         {
             if (serviceProvider is null)
             {
-                throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                     $"Named step '{stepType.FullName}' requires a host service provider.");
             }
 
-            return serviceProvider.GetService(stepType) ?? throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            return serviceProvider.GetService(stepType) ?? throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 $"Named step '{stepType.FullName}' is not registered in the host service provider.");
         }
 
-        var factory = instruction.Operation ?? throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+        var factory = instruction.Operation ?? throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
             $"Compiled step '{instruction.Path}' has no executable binding.");
-        return StructuredInvocationCache.Invoke(factory) ?? throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+        return StructuredInvocationCache.Invoke(factory) ?? throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
             $"Compiled step factory '{instruction.Path}' returned null.");
     }
 
@@ -358,13 +358,13 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         CompiledInstruction instruction)
     {
         var timeout = instruction.Policy.Timeout ??
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 $"Compiled timed step '{instruction.Path}' has no timeout.");
         var operationId = StepOperationId.Parse(
             fiber.LogicalOperationKey ??
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 $"Compiled timed step '{instruction.Path}' has no persisted operation ID."));
-        var exception = global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.StepTimeout(
+        var exception = global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.StepTimeout(
             operationId,
             fiber.RetryAttempt > 0 ? fiber.RetryAttempt : 1,
             timeout);
@@ -431,11 +431,11 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         object parentState)
     {
         var forEach = scopePlan.ForEach ??
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 "Compiled ForEach contract is missing.");
         if (parentState is not TState typedParent)
         {
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 $"ForEach parent state must be '{typeof(TState).FullName}'.");
         }
 
@@ -448,17 +448,17 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         }
         catch (TargetInvocationException exception) when (exception.InnerException is not null)
         {
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 "ForEach item selection failed.",
                 exception.InnerException);
         }
 
         items = ForEachSnapshotMaterializer.Materialize(items, forEach.ItemType);
         var partitionMethod = forEach.Partitioner.GetType().GetMethod("Partition") ??
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 "ForEach partitioner has no Partition method.");
         var partitions = partitionMethod.Invoke(forEach.Partitioner, [items]) as System.Collections.IEnumerable ??
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 "ForEach partitioner returned no work descriptors.");
         var inputType = typeof(global::OrcaCore.Core.Building.ForEachItemInput<>)
             .MakeGenericType(forEach.ItemType);
@@ -468,13 +468,13 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         {
             var partitionType = partition!.GetType();
             var index = (int)(partitionType.GetProperty("Index")?.GetValue(partition) ??
-                throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                     "ForEach partition index is missing."));
             var partitionItems = partitionType.GetProperty("Items")?.GetValue(partition) ??
-                throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                     "ForEach partition items are missing.");
             var input = Activator.CreateInstance(inputType, index, partitionItems) ??
-                throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                     $"Could not create ForEach item input for index '{index}'.");
             object? itemState;
             try
@@ -483,7 +483,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             }
             catch (TargetInvocationException exception) when (exception.InnerException is not null)
             {
-                throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                     $"ForEach item-state projection failed for index '{index}'.",
                     exception.InnerException);
             }
@@ -507,7 +507,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         if (fiber.OwningScopeId is null)
         {
             return rootState ??
-                throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException("Structured root state is null.");
+                throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException("Structured root state is null.");
         }
 
         var branch = ResolveBranch(execution, fiber);
@@ -515,8 +515,8 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             branch.Input.BranchStateType,
             branch.Input.BranchStateSchemaIdentity,
             fiber.LocalStatePayload ??
-                throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException("Branch state payload is missing."))) ??
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException("Branch state deserialized to null.");
+                throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException("Branch state payload is missing."))) ??
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException("Branch state deserialized to null.");
     }
 
     private CorrelationId ResolveWaitCorrelation(
@@ -529,15 +529,15 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         {
             return StructuredInvocationCache.Invoke(
                     instruction.Operation ??
-                        throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                        throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                             $"Compiled wait '{instruction.Path}' has no selector."),
                     ResolveFiberState(execution, fiber, rootState)) as CorrelationId ??
-                throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                     $"Compiled wait '{instruction.Path}' did not return a CorrelationId.");
         }
         catch (TargetInvocationException exception) when (exception.InnerException is not null)
         {
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 $"Compiled wait selector '{instruction.Path}' failed.",
                 exception.InnerException);
         }
@@ -554,10 +554,10 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             var fiberState = ResolveFiberState(execution, fiber, rootState);
             var correlationId = StructuredInvocationCache.Invoke(
                     instruction.PublishCorrelationSelector ??
-                        throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                        throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                             $"Compiled publish '{instruction.Path}' has no correlation selector."),
                     fiberState) as CorrelationId ??
-                throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                     $"Compiled publish '{instruction.Path}' did not return a CorrelationId.");
             if (instruction.PublishPayloadType is null)
             {
@@ -566,14 +566,14 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
 
             var payload = StructuredInvocationCache.Invoke(
                 instruction.PublishPayloadSelector ??
-                    throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                    throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                         $"Compiled publish '{instruction.Path}' has no payload selector."),
                 fiberState);
             return (correlationId, CoreWorkflowValueCodec.Serialize(payload, instruction.PublishPayloadType));
         }
         catch (TargetInvocationException exception) when (exception.InnerException is not null)
         {
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 $"Compiled publish selector '{instruction.Path}' failed.",
                 exception.InnerException);
         }
@@ -584,7 +584,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         FiberRecord fiber)
     {
         var scopeId = fiber.OwningScopeId ??
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException("Branch instruction has no owning scope.");
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException("Branch instruction has no owning scope.");
         var scope = execution.Scopes[scopeId];
         var scopePlan = plan.GetScope(scope.ScopePlanId);
         if (scopePlan.Kind == CompiledScopeKind.ForEach)
@@ -604,7 +604,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         FiberRecord fiber)
     {
         var scopeId = fiber.OwningScopeId ??
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException("BranchReturn was reached outside an execution scope.");
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException("BranchReturn was reached outside an execution scope.");
         var resultPayload = fiber.ResultPayload ?? ProjectBranchResultPayload(execution, fiber);
         var scope = execution.Scopes[scopeId];
         var scopePlan = plan.GetScope(scope.ScopePlanId);
@@ -640,10 +640,10 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             branch.Input.BranchStateType,
             branch.Input.BranchStateSchemaIdentity,
             fiber.LocalStatePayload ??
-                throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException("Branch state payload is missing.")));
+                throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException("Branch state payload is missing.")));
         var snapshot = StructuredInvocationCache.CreateBranchSnapshot(
             branch.Result.BranchStateType,
-            localState ?? throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException("Branch state deserialized to null."));
+            localState ?? throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException("Branch state deserialized to null."));
         object? result;
         try
         {
@@ -651,7 +651,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         }
         catch (TargetInvocationException exception) when (exception.InnerException is not null)
         {
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 "Branch return projection failed.",
                 exception.InnerException);
         }
@@ -676,7 +676,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         if (scope.Kind == CompiledScopeKind.ForEach)
         {
             var runtime = scope.ForEach ??
-                throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                     "ForEach scope runtime state is missing.");
             replacementPayload = ScopeMergeAdapter.ExecuteForEach(
                 scopePlan,
@@ -697,7 +697,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                     }
 
                     var payload = scope.CommittedResults[childId] ??
-                        throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                        throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                             "Committed branch result payload is missing.");
                     return new MaterializedBranchOutcome(
                         branch.Id,
@@ -721,7 +721,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 {
                     var childId = scope.ChildFiberIds[branch.Ordinal];
                     var payload = scope.CommittedResults[childId] ??
-                        throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                        throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                             "Committed branch result payload is missing.");
                     return new MaterializedBranchResult(
                         branch.Id,
@@ -737,13 +737,13 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 materializedResults);
         }
         var replacement = codec.Deserialize(replacementPayload) ??
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException("Structured merge produced null parent state.");
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException("Structured merge produced null parent state.");
         var nextRootState = rootState;
         if (scope.ParentFiberId == execution.RootFiberId)
         {
             if (replacement is not TState typedReplacement)
             {
-                throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                     $"Structured merge did not produce '{typeof(TState).FullName}'.");
             }
 
@@ -854,7 +854,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
     private static InstructionId RequiredNext(CompiledInstruction instruction)
     {
         return instruction.NextInstructionId ??
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 $"Compiled instruction '{instruction.Path}' has no continuation target.");
     }
 
@@ -907,7 +907,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
 
         var waitId = WaitId.Parse(Guid.CreateVersion7().ToString());
         var definitionId = context.Aggregate.DefinitionId ??
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 "A durable wait cannot be registered before its definition identity is available.");
         var inboxMatch = context.Processor.EventStore is IWorkflowInboxStore inboxStore
             ? await inboxStore.GetMatchSnapshotAsync(
@@ -988,7 +988,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         CancellationToken cancellationToken)
     {
         var definitionId = context.Aggregate.DefinitionId ??
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 "A durable wait cannot be registered before its definition identity is available.");
         var siblingConflict = execution.Fibers.Values
             .Where(candidate => candidate.Id != fiber.Id && candidate.Phase == FiberPhase.Runnable)
@@ -1003,7 +1003,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                     .Equals(correlationId));
         if (siblingConflict)
         {
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.AmbiguousWait(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.AmbiguousWait(
                 definitionId,
                 eventContract,
                 correlationId);
@@ -1029,7 +1029,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 (consumedWaitId is null || !wait.WaitId.Equals(consumedWaitId.Value))));
         if (existingConflict)
         {
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.AmbiguousWait(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.AmbiguousWait(
                 definitionId,
                 eventContract,
                 correlationId);

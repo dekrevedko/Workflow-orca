@@ -56,7 +56,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         CancellationToken cancellationToken)
     {
         var stepType = instruction.StepType ??
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 $"Blocked step throttle '{instruction.Path}' has no exact step type.");
         var owner = new StepThrottleOwner(context.InstanceId, fiber.Id);
         using var admissionCancellation = context.Processor.EnterStep(

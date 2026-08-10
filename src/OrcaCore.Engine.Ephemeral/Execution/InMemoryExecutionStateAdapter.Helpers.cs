@@ -31,7 +31,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
     {
         if (target is null)
         {
-            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
                 $"Instruction '{source.Id}' has no continuation.");
         }
 

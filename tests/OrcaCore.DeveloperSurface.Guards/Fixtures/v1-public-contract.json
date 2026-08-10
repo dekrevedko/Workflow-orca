@@ -53,6 +53,9 @@
     "CHILD_TIMED_OUT", "CHILD_TERMINATED", "CHILD_CANCELLED"
   ],
   "allowedFriends": [
+    "OrcaCore->OrcaCore.Core",
+    "OrcaCore->OrcaCore.Engine.Durable",
+    "OrcaCore->OrcaCore.Engine.Ephemeral",
     "OrcaCore.Core->OrcaCore.Core.Tests",
     "OrcaCore.Core->OrcaCore.Engine.Durable",
     "OrcaCore.Core->OrcaCore.Engine.Ephemeral",

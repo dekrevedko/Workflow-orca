@@ -30,7 +30,10 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
         var recordedDeletedPaths = ReadFamilyStrings(families, "deletedPaths");
         recordedDeletedPaths.Should().HaveCount(expectedCounts.GetProperty("physicallyDeletedPaths").GetInt32());
         recordedDeletedPaths.Should().OnlyHaveUniqueItems();
-        recordedDeletedPaths.Should().Equal(ReadPhysicalDeletions(root, ledger.GetProperty("recoveryCheckpoint").GetString()!));
+        recordedDeletedPaths.Should().Equal(ReadPhysicalDeletions(
+            root,
+            ledger.GetProperty("recoveryCheckpoint").GetString()!,
+            ledger.GetProperty("productionTarget").GetString()!));
 
         var recordedCompileRemoves = ReadCompileRemoves(families);
         recordedCompileRemoves.Should().HaveCount(expectedCounts.GetProperty("compileExcludedEntries").GetInt32());
@@ -95,7 +98,7 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
             var recoveryPaths = RequiredStrings(family, "recoveryPaths");
             foreach (var recoveryPath in recoveryPaths)
             {
-                AssertRecoveryPathExists(root, recoveryCheckpoint, recoveryPath, id);
+                AssertRecoveryPathExists(root, recoveryCheckpoint, productionTarget, recoveryPath, id);
             }
 
             foreach (var successorPath in OptionalStrings(family, "successorPaths"))
@@ -161,10 +164,14 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
     private static JsonDocument LoadLedger(string root) =>
         JsonDocument.Parse(File.ReadAllText(Path.Combine(root, LedgerPath)));
 
-    private static string[] ReadPhysicalDeletions(string root, string recoveryCheckpoint)
+    private static string[] ReadPhysicalDeletions(
+        string root,
+        string recoveryCheckpoint,
+        string productionTarget)
     {
-        var baselineFiles = RunGit(root, "ls-tree", "-r", "--name-only", recoveryCheckpoint, "--", "src", "samples");
-        return baselineFiles
+        return new[] { recoveryCheckpoint, productionTarget }
+            .SelectMany(commit => RunGit(root, "ls-tree", "-r", "--name-only", commit, "--", "src", "samples"))
+            .Distinct(StringComparer.Ordinal)
             .Where(path => path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) ||
                            path.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase) ||
                            path.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
@@ -278,19 +285,30 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
     private static void AssertRecoveryPathExists(
         string root,
         string recoveryCheckpoint,
+        string productionTarget,
         string recoveryPath,
         string familyId)
     {
         if (recoveryPath.StartsWith("current:", StringComparison.Ordinal))
         {
-            var path = recoveryPath["current:".Length..];
-            PathExists(root, path).Should().BeTrue("family '{0}' recovery path '{1}' must exist", familyId, path);
+            var currentPath = recoveryPath["current:".Length..];
+            PathExists(root, currentPath).Should().BeTrue(
+                "family '{0}' recovery path '{1}' must exist", familyId, currentPath);
             return;
         }
 
-        var prefix = $"git:{recoveryCheckpoint}:";
-        recoveryPath.Should().StartWith(prefix, "family '{0}' recovery path must use the exact checkpoint", familyId);
-        GitObjectExists(root, $"{recoveryCheckpoint}:{recoveryPath[prefix.Length..]}").Should().BeTrue(
+        var match = Regex.Match(recoveryPath, @"^git:(?<commit>[0-9a-f]{40}):(?<path>.+)$");
+        match.Success.Should().BeTrue(
+            "family '{0}' recovery path must identify an exact commit and path", familyId);
+        var commit = match.Groups["commit"].Value;
+        var objectPath = match.Groups["path"].Value;
+        GitObjectExists(root, commit).Should().BeTrue(
+            "family '{0}' recovery commit '{1}' must remain readable", familyId, commit);
+        GitIsAncestor(root, recoveryCheckpoint, commit).Should().BeTrue(
+            "family '{0}' recovery commit must descend from the ledger checkpoint", familyId);
+        GitIsAncestor(root, commit, productionTarget).Should().BeTrue(
+            "family '{0}' recovery commit must not postdate the reviewed production target", familyId);
+        GitObjectExists(root, $"{commit}:{objectPath}").Should().BeTrue(
             "family '{0}' recovery object '{1}' must remain readable", familyId, recoveryPath);
     }
 
@@ -347,7 +365,10 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
         RunGit(root, ["cat-file", "-e", objectName], throwOnFailure: false).ExitCode == 0;
 
     private static bool GitIsAncestor(string root, string commit) =>
-        RunGit(root, ["merge-base", "--is-ancestor", commit, "HEAD"], throwOnFailure: false).ExitCode == 0;
+        GitIsAncestor(root, commit, "HEAD");
+
+    private static bool GitIsAncestor(string root, string ancestor, string descendant) =>
+        RunGit(root, ["merge-base", "--is-ancestor", ancestor, descendant], throwOnFailure: false).ExitCode == 0;
 
     private static string[] RunGit(string root, params string[] arguments) =>
         RunGit(root, arguments, throwOnFailure: true).Output;

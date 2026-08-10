@@ -151,7 +151,7 @@ internal sealed class DurableWorkflowEventIngressCore(
 
         if (matches.Count > 1)
         {
-            throw DurableApplicationContractFactory.AmbiguousWait(
+            throw DurableContractAdapter.AmbiguousWait(
                 definitionId, eventContract, normalized.Envelope.CorrelationId);
         }
 
@@ -401,7 +401,7 @@ internal sealed class DurableWorkflowEventIngressCore(
                 commit.StartConflict is { } conflict && startIdempotencyKey is not null =>
                 new WorkflowEventAcceptanceResult.Rejected(
                     new WorkflowEventAcceptanceRejection.StartConflict(
-                        DurableApplicationContractFactory.PendingStartIdempotencyConflict(
+                        DurableContractAdapter.PendingStartIdempotencyConflict(
                             StartIdempotencyKey.Create(startIdempotencyKey),
                             conflict))),
             InboxAcceptanceCommitDisposition.FanoutLimitExceeded =>

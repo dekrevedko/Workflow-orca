@@ -44,14 +44,14 @@ internal sealed class DurableDriverCatalog
         var plan = (CompiledWorkflowPlan)WorkflowDefinitionRuntime.GetPlan(definition);
         if (plan.Instructions.Count == 0)
         {
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 $"Definition '{definition.DefinitionId}' version '{definition.DefinitionVersion}' has no " +
                 "compiled plan. Durable registration requires OrcaCore.Workflow.Durable<TState>(...).Init<TInput>(...).End().Build().");
         }
 
         if (plan.Mode != WorkflowExecutionMode.Durable)
         {
-            throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                 $"Definition '{definition.DefinitionId}' version '{definition.DefinitionVersion}' was compiled " +
                 $"for '{plan.Mode}', not durable execution.");
         }

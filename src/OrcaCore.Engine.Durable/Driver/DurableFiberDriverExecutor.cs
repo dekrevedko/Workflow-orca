@@ -187,7 +187,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                         instruction.EventContract is null ||
                         instruction.WaitMode is not { } waitMode)
                     {
-                        throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                        throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                             $"Compiled wait '{instruction.Path}' has no typed executable binding.");
                     }
 
@@ -231,13 +231,13 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                 case CompiledInstructionKind.Publish:
                 {
                     var eventContract = instruction.EventContract ??
-                        throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                        throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                             $"Compiled publish '{instruction.Path}' has no event contract.");
                     var definitionId = context.Aggregate.DefinitionId ??
-                        throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                        throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                             "A durable publish cannot execute before its definition identity is available.");
                     var definitionVersion = context.Aggregate.DefinitionVersion ??
-                        throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                        throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                             "A durable publish cannot execute before its definition version is available.");
                     var resolved = ResolvePublish(execution, fiber, state, instruction);
                     var now = context.TimeProvider.GetUtcNow();
@@ -296,7 +296,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                 case CompiledInstructionKind.Delay:
                 {
                     var duration = instruction.DelayDuration ??
-                        throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionException(
+                        throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
                             $"Compiled delay '{instruction.Path}' has no duration.");
                     var timerId = TimerId.New();
                     var blocked = FiberReducer.Block(

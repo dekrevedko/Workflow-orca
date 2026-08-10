@@ -302,10 +302,12 @@ public sealed class FacadeHostingInfrastructureGuards
         definitionSource.Should().Contain("instruction.StaticLeaseRequest");
         facadeSource.Should().NotContain("GetProperty(\"Kind\")");
         facadeSource.Should().NotContain("GetProperty(\"StaticLeaseRequest\")");
-        hostingPumpSource.Should().Contain("DurableApplicationContractFactory.WorkflowOutboundEvent(data)");
+        hostingPumpSource.Should().Contain("DurableContractAdapter.WorkflowOutboundEvent(data)");
         hostingPumpSource.Should().NotContain("BindingFlags.NonPublic");
         hostingPumpSource.Should().NotContain("ConstructorInfo");
-        applicationFactorySource.Should().Contain("ConstructorCache<TContract>.Get(parameterTypes)");
+        applicationFactorySource.Should().Contain("new WorkflowOutboundEvent(");
+        applicationFactorySource.Should().NotContain("ConstructorCache<");
+        applicationFactorySource.Should().NotContain("BindingFlags.NonPublic");
         applicationFactorySource.Should().Contain("TypedWorkflowEventContractFactories.GetOrAdd");
     }
 

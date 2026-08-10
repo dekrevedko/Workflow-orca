@@ -66,7 +66,7 @@ public sealed class DurablePublishTests
         outbound.OriginDefinitionId.Should().Be(definition.DefinitionId.Value.ToString());
         outbound.OriginDefinitionVersion.Should().Be(3);
         var applicationEvent = global::OrcaCore.Engine.Durable.Internal
-            .DurableApplicationContractFactory.WorkflowOutboundEvent(outbound);
+            .DurableContractAdapter.WorkflowOutboundEvent(outbound);
         applicationEvent.GetPayload(eventContract).Should().Be(new PublishedPayload("accepted"));
     }
 
@@ -174,7 +174,7 @@ public sealed class DurablePublishTests
     public void DefinitionExceptionFactory_ReturnsTheApprovedDiagnosticException()
     {
         var exception = global::OrcaCore.Engine.Durable.Internal
-            .DurableApplicationContractFactory.DefinitionException("publish definition is incomplete");
+            .DurableContractAdapter.DefinitionException("publish definition is incomplete");
 
         exception.Should().BeOfType<WorkflowDefinitionException>();
         exception.Diagnostics.Should().ContainSingle()

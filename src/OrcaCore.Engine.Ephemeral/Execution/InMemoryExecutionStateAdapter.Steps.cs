@@ -94,7 +94,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         }
 
         waitsByFiber.Remove(fiberId);
-        var exception = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.WaitTimeout(
+        var exception = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.WaitTimeout(
             eventContract,
             correlationId);
         var failure = CreateFiberFailure(execution, fiber, instruction, exception);

@@ -43,9 +43,9 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
         ArgumentNullException.ThrowIfNull(definition);
         return RegisterCore(
             definition,
-            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RuntimeDefinition(definition),
-            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RuntimeStateType(definition),
-            () => global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.EphemeralDefinitionHandle<TInput>(
+            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.RuntimeDefinition(definition),
+            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.RuntimeStateType(definition),
+            () => global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.EphemeralDefinitionHandle<TInput>(
                 definition.DefinitionId,
                 definition.DefinitionVersion,
                 definition.DefinitionFingerprint,
@@ -63,9 +63,9 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
         ArgumentNullException.ThrowIfNull(definition);
         return RegisterCore(
             definition,
-            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RuntimeDefinition(definition),
-            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RuntimeStateType(definition),
-            () => global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.EphemeralDefinitionHandle<TInput, TOutput>(
+            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.RuntimeDefinition(definition),
+            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.RuntimeStateType(definition),
+            () => global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.EphemeralDefinitionHandle<TInput, TOutput>(
                 definition.DefinitionId,
                 definition.DefinitionVersion,
                 definition.DefinitionFingerprint,
@@ -212,7 +212,7 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
             }
         }
 
-        throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.DefinitionNotRegistered(
+        throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionNotRegistered(
             definitionId,
             definitionVersion,
             definitionFingerprint);
@@ -227,7 +227,7 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
             definition.DefinitionVersion,
             existingFingerprint,
             definition.DefinitionFingerprint);
-        return global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RegistrationConflict(
+        return global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.RegistrationConflict(
             conflict);
     }
 
@@ -241,7 +241,7 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
             definition.DefinitionId,
             definition.DefinitionVersion,
             definition.DefinitionFingerprint,
-            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RuntimeStateType(definition),
+            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.RuntimeStateType(definition),
             input,
             idempotencyKey,
             cancellationToken).ConfigureAwait(false);
@@ -262,7 +262,7 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
             definition.DefinitionId,
             definition.DefinitionVersion,
             definition.DefinitionFingerprint,
-            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RuntimeStateType(definition),
+            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.RuntimeStateType(definition),
             input,
             idempotencyKey,
             cancellationToken).ConfigureAwait(false);
@@ -623,11 +623,11 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
         var message = separator > 0
             ? snapshot.ErrorSummary[(separator + 1)..].Trim()
             : snapshot.ErrorSummary;
-        return global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.WorkflowFailure(
+        return global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.WorkflowFailure(
             code,
             message,
-            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.AuthoredLocation("workflow:$"),
-            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.RootFailureOccurrence(),
+            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.AuthoredLocation("workflow:$"),
+            global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.RootFailureOccurrence(),
             []);
     }
 
@@ -803,7 +803,7 @@ internal sealed class EphemeralWorkflowEventRouter(
             return new EphemeralEventRouteResult(EphemeralEventRouteStatus.NoActiveWait, instanceId);
         }
 
-        var envelope = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralApplicationContractFactory.EventEnvelope(
+        var envelope = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.EventEnvelope(
             inboundEvent.EventId,
             inboundEvent.EventContract,
             inboundEvent.CorrelationId,

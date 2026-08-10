@@ -211,8 +211,6 @@ public sealed class PublicApiBaselineInfrastructureGuards
             "RaiseEventToDefinitionAsync",
             "RaiseEventByDefinitionAsync",
             "RaiseEventByDefinitionCoreAsync",
-            "definition fanout",
-            "definition-targeted event fanout",
             "IStructuredValueCodec",
             "AuthoringKernelProxy",
             "AuthoringContractFactory",
@@ -232,7 +230,53 @@ public sealed class PublicApiBaselineInfrastructureGuards
             .ToArray();
 
         findings.Should().BeEmpty(
-            "removed capabilities and construction helpers must not survive as public, internal, renamed, or reflection bridges");
+            "obsolete raw fanout APIs and removed construction helpers must not survive as public, internal, renamed, or reflection bridges; the approved self-routing definition-fanout provider route remains allowed");
+    }
+
+    [Fact]
+    public void TypedAuthoringBoundary_UsesClosedGenericOperationsAndNoReflectionNameDispatch()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        var boundaryPaths = new[]
+        {
+            "src/OrcaCore.Abstractions/Internal/TypedAuthoringBoundary.cs",
+            "src/OrcaCore.Core/Building/TypedAuthoringOperations.cs",
+            "src/OrcaCore.Abstractions/Authoring/WorkflowAuthoringFacades.cs",
+            "src/OrcaCore.Abstractions/Authoring/NestedAuthoringFacades.cs",
+            "src/OrcaCore.Abstractions/Authoring/BranchAuthoringFacades.cs"
+        };
+        var sources = boundaryPaths.ToDictionary(
+            path => path,
+            path => File.ReadAllText(Path.Combine(root, path.Replace('/', Path.DirectorySeparatorChar))),
+            StringComparer.Ordinal);
+        var combined = string.Join('\n', sources.Values);
+
+        sources[boundaryPaths[0]].Should().Contain("interface ITypedAuthoringOperations");
+        sources[boundaryPaths[0]].Should().Contain("Assembly.Load(CoreAssemblyName)");
+        sources[boundaryPaths[0]].Should().Contain("RuntimeHelpers.RunModuleConstructor(core.ManifestModule.ModuleHandle)");
+        sources[boundaryPaths[1]].Should().Contain("class TypedAuthoringOperations : ITypedAuthoringOperations");
+        sources[boundaryPaths[1]].Should().Contain("TypedAuthoringBoundary.Install(TypedAuthoringOperations.Instance)");
+        sources.Skip(2).Select(pair => pair.Value).Should().OnlyContain(source =>
+            source.Contains("AuthoringKernelHandle", StringComparison.Ordinal));
+
+        var forbiddenTokens = new[]
+        {
+            "GetMethod(",
+            "GetMethods(",
+            "MakeGenericMethod",
+            "GetConstructor(",
+            "GetConstructors(",
+            "Expression.",
+            "TargetInvocationException",
+            "BindingFlags.NonPublic",
+            "string methodName",
+            "private readonly object implementation",
+            "dynamic "
+        };
+        forbiddenTokens.Should().OnlyContain(token => !combined.Contains(token, StringComparison.Ordinal),
+            "the typed authoring boundary must stay compile-checked and may not regress to member-name dispatch or a non-public reflection bridge");
+        File.Exists(Path.Combine(root, "src/OrcaCore.Abstractions/Internal/AuthoringKernelProxy.cs"))
+            .Should().BeFalse();
     }
 
     [Fact]

@@ -20,14 +20,14 @@ internal sealed partial class DurableWorkflowDefinitionRegistry
             {
                 if (ContainsPublish(definition.RuntimeDefinition) && !hasWorkflowEventDispatcher)
                 {
-                    throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.HostCompatibility(
+                    throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.HostCompatibility(
                         new DefinitionHostCompatibilityFailure.MissingWorkflowEventDispatcher());
                 }
 
                 var missingPools = MissingDurablePools(definition.RuntimeDefinition);
                 if (missingPools.Count > 0)
                 {
-                    throw global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.HostCompatibility(
+                    throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.HostCompatibility(
                         new DefinitionHostCompatibilityFailure.MissingDurableResourcePools(missingPools));
                 }
 
@@ -75,12 +75,12 @@ internal sealed partial class DurableWorkflowDefinitionRegistry
         IDurableStagedWorkflowDefinition definition,
         DefinitionFingerprint existingFingerprint)
     {
-        var conflict = global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.DefinitionRegistrationConflict(
+        var conflict = global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionRegistrationConflict(
             definition.DefinitionId,
             definition.DefinitionVersion,
             existingFingerprint,
             definition.DefinitionFingerprint);
-        return global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.RegistrationConflict(
+        return global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.RegistrationConflict(
             conflict);
     }
 }
@@ -102,7 +102,7 @@ internal sealed class DurableStagedWorkflowDefinition<TInput> : IDurableStagedWo
     internal DurableStagedWorkflowDefinition(DurableWorkflowDefinition<TInput> definition)
     {
         this.definition = definition ?? throw new ArgumentNullException(nameof(definition));
-        RuntimeDefinition = global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.RuntimeDefinition(definition);
+        RuntimeDefinition = global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.RuntimeDefinition(definition);
     }
 
     public DefinitionId DefinitionId => definition.DefinitionId;
@@ -122,7 +122,7 @@ internal sealed class DurableStagedWorkflowDefinition<TInput, TOutput> : IDurabl
     internal DurableStagedWorkflowDefinition(DurableWorkflowDefinition<TInput, TOutput> definition)
     {
         this.definition = definition ?? throw new ArgumentNullException(nameof(definition));
-        RuntimeDefinition = global::OrcaCore.Engine.Durable.Internal.DurableApplicationContractFactory.RuntimeDefinition(definition);
+        RuntimeDefinition = global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.RuntimeDefinition(definition);
     }
 
     public DefinitionId DefinitionId => definition.DefinitionId;

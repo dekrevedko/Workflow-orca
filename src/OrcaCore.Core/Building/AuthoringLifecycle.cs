@@ -180,7 +180,7 @@ internal sealed class AuthoringLifecycleSession
         using var operation = BeginMutation(handle, location);
         if (deadlineLocation is { } first)
         {
-            throw global::OrcaCore.Core.Authoring.AuthoringContractFactory.DuplicateDeadline(
+            throw global::OrcaCore.Core.Authoring.AuthoringContracts.DuplicateDeadline(
                 first,
                 string.Equals(first, location, StringComparison.Ordinal)
                     ? NextSiblingLocation(location)
@@ -211,7 +211,7 @@ internal sealed class AuthoringLifecycleSession
         string location,
         string relatedLocation,
         string message) =>
-        global::OrcaCore.Core.Authoring.AuthoringContractFactory.Lifecycle(
+        global::OrcaCore.Core.Authoring.AuthoringContracts.Lifecycle(
             code,
             location,
             relatedLocation,
