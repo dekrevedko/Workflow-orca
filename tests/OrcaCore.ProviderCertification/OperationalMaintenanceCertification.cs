@@ -56,8 +56,19 @@ public static class OperationalMaintenanceCertification
                 ]),
             cancellationToken).ConfigureAwait(false);
 
+        var beforeStuckRefresh = await operationalStore
+            .GetOperatorStatisticsAsync(cancellationToken)
+            .ConfigureAwait(false);
+        beforeStuckRefresh.Pressure.StuckInstanceCount.Should().Be(0,
+            "reading operator statistics must not mutate provider state");
+        (await projectionStore.GetAsync(runningId, cancellationToken).ConfigureAwait(false))
+            .Value.IsStuck.Should().BeFalse();
+
+        await operationalStore
+            .RefreshStuckStateAsync(statisticsRequest, cancellationToken)
+            .ConfigureAwait(false);
         var initial = await operationalStore
-            .GetOperatorStatisticsAsync(statisticsRequest, cancellationToken)
+            .GetOperatorStatisticsAsync(cancellationToken)
             .ConfigureAwait(false);
         initial.Groups.Should().Contain(group =>
             group.DefinitionId.Equals(definitionId) &&
@@ -101,14 +112,14 @@ public static class OperationalMaintenanceCertification
             },
             cancellationToken).ConfigureAwait(false);
         claimed.Should().ContainSingle().Which.OutboxRecordId.Should().Be(externalId);
-        (await operationalStore.GetOperatorStatisticsAsync(statisticsRequest, cancellationToken).ConfigureAwait(false))
+        (await operationalStore.GetOperatorStatisticsAsync(cancellationToken).ConfigureAwait(false))
             .Pressure.ExternalOutboxClaimedCount.Should().Be(1);
         await outboxStore.MarkPoisonedAsync(
             externalId,
             "operator-certification-permanent",
             "certified permanent failure",
             cancellationToken).ConfigureAwait(false);
-        (await operationalStore.GetOperatorStatisticsAsync(statisticsRequest, cancellationToken).ConfigureAwait(false))
+        (await operationalStore.GetOperatorStatisticsAsync(cancellationToken).ConfigureAwait(false))
             .Pressure.ExternalOutboxPoisonedCount.Should().Be(1);
 
         var blocked = await maintenanceStore.PurgeForMaintenanceAsync(
@@ -126,6 +137,7 @@ public static class OperationalMaintenanceCertification
             cancellationToken).ConfigureAwait(false);
         await CertifyArchiveOwnershipAndArtifactParityAsync(
             eventStore,
+            operationalStore,
             maintenanceStore,
             definitionId,
             cancellationToken).ConfigureAwait(false);
@@ -133,6 +145,7 @@ public static class OperationalMaintenanceCertification
 
     private static async Task CertifyArchiveOwnershipAndArtifactParityAsync(
         IWorkflowEventStore eventStore,
+        IWorkflowOperationalStore operationalStore,
         IWorkflowProviderMaintenanceStore maintenanceStore,
         global::OrcaCore.DefinitionId definitionId,
         CancellationToken cancellationToken)
@@ -175,6 +188,9 @@ public static class OperationalMaintenanceCertification
                 "archive time is provider-owned metadata and must survive later aggregate projections");
 
         var streamOnlyId = global::OrcaCore.InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var pressureBeforeStreamOnly = await operationalStore
+            .GetOperatorStatisticsAsync(cancellationToken)
+            .ConfigureAwait(false);
         var streamOnly = await eventStore.AppendAsync(
             new ProviderCommitBatch
             {
@@ -197,6 +213,12 @@ public static class OperationalMaintenanceCertification
             },
             cancellationToken).ConfigureAwait(false);
         streamOnly.IsSuccess.Should().BeTrue();
+        var pressureAfterStreamOnly = await operationalStore
+            .GetOperatorStatisticsAsync(cancellationToken)
+            .ConfigureAwait(false);
+        pressureAfterStreamOnly.Pressure.StreamEventCount.Should().Be(
+            pressureBeforeStreamOnly.Pressure.StreamEventCount + 1,
+            "stream-only durable artifacts must participate in provider pressure without scanning the event table");
         (await maintenanceStore.ArchiveForMaintenanceAsync(
                 new WorkflowProviderMaintenanceRequest(streamOnlyId, Timestamp(26)),
                 cancellationToken).ConfigureAwait(false))
@@ -394,8 +416,6 @@ public static class OperationalMaintenanceCertification
                 UpdatedAt = Timestamp(1),
                 LastActiveAt = Timestamp(1),
                 IsStuck = stuck,
-                HasStuckStep = stuck,
-                StuckStepPath = stuck ? "operator-certification" : null,
                 StuckDetectedAt = stuck ? Timestamp(2) : null,
                 ActiveWaits = status == global::OrcaCore.WorkflowInstanceStatus.Running
                     ?

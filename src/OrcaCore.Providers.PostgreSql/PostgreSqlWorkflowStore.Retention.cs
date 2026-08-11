@@ -17,6 +17,7 @@ internal sealed class PostgreSqlWorkflowRetentionStore(NpgsqlDataSource dataSour
         """
         lock table
             orcacore_events,
+            orcacore_stream_heads,
             orcacore_checkpoints,
             orcacore_inbox,
             orcacore_inbox_fanout_targets,
@@ -36,7 +37,8 @@ internal sealed class PostgreSqlWorkflowRetentionStore(NpgsqlDataSource dataSour
         "delete from orcacore_checkpoints where instance_id = @instance_id;",
         "delete from orcacore_timers where instance_id = @instance_id;",
         "delete from orcacore_outbox where instance_id = @instance_id;",
-        "delete from orcacore_events where stream_id = @instance_id;"
+        "delete from orcacore_events where stream_id = @instance_id;",
+        "delete from orcacore_stream_heads where instance_id = @instance_id;"
     ];
 
     internal async Task<WorkflowProviderMaintenanceInspection> InspectForMaintenanceAsync(
@@ -178,7 +180,7 @@ internal sealed class PostgreSqlWorkflowRetentionStore(NpgsqlDataSource dataSour
             select exists (
                 select 1 from orcacore_instance_projections where instance_id = @instance_id
                 union all
-                select 1 from orcacore_events where stream_id = @instance_id);
+                select 1 from orcacore_stream_heads where instance_id = @instance_id);
             """,
             connection,
             transaction);

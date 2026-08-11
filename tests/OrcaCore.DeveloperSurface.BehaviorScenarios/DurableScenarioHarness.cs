@@ -77,10 +77,13 @@ internal sealed class DurableScenarioProvider :
         target.AddSingleton<IDurableProviderRole>(ScenarioProviderRole.Instance);
     }
 
-    public Task<WorkflowOperatorStatistics> GetOperatorStatisticsAsync(
+    public Task RefreshStuckStateAsync(
         WorkflowOperatorStatisticsRequest request,
         CancellationToken cancellationToken) =>
-        operationalStore.GetOperatorStatisticsAsync(request, cancellationToken);
+        operationalStore.RefreshStuckStateAsync(request, cancellationToken);
+
+    public Task<WorkflowOperatorStatistics> GetOperatorStatisticsAsync(CancellationToken cancellationToken) =>
+        operationalStore.GetOperatorStatisticsAsync(cancellationToken);
 
     public Task<Option<CheckpointWrite>> LoadCheckpointAsync(
         InstanceId instanceId,

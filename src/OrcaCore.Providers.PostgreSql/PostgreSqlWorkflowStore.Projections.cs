@@ -119,8 +119,6 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
                    archived_at,
                    last_active_at,
                    is_stuck,
-                   has_stuck_step,
-                   stuck_step_path,
                    stuck_detected_at,
                    saga_audits,
                    stream_version
@@ -163,13 +161,11 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
                 ArchivedAt = reader.IsDBNull(11) ? null : reader.GetFieldValue<DateTimeOffset>(11),
                 LastActiveAt = reader.IsDBNull(12) ? null : reader.GetFieldValue<DateTimeOffset>(12),
                 IsStuck = reader.GetBoolean(13),
-                HasStuckStep = reader.GetBoolean(14),
-                StuckStepPath = reader.IsDBNull(15) ? null : reader.GetString(15),
-                StuckDetectedAt = reader.IsDBNull(16) ? null : reader.GetFieldValue<DateTimeOffset>(16),
+                StuckDetectedAt = reader.IsDBNull(14) ? null : reader.GetFieldValue<DateTimeOffset>(14),
                 ErrorSummary = reader.IsDBNull(8) ? null : reader.GetString(8),
                 EndOutcomeName = reader.IsDBNull(9) ? null : reader.GetString(9),
                 ContinueAsNewGeneration = reader.GetInt32(10),
-                StreamVersion = reader.IsDBNull(18) ? null : reader.GetInt64(18)
+                StreamVersion = reader.IsDBNull(16) ? null : reader.GetInt64(16)
             });
         }
 
@@ -294,8 +290,6 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
                 archived_at,
                 last_active_at,
                 is_stuck,
-                has_stuck_step,
-                stuck_step_path,
                 stuck_detected_at,
                 saga_audits)
             values (
@@ -314,8 +308,6 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
                 @archived_at,
                 @last_active_at,
                 @is_stuck,
-                @has_stuck_step,
-                @stuck_step_path,
                 @stuck_detected_at,
                 @saga_audits)
             on conflict (instance_id) do update set
@@ -332,8 +324,6 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
                 continue_as_new_generation = excluded.continue_as_new_generation,
                 last_active_at = excluded.last_active_at,
                 is_stuck = excluded.is_stuck,
-                has_stuck_step = excluded.has_stuck_step,
-                stuck_step_path = excluded.stuck_step_path,
                 stuck_detected_at = excluded.stuck_detected_at,
                 saga_audits = excluded.saga_audits;
             delete from orcacore_active_wait_projections
@@ -359,8 +349,6 @@ internal sealed class PostgreSqlProjectionStore(NpgsqlDataSource dataSource)
         command.Parameters.AddWithValue("archived_at", (object?)snapshot.ArchivedAt ?? DBNull.Value);
         command.Parameters.AddWithValue("last_active_at", (object?)snapshot.LastActiveAt ?? DBNull.Value);
         command.Parameters.AddWithValue("is_stuck", snapshot.IsStuck);
-        command.Parameters.AddWithValue("has_stuck_step", snapshot.HasStuckStep);
-        command.Parameters.AddWithValue("stuck_step_path", (object?)snapshot.StuckStepPath ?? DBNull.Value);
         command.Parameters.AddWithValue("stuck_detected_at", (object?)snapshot.StuckDetectedAt ?? DBNull.Value);
         command.Parameters.AddWithValue(
             "saga_audits",

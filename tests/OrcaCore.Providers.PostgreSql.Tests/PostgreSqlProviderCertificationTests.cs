@@ -77,9 +77,7 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
             container.GetConnectionString(),
             new FixedTimeProvider(MigrationAppliedAt()));
         await restarted.InitializeAsync(TestContext.Current.CancellationToken);
-        var afterRestart = await restarted.GetOperatorStatisticsAsync(
-            new WorkflowOperatorStatisticsRequest(MigrationAppliedAt(), TimeSpan.FromMinutes(5)),
-            TestContext.Current.CancellationToken);
+        var afterRestart = await restarted.GetOperatorStatisticsAsync(TestContext.Current.CancellationToken);
         afterRestart.Groups.Should().NotBeEmpty();
         afterRestart.Pressure.StreamEventCount.Should().BeGreaterThan(0);
     }
@@ -91,8 +89,8 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
             .NotContain("from orcacore_events",
                 "a periodic fleet snapshot must not scan the append-only event relation");
         PostgreSqlWorkflowStore.OperatorStatisticsPressureSql.Should()
-            .Contain("sum(summary.stream_version)",
-                "event growth is available from the one-row-per-instance projection");
+            .Contain("from orcacore_stream_heads",
+                "event growth must include stream-only artifacts through a transactionally maintained stream head");
     }
 
     [Fact]
@@ -597,6 +595,9 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
             "001_initial");
         var migrationCount = await ScalarAsync<long>(
             "select count(*) from orcacore_schema_migrations;");
+        var migrationContentHash = await ScalarAsync<string>(
+            "select content_hash from orcacore_schema_migrations where migration_id = @migration_id;",
+            "001_initial");
         var inboxDeliverySequence = await ScalarAsync<string>(
             "select pg_get_serial_sequence('orcacore_inbox', 'acceptance_sequence');");
 
@@ -605,6 +606,9 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
             "the unreleased provider must create its complete schema without compatibility migrations");
         PostgreSqlWorkflowStoreMigrations.All.Should().ContainSingle()
             .Which.MigrationId.Should().Be("001_initial");
+        migrationContentHash.Should().Be(
+            PostgreSqlWorkflowStoreMigrations.All.Single().ContentHash,
+            "the journal must identify the exact canonical migration content, not only its reused id");
         inboxDeliverySequence.Should().EndWith("orcacore_inbox_delivery_sequence",
             "dropping the owning inbox table must also remove its greenfield delivery sequence");
     }
@@ -620,15 +624,41 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
                  {
                      "last_active_at",
                      "is_stuck",
-                     "has_stuck_step",
-                     "stuck_step_path",
                      "stuck_detected_at"
                  })
         {
             initial.Should().Contain(column, "every current operational column belongs in the first-create table");
         }
 
+        initial.Should().Contain("create table if not exists orcacore_stream_heads",
+            "stream-only artifacts need an incrementally maintained pressure projection");
+        initial.Should().NotContain("has_stuck_step");
+        initial.Should().NotContain("stuck_step_path");
         initial.Should().NotContain("alter table", "the greenfield schema has no upgrade DDL");
+    }
+
+    [Fact]
+    public async Task InitializeAsync_RejectsARewrittenAppliedMigration()
+    {
+        var originalHash = await ScalarAsync<string>(
+            "select content_hash from orcacore_schema_migrations where migration_id = @migration_id;",
+            "001_initial");
+        await SetMigrationContentHashAsync("rewritten-content");
+        try
+        {
+            await using var restarted = new PostgreSqlWorkflowStore(
+                container.GetConnectionString(),
+                new FixedTimeProvider(MigrationAppliedAt()));
+
+            var act = () => restarted.InitializeAsync(TestContext.Current.CancellationToken);
+
+            await act.Should().ThrowAsync<InvalidOperationException>()
+                .WithMessage("*001_initial*content*changed*");
+        }
+        finally
+        {
+            await SetMigrationContentHashAsync(originalHash);
+        }
     }
 
     [Fact]
@@ -1192,6 +1222,17 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         await connection.OpenAsync(TestContext.Current.CancellationToken);
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("instance_id", instanceId.Value);
+        await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task SetMigrationContentHashAsync(string contentHash)
+    {
+        await using var connection = new NpgsqlConnection(container.GetConnectionString());
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var command = new NpgsqlCommand(
+            "update orcacore_schema_migrations set content_hash = @content_hash where migration_id = '001_initial';",
+            connection);
+        command.Parameters.AddWithValue("content_hash", contentHash);
         await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
     }
 

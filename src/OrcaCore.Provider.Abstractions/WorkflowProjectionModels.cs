@@ -34,10 +34,6 @@ public sealed record WorkflowProjectionSnapshot
 
     public bool IsStuck { get; init; }
 
-    public bool HasStuckStep { get; init; }
-
-    public string? StuckStepPath { get; init; }
-
     public DateTimeOffset? StuckDetectedAt { get; init; }
 
     public string? ErrorSummary { get; init; }

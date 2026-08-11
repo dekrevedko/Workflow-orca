@@ -13,7 +13,7 @@ internal sealed partial class PostgreSqlWorkflowStore
             (select count(*) from orcacore_instance_projections
                 where status = any(@active_statuses)) as active_instances,
             (select count(*) from orcacore_instance_projections
-                where is_stuck or has_stuck_step) as stuck_instances,
+                where is_stuck) as stuck_instances,
             (select count(*) from orcacore_active_wait_projections) as active_waits,
             storage.stream_events,
             storage.checkpoints,
@@ -36,27 +36,36 @@ internal sealed partial class PostgreSqlWorkflowStore
                 as external_poisoned
         from (
             select
-                coalesce(sum(summary.stream_version), 0)::bigint as stream_events,
-                count(checkpoint.instance_id)::bigint as checkpoints,
+                coalesce(sum(head.stream_version), 0)::bigint as stream_events,
+                (select count(*) from orcacore_checkpoints)::bigint as checkpoints,
                 coalesce(max(
-                    coalesce(summary.stream_version, 0) - coalesce(checkpoint.stream_version, 0)), 0)::bigint
+                    head.stream_version - coalesce(checkpoint.stream_version, 0)), 0)::bigint
                     as checkpoint_lag
-            from orcacore_instance_projections summary
-            left join orcacore_checkpoints checkpoint on checkpoint.instance_id = summary.instance_id
+            from orcacore_stream_heads head
+            left join orcacore_checkpoints checkpoint on checkpoint.instance_id = head.instance_id
         ) storage;
         """;
 
-    public async Task<WorkflowOperatorStatistics> GetOperatorStatisticsAsync(
+    public async Task RefreshStuckStateAsync(
         WorkflowOperatorStatisticsRequest request,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var transaction = await connection
-            .BeginTransactionAsync(IsolationLevel.RepeatableRead, cancellationToken)
+            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
             .ConfigureAwait(false);
 
         await MarkStuckInstancesAsync(connection, transaction, request, cancellationToken).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<WorkflowOperatorStatistics> GetOperatorStatisticsAsync(CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = await connection
+            .BeginTransactionAsync(IsolationLevel.RepeatableRead, cancellationToken)
+            .ConfigureAwait(false);
 
         var groups = new List<WorkflowOperatorStatisticsGroup>();
         await using (var groupCommand = new NpgsqlCommand(
@@ -85,7 +94,7 @@ internal sealed partial class PostgreSqlWorkflowStore
             """
             select definition_id, count(*)
             from orcacore_instance_projections
-            where is_stuck or has_stuck_step
+            where is_stuck
             group by definition_id
             order by definition_id;
             """,

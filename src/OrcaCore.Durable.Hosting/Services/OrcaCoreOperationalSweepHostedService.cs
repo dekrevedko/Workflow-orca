@@ -93,10 +93,14 @@ internal sealed class OrcaCoreOperationalSweepHostedService(
             }
         }
 
+        var statisticsRequest = new WorkflowOperatorStatisticsRequest(
+            clock.GetUtcNow(),
+            stuckDetectionThreshold);
+        await operations
+            .RefreshStuckStateAsync(statisticsRequest, cancellationToken)
+            .ConfigureAwait(false);
         var statistics = await operations
-            .GetOperatorStatisticsAsync(
-                new WorkflowOperatorStatisticsRequest(clock.GetUtcNow(), stuckDetectionThreshold),
-                cancellationToken)
+            .GetOperatorStatisticsAsync(cancellationToken)
             .ConfigureAwait(false);
         var pools = await resourcePools.ListPoolsAsync(cancellationToken).ConfigureAwait(false);
         OrcaCoreDurableDiagnostics.RefreshOperatorStatistics(statistics, pools);

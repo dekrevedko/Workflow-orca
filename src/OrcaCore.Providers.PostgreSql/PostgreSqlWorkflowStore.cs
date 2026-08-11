@@ -316,6 +316,16 @@ internal sealed partial class PostgreSqlWorkflowStore :
                     cancellationToken).ConfigureAwait(false);
             }
 
+            if (nextVersion > StreamVersion.Empty.Value)
+            {
+                await UpsertStreamHeadAsync(
+                    connection,
+                    transaction,
+                    batch.StreamId,
+                    new StreamVersion(nextVersion),
+                    cancellationToken).ConfigureAwait(false);
+            }
+
             await ApplyStartIdempotencyOperationsAsync(connection, transaction, batch.StartIdempotencyOperations, cancellationToken)
                 .ConfigureAwait(false);
             await MaterializePendingStartsAsync(
@@ -2186,6 +2196,27 @@ internal sealed partial class PostgreSqlWorkflowStore :
         command.Parameters.AddWithValue("occurred_at", workflowEvent.OccurredAt);
         command.Parameters.Add("payload", NpgsqlDbType.Jsonb).Value = WorkflowEventCodec.Serialize(workflowEvent);
 
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task UpsertStreamHeadAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        WorkflowStreamId streamId,
+        StreamVersion streamVersion,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new NpgsqlCommand(
+            """
+            insert into orcacore_stream_heads (instance_id, stream_version)
+            values (@instance_id, @stream_version)
+            on conflict (instance_id) do update set
+                stream_version = excluded.stream_version;
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("instance_id", streamId.InstanceId.Value);
+        command.Parameters.AddWithValue("stream_version", streamVersion.Value);
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 

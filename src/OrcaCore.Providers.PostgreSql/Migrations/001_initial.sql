@@ -12,6 +12,11 @@ create table if not exists orcacore_events (
 create index if not exists ix_orcacore_events_stream_id_version
     on orcacore_events (stream_id, version);
 
+create table if not exists orcacore_stream_heads (
+    instance_id uuid primary key,
+    stream_version bigint not null check (stream_version > 0)
+);
+
 create table if not exists orcacore_checkpoints (
     instance_id uuid primary key,
     stream_version bigint not null,
@@ -167,8 +172,6 @@ create table if not exists orcacore_instance_projections (
     archived_at timestamp with time zone null,
     last_active_at timestamp with time zone null,
     is_stuck boolean not null default false,
-    has_stuck_step boolean not null default false,
-    stuck_step_path text null,
     stuck_detected_at timestamp with time zone null,
     saga_audits jsonb not null default '[]'::jsonb,
     stream_version bigint null

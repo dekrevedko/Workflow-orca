@@ -30,13 +30,24 @@ internal static class RelationalMigrationRunner
             journal.EnsureJournalSql,
             cancellationToken: cancellationToken)).ConfigureAwait(false);
 
-        var applied = (await connection.QueryAsync<string>(new CommandDefinition(
+        var applied = (await connection.QueryAsync<AppliedRelationalMigration>(new CommandDefinition(
                 journal.SelectAppliedMigrationsSql,
                 cancellationToken: cancellationToken)).ConfigureAwait(false))
-            .ToHashSet(StringComparer.Ordinal);
+            .ToDictionary(migration => migration.MigrationId, migration => migration.ContentHash, StringComparer.Ordinal);
 
-        foreach (var migration in migrations.Where(migration => !applied.Contains(migration.MigrationId)))
+        foreach (var migration in migrations)
         {
+            if (applied.TryGetValue(migration.MigrationId, out var appliedContentHash))
+            {
+                if (!string.Equals(appliedContentHash, migration.ContentHash, StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        $"Applied migration '{migration.MigrationId}' content has changed; reset the unreleased provider database or add a new migration id.");
+                }
+
+                continue;
+            }
+
             await using var transaction = await connection
                 .BeginTransactionAsync(cancellationToken)
                 .ConfigureAwait(false);
@@ -49,6 +60,7 @@ internal static class RelationalMigrationRunner
                 new
                 {
                     migration.MigrationId,
+                    migration.ContentHash,
                     AppliedAt = clock.GetUtcNow()
                 },
                 transaction,

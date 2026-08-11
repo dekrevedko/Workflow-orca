@@ -112,8 +112,12 @@ public sealed record WorkflowOperatorStatisticsRequest
 /// <summary>Exposes provider-authoritative operational projections without application enumeration.</summary>
 public interface IWorkflowOperationalStore
 {
+    /// <summary>Persists stuck-instance observations for the supplied provider-authoritative cutoff.</summary>
+    Task RefreshStuckStateAsync(
+        WorkflowOperatorStatisticsRequest request,
+        CancellationToken cancellationToken);
+
     /// <summary>Captures one immutable grouped statistics and pressure snapshot.</summary>
     Task<WorkflowOperatorStatistics> GetOperatorStatisticsAsync(
-        WorkflowOperatorStatisticsRequest request,
         CancellationToken cancellationToken);
 }

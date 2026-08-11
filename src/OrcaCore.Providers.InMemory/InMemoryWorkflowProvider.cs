@@ -1194,7 +1194,7 @@ internal sealed class InMemoryWorkflowProvider :
         return Task.FromResult(DispatchResult.Success);
     }
 
-    public Task<WorkflowOperatorStatistics> GetOperatorStatisticsAsync(
+    public Task RefreshStuckStateAsync(
         WorkflowOperatorStatisticsRequest request,
         CancellationToken cancellationToken)
     {
@@ -1204,6 +1204,17 @@ internal sealed class InMemoryWorkflowProvider :
         lock (gate)
         {
             MarkStuckInstances(request);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task<WorkflowOperatorStatistics> GetOperatorStatisticsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (gate)
+        {
             var groups = summaries.Values
                 .GroupBy(snapshot => new
                 {
@@ -1223,7 +1234,7 @@ internal sealed class InMemoryWorkflowProvider :
             var pressure = new WorkflowOperationalPressure
             {
                 ActiveInstanceCount = summaries.Values.LongCount(snapshot => IsActive(snapshot.InstanceId)),
-                StuckInstanceCount = summaries.Values.LongCount(snapshot => snapshot.IsStuck || snapshot.HasStuckStep),
+                StuckInstanceCount = summaries.Values.LongCount(snapshot => snapshot.IsStuck),
                 ActiveWaitCount = summaries.Values.Sum(snapshot => (long)snapshot.ActiveWaits.Count),
                 StreamEventCount = streams.Values.Sum(stream => (long)stream.Count),
                 CheckpointCount = checkpoints.Count,
@@ -1249,7 +1260,7 @@ internal sealed class InMemoryWorkflowProvider :
                 ProviderName = OrcaCoreDiagnostics.InMemoryProviderName,
                 Groups = groups,
                 StuckGroups = summaries.Values
-                    .Where(snapshot => snapshot.IsStuck || snapshot.HasStuckStep)
+                    .Where(snapshot => snapshot.IsStuck)
                     .GroupBy(snapshot => snapshot.DefinitionId)
                     .OrderBy(group => group.Key.Value)
                     .Select(group => new WorkflowOperatorStuckGroup(group.Key, group.LongCount()))

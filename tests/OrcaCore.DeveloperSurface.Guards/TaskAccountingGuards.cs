@@ -33,9 +33,9 @@ public sealed partial class TaskAccountingGuards
             string.Equals(match.Groups["state"].Value, "x", StringComparison.OrdinalIgnoreCase));
         var pending = entries.Length - completed;
 
-        entries.Should().HaveCount(158);
+        entries.Should().HaveCount(159);
         completed.Should().Be(123);
-        pending.Should().Be(35);
+        pending.Should().Be(36);
     }
 
     [GeneratedRegex(@"^\s*-\s+\[[ xX]\]\s+", RegexOptions.CultureInvariant)]
