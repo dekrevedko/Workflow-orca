@@ -352,11 +352,11 @@ protocol identities in advanced packages.
 
 **Required work:**
 
-1. Apply the approved exhaustive eleven-package graph and make `OrcaCore` the primary application
+1. Apply the approved exhaustive twelve-package graph and make `OrcaCore` the primary application
    contracts/authoring package, not a meta-package. Enforce every declared direct edge and reject
    every unlisted or reverse dependency.
 2. Keep application contracts/authoring, engines, hosting, runtime protocol, provider
-   abstractions, the in-memory and PostgreSQL provider adapters, and DAG roles explicit. Assign one
+   abstractions, the in-memory, PostgreSQL, and SQL Server provider adapters, and DAG roles explicit. Assign one
    package/assembly owner to every public extension class; no extension class is partial across
    assemblies.
 3. Implement only role-specific hosting entry points:

@@ -103,7 +103,7 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
             (owner.StartsWith("active:", StringComparison.Ordinal) ||
              owner.StartsWith("task:", StringComparison.Ordinal)).Should().BeTrue(
                 "family '{0}' must name its active owner or exact future task", id);
-            AssertTaskOwnerExists(tasks, owner, id);
+            AssertOwnerExists(root, tasks, owner, id);
 
             var recoveryPaths = RequiredStrings(family, "recoveryPaths");
             foreach (var recoveryPath in recoveryPaths)
@@ -139,7 +139,7 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
             AssertExecutableEvidenceExists(root, RequiredString(inventory, "evidence"), RequiredString(inventory, "id"));
             var owner = RequiredString(inventory, "owner");
             owner.Should().StartWith("task:");
-            AssertTaskOwnerExists(tasks, owner, RequiredString(inventory, "id"));
+            AssertOwnerExists(root, tasks, owner, RequiredString(inventory, "id"));
         }
     }
 
@@ -161,6 +161,53 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
             "production-deletion-ledger.md"));
         companion.Should().Contain(
             "| Provisional SQL Server project/package and migration | Replace/relocate | task 7.17d current-release provider re-entry |");
+    }
+
+    [Fact]
+    public void Ledger_AllCompanionDispositionsAndScheduledOwnersMatchTheMachineReadableLedger()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        using var document = LoadLedger(root);
+        var families = document.RootElement.GetProperty("families").EnumerateArray().ToArray();
+        var companion = File.ReadAllText(Path.Combine(
+            root,
+            "openspec",
+            "changes",
+            "reshape-developer-facing-interfaces",
+            "production-deletion-ledger.md"));
+        var rows = Regex.Matches(
+                companion,
+                @"(?m)^\| (?<inventory>[^|]+?) \| (?<disposition>Replace\s*/\s*relocate|Remove|Defer|Dead\s*/\s*duplicate) \| (?<owner>[^|]+?) \|")
+            .Cast<Match>()
+            .ToArray();
+
+        rows.Should().HaveCount(families.Length,
+            "the human-readable companion must retain one ordered row per machine-readable family");
+        for (var index = 0; index < families.Length; index++)
+        {
+            var family = families[index];
+            var familyId = RequiredString(family, "id");
+            NormalizeCompanionDisposition(rows[index].Groups["disposition"].Value)
+                .Should().Be(RequiredString(family, "disposition"),
+                    "companion row '{0}' must agree with family '{1}'",
+                    rows[index].Groups["inventory"].Value.Trim(),
+                    familyId);
+
+            var owner = RequiredString(family, "owner");
+            var companionOwner = rows[index].Groups["owner"].Value.Replace("`", string.Empty);
+            if (owner.StartsWith("task:", StringComparison.Ordinal))
+            {
+                companionOwner.Should().MatchRegex(
+                    $@"(?i)\btask\s+{Regex.Escape(owner["task:".Length..])}\b",
+                    "companion row for family '{0}' must name the same scheduled task owner",
+                    familyId);
+            }
+            else if (Regex.Match(owner, @"^active:(?<path>.+\.md)#(?<section>\d+(?:\.\d+)*)$") is { Success: true } ownerMatch)
+            {
+                companionOwner.Should().Contain(ownerMatch.Groups["path"].Value);
+                companionOwner.Should().Contain(ownerMatch.Groups["section"].Value);
+            }
+        }
     }
 
     [Fact]
@@ -317,6 +364,16 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
             ? values.EnumerateArray().Select(value => value.GetString()!).ToArray()
             : [];
 
+    private static string NormalizeCompanionDisposition(string disposition) =>
+        Regex.Replace(disposition, @"[\s/]", string.Empty).ToLowerInvariant() switch
+        {
+            "replacerelocate" => "ReplaceOrRelocate",
+            "deadduplicate" => "DeadOrDuplicate",
+            "remove" => "Remove",
+            "defer" => "Defer",
+            var value => value
+        };
+
     private static string RequiredString(JsonElement element, string propertyName)
     {
         var value = element.GetProperty(propertyName).GetString();
@@ -324,18 +381,38 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
         return value!;
     }
 
-    private static void AssertTaskOwnerExists(string tasks, string owner, string familyId)
+    private static void AssertOwnerExists(string root, string tasks, string owner, string familyId)
     {
-        if (!owner.StartsWith("task:", StringComparison.Ordinal))
+        if (owner.StartsWith("task:", StringComparison.Ordinal))
+        {
+            var taskId = owner["task:".Length..];
+            Regex.Matches(tasks, $@"(?m)^\s*-\s+\[[ x]\]\s+{Regex.Escape(taskId)}\b")
+                .Should().ContainSingle(
+                    "family or inventory '{0}' must name one real task rather than a task-shaped placeholder",
+                    familyId);
+            return;
+        }
+
+        const string activePrefix = "active:";
+        var activeOwner = owner[activePrefix.Length..];
+        var documentOwner = Regex.Match(activeOwner, @"^(?<path>.+\.md)#(?<section>\d+(?:\.\d+)*)$");
+        if (!documentOwner.Success)
         {
             return;
         }
 
-        var taskId = owner["task:".Length..];
-        Regex.Matches(tasks, $@"(?m)^\s*-\s+\[[ x]\]\s+{Regex.Escape(taskId)}\b")
+        var documentPath = documentOwner.Groups["path"].Value;
+        var section = documentOwner.Groups["section"].Value;
+        var absolutePath = ToAbsolutePath(root, documentPath);
+        File.Exists(absolutePath).Should().BeTrue(
+            "family '{0}' active document owner '{1}' must exist",
+            familyId,
+            documentPath);
+        Regex.Matches(File.ReadAllText(absolutePath), $@"(?m)^#+\s+{Regex.Escape(section)}(?:\s|\b)")
             .Should().ContainSingle(
-                "family or inventory '{0}' must name one real task rather than a task-shaped placeholder",
-                familyId);
+                "family '{0}' active document owner must name one real section '{1}'",
+                familyId,
+                section);
     }
 
     private static void AssertNormativeRequirementExists(string root, string coordinate, string familyId)

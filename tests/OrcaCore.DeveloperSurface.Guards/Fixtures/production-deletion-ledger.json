@@ -139,7 +139,7 @@
     },
     {
       "id": "saga-recovery-source",
-      "disposition": "Remove",
+      "disposition": "Defer",
       "normativeIds": [
         "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
         "saga-orchestration::Saga remains an explicit deferred capability"

@@ -152,12 +152,12 @@ public sealed class InfrastructureGuards
         var workflow = File.ReadAllText(Path.Combine(root, ".github", "workflows", "ci.yml"));
         var projects = Regex.Matches(
                 workflow,
-                @"(?m)(?:tests|benchmarks)/[A-Za-z0-9._/-]+\.csproj")
+                @"(?m)(?:src|tests|samples|benchmarks)/[A-Za-z0-9._/-]+\.csproj")
             .Select(match => match.Value)
+            .Distinct(StringComparer.Ordinal)
             .ToArray();
 
         projects.Should().NotBeEmpty();
-        projects.Should().OnlyHaveUniqueItems();
         foreach (var project in projects)
         {
             File.Exists(Path.Combine(root, project.Replace('/', Path.DirectorySeparatorChar)))

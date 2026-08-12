@@ -18,7 +18,7 @@ The project SHALL cover duplicate/conflicting events, ambiguous wait-pair reject
 - **THEN** targeted regressions and adjacent schedule/crash cases continue to guard the affected behavior
 
 ### Requirement: Provider invariants are explicit
-The project SHALL verify that each supported storage, projection, and messaging adapter preserves its declared contract, exact ordinal strong-value equality, certified `orcacore-json-v1` payload detachment, structural fingerprints, complete structured envelopes, step-operation coordinates, deadline state, and one expected-version serialized resource-governance aggregate, or explicitly declares unsupported capabilities. Governance certification SHALL exercise per-record format/checksum/payload-copy validation, whole-stream defensive copy and exact `1..Version` continuity through `ResourceGovernanceStream.Create`, and non-empty `expectedVersion + 1..N` whole-batch append with no partial commit.
+The project SHALL verify that each supported storage, projection, and messaging adapter preserves its declared contract, exact ordinal strong-value equality, certified `orcacore-json-v1` payload detachment, structural fingerprints, complete structured envelopes, step-operation coordinates, deadline state, and one expected-version serialized resource-governance aggregate, or explicitly declares unsupported capabilities. Every shipped production durable provider SHALL pass the complete shared provider-certification suite plus provider-native restart, competing-host, migration-journal, schema, retention, maintenance, poison, and pressure tests against real storage. Governance certification SHALL exercise per-record format/checksum/payload-copy validation, whole-stream defensive copy and exact `1..Version` continuity through `ResourceGovernanceStream.Create`, and non-empty `expectedVersion + 1..N` whole-batch append with no partial commit.
 
 Public-surface verification SHALL also prove that every caller-created string-backed strong value exposes only its private-constructor/`Create(string)` construction path and that runtime-created identities expose no public constructor or `Create` factory. Reflection, source, and clean-consumer guards SHALL reject the superseded `new EventName(...)`-style construction and any mixed family that offers both constructor and factory aliases.
 
@@ -84,7 +84,7 @@ Acceptance coverage SHALL execute equivalent portable definitions in both modes 
 - **THEN** both modes produce the same typed parent output and leave no orphan waits, timers, or obligations
 
 ### Requirement: Public surfaces are approved mechanically
-Each of the exact 11 packaged assemblies SHALL have one approved deterministic public baseline
+Each of the exact 12 packaged assemblies SHALL have one approved deterministic public baseline
 covering every externally visible type, constructor, method, property, field, event, generic
 arity/constraint, modifier, and signature. Verification SHALL compare the current build and fresh
 packages, reject missing or extra inventory, and fail on unreviewed additions, removals,
@@ -346,18 +346,37 @@ Verification SHALL prove application definitions, instance snapshots, active wai
 - **THEN** they expose typed authored/business facts only, while advanced diagnostics remain opt-in
 
 ### Requirement: Package consumer smoke tests guard dependency experience
-Verification SHALL pack and restore clean consumers for minimal ephemeral, durable, DAG, provider-authoring, runtime-protocol custom-host, and optional companion integration paths.
+Verification SHALL pack and restore clean consumers for minimal ephemeral, PostgreSQL-backed durable, SQL Server-backed durable, callback-only ingress through each production provider, application-supplied event dispatcher, DAG, provider-authoring, runtime-protocol custom-host, and optional companion integration paths.
 
 #### Scenario: Minimal consumer builds from packages
 - **WHEN** a clean project restores the documented application packages
 - **THEN** the golden path compiles/runs without source-project references, advanced leaks, or optional infrastructure dependencies
 
 ### Requirement: Exact facade, event, hosting, and path-token contracts are guarded
-Compile/reflection/behavior guards SHALL prove the exact common registry/definition/instance/event facade, closed host-compatibility results and exceptions, all six exact role-specific hosting entry points and split options, absence of catch-all or separate hosted-service toggles, instance/correlation delivery with ambiguous wait registration rejection and signal-stream reuse, and the one logical path-token model including parent release before root-only fan-out and physical late-body occupancy.
+Compile/reflection/behavior guards SHALL prove the exact common registry/definition/instance/event facade, closed host-compatibility results and exceptions, all seven exact role-specific hosting entry points and split options, absence of catch-all or separate hosted-service toggles, instance/correlation delivery with ambiguous wait registration rejection and signal-stream reuse, and the one logical path-token model including parent release before root-only fan-out and physical late-body occupancy.
 
 #### Scenario: Exact application facade baseline changes
 - **WHEN** a contributor adds a route, management operation, hosting overload, catch-all registration, serializer hook, cancellation outcome, or conflicting token behavior
 - **THEN** the corresponding exact-signature or behavior guard fails before source approval
+
+### Requirement: Durable messaging is verified across every ownership boundary
+Verification SHALL cover fixed-codec event descriptors, complete self-routing envelopes, the exact closed acceptance/rejection unions, `Accepted`/`Duplicate` broker-ack ownership, identity-before-target-state deduplication, direct-target/start-conflict/fanout-limit rejection without partial ownership, direct and correlation pending inboxes, atomic event/wait races, cold rehydration, callback-only start-intent handoff, exact start-or-deliver idempotency, committed provider-state fanout snapshots, per-target deduplication, durable publish/outbox atomicity, dispatcher retry/poison outcomes, and isolation of internal continuation records. In-memory development, PostgreSQL, and SQL Server providers SHALL pass the same logical certification; both production providers' restart tests SHALL prove persistence and competing-host ownership. No test SHALL treat a returned `NoActiveWait`, later broker redelivery, polling, or a hot in-memory instance as evidence for the durable contract.
+
+#### Scenario: Event arrives before matching wait
+- **WHEN** an accepted event survives host replacement before its wait registers
+- **THEN** the later wait claims it once without broker redelivery and the exported API contains no durable `NoActiveWait`
+
+#### Scenario: Fanout host fails during materialization
+- **WHEN** a crash occurs before or after the fanout target snapshot/per-target inbox commit
+- **THEN** recovery observes either no accepted fanout or the same complete target set, never a partial or rediscovered set
+
+#### Scenario: Outbox dispatch is ambiguous
+- **WHEN** a dispatcher sends successfully and the host fails before marking the record dispatched
+- **THEN** retry uses the same outbound `EventId`, and the dispatcher still receives no provider record or internal continuation kind
+
+#### Scenario: Definition-less ingress package is inspected
+- **WHEN** the callback-only host accepts and persists a self-routing event
+- **THEN** package/runtime guards prove it has no workflow catalog, handle lookup, definition execution, external outbox dispatcher, or broker SDK dependency
 
 ### Requirement: Canonical requirements precede source implementation
 Canonical specs, the capability matrix, OpenSpec deltas, tasks, status, and review artifacts SHALL describe one contract before each source slice begins. Historical reviews SHALL remain immutable; a new dated disposition SHALL supersede stale recommendations without rewriting prior evidence.

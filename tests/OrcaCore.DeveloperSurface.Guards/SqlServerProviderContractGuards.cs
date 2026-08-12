@@ -7,6 +7,44 @@ namespace OrcaCore.DeveloperSurface.Guards;
 public sealed class SqlServerProviderExpectedRedGuards
 {
     [Fact]
+    public void CanonicalSpecs_ContainTheApprovedSqlServerProviderContract()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        var developerSurface = File.ReadAllText(Path.Combine(
+            root,
+            "openspec",
+            "specs",
+            "developer-facing-surface",
+            "spec.md"));
+        var durablePersistence = File.ReadAllText(Path.Combine(
+            root,
+            "openspec",
+            "specs",
+            "durable-persistence-and-outbox",
+            "spec.md"));
+        var quality = File.ReadAllText(Path.Combine(
+            root,
+            "openspec",
+            "specs",
+            "quality-and-verification",
+            "spec.md"));
+        var repository = File.ReadAllText(Path.Combine(
+            root,
+            "openspec",
+            "specs",
+            "repository-foundation",
+            "spec.md"));
+
+        developerSurface.Should().Contain("production `AddOrcaCoreSqlServerDurableProvider(SqlServerDurableProviderOptions)`");
+        developerSurface.Should().Contain("`OrcaCore.Providers.SqlServer`");
+        durablePersistence.Should().Contain("only the three approved v1 providers remain");
+        quality.Should().Contain("Each of the exact 12 packaged assemblies SHALL");
+        quality.Should().NotContain("Each of the exact 11 packaged assemblies SHALL");
+        repository.Should().Contain("`Microsoft.Data.SqlClient` SHALL remain in `OrcaCore.Providers.SqlServer`");
+        repository.Should().Contain("`Testcontainers.MsSql` SHALL remain test-only");
+    }
+
+    [Fact]
     public void Product_ContainsTheApprovedSqlServerProviderProject()
     {
         var root = FixtureDefinitions.RepositoryRoot();
