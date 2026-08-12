@@ -28,6 +28,7 @@
     <ProjectReference Include="../../src/OrcaCore.Durable.Hosting/OrcaCore.Durable.Hosting.csproj" />
     <ProjectReference Include="../../src/OrcaCore.Providers.InMemory/OrcaCore.Providers.InMemory.csproj" />
     <ProjectReference Include="../../src/OrcaCore.Providers.PostgreSql/OrcaCore.Providers.PostgreSql.csproj" />
+    <ProjectReference Include="../../src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj" />
     <ProjectReference Include="../../src/OrcaCore.Dag/OrcaCore.Dag.csproj" />
     <ProjectReference Include="../../src/OrcaCore.Dag.Hosting/OrcaCore.Dag.Hosting.csproj" />
   </ItemGroup>

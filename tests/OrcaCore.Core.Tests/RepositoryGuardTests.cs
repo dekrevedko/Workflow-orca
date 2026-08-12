@@ -312,7 +312,6 @@ public sealed partial class RepositoryGuardTests
                      "OrcaCore.Providers.RabbitMq",
                      "OrcaCore.Providers.Redis",
                      "OrcaCore.Providers.Relational",
-                     "OrcaCore.Providers.SqlServer",
                      "OrcaCore.Providers.ZeroMq"
                  })
         {

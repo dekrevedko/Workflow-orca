@@ -1,0 +1,7 @@
+# orcacore-public-api-v1
+assembly OrcaCore.Dag.Hosting
+type public sealed class OrcaCore.Dag.Hosting.DagHostOptions
+  ctor public .ctor()
+  property [System.Private.CoreLib]System.Int32 MaxConcurrentNodes { get:public; init:public }
+type public static class OrcaCore.Dag.Hosting.OrcaCoreDagHostingServiceCollectionExtensions attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.ExtensionAttribute(), [System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  method public static AddOrcaCoreDag([Microsoft.Extensions.DependencyInjection.Abstractions]Microsoft.Extensions.DependencyInjection.IServiceCollection! services, [OrcaCore.Dag.Hosting]OrcaCore.Dag.Hosting.DagHostOptions! options) -> [Microsoft.Extensions.DependencyInjection.Abstractions]Microsoft.Extensions.DependencyInjection.IServiceCollection! attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.ExtensionAttribute()]

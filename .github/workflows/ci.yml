@@ -106,6 +106,9 @@ jobs:
           tests/OrcaCore.Providers.PostgreSql.Tests/OrcaCore.Providers.PostgreSql.Tests.csproj
           --no-build -c Release --logger trx --results-directory TestResults &&
           dotnet test
+          tests/OrcaCore.Providers.SqlServer.Tests/OrcaCore.Providers.SqlServer.Tests.csproj
+          --no-build -c Release --logger trx --results-directory TestResults &&
+          dotnet test
           tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj
           --no-build -c Release --logger trx --results-directory TestResults
 

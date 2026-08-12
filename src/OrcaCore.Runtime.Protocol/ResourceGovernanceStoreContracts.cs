@@ -1,8 +1,10 @@
 using System.Security.Cryptography;
+using System.Text.Json.Serialization;
 
 namespace OrcaCore.Runtime.Protocol.ResourceGovernance;
 
 /// <summary>One validated record in a serialized durable-resource governance stream.</summary>
+[JsonConverter(typeof(ResourceGovernanceRecordJsonConverter))]
 public sealed class ResourceGovernanceRecord
 {
     /// <summary>The only protocol format accepted by the first release.</summary>

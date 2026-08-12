@@ -1,0 +1,15 @@
+# orcacore-public-api-v1
+assembly OrcaCore.Engine.Ephemeral
+type public sealed class OrcaCore.Hosting.EphemeralEngineHostOptions attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor public .ctor()
+  property [OrcaCore]OrcaCore.Hosting.StructuredExecutionHostOptions! StructuredExecution { get:public; init:public }
+  property [System.Private.CoreLib]System.Collections.Generic.IReadOnlyList`1[[OrcaCore.Engine.Ephemeral]OrcaCore.Hosting.TransientPoolDefinition!]! TransientPools { get:public; init:public }
+type public sealed class OrcaCore.Hosting.OrcaCoreEphemeralEngineBuilder attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  method public AddWorkflow<TInput, TOutput>([OrcaCore]OrcaCore.EphemeralWorkflowDefinition`2[!!TInput?, !!TOutput?]! definition) -> [OrcaCore.Engine.Ephemeral]OrcaCore.Hosting.OrcaCoreEphemeralEngineBuilder! where [TInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]; TOutput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]]
+  method public AddWorkflow<TInput>([OrcaCore]OrcaCore.EphemeralWorkflowDefinition`1[!!TInput?]! definition) -> [OrcaCore.Engine.Ephemeral]OrcaCore.Hosting.OrcaCoreEphemeralEngineBuilder! where [TInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]]
+type public static class OrcaCore.Hosting.OrcaCoreEphemeralEngineServiceCollectionExtensions attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.ExtensionAttribute(), [System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  method public static AddOrcaCoreEphemeralEngine([Microsoft.Extensions.DependencyInjection.Abstractions]Microsoft.Extensions.DependencyInjection.IServiceCollection! services, [OrcaCore.Engine.Ephemeral]OrcaCore.Hosting.EphemeralEngineHostOptions! options) -> [OrcaCore.Engine.Ephemeral]OrcaCore.Hosting.OrcaCoreEphemeralEngineBuilder! attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.ExtensionAttribute()]
+type public sealed class OrcaCore.Hosting.TransientPoolDefinition attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  method public static Create([OrcaCore]OrcaCore.TransientPoolName! name, [System.Private.CoreLib]System.Int32 capacity) -> [OrcaCore.Engine.Ephemeral]OrcaCore.Hosting.TransientPoolDefinition!
+  property [OrcaCore]OrcaCore.TransientPoolName! Name { get:public }
+  property [System.Private.CoreLib]System.Int32 Capacity { get:public }

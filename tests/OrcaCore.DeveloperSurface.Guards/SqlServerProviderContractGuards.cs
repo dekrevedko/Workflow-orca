@@ -3,8 +3,8 @@ using AwesomeAssertions;
 namespace OrcaCore.DeveloperSurface.Guards;
 
 [Trait(GuardTraits.Phase, GuardTraits.Phase0)]
-[Trait(GuardTraits.Disposition, GuardTraits.ExpectedRed)]
-public sealed class SqlServerProviderExpectedRedGuards
+[Trait(GuardTraits.Disposition, GuardTraits.Infrastructure)]
+public sealed class SqlServerProviderContractGuards
 {
     [Fact]
     public void CanonicalSpecs_ContainTheApprovedSqlServerProviderContract()
@@ -68,7 +68,7 @@ public sealed class SqlServerProviderExpectedRedGuards
             "v1-public-contract.json"));
 
         contract.Should().Contain("\"id\": \"OrcaCore.Providers.SqlServer\"");
-        contract.Should().Contain("\"assembly\": \"OrcaCore.Providers.SqlServer\"");
+        contract.Should().Contain("\"assembly\":\"OrcaCore.Providers.SqlServer\"");
         PublicSurfaceCatalog.TargetAssemblies.Select(assembly => assembly.Name)
             .Should().Contain("OrcaCore.Providers.SqlServer");
     }

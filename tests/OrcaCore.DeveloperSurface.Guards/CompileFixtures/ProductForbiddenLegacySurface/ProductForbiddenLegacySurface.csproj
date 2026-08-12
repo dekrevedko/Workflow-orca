@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
     <Phase0PackageVersion Condition="'$(Phase0PackageVersion)' == ''">0.0.0-phase0</Phase0PackageVersion>
     <RestoreSources>$(Phase0PackageFeed)</RestoreSources>
     <Phase0PackageCache Condition="'$(Phase0PackageCache)' == ''">$(MSBuildThisFileDirectory)obj/package-cache/$(Phase0PackageVersion)</Phase0PackageCache>

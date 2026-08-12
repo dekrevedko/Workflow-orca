@@ -14,6 +14,7 @@
     { "id": "OrcaCore.Durable.Hosting", "tier":"DurableHosting", "dependencies": ["OrcaCore", "OrcaCore.Engine.Durable", "OrcaCore.Provider.Abstractions"] },
     { "id": "OrcaCore.Providers.InMemory", "tier":"ProviderAuthoring", "dependencies": ["OrcaCore", "OrcaCore.Runtime.Protocol", "OrcaCore.Provider.Abstractions"] },
     { "id": "OrcaCore.Providers.PostgreSql", "tier":"ProviderAuthoring", "dependencies": ["OrcaCore", "OrcaCore.Runtime.Protocol", "OrcaCore.Provider.Abstractions"] },
+    { "id": "OrcaCore.Providers.SqlServer", "tier":"ProviderAuthoring", "dependencies": ["OrcaCore", "OrcaCore.Runtime.Protocol", "OrcaCore.Provider.Abstractions"] },
     { "id": "OrcaCore.Dag", "tier":"Dag", "dependencies": ["OrcaCore"] },
     { "id": "OrcaCore.Dag.Hosting", "tier":"DagHosting", "dependencies": ["OrcaCore.Dag", "OrcaCore.Durable.Hosting"] }
   ],
@@ -65,7 +66,8 @@
     "OrcaCore.Engine.Durable->OrcaCore.Engine.Durable.Tests",
     "OrcaCore.Engine.Durable->OrcaCore.ProviderCertification",
     "OrcaCore.Engine.Ephemeral->OrcaCore.Engine.Ephemeral.Tests",
-    "OrcaCore.Providers.PostgreSql->OrcaCore.Providers.PostgreSql.Tests"
+    "OrcaCore.Providers.PostgreSql->OrcaCore.Providers.PostgreSql.Tests",
+    "OrcaCore.Providers.SqlServer->OrcaCore.Providers.SqlServer.Tests"
   ],
   "authoredLocationRoots": ["workflow:$", "dag:$"],
   "authoredLocationTokens": [
@@ -136,6 +138,7 @@
     {"family":"`IDurableResourceGovernanceStore`","namespace":"OrcaCore.Provider.Abstractions.ResourceGovernance","assembly":"OrcaCore.Provider.Abstractions"},
     {"family":"Four barrier enum/fact/gate types","namespace":"OrcaCore.Engine.Durable.ResourceGovernance","assembly":"OrcaCore.Engine.Durable"},
     {"family":"In-memory provider extension","namespace":"OrcaCore.Providers.InMemory","assembly":"OrcaCore.Providers.InMemory"},
-    {"family":"PostgreSQL options/extension","namespace":"OrcaCore.Providers.PostgreSql","assembly":"OrcaCore.Providers.PostgreSql"}
+    {"family":"PostgreSQL options/extension","namespace":"OrcaCore.Providers.PostgreSql","assembly":"OrcaCore.Providers.PostgreSql"},
+    {"family":"SQL Server options/extension","namespace":"OrcaCore.Providers.SqlServer","assembly":"OrcaCore.Providers.SqlServer"}
   ]
 }

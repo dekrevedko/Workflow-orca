@@ -47,7 +47,7 @@ public sealed partial class NormativeContractInfrastructureGuards
         Contract.AudienceTiers.Should().Equal(Enum.GetNames<InterfaceTier>());
         Contract.CompanionFixtures.Should().Equal("kubernetes-companion");
         Contract.CompanionSha256.Should().MatchRegex("^[A-F0-9]{64}$");
-        Contract.Packages.Should().HaveCount(11);
+        Contract.Packages.Should().HaveCount(12);
         Contract.Packages.Select(package => package.Id).Should().OnlyHaveUniqueItems();
         Contract.Packages.Select(package => package.Tier).Distinct().Should().BeEquivalentTo(
             "Application", "Internal", "Engine", "RuntimeProtocol", "ProviderAuthoring",
@@ -72,14 +72,15 @@ public sealed partial class NormativeContractInfrastructureGuards
             "OrcaCore.Engine.Durable->OrcaCore.Engine.Durable.Tests",
             "OrcaCore.Engine.Durable->OrcaCore.ProviderCertification",
             "OrcaCore.Engine.Ephemeral->OrcaCore.Engine.Ephemeral.Tests",
-            "OrcaCore.Providers.PostgreSql->OrcaCore.Providers.PostgreSql.Tests");
+            "OrcaCore.Providers.PostgreSql->OrcaCore.Providers.PostgreSql.Tests",
+            "OrcaCore.Providers.SqlServer->OrcaCore.Providers.SqlServer.Tests");
         Contract.Diagnostics.Select(x => x.Code).Should().Equal(
             Contract.WorkflowDiagnostics.Concat(Contract.DagDiagnostics));
         Contract.Diagnostics.Should().OnlyContain(x => x.Severity == "Error");
         Contract.Diagnostics.Select(x => x.Name).Should().OnlyHaveUniqueItems();
         Contract.Diagnostics.Select(x => x.Meaning).Should().OnlyHaveUniqueItems();
         Contract.Failures.Select(x => x.Code).Should().Equal(Contract.FailureCodes);
-        Contract.Ownership.Should().HaveCount(12);
+        Contract.Ownership.Should().HaveCount(13);
     }
 
     [Fact]

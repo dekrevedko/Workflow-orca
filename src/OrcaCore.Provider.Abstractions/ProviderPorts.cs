@@ -1,6 +1,7 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Primitives;
+using System.Text.Json.Serialization;
 using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
 using ProjectionWorkflowInstanceSnapshot = global::OrcaCore.Abstractions.Providers.WorkflowProjectionSnapshot;
 
@@ -203,6 +204,7 @@ public static class InboxRouteKinds
 }
 
 /// <summary>Identifies one serialized direct, correlation, or per-instance fanout inbox route.</summary>
+[JsonConverter(typeof(InboxRouteKeyJsonConverter))]
 public sealed record InboxRouteKey
 {
     private InboxRouteKey(

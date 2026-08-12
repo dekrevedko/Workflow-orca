@@ -14,6 +14,19 @@ $packageCache = Join-Path $root 'obj/package-cache'
 $feed = Join-Path $PSScriptRoot '..\..\artifacts\phase0-packages'
 $version = '0.0.0-phase0'
 
+function ConvertTo-TaskOrder([string] $TaskId) {
+    if ($TaskId -notmatch '^(?<major>\d+)\.(?<minor>\d+)(?<suffix>[a-z]?)$') {
+        throw "Unsupported task identifier '$TaskId'."
+    }
+    $suffixOrder = if ([string]::IsNullOrEmpty($Matches.suffix)) {
+        0
+    }
+    else {
+        [int][char]$Matches.suffix - [int][char]'a' + 1
+    }
+    return [version]::new([int]$Matches.major, [int]$Matches.minor, $suffixOrder)
+}
+
 if (Test-Path -LiteralPath $packageCache) {
     Remove-Item -LiteralPath $packageCache -Recurse -Force
 }
@@ -48,7 +61,7 @@ foreach ($package in Get-ChildItem -LiteralPath $feed -Filter "OrcaCore*.$versio
     [IO.File]::WriteAllText((Join-Path $target '.nupkg.metadata'), $metadata)
 }
 
-$completedTaskVersion = [version]$CompletedTask
+$completedTaskVersion = ConvertTo-TaskOrder $CompletedTask
 $selectedDefinitions = @($definitions | Where-Object {
     if (-not [string]::IsNullOrWhiteSpace($GuardTask) -and $_.guardTask -ne $GuardTask) {
         return $false
@@ -56,7 +69,7 @@ $selectedDefinitions = @($definitions | Where-Object {
     $isComplete = if ($null -ne $_.turnsGreenTask) {
         if ($_.turnsGreenSection -lt $CompletedSection) { $true }
         elseif ($_.turnsGreenSection -gt $CompletedSection) { $false }
-        else { [version]$_.turnsGreenTask -le $completedTaskVersion }
+        else { (ConvertTo-TaskOrder $_.turnsGreenTask) -le $completedTaskVersion }
     }
     else {
         $_.turnsGreenSection -le $CompletedSection

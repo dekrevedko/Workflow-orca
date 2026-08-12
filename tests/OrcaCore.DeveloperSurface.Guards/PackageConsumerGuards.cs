@@ -17,7 +17,7 @@ public sealed class PackageConsumerInfrastructureGuards
         var definitions = FixtureDefinitions.Read<PackageConsumerFixture[]>(
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/package-consumer-fixtures.json");
 
-        definitions.Should().HaveCount(8);
+        definitions.Should().HaveCount(9);
         definitions.Select(x => x.Id).Should().OnlyHaveUniqueItems();
         definitions.Should().OnlyContain(x =>
             x.TurnsGreenSection == 7 || x.TurnsGreenSection == 8);

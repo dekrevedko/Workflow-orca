@@ -1,0 +1,27 @@
+# orcacore-public-api-v1
+assembly OrcaCore.Dag
+type public sealed class OrcaCore.Dag.DagDefinitionRegistrationConflictException : [OrcaCore]OrcaCore.OrcaCoreException~ attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  property [OrcaCore]OrcaCore.DefinitionRegistrationConflict! Conflict { get:public }
+type public sealed class OrcaCore.Dag.DagNodeId interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Dag]OrcaCore.Dag.DagNodeId~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public static Create([System.Private.CoreLib]System.String! value) -> [OrcaCore.Dag]OrcaCore.Dag.DagNodeId!
+  method public virtual sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagNodeId? other) -> [System.Private.CoreLib]System.Boolean
+  property [System.Private.CoreLib]System.String! Value { get:public }
+type public sealed class OrcaCore.Dag.DagRunDefinitionMismatchException : [OrcaCore]OrcaCore.OrcaCoreException~ attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  property [OrcaCore.Dag]OrcaCore.Dag.DagRunId! RunId { get:public }
+  property [OrcaCore]OrcaCore.DefinitionId! ActualDefinitionId { get:public }
+  property [OrcaCore]OrcaCore.DefinitionId! ExpectedDefinitionId { get:public }
+type public sealed class OrcaCore.Dag.DagRunId interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Dag]OrcaCore.Dag.DagRunId~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public static Parse([System.Private.CoreLib]System.String! value) -> [OrcaCore.Dag]OrcaCore.Dag.DagRunId!
+  method public static TryParse([System.Private.CoreLib]System.String? value, out [OrcaCore.Dag]OrcaCore.Dag.DagRunId? runId) -> [System.Private.CoreLib]System.Boolean
+  method public virtual sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagRunId? other) -> [System.Private.CoreLib]System.Boolean
+  property [System.Private.CoreLib]System.Guid Value { get:public }
+type public sealed class OrcaCore.Dag.DagRunNotFoundException : [OrcaCore]OrcaCore.OrcaCoreException~ attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  property [OrcaCore.Dag]OrcaCore.Dag.DagRunId! RunId { get:public }
+type public sealed class OrcaCore.Dag.DagStartIdempotencyConflictException : [OrcaCore]OrcaCore.OrcaCoreException~ attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  property [OrcaCore]OrcaCore.StartIdempotencyConflict! Conflict { get:public }

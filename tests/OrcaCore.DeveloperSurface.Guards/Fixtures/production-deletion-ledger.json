@@ -10,10 +10,10 @@
   ],
   "expectedCounts": {
     "families": 24,
-    "physicallyDeletedPaths": 136,
+    "physicallyDeletedPaths": 134,
     "compileExcludedEntries": 1,
     "orphanedProductionRoots": 0,
-    "retiredPackageArtifacts": 6,
+    "retiredPackageArtifacts": 5,
     "symbolInventories": 3
   },
   "symbolInventories": [
@@ -515,15 +515,14 @@
         "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
         "durable-persistence-and-outbox::Provider implementations certify messaging ownership parity"
       ],
-      "owner": "task:7.17d",
+      "owner": "active:OrcaCore.Providers.SqlServer",
       "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj", "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Providers.SqlServer"],
-      "successorPaths": [],
+      "successorPaths": ["src/OrcaCore.Providers.SqlServer", "tests/OrcaCore.Providers.SqlServer.Tests"],
       "symbolFamilies": ["SQL Server provider project/package", "SQL Server resource-ownership migration"],
-      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/InfrastructureGuards.cs#SqlServerReentryAmendment_IsCoherentAndPrecedesProductSource"],
-      "deletedPaths": ["src/OrcaCore.Providers.SqlServer/Migrations/008_resource_ownership.sql", "src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/InfrastructureGuards.cs#SqlServerReentry_IsCoherentAndOwnsTheCompleteCurrentProviderSlice", "test:tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderInfrastructureTests.cs#Restart_RehydratesCommittedWorkflowStateFromSqlServer", "test:tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderInfrastructureTests.cs#CompetingHosts_SerializeTheSameExpectedVersionAcrossIndependentStores"],
+      "deletedPaths": ["src/OrcaCore.Providers.SqlServer/Migrations/008_resource_ownership.sql"],
       "closureDeletedPaths": [
         "src/OrcaCore.Providers.SqlServer/Diagnostics/OrcaCoreSqlServerProviderDiagnostics.cs",
-        "src/OrcaCore.Providers.SqlServer/Migrations/001_initial.sql",
         "src/OrcaCore.Providers.SqlServer/Migrations/002_claim_leases.sql",
         "src/OrcaCore.Providers.SqlServer/Migrations/003_resource_pools.sql",
         "src/OrcaCore.Providers.SqlServer/Migrations/004_history_projections.sql",
@@ -538,9 +537,7 @@
         "src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.Timers.cs",
         "src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs",
         "src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStoreMigrations.cs"
-      ],
-      "resolvedRoots": ["src/OrcaCore.Providers.SqlServer", "tests/OrcaCore.Providers.SqlServer.Tests"],
-      "packageArtifacts": ["OrcaCore.Providers.SqlServer"]
+      ]
     },
     {
       "id": "zeromq-provider-orphan",

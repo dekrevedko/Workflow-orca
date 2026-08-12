@@ -152,7 +152,7 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
             .Single(item => RequiredString(item, "id") == "sqlserver-provider-orphan");
 
         RequiredString(family, "disposition").Should().Be("ReplaceOrRelocate");
-        RequiredString(family, "owner").Should().Be("task:7.17d");
+        RequiredString(family, "owner").Should().Be("active:OrcaCore.Providers.SqlServer");
         var companion = File.ReadAllText(Path.Combine(
             root,
             "openspec",
@@ -160,7 +160,7 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
             "reshape-developer-facing-interfaces",
             "production-deletion-ledger.md"));
         companion.Should().Contain(
-            "| Provisional SQL Server project/package and migration | Replace/relocate | task 7.17d current-release provider re-entry |");
+            "| Provisional SQL Server project/package and migration | Replace/relocate | `OrcaCore.Providers.SqlServer` |");
     }
 
     [Fact]

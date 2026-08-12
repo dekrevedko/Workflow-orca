@@ -15,7 +15,6 @@ public sealed class InfrastructureGuards
         "OrcaCore.Providers.RabbitMq",
         "OrcaCore.Providers.Redis",
         "OrcaCore.Providers.Relational",
-        "OrcaCore.Providers.SqlServer",
         "OrcaCore.Providers.ZeroMq"
     ];
 
@@ -25,7 +24,8 @@ public sealed class InfrastructureGuards
         PublicSurfaceCatalog.TargetAssemblies.Select(x => x.Name).Should().Equal(
             "OrcaCore", "OrcaCore.Core", "OrcaCore.Engine.Ephemeral", "OrcaCore.Runtime.Protocol",
             "OrcaCore.Provider.Abstractions", "OrcaCore.Engine.Durable", "OrcaCore.Durable.Hosting",
-            "OrcaCore.Providers.InMemory", "OrcaCore.Providers.PostgreSql", "OrcaCore.Dag", "OrcaCore.Dag.Hosting");
+            "OrcaCore.Providers.InMemory", "OrcaCore.Providers.PostgreSql", "OrcaCore.Providers.SqlServer",
+            "OrcaCore.Dag", "OrcaCore.Dag.Hosting");
         PublicSurfaceCatalog.TargetAssemblies.Select(x => x.Tier).Distinct().Should().BeEquivalentTo(new[]
         {
             InterfaceTier.Application, InterfaceTier.Internal, InterfaceTier.Engine, InterfaceTier.RuntimeProtocol,
@@ -60,11 +60,9 @@ public sealed class InfrastructureGuards
 
         var packageVersions = File.ReadAllText(Path.Combine(root, "Directory.Packages.props"));
         packageVersions.Should().NotContainAny(
-            "Microsoft.Data.SqlClient",
             "NetMQ",
             "RabbitMQ.Client",
             "StackExchange.Redis",
-            "Testcontainers.MsSql",
             "Testcontainers.RabbitMq",
             "Testcontainers.Redis");
 
@@ -74,7 +72,7 @@ public sealed class InfrastructureGuards
     }
 
     [Fact]
-    public void SqlServerReentryAmendment_IsCoherentAndPrecedesProductSource()
+    public void SqlServerReentry_IsCoherentAndOwnsTheCompleteCurrentProviderSlice()
     {
         var root = FixtureDefinitions.RepositoryRoot();
         var repositoryInstructions = File.ReadAllText(Path.Combine(root, "CLAUDE.md"));
@@ -103,7 +101,7 @@ public sealed class InfrastructureGuards
             "changes",
             "reshape-developer-facing-interfaces",
             "tasks.md"));
-        tasks.Should().Contain("- [ ] 7.17d ");
+        tasks.Should().Contain("7.17d ");
         tasks.Should().Contain("synchronize the approved SQL Server deltas into canonical `openspec/specs/`");
         tasks.Should().Contain("`.github/workflows/ci.yml`");
 
@@ -135,14 +133,13 @@ public sealed class InfrastructureGuards
         registry.Should().Contain("Additional durable storage providers beyond PostgreSQL and SQL Server");
 
         var docsGuide = File.ReadAllText(Path.Combine(root, "docs", "README.md"));
-        docsGuide.Should().Contain("OrcaCore.Providers.SqlServer` (task 7.17d target)");
+        docsGuide.Should().Contain("OrcaCore.Providers.SqlServer`");
         var technicalOverview = File.ReadAllText(Path.Combine(root, "docs", "project-technical-overview.md"));
-        technicalOverview.Should().Contain("approved third first-release provider target under task 7.17d");
-
+        technicalOverview.Should().Contain("third first-release provider");
         EnumerateNonBuildFiles(Path.Combine(root, "src", "OrcaCore.Providers.SqlServer"))
-            .Should().BeEmpty("independent amendment approval must precede SQL Server product restoration");
+            .Should().NotBeEmpty("the approved SQL Server provider must own current production source");
         EnumerateNonBuildFiles(Path.Combine(root, "tests", "OrcaCore.Providers.SqlServer.Tests"))
-            .Should().BeEmpty("independent amendment approval must precede SQL Server certification source");
+            .Should().NotBeEmpty("the approved SQL Server provider must own real-storage certification");
     }
 
     [Fact]

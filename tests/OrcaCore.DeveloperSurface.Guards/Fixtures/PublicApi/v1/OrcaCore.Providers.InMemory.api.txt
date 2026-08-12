@@ -1,0 +1,4 @@
+# orcacore-public-api-v1
+assembly OrcaCore.Providers.InMemory
+type public static class OrcaCore.Providers.InMemory.OrcaCoreInMemoryProviderServiceCollectionExtensions attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.ExtensionAttribute(), [System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  method public static AddOrcaCoreInMemoryDurableProvider([Microsoft.Extensions.DependencyInjection.Abstractions]Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> [Microsoft.Extensions.DependencyInjection.Abstractions]Microsoft.Extensions.DependencyInjection.IServiceCollection! attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.ExtensionAttribute()]
