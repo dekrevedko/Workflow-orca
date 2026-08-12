@@ -46,9 +46,10 @@ The solution file is [`OrcaCore.slnx`](../OrcaCore.slnx). The main projects are:
 | [`OrcaCore.Durable.Hosting`](../src/OrcaCore.Durable.Hosting) | Owns `AddOrcaCoreDurableEngine` and callback-only `AddOrcaCoreDurableEventIngress`. |
 | [`OrcaCore.Providers.InMemory`](../src/OrcaCore.Providers.InMemory) | Development/test provider; owns `AddOrcaCoreInMemoryDurableProvider`. |
 | [`OrcaCore.Providers.PostgreSql`](../src/OrcaCore.Providers.PostgreSql) | Production provider; owns `AddOrcaCorePostgreSqlDurableProvider`. |
+| `OrcaCore.Providers.SqlServer` (task 7.17d target) | Approved production-provider package and `AddOrcaCoreSqlServerDurableProvider` owner; source, package, and real-storage certification remain pending the approved implementation slice. |
 | [`OrcaCore.Dag`](../src/OrcaCore.Dag) | Typed DAG planning and operation contracts. |
 | [`OrcaCore.Dag.Hosting`](../src/OrcaCore.Dag.Hosting) | Sole DAG-to-durable bridge; owns `AddOrcaCoreDag`. |
-| *removed / future* | The catch-all hosting and provisional SQL Server, RabbitMQ, Redis, shared Relational, and ZeroMQ project roots are absent. Broker adapters are application/companion-owned; additional durable storage providers require a future amendment. |
+| *removed / future* | The catch-all hosting, RabbitMQ, Redis, shared Relational, and ZeroMQ project roots are absent. The deleted provisional SQL Server shape is not restored; task 7.17d supplies a new current-port implementation. Broker adapters are application/companion-owned, and durable storage providers beyond PostgreSQL and SQL Server require a future amendment. |
 | [`tests/`](../tests) | Core, engine, hosting, provider certification, integration, and support test projects. |
 | [`samples/`](../samples) | Runnable console, generic-host, and Blazor dashboard examples. |
 | [`benchmarks/`](../benchmarks) | BenchmarkDotNet scenarios for execution, providers, management, and scheduling. |

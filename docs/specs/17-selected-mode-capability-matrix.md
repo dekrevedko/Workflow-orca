@@ -1947,7 +1947,8 @@ dependency-only meta-package. The exhaustive first-release manifest is:
 | `OrcaCore.Engine.Durable` | Internal durable engine implementation | `OrcaCore`, `OrcaCore.Core`, `OrcaCore.Runtime.Protocol`, `OrcaCore.Provider.Abstractions` | yes |
 | `OrcaCore.Durable.Hosting` | Durable engine/ingress roles, options, management/recovery/diagnostics, `OrcaCoreDurableEngineServiceCollectionExtensions` | `OrcaCore`, `OrcaCore.Engine.Durable`, `OrcaCore.Provider.Abstractions` | yes |
 | `OrcaCore.Providers.InMemory` | Development/test complete durable provider role | `OrcaCore`, `OrcaCore.Runtime.Protocol`, `OrcaCore.Provider.Abstractions` | yes |
-| `OrcaCore.Providers.PostgreSql` | First production complete certified durable provider role and options | `OrcaCore`, `OrcaCore.Runtime.Protocol`, `OrcaCore.Provider.Abstractions` | yes |
+| `OrcaCore.Providers.PostgreSql` | Production complete certified durable provider role and options | `OrcaCore`, `OrcaCore.Runtime.Protocol`, `OrcaCore.Provider.Abstractions` | yes |
+| `OrcaCore.Providers.SqlServer` | Production complete certified durable provider role and options | `OrcaCore`, `OrcaCore.Runtime.Protocol`, `OrcaCore.Provider.Abstractions` | yes |
 | `OrcaCore.Dag` | Public typed DAG authoring/operation contracts; no visualization surface | `OrcaCore` | yes |
 | `OrcaCore.Dag.Hosting` | DAG coordinator/registry/options and sole durable child friend bridge | `OrcaCore.Dag`, `OrcaCore.Durable.Hosting` | yes |
 
@@ -1968,6 +1969,7 @@ different namespace from an unqualified signature sketch:
 | Four barrier enum/fact/gate types | `OrcaCore.Engine.Durable.ResourceGovernance` | `OrcaCore.Engine.Durable` (internal) |
 | In-memory provider extension | `OrcaCore.Providers.InMemory` | `OrcaCore.Providers.InMemory` |
 | PostgreSQL options/extension | `OrcaCore.Providers.PostgreSql` | `OrcaCore.Providers.PostgreSql` |
+| SQL Server options/extension | `OrcaCore.Providers.SqlServer` | `OrcaCore.Providers.SqlServer` |
 
 Every direct OrcaCore edge not listed is forbidden. In particular, protocol never references
 provider abstractions, application/core never references DAG or advanced packages, providers never
@@ -1989,8 +1991,9 @@ metadata. The complete product-friend set is:
 
 These CLR access grants do not create reverse package dependencies or public application/provider
 SPIs. Exact owning white-box test friends are `OrcaCore.Core.Tests`,
-`OrcaCore.Engine.Ephemeral.Tests`, `OrcaCore.Engine.Durable.Tests`, `OrcaCore.Hosting.Tests`, and
-`OrcaCore.Providers.PostgreSql.Tests`. The only cross-package test friend remains
+`OrcaCore.Engine.Ephemeral.Tests`, `OrcaCore.Engine.Durable.Tests`, `OrcaCore.Hosting.Tests`,
+`OrcaCore.Providers.PostgreSql.Tests`, and `OrcaCore.Providers.SqlServer.Tests`. The only
+cross-package test friend remains
 `OrcaCore.Engine.Durable -> OrcaCore.ProviderCertification` for the four internal post-commit
 barrier types. Acceptance, behavior-scenario, compile-fixture, and integration assemblies receive
 no friend access. Every other friend is forbidden; a future product or test friend requires a
@@ -2003,7 +2006,7 @@ feed `artifacts/phase0-packages`. Clean fixtures use only `PackageReference` and
 provider/custom-host implementers; ordinary applications do not directly select them or expose
 their types in application signatures.
 
-The six first-release Microsoft-hosting entry points are exact and role-specific:
+The seven first-release Microsoft-hosting entry points are exact and role-specific:
 
 ```csharp
 namespace OrcaCore.Hosting
@@ -2072,6 +2075,25 @@ namespace OrcaCore.Providers.PostgreSql
     }
 }
 
+namespace OrcaCore.Providers.SqlServer
+{
+    public sealed class SqlServerDurableProviderOptions
+    {
+        public SqlServerDurableProviderOptions(
+            string connectionString,
+            string schema);
+        public string ConnectionString { get; }
+        public string Schema { get; }
+    }
+
+    public static class OrcaCoreSqlServerProviderServiceCollectionExtensions
+    {
+        public static IServiceCollection AddOrcaCoreSqlServerDurableProvider(
+            this IServiceCollection services,
+            SqlServerDurableProviderOptions options);
+    }
+}
+
 namespace OrcaCore.Dag.Hosting
 {
     public static class OrcaCoreDagHostingServiceCollectionExtensions
@@ -2096,9 +2118,10 @@ engine includes ingress and owns progression; registering callback-only ingress 
 is rejected. `AddOrcaCoreEphemeralEngine` registers only process-local wait matching and no durable
 ingress contract; the durable engine/ingress role registers `IWorkflowEventIngress`.
 The in-memory durable provider is development/test-only and makes no process-restart claim.
-`AddOrcaCorePostgreSqlDurableProvider` supplies the first complete production certified role set;
-its required nonblank `ConnectionString` and `Schema` are copied and validated before any partial
-service registration. Applications never register individual runtime-protocol ports.
+`AddOrcaCorePostgreSqlDurableProvider` and `AddOrcaCoreSqlServerDurableProvider` each supply one
+complete independently certified production role set. Each provider's required nonblank
+`ConnectionString` and `Schema` are copied and validated before any partial service registration.
+Applications never register individual runtime-protocol ports.
 `AddOrcaCoreDag` requires the durable-engine role and adds only the DAG coordinator/registry. There
 is no catch-all `AddOrcaCore`, `AddOrcaCoreHostedServices`, second hosted-service toggle, implicit
 mode selection, serializer replacement hook, binder overload, or partial provider-role shortcut.

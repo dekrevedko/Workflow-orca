@@ -27,11 +27,13 @@ compiler/execution kernel in `OrcaCore.Core`:
    projections through provider ports. The durable driver advances a workflow
    segment until it completes or yields a restart-safe continuation.
 
-PostgreSQL and the development/test in-memory provider implement the exact first-release durable
-provider roles. The provisional SQL Server, broker, Redis, and shared Relational source/test roots
-are removed; additional durable storage providers require a future amendment and complete current
-certification. Hosting packages register internal runtimes, continuation processing, operational
-services, and telemetry.
+PostgreSQL and the development/test in-memory provider implement the current durable-provider
+source roles. SQL Server is the approved third first-release provider target under task 7.17d, but
+its new complete current-port source and real-storage certification are not yet implemented; the
+deleted provisional SQL Server shape is not restored. Broker, Redis, and shared Relational
+source/test roots remain removed, and durable storage providers beyond PostgreSQL and SQL Server
+require a future amendment and complete current certification. Hosting packages register internal
+runtimes, continuation processing, operational services, and telemetry.
 
 ## Approved v1 target boundaries
 

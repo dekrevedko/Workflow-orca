@@ -52,7 +52,7 @@ OrcaCore.Durable.Hosting <- OrcaCore.Dag.Hosting <- companion scheduler/applicat
 
 `OrcaCore` is the primary application contract package, not a dependency-only meta-package, and owns the `OrcaCore` application namespace. Every other package has one assembly with the same identity as its PackageId and a fixed public/internal tier in the package manifest. Document 17 fixes the CLR namespace and assembly owner for every host-option, DAG, management, recovery, diagnostics, protocol, and provider family; unqualified sketches do not grant placement freedom. Application contracts never reference advanced seams. Runtime protocol never references provider abstractions. Engines may consume both advanced seams internally. `OrcaCore.Dag.Hosting` is the only DAG-to-durable-runtime product bridge and uses a named, versioned internal child-start/join contract exposed by `OrcaCore.Durable.Hosting` through `InternalsVisibleTo("OrcaCore.Dag.Hosting")`. The complete product and owning-test friend graph is closed by Decision 22; its one cross-package test edge remains `OrcaCore.Engine.Durable -> OrcaCore.ProviderCertification` for deterministic resource-governance barrier certification. `OrcaCore.Dag` does not pull provider or infrastructure SDKs into the core graph. A companion scheduler may be in `OrcaCore.slnx`, but no OrcaCore product project references it.
 
-Hosting extension classes are owned by their role assemblies rather than sharing one catch-all owner type. The first complete production durable provider is `OrcaCore.Providers.PostgreSql`; its one options object contains required nonblank `ConnectionString` and `Schema` values that registration copies and validates immediately, and its registration supplies the complete certified durable provider role set. `OrcaCore.Providers.InMemory` remains development/test only. Package fixtures validate only declared package references from a local Phase 0 feed; no project-reference transitivity or undeclared host package may make a consumer compile accidentally.
+Hosting extension classes are owned by their role assemblies rather than sharing one catch-all owner type. `OrcaCore.Providers.PostgreSql` and `OrcaCore.Providers.SqlServer` are the two complete production durable providers; each owns one options object with required nonblank `ConnectionString` and `Schema` values that registration copies and validates immediately, and each registration supplies the complete certified durable provider role set. `OrcaCore.Providers.InMemory` remains development/test only. Package fixtures validate only declared package references from a local Phase 0 feed; no project-reference transitivity or undeclared host package may make a consumer compile accidentally.
 
 `OrcaCore` owns immutable workflow-event contract descriptors, self-routing inbound envelopes, typed acceptance results, resumed/outbound application event projections, and durable authoring members. `OrcaCore.Durable.Hosting` owns `IWorkflowEventIngress`, the application-shaped `IWorkflowEventDispatcher`, its dispatch result/failure values, the durable engine/ingress composition builders, and hosted pumps. Serialized route/inbox/outbox records remain in `OrcaCore.Runtime.Protocol`; provider stores and raw commit records remain in `OrcaCore.Provider.Abstractions`; no application dispatcher receives an `OutboxWrite`, internal continuation kind, stream version, or provider state.
 
@@ -318,7 +318,7 @@ The ordinary instance management surface is intentionally small. `WorkflowInstan
 
 Durable event ingress and outbound dispatch follow Decisions 24 and 25. The ordinary facade exposes one self-routing acceptance operation rather than caller-selected delivery methods, never exposes wait sequence/fiber/scope/provider/checkpoint identity, and never returns `NoActiveWait`. Ephemeral hosting makes no no-loss event-ingress or durable-publish promise.
 
-Microsoft hosting entry points remain exact and role-specific: `OrcaCoreEphemeralEngineServiceCollectionExtensions.AddOrcaCoreEphemeralEngine(EphemeralEngineHostOptions)`, `OrcaCoreDurableEngineServiceCollectionExtensions.AddOrcaCoreDurableEngine(DurableEngineHostOptions)`, callback-only `AddOrcaCoreDurableEventIngress()`, development/test `AddOrcaCoreInMemoryDurableProvider()`, production `OrcaCorePostgreSqlProviderServiceCollectionExtensions.AddOrcaCorePostgreSqlDurableProvider(PostgreSqlDurableProviderOptions)`, and `OrcaCore.Dag.Hosting.AddOrcaCoreDag(DagHostOptions)`. The first two return their mode-specific composition builder rather than `IServiceCollection`; `AddWorkflow` is a builder operation, not another hosting role entry point. The PostgreSQL options require nonblank `ConnectionString` and `Schema`; all options are programmatic immutable configuration objects, are copied and validated immediately, and are not claimed to be configuration-binder DTOs. Identical repeated role registration is idempotent and conflicting role/options fail startup. Registering ephemeral and durable engine roles together fails startup. The callback-only role exposes durable event acceptance and continuation handoff but no registry, workflow catalog, worker, timer/reconciler, outbox dispatcher, or DAG coordinator. `AddOrcaCoreDag` requires the durable-engine role and adds only DAG coordination/registry. There is no catch-all `AddOrcaCore`, separate hosted-service toggle, implicit mode selection, serializer replacement hook, reflection discovery, or host-owned bulk facade.
+Microsoft hosting entry points remain exact and role-specific: `OrcaCoreEphemeralEngineServiceCollectionExtensions.AddOrcaCoreEphemeralEngine(EphemeralEngineHostOptions)`, `OrcaCoreDurableEngineServiceCollectionExtensions.AddOrcaCoreDurableEngine(DurableEngineHostOptions)`, callback-only `AddOrcaCoreDurableEventIngress()`, development/test `AddOrcaCoreInMemoryDurableProvider()`, production `OrcaCorePostgreSqlProviderServiceCollectionExtensions.AddOrcaCorePostgreSqlDurableProvider(PostgreSqlDurableProviderOptions)`, production `OrcaCoreSqlServerProviderServiceCollectionExtensions.AddOrcaCoreSqlServerDurableProvider(SqlServerDurableProviderOptions)`, and `OrcaCore.Dag.Hosting.AddOrcaCoreDag(DagHostOptions)`. The first two return their mode-specific composition builder rather than `IServiceCollection`; `AddWorkflow` is a builder operation, not another hosting role entry point. Both production-provider options require nonblank `ConnectionString` and `Schema`; all options are programmatic immutable configuration objects, are copied and validated immediately, and are not claimed to be configuration-binder DTOs. Identical repeated role registration is idempotent and conflicting role/options fail startup. Registering ephemeral and durable engine roles together fails startup. The callback-only role exposes durable event acceptance and continuation handoff but no registry, workflow catalog, worker, timer/reconciler, outbox dispatcher, or DAG coordinator. `AddOrcaCoreDag` requires the durable-engine role and adds only DAG coordination/registry. There is no catch-all `AddOrcaCore`, separate hosted-service toggle, implicit mode selection, serializer replacement hook, reflection discovery, or host-owned bulk facade.
 
 Advanced resource administration remains separate: `IDurableResourcePoolManagement.ListAsync`, `GetAsync`, and `ResizeAsync` expose exact aggregate snapshots and the closed resize result; `IDurableResourceLeaseRecovery` accepts trusted stop confirmation; and `IDurableResourceLeaseDiagnostics` exposes trusted outstanding-obligation discovery. Forced termination and workflow deadline follow Decision 9 for protected leased work and never imply that external work stopped.
 
@@ -421,7 +421,7 @@ semantics.
 
 ### 21. Treat the complete packaged API and active-test attribution as reviewed artifacts
 
-The package graph is not a public API baseline. Each of the exact 11 packaged assemblies has one
+The package graph is not a public API baseline. Each of the exact 12 packaged assemblies has one
 checked-in, deterministic baseline covering every externally visible type and declared member,
 including constructors, properties, methods, fields, events, generic arity and constraints,
 parameter modifiers/defaults, and return signatures. Verification compares both the current
@@ -451,7 +451,8 @@ grant CLR access only and do not add a package dependency in the reverse directi
 
 Owning white-box test assemblies may be exact friends of their implementation assembly:
 `OrcaCore.Core.Tests`, `OrcaCore.Engine.Ephemeral.Tests`, `OrcaCore.Engine.Durable.Tests`,
-`OrcaCore.Hosting.Tests`, and `OrcaCore.Providers.PostgreSql.Tests`. The existing
+`OrcaCore.Hosting.Tests`, `OrcaCore.Providers.PostgreSql.Tests`, and
+`OrcaCore.Providers.SqlServer.Tests`. The existing
 `OrcaCore.Engine.Durable` grant to `OrcaCore.ProviderCertification` remains the one cross-package
 test friend for deterministic post-commit barriers. Acceptance, behavior-scenario, compile-fixture,
 and integration assemblies exercise public or advanced provider contracts and receive no friend
@@ -524,11 +525,35 @@ provider retention and cleanup safety, BCL diagnostics, and deferred DAG/compani
 reimplemented or preserved behind their correct owners. Provider projects and migrations receive
 explicit ship, defer, replace, or remove dispositions; greenfield schema creation contains the
 complete current schema and retains no compatibility DDL or provisional upgrade path.
-The exact v1 provider set is InMemory plus PostgreSQL. The orphan RabbitMQ, Redis, shared
-Relational, SQL Server, and ZeroMQ source/test roots are removed: broker mappings remain
-application/companion-owned, shared migration helpers remain internal to PostgreSQL, and any
-additional durable storage provider re-enters through a future amendment with complete current-port
-certification rather than through a provisional project resurrection.
+The exact v1 provider set is InMemory, PostgreSQL, and SQL Server. The orphan RabbitMQ, Redis,
+shared Relational, and ZeroMQ source/test roots remain removed: broker mappings remain
+application/companion-owned and no shared relational compatibility layer is restored. SQL Server
+re-enters only as a newly implemented complete current-port provider with its own greenfield schema,
+owned native dependency, package, test project, and real-storage certification; none of the deleted
+provisional source shape is revived.
+
+### 27. Re-admit SQL Server as an independent complete provider
+
+`OrcaCore.Providers.SqlServer` implements the same split provider ports as PostgreSQL, including
+event store, projections, timers, resource governance, inbox/fanout/start-intent/outbox ownership,
+operational statistics, stuck refresh, and maintenance/retention. It depends only on `OrcaCore`,
+`OrcaCore.Runtime.Protocol`, `OrcaCore.Provider.Abstractions`, and provider-owned
+`Microsoft.Data.SqlClient`; it does not reference an engine, PostgreSQL, or a shared Relational
+project. Provider-local SQL uses explicit `Microsoft.Data.SqlClient` commands and named dialect
+owners rather than a lowest-common-denominator abstraction.
+
+The provider owns one complete greenfield `001_initial.sql`. Its migration journal persists the
+canonical migration content digest and rejects a reused id with changed content. SQL Server locking,
+claiming, expected-version appends, start-key serialization, and maintenance operations use
+transactional SQL Server primitives while preserving the same observable port results as InMemory
+and PostgreSQL. `OrcaCore.ProviderCertification` supplies shared behavior; a separate
+`OrcaCore.Providers.SqlServer.Tests` project runs it and SQL Server-specific restart, competing-host,
+schema, migration, and clean-database tests through `Testcontainers.MsSql`.
+
+The amendment, exact public shape, package/version ownership, and expected-red guard target receive
+independent approval before any product source is restored. Retirement/deletion guards flip only in
+the same source slice that adds the complete provider, so an empty or partial project cannot satisfy
+the manifest.
 
 An exported-API baseline and a deletion ledger are reviewed together. A source slice cannot claim
 completion while the baseline is missing, the local package feed is stale, a reflection bridge
@@ -558,6 +583,8 @@ substitutes for the approved typed friend boundary, or the ledger contains an un
 - **[Fanout can create a large write set]** -> Make fanout explicit, snapshot targets once, enforce provider transaction/batch limits, and reject acceptance before partial target ownership when the snapshot cannot be committed atomically.
 - **[At-least-once outbox dispatch duplicates broker publication]** -> Reuse the stable outbound `EventId` on every attempt and require adapters/consumers to deduplicate rather than claiming exactly once.
 - **[A host starts with an incomplete workflow catalog or missing dispatcher]** -> Preflight the entire staged definition batch before readiness and start no progression loop on any incompatibility or conflict.
+- **[The second relational provider drifts from shared semantics]** -> Run the complete provider-certification suite against real SQL Server, add provider-specific restart and competing-host tests, and prohibit a shared compatibility layer that hides dialect behavior.
+- **[SQL Server schema or locking is inferred from PostgreSQL syntax]** -> Own one SQL Server-native first-create schema and test actual transaction, claim, idempotency, retention, pressure, and migration behavior in `Testcontainers.MsSql`.
 
 ## Migration Plan
 
@@ -568,8 +595,9 @@ substitutes for the approved typed friend boundary, or the ledger contains an un
 5. Implement persisted workflow/step deadlines, `StepOperationId`, and scoped durable leases with quarantine/stop proof.
 6. Establish exact tier/package boundaries, role-specific hosting entry points, application-configuration workflow catalogs, reduced application facades, and serialized resource-governance provider contract.
 7. Replace provisional event delivery with versioned event descriptors, durable self-routing ingress, pending inbox matching, cold activation, start-or-deliver, committed-snapshot fanout, durable publish, and the application-shaped outbox dispatcher.
-8. Implement `OrcaCore.Dag` and `OrcaCore.Dag.Hosting` with complete resultless/resultful planning, typed operation results, and the isolated friend child bridge; keep scheduler integrations outward-only.
-9. Rewrite samples and documentation, run strict OpenSpec validation and all public/package/runtime/provider guards, and prepare independent review.
+8. After independent approval of the SQL Server amendment, implement and certify `OrcaCore.Providers.SqlServer` as the second complete production durable provider and update the exact manifest, package feed, baselines, and clean consumers atomically.
+9. Implement `OrcaCore.Dag` and `OrcaCore.Dag.Hosting` with complete resultless/resultful planning, typed operation results, and the isolated friend child bridge; keep scheduler integrations outward-only.
+10. Rewrite samples and documentation, run strict OpenSpec validation and all public/package/runtime/provider guards, and prepare independent review.
 
 Rollback is source-level: revert the change and recreate development fixtures/stores. No released package or durable-data compatibility contract exists.
 

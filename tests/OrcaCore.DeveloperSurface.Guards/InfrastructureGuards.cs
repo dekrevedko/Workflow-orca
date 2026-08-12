@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using AwesomeAssertions;
 
 namespace OrcaCore.DeveloperSurface.Guards;
@@ -70,6 +71,98 @@ public sealed class InfrastructureGuards
         var registry = File.ReadAllText(Path.Combine(root, "docs", "specs", "13-phasing-and-open-questions.md"));
         registry.Should().Contain("Additional durable storage providers");
         registry.Should().Contain("SQL Server");
+    }
+
+    [Fact]
+    public void SqlServerReentryAmendment_IsCoherentAndPrecedesProductSource()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        var repositoryInstructions = File.ReadAllText(Path.Combine(root, "CLAUDE.md"));
+        repositoryInstructions.Should().Contain("twelve packages");
+        repositoryInstructions.Should().Contain("OrcaCore.Providers.SqlServer");
+
+        var stackDecisions = File.ReadAllText(Path.Combine(
+            root,
+            "docs",
+            "implementation",
+            "00-stack-decisions.md"));
+        stackDecisions.Should().Contain("**PostgreSQL** (`Npgsql`) and **SQL Server** (`Microsoft.Data.SqlClient`)");
+        stackDecisions.Should().Contain("AddOrcaCoreSqlServerDurableProvider");
+
+        var solutionArchitecture = File.ReadAllText(Path.Combine(
+            root,
+            "docs",
+            "implementation",
+            "01-solution-architecture.md"));
+        solutionArchitecture.Should().Contain("The twelve `OrcaCore*` entries above");
+        solutionArchitecture.Should().Contain("OrcaCore.Providers.SqlServer.Tests");
+
+        var tasks = File.ReadAllText(Path.Combine(
+            root,
+            "openspec",
+            "changes",
+            "reshape-developer-facing-interfaces",
+            "tasks.md"));
+        tasks.Should().Contain("- [ ] 7.17d ");
+        tasks.Should().Contain("synchronize the approved SQL Server deltas into canonical `openspec/specs/`");
+        tasks.Should().Contain("`.github/workflows/ci.yml`");
+
+        var providerSpec = File.ReadAllText(Path.Combine(
+            root,
+            "openspec",
+            "changes",
+            "reshape-developer-facing-interfaces",
+            "specs",
+            "durable-persistence-and-outbox",
+            "spec.md"));
+        providerSpec.Should().Contain("InMemory development provider plus PostgreSQL and SQL Server");
+        providerSpec.Should().Contain("complete current split");
+
+        var matrix = File.ReadAllText(Path.Combine(
+            root,
+            "docs",
+            "specs",
+            "17-selected-mode-capability-matrix.md"));
+        matrix.Should().Contain("`OrcaCore.Providers.SqlServer`");
+        matrix.Should().Contain("AddOrcaCoreSqlServerDurableProvider");
+
+        var registry = File.ReadAllText(Path.Combine(
+            root,
+            "docs",
+            "specs",
+            "13-phasing-and-open-questions.md"));
+        registry.Should().NotContain("| Additional durable storage providers, including SQL Server |");
+        registry.Should().Contain("Additional durable storage providers beyond PostgreSQL and SQL Server");
+
+        var docsGuide = File.ReadAllText(Path.Combine(root, "docs", "README.md"));
+        docsGuide.Should().Contain("OrcaCore.Providers.SqlServer` (task 7.17d target)");
+        var technicalOverview = File.ReadAllText(Path.Combine(root, "docs", "project-technical-overview.md"));
+        technicalOverview.Should().Contain("approved third first-release provider target under task 7.17d");
+
+        EnumerateNonBuildFiles(Path.Combine(root, "src", "OrcaCore.Providers.SqlServer"))
+            .Should().BeEmpty("independent amendment approval must precede SQL Server product restoration");
+        EnumerateNonBuildFiles(Path.Combine(root, "tests", "OrcaCore.Providers.SqlServer.Tests"))
+            .Should().BeEmpty("independent amendment approval must precede SQL Server certification source");
+    }
+
+    [Fact]
+    public void ContinuousIntegration_ReferencesOnlyExistingProjects()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        var workflow = File.ReadAllText(Path.Combine(root, ".github", "workflows", "ci.yml"));
+        var projects = Regex.Matches(
+                workflow,
+                @"(?m)(?:tests|benchmarks)/[A-Za-z0-9._/-]+\.csproj")
+            .Select(match => match.Value)
+            .ToArray();
+
+        projects.Should().NotBeEmpty();
+        projects.Should().OnlyHaveUniqueItems();
+        foreach (var project in projects)
+        {
+            File.Exists(Path.Combine(root, project.Replace('/', Path.DirectorySeparatorChar)))
+                .Should().BeTrue("CI project '{0}' must exist in the current checkout", project);
+        }
     }
 
     [Fact]

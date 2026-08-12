@@ -63,9 +63,9 @@ file accounting alone, including in-place member removal and forbidden compatibi
 | PostgreSQL resource-ownership migration | Replace/relocate | PostgreSQL greenfield schema | `007_resource_governance.sql` is the first-create replacement, not compatibility DDL. |
 | PostgreSQL registration extension | Replace/relocate | PostgreSQL provider package | The role-named provider registration extension is the supported owner. |
 | RabbitMQ adapter project/package | Remove | application-owned dispatcher adapters | The provisional broker-SDK package and inactive tests are deleted; transport mapping stays outward through `IWorkflowEventDispatcher` and the isolated broker-adapter sample. |
-| Redis adapter project/package | Remove | future additional-provider amendment | The obsolete projection-only adapter and inactive tests are deleted. Any future Redis-backed durable provider must re-enter through the provider registry and certify the complete current port. |
+| Redis adapter project/package | Remove | `docs/specs/13-phasing-and-open-questions.md` §13.4 | The obsolete projection-only adapter and inactive tests are deleted. Any future Redis-backed durable provider must re-enter through the provider registry and certify the complete current port. |
 | Shared relational project/package | Replace/relocate | `OrcaCore.Providers.PostgreSql/Internal` | PostgreSQL owns the migration helpers; the duplicate orphan diagnostic root is deleted. |
-| SQL Server project/package and migration | Remove | future additional-provider amendment | The incomplete provisional provider and inactive tests are deleted, task 10.2 no longer claims current certification, and the future registry owns a complete greenfield re-entry. |
+| Provisional SQL Server project/package and migration | Replace/relocate | task 7.17d current-release provider re-entry | The incomplete provisional provider and inactive tests remain deleted. After independent approval of the task 7.17d pre-source amendment, a new provider implements the complete current split ports, owns one SQL Server-native greenfield schema, and earns current-release package/certification status through shared and real-storage evidence; no deleted provisional source is restored. |
 | ZeroMQ adapter project/package | Remove | application-owned dispatcher adapters | The provisional broker-SDK package and inactive tests are deleted; transport mapping stays outward through `IWorkflowEventDispatcher` and the isolated broker-adapter sample. |
 | Broker-adapter sample source | Replace/relocate | isolated broker-adapter sample project | The parent sample excludes the files because a package-isolated project compiles and tests them. |
 
@@ -81,7 +81,8 @@ file accounting alone, including in-place member removal and forbidden compatibi
 - `<Compile Remove>`, project/solution absence, compile failure, and aggregate passing counts are
   inventory facts only. None is proof of a valid disposition by itself.
 
-The five provider trees are therefore classified, but not resolved as products. Task 7.17c remains
-responsible for converting each `Defer` row into a certified active owner or an approved removal.
-Likewise, the telemetry/statistics/retention rows make the current capability gap explicit and keep
-task 8.5 load-bearing for the remaining DAG capability gap.
+The four still-retired provider trees remain classified outside the current manifest. The deleted
+provisional SQL Server tree is separately classified `Replace/relocate` under task 7.17d: its old
+source stays deleted while a new complete current-port provider earns an active owner, after which
+both ledger representations and their retired-root/package assertions change atomically. Task 8.5
+remains load-bearing for the remaining DAG capability gap.

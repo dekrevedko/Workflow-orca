@@ -96,7 +96,8 @@ depend outward on `OrcaCore.Dag.Hosting`, but no OrcaCore package depends on or
   `AddOrcaCoreEphemeralEngine`; `OrcaCore.Durable.Hosting` owns `AddOrcaCoreDurableEngine` and
   callback-only `AddOrcaCoreDurableEventIngress`; `OrcaCore.Providers.InMemory` owns development/test
   `AddOrcaCoreInMemoryDurableProvider`; `OrcaCore.Providers.PostgreSql` owns production
-  `AddOrcaCorePostgreSqlDurableProvider`; and `OrcaCore.Dag.Hosting` owns `AddOrcaCoreDag`. Each
+  `AddOrcaCorePostgreSqlDurableProvider`; `OrcaCore.Providers.SqlServer` owns production
+  `AddOrcaCoreSqlServerDurableProvider`; and `OrcaCore.Dag.Hosting` owns `AddOrcaCoreDag`. Each
   accepts only its approved role-specific options. Hosts construct those options programmatically;
   registration copies and validates them, with no binder-oriented facade. Do not add a catch-all
   `AddOrcaCore`, separate hosted-service toggle, implicit mode selection, or codec replacement hook.

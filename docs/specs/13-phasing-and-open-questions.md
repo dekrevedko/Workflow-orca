@@ -133,8 +133,9 @@ semantics. Any such change requires an explicit document-17/OpenSpec amendment f
   cancellation request, and termination; events use instance/correlation routes. Bulk fluent
   management, pause/resume, failed-instance retry, history query, archive, and purge are deferred.
 - **Role-based hosting.** Ephemeral engine, durable engine, callback-only durable ingress,
-  dev/test in-memory durable provider, and DAG hosting have distinct entry points/options; there
-  is no catch-all mode selector or serializer hook.
+  dev/test in-memory durable provider, PostgreSQL production provider, SQL Server production
+  provider, and DAG hosting have distinct entry points/options; there is no catch-all mode selector
+  or serializer hook.
 - **Integration direction is outward.** Kubernetes, AWS, jobs, watchers, reconcilers, and their
   SDKs belong to a separate companion project. No OrcaCore package depends on them; `OrcaCore`
   is the primary contracts/authoring package, not a meta-package.
@@ -163,7 +164,7 @@ positive compile fixture, or implementation task that pretends the contract is a
 | Failed-instance/step management retry | new-generation identity, retained state/input, output invalidation, lineage, authorization |
 | Public pause/resume | lifecycle/admission, in-flight attempt, wait/timer buffering, restart, lease interaction |
 | Public archive/purge | authorization, retention/reference safety, provider certification |
-| Additional durable storage providers, including SQL Server | complete current provider-port coverage, greenfield first-create schema, restart/competing-host certification, retention/poison parity, package ownership and dependency boundaries |
+| Additional durable storage providers beyond PostgreSQL and SQL Server, including DynamoDB | complete current provider-port coverage, greenfield first-create schema, restart/competing-host certification, retention/poison parity, package ownership and dependency boundaries |
 | Workflow-authored `Publish` | payload/destination, event identity, commit/dispatch/dedup contract |
 | Workflow-authored `Cancel` | target, terminal outcome, descendant/lease cleanup, authorization |
 | Definition-targeted event fanout | committed target set, per-target dedup, retry/late-registration rule |
@@ -174,6 +175,7 @@ assemblies after the refactor.
 
 Broker-SDK-specific OrcaCore packages and the old Redis projection-only adapter are also removed,
 not deferred v1 placeholders. Applications or outward companion projects adapt
-`IWorkflowEventDispatcher` to RabbitMQ, ZeroMQ, or another transport. A future durable storage
-provider re-enters only through the registry row above and must implement the complete provider
-contract rather than revive one of the provisional project shapes.
+`IWorkflowEventDispatcher` to RabbitMQ, ZeroMQ, or another transport. PostgreSQL and SQL Server are
+the two v1 production durable storage providers. Any later storage provider re-enters only through
+the registry row above and must implement the complete provider contract rather than revive one of
+the provisional project shapes.

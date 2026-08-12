@@ -8,13 +8,17 @@
 
 **Root-only fanout and authoring-lifecycle amendment:** 2026-07-28
 
+**SQL Server provider re-entry amendment:** 2026-08-11
+
 **Review-E remediation revision:** 2026-07-19
 
 **Status:** Sections 4, 5, and 6, including revision-8 remediation and the greenfield ownership-DDL
 scanner remediation, are independently approved. Section 7 was independently approved and
 checkpointed as `50254d08175431896d580ecfcc93d8e49e1c2ec7`. Post-checkpoint Section 7A closes the
 non-event public-surface/test-evidence gap; pending Section 7B proposes the replacement durable
-messaging and application-catalog contract. They must be completed, refrozen together,
+messaging and application-catalog contract. Task 7.17d now proposes a new complete current-port
+SQL Server provider, expanding the approved target to 12 packages and three durable providers only
+after its pre-source amendment receives independent approval. These items must be completed, refrozen together,
 independently approved, and checkpointed. The separate `harmonize-downstream-capability-specs`
 change remains pending and must first remove its conflicting event ownership before planning
 approval and canonical synchronization. Task 8.0 and all Section 8 source work remain blocked until
@@ -574,7 +578,9 @@ Current disposition:
 - Section 7 implemented the exact 11-package graph, application facades, split host/provider roles,
   reduced management, durable governance, the persisted-collection allowlist, operational
   diagnostics, and 37 current-physical behavior drivers, then received independent approval and
-  the checkpoint commit `50254d08175431896d580ecfcc93d8e49e1c2ec7`;
+  the checkpoint commit `50254d08175431896d580ecfcc93d8e49e1c2ec7`; that historical checkpoint count
+  remains provenance, while the pending task 7.17d amendment expands the target to 12 packages by
+  adding a new complete SQL Server provider rather than reviving the deleted provisional project;
 - Section 7A now closes the post-checkpoint exact-API-baseline and test-attribution findings, while
   the pending Section 7B amendment owns the proposed durable messaging and application-catalog
   contract. Neither is frozen or approved. The harmonization change must first discard the

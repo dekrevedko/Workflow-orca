@@ -97,18 +97,20 @@ SHALL NOT establish durable support.
 - **THEN** ingress returns `Rejected(FanoutLimitExceeded)` before committing the envelope or any target ownership
 
 ### Requirement: First-release provider ownership and schemas are exact
-The first release SHALL ship exactly the InMemory development provider and PostgreSQL production
-provider named by the package manifest. Provisional RabbitMQ, Redis, shared Relational, SQL Server,
+The first release SHALL ship exactly the InMemory development provider plus PostgreSQL and SQL Server
+production providers named by the package manifest. Provisional RabbitMQ, Redis, shared Relational,
 and ZeroMQ provider projects, inactive tests, SDK dependencies, packages, and orphan source roots
 SHALL be absent. Broker-specific mapping SHALL remain application/companion-owned through
-`IWorkflowEventDispatcher`; an additional durable storage provider, including SQL Server, SHALL
-require a future amendment and complete current-port certification. The PostgreSQL first-create
-schema SHALL contain the complete current table/index/sequence shape and provider migrations SHALL
-contain no compatibility `ALTER TABLE` upgrade DDL or renamed equivalent.
+`IWorkflowEventDispatcher`. PostgreSQL and SQL Server SHALL each implement the complete current split
+provider ports, including operational and maintenance ownership, without depending on one another or
+reviving the deleted provisional SQL Server shape. Each production provider's first-create schema
+SHALL contain its complete current table/index/sequence shape, its migration journal SHALL bind an
+applied id to a canonical content digest, and its migrations SHALL contain no compatibility
+`ALTER TABLE` upgrade DDL or renamed equivalent.
 
 #### Scenario: Repository provider set is inspected
 - **WHEN** project, package, source-root, SDK-version, migration, and future-registry guards run
-- **THEN** only the two approved v1 providers remain, PostgreSQL initializes the complete schema from its first migration, and every removed provider family has an explicit recoverable disposition
+- **THEN** only the three approved v1 providers remain, PostgreSQL and SQL Server initialize complete provider-native schemas from their first migrations, and every removed provider family has an explicit recoverable disposition
 
 ### Requirement: Operational projections expose durable messaging pressure
 Provider/host operator projections SHALL expose pending, retryable, claimed, permanent-failure, and
@@ -122,10 +124,10 @@ stuck-state using a runtime-owned observation time and positive inactivity thres
 a side-effect-free statistics snapshot; providers SHALL mark stale pending, running, or
 cancellation-requested instances as stuck without classifying an ordinary external wait solely by
 age. Durable projections SHALL persist only stuck fields produced by the durable runtime and SHALL
-NOT retain unowned step-level stuck fields. PostgreSQL periodic pressure collection SHALL derive
-event growth and checkpoint lag from a transactionally maintained stream-head/checkpoint join that
-includes stream-only artifacts, and SHALL NOT aggregate the append-only event relation on every
-host sweep.
+NOT retain unowned step-level stuck fields. Each relational production provider's periodic pressure
+collection SHALL derive event growth and checkpoint lag from a transactionally maintained
+stream-head/checkpoint join that includes stream-only artifacts, and SHALL NOT aggregate the
+append-only event relation on every host sweep.
 
 #### Scenario: Operator compares projection and telemetry
 - **WHEN** a fixture creates pending continuation, external dispatch retry, poison, stream, and checkpoint states

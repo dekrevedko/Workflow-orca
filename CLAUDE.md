@@ -65,11 +65,11 @@ their internal compiler/execution kernel and exports no application API:
 | Engine | Project | Persistence | Use case |
 |--------|---------|-------------|----------|
 | Ephemeral | `OrcaCore.Engine.Ephemeral` | In-memory only; lost on restart | Development, testing, short-lived coordination |
-| Durable | `OrcaCore.Engine.Durable` | Pluggable split provider ports (PostgreSQL in v1) | Production, long-running, crash-tolerant |
+| Durable | `OrcaCore.Engine.Durable` | Pluggable split provider ports (PostgreSQL and SQL Server in v1) | Production, long-running, crash-tolerant |
 
 ### Project structure (`src/`)
 
-The approved v1 package manifest is exhaustive — eleven packages. Anything in `src/` outside this
+The approved v1 package manifest is exhaustive — twelve packages. Anything in `src/` outside this
 list is provisional and slated for removal or relocation; do not build new work on it.
 
 ```
@@ -85,6 +85,7 @@ OrcaCore.Engine.Durable    — durable aggregates, outbox, checkpoint/replay, ro
 OrcaCore.Durable.Hosting   — owns AddOrcaCoreDurableEngine, AddOrcaCoreDurableEventIngress
 OrcaCore.Providers.InMemory     — dev/test provider; owns AddOrcaCoreInMemoryDurableProvider
 OrcaCore.Providers.PostgreSql   — production provider; owns AddOrcaCorePostgreSqlDurableProvider
+OrcaCore.Providers.SqlServer    — production provider; owns AddOrcaCoreSqlServerDurableProvider
 OrcaCore.Dag               — typed DAG planning/operation contracts
 OrcaCore.Dag.Hosting       — sole DAG-to-durable bridge; owns AddOrcaCoreDag
 ```
@@ -97,10 +98,10 @@ internals; acceptance, behavior, compile-fixture, and integration assemblies may
 friend or public reflection bridge is allowed.
 
 Not in the v1 manifest: the removed catch-all `OrcaCore.Hosting` package and the provisional
-`OrcaCore.Providers.SqlServer`, `.RabbitMq`, `.Redis`, `.ZeroMq`, and `.Relational` packages. Their
-source/test roots are absent. Broker SDK mapping belongs to application/companion adapters over
-`IWorkflowEventDispatcher`; an additional durable storage provider, including SQL Server, requires
-a future amendment plus complete current-port and greenfield-schema certification.
+`OrcaCore.Providers.RabbitMq`, `.Redis`, `.ZeroMq`, and `.Relational` packages. Their source/test
+roots are absent. Broker SDK mapping belongs to application/companion adapters over
+`IWorkflowEventDispatcher`; a durable storage provider beyond PostgreSQL and SQL Server requires a
+future amendment plus complete current-port and greenfield-schema certification.
 
 Hosting is **role-specific**. There is no catch-all `AddOrcaCore()`, no separate
 `AddOrcaCoreHostedServices()` toggle, no implicit mode selection, no options-binder facade, and no
@@ -140,9 +141,11 @@ Lambda step bodies are **ephemeral-only**; durable definitions use registered ty
 
 ### Provider certification
 
-`OrcaCore.ProviderCertification` contains provider contract tests for the split workflow-event,
-inbox, start-idempotency, outbox, projection, timer, dispatch, and resource-governance ports. Run it
-when adding or modifying a provider.
+`OrcaCore.ProviderCertification` contains provider contract tests for every current split
+workflow-event, inbox, start-idempotency, outbox, projection, timer, operational, maintenance,
+dispatch, and resource-governance port. PostgreSQL and SQL Server each run it plus provider-native
+restart, competing-host, schema, migration, retention, poison, and pressure tests against real
+storage. Run the shared and owning-provider suites when adding or modifying a provider.
 
 ## Key conventions
 

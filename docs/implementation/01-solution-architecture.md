@@ -18,6 +18,7 @@ src/
   providers/
     OrcaCore.Providers.InMemory ← complete development/test durable provider role
     OrcaCore.Providers.PostgreSql ← complete certified production durable provider role
+    OrcaCore.Providers.SqlServer ← complete certified production durable provider role
   OrcaCore.Dag                  ← optional public typed DAG authoring/validation only
   OrcaCore.Dag.Hosting          ← only DAG-to-durable bridge; consumes the named versioned
                                   internal child start/join seam from Durable.Hosting
@@ -35,9 +36,10 @@ tests/
   OrcaCore.ProviderCertification ← abstract test classes (a library, not a test project):
                                    the PR-024 suite any provider must pass
   OrcaCore.Providers.PostgreSql.Tests   ← inherits certification suite + Testcontainers
+  OrcaCore.Providers.SqlServer.Tests    ← inherits certification suite + Testcontainers
 ```
 
-The eleven `OrcaCore*` entries above are the exhaustive first-release package manifest. Every
+The twelve `OrcaCore*` entries above are the exhaustive first-release package manifest. Every
 manifest project packs under its exact project/package ID. `OrcaCore` is the primary application
 package, not a dependency-only meta-package; optional engine, provider, advanced, and DAG roles are
 selected by referencing their owning packages explicitly.
@@ -46,7 +48,8 @@ Public ownership is exact: `OrcaCore.Engine.Ephemeral` owns the ephemeral extens
 `OrcaCore.Durable.Hosting` owns the durable engine/ingress extension class, durable host options,
 and advanced durable management/recovery facade; `OrcaCore.Providers.InMemory` owns its
 development/test provider extension; `OrcaCore.Providers.PostgreSql` owns its production provider
-extension/options; `OrcaCore.Dag` owns typed DAG authoring/validation; and
+extension/options; `OrcaCore.Providers.SqlServer` owns its production provider extension/options;
+`OrcaCore.Dag` owns typed DAG authoring/validation; and
 `OrcaCore.Dag.Hosting` owns DAG options, registration, coordination, and the sole durable friend
 bridge. `OrcaCore.Core` and `OrcaCore.Engine.Durable` own implementation internals;
 `OrcaCore.Runtime.Protocol` and `OrcaCore.Provider.Abstractions` own their respective advanced
@@ -90,13 +93,14 @@ closed graph below.
   `OrcaCore.Provider.Abstractions`; an
   application composition root may reference explicit provider-registration packages and wire
   them through DI. This is the "program to interfaces" rule made structural.
-- Provider roles are **explicitly registered** by their owning package. The production call is
+- Provider roles are **explicitly registered** by their owning package. The production calls are
   exactly
-  `OrcaCore.Providers.PostgreSql.OrcaCorePostgreSqlProviderServiceCollectionExtensions.AddOrcaCorePostgreSqlDurableProvider(IServiceCollection, PostgreSqlDurableProviderOptions)`.
+  `OrcaCore.Providers.PostgreSql.OrcaCorePostgreSqlProviderServiceCollectionExtensions.AddOrcaCorePostgreSqlDurableProvider(IServiceCollection, PostgreSqlDurableProviderOptions)` and
+  `OrcaCore.Providers.SqlServer.OrcaCoreSqlServerProviderServiceCollectionExtensions.AddOrcaCoreSqlServerDurableProvider(IServiceCollection, SqlServerDurableProviderOptions)`.
   The get-only `ConnectionString` and `Schema` values are fixed by programmatic construction,
   copied, and rejected when null/empty/whitespace before any partial provider registration. There
-  is no shorter PostgreSQL alias, raw connection-string overload, configuration-binding overload,
-  reflection discovery, or partial provider-role registration.
+  is no shorter provider alias, raw connection-string overload, configuration-binding overload,
+  reflection discovery, cross-provider facade, or partial provider-role registration.
 - `Providers.InMemory` is a complete certified development/test provider, not test code: it is the
   executable documentation of port semantics, but it makes no process-restart durability claim.
 - Kubernetes, EKS/AWS, and external-job adapters are application/integration concerns, not
@@ -122,7 +126,8 @@ feed is verification infrastructure, not an external-publishing or release-versi
   Other implementation collaborators remain `internal`, `sealed` by default.
 - Product friends are exact: `OrcaCore.Core` grants both engines, `OrcaCore.Engine.Durable` grants
   `OrcaCore.Durable.Hosting`, and `OrcaCore.Durable.Hosting` grants `OrcaCore.Dag.Hosting`.
-  Owning white-box test friends are exact for Core, both engines, Durable Hosting, and PostgreSQL;
+  Owning white-box test friends are exact for Core, both engines, Durable Hosting, PostgreSQL, and
+  SQL Server;
   `OrcaCore.Engine.Durable -> OrcaCore.ProviderCertification` is the sole cross-package test edge.
   Acceptance, behavior-scenario, compile-fixture, and integration projects get **no** internals and
   prove the public or advanced provider contract is sufficient.
@@ -131,7 +136,8 @@ feed is verification infrastructure, not an external-publishing or release-versi
   `AddOrcaCoreDurableEngine(DurableEngineHostOptions)`; callback-only hosts call
   `AddOrcaCoreDurableEventIngress()`. Development/tests may add
   `AddOrcaCoreInMemoryDurableProvider()`, production durable hosts add
-  `AddOrcaCorePostgreSqlDurableProvider(PostgreSqlDurableProviderOptions)`, and DAG hosts add
+  either `AddOrcaCorePostgreSqlDurableProvider(PostgreSqlDurableProviderOptions)` or
+  `AddOrcaCoreSqlServerDurableProvider(SqlServerDurableProviderOptions)`, and DAG hosts add
   `OrcaCore.Dag.Hosting.AddOrcaCoreDag(DagHostOptions)` on top of the durable-engine role.
   `OrcaCore.Engine.Ephemeral` owns
   `OrcaCore.Hosting.OrcaCoreEphemeralEngineServiceCollectionExtensions`; `OrcaCore.Durable.Hosting`

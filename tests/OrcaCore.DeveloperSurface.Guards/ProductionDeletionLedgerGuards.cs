@@ -78,6 +78,12 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
         var allowedDispositions = ledger.GetProperty("allowedDispositions")
             .EnumerateArray().Select(value => value.GetString()!).ToArray();
         allowedDispositions.Should().Equal("Remove", "ReplaceOrRelocate", "Defer", "DeadOrDuplicate");
+        var tasks = File.ReadAllText(Path.Combine(
+            root,
+            "openspec",
+            "changes",
+            "reshape-developer-facing-interfaces",
+            "tasks.md"));
 
         var families = ledger.GetProperty("families").EnumerateArray().ToArray();
         foreach (var family in families)
@@ -97,6 +103,7 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
             (owner.StartsWith("active:", StringComparison.Ordinal) ||
              owner.StartsWith("task:", StringComparison.Ordinal)).Should().BeTrue(
                 "family '{0}' must name its active owner or exact future task", id);
+            AssertTaskOwnerExists(tasks, owner, id);
 
             var recoveryPaths = RequiredStrings(family, "recoveryPaths");
             foreach (var recoveryPath in recoveryPaths)
@@ -130,8 +137,30 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
         {
             AssertSymbolInventory(root, inventory);
             AssertExecutableEvidenceExists(root, RequiredString(inventory, "evidence"), RequiredString(inventory, "id"));
-            RequiredString(inventory, "owner").Should().StartWith("task:");
+            var owner = RequiredString(inventory, "owner");
+            owner.Should().StartWith("task:");
+            AssertTaskOwnerExists(tasks, owner, RequiredString(inventory, "id"));
         }
+    }
+
+    [Fact]
+    public void Ledger_SqlServerDispositionMatchesTheHumanReadableCompanion()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        using var document = LoadLedger(root);
+        var family = document.RootElement.GetProperty("families").EnumerateArray()
+            .Single(item => RequiredString(item, "id") == "sqlserver-provider-orphan");
+
+        RequiredString(family, "disposition").Should().Be("ReplaceOrRelocate");
+        RequiredString(family, "owner").Should().Be("task:7.17d");
+        var companion = File.ReadAllText(Path.Combine(
+            root,
+            "openspec",
+            "changes",
+            "reshape-developer-facing-interfaces",
+            "production-deletion-ledger.md"));
+        companion.Should().Contain(
+            "| Provisional SQL Server project/package and migration | Replace/relocate | task 7.17d current-release provider re-entry |");
     }
 
     [Fact]
@@ -293,6 +322,20 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
         var value = element.GetProperty(propertyName).GetString();
         value.Should().NotBeNullOrWhiteSpace("'{0}' is required", propertyName);
         return value!;
+    }
+
+    private static void AssertTaskOwnerExists(string tasks, string owner, string familyId)
+    {
+        if (!owner.StartsWith("task:", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var taskId = owner["task:".Length..];
+        Regex.Matches(tasks, $@"(?m)^\s*-\s+\[[ x]\]\s+{Regex.Escape(taskId)}\b")
+            .Should().ContainSingle(
+                "family or inventory '{0}' must name one real task rather than a task-shaped placeholder",
+                familyId);
     }
 
     private static void AssertNormativeRequirementExists(string root, string coordinate, string familyId)

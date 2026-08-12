@@ -471,7 +471,7 @@
         "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
         "developer-facing-surface::Package distribution preserves tier boundaries"
       ],
-      "owner": "task:future-additional-durable-storage-provider-amendment",
+      "owner": "active:docs/specs/13-phasing-and-open-questions.md#13.4",
       "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Providers.Redis/OrcaCore.Providers.Redis.csproj", "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Providers.Redis"],
       "successorPaths": [],
       "symbolFamilies": ["Redis projection adapter project and package"],
@@ -510,16 +510,16 @@
     },
     {
       "id": "sqlserver-provider-orphan",
-      "disposition": "Remove",
+      "disposition": "ReplaceOrRelocate",
       "normativeIds": [
         "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
         "durable-persistence-and-outbox::Provider implementations certify messaging ownership parity"
       ],
-      "owner": "task:future-additional-durable-storage-provider-amendment",
+      "owner": "task:7.17d",
       "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj", "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Providers.SqlServer"],
       "successorPaths": [],
       "symbolFamilies": ["SQL Server provider project/package", "SQL Server resource-ownership migration"],
-      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/InfrastructureGuards.cs#ExactV1Manifest_HasNoOrphanedProviderSourcesTestsOrSdkVersions"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/InfrastructureGuards.cs#SqlServerReentryAmendment_IsCoherentAndPrecedesProductSource"],
       "deletedPaths": ["src/OrcaCore.Providers.SqlServer/Migrations/008_resource_ownership.sql", "src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj"],
       "closureDeletedPaths": [
         "src/OrcaCore.Providers.SqlServer/Diagnostics/OrcaCoreSqlServerProviderDiagnostics.cs",
