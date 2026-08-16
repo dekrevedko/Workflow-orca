@@ -8,10 +8,13 @@ and semantic-versioned release automation remain deferred until the owner reopen
 The exhaustive first-release package manifest is `OrcaCore`, `OrcaCore.Core`,
 `OrcaCore.Engine.Ephemeral`, `OrcaCore.Runtime.Protocol`, `OrcaCore.Provider.Abstractions`,
 `OrcaCore.Engine.Durable`, `OrcaCore.Durable.Hosting`, `OrcaCore.Providers.InMemory`,
-`OrcaCore.Providers.PostgreSql`, `OrcaCore.Dag`, and `OrcaCore.Dag.Hosting`. `OrcaCore` is the
+`OrcaCore.Providers.PostgreSql`, `OrcaCore.Providers.SqlServer`, `OrcaCore.Dag`, and
+`OrcaCore.Dag.Hosting`. `OrcaCore` is the
 primary application contracts/authoring package, not a dependency-only meta-package. Phase 0 packs
 these exact IDs as `0.0.0-phase0` to `artifacts/phase0-packages`; clean fixtures restore them via
-`PackageReference` only. This local feed is test evidence, not a publication commitment.
+`PackageReference` only. Before use, the feed is rebuilt from the current source and checked against
+the approved normalized source SHA-256 record plus the current Release assemblies. This local feed
+is test evidence, not a publication commitment.
 
 The approved first-release surface is [spec 17](specs/17-selected-mode-capability-matrix.md).
 Sections 4 through 7 are implemented and checkpointed; the post-checkpoint Section 7A closure is

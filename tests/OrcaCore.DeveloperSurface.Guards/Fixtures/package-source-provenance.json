@@ -1,0 +1,66 @@
+{
+  "formatVersion": 1,
+  "packageVersion": "0.0.0-phase0",
+  "packages": [
+    {
+      "id": "OrcaCore",
+      "project": "src/OrcaCore.Abstractions/OrcaCore.csproj",
+      "sourceSha256": "e3c42e5c8ed7f48e7a6946924bc30099efdbeaf4e3f8721924088a3906238c2e"
+    },
+    {
+      "id": "OrcaCore.Core",
+      "project": "src/OrcaCore.Core/OrcaCore.Core.csproj",
+      "sourceSha256": "b80ed9455f2bac4e1da13c99d6a377fddda2e1685e7887e0a52b9a2b125ec30e"
+    },
+    {
+      "id": "OrcaCore.Dag",
+      "project": "src/OrcaCore.Dag/OrcaCore.Dag.csproj",
+      "sourceSha256": "55ffbfe8990525b86bb52b339ff7e2473dbc06a9f4b606fe5a9f8f7993cb108c"
+    },
+    {
+      "id": "OrcaCore.Dag.Hosting",
+      "project": "src/OrcaCore.Dag.Hosting/OrcaCore.Dag.Hosting.csproj",
+      "sourceSha256": "3d4d12b6050e0f3a1d4737126146b8ef8cca6d0048e99c2de3918e13cdf7b78e"
+    },
+    {
+      "id": "OrcaCore.Durable.Hosting",
+      "project": "src/OrcaCore.Durable.Hosting/OrcaCore.Durable.Hosting.csproj",
+      "sourceSha256": "03c054d3aad9e4dbfeed24fac55c321ced84e4d888a3653b6d0150554a3bbd37"
+    },
+    {
+      "id": "OrcaCore.Engine.Durable",
+      "project": "src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj",
+      "sourceSha256": "62fdd51546a2da1da2757ec798549f3e529e8b9cd151487099da400f61fe46dc"
+    },
+    {
+      "id": "OrcaCore.Engine.Ephemeral",
+      "project": "src/OrcaCore.Engine.Ephemeral/OrcaCore.Engine.Ephemeral.csproj",
+      "sourceSha256": "818abed563b3144c9b12d26ee87e4bf50a59cec82de3b186fd37e6bc4e2eebac"
+    },
+    {
+      "id": "OrcaCore.Provider.Abstractions",
+      "project": "src/OrcaCore.Provider.Abstractions/OrcaCore.Provider.Abstractions.csproj",
+      "sourceSha256": "d21398a116c4833bb74d030a76eb9ae62d8825dae6d29c39be66874a238495f5"
+    },
+    {
+      "id": "OrcaCore.Providers.InMemory",
+      "project": "src/OrcaCore.Providers.InMemory/OrcaCore.Providers.InMemory.csproj",
+      "sourceSha256": "de88f869673d8ee5e98b417a7ad7858f1edf9af3960d7f38a76b33fa82bffd9d"
+    },
+    {
+      "id": "OrcaCore.Providers.PostgreSql",
+      "project": "src/OrcaCore.Providers.PostgreSql/OrcaCore.Providers.PostgreSql.csproj",
+      "sourceSha256": "662dce3298e16b90b4e71763c705cca237f970f3b19e3c7ce1c74abd38c4e689"
+    },
+    {
+      "id": "OrcaCore.Providers.SqlServer",
+      "project": "src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj",
+      "sourceSha256": "5512cb7a8888f313df1bdbdbd22d618583a5312360bef57255764609c068ffc5"
+    },
+    {
+      "id": "OrcaCore.Runtime.Protocol",
+      "project": "src/OrcaCore.Runtime.Protocol/OrcaCore.Runtime.Protocol.csproj",
+      "sourceSha256": "2cd6ba3e4d46f442ecc26e9fd00589099cd7e08d86d617515ae9c32ec59802f6"
+    }
+  ]
+}

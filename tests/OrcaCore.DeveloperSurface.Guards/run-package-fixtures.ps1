@@ -2,17 +2,47 @@ param(
     [ValidateSet('Green', 'ExpectedRed')]
     [string] $Disposition = 'Green',
     [int] $CompletedSection = 7,
-    [string] $CompletedTask = '7.23',
+    [string] $CompletedTask = '7.34',
     [string] $GuardTask = ''
 )
 
 $ErrorActionPreference = 'Stop'
 $root = Join-Path $PSScriptRoot 'PackageFixtures'
 $definitions = Get-Content -Raw (Join-Path $PSScriptRoot 'Fixtures/package-consumer-fixtures.json') | ConvertFrom-Json
+$contract = Get-Content -Raw (Join-Path $PSScriptRoot 'Fixtures/v1-public-contract.json') | ConvertFrom-Json
 $failures = [System.Collections.Generic.List[string]]::new()
 $packageCache = Join-Path $root 'obj/package-cache'
 $feed = Join-Path $PSScriptRoot '..\..\artifacts\phase0-packages'
-$version = '0.0.0-phase0'
+$version = $contract.packageVersion
+$provenanceTest = 'OrcaCore.DeveloperSurface.Guards.PublicApiBaselineInfrastructureGuards.EveryManifestPackage_MatchesTheApprovedSourceRecord_AndAnyProvidedFeedMatchesCurrentAssemblies'
+
+$pack = & (Join-Path $PSScriptRoot 'pack-exact-package-feed.ps1') -OutputDirectory $feed 2>&1 | Out-String
+if ($LASTEXITCODE -ne 0) { throw "Exact current-source package feed failed.`n$pack" }
+
+$env:ORCACORE_PUBLIC_API_PACKAGE_FEED = (Resolve-Path -LiteralPath $feed).Path
+try {
+    $listedTests = & dotnet test (Join-Path $PSScriptRoot 'OrcaCore.DeveloperSurface.Guards.csproj') `
+        --configuration Release --no-build --no-restore --nologo --list-tests `
+        --filter "FullyQualifiedName=$provenanceTest" 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) {
+        throw "Package provenance test discovery failed.`n$listedTests"
+    }
+    $matchedTests = @(($listedTests -split "`r?`n") | Where-Object {
+        $_.Trim().Equals($provenanceTest, [StringComparison]::Ordinal)
+    })
+    if ($matchedTests.Count -ne 1) {
+        throw "Expected exactly one package provenance test named '$provenanceTest', found $($matchedTests.Count).`n$listedTests"
+    }
+    $provenance = & dotnet test (Join-Path $PSScriptRoot 'OrcaCore.DeveloperSurface.Guards.csproj') `
+        --configuration Release --no-build --no-restore --nologo --verbosity quiet `
+        --filter "FullyQualifiedName=$provenanceTest" 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) {
+        throw "Exact package feed is not tied to the approved package source record.`n$provenance"
+    }
+}
+finally {
+    Remove-Item Env:ORCACORE_PUBLIC_API_PACKAGE_FEED -ErrorAction SilentlyContinue
+}
 
 function ConvertTo-TaskOrder([string] $TaskId) {
     if ($TaskId -notmatch '^(?<major>\d+)\.(?<minor>\d+)(?<suffix>[a-z]?)$') {

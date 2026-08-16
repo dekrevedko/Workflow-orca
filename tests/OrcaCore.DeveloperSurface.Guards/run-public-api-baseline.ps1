@@ -8,6 +8,9 @@ $project = Join-Path $PSScriptRoot 'OrcaCore.DeveloperSurface.Guards.csproj'
 $contract = Get-Content -Raw (Join-Path $PSScriptRoot 'Fixtures\v1-public-contract.json') | ConvertFrom-Json
 $feed = $null
 $packageCache = $null
+$baselineClass = 'OrcaCore.DeveloperSurface.Guards.PublicApiBaselineInfrastructureGuards'
+$baselineFilter = "FullyQualifiedName~$baselineClass"
+$expectedBaselineTests = 12
 
 try {
     $buildTarget = if ($FreshPack) { Join-Path $repoRoot 'OrcaCore.slnx' } else { $project }
@@ -19,16 +22,9 @@ try {
         $feed = Join-Path $PSScriptRoot "obj\public-api-pack\$([Guid]::NewGuid().ToString('N'))"
         New-Item -ItemType Directory -Path $feed -Force | Out-Null
         $packageCache = Join-Path $feed 'negative-package-cache'
-
-        foreach ($package in $contract.packages) {
-            $sourceProject = @(Get-ChildItem (Join-Path $repoRoot 'src') -Recurse -Filter "$($package.id).csproj")
-            if ($sourceProject.Count -ne 1) {
-                throw "Expected one project named '$($package.id).csproj', found $($sourceProject.Count)."
-            }
-            $pack = & dotnet pack $sourceProject[0].FullName --configuration Release --no-build `
-                --output $feed --nologo --verbosity quiet -p:PackageVersion=$($contract.packageVersion) 2>&1 | Out-String
-            if ($LASTEXITCODE -ne 0) { throw "Package '$($package.id)' failed to pack.`n$pack" }
-        }
+        $pack = & (Join-Path $PSScriptRoot 'pack-exact-package-feed.ps1') `
+            -OutputDirectory $feed -NoBuild 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0) { throw "Exact current-source package feed failed.`n$pack" }
         $env:ORCACORE_PUBLIC_API_PACKAGE_FEED = $feed
 
         $negativeProject = Join-Path $PSScriptRoot 'CompileFixtures\ProductForbiddenLegacySurface\ProductForbiddenLegacySurface.csproj'
@@ -57,8 +53,18 @@ try {
         # complete public-API guard; exhaustive per-symbol compiler evidence belongs to task 7.19.
     }
 
+    $listedTests = & dotnet test $project --configuration Release --no-build --no-restore --nologo --list-tests `
+        --filter $baselineFilter 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { throw "Public API baseline test discovery failed.`n$listedTests" }
+    $matchedTests = @(($listedTests -split "`r?`n") | Where-Object {
+        $_.Trim().StartsWith("$baselineClass.", [StringComparison]::Ordinal)
+    })
+    if ($matchedTests.Count -ne $expectedBaselineTests) {
+        throw "Expected exactly $expectedBaselineTests public API baseline tests, found $($matchedTests.Count).`n$listedTests"
+    }
+
     $output = & dotnet test $project --configuration Release --no-build --no-restore --nologo --verbosity quiet `
-        --filter 'FullyQualifiedName~PublicApiBaselineInfrastructureGuards' 2>&1 | Out-String
+        --filter $baselineFilter 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) { throw "Public API baseline verification failed.`n$output" }
     Write-Output $output.Trim()
 }

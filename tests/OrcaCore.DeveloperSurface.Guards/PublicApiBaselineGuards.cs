@@ -174,6 +174,26 @@ public sealed class PublicApiBaselineInfrastructureGuards
     }
 
     [Fact]
+    public void EveryManifestPackage_MatchesTheApprovedSourceRecord_AndAnyProvidedFeedMatchesCurrentAssemblies()
+    {
+        var packageFeed = Environment.GetEnvironmentVariable(PublicApiBaseline.PackageFeedVariable);
+        var actual = PackageSourceProvenance.Capture(
+            string.IsNullOrWhiteSpace(packageFeed) ? null : packageFeed);
+        var candidatePath = Environment.GetEnvironmentVariable(PackageSourceProvenance.CandidatePathVariable);
+        if (!string.IsNullOrWhiteSpace(candidatePath))
+        {
+            PackageSourceProvenance.WriteCandidate(actual, candidatePath);
+            throw new InvalidOperationException(
+                $"Captured unapproved package source provenance in '{Path.GetFullPath(candidatePath)}'. " +
+                "Candidate capture never approves or updates the checked-in record.");
+        }
+
+        var approved = PackageSourceProvenance.ReadApproved();
+        PackageSourceProvenance.Diff(approved, actual).Should().BeEmpty(
+            "each reviewed package must be tied to its current source inputs and every explicitly provided feed must contain the exact current implementation assemblies");
+    }
+
+    [Fact]
     public void RemovedInternalStepResultPlaceholderInventory_IsExactAndAbsentFromProductMetadata()
     {
         RemovedInternalPlaceholderCatalog.All
@@ -344,6 +364,33 @@ public sealed class PublicApiBaselineInfrastructureGuards
         var diff = PublicApiBaseline.Diff(expected, actual);
         diff.Should().Contain("- type public class Approved.OrcaCore");
         diff.Should().Contain("+ type public class Unexpected.Addition");
+    }
+
+    [Fact]
+    public void PackageSourceComparator_RejectsSourceAndAssemblyDrift()
+    {
+        var expected = new PackageSourceProvenanceRecord(
+            PackageSourceProvenance.FormatVersion,
+            "0.0.0-phase0",
+            [new PackageSourceProvenanceEntry("OrcaCore", "src/OrcaCore.Abstractions/OrcaCore.csproj", "source-a")]);
+        var actual = expected with
+        {
+            Packages =
+            [
+                expected.Packages[0] with
+                {
+                    SourceSha256 = "source-b"
+                }
+            ]
+        };
+
+        PackageSourceProvenance.Diff(expected, actual).Should()
+            .Contain("OrcaCore: source SHA-256 differs.");
+
+        Action compareStalePackage = () => PackageSourceProvenance.EnsureAssemblyHashesMatch(
+            "OrcaCore", "current-assembly", "stale-package-assembly");
+        compareStalePackage.Should().Throw<InvalidOperationException>()
+            .WithMessage("Package 'OrcaCore' is stale:*");
     }
 
     [Fact]

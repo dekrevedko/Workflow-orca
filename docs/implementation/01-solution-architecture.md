@@ -115,7 +115,11 @@ closed graph below.
 
 Phase 0 packs the exact manifest as version `0.0.0-phase0` to
 `artifacts/phase0-packages`. Clean fixtures restore it through `PackageReference` only; this local
-feed is verification infrastructure, not an external-publishing or release-version promise.
+feed is verification infrastructure, not an external-publishing or release-version promise. The
+fixture runner rebuilds and repacks every manifest project before use, then checks the packaged
+implementation assembly against the current Release output and the checked-in normalized
+per-package source SHA-256 record. A missing or superseded feed therefore fails before consumer
+compilation.
 
 ## 3. Public vs internal
 

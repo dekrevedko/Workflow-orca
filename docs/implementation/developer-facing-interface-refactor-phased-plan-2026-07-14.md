@@ -579,8 +579,8 @@ Current disposition:
   reduced management, durable governance, the persisted-collection allowlist, operational
   diagnostics, and 37 current-physical behavior drivers, then received independent approval and
   the checkpoint commit `50254d08175431896d580ecfcc93d8e49e1c2ec7`; that historical checkpoint count
-  remains provenance, while the pending task 7.17d amendment expands the target to 12 packages by
-  adding a new complete SQL Server provider rather than reviving the deleted provisional project;
+  remains provenance, while completed task 7.17d expanded the target to 12 packages by adding a
+  new complete SQL Server provider rather than reviving the deleted provisional project;
 - Section 7A now closes the post-checkpoint exact-API-baseline and test-attribution findings, while
   the pending Section 7B amendment owns the proposed durable messaging and application-catalog
   contract. Neither is frozen or approved. The harmonization change must first discard the
