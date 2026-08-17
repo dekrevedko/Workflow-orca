@@ -14,7 +14,7 @@
     "compileExcludedEntries": 1,
     "orphanedProductionRoots": 0,
     "retiredPackageArtifacts": 5,
-    "symbolInventories": 3
+    "symbolInventories": 4
   },
   "symbolInventories": [
     {
@@ -22,8 +22,8 @@
       "source": "tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs",
       "field": "ForbiddenPublicSymbols",
       "kind": "PublicOrMember",
-      "expectedCount": 120,
-      "orderedSha256": "d3f512b1f4a1d67bf7e5ac4a41497bba179e155add6f4e25c114cae7a70b351a",
+      "expectedCount": 125,
+      "orderedSha256": "f0ab57e9140dd77953f696d429a2e02ec378990ad4e0ba9670e79af4a4ec657e",
       "owner": "task:7.17",
       "evidence": "test:tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs#RemovedDeferredAndWrongOwnerPublicSymbols_AreAbsentBeforeBaselineApproval"
     },
@@ -46,6 +46,16 @@
       "orderedSha256": "ed46d4c76ef8b7647332143c535e54f15689639aa2ba1f3aa677a993244e2fe0",
       "owner": "task:7.17",
       "evidence": "test:tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs#RemovedCapabilitiesAndConstructionHelpers_HaveNoProductMetadataType"
+    },
+    {
+      "id": "removed-hosting-and-codec-types",
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs",
+      "field": "ForbiddenManifestWideTypeNames",
+      "kind": "PublicTypeAcrossManifest",
+      "expectedCount": 3,
+      "orderedSha256": "98ba842373d8d40fc020684a59e91e4c12f742a53b5d9c9fbabbe17d9dba1918",
+      "owner": "task:7.19",
+      "evidence": "test:tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs#PackedConsumerNegativeFixture_CoversEveryForbiddenSymbolExactlyOnce"
     }
   ],
   "families": [

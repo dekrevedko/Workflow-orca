@@ -1,3 +1,4 @@
+using System.Reflection;
 using AwesomeAssertions;
 
 namespace OrcaCore.DeveloperSurface.Guards;
@@ -9,6 +10,11 @@ public sealed class PublicApiBaselineInfrastructureGuards
 {
     private static readonly string[] ForbiddenPublicSymbols =
     {
+        "OrcaCore::OrcaCore.EventDeliveryResult",
+        "OrcaCore::OrcaCore.EventDeliveryStatus",
+        "OrcaCore::OrcaCore.IWorkflowEventClient",
+        "OrcaCore::OrcaCore.WorkflowEvent",
+        "OrcaCore::OrcaCore.WorkflowEvent`1",
         "OrcaCore::OrcaCore.Internal.WorkflowRuntimeBridge",
         "OrcaCore::OrcaCore.Abstractions.Events.EventEnvelope",
         "OrcaCore::OrcaCore.Abstractions.Steps.ForEachItemContext",
@@ -139,6 +145,15 @@ public sealed class PublicApiBaselineInfrastructureGuards
         "OrcaCore::OrcaCore.EngineYieldStepResult"
     };
 
+    private static readonly string[] ForbiddenManifestWideTypeNames =
+    {
+        "OrcaCore.Hosting.OrcaCoreOpenTelemetryServiceCollectionExtensions",
+        "OrcaCore.Hosting.OrcaCoreServiceCollectionExtensions",
+        "OrcaCore.Hosting.WorkflowPayloadSerializationOptions"
+    };
+
+    private const string ForbiddenProbeMarker = "// FORBIDDEN:";
+
     private static readonly string[] ForbiddenMetadataTypes =
     {
         "OrcaCore::OrcaCore.Internal.WorkflowRuntimeBridge",
@@ -220,6 +235,67 @@ public sealed class PublicApiBaselineInfrastructureGuards
             : PublicApiBaseline.FindForbiddenPublicSymbolsInPackages(packageFeed, ForbiddenPublicSymbols);
         findings.Should().BeEmpty(
             "the exact baseline must never normalize removed, deferred, broad-management, or wrong-owner surfaces as approved");
+    }
+
+    [Fact]
+    public void PackedConsumerNegativeFixture_CoversEveryForbiddenSymbolExactlyOnce()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        var sourcePath = Path.Combine(root, "tests", "OrcaCore.DeveloperSurface.Guards", "CompileFixtures",
+            "ProductForbiddenLegacySurface", "ForbiddenLegacySurface.cs");
+        var projectPath = Path.Combine(Path.GetDirectoryName(sourcePath)!, "ProductForbiddenLegacySurface.csproj");
+        var sourceLines = File.ReadAllLines(sourcePath);
+        var markers = sourceLines
+            .Select(line => new { markerIndex = line.IndexOf(ForbiddenProbeMarker, StringComparison.Ordinal), line })
+            .Where(item => item.markerIndex >= 0)
+            .Select(item => new
+            {
+                item.line,
+                marker = item.line[(item.markerIndex + ForbiddenProbeMarker.Length)..].Trim()
+            })
+            .Select(item =>
+            {
+                item.line.Trim().Should().Be($"{ForbiddenProbeMarker}{item.marker}",
+                    "the marker must be the single source of truth for its generated compiler probe");
+                return item.marker;
+            })
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        var expected = ForbiddenPublicSymbols
+            .Concat(RequiredRemovedPlaceholders)
+            .Concat(ForbiddenManifestWideTypeNames.Select(name => $"*::{name}"))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        markers.Should().OnlyHaveUniqueItems();
+        markers.Should().Equal(expected,
+            "fresh-package compiler evidence must cover every reflection-negative symbol and every removed result bridge");
+
+        PublicSurfaceCatalog.ExportedTypes.Select(item => item.Type.FullName)
+            .Should().NotContain(ForbiddenManifestWideTypeNames,
+                "obsolete hosting and codec hooks must not move into another current package");
+        PublicSurfaceCatalog.Assemblies.Should().HaveCount(PublicSurfaceCatalog.TargetAssemblyNames.Count,
+            "manifest-wide absence claims must inspect every exact package assembly");
+        var fixturePackageReferences = System.Xml.Linq.XDocument.Load(projectPath)
+            .Descendants("PackageReference")
+            .Select(element => element.Attribute("Include")?.Value)
+            .OfType<string>()
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        fixturePackageReferences.Should().Equal(
+            PublicSurfaceCatalog.TargetAssemblyNames.Order(StringComparer.Ordinal),
+            "manifest-wide packed-consumer claims must reference all twelve exact packages");
+    }
+
+    [Fact]
+    public void ObsoleteEventNegatives_ArePairedWithThePositiveSection7BRouteUnion()
+    {
+        var route = PublicSurfaceCatalog.Assemblies.SelectMany(assembly => assembly.GetExportedTypes())
+            .Single(type => type.FullName == "OrcaCore.WorkflowEventRoute");
+        route.GetNestedTypes(BindingFlags.Public)
+            .Select(type => type.Name)
+            .Order(StringComparer.Ordinal)
+            .Should().Equal("Correlation", "DefinitionFanout", "Direct", "StartOrDeliver`1");
     }
 
     [Fact]

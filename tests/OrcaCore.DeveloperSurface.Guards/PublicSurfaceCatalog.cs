@@ -27,13 +27,7 @@ internal static class PublicSurfaceCatalog
     internal static IReadOnlyDictionary<string, InterfaceTier> TargetCompanionFixtures { get; } =
         ReadCompanionFixtures().ToDictionary(x => x, _ => InterfaceTier.Companion, StringComparer.Ordinal);
 
-    // Exact future assemblies are located dynamically so task 7.1 can make the Phase 0 packet
-    // green without adding new ProjectReference items to this guard project.
-    internal static IReadOnlyList<Assembly> Assemblies { get; } = TargetAssemblyNames
-        .Select(TryLoadTargetAssembly)
-        .Where(x => x is not null)
-        .Cast<Assembly>()
-        .ToArray();
+    internal static IReadOnlyList<Assembly> Assemblies { get; } = LoadTargetAssemblies();
 
     internal static IReadOnlyList<ClassifiedPublicType> ExportedTypes { get; } = Assemblies
         .SelectMany(SafeExportedTypes)
@@ -93,6 +87,12 @@ internal static class PublicSurfaceCatalog
                 Enum.Parse<InterfaceTier>(package.GetProperty("tier").GetString()!, ignoreCase: false)))
             .ToArray();
     }
+
+    private static IReadOnlyList<Assembly> LoadTargetAssemblies() => TargetAssemblyNames
+        .Select(name => TryLoadTargetAssembly(name)
+            ?? throw new InvalidOperationException(
+                $"Target assembly '{name}' could not be loaded; the exact manifest cannot be inspected partially."))
+        .ToArray();
 
     private static IReadOnlyList<InterfaceTier> ReadAudienceTiers()
     {

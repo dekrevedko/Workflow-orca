@@ -343,8 +343,8 @@ public sealed class FacadeHostingInfrastructureGuards
 }
 
 [Trait(GuardTraits.Phase, GuardTraits.Phase0)]
-[Trait(GuardTraits.Disposition, GuardTraits.ExpectedRed)]
-public sealed class FacadeHostingExpectedRedGuards
+[Trait(GuardTraits.Disposition, GuardTraits.Infrastructure)]
+public sealed class FacadeHostingProductSurfaceGuards
 {
     private static readonly BindingFlags DeclaredPublicInstance =
         BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly;

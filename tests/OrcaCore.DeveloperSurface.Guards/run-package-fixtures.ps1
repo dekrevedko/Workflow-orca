@@ -57,39 +57,9 @@ function ConvertTo-TaskOrder([string] $TaskId) {
     return [version]::new([int]$Matches.major, [int]$Matches.minor, $suffixOrder)
 }
 
-if (Test-Path -LiteralPath $packageCache) {
-    Remove-Item -LiteralPath $packageCache -Recurse -Force
-}
-New-Item -ItemType Directory -Path $packageCache -Force | Out-Null
-
-# Seed the isolated cache from the reviewed local feed so a same-version package in
-# the host fallback cache can never shadow the freshly packed product.
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-foreach ($package in Get-ChildItem -LiteralPath $feed -Filter "OrcaCore*.$version.nupkg") {
-    $suffix = ".$version.nupkg"
-    $id = $package.Name.Substring(0, $package.Name.Length - $suffix.Length)
-    $normalizedId = $id.ToLowerInvariant()
-    $target = Join-Path $packageCache "$normalizedId\$version"
-    New-Item -ItemType Directory -Path $target -Force | Out-Null
-    [System.IO.Compression.ZipFile]::ExtractToDirectory($package.FullName, $target)
-    $nuspec = Get-ChildItem -LiteralPath $target -Filter '*.nuspec' | Select-Object -First 1
-    Move-Item -LiteralPath $nuspec.FullName -Destination (Join-Path $target "$normalizedId.nuspec") -Force
-    Copy-Item -LiteralPath $package.FullName -Destination (Join-Path $target "$normalizedId.$version.nupkg")
-    $sha512 = [Security.Cryptography.SHA512]::Create()
-    try {
-        $stream = [IO.File]::OpenRead($package.FullName)
-        try { $hash = [Convert]::ToBase64String($sha512.ComputeHash($stream)) }
-        finally { $stream.Dispose() }
-    }
-    finally { $sha512.Dispose() }
-    [IO.File]::WriteAllText((Join-Path $target "$normalizedId.$version.nupkg.sha512"), $hash)
-    $metadata = [ordered]@{
-        version = 2
-        contentHash = $hash
-        source = (Resolve-Path -LiteralPath $feed).Path
-    } | ConvertTo-Json
-    [IO.File]::WriteAllText((Join-Path $target '.nupkg.metadata'), $metadata)
-}
+$seed = & (Join-Path $PSScriptRoot 'seed-exact-package-cache.ps1') `
+    -Feed $feed -PackageCache $packageCache -PackageVersion $version 2>&1 | Out-String
+if ($LASTEXITCODE -ne 0) { throw "Exact package cache seeding failed.`n$seed" }
 
 $completedTaskVersion = ConvertTo-TaskOrder $CompletedTask
 $selectedDefinitions = @($definitions | Where-Object {

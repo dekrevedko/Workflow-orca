@@ -17,6 +17,21 @@
     <PackageReference Include="OrcaCore.Engine.Ephemeral" Version="$(Phase0PackageVersion)" />
     <PackageReference Include="OrcaCore.Durable.Hosting" Version="$(Phase0PackageVersion)" />
     <PackageReference Include="OrcaCore.Provider.Abstractions" Version="$(Phase0PackageVersion)" />
+    <PackageReference Include="OrcaCore.Providers.InMemory" Version="$(Phase0PackageVersion)" />
+    <PackageReference Include="OrcaCore.Providers.PostgreSql" Version="$(Phase0PackageVersion)" />
+    <PackageReference Include="OrcaCore.Providers.SqlServer" Version="$(Phase0PackageVersion)" />
     <PackageReference Include="OrcaCore.Runtime.Protocol" Version="$(Phase0PackageVersion)" />
+    <PackageReference Include="OrcaCore.Dag" Version="$(Phase0PackageVersion)" />
+    <PackageReference Include="OrcaCore.Dag.Hosting" Version="$(Phase0PackageVersion)" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="ForbiddenLegacySurface.cs" />
+    <Compile Include="$(ForbiddenProbeDirectory)\*.cs"
+             Link="GeneratedForbiddenProbes\%(Filename)%(Extension)"
+             Condition="'$(ForbiddenProbeDirectory)' != ''" />
+  </ItemGroup>
+  <Target Name="RequireForbiddenProbeDirectory" BeforeTargets="CoreCompile"
+          Condition="'$(ForbiddenProbeDirectory)' == '' Or !Exists('$(ForbiddenProbeDirectory)')">
+    <Error Text="ForbiddenProbeDirectory must name the generated per-symbol packed-consumer probes." />
+  </Target>
 </Project>

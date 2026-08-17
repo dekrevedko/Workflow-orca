@@ -1,162 +1,136 @@
-namespace ProductForbiddenLegacySurface;
+// Marker-only catalog for fresh-package compiler negatives.
+// Each marker is the single source of truth from which the runner generates its exact type or member probe.
+// The infrastructure guard binds this inventory to the reflection-negative catalog.
 
-public static class ForbiddenLegacySurface
-{
-    public static Type RuntimeBridge() =>
-        typeof(global::OrcaCore.Internal.WorkflowRuntimeBridge);
-
-    public static Type PublicAuthoringFactory() =>
-        typeof(global::OrcaCore.Core.Authoring.PublicAuthoringContracts);
-
-    public static object LegacyProjection(
-        global::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot snapshot) => snapshot;
-
-    public static object PausedStatus() =>
-        global::OrcaCore.Abstractions.Instances.WorkflowStatus.Paused;
-
-    public static object SagaProjection(
-        global::OrcaCore.Abstractions.Instances.SagaAuditSnapshot snapshot) => snapshot;
-
-    public static object ChildPolicy() =>
-        global::OrcaCore.Abstractions.Durable.RunChildrenJoinPolicy.WhenAll;
-
-    public static object RawChildCommand(
-        global::OrcaCore.Abstractions.Durable.CompensateChildGroupCommand command) => command;
-
-    public static object DurableManagement(
-        global::OrcaCore.Engine.Durable.Execution.DurableWorkflowRuntime runtime) => runtime.Management;
-
-    public static async Task DurableDefinitionTargetedEventFanout(
-        global::OrcaCore.Engine.Durable.Execution.DurableWorkflowRuntime runtime,
-        global::OrcaCore.DefinitionId definitionId,
-        global::OrcaCore.CorrelationId correlationId)
-    {
-        _ = await runtime.RaiseEventToDefinitionAsync(definitionId, "legacy", correlationId, new object());
-    }
-
-    public static object EphemeralManagement(
-        global::OrcaCore.Engine.Ephemeral.EphemeralWorkflowEngine engine) => engine.Management;
-
-    public static async Task EphemeralDefinitionTargetedEventFanout(
-        global::OrcaCore.Engine.Ephemeral.EphemeralWorkflowEngine engine,
-        global::OrcaCore.DefinitionId definitionId,
-        global::OrcaCore.Abstractions.Events.EventEnvelope envelope)
-    {
-        _ = await engine.RaiseEventByDefinitionAsync<object>(definitionId, envelope, CancellationToken.None);
-    }
-
-    public static object RetentionPort(
-        global::OrcaCore.Abstractions.Providers.IWorkflowRetentionStore store) => store;
-
-    public static object RetentionPolicy(
-        global::OrcaCore.Abstractions.Providers.RetentionPolicy policy) => policy;
-
-    public static object ArchiveResult(
-        global::OrcaCore.Abstractions.Providers.ArchiveResult result) => result;
-
-    public static object PurgeResult(
-        global::OrcaCore.Abstractions.Providers.PurgeResult result) => result;
-
-    public static object BroadProjectionQuery(
-        global::OrcaCore.Abstractions.Providers.WorkflowProjectionQuery query) => query;
-
-    public static object ProjectionStatistics(
-        global::OrcaCore.Abstractions.Providers.WorkflowProjectionStatistics statistics) => statistics;
-
-    public static object ProjectionPolicy() =>
-        global::OrcaCore.Abstractions.Providers.ProviderCommitPolicy.ProjectionMode;
-
-    public static object ProviderSerializedPayload(
-        global::OrcaCore.Abstractions.Providers.SerializedPayload payload) => payload;
-
-    public static Type ProviderSerializerContext() =>
-        typeof(global::OrcaCore.Abstractions.Providers.ProviderJsonSerializerContext);
-
-    public static object SupersededLeaseGovernance(
-        global::OrcaCore.Provider.Abstractions.ResourceGovernance.IResourceLeaseGovernanceStore store) => store;
-
-    public static object LegacyForEachItemContext(
-        global::OrcaCore.Abstractions.Steps.ForEachItemContext context) => context;
-
-    public static object ExternalJobCommand(
-        global::OrcaCore.Abstractions.Durable.RunExternalJobCommand command) => command;
-
-    public static object DeferredRuntimePlaceholders() => new object[]
-    {
-        global::OrcaCore.Core.Execution.FiberBlockedReason.ExternalJob,
-        global::OrcaCore.Core.Execution.FiberBlockedReason.ChildGroup,
-        global::OrcaCore.Abstractions.Durable.DurableFiberBlockedReason.ExternalJob,
-        global::OrcaCore.Abstractions.Durable.DurableFiberBlockedReason.ChildGroup,
-        global::OrcaCore.Abstractions.Durable.DurableOwnedObligationKind.ExternalJob,
-        global::OrcaCore.Abstractions.Durable.DurableOwnedObligationKind.ChildGroup
-    };
-
-    public static object BufferedDeliveryCheckpoint(
-        global::OrcaCore.Abstractions.Providers.CheckpointBufferedDelivery checkpoint) => checkpoint;
-
-    public static object BufferedTimerCheckpoint(
-        global::OrcaCore.Abstractions.Providers.CheckpointBufferedTimer checkpoint) => checkpoint;
-
-    public static object ChildCheckpoint(
-        global::OrcaCore.Abstractions.Providers.CheckpointActiveChild checkpoint) => checkpoint;
-
-    public static object ChildGroupCheckpoint(
-        global::OrcaCore.Abstractions.Providers.CheckpointActiveChildGroup checkpoint) => checkpoint;
-
-    public static object ExternalJobCheckpoint(
-        global::OrcaCore.Abstractions.Providers.CheckpointActiveExternalJob checkpoint) => checkpoint;
-
-    public static object SagaForwardCheckpoint(
-        global::OrcaCore.Abstractions.Providers.CheckpointSagaForwardAction checkpoint) => checkpoint;
-
-    public static object SagaCompensationCheckpoint(
-        global::OrcaCore.Abstractions.Providers.CheckpointSagaCompensationAction checkpoint) => checkpoint;
-
-    public static object SagaRecoveryCheckpoint(
-        global::OrcaCore.Abstractions.Providers.CheckpointSagaRecoveryIntervention checkpoint) => checkpoint;
-
-    public static object BufferedDeliveryEvent(
-        global::OrcaCore.Abstractions.Durable.WorkflowDeliveryBufferedEvent workflowEvent) => workflowEvent;
-
-    public static object BufferedTimerEvent(
-        global::OrcaCore.Abstractions.Durable.WorkflowTimerBufferedEvent workflowEvent) => workflowEvent;
-
-    public static object DiscardedDeliveryEvent(
-        global::OrcaCore.Abstractions.Durable.WorkflowDeliveryDiscardedEvent workflowEvent) => workflowEvent;
-
-    public static object PayloadSerializer(
-        global::OrcaCore.Abstractions.Providers.IWorkflowPayloadSerializer serializer) => serializer;
-
-    public static object PayloadCodec(
-        global::OrcaCore.Abstractions.Providers.IWorkflowPayloadCodec codec) => codec;
-
-    public static object StructuredValueCodec(
-        global::OrcaCore.Core.Execution.IStructuredValueCodec codec) => codec;
-
-    public static object EphemeralSnapshotter(
-        global::OrcaCore.Engine.Ephemeral.IEphemeralStateSnapshotter snapshotter) => snapshotter;
-
-    public static object EphemeralSnapshotterOption(
-        global::OrcaCore.Engine.Ephemeral.EphemeralWorkflowEngineOptions options) => options.StateSnapshotter;
-
-    public static object HostingCodecOptions(
-        global::OrcaCore.Hosting.WorkflowPayloadSerializationOptions options) => options;
-
-    public static Type CatchAllHosting() =>
-        typeof(global::OrcaCore.Hosting.OrcaCoreServiceCollectionExtensions);
-
-    public static Type OpenTelemetryHosting() =>
-        typeof(global::OrcaCore.Hosting.OrcaCoreOpenTelemetryServiceCollectionExtensions);
-
-    public static object RemovedYieldResult(global::OrcaCore.EngineYieldStepResult result) => result;
-
-    public static object RuntimeOwnedYieldCommand(
-        global::OrcaCore.Engine.Durable.Aggregates.DurableYieldCommand command) => command;
-
-    public static object RemovedContinueAsNewResult<TState>(
-        global::OrcaCore.EngineContinueAsNewStepResult<TState> result) => result;
-
-    public static object RemovedExternalJobResult(global::OrcaCore.EngineExternalJobStepResult result) => result;
-
-    public static object RemovedAcquireResourcesResult(global::OrcaCore.EngineAcquireResourcesStepResult result) => result;
-}
+// FORBIDDEN:OrcaCore::OrcaCore.Internal.WorkflowRuntimeBridge
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Events.EventEnvelope
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Steps.ForEachItemContext
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Durable.RunChildFailurePolicy
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Durable.RunChildrenJoinPolicy
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Durable.RunChildrenResidualPolicy
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Instances.ActiveStepSnapshot
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Instances.ActiveWaitSnapshot
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Instances.CompositionBranchOutcomeSnapshot
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Instances.ForEachGroupSnapshot
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Instances.ForEachWorkItemSnapshot
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Instances.ForEachWorkItemStatus
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Instances.LifecycleEventSnapshot
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Instances.SagaAuditScopeSnapshot
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Instances.SagaAuditSnapshot
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Instances.SagaCompensationActionSnapshot
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Instances.SagaCompensationActionStatus
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Instances.SagaForwardActionSnapshot
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Instances.SagaRecoveryInterventionSnapshot
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Instances.WaitMode
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Instances.WorkflowInstanceSnapshot
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Instances.WorkflowPressureMetrics
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Instances.WorkflowStatistics
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Instances.WorkflowStatisticsGroup
+// FORBIDDEN:OrcaCore::OrcaCore.Abstractions.Instances.WorkflowStatus
+// FORBIDDEN:OrcaCore.Core::OrcaCore.Core.Execution.IStructuredValueCodec
+// FORBIDDEN:OrcaCore.Core::OrcaCore.Core.Authoring.PublicAuthoringContracts
+// FORBIDDEN:OrcaCore.Engine.Durable::OrcaCore.Engine.Durable.Aggregates.DurableYieldCommand
+// FORBIDDEN:OrcaCore.Engine.Durable::OrcaCore.Engine.Durable.Management.DagNodeRunSnapshot
+// FORBIDDEN:OrcaCore.Engine.Durable::OrcaCore.Engine.Durable.Management.DagRunSnapshot
+// FORBIDDEN:OrcaCore.Engine.Durable::OrcaCore.Engine.Durable.Management.DestructiveCommandSafety
+// FORBIDDEN:OrcaCore.Engine.Durable::OrcaCore.Engine.Durable.Management.DurableManagement
+// FORBIDDEN:OrcaCore.Engine.Durable::OrcaCore.Engine.Durable.Management.DurableManagementQuery
+// FORBIDDEN:OrcaCore.Engine.Durable::OrcaCore.Engine.Durable.Management.WorkflowInstanceQueryModel
+// FORBIDDEN:OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.Management.ActiveWaitStatistics
+// FORBIDDEN:OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.Management.DestructiveCommandSafety
+// FORBIDDEN:OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.Management.EphemeralInstanceManagement
+// FORBIDDEN:OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.Management.EphemeralManagement
+// FORBIDDEN:OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.Management.EphemeralManagementQuery
+// FORBIDDEN:OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.Management.EphemeralStepManagement
+// FORBIDDEN:OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.Management.TerminalCommandReport
+// FORBIDDEN:OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.Management.WorkflowInstanceQueryModel
+// FORBIDDEN:OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.Management.WorkflowStatistics
+// FORBIDDEN:OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.Management.WorkflowStatisticsGroup
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.IWorkflowRetentionStore
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Provider.Abstractions.ResourceGovernance.IResourceLeaseGovernanceStore
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.ArchiveResult
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.CheckpointActiveChild
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.CheckpointActiveChildGroup
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.CheckpointActiveExternalJob
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.CheckpointSagaCompensationAction
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.CheckpointSagaForwardAction
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.CheckpointSagaRecoveryIntervention
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.CheckpointBufferedDelivery
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.CheckpointBufferedTimer
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.IWorkflowPayloadCodec
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.IWorkflowPayloadSerializer
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.ProviderCommitPolicy
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.ProjectionCommitMode
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.PurgeResult
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.RetentionPolicy
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.SerializedPayload
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.WorkflowProjectionPressureMetrics
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.WorkflowProjectionQuery
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.WorkflowProjectionStatistics
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.WorkflowProjectionStatisticsGroup
+// FORBIDDEN:OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.ProviderJsonSerializerContext
+// FORBIDDEN:OrcaCore.Engine.Durable::OrcaCore.Engine.Durable.Execution.ContentTypeWorkflowPayloadSerializer
+// FORBIDDEN:OrcaCore.Engine.Durable::OrcaCore.Engine.Durable.Execution.JsonWorkflowPayloadSerializer
+// FORBIDDEN:OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.IEphemeralStateSnapshotter
+// FORBIDDEN:OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.SystemTextJsonEphemeralStateSnapshotter
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.CompensateChildGroupCommand
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.CompleteExternalJobCommand
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.CompleteSagaCompensationCommand
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.ConsumeParentResumeTokenCommand
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.FailSagaCompensationCommand
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.RecordSagaForwardActionCompletedCommand
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.RecordSagaManualRecoveryCommand
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.RequestSagaCompensationCommand
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.RunExternalJobCommand
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.SagaCompensationCompletedEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.SagaCompensationFailedEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.SagaCompensationRequestedEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.SagaCompensationStartedEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.SagaForwardActionCompletedEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.SagaForwardActionTimedOutCommand
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.SagaForwardActionTimedOutEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.SagaForwardActionsTransferredEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.SagaManualRecoveryRecordedEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.TimeoutExternalJobCommand
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.WorkflowChildCompensationMaterialization
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.WorkflowChildCompensationScheduledEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.WorkflowChildCompletedEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.WorkflowChildMaterialization
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.WorkflowChildResidualIntentRecordedEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.WorkflowChildScheduledEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.WorkflowChildrenDispatchedEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.WorkflowChildrenScheduledEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.WorkflowDeliveryBufferedEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.WorkflowDeliveryDiscardedEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.WorkflowExternalJobCompletedEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.WorkflowExternalJobStartedEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.WorkflowExternalJobStopRequestedEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.WorkflowExternalJobTimedOutEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.WorkflowParentResumeTokenConsumedEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.WorkflowParentResumeTokenRecordedEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.WorkflowPausedEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.WorkflowResumedEvent
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.WorkflowTimerBufferedEvent
+// FORBIDDEN:OrcaCore::OrcaCore.IWorkflowEventClient
+// FORBIDDEN:OrcaCore::OrcaCore.EventDeliveryStatus
+// FORBIDDEN:OrcaCore::OrcaCore.EventDeliveryResult
+// FORBIDDEN:OrcaCore::OrcaCore.WorkflowEvent
+// FORBIDDEN:OrcaCore::OrcaCore.WorkflowEvent`1
+// FORBIDDEN:*::OrcaCore.Hosting.WorkflowPayloadSerializationOptions
+// FORBIDDEN:*::OrcaCore.Hosting.OrcaCoreServiceCollectionExtensions
+// FORBIDDEN:*::OrcaCore.Hosting.OrcaCoreOpenTelemetryServiceCollectionExtensions
+// FORBIDDEN:OrcaCore::OrcaCore.EngineAcquireResourcesStepResult
+// FORBIDDEN:OrcaCore::OrcaCore.EngineContinueAsNewStepResult`1
+// FORBIDDEN:OrcaCore::OrcaCore.EngineExternalJobStepResult
+// FORBIDDEN:OrcaCore::OrcaCore.EngineYieldStepResult
+// FORBIDDEN:OrcaCore.Core::OrcaCore.Core.Execution.FiberBlockedReason::ChildGroup
+// FORBIDDEN:OrcaCore.Core::OrcaCore.Core.Execution.FiberBlockedReason::ExternalJob
+// FORBIDDEN:OrcaCore.Engine.Durable::OrcaCore.Engine.Durable.Execution.DurableWorkflowRuntime::Management
+// FORBIDDEN:OrcaCore.Engine.Durable::OrcaCore.Engine.Durable.Execution.DurableWorkflowRuntime::RaiseEventToDefinitionAsync
+// FORBIDDEN:OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.EphemeralWorkflowEngine::Management
+// FORBIDDEN:OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.EphemeralWorkflowEngine::RaiseEventByDefinitionAsync
+// FORBIDDEN:OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.EphemeralWorkflowEngineOptions::StateSnapshotter
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.DurableFiberBlockedReason::ChildGroup
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.DurableFiberBlockedReason::ExternalJob
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.DurableOwnedObligationKind::ChildGroup
+// FORBIDDEN:OrcaCore.Runtime.Protocol::OrcaCore.Abstractions.Durable.DurableOwnedObligationKind::ExternalJob
