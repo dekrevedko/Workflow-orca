@@ -1,9 +1,11 @@
-using System.Diagnostics.Metrics;
-using System.Reflection;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using AwesomeAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Abstractions.Diagnostics;
-using OrcaCore.Abstractions.Providers;
-using OrcaCore.Runtime.Protocol.ResourceGovernance;
+using OrcaCore.Providers.InMemory;
+using OrcaCore.Providers.PostgreSql;
+using OrcaCore.Providers.SqlServer;
 
 namespace OrcaCore.DeveloperSurface.Guards;
 
@@ -11,221 +13,105 @@ namespace OrcaCore.DeveloperSurface.Guards;
 [Trait(GuardTraits.Disposition, GuardTraits.Infrastructure)]
 public sealed class OperationalTelemetryContractGuards
 {
-    private static readonly string[] RequiredGauges =
+    private static readonly (string Name, int EventId)[] RequiredStructuredLogs =
     [
-        OrcaCoreMetrics.InstancesActive,
-        OrcaCoreMetrics.InstancesStuck,
-        OrcaCoreMetrics.WaitsActive,
-        OrcaCoreMetrics.OutboxPending,
-        OrcaCoreMetrics.StreamEvents,
-        OrcaCoreMetrics.CheckpointsCount,
-        OrcaCoreMetrics.CheckpointsLag,
-        OrcaCoreMetrics.ResourcePoolWaiters,
-        OrcaCoreMetrics.ResourcePoolTickets,
-        OrcaCoreMetrics.ResourcePoolReservedUnits,
-        OrcaCoreMetrics.ResourcePoolOverCapacityDebt,
-        OrcaCoreMetrics.ResourcePoolReconciliationDue,
-        OrcaCoreMetrics.ContinuationPendingCount,
-        OrcaCoreMetrics.ExternalOutboxPendingCount
-    ];
-
-    private static readonly string[] RequiredCounters =
-    [
-        OrcaCoreMetrics.CommandsProcessed,
-        OrcaCoreMetrics.EventsApplied,
-        OrcaCoreMetrics.StepsCompleted,
-        OrcaCoreMetrics.StepsFailed,
-        OrcaCoreMetrics.OutboxDispatched,
-        OrcaCoreMetrics.ResourcePoolReconciliations,
-        OrcaCoreMetrics.LifecycleEvents,
-        OrcaCoreMetrics.InboxDuplicates,
-        OrcaCoreMetrics.DriverPoisonCount,
-        OrcaCoreMetrics.DriverRegistrationConflictCount
-    ];
-
-    private static readonly string[] RequiredHistograms =
-    [
-        OrcaCoreMetrics.CommandsDuration,
-        OrcaCoreMetrics.StepsDuration,
-        OrcaCoreMetrics.ProviderCommitDuration,
-        OrcaCoreMetrics.OutboxDispatchDuration,
-        OrcaCoreMetrics.WaitsDuration,
-        OrcaCoreMetrics.DriverSegmentDuration,
-        OrcaCoreMetrics.ContinuationLag
+        ("CommandCompleted", 1001),
+        ("OutboxPumpCompleted", 1101),
+        ("OutboxPermanentFailure", 1102),
+        ("OutboxException", 1103),
+        ("StepTransition", 1201),
+        ("WaitTransition", 1301),
+        ("TimerTransition", 1302),
+        ("ProviderCommitCompleted", 1401),
+        ("ProviderCommitConflict", 1402),
+        ("ProviderCommitFailed", 1403),
+        ("StuckInstancesObserved", 1501),
+        ("ResourcePoolTransition", 1601),
+        ("ResourcePoolObserved", 1602),
+        ("LifecycleTransition", 1701),
+        ("SweepCompleted", 1801),
+        ("ProcessingCycleFailed", 1901)
     ];
 
     [Fact]
-    public void RuntimeOwners_PublishTheCompleteCanonicalOrcaMetricCatalog()
+    public void DiagnosticSourceCatalog_ListsEveryRuntimeAndSelectedProviderOwner()
     {
-        var published = new Dictionary<string, Instrument>(StringComparer.Ordinal);
-        using var listener = new MeterListener
-        {
-            InstrumentPublished = (instrument, current) =>
-            {
-                if (instrument.Meter.Name is OrcaCoreDiagnostics.DurableSourceName or
-                    OrcaCoreDiagnostics.EphemeralSourceName)
-                {
-                    published[instrument.Name] = instrument;
-                    current.EnableMeasurementEvents(instrument);
-                }
-            }
-        };
-        listener.Start();
-        LoadDiagnosticsMeter("OrcaCore.Engine.Durable", "OrcaCore.Engine.Durable.Diagnostics.OrcaCoreDurableDiagnostics");
-        LoadDiagnosticsMeter(
-            "OrcaCore.Engine.Ephemeral",
-            "OrcaCore.Engine.Ephemeral.Diagnostics.OrcaCoreEphemeralDiagnostics");
+        OrcaCoreDiagnostics.ProviderSourceNames.Should().Equal(
+            OrcaCoreDiagnostics.InMemoryProviderSourceName,
+            OrcaCoreDiagnostics.PostgreSqlProviderSourceName,
+            OrcaCoreDiagnostics.SqlServerProviderSourceName);
+        OrcaCoreDiagnostics.MeterNames.Should().Equal(
+            OrcaCoreDiagnostics.SourceName,
+            OrcaCoreDiagnostics.DurableSourceName,
+            OrcaCoreDiagnostics.EphemeralSourceName,
+            OrcaCoreDiagnostics.InMemoryProviderSourceName,
+            OrcaCoreDiagnostics.PostgreSqlProviderSourceName,
+            OrcaCoreDiagnostics.SqlServerProviderSourceName);
+        OrcaCoreDiagnostics.ActivitySourceNames.Should().Equal(OrcaCoreDiagnostics.MeterNames);
 
-        published.Keys.Should().Contain(RequiredGauges);
-        published.Keys.Should().Contain(RequiredCounters);
-        published.Keys.Should().Contain(RequiredHistograms);
-        published.Keys.Should().OnlyContain(name => name.StartsWith("orca.", StringComparison.Ordinal));
-        RequiredGauges.Should().OnlyContain(name => published[name] is ObservableGauge<long>);
-        RequiredCounters.Should().OnlyContain(name => published[name] is Counter<long>);
-        RequiredHistograms.Should().OnlyContain(name => published[name] is Histogram<double>);
+        var diagnosticsSource = File.ReadAllText(Path.Combine(
+            FixtureDefinitions.RepositoryRoot(),
+            "src",
+            "OrcaCore.Abstractions",
+            "Diagnostics",
+            "OrcaCoreDiagnostics.cs"));
+        diagnosticsSource.Should().Contain("ActivitySource ActivitySource { get; } = new(SourceName)")
+            .And.Contain("Meter Meter { get; } = new(SourceName)");
     }
 
     [Fact]
-    public void DurableGauges_UseTheSameAuthoritativeStatisticsSnapshotWithExactTags()
+    public void ProviderSourcesAndEngineListenerEvidence_AreCompleteAndReflectionFree()
     {
-        var observed = new List<ObservedMeasurement>();
-        using var listener = new MeterListener
+        var observed = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
+        using var listener = new ActivityListener
         {
-            InstrumentPublished = (instrument, current) =>
+            ShouldListenTo = source =>
             {
-                if (instrument.Meter.Name == OrcaCoreDiagnostics.DurableSourceName)
+                if (OrcaCoreDiagnostics.ProviderSourceNames.Contains(source.Name, StringComparer.Ordinal))
                 {
-                    current.EnableMeasurementEvents(instrument);
+                    observed.TryAdd(source.Name, 0);
                 }
-            }
-        };
-        listener.SetMeasurementEventCallback<long>((instrument, value, tags, _) =>
-            observed.Add(new ObservedMeasurement(instrument.Name, value, tags.ToArray())));
-        listener.Start();
-        var diagnostics = Assembly.Load("OrcaCore.Engine.Durable")
-            .GetType("OrcaCore.Engine.Durable.Diagnostics.OrcaCoreDurableDiagnostics", throwOnError: true)!;
-        _ = diagnostics.GetProperty("Meter", BindingFlags.NonPublic | BindingFlags.Static)!.GetValue(null);
-        var definitionId = global::OrcaCore.DefinitionId.Parse("00000000-0000-0000-0000-000000000171");
-        var instanceId = global::OrcaCore.InstanceId.Parse("00000000-0000-0000-0000-000000000172");
-        var waitEventName = global::OrcaCore.EventName.Create("operator-wait");
-        var statistics = new WorkflowOperatorStatistics
-        {
-            ProviderName = "certified",
-            Groups =
-            [
-                new WorkflowOperatorStatisticsGroup(
-                    definitionId,
-                    global::OrcaCore.DefinitionVersion.Initial,
-                    global::OrcaCore.WorkflowInstanceStatus.Waiting,
-                    3)
-            ],
-            StuckGroups = [new WorkflowOperatorStuckGroup(definitionId, 1)],
-            ActiveWaitGroups = [new WorkflowOperatorActiveWaitGroup(definitionId, waitEventName, 2)],
-            Pressure = new WorkflowOperationalPressure
-            {
-                ActiveInstanceCount = 3,
-                StuckInstanceCount = 1,
-                ActiveWaitCount = 2,
-                StreamEventCount = 11,
-                CheckpointCount = 4,
-                CheckpointLag = 7,
-                ContinuationPendingCount = 5,
-                ContinuationPoisonedCount = 1,
-                ExternalOutboxRetryableCount = 6,
-                ExternalOutboxClaimedCount = 2
-            }
-        };
-        var pool = new ResourcePoolSnapshot(
-            "operator-pool",
-            10,
-            5,
-            [
-                new ResourcePoolTicket(
-                    Guid.Parse("00000000-0000-0000-0000-000000000173"),
-                    "operator-pool",
-                    3,
-                    instanceId,
-                    "held-ticket",
-                    DateTimeOffset.UnixEpoch,
-                    null),
-                new ResourcePoolTicket(
-                    Guid.Parse("00000000-0000-0000-0000-000000000174"),
-                    "operator-pool",
-                    2,
-                    instanceId,
-                    "review-ticket",
-                    DateTimeOffset.UnixEpoch,
-                    null)
-                {
-                    ReviewMarked = true
-                }
-            ],
-            []);
-        diagnostics.GetMethod("RefreshOperatorStatistics", BindingFlags.NonPublic | BindingFlags.Static)!
-            .Invoke(null, [statistics, new[] { pool }]);
-        listener.RecordObservableInstruments();
 
-        observed.Should().Contain(measurement =>
-            measurement.Name == OrcaCoreMetrics.InstancesActive &&
-            measurement.Value == 3 &&
-            measurement.HasTag(OrcaCoreDiagnostics.ExecutionModeKey, OrcaCoreDiagnostics.DurableExecutionMode) &&
-            measurement.HasTag(OrcaCoreDiagnostics.DefinitionIdKey, definitionId.ToString()) &&
-            measurement.HasTag(OrcaCoreDiagnostics.StatusKey, global::OrcaCore.WorkflowInstanceStatus.Waiting.ToString()));
-        observed.Should().Contain(measurement =>
-            measurement.Name == OrcaCoreMetrics.InstancesStuck &&
-            measurement.Value == statistics.Pressure.StuckInstanceCount &&
-            measurement.HasExactTags(
-                Tag(OrcaCoreDiagnostics.ExecutionModeKey, OrcaCoreDiagnostics.DurableExecutionMode),
-                Tag(OrcaCoreDiagnostics.DefinitionIdKey, definitionId.ToString())));
-        observed.Should().Contain(measurement =>
-            measurement.Name == OrcaCoreMetrics.WaitsActive &&
-            measurement.Value == statistics.Pressure.ActiveWaitCount &&
-            measurement.HasExactTags(
-                Tag(OrcaCoreDiagnostics.ExecutionModeKey, OrcaCoreDiagnostics.DurableExecutionMode),
-                Tag(OrcaCoreDiagnostics.DefinitionIdKey, definitionId.ToString()),
-                Tag(OrcaCoreDiagnostics.WaitEventNameKey, waitEventName.Value)));
-        observed.Should().Contain(measurement =>
-            measurement.Name == OrcaCoreMetrics.StreamEvents &&
-            measurement.Value == statistics.Pressure.StreamEventCount &&
-            measurement.HasTag(OrcaCoreDiagnostics.ProviderNameKey, statistics.ProviderName));
-        observed.Should().Contain(measurement =>
-            measurement.Name == OrcaCoreMetrics.ContinuationPendingCount &&
-            measurement.Value == statistics.Pressure.ContinuationPoisonedCount &&
-            measurement.HasTag(OrcaCoreDiagnostics.QueueLaneKey, OrcaCoreDiagnostics.ContinuationQueueLane) &&
-            measurement.HasTag(
-                OrcaCoreDiagnostics.OutboxStateKey,
-                OrcaCoreDiagnostics.PoisonedOutboxState));
-        observed.Should().Contain(measurement =>
-            measurement.Name == OrcaCoreMetrics.ExternalOutboxPendingCount &&
-            measurement.Value == statistics.Pressure.ExternalOutboxRetryableCount &&
-            measurement.HasTag(OrcaCoreDiagnostics.QueueLaneKey, OrcaCoreDiagnostics.ExternalOutboxQueueLane) &&
-            measurement.HasTag(
-                OrcaCoreDiagnostics.OutboxStateKey,
-                OrcaCoreDiagnostics.RetryableOutboxState));
-        observed.Should().Contain(measurement =>
-            measurement.Name == OrcaCoreMetrics.ResourcePoolTickets &&
-            measurement.Value == 1 &&
-            measurement.HasExactTags(
-                Tag(OrcaCoreDiagnostics.ResourcePoolNameKey, pool.Name),
-                Tag(OrcaCoreDiagnostics.ResourcePoolStateKey, OrcaCoreDiagnostics.HeldResourceState)));
-        observed.Should().Contain(measurement =>
-            measurement.Name == OrcaCoreMetrics.ResourcePoolReservedUnits &&
-            measurement.Value == 3 &&
-            measurement.HasExactTags(
-                Tag(OrcaCoreDiagnostics.ResourcePoolNameKey, pool.Name),
-                Tag(OrcaCoreDiagnostics.ResourcePoolStateKey, OrcaCoreDiagnostics.HeldResourceState)));
-        observed.Should().Contain(measurement =>
-            measurement.Name == OrcaCoreMetrics.ResourcePoolTickets &&
-            measurement.Value == 1 &&
-            measurement.HasTag(
-                OrcaCoreDiagnostics.ResourcePoolStateKey,
-                OrcaCoreDiagnostics.ReviewMarkedResourceState));
-        observed.Should().Contain(measurement =>
-            measurement.Name == OrcaCoreMetrics.ResourcePoolReservedUnits &&
-            measurement.Value == 2 &&
-            measurement.HasTag(
-                OrcaCoreDiagnostics.ResourcePoolStateKey,
-                OrcaCoreDiagnostics.ReviewMarkedResourceState));
+                return false;
+            }
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        _ = new ServiceCollection().AddOrcaCoreInMemoryDurableProvider();
+        _ = new ServiceCollection().AddOrcaCorePostgreSqlDurableProvider(
+            new PostgreSqlDurableProviderOptions("Host=localhost;Database=orcacore", "orcacore"));
+        _ = new ServiceCollection().AddOrcaCoreSqlServerDurableProvider(
+            new SqlServerDurableProviderOptions(
+                "Server=localhost;Database=orcacore;Integrated Security=true;TrustServerCertificate=true",
+                "orcacore"));
+
+        observed.Keys.OrderBy(name => name, StringComparer.Ordinal)
+            .Should().Equal(OrcaCoreDiagnostics.ProviderSourceNames.OrderBy(name => name, StringComparer.Ordinal));
+
+        var root = FixtureDefinitions.RepositoryRoot();
+        var listenerEvidence = File.ReadAllText(Path.Combine(
+            root,
+            "tests",
+            "OrcaCore.Engine.Durable.Tests",
+            "Diagnostics",
+            "DurableOperationalTelemetryTests.cs"));
+        listenerEvidence.Should().Contain("ActiveListener_ObservesExactlyTheCompleteCanonicalDurableMetricCatalog")
+            .And.Contain(".Should().Equal(RequiredInstrumentNames)")
+            .And.Contain("new DurableStepThrottleCoordinator()")
+            .And.Contain("ActiveListener_ObservesAuthoritativeGroupedStatisticsWithExactTags")
+            .And.Contain("OrcaCoreDurableDiagnostics.RefreshOperatorStatistics(statistics, [pool])")
+            .And.Contain("RuntimeObservation_UsesAggregateVersionAndRealStepIdentity");
+        AssertNoReflectionBridge(listenerEvidence);
+
+        var ephemeralListenerEvidence = File.ReadAllText(Path.Combine(
+            root,
+            "tests",
+            "OrcaCore.Engine.Ephemeral.Tests",
+            "EphemeralOperatorStatisticsTelemetryTests.cs"));
+        ephemeralListenerEvidence.Should().Contain("Meter_PublishesExactlyTheCanonicalEphemeralInstrumentCatalog")
+            .And.Contain(".Should().Equal(RequiredInstrumentNames.OrderBy")
+            .And.Contain("OnlyContain(name => name.StartsWith(\"orca.\", StringComparison.Ordinal))");
+        AssertNoReflectionBridge(ephemeralListenerEvidence);
     }
 
     [Fact]
@@ -233,7 +119,8 @@ public sealed class OperationalTelemetryContractGuards
     {
         var root = FixtureDefinitions.RepositoryRoot();
         var durableSource = ReadSource(Path.Combine(root, "src", "OrcaCore.Engine.Durable"));
-        var hostingSource = ReadSource(Path.Combine(root, "src", "OrcaCore.Durable.Hosting"));
+        var hostingRoot = Path.Combine(root, "src", "OrcaCore.Durable.Hosting");
+        var hostingSource = ReadSource(hostingRoot);
         foreach (var spanOwner in new[]
         {
             nameof(OrcaCoreDiagnostics.CommandProcessActivity),
@@ -247,35 +134,132 @@ public sealed class OperationalTelemetryContractGuards
             durableSource.Should().Contain($"OrcaCoreDiagnostics.{spanOwner}");
         }
 
-        hostingSource.Should().Contain("[LoggerMessage(");
-        hostingSource.Should().Contain(nameof(OrcaCoreDiagnostics.CommandTypeKey));
-        hostingSource.Should().Contain(nameof(OrcaCoreDiagnostics.OutboxRecordIdKey));
+        File.ReadAllText(Path.Combine(
+                root,
+                "src",
+                "OrcaCore.Engine.Durable",
+                "Execution",
+                "DurableCommandProcessor.cs"))
+            .Should().Contain("await telemetry.ObserveProviderCommitFailedAsync(");
+        var runtimeObserverSource = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "OrcaCore.Engine.Durable",
+            "Execution",
+            "IWorkflowRuntimeObserver.cs"));
+        string.Concat(runtimeObserverSource.Where(character => !char.IsWhiteSpace(character)))
+            .Should().Contain(
+                "ValueTaskOnProviderCommitFailedAsync(" +
+                "WorkflowProviderCommitFailureObservationobservation," +
+                "CancellationTokencancellationToken);");
+
+        var driverSource = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "OrcaCore.Engine.Durable",
+            "Driver",
+            "DurableFiberDriverExecutor.cs"));
+        CountOrdinalOccurrences(driverSource, "StepOperationId = stepOperationId").Should().Be(3,
+            "success, branch-failure, and root-failure commands must preserve the executed operation identity");
+        CountOrdinalOccurrences(driverSource, "StepAttemptNumber = stepAttemptNumber").Should().Be(3,
+            "success, branch-failure, and root-failure commands must preserve the executed attempt ordinal");
+
+        foreach (var (name, eventId) in RequiredStructuredLogs)
+        {
+            hostingSource.Should().Contain($"private const int {name}EventId = {eventId};");
+            hostingSource.Should().Contain($"partial void {name}(");
+        }
+
+        var hostingReadme = File.ReadAllText(Path.Combine(hostingRoot, "README.md"));
+        foreach (var rangeStart in RequiredStructuredLogs.Select(item => item.EventId / 100 * 100).Distinct())
+        {
+            hostingReadme.Should().Contain($"{rangeStart}-{rangeStart + 99}");
+        }
+
+        foreach (var logKeyOwner in new[]
+        {
+            nameof(OrcaCoreDiagnostics.CommandTypeKey),
+            nameof(OrcaCoreDiagnostics.OutboxRecordIdKey),
+            nameof(OrcaCoreDiagnostics.OutboxAttemptKey),
+            nameof(OrcaCoreDiagnostics.StepPathKey),
+            nameof(OrcaCoreDiagnostics.StepOperationIdKey),
+            nameof(OrcaCoreDiagnostics.StepAttemptKey),
+            nameof(OrcaCoreDiagnostics.WaitEventNameKey),
+            nameof(OrcaCoreDiagnostics.CorrelationIdKey),
+            nameof(OrcaCoreDiagnostics.TimerIdKey),
+            nameof(OrcaCoreDiagnostics.TimerFireAtKey),
+            nameof(OrcaCoreDiagnostics.ProviderNameKey),
+            nameof(OrcaCoreDiagnostics.ExpectedStreamVersionKey),
+            nameof(OrcaCoreDiagnostics.StreamVersionKey),
+            nameof(OrcaCoreDiagnostics.ResourcePoolNameKey),
+            nameof(OrcaCoreDiagnostics.ResourceOwnerKey),
+            nameof(OrcaCoreDiagnostics.LeaseObligationIdKey),
+            nameof(OrcaCoreDiagnostics.ResourceTicketIdKey),
+            nameof(OrcaCoreDiagnostics.ResourceOwnerGenerationKey),
+            nameof(OrcaCoreDiagnostics.ResourceActionKey),
+            nameof(OrcaCoreDiagnostics.LifecycleEventNameKey)
+        })
+        {
+            hostingSource.Should().Contain($"OrcaCoreDiagnostics.{logKeyOwner}");
+        }
         Directory.GetFiles(Path.Combine(root, "src"), "*.csproj", SearchOption.AllDirectories)
             .Select(File.ReadAllText)
             .Should().OnlyContain(text => !text.Contains("OpenTelemetry", StringComparison.Ordinal));
+
+        var providerCertificationSource = File.ReadAllText(Path.Combine(
+            root,
+            "tests",
+            "OrcaCore.ProviderCertification",
+            "EventStoreCertificationTests.cs"));
+        providerCertificationSource.Should().Contain("DispatchAttempt.Should().Be(1)")
+            .And.Contain("DispatchAttempt.Should().Be(2)");
+
+        File.ReadAllText(Path.Combine(
+                root,
+                "tests",
+                "OrcaCore.Integration.Tests",
+                "Observability",
+                "ObservabilityIntegrationTests.cs"))
+            .Should().NotContain("OrcaCore.Hosting.csproj");
+        var telemetryGuard = File.ReadAllText(Path.Combine(
+            root,
+            "tests",
+            "OrcaCore.DeveloperSurface.Guards",
+            "OperationalTelemetryContractGuards.cs"));
+        AssertNoReflectionBridge(telemetryGuard);
     }
 
-    private static void LoadDiagnosticsMeter(string assemblyName, string typeName) =>
-        _ = Assembly.Load(assemblyName)
-            .GetType(typeName, throwOnError: true)!
-            .GetProperty("Meter", BindingFlags.NonPublic | BindingFlags.Static)!
-            .GetValue(null);
+    private static void AssertNoReflectionBridge(string source)
+    {
+        foreach (var token in new[]
+        {
+            string.Concat("System", ".Reflection"),
+            string.Concat("Binding", "Flags"),
+            string.Concat("Assembly", ".Load("),
+            string.Concat(".Get", "Method("),
+            string.Concat(".Get", "Property("),
+            string.Concat(".Get", "Field("),
+            string.Concat(".Get", "Constructor("),
+            string.Concat(".Invoke", "(")
+        })
+        {
+            source.Should().NotContain(token);
+        }
+    }
 
     private static string ReadSource(string path) =>
         string.Join('\n', Directory.GetFiles(path, "*.cs", SearchOption.AllDirectories).Select(File.ReadAllText));
 
-    private static KeyValuePair<string, object?> Tag(string key, object value) => new(key, value);
-
-    private sealed record ObservedMeasurement(
-        string Name,
-        long Value,
-        KeyValuePair<string, object?>[] Tags)
+    private static int CountOrdinalOccurrences(string source, string value)
     {
-        internal bool HasTag(string key, object value) =>
-            Tags.Any(tag => string.Equals(tag.Key, key, StringComparison.Ordinal) && Equals(tag.Value, value));
+        var count = 0;
+        var startIndex = 0;
+        while ((startIndex = source.IndexOf(value, startIndex, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            startIndex += value.Length;
+        }
 
-        internal bool HasExactTags(params KeyValuePair<string, object?>[] expected) =>
-            Tags.Length == expected.Length &&
-            expected.All(item => HasTag(item.Key, item.Value!));
+        return count;
     }
 }

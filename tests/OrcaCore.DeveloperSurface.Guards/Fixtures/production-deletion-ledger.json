@@ -396,8 +396,8 @@
       ],
       "symbolFamilies": ["BCL meters/activities/logging", "operator gauge collection", "runtime telemetry observer"],
       "executableEvidence": [
-        "test:tests/OrcaCore.DeveloperSurface.Guards/OperationalTelemetryContractGuards.cs#RuntimeOwners_PublishTheCompleteCanonicalOrcaMetricCatalog",
-        "test:tests/OrcaCore.DeveloperSurface.Guards/OperationalTelemetryContractGuards.cs#DurableGauges_UseTheSameAuthoritativeStatisticsSnapshotWithExactTags",
+        "test:tests/OrcaCore.DeveloperSurface.Guards/OperationalTelemetryContractGuards.cs#DiagnosticSourceCatalog_ListsEveryRuntimeAndSelectedProviderOwner",
+        "test:tests/OrcaCore.DeveloperSurface.Guards/OperationalTelemetryContractGuards.cs#ProviderSourcesAndEngineListenerEvidence_AreCompleteAndReflectionFree",
         "test:tests/OrcaCore.DeveloperSurface.Guards/OperationalTelemetryContractGuards.cs#Product_EmitsTheExactBclSpanAndStructuredLogFamiliesWithoutAnSdkDependency"
       ],
       "deletedPaths": [

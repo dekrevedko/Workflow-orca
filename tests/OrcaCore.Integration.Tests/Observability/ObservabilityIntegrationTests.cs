@@ -206,19 +206,18 @@ public sealed class ObservabilityIntegrationTests
             HasTag(measurement.Tags, "result", "success"));
     }
 
+    // The historical scenario name is retained as a recovery-ledger coordinate. The current
+    // assertion scans every product project because the former OrcaCore.Hosting package is retired.
     [Fact]
     [Trait(Traits.Scenario, "INT-OB-007")]
     [Trait(Traits.AcceptanceCriteria, "OB-AC-007")]
     public void INT_OB_007_NoOpenTelemetryPackagesOutsideHosting()
     {
         var root = FindV3Root();
-        var nonHostingProjects = Directory
-            .GetFiles(Path.Combine(root.FullName, "src"), "*.csproj", SearchOption.AllDirectories)
-            .Where(path => !path.EndsWith(
-                Path.Combine("OrcaCore.Hosting", "OrcaCore.Hosting.csproj"),
-                StringComparison.OrdinalIgnoreCase));
+        var productProjects = Directory
+            .GetFiles(Path.Combine(root.FullName, "src"), "*.csproj", SearchOption.AllDirectories);
 
-        foreach (var project in nonHostingProjects)
+        foreach (var project in productProjects)
         {
             File.ReadAllText(project).Should().NotContain("OpenTelemetry.");
         }

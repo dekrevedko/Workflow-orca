@@ -16,6 +16,10 @@ internal interface IWorkflowRuntimeObserver
     ValueTask OnCommandCompletedAsync(
         WorkflowRuntimeObservation observation,
         CancellationToken cancellationToken);
+
+    ValueTask OnProviderCommitFailedAsync(
+        WorkflowProviderCommitFailureObservation observation,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -48,6 +52,8 @@ internal sealed record WorkflowRuntimeObservation(
     public string ProviderOperation { get; init; } = "append";
 
     public TimeSpan ProviderCommitDuration { get; init; }
+
+    public StreamVersion ExpectedStreamVersion { get; init; } = StreamVersion.Empty;
 }
 
 /// <summary>
@@ -61,12 +67,40 @@ internal sealed record WorkflowRuntimeEventObservation(
     DefinitionId? DefinitionId = null,
     string? StepPath = null,
     string? ErrorKind = null,
+    string? ErrorSummary = null,
     string? LifecycleEventName = null,
     bool DurableLifecycle = true,
     string? WaitEventName = null,
+    string? CorrelationId = null,
     TimeSpan? WaitDuration = null,
     TimeSpan? StepDuration = null,
-    DurableParkReason? ParkReason = null);
+    DurableParkReason? ParkReason = null,
+    string? TimerId = null,
+    DateTimeOffset? FireAt = null,
+    string? ResourceOwner = null,
+    IReadOnlyList<string>? ResourcePoolNames = null,
+    StepOperationId? StepOperationId = null,
+    int? StepAttemptNumber = null,
+    string? LeaseObligationId = null,
+    IReadOnlyList<WorkflowResourcePoolTelemetryItem>? ResourcePoolItems = null);
+
+internal sealed record WorkflowResourcePoolTelemetryItem(
+    string PoolName,
+    string? TicketId,
+    long? OwnerGeneration);
+
+internal sealed record WorkflowRuntimeTelemetryContext(
+    StepOperationId? StepOperationId = null,
+    int? StepAttemptNumber = null,
+    string? LeaseObligationId = null);
+
+internal sealed record WorkflowProviderCommitFailureObservation(
+    InstanceId InstanceId,
+    string CommandType,
+    string ProviderName,
+    StreamVersion ExpectedStreamVersion,
+    TimeSpan Duration,
+    Exception Exception);
 
 /// <summary>
 /// Categorizes durable runtime observations without requiring callers to parse command result text.
@@ -90,6 +124,13 @@ internal sealed class NullWorkflowRuntimeObserver : IWorkflowRuntimeObserver
 
     public ValueTask OnCommandCompletedAsync(
         WorkflowRuntimeObservation observation,
+        CancellationToken cancellationToken)
+    {
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask OnProviderCommitFailedAsync(
+        WorkflowProviderCommitFailureObservation observation,
         CancellationToken cancellationToken)
     {
         return ValueTask.CompletedTask;

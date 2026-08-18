@@ -12,6 +12,53 @@ namespace OrcaCore.Engine.Ephemeral.Tests;
 
 public sealed class EphemeralOperatorStatisticsTelemetryTests
 {
+    private static readonly string[] RequiredInstrumentNames =
+    [
+        OrcaCoreMetrics.CommandsProcessed,
+        OrcaCoreMetrics.EventsApplied,
+        OrcaCoreMetrics.StepsCompleted,
+        OrcaCoreMetrics.StepsFailed,
+        OrcaCoreMetrics.OutboxDispatched,
+        OrcaCoreMetrics.ResourcePoolReconciliations,
+        OrcaCoreMetrics.LifecycleEvents,
+        OrcaCoreMetrics.InboxDuplicates,
+        OrcaCoreMetrics.CommandsDuration,
+        OrcaCoreMetrics.StepsDuration,
+        OrcaCoreMetrics.ProviderCommitDuration,
+        OrcaCoreMetrics.OutboxDispatchDuration,
+        OrcaCoreMetrics.WaitsDuration,
+        OrcaCoreMetrics.InstancesActive,
+        OrcaCoreMetrics.InstancesStuck,
+        OrcaCoreMetrics.WaitsActive,
+        OrcaCoreMetrics.GovernanceConfiguredLimit,
+        OrcaCoreMetrics.GovernanceActiveSlots,
+        OrcaCoreMetrics.GovernanceWaitDepth,
+        OrcaCoreMetrics.GovernanceCancellations
+    ];
+
+    [Fact]
+    public void Meter_PublishesExactlyTheCanonicalEphemeralInstrumentCatalog()
+    {
+        var published = new ConcurrentDictionary<string, Instrument>(StringComparer.Ordinal);
+        using var listener = new MeterListener
+        {
+            InstrumentPublished = (instrument, current) =>
+            {
+                if (instrument.Meter.Name == OrcaCoreDiagnostics.EphemeralSourceName)
+                {
+                    published[instrument.Name] = instrument;
+                    current.EnableMeasurementEvents(instrument);
+                }
+            }
+        };
+        listener.Start();
+        _ = new EphemeralWorkflowEngine(TimeProvider.System);
+
+        published.Keys.OrderBy(name => name, StringComparer.Ordinal)
+            .Should().Equal(RequiredInstrumentNames.OrderBy(name => name, StringComparer.Ordinal));
+        published.Keys.Should().OnlyContain(name => name.StartsWith("orca.", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task Start_UpdatesGroupedStatisticsAndCanonicalBclDiagnostics()
     {

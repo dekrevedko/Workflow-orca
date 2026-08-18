@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Provider.Abstractions;
 using OrcaCore.Provider.Abstractions.ResourceGovernance;
+using OrcaCore.Providers.InMemory.Diagnostics;
 
 namespace OrcaCore.Providers.InMemory;
 
@@ -16,6 +17,7 @@ public static class OrcaCoreInMemoryProviderServiceCollectionExtensions
         this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
+        OrcaCoreInMemoryProviderDiagnostics.Initialize();
         var existing = services
             .Where(descriptor => descriptor.ServiceType == typeof(IDurableProviderRole))
             .Select(descriptor => descriptor.ImplementationInstance as IDurableProviderRole)
@@ -90,7 +92,7 @@ public static class OrcaCoreInMemoryProviderServiceCollectionExtensions
     {
         internal static InMemoryDurableProviderRole Instance { get; } = new();
 
-        public string Name => "in-memory";
+        public string Name => OrcaCore.Abstractions.Diagnostics.OrcaCoreDiagnostics.InMemoryProviderName;
 
         public bool IsDevelopmentOnly => true;
     }

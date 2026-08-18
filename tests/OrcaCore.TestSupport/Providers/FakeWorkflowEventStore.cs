@@ -175,7 +175,7 @@ public sealed class FakeWorkflowEventStore :
             foreach (var record in batch.OutboxRecords)
             {
                 outbox[record.OutboxRecordId] = new FakeOutboxRecord(
-                    record with { Payload = [.. record.Payload] },
+                    record with { Payload = [.. record.Payload], DispatchAttempt = 0 },
                     OutboxRecordState.Pending);
             }
 
@@ -476,19 +476,27 @@ public sealed class FakeWorkflowEventStore :
 
         lock (gate)
         {
-            var claimed = outbox.Values
+            var claimable = outbox.Values
                 .Where(record => IsOutboxClaimable(record, request.ClaimedAt))
                 .Where(record => request.KindSelector is null || request.KindSelector.Matches(record.Write.Kind))
                 .Take(request.MaxCount)
-                .Select(record => record.Write with { Payload = [.. record.Write.Payload] })
                 .ToArray();
-            foreach (var record in claimed)
+            var claimed = new OutboxWrite[claimable.Length];
+            for (var index = 0; index < claimable.Length; index++)
             {
-                outbox[record.OutboxRecordId] = outbox[record.OutboxRecordId] with
+                var record = claimable[index];
+                var write = record.Write with
                 {
+                    Payload = [.. record.Write.Payload],
+                    DispatchAttempt = checked(record.Write.DispatchAttempt + 1)
+                };
+                outbox[write.OutboxRecordId] = record with
+                {
+                    Write = write,
                     State = OutboxRecordState.Claimed,
                     ClaimedUntil = request.ClaimedAt.Add(request.LeaseDuration)
                 };
+                claimed[index] = write;
             }
 
             return Task.FromResult<IReadOnlyList<OutboxWrite>>(claimed);

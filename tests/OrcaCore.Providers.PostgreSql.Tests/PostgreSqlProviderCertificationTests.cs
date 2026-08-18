@@ -72,6 +72,7 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
             store,
             store,
             store,
+            OrcaCore.Abstractions.Diagnostics.OrcaCoreDiagnostics.PostgreSqlProviderName,
             TestContext.Current.CancellationToken);
         await using var restarted = new PostgreSqlWorkflowStore(
             container.GetConnectionString(),

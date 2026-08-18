@@ -264,7 +264,7 @@ internal sealed class SqlServerWorkflowStateEngine :
             {
                 outbox[record.OutboxRecordId] = new InMemoryOutboxRecord(
                     batch.StreamId.InstanceId,
-                    CloneOutboxWrite(record),
+                    CloneOutboxWrite(record) with { DispatchAttempt = 0 },
                     OutboxRecordState.Pending);
             }
 
@@ -997,12 +997,16 @@ internal sealed class SqlServerWorkflowStateEngine :
                 .Where(record => IsOutboxClaimable(record, request.ClaimedAt))
                 .Where(record => request.KindSelector is null || request.KindSelector.Matches(record.Write.Kind))
                 .Take(request.MaxCount)
-                .Select(record => CloneOutboxWrite(record.Write))
+                .Select(record => CloneOutboxWrite(record.Write) with
+                {
+                    DispatchAttempt = checked(record.Write.DispatchAttempt + 1)
+                })
                 .ToArray();
             foreach (var record in claimed)
             {
                 outbox[record.OutboxRecordId] = outbox[record.OutboxRecordId] with
                 {
+                    Write = record,
                     State = OutboxRecordState.Claimed,
                     ClaimedUntil = request.ClaimedAt.Add(request.LeaseDuration)
                 };
@@ -1381,7 +1385,7 @@ internal sealed class SqlServerWorkflowStateEngine :
             };
             return Task.FromResult(new WorkflowOperatorStatistics
             {
-                ProviderName = OrcaCoreDiagnostics.InMemoryProviderName,
+                ProviderName = OrcaCoreDiagnostics.SqlServerProviderName,
                 Groups = groups,
                 StuckGroups = summaries.Values
                     .Where(snapshot => snapshot.IsStuck)

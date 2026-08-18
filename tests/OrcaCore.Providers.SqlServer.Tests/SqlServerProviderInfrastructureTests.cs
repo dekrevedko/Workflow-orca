@@ -119,11 +119,13 @@ public sealed class SqlServerProviderInfrastructureTests(SqlServerContainerFixtu
             streamId,
             StreamVersion.Empty,
             TestContext.Current.CancellationToken);
-        _ = await store.GetOperatorStatisticsAsync(TestContext.Current.CancellationToken);
+        var statistics = await store.GetOperatorStatisticsAsync(TestContext.Current.CancellationToken);
 
         (await ReadStateRevisionAsync(schema)).Should().Be(
             revisionBefore,
             "read-only provider ports must not create a storage mutation or a competing-writer conflict");
+        statistics.ProviderName.Should().Be(
+            OrcaCore.Abstractions.Diagnostics.OrcaCoreDiagnostics.SqlServerProviderName);
     }
 
     [Fact]

@@ -5,6 +5,7 @@ using Npgsql;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Provider.Abstractions;
 using OrcaCore.Provider.Abstractions.ResourceGovernance;
+using OrcaCore.Providers.PostgreSql.Diagnostics;
 
 namespace OrcaCore.Providers.PostgreSql;
 
@@ -95,6 +96,7 @@ public static class OrcaCorePostgreSqlProviderServiceCollectionExtensions
             SearchPath = copiedSchema
         };
         var frozenConnectionString = builder.ConnectionString;
+        OrcaCorePostgreSqlProviderDiagnostics.Initialize();
         services.TryAddSingleton(_ => NpgsqlDataSource.Create(frozenConnectionString));
         services.TryAddSingleton<PostgreSqlWorkflowStore>();
         services.TryAddSingleton<PostgreSqlResourcePoolStore>();
@@ -130,7 +132,7 @@ public static class OrcaCorePostgreSqlProviderServiceCollectionExtensions
         string ConnectionString,
         string Schema) : IDurableProviderRole
     {
-        public string Name => "postgresql";
+        public string Name => OrcaCore.Abstractions.Diagnostics.OrcaCoreDiagnostics.PostgreSqlProviderName;
 
         public bool IsDevelopmentOnly => false;
     }

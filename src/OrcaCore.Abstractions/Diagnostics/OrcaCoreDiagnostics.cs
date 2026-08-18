@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
+
 namespace OrcaCore.Abstractions.Diagnostics;
 
 /// <summary>
@@ -5,6 +8,10 @@ namespace OrcaCore.Abstractions.Diagnostics;
 /// </summary>
 public static class OrcaCoreDiagnostics
 {
+    internal static ActivitySource ActivitySource { get; } = new(SourceName);
+
+    internal static Meter Meter { get; } = new(SourceName);
+
     /// <summary>
     /// Gets the root OrcaCore source name.
     /// </summary>
@@ -24,6 +31,7 @@ public static class OrcaCoreDiagnostics
 
     public const string InMemoryProviderName = "in-memory";
     public const string PostgreSqlProviderName = "postgresql";
+    public const string SqlServerProviderName = "sqlserver";
 
     public const string StartOperation = "start";
     public const string RaiseEventOperation = "raise_event";
@@ -59,11 +67,13 @@ public static class OrcaCoreDiagnostics
 
     public const string InMemoryProviderSourceName = "OrcaCore.Providers.InMemory";
     public const string PostgreSqlProviderSourceName = "OrcaCore.Providers.PostgreSql";
+    public const string SqlServerProviderSourceName = "OrcaCore.Providers.SqlServer";
 
     public static readonly string[] ProviderSourceNames =
     [
         InMemoryProviderSourceName,
-        PostgreSqlProviderSourceName
+        PostgreSqlProviderSourceName,
+        SqlServerProviderSourceName
     ];
 
     public static readonly string[] MeterNames =
@@ -93,16 +103,28 @@ public static class OrcaCoreDiagnostics
     public const string CommandOutcomeKey = "outcome";
     public const string EventTypeKey = "orca.event.type";
     public const string StepPathKey = "orca.step.path";
+    public const string StepOperationIdKey = "orca.step.operation.id";
+    public const string StepAttemptKey = "orca.step.attempt";
     public const string ErrorKindKey = "error.kind";
     public const string LifecycleEventNameKey = "event.name";
     public const string DurableKey = "durable";
     public const string WaitEventNameKey = "orca.wait.event_name";
+    public const string CorrelationIdKey = "orca.correlation.id";
+    public const string TimerIdKey = "orca.timer.id";
+    public const string TimerFireAtKey = "fire_at";
     public const string ResourcePoolNameKey = "pool.name";
+    public const string ResourceOwnerKey = "owner";
+    public const string LeaseObligationIdKey = "lease_obligation_id";
+    public const string ResourceTicketIdKey = "ticket_id";
+    public const string ResourceOwnerGenerationKey = "owner_generation";
+    public const string ResourceActionKey = "action";
     public const string ProviderOperationKey = "operation";
     public const string AppendProviderOperation = "append";
     public const string StreamVersionKey = "stream_version";
+    public const string ExpectedStreamVersionKey = "expected_version";
     public const string OutboxKindKey = "orca.outbox.kind";
     public const string OutboxRecordIdKey = "orca.outbox.record_id";
+    public const string OutboxAttemptKey = "attempt";
     public const string OutboxResultKey = "result";
     public const string StateKey = "state";
     public const string OutboxStateKey = StateKey;

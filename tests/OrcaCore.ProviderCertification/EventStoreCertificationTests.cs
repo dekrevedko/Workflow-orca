@@ -807,8 +807,10 @@ public abstract class EventStoreCertificationTests
             TestContext.Current.CancellationToken);
 
         first.Should().ContainSingle(record => record.OutboxRecordId == outboxRecordId);
+        first.Single().DispatchAttempt.Should().Be(1);
         stillLeased.Should().BeEmpty();
         reclaimed.Should().ContainSingle(record => record.OutboxRecordId == outboxRecordId);
+        reclaimed.Single().DispatchAttempt.Should().Be(2);
     }
 
     [Fact]

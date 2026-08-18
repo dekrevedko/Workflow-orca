@@ -25,6 +25,7 @@ public sealed class InMemoryProviderCertificationTests : ContinueAsNewCertificat
             provider.OperationalStore,
             provider.ProjectionStore,
             provider.MaintenanceStore,
+            OrcaCore.Abstractions.Diagnostics.OrcaCoreDiagnostics.InMemoryProviderName,
             TestContext.Current.CancellationToken);
     }
 

@@ -2,9 +2,11 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using OrcaCore.Abstractions.Diagnostics;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Provider.Abstractions;
 using OrcaCore.Provider.Abstractions.ResourceGovernance;
+using OrcaCore.Providers.SqlServer.Diagnostics;
 using OrcaCore.Providers.SqlServer.Internal;
 
 namespace OrcaCore.Providers.SqlServer;
@@ -31,7 +33,7 @@ public sealed class SqlServerDurableProviderOptions
 /// <summary>Registers the production SQL Server durable provider role.</summary>
 public static class OrcaCoreSqlServerProviderServiceCollectionExtensions
 {
-    private const string ProviderRoleName = "sqlserver";
+    private const string ProviderRoleName = OrcaCoreDiagnostics.SqlServerProviderName;
 
     /// <summary>Registers one complete certified SQL Server durable provider role.</summary>
     public static IServiceCollection AddOrcaCoreSqlServerDurableProvider(
@@ -92,6 +94,7 @@ public static class OrcaCoreSqlServerProviderServiceCollectionExtensions
                 string.Join(", ", preRegisteredPorts));
         }
 
+        OrcaCoreSqlServerProviderDiagnostics.Initialize();
         services.TryAddSingleton(provider => new SqlServerStateDocumentStore(
             frozenConnectionString,
             frozenSchema));

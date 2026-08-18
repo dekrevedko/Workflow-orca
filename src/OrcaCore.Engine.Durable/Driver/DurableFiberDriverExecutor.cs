@@ -828,6 +828,9 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                     }
 
                     var result = executed.Result;
+                    var stepOperationId = StepOperationId.Parse(
+                        fiber.LogicalOperationKey ?? LogicalOperationKey(execution, fiber, instruction));
+                    var stepAttemptNumber = fiber.RetryAttempt > 0 ? fiber.RetryAttempt : 1;
                     // Shutdown may cancel the step body, but once it returns a result the current
                     // mutation must finish so a surviving host can resume from committed state.
                     var commitCancellationToken = CancellationToken.None;
@@ -854,7 +857,9 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                                     completedEnvelope)
                                 {
                                     ExpectedStreamVersion = currentVersion,
-                                    ConsumedResumeWaitIds = ConsumedWaitIds(consumedWaitId)
+                                    ConsumedResumeWaitIds = ConsumedWaitIds(consumedWaitId),
+                                    StepOperationId = stepOperationId,
+                                    StepAttemptNumber = stepAttemptNumber
                                 },
                                 commitCancellationToken).ConfigureAwait(false);
                             if (completed.Outcome != DurableCommandOutcome.Committed)
@@ -1031,7 +1036,9 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                                         ConsumedResumeWaitIds = ConsumedWaitIds(consumedWaitId),
                                         CancelWaitIds = cleanup.WaitIds,
                                         CancelTimerIds = cleanup.TimerIds,
-                                        TerminalFiberIds = cleanup.TerminalFiberIds
+                                        TerminalFiberIds = cleanup.TerminalFiberIds,
+                                        StepOperationId = stepOperationId,
+                                        StepAttemptNumber = stepAttemptNumber
                                     },
                                     commitCancellationToken).ConfigureAwait(false);
                                 return fiberFailed.Outcome == DurableCommandOutcome.Committed
@@ -1052,7 +1059,9 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                                     ConsumedResumeWaitIds = ConsumedWaitIds(consumedWaitId),
                                     CancelWaitIds = cleanup.WaitIds,
                                     CancelTimerIds = cleanup.TimerIds,
-                                    TerminalFiberIds = cleanup.TerminalFiberIds
+                                    TerminalFiberIds = cleanup.TerminalFiberIds,
+                                    StepOperationId = stepOperationId,
+                                    StepAttemptNumber = stepAttemptNumber
                                 },
                                 commitCancellationToken).ConfigureAwait(false);
                             return failedResult.Outcome == DurableCommandOutcome.Committed

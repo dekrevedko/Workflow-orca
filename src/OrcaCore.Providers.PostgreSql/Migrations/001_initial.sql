@@ -143,6 +143,7 @@ create table if not exists orcacore_outbox (
     kind text not null,
     payload bytea not null,
     state text not null,
+    dispatch_attempt integer not null default 0,
     claimed_until timestamp with time zone null,
     poison_code text null,
     poison_detail text null

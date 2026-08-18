@@ -2,6 +2,7 @@ using System.Diagnostics;
 using OrcaCore.Abstractions.Diagnostics;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Providers;
 using OrcaCore.Abstractions.Serialization;
 using OrcaCore.Engine.Durable.Aggregates;
 using OrcaCore.Engine.Durable.Diagnostics;
@@ -35,6 +36,7 @@ internal sealed class DurableCommandTelemetry(IWorkflowRuntimeObserver runtimeOb
         bool providerCommitAttempted = false,
         string providerName = "unknown",
         TimeSpan providerCommitDuration = default,
+        StreamVersion? expectedStreamVersion = null,
         bool inboxDuplicate = false)
     {
         try
@@ -61,7 +63,8 @@ internal sealed class DurableCommandTelemetry(IWorkflowRuntimeObserver runtimeOb
                         InboxDuplicate = inboxDuplicate,
                         ProviderCommitAttempted = providerCommitAttempted,
                         ProviderName = providerName,
-                        ProviderCommitDuration = providerCommitDuration
+                        ProviderCommitDuration = providerCommitDuration,
+                        ExpectedStreamVersion = expectedStreamVersion ?? StreamVersion.Empty
                     },
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -74,11 +77,39 @@ internal sealed class DurableCommandTelemetry(IWorkflowRuntimeObserver runtimeOb
         return result;
     }
 
+    internal async Task ObserveProviderCommitFailedAsync(
+        InstanceId instanceId,
+        string commandType,
+        string providerName,
+        StreamVersion expectedStreamVersion,
+        TimeSpan duration,
+        Exception exception,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await runtimeObserver.OnProviderCommitFailedAsync(
+                new WorkflowProviderCommitFailureObservation(
+                    instanceId,
+                    commandType,
+                    providerName,
+                    expectedStreamVersion,
+                    duration,
+                    exception),
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // Runtime observations are diagnostics; observer failures must not change command results.
+        }
+    }
+
     internal static IReadOnlyList<WorkflowRuntimeEventObservation> CreateEventObservations(
         IReadOnlyList<DurableWorkflowEvent> events,
         DefinitionId? definitionId,
         IReadOnlyDictionary<WaitId, DurableActiveWait> activeWaitsById,
-        TimeSpan stepDuration)
+        TimeSpan stepDuration,
+        WorkflowRuntimeTelemetryContext? context)
     {
         return events
             .Select(workflowEvent =>
@@ -94,14 +125,25 @@ internal sealed class DurableCommandTelemetry(IWorkflowRuntimeObserver runtimeOb
                         eventDefinitionId,
                         StepPath: stepCompleted.StepPath,
                         LifecycleEventName: "StepCompleted",
-                        StepDuration: stepDuration),
+                        StepDuration: stepDuration,
+                        StepOperationId: context?.StepOperationId,
+                        StepAttemptNumber: context?.StepAttemptNumber),
                     WorkflowStepFailedEvent stepFailed => new WorkflowRuntimeEventObservation(
                         eventType,
                         eventDefinitionId,
                         StepPath: stepFailed.StepPath,
                         ErrorKind: nameof(WorkflowStepFailedEvent),
+                        ErrorSummary: stepFailed.ErrorSummary,
                         LifecycleEventName: "StepFailed",
-                        StepDuration: stepDuration),
+                        StepDuration: stepDuration,
+                        StepOperationId: context?.StepOperationId,
+                        StepAttemptNumber: context?.StepAttemptNumber),
+                    WorkflowWaitRegisteredEvent waitRegistered => new WorkflowRuntimeEventObservation(
+                        eventType,
+                        eventDefinitionId,
+                        LifecycleEventName: "InstanceSuspended",
+                        WaitEventName: waitRegistered.EventName,
+                        CorrelationId: waitRegistered.CorrelationId.ToString()),
                     WorkflowWaitMatchedEvent waitMatched => new WorkflowRuntimeEventObservation(
                         eventType,
                         eventDefinitionId,
@@ -109,9 +151,49 @@ internal sealed class DurableCommandTelemetry(IWorkflowRuntimeObserver runtimeOb
                         WaitEventName: activeWaitsById.TryGetValue(waitMatched.WaitId, out var wait)
                             ? wait.EventName
                             : null,
+                        CorrelationId: activeWaitsById.TryGetValue(waitMatched.WaitId, out wait)
+                            ? wait.CorrelationId.ToString()
+                            : null,
                         WaitDuration: activeWaitsById.TryGetValue(waitMatched.WaitId, out wait)
                             ? PositiveDuration(waitMatched.OccurredAt - wait.RegisteredAt)
                             : null),
+                    WorkflowTimerScheduledEvent timerScheduled => new WorkflowRuntimeEventObservation(
+                        eventType,
+                        eventDefinitionId,
+                        LifecycleEventName: "InstanceSuspended",
+                        TimerId: timerScheduled.TimerId.ToString(),
+                        FireAt: timerScheduled.FireAt),
+                    WorkflowTimerFiredEvent timerFired => new WorkflowRuntimeEventObservation(
+                        eventType,
+                        eventDefinitionId,
+                        LifecycleEventName: "InstanceResumed",
+                        TimerId: timerFired.TimerId.ToString()),
+                    WorkflowResourcePoolAcquiredEvent acquired => new WorkflowRuntimeEventObservation(
+                        eventType,
+                        eventDefinitionId,
+                        ResourceOwner: acquired.HolderKey,
+                        ResourcePoolNames: PoolNames(acquired.Tickets.Select(ticket => ticket.PoolName)),
+                        LeaseObligationId: context?.LeaseObligationId,
+                        ResourcePoolItems: acquired.Tickets.Select(ResourcePoolItem).ToArray()),
+                    WorkflowResourcePoolQueuedEvent queued => new WorkflowRuntimeEventObservation(
+                        eventType,
+                        eventDefinitionId,
+                        ResourceOwner: queued.HolderKey,
+                        ResourcePoolNames: PoolNames(queued.Requirements.Select(requirement => requirement.PoolName)),
+                        LeaseObligationId: context?.LeaseObligationId,
+                        ResourcePoolItems: queued.Requirements
+                            .Select(requirement => new WorkflowResourcePoolTelemetryItem(
+                                requirement.PoolName,
+                                TicketId: null,
+                                OwnerGeneration: null))
+                            .ToArray()),
+                    WorkflowResourcePoolReleasedEvent released => new WorkflowRuntimeEventObservation(
+                        eventType,
+                        eventDefinitionId,
+                        ResourceOwner: released.HolderKey,
+                        ResourcePoolNames: PoolNames(released.Tickets.Select(ticket => ticket.PoolName)),
+                        LeaseObligationId: context?.LeaseObligationId,
+                        ResourcePoolItems: released.Tickets.Select(ResourcePoolItem).ToArray()),
                     WorkflowParkedEvent parked => new WorkflowRuntimeEventObservation(
                         eventType,
                         eventDefinitionId,
@@ -153,6 +235,8 @@ internal sealed class DurableCommandTelemetry(IWorkflowRuntimeObserver runtimeOb
                 OrcaCoreDiagnostics.StepExecuteActivity);
             activity?.SetTag(OrcaCoreDiagnostics.StepPathKey, workflowEvent.StepPath);
             activity?.SetTag(OrcaCoreDiagnostics.InstanceIdKey, instanceId.ToString());
+            activity?.SetTag(OrcaCoreDiagnostics.StepOperationIdKey, workflowEvent.StepOperationId?.ToString());
+            activity?.SetTag(OrcaCoreDiagnostics.StepAttemptKey, workflowEvent.StepAttemptNumber);
             if (workflowEvent.DefinitionId is { } definitionId)
             {
                 activity?.SetTag(OrcaCoreDiagnostics.DefinitionIdKey, definitionId.ToString());
@@ -199,6 +283,17 @@ internal sealed class DurableCommandTelemetry(IWorkflowRuntimeObserver runtimeOb
     {
         return duration < TimeSpan.Zero ? TimeSpan.Zero : duration;
     }
+
+    private static IReadOnlyList<string> PoolNames(IEnumerable<string> names)
+    {
+        return names
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static WorkflowResourcePoolTelemetryItem ResourcePoolItem(ResourcePoolTicket ticket) =>
+        new(ticket.PoolName, ticket.TicketId.ToString("N"), ticket.ProviderGeneration);
 
     private static WorkflowRuntimeObservationKind ToObservationKind(DurableCommandOutcome outcome)
     {

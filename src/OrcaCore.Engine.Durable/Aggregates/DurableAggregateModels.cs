@@ -164,6 +164,10 @@ internal sealed record DurableStepCompletedCommand(
     string StepPath,
     DurableCheckpointPayload Envelope)
 {
+    public StepOperationId? StepOperationId { get; init; }
+
+    public int? StepAttemptNumber { get; init; }
+
     /// <summary>
     /// Gets the stream version the driver observed when deciding this command; the kernel
     /// rejects the commit as a conflict when the stream moved past it (DU-022).
@@ -209,6 +213,10 @@ internal sealed record DurableStepFailedCommand(
     string ErrorSummary,
     DurableCheckpointPayload? Envelope = null)
 {
+    public StepOperationId? StepOperationId { get; init; }
+
+    public int? StepAttemptNumber { get; init; }
+
     public StreamVersion? ExpectedStreamVersion { get; init; }
 
     public IReadOnlyList<WaitId> ConsumedResumeWaitIds { get; init; } = [];
@@ -230,6 +238,10 @@ internal sealed record DurableFiberFailedCommand(
     string ErrorSummary,
     DurableCheckpointPayload Envelope)
 {
+    public StepOperationId? StepOperationId { get; init; }
+
+    public int? StepAttemptNumber { get; init; }
+
     public StreamVersion? ExpectedStreamVersion { get; init; }
 
     public IReadOnlyList<WaitId> ConsumedResumeWaitIds { get; init; } = [];

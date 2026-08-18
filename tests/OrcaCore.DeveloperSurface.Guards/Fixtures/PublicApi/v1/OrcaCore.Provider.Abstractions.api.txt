@@ -481,6 +481,7 @@ type public sealed class OrcaCore.Abstractions.Providers.OutboxWrite interfaces 
   operator public static op_Inequality([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.OutboxWrite? left, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.OutboxWrite? right) -> [System.Private.CoreLib]System.Boolean
   property [OrcaCore]OrcaCore.Abstractions.Ids.OutboxRecordId OutboxRecordId { get:public; init:public }
   property [System.Private.CoreLib]System.Byte[]! Payload { get:public; init:public }
+  property [System.Private.CoreLib]System.Int32 DispatchAttempt { get:public; init:public }
   property [System.Private.CoreLib]System.String! Kind { get:public; init:public }
 type public sealed class OrcaCore.Abstractions.Providers.ProjectionHistoryWrite interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.ProjectionHistoryWrite~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
   ctor public .ctor([System.Private.CoreLib]System.Guid HistoryId, [System.Private.CoreLib]System.DateTimeOffset RecordedAt, [System.Private.CoreLib]System.String! Kind, [System.Private.CoreLib]System.String! PayloadJson)

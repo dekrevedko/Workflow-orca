@@ -51,7 +51,7 @@ This is a dependency-direction summary, not a partial package declaration. The e
 manifest is `OrcaCore`, `OrcaCore.Core`, `OrcaCore.Engine.Ephemeral`,
 `OrcaCore.Runtime.Protocol`, `OrcaCore.Provider.Abstractions`, `OrcaCore.Engine.Durable`,
 `OrcaCore.Durable.Hosting`, `OrcaCore.Providers.InMemory`, `OrcaCore.Providers.PostgreSql`,
-`OrcaCore.Dag`, and `OrcaCore.Dag.Hosting`; exact direct edges and CLR namespace ownership are
+`OrcaCore.Providers.SqlServer`, `OrcaCore.Dag`, and `OrcaCore.Dag.Hosting`; exact direct edges and CLR namespace ownership are
 normative in [`specs/17-selected-mode-capability-matrix.md`](specs/17-selected-mode-capability-matrix.md#175-package-and-integration-boundary).
 `OrcaCore.Hosting` is a shared CLR namespace, not a PackageId.
 
@@ -71,7 +71,8 @@ Microsoft hosting uses role-specific owners and entry points: `OrcaCore.Engine.E
 `AddOrcaCoreEphemeralEngine`; `OrcaCore.Durable.Hosting` owns `AddOrcaCoreDurableEngine` and
 callback-only `AddOrcaCoreDurableEventIngress`; `OrcaCore.Providers.InMemory` owns development/test
 `AddOrcaCoreInMemoryDurableProvider`; `OrcaCore.Providers.PostgreSql` owns production
-`AddOrcaCorePostgreSqlDurableProvider`; and `OrcaCore.Dag.Hosting` owns `AddOrcaCoreDag`. Options
+`AddOrcaCorePostgreSqlDurableProvider`; `OrcaCore.Providers.SqlServer` owns production
+`AddOrcaCoreSqlServerDurableProvider`; and `OrcaCore.Dag.Hosting` owns `AddOrcaCoreDag`. Options
 are programmatically constructed, copied, and validated without a binder facade. There is no v1
 catch-all registration or separate hosted-service switch.
 
@@ -85,7 +86,7 @@ catch-all registration or separate hosted-service switch.
 | Durable engine | `src/OrcaCore.Engine.Durable/` | Internal aggregate decisions, replay, checkpoint interpretation, command handling, outbox materialization, and continuation signals. |
 | Durable hosting | `src/OrcaCore.Durable.Hosting/` | Public durable engine/ingress registration, management and diagnostics facades, plus internal hosted pumps and operational sweeps. |
 | Provider contract and protocol | `src/OrcaCore.Provider.Abstractions/`, `src/OrcaCore.Runtime.Protocol/` | Advanced split provider ports/commit records and advanced durable wire/storage records; neither is an ordinary application surface. |
-| V1 providers | `src/OrcaCore.Providers.InMemory/`, `src/OrcaCore.Providers.PostgreSql/` | Development/test in-memory registration and the complete production PostgreSQL role set. No other provider source root is present. |
+| V1 providers | `src/OrcaCore.Providers.InMemory/`, `src/OrcaCore.Providers.PostgreSql/`, `src/OrcaCore.Providers.SqlServer/` | Development/test in-memory registration plus complete independently certified PostgreSQL and SQL Server production role sets. |
 | DAG boundary | `src/OrcaCore.Dag/`, `src/OrcaCore.Dag.Hosting/` | Reserved v1 DAG packages; Section 8 implementation remains gated. |
 | Tests | `tests/` | Unit, acceptance, hosting, provider certification, integration, and support fixtures. |
 | Samples | `samples/` | Public-API console examples, generic host, and Blazor operations dashboard. |

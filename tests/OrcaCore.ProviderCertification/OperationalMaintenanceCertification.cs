@@ -15,8 +15,10 @@ public static class OperationalMaintenanceCertification
         IWorkflowOperationalStore operationalStore,
         IWorkflowProjectionStore projectionStore,
         IWorkflowProviderMaintenanceStore maintenanceStore,
+        string expectedProviderName,
         CancellationToken cancellationToken)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedProviderName);
         var definitionId = global::OrcaCore.DefinitionId.New();
         var runningId = global::OrcaCore.InstanceId.Parse(Guid.CreateVersion7().ToString());
         var waitingId = global::OrcaCore.InstanceId.Parse(Guid.CreateVersion7().ToString());
@@ -59,6 +61,7 @@ public static class OperationalMaintenanceCertification
         var beforeStuckRefresh = await operationalStore
             .GetOperatorStatisticsAsync(cancellationToken)
             .ConfigureAwait(false);
+        beforeStuckRefresh.ProviderName.Should().Be(expectedProviderName);
         beforeStuckRefresh.Pressure.StuckInstanceCount.Should().Be(0,
             "reading operator statistics must not mutate provider state");
         (await projectionStore.GetAsync(runningId, cancellationToken).ConfigureAwait(false))
@@ -70,6 +73,7 @@ public static class OperationalMaintenanceCertification
         var initial = await operationalStore
             .GetOperatorStatisticsAsync(cancellationToken)
             .ConfigureAwait(false);
+        initial.ProviderName.Should().Be(expectedProviderName);
         initial.Groups.Should().Contain(group =>
             group.DefinitionId.Equals(definitionId) &&
             group.DefinitionVersion.Equals(global::OrcaCore.DefinitionVersion.Initial) &&

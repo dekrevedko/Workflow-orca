@@ -235,7 +235,8 @@ internal sealed class DurableCommandProcessor
             command.InstanceId,
             aggregate => aggregate.DecideStepCompleted(command),
             cancellationToken,
-            expectedVersion: command.ExpectedStreamVersion);
+            expectedVersion: command.ExpectedStreamVersion,
+            telemetryContext: new(command.StepOperationId, command.StepAttemptNumber));
     }
 
     internal Task<DurableCommandResult> ProcessAsync(
@@ -247,7 +248,8 @@ internal sealed class DurableCommandProcessor
             command.InstanceId,
             aggregate => aggregate.DecideStepFailed(command),
             cancellationToken,
-            expectedVersion: command.ExpectedStreamVersion);
+            expectedVersion: command.ExpectedStreamVersion,
+            telemetryContext: new(command.StepOperationId, command.StepAttemptNumber));
     }
 
     internal Task<DurableCommandResult> ProcessAsync(
@@ -259,7 +261,8 @@ internal sealed class DurableCommandProcessor
             command.InstanceId,
             aggregate => aggregate.DecideFiberFailed(command),
             cancellationToken,
-            expectedVersion: command.ExpectedStreamVersion);
+            expectedVersion: command.ExpectedStreamVersion,
+            telemetryContext: new(command.StepOperationId, command.StepAttemptNumber));
     }
 
     internal Task<DurableCommandResult> ProcessAsync(
@@ -417,7 +420,8 @@ internal sealed class DurableCommandProcessor
                 return aggregate.DecideResourcePoolAcquire(command, acquireResult);
             },
             cancellationToken,
-            expectedVersion: command.ExpectedStreamVersion);
+            expectedVersion: command.ExpectedStreamVersion,
+            telemetryContext: new(LeaseObligationId: command.LeaseObligationId));
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -692,7 +696,8 @@ internal sealed class DurableCommandProcessor
         CancellationToken cancellationToken,
         DurableInboxDelivery? inboxDelivery = null,
         string commandType = "DurableCommand",
-        StreamVersion? expectedVersion = null)
+        StreamVersion? expectedVersion = null,
+        WorkflowRuntimeTelemetryContext? telemetryContext = null)
     {
         return await RunInLaneAsync(
             instanceId,
@@ -700,7 +705,8 @@ internal sealed class DurableCommandProcessor
             cancellationToken,
             inboxDelivery,
             commandType,
-            expectedVersion).ConfigureAwait(false);
+            expectedVersion,
+            telemetryContext).ConfigureAwait(false);
     }
 
     private async Task<DurableTerminalLifecycleCommand> CreateTerminalLifecycleCommandAsync(
@@ -796,11 +802,19 @@ internal sealed class DurableCommandProcessor
         CancellationToken cancellationToken,
         DurableInboxDelivery? inboxDelivery = null,
         string commandType = "DurableCommand",
-        StreamVersion? expectedVersion = null)
+        StreamVersion? expectedVersion = null,
+        WorkflowRuntimeTelemetryContext? telemetryContext = null)
     {
         return await runtime.RunAsync(
             instanceId,
-            token => ProcessCoreAsync(instanceId, decide, token, inboxDelivery, commandType, expectedVersion),
+            token => ProcessCoreAsync(
+                instanceId,
+                decide,
+                token,
+                inboxDelivery,
+                commandType,
+                expectedVersion,
+                telemetryContext),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -810,7 +824,8 @@ internal sealed class DurableCommandProcessor
         CancellationToken cancellationToken,
         DurableInboxDelivery? inboxDelivery,
         string commandType,
-        StreamVersion? expectedVersion = null)
+        StreamVersion? expectedVersion = null,
+        WorkflowRuntimeTelemetryContext? telemetryContext = null)
     {
         var stopwatch = Stopwatch.StartNew();
         using var activity = OrcaCoreDurableDiagnostics.ActivitySource.StartActivity(
@@ -876,15 +891,34 @@ internal sealed class DurableCommandProcessor
             var providerCommitAttempted = HasProviderCommit(decision, inboxDelivery);
             var providerName = DurableCommandTelemetry.ProviderName(eventStore);
             var providerCommitStopwatch = Stopwatch.StartNew();
-            var result = await CommitWithTelemetryAsync(
+            DurableCommandResult result;
+            try
+            {
+                result = await CommitWithTelemetryAsync(
+                        instanceId,
+                        aggregate,
+                        decision,
+                        inboxDelivery,
+                        providerCommitAttempted,
+                        providerName,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception exception) when (
+                providerCommitAttempted &&
+                (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
+            {
+                providerCommitStopwatch.Stop();
+                await telemetry.ObserveProviderCommitFailedAsync(
                     instanceId,
-                    aggregate,
-                    decision,
-                    inboxDelivery,
-                    providerCommitAttempted,
+                    commandType,
                     providerName,
-                    cancellationToken)
-                .ConfigureAwait(false);
+                    aggregate.StreamVersion,
+                    providerCommitStopwatch.Elapsed,
+                    exception,
+                    cancellationToken).ConfigureAwait(false);
+                throw;
+            }
             providerCommitStopwatch.Stop();
             stopwatch.Stop();
             activity?.SetTag(OrcaCoreDiagnostics.CommandOutcomeKey, result.Outcome.ToString());
@@ -897,7 +931,8 @@ internal sealed class DurableCommandProcessor
                     decision.Events,
                     observed.DefinitionId,
                     activeWaitsById,
-                    stopwatch.Elapsed)
+                    stopwatch.Elapsed,
+                    telemetryContext)
                 : [];
             DurableCommandTelemetry.RecordEventSpans(eventObservations, instanceId);
             DurableCommandTelemetry.RecordStepSpans(eventObservations, instanceId);
@@ -918,6 +953,7 @@ internal sealed class DurableCommandProcessor
                 providerCommitAttempted,
                 providerName,
                 providerCommitStopwatch.Elapsed,
+                expectedStreamVersion: aggregate.StreamVersion,
                 inboxDuplicate: false)
                 .ConfigureAwait(false);
         }

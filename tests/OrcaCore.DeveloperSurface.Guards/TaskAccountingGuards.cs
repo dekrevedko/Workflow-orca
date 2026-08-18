@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using AwesomeAssertions;
 
@@ -34,8 +36,34 @@ public sealed partial class TaskAccountingGuards
         var pending = entries.Length - completed;
 
         entries.Should().HaveCount(159);
-        completed.Should().Be(127);
-        pending.Should().Be(32);
+        completed.Should().Be(128);
+        pending.Should().Be(31);
+    }
+
+    [Fact]
+    public void Task720CompletionNote_MatchesTheExecutableCrosswalkAccounting()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        using var fixture = JsonDocument.Parse(File.ReadAllText(Path.Combine(
+            root,
+            "tests",
+            "OrcaCore.DeveloperSurface.Guards",
+            "Fixtures",
+            "section-07-r-declaration-crosswalk.json")));
+        var accounting = fixture.RootElement.GetProperty("accounting");
+        var physicalFiles = accounting.GetProperty("physicalFiles").GetInt32();
+        var physicalDeclarations = accounting.GetProperty("physicalDeclarations").GetInt32();
+        var taskLine = File.ReadLines(Path.Combine(
+                root,
+                "openspec",
+                "changes",
+                "reshape-developer-facing-interfaces",
+                "tasks.md"))
+            .Single(line => line.StartsWith("- [x] 7.20 ", StringComparison.Ordinal));
+
+        taskLine.Should().Contain(
+            $"{physicalFiles.ToString("N0", CultureInfo.InvariantCulture)} sources / " +
+            $"{physicalDeclarations.ToString("N0", CultureInfo.InvariantCulture)} declarations");
     }
 
     [GeneratedRegex(@"^\s*-\s+\[[ xX]\]\s+", RegexOptions.CultureInvariant)]

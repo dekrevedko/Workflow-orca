@@ -1837,6 +1837,7 @@ internal sealed partial class PostgreSqlWorkflowStore :
             update orcacore_outbox
             set
                 state = @claimed,
+                dispatch_attempt = dispatch_attempt + 1,
                 claimed_until = @claimed_until
             where outbox_record_id in (
                 select outbox_record_id
@@ -1847,7 +1848,7 @@ internal sealed partial class PostgreSqlWorkflowStore :
                 for update skip locked
                 limit @max_count
             )
-            returning outbox_record_id, kind, payload;
+            returning outbox_record_id, kind, payload, dispatch_attempt;
             """,
             connection,
             transaction);
@@ -1871,7 +1872,10 @@ internal sealed partial class PostgreSqlWorkflowStore :
             records.Add(new OutboxWrite(
                 new OutboxRecordId(reader.GetGuid(0)),
                 reader.GetString(1),
-                reader.GetFieldValue<byte[]>(2)));
+                reader.GetFieldValue<byte[]>(2))
+            {
+                DispatchAttempt = reader.GetInt32(3)
+            });
         }
 
         await reader.DisposeAsync().ConfigureAwait(false);

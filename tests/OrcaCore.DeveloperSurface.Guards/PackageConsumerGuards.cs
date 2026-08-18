@@ -185,6 +185,9 @@ public sealed class PackageConsumerProductGuards
         references.Where(reference => reference.Package is "Npgsql" or "Dapper")
             .Should().OnlyContain(reference => reference.Project == "OrcaCore.Providers.PostgreSql",
                 "provider-native dependencies stay inside their owning provider");
+        references.Where(reference => reference.Package == "Microsoft.Data.SqlClient")
+            .Should().OnlyContain(reference => reference.Project == "OrcaCore.Providers.SqlServer",
+                "provider-native dependencies stay inside their owning provider");
     }
 
     [Fact]

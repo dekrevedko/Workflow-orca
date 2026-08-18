@@ -3,10 +3,10 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 334,
-    "physicalDeclarations": 1372,
-    "activeFiles": 186,
-    "activeDeclarations": 684,
+    "physicalFiles": 335,
+    "physicalDeclarations": 1378,
+    "activeFiles": 187,
+    "activeDeclarations": 690,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 17,
@@ -909,7 +909,7 @@
       "source": "tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs",
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
       "status": "active",
-      "declarations": 1
+      "declarations": 2
     },
     {
       "source": "tests/OrcaCore.Engine.Durable.Tests/Aggregates/DurableAggregateTests.cs",
@@ -1018,6 +1018,12 @@
       "ownerProject": "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj",
       "status": "active",
       "declarations": 1
+    },
+    {
+      "source": "tests/OrcaCore.Engine.Durable.Tests/Diagnostics/DurableOperationalTelemetryTests.cs",
+      "ownerProject": "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj",
+      "status": "active",
+      "declarations": 3
     },
     {
       "source": "tests/OrcaCore.Engine.Durable.Tests/Driver/DurableDeadlineExecutionTests.cs",
@@ -1395,7 +1401,7 @@
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/EphemeralOperatorStatisticsTelemetryTests.cs",
       "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
       "status": "active",
-      "declarations": 1
+      "declarations": 2
     },
     {
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/CoreRuntimeScenarioTests.cs",
@@ -1635,7 +1641,7 @@
       "source": "tests/OrcaCore.Hosting.Tests/OperationalTelemetryAndMaintenanceTests.cs",
       "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
       "status": "active",
-      "declarations": 3
+      "declarations": 4
     },
     {
       "source": "tests/OrcaCore.Hosting.Tests/OrcaCoreHostingServiceCollectionTests.cs",

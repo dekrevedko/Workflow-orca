@@ -11,4 +11,10 @@ internal static class OrcaCoreInMemoryProviderDiagnostics
     public static ActivitySource ActivitySource { get; } = new(SourceName);
 
     public static Meter Meter { get; } = new(SourceName);
+
+    internal static void Initialize()
+    {
+        _ = ActivitySource;
+        _ = Meter;
+    }
 }

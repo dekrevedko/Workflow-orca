@@ -310,7 +310,14 @@ public enum InboxRecordState
 /// <summary>
 /// Describes an outbox write derived from committed events.
 /// </summary>
-public sealed record OutboxWrite(OutboxRecordId OutboxRecordId, string Kind, byte[] Payload);
+public sealed record OutboxWrite(OutboxRecordId OutboxRecordId, string Kind, byte[] Payload)
+{
+    /// <summary>
+    /// Gets the positive durable claim-attempt ordinal when returned by an outbox store;
+    /// commit writes use zero before the first claim.
+    /// </summary>
+    public int DispatchAttempt { get; init; }
+}
 
 /// <summary>
 /// Describes durable outbox dispatch state.

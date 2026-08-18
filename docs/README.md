@@ -69,7 +69,7 @@ That diagram summarizes dependency direction; it is not a package manifest. The 
 manifest is `OrcaCore`, `OrcaCore.Core`, `OrcaCore.Engine.Ephemeral`,
 `OrcaCore.Runtime.Protocol`, `OrcaCore.Provider.Abstractions`, `OrcaCore.Engine.Durable`,
 `OrcaCore.Durable.Hosting`, `OrcaCore.Providers.InMemory`, `OrcaCore.Providers.PostgreSql`,
-`OrcaCore.Dag`, and `OrcaCore.Dag.Hosting`, with exact edges and CLR ownership in
+`OrcaCore.Providers.SqlServer`, `OrcaCore.Dag`, and `OrcaCore.Dag.Hosting`, with exact edges and CLR ownership in
 [`specs/17-selected-mode-capability-matrix.md`](specs/17-selected-mode-capability-matrix.md#175-package-and-integration-boundary).
 There is no `OrcaCore.Hosting` PackageId; that CLR namespace is split across the approved owning
 assemblies.
@@ -78,7 +78,8 @@ Microsoft hosting is role-specific: `OrcaCore.Engine.Ephemeral` owns
 `AddOrcaCoreEphemeralEngine`; `OrcaCore.Durable.Hosting` owns `AddOrcaCoreDurableEngine` and
 callback-only `AddOrcaCoreDurableEventIngress`; `OrcaCore.Providers.InMemory` owns development/test
 `AddOrcaCoreInMemoryDurableProvider`; `OrcaCore.Providers.PostgreSql` owns production
-`AddOrcaCorePostgreSqlDurableProvider`; and `OrcaCore.Dag.Hosting` owns `AddOrcaCoreDag`. Options
+`AddOrcaCorePostgreSqlDurableProvider`; `OrcaCore.Providers.SqlServer` owns production
+`AddOrcaCoreSqlServerDurableProvider`; and `OrcaCore.Dag.Hosting` owns `AddOrcaCoreDag`. Options
 are constructed programmatically, copied, and validated at registration; no binder facade is part
 of v1. There is no catch-all `AddOrcaCore` or separate hosted-service toggle.
 

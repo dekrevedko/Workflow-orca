@@ -2,11 +2,11 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using OrcaCore.Abstractions.Diagnostics;
 
-namespace OrcaCore.Providers.PostgreSql.Diagnostics;
+namespace OrcaCore.Providers.SqlServer.Diagnostics;
 
-internal static class OrcaCorePostgreSqlProviderDiagnostics
+internal static class OrcaCoreSqlServerProviderDiagnostics
 {
-    public const string SourceName = OrcaCoreDiagnostics.PostgreSqlProviderSourceName;
+    public const string SourceName = OrcaCoreDiagnostics.SqlServerProviderSourceName;
 
     public static ActivitySource ActivitySource { get; } = new(SourceName);
 

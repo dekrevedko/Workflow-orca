@@ -177,8 +177,9 @@ tier is an ordinary workflow-application reference:
   writes travel atomically in `ProviderCommitBatch`.
 - `IWorkflowStartIdempotencyStore` — get one persisted start binding by idempotency key; accepted
   bindings travel atomically in `ProviderCommitBatch` with definition and input fingerprints.
-- `IWorkflowOutboxStore` — claim/lease `OutboxWrite` records, inspect one record state, mark a result,
-  or release a claim. Outbox writes themselves travel atomically in `ProviderCommitBatch`.
+- `IWorkflowOutboxStore` — claim/lease `OutboxWrite` records carrying the provider-maintained
+  positive dispatch-attempt ordinal, inspect one record state, mark a result, or release a claim.
+  Newly committed outbox writes start with attempt zero and travel atomically in `ProviderCommitBatch`.
 - `IWorkflowProjectionStore` — apply commit projections, get one exact instance projection, find
   exact active-wait routing candidates, and list trusted lease-recovery candidates. Public workflow
   instance enumeration, bulk management, history, pending-event mailboxes, and statistics remain
@@ -200,6 +201,12 @@ These ports are provider/runtime SPIs: advanced interfaces implemented by storag
 or custom-host authors. They are not ordinary workflow-author APIs. In particular, neither
 `IMessageDispatcher` nor any other port makes public `RunExternalJob` part of v1. A companion
 Kubernetes scheduler uses public workflow/DAG/management contracts plus its own adapter seam.
+
+Each selected provider registers its named `ActivitySource` and `Meter` as a stable ownership
+hook. The v1 provider-commit and operational instruments remain engine/hosting-owned so a provider
+does not duplicate or proxy the same measurement under a second meter. Provider-specific
+instruments require an explicit observability-contract addition; an empty provider meter is
+therefore intentional, not evidence that engine-owned provider telemetry is absent.
 
 The **atomic commit boundary** (PR-020) is the `ProviderCommitBatch` accepted by
 `IWorkflowEventStore.AppendAsync`. A provider commits its events, optional checkpoint, inbox and

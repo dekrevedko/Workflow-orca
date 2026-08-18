@@ -13,10 +13,10 @@ namespace OrcaCore.Engine.Durable.Diagnostics;
 /// <summary>Owns durable engine BCL diagnostics sources and immutable gauge snapshots.</summary>
 internal static class OrcaCoreDurableDiagnostics
 {
-    private const string QuarantinedUnitsInstrumentName = "orca.resource_pool.quarantined_units";
-    private const string OldestQuarantinedAgeInstrumentName =
+    internal const string QuarantinedUnitsInstrumentName = "orca.resource_pool.quarantined_units";
+    internal const string OldestQuarantinedAgeInstrumentName =
         "orca.resource_pool.oldest_quarantined_obligation_age";
-    private const string FencedBodiesRunningInstrumentName = "orca.execution.fenced_bodies.running";
+    internal const string FencedBodiesRunningInstrumentName = "orca.execution.fenced_bodies.running";
 
     private static readonly object OperationalGate = new();
     private static IReadOnlyDictionary<PoolStateKey, PoolOperationalSnapshot> leaseStates =

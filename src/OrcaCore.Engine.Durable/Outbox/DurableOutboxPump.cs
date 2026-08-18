@@ -225,6 +225,7 @@ internal sealed class DurableOutboxPump(
                     new OutboxDispatchObservation(
                         record.Kind,
                         record.OutboxRecordId,
+                        record.DispatchAttempt,
                         result,
                         duration,
                         exception),

@@ -29,6 +29,17 @@ internal sealed class DurableFacadeNotificationHub : IWorkflowRuntimeObserver
 
         return ValueTask.CompletedTask;
     }
+
+    public ValueTask OnProviderCommitFailedAsync(
+        WorkflowProviderCommitFailureObservation observation,
+        CancellationToken cancellationToken)
+    {
+        // The facade hub wakes committed-instance waiters only; provider failures are owned by
+        // the hosting telemetry observer. Keeping this explicit prevents future observers from
+        // silently inheriting a default no-op for a required runtime signal.
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.CompletedTask;
+    }
 }
 
 internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegistry

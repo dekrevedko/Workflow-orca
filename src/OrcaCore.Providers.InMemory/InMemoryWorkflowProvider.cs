@@ -140,7 +140,7 @@ internal sealed class InMemoryWorkflowProvider :
             {
                 outbox[record.OutboxRecordId] = new InMemoryOutboxRecord(
                     batch.StreamId.InstanceId,
-                    CloneOutboxWrite(record),
+                    CloneOutboxWrite(record) with { DispatchAttempt = 0 },
                     OutboxRecordState.Pending);
             }
 
@@ -873,12 +873,16 @@ internal sealed class InMemoryWorkflowProvider :
                 .Where(record => IsOutboxClaimable(record, request.ClaimedAt))
                 .Where(record => request.KindSelector is null || request.KindSelector.Matches(record.Write.Kind))
                 .Take(request.MaxCount)
-                .Select(record => CloneOutboxWrite(record.Write))
+                .Select(record => CloneOutboxWrite(record.Write) with
+                {
+                    DispatchAttempt = checked(record.Write.DispatchAttempt + 1)
+                })
                 .ToArray();
             foreach (var record in claimed)
             {
                 outbox[record.OutboxRecordId] = outbox[record.OutboxRecordId] with
                 {
+                    Write = record,
                     State = OutboxRecordState.Claimed,
                     ClaimedUntil = request.ClaimedAt.Add(request.LeaseDuration)
                 };

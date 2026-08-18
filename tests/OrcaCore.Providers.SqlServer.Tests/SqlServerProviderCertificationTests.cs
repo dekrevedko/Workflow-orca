@@ -51,6 +51,7 @@ public sealed class SqlServerProviderCertificationTests : ContinueAsNewCertifica
             store,
             store,
             store,
+            OrcaCore.Abstractions.Diagnostics.OrcaCoreDiagnostics.SqlServerProviderName,
             TestContext.Current.CancellationToken);
     }
 

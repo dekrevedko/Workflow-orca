@@ -40,6 +40,7 @@ internal sealed record OutboxPumpObservation(
 internal sealed record OutboxDispatchObservation(
     string Kind,
     OutboxRecordId OutboxRecordId,
+    int Attempt,
     DispatchResult Result,
     TimeSpan Duration,
     Exception? Exception = null);
