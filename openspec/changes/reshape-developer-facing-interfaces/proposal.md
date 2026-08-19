@@ -47,6 +47,7 @@ OrcaCore is preparing its first release with no compatibility obligations, but i
 - `workflow-authoring`: Defines mode-first typed workflows, the reduced node matrix, joins, bounded durable `ForEach`, explicit event-contract waits, durable `Publish`, ephemeral lambdas, deadlines, scoped leasing, and deferred-node absence.
 - `workflow-contracts`: Defines all-mode typed workflow references/input/output, event contract descriptors and self-routing envelopes, branch and item outcome contracts, failure provenance, `StepOperationId`, immutable lease requests, and portable step boundaries.
 - `state-driven-runtime`: Describes supported nested `If` and linear child execution without implying unreachable nested fan-out scopes.
+- `structured-fiber-execution`: Defines stable compiled-plan, structured-scope, bounded execution-path, root fan-out, merge, join, and residual-obligation semantics.
 - `durable-runtime`: Defines durable deadlines, stable step occurrence identity, buffered ingress, cold reactivation, start/fanout routing, durable publish/outbox dispatch, scoped lease ownership/reconciliation, immutable definition binding, and runtime-owned DAG progression.
 - `management-and-querying`: Aligns typed asynchronous handles and exposes safe durable lease quarantine/reconciliation operations.
 - `saga-orchestration`: Removes saga from the v1 callable surface while retaining an explicit future capability entry.

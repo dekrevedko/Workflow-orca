@@ -56,10 +56,17 @@
 
 ## 4. Process correction
 
-- [ ] 4.1 Amend the canonical-synchronization gate so it enumerates every canonical capability,
+- [x] 4.1 Amend the canonical-synchronization gate so it enumerates every canonical capability,
       every active capability directory, and every active delta heading; requires `spec.md` in each
       capability directory; fails on an unexplained missing capability or duplicate owner; and does
-      not limit review to one change's own delta directory.
+      not limit review to one change's own delta directory. **Completed:** the repository-wide
+      infrastructure gate enumerates 14 canonical capabilities, 16 active capability directories,
+      and all 176 active requirement headings; reconciles each change proposal bidirectionally with
+      its delta directories; distinguishes declared new capabilities from unexplained missing
+      modified capabilities; and rejects duplicate `(capability, requirement)` owners. The gate
+      exposed and repaired the pre-existing undeclared `structured-fiber-execution` reshape delta,
+      reports malformed proposal headings diagnostically, and preserves the runtime-concurrency
+      stray disposition across either an active or normally archived change record.
 - [ ] 4.2 Add strict change-to-canonical provenance validation to the checkpoint routine. Structural
       OpenSpec validation SHALL NOT be reported as semantic approval when active changes conflict,
       duplicate one requirement, or omit a canonical capability.
