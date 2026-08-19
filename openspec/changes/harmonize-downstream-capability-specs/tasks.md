@@ -45,11 +45,14 @@
       5.1-5.2, 7.1, and 7.3-7.5 without duplicating reshape-owned requirements.
 - [x] 3.2 Retain `event-driven-prototype` as an out-of-v1 planning-history capability; require a
       separate reviewed amendment before any prototype project, package, or public surface returns.
-- [ ] 3.3 Add recurring enumeration of every `openspec/changes/*/specs/*/` capability directory and
+- [x] 3.3 Add recurring enumeration of every `openspec/changes/*/specs/*/` capability directory and
       fail the corpus sweep when any directory lacks `spec.md`. Preserve the recorded disposition
       of the former `add-runtime-concurrency-limits/specs/state-driven-runtime/` directory, which
       planning remediation verified as stray and removed because that completed change declares
-      only the `runtime-resource-governance` delta.
+      only the `runtime-resource-governance` delta. **Completed:** the infrastructure corpus guard
+      dynamically enumerates all 16 active capability directories, requires `spec.md` in each, and
+      proves the runtime-concurrency proposal and directory inventory both declare only
+      `runtime-resource-governance` while the former stray directory remains absent.
 
 ## 4. Process correction
 
