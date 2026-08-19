@@ -33,12 +33,16 @@
 
 ## 3. Corpus and orphan sweep
 
-- [ ] 3.1 Sweep every canonical spec and active planning/documentation source for removed and
+- [x] 3.1 Sweep every canonical spec and active planning/documentation source for removed and
       deferred vocabulary. Distinguish removed `WaitLong`/authored `Yield`; deferred `WhenFirst`,
       Saga, generic jobs/children, nested fan-out, pause/resume/archive/purge, and authored `Cancel`;
       and current durable pre-wait buffering, explicit definition fanout, start-or-deliver, and
       authored `Publish`. Reject both positive use of removed/deferred APIs and negative treatment of
-      newly approved Section 7B behavior.
+      newly approved Section 7B behavior. **Completed:** the dated task 3.1 sweep artifact records
+      89 active sources, zero positive removed/deferred call forms, 23 active documentation sources
+      with stale Section 7B-negative language, and 50 approved reshape-to-canonical requirement
+      operations across 10 capabilities; every unresolved class is assigned to tasks 4.1-4.3,
+      5.1-5.2, 7.1, and 7.3-7.5 without duplicating reshape-owned requirements.
 - [x] 3.2 Retain `event-driven-prototype` as an out-of-v1 planning-history capability; require a
       separate reviewed amendment before any prototype project, package, or public surface returns.
 - [ ] 3.3 Add recurring enumeration of every `openspec/changes/*/specs/*/` capability directory and
@@ -64,10 +68,12 @@
 
 - [ ] 5.1 Verify reshape task 7.23 approves and reconciles the complete event-contract, durable
       buffering, four-route ingress, fanout, start-or-deliver, publish/outbox, dispatcher, and
-      application-catalog amendment before either change synchronizes canonical content.
+      application-catalog amendment before either change synchronizes canonical content. Consume
+      all 42 vocabulary-bearing canonical mismatches recorded by the task 3.1 sweep artifact.
 - [ ] 5.2 Verify reshape tasks 7.16–7.22 close the complete API baseline, typed-boundary replacement,
       deletion ledger, operational statistics/observability/retention restoration, provider
-      disposition, semantic test crosswalk, deterministic guards, samples, and fresh package feed.
+      disposition, semantic test crosswalk, deterministic guards, samples, and fresh package feed;
+      account for the eight remaining non-vocabulary canonical mismatches recorded by task 3.1.
 - [ ] 5.3 Verify reshape remains the sole active delta owner for repository friend topology and the
       durable resource-governance aggregate; byte-identical duplicate requirements do not count as
       harmless redundancy.
@@ -96,19 +102,24 @@
 ## 7. Documentation and guard coherence
 
 - [ ] 7.1 Remove positive how-to usage of deferred `WhenFirst` and other non-v1 APIs from active
-      guides while retaining short future-registry notes and re-entry links.
+      guides while retaining short future-registry notes and re-entry links. Re-run the task 3.1
+      positive-call scan and require zero findings.
 - [ ] 7.2 Keep dated status/audit/review records immutable under `docs/archive/` or `docs/review/`;
       update active indexes and superseding records instead of rewriting historical conclusions.
 - [ ] 7.3 Reconcile active architecture, implementation, production-readiness, and developer guides
       with durable pre-wait buffering, four self-routing route variants, durable `Publish`, exact
       role-specific hosting, fixed codec, application-facing absence of broad statistics, and
-      provider/operator ownership of retained statistics and retention behavior.
+      provider/operator ownership of retained statistics and retention behavior. Correct 22 of the
+      stale active documentation sources enumerated by the task 3.1 sweep artifact; task 7.4 owns
+      the separate Orleans future-hosting note.
 - [ ] 7.4 Preserve the superseded Orleans plan under the archive and maintain only one active future
       hosting boundary note using ordinary cold-capable `Wait`, the current event/outbox contract,
-      role-specific hosting, exact tier ownership, and a new-change prerequisite.
+      role-specific hosting, exact tier ownership, and a new-change prerequisite. Correct the
+      `docs/orleans-engine/README.md` finding recorded by the task 3.1 sweep.
 - [ ] 7.5 Add an active-tree documentation check, excluding `docs/archive/` and immutable review
       records, that rejects positive removed/deferred APIs and stale negative claims about approved
-      Section 7B behavior.
+      Section 7B behavior. Use the task 3.1 classifications as the initial complete fixture and
+      require every recorded stale-negative finding to be closed.
 - [ ] 7.6 Correct or delete namespace-pinned `ForbiddenPublicSymbols` entries that cannot match the
       current assembly owners; add a regression proving each forbidden symbol fails under its exact
       current or historical qualified owner rather than silently passing an impossible namespace.
