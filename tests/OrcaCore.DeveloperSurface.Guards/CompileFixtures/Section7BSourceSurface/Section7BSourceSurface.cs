@@ -34,7 +34,8 @@ static async ValueTask ExerciseBoundaryAsync(
     WorkflowOutboundEvent outboundEvent,
     CancellationToken token)
 {
-    var direct = new WorkflowEventRoute.Direct(InstanceId.New());
+    var direct = new WorkflowEventRoute.Direct(
+        InstanceId.Parse("42189848-dd2a-48c2-af6f-b09458c5e164"));
     var correlation = new WorkflowEventRoute.Correlation(durableDefinition.DefinitionId);
     var fanout = new WorkflowEventRoute.DefinitionFanout(durableDefinition.DefinitionId);
     var start = new WorkflowEventRoute.StartOrDeliver<Input>(durableDefinition.DefinitionId,

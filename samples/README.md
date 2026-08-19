@@ -1,24 +1,16 @@
 # OrcaCore samples
 
 Run commands from the repository root so the local SDK pin and central package
-versions are used.
+versions are used. Every active sample project is included in `OrcaCore.slnx`
+and therefore participates in the normal build.
 
 | Sample | Purpose | Command |
 |--------|---------|---------|
-| `OrcaCore.Examples` | Runnable console walkthrough from simple ephemeral workflows to durable host APIs. | `dotnet run --project samples\OrcaCore.Examples\OrcaCore.Examples.csproj` |
-| `OrcaCore.Dashboard` | Blazor operational dashboard over durable management, logs, metrics, traces, and the local Kubernetes job scheduler sample. Seeds advanced demo data on startup. | `dotnet run --project samples\OrcaCore.Dashboard\OrcaCore.Dashboard.csproj` |
-| `OrcaCore.SampleHost` | Minimal generic host registration sample for `AddOrcaCore` and hosted services. | `dotnet run --project samples\OrcaCore.SampleHost\OrcaCore.SampleHost.csproj` |
+| `OrcaCore.Examples` | Complete typed ephemeral start-to-output journey. | `dotnet run --project samples\OrcaCore.Examples\OrcaCore.Examples.csproj` |
+| `OrcaCore.SampleHost` | Minimal explicit durable provider and engine role registration. | `dotnet run --project samples\OrcaCore.SampleHost\OrcaCore.SampleHost.csproj` |
+| `OrcaCore.Dashboard` | Browser view over process-local public BCL metrics, logs, and activities. | `dotnet run --project samples\OrcaCore.Dashboard\OrcaCore.Dashboard.csproj` |
 
-Use `OrcaCore.Examples` first when learning the public API. Use
-`OrcaCore.Dashboard` when you want to inspect the advanced durable operational
-surface in a browser.
-
-`OrcaCore.SampleHost/BrokerAdapters` contains compile-checked MassTransit-, Rebus-, and
-SNS/SQS-style application adapters. They demonstrate durable ingress acknowledgement and outbound
-dispatch-result mapping while keeping every broker SDK outside OrcaCore packages.
-
-The Kubernetes dashboard sample uses the active `kubectl` context and the
-`default` namespace. It starts one scheduled Kubernetes `Job` every 15 minutes
-with a random 1-15 minute runtime, can start a 2-5 job dependency chain, and can
-start a 3-9 node DAG. Each Kubernetes job is also tracked as a durable external
-job in OrcaCore.
+`OrcaCore.SampleHost/BrokerAdapters` contains compile-checked MassTransit-,
+Rebus-, and SNS/SQS-style application adapters. They demonstrate durable ingress
+acknowledgement and outbound dispatch-result mapping while keeping broker SDKs
+outside OrcaCore packages.

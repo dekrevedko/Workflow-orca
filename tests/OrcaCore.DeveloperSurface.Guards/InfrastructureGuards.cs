@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using AwesomeAssertions;
 
 namespace OrcaCore.DeveloperSurface.Guards;
@@ -160,6 +161,25 @@ public sealed class InfrastructureGuards
             File.Exists(Path.Combine(root, project.Replace('/', Path.DirectorySeparatorChar)))
                 .Should().BeTrue("CI project '{0}' must exist in the current checkout", project);
         }
+
+        var solutionSampleProjects = XDocument.Load(Path.Combine(root, "OrcaCore.slnx"))
+            .Descendants("Project")
+            .Select(element => element.Attribute("Path")?.Value.Replace('\\', '/'))
+            .OfType<string>()
+            .Where(path => path.StartsWith("samples/", StringComparison.Ordinal))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        var repositorySampleProjects = Directory
+            .EnumerateFiles(Path.Combine(root, "samples"), "*.csproj", SearchOption.AllDirectories)
+            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
+            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
+            .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        solutionSampleProjects.Should().Equal(
+            repositorySampleProjects,
+            "every active sample project must participate in the solution build");
     }
 
     [Fact]
@@ -396,30 +416,54 @@ public sealed class InfrastructureGuards
     }
 
     [Fact]
-    public void ExactAuthoringPositiveFixture_Compiles()
+    public async Task ExactAuthoringPositiveFixture_Compiles()
     {
+        var root = FixtureDefinitions.RepositoryRoot();
         var project = Path.Combine(
-            FixtureDefinitions.RepositoryRoot(),
+            root,
             "tests",
             "OrcaCore.DeveloperSurface.Guards",
             "CompileFixtures",
             "ExactAuthoring",
             "ExactAuthoring.csproj");
+        var runRoot = Path.Combine(
+            root,
+            "tests",
+            "OrcaCore.DeveloperSurface.Guards",
+            "obj",
+            "exact-authoring-runs",
+            Guid.NewGuid().ToString("N"));
         var start = new ProcessStartInfo(
             "dotnet",
-            $"build \"{project}\" --configuration Release --nologo --verbosity quiet")
+            $"build \"{project}\" --configuration Release --artifacts-path \"{runRoot}\" --nologo --verbosity quiet")
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
-            WorkingDirectory = FixtureDefinitions.RepositoryRoot()
+            WorkingDirectory = root
         };
 
-        using var process = Process.Start(start)!;
-        var output = process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd();
-        process.WaitForExit();
+        string output;
+        int exitCode;
+        try
+        {
+            using var process = Process.Start(start)!;
+            var cancellationToken = TestContext.Current.CancellationToken;
+            var standardOutput = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var standardError = process.StandardError.ReadToEndAsync(cancellationToken);
+            await process.WaitForExitAsync(cancellationToken);
+            output = await standardOutput + await standardError;
+            exitCode = process.ExitCode;
+        }
+        finally
+        {
+            if (Directory.Exists(runRoot))
+            {
+                Directory.Delete(runRoot, recursive: true);
+            }
+        }
 
-        process.ExitCode.Should().Be(
+        exitCode.Should().Be(
             0,
             "the exact companion declarations and their positive consumer usage must compile; output: {0}",
             output);

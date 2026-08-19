@@ -202,7 +202,7 @@ public sealed class ProductAuthoringGreenGuards
     }
 
     [Fact]
-    public void Product_CompilesEveryPositiveSignatureAndRejectsEveryForbiddenMember()
+    public async Task Product_CompilesEveryPositiveSignatureAndRejectsEveryForbiddenMember()
     {
         var script = Path.Combine(
             FixtureDefinitions.RepositoryRoot(),
@@ -219,8 +219,11 @@ public sealed class ProductAuthoringGreenGuards
             WorkingDirectory = FixtureDefinitions.RepositoryRoot()
         };
         using var process = Process.Start(start)!;
-        var output = process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd();
-        process.WaitForExit();
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var standardOutput = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var standardError = process.StandardError.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+        var output = await standardOutput + await standardError;
 
         process.ExitCode.Should().Be(0,
             "the self-contained package lane must freshly pack current source, compile every positive signature, reject all forbidden members, and prove its mutation control; output: {0}",

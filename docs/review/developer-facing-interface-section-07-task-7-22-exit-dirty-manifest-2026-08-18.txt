@@ -1,0 +1,21 @@
+ M OrcaCore.slnx
+ M samples/OrcaCore.Dashboard/Components/Layout/NavMenu.razor
+ M samples/OrcaCore.Dashboard/Components/Pages/Home.razor
+ M samples/OrcaCore.Dashboard/Components/Pages/Kubernetes.razor
+ M samples/OrcaCore.Dashboard/OrcaCore.Dashboard.csproj
+ M samples/OrcaCore.Dashboard/Program.cs
+ M samples/OrcaCore.Dashboard/README.md
+ M samples/OrcaCore.Dashboard/Workflows/DashboardReadModel.cs
+ M samples/OrcaCore.Dashboard/Workflows/DashboardScenarioSeeder.cs
+ M samples/OrcaCore.Dashboard/Workflows/KubernetesWorkflowSampleService.cs
+ M samples/OrcaCore.Dashboard/appsettings.json
+ M samples/OrcaCore.Examples/ExampleRunner.cs
+ M samples/OrcaCore.Examples/OrcaCore.Examples.csproj
+ M samples/OrcaCore.Examples/README.md
+ M samples/README.md
+ M tests/OrcaCore.DeveloperSurface.Guards/AuthoringContractGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/Section7BSourceSurface/Section7BSourceSurface.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/InfrastructureGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/run-compile-fixtures.ps1
+?? docs/review/developer-facing-interface-section-07-task-7-22-exit-dirty-manifest-2026-08-18.txt
+?? docs/review/developer-facing-interface-section-07-task-7-22-exit-independent-review-request-2026-08-18.md

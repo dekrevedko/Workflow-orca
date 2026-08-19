@@ -1,4 +1,3 @@
-using System.Text.Json.Serialization;
 using OrcaCore.Dashboard.Components;
 using OrcaCore.Dashboard.Telemetry;
 using OrcaCore.Dashboard.Workflows;
@@ -18,23 +17,16 @@ builder.Services.AddSingleton(timeProvider);
 builder.Services.AddSingleton(telemetryStore);
 builder.Services.AddSingleton<DashboardReadModel>();
 builder.Services.AddHttpClient();
-builder.Services.ConfigureHttpJsonOptions(options =>
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddHealthChecks();
-
-builder.Services
-    .AddOrcaCore()
-    .AddOrcaCoreOpenTelemetry(builder.Configuration);
-builder.Services.AddHostedService<DashboardScenarioSeeder>();
-builder.Services.AddSingleton<KubernetesWorkflowSampleService>();
-builder.Services.AddHostedService(provider => provider.GetRequiredService<KubernetesWorkflowSampleService>());
-builder.Services.AddOrcaCoreHostedServices(options =>
+builder.Services.AddOrcaCoreEphemeralEngine(new EphemeralEngineHostOptions
 {
-    options.OutboxPumpInterval = TimeSpan.FromSeconds(2);
-    options.TimerSweepInterval = TimeSpan.FromSeconds(2);
-    options.OperationalSweepInterval = TimeSpan.FromSeconds(15);
+    StructuredExecution = new StructuredExecutionHostOptions
+    {
+        MaxConcurrentExecutionPathsPerInstance = 2,
+        StepThrottles = []
+    },
+    TransientPools = []
 });
 
 var app = builder.Build();
@@ -43,36 +35,19 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
 }
+
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseAntiforgery();
-
 app.MapHealthChecks("/health/ready");
-app.MapGet(
-    "/health/live",
-    () => Results.Ok(new { status = "Healthy", checkedAt = timeProvider.GetUtcNow() }));
-app.MapPrometheusScrapingEndpoint("/metrics");
+app.MapGet("/health/live", () => Results.Ok(new
+{
+    status = "Healthy",
+    checkedAt = timeProvider.GetUtcNow()
+}));
 app.MapGet(
     "/api/dashboard/snapshot",
-    async (DashboardReadModel readModel, CancellationToken cancellationToken) =>
-        await readModel.GetSnapshotAsync(cancellationToken).ConfigureAwait(false));
-app.MapGet(
-    "/api/kubernetes-sample/snapshot",
-    (KubernetesWorkflowSampleService sample) => sample.GetSnapshot());
-app.MapPost(
-    "/api/kubernetes-sample/scheduled",
-    async (KubernetesWorkflowSampleService sample, CancellationToken cancellationToken) =>
-        await sample.StartScheduledJobAsync(cancellationToken).ConfigureAwait(false));
-app.MapPost(
-    "/api/kubernetes-sample/dependency",
-    async (KubernetesWorkflowSampleService sample, CancellationToken cancellationToken) =>
-        await sample.StartDependencyWorkflowAsync(cancellationToken).ConfigureAwait(false));
-app.MapPost(
-    "/api/kubernetes-sample/dag",
-    async (KubernetesWorkflowSampleService sample, CancellationToken cancellationToken) =>
-        await sample.StartDagWorkflowAsync(cancellationToken).ConfigureAwait(false));
-
+    (DashboardReadModel readModel) => readModel.GetSnapshot());
 app.MapStaticAssets();
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
 app.Run();
