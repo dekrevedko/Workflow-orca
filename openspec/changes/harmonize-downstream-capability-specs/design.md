@@ -66,6 +66,15 @@ unexplained missing capability, an uncoordinated duplicate owner, or canonical c
 approved source change. Structural validity remains necessary but is never reported as semantic or
 provenance approval by itself.
 
+Canonical enumeration and active-delta ownership are separate inventories. A canonical capability
+does not have to retain an active delta after its owning change is archived. Archival changes the
+active provenance record and therefore requires a reviewed fixture refreeze, but no invariant may
+make the archived state permanently invalid. Synchronized-removal provenance embeds the exact
+normalized historical canonical block and pins its hash. The originating commit remains metadata,
+but validation does not depend on that object surviving integration-history rewriting. CI executes
+the complete must-be-green infrastructure guard disposition while intentional expected-red guards
+remain a separate lane.
+
 Alternative considered: rely on `openspec validate --all --strict`. Rejected because it validates
 each change independently and permits contradictory or duplicated active deltas.
 

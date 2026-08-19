@@ -67,23 +67,47 @@
       exposed and repaired the pre-existing undeclared `structured-fiber-execution` reshape delta,
       reports malformed proposal headings diagnostically, and preserves the runtime-concurrency
       stray disposition across either an active or normally archived change record.
-- [ ] 4.2 Add strict change-to-canonical provenance validation to the checkpoint routine. Structural
+- [x] 4.2 Add strict change-to-canonical provenance validation to the checkpoint routine. Structural
       OpenSpec validation SHALL NOT be reported as semantic approval when active changes conflict,
-      duplicate one requirement, or omit a canonical capability.
+      duplicate one requirement, or omit a canonical capability. **Completed:** the checkpoint
+      guard now hashes a reproducible 176-row change-to-canonical record, enumerates the complete
+      canonical capability inventory independently of whether each capability currently has an
+      active delta, rejects duplicate owners and non-verbatim `MODIFIED` headings, requires
+      reason/migration evidence plus an embedded exact historical block and pinned hash for synchronized `REMOVED`
+      headings, and verifies the exact 50 pending reshape operations against their explicitly
+      scoped open tasks 5.1/5.2. Normal archival may change the active record and require a reviewed
+      fixture refreeze, but it cannot make the guard permanently red through an active-delta
+      existence invariant. Its strict semantic-approval path currently refuses approval by design
+      while those 50 operations remain; the 123 synchronized operations and three declared
+      bootstrap requirements outside the canonical capability set are recorded separately. The
+      gate also dispositions the 18-row `developer-facing-surface` case where a declared-new
+      capability already exists canonically and forces it through open task 4.3, while pinning the
+      exact 14-directory canonical inventory and 16-directory active-delta inventory with
+      reproducible SHA-256 records. The human-readable provenance artifact, squash-safe embedded
+      removal evidence, CI `Disposition=Infrastructure` lane, symmetric requirement-block parser,
+      and turns-green capability/count assignments are executable parts of the same contract.
 - [ ] 4.3 Define a post-gate amendment path so a decision approved after its original section gate
       closed must re-enter canonical requirements, acceptance criteria, implementation tasks,
-      refreeze, and independent approval rather than silently bypassing the completed gate.
+      refreeze, and independent approval rather than silently bypassing the completed gate. This
+      task explicitly owns the `developer-facing-surface` (18) declared-new/already-canonical case
+      and SHALL preserve ordinary active-change archival by updating the reviewed provenance
+      fixture rather than requiring every canonical capability to retain an active delta forever.
 
 ## 5. Coordination owned by `reshape-developer-facing-interfaces`
 
 - [ ] 5.1 Verify reshape task 7.23 approves and reconciles the complete event-contract, durable
       buffering, four-route ingress, fanout, start-or-deliver, publish/outbox, dispatcher, and
       application-catalog amendment before either change synchronizes canonical content. Consume
-      all 42 vocabulary-bearing canonical mismatches recorded by the task 3.1 sweep artifact.
+      all 42 vocabulary-bearing canonical mismatches recorded by the task 3.1 sweep artifact:
+      `developer-facing-surface` (7), `durable-persistence-and-outbox` (5), `durable-runtime` (8),
+      `event-routing-and-waits` (8), `state-driven-runtime` (2), `workflow-authoring` (3), and
+      `workflow-contracts` (9).
 - [ ] 5.2 Verify reshape tasks 7.16–7.22 close the complete API baseline, typed-boundary replacement,
       deletion ledger, operational statistics/observability/retention restoration, provider
       disposition, semantic test crosswalk, deterministic guards, samples, and fresh package feed;
-      account for the eight remaining non-vocabulary canonical mismatches recorded by task 3.1.
+      account for the eight remaining non-vocabulary canonical mismatches recorded by task 3.1:
+      `management-and-querying` (1), `quality-and-verification` (5),
+      `repository-foundation` (2).
 - [ ] 5.3 Verify reshape remains the sole active delta owner for repository friend topology and the
       durable resource-governance aggregate; byte-identical duplicate requirements do not count as
       harmless redundancy.

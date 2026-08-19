@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 using AwesomeAssertions;
 
@@ -22,8 +25,15 @@ public sealed class OpenSpecCorpusGuards
         var canonicalCapabilities = canonicalCapabilityDirectories
             .Select(GetDirectoryName)
             .ToHashSet(StringComparer.Ordinal);
+        var canonicalRequirements = canonicalCapabilityDirectories.ToDictionary(
+            GetDirectoryName,
+            capabilityDirectory => ReadCanonicalRequirements(
+                root,
+                Path.Combine(capabilityDirectory, "spec.md")),
+            StringComparer.Ordinal);
 
         var activeRequirementOwners = new List<RequirementOwner>();
+        var activeDeltaRequirements = new List<DeltaRequirement>();
         var activeCapabilityDirectories = new List<string>();
         foreach (var changeRoot in Directory
                      .EnumerateDirectories(changesRoot)
@@ -62,11 +72,26 @@ public sealed class OpenSpecCorpusGuards
             activeCapabilityDirectories.AddRange(capabilityDirectories);
             foreach (var capabilityDirectory in capabilityDirectories)
             {
-                activeRequirementOwners.AddRange(ReadRequirementOwners(
+                var capability = GetDirectoryName(capabilityDirectory);
+                var capabilityKind = declaredCapabilities
+                    .Single(declared => string.Equals(
+                        declared.Name,
+                        capability,
+                        StringComparison.Ordinal))
+                    .Kind;
+                var deltaRequirements = ReadDeltaRequirements(
                     root,
                     GetDirectoryName(changeRoot),
-                    GetDirectoryName(capabilityDirectory),
-                    Path.Combine(capabilityDirectory, "spec.md")));
+                    capability,
+                    capabilityKind,
+                    Path.Combine(capabilityDirectory, "spec.md"));
+                activeDeltaRequirements.AddRange(deltaRequirements);
+                activeRequirementOwners.AddRange(deltaRequirements.Select(requirement =>
+                    new RequirementOwner(
+                        requirement.Change,
+                        requirement.Capability,
+                        requirement.Requirement,
+                        requirement.Operation.ToString().ToUpperInvariant())));
             }
         }
 
@@ -90,6 +115,13 @@ public sealed class OpenSpecCorpusGuards
         duplicateOwners.Should().BeEmpty(
             "one active change may own each capability requirement heading; duplicate owners were: {0}",
             string.Join("; ", duplicateOwners));
+
+        ValidateChangeToCanonicalProvenance(
+            root,
+            canonicalCapabilityDirectories,
+            canonicalRequirements,
+            activeDeltaRequirements,
+            activeCapabilityDirectories);
 
         PreserveRuntimeConcurrencyStrayDisposition(root, changesRoot);
     }
@@ -269,52 +301,553 @@ public sealed class OpenSpecCorpusGuards
             $"Declared capabilities without directories: [{string.Join(", ", missingDirectories)}].");
     }
 
-    private static RequirementOwner[] ReadRequirementOwners(
+    private static IReadOnlyDictionary<string, CanonicalRequirement> ReadCanonicalRequirements(
+        string root,
+        string specPath)
+    {
+        var requirements = ReadRequirementBlocks(root, specPath, isDelta: false);
+        var duplicates = requirements
+            .GroupBy(requirement => requirement.Requirement, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        if (duplicates.Length > 0)
+        {
+            throw new InvalidDataException(
+                $"Canonical spec '{RelativePath(root, specPath)}' contains duplicate requirement headings: " +
+                string.Join(", ", duplicates));
+        }
+
+        return requirements.ToDictionary(
+            requirement => requirement.Requirement,
+            requirement => new CanonicalRequirement(requirement.Requirement, requirement.Block),
+            StringComparer.Ordinal);
+    }
+
+    private static DeltaRequirement[] ReadDeltaRequirements(
         string root,
         string change,
         string capability,
+        CapabilityKind capabilityKind,
         string specPath)
     {
-        var owners = new List<RequirementOwner>();
-        string? operation = null;
-        foreach (var line in File.ReadLines(specPath))
-        {
-            operation = line switch
-            {
-                "## ADDED Requirements" => "ADDED",
-                "## MODIFIED Requirements" => "MODIFIED",
-                "## REMOVED Requirements" => "REMOVED",
-                _ => operation
-            };
-
-            const string requirementPrefix = "### Requirement: ";
-            if (!line.StartsWith(requirementPrefix, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            if (operation is null)
-            {
-                throw new InvalidDataException(
-                    $"Requirement heading in '{RelativePath(root, specPath)}' must follow an " +
-                    "ADDED, MODIFIED, or REMOVED Requirements section.");
-            }
-
-            owners.Add(new RequirementOwner(
+        var requirements = ReadRequirementBlocks(root, specPath, isDelta: true)
+            .Select(requirement => new DeltaRequirement(
                 change,
                 capability,
-                line[requirementPrefix.Length..],
-                operation));
+                capabilityKind,
+                requirement.Requirement,
+                requirement.Operation ?? throw new InvalidDataException(
+                    $"Delta requirement '{requirement.Requirement}' in '{RelativePath(root, specPath)}' " +
+                    "has no operation."),
+                requirement.Block))
+            .ToArray();
+        foreach (var removed in requirements.Where(requirement =>
+                     requirement.Operation == RequirementOperation.Removed))
+        {
+            var blockLines = removed.Block.Split('\n');
+            if (!blockLines.Any(line =>
+                    line.StartsWith("**Reason**:", StringComparison.Ordinal) &&
+                    line.Length > "**Reason**:".Length) ||
+                !blockLines.Any(line =>
+                    line.StartsWith("**Migration**:", StringComparison.Ordinal) &&
+                    line.Length > "**Migration**:".Length))
+            {
+                throw new InvalidDataException(
+                    $"Removed requirement '{removed.Capability} :: {removed.Requirement}' in " +
+                    $"'{RelativePath(root, specPath)}' must contain non-empty **Reason** and **Migration** lines.");
+            }
         }
 
-        if (owners.Count == 0)
+        if (requirements.Length == 0)
         {
             throw new InvalidDataException(
                 $"Active delta '{RelativePath(root, specPath)}' must contain at least one requirement heading.");
         }
 
-        return owners.ToArray();
+        return requirements;
     }
+
+    private static RequirementBlock[] ReadRequirementBlocks(
+        string root,
+        string specPath,
+        bool isDelta)
+    {
+        return ReadRequirementBlocks(
+            File.ReadAllLines(specPath),
+            RelativePath(root, specPath),
+            isDelta);
+    }
+
+    private static RequirementBlock[] ReadRequirementBlocks(
+        string[] lines,
+        string source,
+        bool isDelta)
+    {
+        var requirements = new List<RequirementBlock>();
+        RequirementOperation? operation = null;
+        for (var index = 0; index < lines.Length; index++)
+        {
+            if (isDelta && lines[index].StartsWith("## ", StringComparison.Ordinal))
+            {
+                operation = lines[index] switch
+                {
+                    "## ADDED Requirements" => RequirementOperation.Added,
+                    "## MODIFIED Requirements" => RequirementOperation.Modified,
+                    "## REMOVED Requirements" => RequirementOperation.Removed,
+                    _ => null
+                };
+            }
+
+            const string requirementPrefix = "### Requirement: ";
+            if (!lines[index].StartsWith(requirementPrefix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (isDelta && operation is null)
+            {
+                throw new InvalidDataException(
+                    $"Requirement heading in '{source}' must follow an " +
+                    "ADDED, MODIFIED, or REMOVED Requirements section.");
+            }
+
+            var end = index + 1;
+            while (end < lines.Length &&
+                   !lines[end].StartsWith(requirementPrefix, StringComparison.Ordinal) &&
+                   !lines[end].StartsWith("## ", StringComparison.Ordinal))
+            {
+                end++;
+            }
+
+            var lastContentLine = end - 1;
+            while (lastContentLine > index && lines[lastContentLine].Length == 0)
+            {
+                lastContentLine--;
+            }
+
+            requirements.Add(new RequirementBlock(
+                lines[index][requirementPrefix.Length..],
+                operation,
+                string.Join('\n', lines[index..(lastContentLine + 1)])));
+            index = end - 1;
+        }
+
+        return requirements.ToArray();
+    }
+
+    private static void ValidateChangeToCanonicalProvenance(
+        string root,
+        IEnumerable<string> canonicalCapabilityDirectories,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonicalRequirements,
+        IEnumerable<DeltaRequirement> activeDeltaRequirements,
+        IEnumerable<string> activeCapabilityDirectories)
+    {
+        const string recordFormat =
+            "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\t" +
+            "delta-block-sha256\\tcanonical-block-sha256-or-dash";
+        var rows = activeDeltaRequirements
+            .Select(requirement => ClassifyProvenance(canonicalRequirements, requirement))
+            .OrderBy(row => row.RecordLine, StringComparer.Ordinal)
+            .ToArray();
+        var record = string.Join('\n', rows.Select(row => row.RecordLine)) + "\n";
+        var recordBytes = Encoding.UTF8.GetBytes(record);
+        var checkpoint = FixtureDefinitions.Read<OpenSpecProvenanceCheckpoint>(
+            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json");
+
+        checkpoint.SchemaVersion.Should().Be(3);
+        checkpoint.RecordFormat.Should().Be(recordFormat);
+        rows.Should().HaveCount(checkpoint.RecordCount);
+        recordBytes.Should().HaveCount(checkpoint.RecordBytes);
+        Sha256(record).Should().Be(checkpoint.RecordSha256);
+
+        var pending = rows
+            .Where(row => row.State is
+                ProvenanceState.PendingAddition or
+                ProvenanceState.PendingAddedCanonicalConflict or
+                ProvenanceState.PendingModification or
+                ProvenanceState.PendingRemoval)
+            .ToArray();
+        var actualPending = pending
+            .GroupBy(row => row.Requirement.Capability, StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal)
+            .Select(group => new ProvenanceCapabilityCount(group.Key, group.Count()))
+            .ToArray();
+        actualPending.Should().Equal(
+            checkpoint.PendingCanonicalOperations
+                .OrderBy(item => item.Capability, StringComparer.Ordinal)
+                .Select(item => new ProvenanceCapabilityCount(item.Capability, item.Count)));
+
+        var taskLedger = File.ReadAllText(Path.Combine(
+            root,
+            "openspec",
+            "changes",
+            "harmonize-downstream-capability-specs",
+            "tasks.md"));
+        foreach (var operation in checkpoint.PendingCanonicalOperations)
+        {
+            var taskBlock = ReadOpenTaskBlock(taskLedger, operation.TurnsGreenTask);
+            taskBlock.Should().Contain(
+                $"`{operation.Capability}` ({operation.Count})",
+                "the turns-green task must explicitly own the capability and exact pending count");
+        }
+
+        var actualNewCapabilities = rows
+            .Where(row => row.State == ProvenanceState.NewCapabilityOutsideCanonical)
+            .GroupBy(row => row.Requirement.Capability, StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal)
+            .Select(group => new ProvenanceCapabilityCount(group.Key, group.Count()))
+            .ToArray();
+        actualNewCapabilities.Should().Equal(
+            checkpoint.ActiveNewCapabilitiesOutsideCanonical
+                .OrderBy(item => item.Capability, StringComparer.Ordinal)
+                .Select(item => new ProvenanceCapabilityCount(item.Capability, item.Count)));
+        foreach (var disposition in checkpoint.ActiveNewCapabilitiesOutsideCanonical)
+        {
+            disposition.Disposition.Should().NotBeNullOrWhiteSpace();
+            File.Exists(Path.Combine(root, disposition.Evidence.Replace('/', Path.DirectorySeparatorChar)))
+                .Should().BeTrue(
+                    "every active new capability outside canonical must cite repository evidence");
+        }
+
+        var actualNewCapabilitiesAlreadyCanonical = rows
+            .Where(row =>
+                row.Requirement.CapabilityKind == CapabilityKind.New &&
+                canonicalRequirements.ContainsKey(row.Requirement.Capability))
+            .GroupBy(
+                row => $"{row.Requirement.Change}\0{row.Requirement.Capability}",
+                StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal)
+            .Select(group => new ProvenanceDeclaredNewCapability(
+                group.First().Requirement.Change,
+                group.First().Requirement.Capability,
+                group.Count()))
+            .ToArray();
+        actualNewCapabilitiesAlreadyCanonical.Should().Equal(
+            checkpoint.ActiveNewCapabilitiesAlreadyCanonical
+                .OrderBy(item => $"{item.Change}\0{item.Capability}", StringComparer.Ordinal)
+                .Select(item => new ProvenanceDeclaredNewCapability(
+                    item.Change,
+                    item.Capability,
+                    item.Count)));
+        foreach (var disposition in checkpoint.ActiveNewCapabilitiesAlreadyCanonical)
+        {
+            disposition.Disposition.Should().NotBeNullOrWhiteSpace();
+            File.Exists(Path.Combine(root, disposition.Evidence.Replace('/', Path.DirectorySeparatorChar)))
+                .Should().BeTrue(
+                    "every declared-new capability already in canonical must cite repository evidence");
+            var taskBlock = ReadOpenTaskBlock(taskLedger, disposition.TurnsGreenTask);
+            taskBlock.Should().Contain(
+                $"`{disposition.Capability}` ({disposition.Count})",
+                "the post-gate task must explicitly own the declared-new capability and exact count");
+        }
+
+        ValidateCanonicalCapabilityInventory(
+            root,
+            canonicalCapabilityDirectories,
+            checkpoint);
+        ValidateCapabilityDirectoryInventory(
+            root,
+            activeCapabilityDirectories,
+            checkpoint);
+        ValidateHistoricalCanonicalRemovals(rows, checkpoint);
+        ValidateInfrastructureGuardCiLane(root);
+        ValidateReviewArtifact(root, rows, checkpoint);
+
+        checkpoint.SemanticApprovalEligible.Should().Be(pending.Length == 0);
+        var semanticApproval = () => RequireSemanticApproval(pending);
+        if (checkpoint.SemanticApprovalEligible)
+        {
+            semanticApproval.Should().NotThrow(
+                "the checkpoint fixture declares complete change-to-canonical provenance");
+        }
+        else
+        {
+            semanticApproval.Should().Throw<InvalidDataException>()
+                .WithMessage($"*{pending.Length} unresolved change-to-canonical operation(s)*")
+                .WithMessage("*Structural OpenSpec validation is not semantic approval.*");
+        }
+    }
+
+    private static void ValidateCapabilityDirectoryInventory(
+        string root,
+        IEnumerable<string> activeCapabilityDirectories,
+        OpenSpecProvenanceCheckpoint checkpoint)
+    {
+        const string recordFormat =
+            "repository-relative active openspec/changes/*/specs/*/ path with forward slashes and one trailing slash";
+        var paths = activeCapabilityDirectories
+            .Select(path => $"{RelativePath(root, path).TrimEnd('/')}/")
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        var record = string.Join('\n', paths) + "\n";
+        var bytes = Encoding.UTF8.GetBytes(record);
+
+        checkpoint.CapabilityDirectoryRecordFormat.Should().Be(recordFormat);
+        paths.Should().HaveCount(checkpoint.CapabilityDirectoryCount);
+        bytes.Should().HaveCount(checkpoint.CapabilityDirectoryBytes);
+        Sha256(record).Should().Be(checkpoint.CapabilityDirectorySha256);
+    }
+
+    private static void ValidateCanonicalCapabilityInventory(
+        string root,
+        IEnumerable<string> canonicalCapabilityDirectories,
+        OpenSpecProvenanceCheckpoint checkpoint)
+    {
+        const string recordFormat =
+            "repository-relative openspec/specs/*/ path with forward slashes and one trailing slash";
+        var paths = canonicalCapabilityDirectories
+            .Select(path => $"{RelativePath(root, path).TrimEnd('/')}/")
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        var record = string.Join('\n', paths) + "\n";
+        var bytes = Encoding.UTF8.GetBytes(record);
+
+        checkpoint.CanonicalCapabilityRecordFormat.Should().Be(recordFormat);
+        paths.Should().HaveCount(checkpoint.CanonicalCapabilityCount);
+        bytes.Should().HaveCount(checkpoint.CanonicalCapabilityBytes);
+        Sha256(record).Should().Be(checkpoint.CanonicalCapabilitySha256);
+    }
+
+    private static void ValidateHistoricalCanonicalRemovals(
+        IEnumerable<ProvenanceRow> rows,
+        OpenSpecProvenanceCheckpoint checkpoint)
+    {
+        var synchronizedRemovals = rows
+            .Where(row =>
+                row.Requirement.Operation == RequirementOperation.Removed &&
+                row.State == ProvenanceState.Synchronized)
+            .Select(row => new HistoricalRemovalIdentity(
+                row.Requirement.Capability,
+                row.Requirement.Requirement))
+            .OrderBy(item => $"{item.Capability}\0{item.Requirement}", StringComparer.Ordinal)
+            .ToArray();
+        var recordedRemovals = checkpoint.HistoricalCanonicalRemovals
+            .Select(item => new HistoricalRemovalIdentity(item.Capability, item.Requirement))
+            .OrderBy(item => $"{item.Capability}\0{item.Requirement}", StringComparer.Ordinal)
+            .ToArray();
+        synchronizedRemovals.Should().Equal(
+            recordedRemovals,
+            "every synchronized removal must have exact immutable canonical-history evidence");
+
+        foreach (var evidence in checkpoint.HistoricalCanonicalRemovals)
+        {
+            evidence.CanonicalBlockSha256.Should().MatchRegex("^[0-9a-f]{64}$");
+            evidence.CanonicalBlock.Should().NotBeNullOrWhiteSpace();
+            var normalizedBlock = NormalizeLineEndings(evidence.CanonicalBlock);
+            var historicalRequirements = ReadRequirementBlocks(
+                normalizedBlock.Split('\n'),
+                $"embedded historical evidence for {evidence.Capability}",
+                isDelta: false);
+            historicalRequirements.Should().ContainSingle(
+                "each historical-removal fixture entry must embed exactly one canonical requirement block");
+            var historicalBlock = historicalRequirements[0];
+            historicalBlock.Requirement.Should().Be(
+                evidence.Requirement,
+                "the embedded canonical block heading must identify its removal record");
+            historicalBlock.Block.Should().Be(
+                normalizedBlock,
+                "the embedded evidence must not contain unhashed preamble or trailing content");
+
+            Sha256(historicalBlock.Block).Should().Be(
+                evidence.CanonicalBlockSha256,
+                "the fixture must retain the exact reviewed historical canonical requirement block even when Git history is rewritten");
+        }
+    }
+
+    private static void ValidateInfrastructureGuardCiLane(string root)
+    {
+        var workflowPath = Path.Combine(root, ".github", "workflows", "ci.yml");
+        var workflow = NormalizeLineEndings(File.ReadAllText(workflowPath));
+        var guardSteps = Regex.Matches(
+            workflow,
+            @"(?ms)^[ \t]*-[ \t]+name:[ \t]+Infrastructure contract guards[ \t]*$.*?(?=^[ \t]*-[ \t]+(?:name|uses):|\z)",
+            RegexOptions.CultureInvariant);
+        guardSteps.Should().ContainSingle(
+            "CI must execute the must-be-green infrastructure guard disposition exactly once");
+        var normalizedCommand = Regex.Replace(guardSteps[0].Value, @"\s+", " ");
+        normalizedCommand.Should().Contain(
+            "dotnet test tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj");
+        normalizedCommand.Should().Contain("--no-build --no-restore -c Release");
+        normalizedCommand.Should().Contain("--filter \"Disposition=Infrastructure\"");
+    }
+
+    private static void ValidateReviewArtifact(
+        string root,
+        IReadOnlyCollection<ProvenanceRow> rows,
+        OpenSpecProvenanceCheckpoint checkpoint)
+    {
+        var artifactPath = Path.Combine(
+            root,
+            checkpoint.ArtifactPath.Replace('/', Path.DirectorySeparatorChar));
+        File.Exists(artifactPath).Should().BeTrue("the reviewed provenance artifact must exist");
+        var normalizedArtifact = NormalizeLineEndings(File.ReadAllText(artifactPath));
+        var pendingCount = rows.Count(row => row.State is not
+            ProvenanceState.Synchronized and not
+            ProvenanceState.NewCapabilityOutsideCanonical);
+        RequireArtifactClaim(normalizedArtifact, $"- record rows: {checkpoint.RecordCount}");
+        RequireArtifactClaim(
+            normalizedArtifact,
+            $"- record bytes: {FormatCount(checkpoint.RecordBytes)}");
+        RequireArtifactClaim(
+            normalizedArtifact,
+            $"- record SHA-256: `{checkpoint.RecordSha256}`");
+        RequireArtifactClaim(
+            normalizedArtifact,
+            $"- synchronized operations: {rows.Count(row => row.State == ProvenanceState.Synchronized)}");
+        RequireArtifactClaim(
+            normalizedArtifact,
+            $"- pending canonical operations: {pendingCount}");
+        RequireArtifactClaim(
+            normalizedArtifact,
+            "- declared new-capability requirements outside the canonical set: " +
+            rows.Count(row => row.State == ProvenanceState.NewCapabilityOutsideCanonical));
+        RequireArtifactClaim(
+            normalizedArtifact,
+            $"- semantic approval eligible: {(checkpoint.SemanticApprovalEligible ? "yes" : "no")}");
+        foreach (var state in Enum.GetValues<ProvenanceState>())
+        {
+            RequireArtifactClaim(
+                normalizedArtifact,
+                $"| `{state}` | {rows.Count(row => row.State == state)} |");
+        }
+
+        RequireArtifactClaim(
+            normalizedArtifact,
+            $"- canonical capability directories: {checkpoint.CanonicalCapabilityCount}");
+        RequireArtifactClaim(
+            normalizedArtifact,
+            $"- record bytes: {FormatCount(checkpoint.CanonicalCapabilityBytes)}");
+        RequireArtifactClaim(
+            normalizedArtifact,
+            $"- SHA-256: `{checkpoint.CanonicalCapabilitySha256}`");
+        RequireArtifactClaim(
+            normalizedArtifact,
+            $"- capability directories: {checkpoint.CapabilityDirectoryCount}");
+        RequireArtifactClaim(
+            normalizedArtifact,
+            $"- record bytes: {FormatCount(checkpoint.CapabilityDirectoryBytes)}");
+        RequireArtifactClaim(
+            normalizedArtifact,
+            $"- SHA-256: `{checkpoint.CapabilityDirectorySha256}`");
+        foreach (var operation in checkpoint.PendingCanonicalOperations)
+        {
+            RequireArtifactClaim(
+                normalizedArtifact,
+                $"| `{operation.Capability}` | {operation.Count} | task {operation.TurnsGreenTask} |");
+        }
+
+        Sha256(normalizedArtifact).Should().Be(
+            checkpoint.ArtifactNormalizedSha256,
+            "the human-readable provenance artifact must remain byte-accountable after LF normalization");
+    }
+
+    private static void RequireArtifactClaim(string artifact, string claim) =>
+        artifact.Should().Contain(
+            claim,
+            "the human-readable provenance artifact must agree with live executable evidence");
+
+    private static string FormatCount(int value) =>
+        value.ToString("N0", CultureInfo.InvariantCulture);
+
+    private static string ReadOpenTaskBlock(string taskLedger, string task)
+    {
+        var match = Regex.Match(
+            taskLedger,
+            $@"(?ms)^- \[ \] {Regex.Escape(task)}\b.*?(?=^- \[[ x]\] \d+\.\d+\b|\z)",
+            RegexOptions.CultureInvariant);
+        if (!match.Success)
+        {
+            throw new InvalidDataException(
+                $"Every unresolved canonical operation must have one open turns-green task '{task}'.");
+        }
+
+        return match.Value;
+    }
+
+    private static ProvenanceRow ClassifyProvenance(
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonicalRequirements,
+        DeltaRequirement requirement)
+    {
+        if (!canonicalRequirements.TryGetValue(requirement.Capability, out var capabilityRequirements))
+        {
+            if (requirement.CapabilityKind != CapabilityKind.New)
+            {
+                throw new InvalidDataException(
+                    $"Modified capability '{requirement.Capability}' has no canonical spec for " +
+                    $"'{requirement.Change} :: {requirement.Requirement}'.");
+            }
+
+            return CreateProvenanceRow(
+                requirement,
+                ProvenanceState.NewCapabilityOutsideCanonical,
+                canonicalBlock: null);
+        }
+
+        var canonicalExists = capabilityRequirements.TryGetValue(
+            requirement.Requirement,
+            out var canonicalRequirement);
+        var canonicalBlock = canonicalRequirement?.Block;
+        var blocksMatch = canonicalExists &&
+                          string.Equals(requirement.Block, canonicalBlock, StringComparison.Ordinal);
+        var state = requirement.Operation switch
+        {
+            RequirementOperation.Added when !canonicalExists => ProvenanceState.PendingAddition,
+            RequirementOperation.Added when blocksMatch => ProvenanceState.Synchronized,
+            RequirementOperation.Added => ProvenanceState.PendingAddedCanonicalConflict,
+            RequirementOperation.Modified when !canonicalExists => throw new InvalidDataException(
+                $"Modified requirement heading '{requirement.Capability} :: {requirement.Requirement}' " +
+                $"from '{requirement.Change}' does not match canonical verbatim."),
+            RequirementOperation.Modified when blocksMatch => ProvenanceState.Synchronized,
+            RequirementOperation.Modified => ProvenanceState.PendingModification,
+            RequirementOperation.Removed when canonicalExists => ProvenanceState.PendingRemoval,
+            RequirementOperation.Removed => ProvenanceState.Synchronized,
+            _ => throw new ArgumentOutOfRangeException(nameof(requirement.Operation))
+        };
+
+        return CreateProvenanceRow(requirement, state, canonicalBlock);
+    }
+
+    private static ProvenanceRow CreateProvenanceRow(
+        DeltaRequirement requirement,
+        ProvenanceState state,
+        string? canonicalBlock)
+    {
+        var canonicalHash = canonicalBlock is null ? "-" : Sha256(canonicalBlock);
+        var line = string.Join('\t',
+            requirement.Change,
+            requirement.Capability,
+            requirement.CapabilityKind.ToString().ToUpperInvariant(),
+            requirement.Operation.ToString().ToUpperInvariant(),
+            requirement.Requirement,
+            state.ToString(),
+            Sha256(requirement.Block),
+            canonicalHash);
+        return new ProvenanceRow(requirement, state, line);
+    }
+
+    private static void RequireSemanticApproval(IReadOnlyCollection<ProvenanceRow> pending)
+    {
+        if (pending.Count == 0)
+        {
+            return;
+        }
+
+        var summary = pending
+            .GroupBy(row => row.Requirement.Capability, StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal)
+            .Select(group => $"{group.Key}={group.Count()}");
+        throw new InvalidDataException(
+            $"Checkpoint provenance has {pending.Count} unresolved change-to-canonical operation(s): " +
+            $"{string.Join(", ", summary)}. Structural OpenSpec validation is not semantic approval.");
+    }
+
+    private static string Sha256(string content) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content))).ToLowerInvariant();
+
+    private static string NormalizeLineEndings(string content) =>
+        content.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
 
     private static string GetDirectoryName(string path) =>
         Path.GetFileName(path) ??
@@ -329,7 +862,102 @@ public sealed class OpenSpecCorpusGuards
         Modified
     }
 
+    private enum RequirementOperation
+    {
+        Added,
+        Modified,
+        Removed
+    }
+
+    private enum ProvenanceState
+    {
+        Synchronized,
+        PendingAddition,
+        PendingAddedCanonicalConflict,
+        PendingModification,
+        PendingRemoval,
+        NewCapabilityOutsideCanonical
+    }
+
     private sealed record DeclaredCapability(string Name, CapabilityKind Kind);
+
+    private sealed record RequirementBlock(
+        string Requirement,
+        RequirementOperation? Operation,
+        string Block);
+
+    private sealed record CanonicalRequirement(string Requirement, string Block);
+
+    private sealed record DeltaRequirement(
+        string Change,
+        string Capability,
+        CapabilityKind CapabilityKind,
+        string Requirement,
+        RequirementOperation Operation,
+        string Block);
+
+    private sealed record ProvenanceRow(
+        DeltaRequirement Requirement,
+        ProvenanceState State,
+        string RecordLine);
+
+    private sealed record ProvenanceCapabilityCount(string Capability, int Count);
+
+    private sealed record OpenSpecProvenanceCheckpoint(
+        int SchemaVersion,
+        string RecordFormat,
+        int RecordCount,
+        int RecordBytes,
+        string RecordSha256,
+        bool SemanticApprovalEligible,
+        ProvenancePendingCapability[] PendingCanonicalOperations,
+        ProvenanceNewCapability[] ActiveNewCapabilitiesOutsideCanonical,
+        ProvenanceNewCanonicalCapability[] ActiveNewCapabilitiesAlreadyCanonical,
+        HistoricalCanonicalRemoval[] HistoricalCanonicalRemovals,
+        string CanonicalCapabilityRecordFormat,
+        int CanonicalCapabilityCount,
+        int CanonicalCapabilityBytes,
+        string CanonicalCapabilitySha256,
+        string CapabilityDirectoryRecordFormat,
+        int CapabilityDirectoryCount,
+        int CapabilityDirectoryBytes,
+        string CapabilityDirectorySha256,
+        string ArtifactPath,
+        string ArtifactNormalizedSha256);
+
+    private sealed record ProvenancePendingCapability(
+        string Capability,
+        int Count,
+        string TurnsGreenTask);
+
+    private sealed record ProvenanceNewCapability(
+        string Capability,
+        int Count,
+        string Disposition,
+        string Evidence);
+
+    private sealed record ProvenanceDeclaredNewCapability(
+        string Change,
+        string Capability,
+        int Count);
+
+    private sealed record ProvenanceNewCanonicalCapability(
+        string Change,
+        string Capability,
+        int Count,
+        string Disposition,
+        string TurnsGreenTask,
+        string Evidence);
+
+    private sealed record HistoricalCanonicalRemoval(
+        string Capability,
+        string Requirement,
+        string CanonicalBlockSha256,
+        string CanonicalBlock);
+
+    private sealed record HistoricalRemovalIdentity(
+        string Capability,
+        string Requirement);
 
     private sealed record RequirementOwner(
         string Change,

@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 3,
+  "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
+  "recordCount": 176,
+  "recordBytes": 45871,
+  "recordSha256": "9ecc692e389c0b30310010d9b09f39dfc1145916a629403dfc14884f067395a4",
+  "semanticApprovalEligible": false,
+  "pendingCanonicalOperations": [
+    { "capability": "developer-facing-surface", "count": 7, "turnsGreenTask": "5.1" },
+    { "capability": "durable-persistence-and-outbox", "count": 5, "turnsGreenTask": "5.1" },
+    { "capability": "durable-runtime", "count": 8, "turnsGreenTask": "5.1" },
+    { "capability": "event-routing-and-waits", "count": 8, "turnsGreenTask": "5.1" },
+    { "capability": "management-and-querying", "count": 1, "turnsGreenTask": "5.2" },
+    { "capability": "quality-and-verification", "count": 5, "turnsGreenTask": "5.2" },
+    { "capability": "repository-foundation", "count": 2, "turnsGreenTask": "5.2" },
+    { "capability": "state-driven-runtime", "count": 2, "turnsGreenTask": "5.1" },
+    { "capability": "workflow-authoring", "count": 3, "turnsGreenTask": "5.1" },
+    { "capability": "workflow-contracts", "count": 9, "turnsGreenTask": "5.1" }
+  ],
+  "activeNewCapabilitiesOutsideCanonical": [
+    {
+      "capability": "spec-driven-planning",
+      "count": 3,
+      "disposition": "Planning-only bootstrap capability intentionally outside canonical product specs",
+      "evidence": "openspec/changes/bootstrap-orcacore-spec-baseline/proposal.md"
+    }
+  ],
+  "activeNewCapabilitiesAlreadyCanonical": [
+    {
+      "change": "reshape-developer-facing-interfaces",
+      "capability": "developer-facing-surface",
+      "count": 18,
+      "disposition": "An earlier approved synchronization created the canonical capability before later same-change amendments; task 4.3 must define the mandatory post-gate re-entry path",
+      "turnsGreenTask": "4.3",
+      "evidence": "openspec/changes/reshape-developer-facing-interfaces/proposal.md"
+    }
+  ],
+  "historicalCanonicalRemovals": [
+    {
+      "capability": "durable-runtime",
+      "requirement": "Wait and WaitLong have distinct residency behavior",
+      "canonicalBlockSha256": "948f2ede49f2eaf4d16bdf96351a3875138316a0cbcc2b59567429aea7ebbd45",
+      "canonicalBlock": "### Requirement: Wait and WaitLong have distinct residency behavior\nThe durable runtime SHALL model both resident waits and cold waits, with `Wait` remaining available for hot instances and `WaitLong` explicitly representing cold durable residency.\n\n#### Scenario: Long-running wait is authored\n- **WHEN** a workflow uses `WaitLong`\n- **THEN** the runtime checkpoints the instance for durable resume rather than requiring the instance to remain hot in memory"
+    },
+    {
+      "capability": "event-driven-prototype",
+      "requirement": "Current implemented slice is intentionally narrow",
+      "canonicalBlockSha256": "ff36aee257210d5480fa57e2d5717afc8ef6d46deb0d5b697341db755f4c365e",
+      "canonicalBlock": "### Requirement: Current implemented slice is intentionally narrow\nThe prototype SHALL currently cover straight-line execution, `Wait`, buffering, deduplication, and instance-targeted or correlation-targeted resume without claiming full parity with the state-driven runtime.\n\n#### Scenario: Consumer evaluates prototype capability\n- **WHEN** a consumer asks whether the event-driven prototype is feature-complete\n- **THEN** the system documents it as a narrow implemented slice rather than a full replacement for the primary runtime"
+    },
+    {
+      "capability": "event-driven-prototype",
+      "requirement": "Prototype remains a separate runtime slice",
+      "canonicalBlockSha256": "139b7f0150b9be1ec3172a33d01f437a92a0ae3a7df72915fe004ac515a05a50",
+      "canonicalBlock": "### Requirement: Prototype remains a separate runtime slice\nThe event-driven prototype SHALL exist as a distinct runtime and test slice with its own engine, definitions, persistence model, and project boundary.\n\n#### Scenario: Contributor explores event-driven execution\n- **WHEN** a contributor works on the append-only runtime path\n- **THEN** they do so through the dedicated prototype project and test suite rather than through hidden modes inside the primary state-driven runtime"
+    },
+    {
+      "capability": "event-driven-prototype",
+      "requirement": "Prototype uses append-only facts with derived state",
+      "canonicalBlockSha256": "12b61130b0dfc0e070aa823ff2e78d4fb5c918b0ccf2fc2c37203f6d4cdbc7cf",
+      "canonicalBlock": "### Requirement: Prototype uses append-only facts with derived state\nThe prototype SHALL record workflow facts in an append-only per-instance stream and SHALL derive resumable state through checkpoints, projections, and inbox tracking.\n\n#### Scenario: Instance resumes after restart\n- **WHEN** a prototype workflow is restarted after durable facts were appended\n- **THEN** the engine restores behavior from checkpointed and projected state derived from the append-only stream"
+    },
+    {
+      "capability": "event-driven-prototype",
+      "requirement": "Unsupported control-flow and infrastructure features stay explicit",
+      "canonicalBlockSha256": "9f4f04e419ff13aed29487f3f54ba3408c8a2a6ffea71f8b1d84623e6e8777ae",
+      "canonicalBlock": "### Requirement: Unsupported control-flow and infrastructure features stay explicit\nThe prototype SHALL not imply support for `If`, `While`, `Parallel`, `WaitLong`, timers, outbox, or non-trivial provider abstraction until those behaviors are explicitly designed and implemented.\n\n#### Scenario: Contributor plans a new prototype feature\n- **WHEN** a feature outside the current implemented slice is proposed\n- **THEN** the work is treated as an explicit new capability increment instead of assumed baseline behavior"
+    },
+    {
+      "capability": "saga-orchestration",
+      "requirement": "Advanced saga support is durable and auditable",
+      "canonicalBlockSha256": "cb3001b34d705e15eeebadf022339290880550ab8a0856f85f896663f29ef39d",
+      "canonicalBlock": "### Requirement: Advanced saga support is durable and auditable\nAdvanced saga behavior SHALL support durable coordination boundaries, compensation auditability, manual intervention, outbox or inbox consistency expectations, and version-aware evolution.\n\n#### Scenario: Operator reviews a long-running saga incident\n- **WHEN** a durable saga requires investigation or intervention\n- **THEN** the system exposes enough durable state and audit information to understand completed actions, pending compensation, and operator-required next steps"
+    },
+    {
+      "capability": "saga-orchestration",
+      "requirement": "Compensation has explicit scope and reverse ordering",
+      "canonicalBlockSha256": "41c26e74a399f7f4e67b49613a1c8ffa435e022e80f6d825441e596e8147b5aa",
+      "canonicalBlock": "### Requirement: Compensation has explicit scope and reverse ordering\nSaga execution SHALL define which forward actions require compensation and SHALL apply compensation in deterministic reverse logical order for the covered scope. A committed forward action SHALL be immediately eligible inside its owning branch scope. A branch-result commit SHALL expose its eligible records to the containing scope. Failure or cancellation before merge SHALL compensate every committed descendant action covered by the failing scope. Successful merge SHALL transfer eligible records to the parent scope without changing their stable identities. Sequential actions SHALL use reverse committed sequence order. Actions completed by sibling fibers SHALL use reverse stable authored branch and instruction order rather than wall-clock completion order. A per-scope ordering override SHALL be accepted only when it is deterministic, bound into the compiled-plan fingerprint, and based on stable authored identities.\n\n#### Scenario: Mid-saga failure occurs\n- **WHEN** a saga fails after multiple compensable sequential actions have completed\n- **THEN** compensation executes for the covered actions in reverse committed sequence order\n\n#### Scenario: Parallel saga branches complete in different orders\n- **WHEN** equivalent compensable actions in sibling fibers complete in different wall-clock orders\n- **THEN** compensation uses the same reverse canonical scope order in every execution\n\n#### Scenario: Scope fails before merge\n- **WHEN** one branch has committed compensable actions and another branch causes the containing scope to fail before merge\n- **THEN** scope compensation covers every committed descendant action, including actions from the successfully progressing branch\n\n#### Scenario: Parent fails after successful merge\n- **WHEN** a child scope merges successfully and a later parent-scope action fails\n- **THEN** the transferred child compensation records remain eligible under the parent scope with their original stable ordering identities"
+    },
+    {
+      "capability": "saga-orchestration",
+      "requirement": "Saga outcomes include saga-specific terminal semantics",
+      "canonicalBlockSha256": "df2223643eec890ab53f943ec5698156dca4300e06f8424c329c0526b865e48c",
+      "canonicalBlock": "### Requirement: Saga outcomes include saga-specific terminal semantics\nSaga orchestration SHALL model terminal outcomes that distinguish successful completion, compensated completion, failed compensation, cancellation, and timeout-driven saga outcomes.\n\n#### Scenario: Saga is cancelled after partial progress\n- **WHEN** cancellation or timeout occurs after compensable work has already run\n- **THEN** the resulting terminal state reflects saga-specific compensation semantics instead of a generic workflow completion code only"
+    },
+    {
+      "capability": "saga-orchestration",
+      "requirement": "Saga records are owned by fibers and scopes",
+      "canonicalBlockSha256": "38c34b81af180075dba6ee3a15c94274f423b402a49a52dc4261e4b8781bbe18",
+      "canonicalBlock": "### Requirement: Saga records are owned by fibers and scopes\nEvery compensable forward action SHALL record its owning fiber, owning scope, stable instruction identity, committed completion position, and compensation state. Cancelling or failing a scope SHALL preserve the records required to finish or diagnose compensation.\n\n#### Scenario: Host restarts during scoped compensation\n- **WHEN** a host restarts after one nested-scope compensation commits and before the next begins\n- **THEN** rehydration resumes from the persisted compensation position without rerunning completed forward actions or completed compensations"
+    },
+    {
+      "capability": "saga-orchestration",
+      "requirement": "Saga workflows use a distinct definition kind",
+      "canonicalBlockSha256": "44c77024b0c7d71b00d1fbd6ec3857d6c8ae1ef879393363216dca072f6fbc71",
+      "canonicalBlock": "### Requirement: Saga workflows use a distinct definition kind\nThe system SHALL model saga workflows as a separate definition kind rather than treating compensation as an ad hoc extension of regular workflows.\n\n#### Scenario: Saga is authored\n- **WHEN** a contributor defines a process that requires compensating actions\n- **THEN** the definition is represented as a saga-specific orchestration construct"
+    }
+  ],
+  "canonicalCapabilityRecordFormat": "repository-relative openspec/specs/*/ path with forward slashes and one trailing slash",
+  "canonicalCapabilityCount": 14,
+  "canonicalCapabilityBytes": 547,
+  "canonicalCapabilitySha256": "7165dac4e1a57022a7890b421f522bf4152f6d5ddc159a41539ce2ef0d18ec9f",
+  "capabilityDirectoryRecordFormat": "repository-relative active openspec/changes/*/specs/*/ path with forward slashes and one trailing slash",
+  "capabilityDirectoryCount": 16,
+  "capabilityDirectoryBytes": 1321,
+  "capabilityDirectorySha256": "5e8a9725979d702ff2f639fef587828958c92533139602ab13f1401d6df7ebd5",
+  "artifactPath": "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-4-2-openspec-provenance-record-2026-08-18.md",
+  "artifactNormalizedSha256": "76bf9de7ba3f53f387b00492587da886a69d834f1564c28c2ca9a65b664bbe35"
+}

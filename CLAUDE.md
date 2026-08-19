@@ -209,6 +209,21 @@ scheduled as an explicit hand-application step at sync time, or it is silently l
 `openspec validate --strict` checks **structure, not provenance**. It cannot detect canonical
 content that no change describes. Never cite it as evidence of workflow compliance.
 
+Every reviewed checkpoint that includes active OpenSpec changes must also run
+`OpenSpecCorpusGuards.CanonicalSynchronizationGate_EnumeratesCapabilitiesDeltasAndRequirementOwners`
+and record the provenance row count, byte count, SHA-256, unresolved-operation table, and semantic
+approval eligibility from `Fixtures/openspec-provenance-checkpoint.json`. When that checkpoint
+reports unresolved change-to-canonical operations, structural validation may be reported only as
+structural validation; it SHALL NOT be reported as semantic approval.
+
+The checkpoint enumerates canonical capabilities independently of active deltas. Archiving a
+completed change may require a reviewed provenance-fixture refreeze, but SHALL NOT require every
+canonical capability to retain an active delta forever. Synchronized-removal evidence must embed
+the exact normalized historical canonical block and pin its SHA-256. A source commit remains
+provenance metadata, but guard correctness SHALL NOT depend on that Git object surviving a squash,
+rebase, or shallow checkout. CI must execute the complete must-be-green guard lane with
+`Disposition=Infrastructure`; intentional expected-red guards remain outside that lane.
+
 ### Synchronization gates must enumerate targets, not inputs
 
 Two independent consistency failures on 2026-07-31 shared one cause: a sync step that ran once, at a
