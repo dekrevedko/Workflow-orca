@@ -383,7 +383,10 @@ public static partial class LeaseExitScenarioHost
             "input",
             StartIdempotencyKey.Create("mixed-pool-review"),
             CancellationToken.None).AsTask();
-        await gate.FirstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await AwaitSignalBeforeWorkflowCompletionAsync(
+            gate.FirstStarted.Task,
+            running,
+            "The mixed-pool review workflow completed before its protected body started.");
         var instanceId = (await store.GetStartedAsync(
             "mixed-pool-review",
             CancellationToken.None)).Value.InstanceId;
@@ -452,7 +455,10 @@ public static partial class LeaseExitScenarioHost
             "input",
             StartIdempotencyKey.Create("missing-ticket"),
             CancellationToken.None).AsTask();
-        await firstGate.FirstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await AwaitSignalBeforeWorkflowCompletionAsync(
+            firstGate.FirstStarted.Task,
+            abandoned,
+            "The missing-ticket workflow completed before its protected body started.");
         var instanceId = (await store.GetStartedAsync(
             "missing-ticket",
             CancellationToken.None)).Value.InstanceId;
@@ -541,7 +547,10 @@ public static partial class LeaseExitScenarioHost
             "input",
             StartIdempotencyKey.Create("no-time-reclaim"),
             CancellationToken.None).AsTask();
-        await gate.FirstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await AwaitSignalBeforeWorkflowCompletionAsync(
+            gate.FirstStarted.Task,
+            running,
+            "The no-time-reclaim workflow completed before its protected body started.");
         var instanceId = (await store.GetStartedAsync(
             "no-time-reclaim",
             CancellationToken.None)).Value.InstanceId;

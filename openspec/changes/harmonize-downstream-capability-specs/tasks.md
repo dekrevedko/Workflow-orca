@@ -81,17 +81,32 @@
       while those 50 operations remain; the 123 synchronized operations and three declared
       bootstrap requirements outside the canonical capability set are recorded separately. The
       gate also dispositions the 18-row `developer-facing-surface` case where a declared-new
-      capability already exists canonically and forces it through open task 4.3, while pinning the
-      exact 14-directory canonical inventory and 16-directory active-delta inventory with
-      reproducible SHA-256 records. The human-readable provenance artifact, squash-safe embedded
+      capability already exists canonically and links it to the permanent post-gate amendment
+      registry, while pinning the exact 14-directory canonical inventory and 16-directory
+      active-delta inventory with reproducible SHA-256 records. The human-readable provenance
+      artifact, squash-safe embedded
       removal evidence, CI `Disposition=Infrastructure` lane, symmetric requirement-block parser,
-      and turns-green capability/count assignments are executable parts of the same contract.
-- [ ] 4.3 Define a post-gate amendment path so a decision approved after its original section gate
+      and turns-green capability/count assignments are executable parts of the same contract. The
+      historical-removal catalog is permanent: currently active synchronized removals are validated
+      as its subset, and an available source commit is read directly without requiring ancestry from
+      `HEAD`, so normal archival and squash/rebase integration remain recoverable without a guard
+      source edit.
+- [x] 4.3 Define a post-gate amendment path so a decision approved after its original section gate
       closed must re-enter canonical requirements, acceptance criteria, implementation tasks,
       refreeze, and independent approval rather than silently bypassing the completed gate. This
       task explicitly owns the `developer-facing-surface` (18) declared-new/already-canonical case
       and SHALL preserve ordinary active-change archival by updating the reviewed provenance
       fixture rather than requiring every canonical capability to retain an active delta forever.
+      **Completed:** a machine-readable eight-stage registry now binds the Section 7B amendment to
+      its original 4.15/10.14 gates, 7.23 approval, open canonical task 5.1, open numbered
+      requirement/acceptance task 7.3, exactly 11 completed 7.24-7.34 implementation tasks,
+      executable evidence, and the 7.22 refreeze/verdict. The registry embeds all 18 exact
+      requirement identities, derives their current seven canonical mismatches from the resolved
+      active or dated archived change record, and normalizes verdict line endings before exact
+      task/approval checks. The structural case is linked permanently without pre-closing its seven
+      canonical mismatches or requiring the owning change to remain active. Checkpoint validation
+      also replaces the shared 3.11c lease-recovery fixture's scheduler-sensitive wall-clock gate
+      waits with workflow-owned completion signals and pins that rule in the infrastructure guard.
 
 ## 5. Coordination owned by `reshape-developer-facing-interfaces`
 
@@ -145,7 +160,10 @@
       role-specific hosting, fixed codec, application-facing absence of broad statistics, and
       provider/operator ownership of retained statistics and retention behavior. Correct 22 of the
       stale active documentation sources enumerated by the task 3.1 sweep artifact; task 7.4 owns
-      the separate Orleans future-hosting note.
+      the separate Orleans future-hosting note. As the numbered-requirement and acceptance owner
+      for the post-gate `developer-facing-surface` (18) record, this task must specifically reconcile
+      `docs/specs/05-requirements-events-waits-timers.md` and
+      `docs/specs/12-acceptance-criteria.md` with the approved Section 7B contract.
 - [ ] 7.4 Preserve the superseded Orleans plan under the archive and maintain only one active future
       hosting boundary note using ordinary cold-capable `Wait`, the current event/outbox contract,
       role-specific hosting, exact tier ownership, and a new-change prerequisite. Correct the

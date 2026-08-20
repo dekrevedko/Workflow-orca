@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -10,6 +11,25 @@ namespace OrcaCore.DeveloperSurface.Guards;
 [Trait(GuardTraits.Disposition, GuardTraits.Infrastructure)]
 public sealed class OpenSpecCorpusGuards
 {
+    private const string OpenTaskState = "Open";
+    private const string CompleteTaskState = "Complete";
+    private const string HistoricalCanonicalSourceCommit =
+        "ba2478e995023b0712c44705174c2b0e3262f213";
+    private const string HistoricalCanonicalRemovalCatalogSha256 =
+        "2ddeabfa030e46e076d875fb8d905088e5e93cbf68232d9fd58e6eb51780bc6c";
+
+    private static readonly string[] RequiredPostGateStages =
+    [
+        "amendment-approval",
+        "canonical-open-spec",
+        "numbered-requirements",
+        "acceptance-criteria",
+        "implementation-tasks",
+        "executable-evidence",
+        "refreeze",
+        "independent-approval"
+    ];
+
     [Fact]
     public void CanonicalSynchronizationGate_EnumeratesCapabilitiesDeltasAndRequirementOwners()
     {
@@ -456,7 +476,7 @@ public sealed class OpenSpecCorpusGuards
         var checkpoint = FixtureDefinitions.Read<OpenSpecProvenanceCheckpoint>(
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json");
 
-        checkpoint.SchemaVersion.Should().Be(3);
+        checkpoint.SchemaVersion.Should().Be(5);
         checkpoint.RecordFormat.Should().Be(recordFormat);
         rows.Should().HaveCount(checkpoint.RecordCount);
         recordBytes.Should().HaveCount(checkpoint.RecordBytes);
@@ -485,6 +505,9 @@ public sealed class OpenSpecCorpusGuards
             "changes",
             "harmonize-downstream-capability-specs",
             "tasks.md"));
+        var postGateCheckpoint = FixtureDefinitions.Read<PostGateAmendmentCheckpoint>(
+            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json");
+        ValidatePostGateAmendmentPath(root, canonicalRequirements, postGateCheckpoint);
         foreach (var operation in checkpoint.PendingCanonicalOperations)
         {
             var taskBlock = ReadOpenTaskBlock(taskLedger, operation.TurnsGreenTask);
@@ -537,10 +560,13 @@ public sealed class OpenSpecCorpusGuards
             File.Exists(Path.Combine(root, disposition.Evidence.Replace('/', Path.DirectorySeparatorChar)))
                 .Should().BeTrue(
                     "every declared-new capability already in canonical must cite repository evidence");
-            var taskBlock = ReadOpenTaskBlock(taskLedger, disposition.TurnsGreenTask);
-            taskBlock.Should().Contain(
-                $"`{disposition.Capability}` ({disposition.Count})",
-                "the post-gate task must explicitly own the declared-new capability and exact count");
+            var amendment = postGateCheckpoint.Amendments.SingleOrDefault(item =>
+                string.Equals(item.Id, disposition.PostGateAmendmentId, StringComparison.Ordinal));
+            amendment.Should().NotBeNull(
+                "every declared-new/already-canonical capability must link one permanent post-gate record");
+            amendment!.OwningChange.Should().Be(disposition.Change);
+            amendment.Capability.Should().Be(disposition.Capability);
+            amendment.DeclaredRequirementCount.Should().Be(disposition.Count);
         }
 
         ValidateCanonicalCapabilityInventory(
@@ -551,7 +577,7 @@ public sealed class OpenSpecCorpusGuards
             root,
             activeCapabilityDirectories,
             checkpoint);
-        ValidateHistoricalCanonicalRemovals(rows, checkpoint);
+        ValidateHistoricalCanonicalRemovals(root, rows, checkpoint);
         ValidateInfrastructureGuardCiLane(root);
         ValidateReviewArtifact(root, rows, checkpoint);
 
@@ -610,7 +636,231 @@ public sealed class OpenSpecCorpusGuards
         Sha256(record).Should().Be(checkpoint.CanonicalCapabilitySha256);
     }
 
+    private static void ValidatePostGateAmendmentPath(
+        string root,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonicalRequirements,
+        PostGateAmendmentCheckpoint checkpoint)
+    {
+        checkpoint.SchemaVersion.Should().Be(2);
+        checkpoint.RequiredStages.Should().Equal(
+            RequiredPostGateStages,
+            "every late decision must re-enter each gate in the approved order");
+        checkpoint.Amendments.Should().NotBeEmpty(
+            "the known Section 7B post-gate decision must have a permanent record");
+        checkpoint.Amendments.Select(item => item.Id).Should().OnlyHaveUniqueItems();
+        checkpoint.Amendments
+            .Select(item => $"{item.OwningChange}\0{item.Capability}")
+            .Should().OnlyHaveUniqueItems();
+
+        foreach (var amendment in checkpoint.Amendments)
+        {
+            amendment.Id.Should().NotBeNullOrWhiteSpace();
+            amendment.OwningChange.Should().NotBeNullOrWhiteSpace();
+            amendment.Capability.Should().NotBeNullOrWhiteSpace();
+
+            var changeRoot = ResolveChangeRecord(root, amendment.OwningChange);
+            var proposalPath = Path.Combine(changeRoot, "proposal.md");
+            var capabilityKind = ReadDeclaredCapabilities(root, proposalPath)
+                .Single(declared => string.Equals(
+                    declared.Name,
+                    amendment.Capability,
+                    StringComparison.Ordinal))
+                .Kind;
+            var specPath = Path.Combine(changeRoot, "specs", amendment.Capability, "spec.md");
+            var amendmentRequirements = ReadDeltaRequirements(
+                root,
+                amendment.OwningChange,
+                amendment.Capability,
+                capabilityKind,
+                specPath);
+            var requirementIdentities = amendmentRequirements
+                .Select(requirement => requirement.Requirement)
+                .Order(StringComparer.Ordinal)
+                .ToArray();
+            amendment.RequirementIdentities.Should().HaveCount(amendment.DeclaredRequirementCount);
+            amendment.RequirementIdentities.Should().OnlyHaveUniqueItems();
+            requirementIdentities.Should().Equal(
+                amendment.RequirementIdentities.Order(StringComparer.Ordinal),
+                "the permanent post-gate record must bind the exact requirement identities " +
+                "from either the active or dated archived owning change");
+            var amendmentRows = amendmentRequirements
+                .Select(requirement => ClassifyProvenance(canonicalRequirements, requirement))
+                .ToArray();
+            amendmentRows.Count(row => row.State is
+                    ProvenanceState.PendingAddition or
+                    ProvenanceState.PendingAddedCanonicalConflict or
+                    ProvenanceState.PendingModification or
+                    ProvenanceState.PendingRemoval)
+                .Should().Be(
+                    amendment.PendingCanonicalOperationCount,
+                    "the post-gate record must not conceal unresolved canonical operations");
+
+            ValidateTaskReference(root, amendment.OriginalApprovalTask);
+            ValidateTaskReference(root, amendment.OriginalCanonicalSyncTask);
+            ValidateTaskReference(root, amendment.AmendmentApprovalTask);
+            var canonicalTask = ValidateTaskReference(root, amendment.CanonicalReconciliationTask);
+            canonicalTask.Should().Contain(
+                $"`{amendment.Capability}` ({amendment.PendingCanonicalOperationCount})",
+                "canonical reconciliation must name the exact capability and pending count");
+
+            var numberedTask = ValidateTaskReference(root, amendment.NumberedRequirementTask);
+            amendment.NumberedRequirementPaths.Should().NotBeEmpty();
+            ValidateOwnedPaths(root, numberedTask, amendment.NumberedRequirementPaths);
+
+            var acceptanceTask = ValidateTaskReference(root, amendment.AcceptanceCriteriaTask);
+            amendment.AcceptanceCriteriaPaths.Should().NotBeEmpty();
+            ValidateOwnedPaths(root, acceptanceTask, amendment.AcceptanceCriteriaPaths);
+
+            amendment.ImplementationTaskCount.Should().BeGreaterThan(0);
+            amendment.ImplementationTasks.Should().HaveCount(
+                amendment.ImplementationTaskCount,
+                "every implementation task in the approved amendment range must remain pinned");
+            amendment.ImplementationTasks
+                .Select(reference => $"{reference.Change}\0{reference.Task}")
+                .Should().OnlyHaveUniqueItems();
+            foreach (var implementationTask in amendment.ImplementationTasks)
+            {
+                ValidateTaskReference(root, implementationTask);
+            }
+
+            ValidateTaskReference(root, amendment.RefreezeTask);
+            amendment.ExecutableEvidencePaths.Should().NotBeEmpty();
+            amendment.ExecutableEvidencePaths.Should().OnlyHaveUniqueItems();
+            foreach (var evidencePath in amendment.ExecutableEvidencePaths)
+            {
+                RequireNonEmptyFile(root, evidencePath, "post-gate executable evidence");
+            }
+
+            RequireApprovalEvidence(
+                root,
+                amendment.AmendmentApprovalEvidencePath,
+                amendment.AmendmentApprovalTask.Task);
+            RequireNonEmptyFile(root, amendment.RefreezeEvidencePath, "post-gate refreeze evidence");
+            RequireApprovalEvidence(
+                root,
+                amendment.IndependentApprovalEvidencePath,
+                amendment.RefreezeTask.Task);
+        }
+
+        var artifactPath = RequireNonEmptyFile(
+            root,
+            checkpoint.ArtifactPath,
+            "post-gate amendment artifact");
+        var normalizedArtifact = NormalizeLineEndings(File.ReadAllText(artifactPath));
+        Sha256(normalizedArtifact).Should().Be(
+            checkpoint.ArtifactNormalizedSha256,
+            "the human-readable post-gate amendment path must remain byte-accountable");
+        foreach (var stage in RequiredPostGateStages)
+        {
+            normalizedArtifact.Should().Contain($"`{stage}`");
+        }
+
+        foreach (var amendment in checkpoint.Amendments)
+        {
+            normalizedArtifact.Should().Contain($"`{amendment.Id}`");
+            normalizedArtifact.Should().Contain(
+                $"`{amendment.Capability}` ({amendment.DeclaredRequirementCount})");
+            normalizedArtifact.Should().Contain(
+                $"exactly {amendment.ImplementationTaskCount} reshape tasks",
+                "the human-readable record must pin the implementation-task count independently of the task array");
+        }
+    }
+
+    private static void ValidateOwnedPaths(
+        string root,
+        string taskBlock,
+        IEnumerable<string> paths)
+    {
+        foreach (var path in paths)
+        {
+            RequireNonEmptyFile(root, path, "post-gate normative evidence");
+            taskBlock.Should().Contain(
+                $"`{path}`",
+                "the assigned task must name every post-gate normative target literally");
+        }
+    }
+
+    private static string ValidateTaskReference(string root, PostGateTaskReference reference)
+    {
+        var changeRoot = ResolveChangeRecord(root, reference.Change);
+        var taskLedgerPath = Path.Combine(changeRoot, "tasks.md");
+        var taskLedger = File.ReadAllText(taskLedgerPath);
+        var matches = Regex.Matches(
+            taskLedger,
+            $@"(?ms)^- \[(?<state>[ x])\] {Regex.Escape(reference.Task)}\b.*?(?=^- \[[ x]\] \d+\.\d+\b|\z)",
+            RegexOptions.CultureInvariant);
+        if (matches.Count != 1)
+        {
+            throw new InvalidDataException(
+                $"Post-gate task reference '{reference.Change}:{reference.Task}' must resolve exactly once; " +
+                $"found {matches.Count} in '{RelativePath(root, taskLedgerPath)}'.");
+        }
+
+        var actualState = string.Equals(
+            matches[0].Groups["state"].Value,
+            "x",
+            StringComparison.Ordinal)
+            ? CompleteTaskState
+            : OpenTaskState;
+        reference.ExpectedState.Should().BeOneOf(OpenTaskState, CompleteTaskState);
+        actualState.Should().Be(
+            reference.ExpectedState,
+            "post-gate task-state transitions require an explicit reviewed fixture refreeze");
+        return matches[0].Value;
+    }
+
+    private static string ResolveChangeRecord(string root, string change)
+    {
+        var changesRoot = Path.Combine(root, "openspec", "changes");
+        var activeRoot = Path.Combine(changesRoot, change);
+        var archiveRoot = Path.Combine(changesRoot, "archive");
+        var archivedRoots = Directory.Exists(archiveRoot)
+            ? Directory
+                .EnumerateDirectories(archiveRoot)
+                .Where(path => GetDirectoryName(path).EndsWith(
+                    $"-{change}",
+                    StringComparison.Ordinal))
+            : [];
+        var records = archivedRoots
+            .Concat(Directory.Exists(activeRoot) ? [activeRoot] : [])
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        if (records.Length != 1)
+        {
+            throw new InvalidDataException(
+                $"Post-gate change '{change}' must have exactly one active or dated archived record; " +
+                $"found {records.Length}: {string.Join(", ", records.Select(path => RelativePath(root, path)))}.");
+        }
+
+        return records[0];
+    }
+
+    private static string RequireNonEmptyFile(string root, string relativePath, string description)
+    {
+        relativePath.Should().NotBeNullOrWhiteSpace();
+        var path = Path.Combine(root, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        File.Exists(path).Should().BeTrue($"{description} must exist at '{relativePath}'");
+        new FileInfo(path).Length.Should().BeGreaterThan(0, $"{description} must not be empty");
+        return path;
+    }
+
+    private static void RequireApprovalEvidence(
+        string root,
+        string relativePath,
+        string task)
+    {
+        var path = RequireNonEmptyFile(root, relativePath, "post-gate independent approval evidence");
+        var evidence = NormalizeLineEndings(File.ReadAllText(path));
+        evidence.Should().MatchRegex(
+            $@"(?<![\d.]){Regex.Escape(task)}(?![\d.])",
+            "post-gate approval evidence must identify its owning task");
+        evidence.Should().MatchRegex(
+            @"(?mi)^(?:\*\*Verdict:\*\*[ \t]*APPROVE|\*\*APPROVE\*\*)[ \t]*$",
+            "post-gate approval evidence must carry an explicit approving verdict");
+    }
+
     private static void ValidateHistoricalCanonicalRemovals(
+        string root,
         IEnumerable<ProvenanceRow> rows,
         OpenSpecProvenanceCheckpoint checkpoint)
     {
@@ -627,12 +877,41 @@ public sealed class OpenSpecCorpusGuards
             .Select(item => new HistoricalRemovalIdentity(item.Capability, item.Requirement))
             .OrderBy(item => $"{item.Capability}\0{item.Requirement}", StringComparer.Ordinal)
             .ToArray();
-        synchronizedRemovals.Should().Equal(
-            recordedRemovals,
-            "every synchronized removal must have exact immutable canonical-history evidence");
+        ValidateHistoricalRemovalCatalogSemantics();
+        FindUncataloguedActiveRemovals(synchronizedRemovals, recordedRemovals).Should().BeEmpty(
+            "every currently synchronized removal must have exact immutable canonical-history evidence, while archived removal evidence remains permanently cataloged");
+
+        checkpoint.HistoricalCanonicalSourceCommit.Should().Be(
+            HistoricalCanonicalSourceCommit,
+            "the reviewed historical source anchor is part of the executable contract");
+        checkpoint.HistoricalCanonicalRemovalCatalogSha256.Should().Be(
+            HistoricalCanonicalRemovalCatalogSha256,
+            "the embedded removal catalog must be pinned independently of its fixture values");
+        var catalog = string.Join(
+            '\n',
+            checkpoint.HistoricalCanonicalRemovals
+                .OrderBy(item => $"{item.Capability}\0{item.Requirement}", StringComparer.Ordinal)
+                .Select(item => string.Join(
+                    '\t',
+                    checkpoint.HistoricalCanonicalSourceCommit,
+                    item.SourcePath,
+                    item.Capability,
+                    item.Requirement,
+                    item.CanonicalBlockSha256))) + "\n";
+        Sha256(catalog).Should().Be(
+            HistoricalCanonicalRemovalCatalogSha256,
+            "a fixture-local block/hash pair must not be self-attesting");
+
+        var historicalSources = TryReadHistoricalSources(
+            root,
+            checkpoint.HistoricalCanonicalSourceCommit,
+            checkpoint.HistoricalCanonicalRemovals.Select(item => item.SourcePath));
 
         foreach (var evidence in checkpoint.HistoricalCanonicalRemovals)
         {
+            evidence.SourcePath.Should().Be(
+                $"openspec/specs/{evidence.Capability}/spec.md",
+                "historical removal evidence must name its canonical capability source");
             evidence.CanonicalBlockSha256.Should().MatchRegex("^[0-9a-f]{64}$");
             evidence.CanonicalBlock.Should().NotBeNullOrWhiteSpace();
             var normalizedBlock = NormalizeLineEndings(evidence.CanonicalBlock);
@@ -653,7 +932,95 @@ public sealed class OpenSpecCorpusGuards
             Sha256(historicalBlock.Block).Should().Be(
                 evidence.CanonicalBlockSha256,
                 "the fixture must retain the exact reviewed historical canonical requirement block even when Git history is rewritten");
+
+            if (historicalSources is not null)
+            {
+                var sourceRequirements = ReadRequirementBlocks(
+                    NormalizeLineEndings(historicalSources[evidence.SourcePath]).Split('\n'),
+                    $"{checkpoint.HistoricalCanonicalSourceCommit}:{evidence.SourcePath}",
+                    isDelta: false);
+                var sourceRequirement = sourceRequirements.SingleOrDefault(requirement =>
+                    string.Equals(
+                        requirement.Requirement,
+                        evidence.Requirement,
+                        StringComparison.Ordinal));
+                sourceRequirement.Should().NotBeNull(
+                    "the recorded source commit must contain every historical canonical heading");
+                sourceRequirement!.Block.Should().Be(
+                    historicalBlock.Block,
+                    "embedded removal evidence must reproduce the canonical block at its source commit");
+            }
         }
+    }
+
+    private static void ValidateHistoricalRemovalCatalogSemantics()
+    {
+        var active = new HistoricalRemovalIdentity("active-capability", "Active requirement");
+        var archived = new HistoricalRemovalIdentity("archived-capability", "Archived requirement");
+        FindUncataloguedActiveRemovals([active], [active, archived]).Should().BeEmpty(
+            "archived evidence may remain in the permanent catalog after its active delta disappears");
+        FindUncataloguedActiveRemovals([archived], [active]).Should().Equal(archived);
+    }
+
+    private static HistoricalRemovalIdentity[] FindUncataloguedActiveRemovals(
+        IEnumerable<HistoricalRemovalIdentity> active,
+        IEnumerable<HistoricalRemovalIdentity> catalog) =>
+        active.Except(catalog).ToArray();
+
+    private static IReadOnlyDictionary<string, string>? TryReadHistoricalSources(
+        string root,
+        string commit,
+        IEnumerable<string> sourcePaths)
+    {
+        commit.Should().MatchRegex("^[0-9a-f]{40}$");
+        var commitProbe = RunGit(root, "cat-file", "-e", $"{commit}^{{commit}}");
+        if (commitProbe.ExitCode != 0)
+        {
+            return null;
+        }
+
+        return sourcePaths
+            .Distinct(StringComparer.Ordinal)
+            .ToDictionary(
+                sourcePath => sourcePath,
+                sourcePath =>
+                {
+                    var result = RunGit(root, "show", $"{commit}:{sourcePath}");
+                    result.ExitCode.Should().Be(
+                        0,
+                        "historical canonical source '{0}:{1}' must be readable; git reported {2}",
+                        commit,
+                        sourcePath,
+                        result.StandardError);
+                    return result.StandardOutput;
+                },
+                StringComparer.Ordinal);
+    }
+
+    private static GitResult RunGit(string root, params string[] arguments)
+    {
+        var startInfo = new ProcessStartInfo("git")
+        {
+            WorkingDirectory = root,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        using var process = Process.Start(startInfo) ??
+            throw new InvalidOperationException("Unable to start git for OpenSpec provenance validation.");
+        var standardOutput = process.StandardOutput.ReadToEndAsync();
+        var standardError = process.StandardError.ReadToEndAsync();
+        process.WaitForExit();
+        return new GitResult(
+            process.ExitCode,
+            standardOutput.GetAwaiter().GetResult(),
+            standardError.GetAwaiter().GetResult());
     }
 
     private static void ValidateInfrastructureGuardCiLane(string root)
@@ -913,6 +1280,8 @@ public sealed class OpenSpecCorpusGuards
         ProvenancePendingCapability[] PendingCanonicalOperations,
         ProvenanceNewCapability[] ActiveNewCapabilitiesOutsideCanonical,
         ProvenanceNewCanonicalCapability[] ActiveNewCapabilitiesAlreadyCanonical,
+        string HistoricalCanonicalSourceCommit,
+        string HistoricalCanonicalRemovalCatalogSha256,
         HistoricalCanonicalRemoval[] HistoricalCanonicalRemovals,
         string CanonicalCapabilityRecordFormat,
         int CanonicalCapabilityCount,
@@ -946,14 +1315,55 @@ public sealed class OpenSpecCorpusGuards
         string Capability,
         int Count,
         string Disposition,
-        string TurnsGreenTask,
+        string PostGateAmendmentId,
         string Evidence);
+
+    private sealed record PostGateAmendmentCheckpoint(
+        int SchemaVersion,
+        string[] RequiredStages,
+        PostGateAmendment[] Amendments,
+        string ArtifactPath,
+        string ArtifactNormalizedSha256);
+
+    private sealed record PostGateAmendment(
+        string Id,
+        string OwningChange,
+        string Capability,
+        int DeclaredRequirementCount,
+        int PendingCanonicalOperationCount,
+        string[] RequirementIdentities,
+        PostGateTaskReference OriginalApprovalTask,
+        PostGateTaskReference OriginalCanonicalSyncTask,
+        PostGateTaskReference AmendmentApprovalTask,
+        PostGateTaskReference CanonicalReconciliationTask,
+        PostGateTaskReference NumberedRequirementTask,
+        PostGateTaskReference AcceptanceCriteriaTask,
+        int ImplementationTaskCount,
+        PostGateTaskReference[] ImplementationTasks,
+        PostGateTaskReference RefreezeTask,
+        string[] NumberedRequirementPaths,
+        string[] AcceptanceCriteriaPaths,
+        string[] ExecutableEvidencePaths,
+        string AmendmentApprovalEvidencePath,
+        string RefreezeEvidencePath,
+        string IndependentApprovalEvidencePath);
+
+    private sealed record PostGateTaskReference(
+        string Change,
+        string Task,
+        string ExpectedState);
 
     private sealed record HistoricalCanonicalRemoval(
         string Capability,
         string Requirement,
+        string SourcePath,
         string CanonicalBlockSha256,
         string CanonicalBlock);
+
+    private sealed record GitResult(
+        int ExitCode,
+        string StandardOutput,
+        string StandardError);
 
     private sealed record HistoricalRemovalIdentity(
         string Capability,

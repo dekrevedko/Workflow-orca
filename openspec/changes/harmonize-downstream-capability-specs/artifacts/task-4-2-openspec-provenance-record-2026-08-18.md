@@ -52,7 +52,8 @@ product capability.
 The inverse case is also explicit: `reshape-developer-facing-interfaces` still declares
 `developer-facing-surface` as `New` although an earlier approved synchronization already created
 its canonical spec. All 18 delta requirements are recorded, the reshape proposal is cited as
-evidence, and open task 4.3 is the forcing owner for the required post-gate amendment path. A
+evidence, and the permanent `reshape-section-7b-developer-facing-surface` record routes the required
+post-gate amendment stages without treating the original synchronization as coverage. A
 declared-new capability may therefore exist on either side of the canonical boundary, but neither
 case is silently accepted.
 
@@ -112,12 +113,31 @@ infrastructure lane even though `openspec validate --all --strict` may remain gr
 
 All `REMOVED` blocks must contain non-empty `**Reason**` and `**Migration**` lines. When the current
 canonical heading is already absent because synchronization applied the removal, the fixture embeds
-the exact normalized historical canonical requirement block and pins its SHA-256. All ten current
-synchronized removals retain source-commit metadata
-`ba2478e995023b0712c44705174c2b0e3262f213`, but the executable evidence is self-contained and does
-not depend on that Git object surviving a squash, rebase, or shallow checkout.
+the exact normalized historical canonical requirement block and pins its SHA-256. The permanent
+ten-entry catalog retains source-commit metadata even after an owning change is archived, while the
+currently active synchronized-removal set must be a subset of that catalog rather than equal to it.
+The source commit is `ba2478e995023b0712c44705174c2b0e3262f213` with an exact canonical source
+path. When that commit is available, the guard reproduces every embedded block from `git show`
+without requiring it to be an ancestor of `HEAD`; a non-ancestor object after squash/rebase remains
+useful corroboration.
+Independently, a guard-source constant pins the complete ten-entry source/path/identity/block-hash
+catalog as `2ddeabfa030e46e076d875fb8d905088e5e93cbf68232d9fd58e6eb51780bc6c`, so a fixture-local
+block/hash rewrite is not self-attesting when integration history is squashed or rebased.
 The remaining `Yield is a fiber scheduling operation` removal is the one pending removal recorded
 above.
+
+## Checkpoint process correction
+
+The independently approved task 4.2 target was frozen against base
+`5fd4c6d1c5ec76beb3027c59189d6404595840fc` with seven worktree entries. Before checkpoint commit
+`12de180cbf04c74234dd8160fbc77555542b97fa`, two reviewer observations were implemented without a
+new freeze/review pass: the `Disposition=Infrastructure` CI lane was added, and historical removal
+validation was converted from mandatory Git-history lookup to embedded squash-safe evidence. Those
+post-approval edits changed all seven checkpoint paths and were therefore a process deviation even
+though their content was subsequently verified sound. On 2026-08-19 the repository owner explicitly
+approved commit `12de180cbf04c74234dd8160fbc77555542b97fa`; this dated disclosure preserves the provenance
+chain instead of presenting the originally approved dirty target and the committed tree as
+identical.
 
 ## CI execution
 

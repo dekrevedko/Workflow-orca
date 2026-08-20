@@ -231,7 +231,10 @@ public static partial class LeaseExitScenarioHost
             "input",
             StartIdempotencyKey.Create("leased-no-overlap"),
             CancellationToken.None).AsTask();
-        await gate.FirstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await AwaitSignalBeforeWorkflowCompletionAsync(
+            gate.FirstStarted.Task,
+            running,
+            "The first leased attempt did not start before workflow completion.");
         context.AdvanceTimeBy(TimeSpan.FromMilliseconds(100));
         await gate.TimeoutObserved.Task;
         await Task.Yield();
@@ -249,8 +252,12 @@ public static partial class LeaseExitScenarioHost
             active.OwnedObligations.Single(obligation => obligation.ProtectionToken is not null)
                 .ProtectionToken!);
         gate.Release.TrySetResult();
-        await gate.SecondStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await running;
+        if (!gate.SecondStarted.Task.IsCompleted)
+        {
+            throw new InvalidOperationException(
+                "The successful retry workflow completed without starting its second attempt.");
+        }
         var diagnostics = runtime.LeaseDiagnostics;
         var quarantined = await context.ObserveAsync(
             _ => diagnostics.GetAsync(token, CancellationToken.None));
@@ -361,7 +368,10 @@ public static partial class LeaseExitScenarioHost
             "input",
             StartIdempotencyKey.Create(key),
             CancellationToken.None).AsTask();
-        await gate.FirstStarted.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        await AwaitSignalBeforeWorkflowCompletionAsync(
+            gate.FirstStarted.Task,
+            running,
+            "The timed-out retry fixture completed before its first attempt started.");
         var instanceId = (await store.GetStartedAsync(key, CancellationToken.None)).Value.InstanceId;
         var active = await EnvelopeAsync(store, instanceId);
         var token = LeaseProtectionToken.Parse(
@@ -371,8 +381,12 @@ public static partial class LeaseExitScenarioHost
         await gate.TimeoutObserved.Task;
         await Task.Yield();
         gate.Release.TrySetResult();
-        await gate.SecondStarted.Task.WaitAsync(TimeSpan.FromSeconds(30));
         await running;
+        if (!gate.SecondStarted.Task.IsCompleted)
+        {
+            throw new InvalidOperationException(
+                "The timed-out retry fixture completed without starting its second attempt.");
+        }
         return new TimedOutRetryFixture(
             store,
             runtime,
@@ -390,6 +404,21 @@ public static partial class LeaseExitScenarioHost
         {
             throw new InvalidOperationException("Termination did not commit.");
         }
+    }
+
+    private static async Task AwaitSignalBeforeWorkflowCompletionAsync(
+        Task signal,
+        Task workflow,
+        string completionMessage)
+    {
+        var first = await Task.WhenAny(signal, workflow);
+        if (first == workflow && !signal.IsCompleted)
+        {
+            await workflow;
+            throw new InvalidOperationException(completionMessage);
+        }
+
+        await signal;
     }
 
     private static ResourceLeaseRequest DatabaseRequest() =>
@@ -607,7 +636,10 @@ public static partial class LeaseExitScenarioHost
                 "input",
                 StartIdempotencyKey.Create(key),
                 CancellationToken.None).AsTask();
-            await gate.FirstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await AwaitSignalBeforeWorkflowCompletionAsync(
+                gate.FirstStarted.Task,
+                running,
+                "The active-lease fixture completed before its protected body started.");
             var instanceId = (await store.GetStartedAsync(key, CancellationToken.None)).Value.InstanceId;
             var envelope = await EnvelopeAsync(store, instanceId);
             var token = LeaseProtectionToken.Parse(

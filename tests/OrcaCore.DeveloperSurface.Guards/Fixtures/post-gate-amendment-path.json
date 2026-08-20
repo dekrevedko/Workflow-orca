@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 2,
+  "requiredStages": [
+    "amendment-approval",
+    "canonical-open-spec",
+    "numbered-requirements",
+    "acceptance-criteria",
+    "implementation-tasks",
+    "executable-evidence",
+    "refreeze",
+    "independent-approval"
+  ],
+  "artifactPath": "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-4-3-post-gate-amendment-path-2026-08-18.md",
+  "artifactNormalizedSha256": "842babc26fc4b44220b22c74dc09093101ba0cd36d80b69137dac98993ba42b3",
+  "amendments": [
+    {
+      "id": "reshape-section-7b-developer-facing-surface",
+      "owningChange": "reshape-developer-facing-interfaces",
+      "capability": "developer-facing-surface",
+      "declaredRequirementCount": 18,
+      "pendingCanonicalOperationCount": 7,
+      "requirementIdentities": [
+        "Application values use one fixed certified codec",
+        "Closed registration and start results retain a cast-free success path",
+        "Completion waits are notification-driven and race-free",
+        "DAG authoring makes no visualization promise",
+        "Deferred capabilities are documented without public placeholders",
+        "Durable application use is protocol-free",
+        "Durable event acceptance has one closed acknowledgement boundary",
+        "Event integration is transport neutral",
+        "First-release authoring is a complete positive allowlist",
+        "Hosting registration selects execution mode explicitly",
+        "Implementation package boundaries use exact internal friends",
+        "Infrastructure integrations depend outward from OrcaCore",
+        "Package distribution preserves tier boundaries",
+        "Provider registration names the adapter role",
+        "Public failures carry stable codes",
+        "Public interfaces are tiered by caller role",
+        "Public types require a supported external scenario",
+        "Strong identity and matching contracts remain distinct"
+      ],
+      "originalApprovalTask": {
+        "change": "reshape-developer-facing-interfaces",
+        "task": "4.15",
+        "expectedState": "Complete"
+      },
+      "originalCanonicalSyncTask": {
+        "change": "reshape-developer-facing-interfaces",
+        "task": "10.14",
+        "expectedState": "Complete"
+      },
+      "amendmentApprovalTask": {
+        "change": "reshape-developer-facing-interfaces",
+        "task": "7.23",
+        "expectedState": "Complete"
+      },
+      "canonicalReconciliationTask": {
+        "change": "harmonize-downstream-capability-specs",
+        "task": "5.1",
+        "expectedState": "Open"
+      },
+      "numberedRequirementTask": {
+        "change": "harmonize-downstream-capability-specs",
+        "task": "7.3",
+        "expectedState": "Open"
+      },
+      "acceptanceCriteriaTask": {
+        "change": "harmonize-downstream-capability-specs",
+        "task": "7.3",
+        "expectedState": "Open"
+      },
+      "implementationTaskCount": 11,
+      "implementationTasks": [
+        { "change": "reshape-developer-facing-interfaces", "task": "7.24", "expectedState": "Complete" },
+        { "change": "reshape-developer-facing-interfaces", "task": "7.25", "expectedState": "Complete" },
+        { "change": "reshape-developer-facing-interfaces", "task": "7.26", "expectedState": "Complete" },
+        { "change": "reshape-developer-facing-interfaces", "task": "7.27", "expectedState": "Complete" },
+        { "change": "reshape-developer-facing-interfaces", "task": "7.28", "expectedState": "Complete" },
+        { "change": "reshape-developer-facing-interfaces", "task": "7.29", "expectedState": "Complete" },
+        { "change": "reshape-developer-facing-interfaces", "task": "7.30", "expectedState": "Complete" },
+        { "change": "reshape-developer-facing-interfaces", "task": "7.31", "expectedState": "Complete" },
+        { "change": "reshape-developer-facing-interfaces", "task": "7.32", "expectedState": "Complete" },
+        { "change": "reshape-developer-facing-interfaces", "task": "7.33", "expectedState": "Complete" },
+        { "change": "reshape-developer-facing-interfaces", "task": "7.34", "expectedState": "Complete" }
+      ],
+      "refreezeTask": {
+        "change": "reshape-developer-facing-interfaces",
+        "task": "7.22",
+        "expectedState": "Complete"
+      },
+      "numberedRequirementPaths": [
+        "docs/specs/05-requirements-events-waits-timers.md"
+      ],
+      "acceptanceCriteriaPaths": [
+        "docs/specs/12-acceptance-criteria.md"
+      ],
+      "executableEvidencePaths": [
+        "tests/OrcaCore.DeveloperSurface.Guards/FacadeHostingContractGuards.cs",
+        "tests/OrcaCore.Engine.Durable.Tests/Events/DurablePublishTests.cs",
+        "tests/OrcaCore.ProviderCertification/DefinitionFanoutInboxCertification.cs",
+        "tests/OrcaCore.ProviderCertification/StartOrDeliverInboxCertification.cs"
+      ],
+      "amendmentApprovalEvidencePath": "docs/review/developer-facing-interface-section-07b-task-7-23-amendment-independent-review-verdict-2026-08-01.md",
+      "refreezeEvidencePath": "docs/review/developer-facing-interface-section-07-task-7-22-exit-dirty-manifest-2026-08-18.txt",
+      "independentApprovalEvidencePath": "docs/review/developer-facing-interface-section-07-task-7-22-exit-independent-review-verdict-2026-08-18.md"
+    }
+  ]
+}

@@ -218,11 +218,26 @@ structural validation; it SHALL NOT be reported as semantic approval.
 
 The checkpoint enumerates canonical capabilities independently of active deltas. Archiving a
 completed change may require a reviewed provenance-fixture refreeze, but SHALL NOT require every
-canonical capability to retain an active delta forever. Synchronized-removal evidence must embed
-the exact normalized historical canonical block and pin its SHA-256. A source commit remains
-provenance metadata, but guard correctness SHALL NOT depend on that Git object surviving a squash,
-rebase, or shallow checkout. CI must execute the complete must-be-green guard lane with
+canonical capability to retain an active delta forever. The permanent synchronized-removal catalog
+must retain archived evidence and require the currently active synchronized-removal set to be a
+subset, not an exact replacement. Evidence must embed the exact normalized historical canonical
+block and pin its SHA-256. A source commit remains optional corroborating metadata: when its object
+is available, the guard verifies it directly without requiring it to be an ancestor of `HEAD`; guard
+correctness SHALL NOT depend on that Git object surviving a squash, rebase, or shallow checkout.
+CI must execute the complete must-be-green guard lane with
 `Disposition=Infrastructure`; intentional expected-red guards remain outside that lane.
+
+A decision approved after its original implementation-section or canonical-sync gate has closed
+must enter the machine-readable post-gate amendment registry. Every record names amendment
+approval, canonical OpenSpec, numbered requirements, acceptance criteria, implementation tasks,
+executable evidence, an exact refreeze, and independent approval. Task states and evidence paths
+are checked literally; a completed historical gate never supplies implicit coverage for a later
+decision. Records resolve either one active or one dated archived change so normal archival is
+allowed. Each record embeds the exact requirement identities from the owning delta and validates
+them against that active or archived record rather than requiring the change to remain active.
+Approval evidence is line-ending normalized before exact task/verdict checks, implementation-task
+ranges carry an explicit count, and active provenance changes still require the task 4.2 fixture
+refreeze.
 
 ### Synchronization gates must enumerate targets, not inputs
 

@@ -33,6 +33,19 @@ public sealed class LeaseDiscoveryAndGovernanceInfrastructureGuards
         }) matrix.Should().Contain(anchor);
         matrix.Should().Contain("authorize").And.Contain("redact");
         matrix.Should().NotContain("RenewLease").And.NotContain("ForceRelease");
+
+        var scenarioRoot = Path.Combine(
+            FixtureDefinitions.RepositoryRoot(),
+            "tests",
+            "OrcaCore.DeveloperSurface.BehaviorScenarios");
+        var recoverySources = new[]
+        {
+            "LeaseExitScenarioHost.cs",
+            "LeaseRecoveryScenarioHost.cs"
+        }.Select(file => File.ReadAllText(Path.Combine(scenarioRoot, file)));
+        recoverySources.Should().OnlyContain(
+            source => !source.Contains(".WaitAsync(TimeSpan", StringComparison.Ordinal),
+            "lease-recovery gates must await workflow-owned signals instead of expiring under wall-clock scheduler pressure");
     }
 }
 

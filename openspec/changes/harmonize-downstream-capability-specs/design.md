@@ -69,11 +69,14 @@ provenance approval by itself.
 Canonical enumeration and active-delta ownership are separate inventories. A canonical capability
 does not have to retain an active delta after its owning change is archived. Archival changes the
 active provenance record and therefore requires a reviewed fixture refreeze, but no invariant may
-make the archived state permanently invalid. Synchronized-removal provenance embeds the exact
-normalized historical canonical block and pins its hash. The originating commit remains metadata,
-but validation does not depend on that object surviving integration-history rewriting. CI executes
-the complete must-be-green infrastructure guard disposition while intentional expected-red guards
-remain a separate lane.
+make the archived state permanently invalid. Synchronized-removal provenance is a permanent catalog
+that embeds the exact normalized historical canonical block and pins its hash. Currently active
+synchronized removals must be a subset of that catalog, so archiving a change cannot require a C#
+source-constant rewrite or erase already-reviewed history. The originating commit remains optional
+corroborating metadata; when the object is available, validation reads it directly without requiring
+ancestry from `HEAD`, and correctness does not depend on that object surviving integration-history
+rewriting. CI executes the complete must-be-green infrastructure guard disposition while
+intentional expected-red guards remain a separate lane.
 
 Alternative considered: rely on `openspec validate --all --strict`. Rejected because it validates
 each change independently and permits contradictory or duplicated active deltas.
@@ -87,6 +90,17 @@ reconciliation.
 
 The workflow records the affected capability/requirement IDs and the owning change. It does not
 infer coverage from a broad task description or from the existence of a passing suite.
+
+The machine-readable post-gate record carries eight mandatory stages: amendment approval,
+canonical OpenSpec, numbered requirements, acceptance criteria, implementation tasks, executable
+evidence, refreeze, and independent approval. Task references record their expected open/complete
+state and resolve through exactly one active or dated archived change record. The record embeds the
+exact requirement identities and validates them against that resolved change, so archival does not
+erase the amendment contract or force a permanently active delta. Implementation task ranges carry
+an exact count, and approval evidence is normalized before task-bound verdict validation. The known
+Section 7B case records all 18 `developer-facing-surface` requirements while leaving its seven
+canonical operations under task 5.1 and its numbered requirement/acceptance corrections under task
+7.3. Closing this process task therefore cannot be mistaken for completing those downstream edits.
 
 ### 4. Numbered requirements and acceptance criteria remain bidirectional
 
