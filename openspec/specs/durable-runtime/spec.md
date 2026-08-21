@@ -91,11 +91,15 @@ The structured-fiber runtime SHALL replace the cursor split/join executor as one
 - **THEN** one atomic transition increments generation, installs replacement state, and creates distinct new-generation operation identities
 
 ### Requirement: Wait residency is runtime-owned
-Durable `Wait(EventName, correlation[, timeout])` SHALL persist matching state and MAY evict any parked instance for later rehydration. Hot/cold residency SHALL be a host decision and SHALL NOT require another authored node or change workflow semantics.
+Durable `Wait(eventContract, correlation[, timeout])` SHALL persist descriptor/version matching state, pending inbox ownership, and continuation position and MAY evict any parked instance for later rehydration. Hot/cold residency SHALL be a host decision and SHALL NOT require another authored node, broker redelivery, or change workflow semantics. Accepting a matching event SHALL commit a continuation for a cold instance, and a definition-owning pump SHALL restore the exact bound definition/version/fingerprint before applying it.
 
 #### Scenario: Long-running wait is parked
 - **WHEN** a durable workflow remains at `Wait` across host eviction or restart
 - **THEN** the runtime restores the same matching registration and continuation position without a public `WaitLong` distinction
+
+#### Scenario: Event matches a cold wait
+- **WHEN** durable ingress accepts an event matching a persisted wait whose instance is not resident
+- **THEN** a definition-owning pump rehydrates the exact instance and applies the accepted event once
 
 #### Scenario: Wait event races its timeout
 - **WHEN** an event and the optional structural wait timeout race
@@ -121,7 +125,7 @@ Durable root `Parallel` and bounded root `ForEach` SHALL reconstruct scope progr
 - **THEN** no item fiber is admitted and the selected merge commits once with an empty ordered collection
 
 ### Requirement: Durable runtime is the complete application facade
-The durable runtime SHALL implement the shared ordinary facade of typed definition registration, idempotent typed start/reopen, exact event delivery/continuation, detached snapshot/root-state/output queries, cancellation request, and termination without requiring application callers to construct `DurableCommandProcessor`, raw commands, timestamps, or serialized payloads. It SHALL NOT add bulk selection/list/count/statistics, pause/resume, management retry, archive, purge, or history operations to the v1 application surface.
+The durable runtime SHALL implement the shared ordinary facade of application-configuration definition staging, typed exact-reference handle lookup, explicit low-level registration, idempotent typed start/reopen, self-routing durable event acceptance/continuation, durable outbound event dispatch, detached snapshot/root-state/output queries, cancellation request, and termination without requiring application callers to construct `DurableCommandProcessor`, raw commands, provider timestamps, or serialized provider payloads. It SHALL NOT add bulk selection/list/count/statistics, pause/resume, management retry, archive, purge, or history operations to the v1 application surface.
 
 #### Scenario: Normal durable workflow runs
 - **WHEN** an application interacts with a supported durable definition entirely through typed application facades
@@ -132,7 +136,7 @@ The durable runtime SHALL implement the shared ordinary facade of typed definiti
 - **THEN** it opts into the runtime-protocol package explicitly and the normal application facade remains unchanged
 
 ### Requirement: Definition registration is explicit, host scoped, and typed
-The common `IWorkflowDefinitionRegistry` SHALL expose all four ephemeral/durable resultless/resultful registration overloads and return the corresponding typed handle on success. A durable host SHALL return `HostIncompatible.EngineModeMismatch` for an ephemeral definition before any other compatibility check or mutation. For a durable definition, registration SHALL validate every statically inspectable lease request against the configured durable pool catalog before fingerprint conflict or mutation and return `HostIncompatible.MissingDurableResourcePools` with all copied distinct ordinal-sorted names when needed. Selector-produced pool names SHALL be validated at runtime before queue/provider mutation. Start SHALL NOT register as a side effect. Provider-global `StartIdempotencyKey` SHALL bind definition identity/version/fingerprint and deterministic input bytes.
+The common `IWorkflowDefinitionRegistry` SHALL expose all four ephemeral/durable resultless/resultful registration overloads, four exact typed `GetRequiredHandle(reference)` overloads, and the corresponding typed handles. Every definition family SHALL expose a state-opaque typed reference. `AddOrcaCoreDurableEngine` SHALL return a durable composition builder whose resultless/resultful `AddWorkflow` overloads stage already-built durable definitions. Before readiness or any continuation, timer, inbox, outbox, or DAG progression, the host SHALL preflight the complete staged batch and install it atomically; an exact duplicate identity/version/fingerprint is idempotent, while any incompatibility/conflict leaves the registry unchanged and starts no loop. A durable host SHALL return `HostIncompatible.EngineModeMismatch` for an ephemeral definition before any other compatibility check or mutation. For a durable definition, registration SHALL validate every statically inspectable lease request against the configured durable pool catalog and require `IWorkflowEventDispatcher` when `Publish` is present before fingerprint conflict or mutation; missing pools SHALL return `HostIncompatible.MissingDurableResourcePools` with all copied distinct ordinal-sorted names and missing dispatch SHALL return `HostIncompatible.MissingWorkflowEventDispatcher`. Selector-produced pool names SHALL be validated at runtime before queue/provider mutation. Start and exact-reference lookup SHALL NOT register as a side effect. An absent or stale exact reference SHALL throw `WorkflowDefinitionNotRegisteredException`. Provider-global `StartIdempotencyKey` SHALL bind definition identity/version/fingerprint and deterministic input bytes.
 
 #### Scenario: Registered resultful definition is started
 - **WHEN** a host registers a resultful durable definition and calls `StartOrGetAsync` with typed input
@@ -150,35 +154,63 @@ The common `IWorkflowDefinitionRegistry` SHALL expose all four ephemeral/durable
 - **WHEN** durable registration inspects one or more static requests whose pools are not configured on the host
 - **THEN** it returns `HostIncompatible.MissingDurableResourcePools` before registry or provider mutation
 
+#### Scenario: Published event has no dispatcher
+- **WHEN** a durable definition contains `Publish` and the definition-owning host has no application `IWorkflowEventDispatcher`
+- **THEN** registration/startup returns `HostIncompatible.MissingWorkflowEventDispatcher`, mutates no registry, and starts no progression loop
+
+#### Scenario: Replacement host starts
+- **WHEN** a host replacement stages the same definition set and begins processing cold instances
+- **THEN** it atomically installs the exact definitions before claiming any continuation, timer, inbox, outbox, or DAG work
+
 ### Requirement: Accepted application events guarantee continuation
-Every accepted durable application event SHALL atomically deduplicate its fixed-codec normalized envelope per target instance and commit an at-least-once continuation handoff. A definition-owning host MAY drive inline; a definition-less ingress host SHALL record delivery and leave progression to a definition-owning pump. The public result SHALL be only `Accepted`, `Duplicate`, `NoActiveWait`, `InstanceTerminal`, or `EventConflict` with the resolved `InstanceId` when applicable.
+Every `Accepted` durable application event SHALL atomically persist its complete fixed-codec normalized envelope and self-routing intent before return. `WorkflowEventAcceptanceResult` SHALL be the closed `Accepted`/`Duplicate`/`Rejected(WorkflowEventAcceptanceRejection)` union, with exact rejection variants `EventConflict`, `DirectInstanceNotFound`, `DirectInstanceTerminal`, `StartConflict(StartIdempotencyConflict)`, and `FanoutLimitExceeded`. The same globally unique `EventId` with identical normalized bytes SHALL return `Duplicate`; changed normalized bytes SHALL return `Rejected(EventConflict)` and never overwrite the first envelope. Identity comparison SHALL precede current target-state validation. `Accepted` and identical `Duplicate` mean OrcaCore durably owns the event and are safe for broker acknowledgement; rejection or exceptional completion SHALL NOT claim ownership, and fanout rejection SHALL leave no partial target set. A definition-owning host MAY claim and drive matching targets inline; a definition-less ingress host SHALL persist the same route/inbox state and leave execution to a definition-owning pump. `NoActiveWait` SHALL NOT be a durable ingress result, and no accepted unmatched event SHALL be silently expired or deleted.
 
 #### Scenario: Definition-owning host receives an event
-- **WHEN** a local definition-owning host accepts an event and reaches a stable point inline
-- **THEN** the accepted envelope and continuation handoff are committed once without exposing local driver status as another public result shape
+- **WHEN** a local definition-owning host accepts an event that immediately matches one or more targets
+- **THEN** the accepted envelope, fixed target/claim state, and continuation handoffs are committed once without exposing local driver status as another public result shape
 
 #### Scenario: Definition-less host receives an event
 - **WHEN** a callback host without the definition accepts a normalized event
-- **THEN** it commits accepted delivery and a definition-owning pump later progresses the at-least-once handoff exactly once logically
+- **THEN** it commits accepted route/inbox ownership and any continuation handoff, and a definition-owning pump later progresses each target exactly once logically
+
+#### Scenario: Broker redelivers after acknowledgement uncertainty
+- **WHEN** the caller repeats an accepted envelope after losing the acceptance response
+- **THEN** identical normalized bytes return `Duplicate`, changed bytes return `Rejected(EventConflict)`, and no target consumes the identity twice
 
 ### Requirement: Event routing outcomes are typed
-`IWorkflowEventClient` SHALL expose exactly two route names and four overloads: payloadless and generic `WorkflowEvent<TPayload>` forms of `DeliverToInstanceAsync(InstanceId, event)` and `DeliverByCorrelationAsync(DefinitionId, event)`. Matching SHALL be exact ordinal and case-sensitive. Correlation routing SHALL resolve one active wait by `(DefinitionId, EventName, CorrelationId)`; registering a second active wait for that pair, including in one instance, SHALL fail with `AmbiguousWaitRegistrationException` before parking. Definition-targeted fanout and an ambiguous-match delivery result SHALL be absent.
+`IWorkflowEventIngress` SHALL expose payloadless and typed `AcceptAsync` overloads over one immutable envelope whose closed route is direct instance, definition/correlation, definition fanout, or exact-definition start-or-deliver. Matching SHALL be exact ordinal and case-sensitive on event contract name/version and correlation. Correlation routing SHALL resolve at most one active wait by `(DefinitionId, event contract, CorrelationId)`; registering a second active wait for that key, including in one instance, SHALL fail with `AmbiguousWaitRegistrationException` before parking. Public input SHALL never contain wait sequence, fiber, scope, provider generation, checkpoint, or raw command identity.
 
 #### Scenario: Correlation pair would become ambiguous
-- **WHEN** a workflow attempts to register an active wait whose definition/event/correlation pair is already active
+- **WHEN** a workflow attempts to register an active wait whose definition/contract/correlation key is already active
 - **THEN** registration fails deterministically before parking, so delivery never chooses arbitrarily
 
 #### Scenario: Live instance has no matching wait
-- **WHEN** an event targets a live instance with no matching active wait
-- **THEN** delivery returns `NoActiveWait` and does not consume the `EventId`
+- **WHEN** an event targets a live or cold nonterminal instance with no matching active wait
+- **THEN** acceptance stores it in that instance's inbox and a later matching wait claims it without broker redelivery
 
 #### Scenario: Event identity is redelivered
 - **WHEN** the same target receives the same `EventId` with identical or different normalized envelope bytes
-- **THEN** identical bytes return `Duplicate`, different bytes return `EventConflict`, and neither can satisfy another occurrence
+- **THEN** identical bytes return `Duplicate`, different bytes return `Rejected(EventConflict)`, and neither can satisfy another occurrence
 
 #### Scenario: Correlation pair is reused later
 - **WHEN** one wait consumes an event and a later loop occurrence registers the same event/correlation pair
-- **THEN** a later event may satisfy the new wait because the pair has signal-stream semantics and occurrence-specific matching belongs in `CorrelationId`
+- **THEN** the next pending or later accepted event in durable acceptance order may satisfy the new wait and occurrence-specific matching belongs in `CorrelationId`
+
+#### Scenario: Definition fanout is accepted
+- **WHEN** a fanout route is accepted for one definition identity
+- **THEN** the provider atomically snapshots all current nonterminal persisted instances for that `DefinitionId` across versions, independent of the accepting host's registered catalog or resident instances, persists one independently deduplicated delivery per target, excludes later instances, and treats an empty snapshot as accepted
+
+#### Scenario: Start-or-deliver is accepted
+- **WHEN** a route carries exact definition identity/version, start idempotency key, typed workflow input, and a distinct event payload
+- **THEN** acceptance atomically creates or reuses a durable pending start intent bound to identity/version/normalized input and retains the event; a definition-owning host then atomically creates or reattaches the compatible instance, target inbox delivery, and continuation without inferring input from event payload
+
+#### Scenario: Callback-only ingress accepts start-or-deliver
+- **WHEN** a definition-less ingress host accepts a start-or-deliver route whose durable start binding is not already incompatible
+- **THEN** it commits the pending start intent and event without loading a definition, and a later definition-owning pump materializes them without broker redelivery
+
+#### Scenario: Accepted start intent cannot be resolved
+- **WHEN** the definition-owning pump cannot resolve the accepted intent's exact definition/version or discovers another semantic incompatibility unavailable to callback ingress
+- **THEN** it records observable poison against the durably owned intent/event rather than losing it or changing the earlier acceptance result
 
 ### Requirement: Workflow and step deadlines survive restart
 `CompleteWithin` SHALL persist one positive finite absolute deadline measured from instance start and include admission queueing, retries, delays, event waits, lease queueing, and every continue-as-new generation. When it wins, one commit SHALL terminalize as `TimedOut` with `WorkflowDeadlineExceededException`, prevent admission, cancel wait/timer obligations, signal active attempts, suppress merges, and perform definite cleanup or quarantine. `WithStepTimeout` SHALL persist/fence one business-step attempt deadline. Before first dispatch the runtime SHALL commit the `StepOperationId`, positive retry-policy `AttemptNumber`, optional absolute attempt deadline, and in-flight marker. Every physical dispatch SHALL mutate a fixed-codec-detached copy of the last committed state; only a winning successful transition commits it, while failed/timed-out/late copies are discarded. Host-loss, replay, expected-version conflict, and lost-response redispatch SHALL reuse the same operation ID, attempt ordinal, and deadline and SHALL NOT consume retry budget. Only a committed eligible failure/timeout transition SHALL increment the ordinal and create the next deadline. `maxAttempts = 1` SHALL permit redispatch of ordinal one but no policy retry. If recovery finds that an in-flight ordinal's absolute deadline already elapsed, it SHALL commit timeout without redispatch and either schedule the next ordinal when budget remains or terminalize. Outside a durable lease scope, a token-ignoring timed-out body MAY overlap a policy retry while retaining its physical throttle/transient capacity. Inside a durable lease scope, a later policy retry SHALL NOT start in the same process until the prior body has actually returned; after host loss, recovery MAY redispatch the same ordinal because the prior process body no longer exists, while the lease ambiguity and every durable ticket remain capacity-reserving. Runtime orchestration SHALL NOT delegate these semantics to Polly.
@@ -294,7 +326,7 @@ V1 SHALL maintain one resource-governance aggregate per configured `ResourceGove
 
 Provider load validation SHALL be split across exact seams. `ResourceGovernanceRecord.FromPersisted` SHALL validate one positive sequence, supported protocol format, checksum, and a defensive payload-byte copy. `ResourceGovernanceStream.Create(long version, IReadOnlyList<ResourceGovernanceRecord> records)` SHALL reject a negative version, null collection, null entry, gap, duplicate, reordering, or version mismatch; defensively copy the collection; require version zero exactly when empty; and require the complete v1 loaded sequence `1..Version`. `AppendAsync` SHALL reject/certify an empty or nonconsecutive batch, defensively copy it, require sequence `expectedVersion + 1` through `expectedVersion + count`, and commit the whole ordered batch or return expected-version `Conflict` without a partial append.
 
-The runtime SHALL expose exactly four friend-only post-commit certification barriers, never application or provider-storage API: `WorkflowPendingObligationCommitted`, `GovernanceReservationCommitted`, `WorkflowActivationCommitted`, and `GovernanceOwnershipConfirmed`. Their enum/fact/gate types SHALL be internal in `OrcaCore.Engine.Durable.ResourceGovernance` and visible only to test assembly `OrcaCore.ProviderCertification`; this is the sole test-only friend edge. Each barrier fact SHALL be immutable and carry partition, lease obligation, instance, generation, fiber occurrence, scope-entry occurrence, protection token, workflow and governance stream versions, plus the exact ticket ID, pool, units, and provider generation for every ticket then known. The barrier SHALL signal and block after the named durable commit and before the next protocol command so the deterministic certification fixture can stop the host at that boundary. Re-entry MAY report the same occurrence/barrier again but SHALL preserve equal facts and SHALL NOT create a new obligation or ticket.
+The runtime SHALL expose exactly four internal post-commit certification barriers, never application or provider-storage API: `WorkflowPendingObligationCommitted`, `GovernanceReservationCommitted`, `WorkflowActivationCommitted`, and `GovernanceOwnershipConfirmed`. Their enum/fact/gate types SHALL remain internal in `OrcaCore.Engine.Durable.ResourceGovernance`; `OrcaCore.ProviderCertification` SHALL consume them through the sole cross-package test friend edge in the exact repository friend graph. Each barrier fact SHALL be immutable and carry partition, lease obligation, instance, generation, fiber occurrence, scope-entry occurrence, protection token, workflow and governance stream versions, plus the exact ticket ID, pool, units, and provider generation for every ticket then known. The barrier SHALL signal and block after the named durable commit and before the next protocol command so the deterministic certification fixture can stop the host at that boundary. Re-entry MAY report the same occurrence/barrier again but SHALL preserve equal facts and SHALL NOT create a new obligation or ticket.
 
 #### Scenario: Atomic request crosses pools
 - **WHEN** one request needs multiple pools in the configured partition
@@ -362,3 +394,25 @@ The durable DAG runtime SHALL reconstruct node readiness from committed DAG stat
 #### Scenario: DAG hosting starts a child
 - **WHEN** `OrcaCore.Dag.Hosting` progresses a ready node
 - **THEN** it uses the named versioned internal child-start/join bridge exposed only by `OrcaCore.Durable.Hosting` through the single friend declaration, with no public child member
+
+### Requirement: Pending inbox matching is atomic and ordered
+Direct-target inboxes and route-level correlation inboxes SHALL retain accepted unmatched envelopes in durable acceptance order. Wait registration, event acceptance, claim, timer competition, and event consumption SHALL use the same serialized mutation boundary needed to prevent both loss and double consumption. A successful consuming workflow transition SHALL atomically mark the inbox event applied; a failed/conflicted transition or host crash before that commit SHALL leave it re-matchable. Wait cancellation, timeout, scope cleanup, or instance eviction SHALL NOT silently delete an unmatched accepted event. Terminal or semantically unresolvable records SHALL become observable poison/dead-letter state.
+
+#### Scenario: Event and wait registration race
+- **WHEN** one host accepts an event while another commits the matching wait
+- **THEN** exactly one atomic order wins, leaving either one claimed event and runnable owner or one pending event plus registered wait, never a lost or doubly consumed envelope
+
+#### Scenario: Host fails while applying a claimed event
+- **WHEN** a host crashes after claim but before the consuming workflow transition commits
+- **THEN** recovery can reclaim the same event and apply it once logically using the unchanged event identity
+
+### Requirement: Durable publish uses the transactional outbox
+Every durable authored `Publish` SHALL create a complete `WorkflowOutboundEvent` with stable event contract name/version, replay-stable `EventId`, correlation, optional inbound causation `EventId`, origin instance/definition/version, deterministic UTC occurrence time, and fixed-codec payload. Workflow progression and the external outbox record SHALL commit atomically. The external outbox pump SHALL invoke only application `IWorkflowEventDispatcher.DispatchAsync(WorkflowOutboundEvent, CancellationToken)`, SHALL never forward internal continuation records or provider `OutboxWrite`, and SHALL preserve the same event identity across at-least-once retries. `WorkflowEventDispatchResult.Succeeded` SHALL mark dispatched, `RetryableFailure(WorkflowEventDispatchFailure)` or exception SHALL retain retryability, cancellation SHALL release the claim, and `PermanentFailure(WorkflowEventDispatchFailure)` SHALL record observable poison state carrying the immutable stable-code/optional-detail failure.
+
+#### Scenario: Host crashes around publish commit
+- **WHEN** a host fails before or after the atomic workflow/outbox commit
+- **THEN** recovery observes either neither transition nor record, or both, and never a committed workflow transition with a missing outbound event
+
+#### Scenario: Broker send succeeds before dispatch acknowledgement
+- **WHEN** the process fails after the application dispatcher sends but before OrcaCore marks the record dispatched
+- **THEN** a later attempt may resend the same outbound `EventId`, preserving the at-least-once contract for downstream deduplication

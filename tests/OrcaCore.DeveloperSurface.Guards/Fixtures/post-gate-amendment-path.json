@@ -11,14 +11,14 @@
     "independent-approval"
   ],
   "artifactPath": "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-4-3-post-gate-amendment-path-2026-08-18.md",
-  "artifactNormalizedSha256": "842babc26fc4b44220b22c74dc09093101ba0cd36d80b69137dac98993ba42b3",
+  "artifactNormalizedSha256": "b4fe374b5ec3c54b5b8bf70b700627572d37056c54fa6d48b507c43e1a51384e",
   "amendments": [
     {
       "id": "reshape-section-7b-developer-facing-surface",
       "owningChange": "reshape-developer-facing-interfaces",
       "capability": "developer-facing-surface",
       "declaredRequirementCount": 18,
-      "pendingCanonicalOperationCount": 7,
+      "pendingCanonicalOperationCount": 0,
       "requirementIdentities": [
         "Application values use one fixed certified codec",
         "Closed registration and start results retain a cast-free success path",
@@ -57,7 +57,7 @@
       "canonicalReconciliationTask": {
         "change": "harmonize-downstream-capability-specs",
         "task": "5.1",
-        "expectedState": "Open"
+        "expectedState": "Complete"
       },
       "numberedRequirementTask": {
         "change": "harmonize-downstream-capability-specs",

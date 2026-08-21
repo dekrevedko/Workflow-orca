@@ -2,20 +2,13 @@
   "schemaVersion": 5,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
   "recordCount": 176,
-  "recordBytes": 45871,
-  "recordSha256": "9ecc692e389c0b30310010d9b09f39dfc1145916a629403dfc14884f067395a4",
+  "recordBytes": 46250,
+  "recordSha256": "078e916462cd47c3635f9c85d0ed5fc52cc62e055d45599e15a41da873be6438",
   "semanticApprovalEligible": false,
   "pendingCanonicalOperations": [
-    { "capability": "developer-facing-surface", "count": 7, "turnsGreenTask": "5.1" },
-    { "capability": "durable-persistence-and-outbox", "count": 5, "turnsGreenTask": "5.1" },
-    { "capability": "durable-runtime", "count": 8, "turnsGreenTask": "5.1" },
-    { "capability": "event-routing-and-waits", "count": 8, "turnsGreenTask": "5.1" },
     { "capability": "management-and-querying", "count": 1, "turnsGreenTask": "5.2" },
     { "capability": "quality-and-verification", "count": 5, "turnsGreenTask": "5.2" },
-    { "capability": "repository-foundation", "count": 2, "turnsGreenTask": "5.2" },
-    { "capability": "state-driven-runtime", "count": 2, "turnsGreenTask": "5.1" },
-    { "capability": "workflow-authoring", "count": 3, "turnsGreenTask": "5.1" },
-    { "capability": "workflow-contracts", "count": 9, "turnsGreenTask": "5.1" }
+    { "capability": "repository-foundation", "count": 2, "turnsGreenTask": "5.2" }
   ],
   "activeNewCapabilitiesOutsideCanonical": [
     {
@@ -36,7 +29,7 @@
     }
   ],
   "historicalCanonicalSourceCommit": "ba2478e995023b0712c44705174c2b0e3262f213",
-  "historicalCanonicalRemovalCatalogSha256": "2ddeabfa030e46e076d875fb8d905088e5e93cbf68232d9fd58e6eb51780bc6c",
+  "historicalCanonicalRemovalCatalogSha256": "81c06519ae95846b697df5e895e6bcbc9792c3e36afbe441529b3add15008ebd",
   "historicalCanonicalRemovals": [
     {
       "capability": "durable-runtime",
@@ -107,6 +100,13 @@
       "sourcePath": "openspec/specs/saga-orchestration/spec.md",
       "canonicalBlockSha256": "44c77024b0c7d71b00d1fbd6ec3857d6c8ae1ef879393363216dca072f6fbc71",
       "canonicalBlock": "### Requirement: Saga workflows use a distinct definition kind\nThe system SHALL model saga workflows as a separate definition kind rather than treating compensation as an ad hoc extension of regular workflows.\n\n#### Scenario: Saga is authored\n- **WHEN** a contributor defines a process that requires compensating actions\n- **THEN** the definition is represented as a saga-specific orchestration construct"
+    },
+    {
+      "capability": "state-driven-runtime",
+      "requirement": "Yield is a fiber scheduling operation",
+      "sourcePath": "openspec/specs/state-driven-runtime/spec.md",
+      "canonicalBlockSha256": "8c85b7af7575abf00a9553692ef859ce3a42defa56815711c312c69a09eb25da",
+      "canonicalBlock": "### Requirement: Yield is a fiber scheduling operation\n`Yield` SHALL commit the selected fiber's current progress, end that fiber's quantum, and allow another runnable sibling to advance before the yielding fiber is selected again.\n\n#### Scenario: First branch repeatedly yields\n- **WHEN** the first authored branch yields over multiple attempts while another branch remains runnable\n- **THEN** the scheduler advances the sibling within the configured fairness bound"
     }
   ],
   "canonicalCapabilityRecordFormat": "repository-relative openspec/specs/*/ path with forward slashes and one trailing slash",
@@ -118,5 +118,5 @@
   "capabilityDirectoryBytes": 1321,
   "capabilityDirectorySha256": "5e8a9725979d702ff2f639fef587828958c92533139602ab13f1401d6df7ebd5",
   "artifactPath": "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-4-2-openspec-provenance-record-2026-08-18.md",
-  "artifactNormalizedSha256": "e12e813a52920c09ce4b5ed41998400b22deb11d7091c57e062878e4cdb8dd4b"
+  "artifactNormalizedSha256": "1cbb30c4b763a5b819cc97f78b242fad30f212ed7c39aaf02079ef22a2c2a84e"
 }

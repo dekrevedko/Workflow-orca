@@ -90,7 +90,11 @@
       historical-removal catalog is permanent: currently active synchronized removals are validated
       as its subset, and an available source commit is read directly without requiring ancestry from
       `HEAD`, so normal archival and squash/rebase integration remain recoverable without a guard
-      source edit.
+      source edit. Post-review hardening gives the active set and permanent catalog distinct wrapper
+      types so reversing them fails compilation, exercises the subset helper against a synthetic
+      strict-subset catalog so its body cannot invert silently, pins the permanent catalog's reviewed
+      cardinality with a precise shrink diagnostic, and requires every CI checkout step—named or
+      unnamed—to retain full history whenever historical corroboration is available.
 - [x] 4.3 Define a post-gate amendment path so a decision approved after its original section gate
       closed must re-enter canonical requirements, acceptance criteria, implementation tasks,
       refreeze, and independent approval rather than silently bypassing the completed gate. This
@@ -106,17 +110,24 @@
       task/approval checks. The structural case is linked permanently without pre-closing its seven
       canonical mismatches or requiring the owning change to remain active. Checkpoint validation
       also replaces the shared 3.11c lease-recovery fixture's scheduler-sensitive wall-clock gate
-      waits with workflow-owned completion signals and pins that rule in the infrastructure guard.
+      waits with workflow-owned completion signals and pins that rule across every behavior-scenario
+      and provider-certification source, excluding generated `bin`/`obj` output and including the
+      former provider confirmation/tombstone gate. The completed canonical-reconciliation count is
+      required inside the task's `**Completed:**` statement, so its earlier `(7)` scope declaration
+      cannot satisfy the resulting `(0)` pin.
 
 ## 5. Coordination owned by `reshape-developer-facing-interfaces`
 
-- [ ] 5.1 Verify reshape task 7.23 approves and reconciles the complete event-contract, durable
+- [x] 5.1 Verify reshape task 7.23 approves and reconciles the complete event-contract, durable
       buffering, four-route ingress, fanout, start-or-deliver, publish/outbox, dispatcher, and
       application-catalog amendment before either change synchronizes canonical content. Consume
       all 42 vocabulary-bearing canonical mismatches recorded by the task 3.1 sweep artifact:
       `developer-facing-surface` (7), `durable-persistence-and-outbox` (5), `durable-runtime` (8),
       `event-routing-and-waits` (8), `state-driven-runtime` (2), `workflow-authoring` (3), and
-      `workflow-contracts` (9).
+      `workflow-contracts` (9). **Completed:** the immutable task 7.23 verdict is `APPROVE`; all 42
+      requirement blocks now match the authoritative reshape deltas exactly, including removal of
+      the authored-`Yield` canonical block. `developer-facing-surface` (0) and the other six named
+      capabilities have zero pending canonical operations; only the eight task 5.2 mismatches remain.
 - [ ] 5.2 Verify reshape tasks 7.16–7.22 close the complete API baseline, typed-boundary replacement,
       deletion ledger, operational statistics/observability/retention restoration, provider
       disposition, semantic test crosswalk, deterministic guards, samples, and fresh package feed;

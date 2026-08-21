@@ -25,10 +25,10 @@ The complete rows are sorted by ordinal comparison of the rendered record, joine
 final LF, and hashed as UTF-8 without a BOM.
 
 - record rows: 176
-- record bytes: 45,871
-- record SHA-256: `9ecc692e389c0b30310010d9b09f39dfc1145916a629403dfc14884f067395a4`
-- synchronized operations: 123
-- pending canonical operations: 50
+- record bytes: 46,250
+- record SHA-256: `078e916462cd47c3635f9c85d0ed5fc52cc62e055d45599e15a41da873be6438`
+- synchronized operations: 165
+- pending canonical operations: 8
 - declared new-capability requirements outside the canonical set: 3
 - duplicate `(capability, requirement)` owners: 0
 - semantic approval eligible: no
@@ -37,11 +37,11 @@ State composition:
 
 | State | Count |
 |---|---:|
-| `Synchronized` | 123 |
-| `PendingAddition` | 14 |
-| `PendingAddedCanonicalConflict` | 19 |
-| `PendingModification` | 16 |
-| `PendingRemoval` | 1 |
+| `Synchronized` | 165 |
+| `PendingAddition` | 1 |
+| `PendingAddedCanonicalConflict` | 5 |
+| `PendingModification` | 2 |
+| `PendingRemoval` | 0 |
 | `NewCapabilityOutsideCanonical` | 3 |
 
 The three `NewCapabilityOutsideCanonical` rows are the requirements of the declared-new
@@ -89,17 +89,16 @@ UTF-8 SHA-256. This is the exact Decision 6 capability-inventory recipe.
 
 | Canonical capability | Pending | Turns green |
 |---|---:|---|
-| `developer-facing-surface` | 7 | task 5.1 |
-| `durable-persistence-and-outbox` | 5 | task 5.1 |
-| `durable-runtime` | 8 | task 5.1 |
-| `event-routing-and-waits` | 8 | task 5.1 |
 | `management-and-querying` | 1 | task 5.2 |
 | `quality-and-verification` | 5 | task 5.2 |
 | `repository-foundation` | 2 | task 5.2 |
-| `state-driven-runtime` | 2 | task 5.1 |
-| `workflow-authoring` | 3 | task 5.1 |
-| `workflow-contracts` | 9 | task 5.1 |
-| **Total** | **50** | **42 in 5.1; 8 in 5.2** |
+| **Total** | **8** | **8 in 5.2** |
+
+Task 5.1 consumed the prior 42 vocabulary-bearing operations across
+`developer-facing-surface`, `durable-persistence-and-outbox`, `durable-runtime`,
+`event-routing-and-waits`, `state-driven-runtime`, `workflow-authoring`, and
+`workflow-contracts`. Their canonical requirement blocks now match the authoritative reshape
+deltas exactly; the table retains only the non-vocabulary task 5.2 remainder.
 
 The machine-readable companion is
 `tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json`. The guard
@@ -114,15 +113,16 @@ infrastructure lane even though `openspec validate --all --strict` may remain gr
 All `REMOVED` blocks must contain non-empty `**Reason**` and `**Migration**` lines. When the current
 canonical heading is already absent because synchronization applied the removal, the fixture embeds
 the exact normalized historical canonical requirement block and pins its SHA-256. The permanent
-ten-entry catalog retains source-commit metadata even after an owning change is archived, while the
+eleven-entry catalog retains source-commit metadata even after an owning change is archived, while the
 currently active synchronized-removal set must be a subset of that catalog rather than equal to it.
 The source commit is `ba2478e995023b0712c44705174c2b0e3262f213` with an exact canonical source
 path. When that commit is available, the guard reproduces every embedded block from `git show`
 without requiring it to be an ancestor of `HEAD`; a non-ancestor object after squash/rebase remains
 useful corroboration.
-Independently, a guard-source constant pins the complete ten-entry source/path/identity/block-hash
-catalog as `2ddeabfa030e46e076d875fb8d905088e5e93cbf68232d9fd58e6eb51780bc6c`, so a fixture-local
+Independently, a guard-source constant pins the complete eleven-entry source/path/identity/block-hash
+catalog as `81c06519ae95846b697df5e895e6bcbc9792c3e36afbe441529b3add15008ebd`, so a fixture-local
 block/hash rewrite is not self-attesting when integration history is squashed or rebased.
+The eleventh entry preserves the authored-`Yield` canonical block removed by task 5.1.
 The remaining `Yield is a fiber scheduling operation` removal is the one pending removal recorded
 above.
 

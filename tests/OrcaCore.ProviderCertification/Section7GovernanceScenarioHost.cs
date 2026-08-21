@@ -526,7 +526,10 @@ public static class Section7GovernanceScenarioHost
             publicDefinition.DefinitionVersion,
             "start",
             CancellationToken.None);
-        await control.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await AwaitSignalBeforeWorkflowCompletionAsync(
+            control.Started.Task,
+            running,
+            "The confirmation-and-tombstone workflow completed before its protected body started.");
         var projection = (await workflowProvider.ProjectionStore.ListLeaseRecoveryCandidatesAsync(
             CancellationToken.None)).Single();
         var terminated = await processor.ProcessAsync(
@@ -909,6 +912,21 @@ public static class Section7GovernanceScenarioHost
         internal TaskCompletionSource Release { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal string? ProtectionToken;
+    }
+
+    private static async Task AwaitSignalBeforeWorkflowCompletionAsync(
+        Task signal,
+        Task workflow,
+        string completionMessage)
+    {
+        var first = await Task.WhenAny(signal, workflow);
+        if (first == workflow && !signal.IsCompleted)
+        {
+            await workflow;
+            throw new InvalidOperationException(completionMessage);
+        }
+
+        await signal;
     }
 
     private sealed class BlockingLeaseStep(

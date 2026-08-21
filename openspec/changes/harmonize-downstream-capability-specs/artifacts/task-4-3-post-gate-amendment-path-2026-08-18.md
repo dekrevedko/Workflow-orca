@@ -37,13 +37,13 @@ provenance-fixture refreeze defined by task 4.2.
 `reshape-developer-facing-interfaces` declared `developer-facing-surface` (18) as new, task 4.15 approved
 the original contract, and task 10.14 synchronized the original canonical baseline. Task 7.23 then
 approved the later Section 7B event/fanout/start-or-deliver/publish amendment. The current delta has
-18 requirements while seven canonical operations remain pending.
+18 requirements, and task 5.1 has now synchronized all seven formerly pending canonical operations.
 
 The post-gate record therefore preserves the following exact disposition:
 
 - amendment approval: reshape task 7.23 is complete;
-- canonical reconciliation: harmonize task 5.1 remains open and owns
-  `developer-facing-surface` (7);
+- canonical reconciliation: harmonize task 5.1 is complete and
+  `developer-facing-surface` has zero pending operations;
 - numbered event/wait requirements and acceptance criteria: harmonize task 7.3 remains open and
   names `docs/specs/05-requirements-events-waits-timers.md` and
   `docs/specs/12-acceptance-criteria.md`;
@@ -53,8 +53,9 @@ The post-gate record therefore preserves the following exact disposition:
 - executable evidence: the facade/hosting boundary, durable publish, definition fanout, and
   start-or-deliver certifications remain named repository paths.
 
-This closes the missing route owned by task 4.3. It does not pre-close tasks 5.1 or 7.3 and does not
-report the seven canonical mismatches as synchronized.
+This closes the missing route owned by task 4.3. Task 5.1 now records the seven canonical
+mismatches as synchronized; task 7.3 remains open for the separately owned numbered requirements
+and acceptance criteria.
 
 The companion embeds the exact 18 requirement headings from the Section 7B
 `developer-facing-surface` delta. Those identities, rather than the active-delta aggregate, are the
@@ -77,3 +78,14 @@ more than one minute under load. The shared lease-exit/recovery fixture now awai
 workflow-owned start and completion signals, asserts that the retry actually started, and carries no
 `WaitAsync(TimeSpan...)` gate. The infrastructure contract guard scans both fixture source files so
 the scheduler-sensitive wait cannot silently return.
+
+Post-review observation remediation gives the active-removal set and permanent catalog distinct
+wrapper types so reversing them fails compilation, requires every CI checkout to retain full history,
+reports permanent-catalog shrinkage before its digest mismatch, recursively scans all behavior-scenario
+and provider-certification sources, and converted the last provider confirmation/tombstone wall-clock
+gate to workflow-owned signaling.
+
+The follow-up review observations are also closed: the shared subset helper is exercised with a
+synthetic active-versus-archived strict subset, checkout discovery parses both unnamed and named YAML
+steps, recursive wall-clock scanning excludes generated `bin`/`obj` paths, and the completed
+canonical-reconciliation count is matched only after the task's `**Completed:**` marker.

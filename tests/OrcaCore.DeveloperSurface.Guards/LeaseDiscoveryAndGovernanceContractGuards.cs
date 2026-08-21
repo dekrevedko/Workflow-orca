@@ -34,19 +34,34 @@ public sealed class LeaseDiscoveryAndGovernanceInfrastructureGuards
         matrix.Should().Contain("authorize").And.Contain("redact");
         matrix.Should().NotContain("RenewLease").And.NotContain("ForceRelease");
 
-        var scenarioRoot = Path.Combine(
-            FixtureDefinitions.RepositoryRoot(),
-            "tests",
-            "OrcaCore.DeveloperSurface.BehaviorScenarios");
-        var recoverySources = new[]
+        var testRoot = Path.Combine(FixtureDefinitions.RepositoryRoot(), "tests");
+        var scenarioSourceRoots = new[]
         {
-            "LeaseExitScenarioHost.cs",
-            "LeaseRecoveryScenarioHost.cs"
-        }.Select(file => File.ReadAllText(Path.Combine(scenarioRoot, file)));
-        recoverySources.Should().OnlyContain(
-            source => !source.Contains(".WaitAsync(TimeSpan", StringComparison.Ordinal),
-            "lease-recovery gates must await workflow-owned signals instead of expiring under wall-clock scheduler pressure");
+            "OrcaCore.DeveloperSurface.BehaviorScenarios",
+            "OrcaCore.ProviderCertification"
+        };
+        var schedulerSensitiveSources = scenarioSourceRoots
+            .SelectMany(directory => Directory.GetFiles(
+                Path.Combine(testRoot, directory),
+                "*.cs",
+                SearchOption.AllDirectories))
+            .Where(path => !IsBuildOutputPath(testRoot, path))
+            .Where(path => File.ReadAllText(path).Contains(
+                ".WaitAsync(TimeSpan",
+                StringComparison.Ordinal))
+            .Select(path => Path.GetRelativePath(testRoot, path).Replace('\\', '/'))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        schedulerSensitiveSources.Should().BeEmpty(
+            "behavior-scenario and provider-certification gates must await workflow-owned signals instead of expiring under wall-clock scheduler pressure");
     }
+
+    private static bool IsBuildOutputPath(string testRoot, string path) =>
+        Path.GetRelativePath(testRoot, path)
+            .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            .Any(segment =>
+                string.Equals(segment, "bin", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(segment, "obj", StringComparison.OrdinalIgnoreCase));
 }
 
 [Trait(GuardTraits.Phase, GuardTraits.Phase0)]

@@ -74,13 +74,6 @@ The runtime SHALL derive instance residency status from all nonterminal fibers. 
 - **WHEN** all nonterminal fibers are blocked on waits, timers, children, jobs, resources, or scope joins
 - **THEN** the workflow instance transitions to `Waiting`
 
-### Requirement: Yield is a fiber scheduling operation
-`Yield` SHALL commit the selected fiber's current progress, end that fiber's quantum, and allow another runnable sibling to advance before the yielding fiber is selected again.
-
-#### Scenario: First branch repeatedly yields
-- **WHEN** the first authored branch yields over multiple attempts while another branch remains runnable
-- **THEN** the scheduler advances the sibling within the configured fairness bound
-
 ### Requirement: Runtime modes share execution semantics
 Ephemeral and durable execution SHALL consume the same compiled-plan model and SHALL implement the same fiber, scope, join, merge, cancellation, and terminal semantics for capabilities supported by both modes. Persistence residency and durable-only compatibility handling SHALL be the only mode-specific differences for those shared behaviors. Durable mode MAY enter `Parked` for definition, plan-fingerprint, envelope-version, poison, or unsupported-capability diagnostics; ephemeral mode SHALL instead report a typed definition-start or execution failure and SHALL NOT enter `Parked`.
 
@@ -91,3 +84,13 @@ Ephemeral and durable execution SHALL consume the same compiled-plan model and S
 #### Scenario: Unsupported or incompatible execution is reported by mode
 - **WHEN** a definition is unsupported by the selected mode or persisted durable execution is incompatible with its registered plan
 - **THEN** ephemeral execution reports a typed failure while durable execution records the applicable `Parked` reason and diagnostics
+
+### Requirement: Quantum rotation is runtime-owned
+The runtime SHALL commit a selected fiber's current progress at its scheduler-owned quantum
+boundary and SHALL allow another runnable sibling to advance before selecting the same fiber
+again when the fairness bound requires rotation. No authored `Yield`, `StepResult.Yield`, engine
+result bridge, alias, or tombstone SHALL expose this scheduling decision.
+
+#### Scenario: First branch exhausts repeated runtime quanta
+- **WHEN** the first runnable branch repeatedly reaches the internal quantum bound while another branch remains runnable
+- **THEN** the scheduler advances the sibling within the configured fairness bound without an author-returned yield result

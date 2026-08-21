@@ -16,7 +16,8 @@ public sealed class OpenSpecCorpusGuards
     private const string HistoricalCanonicalSourceCommit =
         "ba2478e995023b0712c44705174c2b0e3262f213";
     private const string HistoricalCanonicalRemovalCatalogSha256 =
-        "2ddeabfa030e46e076d875fb8d905088e5e93cbf68232d9fd58e6eb51780bc6c";
+        "81c06519ae95846b697df5e895e6bcbc9792c3e36afbe441529b3add15008ebd";
+    private const int HistoricalCanonicalRemovalCatalogCount = 11;
 
     private static readonly string[] RequiredPostGateStages =
     [
@@ -699,9 +700,23 @@ public sealed class OpenSpecCorpusGuards
             ValidateTaskReference(root, amendment.OriginalCanonicalSyncTask);
             ValidateTaskReference(root, amendment.AmendmentApprovalTask);
             var canonicalTask = ValidateTaskReference(root, amendment.CanonicalReconciliationTask);
-            canonicalTask.Should().Contain(
-                $"`{amendment.Capability}` ({amendment.PendingCanonicalOperationCount})",
-                "canonical reconciliation must name the exact capability and pending count");
+            var canonicalCountClaim =
+                $"`{amendment.Capability}` ({amendment.PendingCanonicalOperationCount})";
+            if (string.Equals(
+                    amendment.CanonicalReconciliationTask.ExpectedState,
+                    CompleteTaskState,
+                    StringComparison.Ordinal))
+            {
+                canonicalTask.Should().MatchRegex(
+                    $@"(?s)\*\*Completed:\*\*.*?{Regex.Escape(canonicalCountClaim)}",
+                    "a completed canonical reconciliation must record its exact resulting pending count in the completion statement");
+            }
+            else
+            {
+                canonicalTask.Should().Contain(
+                    canonicalCountClaim,
+                    "an open canonical reconciliation must name the exact capability and pending count");
+            }
 
             var numberedTask = ValidateTaskReference(root, amendment.NumberedRequirementTask);
             amendment.NumberedRequirementPaths.Should().NotBeEmpty();
@@ -878,8 +893,9 @@ public sealed class OpenSpecCorpusGuards
             .OrderBy(item => $"{item.Capability}\0{item.Requirement}", StringComparer.Ordinal)
             .ToArray();
         ValidateHistoricalRemovalCatalogSemantics();
-        FindUncataloguedActiveRemovals(synchronizedRemovals, recordedRemovals).Should().BeEmpty(
-            "every currently synchronized removal must have exact immutable canonical-history evidence, while archived removal evidence remains permanently cataloged");
+        RequireActiveRemovalsAreCataloged(
+            new ActiveSynchronizedRemovalSet(synchronizedRemovals),
+            new PermanentHistoricalRemovalCatalog(recordedRemovals));
 
         checkpoint.HistoricalCanonicalSourceCommit.Should().Be(
             HistoricalCanonicalSourceCommit,
@@ -953,19 +969,33 @@ public sealed class OpenSpecCorpusGuards
         }
     }
 
+    private static void RequireActiveRemovalsAreCataloged(
+        ActiveSynchronizedRemovalSet activeRemovals,
+        PermanentHistoricalRemovalCatalog permanentCatalog)
+    {
+        permanentCatalog.Entries.Should().HaveCount(
+            HistoricalCanonicalRemovalCatalogCount,
+            "the permanent historical-removal catalog must retain reviewed entries after their owning deltas are archived");
+        RequireActiveRemovalSubset(activeRemovals, permanentCatalog);
+    }
+
+    private static void RequireActiveRemovalSubset(
+        ActiveSynchronizedRemovalSet activeRemovals,
+        PermanentHistoricalRemovalCatalog permanentCatalog)
+    {
+        activeRemovals.Entries.Should().BeSubsetOf(
+            permanentCatalog.Entries,
+            "every currently synchronized removal must have exact immutable canonical-history evidence, while archived removal evidence remains permanently cataloged");
+    }
+
     private static void ValidateHistoricalRemovalCatalogSemantics()
     {
         var active = new HistoricalRemovalIdentity("active-capability", "Active requirement");
         var archived = new HistoricalRemovalIdentity("archived-capability", "Archived requirement");
-        FindUncataloguedActiveRemovals([active], [active, archived]).Should().BeEmpty(
-            "archived evidence may remain in the permanent catalog after its active delta disappears");
-        FindUncataloguedActiveRemovals([archived], [active]).Should().Equal(archived);
+        RequireActiveRemovalSubset(
+            new ActiveSynchronizedRemovalSet([active]),
+            new PermanentHistoricalRemovalCatalog([active, archived]));
     }
-
-    private static HistoricalRemovalIdentity[] FindUncataloguedActiveRemovals(
-        IEnumerable<HistoricalRemovalIdentity> active,
-        IEnumerable<HistoricalRemovalIdentity> catalog) =>
-        active.Except(catalog).ToArray();
 
     private static IReadOnlyDictionary<string, string>? TryReadHistoricalSources(
         string root,
@@ -1027,6 +1057,26 @@ public sealed class OpenSpecCorpusGuards
     {
         var workflowPath = Path.Combine(root, ".github", "workflows", "ci.yml");
         var workflow = NormalizeLineEndings(File.ReadAllText(workflowPath));
+        var workflowSteps = Regex.Matches(
+            workflow,
+            @"(?ms)^[ \t]*-[ \t]+(?:name|uses):[^\n]*(?:\n.*?)(?=^[ \t]*-[ \t]+(?:name|uses):|\z)",
+            RegexOptions.CultureInvariant)
+            .Cast<Match>()
+            .ToArray();
+        var checkoutSteps = workflowSteps
+            .Where(step => Regex.IsMatch(
+                step.Value,
+                @"(?m)^[ \t]*(?:-[ \t]+)?uses:[ \t]+actions/checkout@v4[ \t]*$",
+                RegexOptions.CultureInvariant))
+            .ToArray();
+        checkoutSteps.Should().NotBeEmpty("CI must check out repository source before running validation");
+        checkoutSteps.Should().OnlyContain(
+            step => Regex.IsMatch(
+                step.Value,
+                @"(?m)^[ \t]+fetch-depth:[ \t]+0[ \t]*$",
+                RegexOptions.CultureInvariant),
+            "every CI checkout must retain full history so available historical corroboration cannot silently degrade to an object-missing skip");
+
         var guardSteps = Regex.Matches(
             workflow,
             @"(?ms)^[ \t]*-[ \t]+name:[ \t]+Infrastructure contract guards[ \t]*$.*?(?=^[ \t]*-[ \t]+(?:name|uses):|\z)",
@@ -1368,6 +1418,12 @@ public sealed class OpenSpecCorpusGuards
     private sealed record HistoricalRemovalIdentity(
         string Capability,
         string Requirement);
+
+    private sealed record ActiveSynchronizedRemovalSet(
+        IReadOnlyCollection<HistoricalRemovalIdentity> Entries);
+
+    private sealed record PermanentHistoricalRemovalCatalog(
+        IReadOnlyCollection<HistoricalRemovalIdentity> Entries);
 
     private sealed record RequirementOwner(
         string Change,
