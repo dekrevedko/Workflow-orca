@@ -14,7 +14,7 @@
       "baseCommit": "179421029f62bc0cd4d5968d465cf045f420ba34",
       "checkpointCommit": "ff11ead781f8fef343fafc6e6bc8307d746e4a05",
       "checkpointTree": "3baddd97a6919bf5f674daed33bc236496a234c2",
-      "approvalEvidenceCommit": null,
+      "approvalEvidenceCommit": "5140208c7b82332ada8b7a39848888ddd58eb89d",
       "preApprovalContentCommits": [],
       "historicalDirtyContentRecordBytes": 2428,
       "historicalDirtyContentRecordSha256": "741cfd6bbdd46cb4390c2f40c0d21d81d35b3e3749438b38efda44f26da1ff72",
@@ -137,7 +137,7 @@
       ],
       "checkpointBlobContentRecordBytes": 2428,
       "checkpointBlobContentRecordSha256": "741cfd6bbdd46cb4390c2f40c0d21d81d35b3e3749438b38efda44f26da1ff72",
-      "reviewState": "ApprovalAwaitingEvidenceCommit",
+      "reviewState": "Approved",
       "blockingEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-5-1-provenance-remediation-independent-review-verdict-2026-08-22.md",
       "verdictEvidence": [
         {

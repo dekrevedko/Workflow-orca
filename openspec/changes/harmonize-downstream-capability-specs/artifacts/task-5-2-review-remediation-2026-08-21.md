@@ -96,11 +96,12 @@ Task 5.2 or replace the missing Task 5.1 approval.
 
 The external Task 5.1 provenance-remediation review now records `APPROVE` for checkpoint
 `ff11ead781f8fef343fafc6e6bc8307d746e4a05` as remediated by
-`d0e7c4821199b8b1ee13d5f6fd22f79133abc576`. Its immutable verdict is registered byte-for-byte in
-`ApprovalAwaitingEvidenceCommit`. This fourth state deliberately leaves `approvalEvidenceCommit`
-unset and keeps Task 5.2 blocked, allowing the verdict and registry to enter one must-be-green
-evidence commit without requiring that commit to predict its own SHA. A following mechanical
-activation records the existing evidence commit and changes the state to `Approved`.
+`d0e7c4821199b8b1ee13d5f6fd22f79133abc576`. Its immutable verdict was first registered byte-for-byte
+in `ApprovalAwaitingEvidenceCommit`. That fourth state deliberately left `approvalEvidenceCommit`
+unset and kept Task 5.2 blocked, allowing the verdict and registry to enter must-be-green checkpoint
+`5140208c7b82332ada8b7a39848888ddd58eb89d` without requiring the commit to predict its own SHA. This
+following mechanical activation records that existing evidence commit and changes the state to
+`Approved`.
 
 That review also closed four provenance gaps before the transition:
 
@@ -119,11 +120,9 @@ That review also closed four provenance gaps before the transition:
 
 ## Remaining gate
 
-Task 5.2 is not yet approved. Task 5.1 now has one external `APPROVE` verdict alongside its immutable
-rejection history, but that approval must first be committed as its own provenance checkpoint and
-then activated by recording the resulting SHA. Until both steps complete, Task 5.2 cannot be
-refrozen or re-submitted. Task 5.3, the harmonization exit gate, archival, and reshape Task 8.0
-remain blocked.
+Task 5.1 approval evidence is now committed and activated. Task 5.2 remains rejected, but it may be
+refrozen and re-submitted on the approved base. Task 5.3, the harmonization exit gate, archival, and
+reshape Task 8.0 remain blocked until that new exact Task 5.2 target receives independent approval.
 
 ## Consolidated verification
 

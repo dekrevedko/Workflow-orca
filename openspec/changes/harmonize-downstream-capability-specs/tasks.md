@@ -156,7 +156,7 @@
       independent-approval verdict or disclosed retroactive owner approval. Its non-blocking raw
       manifest-order observation is now enforced by a dedicated executable fixture and mutation
       regression; that hardening does not clear the provenance rejection.
-- [ ] 5.2a **REMEDIATION REQUIRED:** Preserve the immutable Task 5.2 `REJECT` verdict, obtain an
+- [x] 5.2a **REMEDIATION REQUIRED:** Preserve the immutable Task 5.2 `REJECT` verdict, obtain an
       independent verdict for the exact Task 5.1 checkpoint
       `ff11ead781f8fef343fafc6e6bc8307d746e4a05` or an explicit dated owner-approval disclosure, and
       commit that approval provenance as a distinct checkpoint before refreezing Task 5.2. Keep
@@ -187,9 +187,11 @@
       same remediation discloses and exactly pins the review-only whitespace attribute, discovers
       the already-landed Task 5.2 canonical output at `d0e7c4821199b8b1ee13d5f6fd22f79133abc576`
       from content paths plus the checked ledger rather than its subject, and requires every
-      current-worktree historical-row pin to be maximal. After the distinct evidence checkpoint is
-      created, mechanically activate `Approved`, record that existing commit SHA, revalidate, and
-      only then complete this task and refreeze Task 5.2.
+      current-worktree historical-row pin to be maximal. **Completed:** distinct approval-evidence
+      checkpoint `5140208c7b82332ada8b7a39848888ddd58eb89d` preserves the external verdict and
+      transition record; the following mechanical activation records that existing SHA as
+      `Approved`. Task 5.2 may now be refrozen, but its immutable `REJECT` verdict remains in force
+      until a new exact-target review approves it.
 - [ ] 5.3 Verify reshape remains the sole active delta owner for repository friend topology and the
       durable resource-governance aggregate; byte-identical duplicate requirements do not count as
       harmless redundancy.
