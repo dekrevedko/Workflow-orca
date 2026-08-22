@@ -88,7 +88,7 @@ so attribute/index metadata cannot overstate a future commit target.
 
 The same review noted that four Task 5.2 historical rows remain byte-verifiable in the current
 worktree even though Task 5.2 has no checkpoint commit: the Task 4.3 artifact, post-gate fixture,
-dirty manifest, and review request. Schema 5 names those paths explicitly and checks their current
+dirty manifest, and review request. Schema 6 names those paths explicitly and checks their current
 byte counts and SHA-256 values against the frozen rows. This opportunistic evidence does not approve
 Task 5.2 or replace the missing Task 5.1 approval.
 
@@ -111,18 +111,39 @@ That review also closed four provenance gaps before the transition:
   allowlist so a broad `* -whitespace` rule fails.
 - Task 5.2's canonical output already landed in remediation commit
   `d0e7c4821199b8b1ee13d5f6fd22f79133abc576`. It is now recorded as pre-approval content, not as an
-  approved Task 5.2 checkpoint. The guard rediscovers the commit from all three owned canonical spec
-  paths and the checked 5.2 ledger entry; commit-subject naming is no longer evidence.
+  approved Task 5.2 checkpoint. The guard rediscovers every commit on the current pre-approval
+  lineage that touches any owned canonical path; commit-subject naming, a checked ledger row, and
+  unrelated refs are no longer evidence.
 - The approval state transition is non-self-referential as described above. The dependent Task 5.2
   checkpoint remains null until committed Task 5.1 approval evidence exists.
 - `currentWorktreeMatchPaths` is recomputed as the maximal historical-row set whose current bytes
   still match. Task 5.1 has eleven such rows and Task 5.2 has four; deleting any available pin fails.
 
+## Task 5.2 refreeze approval and follow-up
+
+The 2026-08-22 independent refreeze review approves exact target
+`c996e3a08f55697e1814cf84a7581c9f05473142` / tree
+`d2d5bcc496bf618dbae7a960aef20754b0c0c8cb`. The target is recorded separately from Task 5.2's old
+rejected dirty manifest, preserving both evidence shapes honestly. The new verdict is registered in
+`ApprovalAwaitingEvidenceCommit`; Task 5.3 remains blocked and the evidence SHA remains null until
+that green transition is committed.
+
+The review's three follow-up observations are closed in the same transition target:
+
+- Content discovery accepts any owned canonical path per commit, is bounded to the current lineage
+  between the Task 5.2 base and Task 5.1 approval evidence, and therefore catches split landings
+  without allowing stale branches or other worktrees to perturb the must-be-green lane.
+- `stateEvidencePath` replaces approved-state `blockingEvidencePath` and must resolve to exactly one
+  registered verdict of the correct disposition for every non-missing state.
+- `refresh-review-manifest-current-matches.ps1` recomputes only the maximal opportunistic pin arrays.
+  The freeze procedure runs it before validation and final anchors, while immutable historical rows
+  and their aggregate records remain unchanged.
+
 ## Remaining gate
 
-Task 5.1 approval evidence is now committed and activated. Task 5.2 remains rejected, but it may be
-refrozen and re-submitted on the approved base. Task 5.3, the harmonization exit gate, archival, and
-reshape Task 8.0 remain blocked until that new exact Task 5.2 target receives independent approval.
+Task 5.1 approval evidence is committed and activated, and Task 5.2 has an external `APPROVE`
+verdict. Task 5.3, the harmonization exit gate, archival, and reshape Task 8.0 remain blocked until
+the Task 5.2 verdict is committed in its green transition checkpoint and mechanically activated.
 
 ## Consolidated verification
 

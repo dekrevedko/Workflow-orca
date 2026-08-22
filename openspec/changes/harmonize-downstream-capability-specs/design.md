@@ -77,9 +77,11 @@ commit. Immutable earlier `REJECT` verdicts remain registered in both states.
 
 Task 5.2 content materialized before that approval checkpoint is not hidden by commit-subject
 conventions. The provenance registry permanently records every such pre-approval content commit,
-and the guard rediscovers it from the exact three owned canonical paths plus the checked task-ledger
-state. That record is historical content provenance, not an approved Task 5.2 checkpoint; a later
-approved checkpoint must still descend from the committed Task 5.1 approval evidence.
+and the guard rediscovers every commit on the current reviewed lineage that touches any of the three
+owned canonical paths between the Task 5.2 base and the parent of Task 5.1 approval evidence. This
+catches split landings without scanning unrelated refs or depending on a checked task row. That
+record is historical content provenance, not an approved Task 5.2 checkpoint; a later approved
+target and its evidence commit must still descend from committed Task 5.1 approval evidence.
 
 Canonical enumeration and active-delta ownership are separate inventories. A canonical capability
 does not have to retain an active delta after its owning change is archived. Archival changes the
@@ -100,7 +102,10 @@ independent verdict or an explicit, dated owner-approval disclosure. The machine
 records `MissingApproval`, `Rejected`, `ApprovalAwaitingEvidenceCommit`, and `Approved` states
 honestly, retains every immutable verdict with an exact byte hash, and requires approved evidence
 to be preserved in a distinct repository checkpoint before a dependent checkpoint may descend
-from it.
+from it. Every non-missing state names one `stateEvidencePath` registered in that same verdict set:
+`Rejected` requires `REJECT`, while both approval states require `APPROVE`. The exact independently
+reviewed commit and tree are recorded separately from an older dirty-manifest checkpoint so later
+remediation cannot mislabel one evidence shape as the other.
 
 Alternative considered: rely on `openspec validate --all --strict`. Rejected because it validates
 each change independently and permits contradictory or duplicated active deltas.
@@ -201,6 +206,14 @@ checked against their current bytes, so deleting an available pin or coherently 
 historical evidence fails. Canonical OpenSpec markdown, the Section 7
 declaration crosswalk, and the public-authoring companion use repository LF attributes so future
 checkouts do not reintroduce line-ending-only provenance drift.
+
+Because legitimate later work can change a currently matching historical row, the freeze procedure
+SHALL run `tests/OrcaCore.DeveloperSurface.Guards/refresh-review-manifest-current-matches.ps1`
+before focused guards and again before final anchors. The script changes only
+`currentWorktreeMatchPaths`; historical rows, manifests, and aggregate anchors remain immutable.
+`-Check` is the non-mutating CI/reviewer form. A stale fixture still fails closed with the exact
+refresh command in its diagnostic, but ordinary planned edits no longer leave the recovery step
+implicit.
 
 Immutable review Markdown may retain intentional two-space hard line breaks that were already part
 of a frozen record. The exact repository-attribute allowlist therefore contains only

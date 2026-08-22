@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "entries": [
     {
       "task": "5.1",
@@ -15,6 +15,8 @@
       "checkpointCommit": "ff11ead781f8fef343fafc6e6bc8307d746e4a05",
       "checkpointTree": "3baddd97a6919bf5f674daed33bc236496a234c2",
       "approvalEvidenceCommit": "5140208c7b82332ada8b7a39848888ddd58eb89d",
+      "reviewedTargetCommit": "d0e7c4821199b8b1ee13d5f6fd22f79133abc576",
+      "reviewedTargetTree": "ef8f948b4e50d7b784c16e148f9ea1ec9c669bfc",
       "preApprovalContentCommits": [],
       "historicalDirtyContentRecordBytes": 2428,
       "historicalDirtyContentRecordSha256": "741cfd6bbdd46cb4390c2f40c0d21d81d35b3e3749438b38efda44f26da1ff72",
@@ -138,7 +140,7 @@
       "checkpointBlobContentRecordBytes": 2428,
       "checkpointBlobContentRecordSha256": "741cfd6bbdd46cb4390c2f40c0d21d81d35b3e3749438b38efda44f26da1ff72",
       "reviewState": "Approved",
-      "blockingEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-5-1-provenance-remediation-independent-review-verdict-2026-08-22.md",
+      "stateEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-5-1-provenance-remediation-independent-review-verdict-2026-08-22.md",
       "verdictEvidence": [
         {
           "path": "docs/review/harmonize-downstream-capability-specs-task-5-1-checkpoint-provenance-independent-review-verdict-2026-08-21.md",
@@ -171,6 +173,8 @@
       "checkpointCommit": null,
       "checkpointTree": null,
       "approvalEvidenceCommit": null,
+      "reviewedTargetCommit": "c996e3a08f55697e1814cf84a7581c9f05473142",
+      "reviewedTargetTree": "d2d5bcc496bf618dbae7a960aef20754b0c0c8cb",
       "preApprovalContentCommits": [
         "d0e7c4821199b8b1ee13d5f6fd22f79133abc576"
       ],
@@ -258,8 +262,8 @@
       ],
       "checkpointBlobContentRecordBytes": null,
       "checkpointBlobContentRecordSha256": null,
-      "reviewState": "Rejected",
-      "blockingEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-5-2-independent-review-verdict-2026-08-21.md",
+      "reviewState": "ApprovalAwaitingEvidenceCommit",
+      "stateEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-5-2-refreeze-independent-review-verdict-2026-08-22.md",
       "verdictEvidence": [
         {
           "path": "docs/review/harmonize-downstream-capability-specs-task-5-2-independent-review-verdict-2026-08-21.md",
@@ -270,6 +274,11 @@
           "path": "docs/review/harmonize-downstream-capability-specs-task-5-2-provenance-remediation-independent-review-verdict-2026-08-21.md",
           "verdict": "REJECT",
           "sha256": "655d0d7c8b9927872dd421ca655ff29ba247c0aef3a39cab7db463dd02ee8f6e"
+        },
+        {
+          "path": "docs/review/harmonize-downstream-capability-specs-task-5-2-refreeze-independent-review-verdict-2026-08-22.md",
+          "verdict": "APPROVE",
+          "sha256": "45ce23059380ce5a0672c25568bd9aec67b39484482ef35acbe802bef54d0a47"
         }
       ]
     }

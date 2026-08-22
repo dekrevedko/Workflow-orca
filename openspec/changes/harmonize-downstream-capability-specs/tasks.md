@@ -171,7 +171,7 @@
       companion baseline, and rejected-state guard are implemented but require review as a new
       remediation target before Task 5.1 approval evidence can be committed. A later provenance
       review rejected the fixture's invented 2,427-byte Task 5.1 record and incorrect Task 5.2
-      content digest. Schema 5 now embeds every historical status/path/byte/hash row, recomputes the
+      content digest. Schema 6 now embeds every historical status/path/byte/hash row, recomputes the
       published 2,428-byte
       `741cfd6bbdd46cb4390c2f40c0d21d81d35b3e3749438b38efda44f26da1ff72` Task 5.1 record and
       1,793-byte `0068973b0dbd4c1f79086a0262cefe62b728911362b5cd43fe472e0c7daebc8a`
@@ -191,10 +191,18 @@
       checkpoint `5140208c7b82332ada8b7a39848888ddd58eb89d` preserves the external verdict and
       transition record; the following mechanical activation records that existing SHA as
       `Approved`. Task 5.2 may now be refrozen, but its immutable `REJECT` verdict remains in force
-      until a new exact-target review approves it.
+      until a new exact-target review approves it. The 2026-08-22 Task 5.2 refreeze verdict is
+      `APPROVE`; its follow-up remediation discovers split canonical landings on the current lineage
+      without scanning unrelated refs, replaces the stale approved-state `blockingEvidencePath`
+      with verdict-bound `stateEvidencePath`, records the exact reviewed commit/tree independently
+      of the historical dirty manifest, and provides an executable maximal-current-pin refresh for
+      every later freeze. Task 5.2 approval still enters through the same green awaiting-evidence
+      checkpoint before mechanical activation.
 - [ ] 5.3 Verify reshape remains the sole active delta owner for repository friend topology and the
       durable resource-governance aggregate; byte-identical duplicate requirements do not count as
-      harmless redundancy.
+      harmless redundancy. Run `refresh-review-manifest-current-matches.ps1` before the task's first
+      infrastructure lane and again before its final freeze so legitimate canonical edits refresh
+      only opportunistic current-byte pins rather than altering immutable historical evidence.
 
 ## 6. Numbered-requirement and acceptance harmonization
 
