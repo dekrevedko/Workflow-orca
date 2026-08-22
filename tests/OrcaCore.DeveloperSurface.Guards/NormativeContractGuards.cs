@@ -149,16 +149,15 @@ public sealed partial class NormativeContractInfrastructureGuards
     {
         var attributes = File.ReadAllLines(Path.Combine(
             FixtureDefinitions.RepositoryRoot(), ".gitattributes"));
-        attributes.Should().ContainSingle(
-            line => line == "docs/specs/17-public-authoring-contract.cs text eol=lf",
-            "the exact companion-source hash must be independent of ambient core.autocrlf settings");
-        attributes.Should().ContainSingle(
-            line => line == "openspec/specs/**/*.md text eol=lf",
-            "canonical OpenSpec hashes must be independent of ambient core.autocrlf settings");
-        attributes.Should().ContainSingle(
-            line => line ==
+        attributes.Should().Equal(
+            [
+                "docs/specs/17-public-authoring-contract.cs text eol=lf",
+                "openspec/specs/**/*.md text eol=lf",
                 "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json text eol=lf",
-            "the declaration-accounting fixture must not acquire line-ending-only drift");
+                "docs/review/**/*.md whitespace=-trailing-space"
+            ],
+            "the repository attributes are an exact reviewed allowlist; a broad whitespace exemption " +
+            "must not conceal defects outside immutable review records");
         var canonicalSpecs = Directory.EnumerateFiles(
             Path.Combine(FixtureDefinitions.RepositoryRoot(), "openspec", "specs"),
             "*.md",

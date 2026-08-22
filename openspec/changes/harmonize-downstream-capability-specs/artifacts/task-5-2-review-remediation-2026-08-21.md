@@ -55,12 +55,10 @@ checkpoint. Green technical validation cannot substitute for approval of the exa
   not treated as the frozen anchor.
 - A mutation regression path-sorts the Task 5.2 bytes and requires the raw-order assertion to fail
   with a specific diagnostic. This closes the review's non-blocking P3 observation.
-- The checkpoint-provenance guard records Task 5.1 as `Rejected`, registers and hashes both Task 5.1
-  `REJECT` verdicts plus both Task 5.2 `REJECT` verdicts, requires remediation task 5.2a to remain open,
-  and prohibits a Task 5.2 checkpoint. `MissingApproval` is reserved for a target with no verdict
-  evidence. Its future `Approved` path permits preserved rejection history but requires exactly one
-  `APPROVE` verdict in a distinct approval-evidence commit and requires every later Task 5.2
-  checkpoint to descend from that commit.
+- The checkpoint-provenance guard retains both Task 5.1 `REJECT` verdicts and both Task 5.2 `REJECT`
+  verdicts byte-for-byte, requires remediation task 5.2a to remain open, and prohibits a Task 5.2
+  checkpoint. `MissingApproval` is reserved for a target with no verdict evidence. The later
+  transition described below adds one external `APPROVE` without erasing that rejection history.
 - The deletion-ledger discovery regression executes the retired-package calculation against a
   genuinely absent directory. It fails on the superseded implementation and proves that clean
   checkouts return the retired package instead of throwing `DirectoryNotFoundException`.
@@ -68,9 +66,11 @@ checkpoint. Green technical validation cannot substitute for approval of the exa
   TAR payload. This removes the reproducible exit-141 broken-pipe failure from the other clean-tree
   infrastructure finding without weakening the exact historical declaration comparison.
 - `.gitattributes` pins `docs/specs/17-public-authoring-contract.cs`, canonical
-  `openspec/specs/**/*.md`, and the Section 7 declaration crosswalk to LF. The exact-baseline guard
-  requires every rule and verifies the current files contain no CR bytes, so a fresh Windows checkout
-  hashes those reviewed artifacts independently of ambient `core.autocrlf` settings.
+  `openspec/specs/**/*.md`, and the Section 7 declaration crosswalk to LF, and narrowly exempts only
+  immutable `docs/review/**/*.md` Markdown hard breaks from trailing-whitespace diagnostics. The
+  exact-baseline guard pins the complete allowlist and verifies the LF-owned files contain no CR
+  bytes, so a fresh Windows checkout hashes those reviewed artifacts independently of ambient
+  `core.autocrlf` settings.
 - Canonical preambles are pinned separately from requirement provenance: 14 LF-normalized
   per-capability hashes plus one aggregate record detect an unreviewed `## Purpose` rewrite. This
   hardening was added after the frozen Task 5.2 request and is recorded here rather than rewriting
@@ -88,18 +88,42 @@ so attribute/index metadata cannot overstate a future commit target.
 
 The same review noted that four Task 5.2 historical rows remain byte-verifiable in the current
 worktree even though Task 5.2 has no checkpoint commit: the Task 4.3 artifact, post-gate fixture,
-dirty manifest, and review request. Schema 4 names those paths explicitly and checks their current
+dirty manifest, and review request. Schema 5 names those paths explicitly and checks their current
 byte counts and SHA-256 values against the frozen rows. This opportunistic evidence does not approve
 Task 5.2 or replace the missing Task 5.1 approval.
 
+## 2026-08-22 approval-evidence transition
+
+The external Task 5.1 provenance-remediation review now records `APPROVE` for checkpoint
+`ff11ead781f8fef343fafc6e6bc8307d746e4a05` as remediated by
+`d0e7c4821199b8b1ee13d5f6fd22f79133abc576`. Its immutable verdict is registered byte-for-byte in
+`ApprovalAwaitingEvidenceCommit`. This fourth state deliberately leaves `approvalEvidenceCommit`
+unset and keeps Task 5.2 blocked, allowing the verdict and registry to enter one must-be-green
+evidence commit without requiring that commit to predict its own SHA. A following mechanical
+activation records the existing evidence commit and changes the state to `Approved`.
+
+That review also closed four provenance gaps before the transition:
+
+- `.gitattributes` intentionally exempts only immutable `docs/review/**/*.md` records from the
+  trailing-whitespace check because frozen review requests contain Markdown hard breaks. The design
+  discloses the exception, and the companion-baseline guard asserts the exact four-line attribute
+  allowlist so a broad `* -whitespace` rule fails.
+- Task 5.2's canonical output already landed in remediation commit
+  `d0e7c4821199b8b1ee13d5f6fd22f79133abc576`. It is now recorded as pre-approval content, not as an
+  approved Task 5.2 checkpoint. The guard rediscovers the commit from all three owned canonical spec
+  paths and the checked 5.2 ledger entry; commit-subject naming is no longer evidence.
+- The approval state transition is non-self-referential as described above. The dependent Task 5.2
+  checkpoint remains null until committed Task 5.1 approval evidence exists.
+- `currentWorktreeMatchPaths` is recomputed as the maximal historical-row set whose current bytes
+  still match. Task 5.1 has eleven such rows and Task 5.2 has four; deleting any available pin fails.
+
 ## Remaining gate
 
-Task 5.2 is not approved. The two Task 5.1 provenance reviews are immutable `REJECT` evidence, not
-approval. A reviewer must approve a new remediation target that contains the clean-checkout fix and
-the corrected rejected-state machinery. The resulting approval evidence must then be committed as
-its own provenance checkpoint before Task 5.2 is refrozen or re-submitted. The implementation owner
-cannot manufacture that approval. Task 5.3, the harmonization exit gate, archival, and reshape Task
-8.0 remain blocked.
+Task 5.2 is not yet approved. Task 5.1 now has one external `APPROVE` verdict alongside its immutable
+rejection history, but that approval must first be committed as its own provenance checkpoint and
+then activated by recording the resulting SHA. Until both steps complete, Task 5.2 cannot be
+refrozen or re-submitted. Task 5.3, the harmonization exit gate, archival, and reshape Task 8.0
+remain blocked.
 
 ## Consolidated verification
 

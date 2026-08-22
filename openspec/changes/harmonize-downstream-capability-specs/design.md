@@ -68,6 +68,19 @@ provenance approval by itself. Canonical preambles are independently pinned per 
 normalization, including each `## Purpose` block, so requirement-only synchronization cannot erase
 or rewrite unowned preamble text without a reviewed fixture refreeze.
 
+Review approval uses an explicit two-phase transition so the must-be-green infrastructure lane
+never depends on a commit naming itself. `ApprovalAwaitingEvidenceCommit` registers the external
+`APPROVE` verdict byte-for-byte while keeping the dependent checkpoint blocked and leaving the
+evidence commit unset. The first distinct checkpoint commits that verdict and transition record;
+only a following mechanical activation may set `Approved` and pin the already-existing evidence
+commit. Immutable earlier `REJECT` verdicts remain registered in both states.
+
+Task 5.2 content materialized before that approval checkpoint is not hidden by commit-subject
+conventions. The provenance registry permanently records every such pre-approval content commit,
+and the guard rediscovers it from the exact three owned canonical paths plus the checked task-ledger
+state. That record is historical content provenance, not an approved Task 5.2 checkpoint; a later
+approved checkpoint must still descend from the committed Task 5.1 approval evidence.
+
 Canonical enumeration and active-delta ownership are separate inventories. A canonical capability
 does not have to retain an active delta after its owning change is archived. Archival changes the
 active provenance record and therefore requires a reviewed fixture refreeze, but no invariant may
@@ -84,9 +97,10 @@ A checkpoint is provenance-complete only when its exact target has immutable app
 The existence of a review request, green validation, a completed task checkbox, or a commit is not
 approval. A dependent checkpoint remains blocked until its base checkpoint has either an
 independent verdict or an explicit, dated owner-approval disclosure. The machine-readable guard
-records `MissingApproval`, `Rejected`, and `Approved` states honestly, retains every immutable
-verdict with an exact byte hash, and requires approved evidence to be preserved in a distinct
-repository checkpoint before a dependent checkpoint may descend from it.
+records `MissingApproval`, `Rejected`, `ApprovalAwaitingEvidenceCommit`, and `Approved` states
+honestly, retains every immutable verdict with an exact byte hash, and requires approved evidence
+to be preserved in a distinct repository checkpoint before a dependent checkpoint may descend
+from it.
 
 Alternative considered: rely on `openspec validate --all --strict`. Rejected because it validates
 each change independently and permits contradictory or duplicated active deltas.
@@ -182,10 +196,17 @@ record SHALL equal the raw commit-blob projection whenever those bytes are ident
 checkout-filtered projection is separate environment evidence and SHALL NOT be used to rewrite or
 invalidate the published dirty anchor. An uncommitted rejected target remains reproducible from its
 recorded rows even after the live worktree moves. Rows explicitly marked as still independently
-verifiable from the current worktree are also checked against their current bytes, so a coherent
-rehash cannot silently rewrite surviving historical evidence. Canonical OpenSpec markdown, the Section 7
+verifiable from the current worktree are recomputed as the maximal matching historical-row set and
+checked against their current bytes, so deleting an available pin or coherently rehashing surviving
+historical evidence fails. Canonical OpenSpec markdown, the Section 7
 declaration crosswalk, and the public-authoring companion use repository LF attributes so future
 checkouts do not reintroduce line-ending-only provenance drift.
+
+Immutable review Markdown may retain intentional two-space hard line breaks that were already part
+of a frozen record. The exact repository-attribute allowlist therefore contains only
+`docs/review/**/*.md whitespace=-trailing-space` for that narrow historical surface. The companion
+baseline guard pins the complete four-line `.gitattributes` file in order; a repository-wide or
+otherwise broadened whitespace exemption is rejected.
 
 Git status cannot represent empty untracked directories. Every freeze therefore records a third
 anchor over repository-relative capability-directory paths matching

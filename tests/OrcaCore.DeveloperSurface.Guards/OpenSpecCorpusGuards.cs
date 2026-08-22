@@ -20,6 +20,20 @@ public sealed class OpenSpecCorpusGuards
     private const int HistoricalCanonicalRemovalCatalogCount = 11;
     private const string ReviewManifestProvenanceFixture =
         "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json";
+    private const string MissingApprovalReviewState = "MissingApproval";
+    private const string RejectedReviewState = "Rejected";
+    private const string ApprovalAwaitingEvidenceCommitReviewState =
+        "ApprovalAwaitingEvidenceCommit";
+    private const string ApprovedReviewState = "Approved";
+    private const string HarmonizationTaskLedgerPath =
+        "openspec/changes/harmonize-downstream-capability-specs/tasks.md";
+
+    private static readonly string[] Task52CanonicalSpecPaths =
+    [
+        "openspec/specs/management-and-querying/spec.md",
+        "openspec/specs/quality-and-verification/spec.md",
+        "openspec/specs/repository-foundation/spec.md"
+    ];
 
     private static readonly string[] RequiredPostGateStages =
     [
@@ -39,7 +53,7 @@ public sealed class OpenSpecCorpusGuards
         var root = FixtureDefinitions.RepositoryRoot();
         var checkpoint = FixtureDefinitions.Read<ReviewManifestProvenanceCheckpoint>(
             ReviewManifestProvenanceFixture);
-        checkpoint.SchemaVersion.Should().Be(4);
+        checkpoint.SchemaVersion.Should().Be(5);
         checkpoint.Entries.Select(entry => entry.Task).Should().OnlyHaveUniqueItems();
 
         ValidateCommitRealFreezeProjection(root);
@@ -76,6 +90,7 @@ public sealed class OpenSpecCorpusGuards
         var checkpoint = FixtureDefinitions.Read<ReviewManifestProvenanceCheckpoint>(
             ReviewManifestProvenanceFixture);
         var task51 = checkpoint.Entries.Single(entry => entry.Task == "5.1");
+        var task52 = checkpoint.Entries.Single(entry => entry.Task == "5.2");
         ValidateReviewVerdictEvidence(root, task51);
         ValidateReviewStateEvidence(task51);
 
@@ -121,32 +136,37 @@ public sealed class OpenSpecCorpusGuards
         var task51Rejections = task51.VerdictEvidence
             .Where(evidence => evidence.Verdict == "REJECT")
             .ToArray();
-        var task52Checkpoint = RunGit(
-            root,
-            "log",
-            "--all",
-            "--format=%H%x09%s",
-            "--grep=^Checkpoint harmonization task 5.2");
-        task52Checkpoint.ExitCode.Should().Be(0);
+        var task52ContentMaterializationCommits =
+            DiscoverTask52ContentMaterializationCommits(root, task52);
+        task52.PreApprovalContentCommits
+            .Order(StringComparer.Ordinal)
+            .Should()
+            .Equal(
+                task52ContentMaterializationCommits,
+                "Task 5.2 content already landed in history must be discovered from the canonical " +
+                "paths and checked ledger state, not inferred from a commit subject");
+        task52.PreApprovalContentCommits.Should().OnlyHaveUniqueItems();
+        task52.PreApprovalContentCommits.Should().OnlyContain(commitId =>
+            Regex.IsMatch(commitId, "^[0-9a-f]{40}$", RegexOptions.CultureInvariant));
 
         switch (task51.ReviewState)
         {
-            case "MissingApproval":
+            case MissingApprovalReviewState:
                 task51.ApprovalEvidenceCommit.Should().BeNull(
                     "missing approval must not claim an approval-evidence checkpoint");
                 task51.VerdictEvidence.Should().BeEmpty(
                     "a missing-review state may not conceal recorded review evidence");
-                task52Checkpoint.StandardOutput.Should().BeNullOrWhiteSpace(
+                task52.CheckpointCommit.Should().BeNull(
                     "Task 5.2 cannot checkpoint on top of an unapproved Task 5.1 base");
                 break;
-            case "Rejected":
+            case RejectedReviewState:
                 task51.ApprovalEvidenceCommit.Should().BeNull(
                     "rejected review evidence cannot be relabeled as an approval checkpoint");
                 task51Approvals.Should().BeEmpty(
                     "Task 5.1 remains blocked until an immutable APPROVE verdict exists");
                 task51Rejections.Should().NotBeEmpty(
                     "the rejected state must retain at least one immutable REJECT verdict");
-                task52Checkpoint.StandardOutput.Should().BeNullOrWhiteSpace(
+                task52.CheckpointCommit.Should().BeNull(
                     "Task 5.2 cannot checkpoint on top of a rejected Task 5.1 provenance target");
                 var rejectionPath = Path.Combine(
                     root,
@@ -163,7 +183,24 @@ public sealed class OpenSpecCorpusGuards
                     "tasks.md")));
                 taskLedger.Should().Contain("- [ ] 5.2a **REMEDIATION REQUIRED:**");
                 break;
-            case "Approved":
+            case ApprovalAwaitingEvidenceCommitReviewState:
+                task51Approvals.Should().ContainSingle(
+                    "the transition state must register exactly one external APPROVE verdict");
+                task51Rejections.Should().NotBeEmpty(
+                    "immutable rejection history remains part of the checkpoint provenance");
+                task51.ApprovalEvidenceCommit.Should().BeNull(
+                    "the evidence commit cannot be named until the verdict has first been committed");
+                task52.CheckpointCommit.Should().BeNull(
+                    "Task 5.2 remains blocked while approval evidence awaits its distinct commit");
+                var awaitingLedger = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+                    root,
+                    "openspec",
+                    "changes",
+                    "harmonize-downstream-capability-specs",
+                    "tasks.md")));
+                awaitingLedger.Should().Contain("- [ ] 5.2a **REMEDIATION REQUIRED:**");
+                break;
+            case ApprovedReviewState:
                 task51Approvals.Should().ContainSingle(
                     "an approved Task 5.1 checkpoint must have exactly one immutable verdict");
                 task51.ApprovalEvidenceCommit.Should().NotBeNullOrWhiteSpace(
@@ -198,18 +235,27 @@ public sealed class OpenSpecCorpusGuards
                 NormalizeLineEndings(committedVerdict.StandardOutput).TrimEnd('\n')
                     .Should().Be(verdict.TrimEnd('\n'),
                         "the working verdict must remain byte-content equivalent to its approval checkpoint");
-                foreach (var task52Commit in task52Checkpoint.StandardOutput
-                             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                             .Select(line => line.Split('\t', 2)[0]))
+                foreach (var preApprovalContentCommit in task52.PreApprovalContentCommits)
+                {
+                    var preApprovalAncestry = RunGit(
+                        root,
+                        "merge-base",
+                        "--is-ancestor",
+                        preApprovalContentCommit,
+                        task51.ApprovalEvidenceCommit!);
+                    preApprovalAncestry.ExitCode.Should().Be(0,
+                        "pre-approval Task 5.2 content must be explicitly recorded as history before the approval checkpoint");
+                }
+                if (task52.CheckpointCommit is not null)
                 {
                     var task52Ancestry = RunGit(
                         root,
                         "merge-base",
                         "--is-ancestor",
                         task51.ApprovalEvidenceCommit!,
-                        task52Commit);
+                        task52.CheckpointCommit);
                     task52Ancestry.ExitCode.Should().Be(0,
-                        "every Task 5.2 checkpoint must descend from committed Task 5.1 approval evidence");
+                        "the approved Task 5.2 checkpoint must descend from committed Task 5.1 approval evidence");
                 }
                 break;
             default:
@@ -1276,6 +1322,74 @@ public sealed class OpenSpecCorpusGuards
             standardError.GetAwaiter().GetResult());
     }
 
+    private static string[] DiscoverTask52ContentMaterializationCommits(
+        string root,
+        ReviewManifestProvenanceEntry task52)
+    {
+        var canonicalPaths = task52.HistoricalDirtyContentRecordRows
+            .Select(row => row.Path)
+            .Where(path => path.StartsWith("openspec/specs/", StringComparison.Ordinal))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        canonicalPaths.Should().Equal(Task52CanonicalSpecPaths);
+
+        var historyArguments = new List<string>
+        {
+            "log",
+            "--all",
+            "--format=%H",
+            "--"
+        };
+        historyArguments.AddRange(canonicalPaths);
+        var history = RunGit(root, [.. historyArguments]);
+        history.ExitCode.Should().Be(0);
+
+        var candidates = new List<string>();
+        foreach (var commitId in NormalizeLineEndings(history.StandardOutput)
+                     .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                     .Distinct(StringComparer.Ordinal))
+        {
+            var afterBase = RunGit(
+                root,
+                "merge-base",
+                "--is-ancestor",
+                task52.BaseCommit,
+                commitId);
+            if (afterBase.ExitCode != 0 || commitId == task52.BaseCommit)
+            {
+                continue;
+            }
+
+            var parent = RunGit(root, "rev-parse", $"{commitId}^");
+            if (parent.ExitCode != 0)
+            {
+                continue;
+            }
+
+            var changedPaths = ReadCommittedPaths(root, parent.StandardOutput.Trim(), commitId);
+            if (!canonicalPaths.All(path => changedPaths.Contains(path, StringComparer.Ordinal)))
+            {
+                continue;
+            }
+
+            var ledger = RunGit(
+                root,
+                "show",
+                $"{commitId}:{HarmonizationTaskLedgerPath}");
+            if (ledger.ExitCode == 0 && Regex.IsMatch(
+                    NormalizeLineEndings(ledger.StandardOutput),
+                    @"(?m)^- \[x\] 5\.2 ",
+                    RegexOptions.CultureInvariant))
+            {
+                candidates.Add(commitId);
+            }
+        }
+
+        return candidates
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+    }
+
     private static void ValidateReviewManifestProvenance(
         string root,
         ReviewManifestProvenanceEntry entry)
@@ -1342,8 +1456,25 @@ public sealed class OpenSpecCorpusGuards
             row => row.Path,
             StringComparer.Ordinal);
         entry.CurrentWorktreeMatchPaths.Should().OnlyHaveUniqueItems();
-        entry.CurrentWorktreeMatchPaths.Should().OnlyContain(path => rowsByPath.ContainsKey(path),
-            "every opportunistic current-worktree pin must name a historical content row");
+        var maximalCurrentWorktreeMatches = entry.HistoricalDirtyContentRecordRows
+            .Where(row =>
+            {
+                var path = Path.Combine(
+                    root,
+                    row.Path.Replace('/', Path.DirectorySeparatorChar));
+                if (!File.Exists(path))
+                {
+                    return false;
+                }
+
+                var bytes = File.ReadAllBytes(path);
+                return bytes.Length == row.Bytes && Sha256(bytes) == row.Sha256;
+            })
+            .Select(row => row.Path)
+            .ToArray();
+        entry.CurrentWorktreeMatchPaths.Should().Equal(
+            maximalCurrentWorktreeMatches,
+            "current-worktree pins must be the maximal historical-row set still byte-verifiable today");
         foreach (var currentPath in entry.CurrentWorktreeMatchPaths)
         {
             var currentBytes = File.ReadAllBytes(Path.Combine(
@@ -1507,14 +1638,19 @@ public sealed class OpenSpecCorpusGuards
         var rejections = entry.VerdictEvidence.Count(evidence => evidence.Verdict == "REJECT");
         switch (entry.ReviewState)
         {
-            case "MissingApproval":
+            case MissingApprovalReviewState:
                 entry.VerdictEvidence.Should().BeEmpty();
                 break;
-            case "Rejected":
+            case RejectedReviewState:
                 approvals.Should().Be(0);
                 rejections.Should().BeGreaterThan(0);
                 break;
-            case "Approved":
+            case ApprovalAwaitingEvidenceCommitReviewState:
+                approvals.Should().Be(1);
+                rejections.Should().BeGreaterThan(0);
+                entry.ApprovalEvidenceCommit.Should().BeNull();
+                break;
+            case ApprovedReviewState:
                 approvals.Should().Be(1);
                 break;
             default:
@@ -2013,6 +2149,7 @@ public sealed class OpenSpecCorpusGuards
         string? CheckpointCommit,
         string? CheckpointTree,
         string? ApprovalEvidenceCommit,
+        string[] PreApprovalContentCommits,
         int HistoricalDirtyContentRecordBytes,
         string HistoricalDirtyContentRecordSha256,
         HistoricalContentRecordRow[] HistoricalDirtyContentRecordRows,

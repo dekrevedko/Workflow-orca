@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "entries": [
     {
       "task": "5.1",
@@ -15,6 +15,7 @@
       "checkpointCommit": "ff11ead781f8fef343fafc6e6bc8307d746e4a05",
       "checkpointTree": "3baddd97a6919bf5f674daed33bc236496a234c2",
       "approvalEvidenceCommit": null,
+      "preApprovalContentCommits": [],
       "historicalDirtyContentRecordBytes": 2428,
       "historicalDirtyContentRecordSha256": "741cfd6bbdd46cb4390c2f40c0d21d81d35b3e3749438b38efda44f26da1ff72",
       "historicalDirtyContentRecordRows": [
@@ -121,11 +122,23 @@
           "sha256": "964075785c2ecbead96756dcdf635ec2f4e41ca3e46969a7b9b28554bf54ebac"
         }
       ],
-      "currentWorktreeMatchPaths": [],
+      "currentWorktreeMatchPaths": [
+        "docs/review/harmonize-downstream-capability-specs-task-5-1-dirty-manifest-2026-08-20.txt",
+        "docs/review/harmonize-downstream-capability-specs-task-5-1-independent-review-request-2026-08-20.md",
+        "openspec/specs/developer-facing-surface/spec.md",
+        "openspec/specs/durable-persistence-and-outbox/spec.md",
+        "openspec/specs/durable-runtime/spec.md",
+        "openspec/specs/event-routing-and-waits/spec.md",
+        "openspec/specs/state-driven-runtime/spec.md",
+        "openspec/specs/workflow-authoring/spec.md",
+        "openspec/specs/workflow-contracts/spec.md",
+        "tests/OrcaCore.DeveloperSurface.Guards/LeaseDiscoveryAndGovernanceContractGuards.cs",
+        "tests/OrcaCore.ProviderCertification/Section7GovernanceScenarioHost.cs"
+      ],
       "checkpointBlobContentRecordBytes": 2428,
       "checkpointBlobContentRecordSha256": "741cfd6bbdd46cb4390c2f40c0d21d81d35b3e3749438b38efda44f26da1ff72",
-      "reviewState": "Rejected",
-      "blockingEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-5-2-independent-review-verdict-2026-08-21.md",
+      "reviewState": "ApprovalAwaitingEvidenceCommit",
+      "blockingEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-5-1-provenance-remediation-independent-review-verdict-2026-08-22.md",
       "verdictEvidence": [
         {
           "path": "docs/review/harmonize-downstream-capability-specs-task-5-1-checkpoint-provenance-independent-review-verdict-2026-08-21.md",
@@ -136,6 +149,11 @@
           "path": "docs/review/harmonize-downstream-capability-specs-task-5-1-checkpoint-provenance-independent-review-verdict-2026-08-21-b.md",
           "verdict": "REJECT",
           "sha256": "c883416001b9e96f030c4311900b1d6f05128ac8066c4a36d8f34e18e1efe8b3"
+        },
+        {
+          "path": "docs/review/harmonize-downstream-capability-specs-task-5-1-provenance-remediation-independent-review-verdict-2026-08-22.md",
+          "verdict": "APPROVE",
+          "sha256": "16989506dc3e4db2da372bb92270960c891819f365615b862267b43e0b200839"
         }
       ]
     },
@@ -153,6 +171,9 @@
       "checkpointCommit": null,
       "checkpointTree": null,
       "approvalEvidenceCommit": null,
+      "preApprovalContentCommits": [
+        "d0e7c4821199b8b1ee13d5f6fd22f79133abc576"
+      ],
       "historicalDirtyContentRecordBytes": 1793,
       "historicalDirtyContentRecordSha256": "0068973b0dbd4c1f79086a0262cefe62b728911362b5cd43fe472e0c7daebc8a",
       "historicalDirtyContentRecordRows": [

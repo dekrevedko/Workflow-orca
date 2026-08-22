@@ -171,7 +171,7 @@
       companion baseline, and rejected-state guard are implemented but require review as a new
       remediation target before Task 5.1 approval evidence can be committed. A later provenance
       review rejected the fixture's invented 2,427-byte Task 5.1 record and incorrect Task 5.2
-      content digest. Schema 3 now embeds every historical status/path/byte/hash row, recomputes the
+      content digest. Schema 5 now embeds every historical status/path/byte/hash row, recomputes the
       published 2,428-byte
       `741cfd6bbdd46cb4390c2f40c0d21d81d35b3e3749438b38efda44f26da1ff72` Task 5.1 record and
       1,793-byte `0068973b0dbd4c1f79086a0262cefe62b728911362b5cd43fe472e0c7daebc8a`
@@ -181,7 +181,15 @@
       then identified four status-only canonical-spec entries that were byte-identical to `HEAD`;
       the commit-real freeze projection excludes them, and the Task 5.2 record now pins the four
       historical rows still independently reproducible from current worktree bytes. The task remains
-      open until external approval evidence is committed.
+      open until external approval evidence is committed. The 2026-08-22 external `APPROVE` verdict
+      for Task 5.1 is registered in `ApprovalAwaitingEvidenceCommit`, a green transition state that
+      cannot authorize Task 5.2 and does not claim the SHA of its own future evidence commit. The
+      same remediation discloses and exactly pins the review-only whitespace attribute, discovers
+      the already-landed Task 5.2 canonical output at `d0e7c4821199b8b1ee13d5f6fd22f79133abc576`
+      from content paths plus the checked ledger rather than its subject, and requires every
+      current-worktree historical-row pin to be maximal. After the distinct evidence checkpoint is
+      created, mechanically activate `Approved`, record that existing commit SHA, revalidate, and
+      only then complete this task and refreeze Task 5.2.
 - [ ] 5.3 Verify reshape remains the sole active delta owner for repository friend topology and the
       durable resource-governance aggregate; byte-identical duplicate requirements do not count as
       harmless redundancy.
