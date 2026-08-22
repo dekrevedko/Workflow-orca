@@ -196,8 +196,9 @@
       without scanning unrelated refs, replaces the stale approved-state `blockingEvidencePath`
       with verdict-bound `stateEvidencePath`, records the exact reviewed commit/tree independently
       of the historical dirty manifest, and provides an executable maximal-current-pin refresh for
-      every later freeze. Task 5.2 approval still enters through the same green awaiting-evidence
-      checkpoint before mechanical activation.
+      every later freeze. Task 5.2 approval entered through green awaiting-evidence checkpoint
+      `80cc5065e02ddd6674a1e1633c191efc487c98ea`; this mechanical activation records that existing
+      SHA as `Approved`, unblocking Task 5.3 without rewriting any immutable review evidence.
 - [ ] 5.3 Verify reshape remains the sole active delta owner for repository friend topology and the
       durable resource-governance aggregate; byte-identical duplicate requirements do not count as
       harmless redundancy. Run `refresh-review-manifest-current-matches.ps1` before the task's first

@@ -125,8 +125,9 @@ The 2026-08-22 independent refreeze review approves exact target
 `c996e3a08f55697e1814cf84a7581c9f05473142` / tree
 `d2d5bcc496bf618dbae7a960aef20754b0c0c8cb`. The target is recorded separately from Task 5.2's old
 rejected dirty manifest, preserving both evidence shapes honestly. The new verdict is registered in
-`ApprovalAwaitingEvidenceCommit`; Task 5.3 remains blocked and the evidence SHA remains null until
-that green transition is committed.
+`ApprovalAwaitingEvidenceCommit`; Task 5.3 remained blocked and the evidence SHA stayed null until
+green transition checkpoint `80cc5065e02ddd6674a1e1633c191efc487c98ea` committed the verdict and
+registry. This mechanical activation records that existing SHA and changes Task 5.2 to `Approved`.
 
 The review's three follow-up observations are closed in the same transition target:
 
@@ -141,9 +142,9 @@ The review's three follow-up observations are closed in the same transition targ
 
 ## Remaining gate
 
-Task 5.1 approval evidence is committed and activated, and Task 5.2 has an external `APPROVE`
-verdict. Task 5.3, the harmonization exit gate, archival, and reshape Task 8.0 remain blocked until
-the Task 5.2 verdict is committed in its green transition checkpoint and mechanically activated.
+Task 5.1 and Task 5.2 approval evidence is committed and mechanically activated. Task 5.3 is now
+unblocked; the harmonization exit gate, archival, and reshape Task 8.0 remain blocked until Task 5.3
+proves sole active-delta ownership and receives its own checkpoint approval.
 
 ## Consolidated verification
 

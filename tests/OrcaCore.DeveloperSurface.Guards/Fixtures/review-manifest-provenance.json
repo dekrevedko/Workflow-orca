@@ -172,7 +172,7 @@
       "baseCommit": "ff11ead781f8fef343fafc6e6bc8307d746e4a05",
       "checkpointCommit": null,
       "checkpointTree": null,
-      "approvalEvidenceCommit": null,
+      "approvalEvidenceCommit": "80cc5065e02ddd6674a1e1633c191efc487c98ea",
       "reviewedTargetCommit": "c996e3a08f55697e1814cf84a7581c9f05473142",
       "reviewedTargetTree": "d2d5bcc496bf618dbae7a960aef20754b0c0c8cb",
       "preApprovalContentCommits": [
@@ -262,7 +262,7 @@
       ],
       "checkpointBlobContentRecordBytes": null,
       "checkpointBlobContentRecordSha256": null,
-      "reviewState": "ApprovalAwaitingEvidenceCommit",
+      "reviewState": "Approved",
       "stateEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-5-2-refreeze-independent-review-verdict-2026-08-22.md",
       "verdictEvidence": [
         {
