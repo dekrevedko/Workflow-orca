@@ -1,0 +1,12 @@
+ M openspec/changes/harmonize-downstream-capability-specs/artifacts/task-4-2-openspec-provenance-record-2026-08-18.md
+ M openspec/changes/harmonize-downstream-capability-specs/artifacts/task-4-3-post-gate-amendment-path-2026-08-18.md
+ M openspec/changes/harmonize-downstream-capability-specs/design.md
+ M openspec/changes/harmonize-downstream-capability-specs/tasks.md
+ M openspec/specs/management-and-querying/spec.md
+ M openspec/specs/quality-and-verification/spec.md
+ M openspec/specs/repository-foundation/spec.md
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+?? docs/review/harmonize-downstream-capability-specs-task-5-2-dirty-manifest-2026-08-20.txt
+?? docs/review/harmonize-downstream-capability-specs-task-5-2-independent-review-request-2026-08-20.md

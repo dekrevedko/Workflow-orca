@@ -11,7 +11,7 @@ The project SHALL maintain application-interface acceptance scenarios for every 
 - **THEN** its complete developer journey executes through approved public application entry points in every supported mode
 
 ### Requirement: Known workflow-engine failure patterns stay covered
-The project SHALL cover duplicate/conflicting events, ambiguous wait-pair rejection, signal-stream reuse, wait races, branch/item ordering, nonempty root-only `Parallel`, once-only/suppressed merges, selector replay, crash recovery and same-attempt redispatch, competing drivers, structural fingerprint drift plus required opaque-code version bumps, detached attempt state, step-timeout late overlap, workflow deadlines, host/definition compatibility, unknown-pool rejection, lease ambiguity/quarantine, grant/cancel and confirmation precedence, creation-versus-current pool capacity, resource-governance conflicts, and DAG child reattachment.
+The project SHALL cover duplicate/conflicting events, ambiguous wait-pair rejection, pending-inbox ordered reuse, event/wait/timer races, cold activation, start-or-deliver, committed-snapshot fanout, outbox dispatch ambiguity, branch/item ordering, nonempty root-only `Parallel`, once-only/suppressed merges, selector replay, crash recovery and same-attempt redispatch, competing drivers, structural fingerprint drift plus required opaque-code version bumps, detached attempt state, step-timeout late overlap, workflow deadlines, host/definition compatibility, unknown-pool rejection, lease ambiguity/quarantine, grant/cancel and confirmation precedence, creation-versus-current pool capacity, resource-governance conflicts, and DAG child reattachment.
 
 #### Scenario: Regression-prone behavior changes
 - **WHEN** a contributor changes wait, join, fan-out, timeout, persistence, routing, lease, DAG, or lifecycle logic
@@ -83,6 +83,33 @@ Acceptance coverage SHALL execute equivalent portable definitions in both modes 
 - **WHEN** equivalent definitions receive the same branch/item results and events
 - **THEN** both modes produce the same typed parent output and leave no orphan waits, timers, or obligations
 
+### Requirement: Every code and test removal has complete burden-of-proof evidence
+The project SHALL maintain an exhaustive reviewed ledger for every physically deleted,
+project-orphaned, or compile-excluded production file/symbol family and every retired test
+declaration. Each production entry SHALL be classified exactly as removed, replaced/relocated,
+deferred, or dead/duplicate and SHALL cite its normative requirement, current owner or future task,
+recovery location, and executable evidence. Removing a prohibited application facade SHALL NOT
+remove still-required runtime, provider, host/operator, persistence, observability, retention, or
+cleanup behavior. Compile failure after an API reshape, `<Compile Remove>`, solution exclusion,
+aggregate passing counts, and the existence of a successor method SHALL NOT satisfy this
+requirement.
+
+#### Scenario: Obsolete application facade carried an operator capability
+- **WHEN** broad application statistics, query, archive, purge, hosting, or observer members are removed
+- **THEN** verification proves their required application signatures are absent while every retained provider/operator projection, BCL diagnostic, retention, cleanup, and restart behavior executes through its approved owner
+
+#### Scenario: Retired declaration names a successor
+- **WHEN** a retired `[Fact]` or `[Theory]` is mapped to an active test or scenario
+- **THEN** the crosswalk proves equivalent setup, invoked boundary, failure or crash schedule, persistence/restart point, and assertions rather than merely resolving the successor coordinate
+
+#### Scenario: Provider project or migration is removed
+- **WHEN** a provider project, adapter, migration, or certification binding leaves the active build
+- **THEN** its ship/defer/replace/remove disposition agrees with the package manifest and tasks, a greenfield first-create schema needs no compatibility DDL, and no still-required provider behavior or test obligation becomes orphaned
+
+#### Scenario: Section exit target is frozen
+- **WHEN** Section 7 is proposed for independent approval
+- **THEN** all packaged assemblies have reviewed current-build and fresh-package API baselines, the package feed is rebuilt from the frozen source, the deletion ledger has zero unresolved entries, and no reflection bridge substitutes for the approved typed package boundary
+
 ### Requirement: Public surfaces are approved mechanically
 Each of the exact 12 packaged assemblies SHALL have one approved deterministic public baseline
 covering every externally visible type, constructor, method, property, field, event, generic
@@ -100,18 +127,18 @@ Consumer fixtures SHALL prove presence of the complete approved root/nested surf
 
 #### Scenario: Ephemeral fixture compiles
 - **WHEN** a consumer authors staged typed ephemeral workflows
-- **THEN** ephemeral lambdas, nested `If`, root `Parallel`, bounded root `ForEach`, `WhenAll*`, `Wait`, delays, and timeouts compile while nested fan-out, durable leasing/continue-as-new, and every deferred/removed member are unavailable
+- **THEN** ephemeral lambdas, nested `If`, root `Parallel`, bounded root `ForEach`, `WhenAll*`, descriptor-based `Wait`, delays, and timeouts compile while durable ingress/publish, nested fan-out, durable leasing/continue-as-new, and every deferred/removed member are unavailable
 
 #### Scenario: Durable fixture compiles
 - **WHEN** a consumer authors staged typed durable workflows
-- **THEN** named steps, nested `If`, root `Parallel`, bounded root `ForEach`, `WhenAll*`, cold-capable `Wait`, deadlines, scoped leasing, and root continue-as-new compile while lambdas, transient pools, nested `Parallel`/`ForEach`/`While`, and deferred/removed members are unavailable
+- **THEN** named steps, nested `If`, root `Parallel`, bounded root `ForEach`, `WhenAll*`, descriptor-based cold-capable `Wait`, durable `Publish`, deadlines, scoped leasing, and root continue-as-new compile while lambdas, transient pools, nested `Parallel`/`ForEach`/`While`, and deferred/removed members are unavailable
 
 #### Scenario: Lease nested fixture compiles
 - **WHEN** durable root, conditional, branch, and item bodies author one lexical acquisition with no active ancestor
 - **THEN** acquisition compiles, its dedicated leased builder omits all fan-out, nested acquisition, and continue-as-new, sequential root-loop scopes compile, and hand-built ancestry conflicts report exact `SFE-AUTH-LEASE-001/003` locations
 
 ### Requirement: Typed workflow contract is compile and behavior verified
-Fixtures SHALL prove staged `Init`/body/`End`, exactly four completion overloads per mode with eager null rejection, resultful and resultless definitions/references, fixed outcome metadata, output atomicity, builder stage restrictions, definition fingerprint conflict, and the common registry's deterministic mode/static-pool/fingerprint compatibility ordering with no mutation on failure.
+Fixtures SHALL prove staged `Init`/body/`End`, exactly four completion overloads per mode with eager null rejection, all four resultful/resultless definitions and references, fixed outcome metadata, output atomicity, builder stage restrictions, definition fingerprint conflict, mode-specific application-configuration `AddWorkflow`, exact-reference `GetRequiredHandle`, absent/stale-reference failure, atomic staged-batch bootstrap before progression, and the common registry's deterministic mode/static-pool/dispatcher/fingerprint compatibility ordering with no mutation on failure.
 
 #### Scenario: Resultful definition completes
 - **WHEN** a typed input is initialized, processed, and projected by `End<TOutput>`
@@ -124,6 +151,10 @@ Fixtures SHALL prove staged `Init`/body/`End`, exactly four completion overloads
 #### Scenario: Completion overload baseline is inspected
 - **WHEN** guards inspect each ephemeral and durable root builder
 - **THEN** only the two resultless and two resultful `End` overloads exist, and explicit null selector/outcome calls throw `ArgumentNullException`
+
+#### Scenario: Application configuration is repeated on a replacement host
+- **WHEN** a replacement host stages the same exact definition batch in a different module-call order
+- **THEN** preflight installs the same catalog before any pump starts, exact duplicates are idempotent, and cold exact-reference lookup succeeds
 
 ### Requirement: Diagnostic codes and authored locations are a complete stable contract
 Phase 0 guards SHALL baseline every emitted build/runtime code below, reject an undocumented code or one code assigned to more than one meaning, and prove `Build` exception diagnostics and `TryBuild` diagnostics have identical codes, severity, primary/related locations, and canonical order where both paths are reachable. Message text is explanatory and noncontractual.
@@ -353,10 +384,10 @@ Verification SHALL pack and restore clean consumers for minimal ephemeral, Postg
 - **THEN** the golden path compiles/runs without source-project references, advanced leaks, or optional infrastructure dependencies
 
 ### Requirement: Exact facade, event, hosting, and path-token contracts are guarded
-Compile/reflection/behavior guards SHALL prove the exact common registry/definition/instance/event facade, closed host-compatibility results and exceptions, all seven exact role-specific hosting entry points and split options, absence of catch-all or separate hosted-service toggles, instance/correlation delivery with ambiguous wait registration rejection and signal-stream reuse, and the one logical path-token model including parent release before root-only fan-out and physical late-body occupancy.
+Compile/reflection/behavior guards SHALL prove the exact common registry/definition/instance/event facade; four typed references and exact-reference lookups; mode-specific engine builders and application-configuration `AddWorkflow`; closed host-compatibility results and exceptions including missing dispatcher/not-registered; all seven exact role-specific hosting entry points and split options; absence of catch-all, separate hosted-service toggles, attributes, or assembly scanning; self-routing durable ingress with its exact acceptance/rejection unions; application-shaped `DispatchAsync` with its exact dispatch-result/failure values and no provider leaks; descriptor/correlation matching with ambiguous wait registration rejection; buffered reuse; and the one logical path-token model including parent release before root-only fan-out and physical late-body occupancy.
 
 #### Scenario: Exact application facade baseline changes
-- **WHEN** a contributor adds a route, management operation, hosting overload, catch-all registration, serializer hook, cancellation outcome, or conflicting token behavior
+- **WHEN** a contributor adds an unapproved route, management operation, hosting role, discovery path, serializer hook, provider-shaped dispatcher value, cancellation outcome, or conflicting token behavior
 - **THEN** the corresponding exact-signature or behavior guard fails before source approval
 
 ### Requirement: Durable messaging is verified across every ownership boundary

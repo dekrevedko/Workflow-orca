@@ -64,7 +64,9 @@ canonical diff, applies any approved `Purpose` wording manually, and strict-vali
 The gate also enumerates every canonical capability and every active delta heading. It rejects an
 unexplained missing capability, an uncoordinated duplicate owner, or canonical content with no
 approved source change. Structural validity remains necessary but is never reported as semantic or
-provenance approval by itself.
+provenance approval by itself. Canonical preambles are independently pinned per capability after LF
+normalization, including each `## Purpose` block, so requirement-only synchronization cannot erase
+or rewrite unowned preamble text without a reviewed fixture refreeze.
 
 Canonical enumeration and active-delta ownership are separate inventories. A canonical capability
 does not have to retain an active delta after its owning change is archived. Archival changes the
@@ -77,6 +79,14 @@ corroborating metadata; when the object is available, validation reads it direct
 ancestry from `HEAD`, and correctness does not depend on that object surviving integration-history
 rewriting. CI executes the complete must-be-green infrastructure guard disposition while
 intentional expected-red guards remain a separate lane.
+
+A checkpoint is provenance-complete only when its exact target has immutable approval evidence.
+The existence of a review request, green validation, a completed task checkbox, or a commit is not
+approval. A dependent checkpoint remains blocked until its base checkpoint has either an
+independent verdict or an explicit, dated owner-approval disclosure. The machine-readable guard
+records `MissingApproval`, `Rejected`, and `Approved` states honestly, retains every immutable
+verdict with an exact byte hash, and requires approved evidence to be preserved in a distinct
+repository checkpoint before a dependent checkpoint may descend from it.
 
 Alternative considered: rely on `openspec validate --all --strict`. Rejected because it validates
 each change independently and permits contradictory or duplicated active deltas.
@@ -98,9 +108,10 @@ state and resolve through exactly one active or dated archived change record. Th
 exact requirement identities and validates them against that resolved change, so archival does not
 erase the amendment contract or force a permanently active delta. Implementation task ranges carry
 an exact count, and approval evidence is normalized before task-bound verdict validation. The known
-Section 7B case records all 18 `developer-facing-surface` requirements while leaving its seven
-canonical operations under task 5.1 and its numbered requirement/acceptance corrections under task
-7.3. Closing this process task therefore cannot be mistaken for completing those downstream edits.
+Section 7B case records all 18 `developer-facing-surface` requirements. Task 5.1 has completed its
+seven canonical operations, while the numbered requirement/acceptance corrections remain under
+task 7.3. Closing this process task therefore cannot be mistaken for completing those downstream
+edits.
 
 ### 4. Numbered requirements and acceptance criteria remain bidirectional
 
@@ -127,22 +138,54 @@ commit rather than rewriting the historical file.
 
 ### 6. Freeze hashes use one explicit byte pipeline
 
-The raw anchor is SHA-256 over the exact ordered `git status --porcelain=v1` manifest using the
-review packet's stated line-ending convention. The normalized comparison anchor uses exactly:
+A review freeze records only paths that can enter the checkpoint commit. Its commit-real entry set
+is the union of `git diff --name-only --no-renames HEAD` and
+`git ls-files --others --exclude-standard`. The manifest starts from
+`git status --porcelain=v1 --untracked-files=all --no-renames` and retains, in Git-emitted order,
+only records whose paths belong to that entry set. This excludes index- or attribute-only status
+entries whose worktree bytes equal `HEAD`; such entries cannot appear in the resulting commit and
+therefore cannot be claimed by its frozen manifest.
+
+The raw anchor is SHA-256 over that exact ordered commit-real manifest using the review packet's
+stated line-ending convention. The normalized comparison anchor uses exactly:
 
 ```text
-git status --porcelain=v1 -z
-| split NUL records
+commit-real Git-order manifest
+| read one status/path record per LF line
 | remove one trailing CR from each record
 | sort records by ordinal byte order
 | join with LF and one final LF
 | SHA-256
 ```
 
-NUL expansion deliberately turns a rename into two records. Reviewers record both the porcelain
-entry count and expanded normalized-line count. PowerShell culture sorting, sorting newline
-porcelain records without expanding renames, path-only sorting, and omission of the final LF are
-different algorithms and SHALL NOT be compared to this anchor.
+The freeze uses `--no-renames`, so a move is represented by the same delete/add path pair the commit
+projection can verify. Reviewers record both the commit-real entry count and normalized-line count.
+PowerShell culture sorting, anchoring unfiltered status output, path-only sorting, and omission of
+the final LF are different algorithms and SHALL NOT be compared to this anchor.
+
+A checked-in human-readable dirty manifest that claims to reproduce the raw anchor SHALL retain
+the filtered Git-emitted order. A path-sorted, status-grouped, or unfiltered status manifest is
+non-authoritative evidence even when its entry count and byte length happen to match another
+projection; its digest SHALL NOT be presented as the commit-real raw anchor.
+
+Every harmonization dirty manifest is registered in a machine-readable fixture as either
+`RawGitOrder` or `SetOnlyPathSorted`. New `RawGitOrder` captures use the commit-real filter above.
+The registry pins the manifest bytes and digest, the frozen raw digest, and the counterfactual
+path-sorted digest. A mutation regression both removes a synthetic status-only phantom and
+path-sorts a known raw manifest, requiring the corresponding guard to reject either regression.
+Historical set-only evidence remains
+immutable and is disclosed as such; for a committed target, the guard independently validates the
+exact changed-path set and commit tree against the recorded base instead of relabeling the manifest.
+Every historical content record embeds its exact status, path, byte-count, and SHA-256 rows and
+recomputes the aggregate from those rows. When the reviewed target is later committed, the historical
+record SHALL equal the raw commit-blob projection whenever those bytes are identical; a deliberately
+checkout-filtered projection is separate environment evidence and SHALL NOT be used to rewrite or
+invalidate the published dirty anchor. An uncommitted rejected target remains reproducible from its
+recorded rows even after the live worktree moves. Rows explicitly marked as still independently
+verifiable from the current worktree are also checked against their current bytes, so a coherent
+rehash cannot silently rewrite surviving historical evidence. Canonical OpenSpec markdown, the Section 7
+declaration crosswalk, and the public-authoring companion use repository LF attributes so future
+checkouts do not reintroduce line-ending-only provenance drift.
 
 Git status cannot represent empty untracked directories. Every freeze therefore records a third
 anchor over repository-relative capability-directory paths matching

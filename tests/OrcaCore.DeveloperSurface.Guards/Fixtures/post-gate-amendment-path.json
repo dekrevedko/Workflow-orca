@@ -11,7 +11,7 @@
     "independent-approval"
   ],
   "artifactPath": "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-4-3-post-gate-amendment-path-2026-08-18.md",
-  "artifactNormalizedSha256": "b4fe374b5ec3c54b5b8bf70b700627572d37056c54fa6d48b507c43e1a51384e",
+  "artifactNormalizedSha256": "b9d0dbc43f8a135ac038c529047bcfe272c865b678704a6325c976537fe89c89",
   "amendments": [
     {
       "id": "reshape-section-7b-developer-facing-surface",

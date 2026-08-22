@@ -1,15 +1,11 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
   "recordCount": 176,
-  "recordBytes": 46250,
-  "recordSha256": "078e916462cd47c3635f9c85d0ed5fc52cc62e055d45599e15a41da873be6438",
-  "semanticApprovalEligible": false,
-  "pendingCanonicalOperations": [
-    { "capability": "management-and-querying", "count": 1, "turnsGreenTask": "5.2" },
-    { "capability": "quality-and-verification", "count": 5, "turnsGreenTask": "5.2" },
-    { "capability": "repository-foundation", "count": 2, "turnsGreenTask": "5.2" }
-  ],
+  "recordBytes": 46211,
+  "recordSha256": "e1420f367a491e62e896f041f288b3235eeaf7647d721069cb71dda509b4021b",
+  "semanticApprovalEligible": true,
+  "pendingCanonicalOperations": [],
   "activeNewCapabilitiesOutsideCanonical": [
     {
       "capability": "spec-driven-planning",
@@ -113,10 +109,30 @@
   "canonicalCapabilityCount": 14,
   "canonicalCapabilityBytes": 547,
   "canonicalCapabilitySha256": "7165dac4e1a57022a7890b421f522bf4152f6d5ddc159a41539ce2ef0d18ec9f",
+  "canonicalPreambleRecordFormat": "capability\\tnormalized canonical preamble SHA-256, sorted by capability with LF and one final LF",
+  "canonicalPreambleCount": 14,
+  "canonicalPreambleBytes": 1233,
+  "canonicalPreambleSha256": "595528c6a7ba56dd5648e7fc12ac6bc2af9e9bf6fa3fbf853b86fffdd7cecd3c",
+  "canonicalPreambles": [
+    { "capability": "developer-facing-surface", "normalizedSha256": "d9f76e471104d8df4976c090d1c6d68f4723686b2e541c14168f21a1729d5c8c" },
+    { "capability": "durable-persistence-and-outbox", "normalizedSha256": "f0f78b70c39608b2c4c87c757022d56858b245237d865fd115745530112db18d" },
+    { "capability": "durable-runtime", "normalizedSha256": "c02aa389faca40c17e324795638a233c5d3ce3accd53ff72f99694e6fa8ab031" },
+    { "capability": "event-driven-prototype", "normalizedSha256": "bc120a043555a11f97720dcd7a054ee70686773c0b740bfb6f46f114cc4a0635" },
+    { "capability": "event-routing-and-waits", "normalizedSha256": "0f7f5d67edeef9a1f6e1f8eeb76f4d643bf4fb30d25130594ad4d19939763bac" },
+    { "capability": "management-and-querying", "normalizedSha256": "a31b3a33a1bd152a8f1b5af914874ccaafc10b54f95a1faeacc61ac9a75bc509" },
+    { "capability": "quality-and-verification", "normalizedSha256": "f9590cade57d6a3a270dba87b7474b88d04439ba87125dd5372546c13431ba03" },
+    { "capability": "repository-foundation", "normalizedSha256": "df9c27a8fe6b7fc6ba4347c2c4eba33ffe78605485c557006ad31762b4e5ebb4" },
+    { "capability": "runtime-resource-governance", "normalizedSha256": "aafd41358976af9ae2ef8472c44f236e8caf837a954fb5804510d5e6a2f2d14d" },
+    { "capability": "saga-orchestration", "normalizedSha256": "ccb85e7523434e739bc0b26b18d85c233cd5deffeb5f3cd03a24e0d898651097" },
+    { "capability": "state-driven-runtime", "normalizedSha256": "dc2bce2062424cebbb27ac265e9546dc48bd4c9911b686e0d46bfda93e30e78a" },
+    { "capability": "structured-fiber-execution", "normalizedSha256": "fa51c6443c4ec56474c7b6f8faf424fe35b04929039fd466472a592f07c6aa11" },
+    { "capability": "workflow-authoring", "normalizedSha256": "18c76b42ec62e08e17b2b085a7522a35c5e65589f68d1802db99ac47a01c94f3" },
+    { "capability": "workflow-contracts", "normalizedSha256": "71b18f858ab9c548cdfd4cbbba8a0856516cc71061a958a67646015c8a2f1868" }
+  ],
   "capabilityDirectoryRecordFormat": "repository-relative active openspec/changes/*/specs/*/ path with forward slashes and one trailing slash",
   "capabilityDirectoryCount": 16,
   "capabilityDirectoryBytes": 1321,
   "capabilityDirectorySha256": "5e8a9725979d702ff2f639fef587828958c92533139602ab13f1401d6df7ebd5",
   "artifactPath": "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-4-2-openspec-provenance-record-2026-08-18.md",
-  "artifactNormalizedSha256": "1cbb30c4b763a5b819cc97f78b242fad30f212ed7c39aaf02079ef22a2c2a84e"
+  "artifactNormalizedSha256": "f0a2a704bef982922015329e1672e7f64e740cdc09313276c8aed7e22573ed7e"
 }

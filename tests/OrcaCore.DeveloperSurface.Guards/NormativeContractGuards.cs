@@ -147,6 +147,33 @@ public sealed partial class NormativeContractInfrastructureGuards
     [Fact]
     public void CompanionBaseline_HasExactReviewedNamespaceArityAndSignatures()
     {
+        var attributes = File.ReadAllLines(Path.Combine(
+            FixtureDefinitions.RepositoryRoot(), ".gitattributes"));
+        attributes.Should().ContainSingle(
+            line => line == "docs/specs/17-public-authoring-contract.cs text eol=lf",
+            "the exact companion-source hash must be independent of ambient core.autocrlf settings");
+        attributes.Should().ContainSingle(
+            line => line == "openspec/specs/**/*.md text eol=lf",
+            "canonical OpenSpec hashes must be independent of ambient core.autocrlf settings");
+        attributes.Should().ContainSingle(
+            line => line ==
+                "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json text eol=lf",
+            "the declaration-accounting fixture must not acquire line-ending-only drift");
+        var canonicalSpecs = Directory.EnumerateFiles(
+            Path.Combine(FixtureDefinitions.RepositoryRoot(), "openspec", "specs"),
+            "*.md",
+            SearchOption.AllDirectories);
+        canonicalSpecs
+            .Append(Path.Combine(
+                FixtureDefinitions.RepositoryRoot(),
+                "tests",
+                "OrcaCore.DeveloperSurface.Guards",
+                "Fixtures",
+                "section-07-r-declaration-crosswalk.json"))
+            .Should()
+            .OnlyContain(
+                path => !File.ReadAllText(path).Contains('\r'),
+                "every hash-accounted canonical spec and declaration fixture must use LF bytes");
         var bytes = File.ReadAllBytes(Path.Combine(
             FixtureDefinitions.RepositoryRoot(), "docs/specs/17-public-authoring-contract.cs"));
         Convert.ToHexString(SHA256.HashData(bytes)).Should().Be(Contract.CompanionSha256,

@@ -368,7 +368,7 @@ public sealed partial class RecoveryCrosswalkInfrastructureGuards
         }
 
         expected["activeFiles"].Should().Be(188);
-        expected["activeDeclarations"].Should().Be(691);
+        expected["activeDeclarations"].Should().Be(694);
         expected["compileExcludedFiles"].Should().Be(131);
         expected["compileExcludedDeclarations"].Should().Be(688);
         expected["outOfBandFixtureFiles"].Should().Be(17);
@@ -650,8 +650,19 @@ public sealed partial class RecoveryCrosswalkInfrastructureGuards
 
         using var process = Process.Start(startInfo)
             ?? throw new InvalidOperationException("Unable to start git archive.");
+        using var archive = new MemoryStream();
+        var copyOutput = process.StandardOutput.BaseStream.CopyToAsync(archive);
+        var readError = process.StandardError.ReadToEndAsync();
+        Task.WhenAll(copyOutput, readError, process.WaitForExitAsync()).GetAwaiter().GetResult();
+        process.ExitCode.Should().Be(
+            0,
+            "git archive must read recovery checkpoint {0}: {1}",
+            commit,
+            readError.GetAwaiter().GetResult());
+
+        archive.Position = 0;
         var sources = new Dictionary<string, string>(StringComparer.Ordinal);
-        using (var reader = new TarReader(process.StandardOutput.BaseStream))
+        using (var reader = new TarReader(archive))
         {
             TarEntry? entry;
             while ((entry = reader.GetNextEntry()) is not null)
@@ -668,9 +679,6 @@ public sealed partial class RecoveryCrosswalkInfrastructureGuards
             }
         }
 
-        process.WaitForExit();
-        var error = process.StandardError.ReadToEnd();
-        process.ExitCode.Should().Be(0, "git archive must read recovery checkpoint {0}: {1}", commit, error);
         return sources;
     }
 

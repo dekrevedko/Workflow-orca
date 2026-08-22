@@ -74,17 +74,17 @@
       canonical capability inventory independently of whether each capability currently has an
       active delta, rejects duplicate owners and non-verbatim `MODIFIED` headings, requires
       reason/migration evidence plus an embedded exact historical block and pinned hash for synchronized `REMOVED`
-      headings, and verifies the exact 50 pending reshape operations against their explicitly
-      scoped open tasks 5.1/5.2. Normal archival may change the active record and require a reviewed
+      headings, and records the exact 50 reshape operations against their explicitly scoped tasks
+      5.1/5.2. Normal archival may change the active record and require a reviewed
       fixture refreeze, but it cannot make the guard permanently red through an active-delta
-      existence invariant. Its strict semantic-approval path currently refuses approval by design
-      while those 50 operations remain; the 123 synchronized operations and three declared
-      bootstrap requirements outside the canonical capability set are recorded separately. The
+      existence invariant. After tasks 5.1 and 5.2, its strict semantic-approval path records all
+      173 active canonical operations as synchronized; the three declared bootstrap requirements
+      outside the canonical capability set remain recorded separately. The
       gate also dispositions the 18-row `developer-facing-surface` case where a declared-new
       capability already exists canonically and links it to the permanent post-gate amendment
       registry, while pinning the exact 14-directory canonical inventory and 16-directory
       active-delta inventory with reproducible SHA-256 records. The human-readable provenance
-      artifact, squash-safe embedded
+      artifact, per-capability LF-normalized canonical-preamble hashes, squash-safe embedded
       removal evidence, CI `Disposition=Infrastructure` lane, symmetric requirement-block parser,
       and turns-green capability/count assignments are executable parts of the same contract. The
       historical-removal catalog is permanent: currently active synchronized removals are validated
@@ -93,8 +93,15 @@
       source edit. Post-review hardening gives the active set and permanent catalog distinct wrapper
       types so reversing them fails compilation, exercises the subset helper against a synthetic
       strict-subset catalog so its body cannot invert silently, pins the permanent catalog's reviewed
-      cardinality with a precise shrink diagnostic, and requires every CI checkout step—named or
-      unnamed—to retain full history whenever historical corroboration is available.
+      cardinality with a precise shrink diagnostic, requires every CI checkout step—named or
+      unnamed and independent of action version—to retain full history whenever historical
+      corroboration is available, and distinguishes Git-emitted raw-anchor manifests from
+      path-sorted set-only evidence. The review-manifest provenance fixture now makes that
+      distinction executable for Tasks 5.1 and 5.2, mutation-tests path sorting of the Task 5.2 raw
+      manifest, validates the exact Task 5.1 committed path set and tree, and blocks every Task 5.2
+      checkpoint until Task 5.1 approval evidence is committed in its ancestry. New freezes derive
+      their Git-order manifest from tracked content diffs plus untracked files, so status-only
+      attribute/index entries that cannot enter a commit are excluded and mutation-tested.
 - [x] 4.3 Define a post-gate amendment path so a decision approved after its original section gate
       closed must re-enter canonical requirements, acceptance criteria, implementation tasks,
       refreeze, and independent approval rather than silently bypassing the completed gate. This
@@ -102,13 +109,13 @@
       and SHALL preserve ordinary active-change archival by updating the reviewed provenance
       fixture rather than requiring every canonical capability to retain an active delta forever.
       **Completed:** a machine-readable eight-stage registry now binds the Section 7B amendment to
-      its original 4.15/10.14 gates, 7.23 approval, open canonical task 5.1, open numbered
+      its original 4.15/10.14 gates, 7.23 approval, completed canonical task 5.1, open numbered
       requirement/acceptance task 7.3, exactly 11 completed 7.24-7.34 implementation tasks,
       executable evidence, and the 7.22 refreeze/verdict. The registry embeds all 18 exact
-      requirement identities, derives their current seven canonical mismatches from the resolved
-      active or dated archived change record, and normalizes verdict line endings before exact
-      task/approval checks. The structural case is linked permanently without pre-closing its seven
-      canonical mismatches or requiring the owning change to remain active. Checkpoint validation
+      requirement identities, verifies their zero remaining canonical mismatches against the resolved
+      active or dated archived change record after task 5.1, and normalizes verdict line endings before
+      exact task/approval checks. The structural case remains linked permanently without requiring the
+      owning change to remain active. Checkpoint validation
       also replaces the shared 3.11c lease-recovery fixture's scheduler-sensitive wall-clock gate
       waits with workflow-owned completion signals and pins that rule across every behavior-scenario
       and provider-certification source, excluding generated `bin`/`obj` output and including the
@@ -127,13 +134,54 @@
       `workflow-contracts` (9). **Completed:** the immutable task 7.23 verdict is `APPROVE`; all 42
       requirement blocks now match the authoritative reshape deltas exactly, including removal of
       the authored-`Yield` canonical block. `developer-facing-surface` (0) and the other six named
-      capabilities have zero pending canonical operations; only the eight task 5.2 mismatches remain.
-- [ ] 5.2 Verify reshape tasks 7.16–7.22 close the complete API baseline, typed-boundary replacement,
+      capabilities have zero pending canonical operations; at that checkpoint only the eight task
+      5.2 mismatches remained.
+- [x] 5.2 Verify reshape tasks 7.16–7.22 close the complete API baseline, typed-boundary replacement,
       deletion ledger, operational statistics/observability/retention restoration, provider
       disposition, semantic test crosswalk, deterministic guards, samples, and fresh package feed;
       account for the eight remaining non-vocabulary canonical mismatches recorded by task 3.1:
       `management-and-querying` (1), `quality-and-verification` (5),
-      `repository-foundation` (2).
+      `repository-foundation` (2). **Completed:** reshape tasks 7.16–7.22 and the immutable task 7.22
+      `APPROVE` verdict close the owned source, package, provider, deletion-ledger, semantic-crosswalk,
+      sample, deterministic-guard, and fresh-feed gates. All eight requirement blocks now match the
+      authoritative reshape deltas exactly; the 176-row provenance record contains 173 synchronized
+      canonical operations, three declared bootstrap requirements outside canonical, zero pending
+      operations, and is semantic-approval eligible. The same slice closes the remaining task 5.1
+      review observations by making CI checkout detection version-agnostic, correcting the recursive
+      wall-clock-source scan description, and requiring future raw-anchor manifests to retain Git's
+      emitted order. Post-review hardening pins all 14 canonical preambles individually and as one
+      aggregate record, so an unreviewed `## Purpose` edit fails even when requirement provenance is
+      unchanged. The 2026-08-21 independent review reproduced every technical claim but returned
+      `REJECT` because checkpoint `ff11ead781f8fef343fafc6e6bc8307d746e4a05` has no Task 5.1
+      independent-approval verdict or disclosed retroactive owner approval. Its non-blocking raw
+      manifest-order observation is now enforced by a dedicated executable fixture and mutation
+      regression; that hardening does not clear the provenance rejection.
+- [ ] 5.2a **REMEDIATION REQUIRED:** Preserve the immutable Task 5.2 `REJECT` verdict, obtain an
+      independent verdict for the exact Task 5.1 checkpoint
+      `ff11ead781f8fef343fafc6e6bc8307d746e4a05` or an explicit dated owner-approval disclosure, and
+      commit that approval provenance as a distinct checkpoint before refreezing Task 5.2. Keep
+      Task 5.3 blocked. The implementation owner may prepare the request and executable guards but
+      SHALL NOT self-author the approval. Disclose that the Task 5.1 manifest is path-sorted
+      set-only evidence, preserve it byte-for-byte, validate the exact 17-path checkpoint tree
+      against parent `179421029f62bc0cd4d5968d465cf045f420ba34`, and retain the frozen raw and
+      content anchors. **Remediation remains open after two independent `REJECT` verdicts:** the
+      provenance fixture now distinguishes missing review, recorded rejection, and approval; pins
+      every Task 5.1 and Task 5.2 verdict byte-for-byte; and keeps a Task 5.2 checkpoint prohibited.
+      The clean-checkout deletion-ledger regression, complete `git archive` draining, LF-pinned
+      companion baseline, and rejected-state guard are implemented but require review as a new
+      remediation target before Task 5.1 approval evidence can be committed. A later provenance
+      review rejected the fixture's invented 2,427-byte Task 5.1 record and incorrect Task 5.2
+      content digest. Schema 3 now embeds every historical status/path/byte/hash row, recomputes the
+      published 2,428-byte
+      `741cfd6bbdd46cb4390c2f40c0d21d81d35b3e3749438b38efda44f26da1ff72` Task 5.1 record and
+      1,793-byte `0068973b0dbd4c1f79086a0262cefe62b728911362b5cd43fe472e0c7daebc8a`
+      Task 5.2 record,
+      requires Task 5.1 to equal its raw commit-blob projection, and pins canonical OpenSpec markdown
+      plus the Section 7 declaration crosswalk to LF. The approving provenance-remediation review
+      then identified four status-only canonical-spec entries that were byte-identical to `HEAD`;
+      the commit-real freeze projection excludes them, and the Task 5.2 record now pins the four
+      historical rows still independently reproducible from current worktree bytes. The task remains
+      open until external approval evidence is committed.
 - [ ] 5.3 Verify reshape remains the sole active delta owner for repository friend topology and the
       durable resource-governance aggregate; byte-identical duplicate requirements do not count as
       harmless redundancy.

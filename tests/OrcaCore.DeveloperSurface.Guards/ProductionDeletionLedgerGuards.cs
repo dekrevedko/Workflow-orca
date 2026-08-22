@@ -56,6 +56,20 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
     }
 
     [Fact]
+    public void RetiredProjectPackageDiscovery_ToleratesAnAbsentDeletedProjectDirectory()
+    {
+        var absentRoot = Path.Combine(
+            Path.GetTempPath(),
+            $"orcacore-retired-package-{Guid.NewGuid():N}");
+
+        ReadRetiredProjectPackages(
+                absentRoot,
+                ["src/OrcaCore.Hosting/OrcaCore.Hosting.csproj"])
+            .Should()
+            .Equal("OrcaCore.Hosting");
+    }
+
+    [Fact]
     public void Ledger_HasClosedDispositionsNormativeOwnersRecoverySymbolInventoriesAndEvidence()
     {
         var root = FixtureDefinitions.RepositoryRoot();
@@ -308,7 +322,12 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
     {
         return deletedPaths
             .Where(path => path.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
-            .Where(path => !Directory.EnumerateFiles(Path.GetDirectoryName(ToAbsolutePath(root, path))!, "*.csproj").Any())
+            .Where(path =>
+            {
+                var projectDirectory = Path.GetDirectoryName(ToAbsolutePath(root, path))!;
+                return !Directory.Exists(projectDirectory) ||
+                       !Directory.EnumerateFiles(projectDirectory, "*.csproj").Any();
+            })
             .Select(path => Path.GetFileNameWithoutExtension(path))
             .Order(StringComparer.Ordinal)
             .ToArray();

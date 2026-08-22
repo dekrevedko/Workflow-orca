@@ -2,9 +2,10 @@
 
 Date: 2026-08-18
 
-This artifact records the reproducible input relationship enforced by the checkpoint guard. It is
-not semantic approval: the strict semantic path refuses approval until every pending canonical
-operation is consumed by its recorded owner.
+This artifact records the reproducible input relationship enforced by the checkpoint guard.
+Structural OpenSpec validation remains distinct from semantic approval; after tasks 5.1 and 5.2
+consumed every pending canonical operation, the strict provenance path is now eligible for semantic
+approval.
 
 ## Record recipe
 
@@ -25,22 +26,22 @@ The complete rows are sorted by ordinal comparison of the rendered record, joine
 final LF, and hashed as UTF-8 without a BOM.
 
 - record rows: 176
-- record bytes: 46,250
-- record SHA-256: `078e916462cd47c3635f9c85d0ed5fc52cc62e055d45599e15a41da873be6438`
-- synchronized operations: 165
-- pending canonical operations: 8
+- record bytes: 46,211
+- record SHA-256: `e1420f367a491e62e896f041f288b3235eeaf7647d721069cb71dda509b4021b`
+- synchronized operations: 173
+- pending canonical operations: 0
 - declared new-capability requirements outside the canonical set: 3
 - duplicate `(capability, requirement)` owners: 0
-- semantic approval eligible: no
+- semantic approval eligible: yes
 
 State composition:
 
 | State | Count |
 |---|---:|
-| `Synchronized` | 165 |
-| `PendingAddition` | 1 |
-| `PendingAddedCanonicalConflict` | 5 |
-| `PendingModification` | 2 |
+| `Synchronized` | 173 |
+| `PendingAddition` | 0 |
+| `PendingAddedCanonicalConflict` | 0 |
+| `PendingModification` | 0 |
 | `PendingRemoval` | 0 |
 | `NewCapabilityOutsideCanonical` | 3 |
 
@@ -73,6 +74,23 @@ Every repository-relative `openspec/specs/*/` capability directory uses `/`, ret
 - SHA-256: `7165dac4e1a57022a7890b421f522bf4152f6d5ddc159a41539ce2ef0d18ec9f`
 - directories lacking `spec.md`: 0
 
+## Canonical-preamble inventory
+
+For every canonical capability, the guard LF-normalizes `spec.md`, takes every byte before the
+first line-start `### Requirement:` heading, and hashes that complete preamble. This includes
+`## Purpose`, intervening headings, and blank-line structure. Records render as
+`<capability>\t<normalized-preamble-sha256>`, sort by capability using ordinal comparison, and join
+with LF plus one final LF before UTF-8 SHA-256.
+
+- canonical preambles: 14
+- record bytes: 1,233
+- SHA-256: `595528c6a7ba56dd5648e7fc12ac6bc2af9e9bf6fa3fbf853b86fffdd7cecd3c`
+
+The machine-readable fixture stores the 14 individual capability hashes so a changed `## Purpose`
+reports the exact capability rather than only an aggregate-record mismatch. An approved preamble
+revision therefore requires a reviewed fixture refreeze; an unrecorded edit cannot remain green
+merely because all requirement blocks are unchanged.
+
 ## Capability-directory inventory
 
 The checkpoint guard also enumerates every active
@@ -89,16 +107,14 @@ UTF-8 SHA-256. This is the exact Decision 6 capability-inventory recipe.
 
 | Canonical capability | Pending | Turns green |
 |---|---:|---|
-| `management-and-querying` | 1 | task 5.2 |
-| `quality-and-verification` | 5 | task 5.2 |
-| `repository-foundation` | 2 | task 5.2 |
-| **Total** | **8** | **8 in 5.2** |
+| **Total** | **0** | **tasks 5.1 and 5.2 complete** |
 
 Task 5.1 consumed the prior 42 vocabulary-bearing operations across
 `developer-facing-surface`, `durable-persistence-and-outbox`, `durable-runtime`,
 `event-routing-and-waits`, `state-driven-runtime`, `workflow-authoring`, and
-`workflow-contracts`. Their canonical requirement blocks now match the authoritative reshape
-deltas exactly; the table retains only the non-vocabulary task 5.2 remainder.
+`workflow-contracts`. Task 5.2 consumed the remaining eight non-vocabulary operations across
+`management-and-querying`, `quality-and-verification`, and `repository-foundation`. All 50
+canonical requirement blocks now match the authoritative reshape deltas exactly.
 
 The machine-readable companion is
 `tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json`. The guard
@@ -122,9 +138,8 @@ useful corroboration.
 Independently, a guard-source constant pins the complete eleven-entry source/path/identity/block-hash
 catalog as `81c06519ae95846b697df5e895e6bcbc9792c3e36afbe441529b3add15008ebd`, so a fixture-local
 block/hash rewrite is not self-attesting when integration history is squashed or rebased.
-The eleventh entry preserves the authored-`Yield` canonical block removed by task 5.1.
-The remaining `Yield is a fiber scheduling operation` removal is the one pending removal recorded
-above.
+The eleventh entry preserves the authored-`Yield` canonical block removed by task 5.1. No pending
+canonical removals remain.
 
 ## Checkpoint process correction
 

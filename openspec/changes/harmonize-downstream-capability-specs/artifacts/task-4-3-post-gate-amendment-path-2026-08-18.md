@@ -76,8 +76,9 @@ Concurrent infrastructure-lane stress reproduced the pre-existing 3.11c lease-re
 30-second wall-clock wait expired before the scheduler started the retry while sibling lanes needed
 more than one minute under load. The shared lease-exit/recovery fixture now awaits its existing
 workflow-owned start and completion signals, asserts that the retry actually started, and carries no
-`WaitAsync(TimeSpan...)` gate. The infrastructure contract guard scans both fixture source files so
-the scheduler-sensitive wait cannot silently return.
+`WaitAsync(TimeSpan...)` gate. The infrastructure contract guard recursively scans every
+non-generated C# source under both behavior-scenario and provider-certification trees so the
+scheduler-sensitive wait cannot silently return in a renamed or newly added fixture.
 
 Post-review observation remediation gives the active-removal set and permanent catalog distinct
 wrapper types so reversing them fails compilation, requires every CI checkout to retain full history,

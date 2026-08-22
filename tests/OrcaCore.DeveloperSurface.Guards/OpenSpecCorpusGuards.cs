@@ -18,6 +18,8 @@ public sealed class OpenSpecCorpusGuards
     private const string HistoricalCanonicalRemovalCatalogSha256 =
         "81c06519ae95846b697df5e895e6bcbc9792c3e36afbe441529b3add15008ebd";
     private const int HistoricalCanonicalRemovalCatalogCount = 11;
+    private const string ReviewManifestProvenanceFixture =
+        "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json";
 
     private static readonly string[] RequiredPostGateStages =
     [
@@ -30,6 +32,191 @@ public sealed class OpenSpecCorpusGuards
         "refreeze",
         "independent-approval"
     ];
+
+    [Fact]
+    public void ReviewManifests_PreserveRawGitOrderOrDiscloseSetOnlyEvidence()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        var checkpoint = FixtureDefinitions.Read<ReviewManifestProvenanceCheckpoint>(
+            ReviewManifestProvenanceFixture);
+        checkpoint.SchemaVersion.Should().Be(4);
+        checkpoint.Entries.Select(entry => entry.Task).Should().OnlyHaveUniqueItems();
+
+        ValidateCommitRealFreezeProjection(root);
+
+        var reviewRoot = Path.Combine(root, "docs", "review");
+        var discoveredManifests = Directory
+            .EnumerateFiles(
+                reviewRoot,
+                "harmonize-downstream-capability-specs-task-*-dirty-manifest-*.txt",
+                SearchOption.TopDirectoryOnly)
+            .Select(path => RelativePath(root, path))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        checkpoint.Entries
+            .Select(entry => entry.ManifestPath)
+            .Order(StringComparer.Ordinal)
+            .Should()
+            .Equal(
+                discoveredManifests,
+                "every harmonization task review manifest must receive an explicit raw-order or set-only disposition");
+
+        foreach (var entry in checkpoint.Entries)
+        {
+            ValidateReviewManifestProvenance(root, entry);
+            ValidateReviewVerdictEvidence(root, entry);
+            ValidateReviewStateEvidence(entry);
+        }
+    }
+
+    [Fact]
+    public void ReviewCheckpointProvenance_BlocksTask52CheckpointUntilTask51ApprovalExists()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        var checkpoint = FixtureDefinitions.Read<ReviewManifestProvenanceCheckpoint>(
+            ReviewManifestProvenanceFixture);
+        var task51 = checkpoint.Entries.Single(entry => entry.Task == "5.1");
+        ValidateReviewVerdictEvidence(root, task51);
+        ValidateReviewStateEvidence(task51);
+
+        task51.CheckpointCommit.Should().NotBeNullOrWhiteSpace();
+        task51.CheckpointTree.Should().NotBeNullOrWhiteSpace();
+        var commit = RunGit(root, "cat-file", "-e", $"{task51.CheckpointCommit}^{{commit}}");
+        commit.ExitCode.Should().Be(0, "the Task 5.1 checkpoint under review must exist");
+        var parent = RunGit(root, "rev-parse", $"{task51.CheckpointCommit}^");
+        parent.ExitCode.Should().Be(0);
+        parent.StandardOutput.Trim().Should().Be(task51.BaseCommit);
+        var tree = RunGit(root, "rev-parse", $"{task51.CheckpointCommit}^{{tree}}");
+        tree.ExitCode.Should().Be(0);
+        tree.StandardOutput.Trim().Should().Be(task51.CheckpointTree);
+
+        var originalManifest = ReadReviewManifest(root, task51.ManifestPath);
+        var committedPaths = ReadCommittedPaths(root, task51.BaseCommit, task51.CheckpointCommit!);
+        originalManifest.Lines
+            .Select(ReviewManifestPath)
+            .Order(StringComparer.Ordinal)
+            .Should()
+            .Equal(
+                committedPaths,
+                "the Task 5.1 checkpoint must contain exactly the files named by its frozen manifest");
+        var blobContentRecord = BuildCommittedContentRecord(
+            root,
+            task51.CheckpointCommit!,
+            originalManifest.Lines);
+        Encoding.UTF8.GetByteCount(blobContentRecord).Should().Be(task51.CheckpointBlobContentRecordBytes);
+        Sha256(blobContentRecord).Should().Be(task51.CheckpointBlobContentRecordSha256);
+        var historicalContentRecord = BuildHistoricalContentRecord(
+            task51.HistoricalDirtyContentRecordRows);
+        historicalContentRecord.Should().Be(
+            blobContentRecord,
+            "Task 5.1's published dirty-worktree record is byte-identical to its committed blob projection");
+        task51.HistoricalDirtyContentRecordBytes.Should().Be(
+            task51.CheckpointBlobContentRecordBytes);
+        task51.HistoricalDirtyContentRecordSha256.Should().Be(
+            task51.CheckpointBlobContentRecordSha256);
+
+        var task51Approvals = task51.VerdictEvidence
+            .Where(evidence => evidence.Verdict == "APPROVE")
+            .ToArray();
+        var task51Rejections = task51.VerdictEvidence
+            .Where(evidence => evidence.Verdict == "REJECT")
+            .ToArray();
+        var task52Checkpoint = RunGit(
+            root,
+            "log",
+            "--all",
+            "--format=%H%x09%s",
+            "--grep=^Checkpoint harmonization task 5.2");
+        task52Checkpoint.ExitCode.Should().Be(0);
+
+        switch (task51.ReviewState)
+        {
+            case "MissingApproval":
+                task51.ApprovalEvidenceCommit.Should().BeNull(
+                    "missing approval must not claim an approval-evidence checkpoint");
+                task51.VerdictEvidence.Should().BeEmpty(
+                    "a missing-review state may not conceal recorded review evidence");
+                task52Checkpoint.StandardOutput.Should().BeNullOrWhiteSpace(
+                    "Task 5.2 cannot checkpoint on top of an unapproved Task 5.1 base");
+                break;
+            case "Rejected":
+                task51.ApprovalEvidenceCommit.Should().BeNull(
+                    "rejected review evidence cannot be relabeled as an approval checkpoint");
+                task51Approvals.Should().BeEmpty(
+                    "Task 5.1 remains blocked until an immutable APPROVE verdict exists");
+                task51Rejections.Should().NotBeEmpty(
+                    "the rejected state must retain at least one immutable REJECT verdict");
+                task52Checkpoint.StandardOutput.Should().BeNullOrWhiteSpace(
+                    "Task 5.2 cannot checkpoint on top of a rejected Task 5.1 provenance target");
+                var rejectionPath = Path.Combine(
+                    root,
+                    task51.BlockingEvidencePath.Replace('/', Path.DirectorySeparatorChar));
+                var rejection = NormalizeLineEndings(File.ReadAllText(rejectionPath));
+                rejection.Should().Contain("**Verdict:** **REJECT**");
+                rejection.Should().Contain(task51.CheckpointCommit!);
+                rejection.Should().Contain("Missing Task 5.1 independent-approval verdict");
+                var taskLedger = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+                    root,
+                    "openspec",
+                    "changes",
+                    "harmonize-downstream-capability-specs",
+                    "tasks.md")));
+                taskLedger.Should().Contain("- [ ] 5.2a **REMEDIATION REQUIRED:**");
+                break;
+            case "Approved":
+                task51Approvals.Should().ContainSingle(
+                    "an approved Task 5.1 checkpoint must have exactly one immutable verdict");
+                task51.ApprovalEvidenceCommit.Should().NotBeNullOrWhiteSpace(
+                    "approval evidence must be preserved in a distinct repository checkpoint");
+                var approvalCommit = RunGit(
+                    root,
+                    "cat-file",
+                    "-e",
+                    $"{task51.ApprovalEvidenceCommit}^{{commit}}");
+                approvalCommit.ExitCode.Should().Be(0);
+                var approvalAncestry = RunGit(
+                    root,
+                    "merge-base",
+                    "--is-ancestor",
+                    task51.CheckpointCommit!,
+                    task51.ApprovalEvidenceCommit!);
+                approvalAncestry.ExitCode.Should().Be(0,
+                    "Task 5.1 approval must be committed after the reviewed Task 5.1 checkpoint");
+                var verdictRelativePath = task51Approvals[0].Path;
+                var committedVerdict = RunGit(
+                    root,
+                    "show",
+                    $"{task51.ApprovalEvidenceCommit}:{verdictRelativePath}");
+                committedVerdict.ExitCode.Should().Be(0,
+                    "the approval-evidence checkpoint must preserve the immutable Task 5.1 verdict");
+                var verdict = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+                    root,
+                    verdictRelativePath.Replace('/', Path.DirectorySeparatorChar))));
+                verdict.Should().MatchRegex(
+                    @"(?mi)^\*\*Verdict:\*\*[ \t]*(?:\*\*)?APPROVE(?:\*\*)?[ \t]*$");
+                verdict.Should().Contain(task51.CheckpointCommit!);
+                NormalizeLineEndings(committedVerdict.StandardOutput).TrimEnd('\n')
+                    .Should().Be(verdict.TrimEnd('\n'),
+                        "the working verdict must remain byte-content equivalent to its approval checkpoint");
+                foreach (var task52Commit in task52Checkpoint.StandardOutput
+                             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                             .Select(line => line.Split('\t', 2)[0]))
+                {
+                    var task52Ancestry = RunGit(
+                        root,
+                        "merge-base",
+                        "--is-ancestor",
+                        task51.ApprovalEvidenceCommit!,
+                        task52Commit);
+                    task52Ancestry.ExitCode.Should().Be(0,
+                        "every Task 5.2 checkpoint must descend from committed Task 5.1 approval evidence");
+                }
+                break;
+            default:
+                throw new InvalidDataException(
+                    $"Unsupported Task 5.1 review state '{task51.ReviewState}'.");
+        }
+    }
 
     [Fact]
     public void CanonicalSynchronizationGate_EnumeratesCapabilitiesDeltasAndRequirementOwners()
@@ -346,6 +533,21 @@ public sealed class OpenSpecCorpusGuards
             StringComparer.Ordinal);
     }
 
+    private static string ReadCanonicalPreamble(string root, string specPath)
+    {
+        const string requirementPrefix = "### Requirement: ";
+        var text = NormalizeLineEndings(File.ReadAllText(specPath));
+        var requirementIndex = text.IndexOf(requirementPrefix, StringComparison.Ordinal);
+        if (requirementIndex < 0 ||
+            (requirementIndex > 0 && text[requirementIndex - 1] != '\n'))
+        {
+            throw new InvalidDataException(
+                $"Canonical spec '{RelativePath(root, specPath)}' must contain a line-start requirement heading.");
+        }
+
+        return text[..requirementIndex];
+    }
+
     private static DeltaRequirement[] ReadDeltaRequirements(
         string root,
         string change,
@@ -477,7 +679,7 @@ public sealed class OpenSpecCorpusGuards
         var checkpoint = FixtureDefinitions.Read<OpenSpecProvenanceCheckpoint>(
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json");
 
-        checkpoint.SchemaVersion.Should().Be(5);
+        checkpoint.SchemaVersion.Should().Be(6);
         checkpoint.RecordFormat.Should().Be(recordFormat);
         rows.Should().HaveCount(checkpoint.RecordCount);
         recordBytes.Should().HaveCount(checkpoint.RecordBytes);
@@ -635,6 +837,27 @@ public sealed class OpenSpecCorpusGuards
         paths.Should().HaveCount(checkpoint.CanonicalCapabilityCount);
         bytes.Should().HaveCount(checkpoint.CanonicalCapabilityBytes);
         Sha256(record).Should().Be(checkpoint.CanonicalCapabilitySha256);
+
+        const string preambleRecordFormat =
+            "capability\\tnormalized canonical preamble SHA-256, sorted by capability with LF and one final LF";
+        var preambles = canonicalCapabilityDirectories
+            .Select(path => new CanonicalPreambleHash(
+                GetDirectoryName(path),
+                Sha256(ReadCanonicalPreamble(root, Path.Combine(path, "spec.md")))))
+            .OrderBy(item => item.Capability, StringComparer.Ordinal)
+            .ToArray();
+        var preambleRecord = string.Join(
+            '\n',
+            preambles.Select(item => $"{item.Capability}\t{item.NormalizedSha256}")) + "\n";
+        var preambleBytes = Encoding.UTF8.GetBytes(preambleRecord);
+
+        checkpoint.CanonicalPreambleRecordFormat.Should().Be(preambleRecordFormat);
+        preambles.Should().Equal(
+            checkpoint.CanonicalPreambles.OrderBy(item => item.Capability, StringComparer.Ordinal),
+            "every canonical preamble, including ## Purpose, must remain byte-stable after LF normalization");
+        preambles.Should().HaveCount(checkpoint.CanonicalPreambleCount);
+        preambleBytes.Should().HaveCount(checkpoint.CanonicalPreambleBytes);
+        Sha256(preambleRecord).Should().Be(checkpoint.CanonicalPreambleSha256);
     }
 
     private static void ValidatePostGateAmendmentPath(
@@ -1053,6 +1276,351 @@ public sealed class OpenSpecCorpusGuards
             standardError.GetAwaiter().GetResult());
     }
 
+    private static void ValidateReviewManifestProvenance(
+        string root,
+        ReviewManifestProvenanceEntry entry)
+    {
+        var requestPath = Path.Combine(
+            root,
+            entry.RequestPath.Replace('/', Path.DirectorySeparatorChar));
+        File.Exists(requestPath).Should().BeTrue(
+            "the review request recorded for Task {0} must exist",
+            entry.Task);
+        var request = NormalizeLineEndings(File.ReadAllText(requestPath));
+        request.Should().Contain(Path.GetFileName(entry.ManifestPath));
+        entry.HistoricalDirtyContentRecordBytes.Should().BePositive();
+        entry.HistoricalDirtyContentRecordSha256.Should().MatchRegex("^[0-9a-f]{64}$");
+        if (entry.CheckpointCommit is null)
+        {
+            entry.CheckpointBlobContentRecordBytes.Should().BeNull();
+            entry.CheckpointBlobContentRecordSha256.Should().BeNull();
+        }
+        else
+        {
+            entry.CheckpointBlobContentRecordBytes.Should().NotBeNull();
+            entry.CheckpointBlobContentRecordSha256.Should().MatchRegex("^[0-9a-f]{64}$");
+        }
+
+        var manifest = ReadReviewManifest(root, entry.ManifestPath);
+        manifest.Bytes.Should().HaveCount(entry.ManifestBytes);
+        manifest.Lines.Should().HaveCount(entry.LineCount);
+        Sha256(manifest.Bytes).Should().Be(entry.ManifestSha256);
+        manifest.Lines.Should().OnlyContain(
+            line => Regex.IsMatch(
+                line,
+                @"^[ MADRCU?!]{2} .+$",
+                RegexOptions.CultureInvariant),
+            "review manifests must contain exact two-character porcelain statuses and paths");
+        manifest.Lines.Should().OnlyHaveUniqueItems();
+
+        entry.HistoricalDirtyContentRecordRows.Should().HaveCount(
+            entry.LineCount,
+            "every frozen manifest entry must retain its exact historical byte evidence");
+        entry.HistoricalDirtyContentRecordRows
+            .Select(row => $"{row.Status} {row.Path}")
+            .Should()
+            .Equal(
+                manifest.Lines,
+                "historical content rows must bind one-to-one to the frozen manifest in its disclosed order");
+        entry.HistoricalDirtyContentRecordRows.Should().OnlyHaveUniqueItems(
+            row => $"{row.Status}\t{row.Path}");
+        entry.HistoricalDirtyContentRecordRows.Should().OnlyContain(row =>
+            Regex.IsMatch(row.Status, "^[ MADRCU?!]{2}$", RegexOptions.CultureInvariant) &&
+            !string.IsNullOrWhiteSpace(row.Path) &&
+            !row.Path.Contains('\\', StringComparison.Ordinal) &&
+            row.Bytes > 0 &&
+            Regex.IsMatch(row.Sha256, "^[0-9a-f]{64}$", RegexOptions.CultureInvariant));
+        var historicalContentRecord = BuildHistoricalContentRecord(
+            entry.HistoricalDirtyContentRecordRows);
+        Encoding.UTF8.GetByteCount(historicalContentRecord).Should().Be(
+            entry.HistoricalDirtyContentRecordBytes);
+        Sha256(historicalContentRecord).Should().Be(
+            entry.HistoricalDirtyContentRecordSha256,
+            "the published historical content anchor must be recomputed from its exact recorded rows");
+
+        var rowsByPath = entry.HistoricalDirtyContentRecordRows.ToDictionary(
+            row => row.Path,
+            StringComparer.Ordinal);
+        entry.CurrentWorktreeMatchPaths.Should().OnlyHaveUniqueItems();
+        entry.CurrentWorktreeMatchPaths.Should().OnlyContain(path => rowsByPath.ContainsKey(path),
+            "every opportunistic current-worktree pin must name a historical content row");
+        foreach (var currentPath in entry.CurrentWorktreeMatchPaths)
+        {
+            var currentBytes = File.ReadAllBytes(Path.Combine(
+                root,
+                currentPath.Replace('/', Path.DirectorySeparatorChar)));
+            var historicalRow = rowsByPath[currentPath];
+            currentBytes.Should().HaveCount(
+                historicalRow.Bytes,
+                "historical row '{0}' is still independently verifiable from the current worktree",
+                currentPath);
+            Sha256(currentBytes).Should().Be(
+                historicalRow.Sha256,
+                "historical row '{0}' is still independently verifiable from the current worktree",
+                currentPath);
+        }
+
+        var pathSorted = manifest.Lines
+            .OrderBy(ReviewManifestPath, StringComparer.Ordinal)
+            .ToArray();
+        var pathSortedBytes = Encoding.UTF8.GetBytes(string.Join('\n', pathSorted) + "\n");
+        Sha256(pathSortedBytes).Should().Be(entry.PathSortedSha256);
+
+        switch (entry.Disposition)
+        {
+            case "RawGitOrder":
+                RequireRawReviewManifest(entry, manifest.Bytes);
+                entry.ManifestSha256.Should().Be(entry.FrozenRawPorcelainSha256);
+                entry.PathSortedSha256.Should().NotBe(
+                    entry.FrozenRawPorcelainSha256,
+                    "the checked-in regression must discriminate path sorting from Git-emitted raw order");
+                Action validatePathSortedMutation = () =>
+                    RequireRawReviewManifest(entry, pathSortedBytes);
+                validatePathSortedMutation.Should().Throw<InvalidDataException>()
+                    .WithMessage("*raw Git order*");
+                break;
+            case "SetOnlyPathSorted":
+                entry.ManifestSha256.Should().Be(entry.PathSortedSha256);
+                entry.ManifestSha256.Should().NotBe(
+                    entry.FrozenRawPorcelainSha256,
+                    "set-only evidence must never be presented as the raw porcelain anchor");
+                break;
+            default:
+                throw new InvalidDataException(
+                    $"Unsupported review manifest disposition '{entry.Disposition}'.");
+        }
+    }
+
+    private static void RequireRawReviewManifest(
+        ReviewManifestProvenanceEntry entry,
+        byte[] candidateBytes)
+    {
+        var candidateSha256 = Sha256(candidateBytes);
+        if (!string.Equals(
+                candidateSha256,
+                entry.FrozenRawPorcelainSha256,
+                StringComparison.Ordinal))
+        {
+            throw new InvalidDataException(
+                $"Task {entry.Task} review manifest must preserve raw Git order: expected " +
+                $"{entry.FrozenRawPorcelainSha256}, found {candidateSha256}.");
+        }
+    }
+
+    private static void ValidateCommitRealFreezeProjection(string root)
+    {
+        var syntheticStatus = new[]
+        {
+            " M real-change.md",
+            " M index-only-phantom.md",
+            "?? new-file.md"
+        };
+        ProjectCommitRealFreezeManifest(
+                syntheticStatus,
+                new HashSet<string>(
+                    ["real-change.md", "new-file.md"],
+                    StringComparer.Ordinal))
+            .Should()
+            .Equal(
+                [" M real-change.md", "?? new-file.md"],
+                "status-only entries whose bytes equal HEAD must never enter a frozen manifest");
+
+        var status = RunGit(
+            root,
+            "status",
+            "--porcelain=v1",
+            "--untracked-files=all",
+            "--no-renames");
+        status.ExitCode.Should().Be(0);
+        var statusLines = NormalizeLineEndings(status.StandardOutput)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var tracked = RunGit(root, "diff", "--name-only", "--no-renames", "HEAD");
+        tracked.ExitCode.Should().Be(0);
+        var untracked = RunGit(root, "ls-files", "--others", "--exclude-standard");
+        untracked.ExitCode.Should().Be(0);
+        var commitRealPaths = NormalizeLineEndings(tracked.StandardOutput)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Concat(NormalizeLineEndings(untracked.StandardOutput)
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            .ToHashSet(StringComparer.Ordinal);
+
+        var projection = ProjectCommitRealFreezeManifest(statusLines, commitRealPaths);
+        projection.Select(ReviewManifestPath)
+            .Order(StringComparer.Ordinal)
+            .Should()
+            .Equal(
+                commitRealPaths.Order(StringComparer.Ordinal),
+                "the review freeze entry set must equal tracked content diffs plus untracked files");
+    }
+
+    private static string[] ProjectCommitRealFreezeManifest(
+        IEnumerable<string> statusLines,
+        IReadOnlySet<string> commitRealPaths) =>
+        statusLines
+            .Where(line => commitRealPaths.Contains(ReviewManifestPath(line)))
+            .ToArray();
+
+    private static void ValidateReviewVerdictEvidence(
+        string root,
+        ReviewManifestProvenanceEntry entry)
+    {
+        var reviewRoot = Path.Combine(root, "docs", "review");
+        var discoveredPaths = Directory
+            .EnumerateFiles(
+                reviewRoot,
+                $"harmonize-downstream-capability-specs-task-{entry.Task.Replace('.', '-')}*verdict-*.md",
+                SearchOption.TopDirectoryOnly)
+            .Select(path => RelativePath(root, path))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        entry.VerdictEvidence
+            .Select(evidence => evidence.Path)
+            .Order(StringComparer.Ordinal)
+            .Should()
+            .Equal(
+                discoveredPaths,
+                $"Task {entry.Task} must register every immutable verdict without overwriting rejection history");
+
+        foreach (var evidence in entry.VerdictEvidence)
+        {
+            evidence.Verdict.Should().BeOneOf("APPROVE", "REJECT");
+            var verdictPath = Path.Combine(
+                root,
+                evidence.Path.Replace('/', Path.DirectorySeparatorChar));
+            File.Exists(verdictPath).Should().BeTrue("recorded review evidence must exist");
+            var verdictBytes = File.ReadAllBytes(verdictPath);
+            Sha256(verdictBytes).Should().Be(
+                evidence.Sha256,
+                "immutable review evidence must remain byte-exact");
+            var matches = Regex.Matches(
+                NormalizeLineEndings(Encoding.UTF8.GetString(verdictBytes)),
+                @"(?mi)^\*\*Verdict(?::\*\*|:)[ \t]*(?:\*\*)?(APPROVE|REJECT)(?:\*\*)?[ \t]*$",
+                RegexOptions.CultureInvariant);
+            matches.Should().ContainSingle("every verdict file must carry exactly one terminal verdict");
+            matches[0].Groups[1].Value.Should().Be(evidence.Verdict);
+        }
+    }
+
+    private static void ValidateReviewStateEvidence(ReviewManifestProvenanceEntry entry)
+    {
+        var approvals = entry.VerdictEvidence.Count(evidence => evidence.Verdict == "APPROVE");
+        var rejections = entry.VerdictEvidence.Count(evidence => evidence.Verdict == "REJECT");
+        switch (entry.ReviewState)
+        {
+            case "MissingApproval":
+                entry.VerdictEvidence.Should().BeEmpty();
+                break;
+            case "Rejected":
+                approvals.Should().Be(0);
+                rejections.Should().BeGreaterThan(0);
+                break;
+            case "Approved":
+                approvals.Should().Be(1);
+                break;
+            default:
+                throw new InvalidDataException(
+                    $"Unsupported review state '{entry.ReviewState}' for Task {entry.Task}.");
+        }
+    }
+
+    private static ReviewManifest ReadReviewManifest(string root, string relativePath)
+    {
+        var path = Path.Combine(root, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        File.Exists(path).Should().BeTrue("the recorded review manifest must exist");
+        var bytes = File.ReadAllBytes(path);
+        (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+            .Should()
+            .BeFalse("review manifests use UTF-8 without BOM");
+        var text = Encoding.UTF8.GetString(bytes);
+        text.Should().NotContain("\r");
+        text.Should().EndWith("\n");
+        var lines = text[..^1].Split('\n');
+        return new ReviewManifest(bytes, lines);
+    }
+
+    private static string[] ReadCommittedPaths(
+        string root,
+        string baseCommit,
+        string checkpointCommit)
+    {
+        var diff = RunGit(
+            root,
+            "diff",
+            "--name-only",
+            $"{baseCommit}..{checkpointCommit}");
+        diff.ExitCode.Should().Be(0);
+        return NormalizeLineEndings(diff.StandardOutput)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static string BuildCommittedContentRecord(
+        string root,
+        string commit,
+        IEnumerable<string> manifestLines) =>
+        string.Join(
+            '\n',
+            manifestLines
+                .Select(line =>
+                {
+                    var path = ReviewManifestPath(line);
+                    var bytes = ReadGitBlob(root, commit, path);
+                    return $"{line[..2]}\t{path}\t{bytes.Length}\t{Sha256(bytes)}";
+                })
+                .Order(StringComparer.Ordinal)) + "\n";
+
+    private static string BuildHistoricalContentRecord(
+        IEnumerable<HistoricalContentRecordRow> rows) =>
+        string.Join(
+            '\n',
+            rows
+                .Select(row => $"{row.Status}\t{row.Path}\t{row.Bytes}\t{row.Sha256}")
+                .Order(StringComparer.Ordinal)) + "\n";
+
+    private static byte[] ReadGitBlob(
+        string root,
+        string commit,
+        string relativePath)
+    {
+        var startInfo = new ProcessStartInfo("git")
+        {
+            WorkingDirectory = root,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        startInfo.ArgumentList.Add("cat-file");
+        startInfo.ArgumentList.Add("blob");
+        startInfo.ArgumentList.Add($"{commit}:{relativePath}");
+
+        using var process = Process.Start(startInfo) ??
+            throw new InvalidOperationException("Unable to start git for review content validation.");
+        var standardError = process.StandardError.ReadToEndAsync();
+        using var output = new MemoryStream();
+        process.StandardOutput.BaseStream.CopyTo(output);
+        process.WaitForExit();
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidDataException(
+                $"Unable to read '{relativePath}' from checkpoint {commit}: " +
+                standardError.GetAwaiter().GetResult());
+        }
+
+        return output.ToArray();
+    }
+
+    private static string ReviewManifestPath(string line)
+    {
+        if (line.Length < 4 || line[2] != ' ')
+        {
+            throw new InvalidDataException($"Invalid review manifest record '{line}'.");
+        }
+
+        return line[3..];
+    }
+
     private static void ValidateInfrastructureGuardCiLane(string root)
     {
         var workflowPath = Path.Combine(root, ".github", "workflows", "ci.yml");
@@ -1066,7 +1634,7 @@ public sealed class OpenSpecCorpusGuards
         var checkoutSteps = workflowSteps
             .Where(step => Regex.IsMatch(
                 step.Value,
-                @"(?m)^[ \t]*(?:-[ \t]+)?uses:[ \t]+actions/checkout@v4[ \t]*$",
+                @"(?m)^[ \t]*(?:-[ \t]+)?uses:[ \t]+actions/checkout@[^ \t\r\n]+[ \t]*$",
                 RegexOptions.CultureInvariant))
             .ToArray();
         checkoutSteps.Should().NotBeEmpty("CI must check out repository source before running validation");
@@ -1263,6 +1831,9 @@ public sealed class OpenSpecCorpusGuards
     private static string Sha256(string content) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content))).ToLowerInvariant();
 
+    private static string Sha256(byte[] content) =>
+        Convert.ToHexString(SHA256.HashData(content)).ToLowerInvariant();
+
     private static string NormalizeLineEndings(string content) =>
         content.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
 
@@ -1337,12 +1908,21 @@ public sealed class OpenSpecCorpusGuards
         int CanonicalCapabilityCount,
         int CanonicalCapabilityBytes,
         string CanonicalCapabilitySha256,
+        string CanonicalPreambleRecordFormat,
+        int CanonicalPreambleCount,
+        int CanonicalPreambleBytes,
+        string CanonicalPreambleSha256,
+        CanonicalPreambleHash[] CanonicalPreambles,
         string CapabilityDirectoryRecordFormat,
         int CapabilityDirectoryCount,
         int CapabilityDirectoryBytes,
         string CapabilityDirectorySha256,
         string ArtifactPath,
         string ArtifactNormalizedSha256);
+
+    private sealed record CanonicalPreambleHash(
+        string Capability,
+        string NormalizedSha256);
 
     private sealed record ProvenancePendingCapability(
         string Capability,
@@ -1414,6 +1994,49 @@ public sealed class OpenSpecCorpusGuards
         int ExitCode,
         string StandardOutput,
         string StandardError);
+
+    private sealed record ReviewManifestProvenanceCheckpoint(
+        int SchemaVersion,
+        ReviewManifestProvenanceEntry[] Entries);
+
+    private sealed record ReviewManifestProvenanceEntry(
+        string Task,
+        string RequestPath,
+        string ManifestPath,
+        string Disposition,
+        int LineCount,
+        int ManifestBytes,
+        string ManifestSha256,
+        string FrozenRawPorcelainSha256,
+        string PathSortedSha256,
+        string BaseCommit,
+        string? CheckpointCommit,
+        string? CheckpointTree,
+        string? ApprovalEvidenceCommit,
+        int HistoricalDirtyContentRecordBytes,
+        string HistoricalDirtyContentRecordSha256,
+        HistoricalContentRecordRow[] HistoricalDirtyContentRecordRows,
+        string[] CurrentWorktreeMatchPaths,
+        int? CheckpointBlobContentRecordBytes,
+        string? CheckpointBlobContentRecordSha256,
+        string ReviewState,
+        string BlockingEvidencePath,
+        ReviewVerdictEvidence[] VerdictEvidence);
+
+    private sealed record HistoricalContentRecordRow(
+        string Status,
+        string Path,
+        int Bytes,
+        string Sha256);
+
+    private sealed record ReviewVerdictEvidence(
+        string Path,
+        string Verdict,
+        string Sha256);
+
+    private sealed record ReviewManifest(
+        byte[] Bytes,
+        string[] Lines);
 
     private sealed record HistoricalRemovalIdentity(
         string Capability,
