@@ -214,10 +214,13 @@
 
 ## 6. Numbered-requirement and acceptance harmonization
 
-- [ ] 6.1 Add the authoring-session lifecycle to
+- [x] 6.1 Add the authoring-session lifecycle to
       `docs/specs/04-requirements-core-runtime.md` with a new stable requirement ID: `Open`,
       `JoinPending`, and `Frozen`; session/epoch/lexical-scope handle validity; atomic root-terminal
       freeze; and mutation-free rejection of stale, superseded, escaped, or duplicate-join handles.
+      Completed as `CR-009a`, bound to the existing `AuthoringLifecycleTests` evidence through a
+      requirement trait and the must-green
+      `Task61_CoreRuntimeDocumentsAuthoringSessionLifecycleAndExecutableEvidence` corpus guard.
 - [ ] 6.2 Add `WorkflowFailure` authored and runtime occurrence provenance to
       `docs/specs/04-requirements-core-runtime.md`: one `AuthoredLocation`, one runtime-created
       `root`/`branch`/`item` occurrence, creation-time attachment, ordered aggregation preservation,

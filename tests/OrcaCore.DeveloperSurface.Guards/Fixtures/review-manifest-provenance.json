@@ -1,6 +1,12 @@
 {
   "schemaVersion": 7,
-  "activeFreeze": null,
+  "activeFreeze": {
+    "task": "6.1",
+    "requestPath": "docs/review/harmonize-downstream-capability-specs-task-6-1-independent-review-request-2026-08-22.md",
+    "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-6-1-dirty-manifest-2026-08-22.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "87f0b0dd1d0815e9334eb686eb52bb9c30d02513"
+  },
   "entries": [
     {
       "task": "5.1",
@@ -366,11 +372,6 @@
       ],
       "currentWorktreeMatchPaths": [
         "openspec/changes/harmonize-downstream-capability-specs/design.md",
-        "openspec/changes/harmonize-downstream-capability-specs/tasks.md",
-        "openspec/changes/reshape-developer-facing-interfaces/tasks.md",
-        "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json",
-        "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
-        "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
         "docs/review/harmonize-downstream-capability-specs-task-5-3-dirty-manifest-2026-08-22.txt",
         "docs/review/harmonize-downstream-capability-specs-task-5-3-independent-review-request-2026-08-22.md",
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-5-3-active-owner-verification-2026-08-22.md"

@@ -549,6 +549,73 @@ public sealed class OpenSpecCorpusGuards
         }
     }
 
+    [Fact]
+    public void Task61_CoreRuntimeDocumentsAuthoringSessionLifecycleAndExecutableEvidence()
+    {
+        const string requirementId = "CR-009a";
+        const string canonicalRequirement =
+            "Authoring handles are phase-bound and definitions are frozen";
+        string[] lifecycleStates = ["Open", "JoinPending", "Frozen"];
+        string[] lifecycleCodes =
+        [
+            "SFE-AUTH-LIFECYCLE-001",
+            "SFE-AUTH-LIFECYCLE-002",
+            "SFE-AUTH-LIFECYCLE-003",
+            "SFE-AUTH-LIFECYCLE-004",
+            "SFE-AUTH-LIFECYCLE-005"
+        ];
+        string[] evidenceMembers =
+        [
+            "EphemeralParallelJoin_SupersedesRootAndReturnsSuccessorEpochFacade",
+            "DurableJoinSelection_IsSingleUseAndRejectedSelectionDoesNotMutateGraph",
+            "EphemeralRootTerminal_FreezesSnapshotAndRepeatedBuildsAreStable",
+            "CallbackHandle_ExpiresWhenCallbackReturns",
+            "DurableConcurrentAuthoring_AdmitsOneAtomicWinnerAndRejectsLoserWithoutGraphMutation"
+        ];
+
+        var root = FixtureDefinitions.RepositoryRoot();
+        var numberedPath = Path.Combine(root, "docs", "specs", "04-requirements-core-runtime.md");
+        var numbered = NormalizeLineEndings(File.ReadAllText(numberedPath));
+        var heading = Regex.Match(
+            numbered,
+            $@"(?m)^### {Regex.Escape(requirementId)} Authoring sessions have one explicit lifecycle$");
+        heading.Success.Should().BeTrue("Task 6.1 must add one stable numbered lifecycle requirement");
+        Regex.Matches(numbered, $@"(?m)^### {Regex.Escape(requirementId)}(?:\s|$)")
+            .Should().ContainSingle("the stable requirement ID must have exactly one owner");
+        var nextHeading = numbered.IndexOf("\n##", heading.Index + heading.Length, StringComparison.Ordinal);
+        var sectionEnd = nextHeading < 0 ? numbered.Length : nextHeading;
+        var numberedBlock = numbered[heading.Index..sectionEnd];
+
+        lifecycleStates.Should().OnlyContain(state => numberedBlock.Contains($"`{state}`", StringComparison.Ordinal));
+        lifecycleCodes.Should().OnlyContain(code => numberedBlock.Contains($"`{code}`", StringComparison.Ordinal));
+        numberedBlock.Should().Contain("Its state SHALL be exactly `Open`, `JoinPending`, or `Frozen`");
+        numberedBlock.Should().Contain("session, authoring epoch, and lexical-scope token");
+        numberedBlock.Should().Contain("atomically move the session from `Open` to `JoinPending`");
+        numberedBlock.Should().Contain("capture one immutable authored-graph snapshot");
+        numberedBlock.Should().Contain("before mutating the graph");
+
+        var canonicalPath = Path.Combine(root, "openspec", "specs", "workflow-authoring", "spec.md");
+        var canonical = ReadRequirementBlocks(root, canonicalPath, isDelta: false)
+            .Single(requirement => requirement.Requirement == canonicalRequirement);
+        lifecycleStates.Should().OnlyContain(state => canonical.Block.Contains($"`{state}`", StringComparison.Ordinal));
+        canonical.Block.Should().Contain("Every builder handle SHALL be valid only for the session epoch and lexical scope");
+        canonical.Block.Should().Contain("SHALL leave the authored graph unchanged");
+
+        var evidencePath = Path.Combine(
+            root,
+            "tests",
+            "OrcaCore.Core.Tests",
+            "Building",
+            "AuthoringLifecycleTests.cs");
+        var evidence = NormalizeLineEndings(File.ReadAllText(evidencePath));
+        evidence.Should().Contain($"[Trait(\"Requirement\", \"{requirementId}\")]");
+        evidenceMembers.Should().OnlyContain(member =>
+            Regex.IsMatch(
+                evidence,
+                $@"\b{Regex.Escape(member)}\s*\(",
+                RegexOptions.CultureInvariant));
+    }
+
     private static DeltaRequirement[] ReadTask53ActiveDeltaRequirements(string root)
     {
         var changesRoot = Path.Combine(root, "openspec", "changes");

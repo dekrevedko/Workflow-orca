@@ -100,6 +100,31 @@ failure SHALL derive from `OrcaCoreException`, expose one nonblank stable `Code`
 authoritative exception/failure mapping; normalized arbitrary author/integration exceptions use
 the documented generic code rather than CLR type/message identity.
 
+### CR-009a Authoring sessions have one explicit lifecycle
+One internal authoring session SHALL own workflow-wide configuration and every authored-graph
+mutation. Its state SHALL be exactly `Open`, `JoinPending`, or `Frozen`. Every builder façade and
+join façade SHALL be valid only for the session, authoring epoch, and lexical-scope token that
+created it; callback-local nested, branch, item, leased, and scope handles SHALL expire when their
+callback returns.
+
+Starting a root fan-out SHALL atomically move the session from `Open` to `JoinPending` and
+supersede the originating root handle. Exactly one join selection SHALL commit that join, advance
+the authoring epoch, move the session back to `Open`, and return a distinct successor root façade.
+Selecting a root `End` or terminal `ContinueAsNew` SHALL atomically commit the generation terminal,
+capture one immutable authored-graph snapshot, and move the session to `Frozen`. A completion
+builder SHALL build or validate only that snapshot; repeated `Build()` and `TryBuild()` calls SHALL
+therefore preserve structure, ordered diagnostics, and definition fingerprint.
+
+A stale or superseded root handle, a duplicate join selection, any post-terminal mutation, an
+escaped callback-local handle, or a losing concurrent authoring operation SHALL throw one
+catalogued lifecycle `WorkflowDefinitionException` before mutating the graph. The closed diagnostic
+mapping is `SFE-AUTH-LIFECYCLE-001` for a superseded epoch or pending join,
+`SFE-AUTH-LIFECYCLE-002` for a duplicate join, `SFE-AUTH-LIFECYCLE-003` for a frozen session,
+`SFE-AUTH-LIFECYCLE-004` for an expired lexical handle, and `SFE-AUTH-LIFECYCLE-005` for a losing
+concurrent operation, as defined by [document 17](17-selected-mode-capability-matrix.md). At most
+one authoring operation SHALL own the session mutation gate, so every rejected race leaves the
+accepted graph unchanged.
+
 ## 4.2 Execution model
 
 ### CR-010 Interpreter-owned orchestration
