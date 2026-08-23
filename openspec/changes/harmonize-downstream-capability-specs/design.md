@@ -215,6 +215,14 @@ before focused guards and again before final anchors. The script changes only
 refresh command in its diagnostic, but ordinary planned edits no longer leave the recovery step
 implicit.
 
+A new dirty review manifest cannot hash the provenance fixture that registers that same manifest
+without creating a self-reference. Schema 7 therefore carries one `activeFreeze` descriptor with no
+embedded content hash. Before commit, the guard binds its raw manifest byte-for-byte to the current
+commit-real porcelain on the declared base. After the approved checkpoint commit, the same state is
+green only when `HEAD^` is that base and the commit's exact path set equals the manifest. The next
+mechanical provenance transition converts it into an immutable historical entry using committed
+blob hashes and clears `activeFreeze`; this never exempts a manifest from explicit disposition.
+
 Immutable review Markdown may retain intentional two-space hard line breaks that were already part
 of a frozen record. The exact repository-attribute allowlist therefore contains only
 `docs/review/**/*.md whitespace=-trailing-space` for that narrow historical surface. The companion

@@ -1,5 +1,12 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
+  "activeFreeze": {
+    "task": "5.3",
+    "requestPath": "docs/review/harmonize-downstream-capability-specs-task-5-3-independent-review-request-2026-08-22.md",
+    "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-5-3-dirty-manifest-2026-08-22.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "5e8e25b94010965130b3b98ede2392346da2a9cd"
+  },
   "entries": [
     {
       "task": "5.1",

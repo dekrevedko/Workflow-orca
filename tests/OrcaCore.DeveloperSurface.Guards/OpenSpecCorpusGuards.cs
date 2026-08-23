@@ -54,7 +54,7 @@ public sealed class OpenSpecCorpusGuards
         var root = FixtureDefinitions.RepositoryRoot();
         var checkpoint = FixtureDefinitions.Read<ReviewManifestProvenanceCheckpoint>(
             ReviewManifestProvenanceFixture);
-        checkpoint.SchemaVersion.Should().Be(6);
+        checkpoint.SchemaVersion.Should().Be(7);
         checkpoint.Entries.Select(entry => entry.Task).Should().OnlyHaveUniqueItems();
         File.Exists(Path.Combine(
             root,
@@ -73,10 +73,14 @@ public sealed class OpenSpecCorpusGuards
             .Select(path => RelativePath(root, path))
             .Order(StringComparer.Ordinal)
             .ToArray();
-        checkpoint.Entries
+        var recordedManifestPaths = checkpoint.Entries
             .Select(entry => entry.ManifestPath)
+            .Concat(checkpoint.ActiveFreeze is null
+                ? []
+                : [checkpoint.ActiveFreeze.ManifestPath])
             .Order(StringComparer.Ordinal)
-            .Should()
+            .ToArray();
+        recordedManifestPaths.Should()
             .Equal(
                 discoveredManifests,
                 "every harmonization task review manifest must receive an explicit raw-order or set-only disposition");
@@ -86,6 +90,11 @@ public sealed class OpenSpecCorpusGuards
             ValidateReviewManifestProvenance(root, entry);
             ValidateReviewVerdictEvidence(root, entry);
             ValidateReviewStateEvidence(entry);
+        }
+
+        if (checkpoint.ActiveFreeze is not null)
+        {
+            ValidateActiveReviewFreeze(root, checkpoint.ActiveFreeze, checkpoint.Entries);
         }
     }
 
@@ -478,6 +487,110 @@ public sealed class OpenSpecCorpusGuards
             activeCapabilityDirectories);
 
         PreserveRuntimeConcurrencyStrayDisposition(root, changesRoot);
+    }
+
+    [Fact]
+    public void Task53_ReshapeSolelyOwnsFriendTopologyAndDurableGovernanceAggregate()
+    {
+        const string expectedOwner = "reshape-developer-facing-interfaces";
+        (string Capability, string Requirement, RequirementOperation Operation)[] targets =
+        [
+            (
+                "repository-foundation",
+                "Dependency direction remains one-way",
+                RequirementOperation.Modified),
+            (
+                "durable-runtime",
+                "Durable resource governance is one serialized provider aggregate",
+                RequirementOperation.Added)
+        ];
+
+        var root = FixtureDefinitions.RepositoryRoot();
+        var requirements = ReadTask53ActiveDeltaRequirements(root);
+        foreach (var target in targets)
+        {
+            var owners = requirements
+                .Where(requirement =>
+                    requirement.Capability == target.Capability &&
+                    requirement.Requirement == target.Requirement)
+                .ToArray();
+            owners.Should().ContainSingle(
+                "{0} :: {1} must have one active delta owner, even when another copy is byte-identical",
+                target.Capability,
+                target.Requirement);
+            var owner = owners.Single();
+            owner.Change.Should().Be(
+                expectedOwner,
+                "reshape is the approved sole active owner of {0} :: {1}",
+                target.Capability,
+                target.Requirement);
+            owner.Operation.Should().Be(
+                target.Operation,
+                "Task 5.3 must retain each aggregate's approved delta disposition");
+
+            var ownerBody = RequirementBody(owner.Block);
+            var copiedBodies = requirements
+                .Where(requirement =>
+                    !ReferenceEquals(requirement, owner) &&
+                    string.Equals(
+                        RequirementBody(requirement.Block),
+                        ownerBody,
+                        StringComparison.Ordinal))
+                .Select(requirement =>
+                    $"{requirement.Change} :: {requirement.Capability} :: {requirement.Requirement}")
+                .Order(StringComparer.Ordinal)
+                .ToArray();
+            copiedBodies.Should().BeEmpty(
+                "byte-identical normative content under another heading or capability is still a competing " +
+                "active owner for {0} :: {1}; copies were: {2}",
+                target.Capability,
+                target.Requirement,
+                string.Join(", ", copiedBodies));
+        }
+    }
+
+    private static DeltaRequirement[] ReadTask53ActiveDeltaRequirements(string root)
+    {
+        var changesRoot = Path.Combine(root, "openspec", "changes");
+        var requirements = new List<DeltaRequirement>();
+        foreach (var changeRoot in Directory
+                     .EnumerateDirectories(changesRoot)
+                     .Where(path => !string.Equals(
+                         GetDirectoryName(path),
+                         "archive",
+                         StringComparison.Ordinal))
+                     .Order(StringComparer.Ordinal))
+        {
+            var change = GetDirectoryName(changeRoot);
+            var declaredCapabilities = ReadDeclaredCapabilities(
+                root,
+                Path.Combine(changeRoot, "proposal.md"));
+            foreach (var capabilityDirectory in ReadCapabilityDirectories(
+                         Path.Combine(changeRoot, "specs")))
+            {
+                var capability = GetDirectoryName(capabilityDirectory);
+                var capabilityKind = declaredCapabilities
+                    .Single(declared => string.Equals(
+                        declared.Name,
+                        capability,
+                        StringComparison.Ordinal))
+                    .Kind;
+                requirements.AddRange(ReadDeltaRequirements(
+                    root,
+                    change,
+                    capability,
+                    capabilityKind,
+                    Path.Combine(capabilityDirectory, "spec.md")));
+            }
+        }
+
+        return requirements.ToArray();
+    }
+
+    private static string RequirementBody(string block)
+    {
+        var headingTerminator = block.IndexOf('\n');
+        return headingTerminator < 0 ? string.Empty : block[(headingTerminator + 1)..];
     }
 
     private static void PreserveRuntimeConcurrencyStrayDisposition(string root, string changesRoot)
@@ -1664,6 +1777,62 @@ public sealed class OpenSpecCorpusGuards
         }
     }
 
+    private static void ValidateActiveReviewFreeze(
+        string root,
+        ActiveReviewFreeze freeze,
+        IEnumerable<ReviewManifestProvenanceEntry> historicalEntries)
+    {
+        freeze.Disposition.Should().Be("RawGitOrder");
+        historicalEntries.Select(entry => entry.Task).Should().NotContain(
+            freeze.Task,
+            "an active freeze becomes a historical entry only after its checkpoint commit exists");
+        freeze.BaseCommit.Should().MatchRegex("^[0-9a-f]{40}$");
+
+        var requestPath = Path.Combine(
+            root,
+            freeze.RequestPath.Replace('/', Path.DirectorySeparatorChar));
+        File.Exists(requestPath).Should().BeTrue();
+        NormalizeLineEndings(File.ReadAllText(requestPath)).Should().Contain(
+            Path.GetFileName(freeze.ManifestPath));
+        var manifest = ReadReviewManifest(root, freeze.ManifestPath);
+        manifest.Lines.Should().NotBeEmpty();
+        manifest.Lines.Should().OnlyHaveUniqueItems();
+        manifest.Lines.Should().OnlyContain(line => Regex.IsMatch(
+            line,
+            @"^[ MADRCU?!]{2} .+$",
+            RegexOptions.CultureInvariant));
+        manifest.Bytes.Should().Equal(
+            Encoding.UTF8.GetBytes(string.Join('\n', manifest.Lines) + "\n"),
+            "an active raw-order manifest must be LF-only with one final newline");
+
+        var head = RunGit(root, "rev-parse", "HEAD");
+        head.ExitCode.Should().Be(0);
+        var currentProjection = ReadCurrentCommitRealFreezeManifest(root);
+        if (currentProjection.Length > 0)
+        {
+            head.StandardOutput.Trim().Should().Be(
+                freeze.BaseCommit,
+                "the dirty active freeze must remain on its declared immutable base");
+            manifest.Lines.Should().Equal(
+                currentProjection,
+                "the active manifest must preserve the current commit-real porcelain in raw Git order");
+            return;
+        }
+
+        var parent = RunGit(root, "rev-parse", "HEAD^");
+        parent.ExitCode.Should().Be(0);
+        parent.StandardOutput.Trim().Should().Be(
+            freeze.BaseCommit,
+            "a clean active freeze must be the immediately committed reviewed checkpoint");
+        var committedPaths = ReadCommittedPaths(root, freeze.BaseCommit, head.StandardOutput.Trim());
+        manifest.Lines.Select(ReviewManifestPath)
+            .Order(StringComparer.Ordinal)
+            .Should()
+            .Equal(
+                committedPaths,
+                "the checkpoint must contain exactly the active frozen manifest paths");
+    }
+
     private static void ValidateCommitRealFreezeProjection(string root)
     {
         var syntheticStatus = new[]
@@ -1682,6 +1851,26 @@ public sealed class OpenSpecCorpusGuards
                 [" M real-change.md", "?? new-file.md"],
                 "status-only entries whose bytes equal HEAD must never enter a frozen manifest");
 
+        var projection = ReadCurrentCommitRealFreezeManifest(root);
+        var tracked = RunGit(root, "diff", "--name-only", "--no-renames", "HEAD");
+        tracked.ExitCode.Should().Be(0);
+        var untracked = RunGit(root, "ls-files", "--others", "--exclude-standard");
+        untracked.ExitCode.Should().Be(0);
+        var commitRealPaths = NormalizeLineEndings(tracked.StandardOutput)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Concat(NormalizeLineEndings(untracked.StandardOutput)
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            .ToHashSet(StringComparer.Ordinal);
+        projection.Select(ReviewManifestPath)
+            .Order(StringComparer.Ordinal)
+            .Should()
+            .Equal(
+                commitRealPaths.Order(StringComparer.Ordinal),
+                "the review freeze entry set must equal tracked content diffs plus untracked files");
+    }
+
+    private static string[] ReadCurrentCommitRealFreezeManifest(string root)
+    {
         var status = RunGit(
             root,
             "status",
@@ -1701,13 +1890,7 @@ public sealed class OpenSpecCorpusGuards
                 .Split('\n', StringSplitOptions.RemoveEmptyEntries))
             .ToHashSet(StringComparer.Ordinal);
 
-        var projection = ProjectCommitRealFreezeManifest(statusLines, commitRealPaths);
-        projection.Select(ReviewManifestPath)
-            .Order(StringComparer.Ordinal)
-            .Should()
-            .Equal(
-                commitRealPaths.Order(StringComparer.Ordinal),
-                "the review freeze entry set must equal tracked content diffs plus untracked files");
+        return ProjectCommitRealFreezeManifest(statusLines, commitRealPaths);
     }
 
     private static string[] ProjectCommitRealFreezeManifest(
@@ -2277,7 +2460,15 @@ public sealed class OpenSpecCorpusGuards
 
     private sealed record ReviewManifestProvenanceCheckpoint(
         int SchemaVersion,
+        ActiveReviewFreeze? ActiveFreeze,
         ReviewManifestProvenanceEntry[] Entries);
+
+    private sealed record ActiveReviewFreeze(
+        string Task,
+        string RequestPath,
+        string ManifestPath,
+        string Disposition,
+        string BaseCommit);
 
     private sealed record ReviewManifestProvenanceEntry(
         string Task,

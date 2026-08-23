@@ -199,11 +199,18 @@
       every later freeze. Task 5.2 approval entered through green awaiting-evidence checkpoint
       `80cc5065e02ddd6674a1e1633c191efc487c98ea`; this mechanical activation records that existing
       SHA as `Approved`, unblocking Task 5.3 without rewriting any immutable review evidence.
-- [ ] 5.3 Verify reshape remains the sole active delta owner for repository friend topology and the
+- [x] 5.3 Verify reshape remains the sole active delta owner for repository friend topology and the
       durable resource-governance aggregate; byte-identical duplicate requirements do not count as
       harmless redundancy. Run `refresh-review-manifest-current-matches.ps1` before the task's first
       infrastructure lane and again before its final freeze so legitimate canonical edits refresh
       only opportunistic current-byte pins rather than altering immutable historical evidence.
+      **Completed:** the active-delta inventory contains four changes and 176 requirement headings;
+      `reshape-developer-facing-interfaces` is the single owner of `repository-foundation` /
+      `Dependency direction remains one-way` and `durable-runtime` / `Durable resource governance
+      is one serialized provider aggregate`. The infrastructure gate compares exact normative bodies
+      after their headings, so a renamed or cross-capability byte-identical copy is a competing owner.
+      A mutation copying the friend-topology body into `add-runtime-concurrency-limits` failed with
+      the copied change, capability, and requirement named; the restored corpus passes.
 
 ## 6. Numbered-requirement and acceptance harmonization
 
