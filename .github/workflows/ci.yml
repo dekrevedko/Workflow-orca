@@ -68,6 +68,14 @@ jobs:
           --filter "Disposition=Infrastructure"
           --logger trx --results-directory TestResults
 
+      - name: Authoring lifecycle requirement evidence
+        run: >
+          dotnet test
+          tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj
+          --no-build --no-restore -c Release
+          --filter "Requirement=CR-009a"
+          --logger trx --results-directory TestResults
+
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 

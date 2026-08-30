@@ -75,6 +75,13 @@ evidence commit unset. The first distinct checkpoint commits that verdict and tr
 only a following mechanical activation may set `Approved` and pin the already-existing evidence
 commit. Immutable earlier `REJECT` verdicts remain registered in both states.
 
+`MissingApproval` is reserved for work that has not checkpointed: both checkpoint commit and tree
+must be absent. When the repository owner explicitly authorizes a checkpoint without an independent
+review, the registry instead uses the separately named
+`OwnerAuthorizationAwaitingEvidenceCommit` / `OwnerAuthorized` transition and preserves a dated
+owner-disclosure verdict. This makes the authority source visible without presenting owner approval
+as independent review.
+
 Task 5.2 content materialized before that approval checkpoint is not hidden by commit-subject
 conventions. The provenance registry permanently records every such pre-approval content commit,
 and the guard rediscovers every commit on the current reviewed lineage that touches any of the three
@@ -216,12 +223,15 @@ refresh command in its diagnostic, but ordinary planned edits no longer leave th
 implicit.
 
 A new dirty review manifest cannot hash the provenance fixture that registers that same manifest
-without creating a self-reference. Schema 7 therefore carries one `activeFreeze` descriptor with no
-embedded content hash. Before commit, the guard binds its raw manifest byte-for-byte to the current
-commit-real porcelain on the declared base. After the approved checkpoint commit, the same state is
-green only when `HEAD^` is that base and the commit's exact path set equals the manifest. The next
-mechanical provenance transition converts it into an immutable historical entry using committed
-blob hashes and clears `activeFreeze`; this never exempts a manifest from explicit disposition.
+without creating a self-reference. Schema 8 therefore carries one `activeFreeze` descriptor plus a
+scoped content record covering every manifest path except the provenance fixture itself; that exact
+singleton exclusion is enforced. Before commit, the guard binds its raw manifest byte-for-byte to
+current commit-real porcelain and recomputes the scoped record from worktree bytes on the declared
+base. After the approved checkpoint commit, the same state is green only when `HEAD^` is that base,
+the commit's exact path set equals the manifest, and committed blobs reproduce the scoped record.
+The next mechanical provenance transition converts it into an immutable historical entry using
+committed blob hashes and clears `activeFreeze`; this never exempts a manifest from explicit
+disposition.
 
 Immutable review Markdown may retain intentional two-space hard line breaks that were already part
 of a frozen record. The exact repository-attribute allowlist therefore contains only

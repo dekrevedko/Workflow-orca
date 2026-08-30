@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using AwesomeAssertions;
 
 namespace OrcaCore.DeveloperSurface.Guards;
@@ -6,6 +7,8 @@ namespace OrcaCore.DeveloperSurface.Guards;
 [Trait(GuardTraits.Disposition, GuardTraits.Infrastructure)]
 public sealed class LeaseDiscoveryAndGovernanceInfrastructureGuards
 {
+    private const int LeasedRetryFixtureCount = 2;
+
     [Theory]
     [InlineData("lease-discovery-confirmation-scenarios.json", "3.11c", 10)]
     [InlineData("governance-accounting-scenarios.json", "3.11d", 11)]
@@ -54,6 +57,17 @@ public sealed class LeaseDiscoveryAndGovernanceInfrastructureGuards
             .ToArray();
         schedulerSensitiveSources.Should().BeEmpty(
             "behavior-scenario and provider-certification gates must await workflow-owned signals instead of expiring under wall-clock scheduler pressure");
+
+        var leaseExitSource = File.ReadAllText(Path.Combine(
+            testRoot,
+            "OrcaCore.DeveloperSurface.BehaviorScenarios",
+            "LeaseExitScenarioHost.cs"));
+        Regex.Matches(leaseExitSource, @"await[ \t]+gate\.SecondStarted\.Task;")
+            .Should().HaveCount(LeasedRetryFixtureCount,
+                "both leased retry fixtures must await the second-attempt signal before observing start-task completion");
+        leaseExitSource.Should().NotContain(
+            "if (!gate.SecondStarted.Task.IsCompleted)",
+            "a post-completion snapshot is a scheduler race, not notification-driven evidence");
     }
 
     private static bool IsBuildOutputPath(string testRoot, string path) =>

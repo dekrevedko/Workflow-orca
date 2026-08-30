@@ -183,8 +183,9 @@ Root-only `ForEach` authoring in both modes SHALL declare a selector returning a
 Workflow authoring SHALL be governed by one session whose state is `Open`, `JoinPending`, or
 `Frozen`. Every builder handle SHALL be valid only for the session epoch and lexical scope in which
 it was produced. Starting root fan-out SHALL supersede the current root handle; selecting the
-single join SHALL return a distinct façade bound to the successor epoch. A nested, branch, item, or
-leased handle SHALL expire when its authoring callback returns. Applying an operator through a
+single join SHALL return a distinct façade bound to the successor epoch. A nested, branch, item,
+leased, or callback-local scope handle SHALL expire when its authoring callback returns. Applying an
+operator through a
 superseded or expired handle, selecting more than one join for one scope, applying any operator
 after a root terminal, or losing a concurrent authoring race SHALL throw one catalogued lifecycle
 `WorkflowDefinitionException` and SHALL leave the authored graph unchanged.
@@ -200,7 +201,7 @@ authoring configuration SHALL belong to the session rather than to an individual
 - **THEN** the stale operation throws its lifecycle diagnostic and the graph visible to the successor façade is unchanged
 
 #### Scenario: Callback-local handle escapes
-- **WHEN** a nested, branch, item, or leased handle is invoked after its authoring callback returned
+- **WHEN** a nested, branch, item, leased, or callback-local scope handle is invoked after its authoring callback returned
 - **THEN** the operation is rejected at that handle's authored location and cannot mutate the completed lexical body
 
 #### Scenario: Terminal completion builder is reused

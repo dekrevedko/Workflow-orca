@@ -3,7 +3,7 @@
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
   "recordCount": 176,
   "recordBytes": 46211,
-  "recordSha256": "e1420f367a491e62e896f041f288b3235eeaf7647d721069cb71dda509b4021b",
+  "recordSha256": "4815ffd5c3e5e1289d5196c103a6cb8e801e5e442522643d5794637902df69d4",
   "semanticApprovalEligible": true,
   "pendingCanonicalOperations": [],
   "activeNewCapabilitiesOutsideCanonical": [
@@ -134,5 +134,5 @@
   "capabilityDirectoryBytes": 1321,
   "capabilityDirectorySha256": "5e8a9725979d702ff2f639fef587828958c92533139602ab13f1401d6df7ebd5",
   "artifactPath": "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-4-2-openspec-provenance-record-2026-08-18.md",
-  "artifactNormalizedSha256": "f0a2a704bef982922015329e1672e7f64e740cdc09313276c8aed7e22573ed7e"
+  "artifactNormalizedSha256": "98679831a12d6afd75d5106515bc1bc9926d6861ed3acbdc1bf844c4a96d82dd"
 }

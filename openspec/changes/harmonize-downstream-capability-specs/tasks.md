@@ -211,6 +211,9 @@
       after their headings, so a renamed or cross-capability byte-identical copy is a competing owner.
       A mutation copying the friend-topology body into `add-runtime-concurrency-limits` failed with
       the copied change, capability, and requirement named; the restored corpus passes.
+      **Provenance remediation:** the repository owner's explicit instruction to commit and proceed
+      is preserved in a dated owner-authorization verdict. The registry distinguishes that authority
+      from independent approval and no longer permits `MissingApproval` to carry a checkpoint.
 
 ## 6. Numbered-requirement and acceptance harmonization
 
@@ -221,6 +224,10 @@
       Completed as `CR-009a`, bound to the existing `AuthoringLifecycleTests` evidence through a
       requirement trait and the must-green
       `Task61_CoreRuntimeDocumentsAuthoringSessionLifecycleAndExecutableEvidence` corpus guard.
+      **Review remediation:** callback-local scope handles are named in both canonical and active
+      reshape lifecycle requirements; CI executes `Requirement=CR-009a`; the guard rejects skipped
+      representative tests and any restored lifecycle `AC-021` tag; and active freezes carry a
+      recomputed scoped content anchor rather than relying on handoff-only evidence.
 - [ ] 6.2 Add `WorkflowFailure` authored and runtime occurrence provenance to
       `docs/specs/04-requirements-core-runtime.md`: one `AuthoredLocation`, one runtime-created
       `root`/`branch`/`item` occurrence, creation-time attachment, ordered aggregation preservation,

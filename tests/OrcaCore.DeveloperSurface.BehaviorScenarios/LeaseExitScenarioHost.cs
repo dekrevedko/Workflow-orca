@@ -252,12 +252,8 @@ public static partial class LeaseExitScenarioHost
             active.OwnedObligations.Single(obligation => obligation.ProtectionToken is not null)
                 .ProtectionToken!);
         gate.Release.TrySetResult();
+        await gate.SecondStarted.Task;
         await running;
-        if (!gate.SecondStarted.Task.IsCompleted)
-        {
-            throw new InvalidOperationException(
-                "The successful retry workflow completed without starting its second attempt.");
-        }
         var diagnostics = runtime.LeaseDiagnostics;
         var quarantined = await context.ObserveAsync(
             _ => diagnostics.GetAsync(token, CancellationToken.None));
@@ -381,12 +377,8 @@ public static partial class LeaseExitScenarioHost
         await gate.TimeoutObserved.Task;
         await Task.Yield();
         gate.Release.TrySetResult();
+        await gate.SecondStarted.Task;
         await running;
-        if (!gate.SecondStarted.Task.IsCompleted)
-        {
-            throw new InvalidOperationException(
-                "The timed-out retry fixture completed without starting its second attempt.");
-        }
         return new TimedOutRetryFixture(
             store,
             runtime,

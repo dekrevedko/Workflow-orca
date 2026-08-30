@@ -27,7 +27,7 @@ final LF, and hashed as UTF-8 without a BOM.
 
 - record rows: 176
 - record bytes: 46,211
-- record SHA-256: `e1420f367a491e62e896f041f288b3235eeaf7647d721069cb71dda509b4021b`
+- record SHA-256: `4815ffd5c3e5e1289d5196c103a6cb8e801e5e442522643d5794637902df69d4`
 - synchronized operations: 173
 - pending canonical operations: 0
 - declared new-capability requirements outside the canonical set: 3
