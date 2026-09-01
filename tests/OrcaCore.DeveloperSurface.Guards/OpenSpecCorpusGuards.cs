@@ -58,8 +58,10 @@ public sealed class OpenSpecCorpusGuards
         var root = FixtureDefinitions.RepositoryRoot();
         var checkpoint = FixtureDefinitions.Read<ReviewManifestProvenanceCheckpoint>(
             ReviewManifestProvenanceFixture);
-        checkpoint.SchemaVersion.Should().Be(8);
+        checkpoint.SchemaVersion.Should().Be(9);
         checkpoint.Entries.Select(entry => entry.Task).Should().OnlyHaveUniqueItems();
+        checkpoint.ArchivedFreezes.Select(freeze => freeze.Id).Should().OnlyHaveUniqueItems();
+        checkpoint.ArchivedFreezes.Select(freeze => freeze.ManifestPath).Should().OnlyHaveUniqueItems();
         File.Exists(Path.Combine(
             root,
             ReviewManifestCurrentMatchRefreshScript.Replace('/', Path.DirectorySeparatorChar)))
@@ -68,6 +70,7 @@ public sealed class OpenSpecCorpusGuards
 
         ValidateCommitRealFreezeProjection(root);
         ValidateActiveFreezeContentRecordSemantics();
+        ValidateActiveFreezeContentRecordBuilders(root);
         ValidateMissingApprovalStateSemantics();
 
         var reviewRoot = Path.Combine(root, "docs", "review");
@@ -81,6 +84,7 @@ public sealed class OpenSpecCorpusGuards
             .ToArray();
         var recordedManifestPaths = checkpoint.Entries
             .Select(entry => entry.ManifestPath)
+            .Concat(checkpoint.ArchivedFreezes.Select(freeze => freeze.ManifestPath))
             .Concat(checkpoint.ActiveFreeze is null
                 ? []
                 : [checkpoint.ActiveFreeze.ManifestPath])
@@ -96,6 +100,11 @@ public sealed class OpenSpecCorpusGuards
             ValidateReviewManifestProvenance(root, entry);
             ValidateReviewVerdictEvidence(root, entry);
             ValidateReviewStateEvidence(entry);
+        }
+
+        foreach (var archivedFreeze in checkpoint.ArchivedFreezes)
+        {
+            ValidateArchivedReviewFreeze(root, archivedFreeze);
         }
 
         if (checkpoint.ActiveFreeze is not null)
@@ -561,6 +570,8 @@ public sealed class OpenSpecCorpusGuards
         const string requirementId = "CR-009a";
         const string canonicalRequirement =
             "Authoring handles are phase-bound and definitions are frozen";
+        const string callbackLocalScopeClause =
+            "A nested, branch, item, leased, or callback-local scope handle SHALL expire";
         string[] lifecycleStates = ["Open", "JoinPending", "Frozen"];
         string[] lifecycleCodes =
         [
@@ -603,6 +614,27 @@ public sealed class OpenSpecCorpusGuards
         var canonicalPath = Path.Combine(root, "openspec", "specs", "workflow-authoring", "spec.md");
         var canonical = ReadRequirementBlocks(root, canonicalPath, isDelta: false)
             .Single(requirement => requirement.Requirement == canonicalRequirement);
+        var reshapePath = Path.Combine(
+            root,
+            "openspec",
+            "changes",
+            "reshape-developer-facing-interfaces",
+            "specs",
+            "workflow-authoring",
+            "spec.md");
+        var reshape = ReadRequirementBlocks(root, reshapePath, isDelta: true)
+            .Single(requirement => requirement.Requirement == canonicalRequirement);
+        canonical.Block.Should().Be(
+            reshape.Block,
+            "the canonical lifecycle requirement must remain byte-equivalent to its active owning delta");
+        foreach (var block in new[] { canonical.Block, reshape.Block })
+        {
+            Regex.Replace(block, @"\s+", " ")
+                .Should().Contain(
+                    callbackLocalScopeClause,
+                    "both normative owners must keep callback-local scope handles inside the lifecycle contract");
+        }
+
         lifecycleStates.Should().OnlyContain(state => canonical.Block.Contains($"`{state}`", StringComparison.Ordinal));
         canonical.Block.Should().Contain("Every builder handle SHALL be valid only for the session epoch and lexical scope");
         canonical.Block.Should().Contain("SHALL leave the authored graph unchanged");
@@ -645,7 +677,19 @@ public sealed class OpenSpecCorpusGuards
             ".github",
             "workflows",
             "ci.yml")));
-        ci.Should().Contain("--filter \"Requirement=CR-009a\"");
+        var lifecycleSteps = ReadCiWorkflowSteps(ci)
+            .Where(step => Regex.IsMatch(
+                step.Value,
+                @"(?m)^[ \t]*-[ \t]+name:[ \t]+Authoring lifecycle requirement evidence[ \t]*$",
+                RegexOptions.CultureInvariant))
+            .ToArray();
+        lifecycleSteps.Should().ContainSingle(
+            "CI must contain one dedicated authoring-lifecycle requirement evidence step");
+        var lifecycleCommand = NormalizeCiWorkflowStep(lifecycleSteps[0]).Trim();
+        lifecycleCommand.Should().Be(
+            "- name: Authoring lifecycle requirement evidence run: > dotnet test " +
+            "tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj --no-build --no-restore " +
+            "-c Release --filter \"Requirement=CR-009a\" --logger trx --results-directory TestResults");
     }
 
     private static DeltaRequirement[] ReadTask53ActiveDeltaRequirements(string root)
@@ -1880,6 +1924,83 @@ public sealed class OpenSpecCorpusGuards
         }
     }
 
+    private static void ValidateArchivedReviewFreeze(
+        string root,
+        ArchivedReviewFreeze freeze)
+    {
+        freeze.Disposition.Should().Be("RawGitOrder");
+        freeze.BaseCommit.Should().MatchRegex("^[0-9a-f]{40}$");
+        freeze.CheckpointCommit.Should().MatchRegex("^[0-9a-f]{40}$");
+        freeze.CheckpointTree.Should().MatchRegex("^[0-9a-f]{40}$");
+
+        var requestPath = Path.Combine(
+            root,
+            freeze.RequestPath.Replace('/', Path.DirectorySeparatorChar));
+        File.Exists(requestPath).Should().BeTrue();
+        NormalizeLineEndings(File.ReadAllText(requestPath)).Should().Contain(
+            Path.GetFileName(freeze.ManifestPath));
+
+        var manifest = ReadReviewManifest(root, freeze.ManifestPath);
+        manifest.Lines.Should().HaveCount(freeze.LineCount);
+        manifest.Lines.Should().NotBeEmpty();
+        manifest.Lines.Should().OnlyHaveUniqueItems();
+        manifest.Lines.Should().OnlyContain(line => Regex.IsMatch(
+            line,
+            @"^[ MADRCU?!]{2} .+$",
+            RegexOptions.CultureInvariant));
+        manifest.Bytes.Length.Should().Be(freeze.ManifestBytes);
+        Sha256(manifest.Bytes).Should().Be(freeze.ManifestSha256);
+        freeze.ManifestSha256.Should().Be(
+            freeze.FrozenRawPorcelainSha256,
+            "an archived raw-order freeze must preserve its original porcelain anchor");
+        manifest.Bytes.Should().Equal(
+            Encoding.UTF8.GetBytes(string.Join('\n', manifest.Lines) + "\n"),
+            "an archived raw-order manifest must remain LF-only with one final newline");
+
+        var pathSorted = manifest.Lines
+            .OrderBy(ReviewManifestPath, StringComparer.Ordinal)
+            .ToArray();
+        var pathSortedBytes = Encoding.UTF8.GetBytes(string.Join('\n', pathSorted) + "\n");
+        Sha256(pathSortedBytes).Should().Be(freeze.PathSortedSha256);
+        freeze.PathSortedSha256.Should().NotBe(
+            freeze.FrozenRawPorcelainSha256,
+            "the archived regression must discriminate path sorting from Git-emitted raw order");
+
+        var commit = RunGit(root, "cat-file", "-e", $"{freeze.CheckpointCommit}^{{commit}}");
+        commit.ExitCode.Should().Be(0, "the archived reviewed checkpoint must exist");
+        var parent = RunGit(root, "rev-parse", $"{freeze.CheckpointCommit}^");
+        parent.ExitCode.Should().Be(0);
+        parent.StandardOutput.Trim().Should().Be(freeze.BaseCommit);
+        var tree = RunGit(root, "rev-parse", $"{freeze.CheckpointCommit}^{{tree}}");
+        tree.ExitCode.Should().Be(0);
+        tree.StandardOutput.Trim().Should().Be(freeze.CheckpointTree);
+        ReadCommittedPaths(root, freeze.BaseCommit, freeze.CheckpointCommit)
+            .Should()
+            .Equal(
+                manifest.Lines
+                    .Select(ReviewManifestPath)
+                    .Order(StringComparer.Ordinal),
+                "the archived checkpoint must contain exactly its frozen manifest paths");
+
+        freeze.ContentRecordExcludedPaths.Should().Equal(
+            [ReviewManifestProvenanceFixture],
+            "only the self-referential provenance fixture may be excluded from an archived content record");
+        manifest.Lines.Select(ReviewManifestPath).Should().Contain(ReviewManifestProvenanceFixture);
+        var contentRecordLines = manifest.Lines
+            .Where(line => !freeze.ContentRecordExcludedPaths.Contains(
+                ReviewManifestPath(line),
+                StringComparer.Ordinal))
+            .ToArray();
+        var contentRecord = BuildCommittedContentRecord(
+            root,
+            freeze.CheckpointCommit,
+            contentRecordLines);
+        Encoding.UTF8.GetByteCount(contentRecord).Should().Be(freeze.ContentRecordBytes);
+        Sha256(contentRecord).Should().Be(
+            freeze.ContentRecordSha256,
+            "the archived checkpoint must preserve its scoped content anchor");
+    }
+
     private static void ValidateActiveReviewFreeze(
         string root,
         ActiveReviewFreeze freeze,
@@ -1992,6 +2113,32 @@ public sealed class OpenSpecCorpusGuards
         excludedMutation.Should().Be(
             contentRecord,
             "the sole excluded fixture may change only because it stores the content record itself");
+    }
+
+    private static void ValidateActiveFreezeContentRecordBuilders(string root)
+    {
+        const string probePath = "CLAUDE.md";
+        var manifestLine = $" M {probePath}";
+        var worktreeBytes = File.ReadAllBytes(Path.Combine(root, probePath));
+        var expectedWorktreeRecord = BuildHistoricalContentRecord(
+        [
+            new(" M", probePath, worktreeBytes.Length, Sha256(worktreeBytes))
+        ]);
+        BuildWorktreeContentRecord(root, [manifestLine]).Should().Be(
+            expectedWorktreeRecord,
+            "the active-freeze worktree builder must read and render the declared file bytes");
+
+        var head = RunGit(root, "rev-parse", "HEAD");
+        head.ExitCode.Should().Be(0);
+        var commit = head.StandardOutput.Trim();
+        var committedBytes = ReadGitBlob(root, commit, probePath);
+        var expectedCommittedRecord = BuildHistoricalContentRecord(
+        [
+            new(" M", probePath, committedBytes.Length, Sha256(committedBytes))
+        ]);
+        BuildCommittedContentRecord(root, commit, [manifestLine]).Should().Be(
+            expectedCommittedRecord,
+            "the active-freeze committed builder must read and render the declared Git blob bytes");
     }
 
     private static void ValidateCommitRealFreezeProjection(string root)
@@ -2134,13 +2281,15 @@ public sealed class OpenSpecCorpusGuards
                 stateEvidence!.Verdict.Should().Be("REJECT");
                 break;
             case ApprovalAwaitingEvidenceCommitReviewState:
-                approvals.Should().Be(1);
+                approvals.Should().BeGreaterThan(0,
+                    "first-pass approval and later approved remediation rounds need no prior rejection");
                 entry.ApprovalEvidenceCommit.Should().BeNull();
                 stateEvidence.Should().NotBeNull();
                 stateEvidence!.Verdict.Should().Be("APPROVE");
                 break;
             case ApprovedReviewState:
-                approvals.Should().Be(1);
+                approvals.Should().BeGreaterThan(0,
+                    "an approved task may retain more than one immutable approval round");
                 stateEvidence.Should().NotBeNull();
                 stateEvidence!.Verdict.Should().Be("APPROVE");
                 break;
@@ -2311,16 +2460,22 @@ public sealed class OpenSpecCorpusGuards
         return line[3..];
     }
 
+    private static Match[] ReadCiWorkflowSteps(string workflow) =>
+        Regex.Matches(
+            workflow,
+            @"(?ms)^[ \t]*-[ \t]+(?:name|uses):[^\n]*(?:\n.*?)(?=^[ \t]*-[ \t]+(?:name|uses):|\z)",
+            RegexOptions.CultureInvariant)
+        .Cast<Match>()
+        .ToArray();
+
+    private static string NormalizeCiWorkflowStep(Match step) =>
+        Regex.Replace(step.Value, @"\s+", " ");
+
     private static void ValidateInfrastructureGuardCiLane(string root)
     {
         var workflowPath = Path.Combine(root, ".github", "workflows", "ci.yml");
         var workflow = NormalizeLineEndings(File.ReadAllText(workflowPath));
-        var workflowSteps = Regex.Matches(
-            workflow,
-            @"(?ms)^[ \t]*-[ \t]+(?:name|uses):[^\n]*(?:\n.*?)(?=^[ \t]*-[ \t]+(?:name|uses):|\z)",
-            RegexOptions.CultureInvariant)
-            .Cast<Match>()
-            .ToArray();
+        var workflowSteps = ReadCiWorkflowSteps(workflow);
         var checkoutSteps = workflowSteps
             .Where(step => Regex.IsMatch(
                 step.Value,
@@ -2341,7 +2496,7 @@ public sealed class OpenSpecCorpusGuards
             RegexOptions.CultureInvariant);
         guardSteps.Should().ContainSingle(
             "CI must execute the must-be-green infrastructure guard disposition exactly once");
-        var normalizedCommand = Regex.Replace(guardSteps[0].Value, @"\s+", " ");
+        var normalizedCommand = NormalizeCiWorkflowStep(guardSteps[0]);
         normalizedCommand.Should().Contain(
             "dotnet test tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj");
         normalizedCommand.Should().Contain("--no-build --no-restore -c Release");
@@ -2688,6 +2843,7 @@ public sealed class OpenSpecCorpusGuards
     private sealed record ReviewManifestProvenanceCheckpoint(
         int SchemaVersion,
         ActiveReviewFreeze? ActiveFreeze,
+        ArchivedReviewFreeze[] ArchivedFreezes,
         ReviewManifestProvenanceEntry[] Entries);
 
     private sealed record ActiveReviewFreeze(
@@ -2696,6 +2852,23 @@ public sealed class OpenSpecCorpusGuards
         string ManifestPath,
         string Disposition,
         string BaseCommit,
+        string[] ContentRecordExcludedPaths,
+        int ContentRecordBytes,
+        string ContentRecordSha256);
+
+    private sealed record ArchivedReviewFreeze(
+        string Id,
+        string RequestPath,
+        string ManifestPath,
+        string Disposition,
+        int LineCount,
+        int ManifestBytes,
+        string ManifestSha256,
+        string FrozenRawPorcelainSha256,
+        string PathSortedSha256,
+        string BaseCommit,
+        string CheckpointCommit,
+        string CheckpointTree,
         string[] ContentRecordExcludedPaths,
         int ContentRecordBytes,
         string ContentRecordSha256);

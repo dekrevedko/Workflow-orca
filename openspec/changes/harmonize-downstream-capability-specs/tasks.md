@@ -227,7 +227,14 @@
       **Review remediation:** callback-local scope handles are named in both canonical and active
       reshape lifecycle requirements; CI executes `Requirement=CR-009a`; the guard rejects skipped
       representative tests and any restored lifecycle `AC-021` tag; and active freezes carry a
-      recomputed scoped content anchor rather than relying on handoff-only evidence.
+      recomputed scoped content anchor rather than relying on handoff-only evidence. **Post-review
+      hardening:** retry fixtures now race their second-attempt signal against workflow completion;
+      the lifecycle clause and exact CI step are source-pinned; active-freeze builders have direct
+      executable tests; first-pass approval does not require rejection history; Task 5.3 exercises
+      the owner-authorization state; and the synchronized lifecycle requirement is readably wrapped
+      without changing its normative content. These S1-S7 follow-ups are recorded separately from
+      checkpoint `9f4fa0b5aba0a2d8ada4188c0a3d6753a63a608c`; schema 9 retains that committed
+      freeze as executable archived provenance. They do not start Task 6.2.
 - [ ] 6.2 Add `WorkflowFailure` authored and runtime occurrence provenance to
       `docs/specs/04-requirements-core-runtime.md`: one `AuthoredLocation`, one runtime-created
       `root`/`branch`/`item` occurrence, creation-time attachment, ordered aggregation preservation,

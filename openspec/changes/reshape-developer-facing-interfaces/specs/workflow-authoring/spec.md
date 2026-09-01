@@ -184,8 +184,8 @@ Workflow authoring SHALL be governed by one session whose state is `Open`, `Join
 it was produced. Starting root fan-out SHALL supersede the current root handle; selecting the
 single join SHALL return a distinct façade bound to the successor epoch. A nested, branch, item,
 leased, or callback-local scope handle SHALL expire when its authoring callback returns. Applying an
-operator through a
-superseded or expired handle, selecting more than one join for one scope, applying any operator
+operator through a superseded or expired handle, selecting more than one join for one scope,
+applying any operator
 after a root terminal, or losing a concurrent authoring race SHALL throw one catalogued lifecycle
 `WorkflowDefinitionException` and SHALL leave the authored graph unchanged.
 

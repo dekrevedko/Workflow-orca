@@ -1,0 +1,14 @@
+ M openspec/changes/harmonize-downstream-capability-specs/artifacts/task-4-2-openspec-provenance-record-2026-08-18.md
+ M openspec/changes/harmonize-downstream-capability-specs/design.md
+ M openspec/changes/harmonize-downstream-capability-specs/tasks.md
+ M openspec/changes/reshape-developer-facing-interfaces/specs/workflow-authoring/spec.md
+ M openspec/specs/workflow-authoring/spec.md
+ M tests/OrcaCore.DeveloperSurface.BehaviorScenarios/LeaseExitScenarioHost.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/LeaseDiscoveryAndGovernanceContractGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+?? docs/review/harmonize-downstream-capability-specs-task-6-1-post-review-hardening-dirty-manifest-2026-08-29.txt
+?? docs/review/harmonize-downstream-capability-specs-task-6-1-post-review-hardening-independent-review-request-2026-08-29.md
+?? docs/review/harmonize-downstream-capability-specs-task-6-1-review-remediation-independent-review-verdict-2026-08-23.md
+?? openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-1-post-review-hardening-2026-08-29.md

@@ -74,6 +74,16 @@ never depends on a commit naming itself. `ApprovalAwaitingEvidenceCommit` regist
 evidence commit unset. The first distinct checkpoint commits that verdict and transition record;
 only a following mechanical activation may set `Approved` and pin the already-existing evidence
 commit. Immutable earlier `REJECT` verdicts remain registered in both states.
+A first-pass `APPROVE` is valid without any preceding `REJECT`; the awaiting-evidence state
+therefore requires approval evidence but deliberately does not require rejection history. When a
+later remediation round is also approved, every immutable approval remains registered and
+After an active freeze is checkpointed, its request, raw manifest, base, checkpoint, tree, and
+scoped content record move into the permanent `archivedFreezes` registry before another active
+freeze replaces it. Archived freezes remain executable committed-object evidence without
+conflating a remediation stage with the task-level verdict state or leaving an older manifest
+undisclosed.
+
+`stateEvidencePath` identifies the verdict governing the current transition.
 
 `MissingApproval` is reserved for work that has not checkpointed: both checkpoint commit and tree
 must be absent. When the repository owner explicitly authorizes a checkpoint without an independent

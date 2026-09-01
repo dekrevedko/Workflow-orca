@@ -62,9 +62,15 @@ public sealed class LeaseDiscoveryAndGovernanceInfrastructureGuards
             testRoot,
             "OrcaCore.DeveloperSurface.BehaviorScenarios",
             "LeaseExitScenarioHost.cs"));
-        Regex.Matches(leaseExitSource, @"await[ \t]+gate\.SecondStarted\.Task;")
+        Regex.Matches(
+                leaseExitSource,
+                @"await[ \t]+AwaitSignalBeforeWorkflowCompletionAsync\([ \t\r\n]+gate\.SecondStarted\.Task,[ \t\r\n]+running,",
+                RegexOptions.CultureInvariant)
             .Should().HaveCount(LeasedRetryFixtureCount,
-                "both leased retry fixtures must await the second-attempt signal before observing start-task completion");
+                "both leased retry fixtures must fail fast when workflow completion wins the second-attempt signal race");
+        leaseExitSource.Should().NotContain(
+            "await gate.SecondStarted.Task;",
+            "a bare second-attempt await can hang forever when the workflow completes without publishing the signal");
         leaseExitSource.Should().NotContain(
             "if (!gate.SecondStarted.Task.IsCompleted)",
             "a post-completion snapshot is a scheduler race, not notification-driven evidence");
