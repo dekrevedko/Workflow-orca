@@ -79,9 +79,11 @@ therefore requires approval evidence but deliberately does not require rejection
 later remediation round is also approved, every immutable approval remains registered and
 After an active freeze is checkpointed, its request, raw manifest, base, checkpoint, tree, and
 scoped content record move into the permanent `archivedFreezes` registry before another active
-freeze replaces it. Archived freezes remain executable committed-object evidence without
-conflating a remediation stage with the task-level verdict state or leaving an older manifest
-undisclosed.
+freeze replaces it. Every archived freeze records `IndependentReview` or `OwnerAuthorization` plus
+one registered immutable authority-evidence verdict; independent states and freezes SHALL reject an
+`-owner-approval-verdict-` evidence path, while owner-authorized records require it. Archived freezes
+remain executable committed-object evidence without conflating a remediation stage with the
+task-level verdict state or leaving an older manifest undisclosed.
 
 `stateEvidencePath` identifies the verdict governing the current transition.
 
@@ -155,6 +157,12 @@ The authoring-session lifecycle and `WorkflowFailure` occurrence provenance alre
 approved reshape contract. Harmonization adds stable numbered requirements and acceptance criteria
 that mirror those semantics without exposing implementation internals. Each new requirement maps to
 an executable guard, and each acceptance criterion maps back to one normative requirement.
+
+The failure-provenance acceptance mapping draws on the synchronized quality-and-verification
+requirement, the structured-fiber-execution ordering contract, and the public-contract companion. It
+must cover the single owning join failure, authored-branch and dynamic-item ordering keys,
+non-negative item indexes, per-cause provenance retention, and rejection of unknown, missing, or
+malformed fixed-codec occurrence data rather than naming only one contributing normative source.
 
 `docs/specs/17-public-authoring-contract.cs` changes only if the review concludes that these
 semantics alter its compile-shaped public surface. Internal lifecycle state alone is insufficient

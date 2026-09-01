@@ -30,6 +30,8 @@ public sealed class OpenSpecCorpusGuards
     private const string OwnerAuthorizationAwaitingEvidenceCommitReviewState =
         "OwnerAuthorizationAwaitingEvidenceCommit";
     private const string OwnerAuthorizedReviewState = "OwnerAuthorized";
+    private const string IndependentReviewAuthority = "IndependentReview";
+    private const string OwnerAuthorizationAuthority = "OwnerAuthorization";
     private const string SyntheticGitObjectId = "0123456789012345678901234567890123456789";
     private const string HarmonizationTaskLedgerPath =
         "openspec/changes/harmonize-downstream-capability-specs/tasks.md";
@@ -58,8 +60,9 @@ public sealed class OpenSpecCorpusGuards
         var root = FixtureDefinitions.RepositoryRoot();
         var checkpoint = FixtureDefinitions.Read<ReviewManifestProvenanceCheckpoint>(
             ReviewManifestProvenanceFixture);
-        checkpoint.SchemaVersion.Should().Be(9);
+        checkpoint.SchemaVersion.Should().Be(10);
         checkpoint.Entries.Select(entry => entry.Task).Should().OnlyHaveUniqueItems();
+        checkpoint.Entries.Select(entry => entry.ManifestPath).Should().OnlyHaveUniqueItems();
         checkpoint.ArchivedFreezes.Select(freeze => freeze.Id).Should().OnlyHaveUniqueItems();
         checkpoint.ArchivedFreezes.Select(freeze => freeze.ManifestPath).Should().OnlyHaveUniqueItems();
         File.Exists(Path.Combine(
@@ -72,6 +75,7 @@ public sealed class OpenSpecCorpusGuards
         ValidateActiveFreezeContentRecordSemantics();
         ValidateActiveFreezeContentRecordBuilders(root);
         ValidateMissingApprovalStateSemantics();
+        ValidateReviewAuthoritySemantics();
 
         var reviewRoot = Path.Combine(root, "docs", "review");
         var discoveredManifests = Directory
@@ -88,6 +92,7 @@ public sealed class OpenSpecCorpusGuards
             .Concat(checkpoint.ActiveFreeze is null
                 ? []
                 : [checkpoint.ActiveFreeze.ManifestPath])
+            .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)
             .ToArray();
         recordedManifestPaths.Should()
@@ -102,9 +107,12 @@ public sealed class OpenSpecCorpusGuards
             ValidateReviewStateEvidence(entry);
         }
 
+        var verdictEvidence = checkpoint.Entries
+            .SelectMany(entry => entry.VerdictEvidence)
+            .ToArray();
         foreach (var archivedFreeze in checkpoint.ArchivedFreezes)
         {
-            ValidateArchivedReviewFreeze(root, archivedFreeze);
+            ValidateArchivedReviewFreeze(root, archivedFreeze, verdictEvidence);
         }
 
         if (checkpoint.ActiveFreeze is not null)
@@ -720,11 +728,45 @@ public sealed class OpenSpecCorpusGuards
         heading.Success.Should().BeTrue("Task 6.2 must add one stable numbered failure-provenance requirement");
         Regex.Matches(numbered, $@"(?m)^### {Regex.Escape(requirementId)}(?:\s|$)")
             .Should().ContainSingle("the stable requirement ID must have exactly one owner");
-        var nextHeading = numbered.IndexOf("\n### ", heading.Index + heading.Length, StringComparison.Ordinal);
+        var nextHeading = numbered.IndexOf("\n##", heading.Index + heading.Length, StringComparison.Ordinal);
         var sectionEnd = nextHeading < 0 ? numbered.Length : nextHeading;
         var numberedBlock = numbered[heading.Index..sectionEnd];
+        Sha256(Encoding.UTF8.GetBytes(numberedBlock)).Should().Be(
+            "8fd23512e8469b4f8fc16e42bcbf85632bc51094936e733735f8040cc094a4ad",
+            "the complete CR-014a block is immutable reviewed text, so appended contradictions or " +
+            "unreviewed clause movement must fail rather than coexist with required fragments");
         numberedClauses.Should().OnlyContain(clause =>
             numberedBlock.Contains(clause, StringComparison.Ordinal));
+
+        var taskLedger = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            "openspec",
+            "changes",
+            "harmonize-downstream-capability-specs",
+            "tasks.md")));
+        const string task63Heading =
+            "- [ ] 6.3 Add acceptance criteria in `docs/specs/12-acceptance-criteria.md`";
+        var task63Start = taskLedger.IndexOf(task63Heading, StringComparison.Ordinal);
+        task63Start.Should().BeGreaterThanOrEqualTo(0);
+        var task63End = taskLedger.IndexOf("\n- [ ] 6.4 ", task63Start, StringComparison.Ordinal);
+        task63End.Should().BeGreaterThan(task63Start);
+        var task63Block = Regex.Replace(taskLedger[task63Start..task63End], @"\s+", " ");
+        string[] task63Clauses =
+        [
+            "`quality-and-verification` executable-evidence requirement",
+            "`structured-fiber-execution` ordering contract",
+            "public-contract companion",
+            "one owning join failure",
+            "authored-branch and dynamic-item ordering keys",
+            "non-negative item indexes",
+            "creation-time attachment",
+            "unchanged one-failure propagation",
+            "ordered per-cause provenance",
+            "rejection of unknown, missing, or malformed fixed-codec occurrence data",
+            "must not reuse `AC-022`"
+        ];
+        task63Clauses.Should().OnlyContain(clause =>
+            task63Block.Contains(clause, StringComparison.Ordinal));
 
         var canonicalPath = Path.Combine(root, "openspec", "specs", "quality-and-verification", "spec.md");
         var canonical = ReadRequirementBlocks(root, canonicalPath, isDelta: false)
@@ -2114,9 +2156,25 @@ public sealed class OpenSpecCorpusGuards
 
     private static void ValidateArchivedReviewFreeze(
         string root,
-        ArchivedReviewFreeze freeze)
+        ArchivedReviewFreeze freeze,
+        IReadOnlyCollection<ReviewVerdictEvidence> verdictEvidence)
     {
         freeze.Disposition.Should().Be("RawGitOrder");
+        freeze.Authority.Should().BeOneOf(IndependentReviewAuthority, OwnerAuthorizationAuthority);
+        var authorityEvidence = verdictEvidence
+            .Where(evidence => evidence.Path == freeze.AuthorityEvidencePath)
+            .ToArray();
+        authorityEvidence.Should().ContainSingle(
+            "every archived freeze must bind one registered immutable authority verdict");
+        authorityEvidence.Single().Verdict.Should().Be("APPROVE");
+        if (freeze.Authority == IndependentReviewAuthority)
+        {
+            RequireIndependentReviewAuthority(freeze.Id, freeze.AuthorityEvidencePath);
+        }
+        else
+        {
+            RequireOwnerAuthorizationAuthority(freeze.Id, freeze.AuthorityEvidencePath);
+        }
         freeze.BaseCommit.Should().MatchRegex("^[0-9a-f]{40}$");
         freeze.CheckpointCommit.Should().MatchRegex("^[0-9a-f]{40}$");
         freeze.CheckpointTree.Should().MatchRegex("^[0-9a-f]{40}$");
@@ -2474,12 +2532,14 @@ public sealed class OpenSpecCorpusGuards
                 entry.ApprovalEvidenceCommit.Should().BeNull();
                 stateEvidence.Should().NotBeNull();
                 stateEvidence!.Verdict.Should().Be("APPROVE");
+                RequireIndependentReviewAuthority(entry.Task, stateEvidence.Path);
                 break;
             case ApprovedReviewState:
                 approvals.Should().BeGreaterThan(0,
                     "an approved task may retain more than one immutable approval round");
                 stateEvidence.Should().NotBeNull();
                 stateEvidence!.Verdict.Should().Be("APPROVE");
+                RequireIndependentReviewAuthority(entry.Task, stateEvidence.Path);
                 break;
             case OwnerAuthorizationAwaitingEvidenceCommitReviewState:
                 approvals.Should().Be(1);
@@ -2488,7 +2548,7 @@ public sealed class OpenSpecCorpusGuards
                 entry.CheckpointTree.Should().NotBeNullOrWhiteSpace();
                 stateEvidence.Should().NotBeNull();
                 stateEvidence!.Verdict.Should().Be("APPROVE");
-                stateEvidence.Path.Should().Contain("-owner-approval-verdict-");
+                RequireOwnerAuthorizationAuthority(entry.Task, stateEvidence.Path);
                 break;
             case OwnerAuthorizedReviewState:
                 approvals.Should().Be(1);
@@ -2497,12 +2557,50 @@ public sealed class OpenSpecCorpusGuards
                 entry.CheckpointTree.Should().NotBeNullOrWhiteSpace();
                 stateEvidence.Should().NotBeNull();
                 stateEvidence!.Verdict.Should().Be("APPROVE");
-                stateEvidence.Path.Should().Contain("-owner-approval-verdict-");
+                RequireOwnerAuthorizationAuthority(entry.Task, stateEvidence.Path);
                 break;
             default:
                 throw new InvalidDataException(
                     $"Unsupported review state '{entry.ReviewState}' for Task {entry.Task}.");
         }
+    }
+
+    private static void RequireIndependentReviewAuthority(string owner, string evidencePath)
+    {
+        if (evidencePath.Contains("-owner-approval-verdict-", StringComparison.Ordinal))
+        {
+            throw new InvalidDataException(
+                $"Independent review state {owner} cannot use owner-approval evidence {evidencePath}.");
+        }
+    }
+
+    private static void RequireOwnerAuthorizationAuthority(string owner, string evidencePath)
+    {
+        if (!evidencePath.Contains("-owner-approval-verdict-", StringComparison.Ordinal))
+        {
+            throw new InvalidDataException(
+                $"Owner-authorized state {owner} must use an owner-approval verdict, found {evidencePath}.");
+        }
+    }
+
+    private static void ValidateReviewAuthoritySemantics()
+    {
+        RequireIndependentReviewAuthority("synthetic-independent", "docs/review/independent-review-verdict.md");
+        RequireOwnerAuthorizationAuthority(
+            "synthetic-owner",
+            "docs/review/synthetic-owner-approval-verdict-2026-08-31.md");
+
+        Action ownerEvidenceAsIndependent = () => RequireIndependentReviewAuthority(
+            "synthetic-independent",
+            "docs/review/synthetic-owner-approval-verdict-2026-08-31.md");
+        ownerEvidenceAsIndependent.Should().Throw<InvalidDataException>()
+            .WithMessage("*Independent review state*owner-approval evidence*");
+
+        Action independentEvidenceAsOwner = () => RequireOwnerAuthorizationAuthority(
+            "synthetic-owner",
+            "docs/review/independent-review-verdict.md");
+        independentEvidenceAsOwner.Should().Throw<InvalidDataException>()
+            .WithMessage("*Owner-authorized state*owner-approval verdict*");
     }
 
     private static void ValidateMissingApprovalStateSemantics()
@@ -3046,6 +3144,8 @@ public sealed class OpenSpecCorpusGuards
 
     private sealed record ArchivedReviewFreeze(
         string Id,
+        string Authority,
+        string AuthorityEvidencePath,
         string RequestPath,
         string ManifestPath,
         string Disposition,

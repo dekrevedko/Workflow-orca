@@ -244,9 +244,19 @@
       `root`/`branch`/`item` allowlist. Core, active ephemeral-runtime, and compile-included durable-runtime evidence carry
       the exact requirement trait and run in CI; `AC-022` is relocated to its existing
       structural-versus-opaque fingerprint evidence rather than being misapplied to provenance or
-      pre-empting task 6.3's acceptance mapping.
+      pre-empting task 6.3's acceptance mapping. **Post-review remediation:** schema 10 distinguishes
+      independent review from owner authorization in active states and archived freezes; the CR-014a
+      block is boundary-correct and hash-pinned against appended contradictions; and task 6.3 names
+      every contributing normative source and behavior below.
 - [ ] 6.3 Add acceptance criteria in `docs/specs/12-acceptance-criteria.md` for tasks 6.1 and 6.2 and
-      map them bidirectionally to their stable requirement IDs and executable guards.
+      map them bidirectionally to their stable requirement IDs and executable guards. The
+      failure-provenance criteria SHALL cite `CR-014a`, the synchronized
+      `quality-and-verification` executable-evidence requirement, the
+      `structured-fiber-execution` ordering contract, and the public-contract companion; cover one
+      owning join failure, authored-branch and dynamic-item ordering keys, non-negative item indexes,
+      creation-time attachment, unchanged one-failure propagation, ordered per-cause provenance,
+      and rejection of unknown, missing, or malformed fixed-codec occurrence data; and must not
+      reuse `AC-022`, which remains owned by structural-versus-opaque fingerprint evidence.
 - [ ] 6.4 Correct the stale `MaxActiveFibers` implementation statement in
       `docs/specs/18-semantic-appendix.md` and verify every remaining mention is historical,
       deferred, or negative rather than a current source claim.
