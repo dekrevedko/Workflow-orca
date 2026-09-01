@@ -93,6 +93,7 @@ public sealed class PublicDefinitionCompilerContractTests
     }
 
     [Fact]
+    [Trait("AC", "AC-022")]
     public void Fingerprint_IsDeterministicAndChangesWithStructureAndOutcome()
     {
         var definitionId = DefinitionId.New();
@@ -171,6 +172,7 @@ public sealed class PublicDefinitionCompilerContractTests
     }
 
     [Fact]
+    [Trait("AC", "AC-022")]
     public void Fingerprint_IgnoresCapturedOpaqueSelectorConfiguration()
     {
         var definitionId = DefinitionId.New();

@@ -235,10 +235,16 @@
       without changing its normative content. These S1-S7 follow-ups are recorded separately from
       checkpoint `9f4fa0b5aba0a2d8ada4188c0a3d6753a63a608c`; schema 9 retains that committed
       freeze as executable archived provenance. They do not start Task 6.2.
-- [ ] 6.2 Add `WorkflowFailure` authored and runtime occurrence provenance to
+- [x] 6.2 Add `WorkflowFailure` authored and runtime occurrence provenance to
       `docs/specs/04-requirements-core-runtime.md`: one `AuthoredLocation`, one runtime-created
       `root`/`branch`/`item` occurrence, creation-time attachment, ordered aggregation preservation,
-      and fixed-codec round-trip under the closed discriminator allowlist.
+      and fixed-codec round-trip under the closed discriminator allowlist. **Completed:** `CR-014a`
+      records the immutable authored/runtime provenance pair, one-failure identity preservation,
+      ordered multi-cause aggregation, and the versioned `orcacore-json-v1`
+      `root`/`branch`/`item` allowlist. Core, active ephemeral-runtime, and compile-included durable-runtime evidence carry
+      the exact requirement trait and run in CI; `AC-022` is relocated to its existing
+      structural-versus-opaque fingerprint evidence rather than being misapplied to provenance or
+      pre-empting task 6.3's acceptance mapping.
 - [ ] 6.3 Add acceptance criteria in `docs/specs/12-acceptance-criteria.md` for tasks 6.1 and 6.2 and
       map them bidirectionally to their stable requirement IDs and executable guards.
 - [ ] 6.4 Correct the stale `MaxActiveFibers` implementation statement in

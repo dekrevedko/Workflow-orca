@@ -173,6 +173,23 @@ to the merge. Neither join automatically cancels a sibling. Error details (type,
 operation/attempt identity, timestamp) SHALL be captured in runtime state and be inspectable
 through the management surface.
 
+### CR-014a Workflow failures retain authored and runtime occurrence provenance
+Every `WorkflowFailure` SHALL carry exactly one immutable `AuthoredLocation` for the compiled
+authored-graph position that produced it and exactly one runtime-created `FailureOccurrence`.
+The occurrence union SHALL be closed to `Root`, `Branch(AuthoredBranchId)`, and `Item(index)`;
+its constructors SHALL remain runtime-only. Both values SHALL attach when the failure is created
+and SHALL NOT be inferred, replaced, or collapsed when the failure is projected or detached.
+
+Propagating one failure SHALL preserve its code, message, authored location, and occurrence.
+Aggregating multiple failures SHALL create one owning failure at the join's authored location and
+occurrence while preserving every cause, with fixed branches ordered by authored branch order and
+dynamic items ordered by item index. Every cause SHALL retain its own provenance.
+
+The fixed codec `orcacore-json-v1` SHALL round-trip the complete failure graph through the
+versioned closed discriminator allowlist `root`/`branch`/`item`, including the required branch ID
+or non-negative item index. Unknown discriminator kinds or versions, missing variant data, and
+otherwise malformed occurrence payloads SHALL be rejected rather than coerced.
+
 ### CR-015 Execution position as structured fibers and scopes
 The runtime SHALL track execution through a compiled plan containing stable instruction,
 scope-plan, branch, and merge identities. Each active fiber SHALL carry one linear

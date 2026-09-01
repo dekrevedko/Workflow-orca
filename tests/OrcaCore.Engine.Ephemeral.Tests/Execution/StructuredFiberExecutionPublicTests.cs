@@ -140,9 +140,11 @@ public sealed class StructuredFiberExecutionPublicTests
     }
 
     [Fact]
+    [Trait("Requirement", "CR-014a")]
     public async Task SelectedParallel_WhenAllOutcomesMergesOrderedSuccessAndFailureData()
     {
         var trace = new ConcurrentQueue<string>();
+        WorkflowFailure? observedFailure = null;
         using var provider = CreateProvider(
             services => services.AddSingleton(new FailingBranchStep(trace)));
         var definition = Workflow.Ephemeral<ParentState>(
@@ -162,13 +164,21 @@ public sealed class StructuredFiberExecutionPublicTests
                     branch => branch.Return(state => state.Value.Name)))
             .WhenAllOutcomes((parent, outcomes) => parent.Value with
             {
-                Results = outcomes.Select(outcome => outcome switch
+                Results = outcomes.Select(outcome =>
                 {
-                    BranchOutcome<string>.Succeeded success =>
-                        $"{success.BranchId.Value}:success:{success.Result}",
-                    BranchOutcome<string>.Failed failure =>
-                        $"{failure.BranchId.Value}:failure:{failure.Failure.Code}",
-                    _ => throw new InvalidOperationException("Unknown branch outcome.")
+                    if (outcome is BranchOutcome<string>.Failed failed)
+                    {
+                        observedFailure = failed.Failure;
+                    }
+
+                    return outcome switch
+                    {
+                        BranchOutcome<string>.Succeeded success =>
+                            $"{success.BranchId.Value}:success:{success.Result}",
+                        BranchOutcome<string>.Failed failure =>
+                            $"{failure.BranchId.Value}:failure:{failure.Failure.Code}",
+                        _ => throw new InvalidOperationException("Unknown branch outcome.")
+                    };
                 }).ToList()
             })
             .End()
@@ -184,6 +194,11 @@ public sealed class StructuredFiberExecutionPublicTests
         state.Results.Should().Equal(
             "failing:failure:WF-LEGACY-LIFECYCLE",
             "succeeding:success:succeeding");
+        observedFailure.Should().NotBeNull();
+        observedFailure!.AuthoredLocation.Value.Should().Be(
+            "workflow:$/n:00000001/parallel:00000000/n:00000000");
+        observedFailure.Occurrence.Should().BeOfType<FailureOccurrence.Branch>()
+            .Which.BranchId.Should().Be(AuthoredBranchId.Create("failing"));
     }
 
     [Fact]

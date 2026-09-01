@@ -1,7 +1,17 @@
 {
   "schemaVersion": 9,
-  "activeFreeze": null,
-
+  "activeFreeze": {
+    "task": "6.2",
+    "requestPath": "docs/review/harmonize-downstream-capability-specs-task-6-2-independent-review-request-2026-08-31.md",
+    "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-6-2-dirty-manifest-2026-08-31.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "532940a3865b8eec85c315dca9da09b874cb4173",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 2064,
+    "contentRecordSha256": "56b99de45b1570839a66c6bcfe8bc0da0e0fbc38ed09fecf5ae1731bc64ca261"
+  },
   "archivedFreezes": [
     {
       "id": "6.1-remediation",
@@ -508,11 +518,7 @@
         }
       ],
       "currentWorktreeMatchPaths": [
-        "docs/specs/04-requirements-core-runtime.md",
-        "openspec/changes/reshape-developer-facing-interfaces/tasks.md",
         "tests/OrcaCore.Core.Tests/Building/AuthoringLifecycleTests.cs",
-        "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json",
-        "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
         "docs/review/harmonize-downstream-capability-specs-task-6-1-dirty-manifest-2026-08-22.txt",
         "docs/review/harmonize-downstream-capability-specs-task-6-1-independent-review-request-2026-08-22.md",
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-1-authoring-session-lifecycle-requirement-2026-08-22.md"

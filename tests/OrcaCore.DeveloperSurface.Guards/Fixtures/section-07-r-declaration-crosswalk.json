@@ -3,10 +3,10 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 336,
-    "physicalDeclarations": 1384,
-    "activeFiles": 188,
-    "activeDeclarations": 696,
+    "physicalFiles": 337,
+    "physicalDeclarations": 1386,
+    "activeFiles": 189,
+    "activeDeclarations": 698,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 17,
@@ -771,7 +771,7 @@
       "source": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
       "status": "active",
-      "declarations": 5
+      "declarations": 6
     },
     {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/OperationalTelemetryContractGuards.cs",
@@ -1060,6 +1060,12 @@
       "ownerProject": "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj",
       "status": "compile-excluded",
       "declarations": 14
+    },
+    {
+      "source": "tests/OrcaCore.Engine.Durable.Tests/Driver/DurableFailureProvenanceTests.cs",
+      "ownerProject": "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj",
+      "status": "active",
+      "declarations": 1
     },
     {
       "source": "tests/OrcaCore.Engine.Durable.Tests/Driver/DurableFiberEnvelopeMapperTests.cs",

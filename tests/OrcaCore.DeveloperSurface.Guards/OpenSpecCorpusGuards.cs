@@ -692,6 +692,194 @@ public sealed class OpenSpecCorpusGuards
             "-c Release --filter \"Requirement=CR-009a\" --logger trx --results-directory TestResults");
     }
 
+    [Fact]
+    public void Task62_CoreRuntimeDocumentsWorkflowFailureProvenanceAndExecutableEvidence()
+    {
+        const string requirementId = "CR-014a";
+        const string authoritativeRequirement =
+            "Authoring lifecycle, fingerprint coverage, and failure provenance are executable";
+        string[] numberedClauses =
+        [
+            "exactly one immutable `AuthoredLocation`",
+            "exactly one runtime-created `FailureOccurrence`",
+            "closed to `Root`, `Branch(AuthoredBranchId)`, and `Item(index)`",
+            "attach when the failure is created",
+            "Propagating one failure SHALL preserve",
+            "fixed branches ordered by authored branch order",
+            "dynamic items ordered by item index",
+            "versioned closed discriminator allowlist `root`/`branch`/`item`",
+            "Unknown discriminator kinds or versions"
+        ];
+
+        var root = FixtureDefinitions.RepositoryRoot();
+        var numberedPath = Path.Combine(root, "docs", "specs", "04-requirements-core-runtime.md");
+        var numbered = NormalizeLineEndings(File.ReadAllText(numberedPath));
+        var heading = Regex.Match(
+            numbered,
+            $@"(?m)^### {Regex.Escape(requirementId)} Workflow failures retain authored and runtime occurrence provenance$");
+        heading.Success.Should().BeTrue("Task 6.2 must add one stable numbered failure-provenance requirement");
+        Regex.Matches(numbered, $@"(?m)^### {Regex.Escape(requirementId)}(?:\s|$)")
+            .Should().ContainSingle("the stable requirement ID must have exactly one owner");
+        var nextHeading = numbered.IndexOf("\n### ", heading.Index + heading.Length, StringComparison.Ordinal);
+        var sectionEnd = nextHeading < 0 ? numbered.Length : nextHeading;
+        var numberedBlock = numbered[heading.Index..sectionEnd];
+        numberedClauses.Should().OnlyContain(clause =>
+            numberedBlock.Contains(clause, StringComparison.Ordinal));
+
+        var canonicalPath = Path.Combine(root, "openspec", "specs", "quality-and-verification", "spec.md");
+        var canonical = ReadRequirementBlocks(root, canonicalPath, isDelta: false)
+            .Single(requirement => requirement.Requirement == authoritativeRequirement);
+        var reshapePath = Path.Combine(
+            root,
+            "openspec",
+            "changes",
+            "reshape-developer-facing-interfaces",
+            "specs",
+            "quality-and-verification",
+            "spec.md");
+        var reshape = ReadRequirementBlocks(root, reshapePath, isDelta: true)
+            .Single(requirement => requirement.Requirement == authoritativeRequirement);
+        canonical.Block.Should().Be(
+            reshape.Block,
+            "the approved executable failure-provenance requirement must remain synchronized");
+        var authoritativeBlock = Regex.Replace(canonical.Block, @"\s+", " ");
+        string[] authoritativeClauses =
+        [
+            "failure provenance attaches at failure creation",
+            "root/branch/item occurrence constructors are runtime-only",
+            "one-failure propagation is unchanged",
+            "multiple causes retain ordered individual provenance",
+            "closed `root`/`branch`/`item` discriminator allowlist round-trips through `orcacore-json-v1`"
+        ];
+        authoritativeClauses.Should().OnlyContain(clause =>
+            authoritativeBlock.Contains(clause, StringComparison.Ordinal));
+
+        var coreEvidencePath = Path.Combine(
+            root,
+            "tests",
+            "OrcaCore.Core.Tests",
+            "Execution",
+            "FailureProvenanceTests.cs");
+        var coreEvidence = NormalizeLineEndings(File.ReadAllText(coreEvidencePath));
+        coreEvidence.Should().Contain($"[Trait(\"Requirement\", \"{requirementId}\")]");
+        coreEvidence.Should().NotContain(
+            "[Trait(\"AC\", \"AC-022\")]",
+            "failure provenance must not claim the structural-fingerprint acceptance criterion");
+        var fingerprintEvidence = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            "tests",
+            "OrcaCore.Core.Tests",
+            "Compilation",
+            "PublicDefinitionCompilerContractTests.cs")));
+        string[] fingerprintMembers =
+        [
+            "Fingerprint_IsDeterministicAndChangesWithStructureAndOutcome",
+            "Fingerprint_IgnoresCapturedOpaqueSelectorConfiguration"
+        ];
+        foreach (var member in fingerprintMembers)
+        {
+            var declaration = Regex.Match(
+                fingerprintEvidence,
+                $@"(?ms)(?<attributes>(?:^[ \t]*\[[^\n]+\][ \t]*\n)+)[ \t]*public[ \t]+void[ \t]+{Regex.Escape(member)}[ \t]*\(",
+                RegexOptions.CultureInvariant);
+            declaration.Success.Should().BeTrue("{0} must remain discovered AC-022 evidence", member);
+            declaration.Groups["attributes"].Value.Should().Contain("[Trait(\"AC\", \"AC-022\")]");
+        }
+
+        string[] coreMembers =
+        [
+            "FailureOccurrence_IsTheExactClosedRuntimeCreatedUnion",
+            "DetachedFailureGraph_PreservesProvenanceByValueWithoutSharingReferences",
+            "AggregateFailures_PreservesSingleIdentityAndUsesOwningProvenanceForMany",
+            "FixedCodec_RoundTripsTheVersionedClosedOccurrenceAllowlist",
+            "FixedCodec_RejectsUnknownOrMalformedOccurrence"
+        ];
+        foreach (var member in coreMembers)
+        {
+            var declaration = Regex.Match(
+                coreEvidence,
+                $@"(?ms)(?<attributes>(?:^[ \t]*\[[^\n]+\][ \t]*\n)+)[ \t]*public[ \t]+void[ \t]+{Regex.Escape(member)}[ \t]*\(",
+                RegexOptions.CultureInvariant);
+            declaration.Success.Should().BeTrue("{0} must remain discovered requirement evidence", member);
+            var attributes = declaration.Groups["attributes"].Value;
+            attributes.Should().MatchRegex(@"(?m)^[ \t]*\[(?:Fact|Theory)(?:\]|\()", "{0} must be executable by xUnit", member);
+            attributes.Should().NotContain("Skip", "{0} must not be disabled", member);
+        }
+
+        (string Path, string Member, string[] Fragments)[] runtimeEvidence =
+        [
+            (
+                "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs",
+                "SelectedParallel_WhenAllOutcomesMergesOrderedSuccessAndFailureData",
+                [
+                    "workflow:$/n:00000001/parallel:00000000/n:00000000",
+                    "FailureOccurrence.Branch"
+                ]),
+            (
+                "tests/OrcaCore.Engine.Durable.Tests/Driver/DurableFailureProvenanceTests.cs",
+                "SelectedParallel_WhenAllOutcomesPreservesOrderedFailureProvenance",
+                [
+                    "failing:failure:WF-LEGACY-LIFECYCLE",
+                    "workflow:$/n:00000001/parallel:00000000/n:00000000",
+                    "FailureOccurrence.Branch"
+                ])
+        ];
+        foreach (var evidence in runtimeEvidence)
+        {
+            var source = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+                root,
+                evidence.Path.Replace('/', Path.DirectorySeparatorChar))));
+            var projectPath = evidence.Path.Contains("Engine.Ephemeral.Tests", StringComparison.Ordinal)
+                ? "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj"
+                : "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj";
+            var project = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+                root,
+                projectPath.Replace('/', Path.DirectorySeparatorChar))));
+            var projectDirectory = projectPath[..projectPath.LastIndexOf('/')];
+            var compilePath = evidence.Path[(projectDirectory.Length + 1)..].Replace('/', '\\');
+            project.Should().NotContain(
+                $"<Compile Remove=\"{compilePath}\"",
+                "{0} must be compile-included rather than source-only evidence",
+                evidence.Path);
+            var declaration = Regex.Match(
+                source,
+                $@"(?ms)(?<attributes>(?:^[ \t]*\[[^\n]+\][ \t]*\n)+)[ \t]*public[ \t]+(?:async[ \t]+Task|void)[ \t]+{Regex.Escape(evidence.Member)}[ \t]*\(",
+                RegexOptions.CultureInvariant);
+            declaration.Success.Should().BeTrue("{0} must remain discovered runtime evidence", evidence.Member);
+            var attributes = declaration.Groups["attributes"].Value;
+            attributes.Should().Contain($"[Trait(\"Requirement\", \"{requirementId}\")]");
+            attributes.Should().MatchRegex(@"(?m)^[ \t]*\[Fact\]", "{0} must be executable by xUnit", evidence.Member);
+            attributes.Should().NotContain("Skip", "{0} must not be disabled", evidence.Member);
+            evidence.Fragments.Should().OnlyContain(fragment =>
+                source.Contains(fragment, StringComparison.Ordinal));
+        }
+
+        var ci = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            ".github",
+            "workflows",
+            "ci.yml")));
+        var provenanceSteps = ReadCiWorkflowSteps(ci)
+            .Where(step => Regex.IsMatch(
+                step.Value,
+                @"(?m)^[ \t]*-[ \t]+name:[ \t]+Failure provenance requirement evidence[ \t]*$",
+                RegexOptions.CultureInvariant))
+            .ToArray();
+        provenanceSteps.Should().ContainSingle(
+            "CI must contain one dedicated failure-provenance requirement evidence step");
+        var provenanceCommand = NormalizeCiWorkflowStep(provenanceSteps[0]).Trim();
+        provenanceCommand.Should().Be(
+            "- name: Failure provenance requirement evidence run: > dotnet test " +
+            "tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj --no-build --no-restore " +
+            "-c Release --filter \"Requirement=CR-014a\" --logger trx --results-directory TestResults && " +
+            "dotnet test tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj " +
+            "--no-build --no-restore -c Release --filter \"Requirement=CR-014a\" --logger trx " +
+            "--results-directory TestResults && dotnet test " +
+            "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj --no-build " +
+            "--no-restore -c Release --filter \"Requirement=CR-014a\" --logger trx " +
+            "--results-directory TestResults");
+    }
+
     private static DeltaRequirement[] ReadTask53ActiveDeltaRequirements(string root)
     {
         var changesRoot = Path.Combine(root, "openspec", "changes");

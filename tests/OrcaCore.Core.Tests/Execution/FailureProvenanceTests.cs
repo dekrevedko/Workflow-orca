@@ -11,7 +11,7 @@ using Xunit;
 
 namespace OrcaCore.Core.Tests.Execution;
 
-[Trait("AC", "AC-022")]
+[Trait("Requirement", "CR-014a")]
 public sealed class FailureProvenanceTests
 {
     [Fact]
