@@ -262,6 +262,10 @@
       to their sole criterion; Core and active ephemeral/durable tests carry the exact AC traits;
       the repository acceptance catalog, dedicated CI lane, and Task 6.3 infrastructure guard make
       the mapping executable and preserve `AC-022` solely for structural fingerprint evidence.
+      **Post-review remediation:** both numbered requirement blocks are whole-block hash-pinned,
+      all three `AC-029` normative-companion links resolve to their exact files and headings, class
+      trait evidence is order-independent, and reshape task 7.20 names task 6.3 in the provenance
+      sequence that owns its current 337-source / 1,387-declaration inventory.
 - [ ] 6.4 Correct the stale `MaxActiveFibers` implementation statement in
       `docs/specs/18-semantic-appendix.md` and verify every remaining mention is historical,
       deferred, or negative rather than a current source claim.

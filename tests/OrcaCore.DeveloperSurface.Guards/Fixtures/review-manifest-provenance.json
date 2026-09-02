@@ -1,17 +1,6 @@
 {
   "schemaVersion": 10,
-  "activeFreeze": {
-    "task": "6.3",
-    "requestPath": "docs/review/harmonize-downstream-capability-specs-task-6-3-independent-review-request-2026-08-31.md",
-    "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-6-3-dirty-manifest-2026-08-31.txt",
-    "disposition": "RawGitOrder",
-    "baseCommit": "2dbf2b94168e4338c1fa8af742573545287f2f9d",
-    "contentRecordExcludedPaths": [
-      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
-    ],
-    "contentRecordBytes": 2146,
-    "contentRecordSha256": "dcb93375c045ccf0f0b5525e218936b3098d6243cf7f532c108a0538dc389a28"
-  },
+  "activeFreeze": null,
   "archivedFreezes": [
     {
       "id": "6.1-remediation",
@@ -75,6 +64,27 @@
       ],
       "contentRecordBytes": 2064,
       "contentRecordSha256": "56b99de45b1570839a66c6bcfe8bc0da0e0fbc38ed09fecf5ae1731bc64ca261"
+    },
+    {
+      "id": "6.3",
+      "authority": "IndependentReview",
+      "authorityEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-6-3-independent-review-verdict-2026-09-01.md",
+      "requestPath": "docs/review/harmonize-downstream-capability-specs-task-6-3-independent-review-request-2026-08-31.md",
+      "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-6-3-dirty-manifest-2026-08-31.txt",
+      "disposition": "RawGitOrder",
+      "lineCount": 16,
+      "manifestBytes": 1168,
+      "manifestSha256": "5f6cb97df7ed146e54614234429336ce04e7a8478b7b128033eac2017091ec9e",
+      "frozenRawPorcelainSha256": "5f6cb97df7ed146e54614234429336ce04e7a8478b7b128033eac2017091ec9e",
+      "pathSortedSha256": "747976e3573a63ac19d927e6fff35717dbcac6dd151f9de7827b1d92dce15bd4",
+      "baseCommit": "2dbf2b94168e4338c1fa8af742573545287f2f9d",
+      "checkpointCommit": "609e9c4523bd0db06fff42d01ab3e65db2e52964",
+      "checkpointTree": "554c9a9d74a0d7be4f0ffc3fdec7e04251f1534d",
+      "contentRecordExcludedPaths": [
+        "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+      ],
+      "contentRecordBytes": 2146,
+      "contentRecordSha256": "dcb93375c045ccf0f0b5525e218936b3098d6243cf7f532c108a0538dc389a28"
     }
   ],
   "entries": [
@@ -695,6 +705,149 @@
           "path": "docs/review/harmonize-downstream-capability-specs-task-6-2-independent-review-verdict-2026-08-31.md",
           "verdict": "APPROVE",
           "sha256": "486b73cebf7a5048f7a655227f73d60405b6191356e458d13044b41b1b5b10fd"
+        }
+      ]
+    },
+    {
+      "task": "6.3",
+      "requestPath": "docs/review/harmonize-downstream-capability-specs-task-6-3-independent-review-request-2026-08-31.md",
+      "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-6-3-dirty-manifest-2026-08-31.txt",
+      "disposition": "RawGitOrder",
+      "lineCount": 16,
+      "manifestBytes": 1168,
+      "manifestSha256": "5f6cb97df7ed146e54614234429336ce04e7a8478b7b128033eac2017091ec9e",
+      "frozenRawPorcelainSha256": "5f6cb97df7ed146e54614234429336ce04e7a8478b7b128033eac2017091ec9e",
+      "pathSortedSha256": "747976e3573a63ac19d927e6fff35717dbcac6dd151f9de7827b1d92dce15bd4",
+      "baseCommit": "2dbf2b94168e4338c1fa8af742573545287f2f9d",
+      "checkpointCommit": "609e9c4523bd0db06fff42d01ab3e65db2e52964",
+      "checkpointTree": "554c9a9d74a0d7be4f0ffc3fdec7e04251f1534d",
+      "approvalEvidenceCommit": null,
+      "reviewedTargetCommit": "609e9c4523bd0db06fff42d01ab3e65db2e52964",
+      "reviewedTargetTree": "554c9a9d74a0d7be4f0ffc3fdec7e04251f1534d",
+      "preApprovalContentCommits": [],
+      "historicalDirtyContentRecordBytes": 2300,
+      "historicalDirtyContentRecordSha256": "9837f4f809a2a90fac0651e5f8144200102b1b9a8ef6f8e1af1bcd7d6784039d",
+      "historicalDirtyContentRecordRows": [
+        {
+          "status": " M",
+          "path": ".github/workflows/ci.yml",
+          "bytes": 6598,
+          "sha256": "93f1aba5044ce38770fd947ea33b3fa037ea1bad00bc47f95d8c6bac08f235c7"
+        },
+        {
+          "status": " M",
+          "path": "docs/specs/04-requirements-core-runtime.md",
+          "bytes": 25850,
+          "sha256": "c01217cbfc6fb01c1d854f56311d8e04e8a4fada54ed6336e3ce7a2f8f79f043"
+        },
+        {
+          "status": " M",
+          "path": "docs/specs/12-acceptance-criteria.md",
+          "bytes": 44285,
+          "sha256": "59ce25e801cb4a85be0491ca6c99db917c7fa7209c383785c5ecc7844a54abc0"
+        },
+        {
+          "status": " M",
+          "path": "openspec/changes/harmonize-downstream-capability-specs/tasks.md",
+          "bytes": 27362,
+          "sha256": "30a597253d26ef87491bd335c65f554ae7d9db7ba76178c9ff1608708374ae05"
+        },
+        {
+          "status": " M",
+          "path": "openspec/changes/reshape-developer-facing-interfaces/tasks.md",
+          "bytes": 71537,
+          "sha256": "893b42418a7b1cc544dcf68f13692f4eb5e33bf6eea7e6248e0b9641b55f5784"
+        },
+        {
+          "status": " M",
+          "path": "tests/OrcaCore.Core.Tests/Building/AuthoringLifecycleTests.cs",
+          "bytes": 18840,
+          "sha256": "352313cc217568cdf2a0ae682d97187e0131023ee7a56cdaf77720ad2d5d79a6"
+        },
+        {
+          "status": " M",
+          "path": "tests/OrcaCore.Core.Tests/Execution/FailureProvenanceTests.cs",
+          "bytes": 9006,
+          "sha256": "fd0ae1df09feae65f6b2f7c0e609f7480ce324766401bc44ce23e7a1a5ae18a7"
+        },
+        {
+          "status": " M",
+          "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json",
+          "bytes": 35090,
+          "sha256": "ab7c0e400b9d48fba13ac6b6be056a38c037ca0f39a3f0cd8e3515edac57ea1b"
+        },
+        {
+          "status": " M",
+          "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json",
+          "bytes": 608760,
+          "sha256": "9aa35d13b59ec32ff5bec4fc1d946a3944bc95f1a573272f953e8c9af703d3d3"
+        },
+        {
+          "status": " M",
+          "path": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+          "bytes": 156618,
+          "sha256": "e5b83fe33235e6e32313e88865a518764041d03c615f248aeb503c043edf49a3"
+        },
+        {
+          "status": " M",
+          "path": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+          "bytes": 43171,
+          "sha256": "3599dc71d1cefa55f63388157e8b378fb96d1d109d9d1d15b5db6061964e8ba3"
+        },
+        {
+          "status": " M",
+          "path": "tests/OrcaCore.Engine.Durable.Tests/Driver/DurableFailureProvenanceTests.cs",
+          "bytes": 4803,
+          "sha256": "0f7b5bf702b1de735c521052c7489e8d23181e75f31bc20e8d04825b571454ea"
+        },
+        {
+          "status": " M",
+          "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs",
+          "bytes": 74277,
+          "sha256": "b03065f5d65f04b88a1871f1886a527738164691e24d0481a72865adc55e30a0"
+        },
+        {
+          "status": "??",
+          "path": "docs/review/harmonize-downstream-capability-specs-task-6-3-dirty-manifest-2026-08-31.txt",
+          "bytes": 1168,
+          "sha256": "5f6cb97df7ed146e54614234429336ce04e7a8478b7b128033eac2017091ec9e"
+        },
+        {
+          "status": "??",
+          "path": "docs/review/harmonize-downstream-capability-specs-task-6-3-independent-review-request-2026-08-31.md",
+          "bytes": 4596,
+          "sha256": "d503722816b51fc6a45601e462be9328c6f5b0f5c12ba55aa6887ee7b551a60c"
+        },
+        {
+          "status": "??",
+          "path": "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-3-acceptance-criteria-mapping-2026-08-31.md",
+          "bytes": 4362,
+          "sha256": "6cd2df6a73c563998adb52408b90162f0d7e588451466463a509391ef36cf225"
+        }
+      ],
+      "currentWorktreeMatchPaths": [
+        ".github/workflows/ci.yml",
+        "docs/specs/04-requirements-core-runtime.md",
+        "docs/specs/12-acceptance-criteria.md",
+        "tests/OrcaCore.Core.Tests/Building/AuthoringLifecycleTests.cs",
+        "tests/OrcaCore.Core.Tests/Execution/FailureProvenanceTests.cs",
+        "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json",
+        "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+        "tests/OrcaCore.Engine.Durable.Tests/Driver/DurableFailureProvenanceTests.cs",
+        "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs",
+        "docs/review/harmonize-downstream-capability-specs-task-6-3-dirty-manifest-2026-08-31.txt",
+        "docs/review/harmonize-downstream-capability-specs-task-6-3-independent-review-request-2026-08-31.md",
+        "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-3-acceptance-criteria-mapping-2026-08-31.md"
+      ],
+      "checkpointBlobContentRecordBytes": 2300,
+      "checkpointBlobContentRecordSha256": "9837f4f809a2a90fac0651e5f8144200102b1b9a8ef6f8e1af1bcd7d6784039d",
+      "reviewState": "ApprovalAwaitingEvidenceCommit",
+      "stateEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-6-3-independent-review-verdict-2026-09-01.md",
+      "verdictEvidence": [
+        {
+          "path": "docs/review/harmonize-downstream-capability-specs-task-6-3-independent-review-verdict-2026-09-01.md",
+          "verdict": "APPROVE",
+          "sha256": "046078afab63a82c5f0c741de9cebefe7c86d0993d3acf67d5336120ac0eb579"
         }
       ]
     }

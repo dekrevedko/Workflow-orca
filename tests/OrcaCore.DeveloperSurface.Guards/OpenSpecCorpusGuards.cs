@@ -935,6 +935,10 @@ public sealed class OpenSpecCorpusGuards
             requirements, "CR-009a Authoring sessions have one explicit lifecycle");
         var failureRequirement = ReadNumberedRequirementBlock(
             requirements, "CR-014a Workflow failures retain authored and runtime occurrence provenance");
+        Sha256(Encoding.UTF8.GetBytes(lifecycleRequirement)).Should().Be(
+            "085fb9753a97838f8798f5443c1b6e444eda392ef8a06f3c9531cd56726856f8",
+            "the complete CR-009a block is immutable reviewed text, so appended contradictions or " +
+            "unreviewed clause movement must fail rather than coexist with the acceptance backlink");
         lifecycleRequirement.Should().Contain("Acceptance criterion: `AC-028`.");
         failureRequirement.Should().Contain("Acceptance criterion: `AC-029`.");
         lifecycleRequirement.Should().NotContain("AC-029");
@@ -963,18 +967,54 @@ public sealed class OpenSpecCorpusGuards
             "`quality-and-verification` executable evidence",
             "`structured-fiber-execution` join ordering",
             "public-contract companion");
+        RequireMarkdownLinkTarget(
+            root,
+            "docs/specs/12-acceptance-criteria.md",
+            failureCriterion,
+            "`quality-and-verification` executable evidence",
+            "../../openspec/specs/quality-and-verification/spec.md",
+            "requirement-authoring-lifecycle-fingerprint-coverage-and-failure-provenance-are-executable",
+            "### Requirement: Authoring lifecycle, fingerprint coverage, and failure provenance are executable");
+        RequireMarkdownLinkTarget(
+            root,
+            "docs/specs/12-acceptance-criteria.md",
+            failureCriterion,
+            "`structured-fiber-execution` join ordering",
+            "../../openspec/specs/structured-fiber-execution/spec.md",
+            "requirement-join-policies-define-one-scope-outcome",
+            "### Requirement: Join policies define one scope outcome");
+        RequireMarkdownLinkTarget(
+            root,
+            "docs/specs/12-acceptance-criteria.md",
+            failureCriterion,
+            "public-contract companion",
+            "17-selected-mode-capability-matrix.md",
+            expectedAnchor: null,
+            expectedHeading: null);
         lifecycleCriterion.Should().NotContain("CR-014a");
         failureCriterion.Should().NotContain("CR-009a");
         failureCriterion.Should().NotContain("AC-022");
 
         var lifecycleEvidence = NormalizeLineEndings(File.ReadAllText(Path.Combine(
             root, "tests", "OrcaCore.Core.Tests", "Building", "AuthoringLifecycleTests.cs")));
-        lifecycleEvidence.Should().Contain(
-            "[Trait(\"Requirement\", \"CR-009a\")]\n[Trait(\"AC\", \"AC-028\")]\npublic sealed class AuthoringLifecycleTests");
+        var lifecycleClass = Regex.Match(
+            lifecycleEvidence,
+            @"(?ms)(?<attributes>(?:^[ \t]*\[[^\n]+\][ \t]*\n)+)[ \t]*public[ \t]+sealed[ \t]+class[ \t]+AuthoringLifecycleTests(?:\s|$)",
+            RegexOptions.CultureInvariant);
+        lifecycleClass.Success.Should().BeTrue("AuthoringLifecycleTests must remain discovered AC-028 evidence");
+        lifecycleClass.Groups["attributes"].Value.Should().ContainAll(
+            "[Trait(\"Requirement\", \"CR-009a\")]",
+            "[Trait(\"AC\", \"AC-028\")]");
         var coreFailureEvidence = NormalizeLineEndings(File.ReadAllText(Path.Combine(
             root, "tests", "OrcaCore.Core.Tests", "Execution", "FailureProvenanceTests.cs")));
-        coreFailureEvidence.Should().Contain(
-            "[Trait(\"Requirement\", \"CR-014a\")]\n[Trait(\"AC\", \"AC-029\")]\npublic sealed class FailureProvenanceTests");
+        var failureClass = Regex.Match(
+            coreFailureEvidence,
+            @"(?ms)(?<attributes>(?:^[ \t]*\[[^\n]+\][ \t]*\n)+)[ \t]*public[ \t]+sealed[ \t]+class[ \t]+FailureProvenanceTests(?:\s|$)",
+            RegexOptions.CultureInvariant);
+        failureClass.Success.Should().BeTrue("FailureProvenanceTests must remain discovered AC-029 evidence");
+        failureClass.Groups["attributes"].Value.Should().ContainAll(
+            "[Trait(\"Requirement\", \"CR-014a\")]",
+            "[Trait(\"AC\", \"AC-029\")]");
         coreFailureEvidence.Should().NotContain("[Trait(\"AC\", \"AC-022\")]");
 
         (string Path, string Member)[] runtimeEvidence =
@@ -2881,6 +2921,48 @@ public sealed class OpenSpecCorpusGuards
             RegexOptions.CultureInvariant)
         .Cast<Match>()
         .ToArray();
+
+    private static void RequireMarkdownLinkTarget(
+        string repositoryRoot,
+        string sourceDocumentPath,
+        string block,
+        string label,
+        string expectedRelativePath,
+        string? expectedAnchor,
+        string? expectedHeading)
+    {
+        var matches = Regex.Matches(
+            block,
+            $@"\[{Regex.Escape(label)}\]\((?<target>[^)]+)\)",
+            RegexOptions.CultureInvariant);
+        matches.Should().ContainSingle("the normative companion link {0} must occur exactly once", label);
+
+        var expectedTarget = expectedAnchor is null
+            ? expectedRelativePath
+            : $"{expectedRelativePath}#{expectedAnchor}";
+        matches[0].Groups["target"].Value.Should().Be(
+            expectedTarget,
+            "the normative companion link {0} must continue to address its approved target",
+            label);
+
+        var sourcePath = Path.Combine(
+            repositoryRoot,
+            sourceDocumentPath.Replace('/', Path.DirectorySeparatorChar));
+        var targetPath = Path.GetFullPath(Path.Combine(
+            Path.GetDirectoryName(sourcePath)!,
+            expectedRelativePath.Replace('/', Path.DirectorySeparatorChar)));
+        File.Exists(targetPath).Should().BeTrue(
+            "the normative companion link {0} must resolve to an existing document",
+            label);
+        if (expectedHeading is not null)
+        {
+            var target = NormalizeLineEndings(File.ReadAllText(targetPath));
+            target.Should().Contain(
+                expectedHeading,
+                "the normative companion anchor {0} must resolve to its approved heading",
+                expectedAnchor);
+        }
+    }
 
     private static string NormalizeCiWorkflowStep(Match step) =>
         Regex.Replace(step.Value, @"\s+", " ");
