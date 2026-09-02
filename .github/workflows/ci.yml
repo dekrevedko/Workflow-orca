@@ -94,6 +94,24 @@ jobs:
           --filter "Requirement=CR-014a"
           --logger trx --results-directory TestResults
 
+      - name: Acceptance harmonization evidence
+        run: >
+          dotnet test
+          tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj
+          --no-build --no-restore -c Release
+          --filter "AC=AC-028|AC=AC-029"
+          --logger trx --results-directory TestResults &&
+          dotnet test
+          tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj
+          --no-build --no-restore -c Release
+          --filter "AC=AC-029"
+          --logger trx --results-directory TestResults &&
+          dotnet test
+          tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj
+          --no-build --no-restore -c Release
+          --filter "AC=AC-029"
+          --logger trx --results-directory TestResults
+
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 

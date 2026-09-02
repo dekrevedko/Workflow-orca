@@ -14,6 +14,7 @@ public sealed class DurableFailureProvenanceTests
 {
     [Fact]
     [Trait("Requirement", "CR-014a")]
+    [Trait("AC", "AC-029")]
     public async Task SelectedParallel_WhenAllOutcomesPreservesOrderedFailureProvenance()
     {
         var store = new InMemoryWorkflowProvider();

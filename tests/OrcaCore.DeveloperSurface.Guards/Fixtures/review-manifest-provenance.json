@@ -1,6 +1,17 @@
 {
   "schemaVersion": 10,
-  "activeFreeze": null,
+  "activeFreeze": {
+    "task": "6.3",
+    "requestPath": "docs/review/harmonize-downstream-capability-specs-task-6-3-independent-review-request-2026-08-31.md",
+    "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-6-3-dirty-manifest-2026-08-31.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "2dbf2b94168e4338c1fa8af742573545287f2f9d",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 2146,
+    "contentRecordSha256": "dcb93375c045ccf0f0b5525e218936b3098d6243cf7f532c108a0538dc389a28"
+  },
   "archivedFreezes": [
     {
       "id": "6.1-remediation",
@@ -532,7 +543,6 @@
         }
       ],
       "currentWorktreeMatchPaths": [
-        "tests/OrcaCore.Core.Tests/Building/AuthoringLifecycleTests.cs",
         "docs/review/harmonize-downstream-capability-specs-task-6-1-dirty-manifest-2026-08-22.txt",
         "docs/review/harmonize-downstream-capability-specs-task-6-1-independent-review-request-2026-08-22.md",
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-1-authoring-session-lifecycle-requirement-2026-08-22.md"
@@ -671,18 +681,10 @@
         }
       ],
       "currentWorktreeMatchPaths": [
-        ".github/workflows/ci.yml",
-        "docs/specs/04-requirements-core-runtime.md",
-        "openspec/changes/reshape-developer-facing-interfaces/tasks.md",
         "tests/OrcaCore.Core.Tests/Compilation/PublicDefinitionCompilerContractTests.cs",
-        "tests/OrcaCore.Core.Tests/Execution/FailureProvenanceTests.cs",
-        "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json",
-        "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
-        "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs",
         "docs/review/harmonize-downstream-capability-specs-task-6-2-dirty-manifest-2026-08-31.txt",
         "docs/review/harmonize-downstream-capability-specs-task-6-2-independent-review-request-2026-08-31.md",
-        "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-2-workflow-failure-provenance-requirement-2026-08-31.md",
-        "tests/OrcaCore.Engine.Durable.Tests/Driver/DurableFailureProvenanceTests.cs"
+        "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-2-workflow-failure-provenance-requirement-2026-08-31.md"
       ],
       "checkpointBlobContentRecordBytes": 2218,
       "checkpointBlobContentRecordSha256": "707e8d7b3ea62a9e9d050c8b8a8bf1e756b4911c303dedcaa5e409235e1d60a6",

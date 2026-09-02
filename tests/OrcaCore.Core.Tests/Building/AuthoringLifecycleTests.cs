@@ -4,6 +4,7 @@ using Xunit;
 namespace OrcaCore.Core.Tests.Building;
 
 [Trait("Requirement", "CR-009a")]
+[Trait("AC", "AC-028")]
 public sealed class AuthoringLifecycleTests
 {
     [Fact]

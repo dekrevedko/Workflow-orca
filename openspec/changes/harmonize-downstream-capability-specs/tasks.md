@@ -248,7 +248,7 @@
       independent review from owner authorization in active states and archived freezes; the CR-014a
       block is boundary-correct and hash-pinned against appended contradictions; and task 6.3 names
       every contributing normative source and behavior below.
-- [ ] 6.3 Add acceptance criteria in `docs/specs/12-acceptance-criteria.md` for tasks 6.1 and 6.2 and
+- [x] 6.3 Add acceptance criteria in `docs/specs/12-acceptance-criteria.md` for tasks 6.1 and 6.2 and
       map them bidirectionally to their stable requirement IDs and executable guards. The
       failure-provenance criteria SHALL cite `CR-014a`, the synchronized
       `quality-and-verification` executable-evidence requirement, the
@@ -257,6 +257,11 @@
       creation-time attachment, unchanged one-failure propagation, ordered per-cause provenance,
       and rejection of unknown, missing, or malformed fixed-codec occurrence data; and must not
       reuse `AC-022`, which remains owned by structural-versus-opaque fingerprint evidence.
+      **Completed:** `AC-028` maps the complete `CR-009a` authoring-session lifecycle and `AC-029`
+      maps the complete `CR-014a` failure-provenance contract. Both numbered requirements link back
+      to their sole criterion; Core and active ephemeral/durable tests carry the exact AC traits;
+      the repository acceptance catalog, dedicated CI lane, and Task 6.3 infrastructure guard make
+      the mapping executable and preserve `AC-022` solely for structural fingerprint evidence.
 - [ ] 6.4 Correct the stale `MaxActiveFibers` implementation statement in
       `docs/specs/18-semantic-appendix.md` and verify every remaining mention is historical,
       deferred, or negative rather than a current source claim.

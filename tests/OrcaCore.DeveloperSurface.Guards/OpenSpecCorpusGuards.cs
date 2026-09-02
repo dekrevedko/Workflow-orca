@@ -732,7 +732,7 @@ public sealed class OpenSpecCorpusGuards
         var sectionEnd = nextHeading < 0 ? numbered.Length : nextHeading;
         var numberedBlock = numbered[heading.Index..sectionEnd];
         Sha256(Encoding.UTF8.GetBytes(numberedBlock)).Should().Be(
-            "8fd23512e8469b4f8fc16e42bcbf85632bc51094936e733735f8040cc094a4ad",
+            "27f38ec13f066af5b2715172b11d2d0db7ad342d0649418e25fc6143a03f25d3",
             "the complete CR-014a block is immutable reviewed text, so appended contradictions or " +
             "unreviewed clause movement must fail rather than coexist with required fragments");
         numberedClauses.Should().OnlyContain(clause =>
@@ -745,7 +745,7 @@ public sealed class OpenSpecCorpusGuards
             "harmonize-downstream-capability-specs",
             "tasks.md")));
         const string task63Heading =
-            "- [ ] 6.3 Add acceptance criteria in `docs/specs/12-acceptance-criteria.md`";
+            "- [x] 6.3 Add acceptance criteria in `docs/specs/12-acceptance-criteria.md`";
         var task63Start = taskLedger.IndexOf(task63Heading, StringComparison.Ordinal);
         task63Start.Should().BeGreaterThanOrEqualTo(0);
         var task63End = taskLedger.IndexOf("\n- [ ] 6.4 ", task63Start, StringComparison.Ordinal);
@@ -920,6 +920,134 @@ public sealed class OpenSpecCorpusGuards
             "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj --no-build " +
             "--no-restore -c Release --filter \"Requirement=CR-014a\" --logger trx " +
             "--results-directory TestResults");
+    }
+
+    [Fact]
+    public void Task63_AcceptanceCriteriaMapLifecycleAndFailureProvenanceBidirectionally()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        var requirements = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root, "docs", "specs", "04-requirements-core-runtime.md")));
+        var acceptance = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root, "docs", "specs", "12-acceptance-criteria.md")));
+
+        var lifecycleRequirement = ReadNumberedRequirementBlock(
+            requirements, "CR-009a Authoring sessions have one explicit lifecycle");
+        var failureRequirement = ReadNumberedRequirementBlock(
+            requirements, "CR-014a Workflow failures retain authored and runtime occurrence provenance");
+        lifecycleRequirement.Should().Contain("Acceptance criterion: `AC-028`.");
+        failureRequirement.Should().Contain("Acceptance criterion: `AC-029`.");
+        lifecycleRequirement.Should().NotContain("AC-029");
+        failureRequirement.Should().NotContain("AC-028");
+        failureRequirement.Should().NotContain("AC-022");
+
+        var lifecycleCriterion = ReadAcceptanceCriterionBlock(acceptance, "AC-028");
+        var failureCriterion = ReadAcceptanceCriterionBlock(acceptance, "AC-029");
+        Regex.Replace(lifecycleCriterion, @"\s+", " ").Should().ContainAll(
+            "`Open` to `JoinPending`",
+            "successor `Open` epoch",
+            "root terminal freezes one immutable snapshot",
+            "before graph mutation",
+            "[CR-009a]");
+        Regex.Replace(failureCriterion, @"\s+", " ").Should().ContainAll(
+            "runtime-created occurrence at creation",
+            "One-failure propagation preserves the failure unchanged",
+            "one owning failure",
+            "authored branch order",
+            "dynamic item index order",
+            "non-negative item indexes",
+            "rejects unknown versions or discriminators",
+            "missing variant data",
+            "malformed payloads rather than coercing them",
+            "[CR-014a]",
+            "`quality-and-verification` executable evidence",
+            "`structured-fiber-execution` join ordering",
+            "public-contract companion");
+        lifecycleCriterion.Should().NotContain("CR-014a");
+        failureCriterion.Should().NotContain("CR-009a");
+        failureCriterion.Should().NotContain("AC-022");
+
+        var lifecycleEvidence = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root, "tests", "OrcaCore.Core.Tests", "Building", "AuthoringLifecycleTests.cs")));
+        lifecycleEvidence.Should().Contain(
+            "[Trait(\"Requirement\", \"CR-009a\")]\n[Trait(\"AC\", \"AC-028\")]\npublic sealed class AuthoringLifecycleTests");
+        var coreFailureEvidence = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root, "tests", "OrcaCore.Core.Tests", "Execution", "FailureProvenanceTests.cs")));
+        coreFailureEvidence.Should().Contain(
+            "[Trait(\"Requirement\", \"CR-014a\")]\n[Trait(\"AC\", \"AC-029\")]\npublic sealed class FailureProvenanceTests");
+        coreFailureEvidence.Should().NotContain("[Trait(\"AC\", \"AC-022\")]");
+
+        (string Path, string Member)[] runtimeEvidence =
+        [
+            ("tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs",
+                "SelectedParallel_WhenAllOutcomesMergesOrderedSuccessAndFailureData"),
+            ("tests/OrcaCore.Engine.Durable.Tests/Driver/DurableFailureProvenanceTests.cs",
+                "SelectedParallel_WhenAllOutcomesPreservesOrderedFailureProvenance")
+        ];
+        foreach (var evidence in runtimeEvidence)
+        {
+            var source = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+                root, evidence.Path.Replace('/', Path.DirectorySeparatorChar))));
+            var declaration = Regex.Match(
+                source,
+                $@"(?ms)(?<attributes>(?:^[ \t]*\[[^\n]+\][ \t]*\n)+)[ \t]*public[ \t]+async[ \t]+Task[ \t]+{Regex.Escape(evidence.Member)}[ \t]*\(",
+                RegexOptions.CultureInvariant);
+            declaration.Success.Should().BeTrue("{0} must remain executable AC-029 evidence", evidence.Member);
+            declaration.Groups["attributes"].Value.Should().ContainAll(
+                "[Trait(\"Requirement\", \"CR-014a\")]",
+                "[Trait(\"AC\", \"AC-029\")]");
+        }
+
+        var repositoryGuard = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root, "tests", "OrcaCore.Core.Tests", "RepositoryGuardTests.cs")));
+        repositoryGuard.Should().Contain(
+            "AcceptanceCriterionCatalog_HasTraitCoverageOrExplicitWaiver");
+        repositoryGuard.Should().Contain(
+            "AcceptanceCriterionWaivers_AreCatalogedReasonedAndNotAlreadyCovered");
+
+        var ci = NormalizeLineEndings(File.ReadAllText(Path.Combine(root, ".github", "workflows", "ci.yml")));
+        var acceptanceSteps = ReadCiWorkflowSteps(ci)
+            .Where(step => Regex.IsMatch(
+                step.Value,
+                @"(?m)^[ \t]*-[ \t]+name:[ \t]+Acceptance harmonization evidence[ \t]*$",
+                RegexOptions.CultureInvariant))
+            .ToArray();
+        acceptanceSteps.Should().ContainSingle();
+        NormalizeCiWorkflowStep(acceptanceSteps[0]).Trim().Should().Be(
+            "- name: Acceptance harmonization evidence run: > dotnet test " +
+            "tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj --no-build --no-restore " +
+            "-c Release --filter \"AC=AC-028|AC=AC-029\" --logger trx --results-directory " +
+            "TestResults && dotnet test tests/OrcaCore.Engine.Ephemeral.Tests/" +
+            "OrcaCore.Engine.Ephemeral.Tests.csproj --no-build --no-restore -c Release " +
+            "--filter \"AC=AC-029\" --logger trx --results-directory TestResults && dotnet test " +
+            "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj --no-build " +
+            "--no-restore -c Release --filter \"AC=AC-029\" --logger trx --results-directory TestResults");
+    }
+
+    private static string ReadNumberedRequirementBlock(string document, string identity)
+    {
+        var heading = $"### {identity}";
+        var start = document.IndexOf(heading, StringComparison.Ordinal);
+        if (start < 0)
+        {
+            throw new InvalidDataException($"Numbered requirement {identity} was not found.");
+        }
+
+        var end = document.IndexOf("\n##", start + heading.Length, StringComparison.Ordinal);
+        return document[start..(end < 0 ? document.Length : end)];
+    }
+
+    private static string ReadAcceptanceCriterionBlock(string catalog, string criterionId)
+    {
+        var pattern = $@"(?ms)^- \*\*{Regex.Escape(criterionId)}\*\*.*?(?=^- \*\*AC-|^## |\z)";
+        var matches = Regex.Matches(catalog, pattern, RegexOptions.CultureInvariant);
+        if (matches.Count != 1)
+        {
+            throw new InvalidDataException(
+                $"Acceptance criterion {criterionId} must appear exactly once, found {matches.Count}.");
+        }
+
+        return matches[0].Value.TrimEnd();
     }
 
     private static DeltaRequirement[] ReadTask53ActiveDeltaRequirements(string root)

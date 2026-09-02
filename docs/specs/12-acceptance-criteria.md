@@ -141,6 +141,22 @@ program and exercised indirectly by many criteria here, without a dedicated AC e
   using CLR type names or messages as protocol identity. Normalized arbitrary author/integration
   exceptions use the documented generic code, and result helpers preserve structured conflict/
   failure values. [CR-009, PR-024]
+- **AC-028** *Authoring lifecycle freezes atomically and rejects invalid handles* - Given one
+  authoring session, root fan-out moves it from `Open` to `JoinPending`, one join winner returns a
+  successor `Open` epoch, and a root terminal freezes one immutable snapshot. Stale, superseded,
+  escaped callback-local, duplicate-join, post-terminal, and losing concurrent handles reject with
+  the catalogued lifecycle diagnostic before graph mutation; repeated build/validation preserves
+  structure, diagnostics, and fingerprint. [CR-009a]
+- **AC-029** *Failure provenance survives creation, propagation, aggregation, and codec* - Given
+  root, branch, and item failures, each receives one immutable authored location and runtime-created
+  occurrence at creation. One-failure propagation preserves the failure unchanged; a multi-cause
+  join creates one owning failure while retaining each cause, authored branch order, dynamic item
+  index order, and non-negative item indexes. `orcacore-json-v1` round-trips the closed
+  `root`/`branch`/`item` graph and rejects unknown versions or discriminators, missing variant data,
+  negative indexes, and malformed payloads rather than coercing them. [CR-014a]
+  Normative companions: [`quality-and-verification` executable evidence](../../openspec/specs/quality-and-verification/spec.md#requirement-authoring-lifecycle-fingerprint-coverage-and-failure-provenance-are-executable),
+  [`structured-fiber-execution` join ordering](../../openspec/specs/structured-fiber-execution/spec.md#requirement-join-policies-define-one-scope-outcome), and the
+  [public-contract companion](17-selected-mode-capability-matrix.md).
 
 ## Events, waits, timers (AC-1xx)
 

@@ -141,6 +141,7 @@ public sealed class StructuredFiberExecutionPublicTests
 
     [Fact]
     [Trait("Requirement", "CR-014a")]
+    [Trait("AC", "AC-029")]
     public async Task SelectedParallel_WhenAllOutcomesMergesOrderedSuccessAndFailureData()
     {
         var trace = new ConcurrentQueue<string>();

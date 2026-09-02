@@ -125,6 +125,8 @@ concurrent operation, as defined by [document 17](17-selected-mode-capability-ma
 one authoring operation SHALL own the session mutation gate, so every rejected race leaves the
 accepted graph unchanged.
 
+Acceptance criterion: `AC-028`.
+
 ## 4.2 Execution model
 
 ### CR-010 Interpreter-owned orchestration
@@ -189,6 +191,8 @@ The fixed codec `orcacore-json-v1` SHALL round-trip the complete failure graph t
 versioned closed discriminator allowlist `root`/`branch`/`item`, including the required branch ID
 or non-negative item index. Unknown discriminator kinds or versions, missing variant data, and
 otherwise malformed occurrence payloads SHALL be rejected rather than coerced.
+
+Acceptance criterion: `AC-029`.
 
 ### CR-015 Execution position as structured fibers and scopes
 The runtime SHALL track execution through a compiled plan containing stable instruction,

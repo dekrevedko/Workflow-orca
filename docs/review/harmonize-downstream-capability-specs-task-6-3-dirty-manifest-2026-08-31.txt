@@ -1,0 +1,16 @@
+ M .github/workflows/ci.yml
+ M docs/specs/04-requirements-core-runtime.md
+ M docs/specs/12-acceptance-criteria.md
+ M openspec/changes/harmonize-downstream-capability-specs/tasks.md
+ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
+ M tests/OrcaCore.Core.Tests/Building/AuthoringLifecycleTests.cs
+ M tests/OrcaCore.Core.Tests/Execution/FailureProvenanceTests.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Driver/DurableFailureProvenanceTests.cs
+ M tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs
+?? docs/review/harmonize-downstream-capability-specs-task-6-3-dirty-manifest-2026-08-31.txt
+?? docs/review/harmonize-downstream-capability-specs-task-6-3-independent-review-request-2026-08-31.md
+?? openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-3-acceptance-criteria-mapping-2026-08-31.md
