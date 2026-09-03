@@ -170,8 +170,9 @@ Normative sources:
 - Structural drift detection is collision-free by theorem.
 - Ceiling-one path tokens imply global progress.
 - Every `ForEach` item is unconditionally eventually admitted.
-- A third live-fiber admission quantity exists in the current implementation. Task 5.13 removed it;
-  the v1 execution model has only host execution-path capacity and node-local `ForEach` admission.
+- `MaxActiveFibers` or another third live-fiber admission quantity exists in the current implementation.
+  Task 5.13 removed that quantity; the v1 execution model has only host execution-path capacity and
+  node-local `ForEach` admission.
 - Fan-out rank one is a computational complexity class. Step bodies remain arbitrary code.
 - Scope-tree acyclicity rules out resource wait cycles.
 - Fixed `Parallel` requires whole-set reservation.

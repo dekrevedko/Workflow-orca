@@ -266,9 +266,16 @@
       all three `AC-029` normative-companion links resolve to their exact files and headings, class
       trait evidence is order-independent, and reshape task 7.20 names task 6.3 in the provenance
       sequence that owns its current 337-source / 1,387-declaration inventory.
-- [ ] 6.4 Correct the stale `MaxActiveFibers` implementation statement in
+- [x] 6.4 Correct the stale `MaxActiveFibers` implementation statement in
       `docs/specs/18-semantic-appendix.md` and verify every remaining mention is historical,
-      deferred, or negative rather than a current source claim.
+      deferred, or negative rather than a current source claim. **Completed:** the semantic appendix
+      now retains the former implementation claim only under `Deliberately excluded claims`; product
+      source has zero references, current reshape proposal/design/task references are explicit removals,
+      the dated amendment is classified as historical, and a must-green corpus guard rejects any
+      additional active-document or product-source occurrence.
+      **Review remediation:** restored the unrelated fan-out-rank excluded-claim bullet deleted by
+      the rejected target, expanded active-document coverage to Markdown and C# documentation,
+      and whole-block hash-pinned the complete deliberately-excluded claim set.
 - [ ] 6.5 Decide and record whether `docs/specs/17-public-authoring-contract.cs` remains deliberately
       unchanged for authoring-session internals while the exhaustive assembly API baseline verifies
       their public absence.

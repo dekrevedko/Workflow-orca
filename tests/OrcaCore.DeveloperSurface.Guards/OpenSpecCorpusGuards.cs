@@ -33,6 +33,11 @@ public sealed class OpenSpecCorpusGuards
     private const string IndependentReviewAuthority = "IndependentReview";
     private const string OwnerAuthorizationAuthority = "OwnerAuthorization";
     private const string SyntheticGitObjectId = "0123456789012345678901234567890123456789";
+    private const string RetiredMaxActiveFibersName = "MaxActiveFibers";
+    private const string DeliberatelyExcludedClaimsHeading = "## Deliberately excluded claims";
+    private const string DeliberatelyExcludedClaimsSha256 =
+        "a989ad5ea0773cdd22eb13b65194651b61035eef9da469369134921b730c56b1";
+    private static readonly string[] ActiveDocumentationExtensions = [".cs", ".md"];
     private const string HarmonizationTaskLedgerPath =
         "openspec/changes/harmonize-downstream-capability-specs/tasks.md";
     private static readonly string[] Task52CanonicalSpecPaths =
@@ -748,8 +753,13 @@ public sealed class OpenSpecCorpusGuards
             "- [x] 6.3 Add acceptance criteria in `docs/specs/12-acceptance-criteria.md`";
         var task63Start = taskLedger.IndexOf(task63Heading, StringComparison.Ordinal);
         task63Start.Should().BeGreaterThanOrEqualTo(0);
-        var task63End = taskLedger.IndexOf("\n- [ ] 6.4 ", task63Start, StringComparison.Ordinal);
-        task63End.Should().BeGreaterThan(task63Start);
+        var task64Boundary = Regex.Match(
+            taskLedger[task63Start..],
+            @"(?m)^- \[[ xX]\] 6\.4 ",
+            RegexOptions.CultureInvariant);
+        task64Boundary.Success.Should().BeTrue(
+            "Task 6.3 evidence must terminate at Task 6.4 regardless of the successor task's state");
+        var task63End = task63Start + task64Boundary.Index;
         var task63Block = Regex.Replace(taskLedger[task63Start..task63End], @"\s+", " ");
         string[] task63Clauses =
         [
@@ -1062,6 +1072,96 @@ public sealed class OpenSpecCorpusGuards
             "--filter \"AC=AC-029\" --logger trx --results-directory TestResults && dotnet test " +
             "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj --no-build " +
             "--no-restore -c Release --filter \"AC=AC-029\" --logger trx --results-directory TestResults");
+    }
+
+    [Fact]
+    public void Task64_MaxActiveFibersMentionsAreHistoricalOrExplicitlyNegative()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        var productMentions = Directory
+            .EnumerateFiles(Path.Combine(root, "src"), "*.cs", SearchOption.AllDirectories)
+            .Where(path => !IsGeneratedBuildPath(path))
+            .Where(path => File.ReadAllText(path).Contains(RetiredMaxActiveFibersName, StringComparison.Ordinal))
+            .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        productMentions.Should().BeEmpty(
+            "the retired live-fiber quantity must not return as a current product-source claim");
+
+        var activeDocuments = new[] { Path.Combine(root, "docs"), Path.Combine(root, "openspec") }
+            .SelectMany(directory => Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
+            .Where(path => ActiveDocumentationExtensions.Contains(
+                Path.GetExtension(path),
+                StringComparer.OrdinalIgnoreCase))
+            .Select(path => new
+            {
+                Path = Path.GetRelativePath(root, path).Replace('\\', '/'),
+                Content = NormalizeLineEndings(File.ReadAllText(path))
+            })
+            .Where(document => !document.Path.StartsWith("docs/review/", StringComparison.Ordinal))
+            .Where(document => document.Content.Contains(RetiredMaxActiveFibersName, StringComparison.Ordinal))
+            .Select(document =>
+                $"{document.Path}\t{Regex.Matches(document.Content, Regex.Escape(RetiredMaxActiveFibersName), RegexOptions.CultureInvariant).Count}")
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        activeDocuments.Should().Equal(
+        [
+            "docs/specs/18-semantic-appendix.md\t1",
+            "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-4-max-active-fibers-disposition-2026-09-01.md\t4",
+            "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-4-rejection-remediation-2026-09-02.md\t1",
+            "openspec/changes/harmonize-downstream-capability-specs/tasks.md\t1",
+            "openspec/changes/reshape-developer-facing-interfaces/AMENDMENT-2026-07-28-root-only-fanout-and-authoring-lifecycle.md\t13",
+            "openspec/changes/reshape-developer-facing-interfaces/design.md\t1",
+            "openspec/changes/reshape-developer-facing-interfaces/proposal.md\t1",
+            "openspec/changes/reshape-developer-facing-interfaces/tasks.md\t1"
+        ],
+            "every non-review mention must remain in its reviewed negative or dated-history owner");
+
+        var semanticAppendix = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root, "docs", "specs", "18-semantic-appendix.md")));
+        var excludedClaimsStart = semanticAppendix.IndexOf(
+            DeliberatelyExcludedClaimsHeading, StringComparison.Ordinal);
+        excludedClaimsStart.Should().BeGreaterThanOrEqualTo(0);
+        semanticAppendix[excludedClaimsStart..].Should().Contain(
+            "`MaxActiveFibers` or another third live-fiber admission quantity exists in the current implementation.\n" +
+            "  Task 5.13 removed that quantity",
+            "the former current-source claim must be retained only as an explicitly excluded claim");
+
+        var excludedClaimsEnd = semanticAppendix.IndexOf(
+            "\n## ",
+            excludedClaimsStart + DeliberatelyExcludedClaimsHeading.Length,
+            StringComparison.Ordinal);
+        var excludedClaimsBlock = semanticAppendix[
+            excludedClaimsStart..(excludedClaimsEnd < 0 ? semanticAppendix.Length : excludedClaimsEnd)];
+        Sha256(Encoding.UTF8.GetBytes(excludedClaimsBlock)).Should().Be(
+            DeliberatelyExcludedClaimsSha256,
+            "the complete deliberately-excluded claim set must remain immutable, including the independent fan-out-rank exclusion");
+
+        var reshapeProposal = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root, "openspec", "changes", "reshape-developer-facing-interfaces", "proposal.md")));
+        reshapeProposal.Should().Contain("Remove implementation-only `MaxActiveFibers`");
+        var reshapeDesign = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root, "openspec", "changes", "reshape-developer-facing-interfaces", "design.md")));
+        reshapeDesign.Should().Contain("`MaxActiveFibers` quantity has no normative owner and is removed");
+        var reshapeTasks = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root, "openspec", "changes", "reshape-developer-facing-interfaces", "tasks.md")));
+        reshapeTasks.Should().Contain("- [x] 5.13 Remove `MaxActiveFibers`");
+
+        var datedAmendment = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root, "openspec", "changes", "reshape-developer-facing-interfaces",
+            "AMENDMENT-2026-07-28-root-only-fanout-and-authoring-lifecycle.md")));
+        datedAmendment.Should().StartWith("# Amendment 2026-07-28");
+        datedAmendment.Should().Contain("## Revision history");
+
+        var harmonizationTasks = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root, HarmonizationTaskLedgerPath.Replace('/', Path.DirectorySeparatorChar))));
+        var task = Regex.Match(
+            harmonizationTasks,
+            @"(?ms)^- \[x\] 6\.4 .*?(?=^- \[[ xX]\] 6\.5 )",
+            RegexOptions.CultureInvariant);
+        task.Success.Should().BeTrue("Task 6.4 must remain completed with its explicit disposition");
+        task.Value.Should().Contain(RetiredMaxActiveFibersName);
+        task.Value.Should().Contain("**Completed:**");
     }
 
     private static string ReadNumberedRequirementBlock(string document, string identity)
@@ -2921,6 +3021,12 @@ public sealed class OpenSpecCorpusGuards
             RegexOptions.CultureInvariant)
         .Cast<Match>()
         .ToArray();
+
+    private static bool IsGeneratedBuildPath(string path) =>
+        path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            .Any(segment =>
+                segment.Equals("bin", StringComparison.OrdinalIgnoreCase) ||
+                segment.Equals("obj", StringComparison.OrdinalIgnoreCase));
 
     private static void RequireMarkdownLinkTarget(
         string repositoryRoot,
