@@ -39,6 +39,8 @@ public sealed class OpenSpecCorpusGuards
         "a989ad5ea0773cdd22eb13b65194651b61035eef9da469369134921b730c56b1";
     private const string SemanticAppendixSourceSha256 =
         "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
+    private const string PublicAuthoringCompanionSha256 =
+        "41f6472c2774363d2ab922c608922e787ec241333e1d1c0b76b0c6d529ab8ec3";
     private const string EmptyCorePublicApiBaseline =
         "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";
     private static readonly string[] AuthoringLifecycleImplementationTypeNames =
@@ -1199,8 +1201,11 @@ public sealed class OpenSpecCorpusGuards
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/v1-public-contract.json");
         var companionBytes = File.ReadAllBytes(Path.Combine(
             root, "docs", "specs", "17-public-authoring-contract.cs"));
+        contract.CompanionSha256.ToLowerInvariant().Should().Be(
+            PublicAuthoringCompanionSha256,
+            "the mutable contract fixture must reproduce the source-owned reviewed companion pin");
         Sha256(companionBytes).Should().Be(
-            contract.CompanionSha256.ToLowerInvariant(),
+            PublicAuthoringCompanionSha256,
             "Task 6.5 deliberately preserves the already-reviewed compile-shaped public companion");
 
         var companion = NormalizeLineEndings(Encoding.UTF8.GetString(companionBytes));

@@ -173,7 +173,9 @@ the lifecycle session, lifecycle/join handles, lexical token, and shared workflo
 remain internal implementation types in `OrcaCore.Core`; that assembly's exact v1 API baseline has
 no exported declarations. The existing twelve-assembly public API baseline independently rejects
 any future visibility leak, while the companion continues to describe only application-authored
-types and signatures.
+types and signatures. The companion's reviewed SHA-256 is owned by guard source; the mutable public-
+contract fixture must reproduce that pin and cannot authorize coherent documentation drift by
+re-pinning itself.
 
 ### 5. Active documentation and immutable history have different rules
 

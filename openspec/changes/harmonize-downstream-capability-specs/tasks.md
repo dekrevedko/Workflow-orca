@@ -290,6 +290,9 @@
       exported declaration; the exhaustive twelve-assembly public API baseline and a dedicated
       corpus guard independently reject any visibility leak or companion insertion. This slice also
       closes Task 6.4 review finding X-1 by pinning the immutable semantic-appendix source bytes.
+      **Post-review hardening:** the companion's reviewed SHA-256 is now a guard-source constant,
+      and the mutable public-contract fixture must equal that constant before the companion bytes are
+      checked, closing review finding Y-1's coherent companion-plus-fixture re-pin path.
 - [ ] 6.6 Reconcile the future-capability registry name and cross-reference across both normative
       trees so deferred and removed concepts remain distinguishable and searchable.
 
