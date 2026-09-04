@@ -168,6 +168,13 @@ malformed fixed-codec occurrence data rather than naming only one contributing n
 semantics alter its compile-shaped public surface. Internal lifecycle state alone is insufficient
 reason to add a public declaration.
 
+Task 6.5 resolves that decision by keeping the companion byte-unchanged. `AuthoringSessionState`,
+the lifecycle session, lifecycle/join handles, lexical token, and shared workflow-authoring session
+remain internal implementation types in `OrcaCore.Core`; that assembly's exact v1 API baseline has
+no exported declarations. The existing twelve-assembly public API baseline independently rejects
+any future visibility leak, while the companion continues to describe only application-authored
+types and signatures.
+
 ### 5. Active documentation and immutable history have different rules
 
 Active guides, architecture, implementation, and readiness documents describe only the current
@@ -316,8 +323,6 @@ involved.
 
 ## Open Questions
 
-- Does `docs/specs/17-public-authoring-contract.cs` require an amendment for any externally visible
-  consequence of authoring-session lifecycle, or should the behavior remain guard-only?
 - Is the empty runtime-concurrency delta directory a dropped artifact or a stray directory?
 - Can the Phase-0 kickoff prompt move be represented as a Git rename at the final target, or must a
   separate immutable predecessor record carry its provenance?

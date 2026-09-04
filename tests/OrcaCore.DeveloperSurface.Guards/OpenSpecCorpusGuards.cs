@@ -37,6 +37,19 @@ public sealed class OpenSpecCorpusGuards
     private const string DeliberatelyExcludedClaimsHeading = "## Deliberately excluded claims";
     private const string DeliberatelyExcludedClaimsSha256 =
         "a989ad5ea0773cdd22eb13b65194651b61035eef9da469369134921b730c56b1";
+    private const string SemanticAppendixSourceSha256 =
+        "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
+    private const string EmptyCorePublicApiBaseline =
+        "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";
+    private static readonly string[] AuthoringLifecycleImplementationTypeNames =
+    [
+        "AuthoringSessionState",
+        "AuthoringLifecycleSession",
+        "AuthoringLifecycleHandle",
+        "AuthoringLexicalToken",
+        "AuthoringJoinToken",
+        "WorkflowAuthoringSession"
+    ];
     private static readonly string[] ActiveDocumentationExtensions = [".cs", ".md"];
     private static readonly string[] ImmutableDocumentationPrefixes = ["docs/archive/", "docs/review/"];
     private const string HarmonizationTaskLedgerPath =
@@ -1138,9 +1151,15 @@ public sealed class OpenSpecCorpusGuards
             DeliberatelyExcludedClaimsSha256,
             "the complete deliberately-excluded claim set must remain immutable, including the independent fan-out-rank exclusion");
 
-        var semanticAppendixSource = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+        var semanticAppendixSourcePath = Path.Combine(
             root, "openspec", "changes", "reshape-developer-facing-interfaces", "artifacts",
-            "semantic-appendix.md")));
+            "semantic-appendix.md");
+        var semanticAppendixSourceBytes = File.ReadAllBytes(semanticAppendixSourcePath);
+        Sha256(semanticAppendixSourceBytes).Should().Be(
+            SemanticAppendixSourceSha256,
+            "the immutable semantic-appendix source must not drift coherently with its published projection");
+        var semanticAppendixSource = NormalizeLineEndings(
+            Encoding.UTF8.GetString(semanticAppendixSourceBytes));
         BuildPublishedSemanticAppendix(semanticAppendixSource).Should().Be(
             semanticAppendix,
             "the complete canonical appendix must remain the exact published projection of its immutable source artifact");
@@ -1170,6 +1189,53 @@ public sealed class OpenSpecCorpusGuards
         task.Success.Should().BeTrue("Task 6.4 must remain completed with its explicit disposition");
         task.Value.Should().Contain(RetiredMaxActiveFibersName);
         task.Value.Should().Contain("**Completed:**");
+    }
+
+    [Fact]
+    public void Task65_PublicAuthoringCompanionRemainsUnchangedAndLifecycleInternalsStayNonPublic()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        var contract = FixtureDefinitions.Read<V1PublicContract>(
+            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/v1-public-contract.json");
+        var companionBytes = File.ReadAllBytes(Path.Combine(
+            root, "docs", "specs", "17-public-authoring-contract.cs"));
+        Sha256(companionBytes).Should().Be(
+            contract.CompanionSha256.ToLowerInvariant(),
+            "Task 6.5 deliberately preserves the already-reviewed compile-shaped public companion");
+
+        var companion = NormalizeLineEndings(Encoding.UTF8.GetString(companionBytes));
+        companion.Should().NotContainAny(
+            AuthoringLifecycleImplementationTypeNames,
+            "authoring-session state, handles, and tokens are implementation details rather than public declarations");
+
+        var lifecycleSources = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+                root, "src", "OrcaCore.Core", "Building", "AuthoringLifecycle.cs"))) +
+            NormalizeLineEndings(File.ReadAllText(Path.Combine(
+                root, "src", "OrcaCore.Core", "Building", "SelectedWorkflowBuilder.cs")));
+        lifecycleSources.Should().Contain("internal enum AuthoringSessionState");
+        lifecycleSources.Should().Contain("internal sealed class AuthoringLifecycleSession");
+        lifecycleSources.Should().Contain("internal abstract class WorkflowAuthoringSession");
+
+        var approved = PublicApiBaseline.ReadApproved();
+        approved["OrcaCore.Core"].Should().Be(
+            EmptyCorePublicApiBaseline,
+            "the assembly that owns authoring-session internals intentionally exports no public API");
+        var actual = PublicApiBaseline.CaptureCurrent();
+        PublicApiBaseline.Diff(approved, actual).Should().BeEmpty(
+            "the exhaustive twelve-assembly baseline must independently reject any leaked lifecycle type");
+        var completePublicSurface = string.Join('\n', actual.Values);
+        completePublicSurface.Should().NotContainAny(AuthoringLifecycleImplementationTypeNames);
+
+        var taskLedger = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root, HarmonizationTaskLedgerPath.Replace('/', Path.DirectorySeparatorChar))));
+        var task = Regex.Match(
+            taskLedger,
+            @"(?ms)^- \[x\] 6\.5 .*?(?=^- \[[ xX]\] 6\.6 )",
+            RegexOptions.CultureInvariant);
+        task.Success.Should().BeTrue("Task 6.5 must retain its explicit reviewed decision");
+        task.Value.Should().Contain("**Completed:**");
+        task.Value.Should().Contain("deliberately byte-unchanged");
+        task.Value.Should().Contain("exhaustive twelve-assembly public API baseline");
     }
 
     private static string BuildPublishedSemanticAppendix(string sourceArtifact)

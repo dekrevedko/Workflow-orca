@@ -279,10 +279,17 @@
       **Post-review hardening:** corrected reshape task 7.20's maintained-inventory provenance to
       name task 6.4, bound the complete canonical semantic appendix to an exact publication
       projection of its immutable source artifact, and excluded both `docs/archive/` and
-      `docs/review/` immutable evidence from the active-document scan.
-- [ ] 6.5 Decide and record whether `docs/specs/17-public-authoring-contract.cs` remains deliberately
+      `docs/review/` immutable evidence from the active-document scan. **Second-review hardening:**
+      pinned the immutable source artifact's exact SHA-256 so a coherent source-and-publication edit
+      cannot evade the whole-appendix projection after the active freeze is archived.
+- [x] 6.5 Decide and record whether `docs/specs/17-public-authoring-contract.cs` remains deliberately
       unchanged for authoring-session internals while the exhaustive assembly API baseline verifies
-      their public absence.
+      their public absence. **Completed:** the companion remains deliberately byte-unchanged at its
+      existing reviewed SHA-256. Authoring lifecycle state, session, handle, join, and lexical-token
+      types remain internal to `OrcaCore.Core`, whose approved public API baseline contains no
+      exported declaration; the exhaustive twelve-assembly public API baseline and a dedicated
+      corpus guard independently reject any visibility leak or companion insertion. This slice also
+      closes Task 6.4 review finding X-1 by pinning the immutable semantic-appendix source bytes.
 - [ ] 6.6 Reconcile the future-capability registry name and cross-reference across both normative
       trees so deferred and removed concepts remain distinguishable and searchable.
 

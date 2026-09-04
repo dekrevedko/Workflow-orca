@@ -1,0 +1,11 @@
+ M openspec/changes/harmonize-downstream-capability-specs/design.md
+ M openspec/changes/harmonize-downstream-capability-specs/tasks.md
+ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs
+?? docs/review/harmonize-downstream-capability-specs-task-6-5-dirty-manifest-2026-09-03.txt
+?? docs/review/harmonize-downstream-capability-specs-task-6-5-independent-review-request-2026-09-03.md
+?? openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-5-public-authoring-companion-decision-2026-09-03.md

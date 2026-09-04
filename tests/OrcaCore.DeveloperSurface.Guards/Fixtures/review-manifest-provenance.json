@@ -1,6 +1,17 @@
 {
   "schemaVersion": 10,
-  "activeFreeze": null,
+  "activeFreeze": {
+    "task": "6.5",
+    "requestPath": "docs/review/harmonize-downstream-capability-specs-task-6-5-independent-review-request-2026-09-03.md",
+    "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-6-5-dirty-manifest-2026-09-03.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "5a4a2871f4394645e40250295adc2e46aef9d461",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 1521,
+    "contentRecordSha256": "d73fc37f69e01113ebc735254a025eb4849b008b9e1143540b5bea7556163dbb"
+  },
   "archivedFreezes": [
     {
       "id": "6.1-remediation",
@@ -973,7 +984,6 @@
         }
       ],
       "currentWorktreeMatchPaths": [
-        "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json",
         "docs/review/harmonize-downstream-capability-specs-task-6-4-dirty-manifest-2026-09-01.txt",
         "docs/review/harmonize-downstream-capability-specs-task-6-4-independent-review-request-2026-09-01.md",
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-4-max-active-fibers-disposition-2026-09-01.md"
