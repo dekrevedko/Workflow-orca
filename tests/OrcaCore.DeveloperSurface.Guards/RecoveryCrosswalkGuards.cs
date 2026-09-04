@@ -15,6 +15,13 @@ public sealed partial class RecoveryCrosswalkInfrastructureGuards
 {
     private const string CrosswalkPath =
         "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json";
+    private const string ActiveCorpusGuardPath =
+        "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs";
+    private const string DocumentationRoot = "docs/";
+    private const string ArchiveDocumentationDirectory = "archive/";
+    private const string ReviewDocumentationDirectory = "review/";
+    private static readonly string ApprovedImmutableDocumentationPrefixDeclaration =
+        $"    private static readonly string[] ImmutableDocumentationPrefixes = [\"{DocumentationRoot}{ArchiveDocumentationDirectory}\", \"{DocumentationRoot}{ReviewDocumentationDirectory}\"];";
     private const string SourceBaseline = "d76192f089dd07f68e310c21fe4e5a38dd93cf7f";
     private const string TargetBase = "287fbde74681c015235d76f6498c031addfd9ac1";
     private const string ApprovedDispositionRecordSha256 =
@@ -90,14 +97,19 @@ public sealed partial class RecoveryCrosswalkInfrastructureGuards
             .Where(path => path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) ||
                            path.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase))
             .Where(path => !IsBuildOutput(path))
-            .Select(path => (Path: path, Source: File.ReadAllText(path)))
+            .Select(path => (
+                Path: Path.GetRelativePath(root, path).Replace('\\', '/'),
+                Source: File.ReadAllText(path)))
+            .Select(item => (
+                item.Path,
+                Source: StripApprovedImmutableDocumentationExclusion(item.Path, item.Source)))
             .SelectMany(item => new[]
             {
                 ArchivedDocumentationPathRegex().IsMatch(item.Source)
-                    ? $"{Path.GetRelativePath(root, item.Path)} -> archived documentation path"
+                    ? $"{item.Path} -> archived documentation path"
                     : null,
                 RecursiveDocumentationScanRegex().IsMatch(item.Source)
-                    ? $"{Path.GetRelativePath(root, item.Path)} -> recursive documentation scan"
+                    ? $"{item.Path} -> recursive documentation scan"
                     : null
             })
             .OfType<string>()
@@ -106,6 +118,29 @@ public sealed partial class RecoveryCrosswalkInfrastructureGuards
 
         findings.Should().BeEmpty(
             "guards must read explicit active normative/binding paths; historical documents are provenance, not current guidance");
+    }
+
+    private static string StripApprovedImmutableDocumentationExclusion(string path, string source)
+    {
+        if (!path.Equals(ActiveCorpusGuardPath, StringComparison.Ordinal))
+        {
+            return source;
+        }
+
+        var occurrences = Regex.Matches(
+            source,
+            Regex.Escape(ApprovedImmutableDocumentationPrefixDeclaration),
+            RegexOptions.CultureInvariant);
+        if (occurrences.Count != 1)
+        {
+            throw new InvalidDataException(
+                $"The active corpus guard must declare the exact immutable documentation exclusions once; found {occurrences.Count}.");
+        }
+
+        return source.Replace(
+            ApprovedImmutableDocumentationPrefixDeclaration,
+            string.Empty,
+            StringComparison.Ordinal);
     }
 
     private static void ValidateRelocationDiscoverySemantics()

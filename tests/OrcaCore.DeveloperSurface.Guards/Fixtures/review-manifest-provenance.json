@@ -1,6 +1,17 @@
 {
   "schemaVersion": 10,
-  "activeFreeze": null,
+  "activeFreeze": {
+    "task": "6.4-post-review-hardening",
+    "requestPath": "docs/review/harmonize-downstream-capability-specs-task-6-4-post-review-hardening-independent-review-request-2026-09-02.md",
+    "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-6-4-post-review-hardening-dirty-manifest-2026-09-02.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "adc6a8f542a6e5362096df8a7213e06f55f11ad2",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 1249,
+    "contentRecordSha256": "2f47137a0e3086f49c85da2a23ce2b8803007186aae7724af14738e392c86146"
+  },
   "archivedFreezes": [
     {
       "id": "6.1-remediation",
@@ -952,9 +963,7 @@
         }
       ],
       "currentWorktreeMatchPaths": [
-        "openspec/changes/reshape-developer-facing-interfaces/tasks.md",
         "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json",
-        "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
         "docs/review/harmonize-downstream-capability-specs-task-6-4-dirty-manifest-2026-09-01.txt",
         "docs/review/harmonize-downstream-capability-specs-task-6-4-independent-review-request-2026-09-01.md",
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-4-max-active-fibers-disposition-2026-09-01.md"

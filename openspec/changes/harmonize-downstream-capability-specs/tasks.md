@@ -276,6 +276,10 @@
       **Review remediation:** restored the unrelated fan-out-rank excluded-claim bullet deleted by
       the rejected target, expanded active-document coverage to Markdown and C# documentation,
       and whole-block hash-pinned the complete deliberately-excluded claim set.
+      **Post-review hardening:** corrected reshape task 7.20's maintained-inventory provenance to
+      name task 6.4, bound the complete canonical semantic appendix to an exact publication
+      projection of its immutable source artifact, and excluded both `docs/archive/` and
+      `docs/review/` immutable evidence from the active-document scan.
 - [ ] 6.5 Decide and record whether `docs/specs/17-public-authoring-contract.cs` remains deliberately
       unchanged for authoring-session internals while the exhaustive assembly API baseline verifies
       their public absence.

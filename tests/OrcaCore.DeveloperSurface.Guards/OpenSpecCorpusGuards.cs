@@ -38,6 +38,7 @@ public sealed class OpenSpecCorpusGuards
     private const string DeliberatelyExcludedClaimsSha256 =
         "a989ad5ea0773cdd22eb13b65194651b61035eef9da469369134921b730c56b1";
     private static readonly string[] ActiveDocumentationExtensions = [".cs", ".md"];
+    private static readonly string[] ImmutableDocumentationPrefixes = ["docs/archive/", "docs/review/"];
     private const string HarmonizationTaskLedgerPath =
         "openspec/changes/harmonize-downstream-capability-specs/tasks.md";
     private static readonly string[] Task52CanonicalSpecPaths =
@@ -1098,7 +1099,7 @@ public sealed class OpenSpecCorpusGuards
                 Path = Path.GetRelativePath(root, path).Replace('\\', '/'),
                 Content = NormalizeLineEndings(File.ReadAllText(path))
             })
-            .Where(document => !document.Path.StartsWith("docs/review/", StringComparison.Ordinal))
+            .Where(document => !IsImmutableDocumentationPath(document.Path))
             .Where(document => document.Content.Contains(RetiredMaxActiveFibersName, StringComparison.Ordinal))
             .Select(document =>
                 $"{document.Path}\t{Regex.Matches(document.Content, Regex.Escape(RetiredMaxActiveFibersName), RegexOptions.CultureInvariant).Count}")
@@ -1137,6 +1138,13 @@ public sealed class OpenSpecCorpusGuards
             DeliberatelyExcludedClaimsSha256,
             "the complete deliberately-excluded claim set must remain immutable, including the independent fan-out-rank exclusion");
 
+        var semanticAppendixSource = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root, "openspec", "changes", "reshape-developer-facing-interfaces", "artifacts",
+            "semantic-appendix.md")));
+        BuildPublishedSemanticAppendix(semanticAppendixSource).Should().Be(
+            semanticAppendix,
+            "the complete canonical appendix must remain the exact published projection of its immutable source artifact");
+
         var reshapeProposal = NormalizeLineEndings(File.ReadAllText(Path.Combine(
             root, "openspec", "changes", "reshape-developer-facing-interfaces", "proposal.md")));
         reshapeProposal.Should().Contain("Remove implementation-only `MaxActiveFibers`");
@@ -1163,6 +1171,31 @@ public sealed class OpenSpecCorpusGuards
         task.Value.Should().Contain(RetiredMaxActiveFibersName);
         task.Value.Should().Contain("**Completed:**");
     }
+
+    private static string BuildPublishedSemanticAppendix(string sourceArtifact)
+    {
+        const string temporaryLeasePublicationNote =
+            "\nThe lease requirement remains in the active change delta until Section 6 performs its canonical\n" +
+            "promotion. This citation records the approved normative target; it does not claim current product\n" +
+            "conformance or authorize Section 6 implementation.\n";
+        const string sourceAdmissionExclusion =
+            "- A third live-fiber admission quantity exists in the current implementation. Task 5.13 removed it;\n" +
+            "  the v1 execution model has only host execution-path capacity and node-local `ForEach` admission.";
+        const string publishedAdmissionExclusion =
+            "- `MaxActiveFibers` or another third live-fiber admission quantity exists in the current implementation.\n" +
+            "  Task 5.13 removed that quantity; the v1 execution model has only host execution-path capacity and\n" +
+            "  node-local `ForEach` admission.";
+
+        return sourceArtifact
+            .Replace("(../specs/", "(../../openspec/specs/", StringComparison.Ordinal)
+            .Replace("(../../../specs/", "(../../openspec/specs/", StringComparison.Ordinal)
+            .Replace("[reshape durable-runtime delta:", "[durable-runtime:", StringComparison.Ordinal)
+            .Replace(temporaryLeasePublicationNote, string.Empty, StringComparison.Ordinal)
+            .Replace(sourceAdmissionExclusion, publishedAdmissionExclusion, StringComparison.Ordinal);
+    }
+
+    private static bool IsImmutableDocumentationPath(string path) =>
+        ImmutableDocumentationPrefixes.Any(prefix => path.StartsWith(prefix, StringComparison.Ordinal));
 
     private static string ReadNumberedRequirementBlock(string document, string identity)
     {

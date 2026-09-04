@@ -65,7 +65,7 @@ public sealed partial class TaskAccountingGuards
             $"{physicalFiles.ToString("N0", CultureInfo.InvariantCulture)} sources / " +
             $"{physicalDeclarations.ToString("N0", CultureInfo.InvariantCulture)} declarations");
         taskLine.Should().Contain(
-            "harmonization task 6.2, and harmonization task 6.3 at",
+            "harmonization task 6.3, and harmonization task 6.4 at",
             "the maintained inventory provenance must name the task that produced the current counts");
     }
 
