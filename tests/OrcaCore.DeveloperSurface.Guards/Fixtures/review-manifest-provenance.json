@@ -1,17 +1,7 @@
 {
   "schemaVersion": 10,
-  "activeFreeze": {
-    "task": "6.6",
-    "requestPath": "docs/review/harmonize-downstream-capability-specs-task-6-6-independent-review-request-2026-09-13.md",
-    "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-6-6-dirty-manifest-2026-09-13.txt",
-    "disposition": "RawGitOrder",
-    "baseCommit": "4f061089bae7602a7d1f255436a0e6d8507c39df",
-    "contentRecordExcludedPaths": [
-      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
-    ],
-    "contentRecordBytes": 2969,
-    "contentRecordSha256": "708817fca0a9c628bccf66a7d598c02175652c546a5e88e3a93386ce492660c4"
-  },
+  "activeFreeze": null,
+
   "archivedFreezes": [
     {
       "id": "6.1-remediation",
@@ -201,6 +191,27 @@
       ],
       "contentRecordBytes": 858,
       "contentRecordSha256": "504b6a2e721ea6e51c77cd48322bab74b6b4ac3504a18b598facd5e17cb2b7f1"
+    },
+    {
+      "id": "6.6",
+      "authority": "IndependentReview",
+      "authorityEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-6-6-independent-review-verdict-2026-09-13.md",
+      "requestPath": "docs/review/harmonize-downstream-capability-specs-task-6-6-independent-review-request-2026-09-13.md",
+      "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-6-6-dirty-manifest-2026-09-13.txt",
+      "disposition": "RawGitOrder",
+      "lineCount": 22,
+      "manifestBytes": 1569,
+      "manifestSha256": "410e31b8dfa03bdf8118cf5cb67c3f26979958295d8d1fea3df926ee1cd600a7",
+      "frozenRawPorcelainSha256": "410e31b8dfa03bdf8118cf5cb67c3f26979958295d8d1fea3df926ee1cd600a7",
+      "pathSortedSha256": "12ba563841b283597bd24339f60dd244940b96a94772f0f67d98ad611a4af542",
+      "baseCommit": "4f061089bae7602a7d1f255436a0e6d8507c39df",
+      "checkpointCommit": "1d4dec01f3884ded0cb9ba0f14f40f2e67f6773a",
+      "checkpointTree": "96b68ba33219d493f8c39a235895bfba525c2a70",
+      "contentRecordExcludedPaths": [
+        "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+      ],
+      "contentRecordBytes": 2969,
+      "contentRecordSha256": "708817fca0a9c628bccf66a7d598c02175652c546a5e88e3a93386ce492660c4"
     }
   ],
   "entries": [
@@ -1183,6 +1194,194 @@
           "path": "docs/review/harmonize-downstream-capability-specs-task-6-5-second-post-review-hardening-independent-review-verdict-2026-09-11.md",
           "verdict": "APPROVE",
           "sha256": "e1f472e61d851e18f0538914c625f35bc65a8d919cd90aefc699db5dd7de07d5"
+        }
+      ]
+    },
+    {
+      "task": "6.6",
+      "requestPath": "docs/review/harmonize-downstream-capability-specs-task-6-6-independent-review-request-2026-09-13.md",
+      "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-6-6-dirty-manifest-2026-09-13.txt",
+      "disposition": "RawGitOrder",
+      "lineCount": 22,
+      "manifestBytes": 1569,
+      "manifestSha256": "410e31b8dfa03bdf8118cf5cb67c3f26979958295d8d1fea3df926ee1cd600a7",
+      "frozenRawPorcelainSha256": "410e31b8dfa03bdf8118cf5cb67c3f26979958295d8d1fea3df926ee1cd600a7",
+      "pathSortedSha256": "12ba563841b283597bd24339f60dd244940b96a94772f0f67d98ad611a4af542",
+      "baseCommit": "4f061089bae7602a7d1f255436a0e6d8507c39df",
+      "checkpointCommit": "1d4dec01f3884ded0cb9ba0f14f40f2e67f6773a",
+      "checkpointTree": "96b68ba33219d493f8c39a235895bfba525c2a70",
+      "approvalEvidenceCommit": null,
+      "reviewedTargetCommit": "1d4dec01f3884ded0cb9ba0f14f40f2e67f6773a",
+      "reviewedTargetTree": "96b68ba33219d493f8c39a235895bfba525c2a70",
+      "preApprovalContentCommits": [],
+      "historicalDirtyContentRecordBytes": 3123,
+      "historicalDirtyContentRecordSha256": "f045b131433631eaa6cf2e7b5ca4c95f37bbab9a482558eb5d1f1f32754dfbc5",
+      "historicalDirtyContentRecordRows": [
+        {
+          "status": " M",
+          "path": "docs/ephemeral-engine-developer-guide.md",
+          "bytes": 5803,
+          "sha256": "0b584f4a65df87dc0130f58f9b99af252550cb117467867ec9b90dd008571c22"
+        },
+        {
+          "status": " M",
+          "path": "docs/normative-source-map.md",
+          "bytes": 10178,
+          "sha256": "abd81f9982bae98e4bfad7cef9461de851542bce78c75b256ffa5c935e61cd61"
+        },
+        {
+          "status": " M",
+          "path": "docs/orleans-engine/README.md",
+          "bytes": 2404,
+          "sha256": "ba0dc949814deb8f95fdba8bcf43af25f9e764c67622020645536bce948f28c8"
+        },
+        {
+          "status": " M",
+          "path": "docs/specs/13-phasing-and-open-questions.md",
+          "bytes": 13065,
+          "sha256": "a26793845459cbfd32bf07586e6dc6111bb25f6d1bfb193db2cf02e4559afe48"
+        },
+        {
+          "status": " M",
+          "path": "docs/specs/README.md",
+          "bytes": 7317,
+          "sha256": "d1e97db536f871bf12edb73947e4910ce89935c214239695549ebb29b3feffd3"
+        },
+        {
+          "status": " M",
+          "path": "openspec/changes/harmonize-downstream-capability-specs/design.md",
+          "bytes": 23405,
+          "sha256": "90ec05fe36c549e9f56697de1dc4fbe6317a6238306ce12b5c10022352ce199b"
+        },
+        {
+          "status": " M",
+          "path": "openspec/changes/harmonize-downstream-capability-specs/tasks.md",
+          "bytes": 30611,
+          "sha256": "8ace83304f522475cbf819ccee02fc486ea7b984d536c4e6e4cc3c29b40182c5"
+        },
+        {
+          "status": " M",
+          "path": "openspec/changes/reshape-developer-facing-interfaces/specs/developer-facing-surface/spec.md",
+          "bytes": 32009,
+          "sha256": "daab9f61aa5ba2c1a2a6e5daaf608491f2248c2dea2df48b7dc1286b0a5c6942"
+        },
+        {
+          "status": " M",
+          "path": "openspec/changes/reshape-developer-facing-interfaces/specs/saga-orchestration/spec.md",
+          "bytes": 2935,
+          "sha256": "99c177499cb0ea5a5a6fe9ad482307006003599a4344008507fb43a87dc3df21"
+        },
+        {
+          "status": " M",
+          "path": "openspec/changes/reshape-developer-facing-interfaces/tasks.md",
+          "bytes": 71633,
+          "sha256": "34a3b82768ada1f608bd231f9db5f474e95e2d54e1fbf8031f4688fbe8e1ab13"
+        },
+        {
+          "status": " M",
+          "path": "openspec/specs/developer-facing-surface/spec.md",
+          "bytes": 32150,
+          "sha256": "eada8a49fdff9ade162a2b024ad7be69b73f67052366566efbfe35cf87e3092c"
+        },
+        {
+          "status": " M",
+          "path": "openspec/specs/saga-orchestration/spec.md",
+          "bytes": 1226,
+          "sha256": "01e1664c8a78cd6c00c35f2e6aade8b9cbaa1de039da52dc13f7376b7781b418"
+        },
+        {
+          "status": " M",
+          "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json",
+          "bytes": 15264,
+          "sha256": "d43e99e1b176faab049cc68700fbe2fe8bc2c7aabe835a7d7f33f59ee6f1c40d"
+        },
+        {
+          "status": " M",
+          "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json",
+          "bytes": 61022,
+          "sha256": "8a2443b972750cd2e2a59893db3c979ff24b732171cf39ae5b2778c1434efa98"
+        },
+        {
+          "status": " M",
+          "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json",
+          "bytes": 608761,
+          "sha256": "26386985058da72f2f7d5cb1e38d7697b6b4181a36b10ed7f1c76318f63105f3"
+        },
+        {
+          "status": " M",
+          "path": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+          "bytes": 186023,
+          "sha256": "e5c0ab2b51a3c4ca5ed6b637f158cfb6161177f0695ae7ddb33aeab829030350"
+        },
+        {
+          "status": " M",
+          "path": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+          "bytes": 44749,
+          "sha256": "2e77a706acb8237140da69efdd742da7f218d9399553db1c4c1507619b1306a7"
+        },
+        {
+          "status": " M",
+          "path": "tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs",
+          "bytes": 3228,
+          "sha256": "c31803180d6bac3b934a1ac255da1e47667535021cdff7e5925cee0ea2e1a7b6"
+        },
+        {
+          "status": "??",
+          "path": "docs/review/harmonize-downstream-capability-specs-task-6-6-dirty-manifest-2026-09-13.txt",
+          "bytes": 1569,
+          "sha256": "410e31b8dfa03bdf8118cf5cb67c3f26979958295d8d1fea3df926ee1cd600a7"
+        },
+        {
+          "status": "??",
+          "path": "docs/review/harmonize-downstream-capability-specs-task-6-6-independent-review-request-2026-09-13.md",
+          "bytes": 3836,
+          "sha256": "e7af3174ac00fc4b791f5d28d1d4958ccefb2acab75236e453fdc87d73d42ecc"
+        },
+        {
+          "status": "??",
+          "path": "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-6-future-capability-registry-reconciliation-2026-09-13.md",
+          "bytes": 4514,
+          "sha256": "77b669306d327a7c4a4c5dccfc518bb219a2a96de6f82087a457470387ab279e"
+        },
+        {
+          "status": "??",
+          "path": "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-6-openspec-provenance-refresh-2026-09-13.md",
+          "bytes": 1474,
+          "sha256": "01bbb6f1ed8e78b680e5bebc2157347ff80eed880e847a0375e1e9e9e2f65834"
+        }
+      ],
+      "currentWorktreeMatchPaths": [
+        "docs/ephemeral-engine-developer-guide.md",
+        "docs/normative-source-map.md",
+        "docs/orleans-engine/README.md",
+        "docs/specs/13-phasing-and-open-questions.md",
+        "docs/specs/README.md",
+        "openspec/changes/harmonize-downstream-capability-specs/design.md",
+        "openspec/changes/harmonize-downstream-capability-specs/tasks.md",
+        "openspec/changes/reshape-developer-facing-interfaces/specs/developer-facing-surface/spec.md",
+        "openspec/changes/reshape-developer-facing-interfaces/specs/saga-orchestration/spec.md",
+        "openspec/changes/reshape-developer-facing-interfaces/tasks.md",
+        "openspec/specs/developer-facing-surface/spec.md",
+        "openspec/specs/saga-orchestration/spec.md",
+        "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json",
+        "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json",
+        "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+        "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+        "tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs",
+        "docs/review/harmonize-downstream-capability-specs-task-6-6-dirty-manifest-2026-09-13.txt",
+        "docs/review/harmonize-downstream-capability-specs-task-6-6-independent-review-request-2026-09-13.md",
+        "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-6-future-capability-registry-reconciliation-2026-09-13.md",
+        "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-6-openspec-provenance-refresh-2026-09-13.md"
+      ],
+      "checkpointBlobContentRecordBytes": 3123,
+      "checkpointBlobContentRecordSha256": "f045b131433631eaa6cf2e7b5ca4c95f37bbab9a482558eb5d1f1f32754dfbc5",
+      "reviewState": "ApprovalAwaitingEvidenceCommit",
+      "stateEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-6-6-independent-review-verdict-2026-09-13.md",
+      "verdictEvidence": [
+        {
+          "path": "docs/review/harmonize-downstream-capability-specs-task-6-6-independent-review-verdict-2026-09-13.md",
+          "verdict": "APPROVE",
+          "sha256": "0d962ab35e3dd9ce27ea78326d271994de67a551c90c3704d778f82fb9acda08"
         }
       ]
     }
