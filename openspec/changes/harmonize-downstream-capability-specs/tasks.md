@@ -293,6 +293,8 @@
       **Post-review hardening:** the companion's reviewed SHA-256 is now a guard-source constant,
       and the mutable public-contract fixture must equal that constant before the companion bytes are
       checked, closing review finding Y-1's coherent companion-plus-fixture re-pin path.
+      **Second-review hardening:** the Task 6.5 corpus guard binds both this ledger decision and
+      the design's guard-source ownership paragraph, so review finding Z-1 cannot recur after archival.
 - [ ] 6.6 Reconcile the future-capability registry name and cross-reference across both normative
       trees so deferred and removed concepts remain distinguishable and searchable.
 

@@ -56,6 +56,19 @@ public sealed class OpenSpecCorpusGuards
     private static readonly string[] ImmutableDocumentationPrefixes = ["docs/archive/", "docs/review/"];
     private const string HarmonizationTaskLedgerPath =
         "openspec/changes/harmonize-downstream-capability-specs/tasks.md";
+    private const string HarmonizationDesignPath =
+        "openspec/changes/harmonize-downstream-capability-specs/design.md";
+    private const string Task65PostReviewHardeningDecision =
+        "**Post-review hardening:** the companion's reviewed SHA-256 is now a guard-source constant,\n" +
+        "      and the mutable public-contract fixture must equal that constant before the companion bytes are\n" +
+        "      checked, closing review finding Y-1's coherent companion-plus-fixture re-pin path.";
+    private const string Task65SecondReviewHardeningDecision =
+        "**Second-review hardening:** the Task 6.5 corpus guard binds both this ledger decision and\n" +
+        "      the design's guard-source ownership paragraph, so review finding Z-1 cannot recur after archival.";
+    private const string Task65DesignHardeningDecision =
+        "The companion's reviewed SHA-256 is owned by guard source; the mutable public-\n" +
+        "contract fixture must reproduce that pin and cannot authorize coherent documentation drift by\n" +
+        "re-pinning itself.";
     private static readonly string[] Task52CanonicalSpecPaths =
     [
         "openspec/specs/management-and-querying/spec.md",
@@ -1241,6 +1254,14 @@ public sealed class OpenSpecCorpusGuards
         task.Value.Should().Contain("**Completed:**");
         task.Value.Should().Contain("deliberately byte-unchanged");
         task.Value.Should().Contain("exhaustive twelve-assembly public API baseline");
+        task.Value.Should().Contain(Task65PostReviewHardeningDecision);
+        task.Value.Should().Contain(Task65SecondReviewHardeningDecision);
+
+        var design = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root, HarmonizationDesignPath.Replace('/', Path.DirectorySeparatorChar))));
+        design.Should().Contain(
+            Task65DesignHardeningDecision,
+            "Task 6.5's guard-source ownership decision must survive active-freeze archival");
     }
 
     private static string BuildPublishedSemanticAppendix(string sourceArtifact)
