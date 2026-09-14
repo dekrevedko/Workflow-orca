@@ -1,0 +1,22 @@
+ M docs/ephemeral-engine-developer-guide.md
+ M docs/normative-source-map.md
+ M docs/orleans-engine/README.md
+ M docs/specs/13-phasing-and-open-questions.md
+ M docs/specs/README.md
+ M openspec/changes/harmonize-downstream-capability-specs/design.md
+ M openspec/changes/harmonize-downstream-capability-specs/tasks.md
+ M openspec/changes/reshape-developer-facing-interfaces/specs/developer-facing-surface/spec.md
+ M openspec/changes/reshape-developer-facing-interfaces/specs/saga-orchestration/spec.md
+ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
+ M openspec/specs/developer-facing-surface/spec.md
+ M openspec/specs/saga-orchestration/spec.md
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs
+?? docs/review/harmonize-downstream-capability-specs-task-6-6-dirty-manifest-2026-09-13.txt
+?? docs/review/harmonize-downstream-capability-specs-task-6-6-independent-review-request-2026-09-13.md
+?? openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-6-future-capability-registry-reconciliation-2026-09-13.md
+?? openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-6-openspec-provenance-refresh-2026-09-13.md

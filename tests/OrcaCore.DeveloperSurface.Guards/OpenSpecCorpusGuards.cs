@@ -65,10 +65,77 @@ public sealed class OpenSpecCorpusGuards
     private const string Task65SecondReviewHardeningDecision =
         "**Second-review hardening:** the Task 6.5 corpus guard binds both this ledger decision and\n" +
         "      the design's guard-source ownership paragraph, so review finding Z-1 cannot recur after archival.";
-    private const string Task65DesignHardeningDecision =
-        "The companion's reviewed SHA-256 is owned by guard source; the mutable public-\n" +
+    private const string Task65CompleteDesignDecision =
+        "Task 6.5 resolves that decision by keeping the companion byte-unchanged. `AuthoringSessionState`,\n" +
+        "the lifecycle session, lifecycle/join handles, lexical token, and shared workflow-authoring session\n" +
+        "remain internal implementation types in `OrcaCore.Core`; that assembly's exact v1 API baseline has\n" +
+        "no exported declarations. The existing twelve-assembly public API baseline independently rejects\n" +
+        "any future visibility leak, while the companion continues to describe only application-authored\n" +
+        "types and signatures. The companion's reviewed SHA-256 is owned by guard source; the mutable public-\n" +
         "contract fixture must reproduce that pin and cannot authorize coherent documentation drift by\n" +
         "re-pinning itself.";
+    private const string FutureCapabilityRegistryDocumentPath =
+        "docs/specs/13-phasing-and-open-questions.md";
+    private const string FutureCapabilityRegistrySourceMapTarget =
+        "specs/13-phasing-and-open-questions.md";
+    private const string FutureCapabilityRegistryHeading =
+        "## 13.4 Future-capability registry";
+    private const string FutureCapabilityRegistrySectionIdentity =
+        "§13.4 \"Future-capability registry\"";
+    private const string DeferredCapabilitiesHeading = "### Deferred capabilities";
+    private const string RemovedConceptsHeading = "### Removed concepts";
+    private const string FutureCapabilityRegistryTableHeading =
+        "| Capability | Future amendment must close |";
+    private const string FutureCapabilityRegistryCrossReference =
+        "future-capability registry at `docs/specs/13-phasing-and-open-questions.md` " +
+        "§13.4 (\"Future-capability registry\")";
+    private const string LegacyFutureCapabilityRegistryHeading =
+        "Explicitly deferred or removed capabilities";
+    private const string LegacyFutureCapabilityRegistryAnchor =
+        "#134-explicitly-deferred-or-removed-capabilities";
+    private const string FutureCapabilityRegistryAnchor =
+        "#134-future-capability-registry";
+    private const string LegacyFutureCapabilityRegistryMismatchClaim =
+        "nothing links the two terms";
+    private const string DeferredCapabilitiesRequirement =
+        "Deferred capabilities are documented without public placeholders";
+    private const string SagaDeferredCapabilityRequirement =
+        "Saga remains an explicit deferred capability";
+    private const string Task66CompletionDecision =
+        "**Completed:**\n" +
+        "      `docs/specs/13-phasing-and-open-questions.md` §13.4 now uses the exact \"Future-capability\n" +
+        "      registry\" name shared by canonical OpenSpec and its active owning deltas; the registry has a\n" +
+        "      deferred-capability table and a separate removed-concepts subsection, and active guide links\n" +
+        "      use the exact section anchor. Reshape task 9.6 retains ownership of final registry membership.";
+    private const string Task66ReviewCarryForwardDecision =
+        "**Review carry-forward:** Task 6.5 finding AA-1 is closed by pinning the complete design\n" +
+        "      decision rather than only its final guard-source-ownership sentence.";
+    private const string Task66DesignDecision =
+        "Task 6.6 gives that registry one exact cross-tree identity: `docs/specs/13-phasing-and-open-questions.md`\n" +
+        "§13.4, \"Future-capability registry\". Its deferred-capability table records future promises and their\n" +
+        "re-entry gates, while its separate removed-concepts subsection keeps retired names searchable\n" +
+        "without treating them as future work. Canonical OpenSpec and the active deltas that still own those\n" +
+        "requirements cite the same path and section name. Harmonization owns this name and cross-reference;\n" +
+        "reshape task 9.6 remains the owner of final registry membership.";
+    private static readonly string[] RemovedConceptRegistryNames = ["`WaitLong`", "author `Yield`"];
+    private static readonly string[] FutureCapabilityRegistryGuidePaths =
+    [
+        "docs/ephemeral-engine-developer-guide.md",
+        "docs/orleans-engine/README.md"
+    ];
+    private static readonly (string CanonicalPath, string DeltaPath, string Requirement)[]
+        FutureCapabilityRegistryRequirementBindings =
+        [
+            (
+                "openspec/specs/developer-facing-surface/spec.md",
+                "openspec/changes/reshape-developer-facing-interfaces/specs/developer-facing-surface/spec.md",
+                DeferredCapabilitiesRequirement),
+            (
+                "openspec/specs/saga-orchestration/spec.md",
+                "openspec/changes/reshape-developer-facing-interfaces/specs/saga-orchestration/spec.md",
+                SagaDeferredCapabilityRequirement)
+        ];
+
     private static readonly string[] Task52CanonicalSpecPaths =
     [
         "openspec/specs/management-and-querying/spec.md",
@@ -1260,8 +1327,110 @@ public sealed class OpenSpecCorpusGuards
         var design = NormalizeLineEndings(File.ReadAllText(Path.Combine(
             root, HarmonizationDesignPath.Replace('/', Path.DirectorySeparatorChar))));
         design.Should().Contain(
-            Task65DesignHardeningDecision,
-            "Task 6.5's guard-source ownership decision must survive active-freeze archival");
+            Task65CompleteDesignDecision,
+            "Task 6.5's complete design decision must survive active-freeze archival");
+    }
+
+    [Fact]
+    public void Task66_FutureCapabilityRegistryUsesOneCrossTreeNameAndSeparatesRemovedConcepts()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        var registry = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root, FutureCapabilityRegistryDocumentPath.Replace('/', Path.DirectorySeparatorChar))));
+        var registrySection = ReadExactMarkdownSection(registry, FutureCapabilityRegistryHeading);
+        var deferredMarker = $"\n{DeferredCapabilitiesHeading}\n";
+        var removedMarker = $"\n{RemovedConceptsHeading}\n";
+        var deferredStart = registrySection.IndexOf(deferredMarker, StringComparison.Ordinal);
+        var removedStart = registrySection.IndexOf(removedMarker, StringComparison.Ordinal);
+        deferredStart.Should().BeGreaterThanOrEqualTo(
+            0,
+            "the future-capability registry must expose a named deferred-capability subsection");
+        removedStart.Should().BeGreaterThan(
+            deferredStart,
+            "removed concepts must remain searchable without being classified as deferred work");
+
+        var deferredSection = registrySection[deferredStart..removedStart];
+        var removedSection = registrySection[removedStart..];
+        deferredSection.Should().Contain(FutureCapabilityRegistryTableHeading);
+        foreach (var removedConcept in RemovedConceptRegistryNames)
+        {
+            deferredSection.Should().NotContain(
+                removedConcept,
+                $"removed concept {removedConcept} must not be a future promise");
+            removedSection.Should().Contain(
+                removedConcept,
+                $"removed concept {removedConcept} must remain explicitly searchable");
+        }
+
+        foreach (var binding in FutureCapabilityRegistryRequirementBindings)
+        {
+            var canonicalPath = Path.Combine(root, binding.CanonicalPath.Replace('/', Path.DirectorySeparatorChar));
+            var deltaPath = Path.Combine(root, binding.DeltaPath.Replace('/', Path.DirectorySeparatorChar));
+            var canonical = ReadRequirementBlocks(root, canonicalPath, isDelta: false)
+                .Single(requirement => requirement.Requirement == binding.Requirement);
+            var delta = ReadRequirementBlocks(root, deltaPath, isDelta: true)
+                .Single(requirement => requirement.Requirement == binding.Requirement);
+            canonical.Block.Should().Contain(
+                FutureCapabilityRegistryCrossReference,
+                $"canonical requirement {binding.Requirement} must resolve the registry path and exact name");
+            delta.Block.Should().Be(
+                canonical.Block,
+                $"the active reshape delta still owns and must match canonical requirement {binding.Requirement}");
+        }
+
+        var activeDocumentation = Directory
+            .EnumerateFiles(Path.Combine(root, "docs"), "*", SearchOption.AllDirectories)
+            .Where(path => ActiveDocumentationExtensions.Contains(
+                Path.GetExtension(path),
+                StringComparer.OrdinalIgnoreCase))
+            .Select(path => new
+            {
+                Path = RelativePath(root, path),
+                Content = NormalizeLineEndings(File.ReadAllText(path))
+            })
+            .Where(document => !IsImmutableDocumentationPath(document.Path))
+            .ToArray();
+        foreach (var document in activeDocumentation)
+        {
+            document.Content.Should().NotContain(
+                LegacyFutureCapabilityRegistryHeading,
+                $"active document {document.Path} must use the exact cross-tree registry name");
+            document.Content.Should().NotContain(
+                LegacyFutureCapabilityRegistryAnchor,
+                $"active document {document.Path} must not link the retired registry anchor");
+        }
+
+        foreach (var guidePath in FutureCapabilityRegistryGuidePaths)
+        {
+            activeDocumentation
+                .Single(document => document.Path == guidePath)
+                .Content.Should().Contain(
+                    FutureCapabilityRegistryAnchor,
+                    $"active guide {guidePath} must link the exact future-capability registry anchor");
+        }
+
+        var sourceMap = activeDocumentation
+            .Single(document => document.Path == "docs/normative-source-map.md")
+            .Content;
+        sourceMap.Should().Contain(FutureCapabilityRegistrySourceMapTarget);
+        sourceMap.Should().Contain(FutureCapabilityRegistrySectionIdentity);
+        sourceMap.Should().NotContain(LegacyFutureCapabilityRegistryMismatchClaim);
+
+        var taskLedger = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root, HarmonizationTaskLedgerPath.Replace('/', Path.DirectorySeparatorChar))));
+        var task = Regex.Match(
+            taskLedger,
+            @"(?ms)^- \[x\] 6\.6 .*?(?=^## 7\.)",
+            RegexOptions.CultureInvariant);
+        task.Success.Should().BeTrue("Task 6.6 must retain its completed cross-tree disposition");
+        task.Value.Should().Contain(Task66CompletionDecision);
+        task.Value.Should().Contain(Task66ReviewCarryForwardDecision);
+
+        var design = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root, HarmonizationDesignPath.Replace('/', Path.DirectorySeparatorChar))));
+        design.Should().Contain(
+            Task66DesignDecision,
+            "the one-name, split-classification decision must survive active-freeze archival");
     }
 
     private static string BuildPublishedSemanticAppendix(string sourceArtifact)
@@ -1288,6 +1457,23 @@ public sealed class OpenSpecCorpusGuards
 
     private static bool IsImmutableDocumentationPath(string path) =>
         ImmutableDocumentationPrefixes.Any(prefix => path.StartsWith(prefix, StringComparison.Ordinal));
+
+    private static string ReadExactMarkdownSection(string document, string heading)
+    {
+        var matches = Regex.Matches(
+            document,
+            $"(?m)^{Regex.Escape(heading)}$",
+            RegexOptions.CultureInvariant);
+        if (matches.Count != 1)
+        {
+            throw new InvalidDataException(
+                $"Markdown heading '{heading}' must appear exactly once, found {matches.Count}.");
+        }
+
+        var start = matches[0].Index;
+        var end = document.IndexOf("\n## ", start + heading.Length, StringComparison.Ordinal);
+        return document[start..(end < 0 ? document.Length : end)];
+    }
 
     private static string ReadNumberedRequirementBlock(string document, string identity)
     {

@@ -92,7 +92,7 @@ is rejected at wait registration rather than resolved by a delivery-time tie bre
 ## Deliberately unavailable in v1
 
 The future-capability registry is
-[§13.4, “Explicitly deferred or removed capabilities”](specs/13-phasing-and-open-questions.md#134-explicitly-deferred-or-removed-capabilities).
+[§13.4, “Future-capability registry”](specs/13-phasing-and-open-questions.md#134-future-capability-registry).
 It records deferred capabilities—including `WhenFirst`, Saga, public child/external-job authoring,
 nested fan-out, definition-targeted event fanout, and broad lifecycle/management operations—with
 rationale and re-entry criteria. They are not callable v1 APIs. `WaitLong` and authored `Yield` are

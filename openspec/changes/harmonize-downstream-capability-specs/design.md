@@ -184,6 +184,13 @@ contract. Deferred capabilities remain discoverable through the future-capabilit
 not shown as usable APIs. Removed concepts retain no active alias or how-to path. Newly approved
 Section 7B buffering, fanout, start-or-deliver, and durable publish are not misclassified as deferred.
 
+Task 6.6 gives that registry one exact cross-tree identity: `docs/specs/13-phasing-and-open-questions.md`
+§13.4, "Future-capability registry". Its deferred-capability table records future promises and their
+re-entry gates, while its separate removed-concepts subsection keeps retired names searchable
+without treating them as future work. Canonical OpenSpec and the active deltas that still own those
+requirements cite the same path and section name. Harmonization owns this name and cross-reference;
+reshape task 9.6 remains the owner of final registry membership.
+
 Dated reviews and archived plans remain byte-immutable. Classification, supersession, and current
 routing live in active indexes or new dated records. Moves of historical files preserve Git rename
 history where possible; otherwise an immutable provenance record names the exact predecessor and

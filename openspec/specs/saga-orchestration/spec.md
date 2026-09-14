@@ -4,7 +4,7 @@ Define the target saga-orchestration behavior for OrcaCore, including compensati
 ## Requirements
 
 ### Requirement: Saga remains an explicit deferred capability
-The first release SHALL expose no public Saga builder, definition, action, adapter, outcome, management member, or reflection-visible placeholder. Product planning SHALL retain Saga in the future-capability registry with a re-entry gate requiring typed action/result authoring, deterministic compensation ownership/order, durable reverse progression, compensation failure, cancellation/timeout, manual remediation, versioning, audit, and restart acceptance.
+The first release SHALL expose no public Saga builder, definition, action, adapter, outcome, management member, or reflection-visible placeholder. Product planning SHALL retain Saga in the future-capability registry at `docs/specs/13-phasing-and-open-questions.md` §13.4 ("Future-capability registry") with a re-entry gate requiring typed action/result authoring, deterministic compensation ownership/order, durable reverse progression, compensation failure, cancellation/timeout, manual remediation, versioning, audit, and restart acceptance.
 
 #### Scenario: First-release public surface is inspected
 - **WHEN** source, reflection, package, compile, and sample guards inspect Saga-related names

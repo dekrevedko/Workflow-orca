@@ -77,11 +77,13 @@ assemblies; they differ in what the **record** must say:
 So a deferred capability is documented *as deferred*; do not erase its mention. A removed one is
 erased. Getting this backwards in either direction is a defect.
 
-**The registry lives at [`specs/13-phasing-and-open-questions.md`](specs/13-phasing-and-open-questions.md)
-§13.4 "Explicitly deferred or removed capabilities"** — a table of every deferred capability and what
-a future amendment must close. Note the name mismatch: `openspec/specs` calls this "the
-future-capability registry" and nothing links the two terms, so searching either tree for the other's
-name finds nothing. Owned by reshape task `9.6`.
+**The future-capability registry lives at
+[`specs/13-phasing-and-open-questions.md`](specs/13-phasing-and-open-questions.md)
+§13.4 "Future-capability registry".** Its deferred-capability table records every future promise and
+the questions a reviewed re-entry amendment must close; its separate removed-concepts subsection
+keeps retired names searchable without presenting them as future work. Canonical OpenSpec and its
+active owning deltas cite this exact path and section name. Harmonization task `6.6` owns that shared
+name and cross-reference; reshape task `9.6` owns the registry's final membership.
 
 ### Known asymmetries
 

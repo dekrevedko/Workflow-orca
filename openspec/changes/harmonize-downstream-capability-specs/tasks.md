@@ -295,8 +295,14 @@
       checked, closing review finding Y-1's coherent companion-plus-fixture re-pin path.
       **Second-review hardening:** the Task 6.5 corpus guard binds both this ledger decision and
       the design's guard-source ownership paragraph, so review finding Z-1 cannot recur after archival.
-- [ ] 6.6 Reconcile the future-capability registry name and cross-reference across both normative
-      trees so deferred and removed concepts remain distinguishable and searchable.
+- [x] 6.6 Reconcile the future-capability registry name and cross-reference across both normative
+      trees so deferred and removed concepts remain distinguishable and searchable. **Completed:**
+      `docs/specs/13-phasing-and-open-questions.md` §13.4 now uses the exact "Future-capability
+      registry" name shared by canonical OpenSpec and its active owning deltas; the registry has a
+      deferred-capability table and a separate removed-concepts subsection, and active guide links
+      use the exact section anchor. Reshape task 9.6 retains ownership of final registry membership.
+      **Review carry-forward:** Task 6.5 finding AA-1 is closed by pinning the complete design
+      decision rather than only its final guard-source-ownership sentence.
 
 ## 7. Documentation and guard coherence
 

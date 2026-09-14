@@ -1,7 +1,17 @@
 {
   "schemaVersion": 10,
-  "activeFreeze": null,
-
+  "activeFreeze": {
+    "task": "6.6",
+    "requestPath": "docs/review/harmonize-downstream-capability-specs-task-6-6-independent-review-request-2026-09-13.md",
+    "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-6-6-dirty-manifest-2026-09-13.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "4f061089bae7602a7d1f255436a0e6d8507c39df",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 2969,
+    "contentRecordSha256": "708817fca0a9c628bccf66a7d598c02175652c546a5e88e3a93386ce492660c4"
+  },
   "archivedFreezes": [
     {
       "id": "6.1-remediation",
@@ -320,7 +330,6 @@
       "currentWorktreeMatchPaths": [
         "docs/review/harmonize-downstream-capability-specs-task-5-1-dirty-manifest-2026-08-20.txt",
         "docs/review/harmonize-downstream-capability-specs-task-5-1-independent-review-request-2026-08-20.md",
-        "openspec/specs/developer-facing-surface/spec.md",
         "openspec/specs/durable-persistence-and-outbox/spec.md",
         "openspec/specs/durable-runtime/spec.md",
         "openspec/specs/event-routing-and-waits/spec.md",
@@ -1151,10 +1160,6 @@
         }
       ],
       "currentWorktreeMatchPaths": [
-        "openspec/changes/reshape-developer-facing-interfaces/tasks.md",
-        "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json",
-        "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
-        "tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs",
         "docs/review/harmonize-downstream-capability-specs-task-6-5-dirty-manifest-2026-09-03.txt",
         "docs/review/harmonize-downstream-capability-specs-task-6-5-independent-review-request-2026-09-03.md",
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-5-public-authoring-companion-decision-2026-09-03.md"

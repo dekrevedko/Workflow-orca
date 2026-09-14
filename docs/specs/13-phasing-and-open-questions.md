@@ -140,12 +140,15 @@ semantics. Any such change requires an explicit document-17/OpenSpec amendment f
   SDKs belong to a separate companion project. No OrcaCore package depends on them; `OrcaCore`
   is the primary contracts/authoring package, not a meta-package.
 
-## 13.4 Explicitly deferred or removed capabilities
+## 13.4 Future-capability registry
 
-This section is the **future-capability registry** named by the canonical OpenSpec
-`developer-facing-surface` and `saga-orchestration` capabilities. OpenSpec defines the absence and
-re-entry obligation; this table is the human-readable inventory of those deferred capabilities and
-the questions a future amendment must close.
+This section is the **future-capability registry** named and cross-referenced by the canonical
+OpenSpec `developer-facing-surface` and `saga-orchestration` capabilities. OpenSpec defines the
+absence and re-entry obligation; the deferred-capability table is the human-readable inventory of
+future work and the questions a future amendment must close. Removed concepts are recorded in a
+separate subsection so their names stay searchable without misclassifying them as future promises.
+
+### Deferred capabilities
 
 Deferred capabilities remain documented but have no v1 member, alias, tombstone, placeholder,
 positive compile fixture, or implementation task that pretends the contract is approved:
@@ -168,6 +171,8 @@ positive compile fixture, or implementation task that pretends the contract is a
 | Workflow-authored `Publish` | payload/destination, event identity, commit/dispatch/dedup contract |
 | Workflow-authored `Cancel` | target, terminal outcome, descendant/lease cleanup, authorization |
 | Definition-targeted event fanout | committed target set, per-target dedup, retry/late-registration rule |
+
+### Removed concepts
 
 `WaitLong` and author `Yield` are **removed**, not deferred: their useful behavior is supplied by
 durable `Wait` residency and runtime-owned quanta. Their names must disappear from public

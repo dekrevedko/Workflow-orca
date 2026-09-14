@@ -21,7 +21,7 @@ surfaces:
 - hosting registration must be role-specific, programmatic, and mutually exclusive with another
   engine owner in the same service collection;
 - deferred capabilities remain absent until their own reviewed amendment re-enters them through the
-  [future-capability registry](../specs/13-phasing-and-open-questions.md#134-explicitly-deferred-or-removed-capabilities).
+  [future-capability registry](../specs/13-phasing-and-open-questions.md#134-future-capability-registry).
 
 ## Work required before implementation
 

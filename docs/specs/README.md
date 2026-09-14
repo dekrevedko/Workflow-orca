@@ -48,7 +48,7 @@ Every requirement has a stable ID. Prefixes:
 10. [10-provider-model-and-extensibility.md](10-provider-model-and-extensibility.md) — provider contracts, the fixed v1 payload codec, the serialized resource-governance store, and provider invariants.
 11. [11-non-functional-requirements.md](11-non-functional-requirements.md) — platform, quality, API design, security, performance posture.
 12. [12-acceptance-criteria.md](12-acceptance-criteria.md) — consolidated, numbered acceptance criteria catalog (`AC-xxx`; the scenario criteria `JS-AC-xxx` live in document 14 and are part of the catalog by reference).
-13. [13-phasing-and-open-questions.md](13-phasing-and-open-questions.md) — first-release delivery slices, closed decisions, narrow implementation questions, and deferred registry.
+13. [13-phasing-and-open-questions.md](13-phasing-and-open-questions.md) — first-release delivery slices, closed decisions, narrow implementation questions, the future-capability registry, and its separate removed-concept boundary.
 14. [14-driving-scenario-eks-job-scheduler.md](14-driving-scenario-eks-job-scheduler.md) — outward companion application using typed DAGs and standard Kubernetes Jobs; EKS is one deployment target, not an OrcaCore dependency.
 15. [15-requirements-observability-otel.md](15-requirements-observability-otel.md) — OTel metrics and logs for system dashboards, log↔metric↔trace correlation, and the boundary between v1 handles and host/operator projections.
 16. [16-requirements-durable-driver.md](16-requirements-durable-driver.md) — the durable interpreter (run-to-suspension executor) and default in-process lane host (`DR-xxx`, `DR-AC-xxx`), including detached attempts, exact deadlines, continuation delivery, leasing, and DAG driving.
