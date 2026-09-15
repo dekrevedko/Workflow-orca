@@ -191,6 +191,14 @@ without treating them as future work. Canonical OpenSpec and the active deltas t
 requirements cite the same path and section name. Harmonization owns this name and cross-reference;
 reshape task 9.6 remains the owner of final registry membership.
 
+Task 6.6 post-review remediation makes provenance refreshes append-only in effect: guard source
+permanently catalogs every superseded provenance artifact path and normalized hash before the
+mutable fixture points at its successor. Removed-concept classification uses identifier boundaries
+rather than Markdown spelling. The dated remediation record also discloses that Task 6.6 authority
+predated the canonical gate, while its citation-only canonical/delta sync was prepared before the
+exact 22-path target received independent approval; it preserves the exact sync diff and subsequent
+checkpoint, approval-evidence, and activation sequence without recasting it as approval-first work.
+
 Dated reviews and archived plans remain byte-immutable. Classification, supersession, and current
 routing live in active indexes or new dated records. Moves of historical files preserve Git rename
 history where possible; otherwise an immutable provenance record names the exact predecessor and

@@ -302,7 +302,11 @@
       deferred-capability table and a separate removed-concepts subsection, and active guide links
       use the exact section anchor. Reshape task 9.6 retains ownership of final registry membership.
       **Review carry-forward:** Task 6.5 finding AA-1 is closed by pinning the complete design
-      decision rather than only its final guard-source-ownership sentence.
+      decision rather than only its final guard-source-ownership sentence. **Post-review
+      remediation:** a permanent guard-source catalog retains every superseded OpenSpec provenance
+      artifact and its normalized hash; identifier-boundary checks keep `WaitLong` and `Yield` out
+      of the deferred table regardless of Markdown spelling; and the dated Task 6.6 remediation
+      record preserves the exact citation-only canonical/delta sync plus its actual approval order.
 
 ## 7. Documentation and guard coherence
 

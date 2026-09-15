@@ -41,6 +41,17 @@ public sealed class OpenSpecCorpusGuards
         "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
     private const string PublicAuthoringCompanionSha256 =
         "41f6472c2774363d2ab922c608922e787ec241333e1d1c0b76b0c6d529ab8ec3";
+    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 1;
+    private const string SupersededOpenSpecProvenanceArtifactCatalogSha256 =
+        "a9836be8bb9f05876cf73f96c77756143a5b079bb1111db446721922869f7b12";
+    private static readonly (string Path, string NormalizedSha256)[]
+        SupersededOpenSpecProvenanceArtifacts =
+        [
+            (
+                "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
+                "task-4-2-openspec-provenance-record-2026-08-18.md",
+                "9e8709096f8f3efcb8ea1ee040d1ec6f13e997a320eb6fbb7f724ec708ae2958")
+        ];
     private const string EmptyCorePublicApiBaseline =
         "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";
     private static readonly string[] AuthoringLifecycleImplementationTypeNames =
@@ -110,6 +121,12 @@ public sealed class OpenSpecCorpusGuards
     private const string Task66ReviewCarryForwardDecision =
         "**Review carry-forward:** Task 6.5 finding AA-1 is closed by pinning the complete design\n" +
         "      decision rather than only its final guard-source-ownership sentence.";
+    private const string Task66PostReviewRemediationDecision =
+        "**Post-review\n" +
+        "      remediation:** a permanent guard-source catalog retains every superseded OpenSpec provenance\n" +
+        "      artifact and its normalized hash; identifier-boundary checks keep `WaitLong` and `Yield` out\n" +
+        "      of the deferred table regardless of Markdown spelling; and the dated Task 6.6 remediation\n" +
+        "      record preserves the exact citation-only canonical/delta sync plus its actual approval order.";
     private const string Task66DesignDecision =
         "Task 6.6 gives that registry one exact cross-tree identity: `docs/specs/13-phasing-and-open-questions.md`\n" +
         "§13.4, \"Future-capability registry\". Its deferred-capability table records future promises and their\n" +
@@ -117,7 +134,20 @@ public sealed class OpenSpecCorpusGuards
         "without treating them as future work. Canonical OpenSpec and the active deltas that still own those\n" +
         "requirements cite the same path and section name. Harmonization owns this name and cross-reference;\n" +
         "reshape task 9.6 remains the owner of final registry membership.";
-    private static readonly string[] RemovedConceptRegistryNames = ["`WaitLong`", "author `Yield`"];
+    private const string Task66PostReviewDesignDecision =
+        "Task 6.6 post-review remediation makes provenance refreshes append-only in effect: guard source\n" +
+        "permanently catalogs every superseded provenance artifact path and normalized hash before the\n" +
+        "mutable fixture points at its successor. Removed-concept classification uses identifier boundaries\n" +
+        "rather than Markdown spelling. The dated remediation record also discloses that Task 6.6 authority\n" +
+        "predated the canonical gate, while its citation-only canonical/delta sync was prepared before the\n" +
+        "exact 22-path target received independent approval; it preserves the exact sync diff and subsequent\n" +
+        "checkpoint, approval-evidence, and activation sequence without recasting it as approval-first work.";
+    private const string Task66PostReviewRemediationArtifact =
+        "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
+        "task-6-6-post-review-remediation-2026-09-13.md";
+    private const string Task66PostReviewRemediationArtifactSha256 =
+        "913c6d286f89b3b3b7f52cae6776764392be7bd722d80a0eb15e77869a1e0b65";
+    private static readonly string[] RemovedConceptRegistryNames = ["WaitLong", "Yield"];
     private static readonly string[] FutureCapabilityRegistryGuidePaths =
     [
         "docs/ephemeral-engine-developer-guide.md",
@@ -1354,11 +1384,9 @@ public sealed class OpenSpecCorpusGuards
         deferredSection.Should().Contain(FutureCapabilityRegistryTableHeading);
         foreach (var removedConcept in RemovedConceptRegistryNames)
         {
-            deferredSection.Should().NotContain(
-                removedConcept,
+            ContainsIdentifierToken(deferredSection, removedConcept).Should().BeFalse(
                 $"removed concept {removedConcept} must not be a future promise");
-            removedSection.Should().Contain(
-                removedConcept,
+            ContainsIdentifierToken(removedSection, removedConcept).Should().BeTrue(
                 $"removed concept {removedConcept} must remain explicitly searchable");
         }
 
@@ -1425,12 +1453,23 @@ public sealed class OpenSpecCorpusGuards
         task.Success.Should().BeTrue("Task 6.6 must retain its completed cross-tree disposition");
         task.Value.Should().Contain(Task66CompletionDecision);
         task.Value.Should().Contain(Task66ReviewCarryForwardDecision);
+        task.Value.Should().Contain(Task66PostReviewRemediationDecision);
 
         var design = NormalizeLineEndings(File.ReadAllText(Path.Combine(
             root, HarmonizationDesignPath.Replace('/', Path.DirectorySeparatorChar))));
         design.Should().Contain(
             Task66DesignDecision,
             "the one-name, split-classification decision must survive active-freeze archival");
+        design.Should().Contain(
+            Task66PostReviewDesignDecision,
+            "the Task 6.6 review remediation decision must survive active-freeze archival");
+
+        var remediationArtifact = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            Task66PostReviewRemediationArtifact.Replace('/', Path.DirectorySeparatorChar))));
+        Sha256(remediationArtifact).Should().Be(
+            Task66PostReviewRemediationArtifactSha256,
+            "the exact Task 6.6 approval and synchronization disclosure must remain immutable");
     }
 
     private static string BuildPublishedSemanticAppendix(string sourceArtifact)
@@ -3421,6 +3460,31 @@ public sealed class OpenSpecCorpusGuards
         IReadOnlyCollection<ProvenanceRow> rows,
         OpenSpecProvenanceCheckpoint checkpoint)
     {
+        SupersededOpenSpecProvenanceArtifacts.Should().HaveCount(
+            SupersededOpenSpecProvenanceArtifactCatalogCount);
+        var supersededArtifactCatalog = string.Join(
+            '\n',
+            SupersededOpenSpecProvenanceArtifacts
+                .Select(artifact => $"{artifact.Path}\t{artifact.NormalizedSha256}")
+                .Order(StringComparer.Ordinal)) + "\n";
+        Sha256(supersededArtifactCatalog).Should().Be(
+            SupersededOpenSpecProvenanceArtifactCatalogSha256,
+            "superseded provenance artifacts must remain permanently pinned by guard source");
+        foreach (var artifact in SupersededOpenSpecProvenanceArtifacts)
+        {
+            artifact.Path.Should().NotBe(
+                checkpoint.ArtifactPath,
+                "the current provenance artifact must not also be catalogued as superseded");
+            var supersededPath = Path.Combine(
+                root,
+                artifact.Path.Replace('/', Path.DirectorySeparatorChar));
+            File.Exists(supersededPath).Should().BeTrue(
+                $"superseded provenance artifact {artifact.Path} must remain available");
+            Sha256(NormalizeLineEndings(File.ReadAllText(supersededPath))).Should().Be(
+                artifact.NormalizedSha256,
+                $"superseded provenance artifact {artifact.Path} must retain its reviewed bytes");
+        }
+
         var artifactPath = Path.Combine(
             root,
             checkpoint.ArtifactPath.Replace('/', Path.DirectorySeparatorChar));
@@ -3490,6 +3554,12 @@ public sealed class OpenSpecCorpusGuards
         artifact.Should().Contain(
             claim,
             "the human-readable provenance artifact must agree with live executable evidence");
+
+    private static bool ContainsIdentifierToken(string text, string identifier) =>
+        Regex.IsMatch(
+            text,
+            @"(?<![\p{L}\p{Nd}_])" + Regex.Escape(identifier) + @"(?![\p{L}\p{Nd}_])",
+            RegexOptions.CultureInvariant);
 
     private static string FormatCount(int value) =>
         value.ToString("N0", CultureInfo.InvariantCulture);

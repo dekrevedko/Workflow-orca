@@ -1,7 +1,17 @@
 {
   "schemaVersion": 10,
-  "activeFreeze": null,
-
+  "activeFreeze": {
+    "task": "6.6-post-review-remediation",
+    "requestPath": "docs/review/harmonize-downstream-capability-specs-task-6-6-post-review-remediation-independent-review-request-2026-09-13.md",
+    "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-6-6-post-review-remediation-dirty-manifest-2026-09-13.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "665925db7aedcce7dc4fc6a716239da1d3bcbbf2",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 982,
+    "contentRecordSha256": "40dc4d16d11c7637a1daac4116cbfd874b47b2b871c7988339dc1fa9ecbea7ff"
+  },
   "archivedFreezes": [
     {
       "id": "6.1-remediation",
@@ -1356,8 +1366,6 @@
         "docs/orleans-engine/README.md",
         "docs/specs/13-phasing-and-open-questions.md",
         "docs/specs/README.md",
-        "openspec/changes/harmonize-downstream-capability-specs/design.md",
-        "openspec/changes/harmonize-downstream-capability-specs/tasks.md",
         "openspec/changes/reshape-developer-facing-interfaces/specs/developer-facing-surface/spec.md",
         "openspec/changes/reshape-developer-facing-interfaces/specs/saga-orchestration/spec.md",
         "openspec/changes/reshape-developer-facing-interfaces/tasks.md",
@@ -1365,7 +1373,6 @@
         "openspec/specs/saga-orchestration/spec.md",
         "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json",
         "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json",
-        "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
         "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
         "tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs",
         "docs/review/harmonize-downstream-capability-specs-task-6-6-dirty-manifest-2026-09-13.txt",
