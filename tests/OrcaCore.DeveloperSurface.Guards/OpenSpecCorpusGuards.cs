@@ -147,6 +147,23 @@ public sealed class OpenSpecCorpusGuards
         "task-6-6-post-review-remediation-2026-09-13.md";
     private const string Task66PostReviewRemediationArtifactSha256 =
         "913c6d286f89b3b3b7f52cae6776764392be7bd722d80a0eb15e77869a1e0b65";
+    private const string Task66SecondPostReviewHardeningDecision =
+        "**Second post-review hardening:** a separately pinned dated addendum preserves the literal\n" +
+        "      backticks in both exact synchronization fragments; exhaustive provenance-artifact discovery\n" +
+        "      requires every refresh record to be current or permanently catalogued; and removed-token\n" +
+        "      checks cover the complete §13.4 future-work region before the removed-concepts subsection.";
+    private const string Task66SecondPostReviewDesignDecision =
+        "Task 6.6 second post-review hardening makes those controls exhaustive and byte-explicit. A dated\n" +
+        "addendum preserves the literal backticks in the two citation-only synchronization fragments without\n" +
+        "rewriting the approved remediation record. The provenance guard enumerates every top-level\n" +
+        "`*openspec-provenance-*.md` artifact and requires each to be either the fixture's current record or a\n" +
+        "permanently catalogued predecessor. Removed-concept tokens are rejected across the complete §13.4\n" +
+        "future-work region before the removed-concepts subsection, including its preamble.";
+    private const string Task66SecondPostReviewHardeningArtifact =
+        "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
+        "task-6-6-second-post-review-hardening-2026-09-14.md";
+    private const string Task66SecondPostReviewHardeningArtifactSha256 =
+        "caa1151583da9503a70993b20a769342040bcc162c1788719dbb44488e8d3096";
     private static readonly string[] RemovedConceptRegistryNames = ["WaitLong", "Yield"];
     private static readonly string[] FutureCapabilityRegistryGuidePaths =
     [
@@ -1379,12 +1396,13 @@ public sealed class OpenSpecCorpusGuards
             deferredStart,
             "removed concepts must remain searchable without being classified as deferred work");
 
+        var futureWorkSection = registrySection[..removedStart];
         var deferredSection = registrySection[deferredStart..removedStart];
         var removedSection = registrySection[removedStart..];
         deferredSection.Should().Contain(FutureCapabilityRegistryTableHeading);
         foreach (var removedConcept in RemovedConceptRegistryNames)
         {
-            ContainsIdentifierToken(deferredSection, removedConcept).Should().BeFalse(
+            ContainsIdentifierToken(futureWorkSection, removedConcept).Should().BeFalse(
                 $"removed concept {removedConcept} must not be a future promise");
             ContainsIdentifierToken(removedSection, removedConcept).Should().BeTrue(
                 $"removed concept {removedConcept} must remain explicitly searchable");
@@ -1454,6 +1472,7 @@ public sealed class OpenSpecCorpusGuards
         task.Value.Should().Contain(Task66CompletionDecision);
         task.Value.Should().Contain(Task66ReviewCarryForwardDecision);
         task.Value.Should().Contain(Task66PostReviewRemediationDecision);
+        task.Value.Should().Contain(Task66SecondPostReviewHardeningDecision);
 
         var design = NormalizeLineEndings(File.ReadAllText(Path.Combine(
             root, HarmonizationDesignPath.Replace('/', Path.DirectorySeparatorChar))));
@@ -1463,6 +1482,9 @@ public sealed class OpenSpecCorpusGuards
         design.Should().Contain(
             Task66PostReviewDesignDecision,
             "the Task 6.6 review remediation decision must survive active-freeze archival");
+        design.Should().Contain(
+            Task66SecondPostReviewDesignDecision,
+            "the Task 6.6 second post-review hardening decision must survive active-freeze archival");
 
         var remediationArtifact = NormalizeLineEndings(File.ReadAllText(Path.Combine(
             root,
@@ -1470,6 +1492,13 @@ public sealed class OpenSpecCorpusGuards
         Sha256(remediationArtifact).Should().Be(
             Task66PostReviewRemediationArtifactSha256,
             "the exact Task 6.6 approval and synchronization disclosure must remain immutable");
+
+        var hardeningArtifact = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            Task66SecondPostReviewHardeningArtifact.Replace('/', Path.DirectorySeparatorChar))));
+        Sha256(hardeningArtifact).Should().Be(
+            Task66SecondPostReviewHardeningArtifactSha256,
+            "the Task 6.6 exact-byte correction and exhaustive hardening record must remain immutable");
     }
 
     private static string BuildPublishedSemanticAppendix(string sourceArtifact)
@@ -3484,6 +3513,28 @@ public sealed class OpenSpecCorpusGuards
                 artifact.NormalizedSha256,
                 $"superseded provenance artifact {artifact.Path} must retain its reviewed bytes");
         }
+
+        var provenanceArtifactDirectory = Path.GetDirectoryName(Path.Combine(
+            root,
+            checkpoint.ArtifactPath.Replace('/', Path.DirectorySeparatorChar)));
+        provenanceArtifactDirectory.Should().NotBeNullOrWhiteSpace();
+        var discoveredProvenanceArtifacts = Directory
+            .EnumerateFiles(
+                provenanceArtifactDirectory!,
+                "*openspec-provenance-*.md",
+                SearchOption.TopDirectoryOnly)
+            .Select(path => RelativePath(root, path))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        var governedProvenanceArtifacts = SupersededOpenSpecProvenanceArtifacts
+            .Select(artifact => artifact.Path)
+            .Append(checkpoint.ArtifactPath)
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        discoveredProvenanceArtifacts.Should().Equal(
+            governedProvenanceArtifacts,
+            "every OpenSpec provenance artifact must be the current record or a permanently catalogued predecessor");
 
         var artifactPath = Path.Combine(
             root,

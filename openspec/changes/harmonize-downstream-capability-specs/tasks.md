@@ -307,6 +307,10 @@
       artifact and its normalized hash; identifier-boundary checks keep `WaitLong` and `Yield` out
       of the deferred table regardless of Markdown spelling; and the dated Task 6.6 remediation
       record preserves the exact citation-only canonical/delta sync plus its actual approval order.
+      **Second post-review hardening:** a separately pinned dated addendum preserves the literal
+      backticks in both exact synchronization fragments; exhaustive provenance-artifact discovery
+      requires every refresh record to be current or permanently catalogued; and removed-token
+      checks cover the complete §13.4 future-work region before the removed-concepts subsection.
 
 ## 7. Documentation and guard coherence
 

@@ -1,0 +1,7 @@
+ M openspec/changes/harmonize-downstream-capability-specs/design.md
+ M openspec/changes/harmonize-downstream-capability-specs/tasks.md
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+?? docs/review/harmonize-downstream-capability-specs-task-6-6-second-post-review-hardening-dirty-manifest-2026-09-14.txt
+?? docs/review/harmonize-downstream-capability-specs-task-6-6-second-post-review-hardening-independent-review-request-2026-09-14.md
+?? openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-6-second-post-review-hardening-2026-09-14.md

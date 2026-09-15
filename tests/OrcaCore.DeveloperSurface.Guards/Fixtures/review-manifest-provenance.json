@@ -1,6 +1,17 @@
 {
   "schemaVersion": 10,
-  "activeFreeze": null,
+  "activeFreeze": {
+    "task": "6.6-second-post-review-hardening",
+    "requestPath": "docs/review/harmonize-downstream-capability-specs-task-6-6-second-post-review-hardening-independent-review-request-2026-09-14.md",
+    "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-6-6-second-post-review-hardening-dirty-manifest-2026-09-14.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "7e399826a25f2aeefe171475dcd51853ad145e2f",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 997,
+    "contentRecordSha256": "eb885946de1976b4dc04c88b76a0754865feec1191b0da16b69482538522ac6b"
+  },
   "archivedFreezes": [
     {
       "id": "6.1-remediation",

@@ -199,6 +199,13 @@ predated the canonical gate, while its citation-only canonical/delta sync was pr
 exact 22-path target received independent approval; it preserves the exact sync diff and subsequent
 checkpoint, approval-evidence, and activation sequence without recasting it as approval-first work.
 
+Task 6.6 second post-review hardening makes those controls exhaustive and byte-explicit. A dated
+addendum preserves the literal backticks in the two citation-only synchronization fragments without
+rewriting the approved remediation record. The provenance guard enumerates every top-level
+`*openspec-provenance-*.md` artifact and requires each to be either the fixture's current record or a
+permanently catalogued predecessor. Removed-concept tokens are rejected across the complete §13.4
+future-work region before the removed-concepts subsection, including its preamble.
+
 Dated reviews and archived plans remain byte-immutable. Classification, supersession, and current
 routing live in active indexes or new dated records. Moves of historical files preserve Git rename
 history where possible; otherwise an immutable provenance record names the exact predecessor and
