@@ -1230,7 +1230,7 @@
       "baseCommit": "4f061089bae7602a7d1f255436a0e6d8507c39df",
       "checkpointCommit": "1d4dec01f3884ded0cb9ba0f14f40f2e67f6773a",
       "checkpointTree": "96b68ba33219d493f8c39a235895bfba525c2a70",
-      "approvalEvidenceCommit": null,
+      "approvalEvidenceCommit": "dc79672e6a233b1602e0db4e01533465c17636e1",
       "reviewedTargetCommit": "2581928de06d3c7f4b0db306a274d8a34d47a258",
       "reviewedTargetTree": "c4535539b60363059e4c2be87c3ea2bb523156a8",
       "preApprovalContentCommits": [],
@@ -1392,7 +1392,7 @@
       ],
       "checkpointBlobContentRecordBytes": 3123,
       "checkpointBlobContentRecordSha256": "f045b131433631eaa6cf2e7b5ca4c95f37bbab9a482558eb5d1f1f32754dfbc5",
-      "reviewState": "ApprovalAwaitingEvidenceCommit",
+      "reviewState": "Approved",
       "stateEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-6-6-post-review-remediation-independent-review-verdict-2026-09-13.md",
       "verdictEvidence": [
         {
