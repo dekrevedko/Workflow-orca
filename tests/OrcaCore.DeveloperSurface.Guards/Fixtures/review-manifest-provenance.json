@@ -1518,7 +1518,7 @@
       "baseCommit": "99657834684deefa2d22cb6526d714c4566b7ae0",
       "checkpointCommit": "de73ca521343d303cd8f774990954889463a782c",
       "checkpointTree": "bd519b0dd64e9dc6705b867faa0c63405351d04a",
-      "approvalEvidenceCommit": null,
+      "approvalEvidenceCommit": "a7d9c523f628dc2cffbd16abad85eff6675c1ac5",
       "reviewedTargetCommit": "f618ede0790427b372fe4604e4f9872d108b88bf",
       "reviewedTargetTree": "c612ed39d67556ee65670baf54095d9821d62e7e",
       "preApprovalContentCommits": [],
@@ -1660,7 +1660,7 @@
       ],
       "checkpointBlobContentRecordBytes": 3090,
       "checkpointBlobContentRecordSha256": "f3673ad58ebec7e78c748553337d75bb26f63e65b4d200145d77401975cbfe17",
-      "reviewState": "ApprovalAwaitingEvidenceCommit",
+      "reviewState": "Approved",
       "stateEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-7-1-post-review-hardening-independent-review-verdict-2026-09-16.md",
       "verdictEvidence": [
         {
