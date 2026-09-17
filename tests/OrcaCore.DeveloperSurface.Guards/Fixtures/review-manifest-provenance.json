@@ -1,6 +1,17 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": null,
+  "activeFreeze": {
+    "task": "7.1-post-review-hardening",
+    "requestPath": "docs/review/harmonize-downstream-capability-specs-task-7-1-post-review-hardening-independent-review-request-2026-09-16.md",
+    "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-1-post-review-hardening-dirty-manifest-2026-09-16.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "e7f8e26c54d6e00d3bb0ac1e2632a277ec0991e1",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 655,
+    "contentRecordSha256": "d26484c4caba60067b560bc01424fc424b85a18b5c1f03a0ac306f5248742e31"
+  },
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",
@@ -1621,11 +1632,9 @@
       ],
       "currentWorktreeMatchPaths": [
         "docs/eks-scheduler-handoff.md",
-        "openspec/changes/harmonize-downstream-capability-specs/design.md",
         "openspec/changes/harmonize-downstream-capability-specs/tasks.md",
         "openspec/changes/reshape-developer-facing-interfaces/tasks.md",
         "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json",
-        "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
         "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
         "tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs",
         "docs/review/harmonize-downstream-capability-specs-task-7-1-dirty-manifest-2026-09-15.txt",

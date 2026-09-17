@@ -217,7 +217,9 @@ concepts subsection rather than treating every later subsection as removed terri
 The Task 7.1 review remediation preserves each rejected target under its own immutable raw-order
 manifest while byte-pinning the request and `REJECT` verdict that produced it. The final source-record
 companion uses ordinal path comparison and the executable guard enforces its 86-row order, LF-only
-encoding, exact digest, and the scan artifact's exact real companion path.
+encoding, exact digest, and the scan artifact's exact real companion path. The companion is a
+pre-finalization scan snapshot: its `design.md` and `tasks.md` rows intentionally predate their final
+self-describing remediation text and therefore do not represent the checkpoint-tree digest.
 
 Dated reviews and archived plans remain byte-immutable. Classification, supersession, and current
 routing live in active indexes or new dated records. Moves of historical files preserve Git rename

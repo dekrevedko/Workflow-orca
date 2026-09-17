@@ -207,7 +207,9 @@ public sealed class OpenSpecCorpusGuards
         "The Task 7.1 review remediation preserves each rejected target under its own immutable raw-order\n" +
         "manifest while byte-pinning the request and `REJECT` verdict that produced it. The final source-record\n" +
         "companion uses ordinal path comparison and the executable guard enforces its 86-row order, LF-only\n" +
-        "encoding, exact digest, and the scan artifact's exact real companion path.";
+        "encoding, exact digest, and the scan artifact's exact real companion path. The companion is a\n" +
+        "pre-finalization scan snapshot: its `design.md` and `tasks.md` rows intentionally predate their final\n" +
+        "self-describing remediation text and therefore do not represent the checkpoint-tree digest.";
     private static readonly string[] ActiveCorpusRootDocumentPaths = ["CLAUDE.md", "README.md"];
     private static readonly string[] ActiveChangePlanningFileNames = ["proposal.md", "design.md", "tasks.md"];
     private static readonly (string Name, string Expression)[] PositiveRemovedOrDeferredCallPatterns =
@@ -1649,10 +1651,10 @@ public sealed class OpenSpecCorpusGuards
             HarmonizationDesignPath.Replace('/', Path.DirectorySeparatorChar))));
         design.Should().Contain(
             Task71DesignDecision,
-            "Task 7.1's active-guide and carried review-hardening decision must survive archival");        design.Should().Contain(
+            "Task 7.1's active-guide and carried review-hardening decision must survive archival");
+        design.Should().Contain(
             Task71ReviewRemediationDesignDecision,
             "Task 7.1's rejected-freeze and ordinal-source-record remediation must survive archival");
-
 
         var artifact = NormalizeLineEndings(File.ReadAllText(Path.Combine(
             root,
