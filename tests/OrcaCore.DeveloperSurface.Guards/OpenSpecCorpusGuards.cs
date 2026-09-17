@@ -164,9 +164,67 @@ public sealed class OpenSpecCorpusGuards
         "task-6-6-second-post-review-hardening-2026-09-14.md";
     private const string Task66SecondPostReviewHardeningArtifactSha256 =
         "caa1151583da9503a70993b20a769342040bcc162c1788719dbb44488e8d3096";
+    private const string DocumentationRoot = "docs";
+    private const string OpenSpecChangesRoot = "openspec/changes";
+    private const string OpenSpecChangesPathPrefix = "openspec/changes/";
+    private const string CanonicalOpenSpecSpecsRoot = "openspec/specs";
+    private const string CanonicalOpenSpecSpecsPathPrefix = "openspec/specs/";
+    private const string OpenSpecSpecFileName = "spec.md";
+    private const string ActiveChangeSpecsDirectoryName = "specs";
+    private const string ArchivedChangesDirectoryName = "archive";
+    private const string OpenSpecProvenanceArtifactNameFragment = "openspec-provenance-";
+    private const string Task71PositiveCallScanArtifact =
+        "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
+        "task-7-1-active-guide-positive-call-scan-2026-09-14.md";
+    private const string Task71PositiveCallScanArtifactSha256 =
+        "55bda56ed62a6b0cf7664a26f0331d35d37b0e207d1352f27fb37808e9b954c4";
+    private const string Task71PositiveCallSourceRecord =
+        "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
+        "task-7-1-active-guide-positive-call-source-record-2026-09-15.tsv";
+    private const int Task71PositiveCallSourceRecordRows = 86;
+    private const int Task71PositiveCallSourceRecordBytes = 10_655;
+    private const string Task71PositiveCallSourceRecordSha256 =
+        "56b6d27ece05d0ff536d9ca5114ba3e1856f0f3288f4bf5226bab341e36963f2";
+    private const string Task71CompletionDecision =
+        "**Completed:** the 2026-09-14 rerun enumerates 86 active contract sources and reports zero\n" +
+        "      positive removed/deferred API call forms. The executable guard rescans the evolving active\n" +
+        "      corpus, requires the three active guide notes to link to §13.4, and closes review findings\n" +
+        "      HH-1 and II-1 through recursive provenance discovery and exact removed-subsection boundaries.";
+    private const string Task71DesignDecision =
+        "Task 7.1 re-runs the original positive-call classification over root guidance, active documentation,\n" +
+        "canonical OpenSpec, and active change proposals, designs, ledgers, and deltas. The dated checkpoint\n" +
+        "record reports zero positive call forms while preserving concise deferred-capability notes and exact\n" +
+        "§13.4 re-entry links in the ephemeral, Kubernetes scheduler, and Orleans guides. The same slice closes\n" +
+        "Task 6.6 findings HH-1 and II-1: provenance-artifact discovery is recursive across all of\n" +
+        "`openspec/changes/**`, and removed identifiers are prohibited everywhere outside the exact removed-\n" +
+        "concepts subsection rather than treating every later subsection as removed territory.";
+    private const string Task71ReviewRemediationDecision =
+        "      **Review remediation:** both rejected Task 7.1 freezes retain separate raw-order manifests and\n" +
+        "      byte-pinned requests and verdicts. The final companion record is ordinal-path sorted, LF-only,\n" +
+        "      10,655 bytes, 86 rows, and SHA-256 `56b6d27ece05d0ff536d9ca5114ba3e1856f0f3288f4bf5226bab341e36963f2`;\n" +
+        "      the guard validates that order and the scan artifact's exact real companion path.";
+    private const string Task71ReviewRemediationDesignDecision =
+        "The Task 7.1 review remediation preserves each rejected target under its own immutable raw-order\n" +
+        "manifest while byte-pinning the request and `REJECT` verdict that produced it. The final source-record\n" +
+        "companion uses ordinal path comparison and the executable guard enforces its 86-row order, LF-only\n" +
+        "encoding, exact digest, and the scan artifact's exact real companion path.";
+    private static readonly string[] ActiveCorpusRootDocumentPaths = ["CLAUDE.md", "README.md"];
+    private static readonly string[] ActiveChangePlanningFileNames = ["proposal.md", "design.md", "tasks.md"];
+    private static readonly (string Name, string Expression)[] PositiveRemovedOrDeferredCallPatterns =
+    [
+        ("WaitLong", @"(?<![\p{L}\p{Nd}_])WaitLong\s*\("),
+        ("Yield", @"(?<![\p{L}\p{Nd}_])Yield\s*\("),
+        ("WhenFirst", @"(?<![\p{L}\p{Nd}_])WhenFirst\s*\("),
+        ("Saga", @"(?<![\p{L}\p{Nd}_])Saga\s*\("),
+        ("RunExternalJob", @"(?<![\p{L}\p{Nd}_])RunExternalJob\s*\("),
+        ("RunChild", @"(?<![\p{L}\p{Nd}_])RunChild\s*\("),
+        ("RunChildren", @"(?<![\p{L}\p{Nd}_])RunChildren\s*\("),
+        ("management operation", @"\.(?:Pause|Resume|Archive|Purge|Cancel)\s*\(")
+    ];
     private static readonly string[] RemovedConceptRegistryNames = ["WaitLong", "Yield"];
     private static readonly string[] FutureCapabilityRegistryGuidePaths =
     [
+        "docs/eks-scheduler-handoff.md",
         "docs/ephemeral-engine-developer-guide.md",
         "docs/orleans-engine/README.md"
     ];
@@ -208,9 +266,13 @@ public sealed class OpenSpecCorpusGuards
         var root = FixtureDefinitions.RepositoryRoot();
         var checkpoint = FixtureDefinitions.Read<ReviewManifestProvenanceCheckpoint>(
             ReviewManifestProvenanceFixture);
-        checkpoint.SchemaVersion.Should().Be(10);
+        checkpoint.SchemaVersion.Should().Be(11);
         checkpoint.Entries.Select(entry => entry.Task).Should().OnlyHaveUniqueItems();
         checkpoint.Entries.Select(entry => entry.ManifestPath).Should().OnlyHaveUniqueItems();
+        checkpoint.RejectedFreezes.Select(freeze => freeze.Id).Should().OnlyHaveUniqueItems();
+        checkpoint.RejectedFreezes.Select(freeze => freeze.ManifestPath).Should().OnlyHaveUniqueItems();
+        checkpoint.RejectedFreezes.Select(freeze => freeze.RequestPath).Should().OnlyHaveUniqueItems();
+        checkpoint.RejectedFreezes.Select(freeze => freeze.VerdictPath).Should().OnlyHaveUniqueItems();
         checkpoint.ArchivedFreezes.Select(freeze => freeze.Id).Should().OnlyHaveUniqueItems();
         checkpoint.ArchivedFreezes.Select(freeze => freeze.ManifestPath).Should().OnlyHaveUniqueItems();
         File.Exists(Path.Combine(
@@ -236,6 +298,7 @@ public sealed class OpenSpecCorpusGuards
             .ToArray();
         var recordedManifestPaths = checkpoint.Entries
             .Select(entry => entry.ManifestPath)
+            .Concat(checkpoint.RejectedFreezes.Select(freeze => freeze.ManifestPath))
             .Concat(checkpoint.ArchivedFreezes.Select(freeze => freeze.ManifestPath))
             .Concat(checkpoint.ActiveFreeze is null
                 ? []
@@ -258,6 +321,11 @@ public sealed class OpenSpecCorpusGuards
         var verdictEvidence = checkpoint.Entries
             .SelectMany(entry => entry.VerdictEvidence)
             .ToArray();
+        foreach (var rejectedFreeze in checkpoint.RejectedFreezes)
+        {
+            ValidateRejectedReviewFreeze(root, rejectedFreeze);
+        }
+
         foreach (var archivedFreeze in checkpoint.ArchivedFreezes)
         {
             ValidateArchivedReviewFreeze(root, archivedFreeze, verdictEvidence);
@@ -1396,14 +1464,19 @@ public sealed class OpenSpecCorpusGuards
             deferredStart,
             "removed concepts must remain searchable without being classified as deferred work");
 
-        var futureWorkSection = registrySection[..removedStart];
+        var nextSubsectionStart = registrySection.IndexOf(
+            "\n### ",
+            removedStart + removedMarker.Length,
+            StringComparison.Ordinal);
+        var removedEnd = nextSubsectionStart < 0 ? registrySection.Length : nextSubsectionStart;
         var deferredSection = registrySection[deferredStart..removedStart];
-        var removedSection = registrySection[removedStart..];
+        var removedSection = registrySection[removedStart..removedEnd];
+        var nonRemovedSection = registrySection[..removedStart] + registrySection[removedEnd..];
         deferredSection.Should().Contain(FutureCapabilityRegistryTableHeading);
         foreach (var removedConcept in RemovedConceptRegistryNames)
         {
-            ContainsIdentifierToken(futureWorkSection, removedConcept).Should().BeFalse(
-                $"removed concept {removedConcept} must not be a future promise");
+            ContainsIdentifierToken(nonRemovedSection, removedConcept).Should().BeFalse(
+                $"removed concept {removedConcept} must not be a future promise outside the exact removed subsection");
             ContainsIdentifierToken(removedSection, removedConcept).Should().BeTrue(
                 $"removed concept {removedConcept} must remain explicitly searchable");
         }
@@ -1501,6 +1574,97 @@ public sealed class OpenSpecCorpusGuards
             "the Task 6.6 exact-byte correction and exhaustive hardening record must remain immutable");
     }
 
+    [Fact]
+    public void Task71_ActiveGuidesContainNoPositiveRemovedOrDeferredApiCalls()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        var sourcePaths = EnumerateTask71ActiveCorpusSourcePaths(root);
+        sourcePaths.Should().Contain(ActiveCorpusRootDocumentPaths);
+        sourcePaths.Should().Contain(FutureCapabilityRegistryGuidePaths);
+        sourcePaths.Should().Contain(path => path.StartsWith(CanonicalOpenSpecSpecsPathPrefix, StringComparison.Ordinal));
+        sourcePaths.Should().Contain(path => path.StartsWith(OpenSpecChangesPathPrefix, StringComparison.Ordinal));
+
+        var sourceRecord = File.ReadAllBytes(Path.Combine(
+            root,
+            Task71PositiveCallSourceRecord.Replace('/', Path.DirectorySeparatorChar)));
+        sourceRecord.Should().HaveCount(Task71PositiveCallSourceRecordBytes);
+        sourceRecord.Should().NotContain((byte)'\r');
+        sourceRecord.Should().EndWith((byte)'\n');
+        sourceRecord.Count(value => value == (byte)'\n').Should().Be(Task71PositiveCallSourceRecordRows);
+        var sourceRecordPaths = Encoding.UTF8.GetString(sourceRecord)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => line[..line.IndexOf('\t')])
+            .ToArray();
+        sourceRecordPaths.Should().OnlyHaveUniqueItems();
+        sourceRecordPaths.Should().Equal(
+            sourceRecordPaths.Order(StringComparer.Ordinal),
+            "the source record must use the documented ordinal path order");
+        Sha256(sourceRecord).Should().Be(
+            Task71PositiveCallSourceRecordSha256,
+            "the exact Task 7.1 source-record rows must reproduce the published aggregate digest");
+
+        var findings = sourcePaths
+            .Select(path => new
+            {
+                Path = path,
+                Content = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+                    root,
+                    path.Replace('/', Path.DirectorySeparatorChar))))
+            })
+            .SelectMany(document => PositiveRemovedOrDeferredCallPatterns.SelectMany(pattern =>
+                Regex.Matches(
+                        document.Content,
+                        pattern.Expression,
+                        RegexOptions.CultureInvariant)
+                    .Select(match =>
+                        $"{document.Path}:{GetLineNumber(document.Content, match.Index)}:{pattern.Name}")))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        findings.Should().BeEmpty(
+            "active guides and contract sources must not teach removed or deferred APIs as callable v1 members");
+
+        foreach (var guidePath in FutureCapabilityRegistryGuidePaths)
+        {
+            var guide = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+                root,
+                guidePath.Replace('/', Path.DirectorySeparatorChar))));
+            guide.Should().Contain(
+                FutureCapabilityRegistryAnchor,
+                $"active guide {guidePath} must retain an exact re-entry link rather than a positive how-to");
+        }
+
+        var taskLedger = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            HarmonizationTaskLedgerPath.Replace('/', Path.DirectorySeparatorChar))));
+        var task = Regex.Match(
+            taskLedger,
+            @"(?ms)^- \[x\] 7\.1 .*?(?=^- \[[ xX]\] 7\.2 )",
+            RegexOptions.CultureInvariant);
+        task.Success.Should().BeTrue("Task 7.1 must retain its completed zero-finding disposition");
+        task.Value.Should().Contain(Task71CompletionDecision);
+        task.Value.Should().Contain(Task71ReviewRemediationDecision);
+
+        var design = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            HarmonizationDesignPath.Replace('/', Path.DirectorySeparatorChar))));
+        design.Should().Contain(
+            Task71DesignDecision,
+            "Task 7.1's active-guide and carried review-hardening decision must survive archival");        design.Should().Contain(
+            Task71ReviewRemediationDesignDecision,
+            "Task 7.1's rejected-freeze and ordinal-source-record remediation must survive archival");
+
+
+        var artifact = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            Task71PositiveCallScanArtifact.Replace('/', Path.DirectorySeparatorChar))));
+        Sha256(artifact).Should().Be(
+            Task71PositiveCallScanArtifactSha256,
+            "the dated Task 7.1 zero-finding rerun must remain immutable");
+        artifact.Should().Contain(
+            $"`{Task71PositiveCallSourceRecord}`",
+            "the dated scan must name the exact companion record it publishes");
+    }
+
     private static string BuildPublishedSemanticAppendix(string sourceArtifact)
     {
         const string temporaryLeasePublicationNote =
@@ -1521,6 +1685,64 @@ public sealed class OpenSpecCorpusGuards
             .Replace("[reshape durable-runtime delta:", "[durable-runtime:", StringComparison.Ordinal)
             .Replace(temporaryLeasePublicationNote, string.Empty, StringComparison.Ordinal)
             .Replace(sourceAdmissionExclusion, publishedAdmissionExclusion, StringComparison.Ordinal);
+    }
+
+    private static string[] EnumerateTask71ActiveCorpusSourcePaths(string root)
+    {
+        var paths = new List<string>(ActiveCorpusRootDocumentPaths);
+        paths.AddRange(Directory
+            .EnumerateFiles(Path.Combine(root, DocumentationRoot), "*", SearchOption.AllDirectories)
+            .Where(path => ActiveDocumentationExtensions.Contains(
+                Path.GetExtension(path),
+                StringComparer.OrdinalIgnoreCase))
+            .Select(path => RelativePath(root, path))
+            .Where(path => !IsImmutableDocumentationPath(path)));
+        paths.AddRange(Directory
+            .EnumerateFiles(
+                Path.Combine(root, CanonicalOpenSpecSpecsRoot.Replace('/', Path.DirectorySeparatorChar)),
+                OpenSpecSpecFileName,
+                SearchOption.AllDirectories)
+            .Select(path => RelativePath(root, path)));
+
+        var changesRoot = Path.Combine(root, OpenSpecChangesRoot.Replace('/', Path.DirectorySeparatorChar));
+        foreach (var changeDirectory in Directory
+                     .EnumerateDirectories(changesRoot)
+                     .Where(path => !string.Equals(
+                         Path.GetFileName(path),
+                         ArchivedChangesDirectoryName,
+                         StringComparison.Ordinal)))
+        {
+            paths.AddRange(ActiveChangePlanningFileNames
+                .Select(fileName => Path.Combine(changeDirectory, fileName))
+                .Where(File.Exists)
+                .Select(path => RelativePath(root, path)));
+            var specsDirectory = Path.Combine(changeDirectory, ActiveChangeSpecsDirectoryName);
+            if (Directory.Exists(specsDirectory))
+            {
+                paths.AddRange(Directory
+                    .EnumerateFiles(specsDirectory, OpenSpecSpecFileName, SearchOption.AllDirectories)
+                    .Select(path => RelativePath(root, path)));
+            }
+        }
+
+        return paths
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static int GetLineNumber(string content, int characterIndex)
+    {
+        var lineNumber = 1;
+        for (var index = 0; index < characterIndex; index++)
+        {
+            if (content[index] == '\n')
+            {
+                lineNumber++;
+            }
+        }
+
+        return lineNumber;
     }
 
     private static bool IsImmutableDocumentationPath(string path) =>
@@ -2801,6 +3023,61 @@ public sealed class OpenSpecCorpusGuards
         }
     }
 
+    private static void ValidateRejectedReviewFreeze(
+        string root,
+        RejectedReviewFreeze freeze)
+    {
+        freeze.Disposition.Should().Be("RawGitOrder");
+        freeze.BaseCommit.Should().MatchRegex("^[0-9a-f]{40}$");
+
+        var requestPath = Path.Combine(
+            root,
+            freeze.RequestPath.Replace('/', Path.DirectorySeparatorChar));
+        File.Exists(requestPath).Should().BeTrue();
+        var requestBytes = File.ReadAllBytes(requestPath);
+        requestBytes.Length.Should().Be(freeze.RequestBytes);
+        Sha256(requestBytes).Should().Be(
+            freeze.RequestSha256,
+            "a rejected review request must remain byte-exact");
+        NormalizeLineEndings(Encoding.UTF8.GetString(requestBytes)).Should().Contain(
+            Path.GetFileName(freeze.RequestManifestPath),
+            "the rejected review request must name the manifest that actually froze its target");
+
+        var manifest = ReadReviewManifest(root, freeze.ManifestPath);
+        manifest.Lines.Should().HaveCount(freeze.LineCount);
+        manifest.Lines.Should().NotBeEmpty();
+        manifest.Lines.Should().OnlyHaveUniqueItems();
+        manifest.Lines.Should().OnlyContain(line => Regex.IsMatch(
+            line,
+            @"^[ MADRCU?!]{2} .+$",
+            RegexOptions.CultureInvariant));
+        manifest.Bytes.Length.Should().Be(freeze.ManifestBytes);
+        Sha256(manifest.Bytes).Should().Be(
+            freeze.ManifestSha256,
+            "a rejected raw-order manifest must remain byte-exact");
+        manifest.Bytes.Should().Equal(
+            Encoding.UTF8.GetBytes(string.Join('\n', manifest.Lines) + "\n"),
+            "a rejected raw-order manifest must remain LF-only with one final newline");
+
+        var verdictPath = Path.Combine(
+            root,
+            freeze.VerdictPath.Replace('/', Path.DirectorySeparatorChar));
+        File.Exists(verdictPath).Should().BeTrue();
+        var verdictBytes = File.ReadAllBytes(verdictPath);
+        verdictBytes.Length.Should().Be(freeze.VerdictBytes);
+        Sha256(verdictBytes).Should().Be(
+            freeze.VerdictSha256,
+            "a rejected verdict must remain byte-exact");
+        var verdictMatches = Regex.Matches(
+            NormalizeLineEndings(Encoding.UTF8.GetString(verdictBytes)),
+            @"(?mi)^\*\*Verdict(?::\*\*|:)[ \t]*(?:\*\*)?(APPROVE|REJECT)(?:\*\*)?[ \t]*$",
+            RegexOptions.CultureInvariant);
+        verdictMatches.Should().ContainSingle(
+            "every rejected freeze must bind exactly one terminal verdict");
+        verdictMatches[0].Groups[1].Value.Should().Be(
+            "REJECT",
+            "a rejected freeze cannot be relabeled as approved evidence");
+    }
     private static void ValidateArchivedReviewFreeze(
         string root,
         ArchivedReviewFreeze freeze,
@@ -3514,15 +3791,14 @@ public sealed class OpenSpecCorpusGuards
                 $"superseded provenance artifact {artifact.Path} must retain its reviewed bytes");
         }
 
-        var provenanceArtifactDirectory = Path.GetDirectoryName(Path.Combine(
+        var openSpecChangesPath = Path.Combine(
             root,
-            checkpoint.ArtifactPath.Replace('/', Path.DirectorySeparatorChar)));
-        provenanceArtifactDirectory.Should().NotBeNullOrWhiteSpace();
+            OpenSpecChangesRoot.Replace('/', Path.DirectorySeparatorChar));
         var discoveredProvenanceArtifacts = Directory
-            .EnumerateFiles(
-                provenanceArtifactDirectory!,
-                "*openspec-provenance-*.md",
-                SearchOption.TopDirectoryOnly)
+            .EnumerateFiles(openSpecChangesPath, "*.md", SearchOption.AllDirectories)
+            .Where(path => Path.GetFileName(path).Contains(
+                OpenSpecProvenanceArtifactNameFragment,
+                StringComparison.Ordinal))
             .Select(path => RelativePath(root, path))
             .Order(StringComparer.Ordinal)
             .ToArray();
@@ -3877,6 +4153,7 @@ public sealed class OpenSpecCorpusGuards
     private sealed record ReviewManifestProvenanceCheckpoint(
         int SchemaVersion,
         ActiveReviewFreeze? ActiveFreeze,
+        RejectedReviewFreeze[] RejectedFreezes,
         ArchivedReviewFreeze[] ArchivedFreezes,
         ReviewManifestProvenanceEntry[] Entries);
 
@@ -3890,6 +4167,21 @@ public sealed class OpenSpecCorpusGuards
         int ContentRecordBytes,
         string ContentRecordSha256);
 
+    private sealed record RejectedReviewFreeze(
+        string Id,
+        string RequestPath,
+        int RequestBytes,
+        string RequestSha256,
+        string RequestManifestPath,
+        string ManifestPath,
+        string Disposition,
+        int LineCount,
+        int ManifestBytes,
+        string ManifestSha256,
+        string BaseCommit,
+        string VerdictPath,
+        int VerdictBytes,
+        string VerdictSha256);
     private sealed record ArchivedReviewFreeze(
         string Id,
         string Authority,

@@ -206,6 +206,19 @@ rewriting the approved remediation record. The provenance guard enumerates every
 permanently catalogued predecessor. Removed-concept tokens are rejected across the complete §13.4
 future-work region before the removed-concepts subsection, including its preamble.
 
+Task 7.1 re-runs the original positive-call classification over root guidance, active documentation,
+canonical OpenSpec, and active change proposals, designs, ledgers, and deltas. The dated checkpoint
+record reports zero positive call forms while preserving concise deferred-capability notes and exact
+§13.4 re-entry links in the ephemeral, Kubernetes scheduler, and Orleans guides. The same slice closes
+Task 6.6 findings HH-1 and II-1: provenance-artifact discovery is recursive across all of
+`openspec/changes/**`, and removed identifiers are prohibited everywhere outside the exact removed-
+concepts subsection rather than treating every later subsection as removed territory.
+
+The Task 7.1 review remediation preserves each rejected target under its own immutable raw-order
+manifest while byte-pinning the request and `REJECT` verdict that produced it. The final source-record
+companion uses ordinal path comparison and the executable guard enforces its 86-row order, LF-only
+encoding, exact digest, and the scan artifact's exact real companion path.
+
 Dated reviews and archived plans remain byte-immutable. Classification, supersession, and current
 routing live in active indexes or new dated records. Moves of historical files preserve Git rename
 history where possible; otherwise an immutable provenance record names the exact predecessor and

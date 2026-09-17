@@ -314,9 +314,17 @@
 
 ## 7. Documentation and guard coherence
 
-- [ ] 7.1 Remove positive how-to usage of deferred `WhenFirst` and other non-v1 APIs from active
+- [x] 7.1 Remove positive how-to usage of deferred `WhenFirst` and other non-v1 APIs from active
       guides while retaining short future-registry notes and re-entry links. Re-run the task 3.1
       positive-call scan and require zero findings.
+      **Completed:** the 2026-09-14 rerun enumerates 86 active contract sources and reports zero
+      positive removed/deferred API call forms. The executable guard rescans the evolving active
+      corpus, requires the three active guide notes to link to §13.4, and closes review findings
+      HH-1 and II-1 through recursive provenance discovery and exact removed-subsection boundaries.
+      **Review remediation:** both rejected Task 7.1 freezes retain separate raw-order manifests and
+      byte-pinned requests and verdicts. The final companion record is ordinal-path sorted, LF-only,
+      10,655 bytes, 86 rows, and SHA-256 `56b6d27ece05d0ff536d9ca5114ba3e1856f0f3288f4bf5226bab341e36963f2`;
+      the guard validates that order and the scan artifact's exact real companion path.
 - [ ] 7.2 Keep dated status/audit/review records immutable under `docs/archive/` or `docs/review/`;
       update active indexes and superseding records instead of rewriting historical conclusions.
 - [ ] 7.3 Reconcile active architecture, implementation, production-readiness, and developer guides

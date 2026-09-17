@@ -52,8 +52,10 @@ OrcaCore.Durable.Hosting <- OrcaCore.Dag.Hosting
 
 ## First-release authored shape
 
-Public `RunExternalJob`, `RunChild`, and `RunChildren` are deferred. A DAG node is one typed
-durable child workflow instance. That workflow uses ordinary v1 constructs:
+Public `RunExternalJob`, `RunChild`, and `RunChildren` are deferred. Their rationale and re-entry
+criteria remain in the
+[future-capability registry](specs/13-phasing-and-open-questions.md#134-future-capability-registry).
+A DAG node is one typed durable child workflow instance. That workflow uses ordinary v1 constructs:
 
 ```csharp
 Workflow.Durable<NodeState>(definitionId, version)

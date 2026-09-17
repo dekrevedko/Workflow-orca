@@ -1,7 +1,51 @@
 {
-  "schemaVersion": 10,
-  "activeFreeze": null,
-
+  "schemaVersion": 11,
+  "activeFreeze": {
+    "task": "7.1",
+    "requestPath": "docs/review/harmonize-downstream-capability-specs-task-7-1-round-57-remediation-independent-review-request-2026-09-15.md",
+    "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-1-round-57-remediation-dirty-manifest-2026-09-15.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "99657834684deefa2d22cb6526d714c4566b7ae0",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 2936,
+    "contentRecordSha256": "dcec43f391f67df97566f727d27719d72ef1e1b0db8fee2ce534261bd08585a0"
+  },
+  "rejectedFreezes": [
+    {
+      "id": "7.1-initial-rejected",
+      "requestPath": "docs/review/harmonize-downstream-capability-specs-task-7-1-independent-review-request-2026-09-15.md",
+      "requestBytes": 4124,
+      "requestSha256": "5d6076f793a2e3d2ca1bd515803eeb2a6d23c758d7ac1b5a7e2d06b19188d943",
+      "requestManifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-1-dirty-manifest-2026-09-15.txt",
+      "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-1-dirty-manifest-2026-09-15.txt",
+      "disposition": "RawGitOrder",
+      "lineCount": 12,
+      "manifestBytes": 926,
+      "manifestSha256": "76b82093f24cb47e5acfe9e55b1ef4a63b811268228355c17430ca532d4cf6e6",
+      "baseCommit": "99657834684deefa2d22cb6526d714c4566b7ae0",
+      "verdictPath": "docs/review/harmonize-downstream-capability-specs-task-7-1-independent-review-verdict-2026-09-15.md",
+      "verdictBytes": 13297,
+      "verdictSha256": "b15e501f6726fb3f908cd896a10bfcf459ff68f70188611a9a09af8e71fbd989"
+    },
+    {
+      "id": "7.1-jj-1-rejected",
+      "requestPath": "docs/review/harmonize-downstream-capability-specs-task-7-1-jj-1-remediation-independent-review-request-2026-09-15.md",
+      "requestBytes": 4496,
+      "requestSha256": "4a61f17b2abdef9d321db73a96ed02ffd454a119ef8f0d5ccc7c162b5f8419a3",
+      "requestManifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-1-dirty-manifest-2026-09-15.txt",
+      "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-1-jj-1-remediation-dirty-manifest-2026-09-15.txt",
+      "disposition": "RawGitOrder",
+      "lineCount": 15,
+      "manifestBytes": 1282,
+      "manifestSha256": "c40b2eb41e1e78752f91e649f2a2ce1db82900b873c9a5f4c586b02b19a458f0",
+      "baseCommit": "99657834684deefa2d22cb6526d714c4566b7ae0",
+      "verdictPath": "docs/review/harmonize-downstream-capability-specs-task-7-1-jj-1-remediation-independent-review-verdict-2026-09-15.md",
+      "verdictBytes": 12514,
+      "verdictSha256": "19a64192aab622f6aba83bdb682180e88e3713072bf9d46686bc736b4e623746"
+    }
+  ],
   "archivedFreezes": [
     {
       "id": "6.1-remediation",
@@ -1400,13 +1444,9 @@
         "docs/specs/README.md",
         "openspec/changes/reshape-developer-facing-interfaces/specs/developer-facing-surface/spec.md",
         "openspec/changes/reshape-developer-facing-interfaces/specs/saga-orchestration/spec.md",
-        "openspec/changes/reshape-developer-facing-interfaces/tasks.md",
         "openspec/specs/developer-facing-surface/spec.md",
         "openspec/specs/saga-orchestration/spec.md",
         "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json",
-        "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json",
-        "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
-        "tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs",
         "docs/review/harmonize-downstream-capability-specs-task-6-6-dirty-manifest-2026-09-13.txt",
         "docs/review/harmonize-downstream-capability-specs-task-6-6-independent-review-request-2026-09-13.md",
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-6-future-capability-registry-reconciliation-2026-09-13.md",
