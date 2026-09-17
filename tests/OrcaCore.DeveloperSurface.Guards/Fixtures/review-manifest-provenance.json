@@ -1497,7 +1497,7 @@
       "baseCommit": "99657834684deefa2d22cb6526d714c4566b7ae0",
       "checkpointCommit": "de73ca521343d303cd8f774990954889463a782c",
       "checkpointTree": "bd519b0dd64e9dc6705b867faa0c63405351d04a",
-      "approvalEvidenceCommit": null,
+      "approvalEvidenceCommit": "3142ab22027a0745635772195b01362d884202db",
       "reviewedTargetCommit": "de73ca521343d303cd8f774990954889463a782c",
       "reviewedTargetTree": "bd519b0dd64e9dc6705b867faa0c63405351d04a",
       "preApprovalContentCommits": [],
@@ -1641,7 +1641,7 @@
       ],
       "checkpointBlobContentRecordBytes": 3090,
       "checkpointBlobContentRecordSha256": "f3673ad58ebec7e78c748553337d75bb26f63e65b4d200145d77401975cbfe17",
-      "reviewState": "ApprovalAwaitingEvidenceCommit",
+      "reviewState": "Approved",
       "stateEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-7-1-round-57-remediation-independent-review-verdict-2026-09-16.md",
       "verdictEvidence": [
         {
