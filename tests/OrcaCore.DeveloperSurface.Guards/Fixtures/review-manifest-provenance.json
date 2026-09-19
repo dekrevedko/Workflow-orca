@@ -1,17 +1,6 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": {
-    "task": "7.2-post-approval-hardening",
-    "requestPath": "docs/review/harmonize-downstream-capability-specs-task-7-2-yy-1-zz-1-hardening-independent-review-request-2026-09-18.md",
-    "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-2-yy-1-zz-1-hardening-dirty-manifest-2026-09-18.txt",
-    "disposition": "RawGitOrder",
-    "baseCommit": "e046e04ab4dae82490604adbbc9c7baca402c59b",
-    "contentRecordExcludedPaths": [
-      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
-    ],
-    "contentRecordBytes": 943,
-    "contentRecordSha256": "175202095d86cbdee795dfccf48b40601ab883e2b6136abe59425a893b9af558"
-  },
+  "activeFreeze": null,
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",
@@ -409,6 +398,27 @@
       ],
       "contentRecordBytes": 3880,
       "contentRecordSha256": "be0f3e9778803ad0fed06f0b28bb0837040ada5434f922586837c2ee0b3d26fb"
+    },
+    {
+      "id": "7.2-post-approval-hardening",
+      "authority": "IndependentReview",
+      "authorityEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-7-2-yy-1-zz-1-hardening-independent-review-verdict-2026-09-18.md",
+      "requestPath": "docs/review/harmonize-downstream-capability-specs-task-7-2-yy-1-zz-1-hardening-independent-review-request-2026-09-18.md",
+      "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-2-yy-1-zz-1-hardening-dirty-manifest-2026-09-18.txt",
+      "disposition": "RawGitOrder",
+      "lineCount": 7,
+      "manifestBytes": 602,
+      "manifestSha256": "41fa3fe2c09940862fed137e3484de79351ab6043ea69f0438a9e70142d7910a",
+      "frozenRawPorcelainSha256": "41fa3fe2c09940862fed137e3484de79351ab6043ea69f0438a9e70142d7910a",
+      "pathSortedSha256": "9812eca5fc7bdaf5489c92e2f2c104ee1356b867d0c51ee1d176fd1f057ee42a",
+      "baseCommit": "e046e04ab4dae82490604adbbc9c7baca402c59b",
+      "checkpointCommit": "421c39b1dd39a3742907a2f7b7bbeb963b14f6ba",
+      "checkpointTree": "ec8f79e6f9fabc98b02360632e6e1a2c6a885fd4",
+      "contentRecordExcludedPaths": [
+        "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+      ],
+      "contentRecordBytes": 943,
+      "contentRecordSha256": "175202095d86cbdee795dfccf48b40601ab883e2b6136abe59425a893b9af558"
     }
   ],
   "entries": [
@@ -1773,9 +1783,9 @@
       "baseCommit": "261d578b11a4b2d09e033aa44c8123cbc4ec653e",
       "checkpointCommit": "cfa5f2ab5b97272856e683c2a42bce2482010645",
       "checkpointTree": "7b7a30a24fcc7169084829800e7ddab82c440d8e",
-      "approvalEvidenceCommit": "4cef1481419b1abf5e50bc14c5c662b4aad4f8ce",
-      "reviewedTargetCommit": "cfa5f2ab5b97272856e683c2a42bce2482010645",
-      "reviewedTargetTree": "7b7a30a24fcc7169084829800e7ddab82c440d8e",
+      "approvalEvidenceCommit": null,
+      "reviewedTargetCommit": "421c39b1dd39a3742907a2f7b7bbeb963b14f6ba",
+      "reviewedTargetTree": "ec8f79e6f9fabc98b02360632e6e1a2c6a885fd4",
       "preApprovalContentCommits": [],
       "historicalDirtyContentRecordBytes": 4034,
       "historicalDirtyContentRecordSha256": "1495171d34c4e77702d15ea72d05ba7e4596dc17f3d9107fd8b7990958f1eef0",
@@ -1955,8 +1965,8 @@
       ],
       "checkpointBlobContentRecordBytes": 4034,
       "checkpointBlobContentRecordSha256": "1495171d34c4e77702d15ea72d05ba7e4596dc17f3d9107fd8b7990958f1eef0",
-      "reviewState": "Approved",
-      "stateEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-7-2-ww-1-remediation-independent-review-verdict-2026-09-18.md",
+      "reviewState": "ApprovalAwaitingEvidenceCommit",
+      "stateEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-7-2-yy-1-zz-1-hardening-independent-review-verdict-2026-09-18.md",
       "verdictEvidence": [
         {
           "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-independent-review-verdict-2026-09-16.md",
@@ -1977,6 +1987,11 @@
           "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-ww-1-remediation-independent-review-verdict-2026-09-18.md",
           "verdict": "APPROVE",
           "sha256": "095928655161fb4fb7b75fe3c0180b376a0f78896f43c1e95e97a46c9184a52a"
+        },
+        {
+          "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-yy-1-zz-1-hardening-independent-review-verdict-2026-09-18.md",
+          "verdict": "APPROVE",
+          "sha256": "02d13bd291d878296be0ace19314bf5fce36f7ac7f937e840f86729770ddc866"
         }
       ]
     }

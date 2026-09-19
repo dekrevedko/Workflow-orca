@@ -2224,6 +2224,11 @@
       "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-yy-1-zz-1-hardening-independent-review-request-2026-09-18.md",
       "bytes": 2605,
       "sha256": "42aa6a52567e5444d670c60be5d3894332987b33d07ff2d3397cd599c6d2b861"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-yy-1-zz-1-hardening-independent-review-verdict-2026-09-18.md",
+      "bytes": 11033,
+      "sha256": "02d13bd291d878296be0ace19314bf5fce36f7ac7f937e840f86729770ddc866"
     }
   ]
 }
