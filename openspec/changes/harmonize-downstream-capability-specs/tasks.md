@@ -351,7 +351,10 @@
       exact deadline and baseline-count pins. **Second review remediation:** WW-1 is closed by
       reconciling every post-baseline Git addition back to the permanent catalog and current path;
       deletion or relocation now fails before and after commit. XX-1 is closed by stating precisely
-      that the active manifest names each uncommitted record.
+      that the active manifest names each uncommitted record. **Post-approval hardening:** YY-1 is
+      closed by using `--full-history` for both addition-history queries, including merged side-branch
+      additions; ZZ-1 is closed by making Task 7.7 require immutable predecessor evidence and a reviewed
+      tombstone mechanism before any relocation.
       **Review carry-forward:** Task 7.1 finding OO-1 is closed by naming the two exact harmonization
       planning paths whose pre-finalization TSV rows intentionally predate their final text.
 - [ ] 7.3 Reconcile active architecture, implementation, production-readiness, and developer guides
@@ -374,9 +377,10 @@
 - [ ] 7.6 Correct or delete namespace-pinned `ForbiddenPublicSymbols` entries that cannot match the
       current assembly owners; add a regression proving each forbidden symbol fails under its exact
       current or historical qualified owner rather than silently passing an impossible namespace.
-- [ ] 7.7 Repair the Phase-0 kickoff prompt archive move so Git records a history-preserving rename,
-      or add an explicit immutable archive provenance record when an exact rename is impossible;
-      verify `git log --follow` or the recorded predecessor and do not edit historical content.
+- [ ] 7.7 Repair the Phase-0 kickoff prompt archive move by adding an explicit immutable archive
+      provenance record that names the exact predecessor and commit; do not rename, delete, or edit
+      an existing protected path. Any future history-preserving relocation first requires a separately
+      reviewed tombstone mechanism, which the current Task 7.2 contract does not provide.
 
 ## 8. Final harmonization gate
 

@@ -109,7 +109,10 @@ public sealed class OpenSpecCorpusGuards
         "      exact deadline and baseline-count pins. **Second review remediation:** WW-1 is closed by\n" +
         "      reconciling every post-baseline Git addition back to the permanent catalog and current path;\n" +
         "      deletion or relocation now fails before and after commit. XX-1 is closed by stating precisely\n" +
-        "      that the active manifest names each uncommitted record.\n" +
+        "      that the active manifest names each uncommitted record. **Post-approval hardening:** YY-1 is\n" +
+        "      closed by using `--full-history` for both addition-history queries, including merged side-branch\n" +
+        "      additions; ZZ-1 is closed by making Task 7.7 require immutable predecessor evidence and a reviewed\n" +
+        "      tombstone mechanism before any relocation.\n" +
         "      **Review carry-forward:** Task 7.1 finding OO-1 is closed by naming the two exact harmonization\n" +
         "      planning paths whose pre-finalization TSV rows intentionally predate their final text.";
     private const string Task72DesignDecision =
@@ -120,8 +123,10 @@ public sealed class OpenSpecCorpusGuards
         "uncommitted, the catalog's active freeze manifest must name the record. After checkpoint, its first Git\n" +
         "addition permanently binds its normalized bytes. The guard also derives every post-baseline addition\n" +
         "from Git history and requires that path to remain present and cataloged; deletion or relocation requires\n" +
-        "a separately reviewed tombstone mechanism, which the current contract does not provide. The exact\n" +
-        "active archive index and reusable review template remain the only mutable surfaces.";
+        "a separately reviewed tombstone mechanism, which the current contract does not provide. Both Git\n" +
+        "addition-history queries use `--full-history`, so a record added and later deleted on a merged side branch\n" +
+        "remains visible. The exact active archive index and reusable review template remain the only mutable\n" +
+        "surfaces.";
     private const string Task72ValidationRemediationDecision =
         "Validation also replaces the leased-retry fixtures' second-attempt race against the inline start\n" +
         "operation with observation of the real workflow instance terminal state; the start operation can\n" +
@@ -141,6 +146,11 @@ public sealed class OpenSpecCorpusGuards
         "   addition. Every committed post-baseline path must remain present and cataloged; deletion or\n" +
         "   relocation first requires an explicit reviewed tombstone mechanism. Update this index to route\n" +
         "   readers to the superseding record instead of rewriting the historical file.";
+    private const string Task77ArchiveProvenanceDecision =
+        "- [ ] 7.7 Repair the Phase-0 kickoff prompt archive move by adding an explicit immutable archive\n" +
+        "      provenance record that names the exact predecessor and commit; do not rename, delete, or edit\n" +
+        "      an existing protected path. Any future history-preserving relocation first requires a separately\n" +
+        "      reviewed tombstone mechanism, which the current Task 7.2 contract does not provide.";
     private const string HarmonizationTaskLedgerPath =
         "openspec/changes/harmonize-downstream-capability-specs/tasks.md";
     private const string HarmonizationDesignPath =
@@ -1862,6 +1872,9 @@ public sealed class OpenSpecCorpusGuards
             RegexOptions.CultureInvariant);
         task.Success.Should().BeTrue("Task 7.2 must retain its completed immutable-history decision");
         task.Value.Should().Contain(Task72CompletionDecision);
+        taskLedger.Should().Contain(
+            Task77ArchiveProvenanceDecision,
+            "Task 7.7 must not authorize relocation before a reviewed tombstone mechanism exists");
 
         var design = NormalizeLineEndings(File.ReadAllText(Path.Combine(
             root,
@@ -1934,6 +1947,7 @@ public sealed class OpenSpecCorpusGuards
         var additionHistory = RunGit(
             root,
             "log",
+            "--full-history",
             "--diff-filter=A",
             "--name-only",
             "--format=",
@@ -1967,6 +1981,7 @@ public sealed class OpenSpecCorpusGuards
             var history = RunGit(
                 root,
                 "log",
+                "--full-history",
                 "--diff-filter=A",
                 "--format=%H",
                 "--reverse",

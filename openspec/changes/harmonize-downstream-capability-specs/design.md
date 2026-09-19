@@ -230,8 +230,10 @@ record under either historical root belongs to one family-independent permanent 
 uncommitted, the catalog's active freeze manifest must name the record. After checkpoint, its first Git
 addition permanently binds its normalized bytes. The guard also derives every post-baseline addition
 from Git history and requires that path to remain present and cataloged; deletion or relocation requires
-a separately reviewed tombstone mechanism, which the current contract does not provide. The exact
-active archive index and reusable review template remain the only mutable surfaces.
+a separately reviewed tombstone mechanism, which the current contract does not provide. Both Git
+addition-history queries use `--full-history`, so a record added and later deleted on a merged side branch
+remains visible. The exact active archive index and reusable review template remain the only mutable
+surfaces.
 Validation also replaces the leased-retry fixtures' second-attempt race against the inline start
 operation with observation of the real workflow instance terminal state; the start operation can
 complete before the scheduler publishes `SecondStarted`, while the persisted instance is the

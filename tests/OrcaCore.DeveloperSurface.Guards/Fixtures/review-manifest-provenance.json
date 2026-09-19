@@ -1,6 +1,17 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": null,
+  "activeFreeze": {
+    "task": "7.2-post-approval-hardening",
+    "requestPath": "docs/review/harmonize-downstream-capability-specs-task-7-2-yy-1-zz-1-hardening-independent-review-request-2026-09-18.md",
+    "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-2-yy-1-zz-1-hardening-dirty-manifest-2026-09-18.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "e046e04ab4dae82490604adbbc9c7baca402c59b",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 943,
+    "contentRecordSha256": "175202095d86cbdee795dfccf48b40601ab883e2b6136abe59425a893b9af558"
+  },
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",
@@ -1922,13 +1933,10 @@
       ],
       "currentWorktreeMatchPaths": [
         "docs/archive/README.md",
-        "openspec/changes/harmonize-downstream-capability-specs/design.md",
-        "openspec/changes/harmonize-downstream-capability-specs/tasks.md",
         "openspec/changes/reshape-developer-facing-interfaces/tasks.md",
         "tests/OrcaCore.DeveloperSurface.BehaviorScenarios/LeaseExitScenarioHost.cs",
         "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json",
         "tests/OrcaCore.DeveloperSurface.Guards/LeaseDiscoveryAndGovernanceContractGuards.cs",
-        "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
         "tests/OrcaCore.DeveloperSurface.Guards/OperationalTelemetryContractGuards.cs",
         "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
         "tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs",
