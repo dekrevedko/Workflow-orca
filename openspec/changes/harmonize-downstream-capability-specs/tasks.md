@@ -325,8 +325,35 @@
       byte-pinned requests and verdicts. The final companion record is ordinal-path sorted, LF-only,
       10,655 bytes, 86 rows, and SHA-256 `56b6d27ece05d0ff536d9ca5114ba3e1856f0f3288f4bf5226bab341e36963f2`;
       the guard validates that order and the scan artifact's exact real companion path.
-- [ ] 7.2 Keep dated status/audit/review records immutable under `docs/archive/` or `docs/review/`;
+- [x] 7.2 Keep dated status/audit/review records immutable under `docs/archive/` or `docs/review/`;
       update active indexes and superseding records instead of rewriting historical conclusions.
+      **Completed:** `immutable-document-history.json` classifies every file under both historical
+      roots as either part of the LF-normalized, committed-blob baseline, a universal append-only
+      post-baseline record, or one of exactly two mutable surfaces: the active archive index and
+      reusable review template. A guard-source count and digest pin only the fixed Task 7.2 baseline.
+      Every later archive or review record belongs to one permanent append-only set. While uncommitted,
+      the catalog's active freeze manifest must name the record; after checkpoint, its first Git
+      addition permanently binds its normalized bytes. The infrastructure guard derives every
+      post-baseline addition from Git history and rejects missing, moved, modified, unclassified,
+      duplicate, or broadened records. Deletion or relocation first requires a separately reviewed
+      tombstone mechanism, which the current contract does not provide.
+      **Validation remediation:** the leased-retry fixtures now race `SecondStarted` against the
+      real instance terminal status, not the inline `StartOrGetAsync` operation that can complete
+      before scheduler notification; the source guard pins both call sites and snapshot boundary.
+      The first body remains deliberately cancellation-ignoring so late-return fencing stays covered;
+      terminal observation uses a delayed, bounded loop instead of tight or unbounded polling.
+      The same remediation makes durable metric-catalog capture thread-safe under concurrent
+      `MeterListener` publication and source-pins the `ConcurrentDictionary` boundary.
+      **Review remediation:** Round 60 findings PP-1 and RR-1 are closed by the committed, normalized
+      baseline and bounded terminal observation; all three Task 7.2 `REJECT` verdicts remain immutable
+      and registered. SS-1 and TT-1 are closed by the family-independent append-only rule for both
+      historical roots; UU-1 and VV-1 are closed by line-ending-stable source/manifest checks and
+      exact deadline and baseline-count pins. **Second review remediation:** WW-1 is closed by
+      reconciling every post-baseline Git addition back to the permanent catalog and current path;
+      deletion or relocation now fails before and after commit. XX-1 is closed by stating precisely
+      that the active manifest names each uncommitted record.
+      **Review carry-forward:** Task 7.1 finding OO-1 is closed by naming the two exact harmonization
+      planning paths whose pre-finalization TSV rows intentionally predate their final text.
 - [ ] 7.3 Reconcile active architecture, implementation, production-readiness, and developer guides
       with durable pre-wait buffering, four self-routing route variants, durable `Publish`, exact
       role-specific hosting, fixed codec, application-facing absence of broad statistics, and

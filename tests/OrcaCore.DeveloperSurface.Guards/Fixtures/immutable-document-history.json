@@ -1,0 +1,2214 @@
+{
+  "schemaVersion": 3,
+  "recordFormat": "ordinal path<TAB>LF-normalized byte length<TAB>lowercase SHA-256, LF-joined with one final LF",
+  "normalization": "replace CRLF and lone CR bytes with LF before byte length and SHA-256",
+  "baselineCommit": "261d578b11a4b2d09e033aa44c8123cbc4ec653e",
+  "baselineCount": 427,
+  "baselineBytes": 66459,
+  "baselineSha256": "5be2e4560b568c6022015624420ae0a2b11966676ff499e4bff0095e5526e180",
+  "mutablePaths": [
+    {
+      "path": "docs/archive/README.md",
+      "purpose": "active archive index"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-phase-review-template.md",
+      "purpose": "active review template"
+    }
+  ],
+  "activeFreezeManifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-2-ww-1-remediation-dirty-manifest-2026-09-18.txt",
+  "records": [
+    {
+      "path": "docs/archive/architecture/README.md",
+      "bytes": 1827,
+      "sha256": "67e713d4bba7dbb7d592311789adc357e89fe226175b3769e419f65cc9afa65c"
+    },
+    {
+      "path": "docs/archive/architecture/channels-and-engine-flow-diagrams.md",
+      "bytes": 5198,
+      "sha256": "d9b0a0dbc971018d287e192984f238443c93c292cc67cfed6cdc9e753c0e604c"
+    },
+    {
+      "path": "docs/archive/architecture/child-workflow-orchestration-design-v2.md",
+      "bytes": 41464,
+      "sha256": "c9d56ecdcebe413dc2d2a2a9e67bc46cebbd69fd18ac82c745dc1a5cf9d11e8b"
+    },
+    {
+      "path": "docs/archive/architecture/child-workflow-orchestration-design-v3.md",
+      "bytes": 15472,
+      "sha256": "e61351edbcbbcb6f0c33e01b040b9c59bebb6cddcb714519c02f961356fab5a0"
+    },
+    {
+      "path": "docs/archive/architecture/child-workflow-orchestration-design.md",
+      "bytes": 12214,
+      "sha256": "06b29e2291e1e5b162b9859c61a94ab0632e158d0da979c9cdb649a193704f3d"
+    },
+    {
+      "path": "docs/archive/architecture/current-vs-event-driven-comparison.md",
+      "bytes": 15595,
+      "sha256": "82b5781693beb7849a5dd0f75c93889c4d987b8325c119f035177c3fe11810c0"
+    },
+    {
+      "path": "docs/archive/architecture/design-decisions-tracking.md",
+      "bytes": 39052,
+      "sha256": "5b785db188fb7640972267bd6f4a4282b110e4b9e59defbf3e339fbe82e7f81e"
+    },
+    {
+      "path": "docs/archive/architecture/design-proposal-minimal-core.md",
+      "bytes": 48414,
+      "sha256": "561a2be912818fb9640fec0342ab7d4f59045e2ab3c7ce0e3f5c239b5dcbb597"
+    },
+    {
+      "path": "docs/archive/architecture/design-synthesis.md",
+      "bytes": 16162,
+      "sha256": "c72e9770dfab7746d2a3a833df3bc9e3a3fcb467eb028baa23a5f7caeac9a02d"
+    },
+    {
+      "path": "docs/archive/architecture/engine-runtime-diagrams.md",
+      "bytes": 9390,
+      "sha256": "30b452625c9baa14da1abfbd409b3d437f68624b857d1f76564314afa2de82a1"
+    },
+    {
+      "path": "docs/archive/architecture/event-driven-durable-design-proposal.md",
+      "bytes": 17012,
+      "sha256": "340e45f9a6d73b73869ff978545386fafdcc1af735e65b5f6dc371938fa41526"
+    },
+    {
+      "path": "docs/archive/architecture/event-driven-outbox-design.md",
+      "bytes": 22533,
+      "sha256": "6abde4fda6924c16c06e67a6c9c48650fe543c4afdea21813c2e873c4feb46ec"
+    },
+    {
+      "path": "docs/archive/architecture/event-driven-prototype-status.md",
+      "bytes": 2756,
+      "sha256": "07d18bea991a4870940bc6773fc7b96cbe0cd5755be92add4fdd50b2da022cf5"
+    },
+    {
+      "path": "docs/archive/architecture/instance-identity-and-rehydration.md",
+      "bytes": 10440,
+      "sha256": "3e60166a17f16db288ce6a9b6464ce1281d9fea30c916acacdbdad07707371fa"
+    },
+    {
+      "path": "docs/archive/architecture/lifecycle-resource-management.md",
+      "bytes": 10523,
+      "sha256": "c915cd379e1374a707a74f6889de20b5f9de3778cbb43b2cc7be0246d7b5f151"
+    },
+    {
+      "path": "docs/archive/architecture/management-command-surface.md",
+      "bytes": 13176,
+      "sha256": "0ca2eb554a7418f18bf7e6ab01106b43f76ebb80982e56c96914de9e09c4c18c"
+    },
+    {
+      "path": "docs/archive/architecture/minimal-core-scope.md",
+      "bytes": 20351,
+      "sha256": "0684901c18e428b8894a016b435b91e0f4c584e674e38b13f4e680c0ca1534da"
+    },
+    {
+      "path": "docs/archive/architecture/monadic-primitives-design.md",
+      "bytes": 11386,
+      "sha256": "07a93e6fee4d49c5a035d8e615c7d917330f13532b2862dce21335275e8c1160"
+    },
+    {
+      "path": "docs/archive/architecture/project-foundation.md",
+      "bytes": 5578,
+      "sha256": "1e904c127d93ad7723e6467857a3fb55c7a1334a3281d44a2c64e731804d5840"
+    },
+    {
+      "path": "docs/archive/architecture/provider-ports-for-outbox-design.md",
+      "bytes": 30601,
+      "sha256": "cb5d57f0ae15559e253db9d96ffba280a7f7362d1672c655c14aa735f530ff3f"
+    },
+    {
+      "path": "docs/archive/architecture/provider-ports-for-outbox-implementation-guide.md",
+      "bytes": 21088,
+      "sha256": "c8a072b78b0e8d6219035f8aa5a6ddb7c99737af21ac4af4a1ee8cf805fe7490"
+    },
+    {
+      "path": "docs/archive/architecture/pseudo-dsl-draft.md",
+      "bytes": 8036,
+      "sha256": "acc1a71c517f13b579e9be73b8902c79b234662cc52cd8e383a747939e6416c9"
+    },
+    {
+      "path": "docs/archive/architecture/quick-vs-durable-engine-feature-matrix.md",
+      "bytes": 8262,
+      "sha256": "46fdc5554e7f6f10117583bc10f26783d1941381757fb325b5effa22bee6b490"
+    },
+    {
+      "path": "docs/archive/architecture/workflow-kinds-and-runtime-modes.md",
+      "bytes": 10424,
+      "sha256": "3e9ef86c01babd9da446995bdebf631e29cad95389969401a7bf958d747d46cb"
+    },
+    {
+      "path": "docs/archive/durable/durable-api-cleanup-followup.md",
+      "bytes": 8002,
+      "sha256": "5236b3f95c8cf2ccd7983241bb94f02e239747b2683ee72f07c8bfad820d8615"
+    },
+    {
+      "path": "docs/archive/durable/durable-implementation-plan.md",
+      "bytes": 9259,
+      "sha256": "18758d676251d4296fb30d38c675e370d235c9c62bb3386cc114f8af82ae2548"
+    },
+    {
+      "path": "docs/archive/durable/durable-progress-checkpoint.md",
+      "bytes": 1694,
+      "sha256": "4020f2f1e0a37b1eb85d045e82dae483db55b4916660c85dceb7f69016a9b47f"
+    },
+    {
+      "path": "docs/archive/durable/durable-refactor-added-components.md",
+      "bytes": 3522,
+      "sha256": "ecdb90e632c4f893111d3f9f55520c7dccace0c5806227792aec10dc61d210eb"
+    },
+    {
+      "path": "docs/archive/durable/durable-review-remediation-plan.md",
+      "bytes": 30830,
+      "sha256": "bf85d535344edcaf772c29cc3c716d18375b6177710306d55f77facf848066ba"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-0-skeleton/PROGRESS.md",
+      "bytes": 813,
+      "sha256": "288d21d0f1ae48f508ccf23d1845ae0f180f272902dd5c8885dd1995cc77c6f9"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-0-skeleton/README.md",
+      "bytes": 1032,
+      "sha256": "793276d865be2bc7e3d059039f2391bbc7f4725e0206d6dcc4d52a5c7c9149a8"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-0-skeleton/T0-01-solution-skeleton.md",
+      "bytes": 3616,
+      "sha256": "1816fcc51ed03d40a134d7f4d1428fe3b560d3ca3abd2c72c1d1441c9019bf51"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-0-skeleton/T0-02-ci-pipeline.md",
+      "bytes": 1596,
+      "sha256": "5c6285ffbd8790fcf66c40a220f371d0c7b94ffe7a684de91da5cf13c70e93b8"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-0-skeleton/T0-03-functional-primitives.md",
+      "bytes": 2755,
+      "sha256": "65ba736190cc3aff0b9b8bb6924d6b576980be43472e24f5b3a80dd2839923be"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-0-skeleton/T0-04-test-support-foundation.md",
+      "bytes": 2306,
+      "sha256": "1c0cada6ce683fa9c284f91bcfc3791b84ca3af9bda3d0b9256bdc6fa924b3bc"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-1-ephemeral-core/PROGRESS.md",
+      "bytes": 2129,
+      "sha256": "17aac714cb6daf020c68e4314ef1d62d177984c653ccf6317bf416512dad5389"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-1-ephemeral-core/README.md",
+      "bytes": 4702,
+      "sha256": "ad4c8dcf35cf9935a0ac7c30d92b2c7899d0acbba5b1413597ad5355e9864678"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-1-ephemeral-core/T1-01-core-contracts.md",
+      "bytes": 3633,
+      "sha256": "f7eb6a6fbd37c900d32089d8dd8fbe8b6f343428ef15ac7a9d6fc310ea8f7f00"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-1-ephemeral-core/T1-02-lifecycle-state-machine.md",
+      "bytes": 3072,
+      "sha256": "8ddd83e775b1abbb475a9a9eb82a3ae63887f90ff6b5255ccbebda012127b03c"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-1-ephemeral-core/T1-03-definition-model.md",
+      "bytes": 2569,
+      "sha256": "79061d32d0b41898dceb7e6d5521934b56313cf4eb0568bff880a689c8bb6b7b"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-1-ephemeral-core/T1-04-builder-validation.md",
+      "bytes": 3669,
+      "sha256": "e631bc9d7fe9474ca79ab5502a77db65faa7d0a21ee7928f438464d0a4800837"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-1-ephemeral-core/T1-05-interpreter-straight-line.md",
+      "bytes": 3399,
+      "sha256": "2e45d2df854da9367575413104ec6a3bf7139523129453420d0458bb6960f768"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-1-ephemeral-core/T1-05a-expand-remaining-tasks.md",
+      "bytes": 2245,
+      "sha256": "4cf3f483bfcb07b4affd751942ed42e96f34674caed0d99a26d4639d2f6efe87"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-1-ephemeral-core/T1-06-execution-lane.md",
+      "bytes": 2542,
+      "sha256": "046a2f4c8c145705bb135b190406fc1a31cf51fd7c06bc4bffb1ca2efeb1fd97"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-1-ephemeral-core/T1-07-if-while.md",
+      "bytes": 2218,
+      "sha256": "f0aa192a7dfa7fee267605262e7314b22334b9f59fc86fe99e9ce2ecf318e910"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-1-ephemeral-core/T1-08-wait-records-matching.md",
+      "bytes": 2796,
+      "sha256": "c90b8c62be356474161a0ff62bd0961f982e98eb236613f43bdbaf591a109041"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-1-ephemeral-core/T1-09-mailbox-dedup.md",
+      "bytes": 2607,
+      "sha256": "b2fefd4ba8c852019c4c134d64cae7827e65401856a953e65ed588f7a5dbd1c6"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-1-ephemeral-core/T1-10-correlation-routing.md",
+      "bytes": 2602,
+      "sha256": "3339fd4b34031353958d9f0536b3f1a2017bcdec05f7e374dbef606fdf68a09f"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-1-ephemeral-core/T1-11-wait-loop-isolation.md",
+      "bytes": 2142,
+      "sha256": "581989e4e550847cf8f23660b83d16de38310591094226700b9772daf351559a"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-1-ephemeral-core/T1-12-parallel-whenall.md",
+      "bytes": 2665,
+      "sha256": "7d96599a21b8c46b51189026da33c30b27bea3c0abe253c9817c8c7fc9535ba5"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-1-ephemeral-core/T1-13-management-baseline.md",
+      "bytes": 2937,
+      "sha256": "862c11f9e69b29c67b228b00f8799e83c77f5ab4de6a300b936d21e2e4112a40"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-1-ephemeral-core/T1-14-terminal-bridge.md",
+      "bytes": 3206,
+      "sha256": "14ba898e4e742802be57f2a9f735e73d1df8d2420f4bb550dbdd49a4d2918cd9"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-1-ephemeral-core/T1-15-yield.md",
+      "bytes": 2073,
+      "sha256": "0f7b5ee0781c13605340d6e62be7de479f3fcaae9b894b94c4d1e2bb61ad0e43"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-2-durable-core/PROGRESS.md",
+      "bytes": 2310,
+      "sha256": "bb2461429aec57a97a5b677a648fd203c982f5c412bff947295c858842bd5dac"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-2-durable-core/README.md",
+      "bytes": 4128,
+      "sha256": "421b745f8cabde99836682ae5ce5c242239f9bcf85f50d05730e11eb2b01db0a"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-2-durable-core/T2-00-expand-task-index.md",
+      "bytes": 1584,
+      "sha256": "dc524e98bf1bd0a7baaed96df34a7fc8da935af4ba5e5f3066c5daeca684e8ad"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-2-durable-core/T2-01-durable-contracts.md",
+      "bytes": 1777,
+      "sha256": "42dec865bda86f9fe54bddc789d627bd387ae984fd0bef09d864752712ddb3c7"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-2-durable-core/T2-02-provider-ports.md",
+      "bytes": 2037,
+      "sha256": "b6645841878c277c4f7386f30bfa11c5010d1e66994356b8bd30e59f514f92ac"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-2-durable-core/T2-03-port-fakes-certification-skeleton.md",
+      "bytes": 1987,
+      "sha256": "6465e1f1f82db942e05753e22ab3a50a0d6a9d6cbbfdf95bc2e9fac33e90a4f7"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-2-durable-core/T2-04-inmemory-provider-ports.md",
+      "bytes": 1676,
+      "sha256": "c8fc140437bb132bb84eabae3b7f82e2d3d8ee739320e289eddcb308a960e45a"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-2-durable-core/T2-05-aggregate-decision-layer.md",
+      "bytes": 1813,
+      "sha256": "6315b0cfe89538747af5932203becad053d3cacd904f1cfd3c4cc06d2f8f37a4"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-2-durable-core/T2-06-command-pipeline.md",
+      "bytes": 1754,
+      "sha256": "de761631d2975a362a366d714eb8288bef70d210922b79c6d17794c0182aa5da"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-2-durable-core/T2-07-checkpoints-rehydration.md",
+      "bytes": 1689,
+      "sha256": "550d1820d594be1284a3e84d800addbfd844c24170455ebae66784de50082c07"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-2-durable-core/T2-08-durable-waits-waitlong.md",
+      "bytes": 1959,
+      "sha256": "fdad9ef71944f41e5a11a4e8dc5c3913988b7db04895f570887f18a470e98ce9"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-2-durable-core/T2-09-inbox-dedup.md",
+      "bytes": 1700,
+      "sha256": "f515727bcf575f239cac36b995b03b91e12e49afa5c68081b5481a56c8dfb5f0"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-2-durable-core/T2-10-outbox-pump.md",
+      "bytes": 1630,
+      "sha256": "dd1d8ff617f1f152200723b57882d720c3584b7ba6423110dc656d4b5455d2c0"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-2-durable-core/T2-11-version-binding-startorget.md",
+      "bytes": 1678,
+      "sha256": "bd63466e8c2097dc14c7afb4dcfc3ab601148d85bd012e6034c65168f61b9abc"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-2-durable-core/T2-12-durable-management.md",
+      "bytes": 1939,
+      "sha256": "000dca5b8100f497f4cf63663bdfcbddbfab43bce16a0cee9a9d8f324b07ef2f"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-2-durable-core/T2-13-durable-query-projections.md",
+      "bytes": 1706,
+      "sha256": "da0ef6964e3e5e6333db69c89276c09de398675d1cbb9cfdd4fdbfcb00231226"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-2-durable-core/T2-14-postgresql-event-store.md",
+      "bytes": 1858,
+      "sha256": "4c5dfff24940cb901647053da64671ffd35eb6324ae333c494045dd3ec8278f2"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-2-durable-core/T2-15-postgresql-inbox-outbox-projections.md",
+      "bytes": 1967,
+      "sha256": "42252222f8c138014c2040acb06e615acb61974fb8522a1f0ff61b8db220858b"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-3-time-policies-operations/PROGRESS.md",
+      "bytes": 2413,
+      "sha256": "2659866cb73232f11cd8f5067b6fd762e9a099a150d5a5934695e3c4a8dee015"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-3-time-policies-operations/README.md",
+      "bytes": 2935,
+      "sha256": "6d1bad955e09da11237212a0d95dd91b471665f8695bd32bd1f2e3bb432fb8d5"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-3-time-policies-operations/T3-00-expand-task-index.md",
+      "bytes": 1986,
+      "sha256": "ce741dd2c96643efdb1d41f0d1eef8fbcaa7c51c60f475c6ae68444df5394fdd"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-3-time-policies-operations/T3-01-delay-definition-primitive.md",
+      "bytes": 1952,
+      "sha256": "cb4fef203e60ffd80815ddb376bbffcab7b3a5afda723f0d83afeeafcb7c00b0"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-3-time-policies-operations/T3-02-transient-timer-service-ephemeral.md",
+      "bytes": 1960,
+      "sha256": "dd05ada1a66904f19e7e7f28898a53808edb57feb17fd048d557f63b2b7e1f8d"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-3-time-policies-operations/T3-03-durable-timer-contracts-and-decisions.md",
+      "bytes": 1995,
+      "sha256": "347cd2578beef984fbb8698d0741c1cebd9db8752f3b7c13b588f38535dc5170"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-3-time-policies-operations/T3-04-durable-timer-provider-implementations.md",
+      "bytes": 2178,
+      "sha256": "6b405338ebbb4945cb7aae40e1c064191e26eb095d92bfdd8a640f140b8de777"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-3-time-policies-operations/T3-05-timer-event-race-semantics.md",
+      "bytes": 1958,
+      "sha256": "834378b9d52f96a8326c2bf404eb4bf1267001b122feba0b2fbeb96060b3f5a0"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-3-time-policies-operations/T3-06-policy-decorator-model.md",
+      "bytes": 1855,
+      "sha256": "a7d68d58c1eb0470cc6168a11f2cdc78e9e156710431b58a4710a93847b0deda"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-3-time-policies-operations/T3-07-timeout-policy-enforcement.md",
+      "bytes": 1926,
+      "sha256": "f740828f1b92c1dab7a2064cee6a0e96e6230889ffb179dd5568c2e9789efcc7"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-3-time-policies-operations/T3-08-retry-policy-enforcement.md",
+      "bytes": 1859,
+      "sha256": "f568e8c20166816ee259054b0a62747f164bbc1e586a848fbb50d6167d3a7fd1"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-3-time-policies-operations/T3-09-whenfirst-residual-policies.md",
+      "bytes": 1985,
+      "sha256": "cd48a3fc2dd603250c5bf163af3d132afb1e1baa535e021383d745b26d1768f5"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-3-time-policies-operations/T3-10-lifecycle-event-publication.md",
+      "bytes": 2346,
+      "sha256": "1100c7b4dca7f009009b7d4016ffab208b1ee80efe310e6076ab09dcf248e06b"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-3-time-policies-operations/T3-11-lifetime-tracking-stuck-detection.md",
+      "bytes": 1952,
+      "sha256": "3ed0d44e5938b653507f776ab5cbc3f3962cbb9f510d6ae3e56a61e4da408e34"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-3-time-policies-operations/T3-12-statistics-pressure-metrics.md",
+      "bytes": 1958,
+      "sha256": "10253424555e7db0feda58e978612dec182a07075d60e38041f6a32a6159cf9a"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-3-time-policies-operations/T3-13-resource-governance-inprocess.md",
+      "bytes": 2071,
+      "sha256": "4966d093f663ede2624c4628674c06b7fce269083f3a58d41c24dafddbba867f"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-4-composition/PROGRESS.md",
+      "bytes": 1380,
+      "sha256": "84a83e9cc77852bce3db717bea4e5b75b376eeacb2cbe8b9457a6af1a58b7c2e"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-4-composition/README.md",
+      "bytes": 2256,
+      "sha256": "9353cd8b14d03fcb8b70c8df701cbfa7b3ebacccdb738d020f7846fc95994316"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-4-composition/T4-00-expand-task-index.md",
+      "bytes": 1973,
+      "sha256": "14a796d783a2283f563545e69beb4bfe1290a77ed714f54e442ef4dbbc6e06d7"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-4-composition/T4-01-deterministic-partitioners.md",
+      "bytes": 1629,
+      "sha256": "eac7a3b44ad3dbbf94bd1b8a83fd95984d63b54f4149e5f133e2b25ecc0935ef"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-4-composition/T4-02-ephemeral-foreach-dispatch.md",
+      "bytes": 2120,
+      "sha256": "d05c6d3befa9136b3d3d90376d210a5c6938d71aef25d06195c8b20e7ed0abbd"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-4-composition/T4-03-foreach-join-failure-residual-policies.md",
+      "bytes": 1954,
+      "sha256": "2eb5ff0768b49a9b0e6b1aecf27be1b04935836fdbb44369f8dd3ad891291d33"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-4-composition/T4-04-child-lineage-model.md",
+      "bytes": 1787,
+      "sha256": "6899e2880d6d96dc4421f0cae4e65ef84873334d8038803a01b37be34e9d3a76"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-4-composition/T4-05-runchild-single-child-wait-join.md",
+      "bytes": 1934,
+      "sha256": "ba4df07f432d6e508aab7c026f2e092799f960fc7bb98c5427fcb5a099a4ec29"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-4-composition/T4-06-runchildren-dynamic-fanout.md",
+      "bytes": 1946,
+      "sha256": "00fec8c0a1ec31da09561e3ea0e52134eb2da8020698df00ced4f272c414adba"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-4-composition/T4-07-durable-throttling.md",
+      "bytes": 1658,
+      "sha256": "26e3ddfc50bca97ff2e763af9572ba25f07cc6da0c944ace630be1a43e67753f"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-4-composition/T4-08-exactly-once-parent-resume.md",
+      "bytes": 1816,
+      "sha256": "a257d7312ef8b5ad60373e8494e50d402456834bb918765965bd655381729e07"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-4-composition/T4-09-whenany-residuals-mixed-outbox.md",
+      "bytes": 2129,
+      "sha256": "e9d6d40d2bd57a067d89296029461aa8f301422ea3bc65d5e591511f68db0b16"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-4b-dag-external-jobs/PROGRESS.md",
+      "bytes": 1949,
+      "sha256": "7b7110e36479d962f3a0bd8e4865a911f814585a505fd8b33440b74e1f8287c9"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-4b-dag-external-jobs/README.md",
+      "bytes": 4743,
+      "sha256": "849ff7c763b6816c9b89698ecad9bc75f06c1bdb6f216d02fdc563ac39ffae16"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-4b-dag-external-jobs/T4B-00-expand-task-index.md",
+      "bytes": 2731,
+      "sha256": "9de5d23945695157be80f052a37c9acc9b4c718f7004893f5dac31712396139f"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-4b-dag-external-jobs/T4B-01-durable-pool-store.md",
+      "bytes": 4503,
+      "sha256": "266cf049fad996951f0231df93d1fa68a827311fd877e2ff168fb82b418ec1dd"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-4b-dag-external-jobs/T4B-02-acquisition-as-wait.md",
+      "bytes": 3703,
+      "sha256": "22b24d09fa78248e81d190714c7fcc2ac43e9bd86f6cf604a0d667f7a8b586e2"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-4b-dag-external-jobs/T4B-03-ticket-expiry-pool-operations.md",
+      "bytes": 3804,
+      "sha256": "640086c4dd3bfa2c3ae1410bfeda7b211cf42bb7bd152ef91e1c373070f4b03b"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-4b-dag-external-jobs/T4B-04-run-external-job-composite.md",
+      "bytes": 3143,
+      "sha256": "4f84487cfe01265e3ce7db368b662b4cd23c28ff32811f7f17480484cd2f8790"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-4b-dag-external-jobs/T4B-05-dag-builder-validation.md",
+      "bytes": 2954,
+      "sha256": "60b7c8f589365a6e65f667256e78ce0d7f67fb0fbbee5c082f671d57a6e3beea"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-4b-dag-external-jobs/T4B-06-run-cancellation-dag-observability.md",
+      "bytes": 3020,
+      "sha256": "a2dbe0c5c94755623cf860d02aefff875b4af96419ba3bd655a537beecadfa4b"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-5-saga/PROGRESS.md",
+      "bytes": 2405,
+      "sha256": "0bbf4a8f83fc44c230e154827f788064ae3f17fb83e22748683f252a9690557c"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-5-saga/README.md",
+      "bytes": 2880,
+      "sha256": "17984a16d5542c4d69ab52abc3ff256a8be922f018e1d3a273478e91c1fcccfa"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-5-saga/T5-00-expand-task-index.md",
+      "bytes": 2203,
+      "sha256": "47b54abbb1962f53c4e8cd6a89e4c1491ab17ed4fc76a46fe72528eeff330f54"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-5-saga/T5-01-saga-contracts-lifecycle.md",
+      "bytes": 2497,
+      "sha256": "422eb715ec4cd612ef1ad3b64686fbe6e16245ceb0aa009c8700ed8734c2ce69"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-5-saga/T5-02-saga-builder.md",
+      "bytes": 2546,
+      "sha256": "f28c51300eaf9c23458bb88f39580c1a3b5f5567abb7a73567e825c0a9159550"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-5-saga/T5-03-compensation-decision-layer.md",
+      "bytes": 2708,
+      "sha256": "ebc517ef28c05898850ab5f158b449be8238751be4925fcdaadea5e4f36df65a"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-5-saga/T5-04-compensation-failure-terminal-outcomes.md",
+      "bytes": 2142,
+      "sha256": "9fdefb23b8d4f01a16a57d91e2b4bf130a3b4dbb8a5a52c5bf3b811736263937"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-5-saga/T5-05-timeout-cancellation-interaction.md",
+      "bytes": 2208,
+      "sha256": "88ac66d8d8c89b321c7fb1837ec2213cdc55f5e74120a753179a25e2ffd9f23f"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-5-saga/T5-06-durable-audit-operator-recovery.md",
+      "bytes": 2504,
+      "sha256": "685c0ccc0fbd05a278f39c697075f2047e25561a0ee0f5b6aea5ee38da61d2f8"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-5-saga/T5-07-child-compensation.md",
+      "bytes": 2252,
+      "sha256": "2da1dc856f0df9c701430d646218e36a4d0390f5d5d814c2682b97de62161ff6"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-5-saga/T5-08-ephemeral-saga-limited-mode.md",
+      "bytes": 2656,
+      "sha256": "ae6d281ef45dd07fe2507d3603bf7514cdb2ca492e714bc30326b2537f83a85f"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-6-providers-hosting/PROGRESS.md",
+      "bytes": 4342,
+      "sha256": "598e68650f5ed264ae188b44a65217e77a02e8d9679b350516b113936670c9d2"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-6-providers-hosting/README.md",
+      "bytes": 5280,
+      "sha256": "53753e1ad10e6a870c76aab38adb9018e09b94518f5d3a85f4c5add4193dd5f8"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-6-providers-hosting/T6-00-expand-task-index.md",
+      "bytes": 1991,
+      "sha256": "77067cb85ec033f106928e1caef4d55efb6ce82cbd1105b9f6b380d263394b0f"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-6-providers-hosting/T6-01-rabbitmq-dispatcher-project.md",
+      "bytes": 2428,
+      "sha256": "296dda9922fd522f778d39cf80913b42ef95c8b98232aafcb097a0f4cadab663"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-6-providers-hosting/T6-02-rabbitmq-integration-certification.md",
+      "bytes": 2290,
+      "sha256": "62b1976582585f5083d08cd75da72bcf81cd03e1a1dca1bc5dc125dd4f094955"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-6-providers-hosting/T6-03-hosting-registration-package.md",
+      "bytes": 2858,
+      "sha256": "00fae3fed913c6bc2480f4eaaa707f898f72a8710125958df9f3367d9c14cb2d"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-6-providers-hosting/T6-04-continue-as-new-contracts-aggregate.md",
+      "bytes": 2536,
+      "sha256": "0ae22f34a094acb43e02b2f6590b457ae9099d61feab6c8f6e514be2fb1d0f6e"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-6-providers-hosting/T6-05-continue-as-new-provider-projection.md",
+      "bytes": 2298,
+      "sha256": "a038fb47449fd879786f9c7124e0fc285d0e01e47983f289d46f09481c487945"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-6-providers-hosting/T6-06-archival-retention-policy.md",
+      "bytes": 2348,
+      "sha256": "9ad9415fb8d6b48bf53d3a4a3d139f40c6f9f00eff2ee2017bed55e75da817c9"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-6-providers-hosting/T6-07-redis-projection-cache-provider.md",
+      "bytes": 2151,
+      "sha256": "deee8778545f3cafaa4e7e26582d725ce65f022b4d596e3409701a13d919dcc3"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-6-providers-hosting/T6-08-sqlserver-event-store-slice.md",
+      "bytes": 2288,
+      "sha256": "e141c0e1477c9c9b74f16243ee453330269721d4ea00e960ec93233df666e712"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-6-providers-hosting/T6-09-sqlserver-projections-timers-pools.md",
+      "bytes": 2310,
+      "sha256": "48117bfca9d79926fee8a66a4e8c55ff012a782eb392260f9eb5d2d2b413c3be"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-6-providers-hosting/T6-10-dynamodb-single-table-decision.md",
+      "bytes": 2086,
+      "sha256": "86c52c46072a3bd1853b2b79888f4effa1a46a70333a8275c44b2f9178c49d31"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-6-providers-hosting/T6-11-zeromq-dispatcher-plugin.md",
+      "bytes": 2055,
+      "sha256": "94e10c6e6d6d2532702f778b24f38b4e429d274e8b01f65b1a58b1216a176e52"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-6-providers-hosting/T6-12-benchmark-project-skeleton.md",
+      "bytes": 1635,
+      "sha256": "e7680235d726ac2da40818acc09e75185414c0bdb8c9f15f7222b3d5049c4e3a"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-6-providers-hosting/T6-13-benchmark-scenarios.md",
+      "bytes": 1891,
+      "sha256": "97014f749a27fac836d3c7269c030715faf662e38965b8329b9027eb24b4f55e"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-6-providers-hosting/T6-14-production-readiness-docs-sample.md",
+      "bytes": 1845,
+      "sha256": "e81462be646b36b88b490554cc97a4acd700967f3c2587dad34d1df3e8cc4e94"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-6-providers-hosting/T6-15-eks-scheduler-enablement-handoff.md",
+      "bytes": 1768,
+      "sha256": "e570c8b515620ddbdae05b517cb256134857db685aef492ec38a39810788ab10"
+    },
+    {
+      "path": "docs/archive/implementation-phases/phase-6-providers-hosting/T6-16-multi-node-lease-layer-gate.md",
+      "bytes": 1691,
+      "sha256": "7dbdb962cd96f73dd4ded5699098644bd5c28811ed0a8c3dadd818ed55aa608f"
+    },
+    {
+      "path": "docs/archive/plans/README.md",
+      "bytes": 942,
+      "sha256": "6d9178501be469ceb87153352bc73674defc6090dee4fcc987c85161530f4ea9"
+    },
+    {
+      "path": "docs/archive/plans/acceptance-test-matrix.md",
+      "bytes": 15686,
+      "sha256": "e56263d5d9087a9ceaef9023952459c67ae9df3d22392eeefad5d0ef1cc8d313"
+    },
+    {
+      "path": "docs/archive/plans/current-roadmap.md",
+      "bytes": 7705,
+      "sha256": "d1d2a844e59153c0ea9b11a1492cac8e1464ec9436bff79f41edd37411c74f27"
+    },
+    {
+      "path": "docs/archive/plans/developer-facing-interface-phase-00-kickoff-prompt-2026-07-15.md",
+      "bytes": 14538,
+      "sha256": "80ea80cf3ca951bd7481f1066103472216a8a644787929714570f733eb0db0aa"
+    },
+    {
+      "path": "docs/archive/plans/durable-driver-audit.md",
+      "bytes": 10719,
+      "sha256": "5c727e3c2c124a4bf215761fc8b62ff5ca74adf471d29e71242ac4aaf9315de0"
+    },
+    {
+      "path": "docs/archive/plans/durable-driver-status.md",
+      "bytes": 6227,
+      "sha256": "d372ca2e972ed2f48925cb552e537c26d1ea8093688f4ac0d0715d3c9b4b5624"
+    },
+    {
+      "path": "docs/archive/plans/end-to-end-plan-pre-v1.md",
+      "bytes": 26433,
+      "sha256": "2e031541de5aeb629ca3c452d7b4944de92eb24d86118cd5c6647297deefeb28"
+    },
+    {
+      "path": "docs/archive/plans/ephemeral-engine-developer-guide.md",
+      "bytes": 38048,
+      "sha256": "71a9b78e898aeb81957b588fec45afb2ddbef9bae0b8b0a8d6e7d5c13d392f7a"
+    },
+    {
+      "path": "docs/archive/plans/ephemeral-engine-diagrams.md",
+      "bytes": 22438,
+      "sha256": "dd54c72efbe798a18a3ca1f7a67fc60543e65732e72f5ce29d0fb721150c1402"
+    },
+    {
+      "path": "docs/archive/plans/event-driven-durable-parity-plan.md",
+      "bytes": 34105,
+      "sha256": "2540d473a8cb5169d80417410a43040f8d750f0cc022d2e3590102d6d42e1074"
+    },
+    {
+      "path": "docs/archive/plans/event-driven-prototype-plan.md",
+      "bytes": 16469,
+      "sha256": "f7d0bb60e2723a4a263e099f90d9fdba62fa09ad58df62c253c1ad78b16a5732"
+    },
+    {
+      "path": "docs/archive/plans/implementation-plan-minimal-core.md",
+      "bytes": 33979,
+      "sha256": "504bf00dd36213c642a10979136205e668558fa4eb204455da9e4feb598c959a"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/01-architecture.md",
+      "bytes": 13768,
+      "sha256": "5be33d86e38d3754651fa03c8c78cf2fe656e117b9eb8104205fbb6ad24451d2"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/02-requirements.md",
+      "bytes": 13359,
+      "sha256": "16e10110ea2e2ab9f60abdcb7cc9f3b79f2ce90a7f15a85040f0a8148fd6cc39"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/03-acceptance-criteria.md",
+      "bytes": 9062,
+      "sha256": "fc39c718c912257018d5f2366c0c5a54f8bdaa901fd2d5185ce5338da394b9ae"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/04-traceability.md",
+      "bytes": 6409,
+      "sha256": "a726894996d9313274e931d129da6e9c3a973d261419f15e5207ae8f0b8351c3"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/README.md",
+      "bytes": 6299,
+      "sha256": "cbd7a9ab97fbdee9bbd45130d63dc86ff4ad2ee0a31287dc36e295473a0b56d3"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/plan/OT0-01-project-skeleton.md",
+      "bytes": 2390,
+      "sha256": "f25586a79198f30a1d5c033de912c6bfcb4f677e1877712cfec55261e7ffb659"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/plan/OT0-02-testinghost-smoke.md",
+      "bytes": 2357,
+      "sha256": "2c89189be5ed58bd0f39ef4ccee5ee8ed793e649e5d2ab8268b4631fb1e0f5bc"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/plan/OT0-03-transport-envelopes.md",
+      "bytes": 3884,
+      "sha256": "350091e75e7c4d2bf079f942592b7dc229ea384f130e76742547cc7813eb6023"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/plan/OT0-04-silo-composition.md",
+      "bytes": 2856,
+      "sha256": "5443cac01ce8e28e43e2cb05abd7cc5664bacf01a9f7de6ca43c7477b6b4457f"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/plan/OT1-00-durable-seams-review.md",
+      "bytes": 3385,
+      "sha256": "7e0d19df2944a74327cce4bd19c96c77af18cdbe1d7c7f60576eb2cfc05e17d8"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/plan/OT1-01-instance-grain-start.md",
+      "bytes": 3622,
+      "sha256": "1556ba1c3bdccad813780d2082a480ae08586e97ddc68a56b8bb1a1e17749399"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/plan/OT1-01a-public-delivery-seam.md",
+      "bytes": 3023,
+      "sha256": "62e32ca24ef2ad4184dd9c4ed582314e3ec4b06242e50ffff4ffe9ae08fcbc4d"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/plan/OT1-02-wait-and-resume.md",
+      "bytes": 2536,
+      "sha256": "9ac6cd9b59648c1409706e974fa127383700670e0db04a933934698039f83c2f"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/plan/OT1-03-engine-facade.md",
+      "bytes": 4204,
+      "sha256": "0db86e5add6696b0234a2b02dcc9b249a8be1917fb54bb67c27cff2b2af484d5"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/plan/OT1-03a-atomic-start-reservation.md",
+      "bytes": 3433,
+      "sha256": "d9d3f9ac11d181fc7a679817e387423f3988dc393453384e52e02063de5dbf06"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/plan/OT1-03b-postgres-start-reservation.md",
+      "bytes": 2236,
+      "sha256": "8666b743b35d924a6d4e9f61a11e099db737297b5ab1efeb1fb2196f4c3f04b6"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/plan/OT1-04-event-routing.md",
+      "bytes": 3858,
+      "sha256": "38016be848f57c5a652c7e684be81e455c0d16f4ab1735eb0fe79de0266c9101"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/plan/OT1-05-concurrency-defense.md",
+      "bytes": 2485,
+      "sha256": "ae724496468d2ef24104636b12aa05cb4b902b46bcade662f4e5856e98a72e70"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/plan/OT1-06-deactivation-rehydration.md",
+      "bytes": 2617,
+      "sha256": "408f9ef8e125e1192da189ba01bda47566541f6bd71a4508b0f7f5cf1982e80b"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/plan/OT2-00-expand-task-index.md",
+      "bytes": 2722,
+      "sha256": "6d2524c5ea4ddc7d2481839aa8fc601a4c9b0a0e7c6968a6d25cdc335ab2e88b"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/plan/OT3-00-expand-task-index.md",
+      "bytes": 2175,
+      "sha256": "300109a24ef198665419cca3d8f11b084cba581c09d9808501dc9d66c9463f97"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/plan/OT4-00-expand-task-index.md",
+      "bytes": 1497,
+      "sha256": "e9fa69051e6b590a3a108722ed14d1270182dcfa4d2b27ed1ee11d54d026f4a1"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/plan/OT5-00-expand-task-index.md",
+      "bytes": 2326,
+      "sha256": "1d1e4cc554a316b564ab8f5e3be8214ea4c88173d91f28bce8571adb5897d35b"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/plan/PROGRESS.md",
+      "bytes": 172,
+      "sha256": "44a21f364021f1a0323cee59413d98af5464790c417b73a60357e0b1be99e75d"
+    },
+    {
+      "path": "docs/archive/plans/orleans-engine-pre-v1/plan/README.md",
+      "bytes": 9315,
+      "sha256": "02e7f89aa77b75f4c6467543e09bf5b8e81eafaedf535389e0a3f40611ab725d"
+    },
+    {
+      "path": "docs/archive/plans/requirements-draft.md",
+      "bytes": 13274,
+      "sha256": "53c4259cb33266b8b31b12d92a15932e5a53289514f2ac219f12094307608587"
+    },
+    {
+      "path": "docs/archive/plans/runtime-resource-governance.md",
+      "bytes": 1602,
+      "sha256": "11291ba5ccd53d5b39cae15b71426bc131d2d35c915eeab4097338c58336f468"
+    },
+    {
+      "path": "docs/archive/requirements/README.md",
+      "bytes": 2444,
+      "sha256": "8d048373057746b5fd365044e99122d6cbea62d9dc2b9232ff706318005d1ae8"
+    },
+    {
+      "path": "docs/archive/requirements/durable/advanced/acceptance-criteria.md",
+      "bytes": 961,
+      "sha256": "c42840f7251d8d22458cac782682470dd6050e94b7b994c5f5846d6d78fc492e"
+    },
+    {
+      "path": "docs/archive/requirements/durable/advanced/requirements.md",
+      "bytes": 1269,
+      "sha256": "b61905eacc531433108469ee8f61ec87badfa2ac0074db9e6c3613109f7ce04a"
+    },
+    {
+      "path": "docs/archive/requirements/durable/initial/acceptance-criteria.md",
+      "bytes": 1292,
+      "sha256": "1a5894fb449f58f06aa1f42aa243d651e46ae5b131ecb1854a475587a9a51988"
+    },
+    {
+      "path": "docs/archive/requirements/durable/initial/requirements.md",
+      "bytes": 2440,
+      "sha256": "46a7258d391b4df39201dedc5c62f1f2be9c8f9733ef3c51338001353538b913"
+    },
+    {
+      "path": "docs/archive/requirements/regular/advanced/acceptance-criteria.md",
+      "bytes": 1792,
+      "sha256": "67d3d2f66cac2dbea402b58b4b9d1b3b0436b72672f438354ce3ec4ee05ccdd2"
+    },
+    {
+      "path": "docs/archive/requirements/regular/advanced/requirements.md",
+      "bytes": 2291,
+      "sha256": "4aff77a88f78aeb931abc21c243e9371da1f722c5da6c3cffde82510fe852ec4"
+    },
+    {
+      "path": "docs/archive/requirements/regular/initial/acceptance-criteria.md",
+      "bytes": 4752,
+      "sha256": "dd07a7dc9cc6f65740dd6c44a09ebd2074a2a507ef90566ef94da6d2374118d2"
+    },
+    {
+      "path": "docs/archive/requirements/regular/initial/requirements.md",
+      "bytes": 7889,
+      "sha256": "aadeefab566ccffb8226d4b78a6c967971c0405d025919a252925fc6873cadda"
+    },
+    {
+      "path": "docs/archive/requirements/saga/advanced/acceptance-criteria.md",
+      "bytes": 914,
+      "sha256": "0a5a511f824e2bfa263505fda5cd8f00b30dc7e8aa1bb216799107d3afacd772"
+    },
+    {
+      "path": "docs/archive/requirements/saga/advanced/requirements.md",
+      "bytes": 1261,
+      "sha256": "0721c6a21fc6ffdd9b5ec8b62f0b58c778bae001658516d971e5d119ebea0a81"
+    },
+    {
+      "path": "docs/archive/requirements/saga/initial/acceptance-criteria.md",
+      "bytes": 1105,
+      "sha256": "1fb30e5b8c6befc42657351726a327ae107817a979478384809598121ad03d9a"
+    },
+    {
+      "path": "docs/archive/requirements/saga/initial/requirements.md",
+      "bytes": 1956,
+      "sha256": "1b8464da9915832e24bf8ebf16b909e4b5432042fdbb41eae8fe218e36bd5609"
+    },
+    {
+      "path": "docs/archive/research/comparative-research.md",
+      "bytes": 10883,
+      "sha256": "f0b03a4160850712344dba5f34409bc3dfa6275a57638a7a05cba46237efa7c5"
+    },
+    {
+      "path": "docs/archive/research/deep-dive-masstransit-stateless.md",
+      "bytes": 13154,
+      "sha256": "bee196587b99bb1cc4f98c178f2b9f98a69456af158f77c6666ea56639d43c63"
+    },
+    {
+      "path": "docs/archive/research/durable-functions-patterns.md",
+      "bytes": 11902,
+      "sha256": "26df38a3873808bcdbdc2d51895893562c27b3b4126346c800dd19d45ac1a03f"
+    },
+    {
+      "path": "docs/archive/research/orleans-patterns.md",
+      "bytes": 12435,
+      "sha256": "6ad711f19e6cff510d585f83503186ec38523679a5302fa54423390f06ad571f"
+    },
+    {
+      "path": "docs/archive/research/research-backlog.md",
+      "bytes": 2064,
+      "sha256": "95468e8139fe2ef546a8fbcaab1b645bcc474ac28e9b4c7b6ebee2a080a149cc"
+    },
+    {
+      "path": "docs/archive/research/workflow-core-competitor-review.md",
+      "bytes": 13478,
+      "sha256": "429d6edf1913a5ccdbeb036159eeaaaf177fae80fa9364da4eccaf446d60bf03"
+    },
+    {
+      "path": "docs/archive/research/workflow-core-issue-pattern-review.md",
+      "bytes": 10609,
+      "sha256": "e9d932bb8839ec6c799a2ef56ce0df11dabe600b3d1afca05144841462bb868c"
+    },
+    {
+      "path": "docs/archive/reviews/review-findings-consolidated.md",
+      "bytes": 18865,
+      "sha256": "88116859e8c3a0be365f148f6e75492a62bbbfface9e8ac70e2439a6074a4e60"
+    },
+    {
+      "path": "docs/review/README.md",
+      "bytes": 12144,
+      "sha256": "5c249cf67ed02761c916215ab4c27e3ca6ab4df1781de1964bcd45d9e36e86ba"
+    },
+    {
+      "path": "docs/review/code-quality-action-plan-2026-07-03.md",
+      "bytes": 19752,
+      "sha256": "cdb4ae3a0a86b898bf4e51c671be5846431aed7cd1e42d59e146a9dc0452a3fb"
+    },
+    {
+      "path": "docs/review/code-quality-remediation-prompt-2026-07-04.md",
+      "bytes": 7579,
+      "sha256": "4daf6c5cde786e234e80184fb10ec1b5e70c0d0b5a66d7b9316e5e4eee054d67"
+    },
+    {
+      "path": "docs/review/code-quality-remediation-summary-2026-07-04.md",
+      "bytes": 9766,
+      "sha256": "9a956a65e7f6f8cb935b9ceed7b19f301428a670d5f8744601ec03c7e5f989a9"
+    },
+    {
+      "path": "docs/review/code-quality-rescan-2026-07-04.md",
+      "bytes": 10855,
+      "sha256": "61804641af543fc0b412b3cb0e2aca64c330d283067abef477ae4d721ebec658"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-amendment-rev04-task-4-15-independent-approval-verdict-2026-07-28.md",
+      "bytes": 36301,
+      "sha256": "055d4ca879ec7b431f7d92f14074dcd7ba2e61cbd66dd2f38028d188e79b758c"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-amendment-revision-06-independent-rereview-request-2026-07-28.md",
+      "bytes": 6196,
+      "sha256": "eff9c17f05cd7ea2d570ad0b5b22e9e1a86f53bb1d7bea490e553976cc5fe607"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-amendment-revision-06-independent-rereview-verdict-2026-07-28.md",
+      "bytes": 15796,
+      "sha256": "c8420e8819377f3037bf303680ea60b57f42dc2375d8f88dea4f0ddda9bdd026"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-amendment-revision-08-canonical-synchronization-record-2026-07-29.md",
+      "bytes": 6657,
+      "sha256": "3f546170cd7dba395529c6d41acdefb5136c1ba01b3e76bbc14846571772127e"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-amendment-revision-08-independent-review-request-2026-07-28.md",
+      "bytes": 6471,
+      "sha256": "6ded8ad9f0e23a87e38c4977af21ed283e9f0a3fd0a6309d3aaa04e4f6215d4a"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-amendment-revision-08-task-4-15-independent-review-verdict-2026-07-28.md",
+      "bytes": 33378,
+      "sha256": "b149f7e33aee3f8c32bec55994486a625972d78a2130b44e83ab6aebb682f2ce"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-cross-capability-consistency-record-2026-07-31.md",
+      "bytes": 21414,
+      "sha256": "343b72c96227dea0be79da19fd3884fecb14983410685039f10b132a2f1ef4dc"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-openspec-review-2026-07-13.md",
+      "bytes": 47140,
+      "sha256": "06500bc313dbf1cfe07aaa979928981c53daa57a33e1785586bf3d4d1ba4f14a"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-phase-00-guard-packet-dirty-manifest-2026-07-19.txt",
+      "bytes": 8587,
+      "sha256": "68a4886a290f8b1512fc06bc51d688e7e5349f8fb7844dee90c6e1e518fdc86c"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-phase-00-guard-packet-final-independent-rereview-2026-07-19.md",
+      "bytes": 8327,
+      "sha256": "f19f08451e54c022f034603cab0ba84712e2678f966e5974b53c50027669f9c0"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-phase-00-guard-packet-independent-review-2026-07-19.md",
+      "bytes": 10470,
+      "sha256": "f5a8c945bb8d48969b7f929c9de8af257d7c6b46de9da27a4b1daf2d442d9bb9"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-phase-00-guard-packet-remediation-dirty-manifest-2026-07-19.txt",
+      "bytes": 10576,
+      "sha256": "39b15216ce9bec47eedfdb07e512cc0bbe54c7a0a4202ebc109d232fe85a51c2"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-phase-00-guard-packet-remediation-independent-rereview-2026-07-19.md",
+      "bytes": 7963,
+      "sha256": "97e6d767f40eddeb77c823465a9006195cd02aedc886d271c34b26bda780e951"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-phase-00-guard-packet-remediation-rereview-request-2026-07-19.md",
+      "bytes": 6144,
+      "sha256": "ad8cf3c32174276498a109460e3d26d02996a0647de01f65b0655171e0a477c7"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-phase-00-guard-packet-review-request-2026-07-19.md",
+      "bytes": 4224,
+      "sha256": "921a4f4209e50ce9fd8e64db9664af9442d1fe75bcc0ba0160071ea2311c4637"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-phase-00-lease-contract-amendment-draft-2026-07-16.md",
+      "bytes": 13342,
+      "sha256": "ff4de3560164f2fd2b9d4a3f1e9dd40670e1fb64e7970a0a44233881fa268438"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-phase-00-public-consumer-guards-implementation-status-2026-07-15.md",
+      "bytes": 7277,
+      "sha256": "fc41269b36212230d2c9e60974c6daf0eaef42e7ae3106c7205d73fa80fac1d7"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-phase-00-public-consumer-guards-implementation-status-2026-07-18.md",
+      "bytes": 17673,
+      "sha256": "2ddacda82120f338d7473187dcc1cbc571791c00b28f17337d018db45ce7351c"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-phase-00-public-consumer-guards-reviewer-prompt-2026-07-15.md",
+      "bytes": 10807,
+      "sha256": "de8db8d8566ab64dc81847a8d1d4c53aacf549c37ee7385d911e3f88953abe8f"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-phased-plan-review-remediation-2026-07-15.md",
+      "bytes": 3482,
+      "sha256": "4b633fcb1be88b12ab8b95d4cae69d80b97ef0f696601b6e447893e43ea84b76"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-post-fiber-openspec-review-2026-07-14.md",
+      "bytes": 44154,
+      "sha256": "3a35a3a68a83da234bf54d8d99e557a9bc16778eb56387a95768c49a18989047"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-post-fiber-review-brief-2026-07-14.md",
+      "bytes": 11683,
+      "sha256": "3c4a98944db5d9d5c84ee81542ed7ad7234be40affc61fba1ab89b76064138f6"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-post-fiber-review-remediation-2026-07-14.md",
+      "bytes": 4674,
+      "sha256": "8f706a23584fcf51f3c63c1775e17e35f9d803a5cec877e4c7a7801448572cc7"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-post-fiber-reviewer-prompt-2026-07-14.md",
+      "bytes": 7478,
+      "sha256": "5437917b3cb3c7c365ebab412d2334463eb45b28ec12c7b869530476ad47c5a6"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-public-api-surface-review-2026-07-16.md",
+      "bytes": 85618,
+      "sha256": "4ad17d447ba29624564100394b87b50b7b6ae874ea91d27867819f4832fb1970"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-public-api-surface-review-prompt-2026-07-16.md",
+      "bytes": 12097,
+      "sha256": "a105d15986cb9bbe0e4ca72264771060b1c5a7f3e3a9ae5f82ffa7e217ed8731"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-review-e-remediation-independent-rereview-2026-07-19.md",
+      "bytes": 3236,
+      "sha256": "9ec3c8866e2bf215a426d3e03214801b9ca6f38b001b460d1ec43b3bb640ee70"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-05-amendment-remediation-dirty-manifest-2026-07-29.txt",
+      "bytes": 29183,
+      "sha256": "38187e3ee5a56e957ae97b10d177c032f2e540f067ecd73bced3df67fd6a0343"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-05-amendment-remediation-independent-rereview-verdict-2026-07-29.md",
+      "bytes": 12304,
+      "sha256": "4051bfedcf6f79060b74b51c73534a1f74b352121fbba640434e2238a6a014be"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-05-amendment-remediation-independent-review-request-2026-07-29.md",
+      "bytes": 10468,
+      "sha256": "66b70a532ec4ee48c997e25e6ae2bbc97d1bf1c820dbb195b06c229cf60da122"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-05-amendment-remediation-independent-review-verdict-2026-07-29.md",
+      "bytes": 10614,
+      "sha256": "c36e0e0c237f80530dcb02d1bd8bda9ac058d03035ab69743383646881959f08"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-05-amendment-remediation-rereview-dirty-manifest-2026-07-29.txt",
+      "bytes": 29556,
+      "sha256": "0e1ca051ab3acc76c6f0dc4d5be985a4edcebe30f2555dd11973314532c93f20"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-05-amendment-remediation-rereview-request-2026-07-29.md",
+      "bytes": 12265,
+      "sha256": "90e6583d2d9042f3ad0d81dd5602765921047d6f33848b8fe480580a7df05add"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-codec-remediation-dirty-manifest-2026-07-22.txt",
+      "bytes": 23678,
+      "sha256": "4a9be59ef3171186eeafdd2ffab250b618303d8420f2eb5da1225e32ad0d39a0"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-codec-remediation-independent-rereview-2026-07-22.md",
+      "bytes": 16880,
+      "sha256": "e156472d25a3ca9d0556a28baee164e2bf18fd50e3682a6a343335cf02e267b4"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-codec-remediation-independent-rereview-2026-07-27.md",
+      "bytes": 25203,
+      "sha256": "51039de7081a1106de1ced7a75523eef84541f0ae1ece226ae5e3f1f8ff11b63"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-codec-remediation-rereview-request-2026-07-22.md",
+      "bytes": 7800,
+      "sha256": "3893968c1ee783c315f695ff05661e27199733da6bb3b615ba34c53349a247b5"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-detached-snapshot-codec-closure-dirty-manifest-2026-07-27.txt",
+      "bytes": 24866,
+      "sha256": "eae3888955083813c83561f6459ad81f257466ad1dd1d0c97b7aa5a4dc806eeb"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-detached-snapshot-codec-closure-independent-rereview-2026-07-27.md",
+      "bytes": 15022,
+      "sha256": "e92f4767759c1e56e3a6855177e06572a5ce7d26babbc5851d72ac78fb486baa"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-detached-snapshot-codec-closure-rereview-request-2026-07-27.md",
+      "bytes": 8932,
+      "sha256": "2c2ba6baf4eb243173f9c067d32dfc61664b72ce61cd68a3fb3838c26cb25b59"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-exit-review-codex-2026-07-21.md",
+      "bytes": 19662,
+      "sha256": "3a8675e2205d48f9475399412f730f44d8471837a810e3b37a904d47f2ef2c4d"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-exit-review-dirty-manifest-2026-07-21-b.txt",
+      "bytes": 20802,
+      "sha256": "3c3b8487c58a702754f8318b69c9185e165b9ffdb34232bca1424baee89f0343"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-exit-review-dirty-manifest-2026-07-21-c.txt",
+      "bytes": 20809,
+      "sha256": "3ae91fced1c97ac41941ea01e0018ca6bc8b131f8bccd4d46e0549f347b1404a"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-exit-review-dirty-manifest-2026-07-21.txt",
+      "bytes": 20614,
+      "sha256": "87794021864f42730d316097f22d64e93e84ec8e830e785b9e871c4e86fc711e"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-final-codec-closure-dirty-manifest-2026-07-27.txt",
+      "bytes": 24396,
+      "sha256": "1370d3462e5b555c33beafe32847d504785ffe77f6ffa89f96c7bad28ce60604"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-final-codec-closure-independent-rereview-2026-07-27.md",
+      "bytes": 16495,
+      "sha256": "d07ebb8333f7f7eaf008e83606aed0e0e2a89ffc2483e32633de7b639640dd3b"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-final-codec-closure-rereview-request-2026-07-27.md",
+      "bytes": 8782,
+      "sha256": "64f00daa2ef9b66709a296e12329992aa76c784e330a9fab09cba408771c3093"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-final-remediation-dirty-manifest-2026-07-22.txt",
+      "bytes": 23078,
+      "sha256": "cf3e1be1bac6c32a081940e3bcf5d30430bb7f2fe9870e06950767e03351b90b"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-final-remediation-exit-rereview-2026-07-22.md",
+      "bytes": 15449,
+      "sha256": "56f33ba048b4baf5ec705a3721b4f050e7a97b68dad5544653eb67ab2f229fdd"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-final-remediation-independent-rereview-2026-07-22.md",
+      "bytes": 15935,
+      "sha256": "b6d9f5e3946f6d5eb911c53834fc04aaa94912476b4c85bcc64e01c5220f3b18"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-final-remediation-rereview-request-2026-07-22.md",
+      "bytes": 8594,
+      "sha256": "77b28f420016f2b1dd946f3f7911e2e332f9f26dc858ca9799a98f5ce010f8f0"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-independent-exit-review-2026-07-21.md",
+      "bytes": 24697,
+      "sha256": "5bc1560684ddd41dcb5a7d012a8a6926cfc359591693f0c54d60630a7da6d5a5"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-remediation-dirty-manifest-2026-07-21.txt",
+      "bytes": 22260,
+      "sha256": "396346f02be42485bd30471d410ee40cf211247d9166fba5e715f8bdebc4a552"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-remediation-exit-rereview-2026-07-21.md",
+      "bytes": 15736,
+      "sha256": "c228296c20dd022442007e25e93510d5dbbdf262f413f692c0e82a29eca0cff7"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-remediation-independent-rereview-2026-07-22.md",
+      "bytes": 18608,
+      "sha256": "3c805692b1833f2ea1f93a8906011de64a8ac0369a4ce1652d087ab4cc543455"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-04-remediation-rereview-request-2026-07-21.md",
+      "bytes": 7488,
+      "sha256": "412f5a9987485ec66e3c39a636bbbe2733b6896253d59f00ece9c5d75ce4cd94"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-05-exit-review-dirty-manifest-2026-07-27.txt",
+      "bytes": 26158,
+      "sha256": "f001016f92cf056aa1cf6e99203353112504500c1c5e582625ae3b607a41bbad"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-05-exit-review-request-2026-07-27.md",
+      "bytes": 12636,
+      "sha256": "53fcb5818fae78f725b1676a2ebaf6fab00c1595ac83fc7bd1bcf3dce17bfa2e"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-06-ancestor-terminal-remediation-independent-rereview-verdict-2026-07-29.md",
+      "bytes": 14494,
+      "sha256": "8c47ce496aea047ae0945eb0d3e2ef7f1b5b2cb4763fe33928a69cccf2f38bf0"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-06-ancestor-terminal-remediation-rereview-dirty-manifest-2026-07-29.txt",
+      "bytes": 34721,
+      "sha256": "29701aee49042d747d5cea10f40f25276590369c730a36791bb21b27c1eed9a6"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-06-ancestor-terminal-remediation-rereview-request-2026-07-29.md",
+      "bytes": 7865,
+      "sha256": "cc550bd6145593582cf6570cbe71a447ff46c52577d1b0205d1b4e1f529ecb0b"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-06-canonical-entry-review-2026-07-29.md",
+      "bytes": 3309,
+      "sha256": "0ececf08c26d757d4e25d3351596ecc4d6dc91f7dd4ccff09ed92fa98321e247"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-06-docker-provider-gate-superseding-verdict-2026-07-29.md",
+      "bytes": 11364,
+      "sha256": "8d494ece8ab72cbd689ac26bad464f0b6bf0c7fc1c6d81c695f6fa0474865d03"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-06-exit-review-dirty-manifest-2026-07-29.txt",
+      "bytes": 34290,
+      "sha256": "059dba8413bde3ec3aaef27d5f456f574d7c34cbec26849f0c9123816ce61754"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-06-exit-review-independent-verdict-2026-07-29.md",
+      "bytes": 20274,
+      "sha256": "0284a25b66b23a24b76d7bb57d7ee5f75635f802f69cfcbe61df57d707c774ca"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-06-exit-review-request-2026-07-29.md",
+      "bytes": 16981,
+      "sha256": "0cb8bb45b1ff2d2448c0a996f20714709b7e211d41802f3a97dee055dae57d4f"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-06-greenfield-schema-remediation-compatibility-ddl-superseding-verdict-2026-07-30.md",
+      "bytes": 11555,
+      "sha256": "1cd9a4fc1a576867b7710f62df4b13dfa0407f10e13bb9b0c543d47ff871d882"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-06-greenfield-schema-remediation-independent-rereview-verdict-2026-07-30.md",
+      "bytes": 16115,
+      "sha256": "14b5ef03b008553898937d5d1389c679dd8264fb3c2d98e27535c20103e6f7b8"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-06-greenfield-schema-remediation-rereview-dirty-manifest-2026-07-30.txt",
+      "bytes": 35599,
+      "sha256": "df47b42faaa18e25ead459dfbecf275835502f2f51ff7753f1d9005711905ed6"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-06-greenfield-schema-remediation-rereview-request-2026-07-30.md",
+      "bytes": 10883,
+      "sha256": "533456d647fda4d88edf3ffc048386634701766930434f74a7711bbd3301935f"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-06-independent-exit-review-verdict-2026-07-29.md",
+      "bytes": 12661,
+      "sha256": "6e973e0afb38cea4c6392c695efa41fb3c7b24027d78ab30f2ae2e5f95293205"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-06-ownership-ddl-remediation-independent-rereview-verdict-2026-07-30.md",
+      "bytes": 8740,
+      "sha256": "d09edaac45c7334895488bac2d2e718e05d66817ae45c89e0e2d188b7da04b3a"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-06-ownership-ddl-remediation-rereview-dirty-manifest-2026-07-30.txt",
+      "bytes": 36331,
+      "sha256": "a498f0e50b707891ac52ef9297c8c4204bd0c61eacdef0b286e8263d45e6f84a"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-06-ownership-ddl-remediation-rereview-request-2026-07-30.md",
+      "bytes": 11518,
+      "sha256": "d1f993e0389921cd4483f684ab058d692becc7a566cf5bfc7d312d050bd1ac40"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-06-ownership-ddl-scanner-remediation-independent-rereview-verdict-2026-07-30.md",
+      "bytes": 9057,
+      "sha256": "d010264041f82653cebc1eeab9e83014a37e4f9425a7ccda66f270fb1d03dd8a"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-06-ownership-ddl-scanner-remediation-rereview-dirty-manifest-2026-07-30.txt",
+      "bytes": 36697,
+      "sha256": "71ae61fcee1bd24f47d8a09bebcf3bbcd04d461bf158c095d8d5b34bd4f40d89"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-06-ownership-ddl-scanner-remediation-rereview-request-2026-07-30.md",
+      "bytes": 11522,
+      "sha256": "3011a36459b101453f601618726bbe8ccfa96799208324a8e56cb6f6bb66f994"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-06-relational-provider-remediation-rereview-dirty-manifest-2026-07-30.txt",
+      "bytes": 35538,
+      "sha256": "826a5b8ff9a01b4805f91b1c406e547c054b647f943c91469313fa8006377952"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-06-relational-provider-remediation-rereview-request-2026-07-30.md",
+      "bytes": 10014,
+      "sha256": "2f107c9eb4d419c10a71beb73b74be8063efae84380279cf69038df8adecea9a"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-07-checkpoint-rule-refreeze-dirty-manifest-2026-07-30.txt",
+      "bytes": 49002,
+      "sha256": "0e680e819a1785f67738ad84432af2e7e791d25dadfaa9c129f8ed83a5833d6e"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-07-checkpoint-rule-refreeze-independent-verdict-2026-07-30.md",
+      "bytes": 11899,
+      "sha256": "e96165a1dd8ea5d7ecb33c742afc871e92f794340e6fc93500a09d37486e8022"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-07-checkpoint-rule-refreeze-request-2026-07-30.md",
+      "bytes": 2961,
+      "sha256": "a29cb7a16462617df0f8ddc2079269f2a839ac27dc1ab41b9210dc169f2df7ae"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-07-exit-review-dirty-manifest-2026-07-30.txt",
+      "bytes": 48794,
+      "sha256": "22db460342a4106b9f7898a89ded1e3914dcd7a912f860769699ea6e44d969b1"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-07-exit-review-request-2026-07-30.md",
+      "bytes": 11980,
+      "sha256": "a36b7858b17e177da272119ab340112d9aab7d899ef3cde1f6634307f75ddec2"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-07-final-independent-exit-review-verdict-2026-08-01.md",
+      "bytes": 51183,
+      "sha256": "f9760ffe3b817223e47b05f7f66dfbfc2e9bf946f633c20a04474c8989009674"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-07-inactive-test-project-audit-2026-07-30.md",
+      "bytes": 5313,
+      "sha256": "70f4a72b24ae91cd908591e30351a61f84a1c0a10a47bf2e016f9064cc693aa6"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-07-provisional-test-retirement-2026-07-30.md",
+      "bytes": 2204,
+      "sha256": "559eae5d0a24a8d4188d3671d7b549fd0db644b89d05de24e4cb322f93a62be7"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-07-rejection-remediation-exit-independent-verdict-2026-07-31.md",
+      "bytes": 6682,
+      "sha256": "77d05cce4ef4effb099c5009b3425c5d62819d723ac2e374e46734b7c8af6843"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-07-rejection-remediation-exit-review-dirty-manifest-2026-07-30.txt",
+      "bytes": 51066,
+      "sha256": "7e9e7f2aaf5185f27fc702b0358ac823d3468bf30028bed8a517d2ed006fb372"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-07-rejection-remediation-exit-review-request-2026-07-30.md",
+      "bytes": 11490,
+      "sha256": "37942452fc42af3badc8a98691a29b20cba5a60846b74f390db28b8cb011cc02"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-07-rejection-remediation-exit-second-reviewer-corroboration-2026-07-31.md",
+      "bytes": 11942,
+      "sha256": "101461ed5396c75419b81862fe8b0f7ec2404f9e74ac99504ea3ea31bbb6a856"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-07-remediation-test-recovery-record-2026-07-30.md",
+      "bytes": 34811,
+      "sha256": "ad5be6d9c23410e16f17c0664e598f43b7973d4852236ca709de47ca81471de9"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-07-task-7-22-exit-dirty-manifest-2026-08-18.txt",
+      "bytes": 1265,
+      "sha256": "f7d0b86cf6a65ab88142da1e645d0bedeba25ddb2fcd3de9bad3101399dd2192"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-07-task-7-22-exit-independent-review-request-2026-08-18.md",
+      "bytes": 8712,
+      "sha256": "c9e77b5fef9d2903e1ad245ad427029c225336dc68cb5e16d3ec9c56a1c2a409"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-07-task-7-22-exit-independent-review-verdict-2026-08-18.md",
+      "bytes": 1429,
+      "sha256": "8b79edc305bed3cd242c93dfc1fd8e6a9bf8a01c5761fdd4ce07f1587c782b1b"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-07b-task-7-23-amendment-dirty-manifest-2026-08-01.txt",
+      "bytes": 31312,
+      "sha256": "db8d70860d6646f79e8c00f634a076131b390c626e1446a4f08b1fc8bdb49ef1"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-07b-task-7-23-amendment-independent-review-request-2026-08-01.md",
+      "bytes": 7621,
+      "sha256": "4410f882b7a130f5e4e025604964284cd0f592099ee1e4794d5268dcd3d7109a"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-07b-task-7-23-amendment-independent-review-verdict-2026-08-01.md",
+      "bytes": 23572,
+      "sha256": "4e0e33e4f38b65da539a97f77df6adad9bfb090529a8086382f801bb7e32bb7b"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-07b-task-7-24-remediation-independent-rereview-request-2026-08-05.md",
+      "bytes": 9251,
+      "sha256": "09e5dddb31e8098d1f5e7bff1894dd6182a432ee64d28166689d2abfa900b5f4"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-07b-task-7-24-remediation-rereview-dirty-manifest-2026-08-05.txt",
+      "bytes": 33842,
+      "sha256": "8531cde609dde455baa324a149f77e1cc0792c642addc2dd7068e82e23933414"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-v1-root-only-fan-out-decision-and-revalidation-2026-07-19.md",
+      "bytes": 8028,
+      "sha256": "d688fa138a21dc8376efd95f214965e9e7e1ebbc2fd1b842544da90407587082"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-v1-simplification-amendment-2026-07-18.md",
+      "bytes": 20181,
+      "sha256": "57c5127560d890e9aea74c580159eae28a9b7282cfdcf6092f0a26ac03a38813"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-v1-simplification-consolidated-review-2026-07-19.md",
+      "bytes": 18674,
+      "sha256": "cce23d4eec14a21fd90cc9cad3cfc3698af69c222d8a725c29e597f14f54a42e"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-v1-simplification-review-2026-07-19-b.md",
+      "bytes": 50771,
+      "sha256": "7cbbc3b248df3198da9e7efd4aaaa7c0a71d5d7738a2365a5032060ac7050703"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-v1-simplification-review-2026-07-19-c.md",
+      "bytes": 36417,
+      "sha256": "1e7077b20c78b283a76e412610fb12880d4a412eb568ba4f297eb534cfe092aa"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-v1-simplification-review-2026-07-19-d.md",
+      "bytes": 88727,
+      "sha256": "2cdc67757f4949c5dcd270a1988994f41a42dca3331727c2414e5e4f9e26959b"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-v1-simplification-review-2026-07-19-e.md",
+      "bytes": 52553,
+      "sha256": "4241d21e8803058d3bf0572cd6b09aa2682c8998d4b60dabb7e71d348ad01319"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-v1-simplification-review-2026-07-19.md",
+      "bytes": 36175,
+      "sha256": "56c72ee3d0ee0d975208ff6433a6c326757c3899c415b6b0aa3ebccee6a7e27d"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-v1-simplification-review-e-remediation-and-phase-00-status-2026-07-19.md",
+      "bytes": 17313,
+      "sha256": "e58d0c0d66751648569e1713dcf5372d8228eb3504b2ec3d4dc0e74b6b71e14a"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-v1-simplification-reviewer-prompt-2026-07-18.md",
+      "bytes": 19907,
+      "sha256": "38388b9a67a47d61e3b8b697a6762b00aa3dd60104f9ea85326ff0c46ed85d05"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-v1-strong-value-construction-amendment-2026-07-19.md",
+      "bytes": 3786,
+      "sha256": "e55e34fef3c825d04e907548acd0b4336eca2adc381659fff101109580f7fae4"
+    },
+    {
+      "path": "docs/review/findings/R0-foundations.md",
+      "bytes": 2987,
+      "sha256": "7bc856a46c63ce1d9c5fcee0ee85157e22dcc4b8d9b095285a0df6f88387349a"
+    },
+    {
+      "path": "docs/review/findings/R1-abstractions.md",
+      "bytes": 6394,
+      "sha256": "75ec3630cb4753beeb07f2c12aa28886e4f2e209bf85cdd105b65a5004a42173"
+    },
+    {
+      "path": "docs/review/findings/R10-src-to-v3-gpt-parity-gaps.md",
+      "bytes": 20294,
+      "sha256": "151b657f488b79eafc63e0c5db01c8e10e6571df39260829b9013534fdf1371d"
+    },
+    {
+      "path": "docs/review/findings/R11-new-surfaces.md",
+      "bytes": 6352,
+      "sha256": "a07c744d31a262079cf7cd86722f8d73983a1f693cccf0c4da542af798bdad9a"
+    },
+    {
+      "path": "docs/review/findings/R12-observability-dashboard.md",
+      "bytes": 12522,
+      "sha256": "afed11b379b0507ba42cb76d311afe0576583cfd8fcdec405e27ff752677314e"
+    },
+    {
+      "path": "docs/review/findings/R13-samples.md",
+      "bytes": 7111,
+      "sha256": "e7b72ce6ef0cb575a55c90c251dd40ba056109cc6fd59ecf19338a24233d1438"
+    },
+    {
+      "path": "docs/review/findings/R14-scrutiny.md",
+      "bytes": 15663,
+      "sha256": "fd5446cd1efa6e96fceee0b0bdd2e144355f3a5ec64564fa11d9599746928c4b"
+    },
+    {
+      "path": "docs/review/findings/R2-core.md",
+      "bytes": 6846,
+      "sha256": "c35363382de59114ee700eb03c70cd0baa88d4e975237de04bc95db71be58fd1"
+    },
+    {
+      "path": "docs/review/findings/R3-ephemeral-engine.md",
+      "bytes": 15457,
+      "sha256": "b55ba731f4e5009085b01cf2769a471b122226d80859234204b5bc709515a81a"
+    },
+    {
+      "path": "docs/review/findings/R4-durable-engine.md",
+      "bytes": 14835,
+      "sha256": "9d6c4b73ec3015b67273c774d27508c41bcc7c46948497b6a6d15372e80e0d53"
+    },
+    {
+      "path": "docs/review/findings/R5-providers-certification.md",
+      "bytes": 17253,
+      "sha256": "4b4311021ff588c44a9cc0cfc8f67d38541abb76cee8ef76da570a2a2cb6a34d"
+    },
+    {
+      "path": "docs/review/findings/R6-composition-dag-saga.md",
+      "bytes": 15362,
+      "sha256": "da928e5a810729e0eaf00ab77786872bc240cef5b7095c4650e034482ab8493a"
+    },
+    {
+      "path": "docs/review/findings/R7-hosting-cross-cutting.md",
+      "bytes": 13189,
+      "sha256": "1f11b53e3be71d11ed6dbd1650b1f587d855be84cbf1021c205913d4edfdaaa6"
+    },
+    {
+      "path": "docs/review/findings/R8-dotnet10-csharp-quality.md",
+      "bytes": 14451,
+      "sha256": "2f08b00cb222f10282f05b3669de6d907159445ee241139f7c49650802acc08e"
+    },
+    {
+      "path": "docs/review/findings/R9-test-coverage-gaps.md",
+      "bytes": 18512,
+      "sha256": "71db8985da7309400833dc3f9c71e763a79f8da9473fc0dd69b29d9b421c6094"
+    },
+    {
+      "path": "docs/review/findings/SUMMARY.md",
+      "bytes": 13886,
+      "sha256": "84836b523b2d7df7bae3026f7dfe4b53ca86a38512df2b7852515bc3167b85ea"
+    },
+    {
+      "path": "docs/review/full-audit-2026-07-03.md",
+      "bytes": 44327,
+      "sha256": "aedad7107800c8021656d74e43d06f6534f7caa49e699ba313d65e58ed73bebf"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-approved-canonical-synchronization-record-2026-08-01.md",
+      "bytes": 4084,
+      "sha256": "796b5450da939b6328f74599591ca3e83496420849c808bfbb8f181ea852d17c"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-independent-planning-review-verdict-2026-08-01.md",
+      "bytes": 9972,
+      "sha256": "521d5613184423ee86b870109918b6c078dace6b05e4dd62ac5fe2f6230e4fe9"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-reduced-scope-independent-planning-rereview-verdict-2026-08-01.md",
+      "bytes": 19511,
+      "sha256": "5a077f1a71d85ed1c74c2e01f128de3a7c792463d63c13163e5185d5df794228"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-reduced-scope-remediation-independent-planning-rereview-verdict-2026-08-01.md",
+      "bytes": 14679,
+      "sha256": "97099c0e79d49432c33192b3f1ae0f78da8f0eae41e25df6045705eedb0010ab"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-5-1-checkpoint-provenance-independent-review-request-2026-08-21.md",
+      "bytes": 6894,
+      "sha256": "3d28e9b8fe1db50ead807f35bd4e3e570b6bc5581a6252b19c2ef427a6cf74b1"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-5-1-checkpoint-provenance-independent-review-verdict-2026-08-21-b.md",
+      "bytes": 16158,
+      "sha256": "c883416001b9e96f030c4311900b1d6f05128ac8066c4a36d8f34e18e1efe8b3"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-5-1-checkpoint-provenance-independent-review-verdict-2026-08-21.md",
+      "bytes": 12659,
+      "sha256": "a84e3bda18d0441265021251001625a645e08095cef731c503472e6b719e92f2"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-5-1-dirty-manifest-2026-08-20.txt",
+      "bytes": 1228,
+      "sha256": "271309bd1da188c023610ffdde4065729fbc17f16f3ae786fc17561d1842f898"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-5-1-independent-review-request-2026-08-20.md",
+      "bytes": 10190,
+      "sha256": "4e33bd37c67fdcfdc5d959d0a5e16861ab4cf5f77738b32f5e0f190f1180ad6d"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-5-1-provenance-remediation-independent-review-request-2026-08-22.md",
+      "bytes": 6152,
+      "sha256": "0f5141425e6baabf7776738de540b5ee79adb02fe0ddc7f633df84fa516812f4"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-5-1-provenance-remediation-independent-review-verdict-2026-08-22.md",
+      "bytes": 15778,
+      "sha256": "16989506dc3e4db2da372bb92270960c891819f365615b862267b43e0b200839"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-5-2-dirty-manifest-2026-08-20.txt",
+      "bytes": 947,
+      "sha256": "9a1cda496e71eb2f40ec02cb834478c3906df9b89d18b7461816a70845781b0f"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-5-2-independent-review-request-2026-08-20.md",
+      "bytes": 8647,
+      "sha256": "e927fd33cc4c5204d6b32842687f12ea38869204224e8f166e617095af86bf52"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-5-2-independent-review-verdict-2026-08-21.md",
+      "bytes": 14099,
+      "sha256": "b8cc797e0dff0a85b25d52c5e186744f9d8ee857dcf68bbbfe7aba8343a8f3d2"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-5-2-provenance-remediation-independent-review-verdict-2026-08-21.md",
+      "bytes": 6498,
+      "sha256": "655d0d7c8b9927872dd421ca655ff29ba247c0aef3a39cab7db463dd02ee8f6e"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-5-2-refreeze-independent-review-request-2026-08-22.md",
+      "bytes": 6608,
+      "sha256": "94f5280489b94916c6a394cd82bb42836718152042306cd6c2a70722230d2035"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-5-2-refreeze-independent-review-verdict-2026-08-22.md",
+      "bytes": 12739,
+      "sha256": "45ce23059380ce5a0672c25568bd9aec67b39484482ef35acbe802bef54d0a47"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-5-3-dirty-manifest-2026-08-22.txt",
+      "bytes": 821,
+      "sha256": "d39842969f955ef560206365e30cc2193d7f77903fd24ef34eefe936bd491a28"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-5-3-independent-review-request-2026-08-22.md",
+      "bytes": 5661,
+      "sha256": "23a33db21735bfeb676f46b09afe748850b4d51ee30fac8f56e883a0bd9d1a2e"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-5-3-owner-approval-verdict-2026-08-23.md",
+      "bytes": 921,
+      "sha256": "a31a276ebf6c14acc9865f1d7c0eea28553c4b840412e42ba2178df10104bea2"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-1-dirty-manifest-2026-08-22.txt",
+      "bytes": 878,
+      "sha256": "8cb4edaf79b230ca5e2ed74cd55cc63c966a47e4b5b8b988145d0aec5d1cce3c"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-1-independent-review-request-2026-08-22.md",
+      "bytes": 4106,
+      "sha256": "b0932507c7b3f43273f5a22dbb4b835ff60d819fdf84ec4afe67203df48c6d05"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-1-independent-review-verdict-2026-08-22.md",
+      "bytes": 14588,
+      "sha256": "fc660b737c60e1f75eeea9d792818571d57b09db1de7ff17eaa8a0df33e4b739"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-1-post-review-hardening-dirty-manifest-2026-08-29.txt",
+      "bytes": 1262,
+      "sha256": "99bf6b30cada0b23afa106591bb039e187312454a4757573dd6bfa5fa3a5e6a0"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-1-post-review-hardening-independent-review-request-2026-08-29.md",
+      "bytes": 3047,
+      "sha256": "775dab85c66e5c2c0872b6ebfbac402e2b20f5f2914c1215070a501b9d489baf"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-1-post-review-hardening-owner-approval-verdict-2026-08-31.md",
+      "bytes": 847,
+      "sha256": "a7ed3dbfccc0d01d68423f09ebf899b76e35284b81aa551699fe929ccfb8e3fd"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-1-review-remediation-dirty-manifest-2026-08-23.txt",
+      "bytes": 1361,
+      "sha256": "5948bbc3f14a2c5a30b4e800df1d8a4993c5f6e700364e82b42cbbc39274cd6d"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-1-review-remediation-independent-review-request-2026-08-23.md",
+      "bytes": 2515,
+      "sha256": "114466b568cd7141e3e4749198ece1c7a95b5331c918e19fe58a8a5f8b3100ba"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-1-review-remediation-independent-review-verdict-2026-08-23.md",
+      "bytes": 17593,
+      "sha256": "fa09be9097deb3f32da1fd6079ef7da9acb1a1ca1ad7927cb17bf378639e5d3e"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-2-dirty-manifest-2026-08-31.txt",
+      "bytes": 1157,
+      "sha256": "33c554e370cbff021d3f06b0a48cd4279eb99e16967e4521f63d779536c3057a"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-2-independent-review-request-2026-08-31.md",
+      "bytes": 5269,
+      "sha256": "2166b610310212489bcfc364a22e0e996cfec577b658484ad6a6768921e04082"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-2-independent-review-verdict-2026-08-31.md",
+      "bytes": 17553,
+      "sha256": "486b73cebf7a5048f7a655227f73d60405b6191356e458d13044b41b1b5b10fd"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-3-dirty-manifest-2026-08-31.txt",
+      "bytes": 1168,
+      "sha256": "5f6cb97df7ed146e54614234429336ce04e7a8478b7b128033eac2017091ec9e"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-3-independent-review-request-2026-08-31.md",
+      "bytes": 4596,
+      "sha256": "d503722816b51fc6a45601e462be9328c6f5b0f5c12ba55aa6887ee7b551a60c"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-3-independent-review-verdict-2026-09-01.md",
+      "bytes": 16566,
+      "sha256": "046078afab63a82c5f0c741de9cebefe7c86d0993d3acf67d5336120ac0eb579"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-4-dirty-manifest-2026-09-01.txt",
+      "bytes": 795,
+      "sha256": "3fb52cfea40ec2f0d083ca20355f5c5c18734c13aee0e56aaa382e8ce670f0e9"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-4-independent-review-request-2026-09-01.md",
+      "bytes": 5014,
+      "sha256": "2f7430a85e8e1d7dbf6a0e99c32b81947a15f7fb6e48478c0f2cb95acf31d874"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-4-independent-review-verdict-2026-09-01.md",
+      "bytes": 13640,
+      "sha256": "3f972188281bced25dbcd0ac0a6709b611e1660c91ff1da258c7cc46bd74a79d"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-4-post-review-hardening-dirty-manifest-2026-09-02.txt",
+      "bytes": 768,
+      "sha256": "43cb861bb8ab986778dd2bab914b89ed277c5b7256873bee59efed3af873e37c"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-4-post-review-hardening-independent-review-request-2026-09-02.md",
+      "bytes": 2941,
+      "sha256": "f2a8dcfd44c78c87af9478e79c7c0f8b6d57c17ad1f0e6478231d3a140f76fe1"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-4-post-review-hardening-independent-review-verdict-2026-09-02.md",
+      "bytes": 12827,
+      "sha256": "aa3b00fe9a0f39417c8639630b0595d7cd20d5025418cedb5d85de6ba4b037bf"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-4-remediation-dirty-manifest-2026-09-02.txt",
+      "bytes": 1230,
+      "sha256": "7daaaf63385a92290369d34e1f5195af8fea97b988b710d7c11da5e98bed85fa"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-4-remediation-independent-review-request-2026-09-02.md",
+      "bytes": 4418,
+      "sha256": "dbbd3833a6c47f67ec997e82dc67a29ca823aa94ba2a1d20bc7a237b8e1978b2"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-4-remediation-independent-review-verdict-2026-09-02.md",
+      "bytes": 14017,
+      "sha256": "4d6456b7606ba7915c206d2c18f727ea8b64941394a199d860a9d6e6161a5397"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-5-dirty-manifest-2026-09-03.txt",
+      "bytes": 897,
+      "sha256": "fb8cf0eecfc859a93d7e2c4dfe12d2cc8f66162576ff6ff3992f6df7b734aa29"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-5-independent-review-request-2026-09-03.md",
+      "bytes": 3267,
+      "sha256": "10aeb034bde2d4a08612db19032b0ac6d5e5e5014efb2ae523aee7890aacbaa0"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-5-independent-review-verdict-2026-09-03.md",
+      "bytes": 10979,
+      "sha256": "6616e9ba4bd764ff8b2c20da06ce509748d1a310907352b281e75f340d737928"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-5-post-review-hardening-dirty-manifest-2026-09-03.txt",
+      "bytes": 636,
+      "sha256": "a597be2ef1825755ebe292dd97a2f5ce3777bd9d616b0249e7d8eb9a3dd99450"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-5-post-review-hardening-independent-review-request-2026-09-03.md",
+      "bytes": 2987,
+      "sha256": "be75a9f26d2b7c9ca0f407a9db5aa268716d743f737d8cb84ac47e51381ff2c2"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-5-post-review-hardening-independent-review-verdict-2026-09-04.md",
+      "bytes": 16269,
+      "sha256": "3cde1ea07bd4d0c5265b4e538a02a6f1b0bbe9e3bbccdf8b7bd7f5d3dd0246f8"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-5-second-post-review-hardening-dirty-manifest-2026-09-04.txt",
+      "bytes": 589,
+      "sha256": "8066b603f4fb54427dd10a8a08dc6521ec7fe494910920f015e0b7b7b843a62c"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-5-second-post-review-hardening-independent-review-request-2026-09-04.md",
+      "bytes": 2926,
+      "sha256": "3e3e91e6626ad4786f6799fa4e647bab0145faa2079853f6c604bb62237142b3"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-5-second-post-review-hardening-independent-review-verdict-2026-09-11.md",
+      "bytes": 14382,
+      "sha256": "e1f472e61d851e18f0538914c625f35bc65a8d919cd90aefc699db5dd7de07d5"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-6-dirty-manifest-2026-09-13.txt",
+      "bytes": 1569,
+      "sha256": "410e31b8dfa03bdf8118cf5cb67c3f26979958295d8d1fea3df926ee1cd600a7"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-6-independent-review-request-2026-09-13.md",
+      "bytes": 3836,
+      "sha256": "e7af3174ac00fc4b791f5d28d1d4958ccefb2acab75236e453fdc87d73d42ecc"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-6-independent-review-verdict-2026-09-13.md",
+      "bytes": 17868,
+      "sha256": "0d962ab35e3dd9ce27ea78326d271994de67a551c90c3704d778f82fb9acda08"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-6-post-review-remediation-dirty-manifest-2026-09-13.txt",
+      "bytes": 642,
+      "sha256": "3ebd1eea683365fded2b4369145ce761b4916b0f105d1d2935c1e09a6087f013"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-6-post-review-remediation-independent-review-request-2026-09-13.md",
+      "bytes": 3291,
+      "sha256": "8d6446f2880f68c55713fc534d8b766151fe0bf36c02acdaad34f7e45029f5cd"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-6-post-review-remediation-independent-review-verdict-2026-09-13.md",
+      "bytes": 16948,
+      "sha256": "3393e1c72e17ffe7e831845305dd488e16d83e71119559f3c49544db026f25e6"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-6-second-post-review-hardening-dirty-manifest-2026-09-14.txt",
+      "bytes": 657,
+      "sha256": "2278ae72ae96d334bc71a1e9e6b51fb3b7d9531b19cab4e48a54de505cc11c98"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-6-second-post-review-hardening-independent-review-request-2026-09-14.md",
+      "bytes": 3123,
+      "sha256": "69b2013670b5589f6e5ce5d31bdeccec869c37ea463f0fbdb93b453c9e4a2303"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-6-6-second-post-review-hardening-independent-review-verdict-2026-09-14.md",
+      "bytes": 14375,
+      "sha256": "2ed9ef2ce2ff11ada2e5f8d44fe877980e971be8c4d385ac20835cc9e59e3a59"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-1-dirty-manifest-2026-09-15.txt",
+      "bytes": 926,
+      "sha256": "76b82093f24cb47e5acfe9e55b1ef4a63b811268228355c17430ca532d4cf6e6"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-1-independent-review-request-2026-09-15.md",
+      "bytes": 4124,
+      "sha256": "5d6076f793a2e3d2ca1bd515803eeb2a6d23c758d7ac1b5a7e2d06b19188d943"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-1-independent-review-verdict-2026-09-15.md",
+      "bytes": 13297,
+      "sha256": "b15e501f6726fb3f908cd896a10bfcf459ff68f70188611a9a09af8e71fbd989"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-1-jj-1-remediation-dirty-manifest-2026-09-15.txt",
+      "bytes": 1282,
+      "sha256": "c40b2eb41e1e78752f91e649f2a2ce1db82900b873c9a5f4c586b02b19a458f0"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-1-jj-1-remediation-independent-review-request-2026-09-15.md",
+      "bytes": 4496,
+      "sha256": "4a61f17b2abdef9d321db73a96ed02ffd454a119ef8f0d5ccc7c162b5f8419a3"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-1-jj-1-remediation-independent-review-verdict-2026-09-15.md",
+      "bytes": 12514,
+      "sha256": "19a64192aab622f6aba83bdb682180e88e3713072bf9d46686bc736b4e623746"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-1-post-review-hardening-dirty-manifest-2026-09-16.txt",
+      "bytes": 456,
+      "sha256": "bbf28be6608c5da5b544bc453c31ad60b2c720408c34b9946b9bbb209dec6fab"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-1-post-review-hardening-independent-review-request-2026-09-16.md",
+      "bytes": 2886,
+      "sha256": "0b626af9c706c0181004c2c646df0184416f900a3038e841836537a86f490158"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-1-post-review-hardening-independent-review-verdict-2026-09-16.md",
+      "bytes": 11525,
+      "sha256": "b8c64aba6ede0ea43c7bbd3c5a2c27caaac29173de61dcfe7a39039248bd717b"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-1-round-57-remediation-dirty-manifest-2026-09-15.txt",
+      "bytes": 1748,
+      "sha256": "8ed304b279965f76acdac26e332ac19d1f00a371de3e2388f171bd8bb1dc50ea"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-1-round-57-remediation-independent-review-request-2026-09-15.md",
+      "bytes": 4506,
+      "sha256": "0b58dc04a978a7156b5e77f40da0ccb6b49986e60d561198972d76c4a10bd2fd"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-1-round-57-remediation-independent-review-verdict-2026-09-16.md",
+      "bytes": 14548,
+      "sha256": "fee564f4fdb337d24e59427e49bc2292b2ba9fea37b1ae9f839e089d55f24ebc"
+    },
+    {
+      "path": "docs/review/integration-tests/01-hosting-and-hosted-services.md",
+      "bytes": 12009,
+      "sha256": "47afe34238cbcd9390f9ec5091da36ad3fdeabf0e5583ce0df9798cbe10ebcd3"
+    },
+    {
+      "path": "docs/review/integration-tests/02-engine-with-real-providers.md",
+      "bytes": 7200,
+      "sha256": "12b87ce2ed57f72382b98cedbbeace4890ab0186805050f621f906eb86dbf01c"
+    },
+    {
+      "path": "docs/review/integration-tests/03-provider-composition-stacks.md",
+      "bytes": 5701,
+      "sha256": "0ff15a684367a1bfe62f1c86b57aa48bb0031d784341db35e4300338119bf76b"
+    },
+    {
+      "path": "docs/review/integration-tests/04-durable-workflow-e2e.md",
+      "bytes": 6022,
+      "sha256": "1e7e8ddb059b12796d0e45c4bdf56915f6beb18675e86c54b766bc5d6dc4d788"
+    },
+    {
+      "path": "docs/review/integration-tests/05-multi-node-and-restart.md",
+      "bytes": 5711,
+      "sha256": "0980208cbc8b592a954160992f9a2ddc24c70f776c42cef00121209d83695f8d"
+    },
+    {
+      "path": "docs/review/integration-tests/06-job-scheduler-e2e.md",
+      "bytes": 6621,
+      "sha256": "b12be204de54027aaf4928c51c6eb646cfbe47069fd156a6a8d70a12f0e9ff8a"
+    },
+    {
+      "path": "docs/review/integration-tests/07-harness-ci-and-fixtures.md",
+      "bytes": 6378,
+      "sha256": "fc2f82f215023ff4a3ed5ff6378675fd055770ecbca337fc4d533eccb4400598"
+    },
+    {
+      "path": "docs/review/integration-tests/README.md",
+      "bytes": 4406,
+      "sha256": "312ca4966ae5fdc6afc90f225fee4b25bb907028152ac7efe36f87ec666815ff"
+    },
+    {
+      "path": "docs/review/structured-fiber-execution-implementation-status-2026-07-13.md",
+      "bytes": 12222,
+      "sha256": "9c587f03d40e26e95c4403ddbfa2fc7e408b6886b0ffe9a18b9bd38863ef15e4"
+    },
+    {
+      "path": "docs/review/structured-fiber-execution-rereview-2026-07-13.md",
+      "bytes": 32751,
+      "sha256": "9d593dc605cfd07339db4257d4069829f668b0be7f43e2b048004bcb76d4c8de"
+    },
+    {
+      "path": "docs/review/structured-fiber-execution-review-2026-07-13.md",
+      "bytes": 49196,
+      "sha256": "f02f22111b676a942a12a06c1cda4bb809eb525c8037a6f9d113672a102ded00"
+    },
+    {
+      "path": "docs/review/structured-fiber-execution-review-prompt-2026-07-13.md",
+      "bytes": 19060,
+      "sha256": "9dad9034fafbfe0e93b04c5dad9d9df741b48e1a5914579f5b2c6ccf228e9df5"
+    },
+    {
+      "path": "docs/review/test-scenarios/01-core-runtime-and-authoring.md",
+      "bytes": 9103,
+      "sha256": "a99508fbbc168284a4ac15bba7e12086aa57fc4dacf93d8d67991b2e8f4b5bc1"
+    },
+    {
+      "path": "docs/review/test-scenarios/02-events-waits-timers.md",
+      "bytes": 9441,
+      "sha256": "b80223f5ec4a7d9174d7d36a541ad32cf9049a61022abe8af2017f9dbb54b7b7"
+    },
+    {
+      "path": "docs/review/test-scenarios/03-durable-execution.md",
+      "bytes": 9205,
+      "sha256": "08a0a1d660b712e33521b541183a955ea880d2c22eb6482f89e72f4a18bf7c45"
+    },
+    {
+      "path": "docs/review/test-scenarios/04-composition-and-children.md",
+      "bytes": 9002,
+      "sha256": "fe83aff0509d05ba224908d2d47c77635a0ab39687b35bdf489ac4410b063ef1"
+    },
+    {
+      "path": "docs/review/test-scenarios/05-saga.md",
+      "bytes": 6644,
+      "sha256": "56337cd5b32547e71e5e5ae43ef5830407ec5c526b09f5103f91404a2e2f83f1"
+    },
+    {
+      "path": "docs/review/test-scenarios/06-management-and-operations.md",
+      "bytes": 8302,
+      "sha256": "cb9aa11add454fe5af4246debdb5e14bf613d2a487e07d21ac8555ef7362ae1c"
+    },
+    {
+      "path": "docs/review/test-scenarios/07-providers.md",
+      "bytes": 8289,
+      "sha256": "e47f03936bba2221fd42f06dcbee1c2ee7da507a9d3c2982a15b42509a27285e"
+    },
+    {
+      "path": "docs/review/test-scenarios/08-hosting-and-integration.md",
+      "bytes": 5937,
+      "sha256": "9d12867659fbbfe10c8d4bed660fce4d3efe9ac599c790b3a739b9df15a74fa7"
+    },
+    {
+      "path": "docs/review/test-scenarios/09-job-scheduler-dag-external-jobs.md",
+      "bytes": 8090,
+      "sha256": "90dac8d7fbfccc11a5bf6d88e37069a36bb7e84fdb9e55f0dc4c6d4a64546a73"
+    },
+    {
+      "path": "docs/review/test-scenarios/README.md",
+      "bytes": 3039,
+      "sha256": "e89f02020b72b709f060e100564290e493e7edfa5771a5a2236d56c14d365364"
+    }
+  ],
+  "appendOnlyRecords": [
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-dirty-manifest-2026-09-16.txt",
+      "bytes": 1211,
+      "sha256": "8c7cb3f404b7a567e09cba5ff293cb0fc757e4fffb629a5d52265372c93bc6c0"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-independent-review-request-2026-09-16.md",
+      "bytes": 4591,
+      "sha256": "3a070ab184ad08de25b6a8c8e5ee68311973191f2756ee018b5c767bd1239099"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-independent-review-verdict-2026-09-16.md",
+      "bytes": 15345,
+      "sha256": "05c9f280b2c38af7a9de884667abed03b54cb0f496707062929fb05c14f89a34"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-round-60-remediation-dirty-manifest-2026-09-17.txt",
+      "bytes": 1551,
+      "sha256": "d1c4d30a0d83d29f1dfb070c40f761ff4be00351ed375c3aab8837be149ac591"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-round-60-remediation-independent-review-request-2026-09-17.md",
+      "bytes": 4400,
+      "sha256": "a194a68b84750ccf559a87e8c0c8307718d24b59eb3fa14e71ce0f43e7f6a7ce"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-round-60-remediation-independent-review-verdict-2026-09-17.md",
+      "bytes": 20625,
+      "sha256": "7ddb3fb733fc79af72a7b9ace562b45affc4dfecdaf3607cb337463f9febbf2a"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-ss-1-tt-1-remediation-dirty-manifest-2026-09-17.txt",
+      "bytes": 1914,
+      "sha256": "4872d525d61200683053731fa4deb20f2977755b75005cddec077ebfd786a4c3"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-ss-1-tt-1-remediation-independent-review-request-2026-09-17.md",
+      "bytes": 4046,
+      "sha256": "2fbc3fadfc049a41c8648f4d20abfdb412443f2e85942bf37a7a7d3a42a4dc5a"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-ss-1-tt-1-remediation-independent-review-verdict-2026-09-18.md",
+      "bytes": 15459,
+      "sha256": "061ab847b9a2ee808f3747db06817e194385b39e31d58caa77729ddb7d51bd3b"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-ww-1-remediation-dirty-manifest-2026-09-18.txt",
+      "bytes": 2268,
+      "sha256": "02fb612ac79010a4f104de9d0ba7a90d6ac32d39ea5904557baebddf57d4bb2c"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-ww-1-remediation-independent-review-request-2026-09-18.md",
+      "bytes": 3426,
+      "sha256": "65134cbfcc5ad5769c51fc61ec251d5601bf33d06d3c8d54a8c72b05a247d03f"
+    }
+  ]
+}

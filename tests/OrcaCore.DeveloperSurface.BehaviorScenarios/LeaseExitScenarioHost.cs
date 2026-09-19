@@ -11,6 +11,9 @@ namespace OrcaCore.DeveloperSurface.BehaviorScenarios;
 
 public static partial class LeaseExitScenarioHost
 {
+    private static readonly TimeSpan TerminalObservationInterval = TimeSpan.FromMilliseconds(10);
+    private static readonly TimeSpan TerminalObservationTimeout = TimeSpan.FromSeconds(15);
+
     [Phase0Scenario("obligation-state-machine", "3.11b")]
     public static async Task ObligationStateMachineClosesAtReleased(Phase0ScenarioContext context)
     {
@@ -247,14 +250,15 @@ public static partial class LeaseExitScenarioHost
         var instanceId = (await store.GetStartedAsync(
             "leased-no-overlap",
             CancellationToken.None)).Value.InstanceId;
+        var instance = await handle.GetInstanceAsync(instanceId, CancellationToken.None);
         var active = await EnvelopeAsync(store, instanceId);
         var token = LeaseProtectionToken.Parse(
             active.OwnedObligations.Single(obligation => obligation.ProtectionToken is not null)
                 .ProtectionToken!);
         gate.Release.TrySetResult();
-        await AwaitSignalBeforeWorkflowCompletionAsync(
+        await AwaitSignalBeforeWorkflowTerminalAsync(
             gate.SecondStarted.Task,
-            running,
+            instance,
             "The successful retry workflow completed without starting its second attempt.");
         await running;
         var diagnostics = runtime.LeaseDiagnostics;
@@ -372,6 +376,7 @@ public static partial class LeaseExitScenarioHost
             running,
             "The timed-out retry fixture completed before its first attempt started.");
         var instanceId = (await store.GetStartedAsync(key, CancellationToken.None)).Value.InstanceId;
+        var instance = await handle.GetInstanceAsync(instanceId, CancellationToken.None);
         var active = await EnvelopeAsync(store, instanceId);
         var token = LeaseProtectionToken.Parse(
             active.OwnedObligations.Single(obligation => obligation.ProtectionToken is not null)
@@ -380,9 +385,9 @@ public static partial class LeaseExitScenarioHost
         await gate.TimeoutObserved.Task;
         await Task.Yield();
         gate.Release.TrySetResult();
-        await AwaitSignalBeforeWorkflowCompletionAsync(
+        await AwaitSignalBeforeWorkflowTerminalAsync(
             gate.SecondStarted.Task,
-            running,
+            instance,
             "The timed-out retry fixture completed without starting its second attempt.");
         await running;
         return new TimedOutRetryFixture(
@@ -419,6 +424,44 @@ public static partial class LeaseExitScenarioHost
         await signal;
     }
 
+    private static async Task AwaitSignalBeforeWorkflowTerminalAsync(
+        Task signal,
+        WorkflowInstanceHandle instance,
+        string completionMessage)
+    {
+        using var deadline = new CancellationTokenSource(
+            TerminalObservationTimeout,
+            TimeProvider.System);
+        while (!signal.IsCompleted)
+        {
+            var snapshot = await instance.GetSnapshotAsync(CancellationToken.None);
+            if (!signal.IsCompleted &&
+                snapshot.Status is (WorkflowInstanceStatus.Completed or
+                    WorkflowInstanceStatus.Failed or
+                    WorkflowInstanceStatus.TimedOut or
+                    WorkflowInstanceStatus.Cancelled or
+                    WorkflowInstanceStatus.Terminated))
+            {
+                throw new InvalidOperationException(completionMessage);
+            }
+
+            try
+            {
+                await Task.Delay(TerminalObservationInterval, TimeProvider.System, deadline.Token);
+            }
+            catch (OperationCanceledException) when (deadline.IsCancellationRequested)
+            {
+                if (!signal.IsCompleted)
+                {
+                    throw new InvalidOperationException(
+                        "Neither the second leased attempt nor workflow terminal status was observed " +
+                        $"within {TerminalObservationTimeout}.");
+                }
+            }
+        }
+
+        await signal;
+    }
     private static ResourceLeaseRequest DatabaseRequest() =>
         ResourceLeaseRequest.Create(
             ResourceLeaseRequirement.Require(ResourcePoolName.Create("database")));

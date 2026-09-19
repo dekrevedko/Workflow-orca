@@ -58,16 +58,40 @@ public sealed class LeaseDiscoveryAndGovernanceInfrastructureGuards
         schedulerSensitiveSources.Should().BeEmpty(
             "behavior-scenario and provider-certification gates must await workflow-owned signals instead of expiring under wall-clock scheduler pressure");
 
-        var leaseExitSource = File.ReadAllText(Path.Combine(
+        var leaseExitSource = NormalizeLineEndings(File.ReadAllText(Path.Combine(
             testRoot,
             "OrcaCore.DeveloperSurface.BehaviorScenarios",
-            "LeaseExitScenarioHost.cs"));
+            "LeaseExitScenarioHost.cs")));
         Regex.Matches(
                 leaseExitSource,
-                @"await[ \t]+AwaitSignalBeforeWorkflowCompletionAsync\([ \t\r\n]+gate\.SecondStarted\.Task,[ \t\r\n]+running,",
+                @"await[ \t]+AwaitSignalBeforeWorkflowTerminalAsync\([ \t\r\n]+gate\.SecondStarted\.Task,[ \t\r\n]+instance,",
                 RegexOptions.CultureInvariant)
             .Should().HaveCount(LeasedRetryFixtureCount,
-                "both leased retry fixtures must fail fast when workflow completion wins the second-attempt signal race");
+                "both leased retry fixtures must compare the second-attempt signal with the real instance terminal state");
+        leaseExitSource.Should().Contain(
+            "var snapshot = await instance.GetSnapshotAsync(CancellationToken.None);",
+            "second-attempt synchronization must observe the durable instance rather than the start-operation task");
+        leaseExitSource.Should().MatchRegex(
+            @"if \(!signal\.IsCompleted &&\r?\n[ \t]+snapshot\.Status is \(WorkflowInstanceStatus\.Completed or",
+            "a signal that wins during snapshot retrieval must not be misclassified as terminal-first");
+        leaseExitSource.Should().MatchRegex(
+            @"await gate\.Release\.Task;\r?\n[ \t]+}\r?\n[ \t]+else",
+            "the first protected body must remain cancellation-ignoring so late-return fencing stays covered");
+        leaseExitSource.Should().NotContain(
+            "cancellationToken.ThrowIfCancellationRequested();",
+            "the leased retry scenario must not narrow coverage to cancellation-cooperative bodies");
+        leaseExitSource.Should().Contain(
+            "private static readonly TimeSpan TerminalObservationTimeout = TimeSpan.FromSeconds(15);",
+            "terminal observation must retain its exact finite fifteen-second deadline");
+        leaseExitSource.Should().Contain(
+            "TerminalObservationTimeout,\n            TimeProvider.System",
+            "terminal observation must have an explicit bounded deadline");
+        leaseExitSource.Should().Contain(
+            "Task.Delay(TerminalObservationInterval, TimeProvider.System, deadline.Token)",
+            "terminal observation must delay between snapshots rather than spin");
+        leaseExitSource.Should().NotMatchRegex(
+            @"AwaitSignalBeforeWorkflowCompletionAsync\([ \t\r\n]+gate\.SecondStarted\.Task,[ \t\r\n]+running,",
+            "the start operation may complete before the scheduler publishes the second-attempt signal");
         leaseExitSource.Should().NotContain(
             "await gate.SecondStarted.Task;",
             "a bare second-attempt await can hang forever when the workflow completes without publishing the signal");
@@ -75,6 +99,10 @@ public sealed class LeaseDiscoveryAndGovernanceInfrastructureGuards
             "if (!gate.SecondStarted.Task.IsCompleted)",
             "a post-completion snapshot is a scheduler race, not notification-driven evidence");
     }
+
+    private static string NormalizeLineEndings(string value) =>
+        value.Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace("\r", "\n", StringComparison.Ordinal);
 
     private static bool IsBuildOutputPath(string testRoot, string path) =>
         Path.GetRelativePath(testRoot, path)

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics.Metrics;
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Diagnostics;
@@ -84,7 +85,7 @@ public sealed class DurableOperationalTelemetryTests
     [Fact]
     public void ActiveListener_ObservesExactlyTheCompleteCanonicalDurableMetricCatalog()
     {
-        var published = new Dictionary<string, Instrument>(StringComparer.Ordinal);
+        var published = new ConcurrentDictionary<string, Instrument>(StringComparer.Ordinal);
         using var listener = new MeterListener
         {
             InstrumentPublished = (instrument, current) =>

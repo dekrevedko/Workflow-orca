@@ -101,6 +101,12 @@ public sealed class OperationalTelemetryContractGuards
             .And.Contain("ActiveListener_ObservesAuthoritativeGroupedStatisticsWithExactTags")
             .And.Contain("OrcaCoreDurableDiagnostics.RefreshOperatorStatistics(statistics, [pool])")
             .And.Contain("RuntimeObservation_UsesAggregateVersionAndRealStepIdentity");
+        listenerEvidence.Should().Contain(
+            "new ConcurrentDictionary<string, Instrument>(StringComparer.Ordinal)",
+            "instrument publication callbacks may run concurrently and require thread-safe catalog capture");
+        listenerEvidence.Should().NotContain(
+            "new Dictionary<string, Instrument>(StringComparer.Ordinal)",
+            "a mutable Dictionary corrupts its state when MeterListener publishes concurrently");
         AssertNoReflectionBridge(listenerEvidence);
 
         var ephemeralListenerEvidence = File.ReadAllText(Path.Combine(

@@ -218,13 +218,34 @@ The Task 7.1 review remediation preserves each rejected target under its own imm
 manifest while byte-pinning the request and `REJECT` verdict that produced it. The final source-record
 companion uses ordinal path comparison and the executable guard enforces its 86-row order, LF-only
 encoding, exact digest, and the scan artifact's exact real companion path. The companion is a
-pre-finalization scan snapshot: its `design.md` and `tasks.md` rows intentionally predate their final
-self-describing remediation text and therefore do not represent the checkpoint-tree digest.
+pre-finalization scan snapshot: its
+`openspec/changes/harmonize-downstream-capability-specs/design.md` and
+`openspec/changes/harmonize-downstream-capability-specs/tasks.md` rows intentionally predate their
+final self-describing remediation text and therefore do not represent the checkpoint-tree digest.
+
+Task 7.2 makes immutable-history classification executable. A machine-readable catalog preserves an
+LF-normalized baseline derived from the exact committed blobs at the Task 7.2 base. Guard source owns
+that baseline's count and digest, so checkout line-ending transforms cannot redefine it. Every later
+record under either historical root belongs to one family-independent permanent append-only set. While
+uncommitted, the catalog's active freeze manifest must name the record. After checkpoint, its first Git
+addition permanently binds its normalized bytes. The guard also derives every post-baseline addition
+from Git history and requires that path to remain present and cataloged; deletion or relocation requires
+a separately reviewed tombstone mechanism, which the current contract does not provide. The exact
+active archive index and reusable review template remain the only mutable surfaces.
+Validation also replaces the leased-retry fixtures' second-attempt race against the inline start
+operation with observation of the real workflow instance terminal state; the start operation can
+complete before the scheduler publishes `SecondStarted`, while the persisted instance is the
+authoritative completion boundary.
+The first protected body remains cancellation-ignoring after physical release, retaining coverage of
+late-return fencing without changing the runtime's select-once deadline arbitration. Terminal-status
+observation is delayed and bounded so the test neither spins nor hangs when neither side progresses.
+The same validation pass makes the durable metric-catalog listener use thread-safe collection
+semantics because `MeterListener` may publish instruments concurrently.
 
 Dated reviews and archived plans remain byte-immutable. Classification, supersession, and current
-routing live in active indexes or new dated records. Moves of historical files preserve Git rename
-history where possible; otherwise an immutable provenance record names the exact predecessor and
-commit rather than rewriting the historical file.
+routing live in active indexes or new dated records. The current contract forbids relocating a
+historical path. A future reviewed tombstone mechanism may define how a replacement path preserves
+predecessor identity and Git provenance; until then the original path remains present and cataloged.
 
 ### 6. Freeze hashes use one explicit byte pipeline
 

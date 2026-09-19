@@ -65,6 +65,82 @@ public sealed class OpenSpecCorpusGuards
     ];
     private static readonly string[] ActiveDocumentationExtensions = [".cs", ".md"];
     private static readonly string[] ImmutableDocumentationPrefixes = ["docs/archive/", "docs/review/"];
+    private const string ImmutableDocumentHistoryFixturePath =
+        "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json";
+    private const string ImmutableDocumentHistoryRecordFormat =
+        "ordinal path<TAB>LF-normalized byte length<TAB>lowercase SHA-256, LF-joined with one final LF";
+    private const string ImmutableDocumentHistoryNormalization =
+        "replace CRLF and lone CR bytes with LF before byte length and SHA-256";
+    private const string ImmutableDocumentHistoryBaselineCommit =
+        "261d578b11a4b2d09e033aa44c8123cbc4ec653e";
+    private const int ImmutableDocumentHistoryBaselineCount = 427;
+    private const int ImmutableDocumentHistoryBaselineBytes = 66_459;
+    private const string ImmutableDocumentHistoryBaselineSha256 =
+        "5be2e4560b568c6022015624420ae0a2b11966676ff499e4bff0095e5526e180";
+    private static readonly (string Path, string Purpose)[] MutableHistoricalDocumentPaths =
+    [
+        (ImmutableDocumentationPrefixes[0] + "README.md", "active archive index"),
+        (
+            "docs/review/developer-facing-interface-phase-review-template.md",
+            "active review template")
+    ];
+    private const string Task72CompletionDecision =
+        "      **Completed:** `immutable-document-history.json` classifies every file under both historical\n" +
+        "      roots as either part of the LF-normalized, committed-blob baseline, a universal append-only\n" +
+        "      post-baseline record, or one of exactly two mutable surfaces: the active archive index and\n" +
+        "      reusable review template. A guard-source count and digest pin only the fixed Task 7.2 baseline.\n" +
+        "      Every later archive or review record belongs to one permanent append-only set. While uncommitted,\n" +
+        "      the catalog's active freeze manifest must name the record; after checkpoint, its first Git\n" +
+        "      addition permanently binds its normalized bytes. The infrastructure guard derives every\n" +
+        "      post-baseline addition from Git history and rejects missing, moved, modified, unclassified,\n" +
+        "      duplicate, or broadened records. Deletion or relocation first requires a separately reviewed\n" +
+        "      tombstone mechanism, which the current contract does not provide.\n" +
+        "      **Validation remediation:** the leased-retry fixtures now race `SecondStarted` against the\n" +
+        "      real instance terminal status, not the inline `StartOrGetAsync` operation that can complete\n" +
+        "      before scheduler notification; the source guard pins both call sites and snapshot boundary.\n" +
+        "      The first body remains deliberately cancellation-ignoring so late-return fencing stays covered;\n" +
+        "      terminal observation uses a delayed, bounded loop instead of tight or unbounded polling.\n" +
+        "      The same remediation makes durable metric-catalog capture thread-safe under concurrent\n" +
+        "      `MeterListener` publication and source-pins the `ConcurrentDictionary` boundary.\n" +
+        "      **Review remediation:** Round 60 findings PP-1 and RR-1 are closed by the committed, normalized\n" +
+        "      baseline and bounded terminal observation; all three Task 7.2 `REJECT` verdicts remain immutable\n" +
+        "      and registered. SS-1 and TT-1 are closed by the family-independent append-only rule for both\n" +
+        "      historical roots; UU-1 and VV-1 are closed by line-ending-stable source/manifest checks and\n" +
+        "      exact deadline and baseline-count pins. **Second review remediation:** WW-1 is closed by\n" +
+        "      reconciling every post-baseline Git addition back to the permanent catalog and current path;\n" +
+        "      deletion or relocation now fails before and after commit. XX-1 is closed by stating precisely\n" +
+        "      that the active manifest names each uncommitted record.\n" +
+        "      **Review carry-forward:** Task 7.1 finding OO-1 is closed by naming the two exact harmonization\n" +
+        "      planning paths whose pre-finalization TSV rows intentionally predate their final text.";
+    private const string Task72DesignDecision =
+        "Task 7.2 makes immutable-history classification executable. A machine-readable catalog preserves an\n" +
+        "LF-normalized baseline derived from the exact committed blobs at the Task 7.2 base. Guard source owns\n" +
+        "that baseline's count and digest, so checkout line-ending transforms cannot redefine it. Every later\n" +
+        "record under either historical root belongs to one family-independent permanent append-only set. While\n" +
+        "uncommitted, the catalog's active freeze manifest must name the record. After checkpoint, its first Git\n" +
+        "addition permanently binds its normalized bytes. The guard also derives every post-baseline addition\n" +
+        "from Git history and requires that path to remain present and cataloged; deletion or relocation requires\n" +
+        "a separately reviewed tombstone mechanism, which the current contract does not provide. The exact\n" +
+        "active archive index and reusable review template remain the only mutable surfaces.";
+    private const string Task72ValidationRemediationDecision =
+        "Validation also replaces the leased-retry fixtures' second-attempt race against the inline start\n" +
+        "operation with observation of the real workflow instance terminal state; the start operation can\n" +
+        "complete before the scheduler publishes `SecondStarted`, while the persisted instance is the\n" +
+        "authoritative completion boundary.\n" +
+        "The first protected body remains cancellation-ignoring after physical release, retaining coverage of\n" +
+        "late-return fencing without changing the runtime's select-once deadline arbitration. Terminal-status\n" +
+        "observation is delayed and bounded so the test neither spins nor hangs when neither side progresses.\n" +
+        "The same validation pass makes the durable metric-catalog listener use thread-safe collection\n" +
+        "semantics because `MeterListener` may publish instruments concurrently.";
+    private const string Task72ArchiveIndexDecision =
+        "5. **Correct historical conclusions with a new dated superseding record.** Existing files under\n" +
+        "   both historical-document roots are immutable; only this active archive index and the reusable\n" +
+        "   review template are mutable. Add every new review or archive record to `appendOnlyRecords`. During\n" +
+        "   its reviewed freeze, set `activeFreezeManifestPath` to the manifest that names every uncommitted\n" +
+        "   record. The guard binds each record to that active freeze and, after checkpoint, to its first Git\n" +
+        "   addition. Every committed post-baseline path must remain present and cataloged; deletion or\n" +
+        "   relocation first requires an explicit reviewed tombstone mechanism. Update this index to route\n" +
+        "   readers to the superseding record instead of rewriting the historical file.";
     private const string HarmonizationTaskLedgerPath =
         "openspec/changes/harmonize-downstream-capability-specs/tasks.md";
     private const string HarmonizationDesignPath =
@@ -208,8 +284,10 @@ public sealed class OpenSpecCorpusGuards
         "manifest while byte-pinning the request and `REJECT` verdict that produced it. The final source-record\n" +
         "companion uses ordinal path comparison and the executable guard enforces its 86-row order, LF-only\n" +
         "encoding, exact digest, and the scan artifact's exact real companion path. The companion is a\n" +
-        "pre-finalization scan snapshot: its `design.md` and `tasks.md` rows intentionally predate their final\n" +
-        "self-describing remediation text and therefore do not represent the checkpoint-tree digest.";
+        "pre-finalization scan snapshot: its\n" +
+        "`openspec/changes/harmonize-downstream-capability-specs/design.md` and\n" +
+        "`openspec/changes/harmonize-downstream-capability-specs/tasks.md` rows intentionally predate their\n" +
+        "final self-describing remediation text and therefore do not represent the checkpoint-tree digest.";
     private static readonly string[] ActiveCorpusRootDocumentPaths = ["CLAUDE.md", "README.md"];
     private static readonly string[] ActiveChangePlanningFileNames = ["proposal.md", "design.md", "tasks.md"];
     private static readonly (string Name, string Expression)[] PositiveRemovedOrDeferredCallPatterns =
@@ -1665,6 +1743,263 @@ public sealed class OpenSpecCorpusGuards
         artifact.Should().Contain(
             $"`{Task71PositiveCallSourceRecord}`",
             "the dated scan must name the exact companion record it publishes");
+    }
+
+    [Fact]
+    public void Task72_ArchivedAndReviewRecordsAreImmutableAndNewRecordsAreClassified()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        var fixture = FixtureDefinitions.Read<ImmutableDocumentHistoryFixture>(
+            ImmutableDocumentHistoryFixturePath);
+        fixture.SchemaVersion.Should().Be(3);
+        fixture.RecordFormat.Should().Be(ImmutableDocumentHistoryRecordFormat);
+        fixture.Normalization.Should().Be(ImmutableDocumentHistoryNormalization);
+        fixture.BaselineCommit.Should().Be(
+            ImmutableDocumentHistoryBaselineCommit,
+            "the immutable baseline must remain tied to the reviewed Task 7.2 base");
+        fixture.MutablePaths
+            .Select(entry => (entry.Path, entry.Purpose))
+            .Should().Equal(MutableHistoricalDocumentPaths,
+                "only the exact active archive index and reusable review template may remain mutable");
+        fixture.MutablePaths.Select(entry => entry.Path).Should().OnlyHaveUniqueItems();
+        fixture.ActiveFreezeManifestPath.Should().StartWith(
+            ImmutableDocumentationPrefixes[1],
+            "post-baseline admission must work for any review family through a review-root manifest");
+
+        fixture.BaselineCount.Should().Be(ImmutableDocumentHistoryBaselineCount);
+        fixture.Records.Should().HaveCount(fixture.BaselineCount);
+        fixture.Records.Select(entry => entry.Path).Should().OnlyHaveUniqueItems();
+        fixture.Records.Select(entry => entry.Path).Should().Equal(
+            fixture.Records.Select(entry => entry.Path).Order(StringComparer.Ordinal),
+            "immutable baseline records must remain in ordinal path order");
+        fixture.Records.Should().OnlyContain(entry =>
+            ImmutableDocumentationPrefixes.Any(prefix =>
+                entry.Path.StartsWith(prefix, StringComparison.Ordinal)));
+        fixture.Records.Select(entry => entry.Path).Should().NotIntersectWith(
+            fixture.MutablePaths.Select(entry => entry.Path));
+        fixture.AppendOnlyRecords.Select(entry => entry.Path).Should().OnlyHaveUniqueItems();
+        fixture.AppendOnlyRecords.Select(entry => entry.Path).Should().Equal(
+            fixture.AppendOnlyRecords.Select(entry => entry.Path).Order(StringComparer.Ordinal),
+            "append-only post-baseline records must remain in ordinal path order");
+        fixture.AppendOnlyRecords.Should().OnlyContain(entry =>
+            ImmutableDocumentationPrefixes.Any(prefix =>
+                entry.Path.StartsWith(prefix, StringComparison.Ordinal)));
+        fixture.AppendOnlyRecords.Select(entry => entry.Path).Should().NotIntersectWith(
+            fixture.Records.Select(entry => entry.Path));
+        fixture.AppendOnlyRecords.Select(entry => entry.Path).Should().NotIntersectWith(
+            fixture.MutablePaths.Select(entry => entry.Path));
+
+        var record = string.Join(
+            '\n',
+            fixture.Records.Select(entry => $"{entry.Path}\t{entry.Bytes}\t{entry.Sha256}")) + "\n";
+        var recordBytes = Encoding.UTF8.GetBytes(record);
+        recordBytes.Should().HaveCount(fixture.BaselineBytes);
+        recordBytes.Should().HaveCount(ImmutableDocumentHistoryBaselineBytes);
+        Sha256(recordBytes).Should().Be(fixture.BaselineSha256.ToLowerInvariant());
+        Sha256(recordBytes).Should().Be(
+            ImmutableDocumentHistoryBaselineSha256,
+            "fixture-only rehashing must not rewrite the immutable Task 7.2 baseline");
+
+        var committedBaselinePaths = ReadHistoricalDocumentPaths(root, fixture.BaselineCommit);
+        fixture.Records.Select(entry => entry.Path).Should().Equal(
+            committedBaselinePaths,
+            "the baseline must enumerate the exact historical files committed at the reviewed base");
+
+        foreach (var entry in fixture.Records)
+        {
+            var committedBytes = NormalizeHistoricalDocumentBytes(ReadGitBlob(
+                root,
+                fixture.BaselineCommit,
+                entry.Path));
+            committedBytes.Should().HaveCount(
+                entry.Bytes,
+                $"{entry.Path} must retain its LF-normalized committed baseline length");
+            Sha256(committedBytes).Should().Be(
+                entry.Sha256.ToLowerInvariant(),
+                $"{entry.Path} must reproduce from the committed Task 7.2 baseline");
+
+            var worktreeBytes = NormalizeHistoricalDocumentBytes(File.ReadAllBytes(Path.Combine(
+                root,
+                entry.Path.Replace('/', Path.DirectorySeparatorChar))));
+            worktreeBytes.Should().HaveCount(
+                entry.Bytes,
+                $"{entry.Path} must retain its checkout-independent normalized length");
+            Sha256(worktreeBytes).Should().Be(
+                entry.Sha256.ToLowerInvariant(),
+                $"{entry.Path} is immutable; line-ending transforms are ignored, content changes are not");
+        }
+
+        ValidateAppendOnlyHistoricalRecords(root, fixture);
+
+        var discoveredPaths = ImmutableDocumentationPrefixes
+            .SelectMany(prefix => Directory.EnumerateFiles(
+                Path.Combine(root, prefix.TrimEnd('/').Replace('/', Path.DirectorySeparatorChar)),
+                "*",
+                SearchOption.AllDirectories))
+            .Select(path => RelativePath(root, path))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        var classifiedPaths = fixture.Records.Select(entry => entry.Path)
+            .Concat(fixture.AppendOnlyRecords.Select(entry => entry.Path))
+            .Concat(fixture.MutablePaths.Select(entry => entry.Path))
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        classifiedPaths.Should().Equal(
+            discoveredPaths,
+            "every historical document must be baseline, a universal append-only post-baseline record, or one exact mutable surface");
+
+        fixture.MutablePaths.Should().OnlyContain(entry => File.Exists(Path.Combine(
+            root,
+            entry.Path.Replace('/', Path.DirectorySeparatorChar))));
+
+        var taskLedger = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            HarmonizationTaskLedgerPath.Replace('/', Path.DirectorySeparatorChar))));
+        var task = Regex.Match(
+            taskLedger,
+            @"(?ms)^- \[x\] 7\.2 .*?(?=^- \[[ xX]\] 7\.3 )",
+            RegexOptions.CultureInvariant);
+        task.Success.Should().BeTrue("Task 7.2 must retain its completed immutable-history decision");
+        task.Value.Should().Contain(Task72CompletionDecision);
+
+        var design = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            HarmonizationDesignPath.Replace('/', Path.DirectorySeparatorChar))));
+        design.Should().Contain(
+            Task72DesignDecision,
+            "Task 7.2's immutable-history classification decision must survive archival");
+        design.Should().Contain(
+            Task72ValidationRemediationDecision,
+            "Task 7.2's validation-detected terminal-signal correction must survive archival");
+
+        var archiveIndexPath = fixture.MutablePaths.Single(entry =>
+            entry.Purpose == "active archive index").Path;
+        var archiveIndex = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            archiveIndexPath.Replace('/', Path.DirectorySeparatorChar))));
+        archiveIndex.Should().Contain(
+            Task72ArchiveIndexDecision,
+            "the mutable archive index must direct corrections into new dated superseding records");
+    }
+
+    private static string[] ReadHistoricalDocumentPaths(string root, string commit)
+    {
+        var result = RunGit(
+            root,
+            "ls-tree",
+            "-r",
+            "--name-only",
+            commit,
+            "--",
+            ImmutableDocumentationPrefixes[0].TrimEnd('/'),
+            ImmutableDocumentationPrefixes[1].TrimEnd('/'));
+        result.ExitCode.Should().Be(0, result.StandardError);
+        return NormalizeLineEndings(result.StandardOutput)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Except(MutableHistoricalDocumentPaths.Select(entry => entry.Path), StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static byte[] NormalizeHistoricalDocumentBytes(byte[] content)
+    {
+        using var normalized = new MemoryStream(content.Length);
+        for (var index = 0; index < content.Length; index++)
+        {
+            if (content[index] != (byte)'\r')
+            {
+                normalized.WriteByte(content[index]);
+                continue;
+            }
+
+            if (index + 1 < content.Length && content[index + 1] == (byte)'\n')
+            {
+                index++;
+            }
+
+            normalized.WriteByte((byte)'\n');
+        }
+
+        return normalized.ToArray();
+    }
+
+    private static void ValidateAppendOnlyHistoricalRecords(
+        string root,
+        ImmutableDocumentHistoryFixture fixture)
+    {
+        var appendOnlyPaths = fixture.AppendOnlyRecords
+            .Select(entry => entry.Path)
+            .ToHashSet(StringComparer.Ordinal);
+        var additionHistory = RunGit(
+            root,
+            "log",
+            "--diff-filter=A",
+            "--name-only",
+            "--format=",
+            $"{fixture.BaselineCommit}..HEAD",
+            "--",
+            ImmutableDocumentationPrefixes[0].TrimEnd('/'),
+            ImmutableDocumentationPrefixes[1].TrimEnd('/'));
+        additionHistory.ExitCode.Should().Be(0, additionHistory.StandardError);
+        var committedPostBaselinePaths = NormalizeLineEndings(additionHistory.StandardOutput)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        committedPostBaselinePaths.Should().OnlyContain(
+            path => appendOnlyPaths.Contains(path),
+            "every historical record first added after the fixed baseline must remain cataloged");
+        committedPostBaselinePaths.Should().OnlyContain(
+            path => File.Exists(Path.Combine(root, path.Replace('/', Path.DirectorySeparatorChar))),
+            "a committed historical record cannot be deleted or moved without an explicit reviewed tombstone mechanism");
+
+        HashSet<string>? activeFreezePaths = null;
+
+        foreach (var entry in fixture.AppendOnlyRecords)
+        {
+            var path = Path.Combine(root, entry.Path.Replace('/', Path.DirectorySeparatorChar));
+            File.Exists(path).Should().BeTrue($"append-only post-baseline record {entry.Path} must exist");
+            var worktreeBytes = NormalizeHistoricalDocumentBytes(File.ReadAllBytes(path));
+            worktreeBytes.Should().HaveCount(entry.Bytes);
+            Sha256(worktreeBytes).Should().Be(entry.Sha256.ToLowerInvariant());
+
+            var history = RunGit(
+                root,
+                "log",
+                "--diff-filter=A",
+                "--format=%H",
+                "--reverse",
+                "HEAD",
+                "--",
+                entry.Path);
+            history.ExitCode.Should().Be(0, history.StandardError);
+            var introductionCommits = NormalizeLineEndings(history.StandardOutput)
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            if (introductionCommits.Length == 0)
+            {
+                activeFreezePaths ??= ReadNormalizedReviewManifestPaths(
+                    root,
+                    fixture.ActiveFreezeManifestPath);
+                activeFreezePaths.Should().Contain(
+                    entry.Path,
+                    "an uncommitted post-baseline record must be byte-pinned by the active reviewed freeze");
+                continue;
+            }
+
+            introductionCommits.Should().ContainSingle(
+                "a dated post-baseline record must have one first-addition commit on the current lineage");
+            var introducedBytes = NormalizeHistoricalDocumentBytes(ReadGitBlob(
+                root,
+                introductionCommits[0],
+                entry.Path));
+            introducedBytes.Should().HaveCount(
+                entry.Bytes,
+                $"{entry.Path} must retain the normalized length from its first Git addition");
+            Sha256(introducedBytes).Should().Be(
+                entry.Sha256.ToLowerInvariant(),
+                $"{entry.Path} must retain the content from its first Git addition");
+        }
     }
 
     private static string BuildPublishedSemanticAppendix(string sourceArtifact)
@@ -3558,6 +3893,22 @@ public sealed class OpenSpecCorpusGuards
         }
     }
 
+    private static HashSet<string> ReadNormalizedReviewManifestPaths(string root, string relativePath)
+    {
+        var path = Path.Combine(root, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        File.Exists(path).Should().BeTrue("the active review manifest must exist");
+        var bytes = File.ReadAllBytes(path);
+        (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+            .Should()
+            .BeFalse("review manifests use UTF-8 without BOM");
+        var text = NormalizeLineEndings(Encoding.UTF8.GetString(bytes));
+        text.Should().EndWith("\n");
+        return text[..^1]
+            .Split('\n')
+            .Select(ReviewManifestPath)
+            .ToHashSet(StringComparer.Ordinal);
+    }
+
     private static ReviewManifest ReadReviewManifest(string root, string relativePath)
     {
         var path = Path.Combine(root, relativePath.Replace('/', Path.DirectorySeparatorChar));
@@ -4024,6 +4375,22 @@ public sealed class OpenSpecCorpusGuards
         NewCapabilityOutsideCanonical
     }
 
+    private sealed record ImmutableDocumentHistoryFixture(
+        int SchemaVersion,
+        string RecordFormat,
+        string Normalization,
+        string BaselineCommit,
+        int BaselineCount,
+        int BaselineBytes,
+        string BaselineSha256,
+        MutableHistoricalDocumentPath[] MutablePaths,
+        string ActiveFreezeManifestPath,
+        ImmutableHistoricalDocumentRecord[] Records,
+        ImmutableHistoricalDocumentRecord[] AppendOnlyRecords);
+
+    private sealed record MutableHistoricalDocumentPath(string Path, string Purpose);
+
+    private sealed record ImmutableHistoricalDocumentRecord(string Path, int Bytes, string Sha256);
     private sealed record DeclaredCapability(string Name, CapabilityKind Kind);
 
     private sealed record RequirementBlock(
