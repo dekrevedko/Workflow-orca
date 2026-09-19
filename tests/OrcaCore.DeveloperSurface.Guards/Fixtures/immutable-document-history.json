@@ -2209,6 +2209,11 @@
       "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-ww-1-remediation-independent-review-request-2026-09-18.md",
       "bytes": 3426,
       "sha256": "65134cbfcc5ad5769c51fc61ec251d5601bf33d06d3c8d54a8c72b05a247d03f"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-ww-1-remediation-independent-review-verdict-2026-09-18.md",
+      "bytes": 14098,
+      "sha256": "095928655161fb4fb7b75fe3c0180b376a0f78896f43c1e95e97a46c9184a52a"
     }
   ]
 }
