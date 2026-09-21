@@ -1,0 +1,36 @@
+ M CLAUDE.md
+ M docs/archive/README.md
+ M docs/eks-scheduler-handoff.md
+ M docs/end-to-end-plan.md
+ M docs/ephemeral-engine-developer-guide.md
+ M docs/ephemeral-engine-diagrams.md
+ M docs/implementation/00-stack-decisions.md
+ M docs/implementation/01-solution-architecture.md
+ M docs/implementation/02-engineering-conventions.md
+ M docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md
+ M docs/normative-source-map.md
+ M docs/production-readiness.md
+ M docs/project-technical-overview.md
+ M docs/specs/01-concept-and-goals.md
+ M docs/specs/03-domain-model-and-glossary.md
+ M docs/specs/05-requirements-events-waits-timers.md
+ M docs/specs/06-requirements-durable-execution.md
+ M docs/specs/09-requirements-management-operations.md
+ M docs/specs/10-provider-model-and-extensibility.md
+ M docs/specs/12-acceptance-criteria.md
+ M docs/specs/13-phasing-and-open-questions.md
+ M docs/specs/14-driving-scenario-eks-job-scheduler.md
+ M docs/specs/16-requirements-durable-driver.md
+ M openspec/changes/harmonize-downstream-capability-specs/design.md
+ M openspec/changes/harmonize-downstream-capability-specs/tasks.md
+ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs
+?? docs/review/harmonize-downstream-capability-specs-task-7-2-aaa-1-and-task-7-3-dirty-manifest-2026-09-18.txt
+?? docs/review/harmonize-downstream-capability-specs-task-7-2-aaa-1-and-task-7-3-independent-review-request-2026-09-18.md
+?? openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md

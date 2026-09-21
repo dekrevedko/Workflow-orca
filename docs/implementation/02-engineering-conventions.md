@@ -79,13 +79,12 @@ Read this before every task. Deviations require an explicit note in the task's P
 depend outward on `OrcaCore.Dag.Hosting`, but no OrcaCore package depends on or
   expose their SDK types. `OrcaCore.Runtime.Protocol` and
   `OrcaCore.Provider.Abstractions` are advanced provider tiers, not application references.
-- **Event identity is target-scoped after acceptance**: delivery before the target wait is active
-  returns non-consuming `NoActiveWait`, writes no mailbox/inbox/dedup state, and permits the same
-  `EventId` to be redelivered as its first accepted event after wait registration. Once accepted,
-  durable inbox dedup is per target `InstanceId` by `EventId`; identical normalized content is a
-  duplicate and changed content is a conflict. Correlation routing selects exactly one active wait by
-  `(DefinitionId, EventName, CorrelationId)` and rejects a second active registration before
-  parking. Definition-targeted fanout is deferred.
+- **Event identity is global before routing and stable per retained target**: durable ingress checks
+  `EventId` plus the full normalized-envelope fingerprint before route or target state. Direct,
+  correlation, definition-fanout, and start-or-deliver routes persist accepted ownership even
+  before a wait is active; only `Accepted` or `Duplicate` permits source acknowledgement.
+  Correlation selects one active wait, fanout snapshots the complete current nonterminal set once,
+  and each target is independently deduplicated and progressed or observably poisoned.
 - **Execution-path capacity has one token model**: a runnable root/branch/item owns one host
   token and releases it on wait, delay, resource request, or join. A parent releases before
   fan-out admission and reacquires only for merge/continuation. `ForEach.MaxConcurrency`

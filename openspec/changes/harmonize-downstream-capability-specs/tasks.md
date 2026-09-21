@@ -332,10 +332,11 @@
       post-baseline record, or one of exactly two mutable surfaces: the active archive index and
       reusable review template. A guard-source count and digest pin only the fixed Task 7.2 baseline.
       Every later archive or review record belongs to one permanent append-only set. While uncommitted,
-      the catalog's active freeze manifest must name the record; after checkpoint, its first Git
-      addition permanently binds its normalized bytes. The infrastructure guard derives every
+      the catalog's active freeze manifest must name the record; after checkpoint, every Git
+      addition of that path must reproduce the catalogued normalized bytes. Re-adding identical
+      content is allowed; any differing addition fails. The infrastructure guard derives every
       post-baseline addition from Git history and rejects missing, moved, modified, unclassified,
-      duplicate, or broadened records. Deletion or relocation first requires a separately reviewed
+      or broadened records. Deletion or relocation first requires a separately reviewed
       tombstone mechanism, which the current contract does not provide.
       **Validation remediation:** the leased-retry fixtures now race `SecondStarted` against the
       real instance terminal status, not the inline `StartOrGetAsync` operation that can complete
@@ -354,10 +355,15 @@
       that the active manifest names each uncommitted record. **Post-approval hardening:** YY-1 is
       closed by using `--full-history` for both addition-history queries, including merged side-branch
       additions; ZZ-1 is closed by making Task 7.7 require immutable predecessor evidence and a reviewed
-      tombstone mechanism before any relocation.
+      tombstone mechanism before any relocation. **Second post-approval hardening:** AAA-1 is closed by
+      accepting repeated additions only when every addition commit reproduces the catalogued normalized bytes.
       **Review carry-forward:** Task 7.1 finding OO-1 is closed by naming the two exact harmonization
       planning paths whose pre-finalization TSV rows intentionally predate their final text.
-- [ ] 7.3 Reconcile active architecture, implementation, production-readiness, and developer guides
+      **Approval-evidence hardening:** an independently approved entry's evidence commit must be a
+      single-parent child of its exact reviewed target and must add the governing verdict. The
+      explicitly retroactive Task 5.3 owner authorization must still add its verdict and descend
+      from its reviewed target without falsifying direct-parent provenance.
+- [x] 7.3 Reconcile active architecture, implementation, production-readiness, and developer guides
       with durable pre-wait buffering, four self-routing route variants, durable `Publish`, exact
       role-specific hosting, fixed codec, application-facing absence of broad statistics, and
       provider/operator ownership of retained statistics and retention behavior. Correct 22 of the
@@ -366,6 +372,22 @@
       for the post-gate `developer-facing-surface` (18) record, this task must specifically reconcile
       `docs/specs/05-requirements-events-waits-timers.md` and
       `docs/specs/12-acceptance-criteria.md` with the approved Section 7B contract.
+      **Completed:** reconciled exactly 22 Task 3.1 sources to the approved Section 7B contract;
+      Task 7.4 retains the separate Orleans note and Task 7.5 retains recurring active-tree
+      enforcement. **Review remediation:** corrected caller-created inbound identity and
+      application-registered dispatcher ownership; restored unrelated timeout, collation,
+      statistics, dynamic-wait, and dispatch-hook obligations; moved AC-108/116/118/119/120
+      evidence to the real provider/product/hosting/engine tests; and pinned the LF-normalized
+      SHA-256 of every reconciled source through the guard-source-owned artifact digest.
+      Evidence:
+      `openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md`.
+      The infrastructure guard binds the exact 22-source list and normalized hashes, rejects known
+      stale Section 7B claims, and pins numbered requirements EV-001/010/030/031/045/060 plus
+      AC-104/108/113/116/117/118/119/120. Only the owner of a reviewed change that intentionally
+      edits one of these 22 sources may refresh its recorded hash. Task 7.4 or Section 8 may refresh
+      a row only in the same frozen target that intentionally edits the source and updates the
+      artifact row, guard-source artifact digest, and review evidence; neither may perform a
+      mechanical follow-up refresh for an earlier unreviewed edit.
 - [ ] 7.4 Preserve the superseded Orleans plan under the archive and maintain only one active future
       hosting boundary note using ordinary cold-capable `Wait`, the current event/outbox contract,
       role-specific hosting, exact tier ownership, and a new-change prerequisite. Correct the

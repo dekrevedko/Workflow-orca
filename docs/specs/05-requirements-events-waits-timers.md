@@ -7,10 +7,12 @@ persistence guarantees (see document 06).
 ## 5.1 Event model
 
 ### EV-001 Canonical event envelope
-Inbound events SHALL be normalized to a canonical envelope carrying at least: `EventId`
-(globally unique dedup identity), `EventName`, `CorrelationId`, payload, and an occurrence
-timestamp. Provider- or transport-specific shapes SHALL be adapted to the envelope at the
-boundary.
+A durable inbound event SHALL be represented by `WorkflowInboundEvent`: one contract name/version,
+a globally unique caller-created `EventId`, required `CorrelationId`, optional causation `EventId`,
+non-default UTC occurrence time, fixed-codec payload, and one closed `WorkflowEventRoute`. The route
+SHALL be direct instance, correlation, definition fanout, or start-or-deliver. Application code
+supplies the transport-independent envelope but never provider record identities, wait/fiber/scope
+identities, or continuation details.
 
 ### EV-002 CorrelationId as request-reply identity
 `CorrelationId` SHALL be treated as the identity linking a wait to its response across the
@@ -27,16 +29,19 @@ overload is permitted.
 
 ## 5.2 Routing (how events reach instances)
 
-### EV-010 Two first-release routing modes
-The engine SHALL support two routing entry points; routing intent is a caller decision
-expressed by the API entry point, never a flag on the envelope:
+### EV-010 Four self-routing durable routes
+`IWorkflowEventIngress` SHALL accept exactly four route variants:
 
-1. **Instance-targeted** — `DeliverToInstanceAsync` delivers to a known `InstanceId`.
-2. **Correlation-targeted** — `DeliverByCorrelationAsync` resolves the unique active wait by
-   `(DefinitionId, EventName, CorrelationId)`.
+1. **Direct** — one `InstanceId`;
+2. **Correlation** — one `(DefinitionId, EventName, CorrelationId)` wait route;
+3. **Definition fanout** — the complete current persisted nonterminal target set for one
+   `DefinitionId`, snapshotted atomically on first acceptance and reused on redelivery;
+4. **Start-or-deliver** — exact `DefinitionId`, `DefinitionVersion`, `StartIdempotencyKey`, and
+   fixed-codec workflow input distinct from the event payload.
 
-Definition-targeted fanout is explicitly deferred. It has no v1 route, alias, command, or
-placeholder; a future amendment must define a committed target snapshot and per-target dedup.
+An empty fanout snapshot is valid. Instances created later are excluded. Start-or-deliver SHALL
+atomically reserve or reuse a compatible pending start intent and reject incompatible bindings
+before any inbox ownership is created.
 
 ### EV-011 Correlation index
 The engine SHALL maintain a unique correlation index over active waits keyed by
@@ -46,14 +51,13 @@ including a second same-pair wait within one instance, SHALL fail deterministica
 on wait registration, match, and cancellation. In durable mode it SHALL be derivable from
 durable state, never dependent on hot memory for correctness.
 
-### EV-012 Typed delivery outcomes
-`IWorkflowEventClient` SHALL return `EventDeliveryResult` with one of `Accepted`, `Duplicate`,
-`NoActiveWait`, `InstanceTerminal`, or `EventConflict`. Zero correlation matches and a live
-instance target without a matching wait return `NoActiveWait`; ambiguity is prevented at
-registration by EV-011. Same target `EventId` plus the same normalized envelope is `Duplicate`;
-the same ID with different content is `EventConflict`. Invalid/default arguments remain
-exceptions. Delivery results do not expose internal command, wait-occurrence, fiber, scope,
-checkpoint, or provider-generation identities.
+### EV-012 Typed acceptance outcomes
+`IWorkflowEventIngress.AcceptAsync` SHALL return `WorkflowEventAcceptanceResult` with one of
+`Accepted`, `Duplicate`, or `Rejected(WorkflowEventAcceptanceRejection)`. Rejection is closed to
+`EventConflict`, `DirectInstanceNotFound`, `DirectInstanceTerminal`, `StartConflict`, and
+`FanoutLimitExceeded`. Invalid/default arguments remain exceptions. Acceptance results expose no
+provider record, wait occurrence, fiber, scope, or continuation identity. Only `Accepted` and
+`Duplicate` mean OrcaCore owns the event and allow an external source to acknowledge it.
 
 ### EV-013 Runtime keyed lookup; public bulk retrieval is deferred
 Correlation routing SHALL use the runtime-owned key `(DefinitionId, EventName, CorrelationId)`
@@ -88,30 +92,26 @@ wait matched by two events, is non-conforming.
 
 ## 5.4 Delivery acceptance, deduplication, and event safety
 
-### EV-030 Pre-wait delivery is non-consuming
-Instance-targeted and correlation-targeted delivery require a matching active wait. A live
-instance without that wait and a correlation key with no active match SHALL return
-`NoActiveWait`, SHALL NOT buffer the envelope, and SHALL NOT write accepted-delivery or dedup
-state. After the intended wait is observed, the caller SHALL redeliver the same `EventId` and
-identical normalized envelope. That redelivery is a first acceptance rather than `Duplicate`.
-V1 has no pending-event mailbox, pre-wait buffering guarantee, or arrival-order-independent
-consumption claim.
+### EV-030 Durable pre-wait acceptance is retained
+Durable ingress SHALL persist an accepted event even when no matching wait is active. The retained
+record SHALL remain claimable by a later matching wait without broker redelivery or a hot workflow
+instance, and SHALL have no automatic TTL. An unresolved retained record SHALL remain observable
+and progress through bounded failure handling to poison/dead-letter state rather than disappear.
+Ephemeral waits are process-local and make no durable acceptance or acknowledgement promise.
 
-### EV-031 Deduplication by EventId
-After a target has accepted an event, duplicate delivery of the same `EventId` to that target
-SHALL NOT cause double resume or continuation. The normalized envelope fingerprint is retained:
-identical redelivery returns `Duplicate`, while changed content under the same ID returns
-`EventConflict`. `NoActiveWait` is non-consuming and creates no dedup record, so same-ID
-redelivery after wait registration remains eligible for first acceptance. Accepted/consumed
-event IDs SHALL be tracked in runtime state; in durable mode dedup SHALL survive restart.
+### EV-031 Global identity before routing, per-target fanout ownership
+The durable store SHALL bind each `EventId` to the full normalized inbound-envelope fingerprint
+before evaluating route or target state. Identical redelivery returns `Duplicate`; changed content
+returns `Rejected(EventConflict)`, including after target progression. Definition fanout SHALL
+create stable per-target inbox ownership under the one retained membership snapshot, and each target
+SHALL deduplicate and progress independently.
 
-### EV-032 Transactional event consumption (no event loss)
-An event is consumed only when (1) it matched a wait AND (2) the resulting transition is
-committed. Once accepted, its durable inbox/dedup record SHALL remain available until that
-transition commits. A crash between match and commit SHALL leave the wait `Active` and the
-accepted event re-matchable. `NoActiveWait` creates no inbox/dedup record and therefore requires
-source redelivery after the wait exists. External event sources SHALL NOT acknowledge an
-accepted event before the consuming transition is durably committed (durable mode).
+### EV-032 Transactional ownership and consumption (no event loss)
+Acceptance SHALL atomically establish durable inbox/start-intent ownership before returning
+`Accepted`. Matching and the resulting workflow transition commit atomically with inbox progression.
+A crash before the transition leaves the accepted record re-matchable; a crash after commit cannot
+double-apply it. External sources may acknowledge after `Accepted` or `Duplicate`, not after the
+later consuming transition. Permanent inability to resolve or apply remains observable poison.
 
 ## 5.5 Wait semantics
 
@@ -124,11 +124,10 @@ change workflow meaning and is not author-configurable. `WaitLong` is removed wi
 tombstone, or forced-path support.
 
 ### EV-042 Wake-up semantics are explicit
-The product documentation SHALL state exactly what a durable wait/timer does and does not
-guarantee (durable subscription with next-eligible wake-up; missed intermediate occurrences
-are not buffered or replayed) so users never assume a mailbox that does not exist. An event sent
-before the wait returns non-consuming `NoActiveWait`; the source observes wait registration and
-redelivers the same `EventId`/normalized envelope.
+Documentation SHALL distinguish a durable wait from ingress ownership. A durable wait records a
+subscription and next-eligible wake-up; durable ingress separately retains accepted pre-wait events
+until a matching wait claims them. This is not a promise to replay arbitrary historical occurrences
+or broker traffic. Ephemeral waits remain process-local.
 
 ### EV-043 Repeated pairs have signal-stream semantics
 Each loop iteration creates a fresh `WaitId`, but `(EventName, CorrelationId)` identifies a
@@ -189,11 +188,16 @@ and cleanup/quarantine decisions. Its winner commits terminal `TimedOut` with
 runtime-owned obligations, and suppresses joins/merges. Neither timeout waits forever for a
 token-ignoring body or proves protected external work stopped (MG-064).
 
-## 5.7 Deferred publication
+## 5.7 Durable workflow-authored publication
 
-### EV-060 Workflow-authored publication is deferred
-`Publish` has no first-release builder member, `StepResult` variant, alias, obsolete tombstone,
-or positive fixture. Runtime-owned continuation, lifecycle/status, timer, and internal DAG
-records may still use the durable outbox. A future workflow-publication amendment must define
-typed payload/destination, stable event identity, commit boundary, dispatch, and dedup semantics
-before adding any authoring surface.
+### EV-060 Publish uses the transactional outbox
+Durable sequential authoring SHALL expose `Publish` only at the approved durable placements. The
+author supplies the event contract/payload and optional selectors; runtime owns event, causation,
+correlation, origin, and time identities. The fixed-codec payload and schema identity SHALL commit
+atomically with workflow state as a `workflow-event` outbox record.
+
+`IWorkflowEventDispatcher.DispatchAsync(WorkflowOutboundEvent, CancellationToken)` SHALL receive
+only public workflow events and return the closed success/retryable/permanent result union. Internal
+continuations and provider `OutboxWrite` records SHALL never cross that boundary. Retry SHALL reuse
+the committed event identity, cancellation SHALL release the claim, and permanent failure SHALL
+record stable poison code/detail.

@@ -56,9 +56,10 @@ caller-cancellation-local contract.
 ### MG-010 Exact v1 command and event set
 Each `WorkflowInstanceHandle` SHALL expose `RequestCancellationAsync` and `TerminateAsync`.
 Cancellation returns `Requested`, `AlreadyRequested`, or `AlreadyTerminal`; termination returns
-`Terminated` or `AlreadyTerminal`. `IWorkflowEventClient` separately exposes only instance and
-correlation delivery from EV-010/012. Definition handles expose typed `StartOrGetAsync` in both
-modes, with durable mode providing the restart-safe binding.
+`Terminated` or `AlreadyTerminal`. Durable `IWorkflowEventIngress` separately accepts the closed
+direct/correlation/definition-fanout/start-or-deliver route union from EV-010/012. Definition
+handles expose typed `StartOrGetAsync` in both modes, with durable mode providing restart-safe
+binding.
 
 ### MG-011 Durable management commands are deferred
 Public `Pause`, `Resume`, failed-instance/step management `Retry`, `GetHistory`, `Archive`, and
@@ -103,11 +104,15 @@ consistent with actual state (no completion without its event; no event without 
 ## 9.4 Observability and statistics
 
 ### MG-030 Operational statistics
-Host/operator projections SHALL support grouped operational queries: counts by definition, version, and
-status; active/waiting/failed/timed-out/terminated counts; active waits by event name;
-stuck steps/instances; oldest running/suspended/step ages. Exposed via the management
-and telemetry integration, backed by projections in durable mode. A public application
-`Statistics()` member is not part of the v1 instance-handle surface.
+Broad application enumeration/count/statistics SHALL remain absent from first-release handles.
+Provider/operator services SHALL expose retained operational statistics through
+`IWorkflowOperationalStore`: groups by definition/version/status, active waits by definition/event
+name, stuck instances by definition, and provider-authoritative pressure for active instances,
+waits, streams, checkpoints, continuation records, and external outbox records. The grouped and
+pressure snapshots are safe for periodic host observation; the port does not promise age buckets or
+raw instance enumeration. This advanced port is not a fluent application query surface. Retention, archive,
+purge, and poison maintenance belong to `IWorkflowProviderMaintenanceStore` under operator policy;
+they do not approve public lifecycle commands.
 
 ### MG-031 Pressure metrics
 Durable statistics SHALL include history/stream growth, checkpoint lag, outbox backlog, and

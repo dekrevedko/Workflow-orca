@@ -151,10 +151,12 @@ compilation.
   loops. The options are not advertised as `IConfiguration`-binder DTOs. A catch-all
   `AddOrcaCore`, separate hosted-service toggle, implicit mode selection, or codec replacement
   hook is forbidden.
-- Ephemeral and durable engine roles are mutually exclusive in one service provider. The selected
-  engine role owns its definition registry, execution services, and one `IWorkflowEventClient`
-  routing store/implementation. Callback-only durable ingress owns persistence and continuation
-  handoff without registering a definition registry, worker, timer/reconciler, or DAG coordinator.
+- Ephemeral and durable engine roles are mutually exclusive in one service provider. Each selected
+  engine role owns its definition registry and execution services. Durable-engine and callback-only
+  roles expose `IWorkflowEventIngress`; the callback-only role owns event persistence and
+  continuation handoff without registering a definition registry, worker, timer/reconciler, or DAG
+  coordinator. Outbound workflow events use `IWorkflowEventDispatcher`, never the internal
+  continuation dispatcher.
 - Workflow/DAG registration and start return inspectable closed result unions. Their typed
   `GetHandleOrThrow()` helpers are only cast-free success projections. Output and DAG-terminal
   waits are notification-driven subscribe-then-recheck operations; they never poll, and caller
@@ -182,8 +184,13 @@ tier is an ordinary workflow-application reference:
   Newly committed outbox writes start with attempt zero and travel atomically in `ProviderCommitBatch`.
 - `IWorkflowProjectionStore` — apply commit projections, get one exact instance projection, find
   exact active-wait routing candidates, and list trusted lease-recovery candidates. Public workflow
-  instance enumeration, bulk management, history, pending-event mailboxes, and statistics remain
-  deferred or absent.
+  instance enumeration, bulk management, and history remain deferred or absent; durable inbox
+  records, including accepted pre-wait events, are provider-owned runtime state rather than an
+  application mailbox.
+- `IWorkflowOperationalStore` — refresh stuck-state observations and return provider/operator
+  statistics without exposing broad application enumeration.
+- `IWorkflowProviderMaintenanceStore` — apply provider-owned retention, archive, purge, and poison
+  maintenance behind operator policy; it does not create public workflow archive/purge commands.
 - `ITimerScheduler` — schedule durable wake-ups, claim due `FireTimerCommand` records, and complete
   or release one claim.
 - `IDurableResourceGovernanceStore` — load one serialized governance aggregate per configured

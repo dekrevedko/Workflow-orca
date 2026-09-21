@@ -131,15 +131,15 @@ through OrcaCore `Wait` routing:
 - persist only compact Job reference/outcome DTOs in workflow state; keep Pod objects, logs,
   credentials, manifests, and large artifacts external.
 
-Delivery before the target wait is active returns non-consuming `NoActiveWait`, writes no
-mailbox/inbox/dedup state, and permits the same `EventId` to be redelivered as its first accepted
-event after wait registration. Once accepted, inbox deduplication is per target `InstanceId` by
-`EventId`: the same normalized envelope is a duplicate, while reusing the ID with different content
-is an `EventConflict`. Correlation routing
+The watcher submits the normalized report through durable `IWorkflowEventIngress`, normally with a
+correlation route. `Accepted` or `Duplicate` means OrcaCore owns the event and the watcher may
+acknowledge its source. Acceptance before the target wait exists persists the event for later claim;
+it does not require broker redelivery or a hot workflow instance. Global `EventId` identity checks
+the full normalized envelope before routing, and changed content conflicts. Correlation routing
 matches exactly one active wait by `(DefinitionId, EventName, CorrelationId)`; a second active wait
 for that key fails before parking. The companion must use occurrence-specific correlation values
-when a loop can have more than one concurrent logical wait. Definition-targeted fanout is not a
-v1 delivery route.
+when a loop can have more than one concurrent logical wait. Definition fanout is also a current
+durable route, but the one-job watcher normally uses correlation routing.
 
 Do not delete a completed Job through `ttlSecondsAfterFinished` until the terminal outcome has
 been durably accepted or the companion can reconstruct it elsewhere. Otherwise a watcher

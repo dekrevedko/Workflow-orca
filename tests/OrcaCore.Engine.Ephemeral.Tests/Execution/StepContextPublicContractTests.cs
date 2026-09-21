@@ -132,6 +132,7 @@ public sealed class StepContextPublicContractTests
     }
 
     [Fact]
+    [Trait("AC", "AC-116")]
     public async Task TypedDynamicWait_IsRegisteredAndResumedThroughItsDescriptor()
     {
         using var provider = CreateProvider();

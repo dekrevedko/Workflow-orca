@@ -52,22 +52,20 @@ flowchart TD
 Branches cannot mutate the parent or one another. Failure, cancellation, or deadline termination
 suppresses the merge.
 
-## Wait and event delivery
+## Wait and durable ingress boundary
 
 ```mermaid
 sequenceDiagram
-    participant W as Workflow instance
-    participant R as Active-wait registry
-    participant C as IWorkflowEventClient
-    W->>R: Register EventName + CorrelationId
-    W-->>W: Park and release execution path
-    C->>R: Deliver by instance or correlation
-    alt one matching active wait
-        R-->>W: Resume with detached EventEnvelope
-        W-->>W: First resumed step observes Event
-    else no active wait
-        R-->>C: NoActiveWait; EventId remains reusable
-    end
+    participant E as Ephemeral workflow
+    participant W as Process-local wait registry
+    participant I as Durable IWorkflowEventIngress
+    participant D as Durable inbox/continuation
+    E->>W: Register EventName + CorrelationId
+    E-->>E: Park and release execution path
+    Note over E,W: Ephemeral wait has no durable acknowledgement promise
+    I->>D: Accept direct/correlation/fanout/start-or-deliver event
+    D-->>I: Accepted or Duplicate after durable ownership
+    D-->>D: Claim when the matching wait becomes available
 ```
 
 ## Item context

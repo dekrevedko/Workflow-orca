@@ -16,6 +16,7 @@ public sealed class WorkflowEventDispatcherTests
     private const string MaterializationFailureCode = "workflow-event-materialization-failed";
 
     [Fact]
+    [Trait("AC", "AC-120")]
     public async Task BrokerAdapterExamples_AcknowledgeOnlyDurablyOwnedInboundEvents()
     {
         var contract = WorkflowEventContract.Create(
@@ -144,6 +145,7 @@ public sealed class WorkflowEventDispatcherTests
     }
 
     [Fact]
+    [Trait("AC", "AC-119")]
     public async Task Adapter_RejectsInternalContinuationBeforeInvokingTheApplication()
     {
         var application = new RecordingDispatcher(new WorkflowEventDispatchResult.Succeeded());
@@ -231,6 +233,7 @@ public sealed class WorkflowEventDispatcherTests
     }
 
     [Fact]
+    [Trait("AC", "AC-119")]
     public async Task PublicOutboxPump_RetryRedispatchesTheSameOutboundEventIdentity()
     {
         var services = new ServiceCollection();

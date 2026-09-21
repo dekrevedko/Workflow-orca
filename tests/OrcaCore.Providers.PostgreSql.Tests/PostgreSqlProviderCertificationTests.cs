@@ -53,6 +53,7 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
     }
 
     [Fact]
+    [Trait("AC", "AC-108")]
     public Task DefinitionFanoutInbox_UsesAtomicStablePerTargetOwnership() =>
         DefinitionFanoutInboxCertification.RunAsync(CreateFixture());
 

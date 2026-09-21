@@ -25,10 +25,10 @@ OrcaCore is a library (not a platform, not a hosted service) with:
 - **One v1 semantic kind, two explicit modes** — workflow is the first-release definition
   kind; **ephemeral** is in-memory and **durable** is persistence-backed/restart-safe. Saga is
   documented future work, not a v1 axis or placeholder API.
-- **First-class waits and events** — suspension, correlation, resume, active-wait matching,
-  accepted-event deduplication, and non-consuming pre-wait rejection are core runtime semantics,
-  not conventions layered on a message broker. V1 does not buffer events that arrive before a
-  matching wait.
+- **First-class waits and events** — suspension, correlation, resume, active-wait matching, and
+  accepted-event deduplication are core runtime semantics, not broker conventions. Durable ingress
+  owns accepted events before a matching wait exists and later claims them without source
+  redelivery; ephemeral waits remain process-local and make no durable acknowledgement promise.
 - **Pluggable infrastructure** — persistence, message dispatch, and timers sit behind provider
   contracts; no hard dependency on a specific database or broker. Payload encoding is the fixed,
   nonreplaceable v1 codec `orcacore-json-v1`, not a provider choice.
@@ -91,8 +91,9 @@ relearning the model.
 - A generic v1 external-job or public child-workflow authoring surface. Ordinary typed steps,
   waits, and the internal DAG child protocol cover the first scheduler use case while those
   generic contracts remain deferred.
-- Workflow-authored `Publish` or self-`Cancel`, definition-targeted event fanout, public
-  pause/resume, failed-instance retry, history query, archive, or purge in the first release.
+- Workflow-authored self-`Cancel`, public pause/resume, failed-instance retry, history query,
+  archive, or purge in the first release. Durable workflow-authored `Publish` and definition
+  fanout are current capabilities.
 - Saga/compensation, winner-race (`WhenFirst`), nested `Parallel`, nested dynamic `ForEach`,
   nested `While`, durable lambda steps, and definition-wide retry in the first release.
 - Production-ready multi-node distributed execution in early phases. The design must not

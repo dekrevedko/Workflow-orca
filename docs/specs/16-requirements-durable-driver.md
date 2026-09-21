@@ -311,18 +311,21 @@ The lane host SHALL schedule an interpreter invocation when:
 ### DR-032 Exact application facade
 The durable engine SHALL expose `IWorkflowDefinitionRegistry`, typed durable definition handles
 with `StartOrGetAsync`, typed instance handles with snapshot/root-state/output/cancellation/
-termination, and `IWorkflowEventClient` with only instance-targeted and correlation-targeted
-delivery. Definition fanout, `DurableManagement`, pause/resume, rearm, failed-instance retry,
-history, archive, and purge are absent. Public signatures SHALL match document 17 rather than a
-provisional monolithic `DurableWorkflowRuntime` facade.
+termination, `IWorkflowEventIngress` with the closed direct/correlation/definition-fanout/start-or-
+deliver route union, and the application-facing `IWorkflowEventDispatcher` port for public outbound
+events. The durable hosting assembly owns the port type; the application registers its
+implementation and the engine consumes it. Broad management, pause/resume, rearm, failed-instance
+retry, history, archive, and purge remain absent. Public signatures SHALL match document 17 rather
+than a provisional monolithic runtime facade.
 
 ### DR-033 Role-based host lifecycle integration
-`AddOrcaCoreDurableEngine(DurableEngineHostOptions)` SHALL register the lane driver, ingress,
-timer/reconciliation loops, and bounded workers against exactly one complete certified provider
-role set. Callback-only `AddOrcaCoreDurableEventIngress()` registers inbox/continuation handoff
-and `IWorkflowEventClient` but no definitions or execution workers. Graceful drain finishes the
-current commit, admits nothing new, and uses `TimeProvider` throughout. There is no separate
-`AddOrcaCoreHostedServices` toggle or catch-all mode registration.
+`AddOrcaCoreDurableEngine(DurableEngineHostOptions)` SHALL register the lane driver,
+`IWorkflowEventIngress`, timer/reconciliation loops, and bounded workers against exactly one
+complete certified provider role set, and SHALL consume the application-registered
+`IWorkflowEventDispatcher` when an authored definition publishes. Callback-only
+`AddOrcaCoreDurableEventIngress()` registers ingress persistence and continuation handoff but no
+definitions or execution workers. Graceful drain finishes the current commit, admits nothing new,
+and uses `TimeProvider` throughout. There is no separate hosted-services toggle or catch-all role.
 
 ### DR-034 Restart-safe continuation signal
 Every commit that leaves an instance runnable SHALL produce a durable continuation signal
@@ -385,24 +388,22 @@ conclusive stale/no-op clears the unresolved failure count. Poison/quarantine di
 record the durable attempt count and failed position required by DR-017. Stuck detection
 (MG-040) includes instances stranded by operational faults through host/operator projections.
 
-### DR-037 Kind-partitioned outbox claims (continuation isolation)
-DR-034 places continuation records in the certified outbox under a dedicated `continue`
-record kind. `OutboxWrite` already carries a `Kind` discriminator, but the current claim
-port (`IWorkflowOutboxStore.ClaimAsync` / `OutboxClaimRequest`) and the outbox pump claim
-records **without a kind selector**, so external dispatchers and the continuation pump
-would compete for the same records. To make DR-034 safe, the outbox contract SHALL provide
-kind-partitioned claiming:
+### DR-037 Kind-partitioned outbox claims (continuation and workflow-event isolation)
+DR-034 places continuation records under `continue`; durable authored `Publish` places public
+events under `workflow-event`. `OutboxClaimRequest` SHALL carry a kind selector so the continuation
+pump, internal dispatcher, and public workflow-event pump claim disjoint record families:
 
 - `OutboxClaimRequest` SHALL carry a kind selector (an include set or an exclude set) and
   providers SHALL honor it, claiming only matching records. Providers SHOULD index on
   `Kind` so a partitioned claim does not scan the whole outbox.
-- The **external message dispatcher pump** (`OrcaCoreOutboxPumpHostedService`) SHALL claim
-  with the `continue` kind **excluded**, so it never delivers internal continuation records
-  to a transport. `IMessageDispatcher` SHALL never receive a `continue` record.
+- The **internal message dispatcher pump** SHALL exclude both `continue` and `workflow-event`;
+  `IMessageDispatcher` SHALL never receive either record family.
+- The **public workflow-event pump** SHALL claim only `workflow-event`, materialize the fixed-codec
+  payload/schema identity, and pass `WorkflowOutboundEvent` to `IWorkflowEventDispatcher`.
 - The **continuation pump** (DR-034) SHALL claim with the selector restricted to the
   `continue` kind only, and dispose each claim according to the DR-034 outcome table.
-- The two pumps therefore operate on disjoint kind partitions of one outbox store; no new
-  provider port is introduced (the DR-034 decision), only the claim selector is added.
+- All pumps therefore operate on disjoint kind partitions of one outbox store; no new provider
+  storage port is introduced.
 
 This closes DR-OQ-2 in favor of the outbox-kind mechanism; a dedicated runnable-queue port
 remains a future performance escape hatch only (see 16.8).
@@ -688,10 +689,10 @@ Trait format: `[Trait("AC", "DR-AC-0xx")]`, consistent with document 12.
   for every shipped provider; the external pump never passes `continue` to
   `IMessageDispatcher`, while the continuation pump never claims external records
   (DR-034/037).
-- **DR-AC-030** Complete public facade: typed registry/definition/instance handles plus
-  instance/correlation `IWorkflowEventClient` flows drive durable definitions with inbox dedup.
-  Definition fanout and deferred management are absent; no test-issued kernel commands are used
-  (DR-003/032/061).
+- **DR-AC-030** Complete public facade: typed registry/definition/instance handles plus the exact
+  four-route `IWorkflowEventIngress` and workflow-authored `Publish`/`IWorkflowEventDispatcher`
+  surface drive durable definitions with retained inbox ownership. Deferred management remains
+  absent; no test-issued kernel commands are used (DR-003/032/061).
 - **DR-AC-031** Telemetry and options: a hosted driver exports every DR-050 instrument with
   the required dimensions; internal and external backlog gauges differ correctly. Invalid
   worker/pump/retry/budget options fail startup, while valid overrides reach the running host

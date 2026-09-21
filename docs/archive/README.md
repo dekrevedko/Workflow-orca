@@ -18,9 +18,10 @@ approval baseline.**
    both historical-document roots are immutable; only this active archive index and the reusable
    review template are mutable. Add every new review or archive record to `appendOnlyRecords`. During
    its reviewed freeze, set `activeFreezeManifestPath` to the manifest that names every uncommitted
-   record. The guard binds each record to that active freeze and, after checkpoint, to its first Git
-   addition. Every committed post-baseline path must remain present and cataloged; deletion or
-   relocation first requires an explicit reviewed tombstone mechanism. Update this index to route
+   record. The guard binds each record to that active freeze and, after checkpoint, requires every Git
+   addition of that path to reproduce the catalogued normalized bytes. Re-adding identical content is
+   allowed; any differing addition fails. Every committed post-baseline path must remain present
+   and cataloged; deletion or relocation first requires an explicit reviewed tombstone mechanism. Update this index to route
    readers to the superseding record instead of rewriting the historical file.
 
 For current work use [`../normative-source-map.md`](../normative-source-map.md), which names every

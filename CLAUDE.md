@@ -128,8 +128,8 @@ terminal durable-root `ContinueAsNew`, and scoped durable `AcquireResources`.
 **Deferred — absent from v1 public assemblies, but *must stay documented*:** public
 `RunExternalJob`, Saga, `WhenFirst`, public `RunChild`/`RunChildren`, nested
 `Parallel`/`While`/`ForEach`, durable lambda steps, definition-wide retry, management retry,
-pause/resume/archive/purge, workflow-authored `Publish`/`Cancel`, and definition-targeted event
-fanout.
+pause/resume/archive/purge, and workflow-authored `Cancel`. Durable workflow-authored `Publish`
+and definition-targeted event fanout are current Section 7B capabilities, not deferred members.
 
 Deferred and removed get **identical code treatment** (absent) and **opposite documentation
 treatment**. A deferred capability keeps its entry, rationale, and re-entry criteria in the registry

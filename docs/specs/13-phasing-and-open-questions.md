@@ -26,11 +26,10 @@ obsolete tombstones, and placeholder members are not retained.
   metadata; named DI-created steps in both modes and lambda steps in ephemeral only.
 - Root `If`/`While`, nested `If`, `Wait`, `Delay`, exact max-attempt/fixed-delay retry, per-attempt
   `WithStepTimeout`, and whole-workflow `CompleteWithin`.
-- Stable `StepOperationId`/`AttemptNumber`, serialized instance execution, active-wait event
-  routing, accepted-event deduplication with non-consuming `NoActiveWait`, and runtime-owned
-  execution quanta. V1 has no pre-wait mailbox.
-- Fixed `orcacore-json-v1`, codec-detached attempt state/`ReplaceState`, two event routes with
-  unique active-wait registration and signal-stream loop semantics.
+- Stable `StepOperationId`/`AttemptNumber`, serialized instance execution, durable pre-wait event
+  ownership, global event identity, stable fanout membership, and runtime-owned execution quanta.
+- Fixed `orcacore-json-v1`, codec-detached attempt state/`ReplaceState`, the closed four-route
+  ingress union, unique active-wait registration, and signal-stream loop semantics.
 - Durable streams/checkpoints/projections, cold-capable ordinary waits, restart-safe
   continuation, version/structural-fingerprint binding, typed output, exact v1 instance handles,
   and deadline-preserving continue-as-new.
@@ -168,9 +167,11 @@ positive compile fixture, or implementation task that pretends the contract is a
 | Public pause/resume | lifecycle/admission, in-flight attempt, wait/timer buffering, restart, lease interaction |
 | Public archive/purge | authorization, retention/reference safety, provider certification |
 | Additional durable storage providers beyond PostgreSQL and SQL Server, including DynamoDB | complete current provider-port coverage, greenfield first-create schema, restart/competing-host certification, retention/poison parity, package ownership and dependency boundaries |
-| Workflow-authored `Publish` | payload/destination, event identity, commit/dispatch/dedup contract |
 | Workflow-authored `Cancel` | target, terminal outcome, descendant/lease cleanup, authorization |
-| Definition-targeted event fanout | committed target set, per-target dedup, retry/late-registration rule |
+
+Durable workflow-authored `Publish` and definition-targeted event fanout are current Section 7B
+capabilities. They use the transactional workflow-event outbox and stable fanout target ownership,
+respectively, and are not future-registry entries.
 
 ### Removed concepts
 

@@ -21,11 +21,12 @@ compiler/execution kernel in `OrcaCore.Core`:
 
 1. **Ephemeral** — the internal ephemeral engine executes registered definitions in process;
    applications compose it through `AddOrcaCoreEphemeralEngine`, `IWorkflowDefinitionRegistry`,
-   typed handles, and `IWorkflowEventClient`. Runtime state is lost when the host exits.
-2. **Durable** — the internal durable runtime persists
-   aggregate events, checkpoints, waits, timers, inbox/outbox records, and
-   projections through provider ports. The durable driver advances a workflow
-   segment until it completes or yields a restart-safe continuation.
+   and typed handles. Runtime state and waits are lost when the host exits; no durable external
+   ingress acknowledgement is exposed.
+2. **Durable** — the internal durable runtime persists aggregate events, checkpoints, waits, timers,
+   inbox/outbox records, and projections through provider ports. `IWorkflowEventIngress` accepts
+   direct, correlation, definition-fanout, and start-or-deliver routes; the durable driver advances
+   a workflow segment until it completes or yields a restart-safe continuation.
 
 PostgreSQL, SQL Server, and the development/test in-memory provider implement the current
 durable-provider source roles. SQL Server is the third first-release provider and implements the
@@ -63,9 +64,10 @@ job projects depend outward and never appear in an OrcaCore signature/dependency
 
 Each step attempt runs on a codec-detached copy of committed state and can replace that copy via
 `StepContext<TState>.ReplaceState`; only the winning attempt commits. The first release fixes the
-certified workflow-state format to `orcacore-json-v1`. Durable event dedup is per target instance
-and event ID, while correlation routing permits exactly one active wait per
-`(DefinitionId, EventName, CorrelationId)`.
+certified workflow-state format to `orcacore-json-v1`. Durable event identity is global by
+`EventId` plus the full normalized-envelope fingerprint before route evaluation. Accepted events
+remain provider-owned until applied or observably poisoned; definition fanout freezes one stable
+current nonterminal target set and deduplicates independently per target.
 
 Microsoft hosting uses role-specific owners and entry points: `OrcaCore.Engine.Ephemeral` owns
 `AddOrcaCoreEphemeralEngine`; `OrcaCore.Durable.Hosting` owns `AddOrcaCoreDurableEngine` and
@@ -74,7 +76,11 @@ callback-only `AddOrcaCoreDurableEventIngress`; `OrcaCore.Providers.InMemory` ow
 `AddOrcaCorePostgreSqlDurableProvider`; `OrcaCore.Providers.SqlServer` owns production
 `AddOrcaCoreSqlServerDurableProvider`; and `OrcaCore.Dag.Hosting` owns `AddOrcaCoreDag`. Options
 are programmatically constructed, copied, and validated without a binder facade. There is no v1
-catch-all registration or separate hosted-service switch.
+catch-all registration or separate hosted-service switch. Workflow-authored `Publish` commits
+through the durable outbox and reaches `IWorkflowEventDispatcher`; internal continuations never do.
+Applications receive no broad workflow enumeration/statistics or public archive/purge contract.
+Provider/operator roles own statistics and retention through `IWorkflowOperationalStore` and
+`IWorkflowProviderMaintenanceStore`.
 
 ## Code map
 

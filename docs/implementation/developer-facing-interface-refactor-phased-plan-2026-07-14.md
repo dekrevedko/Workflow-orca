@@ -12,18 +12,14 @@
 
 **Review-E remediation revision:** 2026-07-19
 
-**Status:** Sections 4, 5, and 6, including revision-8 remediation and the greenfield ownership-DDL
-scanner remediation, are independently approved. Section 7 was independently approved and
-checkpointed as `50254d08175431896d580ecfcc93d8e49e1c2ec7`. Post-checkpoint Section 7A closes the
-non-event public-surface/test-evidence gap; pending Section 7B proposes the replacement durable
-messaging and application-catalog contract. Task 7.17d now proposes a new complete current-port
-SQL Server provider, expanding the approved target to 12 packages and three durable providers only
-after its pre-source amendment receives independent approval. These items must be completed, refrozen together,
-independently approved, and checkpointed. The separate `harmonize-downstream-capability-specs`
-change remains pending and must first remove its conflicting event ownership before planning
-approval and canonical synchronization. Task 8.0 and all Section 8 source work remain blocked until
-the combined Section 7A/7B target and final non-conflicting harmonized canonical/docs target are
-independently approved and checkpointed.
+**Status:** Sections 4 through 7, including Section 7A/7B remediation and the complete SQL Server
+provider re-entry, are independently approved and checkpointed. The approved target contains 12
+packages, three complete durable providers, retained pre-wait ingress, four self-routing event
+routes, durable workflow-authored `Publish`, exact role-specific hosting, the fixed codec, and
+provider/operator maintenance ownership. The separate `harmonize-downstream-capability-specs`
+change has synchronized its canonical deltas and is reconciling the remaining active guides. Task
+8.0 and all Section 8 source work remain blocked until that final harmonized target is independently
+approved and checkpointed.
 
 **Primary change:** [`reshape-developer-facing-interfaces`](../../openspec/changes/reshape-developer-facing-interfaces/)
 
@@ -149,7 +145,8 @@ Task 4.0 must not start until the complete retargeted packet is independently ap
    package manifest: `OrcaCore`, `OrcaCore.Core`, `OrcaCore.Engine.Ephemeral`,
    `OrcaCore.Runtime.Protocol`, `OrcaCore.Provider.Abstractions`, `OrcaCore.Engine.Durable`,
    `OrcaCore.Durable.Hosting`, `OrcaCore.Providers.InMemory`,
-   `OrcaCore.Providers.PostgreSql`, `OrcaCore.Dag`, and `OrcaCore.Dag.Hosting`. Treat
+   `OrcaCore.Providers.PostgreSql`, `OrcaCore.Providers.SqlServer`, `OrcaCore.Dag`, and
+   `OrcaCore.Dag.Hosting`. Treat
    `OrcaCore` as the primary application package, not a meta-package, and enforce the exhaustive
    direct-edge/assembly-owner table.
 2. Retarget root/nested compile fixtures to staged typed workflow references, input/output,
@@ -165,9 +162,9 @@ Task 4.0 must not start until the complete retargeted packet is independently ap
    cancellation. Treat an empty item snapshot as valid and suppress joins/merges when an ancestor
    cancellation, termination, or workflow deadline wins.
 5. Replace the external-job/split-host guard journey with stable `StepOperationId`, step and
-   workflow deadlines, a typed create-or-observe step, normal `Wait`, event deduplication including
-   non-consuming pre-wait `NoActiveWait`, role-owned `IWorkflowEventClient` routing, and
-   definition-owner continuation.
+   workflow deadlines, a typed create-or-observe step, normal `Wait`, durable pre-wait retention,
+   role-owned `IWorkflowEventIngress` routing, and definition-owner continuation. Only `Accepted`
+   or `Duplicate` authorizes source acknowledgement.
 6. Guard typed DAG run input, `DurableWorkflowRef<TInput,TOutput>`, direct-dependency `OutputOf`,
    and one internal durable child instance per node. Opaque mapping access is validated at runtime
    after dependencies succeed and before mapped-input commit or child start; invalid access or a
@@ -234,10 +231,9 @@ provisional API merely because source currently implements it.
 7. Implement structural `Wait`, `Delay`, root/nested `If`, root-only `While`, step decorators,
    `WithStepTimeout`, and root `CompleteWithin`; use runtime `TimeProvider`, not Polly, for
    orchestration semantics.
-8. Implement instance-targeted event dedup by `(InstanceId, EventId)` and unique correlation
-   routing by `(DefinitionId, EventName, CorrelationId)`; reject an ambiguous active wait before
-   parking, ensure pre-wait `NoActiveWait` does not consume `EventId`, and keep
-   definition-targeted fanout absent.
+8. Implement global `EventId` plus normalized-envelope fingerprint identity before route state;
+   accept direct, correlation, definition-fanout, and start-or-deliver routes; persist accepted
+   pre-wait ownership; snapshot fanout membership once; and deduplicate each retained target.
 9. Delete `WaitLong`, public/author `Yield`, mixed-mode/fallback builders, definition-wide
    retry, and every alias/tombstone/placeholder for deferred members.
 10. Govern every mutable façade through one phase- and scope-bound authoring session; freeze the
@@ -380,10 +376,10 @@ protocol identities in advanced packages.
 5. Align asynchronous ephemeral/durable management, detached committed root state, typed
    outputs, authored wait projections, lifecycle controls, and generic protected-work stop
    confirmation.
-6. Make ephemeral and durable engine roles mutually exclusive in one service provider. Each
-   selected engine owns its definition registry, execution services, and `IWorkflowEventClient`
-   routing. Keep callback-only durable ingress limited to event persistence and continuation
-   handoff. Copy/validate programmatically constructed immutable options immediately, reject
+6. Make ephemeral and durable engine roles mutually exclusive in one service provider. Durable engine and callback-only roles own
+   `IWorkflowEventIngress`; only the durable engine owns definitions and workers. Route
+   workflow-authored outbound events through `IWorkflowEventDispatcher`, isolated from internal
+   continuations. Copy/validate programmatically constructed immutable options immediately, reject
    conflicting duplicates, and expose no configuration-binder compatibility claim.
 7. Assign and certify local package IDs, pack every documented tier, and run clean consumers
    from exact version `0.0.0-phase0` in `artifacts/phase0-packages` through `PackageReference`
@@ -581,9 +577,9 @@ Current disposition:
   the checkpoint commit `50254d08175431896d580ecfcc93d8e49e1c2ec7`; that historical checkpoint count
   remains provenance, while completed task 7.17d expanded the target to 12 packages by adding a
   new complete SQL Server provider rather than reviving the deleted provisional project;
-- Section 7A now closes the post-checkpoint exact-API-baseline and test-attribution findings, while
-  the pending Section 7B amendment owns the proposed durable messaging and application-catalog
-  contract. Neither is frozen or approved. The harmonization change must first discard the
-  superseded event-contract ownership, then complete planning approval, canonical synchronization,
-  final-target review, and checkpoint. Task 8.0 remains open, and no Section 8 implementation is
-  authorized until the combined 7A/7B gate and the non-conflicting harmonization gate both close.
+- Section 7A/7B is complete and checkpointed: it owns the exact public baseline, durable
+  self-routing ingress, retained pre-wait events, fanout/start-or-deliver, workflow-authored
+  `Publish`, fixed-codec durable payloads, exact host roles, and provider/operator operational
+  ownership. The harmonization change has synchronized canonical requirements and must still finish
+  active-guide reconciliation, final review, and checkpoint. Task 8.0 remains open; no Section 8
+  implementation is authorized until that harmonization gate closes.

@@ -144,6 +144,7 @@ public sealed class StepContextDurabilityTests
     }
 
     [Fact]
+    [Trait("AC", "AC-116")]
     public async Task TypedDynamicWait_SurvivesDurableRegistrationAndResume()
     {
         using var store = new DurableTestStore();

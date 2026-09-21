@@ -111,13 +111,12 @@ not object name alone, so deletion/recreation cannot stop a successor Job accide
 
 ### JS-006 Watch and resume
 After submit/observe commits, the workflow uses ordinary structural `Wait` correlated by its
-application job reference. A companion watcher/reconciler observes Kubernetes and reports one
-normalized terminal event through OrcaCore's standard event facade. It creates one caller-stable
-`EventId` per logical report and reuses it unchanged on retry/redelivery. If completion is
-reported before wait registration, delivery returns non-consuming `NoActiveWait`; the companion
-observes the active wait and redelivers the same `EventId` and identical normalized envelope.
-Only acceptance writes durable inbox/dedup state. Watcher disconnect/relist, host loss, and
-duplicate delivery therefore require no pending-event mailbox.
+application job reference. A companion watcher/reconciler submits one fixed-codec terminal
+`WorkflowInboundEvent` through durable `IWorkflowEventIngress`, with a stable `EventId` reused on
+retry. `Accepted` or `Duplicate` means OrcaCore durably owns the report and permits source
+acknowledgement. If completion arrives before wait registration, the retained correlation event is
+claimed later without broker redelivery or a hot instance. Watcher disconnect/relist, host loss,
+and duplicate observation therefore preserve one durable report.
 
 The watcher SHALL not depend on uninterrupted Kubernetes watch history; after disconnect or an
 unavailable resource version it relists/reconciles current state. Automatic Kubernetes
@@ -231,10 +230,9 @@ handles remain free of advanced ownership/ticket facts.
   same `StepOperationId`; the gateway observes the matching Job/spec and no duplicate Job is
   created. Another occurrence gets another operation ID. [JS-004]
 - **JS-AC-007** *Watcher report is restart-safe* — A Job completes before or after wait
-  registration and across host/watcher replacement. Pre-wait delivery returns `NoActiveWait`;
-  after observing the wait the companion redelivers the same `EventId`, which is accepted once
-  and resumes exactly once.
-  [JS-006]
+  registration and across host/watcher replacement. Durable ingress accepts and retains the
+  caller-stable `EventId`; the later wait claims it without source redelivery and resumes exactly
+  once. `Duplicate` is also safe to acknowledge. [JS-006]
 - **JS-AC-008** *Three time bounds do not alias* — Submit-attempt timeout, Kubernetes active
   deadline, and workflow `CompleteWithin` are independently observable and survive their
   documented boundaries. [JS-007]
