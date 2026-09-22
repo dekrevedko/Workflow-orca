@@ -1830,7 +1830,7 @@
       "baseCommit": "261d578b11a4b2d09e033aa44c8123cbc4ec653e",
       "checkpointCommit": "cfa5f2ab5b97272856e683c2a42bce2482010645",
       "checkpointTree": "7b7a30a24fcc7169084829800e7ddab82c440d8e",
-      "approvalEvidenceCommit": null,
+      "approvalEvidenceCommit": "0b979942ebfe9a32c38485a7da0c00c596226caa",
       "reviewedTargetCommit": "9e921753eeadf71fcb641b6c91002fc89541d6df",
       "reviewedTargetTree": "9c1ac4657b27d5980aaa02389f61321a2e2dcb3c",
       "preApprovalContentCommits": [],
@@ -2007,7 +2007,7 @@
       ],
       "checkpointBlobContentRecordBytes": 4034,
       "checkpointBlobContentRecordSha256": "1495171d34c4e77702d15ea72d05ba7e4596dc17f3d9107fd8b7990958f1eef0",
-      "reviewState": "ApprovalAwaitingEvidenceCommit",
+      "reviewState": "Approved",
       "stateEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-7-2-hhh-1-and-task-7-3-contract-hardening-independent-review-verdict-2026-09-21.md",
       "verdictEvidence": [
         {
