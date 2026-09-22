@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-2-hhh-1-and-task-7-3-contract-hardening-dirty-manifest-2026-09-20.txt",
+  "activeFreezeManifestPath": null,
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2199,6 +2199,11 @@
       "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-hhh-1-and-task-7-3-contract-hardening-independent-review-request-2026-09-20.md",
       "bytes": 6418,
       "sha256": "6031b81611cf403320d40af8538e6e9831dcdb22f784f7d21076b7de420a5eca"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-hhh-1-and-task-7-3-contract-hardening-independent-review-verdict-2026-09-21.md",
+      "bytes": 13772,
+      "sha256": "f7c7dc84d44559f74323a463fc42562bb3089bbfbe519bda74737916818d168b"
     },
     {
       "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-independent-review-request-2026-09-16.md",
