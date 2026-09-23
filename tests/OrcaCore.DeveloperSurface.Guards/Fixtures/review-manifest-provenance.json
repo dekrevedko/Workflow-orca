@@ -2101,7 +2101,7 @@
       "baseCommit": "7b1bf74ee83c97a19f2c8b08ddcd30d54d443658",
       "checkpointCommit": "7a262404a5459893d4d1807126ffb47b33dd7c61",
       "checkpointTree": "770018dc5571815eea5282a5c481342e7cc743b5",
-      "approvalEvidenceCommit": null,
+      "approvalEvidenceCommit": "bd7c01bfa7e01e37d70586ce3c2b997738324b34",
       "reviewedTargetCommit": "7a262404a5459893d4d1807126ffb47b33dd7c61",
       "reviewedTargetTree": "770018dc5571815eea5282a5c481342e7cc743b5",
       "preApprovalContentCommits": [],
@@ -2272,7 +2272,7 @@
       ],
       "checkpointBlobContentRecordBytes": 3595,
       "checkpointBlobContentRecordSha256": "76ad733d276b8a7218f8c6d19ae08c2dba04d2e17b6349cdde532efc85e30367",
-      "reviewState": "ApprovalAwaitingEvidenceCommit",
+      "reviewState": "Approved",
       "stateEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-7-4-and-7-5-lll-1-mmm-1-remediation-independent-review-verdict-2026-09-22.md",
       "verdictEvidence": [
         {
