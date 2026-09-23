@@ -30,8 +30,8 @@ program and exercised indirectly by many criteria here, without a dedicated AC e
   later steps do not execute, and error details are inspectable. [CR-014]
 - **AC-005** *Terminal instances never reopen* — Given `Completed`, `Failed`, `TimedOut`,
   `Cancelled`, or `Terminated`, cancellation request/termination returns the exact
-  already-terminal outcome, event delivery returns `InstanceTerminal`, and no retry/resume
-  member exists. [CR-030, MG-010..013]
+  already-terminal outcome, direct durable event ingress returns
+  `Rejected(DirectInstanceTerminal)`, and no retry/resume member exists. [CR-030, MG-010..013]
 - **AC-006** *Serialized outcome under concurrency* — Given a waiting instance and two
   concurrent resume attempts, one valid sequential outcome results; no double continuation.
   [CR-040]

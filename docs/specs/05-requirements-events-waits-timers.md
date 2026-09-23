@@ -109,9 +109,10 @@ SHALL deduplicate and progress independently.
 ### EV-032 Transactional ownership and consumption (no event loss)
 Acceptance SHALL atomically establish durable inbox/start-intent ownership before returning
 `Accepted`. Matching and the resulting workflow transition commit atomically with inbox progression.
-A crash before the transition leaves the accepted record re-matchable; a crash after commit cannot
-double-apply it. External sources may acknowledge after `Accepted` or `Duplicate`, not after the
-later consuming transition. Permanent inability to resolve or apply remains observable poison.
+A crash before the transition leaves the wait `Active` and the accepted record re-matchable; a
+crash after commit cannot double-apply it. External sources may acknowledge after `Accepted` or
+`Duplicate`, not after the later consuming transition. Permanent inability to resolve or apply
+remains observable poison.
 
 ## 5.5 Wait semantics
 

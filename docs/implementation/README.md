@@ -58,15 +58,14 @@ Review-E planning remediation has been applied and is recorded in the current
 The independent planning re-review approved guard retargeting. Tasks 3.1-3.10, all four 3.11
 slices, and task 3.12 are complete. After two rejected intermediate guard packets, all findings
 were remediated and the exact whole packet received a final immutable approval with no P0-P3
- findings. Sections 4, 5, and 6 are independently approved. Section 7 was independently approved
- and checkpointed as `50254d08175431896d580ecfcc93d8e49e1c2ec7`; post-checkpoint Section 7A now
- closes the non-event public-surface and test-attribution findings. Pending Section 7B proposes a
- replacement durable event/messaging and application-catalog contract; it is not current product
- authority before task 7.23 approval. The separate `harmonize-downstream-capability-specs` change
- remains pending and must remove its conflicting event ownership before planning approval and
- canonical synchronization. Task 8.0 and Section 8 source work remain blocked until the combined
- Section 7A/7B target and the final harmonized canonical/docs target are independently approved and
- checkpointed.
+ findings. Sections 4 through 7, including the Section 7A/7B public-surface, durable-messaging, and
+ application-catalog remediation, are independently approved and checkpointed. Durable retained
+ pre-wait ingress, four self-routing routes, workflow-authored `Publish`, application-registered
+ dispatch, exact role-specific hosting, and three complete durable providers are current product
+ authority. The separate `harmonize-downstream-capability-specs` change has synchronized canonical
+ requirements and is reconciling its remaining active-tree documentation and guard evidence. Task
+ 8.0 and Section 8 source work remain blocked until that harmonization target is independently
+ approved and checkpointed.
 
 The 2026-07-18 simplification amendment/status, 2026-07-19 construction amendment, completed
 reviewer prompt, reviews A-E, their earlier consolidated review, and the root-only owner decision

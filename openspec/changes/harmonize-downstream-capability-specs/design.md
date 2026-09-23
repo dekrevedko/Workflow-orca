@@ -80,7 +80,8 @@ authorization is explicitly retroactive: its evidence commit must introduce the 
 from the reviewed target, but cannot truthfully claim that target as its direct parent.
 A first-pass `APPROVE` is valid without any preceding `REJECT`; the awaiting-evidence state
 therefore requires approval evidence but deliberately does not require rejection history. When a
-later remediation round is also approved, every immutable approval remains registered and
+later remediation round is also approved, every immutable approval remains registered and the
+newest approval verdict governs the transition.
 After an active freeze is checkpointed, its request, raw manifest, base, checkpoint, tree, and
 scoped content record move into the permanent `archivedFreezes` registry before another active
 freeze replaces it. Every archived freeze records `IndependentReview` or `OwnerAuthorization` plus
@@ -378,6 +379,50 @@ Only the owner of a reviewed change that intentionally edits one of these 22 sou
 recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that
 intentionally edits the source and updates the artifact row, guard-source artifact digest, and
 review evidence; neither may perform a mechanical follow-up refresh for an earlier unreviewed edit.
+Task 7.5 review remediation corrects the two remaining legacy event-result statements in DU-055 and
+AC-005 and refreshes only their Task 7.3 source rows plus the guard-owned artifact digest.
+
+### 9. Task 7.4 keeps Orleans future hosting separate from superseded implementation plans
+
+Task 7.4 retains one active Orleans future-hosting boundary at
+`docs/orleans-engine/README.md`. It is a non-authorizing note aligned with the selected durable
+contract: one ordinary cold-capable `Wait`, caller-created inbound identity, the four-route ingress
+union with retained pre-wait ownership, transactional workflow-event outbox dispatch through the
+application-registered dispatcher, fixed-codec payloads, and exact application/runtime/hosting/
+provider ownership.
+
+The 25-file superseded plan remains immutable under
+`docs/archive/plans/orleans-engine-pre-v1/`; the active note links to it but does not promote its
+provisional tasks or surface into current work. A dated Task 7.4 artifact pins every archived file
+and the single active note. Any Orleans implementation still requires a new independently approved
+OpenSpec change before projects, packages, migrations, or implementation tasks are added.
+
+Task 7.4 review remediation makes that boundary independent of a whole-document hash: the guard
+pins the numbered new-change prerequisite and Orleans-only adapter ownership semantically, derives
+the 25-file archive from disk as well as the immutable-history fixture, and permits no additional
+active task-ledger block that mentions Orleans implementation work.
+
+### 10. Task 7.5 makes active documentation classification recurring
+
+Task 7.5 turns the Task 3.1 classifications into a recurring active-tree gate. The gate reuses the
+same evolving corpus and positive-call expressions as Task 7.1, excludes immutable `docs/archive/`
+and `docs/review/` evidence, and pins the complete 23-source stale-negative fixture plus its historical
+pre-reconciliation commit. The replay must equal the reviewed 56-result path/line/classifier record
+and exercise every classifier, while the current active tree must produce no finding. Explicitly
+superseded task/proposal sentences remain searchable history rather than being mistaken for current
+guidance.
+
+The first recurring run also found and corrected one stale status paragraph outside the Task 3.1
+list: `docs/implementation/README.md` still described Section 7B as pending. The guard scans the
+whole evolving active corpus, so future files and newly worded stale assertions are not limited to
+the original 23-path fixture.
+
+Task 7.5 review remediation broadens legacy event-surface, terminal-result, routing, publish, and
+pre-wait phrase coverage. The artifact's 86-source value remains evidence of the reviewed snapshot,
+not a live equality: benign additions and normal archival are accepted when the re-enumerated corpus
+contains no positive removed/deferred call or stale Section 7B claim.
+The dated `task-7-4-and-7-5-review-remediation-2026-09-22.md` artifact records the rejected freeze,
+the exact fixes, and their mutation evidence without authorizing the superseding checkpoint.
 
 ## Risks / Trade-offs
 

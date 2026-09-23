@@ -387,15 +387,45 @@
       edits one of these 22 sources may refresh its recorded hash. Task 7.4 or Section 8 may refresh
       a row only in the same frozen target that intentionally edits the source and updates the
       artifact row, guard-source artifact digest, and review evidence; neither may perform a
-      mechanical follow-up refresh for an earlier unreviewed edit.
-- [ ] 7.4 Preserve the superseded Orleans plan under the archive and maintain only one active future
+      mechanical follow-up refresh for an earlier unreviewed edit. **Task 7.5 review remediation:**
+      DU-055 and AC-005 now use the exact current event-acceptance and direct-terminal-rejection
+      vocabulary; only rows 16 and 19 plus the guard-source artifact digest were refreshed.
+- [x] 7.4 Preserve the superseded Orleans plan under the archive and maintain only one active future
       hosting boundary note using ordinary cold-capable `Wait`, the current event/outbox contract,
       role-specific hosting, exact tier ownership, and a new-change prerequisite. Correct the
       `docs/orleans-engine/README.md` finding recorded by the task 3.1 sweep.
-- [ ] 7.5 Add an active-tree documentation check, excluding `docs/archive/` and immutable review
+      **Completed:** `docs/orleans-engine/README.md` is the single active future-hosting boundary
+      note and now carries ordinary cold-capable `Wait`, the current four-route retained-ingress
+      and transactional outbox contract, application-owned dispatch, fixed codec, and exact
+      package-tier ownership. The 25-file superseded plan remains byte-unchanged under
+      `docs/archive/plans/orleans-engine-pre-v1/`. Any Orleans source, package, migration, or task
+      still requires a new independently approved OpenSpec change. The must-green Task 7.4 guard
+      pins both records through
+      `openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-4-orleans-boundary-reconciliation-2026-09-21.md`.
+      **Review carry-forward:** the Task 7.3 semantic guard now rejects every AC-trait spelling,
+      pins the complete PR-040 ownership clauses, and requires EV-032 to retain the `Active` wait
+      state. Review-provenance diagnostics name their task, and the relaxed retroactive lineage
+      rule is restricted to Task 5.3. The approval-history design sentence is complete and pinned.
+      **Review remediation:** the Task 7.4 artifact is whitespace-clean; the guard semantically
+      pins the numbered new-change prerequisite and Orleans-only adapter boundary, derives the
+      archived inventory from disk as well as the immutable fixture, and rejects any additional
+      active Orleans task-ledger block.
+- [x] 7.5 Add an active-tree documentation check, excluding `docs/archive/` and immutable review
       records, that rejects positive removed/deferred APIs and stale negative claims about approved
       Section 7B behavior. Use the task 3.1 classifications as the initial complete fixture and
       require every recorded stale-negative finding to be closed.
+      **Completed:** the recurring guard enumerates the evolving active contract corpus while
+      excluding `docs/archive/` and `docs/review/`, reuses the Task 3.1 artifact as the exact
+      23-source initial stale-negative fixture, proves every initial source trips the classifier at
+      the pre-reconciliation commit, and requires zero positive removed/deferred calls or stale
+      Section 7B claims now. It also corrected the previously unrecorded stale Section 7B status in
+      `docs/implementation/README.md`; the dated evidence is
+      `openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-5-active-tree-documentation-guard-2026-09-21.md`.
+      **Review remediation:** the historical replay now pins all 56 exact path/line/classifier
+      findings, every classifier must appear, legacy event-client/method/result/status and natural
+      routing, publish, and pre-wait rewordings are covered, and the artifact's 86-source figure is
+      snapshot evidence rather than a live cardinality invariant. Remediation evidence:
+      `openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-4-and-7-5-review-remediation-2026-09-22.md`.
 - [ ] 7.6 Correct or delete namespace-pinned `ForbiddenPublicSymbols` entries that cannot match the
       current assembly owners; add a regression proving each forbidden symbol fails under its exact
       current or historical qualified owner rather than silently passing an impossible namespace.

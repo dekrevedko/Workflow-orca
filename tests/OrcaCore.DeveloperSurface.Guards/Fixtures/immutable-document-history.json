@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": null,
+  "activeFreezeManifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-4-and-7-5-lll-1-mmm-1-remediation-dirty-manifest-2026-09-22.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2274,6 +2274,31 @@
       "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-yy-1-zz-1-hardening-independent-review-verdict-2026-09-18.md",
       "bytes": 11033,
       "sha256": "02d13bd291d878296be0ace19314bf5fce36f7ac7f937e840f86729770ddc866"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-4-and-7-5-combined-dirty-manifest-2026-09-21.txt",
+      "bytes": 1380,
+      "sha256": "6cd54f43f20e005c9c9a82884d4c11780f5700c576ac855980bacca4b8669846"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-4-and-7-5-combined-independent-review-verdict-2026-09-21.md",
+      "bytes": 13548,
+      "sha256": "7af6d9be8651d2526fe8318a67c4dc8b5c9e09f542f88c7c215f5c05112ef6b7"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-4-and-7-5-lll-1-mmm-1-remediation-dirty-manifest-2026-09-22.txt",
+      "bytes": 1968,
+      "sha256": "f1529d2235e35036fc676e70fe26c23bd21c779856b980f4567391763d4d0666"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-4-and-7-5-lll-1-mmm-1-remediation-independent-review-request-2026-09-22.md",
+      "bytes": 5733,
+      "sha256": "80924a5f8aff9de0cd2a1d4bf93537aac64e1f2d77583c649987924240b4e81c"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-tasks-7-4-and-7-5-combined-independent-review-request-2026-09-21.md",
+      "bytes": 7257,
+      "sha256": "93018ad9560b51199b4acca68596475e28fee6b6cbf6156aefe0c0d7072ca62d"
     }
   ]
 }

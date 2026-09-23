@@ -1,6 +1,17 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": null,
+  "activeFreeze": {
+    "task": "7.4+7.5",
+    "requestPath": "docs/review/harmonize-downstream-capability-specs-task-7-4-and-7-5-lll-1-mmm-1-remediation-independent-review-request-2026-09-22.md",
+    "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-4-and-7-5-lll-1-mmm-1-remediation-dirty-manifest-2026-09-22.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "7b1bf74ee83c97a19f2c8b08ddcd30d54d443658",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 3440,
+    "contentRecordSha256": "6bbd780ee9a3e5fc76f730597c23c2681e505d1c457bf773eb0a30abcba73dcd"
+  },
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",
@@ -113,6 +124,22 @@
       "verdictPath": "docs/review/harmonize-downstream-capability-specs-task-7-2-bbb-1-and-task-7-3-remediation-independent-review-verdict-2026-09-20.md",
       "verdictBytes": 12808,
       "verdictSha256": "6da026a0acfa6e4aef7db0c28ed4f8ea7848077c429c3f1334bfc5932d6d0ecc"
+    },
+    {
+      "id": "7.4-and-7.5-combined-rejected",
+      "requestPath": "docs/review/harmonize-downstream-capability-specs-tasks-7-4-and-7-5-combined-independent-review-request-2026-09-21.md",
+      "requestBytes": 7257,
+      "requestSha256": "93018ad9560b51199b4acca68596475e28fee6b6cbf6156aefe0c0d7072ca62d",
+      "requestManifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-4-and-7-5-combined-dirty-manifest-2026-09-21.txt",
+      "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-4-and-7-5-combined-dirty-manifest-2026-09-21.txt",
+      "disposition": "RawGitOrder",
+      "lineCount": 17,
+      "manifestBytes": 1380,
+      "manifestSha256": "6cd54f43f20e005c9c9a82884d4c11780f5700c576ac855980bacca4b8669846",
+      "baseCommit": "7b1bf74ee83c97a19f2c8b08ddcd30d54d443658",
+      "verdictPath": "docs/review/harmonize-downstream-capability-specs-task-7-4-and-7-5-combined-independent-review-verdict-2026-09-21.md",
+      "verdictBytes": 13548,
+      "verdictSha256": "7af6d9be8651d2526fe8318a67c4dc8b5c9e09f542f88c7c215f5c05112ef6b7"
     }
   ],
   "archivedFreezes": [
@@ -1609,7 +1636,6 @@
         }
       ],
       "currentWorktreeMatchPaths": [
-        "docs/orleans-engine/README.md",
         "docs/specs/README.md",
         "openspec/changes/reshape-developer-facing-interfaces/specs/developer-facing-surface/spec.md",
         "openspec/changes/reshape-developer-facing-interfaces/specs/saga-orchestration/spec.md",
