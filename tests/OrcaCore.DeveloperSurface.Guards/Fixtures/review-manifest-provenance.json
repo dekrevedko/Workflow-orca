@@ -1,17 +1,6 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": {
-    "task": "7.7",
-    "requestPath": "docs/review/harmonize-downstream-capability-specs-task-7-7-and-rrr-1-independent-review-request-2026-09-23.md",
-    "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-7-and-rrr-1-dirty-manifest-2026-09-23.txt",
-    "disposition": "RawGitOrder",
-    "baseCommit": "cb17f432a00104758a157ab547e3fca143b6a3ac",
-    "contentRecordExcludedPaths": [
-      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
-    ],
-    "contentRecordBytes": 1469,
-    "contentRecordSha256": "7458f1f317c6eb04724d5dbd2f076ac6b8e7aaf997531355997c41abd243cad1"
-  },
+  "activeFreeze": null,
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",
@@ -557,6 +546,27 @@
       ],
       "contentRecordBytes": 2910,
       "contentRecordSha256": "e3e2adbb57ee68a80df8837aa695f3ee67f3a396bd16f1853add97dd36bb274e"
+    },
+    {
+      "id": "7.7-and-rrr-1",
+      "authority": "IndependentReview",
+      "authorityEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-7-7-and-rrr-1-independent-review-verdict-2026-09-23.md",
+      "requestPath": "docs/review/harmonize-downstream-capability-specs-task-7-7-and-rrr-1-independent-review-request-2026-09-23.md",
+      "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-7-and-rrr-1-dirty-manifest-2026-09-23.txt",
+      "disposition": "RawGitOrder",
+      "lineCount": 11,
+      "manifestBytes": 845,
+      "manifestSha256": "6f7376e7d414d54df92b98d6d4af17fd52b4d7c3652d2fc386b1c554b23b8621",
+      "frozenRawPorcelainSha256": "6f7376e7d414d54df92b98d6d4af17fd52b4d7c3652d2fc386b1c554b23b8621",
+      "pathSortedSha256": "a2845750556d669c6ee7bf82f4a9fa119c280bd6ae21f77e98e60ec82f5db53a",
+      "baseCommit": "cb17f432a00104758a157ab547e3fca143b6a3ac",
+      "checkpointCommit": "23ac19aa2ce5e67d2f2b06dc2519c6df16ae811c",
+      "checkpointTree": "ee5fe64ab9790e31a6ed3364e3907cabf9c9902d",
+      "contentRecordExcludedPaths": [
+        "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+      ],
+      "contentRecordBytes": 1469,
+      "contentRecordSha256": "7458f1f317c6eb04724d5dbd2f076ac6b8e7aaf997531355997c41abd243cad1"
     }
   ],
   "entries": [
@@ -2488,6 +2498,116 @@
           "path": "docs/review/harmonize-downstream-capability-specs-task-7-5-ooo-1-and-task-7-6-ppp-1-qqq-1-remediation-independent-review-verdict-2026-09-23.md",
           "verdict": "APPROVE",
           "sha256": "c8e119738593d0e3baf45febd48db2ba6bc6d0a7ff60ab29896044a3277e48a7"
+        }
+      ]
+    },
+    {
+      "task": "7.7",
+      "requestPath": "docs/review/harmonize-downstream-capability-specs-task-7-7-and-rrr-1-independent-review-request-2026-09-23.md",
+      "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-7-and-rrr-1-dirty-manifest-2026-09-23.txt",
+      "disposition": "RawGitOrder",
+      "lineCount": 11,
+      "manifestBytes": 845,
+      "manifestSha256": "6f7376e7d414d54df92b98d6d4af17fd52b4d7c3652d2fc386b1c554b23b8621",
+      "frozenRawPorcelainSha256": "6f7376e7d414d54df92b98d6d4af17fd52b4d7c3652d2fc386b1c554b23b8621",
+      "pathSortedSha256": "a2845750556d669c6ee7bf82f4a9fa119c280bd6ae21f77e98e60ec82f5db53a",
+      "baseCommit": "cb17f432a00104758a157ab547e3fca143b6a3ac",
+      "checkpointCommit": "23ac19aa2ce5e67d2f2b06dc2519c6df16ae811c",
+      "checkpointTree": "ee5fe64ab9790e31a6ed3364e3907cabf9c9902d",
+      "approvalEvidenceCommit": null,
+      "reviewedTargetCommit": "23ac19aa2ce5e67d2f2b06dc2519c6df16ae811c",
+      "reviewedTargetTree": "ee5fe64ab9790e31a6ed3364e3907cabf9c9902d",
+      "preApprovalContentCommits": [],
+      "historicalDirtyContentRecordBytes": 1624,
+      "historicalDirtyContentRecordSha256": "7af12921c04525a52194fdf353052e3da5caf036f0518be98739eff6b0aeb2c5",
+      "historicalDirtyContentRecordRows": [
+        {
+          "status": " M",
+          "path": "docs/archive/README.md",
+          "bytes": 5704,
+          "sha256": "63da24c03f5308769ced88b38ff7ea65a5f0fcd5fa4b37144d42a9d8230aa437"
+        },
+        {
+          "status": " M",
+          "path": "openspec/changes/harmonize-downstream-capability-specs/design.md",
+          "bytes": 35325,
+          "sha256": "d78b6b72e26ee5f4d76d61beca790495928f70d5d36e9a9813cc9b265f8787aa"
+        },
+        {
+          "status": " M",
+          "path": "openspec/changes/harmonize-downstream-capability-specs/tasks.md",
+          "bytes": 42280,
+          "sha256": "ce5d012799a19765f7f58ee52b164e2667356f24f7aceafcc6b5985bc1679269"
+        },
+        {
+          "status": " M",
+          "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json",
+          "bytes": 104500,
+          "sha256": "eb63b271332f485602535652b590dcca25005eb5fd72cbc297e26fe6a9b523bb"
+        },
+        {
+          "status": " M",
+          "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json",
+          "bytes": 134219,
+          "sha256": "4f77187a99c3cee47f963ec3163b8e264a862869a7daa4c034f2c597995cdbdf"
+        },
+        {
+          "status": " M",
+          "path": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+          "bytes": 289192,
+          "sha256": "e2588a7578dd3def644bc99acf365acbc41a480d4e659579abbb136391b7caf6"
+        },
+        {
+          "status": " M",
+          "path": "tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs",
+          "bytes": 54495,
+          "sha256": "be40ae42ffb5c84faa01417715bfc4bbcdf334befb16c5e6a1049cdf2c83e238"
+        },
+        {
+          "status": " M",
+          "path": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+          "bytes": 46019,
+          "sha256": "d687da0f6b9edc2e29c36b32a1476c10aecf1f4e8ebe7dc4ba5d7c2b8c184160"
+        },
+        {
+          "status": "??",
+          "path": "docs/archive/plans/developer-facing-interface-phase-00-kickoff-archive-provenance-2026-09-23.md",
+          "bytes": 1855,
+          "sha256": "20be3dcd960c50feb7226e105366807ff2ad0058cbee10b5c02dd45b81eae983"
+        },
+        {
+          "status": "??",
+          "path": "docs/review/harmonize-downstream-capability-specs-task-7-7-and-rrr-1-dirty-manifest-2026-09-23.txt",
+          "bytes": 845,
+          "sha256": "6f7376e7d414d54df92b98d6d4af17fd52b4d7c3652d2fc386b1c554b23b8621"
+        },
+        {
+          "status": "??",
+          "path": "docs/review/harmonize-downstream-capability-specs-task-7-7-and-rrr-1-independent-review-request-2026-09-23.md",
+          "bytes": 4421,
+          "sha256": "4ab39596e43b0fd903c4d170907de549923e782ef74ac24b20f17115684b41fd"
+        }
+      ],
+      "currentWorktreeMatchPaths": [
+        "docs/archive/README.md",
+        "openspec/changes/harmonize-downstream-capability-specs/design.md",
+        "openspec/changes/harmonize-downstream-capability-specs/tasks.md",
+        "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+        "tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs",
+        "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+        "docs/archive/plans/developer-facing-interface-phase-00-kickoff-archive-provenance-2026-09-23.md",
+        "docs/review/harmonize-downstream-capability-specs-task-7-7-and-rrr-1-dirty-manifest-2026-09-23.txt",
+        "docs/review/harmonize-downstream-capability-specs-task-7-7-and-rrr-1-independent-review-request-2026-09-23.md"
+      ],
+      "checkpointBlobContentRecordBytes": 1624,
+      "checkpointBlobContentRecordSha256": "7af12921c04525a52194fdf353052e3da5caf036f0518be98739eff6b0aeb2c5",
+      "reviewState": "ApprovalAwaitingEvidenceCommit",
+      "stateEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-7-7-and-rrr-1-independent-review-verdict-2026-09-23.md",
+      "verdictEvidence": [
+        {
+          "path": "docs/review/harmonize-downstream-capability-specs-task-7-7-and-rrr-1-independent-review-verdict-2026-09-23.md",
+          "verdict": "APPROVE",
+          "sha256": "31dabc0fac2c55eefbf9ab57149a82653f517934f66a3f7d6874a650eca959d5"
         }
       ]
     }
