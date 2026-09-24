@@ -2334,7 +2334,7 @@
       "baseCommit": "d6eee0d20d0e82135bc33caf2f8b25bdcd665772",
       "checkpointCommit": "a99ae33fe107b13fb51490a42942e12636bf8f2c",
       "checkpointTree": "e0130dbdaa8828d6931c1c81124df90fe5cfcbc9",
-      "approvalEvidenceCommit": null,
+      "approvalEvidenceCommit": "b6405865bbe01edc4fbd50e23a0c532c6aee7c45",
       "reviewedTargetCommit": "a99ae33fe107b13fb51490a42942e12636bf8f2c",
       "reviewedTargetTree": "e0130dbdaa8828d6931c1c81124df90fe5cfcbc9",
       "preApprovalContentCommits": [],
@@ -2470,7 +2470,7 @@
       ],
       "checkpointBlobContentRecordBytes": 3065,
       "checkpointBlobContentRecordSha256": "9b12c235ad175b1c7b5eb0c8784534852b126ef8066a33d23889093fbc5faa35",
-      "reviewState": "ApprovalAwaitingEvidenceCommit",
+      "reviewState": "Approved",
       "stateEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-7-5-ooo-1-and-task-7-6-ppp-1-qqq-1-remediation-independent-review-verdict-2026-09-23.md",
       "verdictEvidence": [
         {
