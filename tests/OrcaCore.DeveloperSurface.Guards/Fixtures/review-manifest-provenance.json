@@ -2514,7 +2514,7 @@
       "baseCommit": "cb17f432a00104758a157ab547e3fca143b6a3ac",
       "checkpointCommit": "23ac19aa2ce5e67d2f2b06dc2519c6df16ae811c",
       "checkpointTree": "ee5fe64ab9790e31a6ed3364e3907cabf9c9902d",
-      "approvalEvidenceCommit": null,
+      "approvalEvidenceCommit": "be1664d9f6dedb4ef0085d13846e0851f691dc1b",
       "reviewedTargetCommit": "23ac19aa2ce5e67d2f2b06dc2519c6df16ae811c",
       "reviewedTargetTree": "ee5fe64ab9790e31a6ed3364e3907cabf9c9902d",
       "preApprovalContentCommits": [],
@@ -2601,7 +2601,7 @@
       ],
       "checkpointBlobContentRecordBytes": 1624,
       "checkpointBlobContentRecordSha256": "7af12921c04525a52194fdf353052e3da5caf036f0518be98739eff6b0aeb2c5",
-      "reviewState": "ApprovalAwaitingEvidenceCommit",
+      "reviewState": "Approved",
       "stateEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-7-7-and-rrr-1-independent-review-verdict-2026-09-23.md",
       "verdictEvidence": [
         {
