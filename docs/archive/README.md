@@ -53,6 +53,7 @@ and are **not** rewritten, so resolve their links through this table:
 | `docs/reviews/…` | `docs/archive/reviews/…` |
 | `docs/durable/…` | `docs/archive/durable/…` |
 | `docs/implementation/phases/…` | `docs/archive/implementation-phases/…` |
+| `docs/implementation/developer-facing-interface-phase-00-kickoff-prompt-2026-07-15.md` | [Archived kickoff prompt](plans/developer-facing-interface-phase-00-kickoff-prompt-2026-07-15.md) and its [exact move provenance](plans/developer-facing-interface-phase-00-kickoff-archive-provenance-2026-09-23.md) |
 | pre-2026-08-01 `docs/ephemeral-engine-developer-guide.md` | `docs/archive/plans/ephemeral-engine-developer-guide.md` |
 | pre-2026-08-01 `docs/ephemeral-engine-diagrams.md` | `docs/archive/plans/ephemeral-engine-diagrams.md` |
 | `docs/durable-driver-status.md` | `docs/archive/plans/durable-driver-status.md` |

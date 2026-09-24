@@ -447,10 +447,16 @@
       removed-lineage and historical-project wording. The rejected target remains immutable.
       Evidence:
       `openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-5-and-7-6-review-remediation-2026-09-23.md`.
-- [ ] 7.7 Repair the Phase-0 kickoff prompt archive move by adding an explicit immutable archive
+- [x] 7.7 Repair the Phase-0 kickoff prompt archive move by adding an explicit immutable archive
       provenance record that names the exact predecessor and commit; do not rename, delete, or edit
       an existing protected path. Any future history-preserving relocation first requires a separately
       reviewed tombstone mechanism, which the current Task 7.2 contract does not provide.
+      **Completed:** the dated archive provenance record names the predecessor under
+      `docs/implementation/` at `ac46d99543daf85c0fa3234272997ba40f47f96b`, the `R097` move
+      at `ad9414088f1843dae09ef8a5d10caa8aca413561`, both Git blobs and content hashes, and
+      the four relative-link-only edits. The archived prompt remains byte-identical to its move
+      commit; the active archive index routes the old path to both the prompt and this record.
+      No existing protected path was changed or relocated.
 
 ## 8. Final harmonization gate
 

@@ -154,10 +154,22 @@ public sealed class OpenSpecCorpusGuards
         "   and cataloged; deletion or relocation first requires an explicit reviewed tombstone mechanism. Update this index to route\n" +
         "   readers to the superseding record instead of rewriting the historical file.";
     private const string Task77ArchiveProvenanceDecision =
-        "- [ ] 7.7 Repair the Phase-0 kickoff prompt archive move by adding an explicit immutable archive\n" +
+        "- [x] 7.7 Repair the Phase-0 kickoff prompt archive move by adding an explicit immutable archive\n" +
         "      provenance record that names the exact predecessor and commit; do not rename, delete, or edit\n" +
         "      an existing protected path. Any future history-preserving relocation first requires a separately\n" +
         "      reviewed tombstone mechanism, which the current Task 7.2 contract does not provide.";
+    private const string Task77ArchiveRecord =
+        "docs/archive/plans/developer-facing-interface-phase-00-kickoff-archive-provenance-2026-09-23.md";
+    private const string Task77ArchiveRecordSha256 =
+        "20be3dcd960c50feb7226e105366807ff2ad0058cbee10b5c02dd45b81eae983";
+    private const string Task77Predecessor =
+        "docs/implementation/developer-facing-interface-phase-00-kickoff-prompt-2026-07-15.md";
+    private const string Task77ArchivedPrompt =
+        "docs/archive/plans/developer-facing-interface-phase-00-kickoff-prompt-2026-07-15.md";
+    private const string Task77PredecessorCommit =
+        "ac46d99543daf85c0fa3234272997ba40f47f96b";
+    private const string Task77MoveCommit =
+        "ad9414088f1843dae09ef8a5d10caa8aca413561";
     private const string Task73DocumentationArtifact =
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
@@ -2116,6 +2128,67 @@ public sealed class OpenSpecCorpusGuards
         archiveIndex.Should().Contain(
             Task72ArchiveIndexDecision,
             "the mutable archive index must direct corrections into new dated superseding records");
+        ValidateTask77ArchiveProvenance(root, fixture, taskLedger, design, archiveIndex);
+    }
+
+    private static void ValidateTask77ArchiveProvenance(
+        string root,
+        ImmutableDocumentHistoryFixture fixture,
+        string taskLedger,
+        string design,
+        string archiveIndex)
+    {
+        var recordPath = Path.Combine(root, Task77ArchiveRecord.Replace('/', Path.DirectorySeparatorChar));
+        var recordBytes = File.ReadAllBytes(recordPath);
+        Sha256(recordBytes).Should().Be(Task77ArchiveRecordSha256,
+            "the dated Task 7.7 predecessor record must remain byte-exact");
+        var cataloguedRecord = fixture.AppendOnlyRecords.Single(entry => entry.Path == Task77ArchiveRecord);
+        cataloguedRecord.Bytes.Should().Be(recordBytes.Length);
+        cataloguedRecord.Sha256.Should().Be(Task77ArchiveRecordSha256);
+        var record = NormalizeLineEndings(Encoding.UTF8.GetString(recordBytes));
+        record.Should().ContainAll(
+            Task77Predecessor,
+            Task77PredecessorCommit,
+            Task77MoveCommit,
+            Task77ArchivedPrompt,
+            "R097",
+            "The four changed lines");
+
+        var parent = RunGit(root, "rev-parse", $"{Task77MoveCommit}^");
+        parent.ExitCode.Should().Be(0);
+        parent.StandardOutput.Trim().Should().Be(Task77PredecessorCommit);
+        var predecessorBlob = RunGit(root, "rev-parse", $"{Task77PredecessorCommit}:{Task77Predecessor}");
+        predecessorBlob.ExitCode.Should().Be(0);
+        predecessorBlob.StandardOutput.Trim().Should().Be("b60942bef28dcd5b58c5027ab92d821d2ebd6d5c");
+        var archivedBlob = RunGit(root, "rev-parse", $"{Task77MoveCommit}:{Task77ArchivedPrompt}");
+        archivedBlob.ExitCode.Should().Be(0);
+        archivedBlob.StandardOutput.Trim().Should().Be("d9d509cf8ca8ae17e8850d057638f7fa1de07820");
+        var rename = RunGit(root, "diff", "--find-renames=50%", "--name-status",
+            Task77PredecessorCommit, Task77MoveCommit, "--", Task77Predecessor, Task77ArchivedPrompt);
+        rename.ExitCode.Should().Be(0);
+        NormalizeLineEndings(rename.StandardOutput).TrimEnd().Should().Be(
+            $"R097\t{Task77Predecessor}\t{Task77ArchivedPrompt}");
+        var predecessorBytes = ReadGitBlob(root, Task77PredecessorCommit, Task77Predecessor);
+        predecessorBytes.Length.Should().Be(14526);
+        Sha256(predecessorBytes).Should().Be(
+            "14c07da02a867247ac04204f9bd3ef137771d70b9196a769b9562d186a0ff556");
+        var archivedBytes = ReadGitBlob(root, Task77MoveCommit, Task77ArchivedPrompt);
+        archivedBytes.Length.Should().Be(14538);
+        Sha256(archivedBytes).Should().Be(
+            "80ea80cf3ca951bd7481f1066103472216a8a644787929714570f733eb0db0aa");
+        File.Exists(Path.Combine(root, Task77Predecessor.Replace('/', Path.DirectorySeparatorChar)))
+            .Should().BeFalse("the old prompt path was moved at the recorded commit");
+        File.ReadAllBytes(Path.Combine(root, Task77ArchivedPrompt.Replace('/', Path.DirectorySeparatorChar)))
+            .Should().Equal(archivedBytes, "Task 7.7 must not rewrite the protected archived prompt");
+
+        var task = Regex.Match(taskLedger, @"(?ms)^- \[x\] 7\.7 .*?(?=^## 8\.)",
+            RegexOptions.CultureInvariant);
+        task.Success.Should().BeTrue("Task 7.7 must be completed only with exact move evidence");
+        task.Value.Should().Contain(Task77PredecessorCommit).And.Contain(Task77MoveCommit)
+            .And.Contain("No existing protected path was changed or relocated.");
+        design.Should().Contain("Task 7.7 resolves the Phase-0 kickoff prompt move with a new immutable archive provenance record.");
+        archiveIndex.Should().Contain(
+            "[exact move provenance](plans/developer-facing-interface-phase-00-kickoff-archive-provenance-2026-09-23.md)");
     }
 
     [Fact]

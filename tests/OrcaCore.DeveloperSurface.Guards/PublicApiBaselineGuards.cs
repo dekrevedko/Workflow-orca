@@ -306,8 +306,12 @@ public sealed class PublicApiBaselineInfrastructureGuards
             internal sealed class ExpectedType
             {
                 private const string RawBraces = """{ still not a body }""";
-                private const string Decoy = "StringOnly";
-                // CommentOnly() { }
+                private const string Decoy = @"
+            public void StringOnly() { }
+            ";
+                /*
+            public void CommentOnly() { }
+                */
                 internal void ActualMember(CancellationToken cancellationToken = default) { }
             }
 

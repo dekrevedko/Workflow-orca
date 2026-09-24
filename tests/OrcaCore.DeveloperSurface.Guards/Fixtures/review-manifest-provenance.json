@@ -1,6 +1,17 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": null,
+  "activeFreeze": {
+    "task": "7.7",
+    "requestPath": "docs/review/harmonize-downstream-capability-specs-task-7-7-and-rrr-1-independent-review-request-2026-09-23.md",
+    "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-7-and-rrr-1-dirty-manifest-2026-09-23.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "cb17f432a00104758a157ab547e3fca143b6a3ac",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 1469,
+    "contentRecordSha256": "7458f1f317c6eb04724d5dbd2f076ac6b8e7aaf997531355997c41abd243cad1"
+  },
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",
@@ -2293,7 +2304,6 @@
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md",
         "openspec/changes/reshape-developer-facing-interfaces/tasks.md",
         "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json",
-        "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
         "tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs",
         "docs/review/harmonize-downstream-capability-specs-task-7-4-and-7-5-combined-dirty-manifest-2026-09-21.txt",
         "docs/review/harmonize-downstream-capability-specs-task-7-4-and-7-5-combined-independent-review-verdict-2026-09-21.md",
@@ -2451,14 +2461,10 @@
         }
       ],
       "currentWorktreeMatchPaths": [
-        "openspec/changes/harmonize-downstream-capability-specs/design.md",
-        "openspec/changes/harmonize-downstream-capability-specs/tasks.md",
         "openspec/changes/reshape-developer-facing-interfaces/production-deletion-ledger.md",
         "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/ProductForbiddenLegacySurface/ForbiddenLegacySurface.cs",
         "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/production-deletion-ledger.json",
-        "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
         "tests/OrcaCore.DeveloperSurface.Guards/ProductionDeletionLedgerGuards.cs",
-        "tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs",
         "docs/review/harmonize-downstream-capability-specs-task-7-5-ooo-1-and-task-7-6-dirty-manifest-2026-09-22.txt",
         "docs/review/harmonize-downstream-capability-specs-task-7-5-ooo-1-and-task-7-6-independent-review-request-2026-09-22.md",
         "docs/review/harmonize-downstream-capability-specs-task-7-5-ooo-1-and-task-7-6-independent-review-verdict-2026-09-23.md",

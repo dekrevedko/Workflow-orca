@@ -22,6 +22,13 @@ public sealed partial class RecoveryCrosswalkInfrastructureGuards
     private const string ReviewDocumentationDirectory = "review/";
     private static readonly string ApprovedImmutableDocumentationPrefixDeclaration =
         $"    private static readonly string[] ImmutableDocumentationPrefixes = [\"{DocumentationRoot}{ArchiveDocumentationDirectory}\", \"{DocumentationRoot}{ReviewDocumentationDirectory}\"];";
+    private static readonly (string Name, string Path)[] ApprovedHistoricalArchiveCoordinates =
+    [
+        ("Task77ArchiveRecord", DocumentationRoot + ArchiveDocumentationDirectory +
+            "plans/developer-facing-interface-phase-00-kickoff-archive-provenance-2026-09-23.md"),
+        ("Task77ArchivedPrompt", DocumentationRoot + ArchiveDocumentationDirectory +
+            "plans/developer-facing-interface-phase-00-kickoff-prompt-2026-07-15.md")
+    ];
     private const string SourceBaseline = "d76192f089dd07f68e310c21fe4e5a38dd93cf7f";
     private const string TargetBase = "287fbde74681c015235d76f6498c031addfd9ac1";
     private const string ApprovedDispositionRecordSha256 =
@@ -137,10 +144,27 @@ public sealed partial class RecoveryCrosswalkInfrastructureGuards
                 $"The active corpus guard must declare the exact immutable documentation exclusions once; found {occurrences.Count}.");
         }
 
-        return source.Replace(
+        source = source.Replace(
             ApprovedImmutableDocumentationPrefixDeclaration,
             string.Empty,
             StringComparison.Ordinal);
+
+        // Task 7.7 verifies historical Git objects, not current normative guidance.
+        // Permit only its two named, exact archive coordinates in this guard source.
+        foreach (var (name, coordinate) in ApprovedHistoricalArchiveCoordinates)
+        {
+            var pattern = $@"private const string {name}\s*=\s*""{Regex.Escape(coordinate)}"";";
+            var matches = Regex.Matches(source, pattern, RegexOptions.CultureInvariant);
+            if (matches.Count != 1)
+            {
+                throw new InvalidDataException(
+                    $"The active corpus guard must declare historical archive coordinate {name} exactly once; found {matches.Count}.");
+            }
+
+            source = source.Remove(matches[0].Index, matches[0].Length);
+        }
+
+        return source;
     }
 
     private static void ValidateRelocationDiscoverySemantics()

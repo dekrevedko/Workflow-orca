@@ -254,6 +254,11 @@ routing live in active indexes or new dated records. The current contract forbid
 historical path. A future reviewed tombstone mechanism may define how a replacement path preserves
 predecessor identity and Git provenance; until then the original path remains present and cataloged.
 
+Task 7.7 resolves the Phase-0 kickoff prompt move with a new immutable archive provenance record.
+It names the immediate predecessor path and commit, the `R097` move commit, both Git blobs, and the
+four relative-link-only edits. The archived prompt stays byte-identical to its move-commit blob;
+Task 7.7 neither relocates nor rewrites any protected record.
+
 ### 6. Freeze hashes use one explicit byte pipeline
 
 A review freeze records only paths that can enter the checkpoint commit. Its commit-real entry set
@@ -478,5 +483,3 @@ involved.
 ## Open Questions
 
 - Is the empty runtime-concurrency delta directory a dropped artifact or a stray directory?
-- Can the Phase-0 kickoff prompt move be represented as a Git rename at the final target, or must a
-  separate immutable predecessor record carry its provenance?
