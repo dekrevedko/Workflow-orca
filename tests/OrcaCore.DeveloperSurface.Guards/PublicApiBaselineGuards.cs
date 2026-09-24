@@ -1,4 +1,9 @@
+using System.Diagnostics;
+using System.Formats.Tar;
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
 using AwesomeAssertions;
 
 namespace OrcaCore.DeveloperSurface.Guards;
@@ -55,16 +60,16 @@ public sealed class PublicApiBaselineInfrastructureGuards
         "OrcaCore.Engine.Durable::OrcaCore.Engine.Durable.Management.WorkflowInstanceQueryModel",
         "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.EphemeralWorkflowEngine::Management",
         "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.EphemeralWorkflowEngine::RaiseEventByDefinitionAsync",
-        "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.Management.ActiveWaitStatistics",
-        "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.Management.DestructiveCommandSafety",
-        "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.Management.EphemeralInstanceManagement",
-        "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.Management.EphemeralManagement",
-        "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.Management.EphemeralManagementQuery",
-        "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.Management.EphemeralStepManagement",
-        "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.Management.TerminalCommandReport",
-        "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.Management.WorkflowInstanceQueryModel",
-        "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.Management.WorkflowStatistics",
-        "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.Management.WorkflowStatisticsGroup",
+        "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.ActiveWaitStatistics",
+        "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.DestructiveCommandSafety",
+        "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.EphemeralInstanceManagement",
+        "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.EphemeralManagement",
+        "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.EphemeralManagementQuery",
+        "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.EphemeralStepManagement",
+        "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.TerminalCommandReport",
+        "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.WorkflowInstanceQueryModel",
+        "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.WorkflowStatistics",
+        "OrcaCore.Engine.Ephemeral::OrcaCore.Engine.Ephemeral.WorkflowStatisticsGroup",
         "OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.IWorkflowRetentionStore",
         "OrcaCore.Provider.Abstractions::OrcaCore.Provider.Abstractions.ResourceGovernance.IResourceLeaseGovernanceStore",
         "OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.ArchiveResult",
@@ -76,17 +81,14 @@ public sealed class PublicApiBaselineInfrastructureGuards
         "OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.CheckpointSagaRecoveryIntervention",
         "OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.CheckpointBufferedDelivery",
         "OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.CheckpointBufferedTimer",
-        "OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.IWorkflowPayloadCodec",
-        "OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.IWorkflowPayloadSerializer",
+        "OrcaCore::OrcaCore.Abstractions.Providers.IWorkflowPayloadCodec",
+        "OrcaCore::OrcaCore.Abstractions.Providers.IWorkflowPayloadSerializer",
         "OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.ProviderCommitPolicy",
         "OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.ProjectionCommitMode",
         "OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.PurgeResult",
         "OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.RetentionPolicy",
         "OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.SerializedPayload",
-        "OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.WorkflowProjectionPressureMetrics",
         "OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.WorkflowProjectionQuery",
-        "OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.WorkflowProjectionStatistics",
-        "OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.WorkflowProjectionStatisticsGroup",
         "OrcaCore.Provider.Abstractions::OrcaCore.Abstractions.Providers.ProviderJsonSerializerContext",
         "OrcaCore.Engine.Durable::OrcaCore.Engine.Durable.Execution.ContentTypeWorkflowPayloadSerializer",
         "OrcaCore.Engine.Durable::OrcaCore.Engine.Durable.Execution.JsonWorkflowPayloadSerializer",
@@ -153,6 +155,55 @@ public sealed class PublicApiBaselineInfrastructureGuards
     };
 
     private const string ForbiddenProbeMarker = "// FORBIDDEN:";
+
+    private static readonly string[] ForbiddenPublicSymbolOwnerCommits =
+    {
+        "ac46d99543daf85c0fa3234272997ba40f47f96b",
+        "666bc1e6ec57eb055f3fecbb8f74a64ebe2e1ea9"
+    };
+
+    private static readonly IReadOnlyDictionary<string, string> ForbiddenPublicSymbolAssemblyRoots =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["OrcaCore"] = "src/OrcaCore.Abstractions/",
+            ["OrcaCore.Core"] = "src/OrcaCore.Core/",
+            ["OrcaCore.Engine.Durable"] = "src/OrcaCore.Engine.Durable/",
+            ["OrcaCore.Engine.Ephemeral"] = "src/OrcaCore.Engine.Ephemeral/",
+            ["OrcaCore.Provider.Abstractions"] = "src/OrcaCore.Provider.Abstractions/",
+            ["OrcaCore.Runtime.Protocol"] = "src/OrcaCore.Runtime.Protocol/"
+        };
+
+    private const string Task76Artifact =
+        "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
+        "task-7-6-forbidden-symbol-qualified-owner-audit-2026-09-22.md";
+    private const string Task76ArtifactSha256 =
+        "5fc46471770add6553016488d4203ab4400997c7ed1c243cbca1d8771a160025";
+    private const string Task76ReviewRemediationArtifact =
+        "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
+        "task-7-5-and-7-6-review-remediation-2026-09-23.md";
+    private const string Task76ReviewRemediationArtifactSha256 =
+        "7a228cd530d66006846b0fbbb340d1b91cf1ecd698c80b0d27cb6ec3830c15e5";
+    private const string Task76CompletionDecision =
+        "**Completed:** corrected ten ephemeral-management namespaces and two pre-split payload-codec " +
+        "assembly owners, deleted three identities that never existed, and verified all 122 retained " +
+        "negatives against exact namespace/type owners and member declarations inside the named type " +
+        "at two immutable historical commits. The package probe, deletion-ledger inventory, and " +
+        "exact-owner regression now share one catalog. The deletion inventory remains owned by reshape " +
+        "task 7.17; this harmonization task audits and pins its qualified identities.";
+    private const string Task76ReviewRemediationDecision =
+        "**Review remediation:** PPP-1 restored the reshape Task 7.17 owner and bound it to that " +
+        "task's removal text; QQQ-1 reconciled every Markdown accounting count and fourth inventory, " +
+        "changed historical member resolution from body tokens to declarations, and corrected the " +
+        "removed-lineage and historical-project wording. The rejected target remains immutable.";
+    private const string Task76DesignDecision =
+        "Task 7.6 audits the full catalog against source archives at the pre-reshape and pre-package-split\n" +
+        "commits: ten ephemeral management identities lose a `.Management` namespace absent from the\n" +
+        "promoted product lineage (though present in removed `v3/` lineages), two payload-codec identities\n" +
+        "use the current `OrcaCore` successor of historical `OrcaCore.Abstractions.csproj`, three invented\n" +
+        "projection-statistics identities are deleted, and every one of the 122 retained negatives resolves\n" +
+        "to an exact historical namespace and type declaration under the named assembly source root;\n" +
+        "member identities must resolve to declarations inside that named type's balanced body, not merely\n" +
+        "to parameter, comment, or string tokens.";
 
     private static readonly string[] ForbiddenMetadataTypes =
     {
@@ -229,12 +280,513 @@ public sealed class PublicApiBaselineInfrastructureGuards
     public void RemovedDeferredAndWrongOwnerPublicSymbols_AreAbsentBeforeBaselineApproval()
     {
         ForbiddenPublicSymbols.Should().OnlyHaveUniqueItems();
+        AssertHistoricalOwnerResolutionSemantics();
+        FindForbiddenPublicSymbolsWithoutHistoricalOwner().Should().BeEmpty(
+            "every namespace-pinned negative must name an exact type or member under its real historical assembly owner");
+        AssertTask76Disposition();
         var packageFeed = Environment.GetEnvironmentVariable(PublicApiBaseline.PackageFeedVariable);
         var findings = string.IsNullOrWhiteSpace(packageFeed)
             ? PublicApiBaseline.FindForbiddenPublicSymbols(ForbiddenPublicSymbols)
             : PublicApiBaseline.FindForbiddenPublicSymbolsInPackages(packageFeed, ForbiddenPublicSymbols);
         findings.Should().BeEmpty(
             "the exact baseline must never normalize removed, deferred, broad-management, or wrong-owner surfaces as approved");
+    }
+
+    private static void AssertHistoricalOwnerResolutionSemantics()
+    {
+        const string syntheticSource = """"
+            namespace Historical.Owner;
+
+            internal sealed class WrongType
+            {
+                private const string Braces = "{ not a body }";
+                internal void ExpectedMember() { }
+            }
+
+            internal sealed class ExpectedType
+            {
+                private const string RawBraces = """{ still not a body }""";
+                private const string Decoy = "StringOnly";
+                // CommentOnly() { }
+                internal void ActualMember(CancellationToken cancellationToken = default) { }
+            }
+
+            internal enum ExpectedEnum
+            {
+                ActualValue = 1,
+            }
+            """";
+        const string expectedType = @"\bclass\s+ExpectedType\b";
+        var maskedSource = MaskNonCode(syntheticSource);
+
+        SourceContainsHistoricalOwner(
+                maskedSource,
+                "Historical.Owner",
+                expectedType,
+                "ActualMember")
+            .Should().BeTrue("the member belongs to the exact named historical type");
+        SourceContainsHistoricalOwner(
+                maskedSource,
+                "Historical.Owner",
+                expectedType,
+                "ExpectedMember")
+            .Should().BeFalse("a member on a sibling type must not satisfy the qualified owner");
+        SourceContainsHistoricalOwner(
+                maskedSource,
+                "Historical.Other",
+                expectedType,
+                "ActualMember")
+            .Should().BeFalse("a declaration in another namespace must not satisfy the qualified owner");
+        SourceContainsHistoricalOwner(maskedSource, "Historical.Owner", expectedType, "cancellationToken")
+            .Should().BeFalse("a parameter token is not a declaration on the named type");
+        SourceContainsHistoricalOwner(maskedSource, "Historical.Owner", expectedType, "RawBraces")
+            .Should().BeTrue("real field declarations remain visible after literal masking");
+        SourceContainsHistoricalOwner(maskedSource, "Historical.Owner", expectedType, "CommentOnly")
+            .Should().BeFalse("comments cannot satisfy a historical member identity");
+        SourceContainsHistoricalOwner(maskedSource, "Historical.Owner", expectedType, "StringOnly")
+            .Should().BeFalse("string contents cannot satisfy a historical member identity");
+        SourceContainsHistoricalOwner(maskedSource, "Historical.Owner", @"\benum\s+ExpectedEnum\b", "ActualValue")
+            .Should().BeTrue("historical enum values are declarations too");
+    }
+
+    private static void AssertTask76Disposition()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        var ledger = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            "openspec/changes/harmonize-downstream-capability-specs/tasks.md")));
+        var task = Regex.Match(
+            ledger,
+            @"(?ms)^- \[x\] 7\.6 .*?(?=^- \[[ xX]\] 7\.7 )",
+            RegexOptions.CultureInvariant);
+        task.Success.Should().BeTrue("Task 7.6 must retain its completed exact-owner disposition");
+        Regex.Replace(task.Value, @"\s+", " ").Should().Contain(Task76CompletionDecision);
+        task.Value.Should().Contain($"`{Task76Artifact}`");
+        Regex.Replace(task.Value, @"\s+", " ").Should().Contain(Task76ReviewRemediationDecision);
+        task.Value.Should().Contain($"`{Task76ReviewRemediationArtifact}`");
+
+        var design = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            "openspec/changes/harmonize-downstream-capability-specs/design.md")));
+        design.Should().Contain(Task76DesignDecision);
+        design.Should().Contain(
+            "The machine-readable 122-entry inventory retains reshape Task 7.17 as its removal owner.");
+
+        var artifact = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            Task76Artifact.Replace('/', Path.DirectorySeparatorChar))));
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(artifact)))
+            .ToLowerInvariant()
+            .Should().Be(Task76ArtifactSha256);
+        artifact.Should().ContainAll(
+            "ten ephemeral management types",
+            "IWorkflowPayloadCodec",
+            "never existed under the recorded provider namespace",
+            "122 exact identities",
+            "remains owned by reshape Task 7.17");
+        var remediation = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            Task76ReviewRemediationArtifact.Replace('/', Path.DirectorySeparatorChar))));
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(remediation)))
+            .ToLowerInvariant()
+            .Should().Be(Task76ReviewRemediationArtifactSha256);
+    }
+
+    private static string NormalizeLineEndings(string value) =>
+        value.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+
+    private static string[] FindForbiddenPublicSymbolsWithoutHistoricalOwner()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        var archives = ForbiddenPublicSymbolOwnerCommits.ToDictionary(
+            commit => commit,
+            commit => ReadHistoricalSourceArchive(root, commit),
+            StringComparer.Ordinal);
+
+        return ForbiddenPublicSymbols
+            .Where(identity => !HasHistoricalOwner(identity, archives))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static bool HasHistoricalOwner(
+        string identity,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> archives)
+    {
+        var parts = identity.Split("::", StringSplitOptions.None);
+        if (parts.Length is < 2 or > 3 ||
+            !ForbiddenPublicSymbolAssemblyRoots.TryGetValue(parts[0], out var assemblyRoot))
+        {
+            return false;
+        }
+
+        var lastDot = parts[1].LastIndexOf('.');
+        if (lastDot <= 0 || lastDot == parts[1].Length - 1) return false;
+        var @namespace = parts[1][..lastDot];
+        var metadataName = Regex.Replace(parts[1][(lastDot + 1)..], @"`\d+$", string.Empty);
+        var declarationPattern =
+            $@"\b(?:class|struct|interface|enum|record(?:\s+(?:class|struct))?)\s+{Regex.Escape(metadataName)}\b";
+        var memberName = parts.Length == 3 ? parts[2] : null;
+
+        return archives.Values.Any(files => files
+            .Where(file => file.Key.StartsWith(assemblyRoot, StringComparison.Ordinal))
+            .Select(file => file.Value)
+            .Any(source => SourceContainsHistoricalOwner(
+                source,
+                @namespace,
+                declarationPattern,
+                memberName)));
+    }
+
+    private static bool SourceContainsHistoricalOwner(
+        string source,
+        string @namespace,
+        string declarationPattern,
+        string? memberName)
+    {
+        var escapedNamespace = Regex.Escape(@namespace);
+        var candidateRegions = new List<string>();
+        if (Regex.IsMatch(
+                source,
+                $@"(?m)^\s*namespace\s+{escapedNamespace}\s*;",
+                RegexOptions.CultureInvariant))
+        {
+            candidateRegions.Add(source);
+        }
+
+        foreach (Match namespaceDeclaration in Regex.Matches(
+                     source,
+                     $@"(?m)^\s*namespace\s+{escapedNamespace}\s*\{{",
+                     RegexOptions.CultureInvariant))
+        {
+            var namespaceBodyStart = source.IndexOf('{', namespaceDeclaration.Index);
+            var namespaceBodyEnd = FindMatchingBrace(source, namespaceBodyStart);
+            if (namespaceBodyEnd > namespaceBodyStart)
+            {
+                candidateRegions.Add(source[(namespaceBodyStart + 1)..namespaceBodyEnd]);
+            }
+        }
+
+        foreach (var candidateRegion in candidateRegions)
+        {
+            foreach (Match declaration in Regex.Matches(
+                         candidateRegion,
+                         declarationPattern,
+                         RegexOptions.CultureInvariant))
+            {
+                if (memberName is null) return true;
+
+                var bodyStart = candidateRegion.IndexOf('{', declaration.Index + declaration.Length);
+                var declarationTerminator = candidateRegion.IndexOf(';', declaration.Index + declaration.Length);
+                if (bodyStart < 0 || declarationTerminator >= 0 && declarationTerminator < bodyStart) continue;
+
+                var bodyEnd = FindMatchingBrace(candidateRegion, bodyStart);
+                if (bodyEnd < 0) continue;
+                if (ContainsHistoricalMemberDeclaration(
+                        candidateRegion[(bodyStart + 1)..bodyEnd],
+                        memberName,
+                        declaration.Value.Contains("enum", StringComparison.Ordinal)))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ContainsHistoricalMemberDeclaration(string body, string memberName, bool isEnum)
+    {
+        var escapedName = Regex.Escape(memberName);
+        var pattern = isEnum
+            ? @"(?m)^[ \t]*(?:\[[^\r\n]+\][ \t]*)*" + escapedName + @"\b[ \t]*(?:=|,|(?=\r?$))"
+            : @"(?m)^[ \t]*(?:\[[^\r\n]+\][ \t]*)*\b(?:public|internal|protected|private)\b[^\r\n;{}()]*\b" +
+              escapedName + @"\b(?:<[^>\r\n]+>)?[ \t]*(?:\(|\{|=>|=|;)";
+        return Regex.IsMatch(body, pattern, RegexOptions.CultureInvariant);
+    }
+
+    private static string MaskNonCode(string source)
+    {
+        var masked = source.ToCharArray();
+        static void Hide(char[] target, int index)
+        {
+            if (target[index] is not ('\r' or '\n')) target[index] = ' ';
+        }
+
+        for (var index = 0; index < source.Length;)
+        {
+            var current = source[index];
+            var next = index + 1 < source.Length ? source[index + 1] : '\0';
+            if (current == '/' && next == '/')
+            {
+                do
+                {
+                    Hide(masked, index++);
+                } while (index < source.Length && source[index] != '\n');
+                continue;
+            }
+
+            if (current == '/' && next == '*')
+            {
+                Hide(masked, index++);
+                Hide(masked, index++);
+                while (index < source.Length)
+                {
+                    if (source[index] == '*' && index + 1 < source.Length && source[index + 1] == '/')
+                    {
+                        Hide(masked, index++);
+                        Hide(masked, index++);
+                        break;
+                    }
+
+                    Hide(masked, index++);
+                }
+
+                continue;
+            }
+
+            if (current == '"')
+            {
+                var quoteCount = 1;
+                while (index + quoteCount < source.Length && source[index + quoteCount] == '"') quoteCount++;
+                if (quoteCount >= 3)
+                {
+                    var closingCount = quoteCount;
+                    for (var count = 0; count < quoteCount; count++) Hide(masked, index++);
+                    while (index < source.Length)
+                    {
+                        if (source[index] == '"')
+                        {
+                            var run = 1;
+                            while (index + run < source.Length && source[index + run] == '"') run++;
+                            if (run >= closingCount)
+                            {
+                                for (var count = 0; count < closingCount; count++) Hide(masked, index++);
+                                break;
+                            }
+                        }
+
+                        Hide(masked, index++);
+                    }
+
+                    continue;
+                }
+
+                var verbatim = index > 0 && (source[index - 1] == '@' ||
+                    index > 1 && source[index - 1] == '$' && source[index - 2] == '@');
+                Hide(masked, index++);
+                while (index < source.Length)
+                {
+                    if (verbatim && source[index] == '"' && index + 1 < source.Length && source[index + 1] == '"')
+                    {
+                        Hide(masked, index++);
+                        Hide(masked, index++);
+                        continue;
+                    }
+
+                    var closes = source[index] == '"' && (verbatim || !IsEscaped(source, index));
+                    Hide(masked, index++);
+                    if (closes) break;
+                }
+
+                continue;
+            }
+
+            if (current == '\'')
+            {
+                Hide(masked, index++);
+                while (index < source.Length)
+                {
+                    var closes = source[index] == '\'' && !IsEscaped(source, index);
+                    Hide(masked, index++);
+                    if (closes) break;
+                }
+
+                continue;
+            }
+
+            index++;
+        }
+
+        return new string(masked);
+    }
+
+    private static int FindMatchingBrace(string source, int openingBrace)
+    {
+        var depth = 0;
+        var inLineComment = false;
+        var inBlockComment = false;
+        var inString = false;
+        var inCharacter = false;
+        var verbatimString = false;
+        var rawStringQuoteCount = 0;
+
+        for (var index = openingBrace; index < source.Length; index++)
+        {
+            var current = source[index];
+            var next = index + 1 < source.Length ? source[index + 1] : '\0';
+
+            if (inLineComment)
+            {
+                if (current == '\n') inLineComment = false;
+                continue;
+            }
+
+            if (inBlockComment)
+            {
+                if (current == '*' && next == '/')
+                {
+                    inBlockComment = false;
+                    index++;
+                }
+
+                continue;
+            }
+
+            if (rawStringQuoteCount > 0)
+            {
+                if (current != '"') continue;
+                var closingQuoteCount = 1;
+                while (index + closingQuoteCount < source.Length &&
+                       source[index + closingQuoteCount] == '"')
+                {
+                    closingQuoteCount++;
+                }
+
+                if (closingQuoteCount >= rawStringQuoteCount)
+                {
+                    index += rawStringQuoteCount - 1;
+                    rawStringQuoteCount = 0;
+                }
+
+                continue;
+            }
+
+            if (inString)
+            {
+                if (verbatimString && current == '"' && next == '"')
+                {
+                    index++;
+                    continue;
+                }
+
+                if (current == '"' && (verbatimString || !IsEscaped(source, index)))
+                {
+                    inString = false;
+                    verbatimString = false;
+                }
+
+                continue;
+            }
+
+            if (inCharacter)
+            {
+                if (current == '\'' && !IsEscaped(source, index)) inCharacter = false;
+                continue;
+            }
+
+            if (current == '/' && next == '/')
+            {
+                inLineComment = true;
+                index++;
+                continue;
+            }
+
+            if (current == '/' && next == '*')
+            {
+                inBlockComment = true;
+                index++;
+                continue;
+            }
+
+            if (current == '"')
+            {
+                var quoteCount = 1;
+                while (index + quoteCount < source.Length && source[index + quoteCount] == '"') quoteCount++;
+                if (quoteCount >= 3)
+                {
+                    rawStringQuoteCount = quoteCount;
+                    index += quoteCount - 1;
+                }
+                else
+                {
+                    inString = true;
+                    verbatimString = index > 0 &&
+                                     (source[index - 1] == '@' ||
+                                      index > 1 && source[index - 1] == '$' && source[index - 2] == '@');
+                }
+
+                continue;
+            }
+
+            if (current == '\'')
+            {
+                inCharacter = true;
+                continue;
+            }
+
+            if (current == '{') depth++;
+            if (current != '}') continue;
+            depth--;
+            if (depth == 0) return index;
+        }
+
+        return -1;
+    }
+
+    private static bool IsEscaped(string source, int index)
+    {
+        var slashCount = 0;
+        for (var cursor = index - 1; cursor >= 0 && source[cursor] == '\\'; cursor--) slashCount++;
+        return slashCount % 2 != 0;
+    }
+
+    private static IReadOnlyDictionary<string, string> ReadHistoricalSourceArchive(string root, string commit)
+    {
+        var startInfo = new ProcessStartInfo("git")
+        {
+            WorkingDirectory = root,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        };
+        startInfo.ArgumentList.Add("archive");
+        startInfo.ArgumentList.Add("--format=tar");
+        startInfo.ArgumentList.Add(commit);
+        startInfo.ArgumentList.Add("--");
+        startInfo.ArgumentList.Add("src");
+
+        using var process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("Could not start git archive for forbidden-symbol owner evidence.");
+        using var archive = new MemoryStream();
+        process.StandardOutput.BaseStream.CopyTo(archive);
+        process.WaitForExit();
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException(
+                $"git archive failed for historical forbidden-symbol owner commit '{commit}': " +
+                process.StandardError.ReadToEnd());
+        }
+
+        archive.Position = 0;
+        var files = new Dictionary<string, string>(StringComparer.Ordinal);
+        using (var reader = new TarReader(archive))
+        {
+            while (reader.GetNextEntry() is { } entry)
+            {
+                if (entry.EntryType != TarEntryType.RegularFile ||
+                    entry.DataStream is null ||
+                    !entry.Name.EndsWith(".cs", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                using var sourceReader = new StreamReader(entry.DataStream, leaveOpen: true);
+                files.Add(entry.Name.Replace('\\', '/'), MaskNonCode(sourceReader.ReadToEnd()));
+            }
+        }
+
+        return files;
     }
 
     [Fact]

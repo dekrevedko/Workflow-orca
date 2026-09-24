@@ -1,0 +1,13 @@
+ M openspec/changes/harmonize-downstream-capability-specs/design.md
+ M openspec/changes/harmonize-downstream-capability-specs/tasks.md
+ M openspec/changes/reshape-developer-facing-interfaces/production-deletion-ledger.md
+ M tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/ProductForbiddenLegacySurface/ForbiddenLegacySurface.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/production-deletion-ledger.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs
+?? docs/review/harmonize-downstream-capability-specs-task-7-5-ooo-1-and-task-7-6-dirty-manifest-2026-09-22.txt
+?? docs/review/harmonize-downstream-capability-specs-task-7-5-ooo-1-and-task-7-6-independent-review-request-2026-09-22.md
+?? openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-5-post-review-hardening-2026-09-22.md
+?? openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-6-forbidden-symbol-qualified-owner-audit-2026-09-22.md

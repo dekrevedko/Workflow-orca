@@ -426,9 +426,27 @@
       routing, publish, and pre-wait rewordings are covered, and the artifact's 86-source figure is
       snapshot evidence rather than a live cardinality invariant. Remediation evidence:
       `openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-4-and-7-5-review-remediation-2026-09-22.md`.
-- [ ] 7.6 Correct or delete namespace-pinned `ForbiddenPublicSymbols` entries that cannot match the
+      **Post-review hardening:** all eight OOO-1 natural-language regressions are executable probes,
+      and guard-source SHA-256 values pin both the complete classifier name/expression catalog and the
+      exact phrase/expected-classifier catalog so removing a tuple or probe cannot pass as a routine
+      refresh. Evidence:
+      `openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-5-post-review-hardening-2026-09-22.md`.
+- [x] 7.6 Correct or delete namespace-pinned `ForbiddenPublicSymbols` entries that cannot match the
       current assembly owners; add a regression proving each forbidden symbol fails under its exact
       current or historical qualified owner rather than silently passing an impossible namespace.
+      **Completed:** corrected ten ephemeral-management namespaces and two pre-split payload-codec
+      assembly owners, deleted three identities that never existed, and verified all 122 retained
+      negatives against exact namespace/type owners and member declarations inside the named type
+      at two immutable historical commits. The package probe, deletion-ledger inventory, and
+      exact-owner regression now share one catalog. The deletion inventory remains owned by reshape
+      task 7.17; this harmonization task audits and pins its qualified identities. Evidence:
+      `openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-6-forbidden-symbol-qualified-owner-audit-2026-09-22.md`.
+      **Review remediation:** PPP-1 restored the reshape Task 7.17 owner and bound it to that
+      task's removal text; QQQ-1 reconciled every Markdown accounting count and fourth inventory,
+      changed historical member resolution from body tokens to declarations, and corrected the
+      removed-lineage and historical-project wording. The rejected target remains immutable.
+      Evidence:
+      `openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-5-and-7-6-review-remediation-2026-09-23.md`.
 - [ ] 7.7 Repair the Phase-0 kickoff prompt archive move by adding an explicit immutable archive
       provenance record that names the exact predecessor and commit; do not rename, delete, or edit
       an existing protected path. Any future history-preserving relocation first requires a separately

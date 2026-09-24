@@ -353,6 +353,18 @@ than a second delta. The empty directory was therefore removed during planning r
 Namespace-pinned forbidden-symbol entries that cannot address a real historical or current owner
 are corrected or deleted and receive a regression against the exact qualified owner. Neither an
 empty directory nor an impossible negative guard may silently satisfy completeness.
+Task 7.6 audits the full catalog against source archives at the pre-reshape and pre-package-split
+commits: ten ephemeral management identities lose a `.Management` namespace absent from the
+promoted product lineage (though present in removed `v3/` lineages), two payload-codec identities
+use the current `OrcaCore` successor of historical `OrcaCore.Abstractions.csproj`, three invented
+projection-statistics identities are deleted, and every one of the 122 retained negatives resolves
+to an exact historical namespace and type declaration under the named assembly source root;
+member identities must resolve to declarations inside that named type's balanced body, not merely
+to parameter, comment, or string tokens.
+The machine-readable 122-entry inventory retains reshape Task 7.17 as its removal owner.
+Harmonization Task 7.6 audits the qualified owner coordinates without silently transferring
+ownership to its same-numbered, unrelated reshape task. The Markdown companion's complete
+accounting rows are checked against the machine-readable counts and four symbol inventories.
 
 ### 8. Task 7.3 reconciles the approved Section 7B contract without widening product scope
 
@@ -423,6 +435,11 @@ not a live equality: benign additions and normal archival are accepted when the 
 contains no positive removed/deferred call or stale Section 7B claim.
 The dated `task-7-4-and-7-5-review-remediation-2026-09-22.md` artifact records the rejected freeze,
 the exact fixes, and their mutation evidence without authorizing the superseding checkpoint.
+Task 7.5 post-review hardening adds the eight OOO-1 natural-language forms as synthetic regressions
+and pins both the ordered classifier name/expression catalog and the exact phrase/expected-classifier
+catalog in guard source. Removing a classifier or synthetic regression and coherently refreshing its
+historical rows and mutable artifact digest therefore remains red unless the same reviewed edit
+explicitly changes the corresponding guard-owned digest.
 
 ## Risks / Trade-offs
 

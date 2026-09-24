@@ -22,13 +22,14 @@ in the same target or the infrastructure guards fail.
 | Inventory | Exact count | Enforcement |
 |---|---:|---|
 | Disposition families | 24 | unique family IDs and one closed disposition each |
-| Physically deleted production paths | 89 | union of recovery/target trees compared with the current filesystem |
+| Physically deleted production paths | 134 | union of recovery/target trees compared with the current filesystem |
 | Production `<Compile Remove>` entries | 1 | every `src/` and `samples/` project parsed as XML |
-| Orphaned production roots | 5 | source/SQL roots with no project file |
-| Retired/deferred package artifacts | 6 | deleted project identities absent from the exact v1 manifest |
-| Retired public/member symbols | 120 | ordered inventory and SHA-256 pinned |
+| Orphaned production roots | 0 | source/SQL roots with no project file |
+| Retired/deferred package artifacts | 5 | deleted project identities absent from the exact v1 manifest |
+| Retired public/member symbols | 122 | exact current or historical qualified owners, ordered inventory, and SHA-256 pinned by harmonization task 7.6 |
 | Removed internal result placeholders | 4 | ordered inventory and SHA-256 pinned |
 | Forbidden internal bridge types | 9 | ordered inventory and SHA-256 pinned |
+| Removed hosting and codec types | 3 | manifest-wide ordered inventory and SHA-256 pinned |
 | Unresolved entries | **0** | the token is rejected case-insensitively by the guard |
 
 The symbol inventories intentionally remain in `PublicApiBaselineGuards.cs`, where source and
@@ -36,7 +37,7 @@ metadata absence are executable. The ledger pins their field names, counts, orde
 owners, and test methods so they cannot drift independently.
 
 Every declaration contained by a physically deleted `.cs` path inherits that path's one family
-disposition; this is enforced by the exact 89-path recovery/target comparison. The three ordered symbol
+disposition; this is enforced by the exact 134-path recovery/target comparison. The four ordered symbol
 inventories separately cover public/member and internal removals that are not safely represented by
 file accounting alone, including in-place member removal and forbidden compatibility bridges.
 

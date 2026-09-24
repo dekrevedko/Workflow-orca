@@ -154,6 +154,20 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
             var owner = RequiredString(inventory, "owner");
             owner.Should().StartWith("task:");
             AssertOwnerExists(root, tasks, owner, RequiredString(inventory, "id"));
+            if (RequiredString(inventory, "id") == "retired-public-symbols")
+            {
+                owner.Should().Be("task:7.17",
+                    "reshape Task 7.17 owns removal; harmonization Task 7.6 only audits the exact catalog");
+                var owningTask = Regex.Match(
+                    tasks,
+                    @"(?ms)^- \[x\] 7\.17 .*?(?=^- \[[ xX]\] 7\.17a )",
+                    RegexOptions.CultureInvariant);
+                owningTask.Success.Should().BeTrue("the recorded reshape owner must have a completed task block");
+                owningTask.Value.Should().ContainAll(
+                    "Remove the remaining public legacy instance projections/statuses",
+                    "obsolete hosting/codec hooks",
+                    "forbidden public facades");
+            }
         }
     }
 
@@ -189,6 +203,34 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
             "changes",
             "reshape-developer-facing-interfaces",
             "production-deletion-ledger.md"));
+        var expectedCounts = document.RootElement.GetProperty("expectedCounts");
+        var inventories = document.RootElement.GetProperty("symbolInventories").EnumerateArray().ToArray();
+        int InventoryCount(string id) => inventories
+            .Single(item => RequiredString(item, "id") == id)
+            .GetProperty("expectedCount").GetInt32();
+        var expectedAccounting = new (string Name, int Count)[]
+        {
+            ("Disposition families", expectedCounts.GetProperty("families").GetInt32()),
+            ("Physically deleted production paths", expectedCounts.GetProperty("physicallyDeletedPaths").GetInt32()),
+            ("Production `<Compile Remove>` entries", expectedCounts.GetProperty("compileExcludedEntries").GetInt32()),
+            ("Orphaned production roots", expectedCounts.GetProperty("orphanedProductionRoots").GetInt32()),
+            ("Retired/deferred package artifacts", expectedCounts.GetProperty("retiredPackageArtifacts").GetInt32()),
+            ("Retired public/member symbols", InventoryCount("retired-public-symbols")),
+            ("Removed internal result placeholders", InventoryCount("removed-step-result-placeholders")),
+            ("Forbidden internal bridge types", InventoryCount("forbidden-internal-bridges")),
+            ("Removed hosting and codec types", InventoryCount("removed-hosting-and-codec-types")),
+            ("Unresolved entries", 0)
+        };
+        var actualAccounting = Regex.Matches(
+                companion,
+                @"(?m)^\| (?<name>[^|]+?) \| (?<count>(?:\*\*)?\d+(?:\*\*)?) \|")
+            .Cast<Match>()
+            .Select(match => (
+                Name: match.Groups["name"].Value,
+                Count: int.Parse(match.Groups["count"].Value.Trim('*'))))
+            .ToArray();
+        actualAccounting.Should().Equal(expectedAccounting,
+            "every Markdown inventory count and row must agree with the machine-readable deletion ledger");
         var rows = Regex.Matches(
                 companion,
                 @"(?m)^\| (?<inventory>[^|]+?) \| (?<disposition>Replace\s*/\s*relocate|Remove|Defer|Dead\s*/\s*duplicate) \| (?<owner>[^|]+?) \|")
