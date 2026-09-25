@@ -174,7 +174,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "7b2ab26248e4131e401870ed8ade13fcc333d4aa6221f13a79ed5f534b6fc1f0";
+        "532be8676350ae24e8ce2b19558e9850691d380600b3bddf914ece7f633fa5b9";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +
@@ -2139,7 +2139,7 @@ public sealed class OpenSpecCorpusGuards
         string archiveIndex)
     {
         var recordPath = Path.Combine(root, Task77ArchiveRecord.Replace('/', Path.DirectorySeparatorChar));
-        var recordBytes = File.ReadAllBytes(recordPath);
+        var recordBytes = NormalizeHistoricalDocumentBytes(File.ReadAllBytes(recordPath));
         Sha256(recordBytes).Should().Be(Task77ArchiveRecordSha256,
             "the dated Task 7.7 predecessor record must remain byte-exact");
         var cataloguedRecord = fixture.AppendOnlyRecords.Single(entry => entry.Path == Task77ArchiveRecord);
@@ -2178,8 +2178,14 @@ public sealed class OpenSpecCorpusGuards
             "80ea80cf3ca951bd7481f1066103472216a8a644787929714570f733eb0db0aa");
         File.Exists(Path.Combine(root, Task77Predecessor.Replace('/', Path.DirectorySeparatorChar)))
             .Should().BeFalse("the old prompt path was moved at the recorded commit");
-        File.ReadAllBytes(Path.Combine(root, Task77ArchivedPrompt.Replace('/', Path.DirectorySeparatorChar)))
-            .Should().Equal(archivedBytes, "Task 7.7 must not rewrite the protected archived prompt");
+        var currentArchivedBlob = RunGit(root, "rev-parse", $"HEAD:{Task77ArchivedPrompt}");
+        currentArchivedBlob.ExitCode.Should().Be(0);
+        currentArchivedBlob.StandardOutput.Trim().Should().Be(archivedBlob.StandardOutput.Trim(),
+            "the committed archived prompt must remain byte-identical to the move-commit blob");
+        NormalizeHistoricalDocumentBytes(File.ReadAllBytes(Path.Combine(
+                root, Task77ArchivedPrompt.Replace('/', Path.DirectorySeparatorChar))))
+            .Should().Equal(NormalizeHistoricalDocumentBytes(archivedBytes),
+                "checkout line-ending conversion must not change the protected archived prompt's content");
 
         var task = Regex.Match(taskLedger, @"(?ms)^- \[x\] 7\.7 .*?(?=^## 8\.)",
             RegexOptions.CultureInvariant);
@@ -2188,7 +2194,11 @@ public sealed class OpenSpecCorpusGuards
             .And.Contain("No existing protected path was changed or relocated.");
         design.Should().Contain("Task 7.7 resolves the Phase-0 kickoff prompt move with a new immutable archive provenance record.");
         archiveIndex.Should().Contain(
-            "[exact move provenance](plans/developer-facing-interface-phase-00-kickoff-archive-provenance-2026-09-23.md)");
+            $"| `{Task77Predecessor}` | [Archived kickoff prompt]" +
+            "(plans/developer-facing-interface-phase-00-kickoff-prompt-2026-07-15.md) and its " +
+            "[exact move provenance]" +
+            "(plans/developer-facing-interface-phase-00-kickoff-archive-provenance-2026-09-23.md) |",
+            "the old-path routing key and both exact targets must remain bound together");
     }
 
     [Fact]

@@ -460,11 +460,22 @@
 
 ## 8. Final harmonization gate
 
-- [ ] 8.1 After the reduced deltas, design, canonical synchronization, corpus/process/docs tasks, and
+- [x] 8.1 After the reduced deltas, design, canonical synchronization, corpus/process/docs tasks, and
       reshape coordination prerequisites are complete, strict-validate all active changes and
       record the exact canonical diff, duplicate-heading scan, vocabulary/link checks, task
       accounting, normative-source classification, capability-directory inventory count/hash, and
       zero capability directories without `spec.md`.
+      **Completed:** the dated task 8.1 audit records the exact 11-file canonical patch between
+      Section 7 checkpoint `923ab063` and the audited base, 14 canonical capabilities, 176 active
+      delta headings with zero duplicate owners or pending operations, zero current vocabulary and
+      local-link findings, and the 16-directory / 1,321-byte capability inventory with no missing
+      `spec.md`. It also reconciles the normative-source-map's dated review/archive counts and
+      refreshes only its Task 7.3 source pin in this same review target. Strict OpenSpec validation
+      passes 18/18. The same target closes Task 7.7 review observations SSS-1 and the unpinned
+      archive routing key: checkout line-ending normalization no longer changes the historical
+      content comparison, while the committed Git blob and exact old-path route remain pinned.
+      The artifact is
+      `openspec/changes/harmonize-downstream-capability-specs/artifacts/task-8-1-final-harmonization-audit-2026-09-23.md`.
 - [ ] 8.2 Freeze the exact ordered target manifest and obtain a new immutable independent exit
       approval of the synchronized canonical/docs result. Prior rejection verdicts remain unchanged.
 - [ ] 8.3 **POST-APPROVAL:** verify zero manifest drift, create the mandatory coherent harmonization

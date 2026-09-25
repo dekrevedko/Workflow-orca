@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-7-and-rrr-1-dirty-manifest-2026-09-23.txt",
+  "activeFreezeManifestPath": "docs/review/harmonize-downstream-capability-specs-task-8-1-final-audit-dirty-manifest-2026-09-23.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2349,6 +2349,16 @@
       "path": "docs/review/harmonize-downstream-capability-specs-task-7-7-and-rrr-1-independent-review-verdict-2026-09-23.md",
       "bytes": 9056,
       "sha256": "31dabc0fac2c55eefbf9ab57149a82653f517934f66a3f7d6874a650eca959d5"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-8-1-final-audit-dirty-manifest-2026-09-23.txt",
+      "bytes": 799,
+      "sha256": "a0f5a44a9e1882d4ab83c653a421673a69e7c4323b614d4e2744f9cdc4dd1fff"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-8-1-final-audit-independent-exit-review-request-2026-09-23.md",
+      "bytes": 5459,
+      "sha256": "b9bf284fef987fe2d80f3083423baafd43b680743e6d14a801431c2af736f67d"
     },
     {
       "path": "docs/review/harmonize-downstream-capability-specs-tasks-7-4-and-7-5-combined-independent-review-request-2026-09-21.md",

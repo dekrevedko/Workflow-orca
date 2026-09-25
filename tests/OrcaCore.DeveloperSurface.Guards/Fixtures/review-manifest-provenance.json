@@ -1,6 +1,17 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": null,
+  "activeFreeze": {
+    "task": "8.1",
+    "requestPath": "docs/review/harmonize-downstream-capability-specs-task-8-1-final-audit-independent-exit-review-request-2026-09-23.md",
+    "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-8-1-final-audit-dirty-manifest-2026-09-23.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "b660d2d5b58d4b06663dd24f6a94a9c71ab37342",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 1281,
+    "contentRecordSha256": "610ed7ac35a2510811671dbc71e1b36e22f6e1ad357b4cced9e3249ed58d3cfc"
+  },
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",
@@ -2311,7 +2322,6 @@
         "docs/specs/05-requirements-events-waits-timers.md",
         "docs/specs/06-requirements-durable-execution.md",
         "docs/specs/12-acceptance-criteria.md",
-        "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md",
         "openspec/changes/reshape-developer-facing-interfaces/tasks.md",
         "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json",
         "tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs",
@@ -2591,8 +2601,6 @@
       "currentWorktreeMatchPaths": [
         "docs/archive/README.md",
         "openspec/changes/harmonize-downstream-capability-specs/design.md",
-        "openspec/changes/harmonize-downstream-capability-specs/tasks.md",
-        "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
         "tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs",
         "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
         "docs/archive/plans/developer-facing-interface-phase-00-kickoff-archive-provenance-2026-09-23.md",

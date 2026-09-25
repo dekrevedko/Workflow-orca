@@ -120,17 +120,22 @@ an agent grepping for a removed term cannot distinguish a live requirement from 
 proposal, and **unlabelled history is indistinguishable from stale truth**. Physical separation makes
 the distinction greppable — exclude `docs/archive/` and the noise is gone.
 
-### Current classification
+### Classification snapshot (task 8.1 base, 2026-09-23)
+
+The file counts below describe the committed task 8.1 base, not a live cardinality rule. Recount
+the two immutable-history directories when preparing a later checkpoint; new dated records do not
+change their classification.
 
 | Area | Files | Status | Notes |
 |---|---|---|---|
-| `specs/` | 20 | NORMATIVE | `18` is non-normative by declaration |
+| `specs/` except `18-semantic-appendix.md` | 19 | NORMATIVE | Requirements package, including its reading guide and declaration companion |
+| `specs/18-semantic-appendix.md` | 1 | GUIDE | Published non-normative review and verification aid; creates no new promise |
 | `implementation/` | 9 | BINDING | Stack decisions, conventions, TDD discipline, task protocol, active refactor plan |
-| `review/` | 147 | RECORD | Dated verdicts and manifests; frozen provenance |
+| `review/` | 269 | RECORD | Dated verdicts and manifests; frozen provenance |
 | `observability/` | 2 | GUIDE | |
 | `orleans-engine/` | 1 | PLANNED | Clean future-hosting boundary; implementation requires a new approved change |
 | root `*.md` | 11 | GUIDE | `README`, `production-readiness`, `project-technical-overview`, this map, current engine guides |
-| `archive/` | 199 | HISTORICAL | Root `README` 1, `implementation-phases/` 109, `architecture/` 24, `requirements/` 13, `plans/` 39, `research/` 7, `durable/` 5, `reviews/` 1 |
+| `archive/` | 200 | HISTORICAL | Root `README` 1, `implementation-phases/` 109, `architecture/` 24, `requirements/` 13, `plans/` 40, `research/` 7, `durable/` 5, `reviews/` 1 |
 
 The directory migrations below were archived on 2026-07-31 with `git mv` so
 `git log --follow` still works. On 2026-08-01 the historical Phase-0 kickoff, pre-v1 ephemeral

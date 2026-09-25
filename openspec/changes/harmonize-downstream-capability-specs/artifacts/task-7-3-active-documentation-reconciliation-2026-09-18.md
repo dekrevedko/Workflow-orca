@@ -22,7 +22,7 @@ requires the numbered rows, paths, and hashes exactly as recorded here.
 | 7 | `docs/implementation/01-solution-architecture.md` | `1d77afa2b5bd707854e7d15664e6d1a8eb6732190dcddbfd2d1e261b042f58ba` |
 | 8 | `docs/implementation/02-engineering-conventions.md` | `e4a81233359e60e5ca43e596d26a58ff46e75879dded7536e95511e47d908c72` |
 | 9 | `docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md` | `abc471060109638f4f520adabe369070d8af3c8d2665e388bce07db8fdcf6be6` |
-| 10 | `docs/normative-source-map.md` | `2f9dd197a2651269646cf960f45e56e06bf4b07aff78961ad0fcb1d2fdc6f09b` |
+| 10 | `docs/normative-source-map.md` | `1bc5a4182949cbfbe87870aebf258a9fdfcfb22a8cd627d2c0b0d7fc7e61d949` |
 | 11 | `docs/production-readiness.md` | `2812eb9121d455a59ec748dbdbcc4cba4ddd317398c9b8c5470edc44b9a6c1bc` |
 | 12 | `docs/project-technical-overview.md` | `62075350bba4adb0ad7f1698d8e7d271eb8f0e00df7071ab0adcb81355b8dc40` |
 | 13 | `docs/specs/01-concept-and-goals.md` | `36826933178462e6d83eb817cec2b51ec77cd93609a5726ad883b888c0960fb4` |
@@ -69,3 +69,14 @@ Only the owner of a reviewed change that intentionally edits one of these 22 sou
 recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that
 intentionally edits the source and updates the artifact row, guard-source artifact digest, and
 review evidence; neither may perform a mechanical follow-up refresh for an earlier unreviewed edit.
+
+## Task 8.1 intentional source refresh (2026-09-23)
+
+The final normative-source classification audit found that this active map still labelled its
+review/archive counts as current, although later immutable records had changed them. Task 8.1
+changed only its classification snapshot: at base `b660d2d5b58d4b06663dd24f6a94a9c71ab37342`,
+`docs/review/` contains 269 files and `docs/archive/` contains 200 (including 40 under `plans/`).
+The map now says these are dated counts, not live invariants, and distinguishes the 19 normative
+package files from the expressly non-normative semantic appendix. Row 10 alone is refreshed above;
+the other 21 Task 7.3 source hashes and the approved Section 7B contract wording are unchanged.
+This refresh belongs to the same frozen Task 8.1 target and requires its independent exit review.
