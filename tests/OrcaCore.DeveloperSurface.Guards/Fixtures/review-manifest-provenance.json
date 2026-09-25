@@ -2642,7 +2642,7 @@
       "baseCommit": "b660d2d5b58d4b06663dd24f6a94a9c71ab37342",
       "checkpointCommit": "843c79b6e0c6aee11a61e33588310e12b3dd4d67",
       "checkpointTree": "ac37cbf9d74162b679c1d36ed0922685f6a8c84c",
-      "approvalEvidenceCommit": null,
+      "approvalEvidenceCommit": "ed8fb81513fba67c019e6cdd9db64d9e3bd90231",
       "reviewedTargetCommit": "843c79b6e0c6aee11a61e33588310e12b3dd4d67",
       "reviewedTargetTree": "ac37cbf9d74162b679c1d36ed0922685f6a8c84c",
       "preApprovalContentCommits": [],
@@ -2715,7 +2715,7 @@
       ],
       "checkpointBlobContentRecordBytes": 1436,
       "checkpointBlobContentRecordSha256": "ece88fd3e0fc4e0ceb23d0ab4fd8a57b5ecaece93dc3724de832b6e05e6d30b9",
-      "reviewState": "ApprovalAwaitingEvidenceCommit",
+      "reviewState": "Approved",
       "stateEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-8-1-final-audit-independent-exit-review-verdict-2026-09-24.md",
       "verdictEvidence": [
         {
