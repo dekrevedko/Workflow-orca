@@ -2757,7 +2757,7 @@
       "baseCommit": "6faf798f5662dc47baba1cb4343e15861b7e757c",
       "checkpointCommit": "4f95a1ce1cd643bafff3b7375c53334a11733c0f",
       "checkpointTree": "8c8fed45f696947274461a113b70e620cc47048f",
-      "approvalEvidenceCommit": null,
+      "approvalEvidenceCommit": "457a862ffe4bfad7a97b403ed70a1c9938271cc1",
       "reviewedTargetCommit": "4f95a1ce1cd643bafff3b7375c53334a11733c0f",
       "reviewedTargetTree": "8c8fed45f696947274461a113b70e620cc47048f",
       "preApprovalContentCommits": [],
@@ -2809,7 +2809,7 @@
       ],
       "checkpointBlobContentRecordBytes": 950,
       "checkpointBlobContentRecordSha256": "8392e88d8655a0a1e7ffc0e9eee67b5101a33e2605c14a4d1d8f8056a5c2de2a",
-      "reviewState": "ApprovalAwaitingEvidenceCommit",
+      "reviewState": "Approved",
       "stateEvidencePath": "docs/review/harmonize-downstream-capability-specs-task-8-3-closeout-ttt-1-independent-review-verdict-2026-09-26.md",
       "verdictEvidence": [
         {
