@@ -22,6 +22,13 @@ public sealed class OpenSpecCorpusGuards
         "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json";
     private const string ReviewManifestCurrentMatchRefreshScript =
         "tests/OrcaCore.DeveloperSurface.Guards/refresh-review-manifest-current-matches.ps1";
+    private const string Task81AuditArtifact =
+        "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
+        "task-8-1-final-harmonization-audit-2026-09-23.md";
+    private const string Task81AuditSha256 =
+        "0618ab997def24d79d58648f2adf29d65d619063cabfd4f279086d76a54a3a52";
+    private const string FinalHarmonizationLedgerSectionSha256 =
+        "03a52a610ab207696ca51458f37ac3b6568a1797b8562dfb9702b653a32d6ff1";
     private const string MissingApprovalReviewState = "MissingApproval";
     private const string RejectedReviewState = "Rejected";
     private const string ApprovalAwaitingEvidenceCommitReviewState =
@@ -658,6 +665,50 @@ public sealed class OpenSpecCorpusGuards
         {
             ValidateActiveReviewFreeze(root, checkpoint.ActiveFreeze, checkpoint.Entries);
         }
+
+        ValidateFinalHarmonizationCloseout(
+            root,
+            checkpoint.Entries.Single(entry => entry.Task == "8.1"));
+    }
+
+    private static void ValidateFinalHarmonizationCloseout(
+        string root,
+        ReviewManifestProvenanceEntry exitReview)
+    {
+        var audit = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            Task81AuditArtifact.Replace('/', Path.DirectorySeparatorChar))));
+        Sha256(audit).Should().Be(
+            Task81AuditSha256,
+            "the approved Task 8.1 audit must remain byte-stable after its active freeze is archived");
+
+        var ledger = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            "openspec",
+            "changes",
+            "harmonize-downstream-capability-specs",
+            "tasks.md")));
+        const string heading = "## 8. Final harmonization gate";
+        var start = ledger.IndexOf(heading, StringComparison.Ordinal);
+        start.Should().BeGreaterThanOrEqualTo(0);
+        ledger.IndexOf(heading, start + heading.Length, StringComparison.Ordinal)
+            .Should().Be(-1, "the final harmonization gate must have one ledger section");
+        var closeout = ledger[start..];
+        Sha256(closeout).Should().Be(
+            FinalHarmonizationLedgerSectionSha256,
+            "the approved audit and post-approval checkpoint accounting must remain reviewed evidence");
+        foreach (var task in new[] { "8.1", "8.2", "8.3" })
+        {
+            Regex.Matches(closeout, $@"(?m)^- \[x\] {Regex.Escape(task)}\b")
+                .Should().HaveCount(1, $"harmonization task {task} must be recorded complete exactly once");
+        }
+
+        exitReview.ReviewState.Should().Be(ApprovedReviewState);
+        closeout.Should().Contain("`" + exitReview.CheckpointCommit + "`");
+        closeout.Should().Contain("`" + exitReview.ApprovalEvidenceCommit + "`");
+        closeout.Should().Contain(
+            "it does not authorize reshape task 8.0 or",
+            "the harmonization exit verdict does not grant Section 8 implementation authority");
     }
 
     [Fact]

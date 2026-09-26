@@ -476,8 +476,25 @@
       content comparison, while the committed Git blob and exact old-path route remain pinned.
       The artifact is
       `openspec/changes/harmonize-downstream-capability-specs/artifacts/task-8-1-final-harmonization-audit-2026-09-23.md`.
-- [ ] 8.2 Freeze the exact ordered target manifest and obtain a new immutable independent exit
+- [x] 8.2 Freeze the exact ordered target manifest and obtain a new immutable independent exit
       approval of the synchronized canonical/docs result. Prior rejection verdicts remain unchanged.
-- [ ] 8.3 **POST-APPROVAL:** verify zero manifest drift, create the mandatory coherent harmonization
+      **Completed:** the 2026-09-24 independent `APPROVE` verdict at
+      `docs/review/harmonize-downstream-capability-specs-task-8-1-final-audit-independent-exit-review-verdict-2026-09-24.md`
+      authorizes only the exact nine-path target with tree
+      `ac37cbf9d74162b679c1d36ed0922685f6a8c84c`. The verdict is byte-pinned in
+      the append-only history catalog and the review-provenance registry; prior verdicts are unchanged.
+- [x] 8.3 **POST-APPROVAL:** verify zero manifest drift, create the mandatory coherent harmonization
       checkpoint commit, and verify the committed tree/worktree state. This is the final prerequisite
       supplied by this change to reshape task 8.0.
+      **Completed:** the nine approved manifest paths and scoped content record matched before
+      checkpoint `843c79b6e0c6aee11a61e33588310e12b3dd4d67`, whose parent is
+      `b660d2d5b58d4b06663dd24f6a94a9c71ab37342` and whose tree is the reviewed
+      `ac37cbf9d74162b679c1d36ed0922685f6a8c84c`. Its direct child
+      `ed8fb81513fba67c019e6cdd9db64d9e3bd90231` commits the immutable approval
+      evidence; `6faf798f5662dc47baba1cb4343e15861b7e757c` activates that
+      existing evidence SHA by changing only the two review-state fields. The activated worktree
+      was clean, the non-incremental Release build had zero warnings and errors, the must-be-green
+      Infrastructure lane passed 226/226, and strict OpenSpec validation passed 18/18.
+      This closes only the harmonization checkpoint; it does not authorize reshape task 8.0 or
+      Section 8 implementation. **Post-review hardening:** the Task 8.1 audit artifact and this
+      final ledger section are pinned by guard-source hashes, closing exit-review finding TTT-1.
