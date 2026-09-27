@@ -2201,6 +2201,11 @@
       "sha256": "a729a39a21351624527f051bbba4da5d678d350ff3c7b6c287a6dbcf139cd097"
     },
     {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-0-www-xxx-remediation-independent-review-verdict-2026-09-27.md",
+      "bytes": 9786,
+      "sha256": "4d34438508f7098f6795b27cba5d1004923d2400f994adfb79e20e916d0a48e7"
+    },
+    {
       "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-aaa-1-and-task-7-3-dirty-manifest-2026-09-18.txt",
       "bytes": 2101,
       "sha256": "f83199de37f7f8c4537316efa0a7ef50a44834930abd8611c31410a79be6637e"
