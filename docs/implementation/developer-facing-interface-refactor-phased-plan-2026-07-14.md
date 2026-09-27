@@ -18,8 +18,9 @@ packages, three complete durable providers, retained pre-wait ingress, four self
 routes, durable workflow-authored `Publish`, exact role-specific hosting, the fixed codec, and
 provider/operator maintenance ownership. The separate `harmonize-downstream-capability-specs`
 change has completed canonical synchronization, final independent approval, and checkpoint.
-Reshape Task 8.0 now maps the Section 8 contract for its own independent gate; all Section 8
-source work remains blocked until that exact mapping target is approved and checkpointed.
+Reshape Task 8.0's Section 8 requirement map received independent approval and the exact
+checkpoint `3a4bbf0f18d48f03f84d6261daac8d180bdae20e`. Task 8.1 may begin as a separately
+reviewed source slice; Task 8.0 approval does not approve the implementation of tasks 8.1–8.10.
 
 **Primary change:** [`reshape-developer-facing-interfaces`](../../openspec/changes/reshape-developer-facing-interfaces/)
 
@@ -581,5 +582,6 @@ Current disposition:
   self-routing ingress, retained pre-wait events, fanout/start-or-deliver, workflow-authored
   `Publish`, fixed-codec durable payloads, exact host roles, and provider/operator operational
   ownership. Harmonization's final review, closeout checkpoint, evidence, and activation are complete.
-  Task 8.0 maps the Section 8 requirements separately and remains subject to its own independent
-  approval and checkpoint; no Section 8 source implementation is authorized before that gate closes.
+  Task 8.0 mapped the Section 8 requirements separately and received independent approval and
+  checkpoint `3a4bbf0f18d48f03f84d6261daac8d180bdae20e`. Task 8.1 may proceed under its own
+  review and checkpoint gate; later Section 8 tasks remain separately gated.

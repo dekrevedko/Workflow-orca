@@ -63,9 +63,9 @@ were remediated and the exact whole packet received a final immutable approval w
  pre-wait ingress, four self-routing routes, workflow-authored `Publish`, application-registered
  dispatch, exact role-specific hosting, and three complete durable providers are current product
  authority. The separate `harmonize-downstream-capability-specs` change is fully synchronized,
- independently approved, and checkpointed. Reshape Task 8.0 now maps the DAG requirements for a
- separate independent gate; Section 8 source work remains blocked until that exact mapping target
- is independently approved and checkpointed.
+ independently approved, and checkpointed. Reshape Task 8.0's DAG requirement map received
+ independent approval and the exact checkpoint `3a4bbf0f18d48f03f84d6261daac8d180bdae20e`.
+ Task 8.1 may begin as its own review-gated Section 8 source slice; later tasks remain separately gated.
 
 The 2026-07-18 simplification amendment/status, 2026-07-19 construction amendment, completed
 reviewer prompt, reviews A-E, their earlier consolidated review, and the root-only owner decision
@@ -74,8 +74,8 @@ are immutable historical inputs. They do not outrank the live
  [exact companion](../specs/17-public-authoring-contract.cs), canonical requirements, or the live
  OpenSpec changes. `harmonize-downstream-capability-specs` has completed its approval,
  canonical synchronization, and checkpoint sequence. Root-only `Parallel`, `ForEach`, and
- `While` remain selected; that historical readiness does not approve reshape Task 8.0 or
- Section 8 implementation.
+ `While` remain selected; Task 8.0 is now independently approved and checkpointed, but that
+ approval does not itself approve any Section 8 implementation slice.
 
 ## Phases at a glance (mapped to spec slices)
 
