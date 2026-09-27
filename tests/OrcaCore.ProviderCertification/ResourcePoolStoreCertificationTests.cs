@@ -12,7 +12,6 @@ public abstract class ResourcePoolStoreCertificationTests
 
     [Fact]
     [Trait("AC", "AC-518")]
-    [Trait("AC", "JS-AC-007")]
     public async Task AcquireAsync_WhenPoolHasCapacity_GrantsTicketAndReducesAvailableCapacity()
     {
         var store = CreateStore();

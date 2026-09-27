@@ -1,0 +1,15 @@
+ M docs/implementation/README.md
+ M docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md
+ M openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md
+ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
+ M tests/OrcaCore.Core.Tests/RepositoryGuardTests.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs
+?? docs/review/developer-facing-interface-section-08-task-8-0-requirement-gate-dirty-manifest-2026-09-26.txt
+?? docs/review/developer-facing-interface-section-08-task-8-0-requirement-gate-independent-review-request-2026-09-26.md
+?? docs/review/developer-facing-interface-section-08-task-8-0-requirement-gate-independent-review-verdict-2026-09-26.md
+?? docs/review/developer-facing-interface-section-08-task-8-0-uuu-vvv-remediation-dirty-manifest-2026-09-26.txt
+?? docs/review/developer-facing-interface-section-08-task-8-0-uuu-vvv-remediation-independent-review-request-2026-09-26.md
+?? openspec/changes/reshape-developer-facing-interfaces/artifacts/task-8-0-section-8-requirement-gate-2026-09-26.md

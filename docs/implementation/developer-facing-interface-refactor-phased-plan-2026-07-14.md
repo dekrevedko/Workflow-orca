@@ -17,15 +17,15 @@ provider re-entry, are independently approved and checkpointed. The approved tar
 packages, three complete durable providers, retained pre-wait ingress, four self-routing event
 routes, durable workflow-authored `Publish`, exact role-specific hosting, the fixed codec, and
 provider/operator maintenance ownership. The separate `harmonize-downstream-capability-specs`
-change has synchronized its canonical deltas and is reconciling the remaining active guides. Task
-8.0 and all Section 8 source work remain blocked until that final harmonized target is independently
-approved and checkpointed.
+change has completed canonical synchronization, final independent approval, and checkpoint.
+Reshape Task 8.0 now maps the Section 8 contract for its own independent gate; all Section 8
+source work remains blocked until that exact mapping target is approved and checkpointed.
 
 **Primary change:** [`reshape-developer-facing-interfaces`](../../openspec/changes/reshape-developer-facing-interfaces/)
 
 **Coordinated change:** [`add-runtime-concurrency-limits`](../../openspec/changes/add-runtime-concurrency-limits/)
 
-**Pending canonical harmonization:** [`harmonize-downstream-capability-specs`](../../openspec/changes/harmonize-downstream-capability-specs/)
+**Completed canonical harmonization:** [`harmonize-downstream-capability-specs`](../../openspec/changes/harmonize-downstream-capability-specs/)
 
 **Normative surface:** [`17-selected-mode-capability-matrix.md`](../specs/17-selected-mode-capability-matrix.md)
 
@@ -580,6 +580,6 @@ Current disposition:
 - Section 7A/7B is complete and checkpointed: it owns the exact public baseline, durable
   self-routing ingress, retained pre-wait events, fanout/start-or-deliver, workflow-authored
   `Publish`, fixed-codec durable payloads, exact host roles, and provider/operator operational
-  ownership. The harmonization change has synchronized canonical requirements and must still finish
-  active-guide reconciliation, final review, and checkpoint. Task 8.0 remains open; no Section 8
-  implementation is authorized until that harmonization gate closes.
+  ownership. Harmonization's final review, closeout checkpoint, evidence, and activation are complete.
+  Task 8.0 maps the Section 8 requirements separately and remains subject to its own independent
+  approval and checkpoint; no Section 8 source implementation is authorized before that gate closes.

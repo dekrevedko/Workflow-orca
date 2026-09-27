@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using AwesomeAssertions;
 
@@ -29,6 +30,11 @@ public sealed class OpenSpecCorpusGuards
         "0618ab997def24d79d58648f2adf29d65d619063cabfd4f279086d76a54a3a52";
     private const string FinalHarmonizationLedgerSectionSha256 =
         "03a52a610ab207696ca51458f37ac3b6568a1797b8562dfb9702b653a32d6ff1";
+    private const string Task80RequirementGateArtifact =
+        "openspec/changes/reshape-developer-facing-interfaces/artifacts/" +
+        "task-8-0-section-8-requirement-gate-2026-09-26.md";
+    private const string Task80RequirementGateSha256 =
+        "fc9693f86bbda298df74bbc24ac69054ef3ee73386111c5bea947c283f6b08a1";
     private const string MissingApprovalReviewState = "MissingApproval";
     private const string RejectedReviewState = "Rejected";
     private const string ApprovalAwaitingEvidenceCommitReviewState =
@@ -181,7 +187,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "532be8676350ae24e8ce2b19558e9850691d380600b3bddf914ece7f633fa5b9";
+        "0fa63c70464d7e9d080c92c1d0d1ae0a99c4dcacc8bee7451d63ac4fc7e6b604";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +
@@ -669,6 +675,257 @@ public sealed class OpenSpecCorpusGuards
         ValidateFinalHarmonizationCloseout(
             root,
             checkpoint.Entries.Single(entry => entry.Task == "8.1"));
+        ValidateReshapeTask80RequirementGate(root);
+    }
+
+    private static void ValidateReshapeTask80RequirementGate(string root)
+    {
+        var mapping = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            Task80RequirementGateArtifact.Replace('/', Path.DirectorySeparatorChar))));
+        Sha256(mapping).Should().Be(
+            Task80RequirementGateSha256,
+            "the reviewed Task 8.0 cross-tree mapping must not drift before Section 8 source work");
+
+        var ledger = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            "openspec",
+            "changes",
+            "reshape-developer-facing-interfaces",
+            "tasks.md")));
+        Regex.Matches(ledger, @"(?m)^- \[x\] 8\.0\b")
+            .Should().HaveCount(1, "the mapping gate must be recorded once in reshape");
+        ledger.Should().Contain("`artifacts/task-8-0-section-8-requirement-gate-2026-09-26.md`");
+        ledger.Should().Contain(
+            "No 8.1–8.10 source work may start until this exact 8.0 target receives independent approval and its checkpoint.");
+        ledger.Should().Contain(
+            "Task 8.10 must replace physical-file acceptance credit with compiled-test evidence for DR-AC-008, AC-321, AC-528, AC-606–AC-618 and JS-AC-001–JS-AC-018.");
+
+        var jsRequirements = Regex.Matches(mapping, @"(?m)^\| JS-\d{3} \|")
+            .Select(match => match.Value[2..^2]);
+        jsRequirements.Should().Equal(Enumerable.Range(1, 10).Select(index => $"JS-{index:000}"));
+        var jsCriteria = Regex.Matches(mapping, @"(?m)^\| JS-AC-\d{3} \|")
+            .Select(match => match.Value[2..^2]);
+        jsCriteria.Should().Equal(Enumerable.Range(1, 18).Select(index => $"JS-AC-{index:000}"));
+        mapping.Should().Contain("DU-033 partitions public events from internal continuations");
+        foreach (var criterion in new[] { "DR-AC-008", "AC-321", "AC-528", "AC-317" })
+        {
+            Regex.Matches(mapping, $@"(?m)^\| {Regex.Escape(criterion)} \|")
+                .Should().HaveCount(1, $"criterion {criterion} must have one explicit owner decision");
+        }
+        mapping.Should().Contain("AC-317's stale 8.4 attribution is removed");
+        mapping.Should().Contain("DU-031 names internal DAG child-start commands");
+        mapping.Should().Contain("DR-037 gives the internal dispatcher the disjoint claim");
+        mapping.Should().Contain("| JS-003 | 8.2, 8.3, 8.5, 8.6 |");
+        mapping.Should().Contain("| JS-AC-005 | 8.3, 8.6, 8.10 |");
+        mapping.Should().Contain("| JS-AC-018 | 6.7, 8.6, 8.9, 8.10 |");
+
+        var waivers = File.ReadAllText(Path.Combine(root, "tests", "OrcaCore.Core.Tests",
+            "RepositoryGuardTests.cs"));
+        foreach (var (criterion, fragment) in new[]
+        {
+            ("AC-317", "task 9.1"), ("AC-321", "tasks 8.9 and 8.10"),
+            ("AC-528", "tasks 8.7 and 8.10"), ("DR-AC-008", "tasks 8.4-8.6 and 8.10")
+        })
+        {
+            var line = waivers.Split('\n').Single(value => value.Contains($"[\"{criterion}\"]", StringComparison.Ordinal));
+            line.Should().Contain(fragment, $"the {criterion} waiver must name its real owner");
+        }
+        var section8WaiverIds = waivers.Split('\n')
+            .Where(line => Regex.IsMatch(line, @"(?<!\d)8\.\d+", RegexOptions.CultureInvariant))
+            .Select(line => Regex.Match(line,
+                @"\[""((?:AC|DR-AC|JS-AC)-\d{3})""\]",
+                RegexOptions.CultureInvariant))
+            .Where(match => match.Success)
+            .Select(match => match.Groups[1].Value)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        section8WaiverIds.Should().Equal(new[]
+            {
+                "AC-321", "AC-528", "AC-617", "AC-618", "DR-AC-008",
+                "JS-AC-014", "JS-AC-015", "JS-AC-016", "JS-AC-017", "JS-AC-018"
+            }.Order(StringComparer.Ordinal),
+            "every waiver naming a Section 8 task must be explicitly reviewed in the handoff");
+
+        ValidateSection8CompiledAcceptanceBaseline(root, ledger);
+    }
+
+    private static void ValidateSection8CompiledAcceptanceBaseline(string root, string ledger)
+    {
+        ReadCompiledAcceptanceTraitIds(
+            "[Trait(\"AC\", \"AC-606\")]\n" +
+            "// [Trait(\"AC\", \"AC-607\")]\n" +
+            "/* [Trait(\"AC\", \"AC-608\")] */\n" +
+            "var decoy = \"[Trait(\\\"AC\\\", \\\"AC-609\\\")]\";\n" +
+            "var raw = \"\"\"[Trait(\"AC\", \"AC-610\")]\"\"\";")
+            .Should().Equal(new[] { "AC-606" },
+                "comment and string decoys are not compiled attributes");
+        var required = Enumerable.Range(606, 13).Select(index => $"AC-{index:000}")
+            .Concat(Enumerable.Range(1, 18).Select(index => $"JS-AC-{index:000}"))
+            .Concat(["DR-AC-008", "AC-321", "AC-528"])
+            .ToHashSet(StringComparer.Ordinal);
+        var active = new HashSet<string>(StringComparer.Ordinal);
+        var excluded = new HashSet<string>(StringComparer.Ordinal);
+        var inventoryPath = Path.Combine(root, "tests", "OrcaCore.DeveloperSurface.Guards",
+            "Fixtures", "section-07-r-declaration-crosswalk.json");
+        using var inventory = JsonDocument.Parse(File.ReadAllText(inventoryPath));
+        foreach (var source in inventory.RootElement.GetProperty("sourceInventory").EnumerateArray())
+        {
+            var status = source.GetProperty("status").GetString();
+            if (status is not ("active" or "compile-excluded"))
+            {
+                continue;
+            }
+
+            var path = source.GetProperty("source").GetString()!;
+            var contents = File.ReadAllText(Path.Combine(root, path.Replace('/', Path.DirectorySeparatorChar)));
+            var destination = status == "active" ? active : excluded;
+            foreach (var trait in ReadCompiledAcceptanceTraitIds(contents))
+            {
+                if (required.Contains(trait))
+                {
+                    destination.Add(trait);
+                }
+            }
+        }
+
+        var missing = required.Except(active, StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+        foreach (var completed in new[]
+        {
+            "- [x] 8.10", "- [X] 8.10", "- [x]  8.10", "  - [x] 8.10"
+        })
+        {
+            IsTask810Complete(completed).Should().BeTrue(
+                $"ledger-equivalent completion syntax {completed} must close the gate");
+        }
+        IsTask810Complete("- [ ] 8.10").Should().BeFalse();
+        if (IsTask810Complete(ledger))
+        {
+            if (missing.Length != 0)
+            {
+                throw new InvalidDataException(
+                    "Task 8.10 cannot close while these Section 8 criteria lack compiled trait-bearing tests: " +
+                    string.Join(", ", missing));
+            }
+            return;
+        }
+
+        active.Should().BeEmpty("the Task 8.0 baseline has no genuine compiled Section 8 acceptance credit");
+        excluded.Except(active, StringComparer.Ordinal).Should().BeEquivalentTo(
+            Enumerable.Range(606, 11).Select(index => $"AC-{index:000}")
+                .Concat(Enumerable.Range(1, 13).Select(index => $"JS-AC-{index:000}")),
+            "compile-removed legacy files are recorded as debt, never executable credit");
+        missing.Except(excluded, StringComparer.Ordinal).Should().BeEquivalentTo(
+            new[] { "AC-321", "AC-528", "AC-617", "AC-618", "DR-AC-008",
+                "JS-AC-014", "JS-AC-015", "JS-AC-016", "JS-AC-017", "JS-AC-018" });
+    }
+
+    private static bool IsTask810Complete(string ledger)
+    {
+        var completion = Regex.Matches(ledger,
+            @"(?m)^[ \t]*-[ \t]+\[([ xX])\][ \t]+8\.10\b",
+            RegexOptions.CultureInvariant);
+        completion.Should().HaveCount(1, "reshape Task 8.10 must have exactly one ledger row");
+        return completion[0].Groups[1].Value.Equals("x", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static IReadOnlyList<string> ReadCompiledAcceptanceTraitIds(string source)
+    {
+        var visible = source.ToCharArray();
+        var code = new bool[source.Length];
+        for (var index = 0; index < source.Length;)
+        {
+            if (source[index] == '/' && index + 1 < source.Length && source[index + 1] is '/' or '*')
+            {
+                var line = source[index + 1] == '/';
+                visible[index++] = ' ';
+                visible[index++] = ' ';
+                while (index < source.Length)
+                {
+                    if (line && source[index] is '\r' or '\n')
+                    {
+                        break;
+                    }
+                    if (!line && source[index] == '*' && index + 1 < source.Length && source[index + 1] == '/')
+                    {
+                        visible[index++] = ' ';
+                        visible[index++] = ' ';
+                        break;
+                    }
+                    if (source[index] is not ('\r' or '\n'))
+                    {
+                        visible[index] = ' ';
+                    }
+                    index++;
+                }
+                continue;
+            }
+
+            if (source[index] is '"' or '\'')
+            {
+                var quote = source[index];
+                var rawWidth = 0;
+                if (quote == '"')
+                {
+                    while (index + rawWidth < source.Length && source[index + rawWidth] == '"')
+                    {
+                        rawWidth++;
+                    }
+                }
+                if (rawWidth >= 3)
+                {
+                    index += rawWidth;
+                    while (index < source.Length)
+                    {
+                        var closingWidth = 0;
+                        while (index + closingWidth < source.Length && source[index + closingWidth] == '"')
+                        {
+                            closingWidth++;
+                        }
+                        if (closingWidth >= rawWidth)
+                        {
+                            index += closingWidth;
+                            break;
+                        }
+                        index++;
+                    }
+                    continue;
+                }
+
+                var verbatim = quote == '"' && index > 0 &&
+                    (source[index - 1] == '@' || index > 1 && source[index - 1] == '$' && source[index - 2] == '@');
+                index++;
+                while (index < source.Length)
+                {
+                    if (!verbatim && source[index] == '\\')
+                    {
+                        index = Math.Min(index + 2, source.Length);
+                        continue;
+                    }
+                    if (source[index] == quote)
+                    {
+                        index++;
+                        if (verbatim && index < source.Length && source[index] == '"')
+                        {
+                            index++;
+                            continue;
+                        }
+                        break;
+                    }
+                    index++;
+                }
+                continue;
+            }
+
+            code[index++] = true;
+        }
+
+        return Regex.Matches(new string(visible),
+                @"\[[ \t\r\n]*Trait[ \t\r\n]*\([ \t\r\n]*""AC""[ \t\r\n]*,[ \t\r\n]*""((?:AC|DR-AC|JS-AC)-\d{3})""[ \t\r\n]*\)[ \t\r\n]*\]",
+                RegexOptions.CultureInvariant)
+            .Where(match => code[match.Index])
+            .Select(match => match.Groups[1].Value)
+            .ToArray();
     }
 
     private static void ValidateFinalHarmonizationCloseout(

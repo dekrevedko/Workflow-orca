@@ -21,7 +21,7 @@ requires the numbered rows, paths, and hashes exactly as recorded here.
 | 6 | `docs/implementation/00-stack-decisions.md` | `b754bb49f39ac1b33cd415b1a0c94d7dc5fbbf3983ff3d7b52f56d11a479fe2b` |
 | 7 | `docs/implementation/01-solution-architecture.md` | `1d77afa2b5bd707854e7d15664e6d1a8eb6732190dcddbfd2d1e261b042f58ba` |
 | 8 | `docs/implementation/02-engineering-conventions.md` | `e4a81233359e60e5ca43e596d26a58ff46e75879dded7536e95511e47d908c72` |
-| 9 | `docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md` | `abc471060109638f4f520adabe369070d8af3c8d2665e388bce07db8fdcf6be6` |
+| 9 | `docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md` | `bab0317a5fbb0258764dd05a7896cd2f406e5f705aaa85f84f2d455cbb7aab4b` |
 | 10 | `docs/normative-source-map.md` | `1bc5a4182949cbfbe87870aebf258a9fdfcfb22a8cd627d2c0b0d7fc7e61d949` |
 | 11 | `docs/production-readiness.md` | `2812eb9121d455a59ec748dbdbcc4cba4ddd317398c9b8c5470edc44b9a6c1bc` |
 | 12 | `docs/project-technical-overview.md` | `62075350bba4adb0ad7f1698d8e7d271eb8f0e00df7071ab0adcb81355b8dc40` |
@@ -80,3 +80,11 @@ The map now says these are dated counts, not live invariants, and distinguishes 
 package files from the expressly non-normative semantic appendix. Row 10 alone is refreshed above;
 the other 21 Task 7.3 source hashes and the approved Section 7B contract wording are unchanged.
 This refresh belongs to the same frozen Task 8.1 target and requires its independent exit review.
+
+## Reshape Task 8.0 intentional source refresh (2026-09-26)
+
+The harmonization closeout is now independently approved, checkpointed, and activated.
+Reshape Task 8.0 updates the phased plan's live gate status while keeping Section 8 source work
+blocked on Task 8.0's own independent review and checkpoint. Only row 9 is refreshed above;
+the other 21 source hashes and the historical Task 8.1 review record remain unchanged. The
+new row, this artifact digest, and its guard-source pin belong to the same Task 8.0 frozen target.

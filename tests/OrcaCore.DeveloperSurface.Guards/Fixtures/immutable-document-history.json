@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/harmonize-downstream-capability-specs-task-8-3-closeout-ttt-1-dirty-manifest-2026-09-26.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-0-www-xxx-remediation-dirty-manifest-2026-09-26.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2159,6 +2159,46 @@
       "path": "docs/archive/plans/developer-facing-interface-phase-00-kickoff-archive-provenance-2026-09-23.md",
       "bytes": 1855,
       "sha256": "20be3dcd960c50feb7226e105366807ff2ad0058cbee10b5c02dd45b81eae983"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-0-requirement-gate-dirty-manifest-2026-09-26.txt",
+      "bytes": 953,
+      "sha256": "7e97b158a0c6de58a380b0ebad2bc7eb7b4e41988191c53e91903c4c653531f4"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-0-requirement-gate-independent-review-request-2026-09-26.md",
+      "bytes": 4807,
+      "sha256": "11308ceca9d67a6beffddb7be68b845a33e5b810a03f4a71a4d1275298cc20c0"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-0-requirement-gate-independent-review-verdict-2026-09-26.md",
+      "bytes": 11528,
+      "sha256": "27a58e660ae639a681516791d95a183e1c23b72e8745aee765c6faa8bdc275a9"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-0-uuu-vvv-remediation-dirty-manifest-2026-09-26.txt",
+      "bytes": 1361,
+      "sha256": "762e8e68e9b2c44d260ae3afbef4be6435fc330b7b663b4a8fffee32d1daa4ee"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-0-uuu-vvv-remediation-independent-review-request-2026-09-26.md",
+      "bytes": 3613,
+      "sha256": "f8570ab6d59a7db5d9fd4c23daca91f42834b9ad40d5c26ac0842d71ae49cdd9"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-0-uuu-vvv-remediation-independent-review-verdict-2026-09-26.md",
+      "bytes": 12783,
+      "sha256": "bffa6db898f7e14a5a0f661236a017034605dc5d1c77d9207cf2a92e70a47ccf"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-0-www-xxx-remediation-dirty-manifest-2026-09-26.txt",
+      "bytes": 1798,
+      "sha256": "1f13174694835a9baace6f78a8f75a3a2e6d0ce4cc437d8290499ea28a85039d"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-0-www-xxx-remediation-independent-review-request-2026-09-26.md",
+      "bytes": 4111,
+      "sha256": "a729a39a21351624527f051bbba4da5d678d350ff3c7b6c287a6dbcf139cd097"
     },
     {
       "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-aaa-1-and-task-7-3-dirty-manifest-2026-09-18.txt",

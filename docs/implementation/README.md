@@ -62,19 +62,20 @@ were remediated and the exact whole packet received a final immutable approval w
  application-catalog remediation, are independently approved and checkpointed. Durable retained
  pre-wait ingress, four self-routing routes, workflow-authored `Publish`, application-registered
  dispatch, exact role-specific hosting, and three complete durable providers are current product
- authority. The separate `harmonize-downstream-capability-specs` change has synchronized canonical
- requirements and is reconciling its remaining active-tree documentation and guard evidence. Task
- 8.0 and Section 8 source work remain blocked until that harmonization target is independently
- approved and checkpointed.
+ authority. The separate `harmonize-downstream-capability-specs` change is fully synchronized,
+ independently approved, and checkpointed. Reshape Task 8.0 now maps the DAG requirements for a
+ separate independent gate; Section 8 source work remains blocked until that exact mapping target
+ is independently approved and checkpointed.
 
 The 2026-07-18 simplification amendment/status, 2026-07-19 construction amendment, completed
 reviewer prompt, reviews A-E, their earlier consolidated review, and the root-only owner decision
 are immutable historical inputs. They do not outrank the live
 [matrix](../specs/17-selected-mode-capability-matrix.md),
  [exact companion](../specs/17-public-authoring-contract.cs), canonical requirements, or the live
- OpenSpec changes. `harmonize-downstream-capability-specs` is pending independent approval and its
- deltas have not been synchronized into canonical specs. Root-only `Parallel`, `ForEach`, and
- `While` remain selected, but no historical readiness verdict advances the current gate.
+ OpenSpec changes. `harmonize-downstream-capability-specs` has completed its approval,
+ canonical synchronization, and checkpoint sequence. Root-only `Parallel`, `ForEach`, and
+ `While` remain selected; that historical readiness does not approve reshape Task 8.0 or
+ Section 8 implementation.
 
 ## Phases at a glance (mapped to spec slices)
 
