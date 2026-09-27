@@ -414,12 +414,61 @@ public static class FacadeHostingScenarioHost
             builder => builder is not null,
             "Durable engine registration did not return its composition builder.");
 
+        var hostedBeforeDag = durable.Count(descriptor =>
+            descriptor.ServiceType == typeof(IHostedService));
         var dagRegistration = context.Observe(_ =>
             durable.AddOrcaCoreDag(new DagHostOptions { MaxConcurrentNodes = 2 }));
         Phase0Assert.Satisfies(
             dagRegistration,
             services => ReferenceEquals(services, durable),
             "DAG registration did not return the supplied service collection.");
+        var dagServices = durable
+            .Where(descriptor => descriptor.ServiceType.Assembly.GetName().Name == "OrcaCore.Dag.Hosting")
+            .Select(descriptor => descriptor.ServiceType.Name)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+        if (!dagServices.SequenceEqual(
+                ["DagCoordinator", "DagDefinitionRegistry", "DagHostRegistration"],
+                StringComparer.Ordinal) ||
+            durable.Count(descriptor => descriptor.ServiceType == typeof(IHostedService)) != hostedBeforeDag)
+        {
+            throw new InvalidOperationException(
+                "DAG registration must add exactly its internal coordinator, registry, and immutable profile without another hosted loop.");
+        }
+
+        using (var provider = durable.BuildServiceProvider())
+        {
+            foreach (var descriptor in durable.Where(descriptor =>
+                         descriptor.ServiceType.Assembly.GetName().Name == "OrcaCore.Dag.Hosting"))
+            {
+                if (provider.GetService(descriptor.ServiceType) is null)
+                {
+                    throw new InvalidOperationException(
+                        $"DAG service '{descriptor.ServiceType.Name}' did not resolve.");
+                }
+            }
+        }
+
+        var descriptorCount = durable.Count;
+        _ = durable.AddOrcaCoreDag(new DagHostOptions { MaxConcurrentNodes = 2 });
+        if (durable.Count != descriptorCount)
+        {
+            throw new InvalidOperationException("Identical DAG role registration was not idempotent.");
+        }
+
+        try
+        {
+            _ = durable.AddOrcaCoreDag(new DagHostOptions { MaxConcurrentNodes = 3 });
+            throw new InvalidOperationException("Conflicting DAG host options were accepted.");
+        }
+        catch (InvalidOperationException exception)
+            when (exception.Message.Contains("different options", StringComparison.Ordinal))
+        {
+            if (durable.Count != descriptorCount)
+            {
+                throw new InvalidOperationException("Conflicting DAG registration mutated the service collection.");
+            }
+        }
 
         var exact = new (Type Type, string Member, string Assembly)[]
         {
@@ -533,6 +582,16 @@ public static class FacadeHostingScenarioHost
         {
             _ = new ServiceCollection().AddOrcaCoreDag(new DagHostOptions { MaxConcurrentNodes = 1 });
             throw new InvalidOperationException("DAG registration accepted a missing durable engine role.");
+        }
+        catch (InvalidOperationException exception)
+            when (exception.Message.Contains("requires", StringComparison.Ordinal))
+        {
+        }
+
+        try
+        {
+            _ = ingress.AddOrcaCoreDag(new DagHostOptions { MaxConcurrentNodes = 1 });
+            throw new InvalidOperationException("Callback-only ingress accepted the DAG coordinator role.");
         }
         catch (InvalidOperationException exception)
             when (exception.Message.Contains("requires", StringComparison.Ordinal))

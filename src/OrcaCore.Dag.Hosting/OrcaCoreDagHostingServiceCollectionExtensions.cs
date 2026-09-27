@@ -48,6 +48,10 @@ public static class OrcaCoreDagHostingServiceCollectionExtensions
         }
 
         services.AddSingleton(new DagHostRegistration(options.MaxConcurrentNodes));
+        services.AddSingleton<DagDefinitionRegistry>();
+        services.AddSingleton(provider => new DagCoordinator(
+            provider.GetRequiredService<DagDefinitionRegistry>(),
+            provider.GetRequiredService<DagHostRegistration>().MaxConcurrentNodes));
         return services;
     }
 
