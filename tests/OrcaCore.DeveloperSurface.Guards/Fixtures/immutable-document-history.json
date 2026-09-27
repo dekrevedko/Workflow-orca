@@ -2206,6 +2206,11 @@
       "sha256": "4d34438508f7098f6795b27cba5d1004923d2400f994adfb79e20e916d0a48e7"
     },
     {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-1-package-and-registration-independent-review-verdict-2026-09-27.md",
+      "bytes": 9921,
+      "sha256": "7a1d246652f86cd5409e22e5a00735c2ef872f0d660e465a0de9ed1cb9685a4a"
+    },
+    {
       "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-aaa-1-and-task-7-3-dirty-manifest-2026-09-18.txt",
       "bytes": 2101,
       "sha256": "f83199de37f7f8c4537316efa0a7ef50a44834930abd8611c31410a79be6637e"
