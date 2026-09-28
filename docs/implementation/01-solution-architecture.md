@@ -74,11 +74,15 @@ OrcaCore.Dag.Hosting           -> OrcaCore.Dag + OrcaCore.Durable.Hosting
 
 This direct-edge list is exhaustive. In particular, `OrcaCore.Durable.Hosting` receives protocol
 types only through its declared dependencies and must not add a direct `Runtime.Protocol` edge.
-Architecture checks reject every unlisted reference and every friend assembly outside the exact
-closed graph below.
+Architecture checks reject every unlisted reference and every friend assembly outside the
+current exact closed graph below. The separately proposed `OrcaCore -> OrcaCore.Dag` authoring
+friend is not yet compiled or included in that graph.
 
-- `OrcaCore.Dag` depends only on public `OrcaCore` application contracts. It never references
-  engine internals, a provider implementation, Kubernetes, or AWS. It owns typed authoring and
+- `OrcaCore.Dag` depends directly only on the `OrcaCore` package. Its workflow references
+  remain public application contracts; the proposed post-gate authoring friend would allow only
+  the five compiler-created build-value constructors and one shared fingerprint operation,
+  enforced at exact compiled-member signatures after approval. It never references engine
+  internals, a provider implementation, Kubernetes, or AWS. It owns typed authoring and
   validation only and makes no v1 visualization or renderer promise.
 - `OrcaCore.Dag.Hosting` is the sole bridge from a typed DAG plan to durable child execution.
   It depends on `OrcaCore.Dag` and `OrcaCore.Durable.Hosting` and uses one named, versioned
@@ -128,8 +132,11 @@ compilation.
   the focused `OrcaCore.Dag` authoring package. Replaceable behavior seams are interfaces in their
   owning tier; approved immutable values/builders/definitions/outcomes are concrete public types.
   Other implementation collaborators remain `internal`, `sealed` by default.
-- Product friends are exact: `OrcaCore.Core` grants both engines, `OrcaCore.Engine.Durable` grants
-  `OrcaCore.Durable.Hosting`, and `OrcaCore.Durable.Hosting` grants `OrcaCore.Dag.Hosting`.
+- Current product friends are exact: `OrcaCore` grants `OrcaCore.Core`,
+  `OrcaCore.Engine.Ephemeral`, and `OrcaCore.Engine.Durable`; `OrcaCore.Core` grants both engines;
+  `OrcaCore.Engine.Durable` grants `OrcaCore.Durable.Hosting`; and
+  `OrcaCore.Durable.Hosting` grants `OrcaCore.Dag.Hosting`. The proposed authoring-only eighth
+  edge is `OrcaCore -> OrcaCore.Dag`; it is not compiled and grants no durable child-start access.
   Owning white-box test friends are exact for Core, both engines, Durable Hosting, PostgreSQL, and
   SQL Server;
   `OrcaCore.Engine.Durable -> OrcaCore.ProviderCertification` is the sole cross-package test edge.

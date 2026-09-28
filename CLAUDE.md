@@ -92,10 +92,20 @@ OrcaCore.Dag.Hosting       — sole DAG-to-durable bridge; owns AddOrcaCoreDag
 
 Implementation package boundaries use an exact internal-friend allowlist so compiler/kernel,
 concrete engine, provider, and hosted-loop types do not become public merely to cross assemblies.
-Product friends are Core to both engines, Durable engine to Durable hosting, and Durable hosting to
-DAG hosting. Exact owning unit-test assemblies plus Durable to ProviderCertification may inspect
-internals; acceptance, behavior, compile-fixture, and integration assemblies may not. No other
-friend or public reflection bridge is allowed.
+The current seven product friends are `OrcaCore` to `OrcaCore.Core`,
+`OrcaCore.Engine.Ephemeral`, and `OrcaCore.Engine.Durable`; `OrcaCore.Core` to both engines;
+`OrcaCore.Engine.Durable` to `OrcaCore.Durable.Hosting`; and `OrcaCore.Durable.Hosting` to
+`OrcaCore.Dag.Hosting`. Exact owning unit-test assemblies plus Durable to
+ProviderCertification may inspect internals; acceptance, behavior, compile-fixture, and
+integration assemblies may not. No other current friend or public reflection bridge is allowed.
+
+The post-gate `admit-dag-authoring-friend-boundary` change proposes one additional *authoring*
+friend, `OrcaCore -> OrcaCore.Dag`, for compiler-created validation, diagnostics, locations,
+fingerprints, and definition exceptions. It is not in the current compiled friend set and grants
+no DAG runtime or child-start access. Its exact member signatures, shared fingerprint operation,
+and metadata guard require independent contract approval before Task 8.2 product source changes.
+The existing `OrcaCore.Durable.Hosting -> OrcaCore.Dag.Hosting` edge remains the sole
+DAG-to-durable *runtime* bridge.
 
 Not in the v1 manifest: the removed catch-all `OrcaCore.Hosting` package and the provisional
 `OrcaCore.Providers.RabbitMq`, `.Redis`, `.ZeroMq`, and `.Relational` packages. Their source/test

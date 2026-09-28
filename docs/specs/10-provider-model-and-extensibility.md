@@ -38,9 +38,15 @@ SHALL expose no advanced type in public signatures. Engine/runtime implementatio
 reference both advanced packages; provider Adapters SHALL reference no engine implementation.
 
 ### PR-005 DAG and external integration boundary
-`OrcaCore.Dag` SHALL be a separate package that depends on public OrcaCore workflow contracts;
-no OrcaCore package depends on it. Kubernetes, AWS, job schedulers, and other external-work
-integrations SHALL live in outward companion/integration application projects, which may remain
+`OrcaCore.Dag` SHALL be a separate package whose sole direct OrcaCore dependency is `OrcaCore`;
+its workflow references remain public contracts. The post-gate
+`admit-dag-authoring-friend-boundary` amendment proposes one authoring-only
+`OrcaCore -> OrcaCore.Dag` internal friend for compiler-created build values, subject to an
+exact compiled-member guard; it is not yet a compiled grant or a reverse package reference.
+No foundational application, Core, engine, provider, or durable-hosting package depends on
+`OrcaCore.Dag`; `OrcaCore.Dag.Hosting` is the approved outward DAG host adapter. Kubernetes,
+AWS, job schedulers, and other external-work integrations SHALL live in outward companion/
+integration application projects, which may remain
 in the same solution. They own infrastructure SDKs, authentication/discovery, manifests,
 watchers/reconcilers, and job DTOs. No Kubernetes/AWS/job-system type or SDK appears in an
   OrcaCore public signature or dependency closure, and the primary `OrcaCore` package excludes

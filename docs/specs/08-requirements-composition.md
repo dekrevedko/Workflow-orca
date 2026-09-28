@@ -122,10 +122,15 @@ but retains its physical step-throttle/transient slot until it returns.
 ## 8.3 Typed DAG planning and execution
 
 ### CP-020 Separate package and dependency direction
-`OrcaCore.Dag` SHALL be a separate project/package that depends on public OrcaCore workflow
-contracts. OrcaCore packages SHALL NOT depend on `OrcaCore.Dag`. The package may remain in the
-same solution for v1 and compiles to the existing durable runtime rather than introducing a
-second workflow engine.
+`OrcaCore.Dag` SHALL be a separate project/package whose sole direct OrcaCore dependency is
+`OrcaCore`; its workflow references remain public contracts. The post-gate
+`admit-dag-authoring-friend-boundary` amendment proposes one authoring-only
+`OrcaCore -> OrcaCore.Dag` internal friend for compiler-created build values, subject to an
+exact compiled-member guard. The friend is not yet in compiled metadata and creates no reverse
+package edge. No foundational application, Core, engine, provider, or durable-hosting package
+SHALL depend on `OrcaCore.Dag`; `OrcaCore.Dag.Hosting` is the approved outward DAG host adapter.
+The DAG package may remain in the same solution for v1 and compiles to the existing durable
+runtime rather than introducing a second workflow engine.
 
 ### CP-021 Typed immutable run input and node references
 A DAG definition declares one immutable run-input type. Every `DagNodeId` is validated and

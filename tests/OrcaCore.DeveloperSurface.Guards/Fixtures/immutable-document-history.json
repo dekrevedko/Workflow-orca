@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-2-dag-successor-process-dirty-manifest-2026-09-27.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-2-dag-friend-contract-yyy-1-remediation-dirty-manifest-2026-09-27.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2209,6 +2209,31 @@
       "path": "docs/review/developer-facing-interface-section-08-task-8-1-package-and-registration-independent-review-verdict-2026-09-27.md",
       "bytes": 9921,
       "sha256": "7a1d246652f86cd5409e22e5a00735c2ef872f0d660e465a0de9ed1cb9685a4a"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-friend-contract-dirty-manifest-2026-09-27.txt",
+      "bytes": 891,
+      "sha256": "56629a6dacde94f960b73999ccc3b9747372a058656d808a15c83881f5f0699e"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-friend-contract-independent-review-request-2026-09-27.md",
+      "bytes": 4422,
+      "sha256": "0307d43e2b4d4811385bcbe6dc43599797181989fd7ee4436ab32f72524d4678"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-friend-contract-independent-review-verdict-2026-09-27.md",
+      "bytes": 9160,
+      "sha256": "55762351d1e516dabb8d0863fb51ebb7c36795fdcb731cff0f079e391e1da1f3"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-friend-contract-yyy-1-remediation-dirty-manifest-2026-09-27.txt",
+      "bytes": 1563,
+      "sha256": "5d3633b7436c67dd42d5def5ee17d4c3893c079619e7165c7f9b8927fa2d97ad"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-friend-contract-yyy-1-remediation-independent-review-request-2026-09-27.md",
+      "bytes": 4262,
+      "sha256": "5a788884e3bf21a74875b21327a463a5b2141bfd3fdfb47989d79bd98125b82d"
     },
     {
       "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-successor-process-dirty-manifest-2026-09-27.txt",

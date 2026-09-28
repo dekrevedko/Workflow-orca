@@ -1166,6 +1166,15 @@ release successor capacity. The interface lives in the advanced host-management 
 runtime adapter and depends on both `OrcaCore.Dag` and the isolated advanced durable-host bridge;
 OrcaCore application/core projects never depend on either DAG package.
 
+The post-gate `admit-dag-authoring-friend-boundary` amendment proposes
+`OrcaCore -> OrcaCore.Dag` solely to construct the five compiler-created application value
+families used by `Build`/`TryBuild`: `Validation<T>`, `WorkflowDiagnostic`, `AuthoredLocation`,
+`DefinitionFingerprint`, and `WorkflowDefinitionException`. It retains internal constructors,
+the existing diagnostic catalog and ordering, and one shared canonical UTF-8/SHA-256 fingerprint
+operation; compiled-metadata verification must limit DAG's actual internal member references to
+the exact reviewed signatures. This is a proposed contract, not a current friend grant or
+authorization for Task 8.2 source. It adds no `Core -> Dag` dependency or child-start access.
+
 ```csharp
 public static class Dag
 {
@@ -1988,6 +1997,13 @@ metadata. The complete product-friend set is:
 - `OrcaCore.Engine.Durable -> OrcaCore.Durable.Hosting` for the internal durable role bootstrap;
 - `OrcaCore.Durable.Hosting -> OrcaCore.Dag.Hosting` for the named, versioned internal child-start/
   join contract.
+
+The proposed eighth product friend is `OrcaCore -> OrcaCore.Dag` for the five compiler-created
+authoring value families and one shared fingerprint operation named in §17.2.6. It is excluded
+from the current compiled set above until the post-gate contract receives independent approval
+and the implementation slice passes exact friend and member-reference guards. It is not a
+DAG-to-durable runtime bridge; the existing Durable Hosting to DAG Hosting edge remains the only
+such bridge.
 
 These CLR access grants do not create reverse package dependencies or public application/provider
 SPIs. Exact owning white-box test friends are `OrcaCore.Core.Tests`,

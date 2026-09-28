@@ -26,7 +26,28 @@ Move only the common UTF-8/SHA-256 hash primitive from `OrcaCore.Core`'s compile
 
 The initial planning draft has two full `MODIFIED` requirement blocks with verbatim canonical headings. Reshape remains active and owns both headings, so the existing no-duplicate corpus guard and Task 5.3's sole-owner assertion correctly reject the draft. Before a contract-approval freeze, checkpoint a process-only change that admits exactly these two ordered predecessor/successor pairs in a source-pinned `Proposed` registry stage. It must verify the prior reshape operation, this change's `MODIFIED` operation and open process task, reject any other duplicate, and refreeze provenance with two explicit pending operations and semantic approval disabled. The process checkpoint changes no canonical requirement, exact product-friend list, or Task 8.2 product source. Its own independent review approves the gate mechanism only, not the friend contract.
 
-After that process checkpoint, independently approve the normative amendment and reconcile `CLAUDE.md`, document 17, canonical specs, the Task 8.0 map note, and the exact friend guard before Task 8.2 product source. The current completed-amendment validator requires approval, executable evidence, refreeze, and final verdict paths; it must not receive a fictional complete row now. After the contract verdict, extend the provisional registry stage to an approved-pending stage tied to real amendment approval and open Task 8.2 evidence; review that transition before adding the friend and DAG product code. Promote the row to complete only after real implementation evidence and an independently approved refreeze exist. No completed historical gate supplies implicit approval.
+After that process checkpoint, independently approve the normative amendment and reconcile every document in the disposition table below, `CLAUDE.md`, document 17, the Task 8.0 map note, and the exact friend guard before Task 8.2 product source. The current completed-amendment validator requires approval, executable evidence, refreeze, and final verdict paths; it must not receive a fictional complete row now. After the contract verdict, synchronize both canonical blocks and extend the provisional registry to an approved-pending stage in one frozen, independently reviewed target. That atomic transition binds real amendment approval, canonical state, and open Task 8.2 evidence; it never leaves a synced successor paired with a `Proposed` registry row or drops the predecessor's historical record. Review and checkpoint it before adding the friend and DAG product code. Promote the row to complete only after real implementation evidence and an independently approved refreeze exist. No completed historical gate supplies implicit approval.
+
+### Documentation disposition for the authoring friend
+
+The contract review target also reconciles every active document that says DAG consumes only
+public OrcaCore contracts or presents a closed product-friend graph. These edits describe the
+eighth edge as *proposed*, not compiled or approved; public durable workflow references remain
+public, while compiler-created authoring values need the separately guarded internal seam.
+
+| Document | Disposition |
+| --- | --- |
+| `docs/specs/03-domain-model-and-glossary.md` | Amend the layer dependency sentence to distinguish the sole `OrcaCore` package reference from proposed internal authoring construction. |
+| `docs/specs/08-requirements-composition.md` CP-020 | Amend the separate-package rule with the same public-reference/internal-authoring distinction. |
+| `docs/specs/10-provider-model-and-extensibility.md` PR-005 | Amend the public-contract wording; preserve no reverse package edge and outward integrations. |
+| `docs/specs/11-non-functional-requirements.md` | Explicitly excluded: NF-002 says DAG and companions are outside the `OrcaCore` package dependency closure, not that DAG may consume only public members. The proposed friend changes no package edge or closure. |
+| `docs/implementation/00-stack-decisions.md` Decision 22 | Correct the current exact seven-product-friend enumeration and name the proposed authoring-only eighth without claiming it has landed. |
+| `docs/implementation/01-solution-architecture.md` | Correct both exact friend lists and the public-only DAG sentence; retain the sole DAG-to-durable runtime bridge. |
+| `docs/project-technical-overview.md` | Correct the exact friend list and distinguish proposed authoring access from the existing runtime bridge. |
+
+Refresh Task 7.3 documentation rows 6, 7, 12, 14, and 18 plus its source-pinned artifact digest in the
+same frozen target. Preserve the prior rejected request, manifest, and verdict byte-for-byte as
+append-only review evidence. No numbered document is silently deferred to tasks 1.3/1.4.
 
 ## Risks / Trade-offs
 
@@ -37,7 +58,7 @@ After that process checkpoint, independently approve the normative amendment and
 
 ## Migration Plan
 
-There is no released consumer or persisted DAG format to migrate. First review and checkpoint the process-only proposed-successor gate; then independently approve the normative amendment, synchronize canonical/spec and documentation truth, and review the approved-pending registry transition. Only then implement Task 8.2 source and metadata guard, update affected exact API/provenance fixtures, run focused and full lanes, refreeze, and obtain independent approval before its checkpoint. A rejected amendment leaves Task 8.1 intact and Task 8.2 open.
+There is no released consumer or persisted DAG format to migrate. First review and checkpoint the process-only proposed-successor gate; then independently approve the normative amendment; then synchronize canonical/spec truth and the approved-pending registry transition atomically under one freeze and independent review. Only then implement Task 8.2 source and metadata guard, update affected exact API/provenance fixtures, run focused and full lanes, refreeze, and obtain independent approval before its checkpoint. A rejected amendment leaves Task 8.1 intact and Task 8.2 open.
 
 ## Open Questions
 

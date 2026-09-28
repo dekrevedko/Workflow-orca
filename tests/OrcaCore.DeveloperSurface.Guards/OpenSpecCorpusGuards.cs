@@ -56,7 +56,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/reshape-developer-facing-interfaces/artifacts/" +
         "task-8-0-section-8-requirement-gate-2026-09-26.md";
     private const string Task80RequirementGateSha256 =
-        "fc9693f86bbda298df74bbc24ac69054ef3ee73386111c5bea947c283f6b08a1";
+        "4d4295e524202701b1e1b7b570bf0655a8a7248cf29f002b1bfb39e9a6be8037";
     private const string MissingApprovalReviewState = "MissingApproval";
     private const string RejectedReviewState = "Rejected";
     private const string ApprovalAwaitingEvidenceCommitReviewState =
@@ -213,7 +213,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "dcad67cd805b342bbe2973c4ffff53ce327a548cb067d6138372db40fca16a3c";
+        "6733b968bcb651360a5ca6dc35f752781fcd7724bd088418c238d5106a52013d";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +
