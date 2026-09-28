@@ -228,16 +228,22 @@ CI must execute the complete must-be-green guard lane with
 `Disposition=Infrastructure`; intentional expected-red guards remain outside that lane.
 
 A decision approved after its original implementation-section or canonical-sync gate has closed
-must enter the machine-readable post-gate amendment registry. Every record names amendment
-approval, canonical OpenSpec, numbered requirements, acceptance criteria, implementation tasks,
-executable evidence, an exact refreeze, and independent approval. Task states and evidence paths
-are checked literally; a completed historical gate never supplies implicit coverage for a later
-decision. Records resolve either one active or one dated archived change so normal archival is
-allowed. Each record embeds the exact requirement identities from the owning delta and validates
-them against that active or archived record rather than requiring the change to remain active.
-Approval evidence is line-ending normalized before exact task/verdict checks, implementation-task
-ranges carry an explicit count, and active provenance changes still require the task 4.2 fixture
-refreeze.
+must enter the machine-readable post-gate amendment registry. A proposed successor MAY coexist
+temporarily with its active predecessor only when a source-pinned registry row names the exact
+change pair, capability, verbatim requirement heading, operations, proposed stage, and open
+canonical-sync task. That row is process evidence, not amendment approval: both changes remain
+in the active provenance scan, the successor stays pending, semantic approval is false, and no
+product source is authorized. Every other duplicate owner remains prohibited. The process-only
+exception requires its own independent review and checkpoint before the contract amendment is
+reviewed. Completed amendment records name amendment approval, canonical OpenSpec, numbered
+requirements, acceptance criteria, implementation tasks, executable evidence, an exact refreeze,
+and independent approval. Task states and evidence paths are checked literally; a completed
+historical gate never supplies implicit coverage for a later decision. Records resolve either one
+active or one dated archived change so normal archival is allowed. Each completed record embeds
+the exact requirement identities from the owning delta and validates them against that active or
+archived record rather than requiring the change to remain active. Approval evidence is
+line-ending normalized before exact task/verdict checks, implementation-task ranges carry an
+explicit count, and active provenance changes still require a reviewed fixture refreeze.
 
 ### Synchronization gates must enumerate targets, not inputs
 

@@ -1,11 +1,14 @@
 {
   "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
-  "recordCount": 176,
-  "recordBytes": 46211,
-  "recordSha256": "ea8719e768182f4eea097cb280d3487426a9a7450ca7becb72616e567e30b756",
-  "semanticApprovalEligible": true,
-  "pendingCanonicalOperations": [],
+  "recordCount": 178,
+  "recordBytes": 46764,
+  "recordSha256": "a5833488353c035ac0a54b1388bde8b5dfed26b439b1fca1f0c43cc3d936cefb",
+  "semanticApprovalEligible": false,
+  "pendingCanonicalOperations": [
+    { "capability": "developer-facing-surface", "count": 1, "turnsGreenChange": "admit-dag-authoring-friend-boundary", "turnsGreenTask": "1.3" },
+    { "capability": "repository-foundation", "count": 1, "turnsGreenChange": "admit-dag-authoring-friend-boundary", "turnsGreenTask": "1.3" }
+  ],
   "activeNewCapabilitiesOutsideCanonical": [
     {
       "capability": "spec-driven-planning",
@@ -130,9 +133,9 @@
     { "capability": "workflow-contracts", "normalizedSha256": "71b18f858ab9c548cdfd4cbbba8a0856516cc71061a958a67646015c8a2f1868" }
   ],
   "capabilityDirectoryRecordFormat": "repository-relative active openspec/changes/*/specs/*/ path with forward slashes and one trailing slash",
-  "capabilityDirectoryCount": 16,
-  "capabilityDirectoryBytes": 1321,
-  "capabilityDirectorySha256": "5e8a9725979d702ff2f639fef587828958c92533139602ab13f1401d6df7ebd5",
-  "artifactPath": "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-6-openspec-provenance-refresh-2026-09-13.md",
-  "artifactNormalizedSha256": "01bbb6f1ed8e78b680e5bebc2157347ff80eed880e847a0375e1e9e9e2f65834"
+  "capabilityDirectoryCount": 18,
+  "capabilityDirectoryBytes": 1488,
+  "capabilityDirectorySha256": "da7c00f44cc9e9d14b6756e5572d8b461c56d5454e315c4bec357d9d51fe4e50",
+  "artifactPath": "openspec/changes/admit-dag-authoring-friend-boundary/artifacts/process-openspec-provenance-2026-09-27.md",
+  "artifactNormalizedSha256": "85cf55f19ce0b504e03d7f4deb038e993483b7d3ccfe547172d2e17cc673b7cf"
 }

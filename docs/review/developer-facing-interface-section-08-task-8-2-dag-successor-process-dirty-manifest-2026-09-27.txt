@@ -1,0 +1,16 @@
+ M CLAUDE.md
+ M openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+?? docs/review/developer-facing-interface-section-08-task-8-2-dag-successor-process-dirty-manifest-2026-09-27.txt
+?? docs/review/developer-facing-interface-section-08-task-8-2-dag-successor-process-independent-review-request-2026-09-27.md
+?? openspec/changes/admit-dag-authoring-friend-boundary/.openspec.yaml
+?? openspec/changes/admit-dag-authoring-friend-boundary/artifacts/process-openspec-provenance-2026-09-27.md
+?? openspec/changes/admit-dag-authoring-friend-boundary/design.md
+?? openspec/changes/admit-dag-authoring-friend-boundary/proposal.md
+?? openspec/changes/admit-dag-authoring-friend-boundary/specs/developer-facing-surface/spec.md
+?? openspec/changes/admit-dag-authoring-friend-boundary/specs/repository-foundation/spec.md
+?? openspec/changes/admit-dag-authoring-friend-boundary/tasks.md

@@ -1751,7 +1751,6 @@
         "openspec/changes/reshape-developer-facing-interfaces/specs/saga-orchestration/spec.md",
         "openspec/specs/developer-facing-surface/spec.md",
         "openspec/specs/saga-orchestration/spec.md",
-        "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json",
         "docs/review/harmonize-downstream-capability-specs-task-6-6-dirty-manifest-2026-09-13.txt",
         "docs/review/harmonize-downstream-capability-specs-task-6-6-independent-review-request-2026-09-13.md",
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-6-future-capability-registry-reconciliation-2026-09-13.md",

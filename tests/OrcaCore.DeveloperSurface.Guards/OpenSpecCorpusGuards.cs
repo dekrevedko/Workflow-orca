@@ -14,6 +14,28 @@ public sealed class OpenSpecCorpusGuards
 {
     private const string OpenTaskState = "Open";
     private const string CompleteTaskState = "Complete";
+    private const string ProposedPostGateStage = "Proposed";
+    private static readonly PostGateProposedSuccessor[] ExactProposedDagSuccessors =
+    [
+        new(
+            "admit-dag-authoring-friend-boundary",
+            "reshape-developer-facing-interfaces",
+            "developer-facing-surface",
+            "Implementation package boundaries use exact internal friends",
+            "ADDED",
+            "MODIFIED",
+            ProposedPostGateStage,
+            "1.3"),
+        new(
+            "admit-dag-authoring-friend-boundary",
+            "reshape-developer-facing-interfaces",
+            "repository-foundation",
+            "Dependency direction remains one-way",
+            "MODIFIED",
+            "MODIFIED",
+            ProposedPostGateStage,
+            "1.3")
+    ];
     private const string HistoricalCanonicalSourceCommit =
         "ba2478e995023b0712c44705174c2b0e3262f213";
     private const string HistoricalCanonicalRemovalCatalogSha256 =
@@ -58,16 +80,20 @@ public sealed class OpenSpecCorpusGuards
         "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
     private const string PublicAuthoringCompanionSha256 =
         "41f6472c2774363d2ab922c608922e787ec241333e1d1c0b76b0c6d529ab8ec3";
-    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 1;
+    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 2;
     private const string SupersededOpenSpecProvenanceArtifactCatalogSha256 =
-        "a9836be8bb9f05876cf73f96c77756143a5b079bb1111db446721922869f7b12";
+        "87430cb3d4ed6d2e71205c46db5ee93c3dcc59f6aceb14ec538db2a26f24e954";
     private static readonly (string Path, string NormalizedSha256)[]
         SupersededOpenSpecProvenanceArtifacts =
         [
             (
                 "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
                 "task-4-2-openspec-provenance-record-2026-08-18.md",
-                "9e8709096f8f3efcb8ea1ee040d1ec6f13e997a320eb6fbb7f724ec708ae2958")
+                "9e8709096f8f3efcb8ea1ee040d1ec6f13e997a320eb6fbb7f724ec708ae2958"),
+            (
+                "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
+                "task-6-6-openspec-provenance-refresh-2026-09-13.md",
+                "01bbb6f1ed8e78b680e5bebc2157347ff80eed880e847a0375e1e9e9e2f65834")
         ];
     private const string EmptyCorePublicApiBaseline =
         "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";
@@ -187,7 +213,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "a966f1d85a8a6a8bd531e51729397276ca14de393af81e1f9a1f434d365f59f7";
+        "dcad67cd805b342bbe2973c4ffff53ce327a548cb067d6138372db40fca16a3c";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +
@@ -1333,11 +1359,19 @@ public sealed class OpenSpecCorpusGuards
         activeRequirementOwners.Should().NotBeEmpty(
             "every active delta must expose at least one requirement heading to the ownership scan");
 
+        var postGateCheckpoint = FixtureDefinitions.Read<PostGateAmendmentCheckpoint>(
+            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json");
+        var registeredSuccessorKeys = ValidateProposedRequirementSuccessors(
+            root,
+            canonicalRequirements,
+            activeDeltaRequirements,
+            postGateCheckpoint);
+
         var duplicateOwners = activeRequirementOwners
             .GroupBy(
                 owner => $"{owner.Capability}\0{owner.Requirement}",
                 StringComparer.Ordinal)
-            .Where(group => group.Count() > 1)
+            .Where(group => group.Count() > 1 && !registeredSuccessorKeys.Contains(group.Key))
             .OrderBy(group => group.Key, StringComparer.Ordinal)
             .Select(group =>
                 $"{group.First().Capability} :: {group.First().Requirement} => " +
@@ -1346,7 +1380,8 @@ public sealed class OpenSpecCorpusGuards
                     .Order(StringComparer.Ordinal)))
             .ToArray();
         duplicateOwners.Should().BeEmpty(
-            "one active change may own each capability requirement heading; duplicate owners were: {0}",
+            "only a source-pinned proposed post-gate successor may share an active heading; " +
+            "unregistered duplicate owners were: {0}",
             string.Join("; ", duplicateOwners));
 
         ValidateChangeToCanonicalProvenance(
@@ -1357,6 +1392,53 @@ public sealed class OpenSpecCorpusGuards
             activeCapabilityDirectories);
 
         PreserveRuntimeConcurrencyStrayDisposition(root, changesRoot);
+    }
+
+    private static HashSet<string> ValidateProposedRequirementSuccessors(
+        string root,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonicalRequirements,
+        IReadOnlyCollection<DeltaRequirement> activeRequirements,
+        PostGateAmendmentCheckpoint checkpoint)
+    {
+        checkpoint.SchemaVersion.Should().Be(3);
+        checkpoint.ProposedRequirementSuccessors.Should().Equal(
+            ExactProposedDagSuccessors,
+            "only the exact reviewed predecessor/successor headings may bypass sole active ownership");
+
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var successor in checkpoint.ProposedRequirementSuccessors)
+        {
+            var key = $"{successor.Capability}\0{successor.Requirement}";
+            keys.Add(key).Should().BeTrue("proposed successor identities must be unique");
+            successor.Stage.Should().Be(ProposedPostGateStage,
+                "proposal-stage ownership does not imply amendment approval or source authority");
+
+            var owners = activeRequirements
+                .Where(requirement =>
+                    requirement.Capability == successor.Capability &&
+                    requirement.Requirement == successor.Requirement)
+                .ToArray();
+            owners.Should().HaveCount(2,
+                "a proposed successor may coexist with exactly its named active predecessor");
+            var predecessor = owners.Single(owner => owner.Change == successor.PredecessorChange);
+            var amendment = owners.Single(owner => owner.Change == successor.Change);
+            predecessor.Operation.ToString().ToUpperInvariant().Should().Be(successor.PredecessorOperation);
+            amendment.Operation.ToString().ToUpperInvariant().Should().Be(successor.SuccessorOperation);
+            ClassifyProvenance(canonicalRequirements, predecessor).State.Should().Be(
+                ProvenanceState.Synchronized,
+                "the earlier approved owner must still match canonical before succession");
+            ClassifyProvenance(canonicalRequirements, amendment).State.Should().Be(
+                ProvenanceState.PendingModification,
+                "a proposed successor must remain explicitly unsynchronized before contract approval");
+
+            var task = ValidateTaskReference(
+                root,
+                new PostGateTaskReference(successor.Change, successor.TurnsGreenTask, OpenTaskState));
+            task.Should().Contain($"`{successor.Capability}` (1)",
+                "each proposed requirement needs one named open canonical-sync owner");
+        }
+
+        return keys;
     }
 
     [Fact]
@@ -1377,6 +1459,10 @@ public sealed class OpenSpecCorpusGuards
 
         var root = FixtureDefinitions.RepositoryRoot();
         var requirements = ReadTask53ActiveDeltaRequirements(root);
+        var proposedSuccessors = FixtureDefinitions.Read<PostGateAmendmentCheckpoint>(
+                "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json")
+            .ProposedRequirementSuccessors;
+        proposedSuccessors.Should().Equal(ExactProposedDagSuccessors);
         foreach (var target in targets)
         {
             var owners = requirements
@@ -1384,19 +1470,30 @@ public sealed class OpenSpecCorpusGuards
                     requirement.Capability == target.Capability &&
                     requirement.Requirement == target.Requirement)
                 .ToArray();
-            owners.Should().ContainSingle(
-                "{0} :: {1} must have one active delta owner, even when another copy is byte-identical",
+            var proposedSuccessor = proposedSuccessors.SingleOrDefault(successor =>
+                successor.Capability == target.Capability &&
+                successor.Requirement == target.Requirement);
+            owners.Should().HaveCount(proposedSuccessor is null ? 1 : 2,
+                "{0} :: {1} may gain only its exact registered post-gate successor",
                 target.Capability,
                 target.Requirement);
-            var owner = owners.Single();
+            var owner = owners.Single(requirement => requirement.Change == expectedOwner);
             owner.Change.Should().Be(
                 expectedOwner,
-                "reshape is the approved sole active owner of {0} :: {1}",
+                "reshape remains the approved predecessor owner of {0} :: {1}",
                 target.Capability,
                 target.Requirement);
             owner.Operation.Should().Be(
                 target.Operation,
                 "Task 5.3 must retain each aggregate's approved delta disposition");
+            if (proposedSuccessor is not null)
+            {
+                var successorOwner = owners.Single(requirement =>
+                    requirement.Change == proposedSuccessor.Change);
+                successorOwner.Operation.Should().Be(RequirementOperation.Modified);
+                proposedSuccessor.PredecessorChange.Should().Be(expectedOwner);
+                proposedSuccessor.Stage.Should().Be(ProposedPostGateStage);
+            }
 
             var ownerBody = RequirementBody(owner.Block);
             var copiedBodies = requirements
@@ -3771,17 +3868,14 @@ public sealed class OpenSpecCorpusGuards
                 .OrderBy(item => item.Capability, StringComparer.Ordinal)
                 .Select(item => new ProvenanceCapabilityCount(item.Capability, item.Count)));
 
-        var taskLedger = File.ReadAllText(Path.Combine(
-            root,
-            "openspec",
-            "changes",
-            "harmonize-downstream-capability-specs",
-            "tasks.md"));
         var postGateCheckpoint = FixtureDefinitions.Read<PostGateAmendmentCheckpoint>(
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json");
         ValidatePostGateAmendmentPath(root, canonicalRequirements, postGateCheckpoint);
         foreach (var operation in checkpoint.PendingCanonicalOperations)
         {
+            var taskLedger = File.ReadAllText(Path.Combine(
+                ResolveChangeRecord(root, operation.TurnsGreenChange),
+                "tasks.md"));
             var taskBlock = ReadOpenTaskBlock(taskLedger, operation.TurnsGreenTask);
             taskBlock.Should().Contain(
                 $"`{operation.Capability}` ({operation.Count})",
@@ -3934,7 +4028,10 @@ public sealed class OpenSpecCorpusGuards
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonicalRequirements,
         PostGateAmendmentCheckpoint checkpoint)
     {
-        checkpoint.SchemaVersion.Should().Be(2);
+        checkpoint.SchemaVersion.Should().Be(3);
+        checkpoint.ProposedRequirementSuccessors.Should().Equal(
+            ExactProposedDagSuccessors,
+            "a proposed post-gate successor is a named exception, not a general duplicate-owner waiver");
         checkpoint.RequiredStages.Should().Equal(
             RequiredPostGateStages,
             "every late decision must re-enter each gate in the approved order");
@@ -5578,7 +5675,8 @@ public sealed class OpenSpecCorpusGuards
         {
             RequireArtifactClaim(
                 normalizedArtifact,
-                $"| `{operation.Capability}` | {operation.Count} | task {operation.TurnsGreenTask} |");
+                $"| `{operation.Capability}` | {operation.Count} | " +
+                $"{operation.TurnsGreenChange} task {operation.TurnsGreenTask} |");
         }
 
         Sha256(normalizedArtifact).Should().Be(
@@ -5807,6 +5905,7 @@ public sealed class OpenSpecCorpusGuards
     private sealed record ProvenancePendingCapability(
         string Capability,
         int Count,
+        string TurnsGreenChange,
         string TurnsGreenTask);
 
     private sealed record ProvenanceNewCapability(
@@ -5831,9 +5930,20 @@ public sealed class OpenSpecCorpusGuards
     private sealed record PostGateAmendmentCheckpoint(
         int SchemaVersion,
         string[] RequiredStages,
+        PostGateProposedSuccessor[] ProposedRequirementSuccessors,
         PostGateAmendment[] Amendments,
         string ArtifactPath,
         string ArtifactNormalizedSha256);
+
+    private sealed record PostGateProposedSuccessor(
+        string Change,
+        string PredecessorChange,
+        string Capability,
+        string Requirement,
+        string PredecessorOperation,
+        string SuccessorOperation,
+        string Stage,
+        string TurnsGreenTask);
 
     private sealed record PostGateAmendment(
         string Id,

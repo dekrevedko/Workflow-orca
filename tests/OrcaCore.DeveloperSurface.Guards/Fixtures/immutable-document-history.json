@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-0-www-xxx-remediation-dirty-manifest-2026-09-26.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-2-dag-successor-process-dirty-manifest-2026-09-27.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2209,6 +2209,16 @@
       "path": "docs/review/developer-facing-interface-section-08-task-8-1-package-and-registration-independent-review-verdict-2026-09-27.md",
       "bytes": 9921,
       "sha256": "7a1d246652f86cd5409e22e5a00735c2ef872f0d660e465a0de9ed1cb9685a4a"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-successor-process-dirty-manifest-2026-09-27.txt",
+      "bytes": 1344,
+      "sha256": "bf1490bc0aba72709d9a778ff4eb098ae47c41bb8884fde1c775dfffe8090c7c"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-successor-process-independent-review-request-2026-09-27.md",
+      "bytes": 3644,
+      "sha256": "5e9e7921f99eac38e0da571dcc505b2e7d3abff78da650b974c318f7e5b3cd88"
     },
     {
       "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-aaa-1-and-task-7-3-dirty-manifest-2026-09-18.txt",

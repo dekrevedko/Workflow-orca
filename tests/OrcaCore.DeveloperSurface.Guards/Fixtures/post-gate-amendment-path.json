@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "requiredStages": [
     "amendment-approval",
     "canonical-open-spec",
@@ -12,6 +12,28 @@
   ],
   "artifactPath": "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-4-3-post-gate-amendment-path-2026-08-18.md",
   "artifactNormalizedSha256": "b9d0dbc43f8a135ac038c529047bcfe272c865b678704a6325c976537fe89c89",
+  "proposedRequirementSuccessors": [
+    {
+      "change": "admit-dag-authoring-friend-boundary",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "capability": "developer-facing-surface",
+      "requirement": "Implementation package boundaries use exact internal friends",
+      "predecessorOperation": "ADDED",
+      "successorOperation": "MODIFIED",
+      "stage": "Proposed",
+      "turnsGreenTask": "1.3"
+    },
+    {
+      "change": "admit-dag-authoring-friend-boundary",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "capability": "repository-foundation",
+      "requirement": "Dependency direction remains one-way",
+      "predecessorOperation": "MODIFIED",
+      "successorOperation": "MODIFIED",
+      "stage": "Proposed",
+      "turnsGreenTask": "1.3"
+    }
+  ],
   "amendments": [
     {
       "id": "reshape-section-7b-developer-facing-surface",
