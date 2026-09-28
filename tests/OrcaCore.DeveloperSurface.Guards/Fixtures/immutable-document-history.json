@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-2-dag-friend-contract-yyy-1-remediation-dirty-manifest-2026-09-27.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-2-dag-friend-atomic-canonical-transition-dirty-manifest-2026-09-27.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2209,6 +2209,16 @@
       "path": "docs/review/developer-facing-interface-section-08-task-8-1-package-and-registration-independent-review-verdict-2026-09-27.md",
       "bytes": 9921,
       "sha256": "7a1d246652f86cd5409e22e5a00735c2ef872f0d660e465a0de9ed1cb9685a4a"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-friend-atomic-canonical-transition-dirty-manifest-2026-09-27.txt",
+      "bytes": 1606,
+      "sha256": "3dfdd796aa5a32a360fe1df41d81815b71e677c8f6c502eaed2f6b8d5a240581"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-friend-atomic-canonical-transition-independent-review-request-2026-09-27.md",
+      "bytes": 5290,
+      "sha256": "eef3b2f10c44b45770f9bf7ca4c5e1887653bd83dfe38aa9965cb2536246edbe"
     },
     {
       "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-friend-contract-dirty-manifest-2026-09-27.txt",

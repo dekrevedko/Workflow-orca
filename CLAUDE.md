@@ -99,11 +99,11 @@ The current seven product friends are `OrcaCore` to `OrcaCore.Core`,
 ProviderCertification may inspect internals; acceptance, behavior, compile-fixture, and
 integration assemblies may not. No other current friend or public reflection bridge is allowed.
 
-The post-gate `admit-dag-authoring-friend-boundary` change proposes one additional *authoring*
+The independently approved post-gate `admit-dag-authoring-friend-boundary` contract names one additional *authoring*
 friend, `OrcaCore -> OrcaCore.Dag`, for compiler-created validation, diagnostics, locations,
 fingerprints, and definition exceptions. It is not in the current compiled friend set and grants
 no DAG runtime or child-start access. Its exact member signatures, shared fingerprint operation,
-and metadata guard require independent contract approval before Task 8.2 product source changes.
+and metadata guard require separate source review before Task 8.2 product source changes.
 The existing `OrcaCore.Durable.Hosting -> OrcaCore.Dag.Hosting` edge remains the sole
 DAG-to-durable *runtime* bridge.
 
@@ -243,7 +243,10 @@ temporarily with its active predecessor only when a source-pinned registry row n
 change pair, capability, verbatim requirement heading, operations, proposed stage, and open
 canonical-sync task. That row is process evidence, not amendment approval: both changes remain
 in the active provenance scan, the successor stays pending, semantic approval is false, and no
-product source is authorized. Every other duplicate owner remains prohibited. The process-only
+product source is authorized. After independent contract approval, canonical sync and the
+`ApprovedPending` registry transition SHALL land atomically: the reviewed successor becomes
+canonical, its retained predecessor is classified as superseded, and product source remains
+unauthorized until the separate implementation review. Every other duplicate owner remains prohibited. The process-only
 exception requires its own independent review and checkpoint before the contract amendment is
 reviewed. Completed amendment records name amendment approval, canonical OpenSpec, numbered
 requirements, acceptance criteria, implementation tasks, executable evidence, an exact refreeze,

@@ -15,6 +15,7 @@ public sealed class OpenSpecCorpusGuards
     private const string OpenTaskState = "Open";
     private const string CompleteTaskState = "Complete";
     private const string ProposedPostGateStage = "Proposed";
+    private const string ApprovedPendingPostGateStage = "ApprovedPending";
     private static readonly PostGateProposedSuccessor[] ExactProposedDagSuccessors =
     [
         new(
@@ -36,6 +37,33 @@ public sealed class OpenSpecCorpusGuards
             ProposedPostGateStage,
             "1.3")
     ];
+    private static readonly PostGateApprovedPendingSuccessor[] ExactApprovedPendingDagSuccessors =
+    [
+        new(
+            "developer-facing-surface",
+            "Implementation package boundaries use exact internal friends",
+            ApprovedPendingPostGateStage,
+            "e12c77e5d3a8eaf30dbe31a68ffe4baec3b105023dd5f1512d3f062917a312d0",
+            "bed102a2e4c98598b30cbb741c956a236f2050d27d88e6fc567b915f5b260793"),
+        new(
+            "repository-foundation",
+            "Dependency direction remains one-way",
+            ApprovedPendingPostGateStage,
+            "d0d512ea59ea8da595770b5437d7faa7565773c6cd8845850d2dea6010b54b29",
+            "bbae0c226c6824570650d1f6f980e3b74e6c35cb196784581eef20e6e3563ce9")
+    ];
+    private static readonly PostGateApprovedPendingEvidence ExactDagFriendApprovalEvidence = new(
+        ApprovedPendingPostGateStage,
+        "89a2b475ebaeed82de2fd2edaf1f31b371bd71a4",
+        "bbac0977bffce25881a7f27f48b075cda7dc206f",
+        "docs/review/developer-facing-interface-section-08-task-8-2-dag-friend-contract-yyy-1-remediation-independent-review-verdict-2026-09-27.md",
+        "398031734b5b98d3244e19e85f519c464aae80f2faf843e0c34d3b0c180cdf2f",
+        "1.2",
+        "1.3",
+        "1.4",
+        "2.1");
+    private const string ApprovedPendingOpenSpecProvenanceSha256 =
+        "f174df2b0a8a352a0601eea879b7f3260fa49ab064451ad8da50c50550c9ff82";
     private const string HistoricalCanonicalSourceCommit =
         "ba2478e995023b0712c44705174c2b0e3262f213";
     private const string HistoricalCanonicalRemovalCatalogSha256 =
@@ -56,7 +84,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/reshape-developer-facing-interfaces/artifacts/" +
         "task-8-0-section-8-requirement-gate-2026-09-26.md";
     private const string Task80RequirementGateSha256 =
-        "4d4295e524202701b1e1b7b570bf0655a8a7248cf29f002b1bfb39e9a6be8037";
+        "f4d87af4141dfb1bf03cfffe99d1b6e960b51a4034388badf2ee5a97c9e634b6";
     private const string MissingApprovalReviewState = "MissingApproval";
     private const string RejectedReviewState = "Rejected";
     private const string ApprovalAwaitingEvidenceCommitReviewState =
@@ -80,9 +108,9 @@ public sealed class OpenSpecCorpusGuards
         "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
     private const string PublicAuthoringCompanionSha256 =
         "41f6472c2774363d2ab922c608922e787ec241333e1d1c0b76b0c6d529ab8ec3";
-    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 2;
+    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 3;
     private const string SupersededOpenSpecProvenanceArtifactCatalogSha256 =
-        "87430cb3d4ed6d2e71205c46db5ee93c3dcc59f6aceb14ec538db2a26f24e954";
+        "af5091d7218c8e39df303912a2031a8b24ba4ab65afc910276c339167465b889";
     private static readonly (string Path, string NormalizedSha256)[]
         SupersededOpenSpecProvenanceArtifacts =
         [
@@ -93,7 +121,11 @@ public sealed class OpenSpecCorpusGuards
             (
                 "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
                 "task-6-6-openspec-provenance-refresh-2026-09-13.md",
-                "01bbb6f1ed8e78b680e5bebc2157347ff80eed880e847a0375e1e9e9e2f65834")
+                "01bbb6f1ed8e78b680e5bebc2157347ff80eed880e847a0375e1e9e9e2f65834"),
+            (
+                "openspec/changes/admit-dag-authoring-friend-boundary/artifacts/" +
+                "process-openspec-provenance-2026-09-27.md",
+                "85cf55f19ce0b504e03d7f4deb038e993483b7d3ccfe547172d2e17cc673b7cf")
         ];
     private const string EmptyCorePublicApiBaseline =
         "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";
@@ -213,7 +245,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "6733b968bcb651360a5ca6dc35f752781fcd7724bd088418c238d5106a52013d";
+        "05a990610a6dbe2fba10a4e32c92e3f639216b97a5338c2ed74c132d40b27b0f";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +
@@ -1400,10 +1432,35 @@ public sealed class OpenSpecCorpusGuards
         IReadOnlyCollection<DeltaRequirement> activeRequirements,
         PostGateAmendmentCheckpoint checkpoint)
     {
-        checkpoint.SchemaVersion.Should().Be(3);
+        checkpoint.SchemaVersion.Should().Be(4);
         checkpoint.ProposedRequirementSuccessors.Should().Equal(
             ExactProposedDagSuccessors,
             "only the exact reviewed predecessor/successor headings may bypass sole active ownership");
+        checkpoint.ApprovedPendingRequirementSuccessors.Should().Equal(
+            ExactApprovedPendingDagSuccessors,
+            "the approved-pending canonical targets must remain source-pinned independently of fixture edits");
+        checkpoint.ApprovedPendingEvidence.Should().Be(
+            ExactDagFriendApprovalEvidence,
+            "the approved-pending transition must cite the real reviewed checkpoint and verdict commit");
+
+        var evidence = checkpoint.ApprovedPendingEvidence;
+        var verdictPath = RequireNonEmptyFile(root, evidence.ApprovalVerdictPath, "DAG friend approval verdict");
+        var verdictBytes = File.ReadAllBytes(verdictPath);
+        Sha256(verdictBytes).Should().Be(evidence.ApprovalVerdictSha256);
+        RequireApprovalEvidence(root, evidence.ApprovalVerdictPath, evidence.ApprovalTask);
+        ReadGitBlob(root, evidence.ApprovalEvidenceCommit, evidence.ApprovalVerdictPath)
+            .Should().Equal(verdictBytes, "the evidence commit must contain the approved verdict byte-exact");
+        var approvalParent = RunGit(root, "rev-parse", $"{evidence.ApprovalEvidenceCommit}^");
+        approvalParent.ExitCode.Should().Be(0);
+        approvalParent.StandardOutput.Trim().Should().Be(
+            evidence.ReviewedCheckpointCommit,
+            "the approval evidence commit must be the reviewed checkpoint's direct child");
+
+        const string change = "admit-dag-authoring-friend-boundary";
+        ValidateTaskReference(root, new PostGateTaskReference(change, evidence.ApprovalTask, CompleteTaskState));
+        ValidateTaskReference(root, new PostGateTaskReference(change, evidence.CanonicalSyncTask, CompleteTaskState));
+        ValidateTaskReference(root, new PostGateTaskReference(change, evidence.RegistryTransitionTask, CompleteTaskState));
+        ValidateTaskReference(root, new PostGateTaskReference(change, evidence.ImplementationTask, OpenTaskState));
 
         var keys = new HashSet<string>(StringComparer.Ordinal);
         foreach (var successor in checkpoint.ProposedRequirementSuccessors)
@@ -1424,18 +1481,25 @@ public sealed class OpenSpecCorpusGuards
             var amendment = owners.Single(owner => owner.Change == successor.Change);
             predecessor.Operation.ToString().ToUpperInvariant().Should().Be(successor.PredecessorOperation);
             amendment.Operation.ToString().ToUpperInvariant().Should().Be(successor.SuccessorOperation);
-            ClassifyProvenance(canonicalRequirements, predecessor).State.Should().Be(
-                ProvenanceState.Synchronized,
-                "the earlier approved owner must still match canonical before succession");
+            var approved = checkpoint.ApprovedPendingRequirementSuccessors.Single(item =>
+                item.Capability == successor.Capability && item.Requirement == successor.Requirement);
+            approved.Stage.Should().Be(ApprovedPendingPostGateStage);
+            Sha256(predecessor.Block).Should().Be(
+                approved.HistoricalCanonicalBlockSha256,
+                "the predecessor delta retains the exact pre-sync canonical block independently of Git history");
+            Sha256(amendment.Block).Should().Be(approved.CanonicalBlockSha256);
+            ClassifyProvenance(canonicalRequirements, predecessor).State.Should().BeOneOf(
+                ProvenanceState.PendingAddedCanonicalConflict,
+                ProvenanceState.PendingModification);
             ClassifyProvenance(canonicalRequirements, amendment).State.Should().Be(
-                ProvenanceState.PendingModification,
-                "a proposed successor must remain explicitly unsynchronized before contract approval");
+                ProvenanceState.Synchronized,
+                "the approved successor must match canonical after the atomic sync");
 
             var task = ValidateTaskReference(
                 root,
-                new PostGateTaskReference(successor.Change, successor.TurnsGreenTask, OpenTaskState));
+                new PostGateTaskReference(successor.Change, successor.TurnsGreenTask, CompleteTaskState));
             task.Should().Contain($"`{successor.Capability}` (1)",
-                "each proposed requirement needs one named open canonical-sync owner");
+                "each approved requirement must retain its exact canonical-sync owner");
         }
 
         return keys;
@@ -3832,14 +3896,19 @@ public sealed class OpenSpecCorpusGuards
         const string recordFormat =
             "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\t" +
             "delta-block-sha256\\tcanonical-block-sha256-or-dash";
+        var checkpoint = FixtureDefinitions.Read<OpenSpecProvenanceCheckpoint>(
+            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json");
+        var postGateCheckpoint = FixtureDefinitions.Read<PostGateAmendmentCheckpoint>(
+            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json");
         var rows = activeDeltaRequirements
-            .Select(requirement => ClassifyProvenance(canonicalRequirements, requirement))
+            .Select(requirement => ClassifyPostGateProvenance(
+                canonicalRequirements,
+                requirement,
+                postGateCheckpoint.ApprovedPendingRequirementSuccessors))
             .OrderBy(row => row.RecordLine, StringComparer.Ordinal)
             .ToArray();
         var record = string.Join('\n', rows.Select(row => row.RecordLine)) + "\n";
         var recordBytes = Encoding.UTF8.GetBytes(record);
-        var checkpoint = FixtureDefinitions.Read<OpenSpecProvenanceCheckpoint>(
-            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json");
 
         checkpoint.SchemaVersion.Should().Be(6);
         checkpoint.RecordFormat.Should().Be(recordFormat);
@@ -3868,8 +3937,6 @@ public sealed class OpenSpecCorpusGuards
                 .OrderBy(item => item.Capability, StringComparer.Ordinal)
                 .Select(item => new ProvenanceCapabilityCount(item.Capability, item.Count)));
 
-        var postGateCheckpoint = FixtureDefinitions.Read<PostGateAmendmentCheckpoint>(
-            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json");
         ValidatePostGateAmendmentPath(root, canonicalRequirements, postGateCheckpoint);
         foreach (var operation in checkpoint.PendingCanonicalOperations)
         {
@@ -4028,10 +4095,12 @@ public sealed class OpenSpecCorpusGuards
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonicalRequirements,
         PostGateAmendmentCheckpoint checkpoint)
     {
-        checkpoint.SchemaVersion.Should().Be(3);
+        checkpoint.SchemaVersion.Should().Be(4);
         checkpoint.ProposedRequirementSuccessors.Should().Equal(
             ExactProposedDagSuccessors,
             "a proposed post-gate successor is a named exception, not a general duplicate-owner waiver");
+        checkpoint.ApprovedPendingRequirementSuccessors.Should().Equal(
+            ExactApprovedPendingDagSuccessors);
         checkpoint.RequiredStages.Should().Equal(
             RequiredPostGateStages,
             "every late decision must re-enter each gate in the approved order");
@@ -4074,7 +4143,10 @@ public sealed class OpenSpecCorpusGuards
                 "the permanent post-gate record must bind the exact requirement identities " +
                 "from either the active or dated archived owning change");
             var amendmentRows = amendmentRequirements
-                .Select(requirement => ClassifyProvenance(canonicalRequirements, requirement))
+                .Select(requirement => ClassifyPostGateProvenance(
+                    canonicalRequirements,
+                    requirement,
+                    checkpoint.ApprovedPendingRequirementSuccessors))
                 .ToArray();
             amendmentRows.Count(row => row.State is
                     ProvenanceState.PendingAddition or
@@ -4259,7 +4331,7 @@ public sealed class OpenSpecCorpusGuards
             $@"(?<![\d.]){Regex.Escape(task)}(?![\d.])",
             "post-gate approval evidence must identify its owning task");
         evidence.Should().MatchRegex(
-            @"(?mi)^(?:\*\*Verdict:\*\*[ \t]*APPROVE|\*\*APPROVE\*\*)[ \t]*$",
+            @"(?mi)^(?:\*\*Verdict:\*\*[ \t]*(?:APPROVE|\*\*APPROVE\*\*)|\*\*APPROVE\*\*)[ \t]*$",
             "post-gate approval evidence must carry an explicit approving verdict");
     }
 
@@ -5623,9 +5695,14 @@ public sealed class OpenSpecCorpusGuards
             checkpoint.ArtifactPath.Replace('/', Path.DirectorySeparatorChar));
         File.Exists(artifactPath).Should().BeTrue("the reviewed provenance artifact must exist");
         var normalizedArtifact = NormalizeLineEndings(File.ReadAllText(artifactPath));
-        var pendingCount = rows.Count(row => row.State is not
-            ProvenanceState.Synchronized and not
-            ProvenanceState.NewCapabilityOutsideCanonical);
+        checkpoint.ArtifactNormalizedSha256.Should().Be(
+            ApprovedPendingOpenSpecProvenanceSha256,
+            "the approved-pending human record must not be self-attesting through fixture edits");
+        var pendingCount = rows.Count(row => row.State is
+            ProvenanceState.PendingAddition or
+            ProvenanceState.PendingAddedCanonicalConflict or
+            ProvenanceState.PendingModification or
+            ProvenanceState.PendingRemoval);
         RequireArtifactClaim(normalizedArtifact, $"- record rows: {checkpoint.RecordCount}");
         RequireArtifactClaim(
             normalizedArtifact,
@@ -5756,6 +5833,34 @@ public sealed class OpenSpecCorpusGuards
         return CreateProvenanceRow(requirement, state, canonicalBlock);
     }
 
+    private static ProvenanceRow ClassifyPostGateProvenance(
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonicalRequirements,
+        DeltaRequirement requirement,
+        IReadOnlyCollection<PostGateApprovedPendingSuccessor> approvedSuccessors)
+    {
+        var approved = approvedSuccessors.SingleOrDefault(item =>
+            item.Capability == requirement.Capability &&
+            item.Requirement == requirement.Requirement &&
+            ExactProposedDagSuccessors.Any(predecessor =>
+                predecessor.Capability == item.Capability &&
+                predecessor.Requirement == item.Requirement &&
+                predecessor.PredecessorChange == requirement.Change));
+        if (approved is null)
+        {
+            return ClassifyProvenance(canonicalRequirements, requirement);
+        }
+
+        var canonicalBlock = canonicalRequirements[requirement.Capability][requirement.Requirement].Block;
+        Sha256(requirement.Block).Should().Be(
+            approved.HistoricalCanonicalBlockSha256,
+            "an approved successor must never erase or reword its historical predecessor delta");
+        Sha256(canonicalBlock).Should().Be(approved.CanonicalBlockSha256);
+        return CreateProvenanceRow(
+            requirement,
+            ProvenanceState.SupersededByApprovedSuccessor,
+            canonicalBlock);
+    }
+
     private static ProvenanceRow CreateProvenanceRow(
         DeltaRequirement requirement,
         ProvenanceState state,
@@ -5822,6 +5927,7 @@ public sealed class OpenSpecCorpusGuards
     private enum ProvenanceState
     {
         Synchronized,
+        SupersededByApprovedSuccessor,
         PendingAddition,
         PendingAddedCanonicalConflict,
         PendingModification,
@@ -5931,6 +6037,8 @@ public sealed class OpenSpecCorpusGuards
         int SchemaVersion,
         string[] RequiredStages,
         PostGateProposedSuccessor[] ProposedRequirementSuccessors,
+        PostGateApprovedPendingEvidence ApprovedPendingEvidence,
+        PostGateApprovedPendingSuccessor[] ApprovedPendingRequirementSuccessors,
         PostGateAmendment[] Amendments,
         string ArtifactPath,
         string ArtifactNormalizedSha256);
@@ -5944,6 +6052,24 @@ public sealed class OpenSpecCorpusGuards
         string SuccessorOperation,
         string Stage,
         string TurnsGreenTask);
+
+    private sealed record PostGateApprovedPendingEvidence(
+        string Stage,
+        string ReviewedCheckpointCommit,
+        string ApprovalEvidenceCommit,
+        string ApprovalVerdictPath,
+        string ApprovalVerdictSha256,
+        string ApprovalTask,
+        string CanonicalSyncTask,
+        string RegistryTransitionTask,
+        string ImplementationTask);
+
+    private sealed record PostGateApprovedPendingSuccessor(
+        string Capability,
+        string Requirement,
+        string Stage,
+        string HistoricalCanonicalBlockSha256,
+        string CanonicalBlockSha256);
 
     private sealed record PostGateAmendment(
         string Id,

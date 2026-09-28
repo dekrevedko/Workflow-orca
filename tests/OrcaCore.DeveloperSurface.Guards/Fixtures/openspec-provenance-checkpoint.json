@@ -2,13 +2,10 @@
   "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
   "recordCount": 178,
-  "recordBytes": 46764,
-  "recordSha256": "a5833488353c035ac0a54b1388bde8b5dfed26b439b1fca1f0c43cc3d936cefb",
-  "semanticApprovalEligible": false,
-  "pendingCanonicalOperations": [
-    { "capability": "developer-facing-surface", "count": 1, "turnsGreenChange": "admit-dag-authoring-friend-boundary", "turnsGreenTask": "1.3" },
-    { "capability": "repository-foundation", "count": 1, "turnsGreenChange": "admit-dag-authoring-friend-boundary", "turnsGreenTask": "1.3" }
-  ],
+  "recordBytes": 46784,
+  "recordSha256": "0dd47120d11d2442fccc217902386dd36d4bbf57b7fb476bd7c670dbbbaa5257",
+  "semanticApprovalEligible": true,
+  "pendingCanonicalOperations": [],
   "activeNewCapabilitiesOutsideCanonical": [
     {
       "capability": "spec-driven-planning",
@@ -136,6 +133,6 @@
   "capabilityDirectoryCount": 18,
   "capabilityDirectoryBytes": 1488,
   "capabilityDirectorySha256": "da7c00f44cc9e9d14b6756e5572d8b461c56d5454e315c4bec357d9d51fe4e50",
-  "artifactPath": "openspec/changes/admit-dag-authoring-friend-boundary/artifacts/process-openspec-provenance-2026-09-27.md",
-  "artifactNormalizedSha256": "85cf55f19ce0b504e03d7f4deb038e993483b7d3ccfe547172d2e17cc673b7cf"
+  "artifactPath": "openspec/changes/admit-dag-authoring-friend-boundary/artifacts/approved-pending-openspec-provenance-2026-09-27.md",
+  "artifactNormalizedSha256": "f174df2b0a8a352a0601eea879b7f3260fa49ab064451ad8da50c50550c9ff82"
 }

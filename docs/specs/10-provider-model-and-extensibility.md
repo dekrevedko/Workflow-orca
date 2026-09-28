@@ -40,11 +40,11 @@ reference both advanced packages; provider Adapters SHALL reference no engine im
 ### PR-005 DAG and external integration boundary
 `OrcaCore.Dag` SHALL be a separate package whose sole direct OrcaCore dependency is `OrcaCore`;
 its workflow references remain public contracts. The post-gate
-`admit-dag-authoring-friend-boundary` amendment proposes one authoring-only
+`admit-dag-authoring-friend-boundary` contract approves one authoring-only
 `OrcaCore -> OrcaCore.Dag` internal friend for compiler-created build values, subject to an
 exact compiled-member guard; it is not yet a compiled grant or a reverse package reference.
-No foundational application, Core, engine, provider, or durable-hosting package depends on
-`OrcaCore.Dag`; `OrcaCore.Dag.Hosting` is the approved outward DAG host adapter. Kubernetes,
+No OrcaCore package other than `OrcaCore.Dag.Hosting` SHALL depend on `OrcaCore.Dag`;
+`OrcaCore.Dag.Hosting` is the approved outward DAG host adapter. Kubernetes,
 AWS, job schedulers, and other external-work integrations SHALL live in outward companion/
 integration application projects, which may remain
 in the same solution. They own infrastructure SDKs, authentication/discovery, manifests,

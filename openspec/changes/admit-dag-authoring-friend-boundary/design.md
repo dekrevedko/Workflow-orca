@@ -34,6 +34,9 @@ The contract review target also reconciles every active document that says DAG c
 public OrcaCore contracts or presents a closed product-friend graph. These edits describe the
 eighth edge as *proposed*, not compiled or approved; public durable workflow references remain
 public, while compiler-created authoring values need the separately guarded internal seam.
+Here “active document” means the numbered normative, binding, and guide corpus, not another
+change's dated design rationale. Reshape's older Decision 22 text is retained as historical
+context; current Decision 22 and the synchronized canonical requirements govern the friend graph.
 
 | Document | Disposition |
 | --- | --- |

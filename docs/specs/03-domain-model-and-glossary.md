@@ -324,7 +324,7 @@ Layer 4 — Companions     outward integrations and applications (for example Ku
 
 Dependency rule: Runtime depends on Abstractions; Providers implement advanced ports;
 `OrcaCore.Dag` depends directly only on the `OrcaCore` package and consumes public workflow
-references. The post-gate `admit-dag-authoring-friend-boundary` amendment proposes one
+references. The independently approved post-gate `admit-dag-authoring-friend-boundary` contract names one
 authoring-only `OrcaCore -> OrcaCore.Dag` internal friend for compiler-created validation,
 diagnostic, location, fingerprint, and definition-exception values; it is not yet a compiled
 grant. `OrcaCore.Dag.Hosting` alone consumes the named internal durable child-start/join bridge.

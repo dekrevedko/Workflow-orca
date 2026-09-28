@@ -60,7 +60,7 @@ The current exact seven-product-friend graph keeps implementation types non-publ
 grants `OrcaCore.Core`, `OrcaCore.Engine.Ephemeral`, and `OrcaCore.Engine.Durable`;
 `OrcaCore.Core` grants both engines; `OrcaCore.Engine.Durable` grants
 `OrcaCore.Durable.Hosting`; and `OrcaCore.Durable.Hosting` grants `OrcaCore.Dag.Hosting`.
-Decision 22 separately proposes one authoring-only `OrcaCore -> OrcaCore.Dag` edge for five
+Decision 22 separately approves one authoring-only `OrcaCore -> OrcaCore.Dag` edge for five
 compiler-created build-value families and a shared fingerprint operation, subject to an exact
 compiled-member guard; it is not in current metadata. Exact owning-test friends plus the
 Durable Engine-to-ProviderCertification barrier edge remain closed. `OrcaCore.Dag.Hosting`

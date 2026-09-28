@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "requiredStages": [
     "amendment-approval",
     "canonical-open-spec",
@@ -32,6 +32,33 @@
       "successorOperation": "MODIFIED",
       "stage": "Proposed",
       "turnsGreenTask": "1.3"
+    }
+  ],
+  "approvedPendingEvidence": {
+    "stage": "ApprovedPending",
+    "reviewedCheckpointCommit": "89a2b475ebaeed82de2fd2edaf1f31b371bd71a4",
+    "approvalEvidenceCommit": "bbac0977bffce25881a7f27f48b075cda7dc206f",
+    "approvalVerdictPath": "docs/review/developer-facing-interface-section-08-task-8-2-dag-friend-contract-yyy-1-remediation-independent-review-verdict-2026-09-27.md",
+    "approvalVerdictSha256": "398031734b5b98d3244e19e85f519c464aae80f2faf843e0c34d3b0c180cdf2f",
+    "approvalTask": "1.2",
+    "canonicalSyncTask": "1.3",
+    "registryTransitionTask": "1.4",
+    "implementationTask": "2.1"
+  },
+  "approvedPendingRequirementSuccessors": [
+    {
+      "capability": "developer-facing-surface",
+      "requirement": "Implementation package boundaries use exact internal friends",
+      "stage": "ApprovedPending",
+      "historicalCanonicalBlockSha256": "e12c77e5d3a8eaf30dbe31a68ffe4baec3b105023dd5f1512d3f062917a312d0",
+      "canonicalBlockSha256": "bed102a2e4c98598b30cbb741c956a236f2050d27d88e6fc567b915f5b260793"
+    },
+    {
+      "capability": "repository-foundation",
+      "requirement": "Dependency direction remains one-way",
+      "stage": "ApprovedPending",
+      "historicalCanonicalBlockSha256": "d0d512ea59ea8da595770b5437d7faa7565773c6cd8845850d2dea6010b54b29",
+      "canonicalBlockSha256": "bbae0c226c6824570650d1f6f980e3b74e6c35cb196784581eef20e6e3563ce9"
     }
   ],
   "amendments": [
