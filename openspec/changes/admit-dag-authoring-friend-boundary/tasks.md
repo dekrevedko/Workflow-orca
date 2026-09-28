@@ -1,7 +1,7 @@
 ## 0. Process-only successor gate before contract approval
 
 - [x] 0.1 Register the exact reshape-to-DAG successor ownership for the two modified requirement headings in a proposed-state post-gate record. Change the two Infrastructure ownership guards only enough to admit those registered, ordered pairs; keep every unregistered duplicate red and record both unsynchronized operations in a new provenance checkpoint. Do not change canonical requirements, friend metadata, or Task 8.2 product source. **Completed:** the source-pinned two-pair registry and 178-row provenance record carry two `PendingModification` operations, 18 active capability directories, and `semanticApprovalEligible: false`; the prior 176-row record remains in the superseded catalog.
-- [ ] 0.2 Independently review and checkpoint that process-only target before treating the DAG friend contract as approved. A proposed successor is not semantic approval or implementation authority.
+- [x] 0.2 Independently review and checkpoint that process-only target before treating the DAG friend contract as approved. A proposed successor is not semantic approval or implementation authority.
 
 ## 1. Post-gate contract approval before Task 8.2 source
 
