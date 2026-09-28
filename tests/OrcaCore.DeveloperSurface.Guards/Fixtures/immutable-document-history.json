@@ -2236,6 +2236,11 @@
       "sha256": "5a788884e3bf21a74875b21327a463a5b2141bfd3fdfb47989d79bd98125b82d"
     },
     {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-friend-contract-yyy-1-remediation-independent-review-verdict-2026-09-27.md",
+      "bytes": 10269,
+      "sha256": "398031734b5b98d3244e19e85f519c464aae80f2faf843e0c34d3b0c180cdf2f"
+    },
+    {
       "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-successor-process-dirty-manifest-2026-09-27.txt",
       "bytes": 1344,
       "sha256": "bf1490bc0aba72709d9a778ff4eb098ae47c41bb8884fde1c775dfffe8090c7c"
