@@ -2221,6 +2221,11 @@
       "sha256": "5e9e7921f99eac38e0da571dcc505b2e7d3abff78da650b974c318f7e5b3cd88"
     },
     {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-successor-process-independent-review-verdict-2026-09-27.md",
+      "bytes": 7848,
+      "sha256": "fbfe7ee9fbf8a233617a308d58e0a4bdcc2755442ab649141845240960987f25"
+    },
+    {
       "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-aaa-1-and-task-7-3-dirty-manifest-2026-09-18.txt",
       "bytes": 2101,
       "sha256": "f83199de37f7f8c4537316efa0a7ef50a44834930abd8611c31410a79be6637e"
