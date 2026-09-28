@@ -2221,6 +2221,11 @@
       "sha256": "eef3b2f10c44b45770f9bf7ca4c5e1887653bd83dfe38aa9965cb2536246edbe"
     },
     {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-friend-atomic-canonical-transition-independent-review-verdict-2026-09-27.md",
+      "bytes": 10446,
+      "sha256": "950a77f78d288577f7a7178127150dc54937eaf6fc3a35b8d2451959c6d8ed80"
+    },
+    {
       "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-friend-contract-dirty-manifest-2026-09-27.txt",
       "bytes": 891,
       "sha256": "56629a6dacde94f960b73999ccc3b9747372a058656d808a15c83881f5f0699e"
