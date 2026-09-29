@@ -20,5 +20,5 @@
 
 ## 3. Review and permanent record
 
-- [ ] 3.1 Freeze the coherent Task 8.2 implementation target, obtain its own independent `APPROVE`, and checkpoint only the approved bytes before Task 8.3 begins.
+- [x] 3.1 Freeze the coherent Task 8.2 implementation target, obtain its own independent `APPROVE`, and checkpoint only the approved bytes before Task 8.3 begins.
 - [ ] 3.2 Promote the post-gate registry row from pending to complete only with the real executable evidence, refreeze, checkpoint, and independent verdict paths; validate and review the permanent record without rewriting earlier approvals.
