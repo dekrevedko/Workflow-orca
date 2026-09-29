@@ -5,17 +5,17 @@
     {
       "id": "OrcaCore",
       "project": "src/OrcaCore.Abstractions/OrcaCore.csproj",
-      "sourceSha256": "94fc976637995b1e7835daccf78602e9a83d925a5d020b209d78d9ddaa7bd680"
+      "sourceSha256": "e668efcc6314aebb88da994112de133cca62e5ce00cc70866cf43e591592a5a1"
     },
     {
       "id": "OrcaCore.Core",
       "project": "src/OrcaCore.Core/OrcaCore.Core.csproj",
-      "sourceSha256": "b80ed9455f2bac4e1da13c99d6a377fddda2e1685e7887e0a52b9a2b125ec30e"
+      "sourceSha256": "ef60a8a831c83383566bd526da22b8aa92852a026e6a2b0b52d75c73ce90b668"
     },
     {
       "id": "OrcaCore.Dag",
       "project": "src/OrcaCore.Dag/OrcaCore.Dag.csproj",
-      "sourceSha256": "55ffbfe8990525b86bb52b339ff7e2473dbc06a9f4b606fe5a9f8f7993cb108c"
+      "sourceSha256": "16ea108ce5ce32a313bc80105efaeca73404a1db7eeaa17c95bce8a4e65aee80"
     },
     {
       "id": "OrcaCore.Dag.Hosting",

@@ -55,6 +55,7 @@
   ],
   "allowedFriends": [
     "OrcaCore->OrcaCore.Core",
+    "OrcaCore->OrcaCore.Dag",
     "OrcaCore->OrcaCore.Engine.Durable",
     "OrcaCore->OrcaCore.Engine.Ephemeral",
     "OrcaCore.Core->OrcaCore.Core.Tests",

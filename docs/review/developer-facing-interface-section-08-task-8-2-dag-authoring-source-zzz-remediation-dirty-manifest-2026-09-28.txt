@@ -1,0 +1,39 @@
+ M CLAUDE.md
+ M docs/implementation/00-stack-decisions.md
+ M docs/implementation/01-solution-architecture.md
+ M docs/project-technical-overview.md
+ M docs/specs/03-domain-model-and-glossary.md
+ M docs/specs/08-requirements-composition.md
+ M docs/specs/10-provider-model-and-extensibility.md
+ M docs/specs/17-selected-mode-capability-matrix.md
+ M openspec/changes/admit-dag-authoring-friend-boundary/tasks.md
+ M openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md
+ M openspec/changes/reshape-developer-facing-interfaces/artifacts/task-8-0-section-8-requirement-gate-2026-09-26.md
+ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
+ M src/OrcaCore.Abstractions/Instances/PublicWorkflowValues.cs
+ M src/OrcaCore.Abstractions/Instances/WorkflowDiagnosticCatalog.cs
+ M src/OrcaCore.Abstractions/Properties/AssemblyInfo.cs
+ M src/OrcaCore.Core/Compilation/CompiledWorkflowPlan.cs
+ M tests/OrcaCore.Core.Tests/Contracts/WorkflowDiagnosticCatalogContractTests.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/DagContractGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.api.txt
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/package-consumer-fixtures.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/package-source-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/v1-public-contract.json
+ M tests/OrcaCore.DeveloperSurface.Guards/NormativeContractGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/DagHosting/Program.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs
+?? docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-dirty-manifest-2026-09-28.txt
+?? docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-independent-review-request-2026-09-28.md
+?? docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-independent-review-verdict-2026-09-28.md
+?? docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-zzz-remediation-dirty-manifest-2026-09-28.txt
+?? docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-zzz-remediation-independent-review-request-2026-09-28.md
+?? openspec/changes/admit-dag-authoring-friend-boundary/artifacts/task-8-2-authoring-source-validation-2026-09-28.md
+?? src/OrcaCore.Dag/DagAuthoring.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/DagAuthoringBehaviorGuards.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/DagInternalMemberReferenceGuards.cs

@@ -1,6 +1,4 @@
 using System.Collections.Frozen;
-using System.Security.Cryptography;
-using System.Text;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Core.Internal;
@@ -65,7 +63,7 @@ internal sealed record CompiledWorkflowPlan
         CompilerOptions = compilerOptions ?? new DefinitionCompilerOptions();
         DetachedAttemptState = detachedAttemptState;
         WorkflowTimeout = workflowTimeout;
-        Fingerprint = ComputeFingerprint($"{CodecFormat}|{canonicalStructure}");
+        Fingerprint = DefinitionFingerprint.ComputeCanonicalHash($"{CodecFormat}|{canonicalStructure}");
     }
 
     /// <summary>
@@ -145,12 +143,6 @@ internal sealed record CompiledWorkflowPlan
             ? successor
             : throw new InvalidOperationException(
                 $"Instruction '{instructionId}' is not present in compiled plan '{Fingerprint}'.");
-    }
-
-    private static string ComputeFingerprint(string canonicalStructure)
-    {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(canonicalStructure));
-        return Convert.ToHexString(bytes);
     }
 
     private static CompiledInstruction CloneInstruction(CompiledInstruction instruction)

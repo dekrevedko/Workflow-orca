@@ -84,7 +84,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/reshape-developer-facing-interfaces/artifacts/" +
         "task-8-0-section-8-requirement-gate-2026-09-26.md";
     private const string Task80RequirementGateSha256 =
-        "f4d87af4141dfb1bf03cfffe99d1b6e960b51a4034388badf2ee5a97c9e634b6";
+        "dbb6721b09a6ef9692b42ce28aed1fb6db6153599a61763122d9fbf2e9e27a20";
     private const string MissingApprovalReviewState = "MissingApproval";
     private const string RejectedReviewState = "Rejected";
     private const string ApprovalAwaitingEvidenceCommitReviewState =
@@ -245,7 +245,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "05a990610a6dbe2fba10a4e32c92e3f639216b97a5338c2ed74c132d40b27b0f";
+        "5f9477ca5d573d6c11745b12fca8313140b0992d7904a976f7ec87b157dc63c9";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +
@@ -697,6 +697,8 @@ public sealed class OpenSpecCorpusGuards
             .Concat(checkpoint.ActiveFreeze is null
                 ? []
                 : [checkpoint.ActiveFreeze.ManifestPath])
+            .Where(path => Path.GetFileName(path).StartsWith(
+                "harmonize-downstream-capability-specs-task-", StringComparison.Ordinal))
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)
             .ToArray();

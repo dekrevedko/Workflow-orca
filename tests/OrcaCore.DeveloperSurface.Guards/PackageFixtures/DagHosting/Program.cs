@@ -5,7 +5,7 @@ static (WorkflowDagPlan<RunInput> Plan, DagNodeRef<NodeOutput> OutputNode) Build
     DurableWorkflowRef<NodeInput, NodeOutput> resultful,
     DurableWorkflowRef<NodeInput> resultless)
 {
-    var dag = WorkflowDag.Define<RunInput>(DefinitionId.New(), DefinitionVersion.Initial);
+    var dag = Dag.Define<RunInput>(DefinitionId.New(), DefinitionVersion.Initial);
     var produce = dag.Node(DagNodeId.Create("produce"), resultful)
         .MapInput(context => new NodeInput(context.RunInput.Value));
     _ = dag.Node(DagNodeId.Create("consume"), resultless)

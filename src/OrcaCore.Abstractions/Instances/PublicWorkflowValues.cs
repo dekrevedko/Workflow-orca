@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace OrcaCore;
@@ -23,6 +25,12 @@ public sealed class DefinitionFingerprint : IEquatable<DefinitionFingerprint>
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
         Value = value;
+    }
+
+    internal static string ComputeCanonicalHash(string canonicalStructure)
+    {
+        ArgumentNullException.ThrowIfNull(canonicalStructure);
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonicalStructure)));
     }
 
     /// <summary>Gets the opaque canonical fingerprint value.</summary>

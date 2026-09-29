@@ -3,10 +3,10 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 337,
-    "physicalDeclarations": 1395,
-    "activeFiles": 189,
-    "activeDeclarations": 707,
+    "physicalFiles": 339,
+    "physicalDeclarations": 1402,
+    "activeFiles": 191,
+    "activeDeclarations": 714,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 17,
@@ -696,10 +696,22 @@
       "declarations": 0
     },
     {
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/DagAuthoringBehaviorGuards.cs",
+      "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
+      "status": "active",
+      "declarations": 6
+    },
+    {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/DagContractGuards.cs",
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
       "status": "active",
       "declarations": 4
+    },
+    {
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/DagInternalMemberReferenceGuards.cs",
+      "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
+      "status": "active",
+      "declarations": 1
     },
     {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/DeadlineRetryContractGuards.cs",

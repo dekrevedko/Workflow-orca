@@ -21,9 +21,7 @@ public sealed class WorkflowDiagnosticCatalogContractTests
             item => (string)item.GetType().GetProperty("Key")!.GetValue(item)!,
             item => item.GetType().GetProperty("Value")!.GetValue(item)!);
         using var contract = JsonDocument.Parse(File.ReadAllText(ContractPath()));
-        var expected = contract.RootElement.GetProperty("diagnostics").EnumerateArray()
-            .Where(item => item.GetProperty("code").GetString()!.StartsWith("SFE-", StringComparison.Ordinal))
-            .ToArray();
+        var expected = contract.RootElement.GetProperty("diagnostics").EnumerateArray().ToArray();
 
         actual.Keys.Should().Equal(expected.Select(item => item.GetProperty("code").GetString()));
         foreach (var item in expected)

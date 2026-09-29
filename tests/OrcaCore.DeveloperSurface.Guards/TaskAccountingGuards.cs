@@ -65,7 +65,8 @@ public sealed partial class TaskAccountingGuards
             $"{physicalFiles.ToString("N0", CultureInfo.InvariantCulture)} sources / " +
             $"{physicalDeclarations.ToString("N0", CultureInfo.InvariantCulture)} declarations");
         taskLine.Should().Contain(
-            "harmonization task 7.2, harmonization task 7.3, harmonization task 7.4, and harmonization task 7.5 at",
+            "harmonization task 7.2, harmonization task 7.3, harmonization task 7.4, " +
+            "and harmonization task 7.5, and the pending DAG Task 8.2 authoring-guard slice at",
             "the maintained inventory provenance must name the task that produced the current counts");
     }
 

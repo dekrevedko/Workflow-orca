@@ -11,7 +11,7 @@ public sealed class DagContractInfrastructureGuards
     {
         var source = File.ReadAllText(Path.Combine(FixtureDefinitions.RepositoryRoot(), "tests",
             "OrcaCore.DeveloperSurface.Guards", "PackageFixtures", "DagHosting", "Program.cs"));
-        source.Should().Contain("WorkflowDag.Define<RunInput>").And.Contain("MapInput")
+        source.Should().Contain("Dag.Define<RunInput>").And.Contain("MapInput")
             .And.Contain("OutputOf(produce)").And.Contain("GetHandleOrThrow")
             .And.Contain("WaitForTerminalAsync");
         source.Should().NotContain("RunChild").And.NotContain("RunChildren")

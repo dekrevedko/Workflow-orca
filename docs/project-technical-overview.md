@@ -56,13 +56,14 @@ manifest is `OrcaCore`, `OrcaCore.Core`, `OrcaCore.Engine.Ephemeral`,
 normative in [`specs/17-selected-mode-capability-matrix.md`](specs/17-selected-mode-capability-matrix.md#175-package-and-integration-boundary).
 `OrcaCore.Hosting` is a shared CLR namespace, not a PackageId.
 
-The current exact seven-product-friend graph keeps implementation types non-public: `OrcaCore`
-grants `OrcaCore.Core`, `OrcaCore.Engine.Ephemeral`, and `OrcaCore.Engine.Durable`;
+The current exact eight-product-friend graph keeps implementation types non-public: `OrcaCore`
+grants `OrcaCore.Core`, `OrcaCore.Engine.Ephemeral`, `OrcaCore.Engine.Durable`, and
+`OrcaCore.Dag` for authoring;
 `OrcaCore.Core` grants both engines; `OrcaCore.Engine.Durable` grants
 `OrcaCore.Durable.Hosting`; and `OrcaCore.Durable.Hosting` grants `OrcaCore.Dag.Hosting`.
-Decision 22 separately approves one authoring-only `OrcaCore -> OrcaCore.Dag` edge for five
-compiler-created build-value families and a shared fingerprint operation, subject to an exact
-compiled-member guard; it is not in current metadata. Exact owning-test friends plus the
+Decision 22's authoring-only `OrcaCore -> OrcaCore.Dag` edge covers five compiler-created
+build-value families and a shared fingerprint operation, subject to an exact compiled-member
+guard; the Task 8.2 source checkpoint remains under independent review. Exact owning-test friends plus the
 Durable Engine-to-ProviderCertification barrier edge remain closed. `OrcaCore.Dag.Hosting`
 remains the only same-release DAG-to-durable *runtime* bridge; Kubernetes/AWS/job projects
 depend outward and never appear in an OrcaCore signature/dependency closure.

@@ -126,8 +126,8 @@ but retains its physical step-throttle/transient slot until it returns.
 `OrcaCore`; its workflow references remain public contracts. The post-gate
 `admit-dag-authoring-friend-boundary` contract approves one authoring-only
 `OrcaCore -> OrcaCore.Dag` internal friend for compiler-created build values, subject to an
-exact compiled-member guard. The friend is not yet in compiled metadata and creates no reverse
-package edge. No OrcaCore package other than `OrcaCore.Dag.Hosting` SHALL depend on
+exact compiled-member guard. The friend is compiled in the Task 8.2 source candidate, awaits
+independent source approval, and creates no reverse package edge. No OrcaCore package other than `OrcaCore.Dag.Hosting` SHALL depend on
 `OrcaCore.Dag`; `OrcaCore.Dag.Hosting` is the approved outward DAG host adapter.
 The DAG package may remain in the same solution for v1 and compiles to the existing durable
 runtime rather than introducing a second workflow engine.

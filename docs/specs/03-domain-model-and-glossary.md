@@ -326,8 +326,9 @@ Dependency rule: Runtime depends on Abstractions; Providers implement advanced p
 `OrcaCore.Dag` depends directly only on the `OrcaCore` package and consumes public workflow
 references. The independently approved post-gate `admit-dag-authoring-friend-boundary` contract names one
 authoring-only `OrcaCore -> OrcaCore.Dag` internal friend for compiler-created validation,
-diagnostic, location, fingerprint, and definition-exception values; it is not yet a compiled
-grant. `OrcaCore.Dag.Hosting` alone consumes the named internal durable child-start/join bridge.
+diagnostic, location, fingerprint, and definition-exception values; the grant is compiled in the
+Task 8.2 source candidate and awaits independent source approval. `OrcaCore.Dag.Hosting` alone
+consumes the named internal durable child-start/join bridge.
 Companions may depend on OrcaCore, `OrcaCore.Dag`, and infrastructure SDKs. No OrcaCore package
 references a Kubernetes, AWS, or scheduler companion. User workflow code references only
 application contracts plus the authoring package it selected.

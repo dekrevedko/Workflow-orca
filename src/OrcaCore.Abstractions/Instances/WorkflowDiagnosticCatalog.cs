@@ -31,7 +31,14 @@ internal static class WorkflowDiagnosticCatalog
             ["SFE-TYPE-002"] = Error("CodecUnsupportedShape", "a required persisted/detached value shape cannot use `orcacore-json-v1`."),
             ["SFE-LIMIT-001"] = Error("InvalidForEachLimit", "a hand-built fan-out bypasses positive item/concurrency bounds."),
             ["SFE-RUN-001"] = Error("NonQuiescentContinueAsNew", "runtime defense rejects rollover while a descendant or owned obligation remains."),
-            ["SFE-RUN-002"] = Error("LeaseAncestryViolation", "runtime defense terminally fails before queue/pool mutation and suppresses merges/restart loops.")
+            ["SFE-RUN-002"] = Error("LeaseAncestryViolation", "runtime defense terminally fails before queue/pool mutation and suppresses merges/restart loops."),
+            ["DAG-AUTH-NODE-001"] = Error("DuplicateNodeIdentity", "node identities collide."),
+            ["DAG-AUTH-DEPENDENCY-001"] = Error("DuplicateDependency", "one node repeats a declared dependency."),
+            ["DAG-AUTH-DEPENDENCY-002"] = Error("SelfDependency", "a node depends on itself."),
+            ["DAG-AUTH-DEPENDENCY-003"] = Error("Cycle", "declared edges contain a cycle."),
+            ["DAG-AUTH-DEPENDENCY-004"] = Error("ForeignPlanReference", "a declared node/dependency reference belongs to another plan."),
+            ["DAG-AUTH-MAP-001"] = Error("MissingMapInput", "a node has no mapping delegate."),
+            ["DAG-AUTH-MAP-002"] = Error("DuplicateMapInput", "a node assigns mapping more than once.")
         };
 
     internal static WorkflowDiagnosticDescriptor Require(string code)

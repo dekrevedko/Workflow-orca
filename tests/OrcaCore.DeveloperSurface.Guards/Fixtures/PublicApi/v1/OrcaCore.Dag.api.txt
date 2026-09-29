@@ -1,7 +1,20 @@
 # orcacore-public-api-v1
 assembly OrcaCore.Dag
+type public static class OrcaCore.Dag.Dag
+  method public static Define<TRunInput>([OrcaCore]OrcaCore.DefinitionId! definitionId, [OrcaCore]OrcaCore.DefinitionVersion! definitionVersion) -> [OrcaCore.Dag]OrcaCore.Dag.WorkflowDagBuilder`1[!!TRunInput?]! where [TRunInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]]
 type public sealed class OrcaCore.Dag.DagDefinitionRegistrationConflictException : [OrcaCore]OrcaCore.OrcaCoreException~ attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
   property [OrcaCore]OrcaCore.DefinitionRegistrationConflict! Conflict { get:public }
+type public sealed class OrcaCore.Dag.DagNodeBuilder`2 attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  generic TRunInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+  generic TNodeInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+  method public DependsOn(params [OrcaCore.Dag]OrcaCore.Dag.DagNodeRef![]! dependencies attributes [[System.Private.CoreLib]System.ParamArrayAttribute()]) -> [OrcaCore.Dag]OrcaCore.Dag.DagNodeBuilder`2[!TRunInput?, !TNodeInput?]!
+  method public MapInput([System.Private.CoreLib]System.Func`2[[OrcaCore.Dag]OrcaCore.Dag.DagNodeInputContext`1[!TRunInput?]!, !TNodeInput?]! input) -> [OrcaCore.Dag]OrcaCore.Dag.DagNodeRef!
+type public sealed class OrcaCore.Dag.DagNodeBuilder`3 attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  generic TRunInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+  generic TNodeInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+  generic TNodeOutput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+  method public DependsOn(params [OrcaCore.Dag]OrcaCore.Dag.DagNodeRef![]! dependencies attributes [[System.Private.CoreLib]System.ParamArrayAttribute()]) -> [OrcaCore.Dag]OrcaCore.Dag.DagNodeBuilder`3[!TRunInput?, !TNodeInput?, !TNodeOutput?]!
+  method public MapInput([System.Private.CoreLib]System.Func`2[[OrcaCore.Dag]OrcaCore.Dag.DagNodeInputContext`1[!TRunInput?]!, !TNodeInput?]! input) -> [OrcaCore.Dag]OrcaCore.Dag.DagNodeRef`1[!TNodeOutput?]!
 type public sealed class OrcaCore.Dag.DagNodeId interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Dag]OrcaCore.Dag.DagNodeId~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
   method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
   method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
@@ -9,6 +22,14 @@ type public sealed class OrcaCore.Dag.DagNodeId interfaces [[System.Private.Core
   method public static Create([System.Private.CoreLib]System.String! value) -> [OrcaCore.Dag]OrcaCore.Dag.DagNodeId!
   method public virtual sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagNodeId? other) -> [System.Private.CoreLib]System.Boolean
   property [System.Private.CoreLib]System.String! Value { get:public }
+type public sealed class OrcaCore.Dag.DagNodeInputContext`1 attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  generic TRunInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+  method public OutputOf<TDependencyOutput>([OrcaCore.Dag]OrcaCore.Dag.DagNodeRef`1[!!TDependencyOutput?]! dependency) -> !!TDependencyOutput? where [TDependencyOutput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]]
+  property !TRunInput? RunInput { get:public }
+type public class OrcaCore.Dag.DagNodeRef attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  property [OrcaCore.Dag]OrcaCore.Dag.DagNodeId! NodeId { get:public }
+type public sealed class OrcaCore.Dag.DagNodeRef`1 : [OrcaCore.Dag]OrcaCore.Dag.DagNodeRef~
+  generic TOutput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
 type public sealed class OrcaCore.Dag.DagRunDefinitionMismatchException : [OrcaCore]OrcaCore.OrcaCoreException~ attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
   property [OrcaCore.Dag]OrcaCore.Dag.DagRunId! RunId { get:public }
   property [OrcaCore]OrcaCore.DefinitionId! ActualDefinitionId { get:public }
@@ -25,3 +46,15 @@ type public sealed class OrcaCore.Dag.DagRunNotFoundException : [OrcaCore]OrcaCo
   property [OrcaCore.Dag]OrcaCore.Dag.DagRunId! RunId { get:public }
 type public sealed class OrcaCore.Dag.DagStartIdempotencyConflictException : [OrcaCore]OrcaCore.OrcaCoreException~ attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
   property [OrcaCore]OrcaCore.StartIdempotencyConflict! Conflict { get:public }
+type public sealed class OrcaCore.Dag.WorkflowDagBuilder`1 attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  generic TRunInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+  method public Build() -> [OrcaCore.Dag]OrcaCore.Dag.WorkflowDagPlan`1[!TRunInput?]!
+  method public Node<TNodeInput, TNodeOutput>([OrcaCore.Dag]OrcaCore.Dag.DagNodeId! nodeId, [OrcaCore]OrcaCore.DurableWorkflowRef`2[!!TNodeInput?, !!TNodeOutput?]! workflow) -> [OrcaCore.Dag]OrcaCore.Dag.DagNodeBuilder`3[!TRunInput?, !!TNodeInput?, !!TNodeOutput?]! where [TNodeInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]; TNodeOutput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]]
+  method public Node<TNodeInput>([OrcaCore.Dag]OrcaCore.Dag.DagNodeId! nodeId, [OrcaCore]OrcaCore.DurableWorkflowRef`1[!!TNodeInput?]! workflow) -> [OrcaCore.Dag]OrcaCore.Dag.DagNodeBuilder`2[!TRunInput?, !!TNodeInput?]! where [TNodeInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]]
+  method public TryBuild() -> [OrcaCore]OrcaCore.Validation`1[[OrcaCore.Dag]OrcaCore.Dag.WorkflowDagPlan`1[!TRunInput?]!]!
+type public sealed class OrcaCore.Dag.WorkflowDagPlan`1 attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  generic TRunInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+  property [OrcaCore]OrcaCore.DefinitionFingerprint! DefinitionFingerprint { get:public }
+  property [OrcaCore]OrcaCore.DefinitionId! DefinitionId { get:public }
+  property [OrcaCore]OrcaCore.DefinitionVersion! DefinitionVersion { get:public }
+  property [System.Private.CoreLib]System.Collections.Generic.IReadOnlyList`1[[OrcaCore.Dag]OrcaCore.Dag.DagNodeRef!]! Nodes { get:public }

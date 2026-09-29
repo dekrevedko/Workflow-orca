@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-2-dag-friend-atomic-canonical-transition-dirty-manifest-2026-09-27.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-zzz-remediation-dirty-manifest-2026-09-28.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2209,6 +2209,31 @@
       "path": "docs/review/developer-facing-interface-section-08-task-8-1-package-and-registration-independent-review-verdict-2026-09-27.md",
       "bytes": 9921,
       "sha256": "7a1d246652f86cd5409e22e5a00735c2ef872f0d660e465a0de9ed1cb9685a4a"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-dirty-manifest-2026-09-28.txt",
+      "bytes": 2431,
+      "sha256": "aac89bfc5a83feddbce2105fe8243cfa1c5c2cd5099b400e4e2058caf05ed135"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-independent-review-request-2026-09-28.md",
+      "bytes": 6524,
+      "sha256": "551d9bec690a99707bd871180a0a1d992bdb234acb79cf79cf4a36d63b3a3c90"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-independent-review-verdict-2026-09-28.md",
+      "bytes": 12291,
+      "sha256": "49596470e988d784d596ff4b12734181a336d571dd6ad2d846ae71ac0e95809c"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-zzz-remediation-dirty-manifest-2026-09-28.txt",
+      "bytes": 2968,
+      "sha256": "c9462505515394deb34865b8fd9e5c4dd94c6427733498c89cae586f98ec020a"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-zzz-remediation-independent-review-request-2026-09-28.md",
+      "bytes": 6000,
+      "sha256": "c2e58b564b92bacd8ab32ee9f6ada943a0ffb28bbbcdf1fd8a9e837805b444bf"
     },
     {
       "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-friend-atomic-canonical-transition-dirty-manifest-2026-09-27.txt",

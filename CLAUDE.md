@@ -92,18 +92,18 @@ OrcaCore.Dag.Hosting       — sole DAG-to-durable bridge; owns AddOrcaCoreDag
 
 Implementation package boundaries use an exact internal-friend allowlist so compiler/kernel,
 concrete engine, provider, and hosted-loop types do not become public merely to cross assemblies.
-The current seven product friends are `OrcaCore` to `OrcaCore.Core`,
+The current eight product friends are `OrcaCore` to `OrcaCore.Core`,
 `OrcaCore.Engine.Ephemeral`, and `OrcaCore.Engine.Durable`; `OrcaCore.Core` to both engines;
 `OrcaCore.Engine.Durable` to `OrcaCore.Durable.Hosting`; and `OrcaCore.Durable.Hosting` to
-`OrcaCore.Dag.Hosting`. Exact owning unit-test assemblies plus Durable to
+`OrcaCore.Dag.Hosting`; and `OrcaCore` to `OrcaCore.Dag` for guarded authoring only. Exact owning unit-test assemblies plus Durable to
 ProviderCertification may inspect internals; acceptance, behavior, compile-fixture, and
 integration assemblies may not. No other current friend or public reflection bridge is allowed.
 
 The independently approved post-gate `admit-dag-authoring-friend-boundary` contract names one additional *authoring*
 friend, `OrcaCore -> OrcaCore.Dag`, for compiler-created validation, diagnostics, locations,
-fingerprints, and definition exceptions. It is not in the current compiled friend set and grants
-no DAG runtime or child-start access. Its exact member signatures, shared fingerprint operation,
-and metadata guard require separate source review before Task 8.2 product source changes.
+fingerprints, and definition exceptions. The Task 8.2 source candidate now compiles this friend
+with exact member-reference signatures and a shared fingerprint operation; independent source
+review is still required before its checkpoint. It grants no DAG runtime or child-start access.
 The existing `OrcaCore.Durable.Hosting -> OrcaCore.Dag.Hosting` edge remains the sole
 DAG-to-durable *runtime* bridge.
 

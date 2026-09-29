@@ -76,10 +76,11 @@ This direct-edge list is exhaustive. In particular, `OrcaCore.Durable.Hosting` r
 types only through its declared dependencies and must not add a direct `Runtime.Protocol` edge.
 Architecture checks reject every unlisted reference and every friend assembly outside the
 current exact closed graph below. The separately approved `OrcaCore -> OrcaCore.Dag` authoring
-friend is not yet compiled or included in that graph.
+friend is compiled in the Task 8.2 source candidate and included in that graph; its checkpoint
+still requires independent review.
 
 - `OrcaCore.Dag` depends directly only on the `OrcaCore` package. Its workflow references
-  remain public application contracts; the approved, not-yet-compiled post-gate authoring friend would allow only
+  remain public application contracts; the approved post-gate authoring friend allows only
   the five compiler-created build-value constructors and one shared fingerprint operation,
   enforced at exact compiled-member signatures after approval. It never references engine
   internals, a provider implementation, Kubernetes, or AWS. It owns typed authoring and
@@ -133,10 +134,11 @@ compilation.
   owning tier; approved immutable values/builders/definitions/outcomes are concrete public types.
   Other implementation collaborators remain `internal`, `sealed` by default.
 - Current product friends are exact: `OrcaCore` grants `OrcaCore.Core`,
-  `OrcaCore.Engine.Ephemeral`, and `OrcaCore.Engine.Durable`; `OrcaCore.Core` grants both engines;
+  `OrcaCore.Engine.Ephemeral`, `OrcaCore.Engine.Durable`, and `OrcaCore.Dag` for authoring;
+  `OrcaCore.Core` grants both engines;
   `OrcaCore.Engine.Durable` grants `OrcaCore.Durable.Hosting`; and
-  `OrcaCore.Durable.Hosting` grants `OrcaCore.Dag.Hosting`. The approved authoring-only eighth
-  edge is `OrcaCore -> OrcaCore.Dag`; it is not compiled and grants no durable child-start access.
+  `OrcaCore.Durable.Hosting` grants `OrcaCore.Dag.Hosting`. The authoring-only eighth
+  edge grants no durable child-start access and still awaits independent source review.
   Owning white-box test friends are exact for Core, both engines, Durable Hosting, PostgreSQL, and
   SQL Server;
   `OrcaCore.Engine.Durable -> OrcaCore.ProviderCertification` is the sole cross-package test edge.
