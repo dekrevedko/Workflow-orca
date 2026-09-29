@@ -1,17 +1,6 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": {
-    "task": "reshape-8.2-dag-authoring",
-    "requestPath": "docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-zzz-remediation-independent-review-request-2026-09-28.md",
-    "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-zzz-remediation-dirty-manifest-2026-09-28.txt",
-    "disposition": "RawGitOrder",
-    "baseCommit": "db5f3fb2b0733c06ae052536748f5a445bf52de7",
-    "contentRecordExcludedPaths": [
-      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
-    ],
-    "contentRecordBytes": 5566,
-    "contentRecordSha256": "6b30a80231b596613711c2d609f3f7a028b913562d7903036ffcd9a762dfae00"
-  },
+  "activeFreeze": null,
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",

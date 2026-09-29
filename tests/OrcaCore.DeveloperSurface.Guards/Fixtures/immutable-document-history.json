@@ -2236,6 +2236,11 @@
       "sha256": "c2e58b564b92bacd8ab32ee9f6ada943a0ffb28bbbcdf1fd8a9e837805b444bf"
     },
     {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-zzz-remediation-independent-review-verdict-2026-09-28.md",
+      "bytes": 8742,
+      "sha256": "513871b82c87f5949d4801108f4f1c901b8f8cfe7084121217359cf96a9ccd4a"
+    },
+    {
       "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-friend-atomic-canonical-transition-dirty-manifest-2026-09-27.txt",
       "bytes": 1606,
       "sha256": "3dfdd796aa5a32a360fe1df41d81815b71e677c8f6c502eaed2f6b8d5a240581"
