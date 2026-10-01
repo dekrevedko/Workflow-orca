@@ -1,17 +1,6 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": {
-    "task": "dag-authoring-friend-closeout-3.2",
-    "requestPath": "docs/review/developer-facing-interface-section-08-task-8-2-authoring-friend-closeout-independent-review-request-2026-09-29.md",
-    "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-2-authoring-friend-closeout-dirty-manifest-2026-09-29.txt",
-    "disposition": "RawGitOrder",
-    "baseCommit": "738c3b591b6f6e72de13a7750601cb36430c514f",
-    "contentRecordExcludedPaths": [
-      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
-    ],
-    "contentRecordBytes": 2545,
-    "contentRecordSha256": "58462995dfb147f1dc936949d75dc1dd52f2176db6abf95ff1de272fdad1b7fe"
-  },
+  "activeFreeze": null,
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",
