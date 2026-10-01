@@ -63,7 +63,8 @@ grants `OrcaCore.Core`, `OrcaCore.Engine.Ephemeral`, `OrcaCore.Engine.Durable`, 
 `OrcaCore.Durable.Hosting`; and `OrcaCore.Durable.Hosting` grants `OrcaCore.Dag.Hosting`.
 Decision 22's authoring-only `OrcaCore -> OrcaCore.Dag` edge covers five compiler-created
 build-value families and a shared fingerprint operation, subject to an exact compiled-member
-guard; the Task 8.2 source checkpoint remains under independent review. Exact owning-test friends plus the
+guard; Task 8.2 source is independently approved at checkpoint
+`a9f835f939d683500ca231c7ba491ab8eae2aaae`. Exact owning-test friends plus the
 Durable Engine-to-ProviderCertification barrier edge remain closed. `OrcaCore.Dag.Hosting`
 remains the only same-release DAG-to-durable *runtime* bridge; Kubernetes/AWS/job projects
 depend outward and never appear in an OrcaCore signature/dependency closure.

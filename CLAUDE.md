@@ -101,9 +101,11 @@ integration assemblies may not. No other current friend or public reflection bri
 
 The independently approved post-gate `admit-dag-authoring-friend-boundary` contract names one additional *authoring*
 friend, `OrcaCore -> OrcaCore.Dag`, for compiler-created validation, diagnostics, locations,
-fingerprints, and definition exceptions. The Task 8.2 source candidate now compiles this friend
-with exact member-reference signatures and a shared fingerprint operation; independent source
-review is still required before its checkpoint. It grants no DAG runtime or child-start access.
+fingerprints, and definition exceptions. Task 8.2 was independently approved and checkpointed at
+`a9f835f939d683500ca231c7ba491ab8eae2aaae`, with direct-child approval evidence
+`055e7b8e71e8dfe79e76f267f8782b7f6f79f7b8`. Exact non-public type and member-reference
+guards constrain the compiled friend and shared fingerprint operation. It grants no DAG runtime
+or child-start access; further runtime seams require a separate approved amendment.
 The existing `OrcaCore.Durable.Hosting -> OrcaCore.Dag.Hosting` edge remains the sole
 DAG-to-durable *runtime* bridge.
 

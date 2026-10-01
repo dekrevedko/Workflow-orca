@@ -1172,8 +1172,9 @@ families used by `Build`/`TryBuild`: `Validation<T>`, `WorkflowDiagnostic`, `Aut
 `DefinitionFingerprint`, and `WorkflowDefinitionException`. It retains internal constructors,
 the existing diagnostic catalog and ordering, and one shared canonical UTF-8/SHA-256 fingerprint
 operation; compiled-metadata verification must limit DAG's actual internal type and member
-references to the exact reviewed set. The friend is compiled in the Task 8.2 source candidate,
-which awaits independent source approval. It adds no `Core -> Dag` dependency or child-start access.
+references to the exact reviewed set. The friend is compiled in the independently approved
+Task 8.2 checkpoint `a9f835f939d683500ca231c7ba491ab8eae2aaae`. It adds no `Core -> Dag`
+dependency or child-start access.
 
 ```csharp
 public static class Dag
@@ -2000,10 +2001,10 @@ metadata. The complete product-friend set is:
 - `OrcaCore.Durable.Hosting -> OrcaCore.Dag.Hosting` for the named, versioned internal child-start/
   join contract.
 
-The approved eighth product friend, `OrcaCore -> OrcaCore.Dag`, is compiled in the Task 8.2
-source candidate for the five compiler-created authoring value families and one shared
-fingerprint operation named in §17.2.6. Its independent source review remains pending; exact
-friend and member-reference guards must pass before checkpoint. It is not a
+The approved eighth product friend, `OrcaCore -> OrcaCore.Dag`, is compiled in the independently
+approved Task 8.2 checkpoint `a9f835f939d683500ca231c7ba491ab8eae2aaae` for the five
+compiler-created authoring value families and one shared fingerprint operation named in §17.2.6.
+Exact friend, non-public type, and member-reference guards remain must-green. It is not a
 DAG-to-durable runtime bridge; the existing Durable Hosting to DAG Hosting edge remains the only
 such bridge.
 

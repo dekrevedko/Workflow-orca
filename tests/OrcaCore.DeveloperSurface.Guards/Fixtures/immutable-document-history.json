@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-zzz-remediation-dirty-manifest-2026-09-28.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-2-authoring-friend-closeout-dirty-manifest-2026-09-29.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2209,6 +2209,16 @@
       "path": "docs/review/developer-facing-interface-section-08-task-8-1-package-and-registration-independent-review-verdict-2026-09-27.md",
       "bytes": 9921,
       "sha256": "7a1d246652f86cd5409e22e5a00735c2ef872f0d660e465a0de9ed1cb9685a4a"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-2-authoring-friend-closeout-dirty-manifest-2026-09-29.txt",
+      "bytes": 1354,
+      "sha256": "53eb5278f150b73883db9d114c82e55b7b696cd2c8af2c6bccf7e86f9c7b6d80"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-2-authoring-friend-closeout-independent-review-request-2026-09-29.md",
+      "bytes": 9100,
+      "sha256": "56bfb62a87fb04aa87c690f67b9db59cd9a59c1e3136b658a832d4f7b4ef69cb"
     },
     {
       "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-dirty-manifest-2026-09-28.txt",

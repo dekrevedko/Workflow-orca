@@ -172,6 +172,13 @@ public sealed class DagInternalMemberReferenceGuards
                     </Project>
                     """;
                 var projectPath = Path.Combine(directory, "TypeProbe.csproj");
+                // Temporary projects must select the same SDK as the reviewed repository,
+                // rather than whichever SDK happens to be the machine-wide default.
+                File.Copy(Path.Combine(FixtureDefinitions.RepositoryRoot(), "global.json"),
+                    Path.Combine(directory, "global.json"));
+                File.ReadAllBytes(Path.Combine(directory, "global.json")).Should().Equal(
+                    File.ReadAllBytes(Path.Combine(FixtureDefinitions.RepositoryRoot(), "global.json")),
+                    "every external probe must retain the reviewed repository SDK selection");
                 File.WriteAllText(projectPath, project);
                 File.WriteAllText(Path.Combine(directory, "Probe.cs"),
                     "using OrcaCore; namespace OrcaCore.Dag; " + probe.Source);
@@ -180,7 +187,8 @@ public sealed class DagInternalMemberReferenceGuards
                 {
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
-                    UseShellExecute = false
+                    UseShellExecute = false,
+                    WorkingDirectory = directory
                 };
                 foreach (var argument in new[] { "build", projectPath, "-c", "Release", "--verbosity", "quiet" })
                 {

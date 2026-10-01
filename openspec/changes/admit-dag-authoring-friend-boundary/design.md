@@ -63,6 +63,28 @@ append-only review evidence. No numbered document is silently deferred to tasks 
 
 There is no released consumer or persisted DAG format to migrate. First review and checkpoint the process-only proposed-successor gate; then independently approve the normative amendment; then synchronize canonical/spec truth and the approved-pending registry transition atomically under one freeze and independent review. Only then implement Task 8.2 source and metadata guard, update affected exact API/provenance fixtures, run focused and full lanes, refreeze, and obtain independent approval before its checkpoint. A rejected amendment leaves Task 8.1 intact and Task 8.2 open.
 
+## Implementation closeout (2026-09-29)
+
+Task 8.2 source was independently approved in the immutable ZZZ-remediation verdict and
+checkpointed at `a9f835f939d683500ca231c7ba491ab8eae2aaae` (tree
+`cf11b3f6732f11250ba3a0255114bcdc4ae00060`); its direct-child evidence commit is
+`055e7b8e71e8dfe79e76f267f8782b7f6f79f7b8`. Schema 5 retains the exact Proposed and
+ApprovedPending records as historical transitions and adds `completeEvidence` as the current
+implementation disposition. That record binds the real source verdict, reviewed refreeze
+manifest/request, executable test paths, five completed implementation tasks and reshape 8.2.
+Approval validation requires exactly one final APPROVE line, a single-parent evidence commit
+directly after its checkpoint, and an actual verdict addition; merely containing an earlier
+verdict is insufficient. Task 3.2 remains open until this closeout has its own review/checkpoint.
+
+The current eight-friend graph and authoring-only six-member seam are unchanged. Temporary
+metadata probes now copy the repository SDK pin into their own directory before building;
+this adds no product or test friend. Current documentation status is refreshed, while dated
+Decision 22 entries and immutable review records are preserved and superseded by an append.
+No new runtime-view seam or codec access is admitted. The proposed Dag-to-Dag.Hosting seam
+and runtime-owned fixed-codec work require a separate amendment after this closeout checkpoint.
+
 ## Open Questions
 
-None for the friend decision. The exact metadata-token reader and DAG canonical-structure byte format are implementation details to be frozen and tested before Task 8.2 checkpoint; they may not expand the allowlist or public API without another amendment.
+None for this authoring-friend closeout. The metadata reader and DAG canonical format were
+independently reviewed with Task 8.2. A new runtime-view seam is a separate post-gate decision,
+not an unresolved implementation detail or authority supplied by this record.

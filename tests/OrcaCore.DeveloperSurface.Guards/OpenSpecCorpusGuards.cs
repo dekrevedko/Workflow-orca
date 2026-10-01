@@ -16,6 +16,12 @@ public sealed class OpenSpecCorpusGuards
     private const string CompleteTaskState = "Complete";
     private const string ProposedPostGateStage = "Proposed";
     private const string ApprovedPendingPostGateStage = "ApprovedPending";
+    private const string CompletePostGateStage = "Complete";
+    private const string DagFriendCloseoutArtifact =
+        "openspec/changes/admit-dag-authoring-friend-boundary/artifacts/" +
+        "task-3-2-authoring-friend-closeout-2026-09-29.md";
+    private const string DagFriendCloseoutArtifactSha256 =
+        "00c1fd7e1e3add9531cd1dc46d8103f023825ef6965a1a7482cf8e435671385c";
     private static readonly PostGateProposedSuccessor[] ExactProposedDagSuccessors =
     [
         new(
@@ -62,6 +68,24 @@ public sealed class OpenSpecCorpusGuards
         "1.3",
         "1.4",
         "2.1");
+    private static readonly PostGateCompleteEvidence ExactDagFriendCompleteEvidence = new(
+        CompletePostGateStage,
+        "a9f835f939d683500ca231c7ba491ab8eae2aaae",
+        "cf11b3f6732f11250ba3a0255114bcdc4ae00060",
+        "055e7b8e71e8dfe79e76f267f8782b7f6f79f7b8",
+        "docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-zzz-remediation-independent-review-verdict-2026-09-28.md",
+        "513871b82c87f5949d4801108f4f1c901b8f8cfe7084121217359cf96a9ccd4a",
+        "docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-zzz-remediation-dirty-manifest-2026-09-28.txt",
+        "c9462505515394deb34865b8fd9e5c4dd94c6427733498c89cae586f98ec020a",
+        "docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-zzz-remediation-independent-review-request-2026-09-28.md",
+        "c2e58b564b92bacd8ab32ee9f6ada943a0ffb28bbbcdf1fd8a9e837805b444bf",
+        5,
+        ["2.1", "2.2", "2.3", "2.4", "2.5"],
+        [
+            "tests/OrcaCore.DeveloperSurface.Guards/DagInternalMemberReferenceGuards.cs",
+            "tests/OrcaCore.DeveloperSurface.Guards/DagAuthoringBehaviorGuards.cs",
+            "tests/OrcaCore.Core.Tests/Compilation/PublicDefinitionCompilerContractTests.cs"
+        ]);
     private const string ApprovedPendingOpenSpecProvenanceSha256 =
         "f174df2b0a8a352a0601eea879b7f3260fa49ab064451ad8da50c50550c9ff82";
     private const string HistoricalCanonicalSourceCommit =
@@ -245,7 +269,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "5f9477ca5d573d6c11745b12fca8313140b0992d7904a976f7ec87b157dc63c9";
+        "13daf683e608265e3af5dfd8351214fd02da5f3c5fab6cbfecf075dbd33d0a36";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +
@@ -1434,7 +1458,7 @@ public sealed class OpenSpecCorpusGuards
         IReadOnlyCollection<DeltaRequirement> activeRequirements,
         PostGateAmendmentCheckpoint checkpoint)
     {
-        checkpoint.SchemaVersion.Should().Be(4);
+        checkpoint.SchemaVersion.Should().Be(5);
         checkpoint.ProposedRequirementSuccessors.Should().Equal(
             ExactProposedDagSuccessors,
             "only the exact reviewed predecessor/successor headings may bypass sole active ownership");
@@ -1446,23 +1470,17 @@ public sealed class OpenSpecCorpusGuards
             "the approved-pending transition must cite the real reviewed checkpoint and verdict commit");
 
         var evidence = checkpoint.ApprovedPendingEvidence;
-        var verdictPath = RequireNonEmptyFile(root, evidence.ApprovalVerdictPath, "DAG friend approval verdict");
-        var verdictBytes = File.ReadAllBytes(verdictPath);
-        Sha256(verdictBytes).Should().Be(evidence.ApprovalVerdictSha256);
-        RequireApprovalEvidence(root, evidence.ApprovalVerdictPath, evidence.ApprovalTask);
-        ReadGitBlob(root, evidence.ApprovalEvidenceCommit, evidence.ApprovalVerdictPath)
-            .Should().Equal(verdictBytes, "the evidence commit must contain the approved verdict byte-exact");
-        var approvalParent = RunGit(root, "rev-parse", $"{evidence.ApprovalEvidenceCommit}^");
-        approvalParent.ExitCode.Should().Be(0);
-        approvalParent.StandardOutput.Trim().Should().Be(
-            evidence.ReviewedCheckpointCommit,
-            "the approval evidence commit must be the reviewed checkpoint's direct child");
+        ValidateDagApprovalEvidence(root, evidence.ReviewedCheckpointCommit,
+            evidence.ApprovalEvidenceCommit, evidence.ApprovalVerdictPath,
+            evidence.ApprovalVerdictSha256, evidence.ApprovalTask);
 
         const string change = "admit-dag-authoring-friend-boundary";
         ValidateTaskReference(root, new PostGateTaskReference(change, evidence.ApprovalTask, CompleteTaskState));
         ValidateTaskReference(root, new PostGateTaskReference(change, evidence.CanonicalSyncTask, CompleteTaskState));
         ValidateTaskReference(root, new PostGateTaskReference(change, evidence.RegistryTransitionTask, CompleteTaskState));
-        ValidateTaskReference(root, new PostGateTaskReference(change, evidence.ImplementationTask, OpenTaskState));
+        // ApprovedPending is retained history. Complete is admitted only through the
+        // separately reviewed implementation checkpoint and its direct-child verdict.
+        ValidateCompletedDagFriend(root, checkpoint.CompleteEvidence);
 
         var keys = new HashSet<string>(StringComparer.Ordinal);
         foreach (var successor in checkpoint.ProposedRequirementSuccessors)
@@ -1505,6 +1523,75 @@ public sealed class OpenSpecCorpusGuards
         }
 
         return keys;
+    }
+
+    private static void ValidateCompletedDagFriend(string root, PostGateCompleteEvidence evidence)
+    {
+        evidence.Should().BeEquivalentTo(ExactDagFriendCompleteEvidence,
+            options => options.WithStrictOrdering(),
+            "the Complete transition must retain the exact reviewed Task 8.2 implementation and evidence");
+        evidence.Stage.Should().Be(CompletePostGateStage);
+        evidence.ImplementationTasks.Should().HaveCount(evidence.ImplementationTaskCount);
+        var artifact = NormalizeLineEndings(File.ReadAllText(
+            RequireNonEmptyFile(root, DagFriendCloseoutArtifact, "permanent DAG friend closeout")));
+        Sha256(artifact).Should().Be(DagFriendCloseoutArtifactSha256,
+            "the permanent closeout decision must remain pinned after refreeze");
+        const string change = "admit-dag-authoring-friend-boundary";
+        foreach (var task in evidence.ImplementationTasks)
+        {
+            ValidateTaskReference(root, new PostGateTaskReference(change, task, CompleteTaskState));
+        }
+        ValidateTaskReference(root, new PostGateTaskReference(change, "3.1", CompleteTaskState));
+        ValidateTaskReference(root, new PostGateTaskReference(
+            "reshape-developer-facing-interfaces", "8.2", CompleteTaskState));
+        ValidateDagApprovalEvidence(root, evidence.ReviewedCheckpointCommit,
+            evidence.ApprovalEvidenceCommit, evidence.ApprovalVerdictPath,
+            evidence.ApprovalVerdictSha256, "8.2");
+
+        var tree = RunGit(root, "show", "-s", "--format=%T", evidence.ReviewedCheckpointCommit);
+        tree.ExitCode.Should().Be(0);
+        tree.StandardOutput.Trim().Should().Be(evidence.ReviewedCheckpointTree);
+        foreach (var (path, hash) in new[]
+                 {
+                     (evidence.RefreezeManifestPath, evidence.RefreezeManifestSha256),
+                     (evidence.ReviewRequestPath, evidence.ReviewRequestSha256)
+                 })
+        {
+            var bytes = File.ReadAllBytes(RequireNonEmptyFile(root, path, "DAG source refreeze evidence"));
+            Sha256(bytes).Should().Be(hash);
+            ReadGitBlob(root, evidence.ReviewedCheckpointCommit, path).Should().Equal(bytes,
+                "the completed source record must bind the immutable packet in its reviewed checkpoint");
+        }
+        foreach (var path in evidence.ExecutableEvidencePaths)
+        {
+            RequireNonEmptyFile(root, path, "DAG friend executable evidence");
+            ReadGitBlob(root, evidence.ReviewedCheckpointCommit, path).Should().NotBeEmpty();
+        }
+    }
+
+    private static void ValidateDagApprovalEvidence(string root, string checkpoint, string commit,
+        string path, string hash, string task)
+    {
+        var bytes = File.ReadAllBytes(RequireNonEmptyFile(root, path, "DAG independent approval verdict"));
+        Sha256(bytes).Should().Be(hash);
+        RequireApprovalEvidence(root, path, task);
+        var text = NormalizeLineEndings(Encoding.UTF8.GetString(bytes)).TrimEnd();
+        var verdicts = Regex.Matches(text, @"(?m)^\*\*Verdict:\*\* \*\*APPROVE\*\*$");
+        verdicts.Should().ContainSingle("DAG approval must have one terminal approving verdict line");
+        (verdicts[0].Index + verdicts[0].Length).Should().Be(text.Length,
+            "the approving verdict must be the final nonblank line");
+        ReadGitBlob(root, commit, path).Should().Equal(bytes);
+        var parents = RunGit(root, "rev-list", "--parents", "-n", "1", commit);
+        parents.ExitCode.Should().Be(0);
+        NormalizeLineEndings(parents.StandardOutput)
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
+            .Should().Equal([commit, checkpoint],
+                "DAG evidence must be a single-parent direct child of the reviewed checkpoint");
+        var addition = RunGit(root, "diff-tree", "--root", "--no-commit-id", "--name-status",
+            "-r", "--no-renames", commit, "--", path);
+        addition.ExitCode.Should().Be(0);
+        NormalizeLineEndings(addition.StandardOutput).Trim().Should().Be($"A\t{path}",
+            "the evidence commit must add the verdict, rather than only contain an earlier copy");
     }
 
     [Fact]
@@ -4097,7 +4184,7 @@ public sealed class OpenSpecCorpusGuards
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonicalRequirements,
         PostGateAmendmentCheckpoint checkpoint)
     {
-        checkpoint.SchemaVersion.Should().Be(4);
+        checkpoint.SchemaVersion.Should().Be(5);
         checkpoint.ProposedRequirementSuccessors.Should().Equal(
             ExactProposedDagSuccessors,
             "a proposed post-gate successor is a named exception, not a general duplicate-owner waiver");
@@ -6041,9 +6128,25 @@ public sealed class OpenSpecCorpusGuards
         PostGateProposedSuccessor[] ProposedRequirementSuccessors,
         PostGateApprovedPendingEvidence ApprovedPendingEvidence,
         PostGateApprovedPendingSuccessor[] ApprovedPendingRequirementSuccessors,
+        PostGateCompleteEvidence CompleteEvidence,
         PostGateAmendment[] Amendments,
         string ArtifactPath,
         string ArtifactNormalizedSha256);
+
+    private sealed record PostGateCompleteEvidence(
+        string Stage,
+        string ReviewedCheckpointCommit,
+        string ReviewedCheckpointTree,
+        string ApprovalEvidenceCommit,
+        string ApprovalVerdictPath,
+        string ApprovalVerdictSha256,
+        string RefreezeManifestPath,
+        string RefreezeManifestSha256,
+        string ReviewRequestPath,
+        string ReviewRequestSha256,
+        int ImplementationTaskCount,
+        string[] ImplementationTasks,
+        string[] ExecutableEvidencePaths);
 
     private sealed record PostGateProposedSuccessor(
         string Change,

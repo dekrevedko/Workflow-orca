@@ -42,8 +42,8 @@ reference both advanced packages; provider Adapters SHALL reference no engine im
 its workflow references remain public contracts. The post-gate
 `admit-dag-authoring-friend-boundary` contract approves one authoring-only
 `OrcaCore -> OrcaCore.Dag` internal friend for compiler-created build values, subject to an
-exact compiled-member guard; it is compiled in the Task 8.2 source candidate, awaits independent
-source approval, and is not a reverse package reference.
+exact compiled-type/member guard; it is compiled in the independently approved Task 8.2
+checkpoint `a9f835f939d683500ca231c7ba491ab8eae2aaae` and is not a reverse package reference.
 No OrcaCore package other than `OrcaCore.Dag.Hosting` SHALL depend on `OrcaCore.Dag`;
 `OrcaCore.Dag.Hosting` is the approved outward DAG host adapter. Kubernetes,
 AWS, job schedulers, and other external-work integrations SHALL live in outward companion/

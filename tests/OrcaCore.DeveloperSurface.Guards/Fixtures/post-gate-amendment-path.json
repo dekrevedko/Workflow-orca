@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "requiredStages": [
     "amendment-approval",
     "canonical-open-spec",
@@ -61,6 +61,25 @@
       "canonicalBlockSha256": "bbae0c226c6824570650d1f6f980e3b74e6c35cb196784581eef20e6e3563ce9"
     }
   ],
+  "completeEvidence": {
+    "stage": "Complete",
+    "reviewedCheckpointCommit": "a9f835f939d683500ca231c7ba491ab8eae2aaae",
+    "reviewedCheckpointTree": "cf11b3f6732f11250ba3a0255114bcdc4ae00060",
+    "approvalEvidenceCommit": "055e7b8e71e8dfe79e76f267f8782b7f6f79f7b8",
+    "approvalVerdictPath": "docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-zzz-remediation-independent-review-verdict-2026-09-28.md",
+    "approvalVerdictSha256": "513871b82c87f5949d4801108f4f1c901b8f8cfe7084121217359cf96a9ccd4a",
+    "refreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-zzz-remediation-dirty-manifest-2026-09-28.txt",
+    "refreezeManifestSha256": "c9462505515394deb34865b8fd9e5c4dd94c6427733498c89cae586f98ec020a",
+    "reviewRequestPath": "docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-zzz-remediation-independent-review-request-2026-09-28.md",
+    "reviewRequestSha256": "c2e58b564b92bacd8ab32ee9f6ada943a0ffb28bbbcdf1fd8a9e837805b444bf",
+    "implementationTaskCount": 5,
+    "implementationTasks": ["2.1", "2.2", "2.3", "2.4", "2.5"],
+    "executableEvidencePaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/DagInternalMemberReferenceGuards.cs",
+      "tests/OrcaCore.DeveloperSurface.Guards/DagAuthoringBehaviorGuards.cs",
+      "tests/OrcaCore.Core.Tests/Compilation/PublicDefinitionCompilerContractTests.cs"
+    ]
+  },
   "amendments": [
     {
       "id": "reshape-section-7b-developer-facing-surface",

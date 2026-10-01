@@ -76,8 +76,8 @@ This direct-edge list is exhaustive. In particular, `OrcaCore.Durable.Hosting` r
 types only through its declared dependencies and must not add a direct `Runtime.Protocol` edge.
 Architecture checks reject every unlisted reference and every friend assembly outside the
 current exact closed graph below. The separately approved `OrcaCore -> OrcaCore.Dag` authoring
-friend is compiled in the Task 8.2 source candidate and included in that graph; its checkpoint
-still requires independent review.
+friend is compiled in the independently approved Task 8.2 checkpoint
+`a9f835f939d683500ca231c7ba491ab8eae2aaae` and included in that graph.
 
 - `OrcaCore.Dag` depends directly only on the `OrcaCore` package. Its workflow references
   remain public application contracts; the approved post-gate authoring friend allows only
@@ -138,7 +138,8 @@ compilation.
   `OrcaCore.Core` grants both engines;
   `OrcaCore.Engine.Durable` grants `OrcaCore.Durable.Hosting`; and
   `OrcaCore.Durable.Hosting` grants `OrcaCore.Dag.Hosting`. The authoring-only eighth
-  edge grants no durable child-start access and still awaits independent source review.
+  edge grants no durable child-start access; its source is independently approved at Task 8.2
+  checkpoint `a9f835f939d683500ca231c7ba491ab8eae2aaae`.
   Owning white-box test friends are exact for Core, both engines, Durable Hosting, PostgreSQL, and
   SQL Server;
   `OrcaCore.Engine.Durable -> OrcaCore.ProviderCertification` is the sole cross-package test edge.
