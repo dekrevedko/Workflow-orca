@@ -1,17 +1,6 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": {
-    "task": "dag-runtime-view-contract-1.1-rv-remediation",
-    "requestPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-rv-remediation-independent-review-request-2026-10-02.md",
-    "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-rv-remediation-dirty-manifest-2026-10-02.txt",
-    "disposition": "RawGitOrder",
-    "baseCommit": "2a09b452af067fbd501215a572712ff08cf2bbc9",
-    "contentRecordExcludedPaths": [
-      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
-    ],
-    "contentRecordBytes": 4599,
-    "contentRecordSha256": "28857de53bf06f0704910079df72b15153ee39b8024eff0753b247205c3931bc"
-  },
+  "activeFreeze": null,
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",

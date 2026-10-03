@@ -2341,6 +2341,11 @@
       "sha256": "918c87986244f1c16ec799a9a57a4cf07898fec156704d663294ea28b8c6b8c1"
     },
     {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-rv-remediation-independent-review-verdict-2026-10-02.md",
+      "bytes": 10608,
+      "sha256": "5ff6b3322d3071149fefe583fd74fba35afa5d28ea6a81ca50637bcdb029b457"
+    },
+    {
       "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-successor-process-dirty-manifest-2026-09-30.txt",
       "bytes": 1303,
       "sha256": "9c4bc8db2f407b29aefe6209f4208487588f2bd094732bb0ccf71c78ce5a23e6"
