@@ -2326,6 +2326,11 @@
       "sha256": "f0929aafbde43190315996dd48f0f56886dd8f23d2e89e5ed3056483023929e8"
     },
     {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-successor-process-independent-review-verdict-2026-09-30.md",
+      "bytes": 11549,
+      "sha256": "bc72cd0eca94e77a1c09744e18aea6bb0133cfe5429ddf5a50fdfb4e0c70cd4c"
+    },
+    {
       "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-aaa-1-and-task-7-3-dirty-manifest-2026-09-18.txt",
       "bytes": 2101,
       "sha256": "f83199de37f7f8c4537316efa0a7ef50a44834930abd8611c31410a79be6637e"
