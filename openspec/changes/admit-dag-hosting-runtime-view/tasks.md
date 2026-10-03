@@ -1,7 +1,7 @@
 ## 0. Process-only successor gate
 
 - [x] 0.1 Register only the two ordered reshape -> completed authoring-friend -> proposed runtime-view chains. Preserve the old blocks and approval records, source-pin the proposed blocks, retain canonical unchanged, record two pending operations and false semantic approval, and correct the Task 8.0 map's stale authoring-implementation status. Add no product source or friend metadata. **Prepared for process review:** only these two proposed successors may form three-owner chains; the earlier Complete implementation and closeout evidence are retained and validated. Tasks 0.2–3.2 remain open; this checkbox earns no contract or source authority.
-- [ ] 0.2 Independently approve and checkpoint this exact process-only target, then record its byte-exact verdict and activate the process review only. Proposed ownership is not contract approval or Task 8.3 authority.
+- [x] 0.2 Independently approve and checkpoint this exact process-only target, then record its byte-exact verdict and activate the process review only. Proposed ownership is not contract approval or Task 8.3 authority.
 
 ## 1. Friend contract before canonical or source
 
