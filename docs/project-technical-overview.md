@@ -69,6 +69,13 @@ Durable Engine-to-ProviderCertification barrier edge remain closed. `OrcaCore.Da
 remains the only same-release DAG-to-durable *runtime* bridge; Kubernetes/AWS/job projects
 depend outward and never appear in an OrcaCore signature/dependency closure.
 
+`admit-dag-hosting-runtime-view` separately proposes a ninth product friend,
+`OrcaCore.Dag -> OrcaCore.Dag.Hosting`, for three immutable runtime-view types and fifteen
+exact method/getter signatures. It is not approved, synchronized or compiled, and exposes
+no delegates, drafts, constructors, test friendship, codec or child-start access to Dag.
+The durable bridge decodes successful committed dependency outputs before mapping and owns
+fixed-codec normalization, exact committed bytes/fingerprints and child start.
+
 Each step attempt runs on a codec-detached copy of committed state and can replace that copy via
 `StepContext<TState>.ReplaceState`; only the winning attempt commits. The first release fixes the
 certified workflow-state format to `orcacore-json-v1`. Durable event identity is global by

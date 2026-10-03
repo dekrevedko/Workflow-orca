@@ -93,15 +93,29 @@ public sealed class OpenSpecCorpusGuards
             RuntimeViewChange, "admit-dag-authoring-friend-boundary", "MODIFIED", "MODIFIED",
             ProposedPostGateStage, "1.3",
             "bed102a2e4c98598b30cbb741c956a236f2050d27d88e6fc567b915f5b260793",
-            "5561f46b69ff482a78b81deccf969b0cc0e0e726bd3708b3280549069bfec78d"),
+            "3a848931f75b44c6cf2edf97b564c6e213b23d90720701a31a4a45394cbf93ab"),
         new("repository-foundation", "Dependency direction remains one-way",
             RuntimeViewChange, "admit-dag-authoring-friend-boundary", "MODIFIED", "MODIFIED",
             ProposedPostGateStage, "1.3",
             "bbae0c226c6824570650d1f6f980e3b74e6c35cb196784581eef20e6e3563ce9",
-            "feab5ce4444e9738b7d1913336734439427ba1ceab46ca60bfe27b6859d0b26f")
+            "f0dbc156d044536a83d73934dfcb6eaac5f974069b1a5c555433f2a4b56a1ab8")
     ];
+    private const string RuntimeViewContractArtifact =
+        "openspec/changes/admit-dag-hosting-runtime-view/artifacts/task-1-1-runtime-view-contract-rv-remediation-2026-10-02.md";
+    private const string RuntimeViewContractArtifactSha256 =
+        "2dec007df0e06740373fdc4c4d0cd69066d0d08cda417f141a3897a4b3824398";
+    private const string RuntimeViewSignatureContractSha256 =
+        "93e6490d8c132784600c3c9a59f8d27be2e22662236f6f5bf0ea12d0dd21dda9";
+    private const string RuntimeViewNumberedProposalSha256 =
+        "b5924c44142f7cccda435e42a96feca87b5f90f79966e276e4b4497d86cd5c92";
+    private const string RuntimeViewNumberedBoundarySha256 =
+        "e1c8558283a4ead3204c50195dd3302ffbc30aa6ffef9ded2b0dccdfcf52283e";
+    private const string RuntimeViewCompositionProposalSha256 =
+        "e370dc75ad9fd5027b09779a60cec36d612ed96d2e90240e5091d3b936386f68";
+    private const string RuntimeViewReshapeHandoffSha256 =
+        "18fa98584606fc6ebd7b9382a39a9b7b61a58c6168d37a16ae24b8423c5fbe6f";
     private const string CurrentOpenSpecProvenanceSha256 =
-        "91c0cba8e867c03f41d8ec26c0aec7a194fdf36e5302b37d9541492ad58ae0c1";
+        "515a968b5027f8120b6a6ff4e87525542329fed42b6d5e6fa0eea8ad1f055125";
     private const string HistoricalCanonicalSourceCommit =
         "ba2478e995023b0712c44705174c2b0e3262f213";
     private const string HistoricalCanonicalRemovalCatalogSha256 =
@@ -122,7 +136,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/reshape-developer-facing-interfaces/artifacts/" +
         "task-8-0-section-8-requirement-gate-2026-09-26.md";
     private const string Task80RequirementGateSha256 =
-        "54b6fc8c859f5a40c912bef38b6f4ba8f7159f70ac64fc5724429fe71d26ebb9";
+        "e610e21819e61aa44a2b445a3271575049a76cefa2943e2c65ee91c5a507fbb2";
     private const string MissingApprovalReviewState = "MissingApproval";
     private const string RejectedReviewState = "Rejected";
     private const string ApprovalAwaitingEvidenceCommitReviewState =
@@ -146,9 +160,9 @@ public sealed class OpenSpecCorpusGuards
         "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
     private const string PublicAuthoringCompanionSha256 =
         "41f6472c2774363d2ab922c608922e787ec241333e1d1c0b76b0c6d529ab8ec3";
-    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 4;
+    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 6;
     private const string SupersededOpenSpecProvenanceArtifactCatalogSha256 =
-        "566eda77e13dd20d505e7ab3f75a8d99b7e7c40231c442885cdd9d0ae60e5855";
+        "0eae8ac75f83fbfcba744f736a4acd8c71acb02e7718f50e95f47cf06df69c6c";
     private static readonly (string Path, string NormalizedSha256)[]
         SupersededOpenSpecProvenanceArtifacts =
         [
@@ -167,7 +181,13 @@ public sealed class OpenSpecCorpusGuards
             (
                 "openspec/changes/admit-dag-authoring-friend-boundary/artifacts/" +
                 "approved-pending-openspec-provenance-2026-09-27.md",
-                "f174df2b0a8a352a0601eea879b7f3260fa49ab064451ad8da50c50550c9ff82")
+                "f174df2b0a8a352a0601eea879b7f3260fa49ab064451ad8da50c50550c9ff82"),
+            (
+                "openspec/changes/admit-dag-hosting-runtime-view/artifacts/process-openspec-provenance-2026-09-30.md",
+                "91c0cba8e867c03f41d8ec26c0aec7a194fdf36e5302b37d9541492ad58ae0c1"),
+            (
+                "openspec/changes/admit-dag-hosting-runtime-view/artifacts/contract-openspec-provenance-2026-10-02.md",
+                "524053f5cf11e078aa2d6221c8105c51e040b9ba7cbcaedd85f3a9d90580e23e")
         ];
     private const string EmptyCorePublicApiBaseline =
         "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";
@@ -287,7 +307,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "13daf683e608265e3af5dfd8351214fd02da5f3c5fab6cbfecf075dbd33d0a36";
+        "029a6e0cfda2bb04efa7899f625150d92da67cc76ffffe561d60e5b014b9049c";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +
@@ -1560,8 +1580,16 @@ public sealed class OpenSpecCorpusGuards
             "docs/review/developer-facing-interface-section-08-task-8-2-authoring-friend-closeout-independent-review-verdict-2026-09-29.md",
             "221c60c34f1db12c747eb2da20a7107bbe40baba227a9b8e0c223db1e913e531", "3.2");
         ValidateTaskReference(root, new PostGateTaskReference(RuntimeViewChange, "0.1", CompleteTaskState));
+        ValidateTaskReference(root, new PostGateTaskReference(RuntimeViewChange, "0.2", CompleteTaskState));
+        ValidateTaskReference(root, new PostGateTaskReference(RuntimeViewChange, "1.1", CompleteTaskState));
+        ValidateDagApprovalEvidence(root,
+            "dc8095c5536316cb772c985641e45179fa3c93b5",
+            "0f4fafa3c3b3acfdb2c39227bba53f094782bd13",
+            "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-successor-process-independent-review-verdict-2026-09-30.md",
+            "bc72cd0eca94e77a1c09744e18aea6bb0133cfe5429ddf5a50fdfb4e0c70cd4c", "0.1");
+        ValidateRuntimeViewContractProposal(root);
         foreach (var task in new[]
-                 { "1.1", "1.2", "1.3", "1.4", "2.1", "2.2", "2.3", "2.4", "3.1", "3.2" })
+                 { "1.3", "1.4", "2.1", "2.2", "2.3", "2.4", "3.1", "3.2" })
         {
             ValidateTaskReference(root, new PostGateTaskReference(RuntimeViewChange, task, OpenTaskState));
         }
@@ -1591,6 +1619,73 @@ public sealed class OpenSpecCorpusGuards
                 successor.Change, successor.TurnsGreenTask, OpenTaskState));
             task.Should().Contain($"`{successor.Capability}` (1)");
         }
+    }
+
+    private static void ValidateRuntimeViewContractProposal(string root)
+    {
+        var artifact = NormalizeLineEndings(File.ReadAllText(
+            RequireNonEmptyFile(root, RuntimeViewContractArtifact, "proposed runtime-view contract")));
+        Sha256(artifact).Should().Be(RuntimeViewContractArtifactSha256,
+            "the exact proposed signatures, null policy and full disposition must stay review-bound");
+        var matrix = NormalizeLineEndings(File.ReadAllText(
+            RequireNonEmptyFile(root, "docs/specs/17-selected-mode-capability-matrix.md",
+                "proposed numbered runtime-view contract")));
+        var numbered = Regex.Matches(matrix,
+            @"<!-- runtime-view-contract:start -->\n[\s\S]*?<!-- runtime-view-contract:end -->");
+        numbered.Should().ContainSingle("the complete proposed contract belongs in typed DAG planning");
+        var dagSection = matrix.IndexOf("### 17.2.6 Typed DAG planning", StringComparison.Ordinal);
+        dagSection.Should().BeGreaterThanOrEqualTo(0);
+        var dagBodyStart = matrix.IndexOf('\n', dagSection) + 1;
+        var followingHeading = Regex.Match(matrix[dagBodyStart..], @"(?m)^#{2,3} 17\.");
+        var nextSection = followingHeading.Success ? dagBodyStart + followingHeading.Index : matrix.Length;
+        numbered[0].Index.Should().BeGreaterThan(dagSection);
+        (numbered[0].Index + numbered[0].Length).Should().BeLessThan(nextSection);
+        Sha256(numbered[0].Value).Should().Be(RuntimeViewNumberedProposalSha256,
+            "proposal status, signatures, successful-null and failure policy must remain durable after freeze");
+        var boundary = Regex.Matches(matrix,
+            @"Implementation package boundaries use exact type-safe internal friends[\s\S]*?(?=Phase 0 packs)");
+        boundary.Should().ContainSingle("doc 17 section 17.5 explicitly disposes of both friend grants");
+        Sha256(boundary[0].Value.TrimEnd()).Should().Be(RuntimeViewNumberedBoundarySha256);
+        var signatureTexts = new List<string>
+        {
+            artifact,
+            NormalizeLineEndings(File.ReadAllText(
+                RequireNonEmptyFile(root, $"openspec/changes/{RuntimeViewChange}/design.md", "runtime-view design"))),
+            numbered[0].Value
+        };
+        foreach (var capability in new[] { "developer-facing-surface", "repository-foundation" })
+        {
+            signatureTexts.Add(NormalizeLineEndings(File.ReadAllText(
+                RequireNonEmptyFile(root, $"openspec/changes/{RuntimeViewChange}/specs/{capability}/spec.md",
+                    "self-contained normative runtime-view signature contract"))));
+        }
+        foreach (var text in signatureTexts)
+        {
+            var signature = Regex.Matches(text, @"\x60\x60\x60csharp\n(.*?)\n\x60\x60\x60", RegexOptions.Singleline);
+            signature.Should().ContainSingle("every normative owner defines all fifteen exact runtime-view signatures");
+            Sha256(signature[0].Groups[1].Value).Should().Be(RuntimeViewSignatureContractSha256);
+        }
+        var composition = NormalizeLineEndings(File.ReadAllText(
+            RequireNonEmptyFile(root, "docs/specs/08-requirements-composition.md", "proposed composition contract")));
+        var compositionBlocks = new List<string>();
+        foreach (var heading in new[]
+                 { "CP-020 Separate package and dependency direction", "CP-022 Direct-dependency input mapping" })
+        {
+            var matches = Regex.Matches(composition,
+                $@"(?m)^### {Regex.Escape(heading)}\n[\s\S]*?(?=^### |\z)");
+            matches.Should().ContainSingle();
+            compositionBlocks.Add(matches[0].Value.TrimEnd());
+        }
+        Sha256(string.Join('\n', compositionBlocks)).Should().Be(RuntimeViewCompositionProposalSha256,
+            "CP-020/CP-022 proposal status and exact doc 17 link cannot silently flip after checkpoint");
+        var reshape = NormalizeLineEndings(File.ReadAllText(
+            RequireNonEmptyFile(root, "openspec/changes/reshape-developer-facing-interfaces/tasks.md",
+                "proposed mapping and durable bridge handoff")));
+        var handoff = Regex.Matches(reshape, @"(?m)^- \[ \] 8\.[345] .+$")
+            .Select(match => match.Value).ToArray();
+        handoff.Should().HaveCount(3);
+        Sha256(string.Join('\n', handoff)).Should().Be(RuntimeViewReshapeHandoffSha256,
+            "the proposed open 8.3–8.5 mapping/codec ownership remains durable without pinning Task 1.2");
     }
 
     private static void ValidateCompletedDagFriend(string root, PostGateCompleteEvidence evidence)

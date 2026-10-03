@@ -328,8 +328,12 @@ references. The independently approved post-gate `admit-dag-authoring-friend-bou
 authoring-only `OrcaCore -> OrcaCore.Dag` internal friend for compiler-created validation,
 diagnostic, location, fingerprint, and definition-exception values; the grant is compiled in the
 independently approved Task 8.2 checkpoint `a9f835f939d683500ca231c7ba491ab8eae2aaae`.
-`OrcaCore.Dag.Hosting` alone
-consumes the named internal durable child-start/join bridge.
+`OrcaCore.Dag.Hosting` alone consumes the named internal durable child-start/join bridge.
+The separate proposed `admit-dag-hosting-runtime-view` contract would add only
+`OrcaCore.Dag -> OrcaCore.Dag.Hosting` for immutable descriptors and one evaluator,
+guarded at exact non-public type/member signatures. It is not approved or compiled and
+does not widen the authoring grant. The durable bridge decodes successful committed outputs
+before evaluation and owns fixed-codec input normalization, fingerprints, commit and child start.
 Companions may depend on OrcaCore, `OrcaCore.Dag`, and infrastructure SDKs. No OrcaCore package
 references a Kubernetes, AWS, or scheduler companion. User workflow code references only
 application contracts plus the authoring package it selected.

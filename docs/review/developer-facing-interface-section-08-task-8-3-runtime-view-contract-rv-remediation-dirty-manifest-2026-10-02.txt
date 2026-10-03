@@ -1,0 +1,31 @@
+ M CLAUDE.md
+ M docs/implementation/00-stack-decisions.md
+ M docs/implementation/01-solution-architecture.md
+ M docs/project-technical-overview.md
+ M docs/specs/03-domain-model-and-glossary.md
+ M docs/specs/08-requirements-composition.md
+ M docs/specs/10-provider-model-and-extensibility.md
+ M docs/specs/17-selected-mode-capability-matrix.md
+ M openspec/changes/admit-dag-authoring-friend-boundary/tasks.md
+ M openspec/changes/admit-dag-hosting-runtime-view/design.md
+ M openspec/changes/admit-dag-hosting-runtime-view/proposal.md
+ M openspec/changes/admit-dag-hosting-runtime-view/specs/developer-facing-surface/spec.md
+ M openspec/changes/admit-dag-hosting-runtime-view/specs/repository-foundation/spec.md
+ M openspec/changes/admit-dag-hosting-runtime-view/tasks.md
+ M openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md
+ M openspec/changes/reshape-developer-facing-interfaces/artifacts/task-8-0-section-8-requirement-gate-2026-09-26.md
+ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+?? docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-dirty-manifest-2026-10-02.txt
+?? docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-independent-review-request-2026-10-02.md
+?? docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-independent-review-verdict-2026-10-02.md
+?? docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-rv-remediation-dirty-manifest-2026-10-02.txt
+?? docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-rv-remediation-independent-review-request-2026-10-02.md
+?? openspec/changes/admit-dag-hosting-runtime-view/artifacts/contract-openspec-provenance-2026-10-02.md
+?? openspec/changes/admit-dag-hosting-runtime-view/artifacts/contract-rv-remediation-openspec-provenance-2026-10-02.md
+?? openspec/changes/admit-dag-hosting-runtime-view/artifacts/task-1-1-runtime-view-contract-2026-10-02.md
+?? openspec/changes/admit-dag-hosting-runtime-view/artifacts/task-1-1-runtime-view-contract-rv-remediation-2026-10-02.md

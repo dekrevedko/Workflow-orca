@@ -90,7 +90,10 @@ friend is compiled in the independently approved Task 8.2 checkpoint
   internal child-start/join contract through
   `InternalsVisibleTo("OrcaCore.Dag.Hosting")`. The seam is same-solution/release-train internals,
   not a public workflow or provider SPI; no second DAG-to-durable product bridge is permitted
-  without a matrix amendment.
+  without a matrix amendment. The separately proposed ninth `OrcaCore.Dag -> OrcaCore.Dag.Hosting`
+  runtime-view friend would let the adapter consume only three internal types and fifteen
+  exact method/getter signatures. It is not approved or compiled, changes no package edge,
+  and exposes no mapper delegate, draft, constructor, codec or child API.
 - The companion scheduler depends outward on `OrcaCore.Dag.Hosting` plus documented public
   application/hosting packages. No dependency points from OrcaCore back to the companion.
 - **No core or engine project depends on a provider adapter.** Durable hosting consumes advanced
@@ -112,7 +115,9 @@ friend is compiled in the independently approved Task 8.2 checkpoint
   OrcaCore provider roles. They live in separate outward-dependent project(s), even while
   sharing `OrcaCore.slnx`; no OrcaCore package takes their SDK dependency.
 - `OrcaCore.Dag` owns typed node/dependency mapping and validation. `OrcaCore.Dag.Hosting`
-  evaluates each opaque direct-dependency mapping at runtime after dependencies succeed and before
+  evaluates each opaque direct-dependency mapping at runtime after dependencies succeed; the
+  proposed runtime view receives detached successful outputs decoded by the durable bridge before
+  evaluation. Codec normalization/fingerprinting/commit remain on that bridge, before
   mapped input is committed or a child starts. Invalid access or projector failure produces stable
   `DAG_INPUT_MAPPING_INVALID` and starts no child for that node. The host then starts/reattaches one
   durable child workflow instance through the internal bridge; neither package exposes a

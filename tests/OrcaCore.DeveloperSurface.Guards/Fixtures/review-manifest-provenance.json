@@ -1,6 +1,17 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": null,
+  "activeFreeze": {
+    "task": "dag-runtime-view-contract-1.1-rv-remediation",
+    "requestPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-rv-remediation-independent-review-request-2026-10-02.md",
+    "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-rv-remediation-dirty-manifest-2026-10-02.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "2a09b452af067fbd501215a572712ff08cf2bbc9",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 4599,
+    "contentRecordSha256": "28857de53bf06f0704910079df72b15153ee39b8024eff0753b247205c3931bc"
+  },
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",
@@ -161,6 +172,22 @@
       "verdictPath": "docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-independent-review-verdict-2026-09-28.md",
       "verdictBytes": 12291,
       "verdictSha256": "49596470e988d784d596ff4b12734181a336d571dd6ad2d846ae71ac0e95809c"
+    },
+    {
+      "id": "runtime-view-contract-1.1-rv-rejected",
+      "requestPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-independent-review-request-2026-10-02.md",
+      "requestBytes": 11267,
+      "requestSha256": "71b1999a1863557a444ff508e155a693faf4f24110d6ac35ef25565fab0e5472",
+      "requestManifestPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-dirty-manifest-2026-10-02.txt",
+      "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-dirty-manifest-2026-10-02.txt",
+      "disposition": "RawGitOrder",
+      "lineCount": 26,
+      "manifestBytes": 1926,
+      "manifestSha256": "604d1d3db38fe2ff3a842f3297ea1aae373adc275e3b07b9380a11ff7d8e286f",
+      "baseCommit": "2a09b452af067fbd501215a572712ff08cf2bbc9",
+      "verdictPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-independent-review-verdict-2026-10-02.md",
+      "verdictBytes": 11680,
+      "verdictSha256": "1ddaa7a0e9008b483c75b37c8824ce72aa506caf8d7c74e619bd8dd6063f4858"
     }
   ],
   "archivedFreezes": [

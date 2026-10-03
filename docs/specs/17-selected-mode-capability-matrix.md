@@ -1176,6 +1176,91 @@ references to the exact reviewed set. The friend is compiled in the independentl
 Task 8.2 checkpoint `a9f835f939d683500ca231c7ba491ab8eae2aaae`. It adds no `Core -> Dag`
 dependency or child-start access.
 
+<!-- runtime-view-contract:start -->
+#### Proposed DAG runtime-view boundary (Task 1.1)
+
+The separate `admit-dag-hosting-runtime-view` Task 1.1 contract proposes a ninth friend,
+`OrcaCore.Dag -> OrcaCore.Dag.Hosting`, not approved, synchronized or compiled. Its exact
+three-type/fifteen-member descriptor/evaluator contract is stated in full below. All three types
+are in `OrcaCore.Dag`; this is proposed internal syntax, not new public surface.
+It exposes no mapper delegates, mutable drafts, constructors or public compiled metadata.
+The existing `OrcaCore -> OrcaCore.Dag` six-signature authoring grant remains unchanged.
+The durable bridge, not Dag, decodes successful committed dependency outputs into detached
+values of the declared output types before the evaluator receives them. Hosting submits the
+typed mapped input and declared type back to that bridge for codec normalization, exact-byte
+fingerprinting and once-only commit before child start. These proposal statements grant no
+implementation authority before contract and atomic-sync approval.
+
+```csharp
+// On the existing public WorkflowDagPlan<TRunInput>:
+internal DagRuntimeView<TRunInput> GetRuntimeView();
+
+internal sealed class DagRuntimeView<TRunInput>
+{
+    internal IReadOnlyList<DagRuntimeNodeDescriptor> Nodes { get; }
+    internal DagMappedInputResult EvaluateMapping(
+        DagNodeRef node,
+        TRunInput immutableRunInput,
+        IReadOnlyDictionary<DagNodeRef, object?> successfulDirectDependencyOutputs);
+}
+
+internal sealed class DagRuntimeNodeDescriptor
+{
+    internal DagNodeRef Reference { get; }
+    internal int AuthoredOrdinal { get; }
+    internal DefinitionId ChildDefinitionId { get; }
+    internal DefinitionVersion ChildDefinitionVersion { get; }
+    internal DefinitionFingerprint ChildFingerprint { get; }
+    internal Type InputType { get; }
+    internal Type? OutputType { get; }
+    internal IReadOnlyList<DagNodeRef> Dependencies { get; }
+}
+
+internal sealed class DagMappedInputResult
+{
+    internal bool IsValid { get; }
+    internal object? Input { get; }
+    internal Type? InputType { get; }
+    internal string? FailureCode { get; }
+}
+```
+
+The consumed members are exactly these fifteen decoded method/getter signatures:
+
+1. `WorkflowDagPlan<TRunInput>.GetRuntimeView() : DagRuntimeView<TRunInput>`
+2. `DagRuntimeView<TRunInput>.get_Nodes() : IReadOnlyList<DagRuntimeNodeDescriptor>`
+3. `DagRuntimeView<TRunInput>.EvaluateMapping(DagNodeRef, TRunInput, IReadOnlyDictionary<DagNodeRef, object?>) : DagMappedInputResult`
+4. `DagRuntimeNodeDescriptor.get_Reference() : DagNodeRef`
+5. `DagRuntimeNodeDescriptor.get_AuthoredOrdinal() : int`
+6. `DagRuntimeNodeDescriptor.get_ChildDefinitionId() : DefinitionId`
+7. `DagRuntimeNodeDescriptor.get_ChildDefinitionVersion() : DefinitionVersion`
+8. `DagRuntimeNodeDescriptor.get_ChildFingerprint() : DefinitionFingerprint`
+9. `DagRuntimeNodeDescriptor.get_InputType() : Type`
+10. `DagRuntimeNodeDescriptor.get_OutputType() : Type?`
+11. `DagRuntimeNodeDescriptor.get_Dependencies() : IReadOnlyList<DagNodeRef>`
+12. `DagMappedInputResult.get_IsValid() : bool`
+13. `DagMappedInputResult.get_Input() : object?`
+14. `DagMappedInputResult.get_InputType() : Type?`
+15. `DagMappedInputResult.get_FailureCode() : string?`
+
+Constructors, setters, extra overloads, delegates, drafts and all other non-public members
+or types remain forbidden. Nodes and dependencies are defensive immutable snapshots. Success
+returns IsValid true, typed Input (possibly null), exact declared InputType and null FailureCode.
+Failure returns IsValid false, null Input/InputType and DAG_INPUT_MAPPING_INVALID.
+
+Proposed successful-null clarification (Task 1.1, not yet approved): presence of a successful
+committed output and its value are distinct. `OutputOf<T>` returns a present null when the
+declared output is a reference type or `Nullable<T>`; C# nullable-reference annotations are
+not a runtime discriminator. Missing, foreign, undeclared, non-direct, wrong-type and
+nonnullable-value null accesses still fail as `DAG_INPUT_MAPPING_INVALID`. Successful mapped
+null input follows the same declared-type rule and remains distinguishable from failure.
+The bridge still certifies and normalizes the fixed-codec shape; no decoder moves into Dag.
+The current Task 8.2 implementation rejects all null outputs; the separately reviewed
+runtime-view source target must implement and test this proposed behavior.
+
+Mapper exceptions derived from `Exception`, including mapper-thrown `OperationCanceledException`, SHALL become `DAG_INPUT_MAPPING_INVALID`, except `OutOfMemoryException`, `StackOverflowException`, and `AccessViolationException`, which SHALL NOT be converted. Host/run cancellation observed outside mapper evaluation SHALL retain the runtime cancellation outcome. Before invoking the evaluator, an ordinary declared-type output decode/materialization failure SHALL fail the node as `DAG_INPUT_MAPPING_INVALID`, without invoking its mapper, committing input, or starting a child; protocol-integrity or storage failures SHALL remain runtime failures and SHALL NOT be disguised as mapper failures.
+<!-- runtime-view-contract:end -->
+
 ```csharp
 public static class Dag
 {
@@ -1571,6 +1656,11 @@ The complete DAG build catalog is:
 | `DAG-AUTH-DEPENDENCY-004` | `ForeignPlanReference`: a declared node/dependency reference belongs to another plan. |
 | `DAG-AUTH-MAP-001` | `MissingMapInput`: a node has no mapping delegate. |
 | `DAG-AUTH-MAP-002` | `DuplicateMapInput`: a node assigns mapping more than once. |
+
+The proposed `OrcaCore.Dag -> OrcaCore.Dag.Hosting` runtime view does not add a diagnostic
+code or alter the build catalog. Its evaluator maps ordinary projector/access/type failures
+to the existing runtime failure below; the durable bridge decodes successful committed
+outputs first and performs codec normalization/commit only after successful evaluation.
 
 Opaque mapper access is not a build diagnostic; it uses runtime node failure code
 `DAG_INPUT_MAPPING_INVALID` before mapped-input commit or child start.
@@ -2000,6 +2090,10 @@ metadata. The complete product-friend set is:
 - `OrcaCore.Engine.Durable -> OrcaCore.Durable.Hosting` for the internal durable role bootstrap;
 - `OrcaCore.Durable.Hosting -> OrcaCore.Dag.Hosting` for the named, versioned internal child-start/
   join contract.
+
+The separately proposed ninth friend, `OrcaCore.Dag -> OrcaCore.Dag.Hosting`, is not approved,
+canonical or compiled. Its exhaustive internal runtime-view signatures are in §17.2.6 above.
+It gives Dag no codec or child-start access and does not change the current eight-friend list.
 
 The approved eighth product friend, `OrcaCore -> OrcaCore.Dag`, is compiled in the independently
 approved Task 8.2 checkpoint `a9f835f939d683500ca231c7ba491ab8eae2aaae` for the five

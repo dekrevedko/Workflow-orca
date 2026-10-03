@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-successor-process-dirty-manifest-2026-09-30.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-rv-remediation-dirty-manifest-2026-10-02.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2314,6 +2314,31 @@
       "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-successor-process-independent-review-verdict-2026-09-27.md",
       "bytes": 7848,
       "sha256": "fbfe7ee9fbf8a233617a308d58e0a4bdcc2755442ab649141845240960987f25"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-dirty-manifest-2026-10-02.txt",
+      "bytes": 1926,
+      "sha256": "604d1d3db38fe2ff3a842f3297ea1aae373adc275e3b07b9380a11ff7d8e286f"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-independent-review-request-2026-10-02.md",
+      "bytes": 11267,
+      "sha256": "71b1999a1863557a444ff508e155a693faf4f24110d6ac35ef25565fab0e5472"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-independent-review-verdict-2026-10-02.md",
+      "bytes": 11680,
+      "sha256": "1ddaa7a0e9008b483c75b37c8824ce72aa506caf8d7c74e619bd8dd6063f4858"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-rv-remediation-dirty-manifest-2026-10-02.txt",
+      "bytes": 2560,
+      "sha256": "b365ebad63a0217cda8c6efaf706f61673385ff95048757993ccb28a25f915ae"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-rv-remediation-independent-review-request-2026-10-02.md",
+      "bytes": 11433,
+      "sha256": "918c87986244f1c16ec799a9a57a4cf07898fec156704d663294ea28b8c6b8c1"
     },
     {
       "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-successor-process-dirty-manifest-2026-09-30.txt",
