@@ -1,0 +1,15 @@
+ M openspec/changes/reshape-developer-facing-interfaces/artifacts/task-8-0-section-8-requirement-gate-2026-09-26.md
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+?? docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-successor-process-dirty-manifest-2026-09-30.txt
+?? docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-successor-process-independent-review-request-2026-09-30.md
+?? openspec/changes/admit-dag-hosting-runtime-view/.openspec.yaml
+?? openspec/changes/admit-dag-hosting-runtime-view/artifacts/process-openspec-provenance-2026-09-30.md
+?? openspec/changes/admit-dag-hosting-runtime-view/design.md
+?? openspec/changes/admit-dag-hosting-runtime-view/proposal.md
+?? openspec/changes/admit-dag-hosting-runtime-view/specs/developer-facing-surface/spec.md
+?? openspec/changes/admit-dag-hosting-runtime-view/specs/repository-foundation/spec.md
+?? openspec/changes/admit-dag-hosting-runtime-view/tasks.md

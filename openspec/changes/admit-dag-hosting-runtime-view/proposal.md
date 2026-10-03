@@ -1,0 +1,28 @@
+## Why
+
+The approved typed DAG plans keep node structure and mapping delegates internal, but their sole runtime adapter, `OrcaCore.Dag.Hosting`, has no compile-checked way to evaluate them. The authoring friend has now been independently implemented, checkpointed, and closed out; it must not be expanded into a codec or child-runtime grant to solve this separate seam.
+
+## What Changes
+
+- Propose exactly one additional product friend, `OrcaCore.Dag -> OrcaCore.Dag.Hosting`, for a closed internal runtime view: immutable node descriptors and one mapping-evaluation entry point returning typed input plus its declared type, or `DAG_INPUT_MAPPING_INVALID`.
+- Preserve the existing six-member `OrcaCore -> OrcaCore.Dag` authoring allowlist. No codec, Core reference, runtime protocol reference, public factory, public compiled plan, or public child API is added.
+- Keep fixed-codec normalization, dependency-output materialization, committed-input fingerprints, child-start/join and persistence on the durable runtime side of the existing `OrcaCore.Durable.Hosting -> OrcaCore.Dag.Hosting` bridge.
+- Plan a reviewed re-sequencing of reshape tasks 8.3–8.5: mapping validation belongs to 8.3; codec round-trip and input commit belong to the runtime bridge in 8.4/8.5.
+- First review a process-only successor gate for the two exact headings below. Keep the completed authoring amendment and its reshape predecessors byte-exact. This proposal and its deltas are not friend approval, canonical synchronization, or implementation authority.
+
+## Capabilities
+
+### New Capabilities
+
+None.
+
+### Modified Capabilities
+
+- `developer-facing-surface`: extend “Implementation package boundaries use exact internal friends” with the narrowly guarded DAG runtime-view friend and Hosting-level behavioral evidence, without widening the authoring friend.
+- `repository-foundation`: extend “Dependency direction remains one-way” with that ninth product friend, preserving every direct package edge and the sole durable child bridge.
+
+## Impact
+
+The eventual source target affects only the DAG runtime-view implementation, its hosting consumer and exact metadata guards, plus the existing durable child bridge owned by reshape 8.4/8.5. This process target changes no product source, public API, compiled friend metadata, or canonical requirement.
+
+Contract reconciliation must name `CLAUDE.md`; numbered documents 03, 08 CP-020, 10 PR-005 and 17 §17.2.6 and §17.3; Decision 22, solution architecture, project technical overview, and the pinned Task 8.0 map. Document 11's package-closure rule and the already-approved workflow-authoring/durable-runtime rules are explicitly checked for consistency rather than silently amended. Refresh affected Task 7.3 rows and their digest in each later reviewed document target. No new test friend is proposed: runtime-view mapping evidence belongs in Dag.Hosting-level behavior through the approved adapter.

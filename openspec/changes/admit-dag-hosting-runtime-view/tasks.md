@@ -1,0 +1,23 @@
+## 0. Process-only successor gate
+
+- [x] 0.1 Register only the two ordered reshape -> completed authoring-friend -> proposed runtime-view chains. Preserve the old blocks and approval records, source-pin the proposed blocks, retain canonical unchanged, record two pending operations and false semantic approval, and correct the Task 8.0 map's stale authoring-implementation status. Add no product source or friend metadata. **Prepared for process review:** only these two proposed successors may form three-owner chains; the earlier Complete implementation and closeout evidence are retained and validated. Tasks 0.2–3.2 remain open; this checkbox earns no contract or source authority.
+- [ ] 0.2 Independently approve and checkpoint this exact process-only target, then record its byte-exact verdict and activate the process review only. Proposed ownership is not contract approval or Task 8.3 authority.
+
+## 1. Friend contract before canonical or source
+
+- [ ] 1.1 Freeze the complete runtime-view contract: exact immutable descriptor and evaluator signatures; existing OutputOf access/failure rules and successful-null policy; no exposed delegates, authoring drafts, codec or extra test friend. Reconcile `CLAUDE.md`, docs 03, 08 CP-020, 10 PR-005, 17 §17.2.6/§17.3, Decision 22, solution architecture, project technical overview and the Task 8.0 map; explicitly exclude doc 11 and check unchanged workflow-authoring/durable-runtime owners. Refresh affected Task 7.3 rows and their digest. Review the reshape 8.3–8.5 re-sequencing so only the durable bridge round-trips/decodes fixed-codec values and fingerprints committed bytes. Keep all prior dated decisions and approvals unchanged.
+- [ ] 1.2 Obtain independent APPROVE for that exact contract. No runtime friend, canonical sync, registry promotion, or Task 8.3 source may precede its approval checkpoint.
+- [ ] 1.3 Synchronize only `developer-facing-surface` (1) and `repository-foundation` (1), preserving every preamble and unrelated requirement. Land this only atomically with 1.4; recompute every canonical/provenance pin and strict-validate both normative trees.
+- [ ] 1.4 In the same frozen target as 1.3, advance only the new successor pair to ApprovedPending, bound to the real contract verdict, checkpoint and direct-child evidence. Retain both historical predecessors byte-exact and classify their supersession through exact before/after hashes. Independently review and checkpoint the atomic transition before source.
+
+## 2. Runtime-view source and executable boundary
+
+- [ ] 2.1 Add exactly `OrcaCore.Dag -> OrcaCore.Dag.Hosting` and the reviewed immutable runtime view with one mapping evaluator. Keep the six-signature OrcaCore-to-Dag authoring allowlist, all direct package references and the sole durable child bridge unchanged. Expose no public implementation metadata or factories.
+- [ ] 2.2 Implement the mapping-validation portion of reshape 8.3 through that view; use Hosting-level behavior for valid/invalid direct-dependency access, mapper failure and the reviewed null policy before any input commit or child start. No test friend, reflection, mapper invocation during Build, codec in Dag, or premature 8.4/8.5 completion.
+- [ ] 2.3 Add exact compiled non-public type-and-member reference allowlists for Dag.Hosting consuming Dag. Keep independent probes for forbidden field/signature/interface/generic/attribute/type/member/overload references, a public-only green control, and the repo SDK pin in every temporary probe. Refresh only legitimately affected API/source-provenance fixtures.
+- [ ] 2.4 Run clean Debug/Release builds, focused behavior and metadata tests, exact package consumers/baselines, product/provider lanes, Infrastructure and strict OpenSpec; report intentional ExpectedRed separately. Review and checkpoint this coherent source target before durable bridge work.
+
+## 3. Permanent implementation closeout
+
+- [ ] 3.1 Record the actual source checkpoint, direct-child independent verdict evidence and review-state-only activation; retain every rejected and approved packet byte-exact.
+- [ ] 3.2 Promote the runtime-view record to Complete only with the real executable evidence, immutable source verdict and exact checkpoint/tree. Independently review and checkpoint the closeout before declaring this seam complete or archiving either amendment.

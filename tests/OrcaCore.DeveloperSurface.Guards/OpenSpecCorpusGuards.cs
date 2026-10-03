@@ -86,8 +86,22 @@ public sealed class OpenSpecCorpusGuards
             "tests/OrcaCore.DeveloperSurface.Guards/DagAuthoringBehaviorGuards.cs",
             "tests/OrcaCore.Core.Tests/Compilation/PublicDefinitionCompilerContractTests.cs"
         ]);
-    private const string ApprovedPendingOpenSpecProvenanceSha256 =
-        "f174df2b0a8a352a0601eea879b7f3260fa49ab064451ad8da50c50550c9ff82";
+    private const string RuntimeViewChange = "admit-dag-hosting-runtime-view";
+    private static readonly PostGateRuntimeViewSuccessor[] ExactProposedRuntimeViewSuccessors =
+    [
+        new("developer-facing-surface", "Implementation package boundaries use exact internal friends",
+            RuntimeViewChange, "admit-dag-authoring-friend-boundary", "MODIFIED", "MODIFIED",
+            ProposedPostGateStage, "1.3",
+            "bed102a2e4c98598b30cbb741c956a236f2050d27d88e6fc567b915f5b260793",
+            "5561f46b69ff482a78b81deccf969b0cc0e0e726bd3708b3280549069bfec78d"),
+        new("repository-foundation", "Dependency direction remains one-way",
+            RuntimeViewChange, "admit-dag-authoring-friend-boundary", "MODIFIED", "MODIFIED",
+            ProposedPostGateStage, "1.3",
+            "bbae0c226c6824570650d1f6f980e3b74e6c35cb196784581eef20e6e3563ce9",
+            "feab5ce4444e9738b7d1913336734439427ba1ceab46ca60bfe27b6859d0b26f")
+    ];
+    private const string CurrentOpenSpecProvenanceSha256 =
+        "91c0cba8e867c03f41d8ec26c0aec7a194fdf36e5302b37d9541492ad58ae0c1";
     private const string HistoricalCanonicalSourceCommit =
         "ba2478e995023b0712c44705174c2b0e3262f213";
     private const string HistoricalCanonicalRemovalCatalogSha256 =
@@ -108,7 +122,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/reshape-developer-facing-interfaces/artifacts/" +
         "task-8-0-section-8-requirement-gate-2026-09-26.md";
     private const string Task80RequirementGateSha256 =
-        "dbb6721b09a6ef9692b42ce28aed1fb6db6153599a61763122d9fbf2e9e27a20";
+        "54b6fc8c859f5a40c912bef38b6f4ba8f7159f70ac64fc5724429fe71d26ebb9";
     private const string MissingApprovalReviewState = "MissingApproval";
     private const string RejectedReviewState = "Rejected";
     private const string ApprovalAwaitingEvidenceCommitReviewState =
@@ -132,9 +146,9 @@ public sealed class OpenSpecCorpusGuards
         "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
     private const string PublicAuthoringCompanionSha256 =
         "41f6472c2774363d2ab922c608922e787ec241333e1d1c0b76b0c6d529ab8ec3";
-    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 3;
+    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 4;
     private const string SupersededOpenSpecProvenanceArtifactCatalogSha256 =
-        "af5091d7218c8e39df303912a2031a8b24ba4ab65afc910276c339167465b889";
+        "566eda77e13dd20d505e7ab3f75a8d99b7e7c40231c442885cdd9d0ae60e5855";
     private static readonly (string Path, string NormalizedSha256)[]
         SupersededOpenSpecProvenanceArtifacts =
         [
@@ -149,7 +163,11 @@ public sealed class OpenSpecCorpusGuards
             (
                 "openspec/changes/admit-dag-authoring-friend-boundary/artifacts/" +
                 "process-openspec-provenance-2026-09-27.md",
-                "85cf55f19ce0b504e03d7f4deb038e993483b7d3ccfe547172d2e17cc673b7cf")
+                "85cf55f19ce0b504e03d7f4deb038e993483b7d3ccfe547172d2e17cc673b7cf"),
+            (
+                "openspec/changes/admit-dag-authoring-friend-boundary/artifacts/" +
+                "approved-pending-openspec-provenance-2026-09-27.md",
+                "f174df2b0a8a352a0601eea879b7f3260fa49ab064451ad8da50c50550c9ff82")
         ];
     private const string EmptyCorePublicApiBaseline =
         "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";
@@ -1458,7 +1476,7 @@ public sealed class OpenSpecCorpusGuards
         IReadOnlyCollection<DeltaRequirement> activeRequirements,
         PostGateAmendmentCheckpoint checkpoint)
     {
-        checkpoint.SchemaVersion.Should().Be(5);
+        checkpoint.SchemaVersion.Should().Be(6);
         checkpoint.ProposedRequirementSuccessors.Should().Equal(
             ExactProposedDagSuccessors,
             "only the exact reviewed predecessor/successor headings may bypass sole active ownership");
@@ -1495,8 +1513,8 @@ public sealed class OpenSpecCorpusGuards
                     requirement.Capability == successor.Capability &&
                     requirement.Requirement == successor.Requirement)
                 .ToArray();
-            owners.Should().HaveCount(2,
-                "a proposed successor may coexist with exactly its named active predecessor");
+            owners.Should().HaveCount(3,
+                "the completed authoring pair may acquire only its exact proposed runtime-view successor");
             var predecessor = owners.Single(owner => owner.Change == successor.PredecessorChange);
             var amendment = owners.Single(owner => owner.Change == successor.Change);
             predecessor.Operation.ToString().ToUpperInvariant().Should().Be(successor.PredecessorOperation);
@@ -1522,7 +1540,57 @@ public sealed class OpenSpecCorpusGuards
                 "each approved requirement must retain its exact canonical-sync owner");
         }
 
+        ValidateProposedRuntimeViewSuccessors(root, canonicalRequirements, activeRequirements, checkpoint);
         return keys;
+    }
+
+    private static void ValidateProposedRuntimeViewSuccessors(
+        string root,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonicalRequirements,
+        IReadOnlyCollection<DeltaRequirement> activeRequirements,
+        PostGateAmendmentCheckpoint checkpoint)
+    {
+        checkpoint.ProposedRuntimeViewSuccessors.Should().Equal(ExactProposedRuntimeViewSuccessors,
+            "only the two exact proposed runtime-view successors may extend the completed authoring chain");
+        ValidateTaskReference(root, new PostGateTaskReference(
+            "admit-dag-authoring-friend-boundary", "3.2", CompleteTaskState));
+        ValidateDagApprovalEvidence(root,
+            "b5fb28e65dbf3fea102ddec1d5fe1cf9d794c659",
+            "dbc3086da206bde20cc8624816e3f45f1d13f9b8",
+            "docs/review/developer-facing-interface-section-08-task-8-2-authoring-friend-closeout-independent-review-verdict-2026-09-29.md",
+            "221c60c34f1db12c747eb2da20a7107bbe40baba227a9b8e0c223db1e913e531", "3.2");
+        ValidateTaskReference(root, new PostGateTaskReference(RuntimeViewChange, "0.1", CompleteTaskState));
+        foreach (var task in new[]
+                 { "1.1", "1.2", "1.3", "1.4", "2.1", "2.2", "2.3", "2.4", "3.1", "3.2" })
+        {
+            ValidateTaskReference(root, new PostGateTaskReference(RuntimeViewChange, task, OpenTaskState));
+        }
+
+        foreach (var successor in checkpoint.ProposedRuntimeViewSuccessors)
+        {
+            successor.Stage.Should().Be(ProposedPostGateStage,
+                "runtime-view proposal ownership cannot fabricate approval or implementation authority");
+            var owners = activeRequirements.Where(item =>
+                item.Capability == successor.Capability && item.Requirement == successor.Requirement).ToArray();
+            owners.Select(item => item.Change).Order(StringComparer.Ordinal).Should().Equal(
+                new[] { "reshape-developer-facing-interfaces", successor.PredecessorChange, successor.Change }
+                    .Order(StringComparer.Ordinal),
+                "a proposed runtime view admits exactly the ordered, named three-owner chain");
+            var predecessor = owners.Single(item => item.Change == successor.PredecessorChange);
+            var proposed = owners.Single(item => item.Change == successor.Change);
+            predecessor.Operation.ToString().ToUpperInvariant().Should().Be(successor.PredecessorOperation);
+            proposed.Operation.ToString().ToUpperInvariant().Should().Be(successor.SuccessorOperation);
+            Sha256(predecessor.Block).Should().Be(successor.PredecessorBlockSha256,
+                "a new proposed successor must retain its completed authoring predecessor verbatim");
+            Sha256(proposed.Block).Should().Be(successor.ProposedBlockSha256,
+                "the exact proposed runtime-view block is independently pinned in guard source");
+            ClassifyProvenance(canonicalRequirements, predecessor).State.Should().Be(ProvenanceState.Synchronized);
+            ClassifyProvenance(canonicalRequirements, proposed).State.Should().Be(ProvenanceState.PendingModification,
+                "proposed runtime-view ownership is neither canonical sync nor semantic approval");
+            var task = ValidateTaskReference(root, new PostGateTaskReference(
+                successor.Change, successor.TurnsGreenTask, OpenTaskState));
+            task.Should().Contain($"`{successor.Capability}` (1)");
+        }
     }
 
     private static void ValidateCompletedDagFriend(string root, PostGateCompleteEvidence evidence)
@@ -1626,7 +1694,7 @@ public sealed class OpenSpecCorpusGuards
             var proposedSuccessor = proposedSuccessors.SingleOrDefault(successor =>
                 successor.Capability == target.Capability &&
                 successor.Requirement == target.Requirement);
-            owners.Should().HaveCount(proposedSuccessor is null ? 1 : 2,
+            owners.Should().HaveCount(proposedSuccessor is null ? 1 : 3,
                 "{0} :: {1} may gain only its exact registered post-gate successor",
                 target.Capability,
                 target.Requirement);
@@ -1646,6 +1714,8 @@ public sealed class OpenSpecCorpusGuards
                 successorOwner.Operation.Should().Be(RequirementOperation.Modified);
                 proposedSuccessor.PredecessorChange.Should().Be(expectedOwner);
                 proposedSuccessor.Stage.Should().Be(ProposedPostGateStage);
+                owners.Select(item => item.Change).Order(StringComparer.Ordinal).Should().Equal(
+                    new[] { expectedOwner, proposedSuccessor.Change, RuntimeViewChange }.Order(StringComparer.Ordinal));
             }
 
             var ownerBody = RequirementBody(owner.Block);
@@ -4184,12 +4254,13 @@ public sealed class OpenSpecCorpusGuards
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonicalRequirements,
         PostGateAmendmentCheckpoint checkpoint)
     {
-        checkpoint.SchemaVersion.Should().Be(5);
+        checkpoint.SchemaVersion.Should().Be(6);
         checkpoint.ProposedRequirementSuccessors.Should().Equal(
             ExactProposedDagSuccessors,
             "a proposed post-gate successor is a named exception, not a general duplicate-owner waiver");
         checkpoint.ApprovedPendingRequirementSuccessors.Should().Equal(
             ExactApprovedPendingDagSuccessors);
+        checkpoint.ProposedRuntimeViewSuccessors.Should().Equal(ExactProposedRuntimeViewSuccessors);
         checkpoint.RequiredStages.Should().Equal(
             RequiredPostGateStages,
             "every late decision must re-enter each gate in the approved order");
@@ -5785,8 +5856,8 @@ public sealed class OpenSpecCorpusGuards
         File.Exists(artifactPath).Should().BeTrue("the reviewed provenance artifact must exist");
         var normalizedArtifact = NormalizeLineEndings(File.ReadAllText(artifactPath));
         checkpoint.ArtifactNormalizedSha256.Should().Be(
-            ApprovedPendingOpenSpecProvenanceSha256,
-            "the approved-pending human record must not be self-attesting through fixture edits");
+            CurrentOpenSpecProvenanceSha256,
+            "the current human record must not be self-attesting through fixture edits");
         var pendingCount = rows.Count(row => row.State is
             ProvenanceState.PendingAddition or
             ProvenanceState.PendingAddedCanonicalConflict or
@@ -6129,9 +6200,22 @@ public sealed class OpenSpecCorpusGuards
         PostGateApprovedPendingEvidence ApprovedPendingEvidence,
         PostGateApprovedPendingSuccessor[] ApprovedPendingRequirementSuccessors,
         PostGateCompleteEvidence CompleteEvidence,
+        PostGateRuntimeViewSuccessor[] ProposedRuntimeViewSuccessors,
         PostGateAmendment[] Amendments,
         string ArtifactPath,
         string ArtifactNormalizedSha256);
+
+    private sealed record PostGateRuntimeViewSuccessor(
+        string Capability,
+        string Requirement,
+        string Change,
+        string PredecessorChange,
+        string PredecessorOperation,
+        string SuccessorOperation,
+        string Stage,
+        string TurnsGreenTask,
+        string PredecessorBlockSha256,
+        string ProposedBlockSha256);
 
     private sealed record PostGateCompleteEvidence(
         string Stage,

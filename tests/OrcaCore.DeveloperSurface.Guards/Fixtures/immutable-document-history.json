@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-2-authoring-friend-closeout-dirty-manifest-2026-09-29.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-successor-process-dirty-manifest-2026-09-30.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2314,6 +2314,16 @@
       "path": "docs/review/developer-facing-interface-section-08-task-8-2-dag-successor-process-independent-review-verdict-2026-09-27.md",
       "bytes": 7848,
       "sha256": "fbfe7ee9fbf8a233617a308d58e0a4bdcc2755442ab649141845240960987f25"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-successor-process-dirty-manifest-2026-09-30.txt",
+      "bytes": 1303,
+      "sha256": "9c4bc8db2f407b29aefe6209f4208487588f2bd094732bb0ccf71c78ce5a23e6"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-successor-process-independent-review-request-2026-09-30.md",
+      "bytes": 11885,
+      "sha256": "f0929aafbde43190315996dd48f0f56886dd8f23d2e89e5ed3056483023929e8"
     },
     {
       "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-aaa-1-and-task-7-3-dirty-manifest-2026-09-18.txt",

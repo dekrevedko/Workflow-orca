@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "requiredStages": [
     "amendment-approval",
     "canonical-open-spec",
@@ -80,6 +80,32 @@
       "tests/OrcaCore.Core.Tests/Compilation/PublicDefinitionCompilerContractTests.cs"
     ]
   },
+  "proposedRuntimeViewSuccessors": [
+    {
+      "capability": "developer-facing-surface",
+      "requirement": "Implementation package boundaries use exact internal friends",
+      "change": "admit-dag-hosting-runtime-view",
+      "predecessorChange": "admit-dag-authoring-friend-boundary",
+      "predecessorOperation": "MODIFIED",
+      "successorOperation": "MODIFIED",
+      "stage": "Proposed",
+      "turnsGreenTask": "1.3",
+      "predecessorBlockSha256": "bed102a2e4c98598b30cbb741c956a236f2050d27d88e6fc567b915f5b260793",
+      "proposedBlockSha256": "5561f46b69ff482a78b81deccf969b0cc0e0e726bd3708b3280549069bfec78d"
+    },
+    {
+      "capability": "repository-foundation",
+      "requirement": "Dependency direction remains one-way",
+      "change": "admit-dag-hosting-runtime-view",
+      "predecessorChange": "admit-dag-authoring-friend-boundary",
+      "predecessorOperation": "MODIFIED",
+      "successorOperation": "MODIFIED",
+      "stage": "Proposed",
+      "turnsGreenTask": "1.3",
+      "predecessorBlockSha256": "bbae0c226c6824570650d1f6f980e3b74e6c35cb196784581eef20e6e3563ce9",
+      "proposedBlockSha256": "feab5ce4444e9738b7d1913336734439427ba1ceab46ca60bfe27b6859d0b26f"
+    }
+  ],
   "amendments": [
     {
       "id": "reshape-section-7b-developer-facing-surface",
