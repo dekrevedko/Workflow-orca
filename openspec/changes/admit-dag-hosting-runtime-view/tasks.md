@@ -20,7 +20,7 @@
 ## 3. Permanent implementation closeout
 
 - [x] 3.1 Record the actual source checkpoint, direct-child independent verdict evidence and review-state-only activation; retain every rejected and approved packet byte-exact.
-- [ ] 3.2 Promote the runtime-view record to Complete only with the real executable evidence, immutable source verdict and exact checkpoint/tree. Independently review and checkpoint the closeout before declaring this seam complete or archiving either amendment.
+- [x] 3.2 Promote the runtime-view record to Complete only with the real executable evidence, immutable source verdict and exact checkpoint/tree. Independently review and checkpoint the closeout before declaring this seam complete or archiving either amendment.
 
 **RV remediation prepared (2026-10-02):** the original REJECT packet stays immutable. Both deltas and doc 17 §17.2.6 contain all fifteen exact signatures; CP-020 points at that section. Task 1.2 remains open in this target but is deliberately unpinned to permit review-state-only activation. That checkbox alone authorizes neither canonical sync nor source; 1.3/1.4 must bind the real approval evidence. All five non-blocking notes are reconciled in the remediation artifact, with durable source pins on numbered proposal status and the open reshape 8.3–8.5 handoff.
 
