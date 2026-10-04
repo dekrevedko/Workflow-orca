@@ -2341,6 +2341,11 @@
       "sha256": "d4fe29655e9b348011f228d2c4aa363c04bc06413ba3dea20848d577296cc6a7"
     },
     {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-closeout-independent-review-verdict-2026-10-04.md",
+      "bytes": 9888,
+      "sha256": "25962bbf9e461fe8fb5aaddac6b846b4820442b3e45525f52751773611ae94cc"
+    },
+    {
       "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-dirty-manifest-2026-10-02.txt",
       "bytes": 1926,
       "sha256": "604d1d3db38fe2ff3a842f3297ea1aae373adc275e3b07b9380a11ff7d8e286f"
