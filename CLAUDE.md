@@ -92,7 +92,7 @@ OrcaCore.Dag.Hosting       — sole DAG-to-durable bridge; owns AddOrcaCoreDag
 
 Implementation package boundaries use an exact internal-friend allowlist so compiler/kernel,
 concrete engine, provider, and hosted-loop types do not become public merely to cross assemblies.
-The source candidate has nine product friends are `OrcaCore` to `OrcaCore.Core`,
+The current nine product friends are `OrcaCore` to `OrcaCore.Core`,
 `OrcaCore.Engine.Ephemeral`, and `OrcaCore.Engine.Durable`; `OrcaCore.Core` to both engines;
 `OrcaCore.Engine.Durable` to `OrcaCore.Durable.Hosting`; and `OrcaCore.Durable.Hosting` to
 `OrcaCore.Dag.Hosting`; and `OrcaCore` to `OrcaCore.Dag` for guarded authoring only; and `OrcaCore.Dag` to `OrcaCore.Dag.Hosting` for the exact runtime view. Exact owning unit-test assemblies plus Durable to
@@ -109,9 +109,9 @@ or child-start access; further runtime seams require a separate approved amendme
 The independently approved `admit-dag-hosting-runtime-view` contract specifies a ninth product
 friend, `OrcaCore.Dag -> OrcaCore.Dag.Hosting`, limited to three internal runtime-view types
 and fifteen exact method/getter signatures, not delegates, drafts, codec, or child access.
-Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled in this source candidate, awaiting independent source approval/checkpoint. The durable bridge decodes committed dependency
+Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled and independently source-approved at checkpoint `4eb2e8d3a68e0ae7d873bd4f54c53735beefb132`, with direct-child evidence `2fdfa59a747a5d1d1667abd63a8def88168a172b`. The durable bridge decodes committed dependency
 outputs before mapping and owns normalization, committed-byte fingerprints, and child start.
-The contract and atomic canonical/registry approvals are checkpointed. Runtime-view source still requires its own independent approval/checkpoint; durable bridge work is not authorized by this candidate.
+The contract, atomic canonical/registry transition and runtime-view source are independently approved and checkpointed. Complete promotion is prepared only in the separately reviewed closeout; durable bridge work is not authorized by runtime-view approval.
 The existing `OrcaCore.Durable.Hosting -> OrcaCore.Dag.Hosting` edge remains the sole
 DAG-to-durable *runtime* bridge.
 

@@ -91,8 +91,8 @@ friend is compiled in the independently approved Task 8.2 checkpoint
   `InternalsVisibleTo("OrcaCore.Dag.Hosting")`. The seam is same-solution/release-train internals,
   not a public workflow or provider SPI; no second DAG-to-durable product bridge is permitted
   without a matrix amendment. The independently approved ninth `OrcaCore.Dag -> OrcaCore.Dag.Hosting`
-  runtime-view friend lets the candidate adapter consume only three internal types and fifteen
-  exact method/getter signatures. Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled in this source candidate, awaiting independent source approval/checkpoint, changes no package edge,
+  runtime-view friend lets the source-approved adapter consume only three internal types and fifteen
+  exact method/getter signatures. Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled and independently source-approved at checkpoint `4eb2e8d3a68e0ae7d873bd4f54c53735beefb132`, with direct-child evidence `2fdfa59a747a5d1d1667abd63a8def88168a172b`, changes no package edge,
   and exposes no mapper delegate, draft, constructor, codec or child API.
 - The companion scheduler depends outward on `OrcaCore.Dag.Hosting` plus documented public
   application/hosting packages. No dependency points from OrcaCore back to the companion.

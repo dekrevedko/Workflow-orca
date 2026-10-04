@@ -130,7 +130,7 @@ exact compiled-type/member guard. The friend is compiled in the independently ap
 Task 8.2 checkpoint `a9f835f939d683500ca231c7ba491ab8eae2aaae` and creates no reverse
 package edge. The independently approved `admit-dag-hosting-runtime-view` contract specifies
 `OrcaCore.Dag -> OrcaCore.Dag.Hosting` only for the three-type/fifteen-member closed
-runtime view in doc 17 §17.2.6 (the exhaustive approved signature block); the contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled in this source candidate, awaiting independent source approval/checkpoint, exposes no delegates/drafts, and
+runtime view in doc 17 §17.2.6 (the exhaustive approved signature block); the contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled and independently source-approved at checkpoint `4eb2e8d3a68e0ae7d873bd4f54c53735beefb132`, with direct-child evidence `2fdfa59a747a5d1d1667abd63a8def88168a172b`, exposes no delegates/drafts, and
 adds no codec or child-start access to Dag. No OrcaCore package other than `OrcaCore.Dag.Hosting` SHALL depend on
 `OrcaCore.Dag`; `OrcaCore.Dag.Hosting` is the approved outward DAG host adapter.
 The DAG package may remain in the same solution for v1 and compiles to the existing durable

@@ -56,7 +56,7 @@ manifest is `OrcaCore`, `OrcaCore.Core`, `OrcaCore.Engine.Ephemeral`,
 normative in [`specs/17-selected-mode-capability-matrix.md`](specs/17-selected-mode-capability-matrix.md#175-package-and-integration-boundary).
 `OrcaCore.Hosting` is a shared CLR namespace, not a PackageId.
 
-The source candidate's exact nine-product-friend graph keeps implementation types non-public: `OrcaCore`
+The source-approved exact nine-product-friend graph keeps implementation types non-public: `OrcaCore`
 grants `OrcaCore.Core`, `OrcaCore.Engine.Ephemeral`, `OrcaCore.Engine.Durable`, and
 `OrcaCore.Dag` for authoring;
 `OrcaCore.Core` grants both engines; `OrcaCore.Engine.Durable` grants
@@ -72,7 +72,7 @@ depend outward and never appear in an OrcaCore signature/dependency closure.
 
 `admit-dag-hosting-runtime-view` independently approves a ninth product friend,
 `OrcaCore.Dag -> OrcaCore.Dag.Hosting`, for three immutable runtime-view types and fifteen
-exact method/getter signatures. Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled in this source candidate, awaiting independent source approval/checkpoint, and it exposes
+exact method/getter signatures. Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled and independently source-approved at checkpoint `4eb2e8d3a68e0ae7d873bd4f54c53735beefb132`, with direct-child evidence `2fdfa59a747a5d1d1667abd63a8def88168a172b`, and it exposes
 no delegates, drafts, constructors, test friendship, codec or child-start access to Dag.
 The durable bridge decodes successful committed dependency outputs before mapping and owns
 fixed-codec normalization, exact committed bytes/fingerprints and child start.

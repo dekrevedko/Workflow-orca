@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-source-dirty-manifest-2026-10-04.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-closeout-dirty-manifest-2026-10-04.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2329,6 +2329,16 @@
       "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-atomic-canonical-transition-independent-review-verdict-2026-10-03.md",
       "bytes": 9749,
       "sha256": "cce8c5195f559f1624a002ef4870c32ccdb445163aec9f552dcbfc5245de7e35"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-closeout-dirty-manifest-2026-10-04.txt",
+      "bytes": 1686,
+      "sha256": "95061a95cf89813a813d4e191b025b8e0ddb94c2c7c25487e8ab91d656fd558d"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-closeout-independent-review-request-2026-10-04.md",
+      "bytes": 9510,
+      "sha256": "d4fe29655e9b348011f228d2c4aa363c04bc06413ba3dea20848d577296cc6a7"
     },
     {
       "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-dirty-manifest-2026-10-02.txt",

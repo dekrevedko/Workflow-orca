@@ -1177,14 +1177,14 @@ Task 8.2 checkpoint `a9f835f939d683500ca231c7ba491ab8eae2aaae`. It adds no `Core
 dependency or child-start access.
 
 <!-- runtime-view-contract:start -->
-#### Approved-canonical DAG runtime-view boundary (source candidate Tasks 2.1–2.4)
+#### Independently source-approved DAG runtime-view boundary (Tasks 2.1–2.4)
 
 The separate `admit-dag-hosting-runtime-view` contract independently approves a ninth friend,
 `OrcaCore.Dag -> OrcaCore.Dag.Hosting`, at checkpoint `43d869fc29e7daa3ec567d4602960f458eb98492`,
 with direct-child approval evidence `1ea7f44b5a32d058e04b913f387317c21747add5`. It is canonical
-at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`, with evidence `6c8bcd02bf6c747800c17dbc27afce53d24efbc1`. This source candidate compiles the ninth friend and exact view, but still requires independent source approval/checkpoint. Its exact
+at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`, with evidence `6c8bcd02bf6c747800c17dbc27afce53d24efbc1`. The ninth friend and exact view are independently source-approved and checkpointed at `4eb2e8d3a68e0ae7d873bd4f54c53735beefb132`, with direct-child evidence `2fdfa59a747a5d1d1667abd63a8def88168a172b`. Its exact
 three-type/fifteen-member descriptor/evaluator contract is stated in full below. All three types
-are in `OrcaCore.Dag`; this candidate implements the approved internal syntax, not new public surface.
+are in `OrcaCore.Dag`; the source-approved checkpoint implements the approved internal syntax, not new public surface.
 It exposes no mapper delegates, mutable drafts, constructors or public compiled metadata.
 The existing `OrcaCore -> OrcaCore.Dag` six-signature authoring grant remains unchanged.
 The durable bridge, not Dag, decodes successful committed dependency outputs into detached
@@ -2094,8 +2094,8 @@ metadata. The complete product-friend set is:
   join contract.
 
 The independently approved ninth friend, `OrcaCore.Dag -> OrcaCore.Dag.Hosting`, is canonical in
-independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7` and compiled in the source candidate awaiting independent source approval/checkpoint. Its exhaustive internal runtime-view signatures are in §17.2.6 above.
-It gives Dag no codec or child-start access and is the candidate ninth friend alongside the eight previously compiled grants.
+independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7` and compiled and independently source-approved at checkpoint `4eb2e8d3a68e0ae7d873bd4f54c53735beefb132`. Its exhaustive internal runtime-view signatures are in §17.2.6 above.
+It gives Dag no codec or child-start access and is the source-approved ninth friend alongside the eight previously compiled grants.
 
 The approved eighth product friend, `OrcaCore -> OrcaCore.Dag`, is compiled in the independently
 approved Task 8.2 checkpoint `a9f835f939d683500ca231c7ba491ab8eae2aaae` for the five

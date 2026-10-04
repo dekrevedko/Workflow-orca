@@ -46,7 +46,7 @@ exact compiled-type/member guard; it is compiled in the independently approved T
 checkpoint `a9f835f939d683500ca231c7ba491ab8eae2aaae` and is not a reverse package reference.
 The independently approved `admit-dag-hosting-runtime-view` contract specifies only
 `OrcaCore.Dag -> OrcaCore.Dag.Hosting` for three closed internal runtime-view types and
-fifteen exact method/getter signatures. Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled in this source candidate, awaiting independent source approval/checkpoint; no public compiled
+fifteen exact method/getter signatures. Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled and independently source-approved at checkpoint `4eb2e8d3a68e0ae7d873bd4f54c53735beefb132`, with direct-child evidence `2fdfa59a747a5d1d1667abd63a8def88168a172b`; no public compiled
 metadata, raw delegates, test friend, codec access or child authority is added to Dag.
 The existing durable bridge decodes outputs before mapping and owns codec/commit/child work.
 No OrcaCore package other than `OrcaCore.Dag.Hosting` SHALL depend on `OrcaCore.Dag`;

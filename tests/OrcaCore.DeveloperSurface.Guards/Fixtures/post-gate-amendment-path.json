@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "requiredStages": [
     "amendment-approval",
     "canonical-open-spec",
@@ -321,5 +321,30 @@
       "relativePath": "artifacts/task-1-1-runtime-view-contract-rv-remediation-2026-10-02.md",
       "normalizedSha256": "2dec007df0e06740373fdc4c4d0cd69066d0d08cda417f141a3897a4b3824398"
     }
-  ]
+  ],
+  "runtimeViewCompleteEvidence": {
+    "stage": "Complete",
+    "reviewedCheckpointCommit": "4eb2e8d3a68e0ae7d873bd4f54c53735beefb132",
+    "reviewedCheckpointTree": "bd378abbadc5ba6989831814be1e67db0c9dcfa9",
+    "approvalEvidenceCommit": "2fdfa59a747a5d1d1667abd63a8def88168a172b",
+    "approvalVerdictPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-source-independent-review-verdict-2026-10-04.md",
+    "approvalVerdictSha256": "b8c6c1da867c940e04330a0725993a77355eef29ae3a54717dc58297fb2740ce",
+    "refreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-source-dirty-manifest-2026-10-04.txt",
+    "refreezeManifestSha256": "6d92fc3d518644f6c3f767302a027c09767a28064e442402ffae7a213e5583e0",
+    "reviewRequestPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-source-independent-review-request-2026-10-04.md",
+    "reviewRequestSha256": "0404fcb6d789800df2f19feb1e57afca351411548db8e6a65749a6a944bcd3d2",
+    "implementationTaskCount": 4,
+    "implementationTasks": [
+      "2.1",
+      "2.2",
+      "2.3",
+      "2.4"
+    ],
+    "executableEvidencePaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/DagRuntimeViewBoundaryGuards.cs",
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/dag-runtime-view-behavior.cs.txt",
+      "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs"
+    ]
+  },
+  "runtimeViewActivationCommit": "1d8941b7c4e4a96752b33684075d152494057c49"
 }

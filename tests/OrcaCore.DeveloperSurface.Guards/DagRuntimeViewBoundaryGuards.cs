@@ -59,6 +59,7 @@ public sealed class DagRuntimeViewBoundaryGuards
             typeof(OrcaCore.Dag.Dag).Assembly.Location);
         references.Types.Should().Equal(AllowedTypes.Order(StringComparer.Ordinal));
         references.Members.Should().Equal(AllowedMembers.Order(StringComparer.Ordinal));
+        AssertNoReflection(references.Reflection);
     }
 
     [Fact]
@@ -78,6 +79,12 @@ public sealed class DagRuntimeViewBoundaryGuards
             var dll = Build(directory, "OrcaCore.Dag.Hosting", true,
                 typeof(OrcaCore.Dag.Dag).Assembly.Location, typeof(OrcaCore.DefinitionId).Assembly.Location,
                 Path.Combine(Path.GetDirectoryName(typeof(OrcaCore.DefinitionId).Assembly.Location)!, "OrcaCore.Core.dll"));
+            var references = Inspect(dll, typeof(OrcaCore.Dag.Dag).Assembly.Location);
+            references.Types.Should().Equal(AllowedTypes.Order(StringComparer.Ordinal),
+                "the linked behavior harness must obey the shipped adapter's exact type boundary");
+            references.Members.Should().Equal(AllowedMembers.Order(StringComparer.Ordinal),
+                "the harness must not gain extra access merely by using the Hosting assembly name");
+            AssertNoReflection(references.Reflection);
             var result = Run("dotnet", directory, dll);
             result.ExitCode.Should().Be(0, result.Output);
             result.Output.Should().Contain("HOSTING_MAPPING_ASSERTIONS=");
@@ -149,6 +156,24 @@ public sealed class DagRuntimeViewBoundaryGuards
                 Action validate = () => AssertMembers([identity]);
                 validate.Should().Throw<Exception>().WithMessage("*" + fragment + "*");
             }
+            File.WriteAllText(Path.Combine(client, "Probe.cs"), """
+                using System;
+                using System.Reflection;
+                using OrcaCore.Dag;
+                internal static class ReflectionProbe
+                {
+                    internal static object? Read(WorkflowDagPlan<int> plan) =>
+                        typeof(WorkflowDagPlan<int>).GetProperty("NodePlans",
+                            BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(plan);
+                }
+                """);
+            var reflectionDll = Build(client, "OrcaCore.Dag.Hosting", false,
+                targetDll, typeof(OrcaCore.DefinitionId).Assembly.Location);
+            var reflectionReferences = Inspect(reflectionDll, targetDll);
+            reflectionReferences.Reflection.Should().Contain(
+                "System.Type::GetProperty", "compiled private reflection must produce detectable metadata");
+            Action validateReflection = () => AssertNoReflection(reflectionReferences.Reflection);
+            validateReflection.Should().Throw<Exception>().WithMessage("*reflection bridge*");
             File.WriteAllText(Path.Combine(client, "Probe.cs"),
                 "using OrcaCore.Dag; internal static class PublicProbe { internal static object Value(DagNodeRef node) => node.NodeId; }");
             var publicDll = Build(client, "OrcaCore.Dag.Hosting", false,
@@ -156,6 +181,7 @@ public sealed class DagRuntimeViewBoundaryGuards
             var publicReferences = Inspect(publicDll, targetDll);
             AssertTypes(publicReferences.Types);
             AssertMembers(publicReferences.Members);
+            AssertNoReflection(publicReferences.Reflection);
             publicReferences.Types.Should().BeEmpty();
             publicReferences.Members.Should().BeEmpty();
         });
@@ -166,7 +192,20 @@ public sealed class DagRuntimeViewBoundaryGuards
     private static void AssertMembers(IEnumerable<string> members) => members.Should().BeSubsetOf(AllowedMembers,
         "every non-public DAG member or overload requires its exact reviewed signature");
 
-    private static (string[] Types, string[] Members) Inspect(string clientPath, string targetPath)
+    private static void AssertNoReflection(IEnumerable<string> references) => references.Should().BeEmpty(
+        "the Hosting product and harness must not use a reflection bridge around the exact DAG boundary");
+
+    // SDK-generated assembly attributes are declarative metadata, not executable reflection.
+    // Only their constructors are exempt; Type lookup and every other Reflection use remain banned.
+    private static readonly string[] AssemblyAttributeTypes =
+    [
+        "System.Reflection.AssemblyCompanyAttribute", "System.Reflection.AssemblyConfigurationAttribute",
+        "System.Reflection.AssemblyFileVersionAttribute", "System.Reflection.AssemblyInformationalVersionAttribute",
+        "System.Reflection.AssemblyProductAttribute", "System.Reflection.AssemblyTitleAttribute",
+        "System.Reflection.AssemblyVersionAttribute"
+    ];
+
+    private static (string[] Types, string[] Members, string[] Reflection) Inspect(string clientPath, string targetPath)
     {
         using var targetStream = File.OpenRead(targetPath);
         using var targetPe = new PEReader(targetStream);
@@ -177,9 +216,13 @@ public sealed class DagRuntimeViewBoundaryGuards
         var definitions = target.TypeDefinitions.ToDictionary(handle => DefinitionName(target, handle));
         var types = new SortedSet<string>(StringComparer.Ordinal);
         var members = new SortedSet<string>(StringComparer.Ordinal);
+        var reflection = new SortedSet<string>(StringComparer.Ordinal);
         foreach (var handle in client.TypeReferences)
         {
             var reference = ReferenceType(client, handle);
+            if (reference is not null && reference.Value.Name.StartsWith("System.Reflection.", StringComparison.Ordinal)
+                && !AssemblyAttributeTypes.Contains(reference.Value.Name, StringComparer.Ordinal))
+                reflection.Add(reference.Value.Name);
             if (reference is null || reference.Value.Assembly != DagAssembly) continue;
             definitions.ContainsKey(reference.Value.Name).Should().BeTrue("every external type must resolve");
             if (!Visible(target, definitions[reference.Value.Name])) types.Add(reference.Value.Name);
@@ -188,6 +231,16 @@ public sealed class DagRuntimeViewBoundaryGuards
         {
             var member = client.GetMemberReference(handle);
             var type = ReferenceType(client, member.Parent);
+            var memberName = client.GetString(member.Name);
+            if (type is not null &&
+                (type.Value.Name.StartsWith("System.Reflection.", StringComparison.Ordinal) &&
+                 !(AssemblyAttributeTypes.Contains(type.Value.Name, StringComparer.Ordinal) && memberName == ".ctor") ||
+                 type.Value.Name == "System.Type" && (memberName.StartsWith("Get", StringComparison.Ordinal) &&
+                    memberName != "GetTypeFromHandle" ||
+                    memberName is "InvokeMember" or "get_Assembly") ||
+                 type.Value.Name == "System.Delegate" && memberName == "DynamicInvoke" ||
+                 type.Value.Name == "System.Activator"))
+                reflection.Add($"{type.Value.Name}::{memberName}");
             if (type is null || type.Value.Assembly != DagAssembly) continue;
             definitions.ContainsKey(type.Value.Name).Should().BeTrue();
             var definitionHandle = definitions[type.Value.Name];
@@ -212,7 +265,7 @@ public sealed class DagRuntimeViewBoundaryGuards
                     members.Add($"{type.Value.Name}::{name}{signature}");
             }
         }
-        return (types.ToArray(), members.ToArray());
+        return (types.ToArray(), members.ToArray(), reflection.ToArray());
     }
 
     private static string MethodSignature(MethodSignature<string> signature) =>
