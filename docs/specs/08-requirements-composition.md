@@ -128,9 +128,9 @@ but retains its physical step-throttle/transient slot until it returns.
 `OrcaCore -> OrcaCore.Dag` internal friend for compiler-created build values, subject to an
 exact compiled-type/member guard. The friend is compiled in the independently approved
 Task 8.2 checkpoint `a9f835f939d683500ca231c7ba491ab8eae2aaae` and creates no reverse
-package edge. The separate proposed `admit-dag-hosting-runtime-view` contract would add
+package edge. The independently approved `admit-dag-hosting-runtime-view` contract specifies
 `OrcaCore.Dag -> OrcaCore.Dag.Hosting` only for the three-type/fifteen-member closed
-runtime view in doc 17 §17.2.6 (the exhaustive proposed signature block); it is not approved or compiled, exposes no delegates/drafts, and
+runtime view in doc 17 §17.2.6 (the exhaustive approved signature block); the contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical in the prepared 1.3/1.4 target, but not compiled, exposes no delegates/drafts, and
 adds no codec or child-start access to Dag. No OrcaCore package other than `OrcaCore.Dag.Hosting` SHALL depend on
 `OrcaCore.Dag`; `OrcaCore.Dag.Hosting` is the approved outward DAG host adapter.
 The DAG package may remain in the same solution for v1 and compiles to the existing durable
@@ -156,11 +156,10 @@ fails the node deterministically as `DAG_INPUT_MAPPING_INVALID` before mapped-in
 child start;
 independent ready nodes may still progress. The runtime fixed-codec-normalizes a valid input,
 records `MappedInputFingerprint` over the bytes, commits it before child start, and reuses it
-after restart. The proposed runtime-view amendment clarifies that the durable bridge decodes
+after restart. The approved-pending runtime-view amendment clarifies that the durable bridge decodes
 successful committed outputs before evaluation; a present successful null is valid for a
-reference or nullable-value declared type, as proposed in doc 17 §17.2.6. Missing/wrong-type
-outputs and nonnullable-value null remain invalid. This clarification is not yet approved
-or implemented. The proposed mapper-exception and bridge decode-failure classifications in
+reference or nullable-value declared type, as specified in doc 17 §17.2.6. Missing/wrong-type
+outputs and nonnullable-value null remain invalid. This clarification is independently approved in the contract, but not implemented. The approved mapper-exception and bridge decode-failure classifications in
 doc 17 §17.2.6 apply before commit/start; runtime cancellation and protocol/storage failures
 are not disguised as mapping failures. Graph/mapping structure is in the structural DAG fingerprint; changing projector
 logic requires a new DAG `DefinitionVersion`.

@@ -44,9 +44,9 @@ its workflow references remain public contracts. The post-gate
 `OrcaCore -> OrcaCore.Dag` internal friend for compiler-created build values, subject to an
 exact compiled-type/member guard; it is compiled in the independently approved Task 8.2
 checkpoint `a9f835f939d683500ca231c7ba491ab8eae2aaae` and is not a reverse package reference.
-The separate proposed `admit-dag-hosting-runtime-view` contract would add only
+The independently approved `admit-dag-hosting-runtime-view` contract specifies only
 `OrcaCore.Dag -> OrcaCore.Dag.Hosting` for three closed internal runtime-view types and
-fifteen exact method/getter signatures. It is not approved or compiled; no public compiled
+fifteen exact method/getter signatures. Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical in the prepared 1.3/1.4 target, but not compiled; no public compiled
 metadata, raw delegates, test friend, codec access or child authority is added to Dag.
 The existing durable bridge decodes outputs before mapping and owns codec/commit/child work.
 No OrcaCore package other than `OrcaCore.Dag.Hosting` SHALL depend on `OrcaCore.Dag`;

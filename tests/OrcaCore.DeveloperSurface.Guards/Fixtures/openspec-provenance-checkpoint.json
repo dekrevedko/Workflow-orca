@@ -2,13 +2,10 @@
   "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
   "recordCount": 180,
-  "recordBytes": 47327,
-  "recordSha256": "79f1638357e3b1aa35aef28a4f7c45233acc135036d5f6c1b274e687d454b947",
-  "semanticApprovalEligible": false,
-  "pendingCanonicalOperations": [
-    { "capability": "developer-facing-surface", "count": 1, "turnsGreenChange": "admit-dag-hosting-runtime-view", "turnsGreenTask": "1.3" },
-    { "capability": "repository-foundation", "count": 1, "turnsGreenChange": "admit-dag-hosting-runtime-view", "turnsGreenTask": "1.3" }
-  ],
+  "recordBytes": 47347,
+  "recordSha256": "40d4d8c0b9144ea087d7b36d33df35d4736942ae615f50126f7ba136b20da8c1",
+  "semanticApprovalEligible": true,
+  "pendingCanonicalOperations": [],
   "activeNewCapabilitiesOutsideCanonical": [
     {
       "capability": "spec-driven-planning",
@@ -117,25 +114,67 @@
   "canonicalPreambleBytes": 1233,
   "canonicalPreambleSha256": "595528c6a7ba56dd5648e7fc12ac6bc2af9e9bf6fa3fbf853b86fffdd7cecd3c",
   "canonicalPreambles": [
-    { "capability": "developer-facing-surface", "normalizedSha256": "d9f76e471104d8df4976c090d1c6d68f4723686b2e541c14168f21a1729d5c8c" },
-    { "capability": "durable-persistence-and-outbox", "normalizedSha256": "f0f78b70c39608b2c4c87c757022d56858b245237d865fd115745530112db18d" },
-    { "capability": "durable-runtime", "normalizedSha256": "c02aa389faca40c17e324795638a233c5d3ce3accd53ff72f99694e6fa8ab031" },
-    { "capability": "event-driven-prototype", "normalizedSha256": "bc120a043555a11f97720dcd7a054ee70686773c0b740bfb6f46f114cc4a0635" },
-    { "capability": "event-routing-and-waits", "normalizedSha256": "0f7f5d67edeef9a1f6e1f8eeb76f4d643bf4fb30d25130594ad4d19939763bac" },
-    { "capability": "management-and-querying", "normalizedSha256": "a31b3a33a1bd152a8f1b5af914874ccaafc10b54f95a1faeacc61ac9a75bc509" },
-    { "capability": "quality-and-verification", "normalizedSha256": "f9590cade57d6a3a270dba87b7474b88d04439ba87125dd5372546c13431ba03" },
-    { "capability": "repository-foundation", "normalizedSha256": "df9c27a8fe6b7fc6ba4347c2c4eba33ffe78605485c557006ad31762b4e5ebb4" },
-    { "capability": "runtime-resource-governance", "normalizedSha256": "aafd41358976af9ae2ef8472c44f236e8caf837a954fb5804510d5e6a2f2d14d" },
-    { "capability": "saga-orchestration", "normalizedSha256": "ccb85e7523434e739bc0b26b18d85c233cd5deffeb5f3cd03a24e0d898651097" },
-    { "capability": "state-driven-runtime", "normalizedSha256": "dc2bce2062424cebbb27ac265e9546dc48bd4c9911b686e0d46bfda93e30e78a" },
-    { "capability": "structured-fiber-execution", "normalizedSha256": "fa51c6443c4ec56474c7b6f8faf424fe35b04929039fd466472a592f07c6aa11" },
-    { "capability": "workflow-authoring", "normalizedSha256": "18c76b42ec62e08e17b2b085a7522a35c5e65589f68d1802db99ac47a01c94f3" },
-    { "capability": "workflow-contracts", "normalizedSha256": "71b18f858ab9c548cdfd4cbbba8a0856516cc71061a958a67646015c8a2f1868" }
+    {
+      "capability": "developer-facing-surface",
+      "normalizedSha256": "d9f76e471104d8df4976c090d1c6d68f4723686b2e541c14168f21a1729d5c8c"
+    },
+    {
+      "capability": "durable-persistence-and-outbox",
+      "normalizedSha256": "f0f78b70c39608b2c4c87c757022d56858b245237d865fd115745530112db18d"
+    },
+    {
+      "capability": "durable-runtime",
+      "normalizedSha256": "c02aa389faca40c17e324795638a233c5d3ce3accd53ff72f99694e6fa8ab031"
+    },
+    {
+      "capability": "event-driven-prototype",
+      "normalizedSha256": "bc120a043555a11f97720dcd7a054ee70686773c0b740bfb6f46f114cc4a0635"
+    },
+    {
+      "capability": "event-routing-and-waits",
+      "normalizedSha256": "0f7f5d67edeef9a1f6e1f8eeb76f4d643bf4fb30d25130594ad4d19939763bac"
+    },
+    {
+      "capability": "management-and-querying",
+      "normalizedSha256": "a31b3a33a1bd152a8f1b5af914874ccaafc10b54f95a1faeacc61ac9a75bc509"
+    },
+    {
+      "capability": "quality-and-verification",
+      "normalizedSha256": "f9590cade57d6a3a270dba87b7474b88d04439ba87125dd5372546c13431ba03"
+    },
+    {
+      "capability": "repository-foundation",
+      "normalizedSha256": "df9c27a8fe6b7fc6ba4347c2c4eba33ffe78605485c557006ad31762b4e5ebb4"
+    },
+    {
+      "capability": "runtime-resource-governance",
+      "normalizedSha256": "aafd41358976af9ae2ef8472c44f236e8caf837a954fb5804510d5e6a2f2d14d"
+    },
+    {
+      "capability": "saga-orchestration",
+      "normalizedSha256": "ccb85e7523434e739bc0b26b18d85c233cd5deffeb5f3cd03a24e0d898651097"
+    },
+    {
+      "capability": "state-driven-runtime",
+      "normalizedSha256": "dc2bce2062424cebbb27ac265e9546dc48bd4c9911b686e0d46bfda93e30e78a"
+    },
+    {
+      "capability": "structured-fiber-execution",
+      "normalizedSha256": "fa51c6443c4ec56474c7b6f8faf424fe35b04929039fd466472a592f07c6aa11"
+    },
+    {
+      "capability": "workflow-authoring",
+      "normalizedSha256": "18c76b42ec62e08e17b2b085a7522a35c5e65589f68d1802db99ac47a01c94f3"
+    },
+    {
+      "capability": "workflow-contracts",
+      "normalizedSha256": "71b18f858ab9c548cdfd4cbbba8a0856516cc71061a958a67646015c8a2f1868"
+    }
   ],
   "capabilityDirectoryRecordFormat": "repository-relative active openspec/changes/*/specs/*/ path with forward slashes and one trailing slash",
   "capabilityDirectoryCount": 20,
   "capabilityDirectoryBytes": 1645,
   "capabilityDirectorySha256": "dfabdc307ab5c49d6bc15c140b7778a5dce0512faf601c83645574fa0e770d62",
-  "artifactPath": "openspec/changes/admit-dag-hosting-runtime-view/artifacts/contract-rv-remediation-openspec-provenance-2026-10-02.md",
-  "artifactNormalizedSha256": "515a968b5027f8120b6a6ff4e87525542329fed42b6d5e6fa0eea8ad1f055125"
+  "artifactPath": "openspec/changes/admit-dag-hosting-runtime-view/artifacts/approved-pending-openspec-provenance-2026-10-03.md",
+  "artifactNormalizedSha256": "612d4b9e3ac08278c2e700139cad9780bb6d9d6230a240b9e57ba7627732969b"
 }

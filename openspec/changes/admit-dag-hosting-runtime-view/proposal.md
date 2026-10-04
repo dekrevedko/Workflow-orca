@@ -35,3 +35,7 @@ pending operations remain two and semantic approval remains false. The separatel
 stated in design §8. This contract preparation changes no product source or canonical requirement.
 
 The rejected first contract packet is retained unchanged. RV-1 leaves Task 1.2 available for checkbox-only activation; the separate atomic 1.3/1.4 target binds its real approval evidence. RV-2 makes both deltas and doc 17 §17.2.6 self-contained. Mapper/decode failure classes, null-rule ownership, archival sequencing, complete §17.5 disposition and durable status/ledger pins are reconciled in this remediation.
+
+## Current atomic transition status (2026-10-03)
+
+The earlier proposal/preparation statements are preserved as the history of this change. Contract Task 1.2 now has independent APPROVE and its exact checkpoint/evidence/activation chain. The prepared atomic Tasks 1.3/1.4 target synchronizes only the two approved blocks, marks their new rows ApprovedPending and preserves four exact historical predecessor blocks as superseded. No product source or ninth friend is compiled, and source authority still requires independent review/checkpoint of this transition. Both original contract artifacts are permanently pinned superseded decisions. The bridge retains eager output materialization, fixed-codec normalization and child ownership.

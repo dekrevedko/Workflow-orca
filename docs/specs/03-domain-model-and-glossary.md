@@ -329,9 +329,9 @@ authoring-only `OrcaCore -> OrcaCore.Dag` internal friend for compiler-created v
 diagnostic, location, fingerprint, and definition-exception values; the grant is compiled in the
 independently approved Task 8.2 checkpoint `a9f835f939d683500ca231c7ba491ab8eae2aaae`.
 `OrcaCore.Dag.Hosting` alone consumes the named internal durable child-start/join bridge.
-The separate proposed `admit-dag-hosting-runtime-view` contract would add only
+The independently approved `admit-dag-hosting-runtime-view` contract specifies only
 `OrcaCore.Dag -> OrcaCore.Dag.Hosting` for immutable descriptors and one evaluator,
-guarded at exact non-public type/member signatures. It is not approved or compiled and
+guarded at exact non-public type/member signatures. Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical in the prepared 1.3/1.4 target, but not compiled, and
 does not widen the authoring grant. The durable bridge decodes successful committed outputs
 before evaluation and owns fixed-codec input normalization, fingerprints, commit and child start.
 Companions may depend on OrcaCore, `OrcaCore.Dag`, and infrastructure SDKs. No OrcaCore package

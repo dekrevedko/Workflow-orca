@@ -13,24 +13,24 @@ requires the numbered rows, paths, and hashes exactly as recorded here.
 
 | # | Active source | Normalized SHA-256 |
 |---:|---|---|
-| 1 | `CLAUDE.md` | `1b6d0651cbbaa183959fdd39a27686ee2713ed112bd47b4f5a0ed4b26eeea47e` |
+| 1 | `CLAUDE.md` | `54c860cd75c004470b7987480029c52eeeb054d532caf5c8346c4916d4ef97fd` |
 | 2 | `docs/eks-scheduler-handoff.md` | `48cf025958482433e34b4e52185484ed587936ba56ef4822bc96e1b08b3f9ef2` |
 | 3 | `docs/end-to-end-plan.md` | `c2bb0ea26618a65248839ffd75281b9c89dc496467e5a90e9034da48fcae0e01` |
 | 4 | `docs/ephemeral-engine-developer-guide.md` | `7e3fe252e1bcb621b03bfb91a6aaf2d48bf5c5ad3997e442ad4fbcb3a90dfa2c` |
 | 5 | `docs/ephemeral-engine-diagrams.md` | `6393cfb7fb4155e0fc28ed908384e43126d05be9b5ebda04f6f7aee7aa25463a` |
-| 6 | `docs/implementation/00-stack-decisions.md` | `5631e42ba4d33a88441624510f632953cda4b50b7719c8b4f4e9ed841358fbd6` |
-| 7 | `docs/implementation/01-solution-architecture.md` | `04a1df6b7aa4f1144b8ddc560f43b2ac8aee6579ea39c1082ab3ad2261ccdcbb` |
+| 6 | `docs/implementation/00-stack-decisions.md` | `fb4b7fb9d4dcf93edeaf402be617763c6dfbc05621bb5b30e63304f914550e28` |
+| 7 | `docs/implementation/01-solution-architecture.md` | `3ef916166239707899a1d23eb38f8dbbc9520173a7851f925787e00eb7bd1486` |
 | 8 | `docs/implementation/02-engineering-conventions.md` | `e4a81233359e60e5ca43e596d26a58ff46e75879dded7536e95511e47d908c72` |
 | 9 | `docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md` | `1674c9335d4abdcfbed431ee5f2698dcc3b28188c0d2eba06c5668c9ef28d7be` |
 | 10 | `docs/normative-source-map.md` | `1bc5a4182949cbfbe87870aebf258a9fdfcfb22a8cd627d2c0b0d7fc7e61d949` |
 | 11 | `docs/production-readiness.md` | `2812eb9121d455a59ec748dbdbcc4cba4ddd317398c9b8c5470edc44b9a6c1bc` |
-| 12 | `docs/project-technical-overview.md` | `0d6790f0f6f5ac34249766c0a876c427e5e1eee56f2abe2c50bfa4887246766c` |
+| 12 | `docs/project-technical-overview.md` | `316749267f293649f8560cb8f05ca50f853d2f90a3e9659c4dba986224338946` |
 | 13 | `docs/specs/01-concept-and-goals.md` | `36826933178462e6d83eb817cec2b51ec77cd93609a5726ad883b888c0960fb4` |
-| 14 | `docs/specs/03-domain-model-and-glossary.md` | `5041f298c1ec0ab54a4147a74149f6888414f06411774e8399ee665c71bbd11e` |
+| 14 | `docs/specs/03-domain-model-and-glossary.md` | `35bf8bf00588e27b9b5d85992175ceb4cf960ce642f396177207ab6ed9ee78fc` |
 | 15 | `docs/specs/05-requirements-events-waits-timers.md` | `a2ed8dd5f8e1fb0893a0a1f8cea412508584c39d1066e5488d8d87f99cc03769` |
 | 16 | `docs/specs/06-requirements-durable-execution.md` | `aaa23cfe12900c5e6627ca9309275e69407edd84454a631d6ad70d951fcd0411` |
 | 17 | `docs/specs/09-requirements-management-operations.md` | `b564eb6713e446ba846141ee4561a3f5ec49fa596e580f44625a231da5d6aa2b` |
-| 18 | `docs/specs/10-provider-model-and-extensibility.md` | `a154a5c9465fdf3145e55bbc7617c50e1755db9b35bcee4a3a97111403dd1ce3` |
+| 18 | `docs/specs/10-provider-model-and-extensibility.md` | `bcdd4827befbca7f17552683cd772e0649e8e1197924a905e158fe2d89089427` |
 | 19 | `docs/specs/12-acceptance-criteria.md` | `c4a08fde9c6f453a2a109f959ef0bb369fce68d4115e051304af484276f5639b` |
 | 20 | `docs/specs/13-phasing-and-open-questions.md` | `c94f49b68a771382ba452a17a2d3ccff5e6d0bba7f62b7bffeae509064edc53d` |
 | 21 | `docs/specs/14-driving-scenario-eks-job-scheduler.md` | `a1378ecb50869d47a7a11c8e0e937e4cf303cd02dde8bbbd4d406cd609866800` |

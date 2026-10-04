@@ -106,10 +106,10 @@ fingerprints, and definition exceptions. Task 8.2 was independently approved and
 `055e7b8e71e8dfe79e76f267f8782b7f6f79f7b8`. Exact non-public type and member-reference
 guards constrain the compiled friend and shared fingerprint operation. It grants no DAG runtime
 or child-start access; further runtime seams require a separate approved amendment.
-The separately proposed `admit-dag-hosting-runtime-view` contract would add a ninth product
+The independently approved `admit-dag-hosting-runtime-view` contract specifies a ninth product
 friend, `OrcaCore.Dag -> OrcaCore.Dag.Hosting`, limited to three internal runtime-view types
 and fifteen exact method/getter signatures, not delegates, drafts, codec, or child access.
-It is not approved, synchronized, or compiled. The durable bridge decodes committed dependency
+Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical in the prepared 1.3/1.4 target, but not compiled. The durable bridge decodes committed dependency
 outputs before mapping and owns normalization, committed-byte fingerprints, and child start.
 No source follows before separate contract and atomic canonical/registry approvals.
 The existing `OrcaCore.Durable.Hosting -> OrcaCore.Dag.Hosting` edge remains the sole
