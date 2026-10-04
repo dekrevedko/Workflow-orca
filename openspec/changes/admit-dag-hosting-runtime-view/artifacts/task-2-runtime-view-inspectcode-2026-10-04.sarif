@@ -1,0 +1,2789 @@
+{
+  "$schema": "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0-rtm.6.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "results": [
+        {
+          "ruleId": "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract",
+          "ruleIndex": 0,
+          "level": "warning",
+          "message": {
+            "text": "Expression is always false according to nullable reference types' annotations"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagAuthoring.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 426,
+                  "startColumn": 44,
+                  "endLine": 426,
+                  "endColumn": 62,
+                  "charOffset": 15667,
+                  "charLength": 18
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "BA19D1065FAD28A49E140F7D4319A494D8DB8ECB70FF25789B20E8251FCB555D"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract",
+          "ruleIndex": 0,
+          "level": "warning",
+          "message": {
+            "text": "Expression is always false according to nullable reference types' annotations"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagRuntimeView.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 28,
+                  "startColumn": 13,
+                  "endLine": 28,
+                  "endColumn": 25,
+                  "charOffset": 1073,
+                  "charLength": 12
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "C3A5B84A01A64880A5C120973946BCA13EF0A86408F2BF224EB3EDF72734AE36"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract",
+          "ruleIndex": 0,
+          "level": "warning",
+          "message": {
+            "text": "Expression is always false according to nullable reference types' annotations"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagRuntimeView.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 28,
+                  "startColumn": 29,
+                  "endLine": 28,
+                  "endColumn": 70,
+                  "charOffset": 1089,
+                  "charLength": 41
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "C3A5B84A01A64880A5C120973946BCA13EF0A86408F2BF224EB3EDF72734AE36"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "ConvertToPrimaryConstructor",
+          "ruleIndex": 1,
+          "level": "note",
+          "message": {
+            "text": "Convert into primary constructor"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag.Hosting/DagHostingServices.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 2
+                },
+                "region": {
+                  "startLine": 7,
+                  "startColumn": 12,
+                  "endLine": 7,
+                  "endColumn": 26,
+                  "charOffset": 129,
+                  "charLength": 14
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "A0B44A9FFDAB6BFBE29A7B5CF7CECE6A8253BFB998FCB4E6BED7711A127B7E4A"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "InconsistentNaming",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Name 'directDependencies' does not match rule 'Instance fields (private)'. Suggested name is '_directDependencies'."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagAuthoring.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 323,
+                  "startColumn": 47,
+                  "endLine": 323,
+                  "endColumn": 65,
+                  "charOffset": 12024,
+                  "charLength": 18
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "2DD5B73988B7C3F8800FEB54BA19E4F9E43F40198F1EBB1663137DFEA001A622"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "InconsistentNaming",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Name 'node' does not match rule 'Instance fields (private)'. Suggested name is '_node'."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagAuthoring.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 256,
+                  "startColumn": 46,
+                  "endLine": 256,
+                  "endColumn": 50,
+                  "charOffset": 9957,
+                  "charLength": 4
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "53BD164F21A57D12E20170BF7C9B6770A31B1319AC7A9803A7A7C013D112DCF5"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "InconsistentNaming",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Name 'node' does not match rule 'Instance fields (private)'. Suggested name is '_node'."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagAuthoring.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 276,
+                  "startColumn": 46,
+                  "endLine": 276,
+                  "endColumn": 50,
+                  "charOffset": 10581,
+                  "charLength": 4
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "53BD164F21A57D12E20170BF7C9B6770A31B1319AC7A9803A7A7C013D112DCF5"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "InconsistentNaming",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Name 'nodes' does not match rule 'Instance fields (private)'. Suggested name is '_nodes'."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagAuthoring.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 23,
+                  "startColumn": 52,
+                  "endLine": 23,
+                  "endColumn": 57,
+                  "charOffset": 776,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "682D451B45B57E54C2D650C4EC0C7C656F9F07C1E198912AA579D5520CF9CBAA"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "InconsistentNaming",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Name 'planToken' does not match rule 'Instance fields (private)'. Suggested name is '_planToken'."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagAuthoring.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 22,
+                  "startColumn": 29,
+                  "endLine": 22,
+                  "endColumn": 38,
+                  "charOffset": 706,
+                  "charLength": 9
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "6E29E98A960ED9C961A893DF335E78D8611F1C270E5400C6FBD54173B596D2A1"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "InconsistentNaming",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Name 'planToken' does not match rule 'Instance fields (private)'. Suggested name is '_planToken'."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagAuthoring.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 322,
+                  "startColumn": 29,
+                  "endLine": 322,
+                  "endColumn": 38,
+                  "charOffset": 11967,
+                  "charLength": 9
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "81859DE779E49BD0DDF1C61840F992C1136B11C12D88F81C3B5903E01124EBAC"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "InconsistentNaming",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Name 'plans' does not match rule 'Instance fields (private)'. Suggested name is '_plans'."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagRuntimeView.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 78,
+                  "endLine": 10,
+                  "endColumn": 83,
+                  "charOffset": 286,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "45C9E13966B9B037CABBD629DA41F90D331672E065FDF9791CF4767857BA6EAE"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "InconsistentNaming",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Name 'successfulOutputs' does not match rule 'Instance fields (private)'. Suggested name is '_successfulOutputs'."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagAuthoring.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 324,
+                  "startColumn": 63,
+                  "endLine": 324,
+                  "endColumn": 80,
+                  "charOffset": 12106,
+                  "charLength": 17
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "93F36C8282EC3FC36626F49F89CCC8C5BA1329A11020E30F24312788072DE12D"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "InconsistentNaming",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Name 'view' does not match rule 'Instance fields (private)'. Suggested name is '_view'."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 3
+                },
+                "region": {
+                  "startLine": 7,
+                  "startColumn": 48,
+                  "endLine": 7,
+                  "endColumn": 52,
+                  "charOffset": 307,
+                  "charLength": 4
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "B282D0B8A34D32BC2BEE14CD9036621F279C8930E62FDA754676859AE59E3235"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "MemberCanBePrivate.Global",
+          "ruleIndex": 3,
+          "level": "note",
+          "message": {
+            "text": "Property 'DefinitionId' can be made private"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagAuthoring.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 31,
+                  "startColumn": 5,
+                  "endLine": 31,
+                  "endColumn": 13,
+                  "charOffset": 986,
+                  "charLength": 8
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "294B2B240C2572F50C8167680E7BF4B97D9969CB5AEF3370002A755DF1AFB9AB"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "MemberCanBePrivate.Global",
+          "ruleIndex": 3,
+          "level": "note",
+          "message": {
+            "text": "Property 'DefinitionVersion' can be made private"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagAuthoring.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 33,
+                  "startColumn": 5,
+                  "endLine": 33,
+                  "endColumn": 13,
+                  "charOffset": 1035,
+                  "charLength": 8
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "7688553E8EBACD5A839AD6E2EDE1BA3820679C49B59A384E938132CAF3E19F82"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "MemberCanBePrivate.Global",
+          "ruleIndex": 3,
+          "level": "note",
+          "message": {
+            "text": "Property 'NodePlans' can be made private"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagAuthoring.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 390,
+                  "startColumn": 5,
+                  "endLine": 390,
+                  "endColumn": 13,
+                  "charOffset": 14308,
+                  "charLength": 8
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "0613479DBD0872CF0B52D142B8E89A2462EBC9BFBB1E3665BF14E5D89EC90FF5"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Global",
+          "ruleIndex": 4,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.Dag.Hosting.DagMappingEvaluation.FailureCode' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 3
+                },
+                "region": {
+                  "startLine": 34,
+                  "startColumn": 99,
+                  "endLine": 34,
+                  "endColumn": 110,
+                  "charOffset": 1645,
+                  "charLength": 11
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "ACC2675828BDF80F5571EF20C56C26BEEB0CD6D4FCF8073E0B8F2E0F03DD4658"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Global",
+          "ruleIndex": 4,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.Dag.Hosting.DagMappingEvaluation.Input' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 3
+                },
+                "region": {
+                  "startLine": 34,
+                  "startColumn": 67,
+                  "endLine": 34,
+                  "endColumn": 72,
+                  "charOffset": 1613,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "ACC2675828BDF80F5571EF20C56C26BEEB0CD6D4FCF8073E0B8F2E0F03DD4658"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Global",
+          "ruleIndex": 4,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.Dag.Hosting.DagMappingEvaluation.InputType' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 3
+                },
+                "region": {
+                  "startLine": 34,
+                  "startColumn": 80,
+                  "endLine": 34,
+                  "endColumn": 89,
+                  "charOffset": 1626,
+                  "charLength": 9
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "ACC2675828BDF80F5571EF20C56C26BEEB0CD6D4FCF8073E0B8F2E0F03DD4658"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Global",
+          "ruleIndex": 4,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.Dag.Hosting.DagMappingEvaluation.IsValid' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 3
+                },
+                "region": {
+                  "startLine": 34,
+                  "startColumn": 50,
+                  "endLine": 34,
+                  "endColumn": 57,
+                  "charOffset": 1596,
+                  "charLength": 7
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "ACC2675828BDF80F5571EF20C56C26BEEB0CD6D4FCF8073E0B8F2E0F03DD4658"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Global",
+          "ruleIndex": 4,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.Dag.Hosting.DagMappingNode.AuthoredOrdinal' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 3
+                },
+                "region": {
+                  "startLine": 29,
+                  "startColumn": 65,
+                  "endLine": 29,
+                  "endColumn": 80,
+                  "charOffset": 1328,
+                  "charLength": 15
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "2C47B48D19A934FC400FCDB71B9E388FB17EF46EBE0B15836D07056F6936DF3F"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Global",
+          "ruleIndex": 4,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.Dag.Hosting.DagMappingNode.ChildDefinitionId' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 3
+                },
+                "region": {
+                  "startLine": 30,
+                  "startColumn": 18,
+                  "endLine": 30,
+                  "endColumn": 35,
+                  "charOffset": 1362,
+                  "charLength": 17
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "31AAF2AFB15D99FA27C0EB1AE8595DFF22734AB46FB78AA9D1491B48F86D1400"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Global",
+          "ruleIndex": 4,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.Dag.Hosting.DagMappingNode.ChildDefinitionVersion' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 3
+                },
+                "region": {
+                  "startLine": 30,
+                  "startColumn": 55,
+                  "endLine": 30,
+                  "endColumn": 77,
+                  "charOffset": 1399,
+                  "charLength": 22
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "31AAF2AFB15D99FA27C0EB1AE8595DFF22734AB46FB78AA9D1491B48F86D1400"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Global",
+          "ruleIndex": 4,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.Dag.Hosting.DagMappingNode.ChildFingerprint' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 3
+                },
+                "region": {
+                  "startLine": 31,
+                  "startColumn": 27,
+                  "endLine": 31,
+                  "endColumn": 43,
+                  "charOffset": 1449,
+                  "charLength": 16
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "0AA1D290DF716F81CAAE08B10DBB81844EE3BA007D4C0C9A47BF204C768AC069"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Global",
+          "ruleIndex": 4,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.Dag.Hosting.DagMappingNode.Dependencies' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 3
+                },
+                "region": {
+                  "startLine": 32,
+                  "startColumn": 31,
+                  "endLine": 32,
+                  "endColumn": 43,
+                  "charOffset": 1531,
+                  "charLength": 12
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "30473DFEB39AF6D82503D68458E7764A155E5202F74687F698E88F37EE9BB793"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Global",
+          "ruleIndex": 4,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.Dag.Hosting.DagMappingNode.InputType' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 3
+                },
+                "region": {
+                  "startLine": 31,
+                  "startColumn": 50,
+                  "endLine": 31,
+                  "endColumn": 59,
+                  "charOffset": 1472,
+                  "charLength": 9
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "0AA1D290DF716F81CAAE08B10DBB81844EE3BA007D4C0C9A47BF204C768AC069"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Global",
+          "ruleIndex": 4,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.Dag.Hosting.DagMappingNode.OutputType' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 3
+                },
+                "region": {
+                  "startLine": 31,
+                  "startColumn": 67,
+                  "endLine": 31,
+                  "endColumn": 77,
+                  "charOffset": 1489,
+                  "charLength": 10
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "0AA1D290DF716F81CAAE08B10DBB81844EE3BA007D4C0C9A47BF204C768AC069"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Global",
+          "ruleIndex": 4,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.Dag.Hosting.DagMappingNode.Reference' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 3
+                },
+                "region": {
+                  "startLine": 29,
+                  "startColumn": 50,
+                  "endLine": 29,
+                  "endColumn": 59,
+                  "charOffset": 1313,
+                  "charLength": 9
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "2C47B48D19A934FC400FCDB71B9E388FB17EF46EBE0B15836D07056F6936DF3F"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantNameQualifier",
+          "ruleIndex": 5,
+          "level": "warning",
+          "message": {
+            "text": "Qualifier is redundant"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/DagRuntimeViewBoundaryGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 4
+                },
+                "region": {
+                  "startLine": 79,
+                  "startColumn": 68,
+                  "endLine": 79,
+                  "endColumn": 77,
+                  "charOffset": 5001,
+                  "charLength": 9
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "481F76505E84BC6BE18B2EBBA4E33D1F83F35E962BE585E47D582E374FF64B42"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantNameQualifier",
+          "ruleIndex": 5,
+          "level": "warning",
+          "message": {
+            "text": "Qualifier is redundant"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/DagRuntimeViewBoundaryGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 4
+                },
+                "region": {
+                  "startLine": 80,
+                  "startColumn": 59,
+                  "endLine": 80,
+                  "endColumn": 68,
+                  "charOffset": 5101,
+                  "charLength": 9
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "1EC9F4B149EC538793AF6994603A56416C974FAA1D286DAE5E780A19FE681089"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantNameQualifier",
+          "ruleIndex": 5,
+          "level": "warning",
+          "message": {
+            "text": "Qualifier is redundant"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/DagRuntimeViewBoundaryGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 4
+                },
+                "region": {
+                  "startLine": 114,
+                  "startColumn": 70,
+                  "endLine": 114,
+                  "endColumn": 79,
+                  "charOffset": 7379,
+                  "charLength": 9
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "B70A8ED074A8A80690A517C3E5FD696874535C729B03F1CD5696494D404B8D10"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantNameQualifier",
+          "ruleIndex": 5,
+          "level": "warning",
+          "message": {
+            "text": "Qualifier is redundant"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/DagRuntimeViewBoundaryGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 4
+                },
+                "region": {
+                  "startLine": 136,
+                  "startColumn": 35,
+                  "endLine": 136,
+                  "endColumn": 44,
+                  "charOffset": 9204,
+                  "charLength": 9
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "E0B8871DE66BD1308E7D62D10804B2D410E78968D4CCEC4D5A022F0E50AC6487"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantNameQualifier",
+          "ruleIndex": 5,
+          "level": "warning",
+          "message": {
+            "text": "Qualifier is redundant"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/DagRuntimeViewBoundaryGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 4
+                },
+                "region": {
+                  "startLine": 155,
+                  "startColumn": 35,
+                  "endLine": 155,
+                  "endColumn": 44,
+                  "charOffset": 10677,
+                  "charLength": 9
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "F1309B9FCE2D942228607AB392C995CD49E262CA4CBA8A7F4531DD0B28A5FBE5"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedAutoPropertyAccessor.Global",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Auto-property accessor 'ActualDefinitionId.get' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagFailureContracts.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 5
+                },
+                "region": {
+                  "startLine": 150,
+                  "startColumn": 46,
+                  "endLine": 150,
+                  "endColumn": 50,
+                  "charOffset": 5055,
+                  "charLength": 4
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "BCB562EC7A2F20D9584C85369D29D6DE2534B83266D4E172D5ED4E6E2B054233"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedAutoPropertyAccessor.Global",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Auto-property accessor 'Conflict.get' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagFailureContracts.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 5
+                },
+                "region": {
+                  "startLine": 162,
+                  "startColumn": 54,
+                  "endLine": 162,
+                  "endColumn": 58,
+                  "charOffset": 5600,
+                  "charLength": 4
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "0D30138B7B5D61A79073EC89320AB4DFA76252290524A60A2905CF6DC45CEEF0"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedAutoPropertyAccessor.Global",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Auto-property accessor 'Conflict.get' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagFailureContracts.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 5
+                },
+                "region": {
+                  "startLine": 174,
+                  "startColumn": 48,
+                  "endLine": 174,
+                  "endColumn": 52,
+                  "charOffset": 6098,
+                  "charLength": 4
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "E8F4C8F8560C8BA7F2EFA1E8F1FEFA3A0F1E0F7969B47BAC1CDFDD258C654BD8"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedAutoPropertyAccessor.Global",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Auto-property accessor 'DefinitionId.get' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagAuthoring.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 382,
+                  "startColumn": 40,
+                  "endLine": 382,
+                  "endColumn": 44,
+                  "charOffset": 14121,
+                  "charLength": 4
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "F93ED284FA81EFF9D4242F96D6B8764D47470FCAFB4E40FCE70D7845758FD27B"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedAutoPropertyAccessor.Global",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Auto-property accessor 'DefinitionVersion.get' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagAuthoring.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 384,
+                  "startColumn": 50,
+                  "endLine": 384,
+                  "endColumn": 54,
+                  "charOffset": 14178,
+                  "charLength": 4
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "EB56DA32EB9996A07E523A043BBBE9674076E31B75C570780AE61B3330D1B72C"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedAutoPropertyAccessor.Global",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Auto-property accessor 'Definitions.get' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag.Hosting/DagHostingServices.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 2
+                },
+                "region": {
+                  "startLine": 13,
+                  "startColumn": 50,
+                  "endLine": 13,
+                  "endColumn": 54,
+                  "charOffset": 349,
+                  "charLength": 4
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "319002F0E7A272BF6DD359CAFD000CFFC16D81A8B8E41A2173CDE3CAB7968800"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedAutoPropertyAccessor.Global",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Auto-property accessor 'ExpectedDefinitionId.get' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagFailureContracts.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 5
+                },
+                "region": {
+                  "startLine": 148,
+                  "startColumn": 48,
+                  "endLine": 148,
+                  "endColumn": 52,
+                  "charOffset": 5002,
+                  "charLength": 4
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "E5036D3AD95E3ADC4A302767892BEE96BC0652C1089DCD05858BC715396284EE"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedAutoPropertyAccessor.Global",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Auto-property accessor 'MaxConcurrentNodes.get' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag.Hosting/DagHostingServices.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 2
+                },
+                "region": {
+                  "startLine": 15,
+                  "startColumn": 39,
+                  "endLine": 15,
+                  "endColumn": 43,
+                  "charOffset": 395,
+                  "charLength": 4
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "64B4899114CA7EE670A33EF4D268F384A2CA8F1D141BD6884B523707974129AD"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedAutoPropertyAccessor.Global",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Auto-property accessor 'Nodes.get' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 3
+                },
+                "region": {
+                  "startLine": 19,
+                  "startColumn": 52,
+                  "endLine": 19,
+                  "endColumn": 56,
+                  "charOffset": 856,
+                  "charLength": 4
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "413CDB23EBEEB72CF8DF242CE4BC8B2ECE41D65F019F0401BD01210B681DABF3"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedAutoPropertyAccessor.Global",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Auto-property accessor 'RunId.get' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagFailureContracts.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 5
+                },
+                "region": {
+                  "startLine": 127,
+                  "startColumn": 29,
+                  "endLine": 127,
+                  "endColumn": 33,
+                  "charOffset": 4293,
+                  "charLength": 4
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "45C5A4F55C782F12C23C435D38FCEF57129511E27A946D9E42F0079A0193A4DF"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedAutoPropertyAccessor.Global",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Auto-property accessor 'RunId.get' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagFailureContracts.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 5
+                },
+                "region": {
+                  "startLine": 146,
+                  "startColumn": 29,
+                  "endLine": 146,
+                  "endColumn": 33,
+                  "charOffset": 4947,
+                  "charLength": 4
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "F13357F83EA253AD73807C6F6ABE807323A60CDBD9C106635964B06562EB63D8"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedMember.Global",
+          "ruleIndex": 7,
+          "level": "note",
+          "message": {
+            "text": "Method 'DependsOn' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagAuthoring.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 280,
+                  "startColumn": 63,
+                  "endLine": 280,
+                  "endColumn": 72,
+                  "charOffset": 10730,
+                  "charLength": 9
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "D1C4F449BED895CD3830E962B44613FBFA902787EA95B07C05B47D3893412C9A"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedMember.Global",
+          "ruleIndex": 7,
+          "level": "note",
+          "message": {
+            "text": "Method 'Evaluate' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 3
+                },
+                "region": {
+                  "startLine": 21,
+                  "startColumn": 35,
+                  "endLine": 21,
+                  "endColumn": 43,
+                  "charOffset": 898,
+                  "charLength": 8
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "B88263B86F7237A987620D2AF042F98F2C0F54F6BAC89AB4E6FC8F1D559C1C24"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedMember.Global",
+          "ruleIndex": 7,
+          "level": "note",
+          "message": {
+            "text": "Method 'MapInput' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagAuthoring.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 287,
+                  "startColumn": 36,
+                  "endLine": 287,
+                  "endColumn": 44,
+                  "charOffset": 10896,
+                  "charLength": 8
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "897FC67DD0340DDCD78F51EC2A50B898C0ED25AC9011747BA9959FF1BC125CE1"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedMember.Global",
+          "ruleIndex": 7,
+          "level": "note",
+          "message": {
+            "text": "Method 'New' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagFailureContracts.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 5
+                },
+                "region": {
+                  "startLine": 66,
+                  "startColumn": 30,
+                  "endLine": 66,
+                  "endColumn": 33,
+                  "charOffset": 2200,
+                  "charLength": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "93AE8BEDB97668C6F71052858F50AD4790C00C5001DC8B0FEDF4F09C6ADC63FD"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedMember.Global",
+          "ruleIndex": 7,
+          "level": "note",
+          "message": {
+            "text": "Method 'Node' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagAuthoring.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 48,
+                  "startColumn": 63,
+                  "endLine": 48,
+                  "endColumn": 67,
+                  "charOffset": 1721,
+                  "charLength": 4
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "F65305F5EE207EB41809FD813B29F48C88C3441FB2106882A054F46DA8E9D0FD"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedMember.Global",
+          "ruleIndex": 7,
+          "level": "note",
+          "message": {
+            "text": "Method 'OutputOf' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagAuthoring.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 340,
+                  "startColumn": 30,
+                  "endLine": 340,
+                  "endColumn": 38,
+                  "charOffset": 12588,
+                  "charLength": 8
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "92BF03119384F803E2D406F58EB148BB44B2A49E0F5E19A2FDC9A2F3A75E3922"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedMember.Global",
+          "ruleIndex": 7,
+          "level": "note",
+          "message": {
+            "text": "Method 'TryParse' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagFailureContracts.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 5
+                },
+                "region": {
+                  "startLine": 54,
+                  "startColumn": 24,
+                  "endLine": 54,
+                  "endColumn": 32,
+                  "charOffset": 1907,
+                  "charLength": 8
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "95496CFE878E7AC6E16422313C225F0D6D2F858DF88BD0A3DE54A24E265B077E"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedType.Global",
+          "ruleIndex": 8,
+          "level": "note",
+          "message": {
+            "text": "Class 'DagAssemblyMarker' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagAssemblyMarker.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 6
+                },
+                "region": {
+                  "startLine": 3,
+                  "startColumn": 23,
+                  "endLine": 3,
+                  "endColumn": 40,
+                  "charOffset": 47,
+                  "charLength": 17
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "6C1F9DD1C73E6EF5F90C363A48D96BC58A9B580C5B270515914A11B508E055AE"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedType.Global",
+          "ruleIndex": 8,
+          "level": "note",
+          "message": {
+            "text": "Class 'DagDefinitionRegistrationConflictException' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagFailureContracts.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 5
+                },
+                "region": {
+                  "startLine": 154,
+                  "startColumn": 21,
+                  "endLine": 154,
+                  "endColumn": 63,
+                  "charOffset": 5179,
+                  "charLength": 42
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "63DDDDE5732E36025DB90F58086208ED24C24C7F8E1213B4DADA5E92FA7873BA"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedType.Global",
+          "ruleIndex": 8,
+          "level": "note",
+          "message": {
+            "text": "Class 'DagHostingAssemblyMarker' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag.Hosting/DagHostingAssemblyMarker.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 7
+                },
+                "region": {
+                  "startLine": 3,
+                  "startColumn": 23,
+                  "endLine": 3,
+                  "endColumn": 47,
+                  "charOffset": 55,
+                  "charLength": 24
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "C1847624E76DA5F000A9EB16DF62CB5A98EAEC24B70210F91BBD28E3AA274699"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedType.Global",
+          "ruleIndex": 8,
+          "level": "note",
+          "message": {
+            "text": "Class 'DagInputMappingAdapter' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 3
+                },
+                "region": {
+                  "startLine": 5,
+                  "startColumn": 23,
+                  "endLine": 5,
+                  "endColumn": 45,
+                  "charOffset": 224,
+                  "charLength": 22
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "18CE1D9E06320E9C860CA0016B467BAA09002C27562EAB2B9442FFC9584F3DDF"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedType.Global",
+          "ruleIndex": 8,
+          "level": "note",
+          "message": {
+            "text": "Class 'DagRunDefinitionMismatchException' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagFailureContracts.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 5
+                },
+                "region": {
+                  "startLine": 131,
+                  "startColumn": 21,
+                  "endLine": 131,
+                  "endColumn": 54,
+                  "charOffset": 4400,
+                  "charLength": 33
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "99EB7AF7F8A07D0B790EDB85CCF790F08DE0105A9E4B5C28557F55A040D6CE08"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedType.Global",
+          "ruleIndex": 8,
+          "level": "note",
+          "message": {
+            "text": "Class 'DagRunNotFoundException' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagFailureContracts.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 5
+                },
+                "region": {
+                  "startLine": 121,
+                  "startColumn": 21,
+                  "endLine": 121,
+                  "endColumn": 44,
+                  "charOffset": 4066,
+                  "charLength": 23
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "2B85022FFE356DC2A51283AFB248FDA4FA89A97C13DC7C1927EA4753AE910B22"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedType.Global",
+          "ruleIndex": 8,
+          "level": "note",
+          "message": {
+            "text": "Class 'DagStartIdempotencyConflictException' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagFailureContracts.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 5
+                },
+                "region": {
+                  "startLine": 166,
+                  "startColumn": 21,
+                  "endLine": 166,
+                  "endColumn": 57,
+                  "charOffset": 5721,
+                  "charLength": 36
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "2A6B3D6105CE66C025B66A6302BA298BB756460F902686FACB748BE15B90E986"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedTypeParameter",
+          "ruleIndex": 9,
+          "level": "warning",
+          "message": {
+            "text": "Type parameter 'TOutput' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/OrcaCore.Dag/DagAuthoring.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 313,
+                  "startColumn": 32,
+                  "endLine": 313,
+                  "endColumn": 39,
+                  "charOffset": 11617,
+                  "charLength": 7
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "3F913FEBD19FFC10AEA7CA4A06E4EAF6BA6DD59CDD66A28E538CCF95AB958F1A"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "InspectCode",
+          "organization": "JetBrains, Inc",
+          "fullName": "JetBrains Inspect Code 2026.2.3.1",
+          "semanticVersion": "262.0.20260930.205657",
+          "informationUri": "http://www.jetbrains.com/resharper/features/command-line.html",
+          "rules": [
+            {
+              "id": "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract",
+              "fullDescription": {
+                "text": "Expression is always 'true' or 'false' according to nullable reference types' annotations"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract.html"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.CodeRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "ConvertToPrimaryConstructor",
+              "fullDescription": {
+                "text": "Replace ordinary constructor with primary constructor"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/ConvertToPrimaryConstructor.html"
+              },
+              "shortDescription": {
+                "text": "Convert constructor into primary constructor"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/ConvertToPrimaryConstructor.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.LanguageUsage",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "InconsistentNaming",
+              "fullDescription": {
+                "text": "Name doesn't match naming style defined for this kind of symbol"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/InconsistentNaming.html"
+              },
+              "shortDescription": {
+                "text": "Inconsistent Naming"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/InconsistentNaming.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.ConstraintViolation",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "VBASIC.ConstraintViolation",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "XAML.ConstraintViolation",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "MemberCanBePrivate.Global",
+              "fullDescription": {
+                "text": "Member can be made private"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/MemberCanBePrivate.Global.html"
+              },
+              "shortDescription": {
+                "text": "Member can be made private: Non-private accessibility"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/MemberCanBePrivate.Global.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.BestPractice",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "VBASIC.BestPractice",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "XAML.BestPractice",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "NotAccessedPositionalProperty.Global",
+              "fullDescription": {
+                "text": "Positional property is never accessed for reading"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/NotAccessedPositionalProperty.Global.html"
+              },
+              "shortDescription": {
+                "text": "Non-accessed positional property: Non-private accessibility"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/NotAccessedPositionalProperty.Global.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.CodeSmell",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "VBASIC.CodeSmell",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "RedundantNameQualifier",
+              "fullDescription": {
+                "text": "Redundant use of qualifier for a type name or static member usage"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/RedundantNameQualifier.html"
+              },
+              "shortDescription": {
+                "text": "Redundant name qualifier"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/RedundantNameQualifier.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.CodeRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "UnusedAutoPropertyAccessor.Global",
+              "fullDescription": {
+                "text": "Accessor in auto-property is never used"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/UnusedAutoPropertyAccessor.Global.html"
+              },
+              "shortDescription": {
+                "text": "Auto-property accessor is never used: Non-private accessibility"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/UnusedAutoPropertyAccessor.Global.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.CodeSmell",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "VBASIC.CodeSmell",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "UnusedMember.Global",
+              "fullDescription": {
+                "text": "Type member is never used"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/UnusedMember.Global.html"
+              },
+              "shortDescription": {
+                "text": "Type member is never used: Non-private accessibility"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/UnusedMember.Global.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "ASPX.DeclarationRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "ASXX.DeclarationRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "CSHARP.DeclarationRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "VBASIC.DeclarationRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "XAML.DeclarationRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "UnusedType.Global",
+              "fullDescription": {
+                "text": "Type is never used"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/UnusedType.Global.html"
+              },
+              "shortDescription": {
+                "text": "Type is never used: Non-private accessibility"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/UnusedType.Global.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.DeclarationRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "VBASIC.DeclarationRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "XAML.DeclarationRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "UnusedTypeParameter",
+              "fullDescription": {
+                "text": "Type parameter is never used"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/UnusedTypeParameter.html"
+              },
+              "shortDescription": {
+                "text": "Unused type parameter"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/UnusedTypeParameter.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.DeclarationRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "VBASIC.DeclarationRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            }
+          ],
+          "taxa": [
+            {
+              "id": "ASPX",
+              "name": "Aspx"
+            },
+            {
+              "id": "ASPX.DeclarationRedundancy",
+              "name": "Redundancies in Symbol Declarations",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "ASPX",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "ASXX",
+              "name": "HttpHandler or WebService"
+            },
+            {
+              "id": "ASXX.DeclarationRedundancy",
+              "name": "Redundancies in Symbol Declarations",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "ASXX",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "CSHARP",
+              "name": "C#"
+            },
+            {
+              "id": "CSHARP.BestPractice",
+              "name": "Common Practices and Code Improvements",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "CSHARP.CodeRedundancy",
+              "name": "Redundancies in Code",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "CSHARP.CodeSmell",
+              "name": "Potential Code Quality Issues",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "CSHARP.ConstraintViolation",
+              "name": "Constraints Violations",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "CSHARP.DeclarationRedundancy",
+              "name": "Redundancies in Symbol Declarations",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "CSHARP.LanguageUsage",
+              "name": "Language Usage Opportunities",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "VBASIC",
+              "name": "VB.NET"
+            },
+            {
+              "id": "VBASIC.BestPractice",
+              "name": "Common Practices and Code Improvements",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "VBASIC",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "VBASIC.CodeSmell",
+              "name": "Potential Code Quality Issues",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "VBASIC",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "VBASIC.ConstraintViolation",
+              "name": "Constraints Violations",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "VBASIC",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "VBASIC.DeclarationRedundancy",
+              "name": "Redundancies in Symbol Declarations",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "VBASIC",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "XAML",
+              "name": "XAML"
+            },
+            {
+              "id": "XAML.BestPractice",
+              "name": "Common Practices and Code Improvements",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "XAML",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "XAML.ConstraintViolation",
+              "name": "Constraints Violations",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "XAML",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "XAML.DeclarationRedundancy",
+              "name": "Redundancies in Symbol Declarations",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "XAML",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true
+        }
+      ],
+      "versionControlProvenance": [
+        {
+          "repositoryUri": "https://github.com/dekrevedko/Workflow-orca.git",
+          "revisionId": "13fe5b996e4758e383ea6ac68d86bdaf10b940b8",
+          "branch": "feature/v3-rebuild",
+          "mappedTo": {
+            "uriBaseId": "solutionDir"
+          }
+        }
+      ],
+      "originalUriBaseIds": {
+        "solutionDir": {
+          "uri": "file:///X:/Projects/GitHub/Workflow-orca/",
+          "description": {
+            "text": "Solution Directory"
+          }
+        }
+      },
+      "artifacts": [
+        {
+          "location": {
+            "uri": "src/OrcaCore.Dag/DagAuthoring.cs",
+            "uriBaseId": "solutionDir"
+          },
+          "hashes": {
+            "md5": "BCA8B5BFB5D7145DF55D4EEB5EED2181",
+            "sha-1": "F5A514AF9AE47FBCCF75D55B24D5D7EC2543F668",
+            "sha-256": "AC1CD1D1D21A20763B4396A7EC52A077B173132D870DFAD2D3DD57460BAC225F"
+          }
+        },
+        {
+          "location": {
+            "uri": "src/OrcaCore.Dag/DagRuntimeView.cs",
+            "uriBaseId": "solutionDir"
+          },
+          "hashes": {
+            "md5": "E8D3A697297AABD184759E0C37338A3C",
+            "sha-1": "D351751FFCDD7B50B02C162505B6B8D8432098B9",
+            "sha-256": "389ABB1A036D8F0E17001942B36D6253870E2D21BF82CED826A9A1D52DDFA02A"
+          }
+        },
+        {
+          "location": {
+            "uri": "src/OrcaCore.Dag.Hosting/DagHostingServices.cs",
+            "uriBaseId": "solutionDir"
+          },
+          "hashes": {
+            "md5": "AA1E54A4EA93D04854066B86A643FA4F",
+            "sha-1": "25EB8A4901620D56DFA6490F742BFE117C9464CE",
+            "sha-256": "F8148FB20EA64B3E7C3C182D17F845F41CDE11A5F1A4423D78918C8C7173EF65"
+          }
+        },
+        {
+          "location": {
+            "uri": "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs",
+            "uriBaseId": "solutionDir"
+          },
+          "hashes": {
+            "md5": "DC1FDEB5F6D4D762245892832BC31F52",
+            "sha-1": "EE47092F766E5FF1D4F2ADAEFC05D612309DB487",
+            "sha-256": "24409768764167EDBAEF1FACE8A0FB6721F1219D49B3F54BF31CDA9A47CAE770"
+          }
+        },
+        {
+          "location": {
+            "uri": "tests/OrcaCore.DeveloperSurface.Guards/DagRuntimeViewBoundaryGuards.cs",
+            "uriBaseId": "solutionDir"
+          },
+          "hashes": {
+            "md5": "791C4E9CD3374CBB7DB3BC8E43F349B4",
+            "sha-1": "480C869676E93F013659BBAA24D6CA7DBFCF72D8",
+            "sha-256": "4E38ED9CFA7FC23EF10D567966FF637326F6B7738477AEE9888222DC18B031A6"
+          }
+        },
+        {
+          "location": {
+            "uri": "src/OrcaCore.Dag/DagFailureContracts.cs",
+            "uriBaseId": "solutionDir"
+          },
+          "hashes": {
+            "md5": "0CBB66309BD52548C80BDD311DFB27AF",
+            "sha-1": "47707DE68DCFD1B110715C8D6B9AA8361FE42E9D",
+            "sha-256": "5E07250D9B0BF0227E2408A9A6AD788B8DB6F4CDDAACDBF074BAD6E0134375FB"
+          }
+        },
+        {
+          "location": {
+            "uri": "src/OrcaCore.Dag/DagAssemblyMarker.cs",
+            "uriBaseId": "solutionDir"
+          },
+          "hashes": {
+            "md5": "4B4585EC91C7AE1096F2B4C752C29404",
+            "sha-1": "0A2148D415380921717C85DC3CF0E78E9E379E22",
+            "sha-256": "9DA7C187C06C022FD1CBFE7FD1CC82C64A4E22B9F2B6B19709559A4C0961E5C4"
+          }
+        },
+        {
+          "location": {
+            "uri": "src/OrcaCore.Dag.Hosting/DagHostingAssemblyMarker.cs",
+            "uriBaseId": "solutionDir"
+          },
+          "hashes": {
+            "md5": "4917AAD200F8FB09F8DAB8A229235FA0",
+            "sha-1": "F973281BA8B6716ABCA016EF22BF2F6E2AEA652C",
+            "sha-256": "2470965DB21CDDC232DF49EAEE5ABF71F28AAE03ACCBD17825C65706B9816D87"
+          }
+        }
+      ],
+      "columnKind": "utf16CodeUnits"
+    }
+  ]
+}

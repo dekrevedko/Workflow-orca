@@ -3,10 +3,10 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 339,
-    "physicalDeclarations": 1402,
-    "activeFiles": 191,
-    "activeDeclarations": 714,
+    "physicalFiles": 340,
+    "physicalDeclarations": 1405,
+    "activeFiles": 192,
+    "activeDeclarations": 717,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 17,
@@ -712,6 +712,12 @@
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
       "status": "active",
       "declarations": 1
+    },
+    {
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/DagRuntimeViewBoundaryGuards.cs",
+      "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
+      "status": "active",
+      "declarations": 3
     },
     {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/DeadlineRetryContractGuards.cs",

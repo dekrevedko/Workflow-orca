@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-atomic-canonical-transition-dirty-manifest-2026-10-03.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-source-dirty-manifest-2026-10-04.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2359,6 +2359,16 @@
       "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-rv-remediation-independent-review-verdict-2026-10-02.md",
       "bytes": 10608,
       "sha256": "5ff6b3322d3071149fefe583fd74fba35afa5d28ea6a81ca50637bcdb029b457"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-source-dirty-manifest-2026-10-04.txt",
+      "bytes": 2344,
+      "sha256": "6d92fc3d518644f6c3f767302a027c09767a28064e442402ffae7a213e5583e0"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-source-independent-review-request-2026-10-04.md",
+      "bytes": 9053,
+      "sha256": "0404fcb6d789800df2f19feb1e57afca351411548db8e6a65749a6a944bcd3d2"
     },
     {
       "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-successor-process-dirty-manifest-2026-09-30.txt",

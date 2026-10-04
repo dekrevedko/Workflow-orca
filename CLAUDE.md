@@ -92,10 +92,10 @@ OrcaCore.Dag.Hosting       — sole DAG-to-durable bridge; owns AddOrcaCoreDag
 
 Implementation package boundaries use an exact internal-friend allowlist so compiler/kernel,
 concrete engine, provider, and hosted-loop types do not become public merely to cross assemblies.
-The current eight product friends are `OrcaCore` to `OrcaCore.Core`,
+The source candidate has nine product friends are `OrcaCore` to `OrcaCore.Core`,
 `OrcaCore.Engine.Ephemeral`, and `OrcaCore.Engine.Durable`; `OrcaCore.Core` to both engines;
 `OrcaCore.Engine.Durable` to `OrcaCore.Durable.Hosting`; and `OrcaCore.Durable.Hosting` to
-`OrcaCore.Dag.Hosting`; and `OrcaCore` to `OrcaCore.Dag` for guarded authoring only. Exact owning unit-test assemblies plus Durable to
+`OrcaCore.Dag.Hosting`; and `OrcaCore` to `OrcaCore.Dag` for guarded authoring only; and `OrcaCore.Dag` to `OrcaCore.Dag.Hosting` for the exact runtime view. Exact owning unit-test assemblies plus Durable to
 ProviderCertification may inspect internals; acceptance, behavior, compile-fixture, and
 integration assemblies may not. No other current friend or public reflection bridge is allowed.
 
@@ -109,9 +109,9 @@ or child-start access; further runtime seams require a separate approved amendme
 The independently approved `admit-dag-hosting-runtime-view` contract specifies a ninth product
 friend, `OrcaCore.Dag -> OrcaCore.Dag.Hosting`, limited to three internal runtime-view types
 and fifteen exact method/getter signatures, not delegates, drafts, codec, or child access.
-Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical in the prepared 1.3/1.4 target, but not compiled. The durable bridge decodes committed dependency
+Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled in this source candidate, awaiting independent source approval/checkpoint. The durable bridge decodes committed dependency
 outputs before mapping and owns normalization, committed-byte fingerprints, and child start.
-No source follows before separate contract and atomic canonical/registry approvals.
+The contract and atomic canonical/registry approvals are checkpointed. Runtime-view source still requires its own independent approval/checkpoint; durable bridge work is not authorized by this candidate.
 The existing `OrcaCore.Durable.Hosting -> OrcaCore.Dag.Hosting` edge remains the sole
 DAG-to-durable *runtime* bridge.
 

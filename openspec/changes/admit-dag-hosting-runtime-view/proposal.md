@@ -39,3 +39,7 @@ The rejected first contract packet is retained unchanged. RV-1 leaves Task 1.2 a
 ## Current atomic transition status (2026-10-03)
 
 The earlier proposal/preparation statements are preserved as the history of this change. Contract Task 1.2 now has independent APPROVE and its exact checkpoint/evidence/activation chain. The prepared atomic Tasks 1.3/1.4 target synchronizes only the two approved blocks, marks their new rows ApprovedPending and preserves four exact historical predecessor blocks as superseded. No product source or ninth friend is compiled, and source authority still requires independent review/checkpoint of this transition. Both original contract artifacts are permanently pinned superseded decisions. The bridge retains eager output materialization, fixed-codec normalization and child ownership.
+
+## Current source candidate status (2026-10-04)
+
+The process, contract and atomic canonical transition are approved and checkpointed. The candidate implements Tasks 2.1–2.3 only; Task 2.4 independent source review/checkpoint remains pending. It adds exactly the ninth friend, exact runtime view and guarded Hosting consumer. Mapping takes already-detached values; durable codec/commit/child work remains in reshape 8.4/8.5. Permanent historical contract records distinguish rejected/superseded from approved/governing; their bytes are unchanged.

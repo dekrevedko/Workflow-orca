@@ -68,6 +68,7 @@ public sealed partial class NormativeContractInfrastructureGuards
             "OrcaCore.Core->OrcaCore.Engine.Durable",
             "OrcaCore.Core->OrcaCore.Engine.Ephemeral",
             "OrcaCore.Durable.Hosting->OrcaCore.Dag.Hosting",
+            "OrcaCore.Dag->OrcaCore.Dag.Hosting",
             "OrcaCore.Durable.Hosting->OrcaCore.Hosting.Tests",
             "OrcaCore.Engine.Durable->OrcaCore.Durable.Hosting",
             "OrcaCore.Engine.Durable->OrcaCore.Engine.Durable.Tests",

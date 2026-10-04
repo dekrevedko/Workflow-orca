@@ -331,7 +331,7 @@ independently approved Task 8.2 checkpoint `a9f835f939d683500ca231c7ba491ab8eae2
 `OrcaCore.Dag.Hosting` alone consumes the named internal durable child-start/join bridge.
 The independently approved `admit-dag-hosting-runtime-view` contract specifies only
 `OrcaCore.Dag -> OrcaCore.Dag.Hosting` for immutable descriptors and one evaluator,
-guarded at exact non-public type/member signatures. Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical in the prepared 1.3/1.4 target, but not compiled, and
+guarded at exact non-public type/member signatures. Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled in this source candidate, awaiting independent source approval/checkpoint, and
 does not widen the authoring grant. The durable bridge decodes successful committed outputs
 before evaluation and owns fixed-codec input normalization, fingerprints, commit and child start.
 Companions may depend on OrcaCore, `OrcaCore.Dag`, and infrastructure SDKs. No OrcaCore package

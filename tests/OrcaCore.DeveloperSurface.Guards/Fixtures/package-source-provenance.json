@@ -15,12 +15,12 @@
     {
       "id": "OrcaCore.Dag",
       "project": "src/OrcaCore.Dag/OrcaCore.Dag.csproj",
-      "sourceSha256": "16ea108ce5ce32a313bc80105efaeca73404a1db7eeaa17c95bce8a4e65aee80"
+      "sourceSha256": "4ca23ce908f60b02ace5c3b27d8867b54d442bc60d22f5f27d36e1222637db82"
     },
     {
       "id": "OrcaCore.Dag.Hosting",
       "project": "src/OrcaCore.Dag.Hosting/OrcaCore.Dag.Hosting.csproj",
-      "sourceSha256": "c36ad11d2e942b8270223bf29b59a274a889576f3d94806d012fe67f943714ec"
+      "sourceSha256": "572b6bb33a943886310e8c33f1907aa811e63c7bc56ec35c59a97d242910562d"
     },
     {
       "id": "OrcaCore.Durable.Hosting",

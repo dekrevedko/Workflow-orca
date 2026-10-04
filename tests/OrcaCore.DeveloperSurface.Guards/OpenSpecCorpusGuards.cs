@@ -128,7 +128,7 @@ public sealed class OpenSpecCorpusGuards
     private const string RuntimeViewAtomicTransitionArtifact =
         "openspec/changes/admit-dag-hosting-runtime-view/artifacts/task-1-3-1-4-atomic-runtime-view-transition-2026-10-03.md";
     private const string RuntimeViewAtomicTransitionSha256 = "a2a261de206ec8ca6e54509d467431cb20b688d2bb2540520b42fc7a40ae1b9d";
-    private static readonly PostGateHistoricalArtifact[] ExactSupersededRuntimeViewContracts =
+    private static readonly PostGateHistoricalArtifact[] ExactHistoricalRuntimeViewContracts =
     [
         new(RuntimeViewChange, "artifacts/task-1-1-runtime-view-contract-2026-10-02.md", "5527189563e0f39eccbb9e56bc902d2e1e4cc9e2695e0db929cc5e4b03a7dc12"),
         new(RuntimeViewChange, "artifacts/task-1-1-runtime-view-contract-rv-remediation-2026-10-02.md", "2dec007df0e06740373fdc4c4d0cd69066d0d08cda417f141a3897a4b3824398")
@@ -140,11 +140,11 @@ public sealed class OpenSpecCorpusGuards
     private const string RuntimeViewSignatureContractSha256 =
         "93e6490d8c132784600c3c9a59f8d27be2e22662236f6f5bf0ea12d0dd21dda9";
     private const string RuntimeViewNumberedProposalSha256 =
-        "31142f0f1375140d78f1732874cb7a39b4a08ed95af8aeea564605e78a43ecae";
+        "4f77f455d64b761d8cca9f62e0fad82559eb314bbeaf64743ae3f74cc7a13775";
     private const string RuntimeViewNumberedBoundarySha256 =
-        "1788d2e256586c8f066c314b2d9b5b90fcb2e9aa190ea6514c40ca7e59618d98";
+        "4e82831901243a978767412a71a3255a514e695c04ac6832495dc141d45255ae";
     private const string RuntimeViewCompositionProposalSha256 =
-        "468a25721385df20f6bb917faa0ea6b7cde006ad201d02b03cfb694a4191f91a";
+        "76fbb969379eedf4ce915f9c058dbab955c70222054ad63c10fc79d3ce086071";
     private const string RuntimeViewReshapeHandoffSha256 =
         "ec0492e7f4ce742122932c3a870cd41f03e58bd7fb9bf280aec740a6b3b33814";
     private const string CurrentOpenSpecProvenanceSha256 =
@@ -169,7 +169,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/reshape-developer-facing-interfaces/artifacts/" +
         "task-8-0-section-8-requirement-gate-2026-09-26.md";
     private const string Task80RequirementGateSha256 =
-        "a41d329665712826f60f408bf6a4e7756cd304052cd6cdb6df77ac37a57a0355";
+        "deef826ad585cf976dc8dd666059e431da1b52bfe14eefd4314a8cf0e2fb391c";
     private const string MissingApprovalReviewState = "MissingApproval";
     private const string RejectedReviewState = "Rejected";
     private const string ApprovalAwaitingEvidenceCommitReviewState =
@@ -343,7 +343,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "281a916629461926bcefc17c2efd434029ec11c6aee603c5d0b991ce2c1ef3f9";
+        "caa9681fa204b9bd231dd29d2139cdcf3304c2032618488289d945d65fda79b6";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +
@@ -1532,7 +1532,7 @@ public sealed class OpenSpecCorpusGuards
         IReadOnlyCollection<DeltaRequirement> activeRequirements,
         PostGateAmendmentCheckpoint checkpoint)
     {
-        checkpoint.SchemaVersion.Should().Be(7);
+        checkpoint.SchemaVersion.Should().Be(8);
         checkpoint.ProposedRequirementSuccessors.Should().Equal(
             ExactProposedDagSuccessors,
             "only the exact reviewed predecessor/successor headings may bypass sole active ownership");
@@ -1603,12 +1603,12 @@ public sealed class OpenSpecCorpusGuards
         checkpoint.SupersededRuntimeViewPredecessors.Should().Equal(ExactRuntimeViewSupersededPredecessors,
             "only four exact old blocks may be superseded by the two runtime-view requirements");
         checkpoint.ApprovedRuntimeViewEvidence.Should().Be(ExactRuntimeViewApprovalEvidence);
-        checkpoint.SupersededRuntimeViewContractArtifacts.Should().Equal(ExactSupersededRuntimeViewContracts);
-        foreach (var artifact in checkpoint.SupersededRuntimeViewContractArtifacts)
+        checkpoint.HistoricalRuntimeViewContractArtifacts.Should().Equal(ExactHistoricalRuntimeViewContracts);
+        foreach (var artifact in checkpoint.HistoricalRuntimeViewContractArtifacts)
         {
             var path = Path.Combine(ResolveChangeRecord(root, artifact.Change),
                 artifact.RelativePath.Replace('/', Path.DirectorySeparatorChar));
-            File.Exists(path).Should().BeTrue("a permanent superseded contract must remain available");
+            File.Exists(path).Should().BeTrue("a permanent historical contract must remain available");
             Sha256(NormalizeLineEndings(File.ReadAllText(path))).Should().Be(artifact.NormalizedSha256);
         }
         Sha256(NormalizeLineEndings(File.ReadAllText(RequireNonEmptyFile(root,
@@ -1629,10 +1629,20 @@ public sealed class OpenSpecCorpusGuards
             "0f4fafa3c3b3acfdb2c39227bba53f094782bd13",
             "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-successor-process-independent-review-verdict-2026-09-30.md",
             "bc72cd0eca94e77a1c09744e18aea6bb0133cfe5429ddf5a50fdfb4e0c70cd4c", "0.1");
-        foreach (var task in new[] { "0.1", "0.2", "1.1", "1.2", "1.3" })
+        foreach (var task in new[] { "0.1", "0.2", "1.1", "1.2", "1.3", "1.4", "2.1", "2.2", "2.3" })
             ValidateTaskReference(root, new PostGateTaskReference(RuntimeViewChange, task, CompleteTaskState));
-        // 1.4's independent review/checkpoint is not complete yet. Leave only its activation unpinned.
-        foreach (var task in new[] { "2.1", "2.2", "2.3", "2.4", "3.1", "3.2" })
+        // The source candidate requires the actual atomic-transition approval, not a checkbox.
+        ValidateDagApprovalEvidence(root,
+            "a0da21ba9597e3864a3d4134120fbb0138417bd7",
+            "6c8bcd02bf6c747800c17dbc27afce53d24efbc1",
+            "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-atomic-canonical-transition-independent-review-verdict-2026-10-03.md",
+            "cce8c5195f559f1624a002ef4870c32ccdb445163aec9f552dcbfc5245de7e35", "1.4");
+        var atomicTree = RunGit(root, "rev-parse", "a0da21ba9597e3864a3d4134120fbb0138417bd7^{tree}");
+        atomicTree.ExitCode.Should().Be(0);
+        atomicTree.StandardOutput.Trim().Should().Be("572d86f6801e36a0611227386939e4dcbb1ab885");
+        // 2.4 includes independent review/checkpoint; leave only its checkbox activation unpinned.
+        // 3.2 must bind the later actual source APPROVE/checkpoint before Complete promotion.
+        foreach (var task in new[] { "3.1", "3.2" })
             ValidateTaskReference(root, new PostGateTaskReference(RuntimeViewChange, task, OpenTaskState));
         ValidateDagApprovalEvidence(root,
             "b5fb28e65dbf3fea102ddec1d5fe1cf9d794c659", "dbc3086da206bde20cc8624816e3f45f1d13f9b8",
@@ -4414,7 +4424,7 @@ public sealed class OpenSpecCorpusGuards
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonicalRequirements,
         PostGateAmendmentCheckpoint checkpoint)
     {
-        checkpoint.SchemaVersion.Should().Be(7);
+        checkpoint.SchemaVersion.Should().Be(8);
         checkpoint.ProposedRequirementSuccessors.Should().Equal(
             ExactProposedDagSuccessors,
             "a proposed post-gate successor is a named exception, not a general duplicate-owner waiver");
@@ -6354,7 +6364,7 @@ public sealed class OpenSpecCorpusGuards
         PostGateApprovedPendingEvidence ApprovedRuntimeViewEvidence,
         PostGateApprovedPendingSuccessor[] ApprovedRuntimeViewRequirementSuccessors,
         PostGateSupersededPredecessor[] SupersededRuntimeViewPredecessors,
-        PostGateHistoricalArtifact[] SupersededRuntimeViewContractArtifacts,
+        PostGateHistoricalArtifact[] HistoricalRuntimeViewContractArtifacts,
         PostGateAmendment[] Amendments,
         string ArtifactPath,
         string ArtifactNormalizedSha256);

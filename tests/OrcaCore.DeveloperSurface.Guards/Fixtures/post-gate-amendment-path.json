@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "requiredStages": [
     "amendment-approval",
     "canonical-open-spec",
@@ -310,7 +310,7 @@
       "canonicalBlockSha256": "f0dbc156d044536a83d73934dfcb6eaac5f974069b1a5c555433f2a4b56a1ab8"
     }
   ],
-  "supersededRuntimeViewContractArtifacts": [
+  "historicalRuntimeViewContractArtifacts": [
     {
       "change": "admit-dag-hosting-runtime-view",
       "relativePath": "artifacts/task-1-1-runtime-view-contract-2026-10-02.md",

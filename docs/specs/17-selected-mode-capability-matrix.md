@@ -1177,21 +1177,21 @@ Task 8.2 checkpoint `a9f835f939d683500ca231c7ba491ab8eae2aaae`. It adds no `Core
 dependency or child-start access.
 
 <!-- runtime-view-contract:start -->
-#### Approved-pending DAG runtime-view boundary (atomic Tasks 1.3/1.4)
+#### Approved-canonical DAG runtime-view boundary (source candidate Tasks 2.1–2.4)
 
 The separate `admit-dag-hosting-runtime-view` contract independently approves a ninth friend,
 `OrcaCore.Dag -> OrcaCore.Dag.Hosting`, at checkpoint `43d869fc29e7daa3ec567d4602960f458eb98492`,
 with direct-child approval evidence `1ea7f44b5a32d058e04b913f387317c21747add5`. It is canonical
-in this prepared atomic sync target, but not compiled; the atomic transition still requires independent review/checkpoint. Its exact
+at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`, with evidence `6c8bcd02bf6c747800c17dbc27afce53d24efbc1`. This source candidate compiles the ninth friend and exact view, but still requires independent source approval/checkpoint. Its exact
 three-type/fifteen-member descriptor/evaluator contract is stated in full below. All three types
-are in `OrcaCore.Dag`; this is approved internal syntax awaiting source, not new public surface.
+are in `OrcaCore.Dag`; this candidate implements the approved internal syntax, not new public surface.
 It exposes no mapper delegates, mutable drafts, constructors or public compiled metadata.
 The existing `OrcaCore -> OrcaCore.Dag` six-signature authoring grant remains unchanged.
 The durable bridge, not Dag, decodes successful committed dependency outputs into detached
 values of the declared output types before the evaluator receives them. Hosting submits the
 typed mapped input and declared type back to that bridge for codec normalization, exact-byte
 fingerprinting and once-only commit before child start. These contract statements grant no
-implementation authority before the separate atomic-sync approval and checkpoint.
+durable-bridge implementation authority; that work remains in reshape Tasks 8.4/8.5.
 
 ```csharp
 // On the existing public WorkflowDagPlan<TRunInput>:
@@ -2094,8 +2094,8 @@ metadata. The complete product-friend set is:
   join contract.
 
 The independently approved ninth friend, `OrcaCore.Dag -> OrcaCore.Dag.Hosting`, is canonical in
-the prepared atomic 1.3/1.4 target, but not compiled. Its exhaustive internal runtime-view signatures are in §17.2.6 above.
-It gives Dag no codec or child-start access and does not change the current eight-friend list.
+independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7` and compiled in the source candidate awaiting independent source approval/checkpoint. Its exhaustive internal runtime-view signatures are in §17.2.6 above.
+It gives Dag no codec or child-start access and is the candidate ninth friend alongside the eight previously compiled grants.
 
 The approved eighth product friend, `OrcaCore -> OrcaCore.Dag`, is compiled in the independently
 approved Task 8.2 checkpoint `a9f835f939d683500ca231c7ba491ab8eae2aaae` for the five

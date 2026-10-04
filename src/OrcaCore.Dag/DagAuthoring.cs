@@ -39,8 +39,9 @@ public sealed class WorkflowDagBuilder<TRunInput>
         ArgumentNullException.ThrowIfNull(nodeId);
         ArgumentNullException.ThrowIfNull(workflow);
         var reference = new DagNodeRef(nodeId, planToken, nodes.Count);
-        var draft = AddNode(reference, workflow,
-            workflow.DefinitionId, workflow.DefinitionVersion, workflow.DefinitionFingerprint);
+        var draft = AddNode(reference,
+            workflow.DefinitionId, workflow.DefinitionVersion, workflow.DefinitionFingerprint,
+            typeof(TNodeInput), null);
         return new DagNodeBuilder<TRunInput, TNodeInput>(draft);
     }
 
@@ -51,8 +52,9 @@ public sealed class WorkflowDagBuilder<TRunInput>
         ArgumentNullException.ThrowIfNull(nodeId);
         ArgumentNullException.ThrowIfNull(workflow);
         var reference = new DagNodeRef<TNodeOutput>(nodeId, planToken, nodes.Count);
-        var draft = AddNode(reference, workflow,
-            workflow.DefinitionId, workflow.DefinitionVersion, workflow.DefinitionFingerprint);
+        var draft = AddNode(reference,
+            workflow.DefinitionId, workflow.DefinitionVersion, workflow.DefinitionFingerprint,
+            typeof(TNodeInput), typeof(TNodeOutput));
         return new DagNodeBuilder<TRunInput, TNodeInput, TNodeOutput>(draft);
     }
 
@@ -129,8 +131,9 @@ public sealed class WorkflowDagBuilder<TRunInput>
 
         var snapshots = nodes.Select(node => new DagNodePlan<TRunInput>(
             node.Reference,
-            node.Workflow,
             node.Mapper!,
+            node.ChildDefinitionId, node.ChildDefinitionVersion, node.ChildFingerprint,
+            node.InputType, node.OutputType,
             Array.AsReadOnly(node.Dependencies.ToArray()))).ToArray();
         var canonical = CanonicalStructure();
         var fingerprint = new DefinitionFingerprint(
@@ -142,13 +145,14 @@ public sealed class WorkflowDagBuilder<TRunInput>
 
     private DagNodeDraft<TRunInput> AddNode(
         DagNodeRef reference,
-        object workflow,
         DefinitionId childId,
         DefinitionVersion childVersion,
-        DefinitionFingerprint childFingerprint)
+        DefinitionFingerprint childFingerprint,
+        Type inputType,
+        Type? outputType)
     {
         var draft = new DagNodeDraft<TRunInput>(
-            reference, workflow, childId, childVersion, childFingerprint);
+            reference, childId, childVersion, childFingerprint, inputType, outputType);
         nodes.Add(draft);
         return draft;
     }
@@ -338,14 +342,24 @@ public sealed class DagNodeInputContext<TRunInput>
         ArgumentNullException.ThrowIfNull(dependency);
         if (!ReferenceEquals(dependency.PlanToken, planToken) ||
             !directDependencies.Contains(dependency) ||
-            !successfulOutputs.TryGetValue(dependency, out var output) ||
-            output is not TDependencyOutput typed)
+            !successfulOutputs.TryGetValue(dependency, out var output))
         {
             throw new InvalidOperationException(
                 "DAG_INPUT_MAPPING_INVALID: the output is not a successful direct dependency.");
         }
 
-        return typed;
+        if (output is TDependencyOutput typed)
+        {
+            return typed;
+        }
+
+        if (output is null && DagValueTypes.AcceptsNull(typeof(TDependencyOutput)))
+        {
+            return default!;
+        }
+
+        throw new InvalidOperationException(
+            "DAG_INPUT_MAPPING_INVALID: the output does not match its declared type.");
     }
 }
 
@@ -374,31 +388,36 @@ public sealed class WorkflowDagPlan<TRunInput>
     public IReadOnlyList<DagNodeRef> Nodes { get; }
 
     internal IReadOnlyList<DagNodePlan<TRunInput>> NodePlans { get; }
+
+    internal DagRuntimeView<TRunInput> GetRuntimeView() => new(NodePlans);
 }
 
 internal sealed class DagNodeDraft<TRunInput>
 {
     internal DagNodeDraft(
         DagNodeRef reference,
-        object workflow,
         DefinitionId childDefinitionId,
         DefinitionVersion childDefinitionVersion,
-        DefinitionFingerprint childFingerprint)
+        DefinitionFingerprint childFingerprint,
+        Type inputType,
+        Type? outputType)
     {
         Reference = reference;
-        Workflow = workflow;
         ChildDefinitionId = childDefinitionId;
         ChildDefinitionVersion = childDefinitionVersion;
         ChildFingerprint = childFingerprint;
+        InputType = inputType;
+        OutputType = outputType;
     }
 
     internal DagNodeRef Reference { get; }
-    internal object Workflow { get; }
     internal DefinitionId ChildDefinitionId { get; }
     internal DefinitionVersion ChildDefinitionVersion { get; }
     internal DefinitionFingerprint ChildFingerprint { get; }
     internal List<DagNodeRef> Dependencies { get; } = [];
-    internal Delegate? Mapper { get; private set; }
+    internal Type InputType { get; }
+    internal Type? OutputType { get; }
+    internal Func<DagNodeInputContext<TRunInput>, object?>? Mapper { get; private set; }
     internal int MapInputCalls { get; private set; }
 
     internal void AddDependencies(DagNodeRef[] dependencies)
@@ -412,16 +431,20 @@ internal sealed class DagNodeDraft<TRunInput>
         Dependencies.AddRange(dependencies.ToArray());
     }
 
-    internal void SetMapper(Delegate mapper)
+    internal void SetMapper<TInput>(Func<DagNodeInputContext<TRunInput>, TInput> mapper)
     {
         ArgumentNullException.ThrowIfNull(mapper);
         MapInputCalls++;
-        Mapper ??= mapper;
+        Mapper ??= context => mapper(context);
     }
 }
 
 internal sealed record DagNodePlan<TRunInput>(
     DagNodeRef Reference,
-    object Workflow,
-    Delegate Mapper,
+    Func<DagNodeInputContext<TRunInput>, object?> Mapper,
+    DefinitionId ChildDefinitionId,
+    DefinitionVersion ChildDefinitionVersion,
+    DefinitionFingerprint ChildFingerprint,
+    Type InputType,
+    Type? OutputType,
     IReadOnlyList<DagNodeRef> Dependencies);

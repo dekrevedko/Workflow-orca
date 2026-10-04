@@ -91,8 +91,8 @@ friend is compiled in the independently approved Task 8.2 checkpoint
   `InternalsVisibleTo("OrcaCore.Dag.Hosting")`. The seam is same-solution/release-train internals,
   not a public workflow or provider SPI; no second DAG-to-durable product bridge is permitted
   without a matrix amendment. The independently approved ninth `OrcaCore.Dag -> OrcaCore.Dag.Hosting`
-  runtime-view friend would let the adapter consume only three internal types and fifteen
-  exact method/getter signatures. Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical in the prepared 1.3/1.4 target, but not compiled, changes no package edge,
+  runtime-view friend lets the candidate adapter consume only three internal types and fifteen
+  exact method/getter signatures. Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled in this source candidate, awaiting independent source approval/checkpoint, changes no package edge,
   and exposes no mapper delegate, draft, constructor, codec or child API.
 - The companion scheduler depends outward on `OrcaCore.Dag.Hosting` plus documented public
   application/hosting packages. No dependency points from OrcaCore back to the companion.
@@ -142,7 +142,8 @@ compilation.
   `OrcaCore.Engine.Ephemeral`, `OrcaCore.Engine.Durable`, and `OrcaCore.Dag` for authoring;
   `OrcaCore.Core` grants both engines;
   `OrcaCore.Engine.Durable` grants `OrcaCore.Durable.Hosting`; and
-  `OrcaCore.Durable.Hosting` grants `OrcaCore.Dag.Hosting`. The authoring-only eighth
+  `OrcaCore.Durable.Hosting` grants `OrcaCore.Dag.Hosting`; and `OrcaCore.Dag` grants
+  `OrcaCore.Dag.Hosting` for the exact runtime view. The authoring-only eighth
   edge grants no durable child-start access; its source is independently approved at Task 8.2
   checkpoint `a9f835f939d683500ca231c7ba491ab8eae2aaae`.
   Owning white-box test friends are exact for Core, both engines, Durable Hosting, PostgreSQL, and
