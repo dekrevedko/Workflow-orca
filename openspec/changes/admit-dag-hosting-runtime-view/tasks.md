@@ -15,7 +15,7 @@
 - [x] 2.1 Add exactly `OrcaCore.Dag -> OrcaCore.Dag.Hosting` and the reviewed immutable runtime view with one mapping evaluator. Keep the six-signature OrcaCore-to-Dag authoring allowlist, all direct package references and the sole durable child bridge unchanged. Expose no public implementation metadata or factories.
 - [x] 2.2 Implement the mapping-validation portion of reshape 8.3 through that view; use Hosting-level behavior for valid/invalid direct-dependency access, mapper failure and the reviewed null policy before any input commit or child start. No test friend, reflection, mapper invocation during Build, codec in Dag, or premature 8.4/8.5 completion.
 - [x] 2.3 Add exact compiled non-public type-and-member reference allowlists for Dag.Hosting consuming Dag. Keep independent probes for forbidden field/signature/interface/generic/attribute/type/member/overload references, a public-only green control, and the repo SDK pin in every temporary probe. Refresh only legitimately affected API/source-provenance fixtures.
-- [ ] 2.4 Run clean Debug/Release builds, focused behavior and metadata tests, exact package consumers/baselines, product/provider lanes, Infrastructure and strict OpenSpec; report intentional ExpectedRed separately. Review and checkpoint this coherent source target before durable bridge work.
+- [x] 2.4 Run clean Debug/Release builds, focused behavior and metadata tests, exact package consumers/baselines, product/provider lanes, Infrastructure and strict OpenSpec; report intentional ExpectedRed separately. Review and checkpoint this coherent source target before durable bridge work.
 
 ## 3. Permanent implementation closeout
 
