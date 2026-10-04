@@ -2371,6 +2371,11 @@
       "sha256": "0404fcb6d789800df2f19feb1e57afca351411548db8e6a65749a6a944bcd3d2"
     },
     {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-source-independent-review-verdict-2026-10-04.md",
+      "bytes": 11630,
+      "sha256": "b8c6c1da867c940e04330a0725993a77355eef29ae3a54717dc58297fb2740ce"
+    },
+    {
       "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-successor-process-dirty-manifest-2026-09-30.txt",
       "bytes": 1303,
       "sha256": "9c4bc8db2f407b29aefe6209f4208487588f2bd094732bb0ccf71c78ce5a23e6"
