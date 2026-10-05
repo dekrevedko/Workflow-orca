@@ -1,7 +1,7 @@
 ## 0. Process-only successor gate
 
 - [x] 0.1 Prepare the exact four proposed successors, source-pinned process registry, pending provenance, and self-inclusive review packet. This completes preparation only, not approval of a contract or source.
-- [ ] 0.2 Obtain independent process APPROVE; checkpoint only the frozen target, add the byte-exact verdict in a direct-child evidence commit, then activate by checking this task only. No source or canonical change is authorized.
+- [x] 0.2 Obtain independent process APPROVE; checkpoint only the frozen target, add the byte-exact verdict in a direct-child evidence commit, then activate by checking this task only. No source or canonical change is authorized.
 
 ## 1. Run-persistence/progression contract and atomic canonical transition
 
