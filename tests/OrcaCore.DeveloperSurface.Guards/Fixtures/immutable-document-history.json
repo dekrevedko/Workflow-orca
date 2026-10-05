@@ -2416,6 +2416,11 @@
       "sha256": "0df7cbc5abdb03f51e3532b739d5e9abf164aeb0e3beba7407e8032928d5f03f"
     },
     {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-br-remediation-independent-review-verdict-2026-10-04.md",
+      "bytes": 13162,
+      "sha256": "2fe0cac10719ab0aa9e6321461fb4b9cb5d63504a0436585dc66f51b32375557"
+    },
+    {
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-dirty-manifest-2026-10-04.txt",
       "bytes": 534,
       "sha256": "a7235ef34da53cc1e7d3ec6089ff496f80f63898a4f653e2bd0c0be8fa9004ef"

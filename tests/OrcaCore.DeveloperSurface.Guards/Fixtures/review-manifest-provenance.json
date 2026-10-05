@@ -1,17 +1,6 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": {
-    "task": "reshape-durable-dag-bridge-contract-br-remediation-8.4",
-    "requestPath": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-br-remediation-independent-review-request-2026-10-04.md",
-    "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-br-remediation-dirty-manifest-2026-10-04.txt",
-    "disposition": "RawGitOrder",
-    "baseCommit": "c85fd0f301f110db691a026bcdd0c0e35c6b26c1",
-    "contentRecordExcludedPaths": [
-      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
-    ],
-    "contentRecordBytes": 2354,
-    "contentRecordSha256": "45a538683b1618d2c4b12f2fca978122e5af977dee8b501184eee54bddd1aa54"
-  },
+  "activeFreeze": null,
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",
