@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-closeout-dirty-manifest-2026-10-04.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-br-remediation-dirty-manifest-2026-10-04.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2404,6 +2404,31 @@
       "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-successor-process-independent-review-verdict-2026-09-30.md",
       "bytes": 11549,
       "sha256": "bc72cd0eca94e77a1c09744e18aea6bb0133cfe5429ddf5a50fdfb4e0c70cd4c"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-br-remediation-dirty-manifest-2026-10-04.txt",
+      "bytes": 1446,
+      "sha256": "e6330a42bb0e1303e2676d6b72e4ce034f5a0e35d3921b4eabdc664f98923734"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-br-remediation-independent-review-request-2026-10-04.md",
+      "bytes": 9227,
+      "sha256": "0df7cbc5abdb03f51e3532b739d5e9abf164aeb0e3beba7407e8032928d5f03f"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-dirty-manifest-2026-10-04.txt",
+      "bytes": 534,
+      "sha256": "a7235ef34da53cc1e7d3ec6089ff496f80f63898a4f653e2bd0c0be8fa9004ef"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-independent-review-request-2026-10-04.md",
+      "bytes": 7483,
+      "sha256": "bcd4da55fd4d0c513992f30d2f5d11089f4ab840ae046e3d2195ec667690a3aa"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-independent-review-verdict-2026-10-04.md",
+      "bytes": 16148,
+      "sha256": "914ae8081cb117a933f6bdee4816313ae86af71038bd5fe69a590e0508bf184f"
     },
     {
       "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-aaa-1-and-task-7-3-dirty-manifest-2026-09-18.txt",

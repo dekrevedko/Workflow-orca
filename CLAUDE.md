@@ -111,7 +111,7 @@ friend, `OrcaCore.Dag -> OrcaCore.Dag.Hosting`, limited to three internal runtim
 and fifteen exact method/getter signatures, not delegates, drafts, codec, or child access.
 Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled and independently source-approved at checkpoint `4eb2e8d3a68e0ae7d873bd4f54c53735beefb132`, with direct-child evidence `2fdfa59a747a5d1d1667abd63a8def88168a172b`. The durable bridge decodes committed dependency
 outputs before mapping and owns normalization, committed-byte fingerprints, and child start.
-The contract, atomic canonical/registry transition and runtime-view source are independently approved and checkpointed. Complete promotion is prepared only in the separately reviewed closeout; durable bridge work is not authorized by runtime-view approval.
+The contract, atomic canonical/registry transition and runtime-view source are independently approved and checkpointed. Complete promotion is independently approved and checkpointed at `3270678409593c9af0a7c1810f3c4be329b133fd`, with evidence `496f30ccd91fbe63b8fd099c546d36864c440a4d` and checkbox-only activation `c85fd0f301f110db691a026bcdd0c0e35c6b26c1`; durable bridge work is not authorized by runtime-view approval.
 The existing `OrcaCore.Durable.Hosting -> OrcaCore.Dag.Hosting` edge remains the sole
 DAG-to-durable *runtime* bridge.
 

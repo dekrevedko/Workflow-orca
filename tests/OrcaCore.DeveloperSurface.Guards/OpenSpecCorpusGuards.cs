@@ -105,6 +105,10 @@ public sealed class OpenSpecCorpusGuards
             "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs"
         ]);
     private const string RuntimeViewSourceActivationCommit = "1d8941b7c4e4a96752b33684075d152494057c49";
+    private const string DurableDagChildContractArtifact = "openspec/changes/reshape-developer-facing-interfaces/artifacts/task-8-4-durable-dag-bridge-contract-br-remediation-2026-10-04.md";
+    private const string DurableDagChildContractSha256 = "6be4d3d9dfcb52078a518713819420b84ea7dbd02aef49ceb0506a6f081d06ce";
+    private const string RejectedDurableDagChildContractArtifact = "openspec/changes/reshape-developer-facing-interfaces/artifacts/task-8-4-durable-dag-bridge-contract-2026-10-04.md";
+    private const string RejectedDurableDagChildContractSha256 = "acbb4b7030cc1c7e2c7d5c48d7d9830dcebe21e362cbc60092db41cc59075b50";
     private const string RuntimeViewCloseoutArtifact = "openspec/changes/admit-dag-hosting-runtime-view/artifacts/task-3-2-runtime-view-closeout-2026-10-04.md";
     private const string RuntimeViewCloseoutSha256 = "8a2eb6b3e860fb45031fb55115911570d2478a26e7fad5aaeb12d24188753a9d";
     private const string RuntimeViewChange = "admit-dag-hosting-runtime-view";
@@ -161,13 +165,13 @@ public sealed class OpenSpecCorpusGuards
     private const string RuntimeViewSignatureContractSha256 =
         "93e6490d8c132784600c3c9a59f8d27be2e22662236f6f5bf0ea12d0dd21dda9";
     private const string RuntimeViewNumberedProposalSha256 =
-        "e79eda784e1c54c47bfc4722efe632b4946ea4e5787fdfea25a952946baa70ce";
+        "01ddf5443705b7bd6b8ea83fd4e9653a939aaaeaa7c5a476c5828bbe1e748b0c";
     private const string RuntimeViewNumberedBoundarySha256 =
         "ba63b470ebe4203987ee28e02d39295c2fc53a84ed2ac4e90c16c30649f83333";
     private const string RuntimeViewCompositionProposalSha256 =
-        "7d59ee901d0e0004673a31b507729da0cce5350fd784f393aced656e96c5f86a";
+        "979d6ee2b10543887ed0e2db26efc5f9d447e12555cb614878d4053e29337212";
     private const string RuntimeViewReshapeHandoffSha256 =
-        "5f85f8ebde4135bfac906dc2c40364b61be4249d19144f02f8a195ef28135164";
+        "6417b48b5e1256e38167ab56a945300f438dd54249b9021cc56eba3b4bf02391";
     private const string CurrentOpenSpecProvenanceSha256 =
         "612d4b9e3ac08278c2e700139cad9780bb6d9d6230a240b9e57ba7627732969b";
     private const string HistoricalCanonicalSourceCommit =
@@ -364,7 +368,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "ebad624dfc67b744d2e6ae10137372790f70de30114aa9dbae8dcef40e3f9204";
+        "30c2e083f17d32a276f15231a125462b0c0e2a1124ad484d33dfb5ddd6f88c37";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +
@@ -1426,6 +1430,14 @@ public sealed class OpenSpecCorpusGuards
     public void CanonicalSynchronizationGate_EnumeratesCapabilitiesDeltasAndRequirementOwners()
     {
         var root = FixtureDefinitions.RepositoryRoot();
+        Sha256(NormalizeLineEndings(File.ReadAllText(RequireNonEmptyFile(root,
+            DurableDagChildContractArtifact, "durable DAG child/progression contract"))))
+            .Should().Be(DurableDagChildContractSha256,
+                "the complete reviewed bridge decisions remain pinned after the active freeze clears");
+        Sha256(NormalizeLineEndings(File.ReadAllText(RequireNonEmptyFile(root,
+            RejectedDurableDagChildContractArtifact, "rejected durable DAG contract history"))))
+            .Should().Be(RejectedDurableDagChildContractSha256,
+                "the rejected predecessor remains historical evidence, never silent authority");
         var openSpecRoot = Path.Combine(root, "openspec");
         var canonicalRoot = Path.Combine(openSpecRoot, "specs");
         var changesRoot = Path.Combine(openSpecRoot, "changes");

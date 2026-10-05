@@ -1250,15 +1250,16 @@ or types remain forbidden. Nodes and dependencies are defensive immutable snapsh
 returns IsValid true, typed Input (possibly null), exact declared InputType and null FailureCode.
 Failure returns IsValid false, null Input/InputType and DAG_INPUT_MAPPING_INVALID.
 
-Approved successful-null contract (source implementation still pending): presence of a successful
+Approved and source-implemented successful-null evaluator contract: presence of a successful
 committed output and its value are distinct. `OutputOf<T>` returns a present null when the
 declared output is a reference type or `Nullable<T>`; C# nullable-reference annotations are
 not a runtime discriminator. Missing, foreign, undeclared, non-direct, wrong-type and
 nonnullable-value null accesses still fail as `DAG_INPUT_MAPPING_INVALID`. Successful mapped
 null input follows the same declared-type rule and remains distinguishable from failure.
 The bridge still certifies and normalizes the fixed-codec shape; no decoder moves into Dag.
-The current Task 8.2 implementation rejects all null outputs; the separately reviewed
-runtime-view source target must implement and test this approved behavior.
+The runtime-view evaluator implements and tests this behavior at independently approved
+source checkpoint `4eb2e8d3a68e0ae7d873bd4f54c53735beefb132`. Durable bridge
+decode/normalization/commit remains a separate unimplemented reviewed target.
 
 Mapper exceptions derived from `Exception`, including mapper-thrown `OperationCanceledException`, SHALL become `DAG_INPUT_MAPPING_INVALID`, except `OutOfMemoryException`, `StackOverflowException`, and `AccessViolationException`, which SHALL NOT be converted. Host/run cancellation observed outside mapper evaluation SHALL retain the runtime cancellation outcome. Before invoking the evaluator, an ordinary declared-type output decode/materialization failure SHALL fail the node as `DAG_INPUT_MAPPING_INVALID`, without invoking its mapper, committing input, or starting a child; protocol-integrity or storage failures SHALL remain runtime failures and SHALL NOT be disguised as mapper failures.
 <!-- runtime-view-contract:end -->

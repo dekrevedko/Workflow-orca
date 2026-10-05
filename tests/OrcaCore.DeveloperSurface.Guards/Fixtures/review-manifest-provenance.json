@@ -1,6 +1,17 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": null,
+  "activeFreeze": {
+    "task": "reshape-durable-dag-bridge-contract-br-remediation-8.4",
+    "requestPath": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-br-remediation-independent-review-request-2026-10-04.md",
+    "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-br-remediation-dirty-manifest-2026-10-04.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "c85fd0f301f110db691a026bcdd0c0e35c6b26c1",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 2354,
+    "contentRecordSha256": "45a538683b1618d2c4b12f2fca978122e5af977dee8b501184eee54bddd1aa54"
+  },
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",
@@ -177,6 +188,22 @@
       "verdictPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-independent-review-verdict-2026-10-02.md",
       "verdictBytes": 11680,
       "verdictSha256": "1ddaa7a0e9008b483c75b37c8824ce72aa506caf8d7c74e619bd8dd6063f4858"
+    },
+    {
+      "id": "reshape-8.4-durable-dag-bridge-contract-br-rejected",
+      "requestPath": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-independent-review-request-2026-10-04.md",
+      "requestBytes": 7483,
+      "requestSha256": "bcd4da55fd4d0c513992f30d2f5d11089f4ab840ae046e3d2195ec667690a3aa",
+      "requestManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-dirty-manifest-2026-10-04.txt",
+      "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-dirty-manifest-2026-10-04.txt",
+      "disposition": "RawGitOrder",
+      "lineCount": 5,
+      "manifestBytes": 534,
+      "manifestSha256": "a7235ef34da53cc1e7d3ec6089ff496f80f63898a4f653e2bd0c0be8fa9004ef",
+      "baseCommit": "c85fd0f301f110db691a026bcdd0c0e35c6b26c1",
+      "verdictPath": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-independent-review-verdict-2026-10-04.md",
+      "verdictBytes": 16148,
+      "verdictSha256": "914ae8081cb117a933f6bdee4816313ae86af71038bd5fe69a590e0508bf184f"
     }
   ],
   "archivedFreezes": [

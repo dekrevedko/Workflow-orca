@@ -156,10 +156,10 @@ fails the node deterministically as `DAG_INPUT_MAPPING_INVALID` before mapped-in
 child start;
 independent ready nodes may still progress. The runtime fixed-codec-normalizes a valid input,
 records `MappedInputFingerprint` over the bytes, commits it before child start, and reuses it
-after restart. The approved-pending runtime-view amendment clarifies that the durable bridge decodes
+after restart. The completed, source-approved runtime-view amendment clarifies that the durable bridge decodes
 successful committed outputs before evaluation; a present successful null is valid for a
 reference or nullable-value declared type, as specified in doc 17 §17.2.6. Missing/wrong-type
-outputs and nonnullable-value null remain invalid. This clarification is independently approved in the contract, but not implemented. The approved mapper-exception and bridge decode-failure classifications in
+outputs and nonnullable-value null remain invalid. The successful-null evaluator is implemented and independently source-approved at checkpoint `4eb2e8d3a68e0ae7d873bd4f54c53735beefb132`; durable bridge decoding/normalization remains unimplemented and separately reviewed. The approved mapper-exception and bridge decode-failure classifications in
 doc 17 §17.2.6 apply before commit/start; runtime cancellation and protocol/storage failures
 are not disguised as mapping failures. Graph/mapping structure is in the structural DAG fingerprint; changing projector
 logic requires a new DAG `DefinitionVersion`.

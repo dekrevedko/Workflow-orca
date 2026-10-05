@@ -1,0 +1,15 @@
+ M CLAUDE.md
+ M docs/specs/08-requirements-composition.md
+ M docs/specs/17-selected-mode-capability-matrix.md
+ M openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md
+ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+?? docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-br-remediation-dirty-manifest-2026-10-04.txt
+?? docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-br-remediation-independent-review-request-2026-10-04.md
+?? docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-dirty-manifest-2026-10-04.txt
+?? docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-independent-review-request-2026-10-04.md
+?? docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-independent-review-verdict-2026-10-04.md
+?? openspec/changes/reshape-developer-facing-interfaces/artifacts/task-8-4-durable-dag-bridge-contract-2026-10-04.md
+?? openspec/changes/reshape-developer-facing-interfaces/artifacts/task-8-4-durable-dag-bridge-contract-br-remediation-2026-10-04.md

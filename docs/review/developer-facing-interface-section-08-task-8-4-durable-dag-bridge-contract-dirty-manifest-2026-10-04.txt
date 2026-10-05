@@ -1,0 +1,5 @@
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+?? docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-dirty-manifest-2026-10-04.txt
+?? docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-independent-review-request-2026-10-04.md
+?? openspec/changes/reshape-developer-facing-interfaces/artifacts/task-8-4-durable-dag-bridge-contract-2026-10-04.md
