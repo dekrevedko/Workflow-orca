@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-br-remediation-dirty-manifest-2026-10-04.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-successor-process-dirty-manifest-2026-10-04.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2404,6 +2404,16 @@
       "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-successor-process-independent-review-verdict-2026-09-30.md",
       "bytes": 11549,
       "sha256": "bc72cd0eca94e77a1c09744e18aea6bb0133cfe5429ddf5a50fdfb4e0c70cd4c"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-successor-process-dirty-manifest-2026-10-04.txt",
+      "bytes": 1198,
+      "sha256": "a68caa71b6869cbb5d8b5daf5dbbddbb4ba8236dbe56a730cf8e7de54498deca"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-successor-process-independent-review-request-2026-10-04.md",
+      "bytes": 10345,
+      "sha256": "0741393aa26856eee80dfa9ad9de4474e99523487a5be3957ee1ad7bcc519925"
     },
     {
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-br-remediation-dirty-manifest-2026-10-04.txt",

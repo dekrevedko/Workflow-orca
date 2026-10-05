@@ -1,11 +1,24 @@
 {
   "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
-  "recordCount": 180,
-  "recordBytes": 47347,
-  "recordSha256": "40d4d8c0b9144ea087d7b36d33df35d4736942ae615f50126f7ba136b20da8c1",
-  "semanticApprovalEligible": true,
-  "pendingCanonicalOperations": [],
+  "recordCount": 184,
+  "recordBytes": 48464,
+  "recordSha256": "d76b82216c3504f40788299162961b8dbdef1da89268bf6eaafe7092532418d5",
+  "semanticApprovalEligible": false,
+  "pendingCanonicalOperations": [
+    {
+      "capability": "durable-persistence-and-outbox",
+      "count": 3,
+      "turnsGreenChange": "admit-durable-dag-run-progression",
+      "turnsGreenTask": "1.3"
+    },
+    {
+      "capability": "durable-runtime",
+      "count": 1,
+      "turnsGreenChange": "admit-durable-dag-run-progression",
+      "turnsGreenTask": "1.3"
+    }
+  ],
   "activeNewCapabilitiesOutsideCanonical": [
     {
       "capability": "spec-driven-planning",
@@ -172,9 +185,9 @@
     }
   ],
   "capabilityDirectoryRecordFormat": "repository-relative active openspec/changes/*/specs/*/ path with forward slashes and one trailing slash",
-  "capabilityDirectoryCount": 20,
-  "capabilityDirectoryBytes": 1645,
-  "capabilityDirectorySha256": "dfabdc307ab5c49d6bc15c140b7778a5dce0512faf601c83645574fa0e770d62",
-  "artifactPath": "openspec/changes/admit-dag-hosting-runtime-view/artifacts/approved-pending-openspec-provenance-2026-10-03.md",
-  "artifactNormalizedSha256": "612d4b9e3ac08278c2e700139cad9780bb6d9d6230a240b9e57ba7627732969b"
+  "capabilityDirectoryCount": 22,
+  "capabilityDirectoryBytes": 1808,
+  "capabilityDirectorySha256": "2869d4ad4541be53adeac5819091605eff85c39b5140abec4438c668ac99b6e2",
+  "artifactPath": "openspec/changes/admit-durable-dag-run-progression/artifacts/process-openspec-provenance-2026-10-04.md",
+  "artifactNormalizedSha256": "e28513fa3f2f0f796dd31825f245f5494ba8a880f38e8bb79ab5dd8fc6d0896e"
 }

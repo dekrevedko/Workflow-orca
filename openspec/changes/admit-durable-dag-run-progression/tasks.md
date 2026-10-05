@@ -1,0 +1,23 @@
+## 0. Process-only successor gate
+
+- [x] 0.1 Prepare the exact four proposed successors, source-pinned process registry, pending provenance, and self-inclusive review packet. This completes preparation only, not approval of a contract or source.
+- [ ] 0.2 Obtain independent process APPROVE; checkpoint only the frozen target, add the byte-exact verdict in a direct-child evidence commit, then activate by checking this task only. No source or canonical change is authorized.
+
+## 1. Run-persistence/progression contract and atomic canonical transition
+
+- [ ] 1.1 After 0.2, freeze the complete run lifecycle and exact signatures/outcomes: typed stream/record identity, public/advanced API changes, actual `IWorkflowEventStore.AppendAsync(ProviderCommitBatch)` ownership, graph/run-input persistence, fenced discovery/recovery/admission, all run failure/cancellation/terminal transitions, notification subscriptions, dedicated child pump, DAG-role-only ready claims, CapacityDeferred, present-null bytes, production schema and certification. Reconcile every document listed in design Decision 7, append dated decisions, refresh Task 7.3/map pins and re-pin revised proposed blocks/artifact while keeping prior history byte-exact.
+- [ ] 1.2 Obtain independent contract APPROVE and record its reviewed tree, unique final verdict, single-parent direct-child evidence commit and verdict addition. Checkbox-only activation must stay green without a source edit.
+- [ ] 1.3 Atomically sync exactly `durable-persistence-and-outbox` (3) and `durable-runtime` (1) with 1.4 after contract approval; preserve all preambles, order and unrelated blocks. Never hand-edit canonical.
+- [ ] 1.4 In the same target as 1.3, retain the proposed history, bind the exact approved blocks/evidence, mark only the four hash-matched predecessors superseded, and transition to ApprovedPending. Implement one-active-or-archived resolution and reviewed withdrawal/archival rules. Independently review/checkpoint/evidence the atomic target before source; activate by checking 1.4 only.
+
+## 2. Separately reviewed source/provider slices
+
+- [ ] 2.1 Implement the approved stream identity, run protocol, exact provider ports/fences/discovery and atomic aggregate transitions, with API baselines, complete first-create PostgreSQL/SQL Server schemas and real-storage certification; no additional friend or codec permission.
+- [ ] 2.2 Implement dedicated role-independent child pumps and DAG-role-only ready sink/claim partition; prove wrong-lane release and no external acknowledgement, deterministic start/join/cancel recovery and poison rules.
+- [ ] 2.3 Implement the approved Dag.Hosting-to-durable bridge and full run lifecycle: exact declared-output decoding, CapacityDeferred versus AdmissionStopped, current-owner limits after restart, notification-driven joins/cancellation/terminal waits. Include the deferred source-only UnsafeAccessor/expression ban and DagRuntimeView.cs evidence-path audit without claiming they were fixed by this process gate.
+- [ ] 2.4 Obtain independent implementation approval for each large slice and checkpoint it before the next; refresh only the explicitly reviewed baseline/provenance changes. Reshape 8.4/8.5 may close only on their complete compiled evidence, not this contract checkbox.
+
+## 3. Final evidence and registry closeout
+
+- [ ] 3.1 Freeze complete implementation/acceptance/provider evidence and refresh stale status in a reviewed target, preserving all earlier approved/rejected packets.
+- [ ] 3.2 Obtain independent final APPROVE, bind Complete to actual checkpoint/evidence/verdict objects, checkpoint the closeout, add its evidence, then activate this checkbox only. Archive separately if requested.

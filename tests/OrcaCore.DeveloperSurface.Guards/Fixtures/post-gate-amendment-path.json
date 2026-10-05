@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "requiredStages": [
     "amendment-approval",
     "canonical-open-spec",
@@ -346,5 +346,55 @@
       "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs"
     ]
   },
-  "runtimeViewActivationCommit": "1d8941b7c4e4a96752b33684075d152494057c49"
+  "runtimeViewActivationCommit": "1d8941b7c4e4a96752b33684075d152494057c49",
+  "proposedDagRunSuccessors": [
+    {
+      "capability": "durable-persistence-and-outbox",
+      "requirement": "Workflow store persists first-class durable records",
+      "change": "admit-durable-dag-run-progression",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "MODIFIED",
+      "successorOperation": "MODIFIED",
+      "stage": "Proposed",
+      "turnsGreenTask": "1.3",
+      "predecessorBlockSha256": "75cf33d00e6129e0ae702d04a37e0438358158adb76101bf9896dcc8144b6020",
+      "proposedBlockSha256": "7ad1496175595cf577bad0d35b25194cfcd2263b1e601314dacec949d6a74f8c"
+    },
+    {
+      "capability": "durable-persistence-and-outbox",
+      "requirement": "Outbox delivery is adapter-driven and at-least-once",
+      "change": "admit-durable-dag-run-progression",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "MODIFIED",
+      "successorOperation": "MODIFIED",
+      "stage": "Proposed",
+      "turnsGreenTask": "1.3",
+      "predecessorBlockSha256": "777a930986599b2931d71b6b3665e15fadf5869d4df748b954bf6f252670551d",
+      "proposedBlockSha256": "ec6496d41c6c398707b92ed0c0a03a89ff6c336c6f152b1839320841ff5270dd"
+    },
+    {
+      "capability": "durable-persistence-and-outbox",
+      "requirement": "First-release provider ownership and schemas are exact",
+      "change": "admit-durable-dag-run-progression",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "ADDED",
+      "successorOperation": "MODIFIED",
+      "stage": "Proposed",
+      "turnsGreenTask": "1.3",
+      "predecessorBlockSha256": "1b539ab44adefc0cd020131c389ff420b6c31b2973cd123bd7e59ed436e852cb",
+      "proposedBlockSha256": "e321f8f1f0d637ddc9ddea09e80d6389f7571e2c38fd94ee84a28701709e36a6"
+    },
+    {
+      "capability": "durable-runtime",
+      "requirement": "Durable DAG progression is runtime owned",
+      "change": "admit-durable-dag-run-progression",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "ADDED",
+      "successorOperation": "MODIFIED",
+      "stage": "Proposed",
+      "turnsGreenTask": "1.3",
+      "predecessorBlockSha256": "11741edaf2f26fd43846948d5395a8fe5be92ce61c016e3dc232d11dc810cd40",
+      "proposedBlockSha256": "a170658e68f82e594603fe6814ba32d30584e23a49dfb682628b64f63744b83d"
+    }
+  ]
 }
