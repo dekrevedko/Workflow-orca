@@ -2416,6 +2416,11 @@
       "sha256": "0741393aa26856eee80dfa9ad9de4474e99523487a5be3957ee1ad7bcc519925"
     },
     {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-successor-process-independent-review-verdict-2026-10-04.md",
+      "bytes": 12342,
+      "sha256": "f54a6ba50a1ea1ce0d18d2f904a388a1ab91145d7ea59f65da1fb89acc70370c"
+    },
+    {
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-br-remediation-dirty-manifest-2026-10-04.txt",
       "bytes": 1446,
       "sha256": "e6330a42bb0e1303e2676d6b72e4ce034f5a0e35d3921b4eabdc664f98923734"
