@@ -2471,6 +2471,11 @@
       "sha256": "5c1ef4bab9a2ce2fbe74f69276f3e0c5632ab9741a45f3e7ee775ac3263b1392"
     },
     {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-3-remediation-independent-review-verdict-2026-10-05.md",
+      "bytes": 17803,
+      "sha256": "b7c9d54dcfdbcc8fd3ec2ef99c43fb313e9b400a038b6da7f13b969b2feead4c"
+    },
+    {
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-successor-process-dirty-manifest-2026-10-04.txt",
       "bytes": 1198,
       "sha256": "a68caa71b6869cbb5d8b5daf5dbbddbb4ba8236dbe56a730cf8e7de54498deca"

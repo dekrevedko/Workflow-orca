@@ -1,17 +1,6 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": {
-    "task": "reshape-dag-run-contract-rc-3-remediation-1.1",
-    "requestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-3-remediation-independent-review-request-2026-10-05.md",
-    "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-3-remediation-dirty-manifest-2026-10-05.txt",
-    "disposition": "RawGitOrder",
-    "baseCommit": "dab498ff54321d802b36ce052100954bbe00487d",
-    "contentRecordExcludedPaths": [
-      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
-    ],
-    "contentRecordBytes": 9876,
-    "contentRecordSha256": "4f6313678524cd2cc8cf0250896632e711257e5c64525081431dd193a5619192"
-  },
+  "activeFreeze": null,
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",
