@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-successor-process-dirty-manifest-2026-10-04.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-3-remediation-dirty-manifest-2026-10-05.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2404,6 +2404,71 @@
       "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-successor-process-independent-review-verdict-2026-09-30.md",
       "bytes": 11549,
       "sha256": "bc72cd0eca94e77a1c09744e18aea6bb0133cfe5429ddf5a50fdfb4e0c70cd4c"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-dirty-manifest-2026-10-04.txt",
+      "bytes": 2471,
+      "sha256": "fa3604972b2dca65a55bc753841323af9171a6438a0011be26b64ca330658a02"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-independent-review-request-2026-10-04.md",
+      "bytes": 13827,
+      "sha256": "842cbec6023f214e88e2fb3ad5deaa89ee82b0760ef749adca873c346a9fbff6"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-independent-review-verdict-2026-10-04.md",
+      "bytes": 15033,
+      "sha256": "5f2d075197e5390648d8b65fc4b2c0b3f8543f1dca06739eb4bf1fb137231229"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-1-remediation-dirty-manifest-2026-10-04.txt",
+      "bytes": 3456,
+      "sha256": "ba7b90e912eff5fd2db3c7d2253a74d34390872a02e411543e91595919ca6e6d"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-1-remediation-independent-review-request-2026-10-04.md",
+      "bytes": 9224,
+      "sha256": "7c814469c29d399094a41d739740e53e1fb41b3160811f39a8b21b553af346fb"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-1-remediation-independent-review-verdict-2026-10-04.md",
+      "bytes": 21654,
+      "sha256": "0ef31625a268066ba81d8f849447e15099b93b70a3080c0b8fda4dd087169415"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-2-refreeze-dirty-manifest-2026-10-05.txt",
+      "bytes": 4715,
+      "sha256": "5fd6806e0721312621af4353945a1955c943f63f927c79ebb94a30a596f93943"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-2-refreeze-independent-review-request-2026-10-05.md",
+      "bytes": 8638,
+      "sha256": "052739c64629009fd3b5cbf35b869ba8c1c4253700312a280e83dec9f723e674"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-2-refreeze-independent-review-verdict-2026-10-05.md",
+      "bytes": 24510,
+      "sha256": "3cbba061ca4f819ae310d997434de57b12efd2b7bf6c7ad1071712a19dc6ae6e"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-2-remediation-dirty-manifest-2026-10-05.txt",
+      "bytes": 4458,
+      "sha256": "c32708838b3372a326ca7372be83ce1c50f63cad6ad78506374183855054844e"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-2-remediation-independent-review-request-2026-10-05.md",
+      "bytes": 8309,
+      "sha256": "cc0a13187f64ad7841f00f561691ca2b3e0dc1e45c687b0a7a0ec83bb156ebd9"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-3-remediation-dirty-manifest-2026-10-05.txt",
+      "bytes": 5714,
+      "sha256": "babf761c710d6928a1592d3fc9655252bbf87981d9e38bd824a5447e10969745"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-3-remediation-independent-review-request-2026-10-05.md",
+      "bytes": 9278,
+      "sha256": "5c1ef4bab9a2ce2fbe74f69276f3e0c5632ab9741a45f3e7ee775ac3263b1392"
     },
     {
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-successor-process-dirty-manifest-2026-10-04.txt",

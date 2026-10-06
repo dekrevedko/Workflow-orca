@@ -112,24 +112,68 @@ public sealed class OpenSpecCorpusGuards
     private const string RuntimeViewCloseoutArtifact = "openspec/changes/admit-dag-hosting-runtime-view/artifacts/task-3-2-runtime-view-closeout-2026-10-04.md";
     private const string RuntimeViewCloseoutSha256 = "8a2eb6b3e860fb45031fb55115911570d2478a26e7fad5aaeb12d24188753a9d";
     private const string DagRunChange = "admit-durable-dag-run-progression";
+    private static readonly (string Path, string Sha256)[] RejectedDagRunContractArtifactPins =
+    [
+        ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-run-contract-2026-10-04.md", "a792b9d44968612d852fe772e1b7195c4880291530895aa082453fde23729d7b"),
+        ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-exact-api-additions-2026-10-04.md", "61afd2af3b2e6a633bdafc113080de518195970d34e084815537784ddff7e0f8"),
+        ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-standalone-signatures-2026-10-04.cs", "5dab933db0b6f4aff8903e26f8f535ebd1478a6f66866e916e699cfe57277c75"),
+        ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-run-contract-rc-1-remediation-2026-10-04.md", "24fa34f3957bbfe8c288dc74163562d4b808763193f114e48fc2e8bc78009ac9"),
+        ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-exact-api-additions-rc-1-remediation-2026-10-04.md", "3b776f5884681a02313372589c85b237e3e053590b1081c295be669cb7ef30e0"),
+        ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-standalone-signatures-rc-1-remediation-2026-10-04.cs", "f655afc1b72e1c3d2af7d56ed23d72581d73d8b8b5c97586e4c695abb3d25918"),
+        ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-rc-1-review-remediation-2026-10-04.md", "12e166d5e3177a530b04715af91aac36cd81ebff9aaedd98d967396c9e87d014"),
+        ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-run-contract-rc-2-remediation-2026-10-05.md", "4cab5d4e8a6385505e6875e26767d92b728b740f98d2a70a489989f48552ec2b"),
+        ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-exact-api-additions-rc-2-remediation-2026-10-05.md", "a11d2c44ce97baa62840545732d412b2d81710f39f56be39a8c892791eee9aeb"),
+        ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-standalone-signatures-rc-2-remediation-2026-10-05.cs", "8301094ba0a14634f9c8ba08ac2642eb2b8e5128981da453ecd0623762926189"),
+        ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-rc-2-review-remediation-2026-10-05.md", "bb9269d9b489de36a3fb4d4dbfb4a1533e93d11a7cc725b9ad28e451d438a5c3")
+    ];
+    private static readonly (string Path, string Sha256)[] DagRunContractPlanningPins =
+    [
+        ("openspec/changes/admit-durable-dag-run-progression/proposal.md", "9521a448fa41d2531706597a1e4cf49985aab7f05ac44ffa7ff88e4c8e73980f"),
+        ("openspec/changes/admit-durable-dag-run-progression/design.md", "ece3e24c5ac3997dcdb79cc5c651f83d88ce8def3055ebbea3b4e0e867c7985d"),
+        ("openspec/changes/admit-durable-dag-run-progression/tasks.md", "f6d2c709b4f96d988d640ce9c9782959a3374d002ff063a971e99141729d1594"),
+        ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-run-contract-rc-3-remediation-2026-10-05.md", "f8a1a7f6d69dc337854dd7e6dc9bbe59a2e7c3a43329635cf1b57c9f8280d665"),
+        ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-exact-api-additions-rc-3-remediation-2026-10-05.md", "766ad5d84c90a0666a8a631018fdd686f9a59b00d6c8d50f3378b1b4fa6a308f"),
+        ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-standalone-signatures-rc-3-remediation-2026-10-05.cs", "8301094ba0a14634f9c8ba08ac2642eb2b8e5128981da453ecd0623762926189"),
+        ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-rc-3-review-remediation-2026-10-05.md", "6854085ef46e37b3fc699df3e5dc592618dac640518f3fffbdb80b858b3a9418")
+    ];
+    private static readonly (string Path, string Sha256)[] DagRunProposedDocumentPins =
+    [
+        ("CLAUDE.md", "4addd7601f96200c084347904ef774885dccdcf8cb86efbf4aacb3ff7504c311"),
+        ("docs/specs/03-domain-model-and-glossary.md", "db8994f7a53a7811041f74dfdbf967dde6eb08b1af9857ce30e272514f72f977"),
+        ("docs/specs/04-requirements-core-runtime.md", "50d3bdc271e48ad43b1ad6ec7eefdbc91489d18e89ebc3fed268342eb69eef5c"),
+        ("docs/specs/05-requirements-events-waits-timers.md", "3a252840a5fb3e6c978a8386ed05a0d04011ada03add27adf59d636631ee2d69"),
+        ("docs/specs/06-requirements-durable-execution.md", "7595363cfb72e894abb5da354135af6f732d2f9a90b06696135357ea6c7f3c80"),
+        ("docs/specs/08-requirements-composition.md", "921d060045c62aaddd8b3ff6a08338a1aa30de82971e5da7e676f61aa2842148"),
+        ("docs/specs/10-provider-model-and-extensibility.md", "4e389f741f6c18ae55c95ebef1a9f303072cbdecf9f8171d4becad0b191c3346"),
+        ("docs/specs/12-acceptance-criteria.md", "a1aaff44bdc1dd14b6132342ffc8db9da7505df048a5e08ac78d330ed1008808"),
+        ("docs/specs/16-requirements-durable-driver.md", "56cacff9932b1bdef1fff740cccd76365b8ac362948ed6e16a3079a0bd7c963d"),
+        ("docs/specs/17-selected-mode-capability-matrix.md", "68ee6005b8745b5811ae60721d5eba24ee23b01e60b7b8f2ad837c5f4a510482"),
+        ("docs/implementation/00-stack-decisions.md", "b1fd35b2d8b556205b517c7f43f44a69ffaecdf14152cb89a7611d439184efc0"),
+        ("docs/implementation/01-solution-architecture.md", "822ea5c14bc111abd39c9077f9e140edb1ef9a79c9b7de58e003af3949ebca98"),
+        ("docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md", "6394cef4546cdb82e605ff589cce8fb965942094fe73d9f8a25be9c1cfb9c901"),
+        ("docs/implementation/README.md", "383610e9cdd3cec7268bdf831f56c3d6add06f3842e3d5017f4fb69925999356"),
+        ("docs/project-technical-overview.md", "9c0e7ecfb47f725433529ee3e0e50b327f8f1f4801fd737112c15f7561293091"),
+        ("docs/durable-driver-lane-host.md", "e7bd061adc697c25b61eff6423bc5c968a0325b4a489b9a32472a2fe89a3334c")
+    ];
+
     private static readonly PostGateProposedRunSuccessor[] ExactProposedDagRunSuccessors =
     [
         new("durable-persistence-and-outbox", "Workflow store persists first-class durable records", DagRunChange,
             "reshape-developer-facing-interfaces", "MODIFIED", "MODIFIED", ProposedPostGateStage, "1.3",
             "75cf33d00e6129e0ae702d04a37e0438358158adb76101bf9896dcc8144b6020",
-            "7ad1496175595cf577bad0d35b25194cfcd2263b1e601314dacec949d6a74f8c"),
+            "7d0fd8f4345f412fc3b76b82e5bbbe76dc420b2d43fcff99bc927f12fb7e9660"),
         new("durable-persistence-and-outbox", "Outbox delivery is adapter-driven and at-least-once", DagRunChange,
             "reshape-developer-facing-interfaces", "MODIFIED", "MODIFIED", ProposedPostGateStage, "1.3",
             "777a930986599b2931d71b6b3665e15fadf5869d4df748b954bf6f252670551d",
-            "ec6496d41c6c398707b92ed0c0a03a89ff6c336c6f152b1839320841ff5270dd"),
+            "2aa07f46a0a53766db5aaf3adc743506e615f542d2bf6e9c033fbaa0db34f926"),
         new("durable-persistence-and-outbox", "First-release provider ownership and schemas are exact", DagRunChange,
             "reshape-developer-facing-interfaces", "ADDED", "MODIFIED", ProposedPostGateStage, "1.3",
             "1b539ab44adefc0cd020131c389ff420b6c31b2973cd123bd7e59ed436e852cb",
-            "e321f8f1f0d637ddc9ddea09e80d6389f7571e2c38fd94ee84a28701709e36a6"),
+            "30ffcff973c7aac408396c002180b75d995b60493163b8f62ba0455df73260db"),
         new("durable-runtime", "Durable DAG progression is runtime owned", DagRunChange,
             "reshape-developer-facing-interfaces", "ADDED", "MODIFIED", ProposedPostGateStage, "1.3",
             "11741edaf2f26fd43846948d5395a8fe5be92ce61c016e3dc232d11dc810cd40",
-            "a170658e68f82e594603fe6814ba32d30584e23a49dfb682628b64f63744b83d")
+            "fe738cf91b0a4048a9594deac8650a86c70d0bd9b35d2394d9be8b217e61dac8")
     ];
 
     private const string RuntimeViewChange = "admit-dag-hosting-runtime-view";
@@ -192,9 +236,9 @@ public sealed class OpenSpecCorpusGuards
     private const string RuntimeViewCompositionProposalSha256 =
         "979d6ee2b10543887ed0e2db26efc5f9d447e12555cb614878d4053e29337212";
     private const string RuntimeViewReshapeHandoffSha256 =
-        "6417b48b5e1256e38167ab56a945300f438dd54249b9021cc56eba3b4bf02391";
+        "0b8672532ffd7574bd4f94694d4b4bf6cb6c5db3992298792139999e4d6b0cbf";
     private const string CurrentOpenSpecProvenanceSha256 =
-        "e28513fa3f2f0f796dd31825f245f5494ba8a880f38e8bb79ab5dd8fc6d0896e";
+        "bee1707d4f68bf2d00cc68e8d3ebfb1911d346379cbf533f5003c12b41ea4640";
     private const string HistoricalCanonicalSourceCommit =
         "ba2478e995023b0712c44705174c2b0e3262f213";
     private const string HistoricalCanonicalRemovalCatalogSha256 =
@@ -215,7 +259,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/reshape-developer-facing-interfaces/artifacts/" +
         "task-8-0-section-8-requirement-gate-2026-09-26.md";
     private const string Task80RequirementGateSha256 =
-        "e4544277446d98dd5e328f3114b54dc5ef2dfd7d6530299886665d14a633805a";
+        "37f752eebb13686256eb7044063948f649da7c9101b555bfc0ff8290e67ad54d";
     private const string MissingApprovalReviewState = "MissingApproval";
     private const string RejectedReviewState = "Rejected";
     private const string ApprovalAwaitingEvidenceCommitReviewState =
@@ -239,9 +283,9 @@ public sealed class OpenSpecCorpusGuards
         "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
     private const string PublicAuthoringCompanionSha256 =
         "41f6472c2774363d2ab922c608922e787ec241333e1d1c0b76b0c6d529ab8ec3";
-    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 8;
+    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 12;
     private const string SupersededOpenSpecProvenanceArtifactCatalogSha256 =
-        "5e9e7dc9195ed1a05113ad6bcdd777473407906bc118727d74be4beb751cf45d";
+        "21b63710df35f088581309a390040fc987893c7b6866df16002c7a3a4418112f";
     private static readonly (string Path, string NormalizedSha256)[]
         SupersededOpenSpecProvenanceArtifacts =
         [
@@ -272,7 +316,19 @@ public sealed class OpenSpecCorpusGuards
                 "515a968b5027f8120b6a6ff4e87525542329fed42b6d5e6fa0eea8ad1f055125"),
             (
                 "openspec/changes/admit-dag-hosting-runtime-view/artifacts/approved-pending-openspec-provenance-2026-10-03.md",
-                "612d4b9e3ac08278c2e700139cad9780bb6d9d6230a240b9e57ba7627732969b")
+                "612d4b9e3ac08278c2e700139cad9780bb6d9d6230a240b9e57ba7627732969b"),
+            (
+                "openspec/changes/admit-durable-dag-run-progression/artifacts/process-openspec-provenance-2026-10-04.md",
+                "e28513fa3f2f0f796dd31825f245f5494ba8a880f38e8bb79ab5dd8fc6d0896e"),
+            (
+                "openspec/changes/admit-durable-dag-run-progression/artifacts/contract-openspec-provenance-2026-10-04.md",
+                "056ab2f1988260f2d7739e30840af1aabffffd8b27127cf308ae6d7f244b1a3a"),
+            (
+                "openspec/changes/admit-durable-dag-run-progression/artifacts/contract-rc-1-remediation-openspec-provenance-2026-10-04.md",
+                "82221fa6f9c6a6008906016093f3896eb0302ebee04b64b241afdd4d2574c0e6"),
+            (
+                "openspec/changes/admit-durable-dag-run-progression/artifacts/contract-rc-2-remediation-openspec-provenance-2026-10-05.md",
+                "ed72ca1557b8de8f288aa4f4daab827ec1805e80054b003efb13de4919e8abde")
         ];
     private const string EmptyCorePublicApiBaseline =
         "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";
@@ -392,7 +448,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "30c2e083f17d32a276f15231a125462b0c0e2a1124ad484d33dfb5ddd6f88c37";
+        "99d8fad4b256ff60c95c4b852ced570118a4fedb20e8d0a5707717a000454fa4";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +
@@ -1667,8 +1723,16 @@ public sealed class OpenSpecCorpusGuards
         childTree.ExitCode.Should().Be(0);
         childTree.StandardOutput.Trim().Should().Be("4b83f4d9a5cf2ecaf8d3dc2e60b6e1c56e6c02e2");
         ValidateTaskReference(root, new PostGateTaskReference(DagRunChange, "0.1", CompleteTaskState));
-        // 0.2 remains unpinned: evidence followed by checkbox-only process activation stays green.
-        foreach (var task in new[] { "1.1", "1.2", "1.3", "1.4", "2.1", "2.2", "2.3", "2.4", "3.1", "3.2" })
+        ValidateTaskReference(root, new PostGateTaskReference(DagRunChange, "0.2", CompleteTaskState));
+        ValidateTaskReference(root, new PostGateTaskReference(DagRunChange, "1.1", CompleteTaskState));
+        ValidateDagApprovalEvidence(root,
+            "b55056c0d9136f509296167ae5984881e7b5de97",
+            "e99f338d9319b9af5459f5685c69585493773d7c",
+            "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-successor-process-independent-review-verdict-2026-10-04.md",
+            "f54a6ba50a1ea1ce0d18d2f904a388a1ab91145d7ea59f65da1fb89acc70370c", "0.1");
+        ValidateDagRunContractPlanning(root);
+        // Only the 1.2 checkbox is unpinned; activation does not require a red commit.
+        foreach (var task in new[] { "1.3", "1.4", "2.1", "2.2", "2.3", "2.4", "3.1", "3.2" })
             ValidateTaskReference(root, new PostGateTaskReference(DagRunChange, task, OpenTaskState));
         foreach (var task in new[] { "8.4", "8.5" })
             ValidateTaskReference(root, new PostGateTaskReference("reshape-developer-facing-interfaces", task, OpenTaskState));
@@ -1703,6 +1767,36 @@ public sealed class OpenSpecCorpusGuards
                 $"DAG run successor '{successor.Requirement}' permits only its two resolved owners");
         }
         return keys;
+    }
+
+    private static void ValidateDagRunContractPlanning(string root)
+    {
+        RejectedDagRunContractArtifactPins.Should().HaveCount(11);
+        foreach (var (path, hash) in RejectedDagRunContractArtifactPins)
+        {
+            Sha256(NormalizeLineEndings(File.ReadAllText(RequireNonEmptyFile(root, path, "rejected DAG run contract history"))))
+                .Should().Be(hash, $"rejected planning evidence {path} must remain byte-exact after supersession");
+        }
+        DagRunContractPlanningPins.Should().HaveCount(7);
+        foreach (var (path, hash) in DagRunContractPlanningPins)
+        {
+            var text = NormalizeLineEndings(File.ReadAllText(RequireNonEmptyFile(root, path, "DAG run contract planning")));
+            if (path.EndsWith("/tasks.md", StringComparison.Ordinal))
+            {
+                Regex.Matches(text, @"(?m)^- \[[ xX]\] 1\.2 .+$").Should().ContainSingle(
+                    "only one parseable contract approval checkbox may activate");
+                text = Regex.Replace(text, @"(?m)^(- \[)[ xX](\] 1\.2 )", "$1?$2");
+            }
+            Sha256(text).Should().Be(hash, $"whole planning decision {path} must remain review-bound; only 1.2 checkbox activation is exempt");
+        }
+        DagRunProposedDocumentPins.Should().HaveCount(16);
+        foreach (var (path, hash) in DagRunProposedDocumentPins)
+        {
+            var text = NormalizeLineEndings(File.ReadAllText(RequireNonEmptyFile(root, path, "proposed DAG run document disposition")));
+            var block = Regex.Matches(text, @"<!-- dag-run-contract-proposal:start -->[\s\S]*?<!-- dag-run-contract-proposal:end -->");
+            block.Should().ContainSingle($"{path} must retain one explicitly proposed run contract disposition");
+            Sha256(block[0].Value).Should().Be(hash, $"{path} proposal status and exact bridge ownership must stay pinned after checkpoint");
+        }
     }
 
     private static void ValidateProposedRuntimeViewSuccessors(
@@ -4822,8 +4916,15 @@ public sealed class OpenSpecCorpusGuards
     {
         var path = RequireNonEmptyFile(root, relativePath, "post-gate independent approval evidence");
         var evidence = NormalizeLineEndings(File.ReadAllText(path));
+        var taskPattern = $@"(?<![\d.]){Regex.Escape(task)}(?!\d|\.\d)";
+        Regex.IsMatch($"task {task}.", taskPattern).Should().BeTrue(
+            "sentence punctuation is not a longer task-number component");
+        Regex.IsMatch($"task {task}1", taskPattern).Should().BeFalse(
+            "a longer final numeric component is not the requested task");
+        Regex.IsMatch($"task {task}.1", taskPattern).Should().BeFalse(
+            "an additional numeric component is not the requested task");
         evidence.Should().MatchRegex(
-            $@"(?<![\d.]){Regex.Escape(task)}(?![\d.])",
+            taskPattern,
             "post-gate approval evidence must identify its owning task");
         evidence.Should().MatchRegex(
             @"(?mi)^(?:\*\*Verdict:\*\*[ \t]*(?:APPROVE|\*\*APPROVE\*\*)|\*\*APPROVE\*\*)[ \t]*$",

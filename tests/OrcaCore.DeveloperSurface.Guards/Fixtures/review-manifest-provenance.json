@@ -1,6 +1,17 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": null,
+  "activeFreeze": {
+    "task": "reshape-dag-run-contract-rc-3-remediation-1.1",
+    "requestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-3-remediation-independent-review-request-2026-10-05.md",
+    "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-3-remediation-dirty-manifest-2026-10-05.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "dab498ff54321d802b36ce052100954bbe00487d",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 9876,
+    "contentRecordSha256": "4f6313678524cd2cc8cf0250896632e711257e5c64525081431dd193a5619192"
+  },
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",
@@ -193,6 +204,54 @@
       "verdictPath": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-independent-review-verdict-2026-10-04.md",
       "verdictBytes": 16148,
       "verdictSha256": "914ae8081cb117a933f6bdee4816313ae86af71038bd5fe69a590e0508bf184f"
+    },
+    {
+      "id": "reshape-dag-run-contract-rc-1-rejected",
+      "requestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-independent-review-request-2026-10-04.md",
+      "requestBytes": 13827,
+      "requestSha256": "842cbec6023f214e88e2fb3ad5deaa89ee82b0760ef749adca873c346a9fbff6",
+      "requestManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-dirty-manifest-2026-10-04.txt",
+      "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-dirty-manifest-2026-10-04.txt",
+      "disposition": "RawGitOrder",
+      "lineCount": 35,
+      "manifestBytes": 2471,
+      "manifestSha256": "fa3604972b2dca65a55bc753841323af9171a6438a0011be26b64ca330658a02",
+      "baseCommit": "dab498ff54321d802b36ce052100954bbe00487d",
+      "verdictPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-independent-review-verdict-2026-10-04.md",
+      "verdictBytes": 15033,
+      "verdictSha256": "5f2d075197e5390648d8b65fc4b2c0b3f8543f1dca06739eb4bf1fb137231229"
+    },
+    {
+      "id": "reshape-dag-run-contract-rc-2-rejected",
+      "requestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-1-remediation-independent-review-request-2026-10-04.md",
+      "requestBytes": 9224,
+      "requestSha256": "7c814469c29d399094a41d739740e53e1fb41b3160811f39a8b21b553af346fb",
+      "requestManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-1-remediation-dirty-manifest-2026-10-04.txt",
+      "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-1-remediation-dirty-manifest-2026-10-04.txt",
+      "disposition": "RawGitOrder",
+      "lineCount": 43,
+      "manifestBytes": 3456,
+      "manifestSha256": "ba7b90e912eff5fd2db3c7d2253a74d34390872a02e411543e91595919ca6e6d",
+      "baseCommit": "dab498ff54321d802b36ce052100954bbe00487d",
+      "verdictPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-1-remediation-independent-review-verdict-2026-10-04.md",
+      "verdictBytes": 21654,
+      "verdictSha256": "0ef31625a268066ba81d8f849447e15099b93b70a3080c0b8fda4dd087169415"
+    },
+    {
+      "id": "reshape-dag-run-contract-rc-3-rejected",
+      "requestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-2-refreeze-independent-review-request-2026-10-05.md",
+      "requestBytes": 8638,
+      "requestSha256": "052739c64629009fd3b5cbf35b869ba8c1c4253700312a280e83dec9f723e674",
+      "requestManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-2-refreeze-dirty-manifest-2026-10-05.txt",
+      "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-2-refreeze-dirty-manifest-2026-10-05.txt",
+      "disposition": "RawGitOrder",
+      "lineCount": 53,
+      "manifestBytes": 4715,
+      "manifestSha256": "5fd6806e0721312621af4353945a1955c943f63f927c79ebb94a30a596f93943",
+      "baseCommit": "dab498ff54321d802b36ce052100954bbe00487d",
+      "verdictPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-2-refreeze-independent-review-verdict-2026-10-05.md",
+      "verdictBytes": 24510,
+      "verdictSha256": "3cbba061ca4f819ae310d997434de57b12efd2b7bf6c7ad1071712a19dc6ae6e"
     }
   ],
   "archivedFreezes": [
@@ -1397,7 +1456,6 @@
       ],
       "currentWorktreeMatchPaths": [
         ".github/workflows/ci.yml",
-        "docs/specs/04-requirements-core-runtime.md",
         "tests/OrcaCore.Core.Tests/Building/AuthoringLifecycleTests.cs",
         "tests/OrcaCore.Core.Tests/Execution/FailureProvenanceTests.cs",
         "tests/OrcaCore.Engine.Durable.Tests/Driver/DurableFailureProvenanceTests.cs",
@@ -2395,9 +2453,6 @@
       ],
       "currentWorktreeMatchPaths": [
         "docs/orleans-engine/README.md",
-        "docs/specs/05-requirements-events-waits-timers.md",
-        "docs/specs/06-requirements-durable-execution.md",
-        "docs/specs/12-acceptance-criteria.md",
         "docs/review/harmonize-downstream-capability-specs-task-7-4-and-7-5-combined-dirty-manifest-2026-09-21.txt",
         "docs/review/harmonize-downstream-capability-specs-task-7-4-and-7-5-combined-independent-review-verdict-2026-09-21.md",
         "docs/review/harmonize-downstream-capability-specs-task-7-4-and-7-5-lll-1-mmm-1-remediation-dirty-manifest-2026-09-22.txt",

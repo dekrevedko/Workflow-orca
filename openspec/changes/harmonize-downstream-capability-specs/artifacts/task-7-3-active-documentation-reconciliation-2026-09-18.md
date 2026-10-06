@@ -13,28 +13,28 @@ requires the numbered rows, paths, and hashes exactly as recorded here.
 
 | # | Active source | Normalized SHA-256 |
 |---:|---|---|
-| 1 | `CLAUDE.md` | `5a01b95e21dc5b271db36fb91ca303a491101d93d81a80ca233a1124498ae640` |
+| 1 | `CLAUDE.md` | `5855c56f8ba36c57823b8983381784ffcc65028b97103fe1c6032b96ed7a9181` |
 | 2 | `docs/eks-scheduler-handoff.md` | `48cf025958482433e34b4e52185484ed587936ba56ef4822bc96e1b08b3f9ef2` |
 | 3 | `docs/end-to-end-plan.md` | `c2bb0ea26618a65248839ffd75281b9c89dc496467e5a90e9034da48fcae0e01` |
 | 4 | `docs/ephemeral-engine-developer-guide.md` | `7e3fe252e1bcb621b03bfb91a6aaf2d48bf5c5ad3997e442ad4fbcb3a90dfa2c` |
 | 5 | `docs/ephemeral-engine-diagrams.md` | `6393cfb7fb4155e0fc28ed908384e43126d05be9b5ebda04f6f7aee7aa25463a` |
-| 6 | `docs/implementation/00-stack-decisions.md` | `762f91907f87c938d36d843a2f79bc6e96db69021b302648c734f2bd68745163` |
-| 7 | `docs/implementation/01-solution-architecture.md` | `e35814a55dce61fee9f356578c6a75e75d635f1ef88c75439e70ae5ac313fee0` |
+| 6 | `docs/implementation/00-stack-decisions.md` | `7af028ced9654ec4fde9557cec581e3ec388504278733964220831113a93e011` |
+| 7 | `docs/implementation/01-solution-architecture.md` | `b8aee192b60568e49da66d1e5f9fd94df74a1187e63d3e324866d49c0989f989` |
 | 8 | `docs/implementation/02-engineering-conventions.md` | `e4a81233359e60e5ca43e596d26a58ff46e75879dded7536e95511e47d908c72` |
-| 9 | `docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md` | `1674c9335d4abdcfbed431ee5f2698dcc3b28188c0d2eba06c5668c9ef28d7be` |
+| 9 | `docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md` | `f339914444126a326e14884a0fd68319370855f99cfde42f1d19cb0b69f823b4` |
 | 10 | `docs/normative-source-map.md` | `1bc5a4182949cbfbe87870aebf258a9fdfcfb22a8cd627d2c0b0d7fc7e61d949` |
 | 11 | `docs/production-readiness.md` | `2812eb9121d455a59ec748dbdbcc4cba4ddd317398c9b8c5470edc44b9a6c1bc` |
-| 12 | `docs/project-technical-overview.md` | `4ef0c225972da3c60b6784bf4b32ef810dbed4c86e27a4f51484d420881560b5` |
+| 12 | `docs/project-technical-overview.md` | `9ffd82140d233e112e7dbd1e14454c22c9e20922c878b6bcfb3e833d6344e077` |
 | 13 | `docs/specs/01-concept-and-goals.md` | `36826933178462e6d83eb817cec2b51ec77cd93609a5726ad883b888c0960fb4` |
-| 14 | `docs/specs/03-domain-model-and-glossary.md` | `f3d07cd1e7c9aeae22a367604f5ba0ee41aa046a61dfe99ce8f689304ce84590` |
-| 15 | `docs/specs/05-requirements-events-waits-timers.md` | `a2ed8dd5f8e1fb0893a0a1f8cea412508584c39d1066e5488d8d87f99cc03769` |
-| 16 | `docs/specs/06-requirements-durable-execution.md` | `aaa23cfe12900c5e6627ca9309275e69407edd84454a631d6ad70d951fcd0411` |
+| 14 | `docs/specs/03-domain-model-and-glossary.md` | `a2199d84314d3606ed1de1e772f105ffb6ecdb275174f92f0d8058e9179470ea` |
+| 15 | `docs/specs/05-requirements-events-waits-timers.md` | `12bee618af726ada4c64b92fb64fd97118120376875f821bfd4b71b038f6faec` |
+| 16 | `docs/specs/06-requirements-durable-execution.md` | `405a27be8f54518c9989b388331e1523986679cea19b3ba52b8a9a61fd52469f` |
 | 17 | `docs/specs/09-requirements-management-operations.md` | `b564eb6713e446ba846141ee4561a3f5ec49fa596e580f44625a231da5d6aa2b` |
-| 18 | `docs/specs/10-provider-model-and-extensibility.md` | `30c57a98db75a49d07a2dca77068ef2d3c0368f6424aed026224ba50b0cb41fe` |
-| 19 | `docs/specs/12-acceptance-criteria.md` | `c4a08fde9c6f453a2a109f959ef0bb369fce68d4115e051304af484276f5639b` |
+| 18 | `docs/specs/10-provider-model-and-extensibility.md` | `842ec5cb2cade41f21812e01b7bab1859b310a16ce43a7843fb6672bcf6dde1e` |
+| 19 | `docs/specs/12-acceptance-criteria.md` | `09b0b9d861f5d353bbca8a9aed7bcfae11f4b5456a3a71f92852b01a726a46ef` |
 | 20 | `docs/specs/13-phasing-and-open-questions.md` | `c94f49b68a771382ba452a17a2d3ccff5e6d0bba7f62b7bffeae509064edc53d` |
 | 21 | `docs/specs/14-driving-scenario-eks-job-scheduler.md` | `a1378ecb50869d47a7a11c8e0e937e4cf303cd02dde8bbbd4d406cd609866800` |
-| 22 | `docs/specs/16-requirements-durable-driver.md` | `eb2d2093a1e5994227c2fc849eceafea4b0759fdb284bf3f74e1db2ce45aa861` |
+| 22 | `docs/specs/16-requirements-durable-driver.md` | `d04d92689108d7540fbbba8d1b6ae15df999cbc667bec538044d0f97590ff8a7` |
 
 ## Reconciled contract
 
@@ -106,3 +106,35 @@ friend, with codec/committed-byte/child work retained on the durable bridge. The
 source rows remain unchanged. Docs 08 and 17, outside this 22-source catalog, are explicitly
 amended in the same target for runtime-view and successful-null wording. This refresh is
 proposal-only: no canonical sync, friend attribute or source authority is implied.
+
+## Proposed complete DAG run contract refresh (2026-10-04)
+
+The Task 1.1 target intentionally refreshes every edited source row for the full
+stream/provider/lifecycle proposal. Doc 08 and doc 17 carry separate proposed
+status pins outside this 22-source catalog. The canonical four blocks and main
+source remain unchanged; no proposal text is claimed approved or compiled.
+
+## Proposed RC-1 DAG run contract pin refresh (2026-10-04)
+
+The reviewed replacement target refreshes rows for the explicitly proposed lease
+coordinator/FIFO/cleanup/storage clarifications. All prior dated review packets
+and rejected contract artifacts remain unchanged. No canonical/source implementation
+is claimed by these row hashes.
+
+## Proposed RC-2 DAG run contract pin refresh (2026-10-05)
+
+Rows reflect out-of-turn evaluation and all round-96 operational clarifications.
+Both rejected packets and their artifacts remain byte-exact. No canonical/source
+implementation or runtime liveness proof is claimed by these hashes.
+
+## Proposed RC-3 DAG scheduling pin refresh (2026-10-05)
+
+Rows disposition isolated run evaluation, zero look-ahead, authored admission and
+ready-hint recovery, preserving all three rejected packets/artifacts byte-exact.
+No runtime liveness/source approval is claimed by document hashes.
+
+## Proposed RC-3 DAG scheduling pin refresh (2026-10-05)
+
+Rows disposition isolated run evaluation, zero look-ahead, authored admission and
+ready-hint recovery, preserving all three rejected packets/artifacts byte-exact.
+No runtime liveness/source approval is claimed by document hashes.

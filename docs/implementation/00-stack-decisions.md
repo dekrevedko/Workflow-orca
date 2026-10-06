@@ -206,3 +206,28 @@ task; if a task cannot proceed without a resolution, stop and surface it.
 - 2026-10-04: **Decision 22 runtime-view source candidate after canonical approval** - independently approved atomic checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`, evidence `6c8bcd02bf6c747800c17dbc27afce53d24efbc1`, and checkbox-only activation `13fe5b996e4758e383ea6ac68d86bdaf10b940b8` authorize preparing this source target. The candidate compiles the ninth `OrcaCore.Dag -> OrcaCore.Dag.Hosting` grant, three internal runtime-view types and fifteen exact consumed signatures. It awaits its own independent source approval/checkpoint; codec, committed input and child-start/join remain later bridge work. Earlier dated proposal and prepared-transition entries remain byte-exact history.
 
 - 2026-10-04: **Decision 22 runtime-view source approval and closeout preparation** - checkpoint `4eb2e8d3a68e0ae7d873bd4f54c53735beefb132` has the independently approved tree `bd378abbadc5ba6989831814be1e67db0c9dcfa9`; direct-child evidence `2fdfa59a747a5d1d1667abd63a8def88168a172b` adds the byte-exact 2026-10-04 APPROVE, and activation `1d8941b7c4e4a96752b33684075d152494057c49` checks Task 2.4 only. All nine product grants are current and source-approved. The Complete registry promotion is prepared for its own independent closeout review; durable bridge, codec/commit and child-start/join work remain later reviewed slices. Earlier dated entries remain unchanged.
+
+<!-- dag-run-contract-proposal:start -->
+#### Proposed durable DAG run contract (2026-10-04; pending independent approval)
+
+Dated proposed decision: full typed DAG stream/provider lifecycle precedes bridge source. The current nine friends/package graph stay unchanged. The earlier six-call child contract remains immutable history, never re-described as complete.
+
+Full exact proposed contract: [Task 1.1 RC-3](../../openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-run-contract-rc-3-remediation-2026-10-05.md), with its exact API catalog. Earlier contract links below are rejected history. This is proposed wording, not current source or canonical behavior.
+
+Rejected RC-1 predecessor (resolved lease parts retained by RC-3): Dag.Hosting owns admission/mapping coordination; Durable.Hosting owns bridge-only lease access and role-free committed child-join/cancel coordination. Provider FIFO grants one bounded mutation turn (5s lease, 15s absolute cap), then release before idle/child/capacity waits. New arrivals cannot starve prior joins/cancellation. Expired boot-host observer hints have bounded cleanup; compact changed-node events retain one current full checkpoint, not a full snapshot per event. The earlier linked contract is the rejected predecessor; the superseded rejected contract/API catalog was [RC-1 remediation](../../openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-run-contract-rc-1-remediation-2026-10-04.md). No source, canonical sync or new friend is claimed.
+
+Rejected RC-2 refinement (2026-10-05; superseded by RC-3 below): read/decode/evaluate/normalize immutable inputs outside all lease turns; retain one physical evaluation per node/host and completed receipts across unrelated version conflicts/capacity deferral. Short commit turns only recheck and append. No mapper time budget or expiry failure exists. Exact operational pressure/gauges, provider production/test clocks, same-host FIFO outcomes, explicit captured host-limit parameter, reachable DAG-role cancellation and StartAuthorized-only persisted state were in the rejected RC-2 successor. DG-P19–21 require real-storage evidence before source approval.
+RC-3 proposal (2026-10-05): MaxConcurrentNodes remains ONLY the PER-RUN child/start-intent ceiling, never a host-global mapper pool. The distinct internal DagEvaluationParallelismPerRun=1 uses dedicated isolated run lanes and fair round-robin dispatch; a stuck mapper retains its own lane, not another run's permit. Evaluate only the lowest Ready ordinal in the free child window, zero look-ahead, one evaluation OR receipt/run/host; successful admission rechecks authored order under the fence, never mapper-completion order. Cross-host evaluation duplicates are allowed one/run/boot host. A newly Ready lower node invalidates a higher speculative receipt to avoid single-host order deadlock; capacity/time/unrelated versions do not. Non-success joins transitively block descendants. Ready hints ack bounded local wake acceptance before mapping and continuous wrapping discovery recovers acked/lost/poisoned hints. DG-P22–24 require real-storage ordering, isolation and wake/death evidence later, not current acceptance credit. Docs 08 CP-025/027, doc 12 AC-609/611/617 and doc 17's distinct-limit taxonomy keep their existing obligations. No public option, new friend or canonical/source change is claimed.
+
+<!-- dag-run-contract-proposal:end -->
+
+### 2026-10-05 proposed RC-3 scheduling clarification
+
+The rejected RC-2 host-global evaluation pool is superseded in the new proposal,
+not retroactively approved. MaxConcurrentNodes is per-run child admission ONLY.
+Internal one-worker isolated run lanes, fair dispatch, no look-ahead and fresh
+authored-order admission preserve the existing DAG rules. One stuck mapper retains
+its own lane, and total live/retired evaluation threads scale per run. Lease turns
+and immutable receipts remain; the third rejection and all older decisions stay
+byte-exact. Ready hints acknowledge wake acceptance with authoritative rediscovery.
+This is proposed contract text, not source or canonical approval.

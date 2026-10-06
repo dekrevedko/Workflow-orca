@@ -3,7 +3,7 @@
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
   "recordCount": 184,
   "recordBytes": 48464,
-  "recordSha256": "d76b82216c3504f40788299162961b8dbdef1da89268bf6eaafe7092532418d5",
+  "recordSha256": "af9fdd1000063e9924fb1efd03d7cac349e1a72af9d9bf81f3b9a499abf60b66",
   "semanticApprovalEligible": false,
   "pendingCanonicalOperations": [
     {
@@ -188,6 +188,6 @@
   "capabilityDirectoryCount": 22,
   "capabilityDirectoryBytes": 1808,
   "capabilityDirectorySha256": "2869d4ad4541be53adeac5819091605eff85c39b5140abec4438c668ac99b6e2",
-  "artifactPath": "openspec/changes/admit-durable-dag-run-progression/artifacts/process-openspec-provenance-2026-10-04.md",
-  "artifactNormalizedSha256": "e28513fa3f2f0f796dd31825f245f5494ba8a880f38e8bb79ab5dd8fc6d0896e"
+  "artifactPath": "openspec/changes/admit-durable-dag-run-progression/artifacts/contract-rc-3-remediation-openspec-provenance-2026-10-05.md",
+  "artifactNormalizedSha256": "bee1707d4f68bf2d00cc68e8d3ebfb1911d346379cbf533f5003c12b41ea4640"
 }

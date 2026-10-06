@@ -358,7 +358,7 @@
       "stage": "Proposed",
       "turnsGreenTask": "1.3",
       "predecessorBlockSha256": "75cf33d00e6129e0ae702d04a37e0438358158adb76101bf9896dcc8144b6020",
-      "proposedBlockSha256": "7ad1496175595cf577bad0d35b25194cfcd2263b1e601314dacec949d6a74f8c"
+      "proposedBlockSha256": "7d0fd8f4345f412fc3b76b82e5bbbe76dc420b2d43fcff99bc927f12fb7e9660"
     },
     {
       "capability": "durable-persistence-and-outbox",
@@ -370,7 +370,7 @@
       "stage": "Proposed",
       "turnsGreenTask": "1.3",
       "predecessorBlockSha256": "777a930986599b2931d71b6b3665e15fadf5869d4df748b954bf6f252670551d",
-      "proposedBlockSha256": "ec6496d41c6c398707b92ed0c0a03a89ff6c336c6f152b1839320841ff5270dd"
+      "proposedBlockSha256": "2aa07f46a0a53766db5aaf3adc743506e615f542d2bf6e9c033fbaa0db34f926"
     },
     {
       "capability": "durable-persistence-and-outbox",
@@ -382,7 +382,7 @@
       "stage": "Proposed",
       "turnsGreenTask": "1.3",
       "predecessorBlockSha256": "1b539ab44adefc0cd020131c389ff420b6c31b2973cd123bd7e59ed436e852cb",
-      "proposedBlockSha256": "e321f8f1f0d637ddc9ddea09e80d6389f7571e2c38fd94ee84a28701709e36a6"
+      "proposedBlockSha256": "30ffcff973c7aac408396c002180b75d995b60493163b8f62ba0455df73260db"
     },
     {
       "capability": "durable-runtime",
@@ -394,7 +394,7 @@
       "stage": "Proposed",
       "turnsGreenTask": "1.3",
       "predecessorBlockSha256": "11741edaf2f26fd43846948d5395a8fe5be92ce61c016e3dc232d11dc810cd40",
-      "proposedBlockSha256": "a170658e68f82e594603fe6814ba32d30584e23a49dfb682628b64f63744b83d"
+      "proposedBlockSha256": "fe738cf91b0a4048a9594deac8650a86c70d0bd9b35d2394d9be8b217e61dac8"
     }
   ]
 }
