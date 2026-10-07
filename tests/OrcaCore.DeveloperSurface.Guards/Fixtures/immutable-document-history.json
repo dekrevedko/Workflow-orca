@@ -2416,6 +2416,11 @@
       "sha256": "dccaf2f1dc6640a652ae09e65d1c1763bd73156d06691791561b2fa4ce0cc967"
     },
     {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-atomic-canonical-transition-independent-review-verdict-2026-10-06.md",
+      "bytes": 17572,
+      "sha256": "e89e7066308bc906e6b94b073828471f8481a11b919ea711df1e89f55018cca6"
+    },
+    {
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-dirty-manifest-2026-10-04.txt",
       "bytes": 2471,
       "sha256": "fa3604972b2dca65a55bc753841323af9171a6438a0011be26b64ca330658a02"

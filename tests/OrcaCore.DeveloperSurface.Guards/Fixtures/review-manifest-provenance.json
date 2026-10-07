@@ -1,17 +1,6 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": {
-    "task": "reshape-dag-run-atomic-transition",
-    "requestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-atomic-canonical-transition-independent-review-request-2026-10-05.md",
-    "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-atomic-canonical-transition-dirty-manifest-2026-10-05.txt",
-    "disposition": "RawGitOrder",
-    "baseCommit": "d59f8307977dc71d1b77444b9711a0468c65f93d",
-    "contentRecordExcludedPaths": [
-      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
-    ],
-    "contentRecordBytes": 4824,
-    "contentRecordSha256": "7a8fb21a19660451a67a60bfd7840c878951d0da6ff4b55b6b14971e471f811a"
-  },
+  "activeFreeze": null,
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",
