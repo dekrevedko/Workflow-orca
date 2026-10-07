@@ -60,3 +60,11 @@ Non-success joins block descendants; ready hints ack bounded wake acceptance bef
 mapping, with continuous authoritative discovery recovering lost/poisoned hints.
 DG-P22–24 certify these rules later; the third rejected packet stays byte-exact.
 No canonical/source/baseline changes or additional heading owner is authorized.
+
+## Approved contract and prepared canonical transition (2026-10-05)
+
+RC-3 was independently approved and checkpointed at e6802a3, evidenced at 578593e
+and activated at d59f830. This target prepares only atomic 1.3/1.4: mechanically
+sync four blocks, retain their Proposed history, bind ApprovedPending and exact
+reshape supersessions, and record P3 dispositions in a new immutable addendum.
+Its own independent approval/checkpoint is still required. No source is claimed.

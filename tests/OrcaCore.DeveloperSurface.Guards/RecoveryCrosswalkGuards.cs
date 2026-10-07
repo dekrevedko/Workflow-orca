@@ -427,7 +427,7 @@ public sealed partial class RecoveryCrosswalkInfrastructureGuards
         }
 
         expected["activeFiles"].Should().Be(192);
-        expected["activeDeclarations"].Should().Be(717);
+        expected["activeDeclarations"].Should().Be(718);
         expected["compileExcludedFiles"].Should().Be(131);
         expected["compileExcludedDeclarations"].Should().Be(688);
         expected["outOfBandFixtureFiles"].Should().Be(17);

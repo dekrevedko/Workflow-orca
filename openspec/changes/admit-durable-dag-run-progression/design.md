@@ -182,3 +182,14 @@ limit, tie-break, duplicates and recovery. No fifth requirement owner is added.
 None within this four-heading contract target. Independent review can reject
 these exact proposed choices. No canonical sync, source or baseline update is
 authorized until contract and atomic 1.3/1.4 approval/checkpoint.
+
+## Atomic canonical transition preparation (2026-10-05)
+
+The preceding proposed decisions are retained as contract history. RC-3 contract
+approval is checkpoint e6802a3 / evidence 578593e; the new
+[transition addendum](artifacts/task-1-3-1-4-rc-3-transition-addendum-2026-10-05.md) owns the four review
+observations and exact lifecycle policies. Four ApprovedPending rows and four
+reshape supersessions now bind the canonical target, with Proposed hashes retained.
+One-word mandatory discard is the only delta refinement; all RC-3 packet files
+stay byte-exact. 1.3 is prepared complete, 1.4 activation remains unpinned, and
+source/archival/withdrawal require their separate reviews.

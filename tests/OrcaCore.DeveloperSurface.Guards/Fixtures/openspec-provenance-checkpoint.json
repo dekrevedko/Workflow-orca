@@ -2,23 +2,10 @@
   "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
   "recordCount": 184,
-  "recordBytes": 48464,
-  "recordSha256": "af9fdd1000063e9924fb1efd03d7cac349e1a72af9d9bf81f3b9a499abf60b66",
-  "semanticApprovalEligible": false,
-  "pendingCanonicalOperations": [
-    {
-      "capability": "durable-persistence-and-outbox",
-      "count": 3,
-      "turnsGreenChange": "admit-durable-dag-run-progression",
-      "turnsGreenTask": "1.3"
-    },
-    {
-      "capability": "durable-runtime",
-      "count": 1,
-      "turnsGreenChange": "admit-durable-dag-run-progression",
-      "turnsGreenTask": "1.3"
-    }
-  ],
+  "recordBytes": 48504,
+  "recordSha256": "fd6ad0449e706d5ecf3f9dab552a9ad5fc3ef1be95df13304afba91e1d9ca8c8",
+  "semanticApprovalEligible": true,
+  "pendingCanonicalOperations": [],
   "activeNewCapabilitiesOutsideCanonical": [
     {
       "capability": "spec-driven-planning",
@@ -188,6 +175,6 @@
   "capabilityDirectoryCount": 22,
   "capabilityDirectoryBytes": 1808,
   "capabilityDirectorySha256": "2869d4ad4541be53adeac5819091605eff85c39b5140abec4438c668ac99b6e2",
-  "artifactPath": "openspec/changes/admit-durable-dag-run-progression/artifacts/contract-rc-3-remediation-openspec-provenance-2026-10-05.md",
-  "artifactNormalizedSha256": "bee1707d4f68bf2d00cc68e8d3ebfb1911d346379cbf533f5003c12b41ea4640"
+  "artifactPath": "openspec/changes/admit-durable-dag-run-progression/artifacts/approved-pending-openspec-provenance-2026-10-05.md",
+  "artifactNormalizedSha256": "7fef563b2d0e9ab2305052a4eacd04c669929270fe571c2bb3c27c653cbc4096"
 }

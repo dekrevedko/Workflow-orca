@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-3-remediation-dirty-manifest-2026-10-05.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-atomic-canonical-transition-dirty-manifest-2026-10-05.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2404,6 +2404,16 @@
       "path": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-successor-process-independent-review-verdict-2026-09-30.md",
       "bytes": 11549,
       "sha256": "bc72cd0eca94e77a1c09744e18aea6bb0133cfe5429ddf5a50fdfb4e0c70cd4c"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-atomic-canonical-transition-dirty-manifest-2026-10-05.txt",
+      "bytes": 2427,
+      "sha256": "57d94a5f5e52ad8bb76871b1e2286d9bbd8d48467fa3b5286099894a9251b32c"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-atomic-canonical-transition-independent-review-request-2026-10-05.md",
+      "bytes": 9762,
+      "sha256": "dccaf2f1dc6640a652ae09e65d1c1763bd73156d06691791561b2fa4ce0cc967"
     },
     {
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-dirty-manifest-2026-10-04.txt",

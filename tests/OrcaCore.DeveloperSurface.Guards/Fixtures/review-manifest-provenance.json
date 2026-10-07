@@ -1,6 +1,17 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": null,
+  "activeFreeze": {
+    "task": "reshape-dag-run-atomic-transition",
+    "requestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-atomic-canonical-transition-independent-review-request-2026-10-05.md",
+    "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-atomic-canonical-transition-dirty-manifest-2026-10-05.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "d59f8307977dc71d1b77444b9711a0468c65f93d",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 4824,
+    "contentRecordSha256": "7a8fb21a19660451a67a60bfd7840c878951d0da6ff4b55b6b14971e471f811a"
+  },
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",
@@ -834,8 +845,6 @@
       "currentWorktreeMatchPaths": [
         "docs/review/harmonize-downstream-capability-specs-task-5-1-dirty-manifest-2026-08-20.txt",
         "docs/review/harmonize-downstream-capability-specs-task-5-1-independent-review-request-2026-08-20.md",
-        "openspec/specs/durable-persistence-and-outbox/spec.md",
-        "openspec/specs/durable-runtime/spec.md",
         "openspec/specs/event-routing-and-waits/spec.md",
         "openspec/specs/state-driven-runtime/spec.md",
         "openspec/specs/workflow-contracts/spec.md",
