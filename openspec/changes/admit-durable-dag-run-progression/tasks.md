@@ -11,7 +11,7 @@
       **RC-3 remediation prepared (2026-10-05):** rc-3-remediation contract/API/signatures keep the lease/receipt model, separate isolated run evaluation lanes from the per-run child ceiling, enforce zero look-ahead and fenced authored admission, restore non-success transitive blocking, and define ready wake acknowledgement/discovery. DG-P22–24 are future real-storage exits. Retain all three rejected packets byte-exact; 1.2 remains checkbox-unpinned.
 - [x] 1.2 Obtain independent contract APPROVE and record its reviewed tree, unique final verdict, single-parent direct-child evidence commit and verdict addition. Checkbox-only activation must stay green without a source edit.
 - [x] 1.3 Atomically sync exactly `durable-persistence-and-outbox` (3) and `durable-runtime` (1) with 1.4 after contract approval; preserve all preambles, order and unrelated blocks. Never hand-edit canonical.
-- [ ] 1.4 In the same target as 1.3, retain the proposed history, bind the exact approved blocks/evidence, mark only the four hash-matched predecessors superseded, and transition to ApprovedPending. Implement one-active-or-archived resolution and reviewed withdrawal/archival rules. Independently review/checkpoint/evidence the atomic target before source; activate by checking 1.4 only.
+- [x] 1.4 In the same target as 1.3, retain the proposed history, bind the exact approved blocks/evidence, mark only the four hash-matched predecessors superseded, and transition to ApprovedPending. Implement one-active-or-archived resolution and reviewed withdrawal/archival rules. Independently review/checkpoint/evidence the atomic target before source; activate by checking 1.4 only.
 
 ## 2. Separately reviewed source/provider slices
 
