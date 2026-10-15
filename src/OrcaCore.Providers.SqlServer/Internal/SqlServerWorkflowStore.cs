@@ -24,14 +24,21 @@ internal sealed class SqlServerWorkflowStore(SqlServerStateDocumentStore documen
 
     public Task<Result<AppendEventsResult>> AppendAsync(
         ProviderCommitBatch batch,
-        CancellationToken cancellationToken) =>
-        ExecuteAsync(engine => engine.AppendAsync(batch, cancellationToken), cancellationToken);
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        _ = batch.StreamId.InstanceId;
+        return ExecuteAsync(engine => engine.AppendAsync(batch, cancellationToken), cancellationToken);
+    }
 
     public Task<IReadOnlyList<DurableWorkflowEvent>> LoadTailAsync(
         WorkflowStreamId streamId,
         StreamVersion afterVersion,
-        CancellationToken cancellationToken) =>
-        ReadAsync(engine => engine.LoadTailAsync(streamId, afterVersion, cancellationToken), cancellationToken);
+        CancellationToken cancellationToken)
+    {
+        _ = streamId.InstanceId;
+        return ReadAsync(engine => engine.LoadTailAsync(streamId, afterVersion, cancellationToken), cancellationToken);
+    }
 
     public Task<InboxAcceptanceCommitResult> AcceptAsync(
         InboxAcceptance acceptance,

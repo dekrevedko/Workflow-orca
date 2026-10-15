@@ -177,6 +177,10 @@ type public sealed class OrcaCore.Abstractions.Ids.DefinitionVersionJsonConverte
   ctor public .ctor()
   method public override Read(ref [System.Text.Json]System.Text.Json.Utf8JsonReader reader, [System.Private.CoreLib]System.Type! typeToConvert, [System.Text.Json]System.Text.Json.JsonSerializerOptions! options) -> [OrcaCore]OrcaCore.DefinitionVersion!
   method public override Write([System.Text.Json]System.Text.Json.Utf8JsonWriter! writer, [OrcaCore]OrcaCore.DefinitionVersion! value, [System.Text.Json]System.Text.Json.JsonSerializerOptions! options) -> [System.Private.CoreLib]System.Void
+type public enum OrcaCore.Abstractions.Ids.DurableAggregateKind : [System.Private.CoreLib]System.Int32
+  field public [System.Private.CoreLib]System.Int32 value__
+  field public const [OrcaCore]OrcaCore.Abstractions.Ids.DurableAggregateKind DagRun = 1
+  field public const [OrcaCore]OrcaCore.Abstractions.Ids.DurableAggregateKind Workflow = 0
 type public sealed class OrcaCore.Abstractions.Ids.EventIdJsonConverter : [System.Text.Json]System.Text.Json.Serialization.JsonConverter`1[[OrcaCore]OrcaCore.EventId~]~ attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([0, 1])]
   ctor public .ctor()
   method public override Read(ref [System.Text.Json]System.Text.Json.Utf8JsonReader reader, [System.Private.CoreLib]System.Type! typeToConvert, [System.Text.Json]System.Text.Json.JsonSerializerOptions! options) -> [OrcaCore]OrcaCore.EventId!
@@ -257,10 +261,13 @@ type public readonly struct OrcaCore.Abstractions.Ids.WorkflowStreamId : [System
   method public override Equals([System.Private.CoreLib]System.Object~ obj) -> [System.Private.CoreLib]System.Boolean
   method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
   method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public static ForDagRun([System.Private.CoreLib]System.Guid runId) -> [OrcaCore]OrcaCore.Abstractions.Ids.WorkflowStreamId
   method public virtual sealed Equals([OrcaCore]OrcaCore.Abstractions.Ids.WorkflowStreamId other) -> [System.Private.CoreLib]System.Boolean
   operator public static op_Equality([OrcaCore]OrcaCore.Abstractions.Ids.WorkflowStreamId left, [OrcaCore]OrcaCore.Abstractions.Ids.WorkflowStreamId right) -> [System.Private.CoreLib]System.Boolean
   operator public static op_Inequality([OrcaCore]OrcaCore.Abstractions.Ids.WorkflowStreamId left, [OrcaCore]OrcaCore.Abstractions.Ids.WorkflowStreamId right) -> [System.Private.CoreLib]System.Boolean
+  property [OrcaCore]OrcaCore.Abstractions.Ids.DurableAggregateKind AggregateKind { get:public }
   property [OrcaCore]OrcaCore.InstanceId! InstanceId { get:public }
+  property [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.Guid] DagRunId { get:public }
 type public readonly struct OrcaCore.Abstractions.Primitives.Option`1 : [System.Private.CoreLib]System.ValueType~ interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore]OrcaCore.Abstractions.Primitives.Option`1[!T~]]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.IsReadOnlyAttribute()]
   generic T : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
   method public Bind<TResult>([System.Private.CoreLib]System.Func`2[!T?, [OrcaCore]OrcaCore.Abstractions.Primitives.Option`1[!!TResult!]]! bind attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([1, 1, 0, 1])]) -> [OrcaCore]OrcaCore.Abstractions.Primitives.Option`1[!!TResult!] return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([0, 1])] where [TResult]

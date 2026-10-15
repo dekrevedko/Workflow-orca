@@ -174,6 +174,7 @@ internal sealed partial class PostgreSqlWorkflowStore :
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(batch);
+        _ = batch.StreamId.InstanceId;
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var transaction = await connection
@@ -389,6 +390,7 @@ internal sealed partial class PostgreSqlWorkflowStore :
         StreamVersion afterVersion,
         CancellationToken cancellationToken)
     {
+        _ = streamId.InstanceId;
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var command = new NpgsqlCommand(
             """

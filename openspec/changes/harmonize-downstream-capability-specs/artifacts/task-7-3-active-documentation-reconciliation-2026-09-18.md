@@ -13,28 +13,28 @@ requires the numbered rows, paths, and hashes exactly as recorded here.
 
 | # | Active source | Normalized SHA-256 |
 |---:|---|---|
-| 1 | `CLAUDE.md` | `b872c7e4cba50ca4dba607e62ed0fd6529e5996d6b5cf3d28425b594692ba20d` |
+| 1 | `CLAUDE.md` | `9e7ea0872a3b58abc06a75970c8d365c1138a7eedd7ff5bff38ce8d93724e9df` |
 | 2 | `docs/eks-scheduler-handoff.md` | `48cf025958482433e34b4e52185484ed587936ba56ef4822bc96e1b08b3f9ef2` |
 | 3 | `docs/end-to-end-plan.md` | `c2bb0ea26618a65248839ffd75281b9c89dc496467e5a90e9034da48fcae0e01` |
 | 4 | `docs/ephemeral-engine-developer-guide.md` | `7e3fe252e1bcb621b03bfb91a6aaf2d48bf5c5ad3997e442ad4fbcb3a90dfa2c` |
 | 5 | `docs/ephemeral-engine-diagrams.md` | `6393cfb7fb4155e0fc28ed908384e43126d05be9b5ebda04f6f7aee7aa25463a` |
-| 6 | `docs/implementation/00-stack-decisions.md` | `3bcc3f54a75f22dd593982948997f7497c290e07845de543902be5399b45ecd2` |
-| 7 | `docs/implementation/01-solution-architecture.md` | `e1b25e9d029b660939c90279d86002e9c743b39722ff3b7f595a1524e581a433` |
+| 6 | `docs/implementation/00-stack-decisions.md` | `f1cf2bf9a3e810801571cdeee55e0510ac185f880800c94cb0b41af9b01d187b` |
+| 7 | `docs/implementation/01-solution-architecture.md` | `530502d6f8d457cd2696834aca42cec43db72c5747d5760ab709fde6cb3de3b3` |
 | 8 | `docs/implementation/02-engineering-conventions.md` | `e4a81233359e60e5ca43e596d26a58ff46e75879dded7536e95511e47d908c72` |
-| 9 | `docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md` | `42f97187b2e62ea4df522317ff7562b74644024289aea470ebef68e5b3d86dad` |
+| 9 | `docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md` | `af8a3ccd4903915faf0fc5ff114f322048345379157f0656ad3efeeba1efa372` |
 | 10 | `docs/normative-source-map.md` | `1bc5a4182949cbfbe87870aebf258a9fdfcfb22a8cd627d2c0b0d7fc7e61d949` |
 | 11 | `docs/production-readiness.md` | `2812eb9121d455a59ec748dbdbcc4cba4ddd317398c9b8c5470edc44b9a6c1bc` |
-| 12 | `docs/project-technical-overview.md` | `84ce04a1ee32d129c22e6a1b069bf56391bc4a0ea0e196b289e1daf2105489fc` |
+| 12 | `docs/project-technical-overview.md` | `8035476d3e791de5dc7f63eaf676039d499d11744db6809351634b68dbbf9b52` |
 | 13 | `docs/specs/01-concept-and-goals.md` | `36826933178462e6d83eb817cec2b51ec77cd93609a5726ad883b888c0960fb4` |
-| 14 | `docs/specs/03-domain-model-and-glossary.md` | `00de9287ac0f48722c340860eaab99b87e95b534f269980bc74aa77ac9f17728` |
-| 15 | `docs/specs/05-requirements-events-waits-timers.md` | `2ca82d049dab545710948a952e4ef76972ef21532fb607b83d11b4a4461e744d` |
-| 16 | `docs/specs/06-requirements-durable-execution.md` | `0c65b56473ea10468d7798aca3287d5ef049817649e6f91e89080f39ae079778` |
+| 14 | `docs/specs/03-domain-model-and-glossary.md` | `b8a09fa8fb0c72d6513ccc8e2939cdd9c0896f79fc252ec6874a711851bba1ee` |
+| 15 | `docs/specs/05-requirements-events-waits-timers.md` | `a554287b6412d9db6e385470863a11e53fc6bb1ca8bcf198632b914589ecf17c` |
+| 16 | `docs/specs/06-requirements-durable-execution.md` | `22f2022753a1c9f14d77addb5378001fe48dbae7595b5456d5f522e21ea604e3` |
 | 17 | `docs/specs/09-requirements-management-operations.md` | `b564eb6713e446ba846141ee4561a3f5ec49fa596e580f44625a231da5d6aa2b` |
-| 18 | `docs/specs/10-provider-model-and-extensibility.md` | `0654c51c4aa216a0af98bfc880095e3d504b00dc0e1bdc87d13162e3cfb5aede` |
-| 19 | `docs/specs/12-acceptance-criteria.md` | `4d1e796a571055d592d8eb3b817666e63ad7823878684e32805035173e4b219c` |
+| 18 | `docs/specs/10-provider-model-and-extensibility.md` | `1dd4570da04860c056ae0bb2ed528f912edebe6d1e9105e797a57b1e21b4228b` |
+| 19 | `docs/specs/12-acceptance-criteria.md` | `7da7e0a0e499b308095d248fdc091ca95323656cf170245f84b66e3c44033269` |
 | 20 | `docs/specs/13-phasing-and-open-questions.md` | `c94f49b68a771382ba452a17a2d3ccff5e6d0bba7f62b7bffeae509064edc53d` |
 | 21 | `docs/specs/14-driving-scenario-eks-job-scheduler.md` | `a1378ecb50869d47a7a11c8e0e937e4cf303cd02dde8bbbd4d406cd609866800` |
-| 22 | `docs/specs/16-requirements-durable-driver.md` | `b13d8061b63438de9f198c17d16c3fb3ce9eb6b7cf900fc093fb48dcfe0809a2` |
+| 22 | `docs/specs/16-requirements-durable-driver.md` | `7462935c982e22d0ba8878968d9f117eff05219bea7e3831e181e759bb03fd3a` |
 
 ## Reconciled contract
 

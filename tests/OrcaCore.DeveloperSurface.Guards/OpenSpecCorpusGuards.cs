@@ -129,32 +129,33 @@ public sealed class OpenSpecCorpusGuards
     private static readonly (string Path, string Sha256)[] DagRunContractPlanningPins =
     [
         ("openspec/changes/admit-durable-dag-run-progression/proposal.md", "17ee663e68629f9f952bb307fc8626ed32f11b505d514b8baf50abbe7e34280c"),
-        ("openspec/changes/admit-durable-dag-run-progression/design.md", "a73830f48cf190ec1199e146dbfad8ac16cf6dda1d8e206446a6396973730c5a"),
-        ("openspec/changes/admit-durable-dag-run-progression/tasks.md", "9837fee93776faed795f45a7b0b130647bcefcdd7c797f973b243f10dc85db4d"),
+        ("openspec/changes/admit-durable-dag-run-progression/design.md", "4babf65e522ba2666e1e471299e557b7655467be8525e4053d36edd24a1dbc79"),
+        ("openspec/changes/admit-durable-dag-run-progression/tasks.md", "00b436e9dd0d4d5cadb815111327b8c783d5c6015e256ee2525a9cc2f82a0033"),
         ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-run-contract-rc-3-remediation-2026-10-05.md", "f8a1a7f6d69dc337854dd7e6dc9bbe59a2e7c3a43329635cf1b57c9f8280d665"),
         ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-exact-api-additions-rc-3-remediation-2026-10-05.md", "766ad5d84c90a0666a8a631018fdd686f9a59b00d6c8d50f3378b1b4fa6a308f"),
         ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-standalone-signatures-rc-3-remediation-2026-10-05.cs", "8301094ba0a14634f9c8ba08ac2642eb2b8e5128981da453ecd0623762926189"),
         ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-rc-3-review-remediation-2026-10-05.md", "6854085ef46e37b3fc699df3e5dc592618dac640518f3fffbdb80b858b3a9418"),
-        ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-3-1-4-rc-3-transition-addendum-2026-10-05.md", "cff6f3a4b89e69dca3509785cc8eab4830aa2a43c89b9a0930b23c9a3afcd0ea")
+        ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-3-1-4-rc-3-transition-addendum-2026-10-05.md", "cff6f3a4b89e69dca3509785cc8eab4830aa2a43c89b9a0930b23c9a3afcd0ea"),
+        ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-stream-identity-slice-2026-10-07.md", "64e20cbd84d5d00876ee762a981745f14ba5699bbfdbbee34c18db6793ed420d")
     ];
     private static readonly (string Path, string Sha256)[] DagRunProposedDocumentPins =
     [
-        ("CLAUDE.md", "6b79a20006c0b9da083ef6390c5b8abce3a8fb1f7224ac4cc1b37aeb08628f4e"),
-        ("docs/specs/03-domain-model-and-glossary.md", "daf83a53bf8f29904aaaef9097eec2a7ebee726fd1de1db279134fa0ff2a7c7c"),
-        ("docs/specs/04-requirements-core-runtime.md", "d4dbcf4e96d1ada7c68738b6b43809b6fe32019fdf34689764b2b41d4a6ba5ed"),
-        ("docs/specs/05-requirements-events-waits-timers.md", "5f57998f330cbfefe160fee5f64fae2d97f314681b3bea845ce3f6ee16ee963d"),
-        ("docs/specs/06-requirements-durable-execution.md", "8b8c30d063bd505f766e5dc34a5d9ab916f12cfeb027ea261228242e572429f9"),
-        ("docs/specs/08-requirements-composition.md", "9313e8e7ab51cef558a0e634a39bbf1e00791267dece42f758a1e107c3ac6026"),
-        ("docs/specs/10-provider-model-and-extensibility.md", "88af36c8c18989960d961aea0bb110c43cae6337e7fe7bb49129c6ed0534bc4b"),
-        ("docs/specs/12-acceptance-criteria.md", "89e152199f657d05b9772d7f05c11cfc5b3f395def5c8e14a875204448269eec"),
-        ("docs/specs/16-requirements-durable-driver.md", "073a4bb1a89b7258cb24f7f0a942d6b169d63a8890aa09291f6a5590219c2ede"),
-        ("docs/specs/17-selected-mode-capability-matrix.md", "bfab146c33b074bfd61de562c893ad760ca3065cdb302770eb423833aae70f1a"),
-        ("docs/implementation/00-stack-decisions.md", "42f75509a9e7c9b9ef226a371079c2e05435222d746a58cc1adafadfb9758fc3"),
-        ("docs/implementation/01-solution-architecture.md", "4aa210096e3c4a8f83ea08f18ae6b12bde329d5be5b8b2fcf59dc45da0845a25"),
-        ("docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md", "e061288d59594f2f414d6044ccde89b73d76a120b3cbedc94eca0c360f5160ff"),
-        ("docs/implementation/README.md", "e060c5cc000d31a95c46e570d8514773105b90b47b94d6b192383943c57be2f2"),
-        ("docs/project-technical-overview.md", "7c106fd170519528f4ee0e67ae38008bd8496edd2d7e72ec4b516e834aca8449"),
-        ("docs/durable-driver-lane-host.md", "ff2431cca658803e4d22b41ba7ef9ae23500d31bb55734aa3785e17c99ad1cb8")
+        ("CLAUDE.md", "aab317d53fff71ead2fe0bb276428720cdef8b915c1f5d306cb6863f0f5caeed"),
+        ("docs/specs/03-domain-model-and-glossary.md", "45cb3a43f1a755118c3e18b55ee1d7e8ed519d5cf166d2cca24dc76cb3879adb"),
+        ("docs/specs/04-requirements-core-runtime.md", "ef4f53846c69a29ad60d7f51ee7bb04ebec92c33af1d0be51151d2c05d8ef0bc"),
+        ("docs/specs/05-requirements-events-waits-timers.md", "dcf96b2aaf06f1950fdd51b82b97fbd46e5ed20983b7c9da7036006e80b2d974"),
+        ("docs/specs/06-requirements-durable-execution.md", "83b3e119ee28ae057853ac5e93e9e7601e3b3829cab15c8e87ed3e12b295fbcd"),
+        ("docs/specs/08-requirements-composition.md", "84ad0a558bc902e51380ccd47694bd6be80068c3ba485173f8e5cdcf2e17c4ae"),
+        ("docs/specs/10-provider-model-and-extensibility.md", "9b2c9f34061ae82b2cd52cbfbd1b59867a54c8a91fbe2cbd1026ec440f044bf5"),
+        ("docs/specs/12-acceptance-criteria.md", "5400b099abf38d2188663b7e713eb60f906b0dc08e38dba46881c4e88782196a"),
+        ("docs/specs/16-requirements-durable-driver.md", "69dbebb7261d1cd5c3a5484d35be04d1c036a1bf767c96568515dce341f2a9db"),
+        ("docs/specs/17-selected-mode-capability-matrix.md", "53eadff080b2b04c70897d7cdaec2ccda012c107fba6c53fd353447314ce8b17"),
+        ("docs/implementation/00-stack-decisions.md", "1cf89d16733e2fb7651d537cdc8d3385c1cb118cc8a78da968482e11f3bb5d1c"),
+        ("docs/implementation/01-solution-architecture.md", "678cdfd5350d7a6cb7146cfa226054557f0016919d232edd7239067cbea729f4"),
+        ("docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md", "3b85318354db9b72b3d6e6441c2e871a8d7cf9a33bcc9976964c0707623d665a"),
+        ("docs/implementation/README.md", "8903d026562ae565fb1dc1c9b89af861166eefa2ba9e94a8adb29642fdc51c39"),
+        ("docs/project-technical-overview.md", "1fa22d01133bd38e308ac51af7f46147f0d92ea1efb6c19c8a5e10122eac377c"),
+        ("docs/durable-driver-lane-host.md", "794e880c378b0d29bdc5419e3636c3496286b0fe34bfd986382a24cf6ad9aa56")
     ];
 
     private static readonly PostGateProposedRunSuccessor[] ExactProposedDagRunSuccessors =
@@ -273,7 +274,7 @@ public sealed class OpenSpecCorpusGuards
     private const string RuntimeViewReshapeHandoffSha256 =
         "0b8672532ffd7574bd4f94694d4b4bf6cb6c5db3992298792139999e4d6b0cbf";
     private const string CurrentOpenSpecProvenanceSha256 =
-        "7fef563b2d0e9ab2305052a4eacd04c669929270fe571c2bb3c27c653cbc4096";
+        "f2739090a7644767e8de4cb3584d501f84a509b00fa9b2baf5007efc7bbf0333";
     private const string HistoricalCanonicalSourceCommit =
         "ba2478e995023b0712c44705174c2b0e3262f213";
     private const string HistoricalCanonicalRemovalCatalogSha256 =
@@ -318,9 +319,9 @@ public sealed class OpenSpecCorpusGuards
         "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
     private const string PublicAuthoringCompanionSha256 =
         "41f6472c2774363d2ab922c608922e787ec241333e1d1c0b76b0c6d529ab8ec3";
-    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 13;
+    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 14;
     private const string SupersededOpenSpecProvenanceArtifactCatalogSha256 =
-        "8555cbe864794fa08ba8b15399f5ddb63efa027c37f7ee43b8708542b481b9df";
+        "47b4201ffdd9edf6707d3679afa0a18c47f145f4107795def5f4fd5f0844e050";
     private static readonly (string Path, string NormalizedSha256)[]
         SupersededOpenSpecProvenanceArtifacts =
         [
@@ -366,7 +367,8 @@ public sealed class OpenSpecCorpusGuards
                 "ed72ca1557b8de8f288aa4f4daab827ec1805e80054b003efb13de4919e8abde"),
             (
                 "openspec/changes/admit-durable-dag-run-progression/artifacts/contract-rc-3-remediation-openspec-provenance-2026-10-05.md",
-                "bee1707d4f68bf2d00cc68e8d3ebfb1911d346379cbf533f5003c12b41ea4640")
+                "bee1707d4f68bf2d00cc68e8d3ebfb1911d346379cbf533f5003c12b41ea4640"),
+            ("openspec/changes/admit-durable-dag-run-progression/artifacts/approved-pending-openspec-provenance-2026-10-05.md", "7fef563b2d0e9ab2305052a4eacd04c669929270fe571c2bb3c27c653cbc4096")
         ];
     private const string EmptyCorePublicApiBaseline =
         "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";
@@ -486,7 +488,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "480b1fa834d53dfd70865494c0334ed84e53b9442341b2fb13be30f9c91b35e9";
+        "4d70e30d9b6f9bc9fe7bf55c8b86722c810054531bcf959a583e311a00368448";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +
@@ -1888,7 +1890,7 @@ public sealed class OpenSpecCorpusGuards
             Sha256(NormalizeLineEndings(File.ReadAllText(RequireNonEmptyFile(root, path, "rejected DAG run contract history"))))
                 .Should().Be(hash, $"rejected planning evidence {path} must remain byte-exact after supersession");
         }
-        DagRunContractPlanningPins.Should().HaveCount(8);
+        DagRunContractPlanningPins.Should().HaveCount(9);
         foreach (var (path, hash) in DagRunContractPlanningPins)
         {
             var text = NormalizeLineEndings(File.ReadAllText(RequireNonEmptyFile(root, path, "DAG run contract planning")));

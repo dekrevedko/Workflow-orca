@@ -498,5 +498,12 @@
     "addendumSha256": "cff6f3a4b89e69dca3509785cc8eab4830aa2a43c89b9a0930b23c9a3afcd0ea",
     "withdrawalPolicy": "SeparateReviewedRegistryDisposition",
     "archivalPolicy": "SeparateReviewedMoveAndProvenanceRefreeze"
+  },
+  "approvedDagRunTransitionEvidence": {
+    "checkpointCommit": "1770b2b979ca8f8c4b385637ddabe5d28c45dbb2",
+    "checkpointTree": "61b5900c0a6a87c34429e15c9cad7832d891c615",
+    "evidenceCommit": "18bf8656fdbcbf061d4f223afca6ed438efee3ea",
+    "verdictPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-atomic-canonical-transition-independent-review-verdict-2026-10-06.md",
+    "verdictSha256": "e89e7066308bc906e6b94b073828471f8481a11b919ea711df1e89f55018cca6"
   }
 }

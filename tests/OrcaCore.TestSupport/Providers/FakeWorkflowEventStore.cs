@@ -57,6 +57,7 @@ public sealed class FakeWorkflowEventStore :
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(batch);
+        _ = batch.StreamId.InstanceId;
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (gate)
@@ -196,6 +197,7 @@ public sealed class FakeWorkflowEventStore :
         StreamVersion afterVersion,
         CancellationToken cancellationToken)
     {
+        _ = streamId.InstanceId;
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (gate)

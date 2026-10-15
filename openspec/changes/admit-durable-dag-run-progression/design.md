@@ -193,3 +193,9 @@ reshape supersessions now bind the canonical target, with Proposed hashes retain
 One-word mandatory discard is the only delta refinement; all RC-3 packet files
 stay byte-exact. 1.3 is prepared complete, 1.4 activation remains unpinned, and
 source/archival/withdrawal require their separate reviews.
+
+### 13. First Task 2.1 source slice (2026-10-07)
+
+The canonical transition is independently approved at checkpoint 1770b2b (tree 61b5900c), with verdict e89e7066, direct-child evidence 18bf865 and activation 89e3b18. This bounded uncommitted slice implements only the seven typed identity API additions. Workflow-only append/tail methods reject non-workflow/default identities before reading or mutating storage; DAG storage and its remaining 358 API keys stay pending. The full 2.1 task remains open, as do all pump, bridge and closeout tasks.
+
+Carry-forward evidence binds the actual canonical transition chain and pins every canonical file, including unowned requirement blocks, with a source-pinned aggregate digest. Any later canonical refresh requires an explicitly reviewed mechanical delta sync; routine provenance/pin maintenance cannot silently approve changed canonical text. The new provenance artifact corrects the preamble recipe without changing the approved predecessor. Archival-resolver tightening remains a separate archival review.

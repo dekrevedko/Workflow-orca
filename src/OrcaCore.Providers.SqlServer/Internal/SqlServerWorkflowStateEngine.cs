@@ -193,6 +193,7 @@ internal sealed class SqlServerWorkflowStateEngine :
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(batch);
+        _ = batch.StreamId.InstanceId;
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (gate)
@@ -530,6 +531,7 @@ internal sealed class SqlServerWorkflowStateEngine :
         StreamVersion afterVersion,
         CancellationToken cancellationToken)
     {
+        _ = streamId.InstanceId;
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (gate)

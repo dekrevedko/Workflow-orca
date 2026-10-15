@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-atomic-canonical-transition-dirty-manifest-2026-10-05.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-stream-identity-dirty-manifest-2026-10-07.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2504,6 +2504,16 @@
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-successor-process-independent-review-verdict-2026-10-04.md",
       "bytes": 12342,
       "sha256": "f54a6ba50a1ea1ce0d18d2f904a388a1ab91145d7ea59f65da1fb89acc70370c"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-stream-identity-dirty-manifest-2026-10-07.txt",
+      "bytes": 3003,
+      "sha256": "268d3728fddf4225e266af65fe3bd09d1aeaa93f5dd5cd14cd27a5239dc17a49"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-stream-identity-independent-review-request-2026-10-07.md",
+      "bytes": 9963,
+      "sha256": "4990bb3751bac03271bae800ded7f741cccdc4abef910d40a0751410e004c33c"
     },
     {
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-br-remediation-dirty-manifest-2026-10-04.txt",

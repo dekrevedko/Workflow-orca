@@ -3,10 +3,10 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 340,
-    "physicalDeclarations": 1406,
-    "activeFiles": 192,
-    "activeDeclarations": 718,
+    "physicalFiles": 342,
+    "physicalDeclarations": 1415,
+    "activeFiles": 194,
+    "activeDeclarations": 727,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 17,
@@ -346,6 +346,12 @@
       "ownerProject": "tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj",
       "status": "active",
       "declarations": 1
+    },
+    {
+      "source": "tests/OrcaCore.Core.Tests/Contracts/WorkflowStreamIdentityTests.cs",
+      "ownerProject": "tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj",
+      "status": "active",
+      "declarations": 4
     },
     {
       "source": "tests/OrcaCore.Core.Tests/Contracts/WorkflowStrongValueContractTests.cs",
@@ -715,6 +721,12 @@
     },
     {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/DagRuntimeViewBoundaryGuards.cs",
+      "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
+      "status": "active",
+      "declarations": 3
+    },
+    {
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs",
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
       "status": "active",
       "declarations": 3
@@ -1875,7 +1887,7 @@
       "source": "tests/OrcaCore.ProviderCertification/EventStoreCertificationTests.cs",
       "ownerProject": "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
       "status": "active",
-      "declarations": 31
+      "declarations": 33
     },
     {
       "source": "tests/OrcaCore.ProviderCertification/InMemoryProviderCertificationTests.cs",

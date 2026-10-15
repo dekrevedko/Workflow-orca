@@ -21,6 +21,38 @@ public abstract class EventStoreCertificationTests
     protected abstract IProviderCertificationFixture CreateFixture();
 
     [Fact]
+    public async Task WorkflowAppend_RejectsDagAndDefaultStreamsWithoutEffects()
+    {
+        var fixture = CreateFixture();
+        var identity = Guid.CreateVersion7();
+        var workflow = new WorkflowStreamId(InstanceId.Parse(identity.ToString()));
+        var before = await fixture.EventStore.LoadTailAsync(workflow, StreamVersion.Empty, TestContext.Current.CancellationToken);
+        foreach (var invalid in new[] { WorkflowStreamId.ForDagRun(identity), default })
+        {
+            Func<Task> append = async () => await fixture.EventStore.AppendAsync(
+                Batch(invalid, StreamVersion.Empty), TestContext.Current.CancellationToken);
+            await append.Should().ThrowAsync<InvalidOperationException>();
+        }
+
+        var after = await fixture.EventStore.LoadTailAsync(workflow, StreamVersion.Empty, TestContext.Current.CancellationToken);
+        after.Should().Equal(before);
+        var valid = await fixture.EventStore.AppendAsync(Batch(workflow, StreamVersion.Empty), TestContext.Current.CancellationToken);
+        valid.IsSuccess.Should().BeTrue("rejected aggregate identities must not consume workflow version or ownership");
+    }
+
+    [Fact]
+    public async Task WorkflowTail_RejectsDagAndDefaultStreams()
+    {
+        var fixture = CreateFixture();
+        foreach (var invalid in new[] { WorkflowStreamId.ForDagRun(Guid.CreateVersion7()), default })
+        {
+            Func<Task> read = async () => await fixture.EventStore.LoadTailAsync(
+                invalid, StreamVersion.Empty, TestContext.Current.CancellationToken);
+            await read.Should().ThrowAsync<InvalidOperationException>();
+        }
+    }
+
+    [Fact]
     [Trait("AC", "AC-309")]
     public async Task ConcurrentAppend_SameExpectedVersion_OneWinnerOneConflict()
     {

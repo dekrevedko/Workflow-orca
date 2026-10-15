@@ -221,6 +221,9 @@ RC-3 approved contract (2026-10-05; source pending): MaxConcurrentNodes remains 
 
 Transition addendum: [1.3/1.4 P3 dispositions](../../openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-3-1-4-rc-3-transition-addendum-2026-10-05.md). Mapping may be evaluated once per run/boot host on competing hosts and after the named precommit invalidation; no exactly-once mapper invocation is promised.
 
+#### 2026-10-07 — canonical transition checkpoint and first source slice
+
+The dated 2026-10-05 entries above are retained unchanged as history. Current status: the four-block canonical transition is independently approved at 1770b2b, evidence 18bf865, activation 89e3b18. This first uncommitted Task 2.1 slice implements typed stream identity and fail-closed workflow-only access only; the remaining persistence/protocol/provider work, pumps and runtime bridge remain pending and independently review-gated. No new friend or exactly-once mapper promise.
 <!-- dag-run-contract-proposal:end -->
 
 ### 2026-10-05 proposed RC-3 scheduling clarification

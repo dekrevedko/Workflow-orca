@@ -69,6 +69,7 @@ internal sealed class InMemoryWorkflowProvider :
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(batch);
+        _ = batch.StreamId.InstanceId;
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (gate)
@@ -406,6 +407,7 @@ internal sealed class InMemoryWorkflowProvider :
         StreamVersion afterVersion,
         CancellationToken cancellationToken)
     {
+        _ = streamId.InstanceId;
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (gate)

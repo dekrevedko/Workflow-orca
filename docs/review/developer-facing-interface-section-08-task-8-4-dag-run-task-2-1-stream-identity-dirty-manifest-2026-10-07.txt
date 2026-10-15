@@ -1,0 +1,44 @@
+ M CLAUDE.md
+ M docs/durable-driver-lane-host.md
+ M docs/implementation/00-stack-decisions.md
+ M docs/implementation/01-solution-architecture.md
+ M docs/implementation/README.md
+ M docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md
+ M docs/project-technical-overview.md
+ M docs/specs/03-domain-model-and-glossary.md
+ M docs/specs/04-requirements-core-runtime.md
+ M docs/specs/05-requirements-events-waits-timers.md
+ M docs/specs/06-requirements-durable-execution.md
+ M docs/specs/08-requirements-composition.md
+ M docs/specs/10-provider-model-and-extensibility.md
+ M docs/specs/12-acceptance-criteria.md
+ M docs/specs/16-requirements-durable-driver.md
+ M docs/specs/17-selected-mode-capability-matrix.md
+ M openspec/changes/admit-durable-dag-run-progression/design.md
+ M openspec/changes/admit-durable-dag-run-progression/tasks.md
+ M openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md
+ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
+ M src/OrcaCore.Abstractions/Ids/WorkflowStreamId.cs
+ M src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs
+ M src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs
+ M src/OrcaCore.Providers.SqlServer/Internal/SqlServerWorkflowStateEngine.cs
+ M src/OrcaCore.Providers.SqlServer/Internal/SqlServerWorkflowStore.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.api.txt
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/package-source-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs
+ M tests/OrcaCore.ProviderCertification/EventStoreCertificationTests.cs
+ M tests/OrcaCore.TestSupport/Providers/FakeWorkflowEventStore.cs
+?? docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-stream-identity-dirty-manifest-2026-10-07.txt
+?? docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-stream-identity-independent-review-request-2026-10-07.md
+?? openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-stream-identity-openspec-provenance-2026-10-07.md
+?? openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-stream-identity-slice-2026-10-07.md
+?? src/OrcaCore.Abstractions/Ids/DurableAggregateKind.cs
+?? tests/OrcaCore.Core.Tests/Contracts/WorkflowStreamIdentityTests.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs
