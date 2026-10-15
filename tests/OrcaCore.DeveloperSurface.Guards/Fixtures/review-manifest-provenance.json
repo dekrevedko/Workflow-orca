@@ -1,17 +1,6 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": {
-    "task": "reshape-dag-run-task-2-1-stream-identity",
-    "requestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-stream-identity-independent-review-request-2026-10-07.md",
-    "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-stream-identity-dirty-manifest-2026-10-07.txt",
-    "disposition": "RawGitOrder",
-    "baseCommit": "89e3b18aed62446583211478f1eb8545e4fb85ed",
-    "contentRecordExcludedPaths": [
-      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
-    ],
-    "contentRecordBytes": 5965,
-    "contentRecordSha256": "b0b9a6ed38a3c225e349518b014cadfea6acef3d390d3c908acbfe694edb23cf"
-  },
+  "activeFreeze": null,
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",
