@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-stream-identity-dirty-manifest-2026-10-07.txt",
+  "activeFreezeManifestPath": "docs/review/sqlserver-pkcs-advisory-remediation-dirty-manifest-2026-10-14.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2774,6 +2774,16 @@
       "path": "docs/review/harmonize-downstream-capability-specs-tasks-7-4-and-7-5-combined-independent-review-request-2026-09-21.md",
       "bytes": 7257,
       "sha256": "93018ad9560b51199b4acca68596475e28fee6b6cbf6156aefe0c0d7072ca62d"
+    },
+    {
+      "path": "docs/review/sqlserver-pkcs-advisory-remediation-dirty-manifest-2026-10-14.txt",
+      "bytes": 449,
+      "sha256": "42fc54a5fa4c5117f50783179e99ceeb97a9032122c92e34cc28030db8ff897a"
+    },
+    {
+      "path": "docs/review/sqlserver-pkcs-advisory-remediation-independent-review-request-2026-10-14.md",
+      "bytes": 9464,
+      "sha256": "9ba6ba5dfb3e9e785ad0260f78cfc2c691ff4166ff88b8e63e5d97b4c9b37946"
     }
   ]
 }
