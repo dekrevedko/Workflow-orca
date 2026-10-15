@@ -2784,6 +2784,11 @@
       "path": "docs/review/sqlserver-pkcs-advisory-remediation-independent-review-request-2026-10-14.md",
       "bytes": 9464,
       "sha256": "9ba6ba5dfb3e9e785ad0260f78cfc2c691ff4166ff88b8e63e5d97b4c9b37946"
+    },
+    {
+      "path": "docs/review/sqlserver-pkcs-advisory-remediation-independent-review-verdict-2026-10-14.md",
+      "bytes": 8812,
+      "sha256": "617c6db0357b6613faaa5d289197390d5e8fdce69b48100ff967b01fa6f4e512"
     }
   ]
 }

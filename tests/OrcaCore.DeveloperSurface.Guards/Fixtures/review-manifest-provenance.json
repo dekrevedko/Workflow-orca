@@ -1,17 +1,6 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": {
-    "task": "sqlserver-pkcs-advisory-remediation",
-    "requestPath": "docs/review/sqlserver-pkcs-advisory-remediation-independent-review-request-2026-10-14.md",
-    "manifestPath": "docs/review/sqlserver-pkcs-advisory-remediation-dirty-manifest-2026-10-14.txt",
-    "disposition": "RawGitOrder",
-    "baseCommit": "3e1fbdd4e8331fed3a799d90a9105dc64f63f2f4",
-    "contentRecordExcludedPaths": [
-      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
-    ],
-    "contentRecordBytes": 717,
-    "contentRecordSha256": "02bd4cdcf4882ab41358f3a97238d1b10d68055771926ab54648b7794410fc92"
-  },
+  "activeFreeze": null,
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",
