@@ -4,9 +4,9 @@ Status: GUIDE. Requires .NET 10. APIs, provider schemas, and persistence formats
 Durable DAG execution is still incomplete; packaging does not complete the implementation gates
 in the active OpenSpec changes. Start with the ephemeral engine guide or the durable samples.
 
-The [2026-10-16 publishing audit](github-publishing-status.md) records the current validation
-and the owner-approved 75% coverage gate. Local packages can be used now; a successful GitHub
-publication has not yet been completed.
+The [2026-10-16 publishing audit](github-publishing-status.md) records the preparation checks
+and the owner-approved 75% coverage gate. Published packages are listed on the
+[GitHub releases page](https://github.com/dekrevedko/Workflow-orca/releases).
 
 ## Install in another project
 
