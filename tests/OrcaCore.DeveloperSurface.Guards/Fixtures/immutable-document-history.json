@@ -2501,6 +2501,11 @@
       "sha256": "dafae75a3626801c8fc1ae4a316bf31c694f9dceb76cbb991671fa8e2a80d591"
     },
     {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-fingerprint-contract-amendment-independent-review-verdict-2026-10-15.md",
+      "bytes": 12444,
+      "sha256": "f8c0082e190d5656211caf5e76c318f5044b370524caad053287097aecfda3c2"
+    },
+    {
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-successor-process-dirty-manifest-2026-10-04.txt",
       "bytes": 1198,
       "sha256": "a68caa71b6869cbb5d8b5daf5dbbddbb4ba8236dbe56a730cf8e7de54498deca"
