@@ -109,6 +109,7 @@ APIs, provider schemas, and persistence formats can change.
 | Item | Status |
 |---|---|
 | Distribution | Twelve NuGet packages and `SHA256SUMS` on the GitHub release |
+| NuGet.org | [Trusted publishing setup](docs/nuget-publishing.md); an owning account and policy are required before the first upload |
 | Published source | [`299d02d`](https://github.com/dekrevedko/Workflow-orca/commit/299d02dce92a8ee703ea0d89a42f05bb0a103055) |
 | Release validation | [Build, tests, coverage, packaging, and clean consumer passed](https://github.com/dekrevedko/Workflow-orca/actions/runs/38961860144) |
 | Engine line coverage | **77.37%**, above the approved **75%** gate |

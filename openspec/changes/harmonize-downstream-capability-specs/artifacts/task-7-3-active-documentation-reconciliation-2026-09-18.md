@@ -23,7 +23,7 @@ requires the numbered rows, paths, and hashes exactly as recorded here.
 | 8 | `docs/implementation/02-engineering-conventions.md` | `e4a81233359e60e5ca43e596d26a58ff46e75879dded7536e95511e47d908c72` |
 | 9 | `docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md` | `af8a3ccd4903915faf0fc5ff114f322048345379157f0656ad3efeeba1efa372` |
 | 10 | `docs/normative-source-map.md` | `1bc5a4182949cbfbe87870aebf258a9fdfcfb22a8cd627d2c0b0d7fc7e61d949` |
-| 11 | `docs/production-readiness.md` | `1af7480cf582badba3b5e91f5780a72171db89c5e7a88d771c57871f7949e918` |
+| 11 | `docs/production-readiness.md` | `0632ba207fda25520b7f30ebc0dc8d396cf5469ff6d1139cda675a3e22ec3719` |
 | 12 | `docs/project-technical-overview.md` | `8035476d3e791de5dc7f63eaf676039d499d11744db6809351634b68dbbf9b52` |
 | 13 | `docs/specs/01-concept-and-goals.md` | `36826933178462e6d83eb817cec2b51ec77cd93609a5726ad883b888c0960fb4` |
 | 14 | `docs/specs/03-domain-model-and-glossary.md` | `b8a09fa8fb0c72d6513ccc8e2939cdd9c0896f79fc252ec6874a711851bba1ee` |
@@ -145,3 +145,11 @@ Only rows 1 and 11 change: repository CI guidance and the pre-production distrib
 The approved Section 7B contracts and the other twenty rows remain unchanged. This artifact
 and its guard-owned digest are refreshed in the same publishing target. Validation and scope
 are recorded in docs/github-publishing-status.md; no product API or phase exit is claimed.
+
+## Owner-authorized NuGet.org distribution refresh (2026-10-16)
+
+The owner requested NuGet.org publishing configuration after the GitHub prerelease was published.
+Row 11 now records the trusted publishing workflow and the remaining account/policy setup.
+Only that distribution note and its maintained hash are refreshed; the other twenty-one
+source pins and the approved Section 7B contracts remain unchanged. This records publishing
+configuration, not completed account setup, live registry availability, or a product phase exit.

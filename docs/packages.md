@@ -32,6 +32,11 @@ For durable applications, reference `OrcaCore.Durable.Hosting` and the selected
 GitHub release downloads work without a package-registry credential. They are a directory feed
 after download; the release URL itself is not a NuGet source.
 
+NuGet.org publication is supported by the release workflow after the owner completes
+[account and trusted publisher setup](nuget-publishing.md). Its final job verifies all
+twelve packages on the public feed before reporting availability. Until that first
+publication succeeds, use the GitHub release download instructions above.
+
 ## Build local packages immediately
 
 From the repository root in PowerShell 7:
@@ -68,6 +73,7 @@ final publishing job and needs no additional secrets. After the workflow exists 
 branch, it can also be run manually with a prerelease version. Stable versions are rejected.
 Do not reuse a published version; choose a new version for changed source.
 
-Publishing to NuGet.org or the GitHub Packages registry needs a separate destination and credential
-setup. These workflows distribute GitHub release downloads. Signing, SourceLink, and stable API
-compatibility are outside this prerelease workflow.
+The [NuGet.org publishing guide](nuget-publishing.md) covers the one-time trusted publisher
+setup and publishing an existing GitHub prerelease without rebuilding it. The GitHub Packages
+registry is a separate destination and is not configured. Signing, SourceLink, and stable API
+compatibility remain outside this prerelease workflow.
