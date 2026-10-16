@@ -505,5 +505,46 @@
     "evidenceCommit": "18bf8656fdbcbf061d4f223afca6ed438efee3ea",
     "verdictPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-atomic-canonical-transition-independent-review-verdict-2026-10-06.md",
     "verdictSha256": "e89e7066308bc906e6b94b073828471f8481a11b919ea711df1e89f55018cca6"
+  },
+  "dagRunFingerprintContractAmendment": {
+    "stage": "Proposed",
+    "change": "admit-durable-dag-run-progression",
+    "baseCommit": "e634737420a490acceffae56c338ac9a20051b48",
+    "amendedContract": {
+      "checkpointCommit": "e6802a348b0180d5eaad3be99b32e3204c5c25a1",
+      "checkpointTree": "d367ced646461fb78c8c85dea5bf1fb142e640f7",
+      "evidenceCommit": "578593efd3709a5e9a14582d572eb4275324de3e",
+      "verdictPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-3-remediation-independent-review-verdict-2026-10-05.md",
+      "verdictSha256": "b7c9d54dcfdbcc8fd3ec2ef99c43fb313e9b400a038b6da7f13b969b2feead4c",
+      "contractPath": "openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-run-contract-rc-3-remediation-2026-10-05.md",
+      "contractSha256": "f8a1a7f6d69dc337854dd7e6dc9bbe59a2e7c3a43329635cf1b57c9f8280d665",
+      "apiCatalogPath": "openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-exact-api-additions-rc-3-remediation-2026-10-05.md",
+      "apiCatalogSha256": "766ad5d84c90a0666a8a631018fdd686f9a59b00d6c8d50f3378b1b4fa6a308f"
+    },
+    "artifacts": [
+      {
+        "path": "openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-fingerprint-contract-addendum-2026-10-14.md",
+        "sha256": "8bf3f169c77c5667897ab5f0efb8fb18f43fbc48617195164b86ac49dbc4d61d"
+      },
+      {
+        "path": "openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-exact-api-additions-fingerprint-amendment-2026-10-14.md",
+        "sha256": "1d6f1b6e55b70270d4bd2e3fb7dd0824d76ea4bc03ec6aeae445f494ad5f71f2"
+      },
+      {
+        "path": "openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-fingerprint-amendment-signatures-2026-10-14.cs",
+        "sha256": "01c186aa3caacdc03a85cfe11b5b58adfd4adfd5aff8f26178f2d849a3938d51"
+      },
+      {
+        "path": "openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-fingerprint-rehydration-proof-2026-10-14.cs",
+        "sha256": "6035dd9da3b4861deaab348235409aa260fccd1cd64f10569ca2d4c7edb86ad3"
+      }
+    ],
+    "changedApiKeys": 6,
+    "assemblyAdditionCounts": [
+      7,
+      193,
+      165
+    ],
+    "approval": null
   }
 }

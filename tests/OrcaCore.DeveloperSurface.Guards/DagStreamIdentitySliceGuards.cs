@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using AwesomeAssertions;
 
 namespace OrcaCore.DeveloperSurface.Guards;
@@ -10,6 +11,7 @@ namespace OrcaCore.DeveloperSurface.Guards;
 [Trait(GuardTraits.Disposition, GuardTraits.Infrastructure)]
 public sealed class DagStreamIdentitySliceGuards
 {
+    private const string FingerprintAmendmentRegistrySha256 = "321b8fda534883310f1593d98c33fc28c9b39d529e6efaae9440438a345601bd";
     private const string CanonicalContentRecordSha256 = "cee7cd376777d5cc99c42e1de04cd692c7cc8270c85deb9a976ed94b7395baa0";
     private const string ApprovedOrcaCoreApiSha256 = "a8bb583860fd8744b018273911fe65b1c899926d70e501efb773ccfbf5588f3e";
     private const string BaseCommit = "89e3b18aed62446583211478f1eb8545e4fb85ed";
@@ -59,6 +61,12 @@ public sealed class DagStreamIdentitySliceGuards
         var evidence = registry.RootElement.GetProperty("approvedDagRunTransitionEvidence")
             .Deserialize<TransitionEvidence>(JsonOptions)!;
         evidence.Should().Be(ApprovedTransition);
+        ValidateReviewEvidence(root, evidence);
+        ValidateProposedFingerprintAmendment(root, registry.RootElement);
+    }
+
+    private static void ValidateReviewEvidence(string root, TransitionEvidence evidence)
+    {
         Git(root, "rev-parse", $"{evidence.CheckpointCommit}^{{tree}}").Trim().Should().Be(evidence.CheckpointTree);
         Git(root, "rev-list", "--parents", "-n", "1", evidence.EvidenceCommit).Trim()
             .Should().Be($"{evidence.EvidenceCommit} {evidence.CheckpointCommit}",
@@ -88,6 +96,55 @@ public sealed class DagStreamIdentitySliceGuards
         var newLines = ApiKeys(after);
         oldLines.Except(newLines).Should().BeEmpty("existing signatures and nullability metadata must stay exact");
         newLines.Except(oldLines).Should().HaveCount(7);
+    }
+
+    private static void ValidateProposedFingerprintAmendment(string root, JsonElement registry)
+    {
+        var amendment = registry.GetProperty("dagRunFingerprintContractAmendment");
+        Hash(JsonSerializer.Serialize(amendment)).Should().Be(FingerprintAmendmentRegistrySha256,
+            "the proposed fingerprint addendum and exact artifacts must remain source-pinned, not routine fixture data");
+        amendment.GetProperty("stage").GetString().Should().Be("Proposed");
+        amendment.GetProperty("approval").ValueKind.Should().Be(JsonValueKind.Null,
+            "no implementation approval exists until the exact amendment is independently checkpointed and evidenced");
+        var original = amendment.GetProperty("amendedContract");
+        ValidateReviewEvidence(root, original.Deserialize<TransitionEvidence>(JsonOptions)!);
+        foreach (var pair in new[] { ("contractPath", "contractSha256"), ("apiCatalogPath", "apiCatalogSha256") })
+            Hash(Normalize(File.ReadAllText(Path.Combine(root, original.GetProperty(pair.Item1).GetString()!))))
+                .Should().Be(original.GetProperty(pair.Item2).GetString(), "the approved RC-3 packet is immutable history");
+        foreach (var artifact in amendment.GetProperty("artifacts").EnumerateArray())
+            Hash(Normalize(File.ReadAllText(Path.Combine(root, artifact.GetProperty("path").GetString()!))))
+                .Should().Be(artifact.GetProperty("sha256").GetString(), "the proposed amendment artifact must stay byte-exact after freeze clearance");
+        const string artifacts = "openspec/changes/admit-durable-dag-run-progression/artifacts/";
+        var oldSignatures = Normalize(File.ReadAllText(Path.Combine(root, artifacts + "task-1-1-standalone-signatures-rc-3-remediation-2026-10-05.cs")));
+        var newSignatures = Normalize(File.ReadAllText(Path.Combine(root, artifacts + "task-2-1-fingerprint-amendment-signatures-2026-10-14.cs")));
+        newSignatures.Should().Be(oldSignatures
+            .Replace("byte[] Bytes, PayloadFingerprint Fingerprint);", "byte[] Bytes, string Fingerprint);", StringComparison.Ordinal)
+            .Replace("DefinitionFingerprint Fingerprint);", "string Fingerprint);", StringComparison.Ordinal),
+            "only the two storage-record parameter types change; the typed child receipt and other seams do not");
+        var before = Normalize(File.ReadAllText(Path.Combine(root, original.GetProperty("apiCatalogPath").GetString()!)));
+        var after = Normalize(File.ReadAllText(Path.Combine(root, artifacts + "task-2-1-exact-api-additions-fingerprint-amendment-2026-10-14.md")));
+        var oldKeys = CatalogApiKeys(before);
+        var newKeys = CatalogApiKeys(after);
+        oldKeys.Except(newKeys).Should().HaveCount(6);
+        newKeys.Except(oldKeys).Should().HaveCount(6);
+        newKeys.Should().BeEquivalentTo(CatalogApiKeys(before
+            .Replace("[OrcaCore]OrcaCore.DefinitionFingerprint! Fingerprint", "[System.Private.CoreLib]System.String! Fingerprint", StringComparison.Ordinal)
+            .Replace("[OrcaCore]OrcaCore.PayloadFingerprint! Fingerprint", "[System.Private.CoreLib]System.String! Fingerprint", StringComparison.Ordinal)),
+            "no seventh API key or direct provider-port signature may change in this contract refinement");
+        var baseCommit = amendment.GetProperty("baseCommit").GetString()!;
+        Git(root, "diff", "--name-only", baseCommit, "--", "src", "openspec/specs",
+            "openspec/changes/admit-durable-dag-run-progression/specs",
+            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1").Should().BeEmpty(
+                "this proposed contract target authorizes no product implementation, canonical sync, delta or shipped-baseline edit");
+        Git(root, "ls-files", "--others", "--exclude-standard", "--", "src", "openspec/specs").Should().BeEmpty();
+    }
+
+    private static HashSet<string> CatalogApiKeys(string text)
+    {
+        var result = new HashSet<string>(StringComparer.Ordinal);
+        foreach (Match block in Regex.Matches(text, @"```text\n([\s\S]*?)\n```"))
+            result.UnionWith(ApiKeys(block.Groups[1].Value));
+        return result;
     }
 
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };

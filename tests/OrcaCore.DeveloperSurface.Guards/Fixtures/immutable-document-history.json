@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/sqlserver-pkcs-advisory-remediation-dirty-manifest-2026-10-14.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-fingerprint-contract-amendment-dirty-manifest-2026-10-14.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2489,6 +2489,16 @@
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-3-remediation-independent-review-verdict-2026-10-05.md",
       "bytes": 17803,
       "sha256": "b7c9d54dcfdbcc8fd3ec2ef99c43fb313e9b400a038b6da7f13b969b2feead4c"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-fingerprint-contract-amendment-dirty-manifest-2026-10-14.txt",
+      "bytes": 1336,
+      "sha256": "af5052d400a4c2aecaa492f4de05a1efc6831aa9afd89dcb0623402d824d8884"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-fingerprint-contract-amendment-independent-review-request-2026-10-14.md",
+      "bytes": 11955,
+      "sha256": "dafae75a3626801c8fc1ae4a316bf31c694f9dceb76cbb991671fa8e2a80d591"
     },
     {
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-successor-process-dirty-manifest-2026-10-04.txt",

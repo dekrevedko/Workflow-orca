@@ -128,9 +128,9 @@ public sealed class OpenSpecCorpusGuards
     ];
     private static readonly (string Path, string Sha256)[] DagRunContractPlanningPins =
     [
-        ("openspec/changes/admit-durable-dag-run-progression/proposal.md", "17ee663e68629f9f952bb307fc8626ed32f11b505d514b8baf50abbe7e34280c"),
-        ("openspec/changes/admit-durable-dag-run-progression/design.md", "4babf65e522ba2666e1e471299e557b7655467be8525e4053d36edd24a1dbc79"),
-        ("openspec/changes/admit-durable-dag-run-progression/tasks.md", "00b436e9dd0d4d5cadb815111327b8c783d5c6015e256ee2525a9cc2f82a0033"),
+        ("openspec/changes/admit-durable-dag-run-progression/proposal.md", "05dda5f320537e249bc471793f41d31034cd61463ecf2bf9bfaf9761754d52ea"),
+        ("openspec/changes/admit-durable-dag-run-progression/design.md", "445254e332f4c1d01f4c46011362c18aee76af1d65846fe83cca27b314960f9c"),
+        ("openspec/changes/admit-durable-dag-run-progression/tasks.md", "06edc1e0211219e25ede6fda14b621027bc2b97a5d0b02df4b3fef194df5654c"),
         ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-run-contract-rc-3-remediation-2026-10-05.md", "f8a1a7f6d69dc337854dd7e6dc9bbe59a2e7c3a43329635cf1b57c9f8280d665"),
         ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-exact-api-additions-rc-3-remediation-2026-10-05.md", "766ad5d84c90a0666a8a631018fdd686f9a59b00d6c8d50f3378b1b4fa6a308f"),
         ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-standalone-signatures-rc-3-remediation-2026-10-05.cs", "8301094ba0a14634f9c8ba08ac2642eb2b8e5128981da453ecd0623762926189"),

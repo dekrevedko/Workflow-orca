@@ -1,6 +1,17 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": null,
+  "activeFreeze": {
+    "task": "dag-run-fingerprint-contract-amendment",
+    "requestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-fingerprint-contract-amendment-independent-review-request-2026-10-14.md",
+    "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-fingerprint-contract-amendment-dirty-manifest-2026-10-14.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "e634737420a490acceffae56c338ac9a20051b48",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 2174,
+    "contentRecordSha256": "ee0efb58604f5311a6116119a6e044af432b7b78441dec2ed151899c77b2f752"
+  },
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",
