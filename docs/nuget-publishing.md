@@ -1,10 +1,17 @@
 # NuGet.org trusted publishing
 
-Status: GUIDE. The GitHub workflow supports NuGet.org publication. An owning NuGet.org
-account and its trusted publishing policy must be configured before the first upload.
-The existing `0.1.0-preview.1` packages remain available as GitHub release downloads.
+Status: GUIDE. Updated 2026-10-16. All twelve `0.1.0-preview.1` packages are available on
+[NuGet.org](https://www.nuget.org/packages/OrcaCore.Engine.Ephemeral/0.1.0-preview.1).
+The [publishing run](https://github.com/dekrevedko/Workflow-orca/actions/runs/38979035794/attempts/2)
+verified public version indexes and source metadata, then restored and ran a fresh consumer
+using only NuGet.org. The packages also remain available as GitHub release downloads.
 
 ## One-time account setup
+
+The repository is configured for the NuGet.org profile
+[`Dekrevedko`](https://www.nuget.org/profiles/Dekrevedko), with repository variable
+`NUGET_USER=Dekrevedko` and the policy below. These steps
+document the setup for maintenance or a change of owner.
 
 1. [Sign in to NuGet.org](https://www.nuget.org/users/account/LogOn) with Microsoft and
    create a NuGet profile. The profile username can differ from the GitHub username.
@@ -30,9 +37,20 @@ The NuGet policy must use the same environment and workflow filename. Microsoft'
 describes the account-side setup; the official [NuGet login action](https://github.com/NuGet/login)
 exchanges the workflow identity for a temporary publishing credential.
 
+## Package signatures
+
+NuGet.org automatically adds a repository signature to uploaded packages. This workflow
+does not add an author signature; publishing does not require our own code-signing certificate.
+Optional author signing requires a trusted certificate and timestamp. Registering a certificate
+on NuGet.org can make author signing mandatory for future submissions; see Microsoft's
+[signature reference](https://learn.microsoft.com/en-us/nuget/reference/signed-packages-reference)
+and [certificate requirements](https://learn.microsoft.com/en-us/nuget/nuget-org/package-signing-certificates).
+The GitHub `SHA256SUMS` file describes the original release downloads; NuGet.org's added
+signature can change the package file hash.
+
 ## Publish the existing preview
 
-After the workflow is merged into `master` and account setup is complete:
+To resume or reverify publication of the existing preview:
 
 ```powershell
 gh workflow run release.yml --ref master -f version=0.1.0-preview.1 -F nuget-only=true
@@ -66,6 +84,6 @@ Install a verified version with:
 dotnet add YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.1
 ```
 
-Use this command after the version is available on NuGet.org. Until then, follow the
-[GitHub download installation instructions](packages.md#install-in-another-project).
+The [GitHub download installation instructions](packages.md#install-from-github-release-downloads)
+provide an alternative directory feed.
 The prerelease limitations and the 75% engine coverage gate still apply.

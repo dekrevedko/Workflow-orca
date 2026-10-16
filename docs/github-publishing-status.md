@@ -16,6 +16,12 @@ The owner-authorized push and publication completed on 2026-10-16:
 - The downloaded release assets passed exact inventory, SHA-256, version, and source-commit
   checks. A fresh external project restored all twelve and ran the typed ephemeral sample,
   returning `42`.
+- [PR #5](https://github.com/dekrevedko/Workflow-orca/pull/5) added NuGet.org trusted publishing.
+  After the owner configured the `Dekrevedko` policy, the
+  [successful publication retry](https://github.com/dekrevedko/Workflow-orca/actions/runs/38979035794/attempts/2)
+  uploaded the same twelve release files, verified every public version and its repository/source
+  metadata, then restored all twelve into a fresh consumer using only NuGet.org and returned `42`.
+  The published source remains `299d02dce92a8ee703ea0d89a42f05bb0a103055`.
 - [PR #4](https://github.com/dekrevedko/Workflow-orca/pull/4) contains the implementation
   and publishing changes. The [branch CI](https://github.com/dekrevedko/Workflow-orca/actions/runs/38962283979)
   and [PR CI retry](https://github.com/dekrevedko/Workflow-orca/actions/runs/38962289819/attempts/2)
@@ -30,7 +36,7 @@ The observation and evidence links are recorded in PR #4.
 Issues [#1](https://github.com/dekrevedko/Workflow-orca/issues/1),
 [#2](https://github.com/dekrevedko/Workflow-orca/issues/2), and
 [#3](https://github.com/dekrevedko/Workflow-orca/issues/3) remain open. Durable DAG execution
-is incomplete. Packages require .NET 10 and are distributed as GitHub release downloads.
+is incomplete. Packages require .NET 10 and are distributed on NuGet.org and as GitHub release downloads.
 
 The sections below retain the initial preparation audit, before pushing and publishing.
 
@@ -117,5 +123,6 @@ ReportGenerator calculation measured **77.36836484032895%**.
 On 2026-10-16 the owner explicitly instructed: "Update gate to 75%". CI and the repository
 instructions now require **75%** engine line coverage. The measured **77.37% passes** that gate.
 No separate stable-release threshold is introduced by this decision. The publication update
-above records the subsequent successful GitHub runs and release. Distribution uses GitHub
-release downloads and does not configure an external NuGet registry.
+above records the subsequent successful GitHub runs and release, followed by verified
+NuGet.org publication. The initial preparation audit configured GitHub release downloads;
+external registry publishing was added in PR #5.
