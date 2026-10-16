@@ -447,8 +447,14 @@ public sealed partial class RepositoryGuardTests
             .Select(File.ReadAllText)
             .Should()
             .Contain(source => source.Contains("[Benchmark]", StringComparison.Ordinal));
-        workflow.Should().Contain("Build benchmarks");
-        workflow.Should().Contain("OrcaCore.Benchmarks.csproj");
+        XDocument.Load(Path.Combine(repoRoot, "OrcaCore.slnx"))
+            .Descendants("Project")
+            .Select(project => project.Attribute("Path")?.Value.Replace('\\', '/'))
+            .Should().Contain("benchmarks/OrcaCore.Benchmarks/OrcaCore.Benchmarks.csproj",
+                "the solution restore must include benchmarks before CI builds without restoring");
+        workflow.Should().Contain("dotnet restore OrcaCore.slnx");
+        workflow.Should().Contain("dotnet build OrcaCore.slnx --no-restore -c Release");
+        workflow.Should().Contain("dotnet run --project benchmarks/OrcaCore.Benchmarks/OrcaCore.Benchmarks.csproj --no-build -c Release -- --smoke");
     }
 
     [Fact]
