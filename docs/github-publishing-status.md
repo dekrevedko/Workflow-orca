@@ -3,6 +3,37 @@
 Status: RECORD, 2026-10-16. This is a build/publishing audit, not an independent implementation
 approval or an OpenSpec phase exit.
 
+## Publication update
+
+The owner-authorized push and publication completed on 2026-10-16:
+
+- [v0.1.0-preview.1](https://github.com/dekrevedko/Workflow-orca/releases/tag/v0.1.0-preview.1)
+  is published from `299d02dce92a8ee703ea0d89a42f05bb0a103055`, with twelve `.nupkg` assets
+  and `SHA256SUMS`.
+- The [release workflow](https://github.com/dekrevedko/Workflow-orca/actions/runs/38961860144)
+  passed build, unit/acceptance and infrastructure checks, real provider/integration tests,
+  the 75% coverage gate, packaging, and the clean external consumer check.
+- The downloaded release assets passed exact inventory, SHA-256, version, and source-commit
+  checks. A fresh external project restored all twelve and ran the typed ephemeral sample,
+  returning `42`.
+- [PR #4](https://github.com/dekrevedko/Workflow-orca/pull/4) contains the implementation
+  and publishing changes. The [branch CI](https://github.com/dekrevedko/Workflow-orca/actions/runs/38962283979)
+  and [PR CI retry](https://github.com/dekrevedko/Workflow-orca/actions/runs/38962289819/attempts/2)
+  passed for the package-guide follow-up at `138dd76ccf2e1eace7ca3b2e06ab2fa572f65b75`.
+
+The first PR check of that documentation-only follow-up failed in the competing-owner
+`definitionless-continuation-handoff` scenario. Thirty consecutive isolated repetitions,
+all 247 infrastructure checks with the CI coverage settings, and the CI retry passed.
+The cause remains unconfirmed; no assertion was weakened or product behavior changed.
+The observation and evidence links are recorded in PR #4.
+
+Issues [#1](https://github.com/dekrevedko/Workflow-orca/issues/1),
+[#2](https://github.com/dekrevedko/Workflow-orca/issues/2), and
+[#3](https://github.com/dekrevedko/Workflow-orca/issues/3) remain open. Durable DAG execution
+is incomplete. Packages require .NET 10 and are distributed as GitHub release downloads.
+
+The sections below retain the initial preparation audit, before pushing and publishing.
+
 ## Local and remote source
 
 The initial working tree was clean at `3c2cd9606db6e4380b148c5f8dd3503e367f255f`.
@@ -11,7 +42,7 @@ commits. Those commits contain the reviewed DAG contract/stream identity work an
 advisory remediation. Local `master` has two additional commits from the superseded lineage;
 they are not the active implementation and should not be pushed as the release source.
 
-The latest remote CI run was
+At the start of the audit, the latest remote CI run was
 [37241078578](https://github.com/dekrevedko/Workflow-orca/actions/runs/37241078578).
 Its solution build and provider/integration job passed. The unit job failed at the benchmark
 build with `NETSDK1004`, because the benchmark project was outside the solution restore.
@@ -41,7 +72,7 @@ Once restored locally, the benchmark also exposed 29 errors against retired or i
 
 The runtime source under `src/`, public API baselines, canonical specs, active task checkboxes,
 and implementation approval states were not changed. No commits, branches, tags, pushes, releases,
-or registry publications were created during this audit.
+or registry publications were created during the initial preparation audit.
 
 ## Validation
 
@@ -85,6 +116,6 @@ ReportGenerator calculation measured **77.36836484032895%**.
 
 On 2026-10-16 the owner explicitly instructed: "Update gate to 75%". CI and the repository
 instructions now require **75%** engine line coverage. The measured **77.37% passes** that gate.
-No separate stable-release threshold is introduced by this decision. A successful GitHub run
-and publication have not yet been completed. The prepared distribution uses GitHub release
-downloads and does not configure an external NuGet registry.
+No separate stable-release threshold is introduced by this decision. The publication update
+above records the subsequent successful GitHub runs and release. Distribution uses GitHub
+release downloads and does not configure an external NuGet registry.
