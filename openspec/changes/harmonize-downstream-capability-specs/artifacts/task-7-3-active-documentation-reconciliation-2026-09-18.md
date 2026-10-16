@@ -13,7 +13,7 @@ requires the numbered rows, paths, and hashes exactly as recorded here.
 
 | # | Active source | Normalized SHA-256 |
 |---:|---|---|
-| 1 | `CLAUDE.md` | `9e7ea0872a3b58abc06a75970c8d365c1138a7eedd7ff5bff38ce8d93724e9df` |
+| 1 | `CLAUDE.md` | `3ca1378e1bf99d338743c6a282edd65f02f83d55b5f21a286abb2c6e701bc274` |
 | 2 | `docs/eks-scheduler-handoff.md` | `48cf025958482433e34b4e52185484ed587936ba56ef4822bc96e1b08b3f9ef2` |
 | 3 | `docs/end-to-end-plan.md` | `c2bb0ea26618a65248839ffd75281b9c89dc496467e5a90e9034da48fcae0e01` |
 | 4 | `docs/ephemeral-engine-developer-guide.md` | `7e3fe252e1bcb621b03bfb91a6aaf2d48bf5c5ad3997e442ad4fbcb3a90dfa2c` |
@@ -23,7 +23,7 @@ requires the numbered rows, paths, and hashes exactly as recorded here.
 | 8 | `docs/implementation/02-engineering-conventions.md` | `e4a81233359e60e5ca43e596d26a58ff46e75879dded7536e95511e47d908c72` |
 | 9 | `docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md` | `af8a3ccd4903915faf0fc5ff114f322048345379157f0656ad3efeeba1efa372` |
 | 10 | `docs/normative-source-map.md` | `1bc5a4182949cbfbe87870aebf258a9fdfcfb22a8cd627d2c0b0d7fc7e61d949` |
-| 11 | `docs/production-readiness.md` | `2812eb9121d455a59ec748dbdbcc4cba4ddd317398c9b8c5470edc44b9a6c1bc` |
+| 11 | `docs/production-readiness.md` | `1af7480cf582badba3b5e91f5780a72171db89c5e7a88d771c57871f7949e918` |
 | 12 | `docs/project-technical-overview.md` | `8035476d3e791de5dc7f63eaf676039d499d11744db6809351634b68dbbf9b52` |
 | 13 | `docs/specs/01-concept-and-goals.md` | `36826933178462e6d83eb817cec2b51ec77cd93609a5726ad883b888c0960fb4` |
 | 14 | `docs/specs/03-domain-model-and-glossary.md` | `b8a09fa8fb0c72d6513ccc8e2939cdd9c0896f79fc252ec6874a711851bba1ee` |
@@ -137,3 +137,11 @@ No runtime liveness/source approval is claimed by document hashes.
 
 Status rows identify approved RC-3 contract/source pending and the safe-discovery
 addendum; duplicate scheduling section removed. No source behavior is claimed.
+
+## Owner-authorized GitHub prerelease source refresh (2026-10-16)
+
+The owner reopened prerelease distribution and explicitly changed the engine coverage gate to 75%.
+Only rows 1 and 11 change: repository CI guidance and the pre-production distribution note.
+The approved Section 7B contracts and the other twenty rows remain unchanged. This artifact
+and its guard-owned digest are refreshed in the same publishing target. Validation and scope
+are recorded in docs/github-publishing-status.md; no product API or phase exit is claimed.

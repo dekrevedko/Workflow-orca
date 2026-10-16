@@ -11,6 +11,7 @@ Start with:
 - [Active Implementation Index](docs/active-implementation-index.md)
 - [Samples](samples/README.md)
 - [Production Readiness Notes](docs/production-readiness.md)
+- [Install packages and publish a prerelease](docs/packages.md)
 - [Durable Driver Requirements](docs/specs/16-requirements-durable-driver.md)
 - [Integration Gates](tests/OrcaCore.Integration.Tests/README.md)
 
@@ -23,6 +24,12 @@ dotnet run --project samples/OrcaCore.Examples/OrcaCore.Examples.csproj
 ```
 
 The implementation targets `net10.0` and uses the SDK pinned by `global.json`.
+
+CI produces twelve installable prerelease NuGet packages after build, tests, coverage,
+and an external consumer check pass. Download the `orcacore-packages` Actions artifact
+or a [GitHub prerelease](https://github.com/dekrevedko/Workflow-orca/releases), then
+follow the [package installation guide](docs/packages.md). APIs and persistence formats
+can change; durable DAG execution remains incomplete.
 
 The superseded prototype and its original solution metadata are preserved under
 [`archive/legacy-poc/`](archive/legacy-poc/); the root `src/`, `tests/`, samples,

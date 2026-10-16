@@ -1,27 +1,34 @@
 using BenchmarkDotNet.Attributes;
+using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Benchmarks.Fixtures;
-using OrcaCore.Providers.InMemory;
 
 namespace OrcaCore.Benchmarks.Scenarios;
 
 [MemoryDiagnoser]
 public class ResourcePoolTimerSchedulingBenchmarks
 {
-    private readonly InMemoryResourcePoolStore resourcePools = new();
-    private readonly InMemoryWorkflowProvider timers = new();
+    private ServiceProvider services = null!;
+    private IResourcePoolStore resourcePools = null!;
+    private ITimerScheduler timers = null!;
     private readonly DateTimeOffset now = ProviderBenchmarkFixtures.StartedAt;
     private int sequence;
 
-    [GlobalSetup]
+    [IterationSetup]
     public async Task SetupAsync()
     {
+        services = ProviderBenchmarkFixtures.CreateServices();
+        resourcePools = services.GetRequiredService<IResourcePoolStore>();
+        timers = services.GetRequiredService<ITimerScheduler>();
         await resourcePools
             .UpsertPoolAsync(new ResourcePoolDefinition("benchmark", 128, TimeSpan.FromMinutes(5)), CancellationToken.None)
             .ConfigureAwait(false);
     }
+
+    [IterationCleanup]
+    public void Cleanup() => services.Dispose();
 
     [Benchmark]
     public async Task<ResourcePoolReleaseResult> AcquireAndReleasePoolTicket()

@@ -1,15 +1,12 @@
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Steps;
-using OrcaCore.Core.Building;
-using OrcaCore.Core.Definitions;
 
 namespace OrcaCore.Benchmarks.Fixtures;
 
 internal static class EphemeralWorkflowFixture
 {
-    internal static WorkflowDefinition<EphemeralBenchmarkState> BuildDefinition(int stepCount)
+    internal static EphemeralWorkflowDefinition<int, int> BuildDefinition(int stepCount)
     {
-        var builder = global::OrcaCore.Core.Building.Workflow.Ephemeral<EphemeralBenchmarkState>(
+        var builder = Workflow.Ephemeral<EphemeralBenchmarkState>(
                 DeterministicIds.Definition(50_000 + stepCount),
                 DefinitionVersion.Initial)
             .Init<int>(_ => new EphemeralBenchmarkState());
@@ -19,7 +16,7 @@ internal static class EphemeralWorkflowFixture
         }
 
         return builder
-            .End()
+            .End(snapshot => snapshot.Value.Count)
             .Build();
     }
 }

@@ -1442,7 +1442,6 @@
         }
       ],
       "currentWorktreeMatchPaths": [
-        ".github/workflows/ci.yml",
         "tests/OrcaCore.Core.Tests/Building/AuthoringLifecycleTests.cs",
         "tests/OrcaCore.Core.Tests/Execution/FailureProvenanceTests.cs",
         "tests/OrcaCore.Engine.Durable.Tests/Driver/DurableFailureProvenanceTests.cs",

@@ -38,3 +38,4 @@ _NCrunch_*
 
 # Agent-run and local dashboard logs
 .codex-run/
+.artifacts/publishing-validation/

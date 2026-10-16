@@ -1,12 +1,17 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
-using OrcaCore.Abstractions.Instances;
+using Microsoft.Extensions.DependencyInjection;
+using OrcaCore.Providers.InMemory;
+using WorkflowStatus = OrcaCore.WorkflowInstanceStatus;
 using OrcaCore.Abstractions.Providers;
 
 namespace OrcaCore.Benchmarks.Fixtures;
 
 internal static class ProviderBenchmarkFixtures
 {
+    internal static ServiceProvider CreateServices() =>
+        new ServiceCollection().AddOrcaCoreInMemoryDurableProvider().BuildServiceProvider();
+
     internal static readonly DateTimeOffset StartedAt = new(2026, 7, 2, 12, 0, 0, TimeSpan.Zero);
 
     internal static BenchmarkPayload Payload(int sequence)
@@ -22,13 +27,13 @@ internal static class ProviderBenchmarkFixtures
             });
     }
 
-    internal static WorkflowInstanceSnapshot Snapshot(
+    internal static WorkflowProjectionSnapshot Snapshot(
         int sequence,
         DefinitionId definitionId,
         WorkflowStatus status = WorkflowStatus.Running)
     {
         var timestamp = StartedAt.AddSeconds(sequence);
-        return new WorkflowInstanceSnapshot
+        return new WorkflowProjectionSnapshot
         {
             InstanceId = DeterministicIds.Instance(sequence),
             DefinitionId = definitionId,
@@ -76,7 +81,10 @@ internal static class ProviderBenchmarkFixtures
                 DefinitionVersion = DefinitionVersion.Initial,
                 Status = WorkflowStatus.Running
             },
-            InboxOperations = [new InboxWrite(DeterministicIds.Event(sequence + 10_000), InboxRecordState.Applied)],
+            InboxOperations = [new InboxWrite(DeterministicIds.Event(sequence + 10_000), InboxRecordState.Applied)
+            {
+                EnvelopeFingerprint = $"benchmark-envelope-{sequence}"
+            }],
             OutboxRecords = [new OutboxWrite(DeterministicIds.Outbox(sequence), "benchmark", payload)],
             ProjectionOperations =
             [

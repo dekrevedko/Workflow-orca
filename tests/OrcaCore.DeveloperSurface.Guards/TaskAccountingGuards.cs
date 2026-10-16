@@ -69,7 +69,8 @@ public sealed partial class TaskAccountingGuards
             "and harmonization task 7.5, and the DAG Task 8.2 authoring-guard slice, " +
             "and the pending DAG Task 8.3 runtime-view source slice, " +
             "and the DAG run atomic-transition guard slice, " +
-            "and the DAG run Task 2.1 typed-identity slice at",
+            "and the DAG run Task 2.1 typed-identity slice, " +
+            "and the GitHub prerelease regression slice at",
             "the maintained inventory provenance must name the task that produced the current counts");
     }
 

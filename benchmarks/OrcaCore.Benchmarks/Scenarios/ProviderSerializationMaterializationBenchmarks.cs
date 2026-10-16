@@ -1,123 +1,62 @@
 using System.Text.Json;
 using BenchmarkDotNet.Attributes;
-using OrcaCore.Abstractions.Durable;
+using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Benchmarks.Fixtures;
-using OrcaCore.Engine.Durable.Execution;
-using OrcaCore.Providers.InMemory;
+using DurableWorkflowEvent = OrcaCore.Abstractions.Durable.WorkflowEvent;
 
 namespace OrcaCore.Benchmarks.Scenarios;
 
 [MemoryDiagnoser]
 public class ProviderSerializationMaterializationBenchmarks
 {
-    private readonly InMemoryWorkflowProvider provider = new();
-    private readonly DefinitionId definitionId = DeterministicIds.Definition(60_001);
+    private ServiceProvider services = null!;
+    private IWorkflowEventStore provider = null!;
     private readonly InstanceId instanceId = DeterministicIds.Instance(60_002);
-    private SerializedPayload serializedPayload = null!;
+    private byte[] serializedPayload = null!;
 
     [GlobalSetup]
     public async Task SetupAsync()
     {
-        serializedPayload = Serialize(ProviderBenchmarkFixtures.Payload(1));
-        var streamId = new WorkflowStreamId(instanceId);
+        services = ProviderBenchmarkFixtures.CreateServices();
+        provider = services.GetRequiredService<IWorkflowEventStore>();
+        serializedPayload = JsonSerializer.SerializeToUtf8Bytes(ProviderBenchmarkFixtures.Payload(1));
         var events = Enumerable.Range(0, 128)
-            .Select(index => ProviderBenchmarkFixtures.StartedEvent(index, instanceId, definitionId))
-            .ToArray();
-        var envelope = CreateEnvelope();
-        await provider.AppendAsync(
-            new ProviderCommitBatch
-            {
-                StreamId = streamId,
-                ExpectedVersion = StreamVersion.Empty,
-                Events = events,
-                Checkpoint = new CheckpointWrite(
-                    instanceId,
-                    new StreamVersion(events.Length),
-                    DurableExecutionEnvelopeV2.ContentType,
-                    envelope.Serialize())
-            },
-            CancellationToken.None).ConfigureAwait(false);
-    }
-
-    [Benchmark]
-    public BenchmarkPayload SerializeAndDeserializePayload()
-    {
-        var serialized = Serialize(ProviderBenchmarkFixtures.Payload(2));
-        return Deserialize<BenchmarkPayload>(serialized);
-    }
-
-    [Benchmark]
-    public async Task<IReadOnlyList<WorkflowEvent>> LoadTailMaterializesEvents()
-    {
-        return await provider
-            .LoadTailAsync(new WorkflowStreamId(instanceId), StreamVersion.Empty, CancellationToken.None)
-            .ConfigureAwait(false);
-    }
-
-    [Benchmark]
-    public BenchmarkPayload DeserializeExistingPayload()
-    {
-        return Deserialize<BenchmarkPayload>(serializedPayload);
-    }
-
-    [Benchmark]
-    public async Task<DurableExecutionEnvelopeV2> LoadCheckpointAndMaterializeEnvelope()
-    {
-        var checkpoint = await provider
-            .LoadCheckpointAsync(instanceId, CancellationToken.None)
-            .ConfigureAwait(false);
-        return DurableExecutionEnvelopeV2.Deserialize(checkpoint.Value.Payload);
-    }
-
-    private DurableExecutionEnvelopeV2 CreateEnvelope()
-    {
-        return new DurableExecutionEnvelopeV2
+            .Select(index => ProviderBenchmarkFixtures.StartedEvent(
+                index, instanceId, DeterministicIds.Definition(60_001))).ToArray();
+        var result = await provider.AppendAsync(new ProviderCommitBatch
         {
-            EnvelopeVersion = DurableExecutionEnvelopeV2.CurrentVersion,
-            InstanceId = instanceId,
-            ContinueAsNewGeneration = 0,
-            RootFiberId = "benchmark-root",
-            PlanBinding = new DurablePlanBinding
-            {
-                DefinitionId = definitionId,
-                DefinitionVersion = DefinitionVersion.Initial,
-                CompilerFormatVersion = 1,
-                CompilerProfileId = "orcacore-compiler-v1;quantum=1024",
-                PlanFingerprint = "provider-materialization-benchmark"
-            },
-            StateContentType = serializedPayload.ContentType,
-            StatePayload = serializedPayload.Payload,
-            Fibers =
-            [
-                new DurableFiberState
-                {
-                    FiberId = "benchmark-root",
-                    InstructionId = "root/1",
-                    Phase = DurableFiberPhase.Runnable,
-                    LoopIteration = 0,
-                    NextScopeEntrySequence = 0
-                }
-            ],
-            Scopes = [],
-            Scheduler = new DurableFiberSchedulerState
-            {
-                RunnableFiberIds = ["benchmark-root"],
-                NextFiberId = "benchmark-root"
-            }
-        };
+            StreamId = new WorkflowStreamId(instanceId),
+            ExpectedVersion = StreamVersion.Empty,
+            Events = events,
+            Checkpoint = new CheckpointWrite(instanceId, new StreamVersion(events.Length),
+                "application/json", serializedPayload)
+        }, CancellationToken.None).ConfigureAwait(false);
+        if (result.IsFailure) throw new InvalidOperationException(result.Error.Message);
     }
 
-    private static SerializedPayload Serialize<TPayload>(TPayload payload)
-    {
-        return new SerializedPayload(
-            "orcacore-json-v1",
-            JsonSerializer.SerializeToUtf8Bytes(payload));
-    }
+    [GlobalCleanup]
+    public void Cleanup() => services.Dispose();
 
-    private static TPayload Deserialize<TPayload>(SerializedPayload payload)
+    // Measures application JSON, not the internal fixed workflow codec.
+    [Benchmark]
+    public BenchmarkPayload SerializeAndDeserializePayload() =>
+        JsonSerializer.Deserialize<BenchmarkPayload>(
+            JsonSerializer.SerializeToUtf8Bytes(ProviderBenchmarkFixtures.Payload(2)))!;
+
+    [Benchmark]
+    public Task<IReadOnlyList<DurableWorkflowEvent>> LoadTailMaterializesEvents() =>
+        provider.LoadTailAsync(new WorkflowStreamId(instanceId), StreamVersion.Empty, CancellationToken.None);
+
+    [Benchmark]
+    public BenchmarkPayload DeserializeExistingPayload() =>
+        JsonSerializer.Deserialize<BenchmarkPayload>(serializedPayload)!;
+
+    [Benchmark]
+    public async Task<BenchmarkPayload> LoadCheckpointAndMaterializePayload()
     {
-        return JsonSerializer.Deserialize<TPayload>(payload.Payload)!;
+        var checkpoint = await provider.LoadCheckpointAsync(instanceId, CancellationToken.None).ConfigureAwait(false);
+        return JsonSerializer.Deserialize<BenchmarkPayload>(checkpoint.Value.Payload)!;
     }
 }

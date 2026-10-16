@@ -3,10 +3,10 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 342,
-    "physicalDeclarations": 1415,
-    "activeFiles": 194,
-    "activeDeclarations": 727,
+    "physicalFiles": 344,
+    "physicalDeclarations": 1424,
+    "activeFiles": 196,
+    "activeDeclarations": 736,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 17,
@@ -1134,6 +1134,12 @@
       "declarations": 3
     },
     {
+      "source": "tests/OrcaCore.Engine.Durable.Tests/Driver/ThrottleCapacityTests.cs",
+      "ownerProject": "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj",
+      "status": "active",
+      "declarations": 2
+    },
+    {
       "source": "tests/OrcaCore.Engine.Durable.Tests/DurableEventContractVersionTests.cs",
       "ownerProject": "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj",
       "status": "active",
@@ -1456,6 +1462,12 @@
       "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
       "status": "compile-excluded",
       "declarations": 3
+    },
+    {
+      "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/DeliveryRecoveryTests.cs",
+      "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
+      "status": "active",
+      "declarations": 7
     },
     {
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/EphemeralRoutingIndexTests.cs",

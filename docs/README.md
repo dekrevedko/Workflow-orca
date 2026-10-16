@@ -23,6 +23,10 @@ developer guides that explain it.
    [`archive/plans/`](archive/plans/) is a historical source snapshot.
 7. [Durable development store reset](durable-development-store-reset.md) - required after
    provisional cursor checkpoints or incompatible compiled-plan changes.
+8. [Packages](packages.md) - install prerelease NuGet packages in another project and publish
+   validated GitHub release downloads.
+9. [GitHub publishing status](github-publishing-status.md) - the 2026-10-16 audit, validation,
+   and coverage gate decision.
 
 ## Active source layout
 

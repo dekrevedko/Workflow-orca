@@ -1,8 +1,8 @@
 using BenchmarkDotNet.Attributes;
+using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Benchmarks.Fixtures;
-using OrcaCore.Providers.InMemory;
 
 namespace OrcaCore.Benchmarks.Scenarios;
 
@@ -10,10 +10,23 @@ namespace OrcaCore.Benchmarks.Scenarios;
 public class ProviderCommitBenchmarks
 {
     private readonly DefinitionId definitionId = DeterministicIds.Definition(100_001);
-    private readonly InMemoryWorkflowProvider provider = new();
+    private ServiceProvider services = null!;
+    private IWorkflowEventStore provider = null!;
     private readonly WorkflowStreamId streamId = new(DeterministicIds.Instance(100_002));
     private long version;
     private int sequence;
+
+    [IterationSetup]
+    public void Setup()
+    {
+        services = ProviderBenchmarkFixtures.CreateServices();
+        provider = services.GetRequiredService<IWorkflowEventStore>();
+        version = 0;
+        sequence = 0;
+    }
+
+    [IterationCleanup]
+    public void Cleanup() => services.Dispose();
 
     [Benchmark]
     public async Task<AppendEventsResult> AppendCommitBatch()

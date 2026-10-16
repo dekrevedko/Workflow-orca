@@ -1,33 +1,47 @@
 using BenchmarkDotNet.Attributes;
-using OrcaCore.Abstractions.Instances;
+using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Benchmarks.Fixtures;
-using OrcaCore.Core.Definitions;
-using OrcaCore.Engine.Ephemeral;
+using OrcaCore.Hosting;
 
 namespace OrcaCore.Benchmarks.Scenarios;
 
 [MemoryDiagnoser]
 public class EphemeralExecutionLoopBenchmarks
 {
-    private EphemeralWorkflowEngine engine = null!;
-    private WorkflowDefinition<EphemeralBenchmarkState> definition = null!;
+    private ServiceProvider services = null!;
+    private EphemeralDefinitionHandle<int, int> definition = null!;
+    private long sequence;
 
     [Params(1, 10, 50)]
     public int StepCount { get; set; }
 
-    [GlobalSetup]
+    [IterationSetup]
     public void Setup()
     {
-        engine = new EphemeralWorkflowEngine();
-        definition = EphemeralWorkflowFixture.BuildDefinition(StepCount);
-        engine.RegisterDefinition(definition);
+        var workflow = EphemeralWorkflowFixture.BuildDefinition(StepCount);
+        var collection = new ServiceCollection();
+        collection.AddTransient<IncrementStep>();
+        collection.AddOrcaCoreEphemeralEngine(new EphemeralEngineHostOptions
+        {
+            StructuredExecution = new StructuredExecutionHostOptions
+            {
+                MaxConcurrentExecutionPathsPerInstance = 2,
+                StepThrottles = []
+            },
+            TransientPools = []
+        }).AddWorkflow(workflow);
+        services = collection.BuildServiceProvider();
+        definition = services.GetRequiredService<IWorkflowDefinitionRegistry>().GetRequiredHandle(workflow.Reference);
     }
 
+    [IterationCleanup]
+    public void Cleanup() => services.Dispose();
+
     [Benchmark]
-    public async Task<WorkflowInstanceSnapshot> StartAndComplete()
+    public async Task<int> StartAndComplete()
     {
-        return await engine
-            .StartAsync<int, EphemeralBenchmarkState>(definition.DefinitionId, 0, CancellationToken.None)
-            .ConfigureAwait(false);
+        var start = await definition.StartOrGetAsync(
+            0, StartIdempotencyKey.Create($"benchmark-{++sequence}"), CancellationToken.None).ConfigureAwait(false);
+        return await start.WaitForOutputAsync(CancellationToken.None).ConfigureAwait(false);
     }
 }

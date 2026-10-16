@@ -52,7 +52,7 @@ and frozen review request for the exact expected lane; do not copy a count or bl
 historical review. Do not delete or unskip a test unless its current named blocker is implemented,
 the source is reclassified by the active ledger, and the replacement evidence is verified.
 
-CI enforces 80% line coverage for `OrcaCore.Engine.*` assemblies.
+CI enforces 75% line coverage for `OrcaCore.Engine.*` assemblies (owner-approved on 2026-10-16).
 
 ## Architecture
 

@@ -488,7 +488,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "4d70e30d9b6f9bc9fe7bf55c8b86722c810054531bcf959a583e311a00368448";
+        "e25276014878e4eef80149a3bdcba549921ef456759ef267c75e6987fa33deb1";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +

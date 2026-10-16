@@ -10,6 +10,20 @@ Implemented benchmark groups:
 - Management query and projection path: `ManagementProjectionBenchmarks`
 - Resource pool and timer scheduling: `ResourcePoolTimerSchedulingBenchmarks`
 - Provider commit path: `ProviderCommitBenchmarks`
+- Structured public authoring: `StructuredFiberExecutionBenchmarks`
+
+The benchmarks use the public engine registrations, typed definition handles, and provider
+ports. Projection scenarios measure exact-instance lookup and recovery enumeration. JSON
+materialization measures application payloads, not the internal fixed codec. Structured
+authoring replaces the retired internal scheduler/reducer/envelope microbenchmarks; it does
+not claim to measure those internal operations. Mutating scenarios reset their providers
+between iterations to bound retained state.
+
+CI runs one correctness check of every scenario (without performance measurements):
+
+```powershell
+dotnet run --project benchmarks/OrcaCore.Benchmarks/OrcaCore.Benchmarks.csproj -c Release -- --smoke
+```
 
 Run a short local smoke pass from the repository root with:
 
