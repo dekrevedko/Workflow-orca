@@ -2,7 +2,8 @@ param(
     [Parameter(Mandatory)]
     [ValidatePattern('^\d+\.\d+\.\d+-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*$')]
     [string] $Version,
-    [string] $PackageDirectory = 'artifacts/packages'
+    [string] $PackageDirectory = 'artifacts/packages',
+    [switch] $NuGetOrg
 )
 
 $ErrorActionPreference = 'Stop'
@@ -32,7 +33,10 @@ $references
 "@ | Set-Content -LiteralPath (Join-Path $consumer 'Consumer.csproj') -Encoding utf8NoBOM
 
 $config = [xml]'<configuration><packageSources><clear /></packageSources></configuration>'
-foreach ($source in @(@{ key = 'release'; value = $feed }, @{ key = 'nuget.org'; value = 'https://api.nuget.org/v3/index.json' })) {
+$sources = @()
+if (-not $NuGetOrg) { $sources += @{ key = 'release'; value = $feed } }
+$sources += @{ key = 'nuget.org'; value = 'https://api.nuget.org/v3/index.json' }
+foreach ($source in $sources) {
     $entry = $config.CreateElement('add')
     $entry.SetAttribute('key', $source.key)
     $entry.SetAttribute('value', $source.value)

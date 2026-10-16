@@ -5,7 +5,9 @@ requires every documented tier to pack and pass clean application/provider/custo
 consumer certification. The owner's 2026-10-16 request reopens prerelease distribution for
 use in other projects: CI builds installable packages and a validated GitHub prerelease
 can publish them as downloads. See [package installation and publishing](packages.md).
-External NuGet registries, signing, SourceLink, and a stable compatibility promise remain deferred.
+The release workflow supports NuGet.org trusted publishing after the owner completes
+[account and policy setup](nuget-publishing.md); availability requires public-feed verification.
+GitHub Packages, signing, SourceLink, and a stable compatibility promise remain deferred.
 
 The exhaustive first-release package manifest is `OrcaCore`, `OrcaCore.Core`,
 `OrcaCore.Engine.Ephemeral`, `OrcaCore.Runtime.Protocol`, `OrcaCore.Provider.Abstractions`,
