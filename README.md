@@ -6,7 +6,7 @@
 
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](global.json) [![Prerelease](https://img.shields.io/badge/release-0.1.0--preview.1-0078D4)](https://github.com/dekrevedko/Workflow-orca/releases/tag/v0.1.0-preview.1) [![Release coverage](https://img.shields.io/badge/release_coverage-77.37%25-22863A)](docs/github-publishing-status.md) [![Apache 2.0](https://img.shields.io/badge/license-Apache_2.0-59636E)](LICENSE)
 
-[Quick start](#use-in-another-project) · [Why OrcaCore](#why-orcacore) · [Comparison](#how-it-compares) · [Status](#current-status) · [Documentation](#documentation)
+[Quick start](#use-in-another-project) · [Why OrcaCore](#why-orcacore) · [Workflow Core comparison](#orcacore-vs-workflow-core) · [Status](#current-status) · [Documentation](#documentation)
 
 </div>
 
@@ -20,8 +20,9 @@ PostgreSQL or SQL Server for persisted execution and recovery.
 
 ## Why OrcaCore
 
-OrcaCore is built for teams who want workflow execution to be a deliberate part of their
-.NET application architecture. Its strongest advantages are:
+For teams evaluating [Workflow Core](https://github.com/danielgerlag/workflow-core), OrcaCore
+focuses on explicit contracts for execution lifetimes, state ownership, starts, and outputs.
+Its strongest advantages for an embedded .NET application are:
 
 - **Two execution modes, shared application concepts.** Author typed definitions and work with
   definition/instance handles in both modes. Choose persistence explicitly; durable mode uses
@@ -83,22 +84,33 @@ var definition = Workflow.Ephemeral<CounterState>(
 
 The sample starts with `41` and produces the typed result `42`.
 
-## How it compares
+## OrcaCore vs Workflow Core
 
-OrcaCore's edge is the combination of embedded execution, explicit engine roles, and tightly
-specified application contracts. The table describes where that combination is a good fit;
-the alternatives also provide substantial capabilities of their own.
+[Workflow Core](https://github.com/danielgerlag/workflow-core) is the closest comparison:
+both engines embed in .NET applications, integrate with dependency injection, support typed
+workflow data, and offer SQL persistence. OrcaCore's edge is a more explicit application
+contract around **execution mode, state ownership, start identity, and typed results**.
 
-| Alternative | Its documented approach | Where OrcaCore fits better |
+| Concern | Workflow Core's documented surface | OrcaCore's approach and benefit |
 |---|---|---|
-| [Temporal](https://docs.temporal.io/temporal) | A durable execution platform comprising a Temporal Service and application workers. | You want the workflow engine embedded in your existing .NET host, with a process-local mode and a durable mode backed by your chosen SQL provider. |
-| [Elsa Workflows](https://docs.elsaworkflows.io/) | .NET workflow libraries with C#, JSON, and visual authoring through Elsa Studio. | Your team keeps definitions in C# and prioritizes a focused typed API, explicit state ownership, and engine-role boundaries. |
-| [Workflow Core](https://github.com/danielgerlag/workflow-core#readme) | An embeddable .NET engine with fluent and JSON/YAML definitions, pluggable persistence, and concurrency providers. | You specifically want OrcaCore's typed start/output contracts, fingerprint-bound idempotency, detached attempt state, and explicit branch merges. |
+| Execution lifetime | A workflow host configured with a persistence provider; the default in-memory provider serves testing. [Host setup](https://workflow-core.readthedocs.io/en/latest/getting-started/#host) | Separate ephemeral and durable engine roles make process-local execution and persisted recovery explicit architectural choices. |
+| Starting and observing work | `StartWorkflow` takes a definition ID/version and data, including generic data overloads, and returns an instance ID string. [Controller API](https://github.com/danielgerlag/workflow-core/blob/master/src/WorkflowCore/Interface/IWorkflowController.cs) | Typed definition and instance handles, inspectable registration/start outcomes, and typed terminal outputs keep the application lifecycle together. |
+| Start request identity | Public start overloads accept an optional `reference` string. [Controller API](https://github.com/danielgerlag/workflow-core/blob/master/src/WorkflowCore/Interface/IWorkflowController.cs) | `StartIdempotencyKey` binds a start to its definition and input fingerprints, giving retries an explicit identity contract. |
+| State and parallel results | Typed workflow data with step input/output mappings and parallel control structures. [Data mapping](https://workflow-core.readthedocs.io/en/latest/getting-started/#passing-data-between-steps), [parallel paths](https://workflow-core.readthedocs.io/en/latest/control-structures/#parallel-paths) | Detached attempt state, isolated branch state, ordered results, and explicit joins/merges make committed state changes easier to trace. |
+| External events | `WaitFor` and `PublishEvent` correlate events by name and key. [Events](https://workflow-core.readthedocs.io/en/latest/external-events/) | Durable ingress uses self-routing envelopes and inspectable acceptance results; `Accepted` and `Duplicate` define when a broker source can acknowledge. |
 
-Comparison reviewed **2026-10-16**, using the linked upstream documentation. These are
-architecture and API tradeoffs. Comparative throughput, latency, and memory benchmarks have
-not been published. OrcaCore is still a prerelease; features such as Saga, a visual workflow
-designer, and broader lifecycle management are outside its current shipped surface.
+**Choose OrcaCore when these contracts matter to your application:** typed start-to-output
+handling, fingerprint-bound starts, explicit branch merges, and a deliberate choice between
+ephemeral and durable execution. The [ephemeral guide](docs/ephemeral-engine-developer-guide.md)
+and [delivery guarantees](docs/production-readiness.md#delivery-guarantees) describe those contracts.
+
+Workflow Core currently offers a broader documented storage-provider selection, JSON/YAML
+authoring, and Saga compensation ([project documentation](https://github.com/danielgerlag/workflow-core#readme)),
+plus suspend/resume operations ([controller API](https://github.com/danielgerlag/workflow-core/blob/master/src/WorkflowCore/Interface/IWorkflowController.cs)).
+OrcaCore's current preview has a narrower surface, with the remaining work listed below.
+
+Comparison reviewed **2026-10-16** against the linked upstream documentation and public API.
+Comparative throughput, latency, and memory benchmarks have not been published.
 
 ## Current status
 
