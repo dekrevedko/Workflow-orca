@@ -1,0 +1,143 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using OrcaCore;
+using OrcaCore.Dag;
+using OrcaCore.Dag.Hosting;
+using Author = OrcaCore.Dag.Dag;
+
+static class RuntimeViewBehavior
+{
+    static int assertions;
+    static void Check(bool condition, string name)
+    {
+        if (!condition) throw new Exception(name);
+        assertions++;
+    }
+
+    static DurableWorkflowRef<T> Child<T>() => Workflow.Durable<State>(DefinitionId.New(), DefinitionVersion.Initial)
+        .Init<T>(_ => new State()).End().Build().Reference;
+    static DurableWorkflowRef<T, T> ResultChild<T>() => Workflow.Durable<State>(DefinitionId.New(), DefinitionVersion.Initial)
+        .Init<T>(_ => new State()).End<T>(_ => default!).Build().Reference;
+    sealed record State;
+
+    static void Invalid(DagMappingEvaluation result, string name) => Check(
+        !result.IsValid && result.Input is null && result.InputType is null &&
+        result.FailureCode == "DAG_INPUT_MAPPING_INVALID", name);
+
+    static void NullOutput<T>(T value)
+    {
+        var builder = Author.Define<int>(DefinitionId.New(), DefinitionVersion.Initial);
+        var dependency = builder.Node(DagNodeId.Create("producer"), ResultChild<T>()).MapInput(_ => value);
+        var consumer = builder.Node(DagNodeId.Create("consumer"), Child<T>()).DependsOn(dependency)
+            .MapInput(context => context.OutputOf(dependency));
+        var adapter = new DagInputMappingAdapter<int>(builder.Build());
+        var result = adapter.Evaluate(consumer, 1, new Dictionary<DagNodeRef, object?> { [dependency] = value });
+        Check(result.IsValid && Equals(result.Input, value) && result.InputType == typeof(T) &&
+            result.FailureCode is null, "declared null/value: " + typeof(T));
+        Invalid(adapter.Evaluate(consumer, 1, new Dictionary<DagNodeRef, object?>()), "missing output");
+        if (typeof(T) == typeof(int))
+            Invalid(adapter.Evaluate(consumer, 1, new Dictionary<DagNodeRef, object?> { [dependency] = null }), "nonnullable null");
+    }
+
+    static void Main()
+    {
+        var calls = 0;
+        var resultful = ResultChild<int>();
+        var child = Child<int>();
+        var builder = Author.Define<int>(DefinitionId.New(), DefinitionVersion.Initial);
+        var first = builder.Node(DagNodeId.Create("first"), resultful).MapInput(context => context.RunInput);
+        var transit = builder.Node(DagNodeId.Create("transit"), child).DependsOn(first).MapInput(context => context.OutputOf(first));
+        var dependencies = new DagNodeRef[] { first, transit };
+        var consumerBuilder = builder.Node(DagNodeId.Create("consumer"), child).DependsOn(dependencies);
+        var consumer = consumerBuilder.MapInput(context => { calls++; return context.RunInput + context.OutputOf(first); });
+        var plan = builder.Build();
+        var adapter = new DagInputMappingAdapter<int>(plan);
+        Check(calls == 0, "Build and adapter construction must not invoke mapper");
+        Check(adapter.Nodes.Select(x => x.AuthoredOrdinal).SequenceEqual(new[] { 0, 1, 2 }), "authored order");
+        var descriptor = adapter.Nodes[0];
+        Check(ReferenceEquals(descriptor.Reference, first) && descriptor.ChildDefinitionId == resultful.DefinitionId &&
+            descriptor.ChildDefinitionVersion == resultful.DefinitionVersion && descriptor.ChildFingerprint == resultful.DefinitionFingerprint &&
+            descriptor.InputType == typeof(int) && descriptor.OutputType == typeof(int), "descriptor identities/types");
+        dependencies[0] = transit;
+        consumerBuilder.DependsOn(transit);
+        Check(adapter.Nodes[2].Dependencies.SequenceEqual(new[] { first, transit }), "frozen dependencies");
+        try { ((IList<DagMappingNode>)adapter.Nodes).Clear(); throw new Exception("mutable nodes"); }
+        catch (NotSupportedException) { assertions++; }
+        try { ((IList<DagNodeRef>)adapter.Nodes[2].Dependencies).Clear(); throw new Exception("mutable dependencies"); }
+        catch (NotSupportedException) { assertions++; }
+        var outputs = new Dictionary<DagNodeRef, object?> { [first] = 7 };
+        var result = adapter.Evaluate(consumer, 5, outputs);
+        Check(result.IsValid && Equals(result.Input, 12) && result.InputType == typeof(int) && result.FailureCode is null && calls == 1,
+            "typed mapping");
+        Invalid(adapter.Evaluate(consumer, 5, new Dictionary<DagNodeRef, object?>()), "missing direct output");
+        Invalid(adapter.Evaluate(consumer, 5, new Dictionary<DagNodeRef, object?> { [first] = "wrong" }), "wrong type");
+        Invalid(adapter.Evaluate(consumer, 5, new Dictionary<DagNodeRef, object?> { [first] = null }), "null nonnullable");
+        Invalid(adapter.Evaluate(consumer, 5, new Dictionary<DagNodeRef, object?> { [first] = 7, [transit] = 1 }), "resultless output");
+        var foreign = Author.Define<int>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Node(DagNodeId.Create("first"), child).MapInput(context => context.RunInput);
+        Invalid(adapter.Evaluate(foreign, 5, outputs), "foreign node even with same identity");
+        Invalid(adapter.Evaluate(consumer, 5, new Dictionary<DagNodeRef, object?> { [first] = 7, [foreign] = 1 }), "foreign output map");
+        Check(calls == 1, "invalid map must fail before mapper");
+
+        foreach (var kind in new[] { "foreign", "undeclared", "transitive", "ordinary", "cancellation", "oom" })
+        {
+            var b = Author.Define<int>(DefinitionId.New(), DefinitionVersion.Initial);
+            var p = b.Node(DagNodeId.Create("p"), resultful).MapInput(context => context.RunInput);
+            var intermediate = b.Node(DagNodeId.Create("i"), resultful).DependsOn(p).MapInput(context => context.OutputOf(p));
+            var unrelated = b.Node(DagNodeId.Create("unrelated"), resultful).MapInput(context => context.RunInput);
+            var other = Author.Define<int>(DefinitionId.New(), DefinitionVersion.Initial)
+                .Node(DagNodeId.Create("other"), resultful).MapInput(context => context.RunInput);
+            var n = b.Node(DagNodeId.Create("n"), child).DependsOn(intermediate).MapInput(context => kind switch
+            {
+                "foreign" => context.OutputOf(other),
+                "undeclared" => context.OutputOf(unrelated),
+                "transitive" => context.OutputOf(p),
+                "ordinary" => throw new InvalidOperationException("mapper"),
+                "cancellation" => throw new OperationCanceledException("mapper"),
+                _ => throw new OutOfMemoryException("synthetic catchable exception")
+            });
+            var a = new DagInputMappingAdapter<int>(b.Build());
+            if (kind == "oom")
+            {
+                try { a.Evaluate(n, 1, new Dictionary<DagNodeRef, object?> { [intermediate] = 1 }); throw new Exception("OOM swallowed"); }
+                catch (OutOfMemoryException) { assertions++; }
+            }
+            else Invalid(a.Evaluate(n, 1, new Dictionary<DagNodeRef, object?> { [intermediate] = 1 }), kind);
+        }
+
+        var unusedCalls = 0;
+        var unusedBuilder = Author.Define<int>(DefinitionId.New(), DefinitionVersion.Initial);
+        var unusedOutput = unusedBuilder.Node(DagNodeId.Create("producer"), resultful).MapInput(context => context.RunInput);
+        var unusedConsumer = unusedBuilder.Node(DagNodeId.Create("consumer"), child).DependsOn(unusedOutput)
+            .MapInput(context => { unusedCalls++; return context.RunInput; });
+        var unusedAdapter = new DagInputMappingAdapter<int>(unusedBuilder.Build());
+        Invalid(unusedAdapter.Evaluate(unusedConsumer, 1,
+            new Dictionary<DagNodeRef, object?> { [unusedOutput] = "invalid unused output" }), "unused typed output");
+        Check(unusedCalls == 0, "invalid unused output fails before mapper");
+
+        var snapshotOutputs = new Dictionary<DagNodeRef, object?>();
+        var snapshotBuilder = Author.Define<int>(DefinitionId.New(), DefinitionVersion.Initial);
+        var snapshotProducer = snapshotBuilder.Node(DagNodeId.Create("producer"), resultful).MapInput(context => context.RunInput);
+        var snapshotConsumer = snapshotBuilder.Node(DagNodeId.Create("consumer"), child).DependsOn(snapshotProducer)
+            .MapInput(context => { snapshotOutputs.Clear(); return context.OutputOf(snapshotProducer); });
+        snapshotOutputs.Add(snapshotProducer, 9);
+        var snapshotResult = new DagInputMappingAdapter<int>(snapshotBuilder.Build()).Evaluate(snapshotConsumer, 1, snapshotOutputs);
+        Check(snapshotResult.IsValid && Equals(snapshotResult.Input, 9) && snapshotOutputs.Count == 0, "output map copied before mapper");
+
+        NullOutput<string?>(null);
+        NullOutput<int?>(null);
+        NullOutput<int?>(3);
+        NullOutput<int>(3);
+        var nullBuilder = Author.Define<int>(DefinitionId.New(), DefinitionVersion.Initial);
+        var nullInput = nullBuilder.Node(DagNodeId.Create("null"), Child<string?>()).MapInput(_ => (string?)null);
+        var nullableInput = nullBuilder.Node(DagNodeId.Create("nullable"), Child<int?>()).MapInput(_ => (int?)null);
+        var nullAdapter = new DagInputMappingAdapter<int>(nullBuilder.Build());
+        foreach (var node in new[] { nullInput, nullableInput })
+        {
+            var mapped = nullAdapter.Evaluate(node, 1, new Dictionary<DagNodeRef, object?>());
+            Check(mapped.IsValid && mapped.Input is null && mapped.InputType is not null && mapped.FailureCode is null, "null input");
+        }
+        Console.WriteLine("HOSTING_MAPPING_ASSERTIONS=" + assertions);
+    }
+}

@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="coverlet.collector" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" PrivateAssets="all" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="ContinuationPumpHostedServiceTests.cs" />
+    <Compile Remove="DurableDriverTelemetryAndOptionsTests.cs" />
+    <Compile Remove="OrcaCoreHostingServiceCollectionTests.cs" />
+    <Compile Remove="WorkflowPayloadSerializationRegistrationTests.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\OrcaCore.Abstractions\OrcaCore.csproj" />
+    <ProjectReference Include="..\..\src\OrcaCore.Engine.Durable\OrcaCore.Engine.Durable.csproj" />
+    <ProjectReference Include="..\..\src\OrcaCore.Engine.Ephemeral\OrcaCore.Engine.Ephemeral.csproj" />
+    <ProjectReference Include="..\..\src\OrcaCore.Durable.Hosting\OrcaCore.Durable.Hosting.csproj" />
+    <ProjectReference Include="..\..\src\OrcaCore.Providers.InMemory\OrcaCore.Providers.InMemory.csproj" />
+    <ProjectReference Include="..\..\samples\OrcaCore.SampleHost\OrcaCore.SampleHost.csproj" />
+    <ProjectReference Include="..\..\samples\OrcaCore.SampleHost\BrokerAdapters\OrcaCore.SampleHost.BrokerAdapters.csproj" />
+  </ItemGroup>
+</Project>

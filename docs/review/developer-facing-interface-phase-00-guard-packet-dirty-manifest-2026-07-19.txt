@@ -1,0 +1,98 @@
+?? artifacts/phase0-packages/.gitkeep
+ M docs/active-implementation-index.md
+ M docs/implementation/developer-facing-interface-phase-00-kickoff-prompt-2026-07-15.md
+ M docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md
+ M docs/implementation/README.md
+?? docs/review/developer-facing-interface-phase-00-guard-packet-dirty-manifest-2026-07-19.txt
+?? docs/review/developer-facing-interface-phase-00-guard-packet-review-request-2026-07-19.md
+?? docs/review/developer-facing-interface-review-e-remediation-independent-rereview-2026-07-19.md
+ M docs/review/developer-facing-interface-v1-simplification-review-e-remediation-and-phase-00-status-2026-07-19.md
+ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
+?? tests/OrcaCore.DeveloperSurface.Guards/ApplicationJourneyContractGuards.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/AuthoringContractGuards.cs
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/Consumers/InMemoryDurable/Consumer.cs
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/Consumers/InMemoryDurable/InMemoryDurable.csproj
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/Consumers/MetaPackage/Consumer.cs
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/Consumers/MetaPackage/MetaPackage.csproj
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/Consumers/MinimalEphemeral/Consumer.cs
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/Consumers/MinimalEphemeral/MinimalEphemeral.csproj
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/Consumers/ProviderBackedDurable/Consumer.cs
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/Consumers/ProviderBackedDurable/ProviderBackedDurable.csproj
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/DurableForEachMustNotCompile/Authoring.cs
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/DurableForEachMustNotCompile/DurableForEachMustNotCompile.csproj
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/DurableNestedPoolMustNotCompile/Authoring.cs
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/DurableNestedPoolMustNotCompile/DurableNestedPoolMustNotCompile.csproj
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/DurablePoolMustNotCompile/Authoring.cs
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/DurablePoolMustNotCompile/DurablePoolMustNotCompile.csproj
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/EphemeralContinueAsNewMustNotCompile/Authoring.cs
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/EphemeralContinueAsNewMustNotCompile/EphemeralContinueAsNewMustNotCompile.csproj
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/EphemeralWaitLongMustNotCompile/Authoring.cs
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/EphemeralWaitLongMustNotCompile/EphemeralWaitLongMustNotCompile.csproj
+?? tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/ExactAuthoring/Authoring.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/ExactAuthoring/ExactAuthoring.csproj
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/ModeSpecificRegistrationExpectedRed/Authoring.cs
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/ModeSpecificRegistrationExpectedRed/ModeSpecificRegistrationExpectedRed.csproj
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/NestedCapabilitiesMustNotCompile/Authoring.cs
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/NestedCapabilitiesMustNotCompile/NestedCapabilitiesMustNotCompile.csproj
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/PositiveAuthoring/Authoring.cs
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/PositiveAuthoring/PositiveAuthoring.csproj
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/ProviderAuthor/ProviderAuthor.cs
+ D tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/ProviderAuthor/ProviderAuthor.csproj
+ D tests/OrcaCore.DeveloperSurface.Guards/CompilerDefenseGuards.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/DagContractGuards.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/DeadlineRetryContractGuards.cs
+ D tests/OrcaCore.DeveloperSurface.Guards/DurableBehaviorHarness.cs
+ D tests/OrcaCore.DeveloperSurface.Guards/DurableExampleExpectedRedGuards.cs
+ D tests/OrcaCore.DeveloperSurface.Guards/DurableLeaseLifecycleExpectedRedGuards.cs
+ D tests/OrcaCore.DeveloperSurface.Guards/ExpectedPublicApi.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/FacadeHostingContractGuards.cs
+ D tests/OrcaCore.DeveloperSurface.Guards/FacadeOutcomeExpectedRedGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/FixtureDefinitions.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/Fixtures/application-journey-scenarios.json
+?? tests/OrcaCore.DeveloperSurface.Guards/Fixtures/authoring-behavior-scenarios.json
+ D tests/OrcaCore.DeveloperSurface.Guards/Fixtures/consumer-fixtures.json
+?? tests/OrcaCore.DeveloperSurface.Guards/Fixtures/dag-contract-scenarios.json
+?? tests/OrcaCore.DeveloperSurface.Guards/Fixtures/deadline-retry-scenarios.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/expected-red-scenarios.json
+?? tests/OrcaCore.DeveloperSurface.Guards/Fixtures/facade-hosting-scenarios.json
+?? tests/OrcaCore.DeveloperSurface.Guards/Fixtures/governance-accounting-scenarios.json
+?? tests/OrcaCore.DeveloperSurface.Guards/Fixtures/lease-authoring-admission-scenarios.json
+?? tests/OrcaCore.DeveloperSurface.Guards/Fixtures/lease-discovery-confirmation-scenarios.json
+?? tests/OrcaCore.DeveloperSurface.Guards/Fixtures/lease-retry-exit-scenarios.json
+?? tests/OrcaCore.DeveloperSurface.Guards/Fixtures/package-consumer-fixtures.json
+ D tests/OrcaCore.DeveloperSurface.Guards/Fixtures/provider-author-fixture.json
+?? tests/OrcaCore.DeveloperSurface.Guards/Fixtures/state-and-codec-scenarios.json
+?? tests/OrcaCore.DeveloperSurface.Guards/Fixtures/structured-fanout-scenarios.json
+?? tests/OrcaCore.DeveloperSurface.Guards/Fixtures/v1-public-contract.json
+ M tests/OrcaCore.DeveloperSurface.Guards/InfrastructureGuards.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/LeaseAuthoringAndExitContractGuards.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/LeaseDiscoveryAndGovernanceContractGuards.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/NormativeContractGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj
+?? tests/OrcaCore.DeveloperSurface.Guards/PackageConsumerGuards.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/CallbackIngress/CallbackIngress.csproj
+?? tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/CallbackIngress/Program.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/DagHosting/DagHosting.csproj
+?? tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/DagHosting/Program.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/Directory.Build.props
+?? tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/Directory.Packages.props
+?? tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/InMemoryDurable/InMemoryDurable.csproj
+?? tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/InMemoryDurable/Program.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/KubernetesCompanion/KubernetesCompanion.csproj
+?? tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/KubernetesCompanion/Program.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/MinimalEphemeral/MinimalEphemeral.csproj
+?? tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/MinimalEphemeral/Program.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/PostgreSqlDurable/PostgreSqlDurable.csproj
+?? tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/PostgreSqlDurable/Program.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/PrimaryPackage/PrimaryPackage.csproj
+?? tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/PrimaryPackage/Program.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/ProviderCustomHost/Program.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/ProviderCustomHost/ProviderCustomHost.csproj
+ D tests/OrcaCore.DeveloperSurface.Guards/ProjectionExpectedRedGuards.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/ProviderAuthorGuards.cs
+ D tests/OrcaCore.DeveloperSurface.Guards/PublicSurfaceExpectedRedGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/run-compile-fixtures.ps1
+?? tests/OrcaCore.DeveloperSurface.Guards/run-package-fixtures.ps1
+ D tests/OrcaCore.DeveloperSurface.Guards/SplitHostExpectedRedGuards.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/StateAndCodecContractGuards.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/StructuredFanoutContractGuards.cs

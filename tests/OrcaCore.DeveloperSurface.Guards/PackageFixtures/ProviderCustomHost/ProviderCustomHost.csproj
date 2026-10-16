@@ -1,0 +1,1 @@
+<Project Sdk="Microsoft.NET.Sdk"><ItemGroup><PackageReference Include="OrcaCore" /><PackageReference Include="OrcaCore.Runtime.Protocol" /><PackageReference Include="OrcaCore.Provider.Abstractions" /></ItemGroup></Project>

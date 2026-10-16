@@ -1,0 +1,90 @@
+# orcacore-public-api-v1
+assembly OrcaCore.Durable.Hosting
+type public interface OrcaCore.Durable.Hosting.IWorkflowEventDispatcher
+  method public abstract DispatchAsync([OrcaCore]OrcaCore.WorkflowOutboundEvent! outboundEvent, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken = null) -> [System.Private.CoreLib]System.Threading.Tasks.ValueTask`1[[OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult!] return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([0, 1])]
+type public interface OrcaCore.Durable.Hosting.IWorkflowEventIngress
+  method public abstract AcceptAsync([OrcaCore]OrcaCore.WorkflowInboundEvent! inboundEvent, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken = null) -> [System.Private.CoreLib]System.Threading.Tasks.ValueTask`1[[OrcaCore]OrcaCore.WorkflowEventAcceptanceResult!] return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([0, 1])]
+  method public abstract AcceptAsync<TPayload>([OrcaCore]OrcaCore.WorkflowInboundEvent`1[!!TPayload?]! inboundEvent, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken = null) -> [System.Private.CoreLib]System.Threading.Tasks.ValueTask`1[[OrcaCore]OrcaCore.WorkflowEventAcceptanceResult!] return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([0, 1])] where [TPayload : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]]
+type public sealed class OrcaCore.Hosting.DurableEngineHostOptions attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor public .ctor()
+  property [OrcaCore.Durable.Hosting]OrcaCore.Hosting.DurableResourcePoolOptions! ResourcePools { get:public; init:public }
+  property [OrcaCore]OrcaCore.Hosting.StructuredExecutionHostOptions! StructuredExecution { get:public; init:public }
+type public sealed class OrcaCore.Hosting.DurableResourcePoolDefinition attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  method public static Create([OrcaCore]OrcaCore.ResourcePoolName! name, [System.Private.CoreLib]System.Int32 capacity, [System.Private.CoreLib]System.TimeSpan reviewAfter) -> [OrcaCore.Durable.Hosting]OrcaCore.Hosting.DurableResourcePoolDefinition!
+  property [OrcaCore]OrcaCore.ResourcePoolName! Name { get:public }
+  property [System.Private.CoreLib]System.Int32 Capacity { get:public }
+  property [System.Private.CoreLib]System.TimeSpan ReviewAfter { get:public }
+type public sealed class OrcaCore.Hosting.DurableResourcePoolOptions attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0), [System.Private.CoreLib]System.Runtime.CompilerServices.RequiredMemberAttribute()]
+  ctor public .ctor() attributes [[System.Private.CoreLib]System.ObsoleteAttribute("Constructors of types with required members are not supported in this version of your compiler.", true)]
+  property [OrcaCore]OrcaCore.ResourceGovernancePartitionId! PartitionId { get:public; init:public } attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.RequiredMemberAttribute()]
+  property [System.Private.CoreLib]System.Collections.Generic.IReadOnlyList`1[[OrcaCore.Durable.Hosting]OrcaCore.Hosting.DurableResourcePoolDefinition!]! Pools { get:public; init:public } attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.RequiredMemberAttribute()]
+type public sealed class OrcaCore.Hosting.OrcaCoreDurableEngineBuilder attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  method public AddWorkflow<TInput, TOutput>([OrcaCore]OrcaCore.DurableWorkflowDefinition`2[!!TInput?, !!TOutput?]! definition) -> [OrcaCore.Durable.Hosting]OrcaCore.Hosting.OrcaCoreDurableEngineBuilder! where [TInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]; TOutput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]]
+  method public AddWorkflow<TInput>([OrcaCore]OrcaCore.DurableWorkflowDefinition`1[!!TInput?]! definition) -> [OrcaCore.Durable.Hosting]OrcaCore.Hosting.OrcaCoreDurableEngineBuilder! where [TInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]]
+type public static class OrcaCore.Hosting.OrcaCoreDurableEngineServiceCollectionExtensions attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.ExtensionAttribute(), [System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  method public static AddOrcaCoreDurableEngine([Microsoft.Extensions.DependencyInjection.Abstractions]Microsoft.Extensions.DependencyInjection.IServiceCollection! services, [OrcaCore.Durable.Hosting]OrcaCore.Hosting.DurableEngineHostOptions! options) -> [OrcaCore.Durable.Hosting]OrcaCore.Hosting.OrcaCoreDurableEngineBuilder! attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.ExtensionAttribute()]
+  method public static AddOrcaCoreDurableEventIngress([Microsoft.Extensions.DependencyInjection.Abstractions]Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> [Microsoft.Extensions.DependencyInjection.Abstractions]Microsoft.Extensions.DependencyInjection.IServiceCollection! attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.ExtensionAttribute()]
+type public interface OrcaCore.Hosting.ResourceLeases.IDurableResourceLeaseDiagnostics
+  method public abstract EnumerateOutstandingAsync([System.Private.CoreLib]System.Threading.CancellationToken cancellationToken = null) -> [System.Private.CoreLib]System.Collections.Generic.IAsyncEnumerable`1[[OrcaCore.Runtime.Protocol]OrcaCore.Runtime.Protocol.ResourceGovernance.DurableResourceLeaseObligationSnapshot!]!
+  method public abstract GetAsync([OrcaCore]OrcaCore.LeaseProtectionToken! protectionToken, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken = null) -> [System.Private.CoreLib]System.Threading.Tasks.ValueTask`1[[OrcaCore.Runtime.Protocol]OrcaCore.Runtime.Protocol.ResourceGovernance.DurableResourceLeaseObligationSnapshot?] return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([0, 2])]
+type public interface OrcaCore.Hosting.ResourceLeases.IDurableResourceLeaseRecovery
+  method public abstract ConfirmProtectedWorkStoppedAsync([OrcaCore]OrcaCore.LeaseProtectionToken! protectionToken, [OrcaCore]OrcaCore.StopConfirmationId! confirmationId, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken = null) -> [System.Private.CoreLib]System.Threading.Tasks.ValueTask`1[[OrcaCore.Runtime.Protocol]OrcaCore.Runtime.Protocol.ResourceGovernance.ProtectedWorkStopConfirmationStatus] return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+type public interface OrcaCore.Hosting.ResourceLeases.IDurableResourcePoolManagement
+  method public abstract GetAsync([OrcaCore]OrcaCore.ResourcePoolName! pool, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken = null) -> [System.Private.CoreLib]System.Threading.Tasks.ValueTask`1[[OrcaCore.Runtime.Protocol]OrcaCore.Runtime.Protocol.ResourceGovernance.DurableResourcePoolSnapshot!] return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([0, 1])]
+  method public abstract ListAsync([System.Private.CoreLib]System.Threading.CancellationToken cancellationToken = null) -> [System.Private.CoreLib]System.Threading.Tasks.ValueTask`1[[System.Private.CoreLib]System.Collections.Generic.IReadOnlyList`1[[OrcaCore.Runtime.Protocol]OrcaCore.Runtime.Protocol.ResourceGovernance.DurableResourcePoolSnapshot!]!] return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([0, 1, 1])]
+  method public abstract ResizeAsync([OrcaCore]OrcaCore.ResourcePoolName! pool, [System.Private.CoreLib]System.Int32 capacity, [OrcaCore]OrcaCore.ResourcePoolOperationId! operationId, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken = null) -> [System.Private.CoreLib]System.Threading.Tasks.ValueTask`1[[OrcaCore.Runtime.Protocol]OrcaCore.Runtime.Protocol.ResourceGovernance.DurableResourcePoolResizeResult!] return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([0, 1])]
+type public sealed class OrcaCore.WorkflowEventDispatchFailure attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  method public static Create([System.Private.CoreLib]System.String! code, [System.Private.CoreLib]System.String? detail = null attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]) -> [OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchFailure!
+  property [System.Private.CoreLib]System.String! Code { get:public }
+  property [System.Private.CoreLib]System.String? Detail { get:public } attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+type public abstract class OrcaCore.WorkflowEventDispatchResult interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor protected .ctor([OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult! original)
+  method protected virtual PrintMembers([System.Private.CoreLib]System.Text.StringBuilder! builder) -> [System.Private.CoreLib]System.Boolean
+  method public abstract <Clone>$() -> [OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult!
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public virtual Equals([OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult? other) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult? left, [OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult? right) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult? left, [OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult? right) -> [System.Private.CoreLib]System.Boolean
+  property [System.Private.CoreLib]System.Type! EqualityContract { get:protected virtual }
+type public sealed class OrcaCore.WorkflowEventDispatchResult+PermanentFailure : [OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult~ interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult+PermanentFailure~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor public .ctor([OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchFailure! Failure)
+  method protected override PrintMembers([System.Private.CoreLib]System.Text.StringBuilder! builder) -> [System.Private.CoreLib]System.Boolean
+  method public Deconstruct(out [OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchFailure! Failure) -> [System.Private.CoreLib]System.Void
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public override sealed Equals([OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult? other) -> [System.Private.CoreLib]System.Boolean
+  method public virtual <Clone>$() -> [OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult+PermanentFailure!
+  method public virtual sealed Equals([OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult+PermanentFailure? other) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult+PermanentFailure? left, [OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult+PermanentFailure? right) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult+PermanentFailure? left, [OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult+PermanentFailure? right) -> [System.Private.CoreLib]System.Boolean
+  property [OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchFailure! Failure { get:public }
+  property [System.Private.CoreLib]System.Type! EqualityContract { get:protected override }
+type public sealed class OrcaCore.WorkflowEventDispatchResult+RetryableFailure : [OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult~ interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult+RetryableFailure~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor public .ctor([OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchFailure! Failure)
+  method protected override PrintMembers([System.Private.CoreLib]System.Text.StringBuilder! builder) -> [System.Private.CoreLib]System.Boolean
+  method public Deconstruct(out [OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchFailure! Failure) -> [System.Private.CoreLib]System.Void
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public override sealed Equals([OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult? other) -> [System.Private.CoreLib]System.Boolean
+  method public virtual <Clone>$() -> [OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult+RetryableFailure!
+  method public virtual sealed Equals([OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult+RetryableFailure? other) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult+RetryableFailure? left, [OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult+RetryableFailure? right) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult+RetryableFailure? left, [OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult+RetryableFailure? right) -> [System.Private.CoreLib]System.Boolean
+  property [OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchFailure! Failure { get:public }
+  property [System.Private.CoreLib]System.Type! EqualityContract { get:protected override }
+type public sealed class OrcaCore.WorkflowEventDispatchResult+Succeeded : [OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult~ interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult+Succeeded~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor public .ctor()
+  method protected override PrintMembers([System.Private.CoreLib]System.Text.StringBuilder! builder) -> [System.Private.CoreLib]System.Boolean
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public override sealed Equals([OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult? other) -> [System.Private.CoreLib]System.Boolean
+  method public virtual <Clone>$() -> [OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult+Succeeded!
+  method public virtual sealed Equals([OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult+Succeeded? other) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult+Succeeded? left, [OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult+Succeeded? right) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult+Succeeded? left, [OrcaCore.Durable.Hosting]OrcaCore.WorkflowEventDispatchResult+Succeeded? right) -> [System.Private.CoreLib]System.Boolean
+  property [System.Private.CoreLib]System.Type! EqualityContract { get:protected override }

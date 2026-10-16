@@ -1,0 +1,138 @@
+using OrcaCore.Abstractions.Durable;
+using OrcaCore.Abstractions.Ids;
+
+namespace OrcaCore.Engine.Durable.Execution;
+
+using WorkflowStatus = global::OrcaCore.WorkflowInstanceStatus;
+
+/// <summary>
+/// Observes durable runtime command outcomes for diagnostics and metrics.
+/// </summary>
+internal interface IWorkflowRuntimeObserver
+{
+    /// <summary>
+    /// Called after a durable command reaches a final outcome.
+    /// </summary>
+    ValueTask OnCommandCompletedAsync(
+        WorkflowRuntimeObservation observation,
+        CancellationToken cancellationToken);
+
+    ValueTask OnProviderCommitFailedAsync(
+        WorkflowProviderCommitFailureObservation observation,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Describes one durable command outcome at the runtime boundary.
+/// </summary>
+internal sealed record WorkflowRuntimeObservation(
+    WorkflowRuntimeObservationKind Kind,
+    InstanceId InstanceId,
+    DurableCommandOutcome Outcome,
+    StreamVersion StreamVersion,
+    int EventCount,
+    bool CheckpointWritten,
+    bool Evicted,
+    EventId? InboxEventId,
+    string? Message,
+    string CommandType = "DurableCommand",
+    DefinitionId? DefinitionId = null,
+    DefinitionVersion? DefinitionVersion = null,
+    WorkflowStatus? Status = null,
+    TimeSpan Duration = default)
+{
+    public IReadOnlyList<WorkflowRuntimeEventObservation> Events { get; init; } = [];
+
+    public bool InboxDuplicate { get; init; }
+
+    public bool ProviderCommitAttempted { get; init; }
+
+    public string ProviderName { get; init; } = "unknown";
+
+    public string ProviderOperation { get; init; } = "append";
+
+    public TimeSpan ProviderCommitDuration { get; init; }
+
+    public StreamVersion ExpectedStreamVersion { get; init; } = StreamVersion.Empty;
+}
+
+/// <summary>
+/// Describes a telemetry-safe durable event summary.
+/// <see cref="StepDuration"/> measures processing of the step-completion command inside the durable
+/// kernel (decide + commit), not the wall time of the business step itself — step code executes
+/// outside the kernel, which never observes when it started.
+/// </summary>
+internal sealed record WorkflowRuntimeEventObservation(
+    string EventType,
+    DefinitionId? DefinitionId = null,
+    string? StepPath = null,
+    string? ErrorKind = null,
+    string? ErrorSummary = null,
+    string? LifecycleEventName = null,
+    bool DurableLifecycle = true,
+    string? WaitEventName = null,
+    string? CorrelationId = null,
+    TimeSpan? WaitDuration = null,
+    TimeSpan? StepDuration = null,
+    DurableParkReason? ParkReason = null,
+    string? TimerId = null,
+    DateTimeOffset? FireAt = null,
+    string? ResourceOwner = null,
+    IReadOnlyList<string>? ResourcePoolNames = null,
+    StepOperationId? StepOperationId = null,
+    int? StepAttemptNumber = null,
+    string? LeaseObligationId = null,
+    IReadOnlyList<WorkflowResourcePoolTelemetryItem>? ResourcePoolItems = null);
+
+internal sealed record WorkflowResourcePoolTelemetryItem(
+    string PoolName,
+    string? TicketId,
+    long? OwnerGeneration);
+
+internal sealed record WorkflowRuntimeTelemetryContext(
+    StepOperationId? StepOperationId = null,
+    int? StepAttemptNumber = null,
+    string? LeaseObligationId = null);
+
+internal sealed record WorkflowProviderCommitFailureObservation(
+    InstanceId InstanceId,
+    string CommandType,
+    string ProviderName,
+    StreamVersion ExpectedStreamVersion,
+    TimeSpan Duration,
+    Exception Exception);
+
+/// <summary>
+/// Categorizes durable runtime observations without requiring callers to parse command result text.
+/// </summary>
+internal enum WorkflowRuntimeObservationKind
+{
+    CommandCommitted,
+    CommandConflict,
+    CommandEvicted,
+    CommandPoisoned,
+    CommandNoOp
+}
+
+internal sealed class NullWorkflowRuntimeObserver : IWorkflowRuntimeObserver
+{
+    internal static NullWorkflowRuntimeObserver Instance { get; } = new();
+
+    private NullWorkflowRuntimeObserver()
+    {
+    }
+
+    public ValueTask OnCommandCompletedAsync(
+        WorkflowRuntimeObservation observation,
+        CancellationToken cancellationToken)
+    {
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask OnProviderCommitFailedAsync(
+        WorkflowProviderCommitFailureObservation observation,
+        CancellationToken cancellationToken)
+    {
+        return ValueTask.CompletedTask;
+    }
+}

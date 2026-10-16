@@ -1,0 +1,550 @@
+{
+  "schemaVersion": 11,
+  "requiredStages": [
+    "amendment-approval",
+    "canonical-open-spec",
+    "numbered-requirements",
+    "acceptance-criteria",
+    "implementation-tasks",
+    "executable-evidence",
+    "refreeze",
+    "independent-approval"
+  ],
+  "artifactPath": "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-4-3-post-gate-amendment-path-2026-08-18.md",
+  "artifactNormalizedSha256": "b9d0dbc43f8a135ac038c529047bcfe272c865b678704a6325c976537fe89c89",
+  "proposedRequirementSuccessors": [
+    {
+      "change": "admit-dag-authoring-friend-boundary",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "capability": "developer-facing-surface",
+      "requirement": "Implementation package boundaries use exact internal friends",
+      "predecessorOperation": "ADDED",
+      "successorOperation": "MODIFIED",
+      "stage": "Proposed",
+      "turnsGreenTask": "1.3"
+    },
+    {
+      "change": "admit-dag-authoring-friend-boundary",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "capability": "repository-foundation",
+      "requirement": "Dependency direction remains one-way",
+      "predecessorOperation": "MODIFIED",
+      "successorOperation": "MODIFIED",
+      "stage": "Proposed",
+      "turnsGreenTask": "1.3"
+    }
+  ],
+  "approvedPendingEvidence": {
+    "stage": "ApprovedPending",
+    "reviewedCheckpointCommit": "89a2b475ebaeed82de2fd2edaf1f31b371bd71a4",
+    "approvalEvidenceCommit": "bbac0977bffce25881a7f27f48b075cda7dc206f",
+    "approvalVerdictPath": "docs/review/developer-facing-interface-section-08-task-8-2-dag-friend-contract-yyy-1-remediation-independent-review-verdict-2026-09-27.md",
+    "approvalVerdictSha256": "398031734b5b98d3244e19e85f519c464aae80f2faf843e0c34d3b0c180cdf2f",
+    "approvalTask": "1.2",
+    "canonicalSyncTask": "1.3",
+    "registryTransitionTask": "1.4",
+    "implementationTask": "2.1"
+  },
+  "approvedPendingRequirementSuccessors": [
+    {
+      "capability": "developer-facing-surface",
+      "requirement": "Implementation package boundaries use exact internal friends",
+      "stage": "ApprovedPending",
+      "historicalCanonicalBlockSha256": "e12c77e5d3a8eaf30dbe31a68ffe4baec3b105023dd5f1512d3f062917a312d0",
+      "canonicalBlockSha256": "bed102a2e4c98598b30cbb741c956a236f2050d27d88e6fc567b915f5b260793"
+    },
+    {
+      "capability": "repository-foundation",
+      "requirement": "Dependency direction remains one-way",
+      "stage": "ApprovedPending",
+      "historicalCanonicalBlockSha256": "d0d512ea59ea8da595770b5437d7faa7565773c6cd8845850d2dea6010b54b29",
+      "canonicalBlockSha256": "bbae0c226c6824570650d1f6f980e3b74e6c35cb196784581eef20e6e3563ce9"
+    }
+  ],
+  "completeEvidence": {
+    "stage": "Complete",
+    "reviewedCheckpointCommit": "a9f835f939d683500ca231c7ba491ab8eae2aaae",
+    "reviewedCheckpointTree": "cf11b3f6732f11250ba3a0255114bcdc4ae00060",
+    "approvalEvidenceCommit": "055e7b8e71e8dfe79e76f267f8782b7f6f79f7b8",
+    "approvalVerdictPath": "docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-zzz-remediation-independent-review-verdict-2026-09-28.md",
+    "approvalVerdictSha256": "513871b82c87f5949d4801108f4f1c901b8f8cfe7084121217359cf96a9ccd4a",
+    "refreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-zzz-remediation-dirty-manifest-2026-09-28.txt",
+    "refreezeManifestSha256": "c9462505515394deb34865b8fd9e5c4dd94c6427733498c89cae586f98ec020a",
+    "reviewRequestPath": "docs/review/developer-facing-interface-section-08-task-8-2-dag-authoring-source-zzz-remediation-independent-review-request-2026-09-28.md",
+    "reviewRequestSha256": "c2e58b564b92bacd8ab32ee9f6ada943a0ffb28bbbcdf1fd8a9e837805b444bf",
+    "implementationTaskCount": 5,
+    "implementationTasks": [
+      "2.1",
+      "2.2",
+      "2.3",
+      "2.4",
+      "2.5"
+    ],
+    "executableEvidencePaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/DagInternalMemberReferenceGuards.cs",
+      "tests/OrcaCore.DeveloperSurface.Guards/DagAuthoringBehaviorGuards.cs",
+      "tests/OrcaCore.Core.Tests/Compilation/PublicDefinitionCompilerContractTests.cs"
+    ]
+  },
+  "proposedRuntimeViewSuccessors": [
+    {
+      "capability": "developer-facing-surface",
+      "requirement": "Implementation package boundaries use exact internal friends",
+      "change": "admit-dag-hosting-runtime-view",
+      "predecessorChange": "admit-dag-authoring-friend-boundary",
+      "predecessorOperation": "MODIFIED",
+      "successorOperation": "MODIFIED",
+      "stage": "Proposed",
+      "turnsGreenTask": "1.3",
+      "predecessorBlockSha256": "bed102a2e4c98598b30cbb741c956a236f2050d27d88e6fc567b915f5b260793",
+      "proposedBlockSha256": "3a848931f75b44c6cf2edf97b564c6e213b23d90720701a31a4a45394cbf93ab"
+    },
+    {
+      "capability": "repository-foundation",
+      "requirement": "Dependency direction remains one-way",
+      "change": "admit-dag-hosting-runtime-view",
+      "predecessorChange": "admit-dag-authoring-friend-boundary",
+      "predecessorOperation": "MODIFIED",
+      "successorOperation": "MODIFIED",
+      "stage": "Proposed",
+      "turnsGreenTask": "1.3",
+      "predecessorBlockSha256": "bbae0c226c6824570650d1f6f980e3b74e6c35cb196784581eef20e6e3563ce9",
+      "proposedBlockSha256": "f0dbc156d044536a83d73934dfcb6eaac5f974069b1a5c555433f2a4b56a1ab8"
+    }
+  ],
+  "amendments": [
+    {
+      "id": "reshape-section-7b-developer-facing-surface",
+      "owningChange": "reshape-developer-facing-interfaces",
+      "capability": "developer-facing-surface",
+      "declaredRequirementCount": 18,
+      "pendingCanonicalOperationCount": 0,
+      "requirementIdentities": [
+        "Application values use one fixed certified codec",
+        "Closed registration and start results retain a cast-free success path",
+        "Completion waits are notification-driven and race-free",
+        "DAG authoring makes no visualization promise",
+        "Deferred capabilities are documented without public placeholders",
+        "Durable application use is protocol-free",
+        "Durable event acceptance has one closed acknowledgement boundary",
+        "Event integration is transport neutral",
+        "First-release authoring is a complete positive allowlist",
+        "Hosting registration selects execution mode explicitly",
+        "Implementation package boundaries use exact internal friends",
+        "Infrastructure integrations depend outward from OrcaCore",
+        "Package distribution preserves tier boundaries",
+        "Provider registration names the adapter role",
+        "Public failures carry stable codes",
+        "Public interfaces are tiered by caller role",
+        "Public types require a supported external scenario",
+        "Strong identity and matching contracts remain distinct"
+      ],
+      "originalApprovalTask": {
+        "change": "reshape-developer-facing-interfaces",
+        "task": "4.15",
+        "expectedState": "Complete"
+      },
+      "originalCanonicalSyncTask": {
+        "change": "reshape-developer-facing-interfaces",
+        "task": "10.14",
+        "expectedState": "Complete"
+      },
+      "amendmentApprovalTask": {
+        "change": "reshape-developer-facing-interfaces",
+        "task": "7.23",
+        "expectedState": "Complete"
+      },
+      "canonicalReconciliationTask": {
+        "change": "harmonize-downstream-capability-specs",
+        "task": "5.1",
+        "expectedState": "Complete"
+      },
+      "numberedRequirementTask": {
+        "change": "harmonize-downstream-capability-specs",
+        "task": "7.3",
+        "expectedState": "Complete"
+      },
+      "acceptanceCriteriaTask": {
+        "change": "harmonize-downstream-capability-specs",
+        "task": "7.3",
+        "expectedState": "Complete"
+      },
+      "implementationTaskCount": 11,
+      "implementationTasks": [
+        {
+          "change": "reshape-developer-facing-interfaces",
+          "task": "7.24",
+          "expectedState": "Complete"
+        },
+        {
+          "change": "reshape-developer-facing-interfaces",
+          "task": "7.25",
+          "expectedState": "Complete"
+        },
+        {
+          "change": "reshape-developer-facing-interfaces",
+          "task": "7.26",
+          "expectedState": "Complete"
+        },
+        {
+          "change": "reshape-developer-facing-interfaces",
+          "task": "7.27",
+          "expectedState": "Complete"
+        },
+        {
+          "change": "reshape-developer-facing-interfaces",
+          "task": "7.28",
+          "expectedState": "Complete"
+        },
+        {
+          "change": "reshape-developer-facing-interfaces",
+          "task": "7.29",
+          "expectedState": "Complete"
+        },
+        {
+          "change": "reshape-developer-facing-interfaces",
+          "task": "7.30",
+          "expectedState": "Complete"
+        },
+        {
+          "change": "reshape-developer-facing-interfaces",
+          "task": "7.31",
+          "expectedState": "Complete"
+        },
+        {
+          "change": "reshape-developer-facing-interfaces",
+          "task": "7.32",
+          "expectedState": "Complete"
+        },
+        {
+          "change": "reshape-developer-facing-interfaces",
+          "task": "7.33",
+          "expectedState": "Complete"
+        },
+        {
+          "change": "reshape-developer-facing-interfaces",
+          "task": "7.34",
+          "expectedState": "Complete"
+        }
+      ],
+      "refreezeTask": {
+        "change": "reshape-developer-facing-interfaces",
+        "task": "7.22",
+        "expectedState": "Complete"
+      },
+      "numberedRequirementPaths": [
+        "docs/specs/05-requirements-events-waits-timers.md"
+      ],
+      "acceptanceCriteriaPaths": [
+        "docs/specs/12-acceptance-criteria.md"
+      ],
+      "executableEvidencePaths": [
+        "tests/OrcaCore.DeveloperSurface.Guards/FacadeHostingContractGuards.cs",
+        "tests/OrcaCore.Engine.Durable.Tests/Events/DurablePublishTests.cs",
+        "tests/OrcaCore.ProviderCertification/DefinitionFanoutInboxCertification.cs",
+        "tests/OrcaCore.ProviderCertification/StartOrDeliverInboxCertification.cs"
+      ],
+      "amendmentApprovalEvidencePath": "docs/review/developer-facing-interface-section-07b-task-7-23-amendment-independent-review-verdict-2026-08-01.md",
+      "refreezeEvidencePath": "docs/review/developer-facing-interface-section-07-task-7-22-exit-dirty-manifest-2026-08-18.txt",
+      "independentApprovalEvidencePath": "docs/review/developer-facing-interface-section-07-task-7-22-exit-independent-review-verdict-2026-08-18.md"
+    }
+  ],
+  "approvedRuntimeViewEvidence": {
+    "stage": "ApprovedPending",
+    "reviewedCheckpointCommit": "43d869fc29e7daa3ec567d4602960f458eb98492",
+    "approvalEvidenceCommit": "1ea7f44b5a32d058e04b913f387317c21747add5",
+    "approvalVerdictPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-contract-rv-remediation-independent-review-verdict-2026-10-02.md",
+    "approvalVerdictSha256": "5ff6b3322d3071149fefe583fd74fba35afa5d28ea6a81ca50637bcdb029b457",
+    "approvalTask": "1.2",
+    "canonicalSyncTask": "1.3",
+    "registryTransitionTask": "1.4",
+    "implementationTask": "2.1"
+  },
+  "approvedRuntimeViewRequirementSuccessors": [
+    {
+      "capability": "developer-facing-surface",
+      "requirement": "Implementation package boundaries use exact internal friends",
+      "stage": "ApprovedPending",
+      "historicalCanonicalBlockSha256": "bed102a2e4c98598b30cbb741c956a236f2050d27d88e6fc567b915f5b260793",
+      "canonicalBlockSha256": "3a848931f75b44c6cf2edf97b564c6e213b23d90720701a31a4a45394cbf93ab"
+    },
+    {
+      "capability": "repository-foundation",
+      "requirement": "Dependency direction remains one-way",
+      "stage": "ApprovedPending",
+      "historicalCanonicalBlockSha256": "bbae0c226c6824570650d1f6f980e3b74e6c35cb196784581eef20e6e3563ce9",
+      "canonicalBlockSha256": "f0dbc156d044536a83d73934dfcb6eaac5f974069b1a5c555433f2a4b56a1ab8"
+    }
+  ],
+  "supersededRuntimeViewPredecessors": [
+    {
+      "change": "reshape-developer-facing-interfaces",
+      "capability": "developer-facing-surface",
+      "requirement": "Implementation package boundaries use exact internal friends",
+      "operation": "ADDED",
+      "deltaBlockSha256": "e12c77e5d3a8eaf30dbe31a68ffe4baec3b105023dd5f1512d3f062917a312d0",
+      "canonicalBlockSha256": "3a848931f75b44c6cf2edf97b564c6e213b23d90720701a31a4a45394cbf93ab"
+    },
+    {
+      "change": "admit-dag-authoring-friend-boundary",
+      "capability": "developer-facing-surface",
+      "requirement": "Implementation package boundaries use exact internal friends",
+      "operation": "MODIFIED",
+      "deltaBlockSha256": "bed102a2e4c98598b30cbb741c956a236f2050d27d88e6fc567b915f5b260793",
+      "canonicalBlockSha256": "3a848931f75b44c6cf2edf97b564c6e213b23d90720701a31a4a45394cbf93ab"
+    },
+    {
+      "change": "reshape-developer-facing-interfaces",
+      "capability": "repository-foundation",
+      "requirement": "Dependency direction remains one-way",
+      "operation": "MODIFIED",
+      "deltaBlockSha256": "d0d512ea59ea8da595770b5437d7faa7565773c6cd8845850d2dea6010b54b29",
+      "canonicalBlockSha256": "f0dbc156d044536a83d73934dfcb6eaac5f974069b1a5c555433f2a4b56a1ab8"
+    },
+    {
+      "change": "admit-dag-authoring-friend-boundary",
+      "capability": "repository-foundation",
+      "requirement": "Dependency direction remains one-way",
+      "operation": "MODIFIED",
+      "deltaBlockSha256": "bbae0c226c6824570650d1f6f980e3b74e6c35cb196784581eef20e6e3563ce9",
+      "canonicalBlockSha256": "f0dbc156d044536a83d73934dfcb6eaac5f974069b1a5c555433f2a4b56a1ab8"
+    }
+  ],
+  "historicalRuntimeViewContractArtifacts": [
+    {
+      "change": "admit-dag-hosting-runtime-view",
+      "relativePath": "artifacts/task-1-1-runtime-view-contract-2026-10-02.md",
+      "normalizedSha256": "5527189563e0f39eccbb9e56bc902d2e1e4cc9e2695e0db929cc5e4b03a7dc12"
+    },
+    {
+      "change": "admit-dag-hosting-runtime-view",
+      "relativePath": "artifacts/task-1-1-runtime-view-contract-rv-remediation-2026-10-02.md",
+      "normalizedSha256": "2dec007df0e06740373fdc4c4d0cd69066d0d08cda417f141a3897a4b3824398"
+    }
+  ],
+  "runtimeViewCompleteEvidence": {
+    "stage": "Complete",
+    "reviewedCheckpointCommit": "4eb2e8d3a68e0ae7d873bd4f54c53735beefb132",
+    "reviewedCheckpointTree": "bd378abbadc5ba6989831814be1e67db0c9dcfa9",
+    "approvalEvidenceCommit": "2fdfa59a747a5d1d1667abd63a8def88168a172b",
+    "approvalVerdictPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-source-independent-review-verdict-2026-10-04.md",
+    "approvalVerdictSha256": "b8c6c1da867c940e04330a0725993a77355eef29ae3a54717dc58297fb2740ce",
+    "refreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-source-dirty-manifest-2026-10-04.txt",
+    "refreezeManifestSha256": "6d92fc3d518644f6c3f767302a027c09767a28064e442402ffae7a213e5583e0",
+    "reviewRequestPath": "docs/review/developer-facing-interface-section-08-task-8-3-runtime-view-source-independent-review-request-2026-10-04.md",
+    "reviewRequestSha256": "0404fcb6d789800df2f19feb1e57afca351411548db8e6a65749a6a944bcd3d2",
+    "implementationTaskCount": 4,
+    "implementationTasks": [
+      "2.1",
+      "2.2",
+      "2.3",
+      "2.4"
+    ],
+    "executableEvidencePaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/DagRuntimeViewBoundaryGuards.cs",
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/dag-runtime-view-behavior.cs.txt",
+      "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs"
+    ]
+  },
+  "runtimeViewActivationCommit": "1d8941b7c4e4a96752b33684075d152494057c49",
+  "proposedDagRunSuccessors": [
+    {
+      "capability": "durable-persistence-and-outbox",
+      "requirement": "Workflow store persists first-class durable records",
+      "change": "admit-durable-dag-run-progression",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "MODIFIED",
+      "successorOperation": "MODIFIED",
+      "stage": "Proposed",
+      "turnsGreenTask": "1.3",
+      "predecessorBlockSha256": "75cf33d00e6129e0ae702d04a37e0438358158adb76101bf9896dcc8144b6020",
+      "proposedBlockSha256": "7d0fd8f4345f412fc3b76b82e5bbbe76dc420b2d43fcff99bc927f12fb7e9660"
+    },
+    {
+      "capability": "durable-persistence-and-outbox",
+      "requirement": "Outbox delivery is adapter-driven and at-least-once",
+      "change": "admit-durable-dag-run-progression",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "MODIFIED",
+      "successorOperation": "MODIFIED",
+      "stage": "Proposed",
+      "turnsGreenTask": "1.3",
+      "predecessorBlockSha256": "777a930986599b2931d71b6b3665e15fadf5869d4df748b954bf6f252670551d",
+      "proposedBlockSha256": "2aa07f46a0a53766db5aaf3adc743506e615f542d2bf6e9c033fbaa0db34f926"
+    },
+    {
+      "capability": "durable-persistence-and-outbox",
+      "requirement": "First-release provider ownership and schemas are exact",
+      "change": "admit-durable-dag-run-progression",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "ADDED",
+      "successorOperation": "MODIFIED",
+      "stage": "Proposed",
+      "turnsGreenTask": "1.3",
+      "predecessorBlockSha256": "1b539ab44adefc0cd020131c389ff420b6c31b2973cd123bd7e59ed436e852cb",
+      "proposedBlockSha256": "30ffcff973c7aac408396c002180b75d995b60493163b8f62ba0455df73260db"
+    },
+    {
+      "capability": "durable-runtime",
+      "requirement": "Durable DAG progression is runtime owned",
+      "change": "admit-durable-dag-run-progression",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "ADDED",
+      "successorOperation": "MODIFIED",
+      "stage": "Proposed",
+      "turnsGreenTask": "1.3",
+      "predecessorBlockSha256": "11741edaf2f26fd43846948d5395a8fe5be92ce61c016e3dc232d11dc810cd40",
+      "proposedBlockSha256": "fe738cf91b0a4048a9594deac8650a86c70d0bd9b35d2394d9be8b217e61dac8"
+    }
+  ],
+  "approvedDagRunSuccessors": [
+    {
+      "capability": "durable-persistence-and-outbox",
+      "requirement": "Workflow store persists first-class durable records",
+      "change": "admit-durable-dag-run-progression",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "MODIFIED",
+      "successorOperation": "MODIFIED",
+      "stage": "ApprovedPending",
+      "turnsGreenTask": "1.3",
+      "predecessorBlockSha256": "75cf33d00e6129e0ae702d04a37e0438358158adb76101bf9896dcc8144b6020",
+      "proposedBlockSha256": "7d0fd8f4345f412fc3b76b82e5bbbe76dc420b2d43fcff99bc927f12fb7e9660",
+      "canonicalBlockSha256": "7d0fd8f4345f412fc3b76b82e5bbbe76dc420b2d43fcff99bc927f12fb7e9660"
+    },
+    {
+      "capability": "durable-persistence-and-outbox",
+      "requirement": "Outbox delivery is adapter-driven and at-least-once",
+      "change": "admit-durable-dag-run-progression",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "MODIFIED",
+      "successorOperation": "MODIFIED",
+      "stage": "ApprovedPending",
+      "turnsGreenTask": "1.3",
+      "predecessorBlockSha256": "777a930986599b2931d71b6b3665e15fadf5869d4df748b954bf6f252670551d",
+      "proposedBlockSha256": "2aa07f46a0a53766db5aaf3adc743506e615f542d2bf6e9c033fbaa0db34f926",
+      "canonicalBlockSha256": "2aa07f46a0a53766db5aaf3adc743506e615f542d2bf6e9c033fbaa0db34f926"
+    },
+    {
+      "capability": "durable-persistence-and-outbox",
+      "requirement": "First-release provider ownership and schemas are exact",
+      "change": "admit-durable-dag-run-progression",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "ADDED",
+      "successorOperation": "MODIFIED",
+      "stage": "ApprovedPending",
+      "turnsGreenTask": "1.3",
+      "predecessorBlockSha256": "1b539ab44adefc0cd020131c389ff420b6c31b2973cd123bd7e59ed436e852cb",
+      "proposedBlockSha256": "30ffcff973c7aac408396c002180b75d995b60493163b8f62ba0455df73260db",
+      "canonicalBlockSha256": "30ffcff973c7aac408396c002180b75d995b60493163b8f62ba0455df73260db"
+    },
+    {
+      "capability": "durable-runtime",
+      "requirement": "Durable DAG progression is runtime owned",
+      "change": "admit-durable-dag-run-progression",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "ADDED",
+      "successorOperation": "MODIFIED",
+      "stage": "ApprovedPending",
+      "turnsGreenTask": "1.3",
+      "predecessorBlockSha256": "11741edaf2f26fd43846948d5395a8fe5be92ce61c016e3dc232d11dc810cd40",
+      "proposedBlockSha256": "fe738cf91b0a4048a9594deac8650a86c70d0bd9b35d2394d9be8b217e61dac8",
+      "canonicalBlockSha256": "81fe1db4624403098328534bb4903b4bf8df5c99d382783ce567077414a83904"
+    }
+  ],
+  "supersededDagRunPredecessors": [
+    {
+      "change": "reshape-developer-facing-interfaces",
+      "capability": "durable-persistence-and-outbox",
+      "requirement": "Workflow store persists first-class durable records",
+      "operation": "MODIFIED",
+      "deltaBlockSha256": "75cf33d00e6129e0ae702d04a37e0438358158adb76101bf9896dcc8144b6020",
+      "canonicalBlockSha256": "7d0fd8f4345f412fc3b76b82e5bbbe76dc420b2d43fcff99bc927f12fb7e9660"
+    },
+    {
+      "change": "reshape-developer-facing-interfaces",
+      "capability": "durable-persistence-and-outbox",
+      "requirement": "Outbox delivery is adapter-driven and at-least-once",
+      "operation": "MODIFIED",
+      "deltaBlockSha256": "777a930986599b2931d71b6b3665e15fadf5869d4df748b954bf6f252670551d",
+      "canonicalBlockSha256": "2aa07f46a0a53766db5aaf3adc743506e615f542d2bf6e9c033fbaa0db34f926"
+    },
+    {
+      "change": "reshape-developer-facing-interfaces",
+      "capability": "durable-persistence-and-outbox",
+      "requirement": "First-release provider ownership and schemas are exact",
+      "operation": "ADDED",
+      "deltaBlockSha256": "1b539ab44adefc0cd020131c389ff420b6c31b2973cd123bd7e59ed436e852cb",
+      "canonicalBlockSha256": "30ffcff973c7aac408396c002180b75d995b60493163b8f62ba0455df73260db"
+    },
+    {
+      "change": "reshape-developer-facing-interfaces",
+      "capability": "durable-runtime",
+      "requirement": "Durable DAG progression is runtime owned",
+      "operation": "ADDED",
+      "deltaBlockSha256": "11741edaf2f26fd43846948d5395a8fe5be92ce61c016e3dc232d11dc810cd40",
+      "canonicalBlockSha256": "81fe1db4624403098328534bb4903b4bf8df5c99d382783ce567077414a83904"
+    }
+  ],
+  "approvedDagRunEvidence": {
+    "stage": "ApprovedPending",
+    "reviewedCheckpointCommit": "e6802a348b0180d5eaad3be99b32e3204c5c25a1",
+    "reviewedCheckpointTree": "d367ced646461fb78c8c85dea5bf1fb142e640f7",
+    "approvalEvidenceCommit": "578593efd3709a5e9a14582d572eb4275324de3e",
+    "approvalVerdictPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-3-remediation-independent-review-verdict-2026-10-05.md",
+    "approvalVerdictSha256": "b7c9d54dcfdbcc8fd3ec2ef99c43fb313e9b400a038b6da7f13b969b2feead4c",
+    "canonicalSyncTask": "1.3",
+    "registryTransitionTask": "1.4",
+    "addendumRelativePath": "artifacts/task-1-3-1-4-rc-3-transition-addendum-2026-10-05.md",
+    "addendumSha256": "cff6f3a4b89e69dca3509785cc8eab4830aa2a43c89b9a0930b23c9a3afcd0ea",
+    "withdrawalPolicy": "SeparateReviewedRegistryDisposition",
+    "archivalPolicy": "SeparateReviewedMoveAndProvenanceRefreeze"
+  },
+  "approvedDagRunTransitionEvidence": {
+    "checkpointCommit": "1770b2b979ca8f8c4b385637ddabe5d28c45dbb2",
+    "checkpointTree": "61b5900c0a6a87c34429e15c9cad7832d891c615",
+    "evidenceCommit": "18bf8656fdbcbf061d4f223afca6ed438efee3ea",
+    "verdictPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-atomic-canonical-transition-independent-review-verdict-2026-10-06.md",
+    "verdictSha256": "e89e7066308bc906e6b94b073828471f8481a11b919ea711df1e89f55018cca6"
+  },
+  "dagRunFingerprintContractAmendment": {
+    "stage": "Proposed",
+    "change": "admit-durable-dag-run-progression",
+    "baseCommit": "e634737420a490acceffae56c338ac9a20051b48",
+    "amendedContract": {
+      "checkpointCommit": "e6802a348b0180d5eaad3be99b32e3204c5c25a1",
+      "checkpointTree": "d367ced646461fb78c8c85dea5bf1fb142e640f7",
+      "evidenceCommit": "578593efd3709a5e9a14582d572eb4275324de3e",
+      "verdictPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-contract-rc-3-remediation-independent-review-verdict-2026-10-05.md",
+      "verdictSha256": "b7c9d54dcfdbcc8fd3ec2ef99c43fb313e9b400a038b6da7f13b969b2feead4c",
+      "contractPath": "openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-run-contract-rc-3-remediation-2026-10-05.md",
+      "contractSha256": "f8a1a7f6d69dc337854dd7e6dc9bbe59a2e7c3a43329635cf1b57c9f8280d665",
+      "apiCatalogPath": "openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-exact-api-additions-rc-3-remediation-2026-10-05.md",
+      "apiCatalogSha256": "766ad5d84c90a0666a8a631018fdd686f9a59b00d6c8d50f3378b1b4fa6a308f"
+    },
+    "artifacts": [
+      {
+        "path": "openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-fingerprint-contract-addendum-2026-10-14.md",
+        "sha256": "8bf3f169c77c5667897ab5f0efb8fb18f43fbc48617195164b86ac49dbc4d61d"
+      },
+      {
+        "path": "openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-exact-api-additions-fingerprint-amendment-2026-10-14.md",
+        "sha256": "1d6f1b6e55b70270d4bd2e3fb7dd0824d76ea4bc03ec6aeae445f494ad5f71f2"
+      },
+      {
+        "path": "openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-fingerprint-amendment-signatures-2026-10-14.cs",
+        "sha256": "01c186aa3caacdc03a85cfe11b5b58adfd4adfd5aff8f26178f2d849a3938d51"
+      },
+      {
+        "path": "openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-fingerprint-rehydration-proof-2026-10-14.cs",
+        "sha256": "6035dd9da3b4861deaab348235409aa260fccd1cd64f10569ca2d4c7edb86ad3"
+      }
+    ],
+    "changedApiKeys": 6,
+    "assemblyAdditionCounts": [
+      7,
+      193,
+      165
+    ],
+    "approval": null
+  }
+}

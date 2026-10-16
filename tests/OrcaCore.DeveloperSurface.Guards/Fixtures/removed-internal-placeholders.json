@@ -1,0 +1,6 @@
+[
+  { "assembly": "OrcaCore", "metadataName": "OrcaCore.EngineAcquireResourcesStepResult", "task": "7.18" },
+  { "assembly": "OrcaCore", "metadataName": "OrcaCore.EngineContinueAsNewStepResult`1", "task": "7.18" },
+  { "assembly": "OrcaCore", "metadataName": "OrcaCore.EngineExternalJobStepResult", "task": "7.18" },
+  { "assembly": "OrcaCore", "metadataName": "OrcaCore.EngineYieldStepResult", "task": "7.18" }
+]

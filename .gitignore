@@ -24,6 +24,7 @@ coverage.json
 
 # BenchmarkDotNet
 BenchmarkDotNet.Artifacts/
+artifacts/public-api-candidates/
 
 # Rider / ReSharper
 *.sln.DotSettings.user
@@ -34,3 +35,7 @@ _ReSharper*/
 _NCrunch_*
 *.ncrunch*
 .*crunch*.local.xml
+
+# Agent-run and local dashboard logs
+.codex-run/
+.artifacts/publishing-validation/

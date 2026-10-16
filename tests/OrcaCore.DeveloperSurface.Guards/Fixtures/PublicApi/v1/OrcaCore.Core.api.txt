@@ -1,0 +1,2 @@
+# orcacore-public-api-v1
+assembly OrcaCore.Core

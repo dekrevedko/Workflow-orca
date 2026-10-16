@@ -1,0 +1,173 @@
+using AwesomeAssertions;
+using OrcaCore.Abstractions.Durable;
+using OrcaCore.Abstractions.Ids;
+using OrcaCore.Abstractions.Instances;
+using OrcaCore.Engine.Durable.Aggregates;
+using OrcaCore.Engine.Durable.Execution;
+using OrcaCore.Providers.InMemory;
+using Xunit;
+
+namespace OrcaCore.Engine.Durable.Tests.Composition;
+
+public sealed class ParentResumeTokenTests
+{
+    [Fact]
+    [Trait("AC", "AC-610")]
+    public async Task ConcurrentChildCompletions_TriggerOneParentResume()
+    {
+        var parentId = InstanceIdValue(1);
+        var store = await SeedRunChildrenAsync(parentId);
+        var scheduled = await ScheduledGroupAsync(store, parentId);
+        var runtime = new DurableCommandRuntime(store);
+
+        await Task.WhenAll(scheduled.Children.Select(child =>
+            new DurableCommandProcessor(runtime)
+                .ProcessAsync(ChildCompleted(parentId, child.ChildInstanceId), TestContext.Current.CancellationToken)));
+        await new DurableCommandProcessor(runtime)
+            .ProcessAsync(ChildCompleted(parentId, scheduled.Children.Last().ChildInstanceId), TestContext.Current.CancellationToken);
+
+        var tokens = await ResumeTokensAsync(store, parentId);
+
+        tokens.Should().ContainSingle();
+    }
+
+    [Fact]
+    [Trait("AC", "AC-611")]
+    public async Task ConsumeParentResumeToken_IsIdempotent()
+    {
+        var parentId = InstanceIdValue(2);
+        var store = await SeedRunChildrenAsync(parentId);
+        var scheduled = await ScheduledGroupAsync(store, parentId);
+        foreach (var child in scheduled.Children)
+        {
+            await new DurableCommandProcessor(store)
+                .ProcessAsync(ChildCompleted(parentId, child.ChildInstanceId), TestContext.Current.CancellationToken);
+        }
+
+        var token = (await ResumeTokensAsync(store, parentId)).Single();
+        var first = await new DurableCommandProcessor(store).ProcessAsync(
+            Consume(parentId, token, 20),
+            TestContext.Current.CancellationToken);
+        var second = await new DurableCommandProcessor(store).ProcessAsync(
+            Consume(parentId, token, 21),
+            TestContext.Current.CancellationToken);
+        var consumed = await ConsumedTokensAsync(store, parentId);
+
+        first.Outcome.Should().Be(DurableCommandOutcome.Committed);
+        second.Outcome.Should().Be(DurableCommandOutcome.NoOp);
+        consumed.Should().ContainSingle()
+            .Which.ResumeTokenId.Should().Be(token.ResumeTokenId);
+    }
+
+    [Fact]
+    [Trait("AC", "AC-611")]
+    public async Task Restart_ReplaysRecordedResumeToken()
+    {
+        var parentId = InstanceIdValue(10);
+        var store = await SeedRunChildrenAsync(parentId);
+        var scheduled = await ScheduledGroupAsync(store, parentId);
+        foreach (var child in scheduled.Children)
+        {
+            await new DurableCommandProcessor(store)
+                .ProcessAsync(ChildCompleted(parentId, child.ChildInstanceId), TestContext.Current.CancellationToken);
+        }
+        var before = (await ResumeTokensAsync(store, parentId)).Single();
+
+        await new DurableCommandProcessor(store)
+            .ProcessAsync(ChildCompleted(parentId, scheduled.Children.Last().ChildInstanceId), TestContext.Current.CancellationToken);
+        var after = (await ResumeTokensAsync(store, parentId)).Single();
+
+        after.ResumeTokenId.Should().Be(before.ResumeTokenId);
+    }
+
+    private static async Task<InMemoryWorkflowProvider> SeedRunChildrenAsync(InstanceId parentId)
+    {
+        var store = new InMemoryWorkflowProvider();
+        var processor = new DurableCommandProcessor(store);
+        await processor.ProcessAsync(StartCommand(parentId), TestContext.Current.CancellationToken);
+        await processor.ProcessAsync(
+            new DurableRunChildrenCommand(
+                CommandIdValue(2),
+                parentId,
+                Timestamp(2),
+                DefinitionIdValue(2),
+                DefinitionVersion.Initial,
+                ["a", "b"],
+                RunChildFailurePolicy.PropagateFailure,
+                2),
+            TestContext.Current.CancellationToken);
+        return store;
+    }
+
+    private static DurableChildCompletedCommand ChildCompleted(InstanceId parentId, InstanceId childId)
+    {
+        return new DurableChildCompletedCommand(
+            CommandId.New(),
+            parentId,
+            Timestamp(3),
+            childId,
+            WorkflowStatus.Completed,
+            null);
+    }
+
+    private static ConsumeParentResumeTokenCommand Consume(
+        InstanceId parentId,
+        WorkflowParentResumeTokenRecordedEvent token,
+        int commandValue)
+    {
+        return new ConsumeParentResumeTokenCommand
+        {
+            CommandId = CommandIdValue(commandValue),
+            InstanceId = parentId,
+            RequestedAt = Timestamp(commandValue),
+            GroupId = token.GroupId,
+            ResumeTokenId = token.ResumeTokenId
+        };
+    }
+
+    private static async Task<WorkflowChildrenScheduledEvent> ScheduledGroupAsync(
+        InMemoryWorkflowProvider store,
+        InstanceId parentId)
+    {
+        var events = await store.LoadTailAsync(new WorkflowStreamId(parentId), StreamVersion.Empty, TestContext.Current.CancellationToken);
+        return events.OfType<WorkflowChildrenScheduledEvent>().Single();
+    }
+
+    private static async Task<IReadOnlyList<WorkflowParentResumeTokenRecordedEvent>> ResumeTokensAsync(
+        InMemoryWorkflowProvider store,
+        InstanceId parentId)
+    {
+        var events = await store.LoadTailAsync(new WorkflowStreamId(parentId), StreamVersion.Empty, TestContext.Current.CancellationToken);
+        return events.OfType<WorkflowParentResumeTokenRecordedEvent>().ToArray();
+    }
+
+    private static async Task<IReadOnlyList<WorkflowParentResumeTokenConsumedEvent>> ConsumedTokensAsync(
+        InMemoryWorkflowProvider store,
+        InstanceId parentId)
+    {
+        var events = await store.LoadTailAsync(new WorkflowStreamId(parentId), StreamVersion.Empty, TestContext.Current.CancellationToken);
+        return events.OfType<WorkflowParentResumeTokenConsumedEvent>().ToArray();
+    }
+
+    private static StartWorkflowCommand StartCommand(InstanceId instanceId)
+    {
+        return new StartWorkflowCommand
+        {
+            CommandId = CommandIdValue(1),
+            InstanceId = instanceId,
+            RequestedAt = Timestamp(1),
+            DefinitionId = DefinitionIdValue(1),
+            DefinitionVersion = DefinitionVersion.Initial
+        };
+    }
+
+    private static DateTimeOffset Timestamp(int seconds) => new(2026, 7, 2, 12, 0, seconds, TimeSpan.Zero);
+
+    private static InstanceId InstanceIdValue(int value) => InstanceId.Parse(GuidValue(value).ToString());
+
+    private static CommandId CommandIdValue(int value) => new(GuidValue(value));
+
+    private static DefinitionId DefinitionIdValue(int value) => DefinitionId.Parse(GuidValue(value).ToString());
+
+    private static Guid GuidValue(int value) => Guid.Parse($"00000000-0000-0000-0000-{value:000000000000}");
+}

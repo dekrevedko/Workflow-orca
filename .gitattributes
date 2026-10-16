@@ -1,0 +1,4 @@
+docs/specs/17-public-authoring-contract.cs text eol=lf
+openspec/specs/**/*.md text eol=lf
+tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json text eol=lf
+docs/review/**/*.md whitespace=-trailing-space

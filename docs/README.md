@@ -1,47 +1,100 @@
 # Documentation map
 
-This folder holds **requirements**, **architecture**, **plans**, and **research**. Treat **`src/`** and **`tests/`** as the source of truth for behavior; docs explain intent and history and are updated when the model shifts.
+The repository root is the active implementation. This folder contains the
+requirements, architecture, implementation plans, research, review history, and
+developer guides that explain it.
 
 ## Start here
 
-1. [Project README](../README.md) — audience, **two engines**, build/test, roadmap.
-2. [Project technical overview](project-technical-overview.md) — durable notes, concepts, **code map**, and links to the full doc tree.
+1. [Normative source map](normative-source-map.md) — which sources are normative, how the two
+   spec trees map to each other, and what is archived. **Read before changing any spec or doc.**
+2. [Project README](../README.md) — public orientation, build/test commands, and samples.
+3. [V1 public-surface baseline](specs/17-selected-mode-capability-matrix.md) — the approved
+   greenfield release contract, including removed/deferred capabilities and package boundaries.
+   Its exact authoring declarations are mirrored in
+   [`17-public-authoring-contract.cs`](specs/17-public-authoring-contract.cs).
+   The post-review caller-created strong-value construction decision is recorded in the
+   [2026-07-19 amendment](review/developer-facing-interface-v1-strong-value-construction-amendment-2026-07-19.md).
+4. [Active implementation index](active-implementation-index.md) — current runtime guides,
+   durable-driver notes, operations, and handoffs.
+5. [Project technical overview](project-technical-overview.md) — architecture and code map.
+6. [Current refactor plan](implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md)
+   — review-gated implementation order for the approved v1 surface. The April roadmap under
+   [`archive/plans/`](archive/plans/) is a historical source snapshot.
+7. [Durable development store reset](durable-development-store-reset.md) - required after
+   provisional cursor checkpoints or incompatible compiled-plan changes.
+8. [Packages](packages.md) - install prerelease NuGet packages in another project and publish
+   validated GitHub release downloads.
+9. [GitHub publishing status](github-publishing-status.md) - the 2026-10-16 audit, validation,
+   and coverage gate decision.
 
-## Source layout (aligned with the solution)
+## Active source layout
 
-The solution file at the repo root is **`OrcaCore.slnx`**. Projects:
+This table describes the current pre-release implementation, not a compatibility promise.
+`OrcaCore.Dag` and `OrcaCore.Dag.Hosting` now exist at their selected package boundary, while the
+post-checkpoint refactor continues to remove provisional members and repair exact evidence. Any
+Kubernetes/AWS/job scheduler code remains a companion concern with no reverse dependency into
+OrcaCore. The OpenSpec task graphs linked from the implementation guide are authoritative for the
+remaining transition.
+
+The solution file is [`OrcaCore.slnx`](../OrcaCore.slnx). The main projects are:
 
 | Project | Purpose |
 |---------|---------|
-| [OrcaCore.Abstractions](../src/OrcaCore.Abstractions) | Shared contracts and models: `IStep`, `StepContext`, `StepResult`, `EventEnvelope`, `WaitRecord`, `WaitStatus`, `WaitMode`, `WorkflowStatus`, etc. |
-| [OrcaCore.Runtime](../src/OrcaCore.Runtime) | **State-driven** orchestration: `WorkflowEngine` + `InMemoryInstanceStore` (ephemeral), `DurableWorkflowEngine` + `IWorkflowStore` (durable), builders, nodes, routing, durable outbox. |
-| [OrcaCore.EventDrivenPrototype](../src/OrcaCore.EventDrivenPrototype) | **Event-driven** prototype: `EventDrivenWorkflowEngine`, append-only stream types, checkpoints, projections, in-memory prototype store. |
-| [OrcaCore.Tests](../tests/OrcaCore.Tests) | Main test suite (acceptance + durable + unit). |
-| [OrcaCore.EventDrivenPrototype.Tests](../tests/OrcaCore.EventDrivenPrototype.Tests) | Prototype tests. |
+| [`OrcaCore.Abstractions`](../src/OrcaCore.Abstractions) | **PackageId `OrcaCore`** — application contracts, identifiers, workflow events, snapshots, facades. |
+| [`OrcaCore.Core`](../src/OrcaCore.Core) | Internal authoring/compiler/execution kernel; exports no consumer API. |
+| [`OrcaCore.Engine.Ephemeral`](../src/OrcaCore.Engine.Ephemeral) | Internal in-process engine plus its exact public host options and `AddOrcaCoreEphemeralEngine` registration entry. |
+| [`OrcaCore.Runtime.Protocol`](../src/OrcaCore.Runtime.Protocol) | Durable commands, committed facts, checkpoints, envelopes. |
+| [`OrcaCore.Provider.Abstractions`](../src/OrcaCore.Provider.Abstractions) | Provider ports, commit DTOs, certification contracts. |
+| [`OrcaCore.Engine.Durable`](../src/OrcaCore.Engine.Durable) | Internal event-sourced durable aggregate, replay, checkpointing, outbox, and driver; exports no consumer API. |
+| [`OrcaCore.Durable.Hosting`](../src/OrcaCore.Durable.Hosting) | Owns `AddOrcaCoreDurableEngine` and callback-only `AddOrcaCoreDurableEventIngress`. |
+| [`OrcaCore.Providers.InMemory`](../src/OrcaCore.Providers.InMemory) | Development/test provider; owns `AddOrcaCoreInMemoryDurableProvider`. |
+| [`OrcaCore.Providers.PostgreSql`](../src/OrcaCore.Providers.PostgreSql) | Production provider; owns `AddOrcaCorePostgreSqlDurableProvider`. |
+| [`OrcaCore.Providers.SqlServer`](../src/OrcaCore.Providers.SqlServer) | Production provider; owns `AddOrcaCoreSqlServerDurableProvider` and its SQL Server-native migration journal. |
+| [`OrcaCore.Dag`](../src/OrcaCore.Dag) | Typed DAG planning and operation contracts. |
+| [`OrcaCore.Dag.Hosting`](../src/OrcaCore.Dag.Hosting) | Sole DAG-to-durable bridge; owns `AddOrcaCoreDag`. |
+| *removed / future* | The catch-all hosting, RabbitMQ, Redis, shared Relational, and ZeroMQ project roots are absent. The deleted provisional SQL Server shape was replaced by a complete current-port provider rather than restored. Broker adapters are application/companion-owned, and durable storage providers beyond PostgreSQL and SQL Server require a future amendment. |
+| [`tests/`](../tests) | Core, engine, hosting, provider certification, integration, and support test projects. |
+| [`samples/`](../samples) | Runnable console, generic-host, and Blazor dashboard examples. |
+| [`benchmarks/`](../benchmarks) | BenchmarkDotNet scenarios for execution, providers, management, and scheduling. |
 
-There are **no** separate `OrcaCore.Persistence` or `OrcaCore.Messaging` packages today; persistence abstractions for the durable **state-driven** path live under `OrcaCore.Runtime` (e.g. `Durable/Persistence`).
+The approved v1 package direction implemented by the current source table and enforced by the
+remaining cleanup is:
 
-## Architecture docs tied to current code
+```text
+OrcaCore (application contracts/authoring) <- OrcaCore.Core / engines / durable hosting
+OrcaCore <- OrcaCore.Dag <- OrcaCore.Dag.Hosting <- companion scheduler/application
+OrcaCore.Durable.Hosting <- OrcaCore.Dag.Hosting
 
-- [Event-driven prototype status](architecture/event-driven-prototype-status.md) — what the prototype implements and what is missing.
-- [Quick vs durable event-driven engine — feature matrix](architecture/quick-vs-durable-engine-feature-matrix.md) — compares “quick” vs event-driven durable positioning.
-- [Project foundation](architecture/project-foundation.md) — problem statement, ephemeral vs durable modes (conceptual).
+OrcaCore.Runtime.Protocol <- OrcaCore.Provider.Abstractions <- provider adapters
+```
 
-## Folder index
+That diagram summarizes dependency direction; it is not a package manifest. The exhaustive v1
+manifest is `OrcaCore`, `OrcaCore.Core`, `OrcaCore.Engine.Ephemeral`,
+`OrcaCore.Runtime.Protocol`, `OrcaCore.Provider.Abstractions`, `OrcaCore.Engine.Durable`,
+`OrcaCore.Durable.Hosting`, `OrcaCore.Providers.InMemory`, `OrcaCore.Providers.PostgreSql`,
+`OrcaCore.Providers.SqlServer`, `OrcaCore.Dag`, and `OrcaCore.Dag.Hosting`, with exact edges and CLR ownership in
+[`specs/17-selected-mode-capability-matrix.md`](specs/17-selected-mode-capability-matrix.md#175-package-and-integration-boundary).
+There is no `OrcaCore.Hosting` PackageId; that CLR namespace is split across the approved owning
+assemblies.
 
-- `architecture/` — design decisions, runtime shape, lifecycle, identity, event-driven notes.
-- `durable/` — durable-runtime plans, remediation, component inventory.
-- `plans/` — implementation plans, acceptance matrix, requirements draft.
-- `research/` — pattern studies, competitor analysis, backlog.
-- `reviews/` — consolidated review findings.
-- `requirements/` — capability requirements and acceptance criteria.
+Microsoft hosting is role-specific: `OrcaCore.Engine.Ephemeral` owns
+`AddOrcaCoreEphemeralEngine`; `OrcaCore.Durable.Hosting` owns `AddOrcaCoreDurableEngine` and
+callback-only `AddOrcaCoreDurableEventIngress`; `OrcaCore.Providers.InMemory` owns development/test
+`AddOrcaCoreInMemoryDurableProvider`; `OrcaCore.Providers.PostgreSql` owns production
+`AddOrcaCorePostgreSqlDurableProvider`; `OrcaCore.Providers.SqlServer` owns production
+`AddOrcaCoreSqlServerDurableProvider`; and `OrcaCore.Dag.Hosting` owns `AddOrcaCoreDag`. Options
+are constructed programmatically, copied, and validated at registration; no binder facade is part
+of v1. There is no catch-all `AddOrcaCore` or separate hosted-service toggle.
 
-## Suggested reading order
+## Documentation areas
 
-1. [requirements/README.md](requirements/README.md)
-2. [project-technical-overview.md](project-technical-overview.md) (especially **Code map** and **Concepts vs code**)
-3. [architecture/project-foundation.md](architecture/project-foundation.md)
-4. [architecture/design-proposal-minimal-core.md](architecture/design-proposal-minimal-core.md)
-5. [plans/implementation-plan-minimal-core.md](plans/implementation-plan-minimal-core.md)
-6. [durable/durable-implementation-plan.md](durable/durable-implementation-plan.md)
-7. [durable/durable-review-remediation-plan.md](durable/durable-review-remediation-plan.md)
+- [`specs/`](specs/README.md) — consolidated product requirements and acceptance criteria.
+- [`implementation/`](implementation/README.md) — agent-executable implementation guide.
+- [`orleans-engine/`](orleans-engine/README.md) — planned Orleans-hosted durable engine.
+- [`review/`](review) — dated review findings and verification records (frozen provenance).
+- [`archive/`](archive/README.md) — superseded documentation: architecture, requirements, plans,
+  research, durable notes. Provenance only, never current.
+
+The superseded prototype and its original root solution metadata are preserved
+under [`../archive/legacy-poc/`](../archive/legacy-poc/).

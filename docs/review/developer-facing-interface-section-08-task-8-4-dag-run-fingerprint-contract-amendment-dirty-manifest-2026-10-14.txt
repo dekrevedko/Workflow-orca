@@ -1,0 +1,14 @@
+ M openspec/changes/admit-durable-dag-run-progression/design.md
+ M openspec/changes/admit-durable-dag-run-progression/proposal.md
+ M openspec/changes/admit-durable-dag-run-progression/tasks.md
+ M tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+?? docs/review/developer-facing-interface-section-08-task-8-4-dag-run-fingerprint-contract-amendment-dirty-manifest-2026-10-14.txt
+?? docs/review/developer-facing-interface-section-08-task-8-4-dag-run-fingerprint-contract-amendment-independent-review-request-2026-10-14.md
+?? openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-exact-api-additions-fingerprint-amendment-2026-10-14.md
+?? openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-fingerprint-amendment-signatures-2026-10-14.cs
+?? openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-fingerprint-contract-addendum-2026-10-14.md
+?? openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-fingerprint-rehydration-proof-2026-10-14.cs

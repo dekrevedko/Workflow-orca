@@ -1,0 +1,14 @@
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+?? docs/review/developer-facing-interface-section-08-task-8-4-dag-run-successor-process-dirty-manifest-2026-10-04.txt
+?? docs/review/developer-facing-interface-section-08-task-8-4-dag-run-successor-process-independent-review-request-2026-10-04.md
+?? openspec/changes/admit-durable-dag-run-progression/.openspec.yaml
+?? openspec/changes/admit-durable-dag-run-progression/artifacts/process-openspec-provenance-2026-10-04.md
+?? openspec/changes/admit-durable-dag-run-progression/design.md
+?? openspec/changes/admit-durable-dag-run-progression/proposal.md
+?? openspec/changes/admit-durable-dag-run-progression/specs/durable-persistence-and-outbox/spec.md
+?? openspec/changes/admit-durable-dag-run-progression/specs/durable-runtime/spec.md
+?? openspec/changes/admit-durable-dag-run-progression/tasks.md

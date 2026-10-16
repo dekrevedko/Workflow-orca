@@ -1,0 +1,15 @@
+ M docs/eks-scheduler-handoff.md
+ M openspec/changes/harmonize-downstream-capability-specs/design.md
+ M openspec/changes/harmonize-downstream-capability-specs/tasks.md
+ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs
+?? docs/review/harmonize-downstream-capability-specs-task-7-1-dirty-manifest-2026-09-15.txt
+?? docs/review/harmonize-downstream-capability-specs-task-7-1-independent-review-request-2026-09-15.md
+?? docs/review/harmonize-downstream-capability-specs-task-7-1-independent-review-verdict-2026-09-15.md
+?? docs/review/harmonize-downstream-capability-specs-task-7-1-jj-1-remediation-independent-review-request-2026-09-15.md
+?? openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-1-active-guide-positive-call-scan-2026-09-14.md
+?? openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-1-active-guide-positive-call-source-record-2026-09-15.tsv

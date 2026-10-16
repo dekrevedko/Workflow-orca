@@ -1,0 +1,6 @@
+ M Directory.Packages.props
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/package-source-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+?? docs/review/sqlserver-pkcs-advisory-remediation-dirty-manifest-2026-10-14.txt
+?? docs/review/sqlserver-pkcs-advisory-remediation-independent-review-request-2026-10-14.md

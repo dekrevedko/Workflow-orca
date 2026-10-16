@@ -1,0 +1,30 @@
+using System.Reflection;
+using OrcaCore.Providers.PostgreSql.Internal;
+
+namespace OrcaCore.Providers.PostgreSql;
+
+internal static class PostgreSqlWorkflowStoreMigrations
+{
+    public static RelationalMigrationJournal Journal { get; } = new(
+        """
+        create table if not exists orcacore_schema_migrations (
+            migration_id text primary key,
+            content_hash text not null,
+            applied_at timestamp with time zone not null
+        );
+        """,
+        """
+        select migration_id as "MigrationId", content_hash as "ContentHash"
+        from orcacore_schema_migrations
+        order by migration_id;
+        """,
+        """
+        insert into orcacore_schema_migrations (migration_id, content_hash, applied_at)
+        values (@MigrationId, @ContentHash, @AppliedAt);
+        """);
+
+    public static IReadOnlyList<RelationalMigration> All { get; } =
+        EmbeddedSqlMigrations.Load(
+            Assembly.GetExecutingAssembly(),
+            "OrcaCore.Providers.PostgreSql.Migrations.");
+}

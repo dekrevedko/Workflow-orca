@@ -1,0 +1,25 @@
+ M docs/archive/README.md
+ M openspec/changes/harmonize-downstream-capability-specs/design.md
+ M openspec/changes/harmonize-downstream-capability-specs/tasks.md
+ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
+ M tests/OrcaCore.DeveloperSurface.BehaviorScenarios/LeaseExitScenarioHost.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json
+ M tests/OrcaCore.DeveloperSurface.Guards/LeaseDiscoveryAndGovernanceContractGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/OperationalTelemetryContractGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Diagnostics/DurableOperationalTelemetryTests.cs
+?? docs/review/harmonize-downstream-capability-specs-task-7-2-dirty-manifest-2026-09-16.txt
+?? docs/review/harmonize-downstream-capability-specs-task-7-2-independent-review-request-2026-09-16.md
+?? docs/review/harmonize-downstream-capability-specs-task-7-2-independent-review-verdict-2026-09-16.md
+?? docs/review/harmonize-downstream-capability-specs-task-7-2-round-60-remediation-dirty-manifest-2026-09-17.txt
+?? docs/review/harmonize-downstream-capability-specs-task-7-2-round-60-remediation-independent-review-request-2026-09-17.md
+?? docs/review/harmonize-downstream-capability-specs-task-7-2-round-60-remediation-independent-review-verdict-2026-09-17.md
+?? docs/review/harmonize-downstream-capability-specs-task-7-2-ss-1-tt-1-remediation-dirty-manifest-2026-09-17.txt
+?? docs/review/harmonize-downstream-capability-specs-task-7-2-ss-1-tt-1-remediation-independent-review-request-2026-09-17.md
+?? docs/review/harmonize-downstream-capability-specs-task-7-2-ss-1-tt-1-remediation-independent-review-verdict-2026-09-18.md
+?? docs/review/harmonize-downstream-capability-specs-task-7-2-ww-1-remediation-dirty-manifest-2026-09-18.txt
+?? docs/review/harmonize-downstream-capability-specs-task-7-2-ww-1-remediation-independent-review-request-2026-09-18.md
+?? tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json

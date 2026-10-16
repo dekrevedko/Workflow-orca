@@ -1,0 +1,8 @@
+# orcacore-public-api-v1
+assembly OrcaCore.Providers.SqlServer
+type public static class OrcaCore.Providers.SqlServer.OrcaCoreSqlServerProviderServiceCollectionExtensions attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.ExtensionAttribute(), [System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  method public static AddOrcaCoreSqlServerDurableProvider([Microsoft.Extensions.DependencyInjection.Abstractions]Microsoft.Extensions.DependencyInjection.IServiceCollection! services, [OrcaCore.Providers.SqlServer]OrcaCore.Providers.SqlServer.SqlServerDurableProviderOptions! options) -> [Microsoft.Extensions.DependencyInjection.Abstractions]Microsoft.Extensions.DependencyInjection.IServiceCollection! attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.ExtensionAttribute()]
+type public sealed class OrcaCore.Providers.SqlServer.SqlServerDurableProviderOptions attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor public .ctor([System.Private.CoreLib]System.String! connectionString, [System.Private.CoreLib]System.String! schema)
+  property [System.Private.CoreLib]System.String! ConnectionString { get:public }
+  property [System.Private.CoreLib]System.String! Schema { get:public }

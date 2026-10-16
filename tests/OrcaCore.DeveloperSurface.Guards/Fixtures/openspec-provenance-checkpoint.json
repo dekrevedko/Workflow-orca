@@ -1,0 +1,256 @@
+{
+  "schemaVersion": 6,
+  "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
+  "recordCount": 184,
+  "recordBytes": 48504,
+  "recordSha256": "fd6ad0449e706d5ecf3f9dab552a9ad5fc3ef1be95df13304afba91e1d9ca8c8",
+  "semanticApprovalEligible": true,
+  "pendingCanonicalOperations": [],
+  "activeNewCapabilitiesOutsideCanonical": [
+    {
+      "capability": "spec-driven-planning",
+      "count": 3,
+      "disposition": "Planning-only bootstrap capability intentionally outside canonical product specs",
+      "evidence": "openspec/changes/bootstrap-orcacore-spec-baseline/proposal.md"
+    }
+  ],
+  "activeNewCapabilitiesAlreadyCanonical": [
+    {
+      "change": "reshape-developer-facing-interfaces",
+      "capability": "developer-facing-surface",
+      "count": 18,
+      "disposition": "An earlier approved synchronization created the canonical capability before later same-change amendments; the permanent post-gate record routes every affected gate without treating the later decision as covered by the original sync",
+      "postGateAmendmentId": "reshape-section-7b-developer-facing-surface",
+      "evidence": "openspec/changes/reshape-developer-facing-interfaces/proposal.md"
+    }
+  ],
+  "historicalCanonicalSourceCommit": "ba2478e995023b0712c44705174c2b0e3262f213",
+  "historicalCanonicalRemovalCatalogSha256": "81c06519ae95846b697df5e895e6bcbc9792c3e36afbe441529b3add15008ebd",
+  "historicalCanonicalRemovals": [
+    {
+      "capability": "durable-runtime",
+      "requirement": "Wait and WaitLong have distinct residency behavior",
+      "sourcePath": "openspec/specs/durable-runtime/spec.md",
+      "canonicalBlockSha256": "948f2ede49f2eaf4d16bdf96351a3875138316a0cbcc2b59567429aea7ebbd45",
+      "canonicalBlock": "### Requirement: Wait and WaitLong have distinct residency behavior\nThe durable runtime SHALL model both resident waits and cold waits, with `Wait` remaining available for hot instances and `WaitLong` explicitly representing cold durable residency.\n\n#### Scenario: Long-running wait is authored\n- **WHEN** a workflow uses `WaitLong`\n- **THEN** the runtime checkpoints the instance for durable resume rather than requiring the instance to remain hot in memory"
+    },
+    {
+      "capability": "event-driven-prototype",
+      "requirement": "Current implemented slice is intentionally narrow",
+      "sourcePath": "openspec/specs/event-driven-prototype/spec.md",
+      "canonicalBlockSha256": "ff36aee257210d5480fa57e2d5717afc8ef6d46deb0d5b697341db755f4c365e",
+      "canonicalBlock": "### Requirement: Current implemented slice is intentionally narrow\nThe prototype SHALL currently cover straight-line execution, `Wait`, buffering, deduplication, and instance-targeted or correlation-targeted resume without claiming full parity with the state-driven runtime.\n\n#### Scenario: Consumer evaluates prototype capability\n- **WHEN** a consumer asks whether the event-driven prototype is feature-complete\n- **THEN** the system documents it as a narrow implemented slice rather than a full replacement for the primary runtime"
+    },
+    {
+      "capability": "event-driven-prototype",
+      "requirement": "Prototype remains a separate runtime slice",
+      "sourcePath": "openspec/specs/event-driven-prototype/spec.md",
+      "canonicalBlockSha256": "139b7f0150b9be1ec3172a33d01f437a92a0ae3a7df72915fe004ac515a05a50",
+      "canonicalBlock": "### Requirement: Prototype remains a separate runtime slice\nThe event-driven prototype SHALL exist as a distinct runtime and test slice with its own engine, definitions, persistence model, and project boundary.\n\n#### Scenario: Contributor explores event-driven execution\n- **WHEN** a contributor works on the append-only runtime path\n- **THEN** they do so through the dedicated prototype project and test suite rather than through hidden modes inside the primary state-driven runtime"
+    },
+    {
+      "capability": "event-driven-prototype",
+      "requirement": "Prototype uses append-only facts with derived state",
+      "sourcePath": "openspec/specs/event-driven-prototype/spec.md",
+      "canonicalBlockSha256": "12b61130b0dfc0e070aa823ff2e78d4fb5c918b0ccf2fc2c37203f6d4cdbc7cf",
+      "canonicalBlock": "### Requirement: Prototype uses append-only facts with derived state\nThe prototype SHALL record workflow facts in an append-only per-instance stream and SHALL derive resumable state through checkpoints, projections, and inbox tracking.\n\n#### Scenario: Instance resumes after restart\n- **WHEN** a prototype workflow is restarted after durable facts were appended\n- **THEN** the engine restores behavior from checkpointed and projected state derived from the append-only stream"
+    },
+    {
+      "capability": "event-driven-prototype",
+      "requirement": "Unsupported control-flow and infrastructure features stay explicit",
+      "sourcePath": "openspec/specs/event-driven-prototype/spec.md",
+      "canonicalBlockSha256": "9f4f04e419ff13aed29487f3f54ba3408c8a2a6ffea71f8b1d84623e6e8777ae",
+      "canonicalBlock": "### Requirement: Unsupported control-flow and infrastructure features stay explicit\nThe prototype SHALL not imply support for `If`, `While`, `Parallel`, `WaitLong`, timers, outbox, or non-trivial provider abstraction until those behaviors are explicitly designed and implemented.\n\n#### Scenario: Contributor plans a new prototype feature\n- **WHEN** a feature outside the current implemented slice is proposed\n- **THEN** the work is treated as an explicit new capability increment instead of assumed baseline behavior"
+    },
+    {
+      "capability": "saga-orchestration",
+      "requirement": "Advanced saga support is durable and auditable",
+      "sourcePath": "openspec/specs/saga-orchestration/spec.md",
+      "canonicalBlockSha256": "cb3001b34d705e15eeebadf022339290880550ab8a0856f85f896663f29ef39d",
+      "canonicalBlock": "### Requirement: Advanced saga support is durable and auditable\nAdvanced saga behavior SHALL support durable coordination boundaries, compensation auditability, manual intervention, outbox or inbox consistency expectations, and version-aware evolution.\n\n#### Scenario: Operator reviews a long-running saga incident\n- **WHEN** a durable saga requires investigation or intervention\n- **THEN** the system exposes enough durable state and audit information to understand completed actions, pending compensation, and operator-required next steps"
+    },
+    {
+      "capability": "saga-orchestration",
+      "requirement": "Compensation has explicit scope and reverse ordering",
+      "sourcePath": "openspec/specs/saga-orchestration/spec.md",
+      "canonicalBlockSha256": "41c26e74a399f7f4e67b49613a1c8ffa435e022e80f6d825441e596e8147b5aa",
+      "canonicalBlock": "### Requirement: Compensation has explicit scope and reverse ordering\nSaga execution SHALL define which forward actions require compensation and SHALL apply compensation in deterministic reverse logical order for the covered scope. A committed forward action SHALL be immediately eligible inside its owning branch scope. A branch-result commit SHALL expose its eligible records to the containing scope. Failure or cancellation before merge SHALL compensate every committed descendant action covered by the failing scope. Successful merge SHALL transfer eligible records to the parent scope without changing their stable identities. Sequential actions SHALL use reverse committed sequence order. Actions completed by sibling fibers SHALL use reverse stable authored branch and instruction order rather than wall-clock completion order. A per-scope ordering override SHALL be accepted only when it is deterministic, bound into the compiled-plan fingerprint, and based on stable authored identities.\n\n#### Scenario: Mid-saga failure occurs\n- **WHEN** a saga fails after multiple compensable sequential actions have completed\n- **THEN** compensation executes for the covered actions in reverse committed sequence order\n\n#### Scenario: Parallel saga branches complete in different orders\n- **WHEN** equivalent compensable actions in sibling fibers complete in different wall-clock orders\n- **THEN** compensation uses the same reverse canonical scope order in every execution\n\n#### Scenario: Scope fails before merge\n- **WHEN** one branch has committed compensable actions and another branch causes the containing scope to fail before merge\n- **THEN** scope compensation covers every committed descendant action, including actions from the successfully progressing branch\n\n#### Scenario: Parent fails after successful merge\n- **WHEN** a child scope merges successfully and a later parent-scope action fails\n- **THEN** the transferred child compensation records remain eligible under the parent scope with their original stable ordering identities"
+    },
+    {
+      "capability": "saga-orchestration",
+      "requirement": "Saga outcomes include saga-specific terminal semantics",
+      "sourcePath": "openspec/specs/saga-orchestration/spec.md",
+      "canonicalBlockSha256": "df2223643eec890ab53f943ec5698156dca4300e06f8424c329c0526b865e48c",
+      "canonicalBlock": "### Requirement: Saga outcomes include saga-specific terminal semantics\nSaga orchestration SHALL model terminal outcomes that distinguish successful completion, compensated completion, failed compensation, cancellation, and timeout-driven saga outcomes.\n\n#### Scenario: Saga is cancelled after partial progress\n- **WHEN** cancellation or timeout occurs after compensable work has already run\n- **THEN** the resulting terminal state reflects saga-specific compensation semantics instead of a generic workflow completion code only"
+    },
+    {
+      "capability": "saga-orchestration",
+      "requirement": "Saga records are owned by fibers and scopes",
+      "sourcePath": "openspec/specs/saga-orchestration/spec.md",
+      "canonicalBlockSha256": "38c34b81af180075dba6ee3a15c94274f423b402a49a52dc4261e4b8781bbe18",
+      "canonicalBlock": "### Requirement: Saga records are owned by fibers and scopes\nEvery compensable forward action SHALL record its owning fiber, owning scope, stable instruction identity, committed completion position, and compensation state. Cancelling or failing a scope SHALL preserve the records required to finish or diagnose compensation.\n\n#### Scenario: Host restarts during scoped compensation\n- **WHEN** a host restarts after one nested-scope compensation commits and before the next begins\n- **THEN** rehydration resumes from the persisted compensation position without rerunning completed forward actions or completed compensations"
+    },
+    {
+      "capability": "saga-orchestration",
+      "requirement": "Saga workflows use a distinct definition kind",
+      "sourcePath": "openspec/specs/saga-orchestration/spec.md",
+      "canonicalBlockSha256": "44c77024b0c7d71b00d1fbd6ec3857d6c8ae1ef879393363216dca072f6fbc71",
+      "canonicalBlock": "### Requirement: Saga workflows use a distinct definition kind\nThe system SHALL model saga workflows as a separate definition kind rather than treating compensation as an ad hoc extension of regular workflows.\n\n#### Scenario: Saga is authored\n- **WHEN** a contributor defines a process that requires compensating actions\n- **THEN** the definition is represented as a saga-specific orchestration construct"
+    },
+    {
+      "capability": "state-driven-runtime",
+      "requirement": "Yield is a fiber scheduling operation",
+      "sourcePath": "openspec/specs/state-driven-runtime/spec.md",
+      "canonicalBlockSha256": "8c85b7af7575abf00a9553692ef859ce3a42defa56815711c312c69a09eb25da",
+      "canonicalBlock": "### Requirement: Yield is a fiber scheduling operation\n`Yield` SHALL commit the selected fiber's current progress, end that fiber's quantum, and allow another runnable sibling to advance before the yielding fiber is selected again.\n\n#### Scenario: First branch repeatedly yields\n- **WHEN** the first authored branch yields over multiple attempts while another branch remains runnable\n- **THEN** the scheduler advances the sibling within the configured fairness bound"
+    }
+  ],
+  "canonicalCapabilityRecordFormat": "repository-relative openspec/specs/*/ path with forward slashes and one trailing slash",
+  "canonicalCapabilityCount": 14,
+  "canonicalCapabilityBytes": 547,
+  "canonicalCapabilitySha256": "7165dac4e1a57022a7890b421f522bf4152f6d5ddc159a41539ce2ef0d18ec9f",
+  "canonicalPreambleRecordFormat": "capability\\tnormalized canonical preamble SHA-256, sorted by capability with LF and one final LF",
+  "canonicalPreambleCount": 14,
+  "canonicalPreambleBytes": 1233,
+  "canonicalPreambleSha256": "595528c6a7ba56dd5648e7fc12ac6bc2af9e9bf6fa3fbf853b86fffdd7cecd3c",
+  "canonicalPreambles": [
+    {
+      "capability": "developer-facing-surface",
+      "normalizedSha256": "d9f76e471104d8df4976c090d1c6d68f4723686b2e541c14168f21a1729d5c8c"
+    },
+    {
+      "capability": "durable-persistence-and-outbox",
+      "normalizedSha256": "f0f78b70c39608b2c4c87c757022d56858b245237d865fd115745530112db18d"
+    },
+    {
+      "capability": "durable-runtime",
+      "normalizedSha256": "c02aa389faca40c17e324795638a233c5d3ce3accd53ff72f99694e6fa8ab031"
+    },
+    {
+      "capability": "event-driven-prototype",
+      "normalizedSha256": "bc120a043555a11f97720dcd7a054ee70686773c0b740bfb6f46f114cc4a0635"
+    },
+    {
+      "capability": "event-routing-and-waits",
+      "normalizedSha256": "0f7f5d67edeef9a1f6e1f8eeb76f4d643bf4fb30d25130594ad4d19939763bac"
+    },
+    {
+      "capability": "management-and-querying",
+      "normalizedSha256": "a31b3a33a1bd152a8f1b5af914874ccaafc10b54f95a1faeacc61ac9a75bc509"
+    },
+    {
+      "capability": "quality-and-verification",
+      "normalizedSha256": "f9590cade57d6a3a270dba87b7474b88d04439ba87125dd5372546c13431ba03"
+    },
+    {
+      "capability": "repository-foundation",
+      "normalizedSha256": "df9c27a8fe6b7fc6ba4347c2c4eba33ffe78605485c557006ad31762b4e5ebb4"
+    },
+    {
+      "capability": "runtime-resource-governance",
+      "normalizedSha256": "aafd41358976af9ae2ef8472c44f236e8caf837a954fb5804510d5e6a2f2d14d"
+    },
+    {
+      "capability": "saga-orchestration",
+      "normalizedSha256": "ccb85e7523434e739bc0b26b18d85c233cd5deffeb5f3cd03a24e0d898651097"
+    },
+    {
+      "capability": "state-driven-runtime",
+      "normalizedSha256": "dc2bce2062424cebbb27ac265e9546dc48bd4c9911b686e0d46bfda93e30e78a"
+    },
+    {
+      "capability": "structured-fiber-execution",
+      "normalizedSha256": "fa51c6443c4ec56474c7b6f8faf424fe35b04929039fd466472a592f07c6aa11"
+    },
+    {
+      "capability": "workflow-authoring",
+      "normalizedSha256": "18c76b42ec62e08e17b2b085a7522a35c5e65589f68d1802db99ac47a01c94f3"
+    },
+    {
+      "capability": "workflow-contracts",
+      "normalizedSha256": "71b18f858ab9c548cdfd4cbbba8a0856516cc71061a958a67646015c8a2f1868"
+    }
+  ],
+  "capabilityDirectoryRecordFormat": "repository-relative active openspec/changes/*/specs/*/ path with forward slashes and one trailing slash",
+  "capabilityDirectoryCount": 22,
+  "capabilityDirectoryBytes": 1808,
+  "capabilityDirectorySha256": "2869d4ad4541be53adeac5819091605eff85c39b5140abec4438c668ac99b6e2",
+  "artifactPath": "openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-stream-identity-openspec-provenance-2026-10-07.md",
+  "artifactNormalizedSha256": "f2739090a7644767e8de4cb3584d501f84a509b00fa9b2baf5007efc7bbf0333",
+  "canonicalContents": [
+    {
+      "path": "openspec/specs/developer-facing-surface/spec.md",
+      "bytes": 39454,
+      "sha256": "65800459fd0936e6558c950c9c0f7bf823738c0a7989f3f7e073282a3620aab4"
+    },
+    {
+      "path": "openspec/specs/durable-persistence-and-outbox/spec.md",
+      "bytes": 20000,
+      "sha256": "691031135a18e50eb82944960f2249c3c01d653745283d4f2dcb4662eedad0d8"
+    },
+    {
+      "path": "openspec/specs/durable-runtime/spec.md",
+      "bytes": 57681,
+      "sha256": "bdc574beee3acc0069773a11f668b4894d9531e38c97d94e5a5765deeb3cfa1c"
+    },
+    {
+      "path": "openspec/specs/event-driven-prototype/spec.md",
+      "bytes": 1858,
+      "sha256": "e7acef58398ad572c94b8fec658cfde043ba56c1338d55855a120b62657830c6"
+    },
+    {
+      "path": "openspec/specs/event-routing-and-waits/spec.md",
+      "bytes": 9602,
+      "sha256": "e51e4deb0941936d000192a19cd8eeca779a378249b4d8aecb597e289c2ab296"
+    },
+    {
+      "path": "openspec/specs/management-and-querying/spec.md",
+      "bytes": 22112,
+      "sha256": "b4a2ed5ddbd9865a8d473ac11e25e92762b875bb9538039e01f20194f4e0dad3"
+    },
+    {
+      "path": "openspec/specs/quality-and-verification/spec.md",
+      "bytes": 44328,
+      "sha256": "0c1dc289e838c5837448c3352f1f6b6a7af34bf615b124d7f117ccf04e6e4cb3"
+    },
+    {
+      "path": "openspec/specs/repository-foundation/spec.md",
+      "bytes": 19636,
+      "sha256": "4baa0211862fb910a256f1ab99ca4a2ccf9fc4fdae5c6064ee9a909755aac89d"
+    },
+    {
+      "path": "openspec/specs/runtime-resource-governance/spec.md",
+      "bytes": 18323,
+      "sha256": "b6599a9c9b2a60c78640aa8682f000230897e5ec6abf08359dba85c675d3b924"
+    },
+    {
+      "path": "openspec/specs/saga-orchestration/spec.md",
+      "bytes": 1226,
+      "sha256": "01e1664c8a78cd6c00c35f2e6aade8b9cbaa1de039da52dc13f7376b7781b418"
+    },
+    {
+      "path": "openspec/specs/state-driven-runtime/spec.md",
+      "bytes": 7641,
+      "sha256": "d9ea3cbc2dcf52f891250c71698c16ffa9ca11f9a6101af99bbf86364aa9305d"
+    },
+    {
+      "path": "openspec/specs/structured-fiber-execution/spec.md",
+      "bytes": 15831,
+      "sha256": "cab0a021e2c0aae1f09bff2fcdac0a533ec33309c938db4777c1c0c1aebaeecf"
+    },
+    {
+      "path": "openspec/specs/workflow-authoring/spec.md",
+      "bytes": 33931,
+      "sha256": "1a2bf4b8cfd5c1d921e18d6dfda19cf195bec1c13c811df646b320a5152d9a21"
+    },
+    {
+      "path": "openspec/specs/workflow-contracts/spec.md",
+      "bytes": 39678,
+      "sha256": "729a9b153328524b14c00a8d8ae341f9f6c80662f1b883c7400b002508e952c5"
+    }
+  ],
+  "canonicalContentRecordFormat": "path\\tLF-normalized UTF-8 bytes\\tSHA-256; ordinal path order, LF rows and one final LF",
+  "canonicalContentCount": 14,
+  "canonicalContentBytes": 1635,
+  "canonicalContentSha256": "cee7cd376777d5cc99c42e1de04cd692c7cc8270c85deb9a976ed94b7395baa0"
+}

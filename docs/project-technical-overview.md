@@ -1,193 +1,160 @@
 # OrcaCore — technical overview
 
-This document preserves the detailed repository orientation that previously lived in the root [README.md](../README.md). For a short public summary, goals, **current stage**, and **roadmap**, start at the root README.
+> **Current-source map:** the Section 7 checkpoint is implemented; the post-checkpoint Section 7A
+> gate is closing residual public-surface and test-evidence gaps against
+> [spec 17](specs/17-selected-mode-capability-matrix.md). Internal implementation types named below
+> are not consumer contracts.
 
----
+The exact planned authoring declarations are mirrored in
+[`17-public-authoring-contract.cs`](specs/17-public-authoring-contract.cs). It is normative
+alongside document 17 for signature review; the code map below remains a map of today's tree.
 
-Research-oriented .NET workflow engine focused on in-process orchestration with optional durability, reusable workflow steps, and pluggable infrastructure.
+OrcaCore is a .NET workflow engine focused on composable workflow definitions,
+ephemeral in-process execution, durable event-sourced execution, and pluggable
+provider infrastructure. The active solution and all implementation code are at
+the repository root.
 
-## Two engines (Workflow Orca)
+## Runtime model
 
-The repository explores **two engines** with different backing models:
+The product has two execution modes over application contracts in `OrcaCore` and an internal
+compiler/execution kernel in `OrcaCore.Core`:
 
-1. **State-driven runtime** (`OrcaCore.Abstractions` + `OrcaCore.Runtime`) — two public entry points today:
-   - **`WorkflowEngine`** with **`InMemoryInstanceStore`** — **ephemeral** instances (lost on process exit); suitable for short-lived orchestration.
-   - **`DurableWorkflowEngine`** with **`IWorkflowStore`** — **durable** instances, waits, history/outbox-related persistence, and optional outbox dispatch. Orchestration still advances through **explicit runtime state** persisted as frames and related records (not an append-only domain-event log as the core model).
+1. **Ephemeral** — the internal ephemeral engine executes registered definitions in process;
+   applications compose it through `AddOrcaCoreEphemeralEngine`, `IWorkflowDefinitionRegistry`,
+   and typed handles. Runtime state and waits are lost when the host exits; no durable external
+   ingress acknowledgement is exposed.
+2. **Durable** — the internal durable runtime persists aggregate events, checkpoints, waits, timers,
+   inbox/outbox records, and projections through provider ports. `IWorkflowEventIngress` accepts
+   direct, correlation, definition-fanout, and start-or-deliver routes; the durable driver advances
+   a workflow segment until it completes or yields a restart-safe continuation.
 
-2. **Event-driven prototype** (`OrcaCore.EventDrivenPrototype`) — **`EventDrivenWorkflowEngine`** appends workflow facts to a **per-instance stream**, maintains **checkpoints** and **projections** (summary, active waits, inbox deduplication). Narrow feature slice; see [Event-driven prototype status](architecture/event-driven-prototype-status.md).
+PostgreSQL, SQL Server, and the development/test in-memory provider implement the current
+durable-provider source roles. SQL Server is the third first-release provider and implements the
+complete current split ports with SQL Server-native migration and real-storage certification; the
+deleted provisional SQL Server shape was replaced rather than restored. Broker, Redis, and shared Relational
+source/test roots remain removed, and durable storage providers beyond PostgreSQL and SQL Server
+require a future amendment and complete current certification. Hosting packages register internal
+runtimes, continuation processing, operational services, and telemetry.
 
-See [Quick vs durable event-driven engine — feature matrix](architecture/quick-vs-durable-engine-feature-matrix.md) for a capability-oriented comparison (naming there uses “quick engine” vs “durable event-driven engine”).
+## Approved v1 target boundaries
+
+The refactor is converging on this package direction:
+
+```text
+OrcaCore (application contracts/authoring) <- OrcaCore.Core / engines / durable hosting
+OrcaCore <- OrcaCore.Dag <- OrcaCore.Dag.Hosting <- companion scheduler/application
+OrcaCore.Durable.Hosting <- OrcaCore.Dag.Hosting
+
+OrcaCore.Runtime.Protocol <- OrcaCore.Provider.Abstractions <- provider adapters
+```
+
+This is a dependency-direction summary, not a partial package declaration. The exhaustive v1
+manifest is `OrcaCore`, `OrcaCore.Core`, `OrcaCore.Engine.Ephemeral`,
+`OrcaCore.Runtime.Protocol`, `OrcaCore.Provider.Abstractions`, `OrcaCore.Engine.Durable`,
+`OrcaCore.Durable.Hosting`, `OrcaCore.Providers.InMemory`, `OrcaCore.Providers.PostgreSql`,
+`OrcaCore.Providers.SqlServer`, `OrcaCore.Dag`, and `OrcaCore.Dag.Hosting`; exact direct edges and CLR namespace ownership are
+normative in [`specs/17-selected-mode-capability-matrix.md`](specs/17-selected-mode-capability-matrix.md#175-package-and-integration-boundary).
+`OrcaCore.Hosting` is a shared CLR namespace, not a PackageId.
+
+The source-approved exact nine-product-friend graph keeps implementation types non-public: `OrcaCore`
+grants `OrcaCore.Core`, `OrcaCore.Engine.Ephemeral`, `OrcaCore.Engine.Durable`, and
+`OrcaCore.Dag` for authoring;
+`OrcaCore.Core` grants both engines; `OrcaCore.Engine.Durable` grants
+`OrcaCore.Durable.Hosting`; `OrcaCore.Durable.Hosting` grants `OrcaCore.Dag.Hosting`; and
+`OrcaCore.Dag` grants `OrcaCore.Dag.Hosting` for the exact runtime view.
+Decision 22's authoring-only `OrcaCore -> OrcaCore.Dag` edge covers five compiler-created
+build-value families and a shared fingerprint operation, subject to an exact compiled-member
+guard; Task 8.2 source is independently approved at checkpoint
+`a9f835f939d683500ca231c7ba491ab8eae2aaae`. Exact owning-test friends plus the
+Durable Engine-to-ProviderCertification barrier edge remain closed. `OrcaCore.Dag.Hosting`
+remains the only same-release DAG-to-durable *runtime* bridge; Kubernetes/AWS/job projects
+depend outward and never appear in an OrcaCore signature/dependency closure.
+
+`admit-dag-hosting-runtime-view` independently approves a ninth product friend,
+`OrcaCore.Dag -> OrcaCore.Dag.Hosting`, for three immutable runtime-view types and fifteen
+exact method/getter signatures. Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled and independently source-approved at checkpoint `4eb2e8d3a68e0ae7d873bd4f54c53735beefb132`, with direct-child evidence `2fdfa59a747a5d1d1667abd63a8def88168a172b`, and it exposes
+no delegates, drafts, constructors, test friendship, codec or child-start access to Dag.
+The durable bridge decodes successful committed dependency outputs before mapping and owns
+fixed-codec normalization, exact committed bytes/fingerprints and child start.
+
+Each step attempt runs on a codec-detached copy of committed state and can replace that copy via
+`StepContext<TState>.ReplaceState`; only the winning attempt commits. The first release fixes the
+certified workflow-state format to `orcacore-json-v1`. Durable event identity is global by
+`EventId` plus the full normalized-envelope fingerprint before route evaluation. Accepted events
+remain provider-owned until applied or observably poisoned; definition fanout freezes one stable
+current nonterminal target set and deduplicates independently per target.
+
+Microsoft hosting uses role-specific owners and entry points: `OrcaCore.Engine.Ephemeral` owns
+`AddOrcaCoreEphemeralEngine`; `OrcaCore.Durable.Hosting` owns `AddOrcaCoreDurableEngine` and
+callback-only `AddOrcaCoreDurableEventIngress`; `OrcaCore.Providers.InMemory` owns development/test
+`AddOrcaCoreInMemoryDurableProvider`; `OrcaCore.Providers.PostgreSql` owns production
+`AddOrcaCorePostgreSqlDurableProvider`; `OrcaCore.Providers.SqlServer` owns production
+`AddOrcaCoreSqlServerDurableProvider`; and `OrcaCore.Dag.Hosting` owns `AddOrcaCoreDag`. Options
+are programmatically constructed, copied, and validated without a binder facade. There is no v1
+catch-all registration or separate hosted-service switch. Workflow-authored `Publish` commits
+through the durable outbox and reaches `IWorkflowEventDispatcher`; internal continuations never do.
+Applications receive no broad workflow enumeration/statistics or public archive/purge contract.
+Provider/operator roles own statistics and retention through `IWorkflowOperationalStore` and
+`IWorkflowProviderMaintenanceStore`.
 
 ## Code map
 
-Use this table when navigating the repo; types are in `src/` unless noted.
+| Area | Location | Notable responsibilities |
+|------|----------|--------------------------|
+| Public application contract | `src/OrcaCore.Abstractions/` (package/assembly `OrcaCore`) | IDs, typed definitions and handles, authoring, steps, application events, results, and detached snapshots. |
+| Internal authoring/runtime kernel | `src/OrcaCore.Core/` | Definition compilation, lifecycle transitions, policies, codecs, and structured-execution machinery shared only with the two engines. |
+| Ephemeral engine | `src/OrcaCore.Engine.Ephemeral/` | Public ephemeral registration/options plus the internal execution loop, wait/event routing, timers, and in-memory lifecycle. |
+| Durable engine | `src/OrcaCore.Engine.Durable/` | Internal aggregate decisions, replay, checkpoint interpretation, command handling, outbox materialization, and continuation signals. |
+| Durable hosting | `src/OrcaCore.Durable.Hosting/` | Public durable engine/ingress registration, management and diagnostics facades, plus internal hosted pumps and operational sweeps. |
+| Provider contract and protocol | `src/OrcaCore.Provider.Abstractions/`, `src/OrcaCore.Runtime.Protocol/` | Advanced split provider ports/commit records and advanced durable wire/storage records; neither is an ordinary application surface. |
+| V1 providers | `src/OrcaCore.Providers.InMemory/`, `src/OrcaCore.Providers.PostgreSql/`, `src/OrcaCore.Providers.SqlServer/` | Development/test in-memory registration plus complete independently certified PostgreSQL and SQL Server production role sets. |
+| DAG boundary | `src/OrcaCore.Dag/`, `src/OrcaCore.Dag.Hosting/` | Reserved v1 DAG packages; Section 8 implementation remains gated. |
+| Tests | `tests/` | Unit, acceptance, hosting, provider certification, integration, and support fixtures. |
+| Samples | `samples/` | Public-API console examples, generic host, and Blazor operations dashboard. |
 
-| Area | Location | Notable types |
-|------|----------|----------------|
-| Step contract & shared models | `OrcaCore.Abstractions/` | `IStep`, `StepContext`, `StepResult`, `EventEnvelope`, `PendingEvent`, `WaitRecord`, `WaitStatus`, `WaitMode`, `WorkflowStatus`, `WorkflowInstanceSnapshot` |
-| Ephemeral engine | `OrcaCore.Runtime/Engine`, `Storage`, `Execution` | `WorkflowEngine`, `InMemoryInstanceStore`, `InstanceScope`, `WorkflowRuntime`, `WorkflowInstance` |
-| Definition builders (ephemeral) | `OrcaCore.Runtime/Builders` | `WorkflowBuilder`, `BranchBuilder`, `ParallelBuilder` |
-| Durable engine | `OrcaCore.Runtime/Durable/Engine` | `DurableWorkflowEngine`, `DurableWorkflowEngineOptions` |
-| Durable definitions | `OrcaCore.Runtime/Durable/Definitions`, `Durable/Builders` | `DurableWorkflowDefinition`, `DurableWorkflowBuilder`, `DurableBranchBuilder`, `DurableParallelBuilder` |
-| Durable persistence contract | `OrcaCore.Runtime/Durable/Persistence` | `IWorkflowStore`, `InMemoryWorkflowStore`, `PersistedInstance`, inbox/outbox/history record types |
-| Durable outbox | `OrcaCore.Runtime/Durable/Outbox` | `DurableOutboxPump`, `IOutboxDispatcher`, `IOutboxPumpObserver`, `IOutboxPumpDelayStrategy` |
-| Durable routing & management | `OrcaCore.Runtime/Durable/Routing`, `Durable/Execution`, `Durable/Querying`, `Durable/Management` | `DurableEventRouter`, `DurableInstanceManager`, `DurableInstanceScope`, retention types |
-| Execution graph nodes | `OrcaCore.Runtime/Execution/Nodes` | `IfNode`, `WhileNode`, `ParallelNode`, `WaitNode`, `WaitLongNode`, `BusinessStepNode`, … |
-| Event-driven prototype | `OrcaCore.EventDrivenPrototype/` | `EventDrivenWorkflowEngine`, `InMemoryPrototypeStore`, `PrototypeCheckpointState`, projections under `Projections/` |
+The repository solution is [`OrcaCore.slnx`](../OrcaCore.slnx), and package
+versions are centrally managed by [`Directory.Packages.props`](../Directory.Packages.props).
 
-Solution file: **`OrcaCore.slnx`** at repository root (no separate `.sln` required for the current layout).
+## Durable execution boundary
 
-## Goals
+The durable aggregate is the consistency root: it rehydrates from provider
+events, applies commands, and returns an atomic commit batch. The command
+processor materializes checkpoints and outbox work; the driver interprets the
+definition from the checkpoint until the next durable boundary. Providers own
+storage and leasing, while hosting owns recurring pump scheduling.
 
-- Build an in-app workflow engine based on reusable steps.
-- Support infrastructure primitives exposed by builders: `Init`, `End`, `If`, `While`, `Parallel` (multi-branch; join semantics covered by acceptance tests), `Wait`, and **`WaitLong` on the durable builder only** (`DurableWorkflowBuilder`).
-- Allow user-defined business steps with async execution.
-- Publish and consume events so waiting workflows can resume when external signals arrive.
-- Support both ephemeral in-memory execution and durable persisted execution.
-- Keep storage and messaging infrastructure replaceable through adapters.
+This separation keeps workflow semantics testable without a database while
+allowing provider certification and Testcontainers-backed integration tests to
+exercise the real persistence boundary.
 
-## Non-goals for the first stage
-
-- Production-ready distributed execution.
-- Full visual designer or DSL editor.
-- Broad connector ecosystem before the core runtime model is stable.
-
-## Core idea
-
-A workflow definition should describe control flow and business steps without being tightly coupled to a specific database or message broker. **How** that definition runs can differ: the quick engine centers on **mutable runtime state and transitions**; the durable event-driven engine centers on **facts appended to a stream** and derived state. In both cases, resumability, event delivery, and storage should remain behind abstractions so providers can vary.
-
-## Architecture note
-
-When a capability can reasonably vary by runtime, infrastructure, or integration boundary, prefer an interface-first and pluggable design over hardcoded internal implementations.
-
-Examples:
-
-- persistence is modeled behind store contracts
-- outbox dispatch is modeled behind `IOutboxDispatcher`
-- automatic outbox pump observability and retry timing are modeled behind `IOutboxPumpObserver` and `IOutboxPumpDelayStrategy`
-- durable runtime behavior is configured through engine options rather than hidden static behavior
-
-This should be the default direction for future extensibility points such as step decorators, retry/timeout policies, messaging adapters, and operational hooks. Use concrete internal implementations only when there is no meaningful extension boundary yet.
-
-## Durable runtime notes
-
-- `Wait` and `WaitLong` are both durable waits, but they differ in residency policy:
-  - `Wait` remains a resident wait when the instance stays hot
-  - `WaitLong` checkpoints and is expected to go cold until resumed
-- durable wait semantics are modeled with two axes:
-  - `WaitStatus` for lifecycle (`Active`, `Matched`, `Cancelled`)
-  - `WaitMode` for residency policy (`Resident`, `Cold`)
-- `Parallel` currently means coordinated sequential branch execution, not true concurrent branch execution
-- automatic outbox replay is available when an `IOutboxDispatcher` is configured, and delivery remains at-least-once
-- durable management operations are available through instance and selection scopes:
-  - delete instance state
-  - purge old inbox/outbox/history artifacts
-- retention policy remains intentionally narrow:
-  - runtime/application code should use `DurableArtifactRetentionPolicy`
-  - explicit cutoff purge remains provider/operator-oriented through the store contract
-  - archival/default operator policy remains a follow-up design area
-
-## Runtime axes
-
-- `Definition semantics`:
-  - regular workflow
-  - saga workflow
-- `Execution mode`:
-  - ephemeral mode
-  - durable mode
-
-## Concepts vs code
-
-**Implemented in this repository**
-
-- **`WorkflowDefinition` / `DurableWorkflowDefinition`** — graph of `IWorkflowNode` steps; durable definitions carry a version string for store registration.
-- **`WorkflowInstance` / `IWorkflowInstance`** — in-memory execution record with **runtime** orchestration metadata (`RuntimeState`) and typed **business** state `TState`.
-- **`IStep` / `StepContext` / `StepResult`** — user-defined async steps; results can complete, publish events, fail, or schedule waits depending on path.
-- **`EventEnvelope`** — normalized inbound event shape (`OrcaCore.Abstractions`); both engines expose `RaiseEvent`-style APIs for correlation/instance routing.
-- **`WorkflowRuntime`** — interprets the node graph for ephemeral instances (`OrcaCore.Runtime`).
-- **`IWorkflowStore`** — durable persistence contract for the **state-driven** engine (instances, frames, waits, inbox/outbox/history as modeled in `Durable/Persistence`).
-
-**Specified in docs / requirements only (not separate types in `src/` yet)**
-
-- **`SagaDefinition`** and saga-specific compensation flows — see [requirements/saga/](requirements/saga/initial/requirements.md).
-- Standalone **`OrcaCore.Persistence`** or **`OrcaCore.Messaging`** assemblies — not present; use `IWorkflowStore` and host-supplied dispatch for outbox delivery.
-
-**Naming note:** older docs may say `StorageProvider` / `EventProvider`; the durable code path centers on **`IWorkflowStore`** plus **`WorkflowEngine` / `DurableWorkflowEngine`** event APIs and **`CorrelationIndex`** / durable router.
-
-## Research questions
-
-1. What is the minimal execution model that supports both short waits and durable long waits without overcomplicating the API?
-2. How should parallel branches be represented so `WhenAll` and `WhenFirst` behave predictably?
-3. Where is the boundary between workflow runtime responsibilities and infrastructure adapter responsibilities?
-4. How should idempotency and exactly-once vs at-least-once semantics be expressed?
-5. What persistence shape best supports resume, replay, and debugging?
-
-## Repository layout (conceptual)
+## Repository layout
 
 ```text
-src/
-  OrcaCore.Abstractions/
-  OrcaCore.Runtime/
-  OrcaCore.EventDrivenPrototype/
-tests/
-  OrcaCore.Tests/
-  OrcaCore.EventDrivenPrototype.Tests/
-docs/
+src/       active production projects
+tests/     unit, acceptance, provider, and integration tests
+samples/   runnable examples and dashboard
+benchmarks/ performance scenarios
+docs/      requirements, plans, architecture, and guides
+archive/legacy-poc/  superseded prototype and original root metadata
 OrcaCore.slnx
 ```
 
-There is no `OrcaCore.Persistence` or `OrcaCore.Messaging` project; durable persistence for the state-driven engine lives under `OrcaCore.Runtime/Durable/Persistence`.
+For API walkthroughs and current verification commands, see the
+[active implementation index](active-implementation-index.md). For intended
+behavior, use the [requirements index](specs/README.md).
 
-## Recommended starting point (documentation)
+<!-- dag-run-contract-proposal:start -->
+#### Approved durable DAG run contract; source pending (2026-10-05)
 
-1. [Documentation map](README.md)
-2. [Requirements tree](requirements/README.md)
-3. [Regular / Initial requirements](requirements/regular/initial/requirements.md)
-4. [Regular / Initial acceptance criteria](requirements/regular/initial/acceptance-criteria.md)
-5. [Design proposal: minimal core](architecture/design-proposal-minimal-core.md)
-6. [Implementation plan: minimal core](plans/implementation-plan-minimal-core.md)
+Propose first-class run persistence/fenced admission with explicitly catalogued advanced ports; existing workflow behavior, application signatures and nine friends stay unchanged.
 
-## Research artifacts
+Full exact independently approved contract: [Task 1.1 RC-3](../openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-run-contract-rc-3-remediation-2026-10-05.md), with its exact API catalog. Earlier contract links below are rejected history. Approved RC-3 checkpoint e6802a3 / evidence 578593e; source pending. The four-block canonical transition is independently approved and checkpointed at 1770b2b, evidence 18bf865, activation 89e3b18. Source/provider slices remain independently reviewed and incomplete.
 
-- [Requirements tree](requirements/README.md)
-- [Regular / Initial requirements](requirements/regular/initial/requirements.md)
-- [Regular / Initial acceptance criteria](requirements/regular/initial/acceptance-criteria.md)
-- [Regular / Advanced requirements](requirements/regular/advanced/requirements.md)
-- [Regular / Advanced acceptance criteria](requirements/regular/advanced/acceptance-criteria.md)
-- [Saga / Initial requirements](requirements/saga/initial/requirements.md)
-- [Saga / Initial acceptance criteria](requirements/saga/initial/acceptance-criteria.md)
-- [Saga / Advanced requirements](requirements/saga/advanced/requirements.md)
-- [Saga / Advanced acceptance criteria](requirements/saga/advanced/acceptance-criteria.md)
-- [Durable / Initial requirements](requirements/durable/initial/requirements.md)
-- [Durable / Initial acceptance criteria](requirements/durable/initial/acceptance-criteria.md)
-- [Durable / Advanced requirements](requirements/durable/advanced/requirements.md)
-- [Durable / Advanced acceptance criteria](requirements/durable/advanced/acceptance-criteria.md)
-- [Design synthesis](architecture/design-synthesis.md)
-- [Workflow kinds and runtime modes](architecture/workflow-kinds-and-runtime-modes.md)
-- [Management command surface](architecture/management-command-surface.md)
-- [Pseudo DSL draft](architecture/pseudo-dsl-draft.md)
-- [Comparative research](research/comparative-research.md)
-- [Deep dive: MassTransit and Stateless](research/deep-dive-masstransit-stateless.md)
-- [Durable Functions patterns](research/durable-functions-patterns.md)
-- [Orleans patterns](research/orleans-patterns.md)
-- [Instance identity, rehydration, and serialized execution](architecture/instance-identity-and-rehydration.md)
-- [Lifecycle, resource management, and operational signals](architecture/lifecycle-resource-management.md)
-- [Workflow Core competitor review](research/workflow-core-competitor-review.md)
-- [Workflow Core issue pattern review](research/workflow-core-issue-pattern-review.md)
-- [Acceptance test matrix](plans/acceptance-test-matrix.md)
-- [Requirements draft](plans/requirements-draft.md)
-- [Project foundation](architecture/project-foundation.md)
-- [Research backlog](research/research-backlog.md)
-- [Event-driven prototype status](architecture/event-driven-prototype-status.md)
+Rejected RC-1 predecessor (resolved lease parts retained by RC-3): Dag.Hosting owns admission/mapping coordination; Durable.Hosting owns bridge-only lease access and role-free committed child-join/cancel coordination. Provider FIFO grants one bounded mutation turn (5s lease, 15s absolute cap), then release before idle/child/capacity waits. New arrivals cannot starve prior joins/cancellation. Expired boot-host observer hints have bounded cleanup; compact changed-node events retain one current full checkpoint, not a full snapshot per event. The earlier linked contract is the rejected predecessor; the superseded rejected contract/API catalog was [RC-1 remediation](../openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-run-contract-rc-1-remediation-2026-10-04.md). No source, canonical sync or new friend is claimed.
 
-## Open design / research follow-ups
+Rejected RC-2 refinement (2026-10-05; superseded by RC-3 below): read/decode/evaluate/normalize immutable inputs outside all lease turns; retain one physical evaluation per node/host and completed receipts across unrelated version conflicts/capacity deferral. Short commit turns only recheck and append. No mapper time budget or expiry failure exists. Exact operational pressure/gauges, provider production/test clocks, same-host FIFO outcomes, explicit captured host-limit parameter, reachable DAG-role cancellation and StartAuthorized-only persisted state were in the rejected RC-2 successor. DG-P19–21 require real-storage evidence before source approval.
+RC-3 approved contract (2026-10-05; source pending): MaxConcurrentNodes remains ONLY the PER-RUN child/start-intent ceiling, never a host-global mapper pool. The distinct internal DagEvaluationParallelismPerRun=1 uses dedicated isolated run lanes and fair round-robin dispatch; a stuck mapper retains its own lane, not another run's permit. Evaluate only the lowest Ready ordinal in the free child window, zero look-ahead, one evaluation OR receipt/run/host; successful admission rechecks authored order under the fence, never mapper-completion order. Cross-host evaluation duplicates are allowed one/run/boot host. A newly Ready lower node invalidates a higher speculative receipt to avoid single-host order deadlock; capacity/time/unrelated versions do not. Non-success joins transitively block descendants. Ready hints ack bounded local wake acceptance before mapping and continuous wrapping discovery recovers acked/lost/poisoned hints. DG-P22–24 require real-storage ordering, isolation and wake/death evidence later, not current acceptance credit. Docs 08 CP-025/027, doc 12 AC-609/611/617 and doc 17's distinct-limit taxonomy keep their existing obligations. No mapper exactly-once promise, new option or friend is introduced. The four reviewed blocks are canonical at 1770b2b; this first uncommitted source slice implements typed stream identity only, not run persistence, mapping, pumps or the durable bridge.
 
-Many baseline behaviors are already covered by `OrcaCore.Tests`; the list below tracks **remaining** product/design questions, not “greenfield” items.
+Transition addendum: [1.3/1.4 P3 dispositions](../openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-3-1-4-rc-3-transition-addendum-2026-10-05.md). Mapping may be evaluated once per run/boot host on competing hosts and after the named precommit invalidation; no exactly-once mapper invocation is promised.
 
-1. Evolve **`Parallel` / join** semantics (and any future `WhenFirst`-style API) and keep ephemeral vs durable aligned.
-2. Harden **idempotency, deduplication, and correlation** rules across stores and hosts (inbox patterns exist on both paths; edge cases remain).
-3. **Lifecycle, timeouts, stuck detection, and eviction** — operational semantics and APIs.
-4. **Saga** model and implementation once saga requirements stabilize.
-5. **Event-driven prototype** — broaden control flow, extract real store contracts from `InMemoryPrototypeStore`, timer/outbox paths.
-6. **Versioning and deployment** for long-running instances across definition upgrades.
-7. Keep [acceptance test matrix](plans/acceptance-test-matrix.md) synchronized with executable tests as features land.
+<!-- dag-run-contract-proposal:end -->

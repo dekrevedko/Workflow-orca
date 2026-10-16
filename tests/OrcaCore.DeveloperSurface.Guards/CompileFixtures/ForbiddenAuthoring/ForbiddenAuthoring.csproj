@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework><EnableDefaultCompileItems>false</EnableDefaultCompileItems></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../../../docs/specs/17-public-authoring-contract.cs" Link="NormativeAuthoringContract.cs" />
+    <Compile Include="../ExactAuthoring/SupportTypes.cs" Link="SupportTypes.cs" />
+    <Compile Include="Forbidden.cs" />
+  </ItemGroup>
+</Project>

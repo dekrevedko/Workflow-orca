@@ -1,0 +1,114 @@
+@page "/"
+@rendermode InteractiveServer
+@inject IHttpClientFactory HttpClientFactory
+@inject NavigationManager Navigation
+
+<PageTitle>OrcaCore Telemetry</PageTitle>
+
+<section class="dashboard-title">
+    <div>
+        <p class="eyebrow">Live process telemetry</p>
+        <h1>OrcaCore BCL signals</h1>
+        @if (snapshot is not null)
+        {
+            <p class="timestamp">Snapshot @FormatTime(snapshot.GeneratedAt)</p>
+        }
+    </div>
+    <div class="toolbar" role="group" aria-label="Dashboard actions">
+        <button class="tool-button" @onclick="RefreshAsync" disabled="@busy">Refresh</button>
+    </div>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(loadError))
+{
+    <section class="panel"><p>@loadError</p></section>
+}
+else if (snapshot is null)
+{
+    <section class="empty-state">Loading process telemetry...</section>
+}
+else
+{
+    <section class="status-strip status-healthy">
+        <div><span class="status-label">Metric series</span><strong>@snapshot.Metrics.Count</strong></div>
+        <div><span class="status-label">Logs</span><strong>@snapshot.Logs.Count</strong></div>
+        <div><span class="status-label">Spans</span><strong>@snapshot.Spans.Count</strong></div>
+    </section>
+
+    <section class="two-column">
+        <div class="panel">
+            <div class="panel-heading"><h2>Metrics</h2><span>@snapshot.Metrics.Count series</span></div>
+            <div class="data-table">
+                @foreach (var metric in snapshot.Metrics)
+                {
+                    <div class="data-row">
+                        <strong>@metric.Name</strong>
+                        <code>@metric.Tags</code>
+                        <span>@metric.Sum.ToString("0.###")</span>
+                        <time>@FormatTime(metric.LastSeen)</time>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-heading"><h2>Traces</h2><span>@snapshot.Spans.Count spans</span></div>
+            <div class="data-table compact">
+                @foreach (var span in snapshot.Spans)
+                {
+                    <div class="data-row">
+                        <strong>@span.Name</strong>
+                        <span>@span.Duration.TotalMilliseconds.ToString("0.#") ms</span>
+                        <code>@span.TraceId</code>
+                    </div>
+                }
+            </div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-heading"><h2>Logs</h2><span>@snapshot.Logs.Count recent</span></div>
+        <div class="log-list">
+            @foreach (var log in snapshot.Logs)
+            {
+                <article class="log-entry">
+                    <div><span>@log.Level</span><strong>@log.Message</strong></div>
+                    <time>@FormatTime(log.Timestamp)</time>
+                    <code>@log.Category #@log.EventId</code>
+                </article>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    private DashboardSnapshot? snapshot;
+    private bool busy;
+    private string? loadError;
+
+    protected override Task OnInitializedAsync() => RefreshAsync();
+
+    private async Task RefreshAsync()
+    {
+        busy = true;
+        loadError = null;
+        try
+        {
+            using var client = HttpClientFactory.CreateClient();
+            snapshot = await client.GetFromJsonAsync<DashboardSnapshot>(
+                Navigation.ToAbsoluteUri("/api/dashboard/snapshot"),
+                CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            loadError = exception.Message;
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private static string FormatTime(DateTimeOffset value) =>
+        value.ToLocalTime().ToString("HH:mm:ss");
+}

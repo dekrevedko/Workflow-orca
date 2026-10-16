@@ -1,0 +1,594 @@
+{
+  "schemaVersion": 1,
+  "recoveryCheckpoint": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
+  "productionTarget": "76d6b4b91456177db44dabd6e7ee519e17ae8d2d",
+  "allowedDispositions": [
+    "Remove",
+    "ReplaceOrRelocate",
+    "Defer",
+    "DeadOrDuplicate"
+  ],
+  "expectedCounts": {
+    "families": 24,
+    "physicallyDeletedPaths": 134,
+    "compileExcludedEntries": 1,
+    "orphanedProductionRoots": 0,
+    "retiredPackageArtifacts": 5,
+    "symbolInventories": 4
+  },
+  "symbolInventories": [
+    {
+      "id": "retired-public-symbols",
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs",
+      "field": "ForbiddenPublicSymbols",
+      "kind": "PublicOrMember",
+      "expectedCount": 122,
+      "orderedSha256": "302b74d5ac5d52ddb2586002454f1f6771c37896beb643499b854ae85645c3a4",
+      "owner": "task:7.17",
+      "evidence": "test:tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs#RemovedDeferredAndWrongOwnerPublicSymbols_AreAbsentBeforeBaselineApproval"
+    },
+    {
+      "id": "removed-step-result-placeholders",
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs",
+      "field": "RequiredRemovedPlaceholders",
+      "kind": "InternalMetadata",
+      "expectedCount": 4,
+      "orderedSha256": "9fb1bf307b4de714a03d16cba386b15b92e4c491ff44938f231c1ff1f41f6999",
+      "owner": "task:7.18",
+      "evidence": "test:tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs#RemovedInternalStepResultPlaceholderInventory_IsExactAndAbsentFromProductMetadata"
+    },
+    {
+      "id": "forbidden-internal-bridges",
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs",
+      "field": "ForbiddenMetadataTypes",
+      "kind": "InternalMetadata",
+      "expectedCount": 9,
+      "orderedSha256": "ed46d4c76ef8b7647332143c535e54f15689639aa2ba1f3aa677a993244e2fe0",
+      "owner": "task:7.17",
+      "evidence": "test:tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs#RemovedCapabilitiesAndConstructionHelpers_HaveNoProductMetadataType"
+    },
+    {
+      "id": "removed-hosting-and-codec-types",
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs",
+      "field": "ForbiddenManifestWideTypeNames",
+      "kind": "PublicTypeAcrossManifest",
+      "expectedCount": 3,
+      "orderedSha256": "98ba842373d8d40fc020684a59e91e4c12f742a53b5d9c9fbabbe17d9dba1918",
+      "owner": "task:7.19",
+      "evidence": "test:tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs#PackedConsumerNegativeFixture_CoversEveryForbiddenSymbolExactlyOnce"
+    }
+  ],
+  "families": [
+    {
+      "id": "runtime-protocol-relocation",
+      "disposition": "ReplaceOrRelocate",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "developer-facing-surface::Durable application use is protocol-free"
+      ],
+      "owner": "active:OrcaCore.Runtime.Protocol",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Abstractions/Durable"],
+      "successorPaths": ["src/OrcaCore.Runtime.Protocol/Durable"],
+      "symbolFamilies": ["durable continuation/envelope/park records", "runtime commands and facts", "runtime wait mode"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/FacadeHostingContractGuards.cs#PublicApi_ExportsTheExactOwnedSection7BTypesAndNoSupersededClient"],
+      "deletedPaths": [
+        "src/OrcaCore.Abstractions/Durable/DurableContinuationSignal.cs",
+        "src/OrcaCore.Abstractions/Durable/DurableExecutionEnvelopeV2.cs",
+        "src/OrcaCore.Abstractions/Durable/DurableParkReason.cs",
+        "src/OrcaCore.Abstractions/Durable/WorkflowCommand.cs",
+        "src/OrcaCore.Abstractions/Durable/WorkflowEvent.cs",
+        "src/OrcaCore.Abstractions/Instances/WaitMode.cs"
+      ]
+    },
+    {
+      "id": "application-project-relocation",
+      "disposition": "ReplaceOrRelocate",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "repository-foundation::Package topology and ownership are exact"
+      ],
+      "owner": "active:OrcaCore",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Abstractions/OrcaCore.Abstractions.csproj"],
+      "successorPaths": ["src/OrcaCore.Abstractions/OrcaCore.csproj"],
+      "symbolFamilies": ["application assembly project identity"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/NormativeContractGuards.cs#ProductProjects_DeclareExactPackageIdAssemblyNameAndRowScopedEdges"],
+      "deletedPaths": ["src/OrcaCore.Abstractions/OrcaCore.Abstractions.csproj"]
+    },
+    {
+      "id": "provider-contract-relocation",
+      "disposition": "ReplaceOrRelocate",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "developer-facing-surface::Public interfaces are tiered by caller role"
+      ],
+      "owner": "active:OrcaCore.Provider.Abstractions",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Abstractions/Providers"],
+      "successorPaths": ["src/OrcaCore.Provider.Abstractions", "src/OrcaCore.Runtime.Protocol/Serialization"],
+      "symbolFamilies": ["provider ports and commits", "resource-pool store records", "runtime protocol JSON framing"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/ProviderAuthorGuards.cs#ExactProviderAuthoringProjects_ExistForTheFixtureToCompileAgainst"],
+      "deletedPaths": [
+        "src/OrcaCore.Abstractions/Providers/EventStoreConflict.cs",
+        "src/OrcaCore.Abstractions/Providers/IResourcePoolStore.cs",
+        "src/OrcaCore.Abstractions/Providers/ProviderCommitContracts.cs",
+        "src/OrcaCore.Abstractions/Providers/ProviderPorts.cs",
+        "src/OrcaCore.Abstractions/Providers/ResourcePoolModels.cs",
+        "src/OrcaCore.Abstractions/Serialization/OrcaCoreJsonSerializerContext.cs",
+        "src/OrcaCore.Abstractions/Serialization/WorkflowEventCodec.cs"
+      ]
+    },
+    {
+      "id": "provider-retention-capability-replacement",
+      "disposition": "ReplaceOrRelocate",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "durable-persistence-and-outbox::Retention and purge preserve runtime correctness"
+      ],
+      "owner": "active:OrcaCore.Provider.Abstractions+OrcaCore.Providers.InMemory+OrcaCore.Providers.PostgreSql",
+      "recoveryPaths": [
+        "git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Abstractions/Providers/ArchiveResult.cs",
+        "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Provider.Abstractions/RetentionPolicy.cs"
+      ],
+      "successorPaths": [
+        "src/OrcaCore.Provider.Abstractions/WorkflowProviderMaintenance.cs",
+        "src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs",
+        "src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.Retention.cs"
+      ],
+      "symbolFamilies": ["archive/purge application vocabulary", "provider-owned retention policy and cleanup reachability"],
+      "executableEvidence": [
+        "test:tests/OrcaCore.ProviderCertification/OperationalMaintenanceCertification.cs#RunAsync",
+        "test:tests/OrcaCore.Hosting.Tests/OperationalTelemetryAndMaintenanceTests.cs#DurableHost_UsesProviderOwnedOperationalAndMaintenancePorts"
+      ],
+      "deletedPaths": [
+        "src/OrcaCore.Abstractions/Providers/ArchiveResult.cs",
+        "src/OrcaCore.Abstractions/Providers/PurgeResult.cs",
+        "src/OrcaCore.Abstractions/Providers/RetentionPolicy.cs",
+        "src/OrcaCore.Provider.Abstractions/ArchiveResult.cs",
+        "src/OrcaCore.Provider.Abstractions/PurgeResult.cs",
+        "src/OrcaCore.Provider.Abstractions/RetentionPolicy.cs"
+      ]
+    },
+    {
+      "id": "saga-recovery-source",
+      "disposition": "Defer",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "saga-orchestration::Saga remains an explicit deferred capability"
+      ],
+      "owner": "task:9.6",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Core/Building/SagaBuilder.cs", "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Engine.Durable/Aggregates/DurableSagaState.cs"],
+      "successorPaths": [],
+      "symbolFamilies": ["Saga authoring/definition", "Saga command adapter", "Saga audit/progression recovery source"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs#RemovedDeferredAndWrongOwnerPublicSymbols_AreAbsentBeforeBaselineApproval"],
+      "deletedPaths": [
+        "src/OrcaCore.Core/Building/SagaBuilder.cs",
+        "src/OrcaCore.Core/Definitions/SagaDefinition.cs",
+        "src/OrcaCore.Engine.Durable/Execution/DurableSagaCommandAdapter.cs",
+        "src/OrcaCore.Abstractions/Instances/SagaAuditSnapshot.cs",
+        "src/OrcaCore.Engine.Durable/Aggregates/DurableSagaCommandHandler.cs",
+        "src/OrcaCore.Engine.Durable/Aggregates/DurableSagaState.cs"
+      ]
+    },
+    {
+      "id": "public-children-and-external-jobs-recovery-source",
+      "disposition": "Defer",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "developer-facing-surface::Deferred capabilities are documented without public placeholders"
+      ],
+      "owner": "task:9.6",
+      "recoveryPaths": ["git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Engine.Durable/Aggregates/DurableChildWorkflowState.cs", "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Engine.Durable/Aggregates/DurableExternalJobState.cs"],
+      "successorPaths": [],
+      "symbolFamilies": ["public child policies and runtime state", "generic external-job runtime state"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs#RemovedDeferredAndWrongOwnerPublicSymbols_AreAbsentBeforeBaselineApproval"],
+      "deletedPaths": [
+        "src/OrcaCore.Abstractions/Durable/RunChildFailurePolicy.cs",
+        "src/OrcaCore.Abstractions/Durable/RunChildrenPolicies.cs",
+        "src/OrcaCore.Engine.Durable/Aggregates/DurableChildWorkflowCommandHandler.cs",
+        "src/OrcaCore.Engine.Durable/Aggregates/DurableChildWorkflowState.cs",
+        "src/OrcaCore.Engine.Durable/Aggregates/DurableExternalJobCommandHandler.cs",
+        "src/OrcaCore.Engine.Durable/Aggregates/DurableExternalJobState.cs",
+        "src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Children.cs"
+      ]
+    },
+    {
+      "id": "workflow-authoring-builder-replacement",
+      "disposition": "ReplaceOrRelocate",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "developer-facing-surface::First-release authoring is a complete positive allowlist"
+      ],
+      "owner": "active:OrcaCore.Core",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Core/Building/WorkflowBuilder.cs"],
+      "successorPaths": ["src/OrcaCore.Core/Building/PublicWorkflowDefinitions.cs", "src/OrcaCore.Abstractions/Authoring"],
+      "symbolFamilies": ["legacy monolithic workflow builder"],
+      "executableEvidence": ["test:tests/OrcaCore.Engine.Durable.Tests/Facade/DurableWorkflowCatalogTests.cs#Builder_StagesBothDefinitionShapesAndExactReferencesResolve"],
+      "deletedPaths": ["src/OrcaCore.Core/Building/WorkflowBuilder.cs"]
+    },
+    {
+      "id": "dag-authoring-and-runner-relocation",
+      "disposition": "Defer",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "durable-runtime::Durable DAG progression is runtime owned"
+      ],
+      "owner": "task:8.5",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Core/Building/WorkflowDagBuilder.cs", "git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Engine.Durable/Execution/DurableDagRunner.cs"],
+      "successorPaths": ["src/OrcaCore.Dag", "src/OrcaCore.Dag.Hosting"],
+      "symbolFamilies": ["DAG authoring", "durable DAG scheduling"],
+      "executableEvidence": [
+        "test:tests/OrcaCore.DeveloperSurface.Guards/DagContractGuards.cs#ExactDagAssembliesAndTypesExist",
+        "test:tests/OrcaCore.DeveloperSurface.Guards/ProductionDeletionLedgerGuards.cs#Ledger_RequiredCapabilityGapsStayDeferredToTheirLoadBearingTasks"
+      ],
+      "deletedPaths": ["src/OrcaCore.Core/Building/WorkflowDagBuilder.cs", "src/OrcaCore.Engine.Durable/Execution/DurableDagRunner.cs"]
+    },
+    {
+      "id": "fixed-codec-and-runtime-name-replacement",
+      "disposition": "ReplaceOrRelocate",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "developer-facing-surface::Application values use one fixed certified codec"
+      ],
+      "owner": "active:OrcaCore.Core",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Engine.Durable/Execution/ContentTypeWorkflowPayloadSerializer.cs", "git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Engine.Durable/Execution/DurableRuntimeEventNames.cs"],
+      "successorPaths": ["src/OrcaCore.Core/Internal/CoreWorkflowValueCodec.cs", "src/OrcaCore.Abstractions/Events/WorkflowEventContract.cs"],
+      "symbolFamilies": ["application/provider-selectable payload codec", "content-type serializer hook", "raw runtime event-name constants"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/StateAndCodecContractGuards.cs#Product_HasOneFixedCodecAndTheTypeRegistryCannotChoosePayloadBytes"],
+      "deletedPaths": ["src/OrcaCore.Abstractions/Providers/IWorkflowPayloadCodec.cs", "src/OrcaCore.Engine.Durable/Execution/ContentTypeWorkflowPayloadSerializer.cs", "src/OrcaCore.Engine.Durable/Execution/DurableRuntimeEventNames.cs"]
+    },
+    {
+      "id": "management-and-operational-projection-replacement",
+      "disposition": "ReplaceOrRelocate",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "management-and-querying::Deferred management operations have no placeholder",
+        "durable-persistence-and-outbox::Operational projections expose durable messaging pressure"
+      ],
+      "owner": "active:OrcaCore.Provider.Abstractions+OrcaCore.Engine.Ephemeral",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Engine.Durable/Management", "git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Engine.Ephemeral/Management/EphemeralManagement.cs"],
+      "successorPaths": [
+        "src/OrcaCore.Provider.Abstractions/WorkflowOperationalModels.cs",
+        "src/OrcaCore.Engine.Ephemeral/Diagnostics/OrcaCoreEphemeralDiagnostics.cs"
+      ],
+      "symbolFamilies": ["broad application management/query", "legacy instance/status snapshots", "grouped operational statistics and pressure"],
+      "executableEvidence": [
+        "test:tests/OrcaCore.ProviderCertification/OperationalMaintenanceCertification.cs#RunAsync",
+        "test:tests/OrcaCore.Engine.Ephemeral.Tests/EphemeralOperatorStatisticsTelemetryTests.cs#Start_UpdatesGroupedStatisticsAndCanonicalBclDiagnostics"
+      ],
+      "deletedPaths": [
+        "src/OrcaCore.Abstractions/Instances/ActiveStepSnapshot.cs",
+        "src/OrcaCore.Abstractions/Instances/ActiveWaitSnapshot.cs",
+        "src/OrcaCore.Abstractions/Instances/CompositionBranchOutcomeSnapshot.cs",
+        "src/OrcaCore.Abstractions/Instances/ForEachGroupSnapshot.cs",
+        "src/OrcaCore.Abstractions/Instances/ForEachWorkItemSnapshot.cs",
+        "src/OrcaCore.Abstractions/Instances/ForEachWorkItemStatus.cs",
+        "src/OrcaCore.Abstractions/Instances/LifecycleEventSnapshot.cs",
+        "src/OrcaCore.Abstractions/Instances/WorkflowInstanceSnapshot.cs",
+        "src/OrcaCore.Abstractions/Instances/WorkflowPressureMetrics.cs",
+        "src/OrcaCore.Abstractions/Instances/WorkflowStatistics.cs",
+        "src/OrcaCore.Abstractions/Instances/WorkflowStatisticsGroup.cs",
+        "src/OrcaCore.Abstractions/Instances/WorkflowStatus.cs",
+        "src/OrcaCore.Engine.Durable/Management/DurableManagement.cs",
+        "src/OrcaCore.Engine.Durable/Management/DurableManagementQuery.cs",
+        "src/OrcaCore.Engine.Durable/Management/ProjectionPredicateTranslator.cs",
+        "src/OrcaCore.Engine.Durable/Management/WorkflowInstanceQueryModel.cs",
+        "src/OrcaCore.Engine.Ephemeral/Management/EphemeralManagement.cs"
+      ]
+    },
+    {
+      "id": "ephemeral-state-snapshotter-removal",
+      "disposition": "Remove",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "developer-facing-surface::First-release authoring is a complete positive allowlist"
+      ],
+      "owner": "active:OrcaCore.Engine.Ephemeral",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Engine.Ephemeral/Management/IEphemeralStateSnapshotter.cs"],
+      "successorPaths": [],
+      "symbolFamilies": ["application-replaceable ephemeral state snapshotter"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs#RemovedDeferredAndWrongOwnerPublicSymbols_AreAbsentBeforeBaselineApproval"],
+      "deletedPaths": ["src/OrcaCore.Engine.Ephemeral/Management/IEphemeralStateSnapshotter.cs"]
+    },
+    {
+      "id": "legacy-validation-relocation",
+      "disposition": "ReplaceOrRelocate",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "developer-facing-surface::Strong identity and matching contracts remain distinct"
+      ],
+      "owner": "active:OrcaCore.Core",
+      "recoveryPaths": ["git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Abstractions/Primitives/Validation.cs"],
+      "successorPaths": ["src/OrcaCore.Core/Primitives/InternalValidation.cs", "src/OrcaCore.Abstractions/Ids/StrongValues.cs"],
+      "symbolFamilies": ["internal validation helper", "public strong-value validation"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs#RemovedCapabilitiesAndConstructionHelpers_HaveNoProductSourceBridge"],
+      "deletedPaths": ["src/OrcaCore.Abstractions/Primitives/Validation.cs"]
+    },
+    {
+      "id": "typed-application-construction-boundary",
+      "disposition": "ReplaceOrRelocate",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "developer-facing-surface::Implementation package boundaries use exact internal friends"
+      ],
+      "owner": "active:typed-authoring-and-runtime-contracts",
+      "recoveryPaths": [
+        "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Abstractions/Internal/AuthoringKernelProxy.cs",
+        "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Engine.Ephemeral/EphemeralApplicationContractFactory.cs",
+        "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Engine.Durable/Driver/RuntimeStepContextFactory.cs",
+        "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Engine.Ephemeral/Execution/RuntimeStepContextFactory.cs"
+      ],
+      "successorPaths": [
+        "src/OrcaCore.Abstractions/Internal/TypedAuthoringBoundary.cs",
+        "src/OrcaCore.Core/Building/TypedAuthoringOperations.cs",
+        "src/OrcaCore.Engine.Durable/DurableApplicationContractFactory.cs",
+        "src/OrcaCore.Engine.Durable/Driver/StepContextContracts.cs",
+        "src/OrcaCore.Engine.Ephemeral/EphemeralContractAdapter.cs",
+        "src/OrcaCore.Engine.Ephemeral/Execution/StepContextContracts.cs"
+      ],
+      "symbolFamilies": ["reflection/name-dispatched authoring proxy", "non-public constructor/property reflection factories"],
+      "executableEvidence": [
+        "test:tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs#TypedAuthoringBoundary_UsesClosedGenericOperationsAndNoReflectionNameDispatch",
+        "test:tests/OrcaCore.DeveloperSurface.Guards/NormativeContractGuards.cs#ProductFriendAssemblies_AreExactlyApproved"
+      ],
+      "deletedPaths": [
+        "src/OrcaCore.Abstractions/Internal/AuthoringKernelProxy.cs",
+        "src/OrcaCore.Engine.Durable/Driver/RuntimeStepContextFactory.cs",
+        "src/OrcaCore.Engine.Ephemeral/EphemeralApplicationContractFactory.cs",
+        "src/OrcaCore.Engine.Ephemeral/Execution/RuntimeStepContextFactory.cs"
+      ]
+    },
+    {
+      "id": "catch-all-hosting-package-removal",
+      "disposition": "Remove",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "developer-facing-surface::Hosting registration selects execution mode explicitly",
+        "developer-facing-surface::Package distribution preserves tier boundaries"
+      ],
+      "owner": "active:mode-specific-hosting",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Hosting"],
+      "successorPaths": ["src/OrcaCore.Engine.Ephemeral/Hosting", "src/OrcaCore.Durable.Hosting"],
+      "symbolFamilies": ["catch-all host registration/options", "host-owned OpenTelemetry SDK facade", "application serializer replacement hook"],
+      "executableEvidence": ["test:tests/OrcaCore.Hosting.Tests/PublicSurfaceBoundaryTests.cs#DurableHosting_ExportsOnlyTheDocumentedOptionsContractsAndExtension", "test:tests/OrcaCore.Hosting.Tests/WorkflowPayloadSerializationRegistrationTests.cs#ProductSurface_HasNoSerializerReplacementHook"],
+      "deletedPaths": [
+        "src/OrcaCore.Hosting/OrcaCore.Hosting.csproj",
+        "src/OrcaCore.Hosting/OrcaCoreHostedServiceOptions.cs",
+        "src/OrcaCore.Hosting/OrcaCoreOpenTelemetryServiceCollectionExtensions.cs",
+        "src/OrcaCore.Hosting/OrcaCoreServiceCollectionExtensions.cs",
+        "src/OrcaCore.Hosting/Properties/AssemblyInfo.cs",
+        "src/OrcaCore.Hosting/WorkflowPayloadSerializationOptions.cs"
+      ],
+      "packageArtifacts": ["OrcaCore.Hosting"]
+    },
+    {
+      "id": "durable-hosted-loop-relocation",
+      "disposition": "ReplaceOrRelocate",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "developer-facing-surface::Infrastructure integrations depend outward from OrcaCore"
+      ],
+      "owner": "active:OrcaCore.Durable.Hosting",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Hosting/Services"],
+      "successorPaths": ["src/OrcaCore.Durable.Hosting/Services"],
+      "symbolFamilies": ["continuation/outbox/timer/operational hosted loops", "host failure boundary and logging"],
+      "executableEvidence": ["test:tests/OrcaCore.Hosting.Tests/OrcaCoreHostingServiceCollectionTests.cs#RoleSpecificEngineRegistration_ValidatesImmediatelyAndDurableIncludesProgressionLoops"],
+      "deletedPaths": [
+        "src/OrcaCore.Hosting/Services/HostedServiceFailureBoundary.cs",
+        "src/OrcaCore.Hosting/Services/OrcaCoreContinuationPumpHostedService.cs",
+        "src/OrcaCore.Hosting/Services/OrcaCoreHostedServiceLog.cs",
+        "src/OrcaCore.Hosting/Services/OrcaCoreOperationalSweepHostedService.cs",
+        "src/OrcaCore.Hosting/Services/OrcaCoreOutboxPumpHostedService.cs",
+        "src/OrcaCore.Hosting/Services/OrcaCoreTimerHostedService.cs"
+      ]
+    },
+    {
+      "id": "bcl-telemetry-relocation",
+      "disposition": "ReplaceOrRelocate",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "durable-persistence-and-outbox::Operational projections expose durable messaging pressure"
+      ],
+      "owner": "active:OrcaCore.Engine.Durable+OrcaCore.Engine.Ephemeral+OrcaCore.Durable.Hosting",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Hosting/Telemetry"],
+      "successorPaths": [
+        "src/OrcaCore.Engine.Durable/Diagnostics/OrcaCoreDurableDiagnostics.cs",
+        "src/OrcaCore.Engine.Ephemeral/Diagnostics/OrcaCoreEphemeralDiagnostics.cs",
+        "src/OrcaCore.Durable.Hosting/Diagnostics/DurableRuntimeTelemetryObserver.cs"
+      ],
+      "symbolFamilies": ["BCL meters/activities/logging", "operator gauge collection", "runtime telemetry observer"],
+      "executableEvidence": [
+        "test:tests/OrcaCore.DeveloperSurface.Guards/OperationalTelemetryContractGuards.cs#DiagnosticSourceCatalog_ListsEveryRuntimeAndSelectedProviderOwner",
+        "test:tests/OrcaCore.DeveloperSurface.Guards/OperationalTelemetryContractGuards.cs#ProviderSourcesAndEngineListenerEvidence_AreCompleteAndReflectionFree",
+        "test:tests/OrcaCore.DeveloperSurface.Guards/OperationalTelemetryContractGuards.cs#Product_EmitsTheExactBclSpanAndStructuredLogFamiliesWithoutAnSdkDependency"
+      ],
+      "deletedPaths": [
+        "src/OrcaCore.Hosting/Telemetry/OrcaCoreOpenTelemetryOptions.cs",
+        "src/OrcaCore.Hosting/Telemetry/OrcaCoreTelemetryGaugeCollector.cs",
+        "src/OrcaCore.Hosting/Telemetry/OrcaCoreTelemetryInstruments.cs",
+        "src/OrcaCore.Hosting/Telemetry/OrcaCoreTelemetryObserver.cs"
+      ]
+    },
+    {
+      "id": "postgresql-greenfield-schema-consolidation",
+      "disposition": "ReplaceOrRelocate",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "durable-persistence-and-outbox::Provider implementations certify messaging ownership parity"
+      ],
+      "owner": "active:OrcaCore.Providers.PostgreSql",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Providers.PostgreSql/Migrations/007_resource_ownership.sql"],
+      "successorPaths": ["src/OrcaCore.Providers.PostgreSql/Migrations/001_initial.sql"],
+      "symbolFamilies": ["all PostgreSQL compatibility DDL and incremental first-release migrations"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/InfrastructureGuards.cs#RelationalSchemas_ContainNoCompatibilityAlterTableStatements", "test:tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlProviderCertificationTests.cs#InitializeAsync_AppliesRelationalSqlMigrations"],
+      "deletedPaths": [
+        "src/OrcaCore.Providers.PostgreSql/Migrations/002_claim_leases.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/003_start_idempotency.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/004_stream_version.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/005_checkpoint_runtime_state.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/006_outbox_kind.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/007_resource_governance.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/007_resource_ownership.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/008_global_event_ingress.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/009_pending_event_inbox.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/010_inbox_handoff_scan.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/011_definition_fanout_inbox.sql",
+        "src/OrcaCore.Providers.PostgreSql/Migrations/012_pending_start_intents.sql"
+      ]
+    },
+    {
+      "id": "postgresql-registration-relocation",
+      "disposition": "ReplaceOrRelocate",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "developer-facing-surface::Provider registration names the adapter role"
+      ],
+      "owner": "active:OrcaCore.Providers.PostgreSql",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Providers.PostgreSql/OrcaCorePostgreSqlServiceCollectionExtensions.cs"],
+      "successorPaths": ["src/OrcaCore.Providers.PostgreSql/OrcaCorePostgreSqlProviderServiceCollectionExtensions.cs"],
+      "symbolFamilies": ["PostgreSQL provider registration extension"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/NormativeContractGuards.cs#ProductProjects_DeclareExactPackageIdAssemblyNameAndRowScopedEdges"],
+      "deletedPaths": ["src/OrcaCore.Providers.PostgreSql/OrcaCorePostgreSqlServiceCollectionExtensions.cs"]
+    },
+    {
+      "id": "rabbitmq-provider-orphan",
+      "disposition": "Remove",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "developer-facing-surface::Package distribution preserves tier boundaries"
+      ],
+      "owner": "active:application-owned-IWorkflowEventDispatcher-adapters",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Providers.RabbitMq/OrcaCore.Providers.RabbitMq.csproj", "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Providers.RabbitMq"],
+      "successorPaths": ["samples/OrcaCore.SampleHost/BrokerAdapters"],
+      "symbolFamilies": ["RabbitMQ outbound adapter project and package"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/InfrastructureGuards.cs#ExactV1Manifest_HasNoOrphanedProviderSourcesTestsOrSdkVersions", "test:tests/OrcaCore.DeveloperSurface.Guards/PackageConsumerGuards.cs#BrokerAdapterExamples_UseOnlyTheApplicationIngressAndDispatcherBoundary"],
+      "deletedPaths": ["src/OrcaCore.Providers.RabbitMq/OrcaCore.Providers.RabbitMq.csproj"],
+      "closureDeletedPaths": [
+        "src/OrcaCore.Providers.RabbitMq/Diagnostics/OrcaCoreRabbitMqProviderDiagnostics.cs",
+        "src/OrcaCore.Providers.RabbitMq/IRabbitMqPublisher.cs",
+        "src/OrcaCore.Providers.RabbitMq/OrcaCoreRabbitMqServiceCollectionExtensions.cs",
+        "src/OrcaCore.Providers.RabbitMq/RabbitMqClientPublisher.cs",
+        "src/OrcaCore.Providers.RabbitMq/RabbitMqMessageDispatcher.cs",
+        "src/OrcaCore.Providers.RabbitMq/RabbitMqMessageDispatcherOptions.cs",
+        "src/OrcaCore.Providers.RabbitMq/RabbitMqOutboundMessage.cs",
+        "src/OrcaCore.Providers.RabbitMq/RabbitMqPublishOutcome.cs"
+      ],
+      "resolvedRoots": ["src/OrcaCore.Providers.RabbitMq", "tests/OrcaCore.Providers.RabbitMq.Tests"],
+      "packageArtifacts": ["OrcaCore.Providers.RabbitMq"]
+    },
+    {
+      "id": "redis-provider-orphan",
+      "disposition": "Remove",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "developer-facing-surface::Package distribution preserves tier boundaries"
+      ],
+      "owner": "active:docs/specs/13-phasing-and-open-questions.md#13.4",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Providers.Redis/OrcaCore.Providers.Redis.csproj", "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Providers.Redis"],
+      "successorPaths": [],
+      "symbolFamilies": ["Redis projection adapter project and package"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/InfrastructureGuards.cs#ExactV1Manifest_HasNoOrphanedProviderSourcesTestsOrSdkVersions"],
+      "deletedPaths": ["src/OrcaCore.Providers.Redis/OrcaCore.Providers.Redis.csproj"],
+      "closureDeletedPaths": [
+        "src/OrcaCore.Providers.Redis/Diagnostics/OrcaCoreRedisProviderDiagnostics.cs",
+        "src/OrcaCore.Providers.Redis/OrcaCoreRedisServiceCollectionExtensions.cs",
+        "src/OrcaCore.Providers.Redis/RedisProjectionStore.cs",
+        "src/OrcaCore.Providers.Redis/RedisProviderProfile.cs"
+      ],
+      "resolvedRoots": ["src/OrcaCore.Providers.Redis", "tests/OrcaCore.Providers.Redis.Tests"],
+      "packageArtifacts": ["OrcaCore.Providers.Redis"]
+    },
+    {
+      "id": "relational-provider-orphan",
+      "disposition": "ReplaceOrRelocate",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "developer-facing-surface::Package distribution preserves tier boundaries"
+      ],
+      "owner": "active:OrcaCore.Providers.PostgreSql/Internal",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Providers.Relational/OrcaCore.Providers.Relational.csproj", "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Providers.Relational"],
+      "successorPaths": ["src/OrcaCore.Providers.PostgreSql/Internal"],
+      "symbolFamilies": ["shared relational migration helper project and package"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/InfrastructureGuards.cs#ExactV1Manifest_HasNoOrphanedProviderSourcesTestsOrSdkVersions", "test:tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlProviderCertificationTests.cs#InitializeAsync_AppliesRelationalSqlMigrations"],
+      "deletedPaths": [
+        "src/OrcaCore.Providers.Relational/EmbeddedSqlMigrations.cs",
+        "src/OrcaCore.Providers.Relational/OrcaCore.Providers.Relational.csproj",
+        "src/OrcaCore.Providers.Relational/RelationalMigration.cs",
+        "src/OrcaCore.Providers.Relational/RelationalMigrationRunner.cs"
+      ],
+      "closureDeletedPaths": ["src/OrcaCore.Providers.Relational/Diagnostics/OrcaCoreRelationalProviderDiagnostics.cs"],
+      "resolvedRoots": ["src/OrcaCore.Providers.Relational"],
+      "packageArtifacts": ["OrcaCore.Providers.Relational"]
+    },
+    {
+      "id": "sqlserver-provider-orphan",
+      "disposition": "ReplaceOrRelocate",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "durable-persistence-and-outbox::Provider implementations certify messaging ownership parity"
+      ],
+      "owner": "active:OrcaCore.Providers.SqlServer",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj", "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Providers.SqlServer"],
+      "successorPaths": ["src/OrcaCore.Providers.SqlServer", "tests/OrcaCore.Providers.SqlServer.Tests"],
+      "symbolFamilies": ["SQL Server provider project/package", "SQL Server resource-ownership migration"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/InfrastructureGuards.cs#SqlServerReentry_IsCoherentAndOwnsTheCompleteCurrentProviderSlice", "test:tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderInfrastructureTests.cs#Restart_RehydratesCommittedWorkflowStateFromSqlServer", "test:tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderInfrastructureTests.cs#CompetingHosts_SerializeTheSameExpectedVersionAcrossIndependentStores"],
+      "deletedPaths": ["src/OrcaCore.Providers.SqlServer/Migrations/008_resource_ownership.sql"],
+      "closureDeletedPaths": [
+        "src/OrcaCore.Providers.SqlServer/Diagnostics/OrcaCoreSqlServerProviderDiagnostics.cs",
+        "src/OrcaCore.Providers.SqlServer/Migrations/002_claim_leases.sql",
+        "src/OrcaCore.Providers.SqlServer/Migrations/003_resource_pools.sql",
+        "src/OrcaCore.Providers.SqlServer/Migrations/004_history_projections.sql",
+        "src/OrcaCore.Providers.SqlServer/Migrations/005_stream_version.sql",
+        "src/OrcaCore.Providers.SqlServer/Migrations/006_checkpoint_runtime_state.sql",
+        "src/OrcaCore.Providers.SqlServer/Migrations/007_outbox_kind.sql",
+        "src/OrcaCore.Providers.SqlServer/OrcaCoreSqlServerServiceCollectionExtensions.cs",
+        "src/OrcaCore.Providers.SqlServer/SqlServerProjectionQueryBuilder.cs",
+        "src/OrcaCore.Providers.SqlServer/SqlServerResourcePoolStore.cs",
+        "src/OrcaCore.Providers.SqlServer/SqlServerRetentionStore.cs",
+        "src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.Projections.cs",
+        "src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.Timers.cs",
+        "src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStore.cs",
+        "src/OrcaCore.Providers.SqlServer/SqlServerWorkflowStoreMigrations.cs"
+      ]
+    },
+    {
+      "id": "zeromq-provider-orphan",
+      "disposition": "Remove",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "developer-facing-surface::Package distribution preserves tier boundaries"
+      ],
+      "owner": "active:application-owned-IWorkflowEventDispatcher-adapters",
+      "recoveryPaths": ["git:d76192f089dd07f68e310c21fe4e5a38dd93cf7f:src/OrcaCore.Providers.ZeroMq/OrcaCore.Providers.ZeroMq.csproj", "git:76d6b4b91456177db44dabd6e7ee519e17ae8d2d:src/OrcaCore.Providers.ZeroMq"],
+      "successorPaths": ["samples/OrcaCore.SampleHost/BrokerAdapters"],
+      "symbolFamilies": ["ZeroMQ outbound adapter project and package"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/InfrastructureGuards.cs#ExactV1Manifest_HasNoOrphanedProviderSourcesTestsOrSdkVersions", "test:tests/OrcaCore.DeveloperSurface.Guards/PackageConsumerGuards.cs#BrokerAdapterExamples_UseOnlyTheApplicationIngressAndDispatcherBoundary"],
+      "deletedPaths": ["src/OrcaCore.Providers.ZeroMq/OrcaCore.Providers.ZeroMq.csproj"],
+      "closureDeletedPaths": [
+        "src/OrcaCore.Providers.ZeroMq/Diagnostics/OrcaCoreZeroMqProviderDiagnostics.cs",
+        "src/OrcaCore.Providers.ZeroMq/IZeroMqPublisher.cs",
+        "src/OrcaCore.Providers.ZeroMq/NetMqPublisher.cs",
+        "src/OrcaCore.Providers.ZeroMq/ZeroMqMessageDispatcher.cs",
+        "src/OrcaCore.Providers.ZeroMq/ZeroMqMessageDispatcherOptions.cs",
+        "src/OrcaCore.Providers.ZeroMq/ZeroMqOutboundMessage.cs",
+        "src/OrcaCore.Providers.ZeroMq/ZeroMqPublishOutcome.cs"
+      ],
+      "resolvedRoots": ["src/OrcaCore.Providers.ZeroMq", "tests/OrcaCore.Providers.ZeroMq.Tests"],
+      "packageArtifacts": ["OrcaCore.Providers.ZeroMq"]
+    },
+    {
+      "id": "sample-broker-adapter-project-relocation",
+      "disposition": "ReplaceOrRelocate",
+      "normativeIds": [
+        "quality-and-verification::Every code and test removal has complete burden-of-proof evidence",
+        "developer-facing-surface::Event integration is transport neutral"
+      ],
+      "owner": "active:samples/OrcaCore.SampleHost/BrokerAdapters",
+      "recoveryPaths": ["current:samples/OrcaCore.SampleHost/BrokerAdapters"],
+      "successorPaths": ["samples/OrcaCore.SampleHost/BrokerAdapters/OrcaCore.SampleHost.BrokerAdapters.csproj"],
+      "symbolFamilies": ["broker adapter sample isolated from the parent sample compilation"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/PackageConsumerGuards.cs#BrokerAdapterExamples_UseOnlyTheApplicationIngressAndDispatcherBoundary"],
+      "compileRemoves": [
+        {"project": "samples/OrcaCore.SampleHost/OrcaCore.SampleHost.csproj", "remove": "BrokerAdapters/**/*.cs"}
+      ]
+    }
+  ]
+}

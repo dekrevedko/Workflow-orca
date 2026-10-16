@@ -1,0 +1,71 @@
+name: Publish prerelease
+
+on:
+  push:
+    tags: ["v*-*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Prerelease NuGet version (for example 0.1.0-preview.1)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.version || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Require a prerelease version
+        id: version
+        shell: pwsh
+        env:
+          PACKAGE_VERSION: ${{ inputs.version }}
+          RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: |
+          if ($env:RELEASE_TAG) { $env:PACKAGE_VERSION = $env:RELEASE_TAG.Substring(1) }
+          if ($env:PACKAGE_VERSION -cnotmatch '^\d+\.\d+\.\d+-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*$') {
+            throw 'This implementation only publishes prerelease versions.'
+          }
+          "version=$env:PACKAGE_VERSION" >> $env:GITHUB_OUTPUT
+
+  ci:
+    needs: validate
+    uses: ./.github/workflows/ci.yml
+    with:
+      package-version: ${{ needs.validate.outputs.version }}
+
+  publish:
+    needs: [validate, ci]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: orcacore-packages
+          path: packages
+
+      - name: Publish validated packages as a GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PACKAGE_VERSION: ${{ needs.validate.outputs.version }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: >
+          gh release create "v$PACKAGE_VERSION" packages/*.nupkg packages/SHA256SUMS
+          --target "$SOURCE_COMMIT" --prerelease
+          --title "OrcaCore $PACKAGE_VERSION"
+          --notes-file docs/prerelease-notes.md --generate-notes

@@ -1,0 +1,6 @@
+ M openspec/changes/harmonize-downstream-capability-specs/tasks.md
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+?? docs/review/harmonize-downstream-capability-specs-task-8-3-closeout-ttt-1-dirty-manifest-2026-09-26.txt
+?? docs/review/harmonize-downstream-capability-specs-task-8-3-closeout-ttt-1-independent-review-request-2026-09-26.md

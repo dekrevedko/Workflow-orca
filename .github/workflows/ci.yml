@@ -2,15 +2,167 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, "feature/**"]
   pull_request:
     branches: [main, master]
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      package-version:
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
+  unit:
+    name: build + unit tests
+    runs-on: windows-latest
+    steps:
+      - name: Preserve committed line endings for provenance checks
+        run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore OrcaCore.slnx
+
+      - name: Build
+        run: dotnet build OrcaCore.slnx --no-restore -c Release -warnaserror
+
+      - name: Benchmark smoke check
+        run: dotnet run --project benchmarks/OrcaCore.Benchmarks/OrcaCore.Benchmarks.csproj --no-build -c Release -- --smoke
+
+      - name: Unit tests with coverage
+        run: >
+          dotnet test
+          tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj
+          --no-build -c Release --logger trx
+          --collect:"XPlat Code Coverage" --results-directory TestResults &&
+          dotnet test
+          tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj
+          --no-build -c Release --logger trx
+          --collect:"XPlat Code Coverage" --results-directory TestResults &&
+          dotnet test
+          tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj
+          --no-build -c Release --logger trx
+          --collect:"XPlat Code Coverage" --results-directory TestResults &&
+          dotnet test
+          tests/OrcaCore.Acceptance.Tests/OrcaCore.Acceptance.Tests.csproj
+          --no-build -c Release --logger trx
+          --collect:"XPlat Code Coverage" --results-directory TestResults &&
+          dotnet test
+          tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj
+          --no-build -c Release --logger trx
+          --collect:"XPlat Code Coverage" --results-directory TestResults &&
+          dotnet test
+          tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj
+          --no-build -c Release --logger trx
+          --collect:"XPlat Code Coverage" --results-directory TestResults
+
+      - name: Build exact local feed for contract certification
+        shell: pwsh
+        run: ./tests/OrcaCore.DeveloperSurface.Guards/pack-exact-package-feed.ps1 -OutputDirectory artifacts/phase0-packages -NoBuild
+
+      - name: Infrastructure contract guards
+        run: >
+          dotnet test
+          tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj
+          --no-build --no-restore -c Release
+          --filter "Disposition=Infrastructure"
+          --collect:"XPlat Code Coverage"
+          --logger trx --results-directory TestResults
+          -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Include="[OrcaCore.Engine.*]*"
+
+      - name: Authoring lifecycle requirement evidence
+        run: >
+          dotnet test
+          tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj
+          --no-build --no-restore -c Release
+          --filter "Requirement=CR-009a"
+          --logger trx --results-directory TestResults
+
+      - name: Failure provenance requirement evidence
+        run: >
+          dotnet test
+          tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj
+          --no-build --no-restore -c Release
+          --filter "Requirement=CR-014a"
+          --logger trx --results-directory TestResults &&
+          dotnet test
+          tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj
+          --no-build --no-restore -c Release
+          --filter "Requirement=CR-014a"
+          --logger trx --results-directory TestResults &&
+          dotnet test
+          tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj
+          --no-build --no-restore -c Release
+          --filter "Requirement=CR-014a"
+          --logger trx --results-directory TestResults
+
+      - name: Acceptance harmonization evidence
+        run: >
+          dotnet test
+          tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj
+          --no-build --no-restore -c Release
+          --filter "AC=AC-028|AC=AC-029"
+          --logger trx --results-directory TestResults &&
+          dotnet test
+          tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj
+          --no-build --no-restore -c Release
+          --filter "AC=AC-029"
+          --logger trx --results-directory TestResults &&
+          dotnet test
+          tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj
+          --no-build --no-restore -c Release
+          --filter "AC=AC-029"
+          --logger trx --results-directory TestResults
+
+      - name: Install ReportGenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool --version 5.5.11
+
+      - name: Generate core engine coverage report
+        run: ~/.dotnet/tools/reportgenerator -reports:"TestResults/**/coverage.cobertura.xml" -targetdir:"TestResults/CoverageReport" -reporttypes:"Cobertura;MarkdownSummaryGithub" -assemblyfilters:"+OrcaCore.Engine.*"
+
+      - name: Enforce core engine coverage baseline
+        shell: pwsh
+        env:
+          MIN_CORE_ENGINE_LINE_RATE: "0.75"
+        run: |
+          [xml]$coverage = Get-Content "TestResults/CoverageReport/Cobertura.xml"
+          $lineRate = [double]$coverage.coverage.'line-rate'
+          $minimum = [double]$env:MIN_CORE_ENGINE_LINE_RATE
+          if ($lineRate -lt $minimum) {
+            throw "Core engine line coverage $lineRate is below baseline $minimum."
+          }
+
+      - name: Upload unit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-results
+          path: TestResults
+
+  providers:
+    name: container + integration tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -23,5 +175,54 @@ jobs:
       - name: Build
         run: dotnet build OrcaCore.slnx --no-restore -c Release
 
-      - name: Test
-        run: dotnet test OrcaCore.slnx --no-build -c Release --verbosity normal
+      - name: Provider and integration tests
+        run: >
+          dotnet test
+          tests/OrcaCore.Providers.PostgreSql.Tests/OrcaCore.Providers.PostgreSql.Tests.csproj
+          --no-build -c Release --logger trx --results-directory TestResults &&
+          dotnet test
+          tests/OrcaCore.Providers.SqlServer.Tests/OrcaCore.Providers.SqlServer.Tests.csproj
+          --no-build -c Release --logger trx --results-directory TestResults &&
+          dotnet test
+          tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj
+          --no-build -c Release --logger trx --results-directory TestResults
+
+      - name: Upload provider results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: provider-results
+          path: TestResults
+
+  packages:
+    name: pack + clean consumer
+    needs: [unit, providers]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Pack the twelve prerelease packages
+        shell: pwsh
+        env:
+          PACKAGE_VERSION: ${{ inputs.package-version || format('0.1.0-preview.{0}.{1}', github.run_number, github.run_attempt) }}
+        run: ./eng/Pack-Packages.ps1 -Version $env:PACKAGE_VERSION
+
+      - name: Restore and run an external package consumer
+        shell: pwsh
+        env:
+          PACKAGE_VERSION: ${{ inputs.package-version || format('0.1.0-preview.{0}.{1}', github.run_number, github.run_attempt) }}
+        run: ./eng/Test-Packages.ps1 -Version $env:PACKAGE_VERSION
+
+      - name: Upload installable packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: orcacore-packages
+          path: |
+            artifacts/packages/*.nupkg
+            artifacts/packages/SHA256SUMS
+          if-no-files-found: error

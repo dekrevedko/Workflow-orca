@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <PackageId>OrcaCore</PackageId>
+    <Version>0.0.0-negativecontrol</Version>
+    <Description>Deliberately incomplete package used only to prove the Phase 0 product compile gate cannot false-green.</Description>
+    <NoPackageAnalysis>true</NoPackageAnalysis>
+  </PropertyGroup>
+</Project>
