@@ -5,10 +5,29 @@ Durable DAG execution is still incomplete; packaging does not complete the imple
 in the active OpenSpec changes. Start with the ephemeral engine guide or the durable samples.
 
 The [2026-10-16 publishing audit](github-publishing-status.md) records the preparation checks
-and the owner-approved 75% coverage gate. Published packages are listed on the
-[GitHub releases page](https://github.com/dekrevedko/Workflow-orca/releases).
+and the owner-approved 75% coverage gate. Version `0.1.0-preview.1` is available on
+[NuGet.org](https://www.nuget.org/packages/OrcaCore.Engine.Ephemeral/0.1.0-preview.1)
+and as [GitHub release downloads](https://github.com/dekrevedko/Workflow-orca/releases).
 
 ## Install in another project
+
+Install the engine role you need directly from NuGet.org:
+
+```powershell
+dotnet add YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.1
+```
+
+The application contracts package `OrcaCore` and internal kernel are transitive dependencies.
+The [ephemeral guide](ephemeral-engine-developer-guide.md) shows registration and typed workflows.
+For durable applications, reference `OrcaCore.Durable.Hosting` and the selected
+`OrcaCore.Providers.PostgreSql` or `OrcaCore.Providers.SqlServer` package at the same version.
+`OrcaCore.Providers.InMemory` is for development and testing.
+
+The [NuGet.org publishing run](https://github.com/dekrevedko/Workflow-orca/actions/runs/38979035794/attempts/2)
+verified all twelve public versions and their source metadata. A fresh external consumer
+restored exclusively from NuGet.org and ran the typed workflow, returning `42`.
+
+### Install from GitHub release downloads
 
 Download and extract the `orcacore-packages` artifact from a successful CI run, or download all
 twelve `.nupkg` assets and `SHA256SUMS` from a
@@ -23,19 +42,11 @@ dotnet nuget add source C:\packages\OrcaCore --name OrcaCore-local
 dotnet add YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.1
 ```
 
-The application contracts package `OrcaCore` and internal kernel are transitive dependencies.
-The [ephemeral guide](ephemeral-engine-developer-guide.md) shows registration and typed workflows.
-For durable applications, reference `OrcaCore.Durable.Hosting` and the selected
-`OrcaCore.Providers.PostgreSql` or `OrcaCore.Providers.SqlServer` package at the same version.
-`OrcaCore.Providers.InMemory` is for development and testing.
-
 GitHub release downloads work without a package-registry credential. They are a directory feed
 after download; the release URL itself is not a NuGet source.
 
-NuGet.org publication is supported by the release workflow after the owner completes
-[account and trusted publisher setup](nuget-publishing.md). Its final job verifies all
-twelve packages on the public feed before reporting availability. Until that first
-publication succeeds, use the GitHub release download instructions above.
+NuGet.org publication uses [trusted publishing](nuget-publishing.md). Its final job verifies
+all twelve packages on the public feed and runs the clean consumer before reporting availability.
 
 ## Build local packages immediately
 
@@ -55,7 +66,7 @@ This checks package installation and an ephemeral journey, not full provider or 
 
 ## Publish on GitHub
 
-Push the reviewed changes to `feature/v3-rebuild`. CI runs the solution build (including benchmarks),
+Open a pull request against `master`. CI runs the solution build (including benchmarks),
 benchmark smoke checks, unit and acceptance suites, infrastructure contract guards, real PostgreSQL
 and SQL Server tests, and integration tests. It also enforces the 75% engine line-coverage gate.
 Only a successful run can upload the installable package artifact.

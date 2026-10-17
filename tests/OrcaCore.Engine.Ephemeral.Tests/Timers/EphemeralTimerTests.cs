@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Hosting;
@@ -91,9 +92,8 @@ public sealed class EphemeralTimerTests
             () => !engine.IsTimerDispatching,
             "the failed automatic dispatch must release and rearm its due timers");
         clock.Advance(TimeSpan.FromMilliseconds(100));
-        await WaitUntilAsync(
-            () => gate.SecondAttempt.IsCompleted,
-            "the rearmed timer must enter its second continuation attempt");
+        await gate.SecondAttempt.WaitAsync(
+            TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         (await retrying.WaitForOutputAsync(TestContext.Current.CancellationToken)).Should().Be(1);
         (await later.WaitForOutputAsync(TestContext.Current.CancellationToken)).Should().Be(1);
 
@@ -178,7 +178,8 @@ public sealed class EphemeralTimerTests
 
     private static async Task WaitUntilAsync(Func<bool> condition, string because)
     {
-        for (var attempt = 0; attempt < 10_000 && !condition(); attempt++)
+        var started = Stopwatch.GetTimestamp();
+        while (!condition() && Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(10))
         {
             await Task.Factory.StartNew(
                 static () => { },
