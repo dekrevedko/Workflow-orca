@@ -1,0 +1,19 @@
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+?? openspec/changes/add-ephemeral-terminal-retention/.openspec.yaml
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/contract-independent-review-verdict-2026-10-16.md
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/contract-r1-dirty-manifest-2026-10-16.txt
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/contract-r1-occurrence-dispositions-2026-10-16.md
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/contract-r1-occurrence-record-2026-10-16.tsv
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/contract-r1-openspec-provenance-2026-10-16.md
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/contract-r1-provenance-record-2026-10-16.tsv
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/contract-r1-review-request-2026-10-16.md
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/contract-review-request-2026-10-16.md
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/initial-assessment-2026-10-16.md
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/proposed-amendment-route-2026-10-16.json
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/proposed-amendment-route-r1-2026-10-16.json
+?? openspec/changes/add-ephemeral-terminal-retention/design.md
+?? openspec/changes/add-ephemeral-terminal-retention/proposal.md
+?? openspec/changes/add-ephemeral-terminal-retention/specs/developer-facing-surface/spec.md
+?? openspec/changes/add-ephemeral-terminal-retention/specs/management-and-querying/spec.md
+?? openspec/changes/add-ephemeral-terminal-retention/tasks.md

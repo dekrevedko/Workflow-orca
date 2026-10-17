@@ -1,11 +1,24 @@
 {
   "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
-  "recordCount": 184,
-  "recordBytes": 48504,
-  "recordSha256": "fd6ad0449e706d5ecf3f9dab552a9ad5fc3ef1be95df13304afba91e1d9ca8c8",
-  "semanticApprovalEligible": true,
-  "pendingCanonicalOperations": [],
+  "recordCount": 189,
+  "recordBytes": 49579,
+  "recordSha256": "1abed32398a353509dfc7daab037156aaafc0067bd710a78fe5a4cb7820bb127",
+  "semanticApprovalEligible": false,
+  "pendingCanonicalOperations": [
+    {
+      "capability": "developer-facing-surface",
+      "count": 1,
+      "turnsGreenChange": "add-ephemeral-terminal-retention",
+      "turnsGreenTask": "2.2"
+    },
+    {
+      "capability": "management-and-querying",
+      "count": 4,
+      "turnsGreenChange": "add-ephemeral-terminal-retention",
+      "turnsGreenTask": "2.2"
+    }
+  ],
   "activeNewCapabilitiesOutsideCanonical": [
     {
       "capability": "spec-driven-planning",
@@ -172,11 +185,11 @@
     }
   ],
   "capabilityDirectoryRecordFormat": "repository-relative active openspec/changes/*/specs/*/ path with forward slashes and one trailing slash",
-  "capabilityDirectoryCount": 22,
-  "capabilityDirectoryBytes": 1808,
-  "capabilityDirectorySha256": "2869d4ad4541be53adeac5819091605eff85c39b5140abec4438c668ac99b6e2",
-  "artifactPath": "openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-stream-identity-openspec-provenance-2026-10-07.md",
-  "artifactNormalizedSha256": "f2739090a7644767e8de4cb3584d501f84a509b00fa9b2baf5007efc7bbf0333",
+  "capabilityDirectoryCount": 24,
+  "capabilityDirectoryBytes": 1971,
+  "capabilityDirectorySha256": "a50788bb2f903a5903ddee5a494a92421e34c347e3a9b67f8a4c935a009dc03a",
+  "artifactPath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/contract-r1-openspec-provenance-2026-10-16.md",
+  "artifactNormalizedSha256": "833de7f663e22f4faae4c6be66f1f4ca83cb392ed13834a4824957dac2e90ccf",
   "canonicalContents": [
     {
       "path": "openspec/specs/developer-facing-surface/spec.md",
