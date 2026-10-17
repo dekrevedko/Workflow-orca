@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 12,
+  "schemaVersion": 13,
   "requiredStages": [
     "amendment-approval",
     "canonical-open-spec",
@@ -562,7 +562,7 @@
       "id": "ephemeral-retention-developer-facing-surface",
       "owningChange": "add-ephemeral-terminal-retention",
       "capability": "developer-facing-surface",
-      "stage": "ContractApprovedCanonicalReviewPending",
+      "stage": "CanonicalApprovedSourcePending",
       "declaredRequirementCount": 1,
       "pendingCanonicalOperationCount": 0,
       "requirementIdentities": [
@@ -592,7 +592,7 @@
         "5.2",
         "5.3"
       ],
-      "canonicalApprovalEvidencePath": null,
+      "canonicalApprovalEvidencePath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-1-transition-independent-review-verdict-2026-10-16.md",
       "sourceApprovalEvidencePath": null,
       "authoringCompanionDisposition": "ExcludedNoHostingDeclarations"
     },
@@ -600,7 +600,7 @@
       "id": "ephemeral-retention-management-and-querying",
       "owningChange": "add-ephemeral-terminal-retention",
       "capability": "management-and-querying",
-      "stage": "ContractApprovedCanonicalReviewPending",
+      "stage": "CanonicalApprovedSourcePending",
       "declaredRequirementCount": 4,
       "pendingCanonicalOperationCount": 0,
       "requirementIdentities": [
@@ -641,9 +641,19 @@
         "5.2",
         "5.3"
       ],
-      "canonicalApprovalEvidencePath": null,
+      "canonicalApprovalEvidencePath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-1-transition-independent-review-verdict-2026-10-16.md",
       "sourceApprovalEvidencePath": null,
       "authoringCompanionDisposition": "ExcludedNoHostingDeclarations"
     }
-  ]
+  ],
+  "ephemeralRetentionCanonicalEvidence": {
+    "checkpointCommit": "d1d3cf669e966a567155205715ebc53c398875d5",
+    "checkpointParent": "f1eb86e31306d0aab88d8f84d38c925ef2eaf4c7",
+    "checkpointTree": "83a08eaad4511500f482b7beace3a9455678a3ff",
+    "approvalEvidenceCommit": "3eee5165e94ef91a0a1ef6eb4ec4b80ae1ea528f",
+    "verdictPath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-1-transition-independent-review-verdict-2026-10-16.md",
+    "verdictSha256": "67abed678ba58bd72411b79b5ab4276299689197f067123a84acf6f7a19d747a",
+    "artifactPath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-2-canonical-binding-2026-10-17.md",
+    "artifactNormalizedSha256": "9620df73d7809757833560bd51739186c2a58021b511a995dc49364b058b5698"
+  }
 }

@@ -1,0 +1,6 @@
+ M openspec/changes/add-ephemeral-terminal-retention/tasks.md
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-2-binding-dirty-manifest-2026-10-17.txt
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-2-binding-independent-review-request-2026-10-17.md
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-2-canonical-binding-2026-10-17.md
