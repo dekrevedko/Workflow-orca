@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Hosting;
@@ -42,16 +41,12 @@ public sealed class HostGovernanceExecutionTests
 
         (await firstDelivery).Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         (await secondDelivery).Status.Should().Be(EphemeralEventRouteStatus.Accepted);
-        var settlementStarted = Stopwatch.GetTimestamp();
-        while (Stopwatch.GetElapsedTime(settlementStarted) < TimeSpan.FromSeconds(10) &&
-               ((await first.GetSnapshotAsync(TestContext.Current.CancellationToken))
-                   .Status != WorkflowInstanceStatus.Completed ||
-                (await second.GetSnapshotAsync(TestContext.Current.CancellationToken))
-                   .Status != WorkflowInstanceStatus.Completed))
-        {
-            await Task.Delay(1, TestContext.Current.CancellationToken);
-        }
-
+        (await first.WaitForOutputAsync(TestContext.Current.CancellationToken)
+                .AsTask().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken))
+            .Should().Be("step-first");
+        (await second.WaitForOutputAsync(TestContext.Current.CancellationToken)
+                .AsTask().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken))
+            .Should().Be("step-second");
         (await first.GetSnapshotAsync(TestContext.Current.CancellationToken))
             .Status.Should().Be(WorkflowInstanceStatus.Completed);
         (await second.GetSnapshotAsync(TestContext.Current.CancellationToken))
@@ -153,14 +148,14 @@ public sealed class HostGovernanceExecutionTests
         return services.BuildServiceProvider();
     }
 
-    private static EphemeralDefinitionHandle<string> Register(
+    private static EphemeralDefinitionHandle<string, string> Register(
         ServiceProvider provider,
-        EphemeralWorkflowDefinition<string> definition) =>
+        EphemeralWorkflowDefinition<string, string> definition) =>
         provider.GetRequiredService<IWorkflowDefinitionRegistry>()
             .Register(definition)
             .GetHandleOrThrow();
 
-    private static EphemeralWorkflowDefinition<string> Definition(
+    private static EphemeralWorkflowDefinition<string, string> Definition(
         TransientPoolName? pool = null)
     {
         var builder = Workflow.Ephemeral<State>(
@@ -176,11 +171,11 @@ public sealed class HostGovernanceExecutionTests
             builder.WithTransientPool(pool);
         }
 
-        return builder.End().Build();
+        return builder.End(snapshot => snapshot.Value.Correlation).Build();
     }
 
-    private static async Task<WorkflowInstanceHandle> StartWaitingAsync(
-        EphemeralDefinitionHandle<string> handle,
+    private static async Task<WorkflowInstanceHandle<string>> StartWaitingAsync(
+        EphemeralDefinitionHandle<string, string> handle,
         string correlation) =>
         (await handle.StartOrGetAsync(
             correlation,

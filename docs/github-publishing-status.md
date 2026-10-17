@@ -36,13 +36,16 @@ The observation and evidence links are recorded in PR #4.
 The first [NuGet installation-guide CI run](https://github.com/dekrevedko/Workflow-orca/actions/runs/38985196935)
 failed in the timer retry test: its 10,000-iteration polling budget expired after 77 ms.
 Local two-processor coverage repetitions also exposed a throttle test that checked terminal
-completion immediately after event acceptance. The test follow-up uses a ten-second elapsed-time
-deadline for timer observation and waits for both throttled instances to complete before retaining
-the original assertions. Runtime behavior and packages are unchanged.
+completion immediately after event acceptance. The test follow-up bounds dispatcher observation
+by elapsed time, awaits the retry's completion signal, and waits for both throttled instances'
+typed terminal outputs before checking their completed snapshots. All waits have ten-second
+bounds and use scheduler yielding or completion notifications, without wall-clock sleeps.
+Runtime behavior and packages are unchanged.
 The original timer failure did not reproduce in 100 isolated class runs or a temporary
 1,000-scenario loop; these checks do not prove its precise scheduling cause. After the wait changes,
 all 88 ephemeral tests passed twenty consecutive full-suite runs with coverage and two reported
-processors. The temporary diagnostic loop was removed.
+processors; all 19 repository rule checks and 16 source/documentation guards also passed.
+The temporary diagnostic loop was removed.
 
 Issues [#1](https://github.com/dekrevedko/Workflow-orca/issues/1),
 [#2](https://github.com/dekrevedko/Workflow-orca/issues/2), and

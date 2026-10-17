@@ -92,9 +92,8 @@ public sealed class EphemeralTimerTests
             () => !engine.IsTimerDispatching,
             "the failed automatic dispatch must release and rearm its due timers");
         clock.Advance(TimeSpan.FromMilliseconds(100));
-        await WaitUntilAsync(
-            () => gate.SecondAttempt.IsCompleted,
-            "the rearmed timer must enter its second continuation attempt");
+        await gate.SecondAttempt.WaitAsync(
+            TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         (await retrying.WaitForOutputAsync(TestContext.Current.CancellationToken)).Should().Be(1);
         (await later.WaitForOutputAsync(TestContext.Current.CancellationToken)).Should().Be(1);
 
@@ -182,7 +181,11 @@ public sealed class EphemeralTimerTests
         var started = Stopwatch.GetTimestamp();
         while (!condition() && Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(10))
         {
-            await Task.Delay(1, TestContext.Current.CancellationToken);
+            await Task.Factory.StartNew(
+                static () => { },
+                TestContext.Current.CancellationToken,
+                TaskCreationOptions.DenyChildAttach,
+                TaskScheduler.Default);
         }
 
         condition().Should().BeTrue(because);
