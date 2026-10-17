@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Hosting;
@@ -41,6 +42,16 @@ public sealed class HostGovernanceExecutionTests
 
         (await firstDelivery).Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         (await secondDelivery).Status.Should().Be(EphemeralEventRouteStatus.Accepted);
+        var settlementStarted = Stopwatch.GetTimestamp();
+        while (Stopwatch.GetElapsedTime(settlementStarted) < TimeSpan.FromSeconds(10) &&
+               ((await first.GetSnapshotAsync(TestContext.Current.CancellationToken))
+                   .Status != WorkflowInstanceStatus.Completed ||
+                (await second.GetSnapshotAsync(TestContext.Current.CancellationToken))
+                   .Status != WorkflowInstanceStatus.Completed))
+        {
+            await Task.Delay(1, TestContext.Current.CancellationToken);
+        }
+
         (await first.GetSnapshotAsync(TestContext.Current.CancellationToken))
             .Status.Should().Be(WorkflowInstanceStatus.Completed);
         (await second.GetSnapshotAsync(TestContext.Current.CancellationToken))

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Hosting;
@@ -178,13 +179,10 @@ public sealed class EphemeralTimerTests
 
     private static async Task WaitUntilAsync(Func<bool> condition, string because)
     {
-        for (var attempt = 0; attempt < 10_000 && !condition(); attempt++)
+        var started = Stopwatch.GetTimestamp();
+        while (!condition() && Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(10))
         {
-            await Task.Factory.StartNew(
-                static () => { },
-                TestContext.Current.CancellationToken,
-                TaskCreationOptions.DenyChildAttach,
-                TaskScheduler.Default);
+            await Task.Delay(1, TestContext.Current.CancellationToken);
         }
 
         condition().Should().BeTrue(because);
