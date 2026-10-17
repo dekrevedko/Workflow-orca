@@ -149,6 +149,14 @@ separate subsection so their names stay searchable without misclassifying them a
 
 ### Deferred capabilities
 
+Automatic ephemeral terminal retention is admitted by the issue #1 contract and is outside
+this deferred destructive-command set. MG-054–058 and doc 17 specify its host option, accepted
+instance/key lifetime, mandatory aborted-start cleanup even with the policy off, physical
+settlement protections and expired-handle behavior. Contract/canonical approval is separate
+from source/package availability: implementing and qualifying it remains gated by
+`add-ephemeral-terminal-retention` tasks 3–5. Public archive/purge/history remains deferred with
+the re-entry obligations below; no automatic retention option exposes those commands.
+
 Deferred capabilities remain documented but have no v1 member, alias, tombstone, placeholder,
 positive compile fixture, or implementation task that pretends the contract is approved:
 

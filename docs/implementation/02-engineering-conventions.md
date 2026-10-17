@@ -162,11 +162,16 @@ depend outward on `OrcaCore.Dag.Hosting`, but no OrcaCore package depends on or
   PostgreSQL pressure queries operate on transactionally maintained stream heads joined to
   checkpoints, include stream-only artifacts, and never periodically aggregate the append-only
   event relation.
-- Retention is a provider-maintenance concern, not an application workflow operation. Physical
+- Durable retention is a provider-maintenance concern, not an application workflow operation. Physical
   cleanup must re-check active instances and live inbox/outbox references atomically and retain
   confirmation, idempotency, and monotonic route-revision tombstones while delayed observations
   can still arrive. Archive timestamps are provider-owned and survive later aggregate projection
   writes; a stream without a current instance projection is not archivable.
+- The separate ephemeral terminal-retention policy is host-owned (MG-054–058), not a public
+  archive/purge operation or durable tombstone mechanism. Retire complete per-instance ownership
+  only after physical settlement and pin exclusion; mandatory unaccepted-abort cleanup also
+  applies when retention is off. Never convert not-found after acceptance into an effect-safe
+  retry or count an internal abort fence as an application termination command (OB-026).
 
 ## 7. Comments & docs
 

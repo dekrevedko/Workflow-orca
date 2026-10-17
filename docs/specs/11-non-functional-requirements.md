@@ -86,8 +86,12 @@ evaluation.
 ### NF-031 Capacity controls
 Host-owned execution-path/DAG-node limits, optional root-`ForEach` concurrency, ephemeral-only
 transient pools and durable pools (MG-060…065), exact bounded retry policies (CR-006), and
-active-instance caps (MG-051)
-are the sanctioned load-shaping tools. Authors cannot raise host ceilings. Explicit performance
+durable resident-activation caps (MG-051)
+are the sanctioned load-shaping tools. A residency cap is not an independent host-wide
+workflow-instance/advancement admission ceiling. Ephemeral `MaxRetainedInstances` (MG-054)
+bounds only eligible settled-terminal data; active/unsettled/pinned work, caller-held values,
+registered definitions and payload byte size can exceed that data-count budget. It never frees
+physical capacity or proves external work stopped. Authors cannot raise host ceilings. Explicit performance
 targets and benchmarks are a production-readiness-phase deliverable.
 
 ## 11.5 Security posture

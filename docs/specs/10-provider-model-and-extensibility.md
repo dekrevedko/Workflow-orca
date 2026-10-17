@@ -226,6 +226,13 @@ complete certified production role. There is no catch-all registration, second h
 implicit mode selection, serializer hook, binder facade, or application registration of individual
 provider runtime-protocol ports.
 
+The ephemeral assembly owns `EphemeralEngineHostOptions` and
+`EphemeralTerminalRetentionPolicy`, both in `OrcaCore.Hosting` (MG-054 and doc 17 §17.4).
+The optional policy is copied into the role fingerprint, including its null/enabled state and
+all values. It adds no role entry point, provider SPI, friend, binder or serializer hook.
+Ephemeral terminal retirement is host-local and independent of durable provider retention;
+mandatory unaccepted-abort settlement cleanup applies even when that policy is omitted.
+
 ## 10.6 Internal design conventions (extensibility-adjacent)
 
 ### PR-050 Explicit outcome primitives

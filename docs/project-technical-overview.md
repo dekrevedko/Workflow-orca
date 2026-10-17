@@ -97,6 +97,17 @@ Applications receive no broad workflow enumeration/statistics or public archive/
 Provider/operator roles own statistics and retention through `IWorkflowOperationalStore` and
 `IWorkflowProviderMaintenanceStore`.
 
+The separate approved ephemeral lifetime amendment specifies optional host-owned terminal
+retention in `EphemeralEngineHostOptions`, with the policy type owned by
+`OrcaCore.Engine.Ephemeral` in `OrcaCore.Hosting`. It is source pending: no executable API or
+consumer qualification is claimed by the canonical transition. Accepted instances/keys retain
+for host lifetime by default; only settled unpinned terminals are eligible for opt-in count/age
+retirement, while unaccepted aborts need settlement cleanup even with the policy off. Runtime,
+facade/start/router/timer ownership retires together; stale handles fail for their old IDs and
+an expired key can start a new run. A result can disappear between accepted start and wait
+admission, so not-found is not proof that no step ran and replay is not necessarily effect-safe.
+This is neither durable history nor an active-work/physical-capacity limit or public purge API.
+
 ## Code map
 
 | Area | Location | Notable responsibilities |

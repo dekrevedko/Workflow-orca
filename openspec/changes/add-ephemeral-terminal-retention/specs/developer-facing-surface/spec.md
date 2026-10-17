@@ -5,7 +5,7 @@
 
 #### Scenario: Existing application omits the policy
 - **WHEN** an ephemeral host is configured using only its existing structured-execution and transient-pool values
-- **THEN** the selected retention behavior and host-lifetime start bindings remain unchanged and no retention sweep is scheduled
+- **THEN** accepted-instance retention and its host-lifetime start bindings remain unchanged and no retention sweep is scheduled, while aborted unaccepted provisional starts still receive mandatory settlement cleanup
 
 #### Scenario: Host chooses bounded retention
 - **WHEN** application code sets `TerminalRetention = EphemeralTerminalRetentionPolicy.Create(128, TimeSpan.FromMinutes(10), TimeSpan.FromSeconds(1))`

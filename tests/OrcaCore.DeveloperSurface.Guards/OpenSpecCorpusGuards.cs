@@ -274,7 +274,7 @@ public sealed class OpenSpecCorpusGuards
     private const string RuntimeViewReshapeHandoffSha256 =
         "0b8672532ffd7574bd4f94694d4b4bf6cb6c5db3992298792139999e4d6b0cbf";
     private const string CurrentOpenSpecProvenanceSha256 =
-        "833de7f663e22f4faae4c6be66f1f4ca83cb392ed13834a4824957dac2e90ccf";
+        "8b4e385a0a79816e583b54b3bee269d11f2b3c0b14bbc7493246ac7d7d43c0bb";
     private const string HistoricalCanonicalSourceCommit =
         "ba2478e995023b0712c44705174c2b0e3262f213";
     private const string HistoricalCanonicalRemovalCatalogSha256 =
@@ -319,9 +319,9 @@ public sealed class OpenSpecCorpusGuards
         "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
     private const string PublicAuthoringCompanionSha256 =
         "41f6472c2774363d2ab922c608922e787ec241333e1d1c0b76b0c6d529ab8ec3";
-    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 15;
+    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 16;
     private const string SupersededOpenSpecProvenanceArtifactCatalogSha256 =
-        "039a151898cfa09f44754020c35314ddb33d050ee9fc8919d4c495df31fb1a65";
+        "08f0c3efdae341fd4ef85b1c3f038479eb7560d177a22b33aab51e8f527748b6";
     private static readonly (string Path, string NormalizedSha256)[]
         SupersededOpenSpecProvenanceArtifacts =
         [
@@ -370,6 +370,8 @@ public sealed class OpenSpecCorpusGuards
                 "bee1707d4f68bf2d00cc68e8d3ebfb1911d346379cbf533f5003c12b41ea4640"),
             ("openspec/changes/admit-durable-dag-run-progression/artifacts/approved-pending-openspec-provenance-2026-10-05.md", "7fef563b2d0e9ab2305052a4eacd04c669929270fe571c2bb3c27c653cbc4096"),
             ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-stream-identity-openspec-provenance-2026-10-07.md", "f2739090a7644767e8de4cb3584d501f84a509b00fa9b2baf5007efc7bbf0333")
+        ,
+            ("openspec/changes/add-ephemeral-terminal-retention/artifacts/contract-r1-openspec-provenance-2026-10-16.md", "833de7f663e22f4faae4c6be66f1f4ca83cb392ed13834a4824957dac2e90ccf")
         ];
     private const string EmptyCorePublicApiBaseline =
         "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";
@@ -489,7 +491,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "e25276014878e4eef80149a3bdcba549921ef456759ef267c75e6987fa33deb1";
+        "911138a1beaca2c3af3265ca84de2174ca7e18feac180095b68cba201bf04618";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +
@@ -1686,7 +1688,7 @@ public sealed class OpenSpecCorpusGuards
         IReadOnlyCollection<DeltaRequirement> activeRequirements,
         PostGateAmendmentCheckpoint checkpoint)
     {
-        checkpoint.SchemaVersion.Should().Be(11);
+        checkpoint.SchemaVersion.Should().Be(12);
         checkpoint.ProposedRequirementSuccessors.Should().Equal(
             ExactProposedDagSuccessors,
             "only the exact reviewed predecessor/successor headings may bypass sole active ownership");
@@ -4797,7 +4799,7 @@ public sealed class OpenSpecCorpusGuards
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonicalRequirements,
         PostGateAmendmentCheckpoint checkpoint)
     {
-        checkpoint.SchemaVersion.Should().Be(11);
+        checkpoint.SchemaVersion.Should().Be(12);
         checkpoint.ProposedRequirementSuccessors.Should().Equal(
             ExactProposedDagSuccessors,
             "a proposed post-gate successor is a named exception, not a general duplicate-owner waiver");
@@ -4814,6 +4816,8 @@ public sealed class OpenSpecCorpusGuards
         checkpoint.Amendments
             .Select(item => $"{item.OwningChange}\0{item.Capability}")
             .Should().OnlyHaveUniqueItems();
+
+        ValidateEphemeralRetentionSourcePending(root, canonicalRequirements, checkpoint);
 
         foreach (var amendment in checkpoint.Amendments)
         {
@@ -4943,6 +4947,100 @@ public sealed class OpenSpecCorpusGuards
             normalizedArtifact.Should().Contain(
                 $"exactly {amendment.ImplementationTaskCount} reshape tasks",
                 "the human-readable record must pin the implementation-task count independently of the task array");
+        }
+    }
+
+    // This named stage records a real contract approval without inventing canonical/source approval.
+    private static void ValidateEphemeralRetentionSourcePending(
+        string root,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonical,
+        PostGateAmendmentCheckpoint checkpoint)
+    {
+        const string change = "add-ephemeral-terminal-retention";
+        const string artifact = "openspec/changes/add-ephemeral-terminal-retention/artifacts/";
+        var evidence = checkpoint.EphemeralRetentionContractEvidence;
+        evidence.CheckpointCommit.Should().Be("5501cade3b9fdede14ac61421d26b8f4b0b6e0ec");
+        evidence.CheckpointParent.Should().Be("370b239402c8974a45fc0a54f539a823ab470cf4");
+        evidence.CheckpointTree.Should().Be("9881d97d63ded744141d8994a1759580bbe061c2");
+        evidence.ApprovalEvidenceCommit.Should().Be("3a0879629c2b3591023ce5b3cac984beb7c00181");
+        evidence.VerdictPath.Should().Be(artifact + "contract-r1-independent-review-verdict-2026-10-16.md");
+        evidence.VerdictSha256.Should().Be("c642b8152a6188443a72dca6da9a7073d3b60fed4b448c223eedd6ae258c17a9");
+        RunGit(root, "rev-parse", evidence.CheckpointCommit + "^").StandardOutput.Trim()
+            .Should().Be(evidence.CheckpointParent);
+        RunGit(root, "rev-parse", evidence.CheckpointCommit + "^{tree}").StandardOutput.Trim()
+            .Should().Be(evidence.CheckpointTree);
+        RunGit(root, "rev-parse", evidence.ApprovalEvidenceCommit + "^").StandardOutput.Trim()
+            .Should().Be(evidence.CheckpointCommit);
+        RunGit(root, "diff-tree", "--no-commit-id", "--name-only", "-r", evidence.ApprovalEvidenceCommit)
+            .StandardOutput.Trim().Should().Be(evidence.VerdictPath);
+        var verdictBytes = File.ReadAllBytes(RequireNonEmptyFile(root, evidence.VerdictPath, "contract verdict"));
+        Convert.ToHexString(SHA256.HashData(verdictBytes)).ToLowerInvariant().Should().Be(evidence.VerdictSha256);
+        ReadGitBlob(root, evidence.ApprovalEvidenceCommit, evidence.VerdictPath).Should().Equal(verdictBytes);
+        Encoding.UTF8.GetString(verdictBytes).Should().Contain("## Verdict: APPROVE");
+        evidence.ArtifactPath.Should().Be(artifact + "task-2-1-amendment-registry-2026-10-16.md");
+        evidence.ArtifactNormalizedSha256.Should().Be("de760a4a62c6809e15b8cca9258d74e8b89a2a6d163df555e5a8e521170b9ea9");
+        Sha256(NormalizeLineEndings(File.ReadAllText(RequireNonEmptyFile(root, evidence.ArtifactPath,
+            "source-pending amendment record")))).Should().Be(evidence.ArtifactNormalizedSha256);
+
+        checkpoint.SourcePendingAmendments.Select(item => item.Capability).Should().Equal(
+            "developer-facing-surface", "management-and-querying");
+        foreach (var amendment in checkpoint.SourcePendingAmendments)
+        {
+            amendment.Id.Should().Be("ephemeral-retention-" + amendment.Capability);
+            amendment.OwningChange.Should().Be(change);
+            amendment.Stage.Should().Be("ContractApprovedCanonicalReviewPending");
+            amendment.PendingCanonicalOperationCount.Should().Be(0);
+            amendment.CanonicalApprovalEvidencePath.Should().BeNull();
+            amendment.SourceApprovalEvidencePath.Should().BeNull();
+            amendment.AuthoringCompanionDisposition.Should().Be("ExcludedNoHostingDeclarations");
+            amendment.ContractApprovalTask.Should().Be("1.3");
+            amendment.ContractCheckpointTask.Should().Be("1.4");
+            amendment.CanonicalPreparationTask.Should().Be("2.1");
+            amendment.CanonicalReviewTask.Should().Be("2.2");
+            ValidateTaskReference(root, new(change, amendment.ContractApprovalTask, CompleteTaskState));
+            ValidateTaskReference(root, new(change, amendment.ContractCheckpointTask, CompleteTaskState));
+            ValidateTaskReference(root, new(change, amendment.CanonicalPreparationTask, OpenTaskState));
+            var reviewTask = ValidateTaskReference(root, new(change, amendment.CanonicalReviewTask, OpenTaskState));
+            amendment.SourceTasks.Should().Equal("3.1", "3.2", "3.3", "4.1", "4.2", "4.3", "4.4", "4.5", "5.1", "5.2", "5.3");
+            foreach (var task in amendment.SourceTasks)
+            {
+                ValidateTaskReference(root, new(change, task, OpenTaskState));
+            }
+
+            string[] expected = amendment.Capability == "developer-facing-surface"
+                ? ["Ephemeral terminal retention policy is explicit and host-owned"]
+                : ["Ephemeral terminal retention requires physical settlement",
+                   "Ephemeral terminal retention retires one complete ownership unit",
+                   "Retired ephemeral handles have deterministic outcomes",
+                   "Ephemeral start idempotency expires with atomic retirement"];
+            amendment.RequirementIdentities.Should().Equal(expected);
+            amendment.DeclaredRequirementCount.Should().Be(expected.Length);
+            var deltaPath = Path.Combine(ResolveChangeRecord(root, change), "specs", amendment.Capability, "spec.md");
+            var requirements = ReadDeltaRequirements(root, change, amendment.Capability, CapabilityKind.Modified, deltaPath);
+            requirements.Select(item => item.Requirement).Should().Equal(expected);
+            foreach (var requirement in requirements)
+            {
+                requirement.Operation.Should().Be(RequirementOperation.Added);
+                canonical[amendment.Capability][requirement.Requirement].Block.Should().Be(requirement.Block);
+            }
+
+            string[] numberedPaths = amendment.Capability == "developer-facing-surface"
+                ? ["docs/specs/10-provider-model-and-extensibility.md",
+                   "docs/specs/17-selected-mode-capability-matrix.md"]
+                : ["docs/specs/02-lessons-from-prior-art.md",
+                   "docs/specs/03-domain-model-and-glossary.md",
+                   "docs/specs/04-requirements-core-runtime.md",
+                   "docs/specs/06-requirements-durable-execution.md",
+                   "docs/specs/09-requirements-management-operations.md",
+                   "docs/specs/10-provider-model-and-extensibility.md",
+                   "docs/specs/11-non-functional-requirements.md",
+                   "docs/specs/13-phasing-and-open-questions.md",
+                   "docs/specs/15-requirements-observability-otel.md",
+                   "docs/specs/17-selected-mode-capability-matrix.md"];
+            amendment.NumberedRequirementPaths.Should().Equal(numberedPaths);
+            amendment.AcceptanceCriteriaPaths.Should().Equal("docs/specs/12-acceptance-criteria.md");
+            ValidateOwnedPaths(root, reviewTask, amendment.NumberedRequirementPaths);
+            ValidateOwnedPaths(root, reviewTask, amendment.AcceptanceCriteriaPaths);
         }
     }
 
@@ -6753,8 +6851,24 @@ public sealed class OpenSpecCorpusGuards
         PostGateSupersededPredecessor[] SupersededDagRunPredecessors,
         PostGateRunApprovalEvidence ApprovedDagRunEvidence,
         PostGateAmendment[] Amendments,
+        EphemeralRetentionContractEvidence EphemeralRetentionContractEvidence,
+        SourcePendingAmendment[] SourcePendingAmendments,
         string ArtifactPath,
         string ArtifactNormalizedSha256);
+
+    private sealed record EphemeralRetentionContractEvidence(
+        string CheckpointCommit, string CheckpointParent, string CheckpointTree,
+        string ApprovalEvidenceCommit, string VerdictPath, string VerdictSha256,
+        string ArtifactPath, string ArtifactNormalizedSha256);
+
+    private sealed record SourcePendingAmendment(
+        string Id, string OwningChange, string Capability, string Stage,
+        int DeclaredRequirementCount, int PendingCanonicalOperationCount,
+        string[] RequirementIdentities, string ContractApprovalTask, string ContractCheckpointTask,
+        string CanonicalPreparationTask, string CanonicalReviewTask,
+        string[] NumberedRequirementPaths, string[] AcceptanceCriteriaPaths, string[] SourceTasks,
+        string? CanonicalApprovalEvidencePath, string? SourceApprovalEvidencePath,
+        string AuthoringCompanionDisposition);
 
     private sealed record PostGateHistoricalArtifact(
         string Change, string RelativePath, string NormalizedSha256);

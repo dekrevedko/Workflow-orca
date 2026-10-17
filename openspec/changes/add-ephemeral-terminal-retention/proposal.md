@@ -5,6 +5,7 @@
 ## What Changes
 
 - Propose an optional immutable `EphemeralTerminalRetentionPolicy` on `EphemeralEngineHostOptions`, with a host-wide maximum retained eligible-terminal count, maximum age, and sweep interval. Omission preserves host-lifetime retention.
+- Correct aborted unaccepted starts in both policy modes: fence through the owning lane to `Terminated` (preserving an existing immutable terminal status), publish no facade/key binding, and release owned records after physical settlement even when retention is omitted. The unchanged default concerns accepted-instance retention, not preservation of unreachable orphan state.
 - Treat runtime state/output, facade instance binding, and its start-key binding as one retention unit; preserve definition registrations. Eligibility requires an immutable terminal status plus complete runtime-owned physical settlement and drainage of owned callbacks/commits.
 - Specify deterministic count/age eviction, typed not-found behavior for expired handles, and the exact boundary of start-idempotency guarantees. Eviction never signals that application-owned external effects stopped.
 - Define query/output-wait races and coordinated start/retention publication, including synchronous completion before a facade binding is published.

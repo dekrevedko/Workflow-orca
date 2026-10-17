@@ -61,6 +61,15 @@ an unclassified hit blocks synchronization.
 
 ### Requirement prefix → file
 
+The issue #1 retention transition adds five requirements to `developer-facing-surface` and
+`management-and-querying`. Their numbered owners are MG-054–058 in `09`, PR-040 in `10`, the
+complete hosting-options/ownership text in `17-matrix`, and AC-533–542 in `12`; `03`/`04`
+clarify instance/activation/output-wait lifetimes, NF-031 in `11` distinguishes retained-data
+count from capacity, `13` retains deferred destructive commands, and OB-026 in `15` classifies
+internal abort/retirement telemetry. The authoring-only `17-public-authoring-contract.cs` has
+no host-option declarations and is explicitly excluded. Product source and executable public-
+API/compile/package baselines remain separately gated; canonical text is not runtime evidence.
+
 `CR`→`04` · `EV`→`05` · `DU`→`06` · `SG`→`07` · `CP`→`08` · `MG`→`09` · `PR`→`10` · `NF`→`11` ·
 `AC`→`12` · `JS`→`14` · `OB`→`15` · `DR`→`16`
 

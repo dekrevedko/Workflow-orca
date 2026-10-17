@@ -1,0 +1,38 @@
+ M docs/end-to-end-plan.md
+ M docs/ephemeral-engine-developer-guide.md
+ M docs/ephemeral-engine-diagrams.md
+ M docs/implementation/02-engineering-conventions.md
+ M docs/normative-source-map.md
+ M docs/prerelease-notes.md
+ M docs/production-readiness.md
+ M docs/project-technical-overview.md
+ M docs/specs/02-lessons-from-prior-art.md
+ M docs/specs/03-domain-model-and-glossary.md
+ M docs/specs/04-requirements-core-runtime.md
+ M docs/specs/06-requirements-durable-execution.md
+ M docs/specs/09-requirements-management-operations.md
+ M docs/specs/10-provider-model-and-extensibility.md
+ M docs/specs/11-non-functional-requirements.md
+ M docs/specs/12-acceptance-criteria.md
+ M docs/specs/13-phasing-and-open-questions.md
+ M docs/specs/15-requirements-observability-otel.md
+ M docs/specs/17-selected-mode-capability-matrix.md
+ M openspec/changes/add-ephemeral-terminal-retention/proposal.md
+ M openspec/changes/add-ephemeral-terminal-retention/specs/developer-facing-surface/spec.md
+ M openspec/changes/add-ephemeral-terminal-retention/tasks.md
+ M openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md
+ M openspec/specs/developer-facing-surface/spec.md
+ M openspec/specs/management-and-querying/spec.md
+ M tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/NormativeContractGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-1-amendment-registry-2026-10-16.md
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-1-occurrence-ledger-2026-10-16.tsv
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-1-occurrence-review-2026-10-16.md
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-1-openspec-provenance-2026-10-16.md
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-1-provenance-record-2026-10-16.tsv
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-1-transition-dirty-manifest-2026-10-16.txt
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-1-transition-independent-review-request-2026-10-16.md

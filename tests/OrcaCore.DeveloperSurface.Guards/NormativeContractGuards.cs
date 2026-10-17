@@ -204,7 +204,11 @@ public sealed partial class NormativeContractInfrastructureGuards
         var matrix = Read("docs/specs/17-selected-mode-capability-matrix.md");
         foreach (var owner in Contract.Ownership)
         {
-            var row = matrix.Split('\n').Single(line => line.StartsWith($"| {owner.Family} |", StringComparison.Ordinal));
+            // Task 2.1 changes the normative hosting row; shipped API/compile baselines stay at source.
+            var family = owner.Family == "`EphemeralEngineHostOptions`, `TransientPoolDefinition`, ephemeral registration extension"
+                ? "`EphemeralEngineHostOptions`, `EphemeralTerminalRetentionPolicy`, `TransientPoolDefinition`, ephemeral registration extension"
+                : owner.Family;
+            var row = matrix.Split('\n').Single(line => line.StartsWith($"| {family} |", StringComparison.Ordinal));
             row.Should().Contain($"| `{owner.Namespace}` | `{owner.Assembly}`");
         }
     }
