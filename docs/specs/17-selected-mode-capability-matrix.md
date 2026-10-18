@@ -2881,8 +2881,8 @@ Internal abort telemetry follows OB-026, not a fictitious application terminatio
 
 The hosting-options declarations in §17.4 and this namespace/assembly table own this policy.
 The authoring/builders-only declaration companion has no host-options declarations and is
-explicitly excluded from this amendment. Executable API/compile/package baselines change with
-source slice 4.2, not this canonical transition; source and consumer acceptance remain pending.
+explicitly excluded from this amendment. The source and executable API/compile/package baselines implement these signatures
+together. Independent source approval and fresh package-consumer qualification remain separate gates.
 
 The ordinary `WorkflowInstanceSnapshot` intentionally exposes terminal workflow timeout through
 `Status = TimedOut` plus `Failure`, and exposes an active structural wait's optional deadline only

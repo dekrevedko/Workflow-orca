@@ -539,6 +539,7 @@ public sealed class PhysicalOwnershipTests
             if (retryCancellation && context.Execution.AttemptNumber > 1)
                 return new ValueTask<StepResult>(RunRetryAsync(cancellationToken));
             PhysicalTask = RunAsync(cancellationToken);
+            Entered.TrySetResult();
             return new ValueTask<StepResult>(PhysicalTask);
         }
 
@@ -552,7 +553,6 @@ public sealed class PhysicalOwnershipTests
         private async Task<StepResult> RunAsync(CancellationToken cancellationToken)
         {
             using var registration = cancellationToken.Register(() => CancellationObserved.TrySetResult());
-            Entered.TrySetResult();
             if (cooperative) await Release.Task.WaitAsync(cancellationToken);
             else await Release.Task;
             return new StepResult.Completed();

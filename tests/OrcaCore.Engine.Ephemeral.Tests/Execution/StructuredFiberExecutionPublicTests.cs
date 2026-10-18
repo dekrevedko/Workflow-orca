@@ -346,6 +346,8 @@ public sealed class StructuredFiberExecutionPublicTests
             WaitCorrelation,
             "pool-holder-start").AsTask();
         await holder.Entered.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var parked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        provider.GetRequiredService<EphemeralWorkflowEngine>().GovernanceWaitStarting += () => parked.TrySetResult();
         var targetDelivery = DeliverAsync(
             provider,
             targetInstance,
@@ -355,7 +357,8 @@ public sealed class StructuredFiberExecutionPublicTests
         await WaitForTraceCountAsync(trace, 1);
 
         trace.Should().Equal("sibling");
-        targetDelivery.IsCompleted.Should().BeFalse();
+        await parked.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        trace.Should().NotContain("pooled", "the pooled branch is parked until its physical slot is released");
 
         holder.Release();
         (await holderDelivery).Status.Should().Be(EphemeralEventRouteStatus.Accepted);

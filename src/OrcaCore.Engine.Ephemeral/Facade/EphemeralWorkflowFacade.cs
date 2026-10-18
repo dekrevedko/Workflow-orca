@@ -25,7 +25,7 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
             method.Name == nameof(EphemeralWorkflowEngine.StartCoreAsync) &&
             method.GetParameters().Length == 4);
 
-    private readonly object gate = new();
+    private readonly object gate;
     private readonly SemaphoreSlim startGate = new(1, 1);
     private readonly Dictionary<DefinitionKey, Registration> registrations = [];
     private readonly Dictionary<string, StartBinding> starts = new(StringComparer.Ordinal);
@@ -35,6 +35,7 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
     public EphemeralWorkflowDefinitionRegistry(EphemeralWorkflowEngine engine)
     {
         this.engine = engine ?? throw new ArgumentNullException(nameof(engine));
+        gate = engine.VisibilityGate;
     }
 
     public WorkflowRegistrationResult<EphemeralDefinitionHandle<TInput>> Register<TInput>(
@@ -290,29 +291,31 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
         LegacySnapshot? provisional = null;
         try
         {
+            StartCoreResult? replay = null;
+            EphemeralInstanceLifetime.WorkLease? replayPin = null;
             lock (gate)
             {
                 if (starts.TryGetValue(idempotencyKey.Value, out var existing))
                 {
-                    if (existing.DefinitionId.Equals(definitionId) &&
+                    if (!engine.TryGetFacadeInstance(existing.InstanceId, out var retained) ||
+                        !retained!.Lifetime.TryPin(out replayPin))
+                    {
+                        starts.Remove(idempotencyKey.Value);
+                        instances.Remove(existing.InstanceId);
+                    }
+                    else if (existing.DefinitionId.Equals(definitionId) &&
                         existing.DefinitionVersion.Equals(definitionVersion) &&
                         existing.DefinitionFingerprint.Equals(definitionFingerprint) &&
                         existing.InputFingerprint.Equals(inputFingerprint))
-                    {
-                        return new StartCoreResult(instances[existing.InstanceId], true, null);
-                    }
-
-                    return new StartCoreResult(
-                        null,
-                        false,
-                        FacadeValueFactory.StartConflict(
-                            idempotencyKey,
-                            existing,
-                            definitionId,
-                            definitionVersion,
-                            definitionFingerprint,
-                            inputFingerprint));
+                        replay = new StartCoreResult(instances[existing.InstanceId], true, null);
+                    else
+                        replay = new StartCoreResult(null, false, FacadeValueFactory.StartConflict(
+                            idempotencyKey, existing, definitionId, definitionVersion, definitionFingerprint, inputFingerprint));
                 }
+            }
+            if (replay is not null)
+            {
+                using (replayPin) return replay;
             }
 
             var task = (Task)StartRuntimeMethod
@@ -410,10 +413,10 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
 
         var activePairs = ListInstances()
             .Where(binding => binding.DefinitionId.Equals(definitionId))
-            .Where(binding => engine.TryGetFacadeInstance(binding.InstanceId, out _))
-            .SelectMany(binding => RequireRuntimeInstance(binding.InstanceId)
-                .GetPublishedSnapshot()
-                .ActiveWaits)
+            .Select(binding => engine.TryGetFacadeInstance(binding.InstanceId, out var runtime)
+                ? runtime!.GetPublishedSnapshot() : null)
+            .Where(snapshot => snapshot is not null)
+            .SelectMany(snapshot => snapshot!.ActiveWaits)
             .Select(wait => (
                 wait.EventContract.EventName.Value,
                 wait.EventContract.Version.Value,
@@ -428,53 +431,6 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
         }
 
         return null;
-    }
-
-    private ValueTask<WorkflowInstanceHandle> GetInstanceAsync(
-        DefinitionId definitionId,
-        DefinitionVersion definitionVersion,
-        InstanceId instanceId,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var binding = RequireInstance(definitionId, definitionVersion, instanceId);
-        return ValueTask.FromResult(CreateInstanceHandle(binding));
-    }
-
-    private ValueTask<WorkflowInstanceHandle<TOutput>> GetInstanceAsync<TOutput>(
-        DefinitionId definitionId,
-        DefinitionVersion definitionVersion,
-        InstanceId instanceId,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var binding = RequireInstance(definitionId, definitionVersion, instanceId);
-        return ValueTask.FromResult(CreateInstanceHandle<TOutput>(binding));
-    }
-
-    private InstanceBinding RequireInstance(
-        DefinitionId expectedId,
-        DefinitionVersion expectedVersion,
-        InstanceId instanceId)
-    {
-        lock (gate)
-        {
-            if (!instances.TryGetValue(instanceId, out var binding))
-            {
-                throw FacadeValueFactory.InstanceNotFound(instanceId);
-            }
-
-            if (!binding.DefinitionId.Equals(expectedId) ||
-                !binding.DefinitionVersion.Equals(expectedVersion))
-            {
-                throw FacadeValueFactory.InstanceDefinitionMismatch(
-                    instanceId,
-                    expectedId,
-                    binding.DefinitionId);
-            }
-
-            return binding;
-        }
     }
 
     private WorkflowInstanceHandle CreateInstanceHandle(InstanceBinding binding) =>
@@ -494,117 +450,6 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
             token => TerminateAsync(binding, token),
             token => GetOutputAsync<TOutput>(binding, token),
             token => WaitForOutputAsync<TOutput>(binding, token));
-
-    private ValueTask<global::OrcaCore.WorkflowInstanceSnapshot> GetSnapshotAsync(
-        InstanceBinding binding,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var instance = RequireRuntimeInstance(binding.InstanceId);
-        return ValueTask.FromResult(MapSnapshot(
-            binding,
-            instance.GetPublishedSnapshot(),
-            instance.IsCancellationRequested));
-    }
-
-    private ValueTask<object?> GetStateAsync(
-        InstanceBinding binding,
-        Type requestedType,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var instance = RequireRuntimeInstance(binding.InstanceId);
-        if (instance.StateType != requestedType)
-        {
-            throw FacadeValueFactory.StateTypeMismatch(
-                binding.InstanceId,
-                instance.StateType,
-                requestedType);
-        }
-
-        return ValueTask.FromResult<object?>(instance.CopyState());
-    }
-
-    private async ValueTask<WorkflowCancellationRequestStatus> RequestCancellationAsync(
-        InstanceBinding binding,
-        CancellationToken cancellationToken)
-    {
-        return await engine.RequestCancellationAsync(binding.InstanceId, cancellationToken).ConfigureAwait(false);
-    }
-
-    private async ValueTask<WorkflowTerminationStatus> TerminateAsync(
-        InstanceBinding binding,
-        CancellationToken cancellationToken)
-    {
-        return await engine.RequestTerminationAsync(binding.InstanceId, cancellationToken).ConfigureAwait(false);
-    }
-
-    private ValueTask<WorkflowOutputResult<TOutput>> GetOutputAsync<TOutput>(
-        InstanceBinding binding,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var instance = RequireRuntimeInstance(binding.InstanceId);
-        var snapshot = instance.GetPublishedSnapshot();
-        if (!IsTerminal(snapshot.Status))
-        {
-            return ValueTask.FromResult<WorkflowOutputResult<TOutput>>(new WorkflowOutputResult<TOutput>.Pending());
-        }
-
-        var payload = instance.CopyOutputPayload();
-        if (snapshot.Status == LegacyStatus.Completed &&
-            payload is not null &&
-            instance.OutputType == typeof(TOutput))
-        {
-        var output = (TOutput)CoreWorkflowValueCodec.Deserialize(payload, typeof(TOutput))!;
-            return ValueTask.FromResult<WorkflowOutputResult<TOutput>>(
-                new WorkflowOutputResult<TOutput>.Available(output));
-        }
-
-        return ValueTask.FromResult<WorkflowOutputResult<TOutput>>(
-            new WorkflowOutputResult<TOutput>.Unavailable(MapStatus(snapshot.Status), null));
-    }
-
-    private async ValueTask<TOutput> WaitForOutputAsync<TOutput>(
-        InstanceBinding binding,
-        CancellationToken cancellationToken)
-    {
-        while (true)
-        {
-            var signal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            void OnCommitted(InstanceId instanceId)
-            {
-                if (instanceId.Equals(binding.InstanceId))
-                {
-                    signal.TrySetResult();
-                }
-            }
-
-            engine.InstanceCommitted += OnCommitted;
-            try
-            {
-                var result = await GetOutputAsync<TOutput>(binding, cancellationToken).ConfigureAwait(false);
-                switch (result)
-                {
-                    case WorkflowOutputResult<TOutput>.Available available:
-                        return available.Output;
-                    case WorkflowOutputResult<TOutput>.Unavailable unavailable:
-                        throw FacadeValueFactory.OutputUnavailable(unavailable.Status, unavailable.Failure);
-                }
-
-                await signal.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
-            }
-            finally
-            {
-                engine.InstanceCommitted -= OnCommitted;
-            }
-        }
-    }
-
-    private IWorkflowInstance RequireRuntimeInstance(InstanceId instanceId) =>
-        engine.TryGetFacadeInstance(instanceId, out var instance)
-            ? instance!
-            : throw FacadeValueFactory.InstanceNotFound(instanceId);
 
     private global::OrcaCore.WorkflowInstanceSnapshot MapSnapshot(
         InstanceBinding binding,

@@ -16,8 +16,8 @@ requires the numbered rows, paths, and hashes exactly as recorded here.
 | 1 | `CLAUDE.md` | `3ca1378e1bf99d338743c6a282edd65f02f83d55b5f21a286abb2c6e701bc274` |
 | 2 | `docs/eks-scheduler-handoff.md` | `48cf025958482433e34b4e52185484ed587936ba56ef4822bc96e1b08b3f9ef2` |
 | 3 | `docs/end-to-end-plan.md` | `d439267f6d31cb652510b9472878cddd0427212fad71bf0e38194a30d146c8a5` |
-| 4 | `docs/ephemeral-engine-developer-guide.md` | `5ba815e75e79924ea26ed733a9167df69556bd0c8941ca4338404d28aad27ed9` |
-| 5 | `docs/ephemeral-engine-diagrams.md` | `a04557f903be785b7864d255e193aa1adf682cf26b1cdb67a6e5ba6a67df1679` |
+| 4 | `docs/ephemeral-engine-developer-guide.md` | `3ae0314cc0910d189503bd9ab3ae8486e89c195dc0422e9cd556520464755ddf` |
+| 5 | `docs/ephemeral-engine-diagrams.md` | `dfc53b131fc46012c4f7948c889614be1e8083d50f696cbcf6ff9006b12e0156` |
 | 6 | `docs/implementation/00-stack-decisions.md` | `f1cf2bf9a3e810801571cdeee55e0510ac185f880800c94cb0b41af9b01d187b` |
 | 7 | `docs/implementation/01-solution-architecture.md` | `530502d6f8d457cd2696834aca42cec43db72c5747d5760ab709fde6cb3de3b3` |
 | 8 | `docs/implementation/02-engineering-conventions.md` | `2e7b90685956840f80202447c0a9cc5495ea63c4d8bbdb6385f392ee68ceea73` |
@@ -145,3 +145,11 @@ Only rows 1 and 11 change: repository CI guidance and the pre-production distrib
 The approved Section 7B contracts and the other twenty rows remain unchanged. This artifact
 and its guard-owned digest are refreshed in the same publishing target. Validation and scope
 are recorded in docs/github-publishing-status.md; no product API or phase exit is claimed.
+
+## Issue #1 Section 4 source and guide refresh (2026-10-17)
+
+Only the ephemeral guide and diagram rows change with the implemented retention policy
+and operation pins. The other twenty rows and all historical review records stay unchanged.
+The same Section 4 target updates this maintained table and its guard digest. Doc 17 is
+outside this catalog and has its own signature guard. Source approval and fresh package-
+consumer qualification remain separate gates.

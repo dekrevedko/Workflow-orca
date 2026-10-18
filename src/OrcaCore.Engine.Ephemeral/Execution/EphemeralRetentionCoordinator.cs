@@ -1,0 +1,120 @@
+using OrcaCore.Abstractions.Ids;
+
+namespace OrcaCore.Engine.Ephemeral.Execution;
+
+/// <summary>One host-wide retirement order and admission boundary; never invokes cleanup under Gate.</summary>
+internal sealed class EphemeralRetentionCoordinator : IDisposable
+{
+    private readonly TimeProvider clock;
+    private readonly EphemeralTerminalRetentionSettings? policy;
+    private readonly Dictionary<InstanceId, Entry> entries = [];
+    private readonly ITimer? timer;
+    private long ordinal;
+    private int sweeping;
+    private bool disposed;
+
+    internal object Gate { get; } = new();
+    internal int TrackedCount { get { lock (Gate) return entries.Count; } }
+    internal bool HasTimer => timer is not null;
+
+    internal EphemeralRetentionCoordinator(TimeProvider clock, EphemeralTerminalRetentionSettings? policy)
+    {
+        this.clock = clock;
+        this.policy = policy;
+        if (policy is not null)
+        {
+            // Arm after assignment and rearm explicitly: System timers round sub-ms periods
+            // to zero (one shot). Preserve the configured interval without losing idle sweeps.
+            timer = clock.CreateTimer(_ => Sweep(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            timer.Change(policy.SweepInterval, Timeout.InfiniteTimeSpan);
+        }
+    }
+
+    internal void Track(EphemeralInstanceLifetime lifetime)
+    {
+        if (policy is null) return;
+        lock (Gate)
+        {
+            if (!disposed) entries.Add(lifetime.InstanceId, new Entry(lifetime));
+        }
+    }
+
+    internal void Forget(InstanceId id) { lock (Gate) entries.Remove(id); }
+
+    internal void Changed(EphemeralInstanceLifetime lifetime)
+    {
+        if (policy is null) return;
+        lock (Gate)
+        {
+            if (disposed) return;
+            if (entries.TryGetValue(lifetime.InstanceId, out var entry) &&
+                entry.Ordinal == 0 && lifetime.IsPhysicallySettled)
+            {
+                entry.Timestamp = clock.GetTimestamp();
+                entry.Ordinal = checked(++ordinal);
+            }
+        }
+        Enforce();
+    }
+
+    private void Sweep()
+    {
+        if (Interlocked.CompareExchange(ref sweeping, 1, 0) != 0) return;
+        try { Enforce(); }
+        finally
+        {
+            Volatile.Write(ref sweeping, 0);
+            bool rearm;
+            lock (Gate) rearm = !disposed;
+            if (rearm)
+            {
+                try { timer?.Change(policy!.SweepInterval, Timeout.InfiniteTimeSpan); }
+                catch (ObjectDisposedException) { /* Disposal won the rearm race. */ }
+            }
+        }
+    }
+
+    private void Enforce()
+    {
+        List<Action> cleanup = [];
+        lock (Gate)
+        {
+            if (disposed || policy is null) return;
+            var now = clock.GetTimestamp();
+            var eligible = entries.Values.Where(e => e.Ordinal != 0 && e.Lifetime.IsEligible)
+                .OrderBy(e => e.Ordinal).ToArray();
+            var expired = eligible.Where(e => clock.GetElapsedTime(e.Timestamp, now) >= policy.MaxAge).ToHashSet();
+            var remaining = eligible.Length - expired.Count;
+            foreach (var entry in eligible)
+            {
+                if (!expired.Contains(entry) && remaining <= policy.MaxRetainedInstances) continue;
+                if (!expired.Contains(entry)) remaining--;
+                var release = entry.Lifetime.SelectRetirement();
+                if (release is null) continue;
+                entries.Remove(entry.Lifetime.InstanceId);
+                cleanup.Add(release);
+            }
+        }
+        // Physical release and observations are synchronous, outside every admission lock.
+        Exception? failure = null;
+        foreach (var release in cleanup)
+        {
+            try { release(); }
+            catch (Exception error) { failure ??= error; }
+        }
+        if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+    }
+
+    public void Dispose()
+    {
+        lock (Gate) { disposed = true; entries.Clear(); }
+        timer?.Dispose();
+    }
+
+    private sealed class Entry(EphemeralInstanceLifetime lifetime)
+    {
+        internal EphemeralInstanceLifetime Lifetime { get; } = lifetime;
+        internal long Timestamp { get; set; }
+        internal long Ordinal { get; set; }
+    }
+}

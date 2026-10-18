@@ -58,7 +58,10 @@ public static class OrcaCoreEphemeralEngineServiceCollectionExtensions
             "|",
             options.MaxConcurrentExecutionPathsPerInstance,
             string.Join(",", throttles),
-            string.Join(",", pools));
+            string.Join(",", pools),
+            options.TerminalRetention is { } policy
+                ? $"retention:{policy.MaxRetainedInstances}:{policy.MaxAge.Ticks}:{policy.SweepInterval.Ticks}"
+                : "retention:disabled");
     }
 }
 

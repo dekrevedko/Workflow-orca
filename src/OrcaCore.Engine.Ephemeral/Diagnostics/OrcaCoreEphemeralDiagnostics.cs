@@ -235,6 +235,19 @@ internal static class OrcaCoreEphemeralDiagnostics
             new KeyValuePair<string, object?>(OrcaCoreDiagnostics.DefinitionIdKey, definitionId.ToString()),
             new KeyValuePair<string, object?>("orca.lifecycle.origin", "provisional-abort"));
 
+    internal static void RecordOwnershipReleased(global::OrcaCore.DefinitionId definitionId, bool accepted)
+    {
+        try
+        {
+            LifecycleEvents.Add(1,
+                new KeyValuePair<string, object?>(OrcaCoreDiagnostics.LifecycleEventNameKey, accepted ? "evicted" : "settled"),
+                new KeyValuePair<string, object?>(OrcaCoreDiagnostics.DurableKey, false),
+                new KeyValuePair<string, object?>(OrcaCoreDiagnostics.DefinitionIdKey, definitionId.ToString()),
+                new KeyValuePair<string, object?>("orca.lifecycle.origin", accepted ? "retention" : "provisional-abort"));
+        }
+        catch (Exception) { /* Internal release observations are best effort, after actual removal. */ }
+    }
+
     internal static void RecordHostCompatibilityFailure(string reason)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);

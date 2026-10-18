@@ -10,6 +10,7 @@ namespace OrcaCore.Engine.Ephemeral.Tests.Ownership;
 
 [Trait("Slice", "Issue1Task3.2")]
 [Trait("Disposition", "Implemented")]
+[Trait("AC", "AC-542")]
 public sealed class ContinuationOwnershipTests
 {
     private static readonly TimeSpan Guard = TimeSpan.FromSeconds(10);
@@ -192,9 +193,11 @@ public sealed class ContinuationOwnershipTests
         else error.Should().BeSameAs(original);
         observed.Where(item => item.Metric is "orca.commands.processed" or "orca.commands.duration")
             .Should().NotContain(item => item.Tags.Any(tag => tag.Key == "orca.command.type" && Equals(tag.Value, "request_termination")));
-        observed.Where(item => item.Metric == "orca.lifecycle.events" &&
-                               item.Tags.Any(tag => tag.Key == "orca.lifecycle.origin" && Equals(tag.Value, "provisional-abort")))
-            .Should().ContainSingle();
+        foreach (var name in new[] { "Terminated", "settled" })
+            observed.Where(item => item.Metric == "orca.lifecycle.events" &&
+                                   item.Tags.Any(tag => tag.Key == "orca.lifecycle.origin" && Equals(tag.Value, "provisional-abort")) &&
+                                   item.Tags.Any(tag => tag.Key == "event.name" && Equals(tag.Value, name)))
+                .Should().ContainSingle();
         host.Storage.List().Should().BeEmpty();
         host.Registry.ListInstances().Should().BeEmpty();
     }

@@ -111,6 +111,13 @@ if ($Disposition -eq 'Green') {
         throw "Completed Section 7B source-surface fixture failed.`n$section7B"
     }
 
+    # The positive control built the references. Keep this fixture-only symbol out of
+    # those projects: replacing their DefineConstants would remove product symbols.
+    $retentionNegative = & dotnet build $section7BProject --configuration Release --artifacts-path $artifactsRoot --nologo --verbosity quiet -nr:false -p:NuGetAudit=false -p:BuildProjectReferences=false -p:DefineConstants=RETENTION_NEGATIVE 2>&1 | Out-String
+    if ($LASTEXITCODE -eq 0 -or $retentionNegative -notmatch 'CS1729' -or $retentionNegative -notmatch 'CS0200' -or $retentionNegative -notmatch 'CS0117') {
+        throw "Retention negative fixture must reject a public constructor, mutable policy and durable option.`n$retentionNegative"
+    }
+
     Write-Output "Green compile infrastructure: freshly packed current source; compiled the exact, product-positive, and completed Section 7B usages; verified 26 source-fixture and 26 product-package forbidden-member CS1061 diagnostics; rejected a deliberately incomplete package."
     return
 }

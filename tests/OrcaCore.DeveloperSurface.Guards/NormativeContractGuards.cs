@@ -199,16 +199,24 @@ public sealed partial class NormativeContractInfrastructureGuards
     }
 
     [Fact]
+    public void EphemeralRetention_Doc17HostingSignatureIncludesTheCompletePolicy()
+    {
+        var matrix = Read("docs/specs/17-selected-mode-capability-matrix.md");
+        matrix.Should().Contain("public EphemeralTerminalRetentionPolicy? TerminalRetention { get; init; }");
+        matrix.Should().Contain("public sealed class EphemeralTerminalRetentionPolicy");
+        matrix.Should().Contain("private EphemeralTerminalRetentionPolicy(");
+        foreach (var member in new[] { "int MaxRetainedInstances", "TimeSpan MaxAge", "TimeSpan SweepInterval" })
+            matrix.Should().Contain("public " + member + " { get; }");
+        matrix.Should().Contain("public static EphemeralTerminalRetentionPolicy Create(\n        int maxRetainedInstances, TimeSpan maxAge, TimeSpan sweepInterval);");
+    }
+
+    [Fact]
     public void OwnershipCatalog_AgreesWithExactMatrixRows()
     {
         var matrix = Read("docs/specs/17-selected-mode-capability-matrix.md");
         foreach (var owner in Contract.Ownership)
         {
-            // Task 2.1 changes the normative hosting row; shipped API/compile baselines stay at source.
-            var family = owner.Family == "`EphemeralEngineHostOptions`, `TransientPoolDefinition`, ephemeral registration extension"
-                ? "`EphemeralEngineHostOptions`, `EphemeralTerminalRetentionPolicy`, `TransientPoolDefinition`, ephemeral registration extension"
-                : owner.Family;
-            var row = matrix.Split('\n').Single(line => line.StartsWith($"| {family} |", StringComparison.Ordinal));
+            var row = matrix.Split('\n').Single(line => line.StartsWith($"| {owner.Family} |", StringComparison.Ordinal));
             row.Should().Contain($"| `{owner.Namespace}` | `{owner.Assembly}`");
         }
     }

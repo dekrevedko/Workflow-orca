@@ -32,7 +32,7 @@ flowchart TD
     R --> Q
 ```
 
-The approved retention amendment (MG-054–058; source implementation pending) does not treat a
+Terminal retention (MG-054–058; implemented in source, consumer qualification pending) does not treat a
 published terminal snapshot as proof that every physical step has settled. Accepted active,
 waiting, delayed and terminal-but-unsettled instances remain protected. An aborted provisional
 start is never published; internal fencing precedes settlement cleanup even with retention off.

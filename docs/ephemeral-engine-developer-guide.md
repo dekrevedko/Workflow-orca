@@ -14,13 +14,14 @@ An ephemeral application references `OrcaCore` for authoring and application con
 `EphemeralEngineHostOptions` is programmatic configuration. It contains:
 
 - `StructuredExecution`, including the positive per-instance execution-path ceiling;
-- `TransientPools`, the copied host-local catalog used by named-step transient throttles.
+- `TransientPools`, the copied host-local catalog used by named-step transient throttles;
+- nullable `TerminalRetention`, the optional immutable host-wide terminal policy.
 
-The approved retention contract additionally specifies nullable `TerminalRetention` and the
-immutable `EphemeralTerminalRetentionPolicy` in `OrcaCore.Hosting`, owned by this engine package.
-This canonical-transition draft does not yet ship those members: source slice 4.2 adds them and
-its executable API/compile/package baselines together. Do not configure the new member against
-the current baseline's published binaries or treat this text as a successful consumer test.
+`EphemeralTerminalRetentionPolicy` is implemented in `OrcaCore.Hosting`, owned by this engine
+package. For example, set `TerminalRetention = EphemeralTerminalRetentionPolicy.Create(128,
+TimeSpan.FromMinutes(10), TimeSpan.FromSeconds(1))`. The source, exact API baseline and compile
+fixtures include these members together. Fresh external package-consumer qualification is
+still a separate gate; this guide does not claim a released package version contains them.
 
 The engine role is mutually exclusive with the durable engine role in one service collection.
 There is no catch-all registration method, configuration-binder overload, hosted-service toggle,
@@ -82,7 +83,7 @@ An instance handle provides:
 
 Local cancellation of `WaitForOutputAsync` cancels only the caller's wait, not the workflow.
 
-## Approved retained-instance lifetime (implementation pending)
+## Retained-instance lifetime
 
 The null/omitted policy keeps accepted instances and their keys for the host lifetime and adds
 no retention timer. An opted-in `EphemeralTerminalRetentionPolicy.Create(maxRetainedInstances,

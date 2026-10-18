@@ -22,6 +22,15 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
     private readonly ConcurrentDictionary<DefinitionKey, RegisteredDefinition> definitions = [];
     private readonly InstanceExecutionLane executionLane;
     private readonly ResourceGovernanceCoordinator governance;
+    private readonly EphemeralRetentionCoordinator retention;
+    internal object VisibilityGate => retention.Gate;
+    internal EphemeralRetentionCoordinator Retention => retention;
+    internal Func<InstanceId, ValueTask>? OperationPinAcquired => options.OperationPinAcquired;
+    internal event Action? GovernanceWaitStarting
+    {
+        add => governance.WaitStarting += value;
+        remove => governance.WaitStarting -= value;
+    }
     private readonly IInstanceRegistry instanceRegistry;
     private readonly EphemeralWorkflowEngineOptions options;
     private readonly EphemeralRoutingIndex routingIndex = new();
@@ -102,6 +111,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         this.instanceRegistry = instanceRegistry;
         this.executionLane = executionLane;
         this.serviceProvider = serviceProvider;
+        retention = new EphemeralRetentionCoordinator(timeProvider, options.TerminalRetention);
         governance = new ResourceGovernanceCoordinator(options);
         timerService = new EphemeralTimerService(timeProvider);
         yieldContinuationScheduler = new YieldContinuationScheduler(executionLane);
@@ -122,7 +132,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         return new InstanceExecutionLane(options.LaneWorkItemEnqueued);
     }
 
-    public void Dispose() => timerService.Dispose();
+    public void Dispose() { retention.Dispose(); timerService.Dispose(); }
 
     internal bool IsTimerDispatching => timerService.IsDispatching;
 
@@ -283,7 +293,8 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                         {
                             instance = initializedInstance;
                             initializedInstance.Lifetime.Initialize(
-                                () => RemoveReleasedInstance(initializedInstance), options.WorkCompletionPending);
+                                () => RemoveReleasedInstance(initializedInstance), options.WorkCompletionPending, retention.Gate, retention.Changed);
+                            retention.Track(initializedInstance.Lifetime);
                             instanceRegistry.Save(initializedInstance);
                             CommitSnapshot(initializedInstance.ToSnapshot());
                         },
@@ -897,6 +908,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
     {
         try
         {
+            retention.Forget(instance.InstanceId);
             timerService.CancelInstance(instance.InstanceId);
             IndexSnapshot(instance.ToSnapshot());
         }
@@ -904,6 +916,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         {
             instanceRegistry.Remove(instance.InstanceId);
             OrcaCoreEphemeralDiagnostics.RefreshStatistics(CurrentSnapshots());
+            OrcaCoreEphemeralDiagnostics.RecordOwnershipReleased(instance.ToSnapshot().DefinitionId, instance.Lifetime.IsAccepted);
         }
     }
 

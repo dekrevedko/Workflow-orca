@@ -3,10 +3,10 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 347,
-    "physicalDeclarations": 1439,
-    "activeFiles": 199,
-    "activeDeclarations": 751,
+    "physicalFiles": 351,
+    "physicalDeclarations": 1455,
+    "activeFiles": 203,
+    "activeDeclarations": 767,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 17,
@@ -801,7 +801,7 @@
       "source": "tests/OrcaCore.DeveloperSurface.Guards/NormativeContractGuards.cs",
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
       "status": "active",
-      "declarations": 15
+      "declarations": 16
     },
     {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
@@ -1666,6 +1666,30 @@
       "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
       "status": "compile-excluded",
       "declarations": 1
+    },
+    {
+      "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Retention/RetentionInterleavingTests.cs",
+      "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
+      "status": "active",
+      "declarations": 6
+    },
+    {
+      "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Retention/RetentionSweepTests.cs",
+      "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
+      "status": "active",
+      "declarations": 2
+    },
+    {
+      "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Retention/TerminalRetentionPolicyTests.cs",
+      "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
+      "status": "active",
+      "declarations": 4
+    },
+    {
+      "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Retention/TerminalRetentionTests.cs",
+      "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
+      "status": "active",
+      "declarations": 3
     },
     {
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Sagas/EphemeralSagaTests.cs",

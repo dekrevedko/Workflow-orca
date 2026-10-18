@@ -1,4 +1,4 @@
-using OrcaCore.Hosting;
+using OrcaCore.Engine.Ephemeral;
 
 namespace OrcaCore.Hosting;
 
@@ -7,6 +7,9 @@ namespace OrcaCore.Hosting;
 /// </summary>
 public sealed class EphemeralEngineHostOptions
 {
+    /// <summary>Gets the optional host-wide terminal retention policy; null retains accepted instances for the host lifetime.</summary>
+    public EphemeralTerminalRetentionPolicy? TerminalRetention { get; init; }
+
     /// <summary>Gets structured execution limits for this host.</summary>
     public StructuredExecutionHostOptions StructuredExecution { get; init; } = null!;
 
@@ -53,7 +56,9 @@ public sealed class EphemeralEngineHostOptions
         return new ValidatedEphemeralEngineHostOptions(
             StructuredExecution.MaxConcurrentExecutionPathsPerInstance,
             new Dictionary<Type, int>(throttles),
-            new Dictionary<string, int>(pools, StringComparer.Ordinal));
+            new Dictionary<string, int>(pools, StringComparer.Ordinal),
+            TerminalRetention is { } policy ? new EphemeralTerminalRetentionSettings(
+                policy.MaxRetainedInstances, policy.MaxAge, policy.SweepInterval) : null);
     }
 }
 
@@ -86,4 +91,5 @@ public sealed class TransientPoolDefinition
 internal sealed record ValidatedEphemeralEngineHostOptions(
     int MaxConcurrentExecutionPathsPerInstance,
     IReadOnlyDictionary<Type, int> StepThrottles,
-    IReadOnlyDictionary<string, int> TransientPools);
+    IReadOnlyDictionary<string, int> TransientPools,
+    EphemeralTerminalRetentionSettings? TerminalRetention);

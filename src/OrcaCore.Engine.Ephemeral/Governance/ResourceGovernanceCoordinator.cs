@@ -16,6 +16,7 @@ internal sealed class ResourceGovernanceCoordinator
         });
     private readonly Lock gate = new();
     private readonly Action? governanceWaitStarting;
+    internal event Action? WaitStarting;
     private readonly IReadOnlyDictionary<string, SlotState> transientPools;
     private readonly IReadOnlyDictionary<Type, SlotState> stepThrottles;
     private readonly ObservableGauge<long>[] gauges;
@@ -72,6 +73,7 @@ internal sealed class ResourceGovernanceCoordinator
                 {
                     waiting = true;
                     governanceWaitStarting?.Invoke();
+                    WaitStarting?.Invoke();
                     Interlocked.Increment(ref waiterCount);
                     RecordWait(exactStepType, poolKey, 1);
                 }
