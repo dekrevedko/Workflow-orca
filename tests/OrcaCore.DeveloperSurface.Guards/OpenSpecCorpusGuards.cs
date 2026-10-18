@@ -5131,7 +5131,7 @@ public sealed class OpenSpecCorpusGuards
         return matches[0].Value;
     }
 
-    private static string ResolveChangeRecord(string root, string change)
+    internal static string ResolveChangeRecord(string root, string change)
     {
         var changesRoot = Path.Combine(root, "openspec", "changes");
         var activeRoot = Path.Combine(changesRoot, change);

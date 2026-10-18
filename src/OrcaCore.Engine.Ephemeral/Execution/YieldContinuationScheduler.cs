@@ -28,6 +28,7 @@ internal sealed class YieldContinuationScheduler(
     {
         ArgumentNullException.ThrowIfNull(instance);
         ArgumentNullException.ThrowIfNull(onSnapshotCommitted);
+        using var ownership = instance.Lifetime.Own();
 
         while (true)
         {
@@ -65,11 +66,13 @@ internal sealed class YieldContinuationScheduler(
         ArgumentNullException.ThrowIfNull(instance);
         ArgumentNullException.ThrowIfNull(continuation);
         ArgumentNullException.ThrowIfNull(onSnapshotCommitted);
+        using var ownership = instance.Lifetime.Own();
 
         return await executionLane.RunAsync(
                 instanceId,
                 async laneCancellationToken =>
                 {
+                    if (instance.Lifetime.IsTerminal) return instance.ToSnapshot();
                     using var linkedCancellation = instance.CreateLinkedExecutionToken(laneCancellationToken);
                     await continuation(linkedCancellation.Token).ConfigureAwait(false);
                     var snapshot = instance.ToSnapshot();

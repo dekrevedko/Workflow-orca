@@ -11,7 +11,8 @@ internal sealed class InMemoryInstanceRegistry : IInstanceRegistry
     {
         ArgumentNullException.ThrowIfNull(instance);
 
-        instances[instance.InstanceId] = instance;
+        if (!instance.Lifetime.TryOwn(out var ownership)) return;
+        using (ownership) instances[instance.InstanceId] = instance;
     }
 
     public bool TryGet(InstanceId instanceId, out object? instance)

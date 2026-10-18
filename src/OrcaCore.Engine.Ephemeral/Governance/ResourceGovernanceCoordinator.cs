@@ -261,15 +261,16 @@ internal sealed class GovernanceLease : IAsyncDisposable
         return ValueTask.CompletedTask;
     }
 
-    internal void RetainUntil(Task physicalAttempt)
+    internal Task RetainUntil(Task physicalAttempt)
     {
         ArgumentNullException.ThrowIfNull(physicalAttempt);
+        if (release is null) return Task.CompletedTask;
         if (Interlocked.CompareExchange(ref disposalTransferred, 1, 0) != 0)
         {
             throw new InvalidOperationException("Governance lease disposal was already transferred.");
         }
 
-        _ = ReleaseAfterAsync(physicalAttempt);
+        return ReleaseAfterAsync(physicalAttempt);
     }
 
     private async Task ReleaseAfterAsync(Task physicalAttempt)

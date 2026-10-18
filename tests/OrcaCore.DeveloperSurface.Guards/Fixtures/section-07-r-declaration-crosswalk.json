@@ -3,10 +3,10 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 344,
-    "physicalDeclarations": 1424,
-    "activeFiles": 196,
-    "activeDeclarations": 736,
+    "physicalFiles": 347,
+    "physicalDeclarations": 1439,
+    "activeFiles": 199,
+    "activeDeclarations": 751,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 17,
@@ -736,6 +736,12 @@
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
       "status": "active",
       "declarations": 2
+    },
+    {
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/EphemeralOwnershipEvidenceGuards.cs",
+      "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
+      "status": "active",
+      "declarations": 1
     },
     {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/ExecutableBehaviorContractGuards.cs",
@@ -1630,6 +1636,18 @@
       "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
       "status": "compile-excluded",
       "declarations": 10
+    },
+    {
+      "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Ownership/ContinuationOwnershipTests.cs",
+      "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
+      "status": "active",
+      "declarations": 3
+    },
+    {
+      "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Ownership/PhysicalOwnershipTests.cs",
+      "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
+      "status": "active",
+      "declarations": 11
     },
     {
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Policies/RetryPolicyTests.cs",

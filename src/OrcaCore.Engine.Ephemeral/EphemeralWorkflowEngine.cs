@@ -82,7 +82,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
     {
     }
 
-    private EphemeralWorkflowEngine(
+    internal EphemeralWorkflowEngine(
         TimeProvider timeProvider,
         EphemeralWorkflowEngineOptions options,
         IInstanceRegistry instanceRegistry,
@@ -223,11 +223,18 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                 "Start through an exact definition handle.");
         }
 
-        return await StartCoreAsync<TInput, TState>(
+        var snapshot = await StartCoreAsync<TInput, TState>(
             definitionId,
             matches[0],
             input,
             cancellationToken).ConfigureAwait(false);
+        if (!TryAcceptStart(snapshot.InstanceId, cancellationToken))
+        {
+            await AbortProvisionalStartAsync(snapshot.InstanceId).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new WorkflowRoutingException("The provisional start is no longer available.");
+        }
+        return snapshot;
     }
 
     /// <summary>
@@ -261,43 +268,58 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
 
         var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         WorkflowInstance<TState>? instance = null;
-        var snapshot = await executionLane.RunAsync(
-            instanceId,
-            async laneCancellationToken =>
+        try
+        {
+            var snapshot = await executionLane.RunAsync(
+                instanceId,
+                async laneCancellationToken =>
+                {
+                    var interpreter = interpreterFactory.Create<TState>();
+                    instance = await interpreter.RunAsync(
+                        definition,
+                        input,
+                        instanceId,
+                        initializedInstance =>
+                        {
+                            instance = initializedInstance;
+                            initializedInstance.Lifetime.Initialize(
+                                () => RemoveReleasedInstance(initializedInstance), options.WorkCompletionPending);
+                            instanceRegistry.Save(initializedInstance);
+                            CommitSnapshot(initializedInstance.ToSnapshot());
+                        },
+                        committed => CommitSnapshot(committed),
+                        laneCancellationToken).ConfigureAwait(false);
+
+                    return CommitSnapshot(instance.ToSnapshot());
+                },
+                cancellationToken).ConfigureAwait(false);
+
+            snapshot = instance is null
+                ? snapshot
+                : await yieldContinuationScheduler
+                    .DrainAsync(instance, instanceId, committed => CommitSnapshot(committed), cancellationToken)
+                    .ConfigureAwait(false);
+            commandStopwatch.Stop();
+            activity?.SetTag(OrcaCoreDiagnostics.InstanceIdKey, snapshot.InstanceId.ToString());
+            activity?.SetTag(OrcaCoreDiagnostics.DefinitionIdKey, snapshot.DefinitionId.ToString());
+            activity?.SetTag(OrcaCoreDiagnostics.StatusKey, snapshot.Status.ToString());
+            OrcaCoreEphemeralDiagnostics.RecordCommand(
+                snapshot.DefinitionId,
+                OrcaCoreDiagnostics.StartOperation,
+                snapshot.Status,
+                commandStopwatch.Elapsed);
+            OrcaCoreEphemeralDiagnostics.RecordWorkflowStarted(snapshot.DefinitionId);
+            return snapshot;
+        }
+        catch (Exception original)
+        {
+            if (instance is not null)
             {
-                var interpreter = interpreterFactory.Create<TState>();
-                instance = await interpreter.RunAsync(
-                    definition,
-                    input,
-                    instanceId,
-                    initializedInstance =>
-                    {
-                        instanceRegistry.Save(initializedInstance);
-                        CommitSnapshot(initializedInstance.ToSnapshot());
-                    },
-                    committed => CommitSnapshot(committed),
-                    laneCancellationToken).ConfigureAwait(false);
-
-                return CommitSnapshot(instance.ToSnapshot());
-            },
-            cancellationToken).ConfigureAwait(false);
-
-        snapshot = instance is null
-            ? snapshot
-            : await yieldContinuationScheduler
-                .DrainAsync(instance, instanceId, committed => CommitSnapshot(committed), cancellationToken)
-                .ConfigureAwait(false);
-        commandStopwatch.Stop();
-        activity?.SetTag(OrcaCoreDiagnostics.InstanceIdKey, snapshot.InstanceId.ToString());
-        activity?.SetTag(OrcaCoreDiagnostics.DefinitionIdKey, snapshot.DefinitionId.ToString());
-        activity?.SetTag(OrcaCoreDiagnostics.StatusKey, snapshot.Status.ToString());
-        OrcaCoreEphemeralDiagnostics.RecordCommand(
-            snapshot.DefinitionId,
-            OrcaCoreDiagnostics.StartOperation,
-            snapshot.Status,
-            commandStopwatch.Elapsed);
-        OrcaCoreEphemeralDiagnostics.RecordWorkflowStarted(snapshot.DefinitionId);
-        return snapshot;
+                try { await AbortProvisionalStartAsync(instance).ConfigureAwait(false); }
+                catch (Exception cleanupError) { original.Data["OrcaCore.AbortCleanupError"] = cleanupError; }
+            }
+            throw;
+        }
     }
 
     /// <summary>
@@ -474,6 +496,12 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         {
             var timer = dueTimers[index];
             var commandStopwatch = Stopwatch.StartNew();
+            if (!TryGetFacadeInstance(timer.InstanceId, out var timerInstance) ||
+                !timerInstance!.Lifetime.TryOwn(out var timerOwnership))
+            {
+                timerService.Complete(timer);
+                continue;
+            }
             try
             {
                 instanceRegistry.TryGet(timer.InstanceId, out var registeredInstance);
@@ -516,6 +544,11 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
 
                 throw;
             }
+            finally
+            {
+                await timerInstance.Lifetime.FinishAsync(timerOwnership!, EphemeralWorkKind.TimerDispatch)
+                    .ConfigureAwait(false);
+            }
         }
 
         return snapshots;
@@ -546,6 +579,8 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
             throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
                 $"Workflow instance '{instanceId}' is not using state type '{typeof(TState).Name}'.");
         }
+
+        using var eventOwnership = instance.Lifetime.Own();
 
         var matchedWait = instance.ToSnapshot().ActiveWaits.FirstOrDefault(wait =>
             wait.EventContract.Equals(envelope.EventContract) &&
@@ -604,6 +639,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                 $"No workflow instance exists for instance id '{instanceId}'.");
         }
 
+        using var commandOwnership = instance.Lifetime.Own();
         var disposition = instance.TryRequestCancellation(timeProvider.GetUtcNow());
         if (disposition != global::OrcaCore.WorkflowCancellationRequestStatus.Requested)
         {
@@ -652,6 +688,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                 $"No workflow instance exists for instance id '{instanceId}'.");
         }
 
+        using var commandOwnership = instance.Lifetime.Own();
         instance.SignalCancellation();
         var result = await executionLane.RunAsync(
                 instanceId,
@@ -714,10 +751,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                 "reaching a terminal status.");
         }
 
-        var removed = instanceRegistry.Remove(instanceId);
-        IndexSnapshot(snapshot);
-        OrcaCoreEphemeralDiagnostics.RefreshStatistics(CurrentSnapshots());
-        return removed;
+        return instance.Lifetime.TryRetire();
     }
 
     /// <summary>
@@ -739,7 +773,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                 continue;
             }
 
-            if (instanceRegistry.Remove(instance.InstanceId))
+            if (instance.Lifetime.TryRetire())
             {
                 purged++;
             }
@@ -815,16 +849,62 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
 
     private EphemeralWorkflowInstanceSnapshot CommitSnapshot(EphemeralWorkflowInstanceSnapshot snapshot)
     {
-        if (instanceRegistry.TryGet(snapshot.InstanceId, out var registered) &&
-            registered is IWorkflowInstance instance)
+        if (!instanceRegistry.TryGet(snapshot.InstanceId, out var registered) ||
+            registered is not IWorkflowInstance instance || !instance.Lifetime.TryOwn(out var ownership))
+            return snapshot;
+        using (ownership)
         {
             instance.PublishState();
+            IndexSnapshot(snapshot);
+            OrcaCoreEphemeralDiagnostics.RefreshStatistics(CurrentSnapshots());
+            InstanceCommitted?.Invoke(snapshot.InstanceId);
+            return snapshot;
         }
+    }
 
-        IndexSnapshot(snapshot);
-        OrcaCoreEphemeralDiagnostics.RefreshStatistics(CurrentSnapshots());
-        InstanceCommitted?.Invoke(snapshot.InstanceId);
-        return snapshot;
+    internal bool TryAcceptStart(InstanceId instanceId, CancellationToken callerToken) =>
+        TryGetFacadeInstance(instanceId, out var instance) && instance!.Lifetime.TryAccept(callerToken);
+
+    internal Task AbortProvisionalStartAsync(InstanceId instanceId) =>
+        TryGetFacadeInstance(instanceId, out var instance)
+            ? AbortProvisionalStartAsync(instance!) : Task.CompletedTask;
+
+    private async Task AbortProvisionalStartAsync(IWorkflowInstance instance)
+    {
+        if (!instance.Lifetime.TryBeginAbort()) return;
+        try { instance.SignalCancellation(); }
+        catch (Exception) { /* A failing cancellation callback cannot prevent the independent abort fence. */ }
+        var transitioned = false;
+        await executionLane.RunAsync(instance.InstanceId, _ =>
+        {
+            if (!LifecycleMachine.TerminalStatuses.Contains(instance.ToSnapshot().Status))
+            {
+                var fenced = instance.Terminate(timeProvider.GetUtcNow());
+                transitioned = true;
+                try { CommitSnapshot(fenced); }
+                catch (Exception) { /* A notification failure cannot replace the original start error. */ }
+            }
+            return Task.CompletedTask;
+        }, CancellationToken.None).ConfigureAwait(false);
+        try
+        {
+            if (transitioned) OrcaCoreEphemeralDiagnostics.RecordProvisionalAbort(instance.ToSnapshot().DefinitionId);
+        }
+        finally { instance.Lifetime.Abort(); }
+    }
+
+    private void RemoveReleasedInstance(IWorkflowInstance instance)
+    {
+        try
+        {
+            timerService.CancelInstance(instance.InstanceId);
+            IndexSnapshot(instance.ToSnapshot());
+        }
+        finally
+        {
+            instanceRegistry.Remove(instance.InstanceId);
+            OrcaCoreEphemeralDiagnostics.RefreshStatistics(CurrentSnapshots());
+        }
     }
 
     private EphemeralWorkflowInstanceSnapshot[] CurrentSnapshots() =>

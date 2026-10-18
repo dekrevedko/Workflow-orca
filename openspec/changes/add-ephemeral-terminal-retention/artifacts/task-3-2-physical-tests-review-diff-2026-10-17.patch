@@ -1,0 +1,33 @@
+--- approved-aed8ba3f/tests/OrcaCore.Engine.Ephemeral.Tests/Ownership/PhysicalOwnershipTests.cs
++++ task-3-2/tests/OrcaCore.Engine.Ephemeral.Tests/Ownership/PhysicalOwnershipTests.cs
+@@ -10,0 +11 @@
++[Trait("AC", "AC-535")]
+@@ -16 +17 @@
+-    [Trait("Disposition", "ExpectedRed")]
++    [Trait("Disposition", "Implemented")]
+@@ -42,0 +44,2 @@
++            if (runtime.ToSnapshot().Status == WorkflowInstanceStatus.Terminated)
++                await runtime.Lifetime.WhenSettled.WaitAsync(Guard, TestContext.Current.CancellationToken);
+@@ -59 +62 @@
+-    [Trait("Disposition", "ExpectedRed")]
++    [Trait("Disposition", "Implemented")]
+@@ -88,0 +92,2 @@
++        if (runtime.ToSnapshot().Status == (terminal ? WorkflowInstanceStatus.Completed : WorkflowInstanceStatus.Terminated))
++            await runtime.Lifetime.WhenSettled.WaitAsync(Guard, TestContext.Current.CancellationToken);
+@@ -109 +114 @@
+-    [Trait("Disposition", "ExpectedRed")]
++    [Trait("Disposition", "Implemented")]
+@@ -130,0 +136 @@
++            await host.Initialized!.Lifetime.WhenSettled.WaitAsync(Guard, TestContext.Current.CancellationToken);
+@@ -149 +155 @@
+-    [Trait("Disposition", "ExpectedRed")]
++    [Trait("Disposition", "Implemented")]
+@@ -178 +184 @@
+-    [Trait("Disposition", "ExpectedRed")]
++    [Trait("Disposition", "Implemented")]
+@@ -298 +304 @@
+-    [Trait("Disposition", "ExpectedRed")]
++    [Trait("Disposition", "Implemented")]
+@@ -337 +343 @@
+-    [Trait("Disposition", "ExpectedRed")]
++    [Trait("Disposition", "Implemented")]

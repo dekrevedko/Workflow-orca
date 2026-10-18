@@ -1,0 +1,14 @@
+ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
+ M src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs
+ M src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngineOptions.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/package-source-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-1-ownership-case-results-2026-10-17.tsv
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-1-ownership-dirty-manifest-2026-10-17.txt
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-1-ownership-evidence-2026-10-17.md
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-1-ownership-independent-review-request-2026-10-17.md
+?? tests/OrcaCore.Engine.Ephemeral.Tests/Ownership/PhysicalOwnershipTests.cs

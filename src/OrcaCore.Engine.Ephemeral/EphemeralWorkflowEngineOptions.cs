@@ -29,6 +29,11 @@ internal sealed record EphemeralWorkflowEngineOptions
     /// </summary>
     public TimeSpan? StuckStepThreshold { get; init; }
 
+    // Internal configuration carrier for ownership tests; execution is added in slice 4.2.
+    internal EphemeralTerminalRetentionSettings? TerminalRetention { get; init; }
+
+    internal Func<InstanceId, Execution.EphemeralWorkKind, ValueTask>? WorkCompletionPending { get; init; }
+
     internal Action<InstanceId>? LaneWorkItemEnqueued { get; init; }
 
     internal Action? GovernanceWaitStarting { get; init; }
@@ -55,3 +60,8 @@ internal sealed record EphemeralWorkflowEngineOptions
         };
     }
 }
+
+internal sealed record EphemeralTerminalRetentionSettings(
+    int MaxRetainedInstances,
+    TimeSpan MaxAge,
+    TimeSpan SweepInterval);

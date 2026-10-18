@@ -1,0 +1,110 @@
+[
+  {
+    "probe": "physical-retirement",
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/EphemeralInstanceLifetime.cs",
+    "failed": 36,
+    "firstFailure": "Expected value to be 0 because terminal status is not proof of physical settlement, even without a configured capacity slot, but found 1 (difference of 1).",
+    "buildPassed": true,
+    "detected": true,
+    "classification": "behavior/guard assertion"
+  },
+  {
+    "probe": "abort-fence",
+    "path": "src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs",
+    "failed": 2,
+    "firstFailure": "Expected runtime.ToSnapshot().Status to be WorkflowInstanceStatus.Terminated {value: 8} because a failed provisional start must fence the Running orphan before returning the original error, but found WorkflowInstanceStatus.Running {value: 1}.\r\nExpected host.Engine.TryGetFacadeInstance(runtime.InstanceId, out _) to be False because a settled provisional instance is eagerly released even when retention is disabled, but found True.\r\n",
+    "buildPassed": true,
+    "detected": true,
+    "classification": "behavior/guard assertion"
+  },
+  {
+    "probe": "stale-save",
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryInstanceRegistry.cs",
+    "failed": 12,
+    "firstFailure": "Expected host.Storage.TryGet(instance.InstanceId, out _) to be False, but found True.",
+    "buildPassed": true,
+    "detected": true,
+    "classification": "behavior/guard assertion"
+  },
+  {
+    "probe": "immutable-terminal",
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs",
+    "failed": 12,
+    "firstFailure": "Expected runtime.ToSnapshot().Status to be WorkflowInstanceStatus.Terminated {value: 8}, but found WorkflowInstanceStatus.Completed {value: 4}.",
+    "buildPassed": true,
+    "detected": true,
+    "classification": "behavior/guard assertion"
+  },
+  {
+    "probe": "router-cleanup",
+    "path": "src/OrcaCore.Engine.Ephemeral/Facade/EphemeralWorkflowEventRouter.cs",
+    "failed": 4,
+    "firstFailure": "Expected host.Router.AcceptedEntryCount(instance.InstanceId) to be 0, but found 1 (difference of 1).",
+    "buildPassed": true,
+    "detected": true,
+    "classification": "behavior/guard assertion"
+  },
+  {
+    "probe": "physical-slot",
+    "path": "src/OrcaCore.Engine.Ephemeral/Governance/ResourceGovernanceCoordinator.cs",
+    "failed": 4,
+    "firstFailure": "System.TimeoutException : The operation has timed out.",
+    "buildPassed": true,
+    "detected": true,
+    "classification": "governance-wait timeout barrier"
+  },
+  {
+    "probe": "abort-origin",
+    "path": "src/OrcaCore.Engine.Ephemeral/Diagnostics/OrcaCoreEphemeralDiagnostics.cs",
+    "failed": 4,
+    "firstFailure": "Expected observed.Where(item => item.Metric == \"orca.lifecycle.events\"&&item.Tags.Any(tag => tag.Key == \"orca.lifecycle.origin\"&& Equals(tag.Value, \"provisional-abort\"))) to contain a single item, but the collection is empty.",
+    "buildPassed": true,
+    "detected": true,
+    "classification": "behavior/guard assertion"
+  },
+  {
+    "probe": "dag-source",
+    "path": "src/OrcaCore.Dag/OrcaCore.Dag.csproj",
+    "failed": 1,
+    "firstFailure": "Expected Git(root, \"diff\", \"--name-only\", baseCommit, \"--\",\"src/OrcaCore.Dag\", \"src/OrcaCore.Dag.Hosting\",\"openspec/changes/admit-durable-dag-run-progression/specs\",\"tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.api.txt\",\"tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.api.txt\",\"tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.Hosting.api.txt\",\"tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Runtime.Protocol.api.txt\",\"tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Provider.Abstractions.api.txt\") to be empty because the proposed fingerprint amendment authorizes no DAG implementation or DAG contract edit, but found \"src/OrcaCore.Dag/OrcaCore.Dag.csproj\n\".",
+    "buildPassed": false,
+    "detected": true,
+    "classification": "behavior/guard assertion"
+  },
+  {
+    "probe": "dag-delta",
+    "path": "openspec/changes/admit-durable-dag-run-progression/specs/durable-persistence-and-outbox/spec.md",
+    "failed": 1,
+    "firstFailure": "Expected Git(root, \"diff\", \"--name-only\", baseCommit, \"--\",\"src/OrcaCore.Dag\", \"src/OrcaCore.Dag.Hosting\",\"openspec/changes/admit-durable-dag-run-progression/specs\",\"tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.api.txt\",\"tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.api.txt\",\"tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.Hosting.api.txt\",\"tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Runtime.Protocol.api.txt\",\"tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Provider.Abstractions.api.txt\") to be empty because the proposed fingerprint amendment authorizes no DAG implementation or DAG contract edit, but found \"openspec/changes/admit-durable-dag-run-progression/specs/durable-persistence-and-outbox/spec.md\n\".",
+    "buildPassed": false,
+    "detected": true,
+    "classification": "behavior/guard assertion"
+  },
+  {
+    "probe": "baseline-archive",
+    "path": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-1-approved-baseline-2026-10-17.zip",
+    "failed": 1,
+    "firstFailure": "Expected Hash(archive) to be the same string, but they differ at index 0:\r\n   \u2193 (actual)\r\n  \"a8f52f90163f8a9e3ad37476f68dad90932d57670820c208be\u2026\"\r\n  \"4308f221951c69d6afb1304495da68691677226cd74ef82252\u2026\"\r\n   \u2191 (expected).",
+    "buildPassed": false,
+    "detected": true,
+    "classification": "behavior/guard assertion"
+  },
+  {
+    "probe": "carried-verdict",
+    "path": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-1-ownership-independent-review-verdict-2026-10-17.md",
+    "failed": 1,
+    "firstFailure": "Expected verdict.Length to be 11951, but found 11952 (difference of 1).",
+    "buildPassed": false,
+    "detected": true,
+    "classification": "behavior/guard assertion"
+  },
+  {
+    "probe": "baseline-anchor",
+    "path": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-1-approved-baseline-inventory-2026-10-17.json",
+    "failed": 1,
+    "firstFailure": "Expected data.GetProperty(\"approvedTree\").GetString() to be the same string, but they differ at index 0:\r\n   \u2193 (actual)\r\n  \"0ed8ba3fea6a66e59f0a1cc92e90291385ac5333\"\r\n  \"aed8ba3fea6a66e59f0a1cc92e90291385ac5333\"\r\n   \u2191 (expected).",
+    "buildPassed": false,
+    "detected": true,
+    "classification": "behavior/guard assertion"
+  }
+]

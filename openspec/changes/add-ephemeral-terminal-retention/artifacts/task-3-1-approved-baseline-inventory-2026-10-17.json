@@ -1,0 +1,102 @@
+{
+  "base": "ef88957af4c41bf18def689ba81c71e1a1d18696",
+  "approvedTree": "aed8ba3fea6a66e59f0a1cc92e90291385ac5333",
+  "contentRecordSha256": "7dcc22e7488e12f647ec948475da8825058d21665789844d65165944da2a2aa6",
+  "archive": "task-3-1-approved-baseline-2026-10-17.zip",
+  "archiveBytes": 177017,
+  "archiveSha256": "4308f221951c69d6afb1304495da68691677226cd74ef82252000141f3b45fc5",
+  "files": [
+    {
+      "status": " M",
+      "path": "openspec/changes/reshape-developer-facing-interfaces/tasks.md",
+      "bytes": 80171,
+      "sha256": "a7ce023cb6e8d09ef3e365673e441099140661723cd3fb5ff022c72c325dd5e8"
+    },
+    {
+      "status": " M",
+      "path": "src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs",
+      "bytes": 36690,
+      "sha256": "a987a12fd304e3879672bc9c1c36b02868d3ba8f52b98135f31e38af6078b6a2"
+    },
+    {
+      "status": " M",
+      "path": "src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngineOptions.cs",
+      "bytes": 2519,
+      "sha256": "dfb3d0c45fa2e0641418943b92dd28b6b55e55aba24505cb875360d4641528c3"
+    },
+    {
+      "status": " M",
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs",
+      "bytes": 16182,
+      "sha256": "39414b0f8bfa6310a7b2b82217dc7788521a487ff36006a000b8dd91aa0f165a"
+    },
+    {
+      "status": " M",
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/package-source-provenance.json",
+      "bytes": 2698,
+      "sha256": "9f3c3eed463f80e193b1ac4b39ba4f4bb3deebfbcc0ac99d8a3c1f4ab6a34e2b"
+    },
+    {
+      "status": " M",
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json",
+      "bytes": 610782,
+      "sha256": "fd3bc7a4deb13f66aa3db4d07e22511cfd339a0c57945be833128d2fa8008510"
+    },
+    {
+      "status": " M",
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+      "bytes": 388122,
+      "sha256": "560bd7a30a93174db39e85a8ababb10f409b1c8836a6b222a2273e46bbc95086"
+    },
+    {
+      "status": " M",
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+      "bytes": 46019,
+      "sha256": "3e0e22c9bf5b6334f37ce5f5ed8ddedce33783ea079c4ee3d825cf92d9041cac"
+    },
+    {
+      "status": " M",
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs",
+      "bytes": 3664,
+      "sha256": "04cd6cf86b5839941118424f7d6cb09710749797c24c56c82ef435927e298611"
+    },
+    {
+      "status": "??",
+      "path": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-1-ownership-case-results-2026-10-17.tsv",
+      "bytes": 24177,
+      "sha256": "0560d82fdce48548248ab1f0df2c14cb4be122cb81520bcd74152922f7dcb5c1"
+    },
+    {
+      "status": "??",
+      "path": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-1-ownership-dirty-manifest-2026-10-17.txt",
+      "bytes": 1167,
+      "sha256": "ea4b1b603430909594c9d09f0306a8e21f290a5b7adb750f3f3e626c0f738a5c"
+    },
+    {
+      "status": "??",
+      "path": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-1-ownership-evidence-2026-10-17.md",
+      "bytes": 10450,
+      "sha256": "4d927cd84f3b9e34d095c0ae1b48bf63e5e8f7f8c9c7e8f41446224060db7779"
+    },
+    {
+      "status": "??",
+      "path": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-1-ownership-independent-review-request-2026-10-17.md",
+      "bytes": 2827,
+      "sha256": "52ba24bb2ba962c37e1a310636da85caa202fd7633a58ed896881cdf913cb87c"
+    },
+    {
+      "status": "??",
+      "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Ownership/PhysicalOwnershipTests.cs",
+      "bytes": 30876,
+      "sha256": "c69c5e5045d5fc494aa8b61dd7883b0b5e792f1244732282697fcac3f0bc6168"
+    }
+  ],
+  "approval": {
+    "path": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-1-ownership-independent-review-verdict-2026-10-17.md",
+    "bytes": 11951,
+    "sha256": "d10c172dc8bae4b7ae2a3d63d0d1d39f812d0fb1b4639b4490d69a9e62d452a7"
+  },
+  "redCheckpointForbidden": true,
+  "nextAuthorizedTask": "3.2",
+  "checkpointGate": "3.3 combined green ownership slice"
+}

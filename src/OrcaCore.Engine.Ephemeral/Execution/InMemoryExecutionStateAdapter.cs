@@ -464,13 +464,15 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     resumedEvent,
                     timeProvider,
                     forEachItem);
-                var physicalAttempt = rootStep.ExecuteAsync(stepContext, executionToken).AsTask();
+                var physicalAttempt = instance.Lifetime.RunAsync(EphemeralWorkKind.PhysicalAttempt,
+                    () => rootStep.ExecuteAsync(stepContext, executionToken).AsTask());
                 if (timeoutReached is not null &&
                     await Task.WhenAny(physicalAttempt, timeoutReached.Task).ConfigureAwait(false) ==
                         timeoutReached.Task &&
                     !physicalAttempt.IsCompleted)
                 {
-                    ownedGovernanceLease.RetainUntil(physicalAttempt);
+                    _ = instance.Lifetime.RunAsync(EphemeralWorkKind.CapacityRelease,
+                        () => ownedGovernanceLease.RetainUntil(physicalAttempt));
                     result = TimedOutStepResult(operationId, attempt, instruction);
                 }
                 else
@@ -503,7 +505,8 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                         throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException("Branch state payload is missing."));
                 var localState = codec.Deserialize(localPayload) ??
                     throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException("Branch state deserialized to null.");
-                var physicalAttempt = StructuredInvocationCache.ExecuteStepAsync(
+                var physicalAttempt = instance.Lifetime.RunAsync(EphemeralWorkKind.PhysicalAttempt,
+                    () => StructuredInvocationCache.ExecuteStepAsync(
                     branch.Input.BranchStateType,
                     step,
                     localState,
@@ -512,13 +515,14 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     timeProvider,
                     forEachItem,
                     resourceLease: null,
-                    cancellationToken: executionToken).AsTask();
+                    cancellationToken: executionToken).AsTask());
                 if (timeoutReached is not null &&
                     await Task.WhenAny(physicalAttempt, timeoutReached.Task).ConfigureAwait(false) ==
                         timeoutReached.Task &&
                     !physicalAttempt.IsCompleted)
                 {
-                    ownedGovernanceLease.RetainUntil(physicalAttempt);
+                    _ = instance.Lifetime.RunAsync(EphemeralWorkKind.CapacityRelease,
+                        () => ownedGovernanceLease.RetainUntil(physicalAttempt));
                     result = TimedOutStepResult(operationId, attempt, instruction);
                 }
                 else

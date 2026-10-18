@@ -79,7 +79,8 @@ internal sealed class StepExecutor<TState>
                     resumedEvent,
                     timeProvider,
                     forEachItem);
-                var result = await step.ExecuteAsync(context, executionToken).ConfigureAwait(false);
+                var result = await instance.Lifetime.RunAsync(EphemeralWorkKind.PhysicalAttempt,
+                    () => step.ExecuteAsync(context, executionToken).AsTask()).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
                 var stepCompletedAt = timeProvider.GetUtcNow();
                 instance.CompleteStep(stepPath, stepCompletedAt);

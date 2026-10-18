@@ -1,0 +1,40 @@
+ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
+ M src/OrcaCore.Engine.Ephemeral/Diagnostics/OrcaCoreEphemeralDiagnostics.cs
+ M src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs
+ M src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngineOptions.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/IWorkflowInstance.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Resources.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Retries.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/InMemoryInstanceRegistry.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/StepExecutor.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs
+ M src/OrcaCore.Engine.Ephemeral/Execution/YieldContinuationScheduler.cs
+ M src/OrcaCore.Engine.Ephemeral/Facade/EphemeralWorkflowFacade.cs
+ M src/OrcaCore.Engine.Ephemeral/Governance/ResourceGovernanceCoordinator.cs
+ M src/OrcaCore.Engine.Ephemeral/Timers/EphemeralTimerService.cs
+ M tests/OrcaCore.Core.Tests/RepositoryGuardTests.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/package-source-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-1-approved-baseline-2026-10-17.zip
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-1-approved-baseline-inventory-2026-10-17.json
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-1-ownership-case-results-2026-10-17.tsv
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-1-ownership-dirty-manifest-2026-10-17.txt
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-1-ownership-evidence-2026-10-17.md
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-1-ownership-independent-review-request-2026-10-17.md
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-1-ownership-independent-review-verdict-2026-10-17.md
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-2-ownership-case-results-2026-10-17.tsv
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-2-ownership-implementation-evidence-2026-10-17.md
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-2-ownership-mutation-results-2026-10-17.json
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-2-physical-tests-review-diff-2026-10-17.patch
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-3-ownership-dirty-manifest-2026-10-17.txt
+?? openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-3-ownership-independent-review-request-2026-10-17.md
+?? src/OrcaCore.Engine.Ephemeral/Execution/EphemeralInstanceLifetime.cs
+?? src/OrcaCore.Engine.Ephemeral/Facade/EphemeralWorkflowEventRouter.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/EphemeralOwnershipEvidenceGuards.cs
+?? tests/OrcaCore.Engine.Ephemeral.Tests/Ownership/ContinuationOwnershipTests.cs
+?? tests/OrcaCore.Engine.Ephemeral.Tests/Ownership/PhysicalOwnershipTests.cs
