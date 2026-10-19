@@ -59,6 +59,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         this.maxConsumedEventIds = maxConsumedEventIds;
         this.maxLifecycleEvents = maxLifecycleEvents;
         InstanceId = instanceId;
+        Lifetime = new EphemeralInstanceLifetime(instanceId);
         DefinitionId = definitionId;
         DefinitionVersion = definitionVersion;
         State = state;
@@ -70,6 +71,8 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         RecordLifecycleEvent("InstanceStarted", null, global::OrcaCore.WorkflowInstanceStatus.Running, createdAt);
         ToSnapshot();
     }
+
+    internal EphemeralInstanceLifetime Lifetime { get; }
 
     internal InstanceId InstanceId { get; }
 
@@ -683,6 +686,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         DateTimeOffset updatedAt,
         StructuredSerializedValue? output = null)
     {
+        if (LifecycleMachine.TerminalStatuses.Contains(Status)) return;
         Status = global::OrcaCore.WorkflowInstanceStatus.Completed;
         EndOutcomeName = outcomeName;
         Output = output;
@@ -690,6 +694,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         CurrentStatusEnteredAt = updatedAt;
         LastActiveAt = updatedAt;
         RecordLifecycleEvent("InstanceCompleted", null, global::OrcaCore.WorkflowInstanceStatus.Completed, updatedAt);
+        Lifetime.SignalTerminal();
     }
 
     internal EphemeralWorkflowInstanceSnapshot Timeout(
@@ -843,6 +848,8 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         }
     }
 
+    EphemeralInstanceLifetime IWorkflowInstance.Lifetime => Lifetime;
+
     InstanceId IWorkflowInstance.InstanceId => InstanceId;
 
     Type IWorkflowInstance.StateType => typeof(TState);
@@ -962,6 +969,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
     private void ClearRuntimeWork()
     {
+        Lifetime.SignalTerminal();
         foreach (var wait in activeWaits)
         {
             wait.CancelLoser();

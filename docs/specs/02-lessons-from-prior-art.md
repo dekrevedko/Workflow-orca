@@ -113,7 +113,9 @@ Drawn primarily from the Workflow Core issue-pattern review and design synthesis
 11. **Method-name explosion in the management API** (`PauseAllRunningFailedFoo`). Selection
     must be composable (`Where(...)`), not encoded in verb names.
 12. **Start without an idempotency contract.** Callers lose responses; retry-safe initiation
-    (`StartOrGet`) is a correctness boundary. (Workflow Core #828.)
+    (`StartOrGet`) is a correctness boundary. (Workflow Core #828.) The ephemeral guarantee
+    lasts while the instance/key unit remains retained (MG-058); acceptance does not reserve
+    a future output wait, and replay after retirement can repeat effects (MG-057).
 13. **Recovery semantics left implicit.** Wait continuation, step retry, terminal-state
     immutability, and any future failed-instance retry must remain distinct. V1 intentionally
     never reopens a terminal instance; a later retry feature requires a new-generation contract.

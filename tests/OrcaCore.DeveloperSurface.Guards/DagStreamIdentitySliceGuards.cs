@@ -12,7 +12,7 @@ namespace OrcaCore.DeveloperSurface.Guards;
 public sealed class DagStreamIdentitySliceGuards
 {
     private const string FingerprintAmendmentRegistrySha256 = "321b8fda534883310f1593d98c33fc28c9b39d529e6efaae9440438a345601bd";
-    private const string CanonicalContentRecordSha256 = "cee7cd376777d5cc99c42e1de04cd692c7cc8270c85deb9a976ed94b7395baa0";
+    private const string CanonicalContentRecordSha256 = "cfc99533be6893654dc128f6d6a1b2448fb3b689780b490de617a2147abf49a0";
     private const string ApprovedOrcaCoreApiSha256 = "a8bb583860fd8744b018273911fe65b1c899926d70e501efb773ccfbf5588f3e";
     private const string BaseCommit = "89e3b18aed62446583211478f1eb8545e4fb85ed";
     private static readonly TransitionEvidence ApprovedTransition = new(
@@ -132,11 +132,39 @@ public sealed class DagStreamIdentitySliceGuards
             .Replace("[OrcaCore]OrcaCore.PayloadFingerprint! Fingerprint", "[System.Private.CoreLib]System.String! Fingerprint", StringComparison.Ordinal)),
             "no seventh API key or direct provider-port signature may change in this contract refinement");
         var baseCommit = amendment.GetProperty("baseCommit").GetString()!;
-        Git(root, "diff", "--name-only", baseCommit, "--", "src", "openspec/specs",
+        // This pending DAG amendment freezes its own implementations and contract surfaces.
+        // Independent ephemeral ownership work is authorized by its separately carried 3.1 verdict.
+        Git(root, "diff", "--name-only", baseCommit, "--",
+            "src/OrcaCore.Dag", "src/OrcaCore.Dag.Hosting",
             "openspec/changes/admit-durable-dag-run-progression/specs",
-            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1").Should().BeEmpty(
-                "this proposed contract target authorizes no product implementation, canonical sync, delta or shipped-baseline edit");
-        Git(root, "ls-files", "--others", "--exclude-standard", "--", "src", "openspec/specs").Should().BeEmpty();
+            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.api.txt",
+            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.api.txt",
+            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.Hosting.api.txt",
+            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Runtime.Protocol.api.txt",
+            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Provider.Abstractions.api.txt")
+            .Should().BeEmpty("the proposed fingerprint amendment authorizes no DAG implementation or DAG contract edit");
+        // Issue #1 task 2.1 is a separate canonical transition, not DAG source approval.
+        // Permit only its two exact append-only targets; all pre-existing canonical text stays frozen.
+        string[] ephemeralTargets =
+        [
+            "openspec/specs/developer-facing-surface/spec.md",
+            "openspec/specs/management-and-querying/spec.md"
+        ];
+        Git(root, "diff", "--name-only", baseCommit, "--", "openspec/specs")
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries).Should().Equal(ephemeralTargets);
+        foreach (var path in ephemeralTargets)
+        {
+            var prior = Normalize(Git(root, "show", $"{baseCommit}:{path}")).TrimEnd('\n');
+            var deltaPath = Path.Combine(OpenSpecCorpusGuards.ResolveChangeRecord(root,
+                "add-ephemeral-terminal-retention"), "specs", path["openspec/specs/".Length..]);
+            var delta = Normalize(File.ReadAllText(Path.Combine(root, deltaPath)));
+            delta.Should().StartWith("## ADDED Requirements\n\n");
+            var additions = delta["## ADDED Requirements\n\n".Length..].TrimEnd('\n');
+            Normalize(File.ReadAllText(Path.Combine(root, path))).Should().Be(prior + "\n\n" + additions + "\n",
+                "only the five issue #1 additions may extend the frozen canonical files");
+        }
+        Git(root, "ls-files", "--others", "--exclude-standard", "--",
+            "src/OrcaCore.Dag", "src/OrcaCore.Dag.Hosting", "openspec/specs").Should().BeEmpty();
     }
 
     private static HashSet<string> CatalogApiKeys(string text)

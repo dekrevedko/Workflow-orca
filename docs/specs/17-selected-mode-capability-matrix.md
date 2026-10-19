@@ -1745,6 +1745,18 @@ public sealed class EphemeralEngineHostOptions
 {
     public StructuredExecutionHostOptions StructuredExecution { get; init; }
     public IReadOnlyList<TransientPoolDefinition> TransientPools { get; init; }
+    public EphemeralTerminalRetentionPolicy? TerminalRetention { get; init; }
+}
+
+public sealed class EphemeralTerminalRetentionPolicy
+{
+    private EphemeralTerminalRetentionPolicy(
+        int maxRetainedInstances, TimeSpan maxAge, TimeSpan sweepInterval);
+    public int MaxRetainedInstances { get; }
+    public TimeSpan MaxAge { get; }
+    public TimeSpan SweepInterval { get; }
+    public static EphemeralTerminalRetentionPolicy Create(
+        int maxRetainedInstances, TimeSpan maxAge, TimeSpan sweepInterval);
 }
 
 public sealed class DurableEngineHostOptions
@@ -1967,6 +1979,18 @@ ordinal.
 
 The following limits are distinct and MUST NOT share names or persistence claims:
 
+`EphemeralTerminalRetentionPolicy.MaxRetainedInstances` is additionally a host-wide count of
+eligible retained terminal data across definitions, not any of the execution/admission limits
+below. It never evicts accepted active/waiting/unsettled or pinned units to free capacity.
+The optional policy defaults to null: accepted instances/keys retain for the host lifetime and
+no retention timer exists. The factory rejects count below one, nonpositive age/interval,
+interval greater than age or one day, in signature order with parameter-named
+`ArgumentOutOfRangeException`. A valid one-tick interval can keep sweeps continuously busy;
+choose a practical interval without silent clamping. Registration copies/fingerprints every
+value and the enabled state; equal values compose and changed values conflict before mutation.
+MG-054–058 define monotonic age, settlement ordering, pins and all ownership stores. Their
+aborted-provisional cleanup is mandatory even with the policy omitted.
+
 1. **Per-step execution throttle**: named-step exact-type host-local capacity held only while a
    business-step attempt actually runs; lambdas have no throttle key.
 2. **Named transient pool**: ephemeral host-local shared capacity identified by
@@ -2079,7 +2103,7 @@ different namespace from an unqualified signature sketch:
 | Workflow strong values (all §17.2.1 values except `DagNodeId` and `DagRunId`), workflow authoring/definitions/references, ordinary handles/events/results/errors | `OrcaCore` | `OrcaCore` |
 | `DagNodeId`, `DagRunId`, DAG authoring/definitions/references/handles/results/errors | `OrcaCore.Dag` | `OrcaCore.Dag` |
 | `StructuredExecutionHostOptions`, `StepExecutionThrottle` | `OrcaCore.Hosting` | `OrcaCore` |
-| `EphemeralEngineHostOptions`, `TransientPoolDefinition`, ephemeral registration extension | `OrcaCore.Hosting` | `OrcaCore.Engine.Ephemeral` |
+| `EphemeralEngineHostOptions`, `EphemeralTerminalRetentionPolicy`, `TransientPoolDefinition`, ephemeral registration extension | `OrcaCore.Hosting` | `OrcaCore.Engine.Ephemeral` |
 | `DurableEngineHostOptions`, `DurableResourcePoolOptions`, `DurableResourcePoolDefinition`, durable engine/ingress registration extension | `OrcaCore.Hosting` | `OrcaCore.Durable.Hosting` |
 | `DagHostOptions`, DAG registration extension | `OrcaCore.Dag.Hosting` | `OrcaCore.Dag.Hosting` |
 | Lease/pool statuses, snapshots, closed resize result, governance records/stream/append result | `OrcaCore.Runtime.Protocol.ResourceGovernance` | `OrcaCore.Runtime.Protocol` |
@@ -2833,6 +2857,32 @@ ordinary consumer path is `var output = await start.WaitForOutputAsync(token);`.
 have no output member. V1 exposes no workflow-instance enumeration, list/count/statistics, or bulk
 retrieval facade; runtime-owned keyed routing and internal continuation processing do not create
 such an application API.
+
+Ephemeral accepted-instance queries and starts obey the explicit retained lifetime in MG-054–058.
+Host-lifetime retention is the default; a configured policy retires a physically settled terminal
+unit, facade/key bindings and all owned payload/router/timer/notification data atomically.
+Every runtime operation on a retired handle or `GetInstanceAsync` for that ID throws existing
+`WorkflowInstanceNotFoundException` (`WF-INSTANCE-NOT-FOUND`); old handles never address a
+replacement. Already detached values and admitted output-wait results survive retirement.
+An accepted start/returned handle is not a wait subscription. Under count pressure a completed
+job may retire before direct/helper wait admission; not-found then does not mean it never ran,
+and replaying the expired key creates a fresh ID (`WasExisting = false`) that may repeat effects.
+Size the count above completions within the caller's start-to-observe gap and maintain independent
+effect deduplication where needed. Before actual retirement, compatible replay remains existing
+and changed intent conflicts; time alone never unbinds a key.
+
+Start-token cancellation observed after runtime creation and before acceptance, or an exception
+escaping after `Init`, terminally fences the unaccepted provisional unit through its owning lane
+to `Terminated` unless it was already terminal, using caller-independent cleanup authority.
+Return the original error, publish no facade/key/handle, protect physical work and clean it
+eagerly after settlement outside the accepted budget in both policy modes. Acceptance winning
+the election returns `Accepted`; later start-token cancellation does not cancel that workflow.
+Internal abort telemetry follows OB-026, not a fictitious application termination command.
+
+The hosting-options declarations in §17.4 and this namespace/assembly table own this policy.
+The authoring/builders-only declaration companion has no host-options declarations and is
+explicitly excluded from this amendment. The source and executable API/compile/package baselines implement these signatures
+together. Independent source approval and fresh package-consumer qualification remain separate gates.
 
 The ordinary `WorkflowInstanceSnapshot` intentionally exposes terminal workflow timeout through
 `Status = TimedOut` plus `Failure`, and exposes an active structural wait's optional deadline only

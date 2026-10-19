@@ -132,7 +132,7 @@
     {"family":"Workflow strong values (all §17.2.1 values except `DagNodeId` and `DagRunId`), workflow authoring/definitions/references, ordinary handles/events/results/errors","namespace":"OrcaCore","assembly":"OrcaCore"},
     {"family":"`DagNodeId`, `DagRunId`, DAG authoring/definitions/references/handles/results/errors","namespace":"OrcaCore.Dag","assembly":"OrcaCore.Dag"},
     {"family":"`StructuredExecutionHostOptions`, `StepExecutionThrottle`","namespace":"OrcaCore.Hosting","assembly":"OrcaCore"},
-    {"family":"`EphemeralEngineHostOptions`, `TransientPoolDefinition`, ephemeral registration extension","namespace":"OrcaCore.Hosting","assembly":"OrcaCore.Engine.Ephemeral"},
+    {"family":"`EphemeralEngineHostOptions`, `EphemeralTerminalRetentionPolicy`, `TransientPoolDefinition`, ephemeral registration extension","namespace":"OrcaCore.Hosting","assembly":"OrcaCore.Engine.Ephemeral"},
     {"family":"`DurableEngineHostOptions`, `DurableResourcePoolOptions`, `DurableResourcePoolDefinition`, durable engine/ingress registration extension","namespace":"OrcaCore.Hosting","assembly":"OrcaCore.Durable.Hosting"},
     {"family":"`DagHostOptions`, DAG registration extension","namespace":"OrcaCore.Dag.Hosting","assembly":"OrcaCore.Dag.Hosting"},
     {"family":"Lease/pool statuses, snapshots, closed resize result, governance records/stream/append result","namespace":"OrcaCore.Runtime.Protocol.ResourceGovernance","assembly":"OrcaCore.Runtime.Protocol"},

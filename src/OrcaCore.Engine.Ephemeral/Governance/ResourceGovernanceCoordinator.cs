@@ -16,6 +16,7 @@ internal sealed class ResourceGovernanceCoordinator
         });
     private readonly Lock gate = new();
     private readonly Action? governanceWaitStarting;
+    internal event Action? WaitStarting;
     private readonly IReadOnlyDictionary<string, SlotState> transientPools;
     private readonly IReadOnlyDictionary<Type, SlotState> stepThrottles;
     private readonly ObservableGauge<long>[] gauges;
@@ -72,6 +73,7 @@ internal sealed class ResourceGovernanceCoordinator
                 {
                     waiting = true;
                     governanceWaitStarting?.Invoke();
+                    WaitStarting?.Invoke();
                     Interlocked.Increment(ref waiterCount);
                     RecordWait(exactStepType, poolKey, 1);
                 }
@@ -261,15 +263,16 @@ internal sealed class GovernanceLease : IAsyncDisposable
         return ValueTask.CompletedTask;
     }
 
-    internal void RetainUntil(Task physicalAttempt)
+    internal Task RetainUntil(Task physicalAttempt)
     {
         ArgumentNullException.ThrowIfNull(physicalAttempt);
+        if (release is null) return Task.CompletedTask;
         if (Interlocked.CompareExchange(ref disposalTransferred, 1, 0) != 0)
         {
             throw new InvalidOperationException("Governance lease disposal was already transferred.");
         }
 
-        _ = ReleaseAfterAsync(physicalAttempt);
+        return ReleaseAfterAsync(physicalAttempt);
     }
 
     private async Task ReleaseAfterAsync(Task physicalAttempt)

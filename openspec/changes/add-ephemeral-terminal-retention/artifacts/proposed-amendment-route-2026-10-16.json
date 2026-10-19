@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "kind": "unactivated-amendment-routing-proposal",
+  "change": "add-ephemeral-terminal-retention",
+  "issue": "https://github.com/dekrevedko/Workflow-orca/issues/1",
+  "sourceCommit": "370b239402c8974a45fc0a54f539a823ab470cf4",
+  "stage": "Proposed",
+  "independentApproval": null,
+  "canonicalSynchronized": false,
+  "sourceImplementationAuthorized": false,
+  "existingRequirementSuccessors": [],
+  "provenance": {
+    "baselineRows": 184,
+    "baselineBytes": 48504,
+    "baselineSha256": "fd6ad0449e706d5ecf3f9dab552a9ad5fc3ef1be95df13304afba91e1d9ca8c8",
+    "candidateRows": 189,
+    "candidateBytes": 49579,
+    "candidateSha256": "b717202106d488a443c949a724952df9ac0b91e1ccbb5e7e98f88bd0e166f311",
+    "semanticApprovalEligible": false,
+    "pendingCanonicalOperations": [
+      { "capability": "developer-facing-surface", "count": 1, "turnsGreenChange": "add-ephemeral-terminal-retention", "turnsGreenTask": "2.2" },
+      { "capability": "management-and-querying", "count": 4, "turnsGreenChange": "add-ephemeral-terminal-retention", "turnsGreenTask": "2.2" }
+    ]
+  },
+  "requirementIdentities": [
+    { "capability": "developer-facing-surface", "operation": "ADDED", "requirement": "Ephemeral terminal retention policy is explicit and host-owned", "deltaBlockSha256": "3c0163a860f5ee958de7957f92de4b04412976fc2edc9826b369c86e40078a18" },
+    { "capability": "management-and-querying", "operation": "ADDED", "requirement": "Ephemeral terminal retention requires physical settlement", "deltaBlockSha256": "c2d7eb8e4547c83422b8f33a60ca519e45e7ca77d7e25d1e4ad8057a3d855e11" },
+    { "capability": "management-and-querying", "operation": "ADDED", "requirement": "Ephemeral terminal retention retires one complete ownership unit", "deltaBlockSha256": "0db89b83ef433ea9b25c4778a39ea6a4efe9dcd7e573a77d7b00904afc47ccc2" },
+    { "capability": "management-and-querying", "operation": "ADDED", "requirement": "Retired ephemeral handles have deterministic outcomes", "deltaBlockSha256": "94260d122100bd920c7d9f0a6b4c03dfde4332db7943fb91e8830351d9579da2" },
+    { "capability": "management-and-querying", "operation": "ADDED", "requirement": "Ephemeral start idempotency expires with atomic retirement", "deltaBlockSha256": "58e479b5f25e3c5d051c5e7953c9059f1b4a84bf9a46f73e427803e29b165fae" }
+  ],
+  "gateTasks": {
+    "contractApproval": "1.3",
+    "contractCheckpoint": "1.4",
+    "canonicalAndRegistryTransition": "2.2",
+    "ownershipSourceCheckpoint": "3.3",
+    "policySourceCheckpoint": "4.5",
+    "publishedConsumerEvidence": "5.1-5.2",
+    "finalApprovalCheckpoint": "5.3"
+  },
+  "promotionTargets": [
+    "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json",
+    "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json"
+  ],
+  "activationRule": "This file is review material, not a format consumed by the existing guard. Translate only independently approved routing into the current exact source-pinned registry/fixture schema in its own reviewed target; never copy this object into a fixture or mark the current tree semantically approved."
+}

@@ -192,6 +192,24 @@ enabling dashboard click-through from a latency spike to the causative trace (OB
 
 ---
 
+### OB-026 Ephemeral abort and retention observations
+An unaccepted provisional-start abort SHALL be classified as internal cleanup, not as an
+application-issued termination command. If implementation shares `RequestTerminationAsync`'s
+fencing primitive, it SHALL separate that internal origin from `orca.commands.processed` and
+command-duration counts for caller-issued termination; sharing code is not evidence that a
+caller issued a command. The actual immutable terminal transition can retain its lifecycle
+observation, labelled as internal origin in bounded metadata, while later physical settlement
+and release are separate facts. Do not claim the fence proves external work stopped.
+
+Automatic terminal retirement SHALL emit best-effort internal `evicted` observation only after
+unit removal, without a public archive/delete event. Host-local diagnostics SHALL distinguish
+eligible retained terminals, protected active/unsettled units, transiently pinned units and
+unaccepted aborted units awaiting physical settlement, including count/age retirements and
+cleanup failures. Use bounded reason/origin categories; never instance IDs, start keys or event
+IDs as metric labels, and never business payloads by default. These observations add no public
+enumeration or management API. Product conformance is gated by AC-542 and the source/consumer
+tasks; Markdown/provenance checks alone cannot supply it.
+
 ## 15.4 Logging requirements
 
 ### OB-030 Structured logging only

@@ -29,6 +29,13 @@ internal sealed record EphemeralWorkflowEngineOptions
     /// </summary>
     public TimeSpan? StuckStepThreshold { get; init; }
 
+    // Owned immutable policy values, shared by public hosting and internal ownership tests.
+    internal EphemeralTerminalRetentionSettings? TerminalRetention { get; init; }
+
+    internal Func<InstanceId, Execution.EphemeralWorkKind, ValueTask>? WorkCompletionPending { get; init; }
+
+    internal Func<InstanceId, ValueTask>? OperationPinAcquired { get; init; }
+
     internal Action<InstanceId>? LaneWorkItemEnqueued { get; init; }
 
     internal Action? GovernanceWaitStarting { get; init; }
@@ -51,7 +58,13 @@ internal sealed record EphemeralWorkflowEngineOptions
             MaxConcurrentExecutionPathsPerInstance =
                 validated.MaxConcurrentExecutionPathsPerInstance,
             StepThrottles = validated.StepThrottles,
-            TransientPools = validated.TransientPools
+            TransientPools = validated.TransientPools,
+            TerminalRetention = validated.TerminalRetention
         };
     }
 }
+
+internal sealed record EphemeralTerminalRetentionSettings(
+    int MaxRetainedInstances,
+    TimeSpan MaxAge,
+    TimeSpan SweepInterval);

@@ -6,6 +6,8 @@ internal interface IWorkflowInstance
 {
     InstanceId InstanceId { get; }
 
+    EphemeralInstanceLifetime Lifetime { get; }
+
     Type StateType { get; }
 
     object StateObject { get; }

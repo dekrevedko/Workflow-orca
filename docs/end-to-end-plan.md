@@ -33,6 +33,12 @@ implementations:
 6. Request cooperative cancellation or immediate fenced termination through that handle.
 7. Repeat the durable journey on a replacement host and a certified provider.
 
+The approved ephemeral retention amendment in MG-054–058 remains source-pending. Its consumer
+evidence must distinguish accepted starts from admitted output waits: count pressure can retire
+a completed instance between them, and replaying the expired key can repeat external effects.
+Accepted-instance host-lifetime retention remains the default; aborted unaccepted starts still
+require settlement cleanup with the policy omitted.
+
 The ephemeral host role is registered by
 `AddOrcaCoreEphemeralEngine(EphemeralEngineHostOptions)`. The durable host uses
 `AddOrcaCoreDurableEngine(DurableEngineHostOptions)` or callback-only

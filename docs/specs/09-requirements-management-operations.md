@@ -38,7 +38,9 @@ resultless handles have no output member. Resultful handles additionally expose
 `WaitForOutputAsync(CancellationToken)` returning `TOutput`, and typed start results expose the
 same success helper after `GetHandleOrThrow()`. Waiting SHALL subscribe before one authoritative
 recheck, never poll, throw `WorkflowOutputUnavailableException` for terminal-without-output, and
-treat caller cancellation as local to the wait.
+treat caller cancellation as local to the wait. Ephemeral calls require retained-instance
+admission under MG-057: an admitted wait pins its instance, but a successful start alone does
+not reserve a future wait or guarantee a minimum observation window.
 
 ### MG-004 Bulk/destructive management is deferred
 Any future broad selection, retry, archive, purge, or destructive breadth contract must define
@@ -59,7 +61,8 @@ Cancellation returns `Requested`, `AlreadyRequested`, or `AlreadyTerminal`; term
 `Terminated` or `AlreadyTerminal`. Durable `IWorkflowEventIngress` separately accepts the closed
 direct/correlation/definition-fanout/start-or-deliver route union from EV-010/012. Definition
 handles expose typed `StartOrGetAsync` in both modes, with durable mode providing restart-safe
-binding.
+binding. Ephemeral start bindings instead follow the retained-instance lifetime in MG-058;
+an expired key can create a new execution even if the earlier execution produced effects.
 
 ### MG-011 Durable management commands are deferred
 Public `Pause`, `Resume`, failed-instance/step management `Retry`, `GetHistory`, `Archive`, and
@@ -96,6 +99,11 @@ stuck-detected. Step events carry `StepOperationId` and `AttemptNumber` where ap
 treating either as a routine metric label. Archive/delete events are reserved for the deferred
 public retention capability, though providers may emit internal retention audit records.
 
+Automatic ephemeral terminal retirement emits only best-effort internal `evicted` observation
+after actual removal. It does not introduce an application archive/delete event. A provisional
+abort fence is internal cleanup, not an application-issued termination command; OB-026 owns that
+telemetry distinction even when the implementation shares the termination primitive.
+
 ### MG-021 Durability of lifecycle events
 The contract SHALL state which lifecycle events are durable (published via outbox,
 survive restart) vs best-effort in-process, per mode. Terminal-state events SHALL be
@@ -111,7 +119,7 @@ name, stuck instances by definition, and provider-authoritative pressure for act
 waits, streams, checkpoints, continuation records, and external outbox records. The grouped and
 pressure snapshots are safe for periodic host observation; the port does not promise age buckets or
 raw instance enumeration. This advanced port is not a fluent application query surface. Retention, archive,
-purge, and poison maintenance belong to `IWorkflowProviderMaintenanceStore` under operator policy;
+purge, and poison maintenance for durable records belong to `IWorkflowProviderMaintenanceStore` under operator policy;
 they do not approve public lifecycle commands.
 
 ### MG-031 Pressure metrics
@@ -119,7 +127,7 @@ Durable statistics SHALL include history/stream growth, checkpoint lag, outbox b
 active-instance pressure (DU-052).
 
 ### MG-032 Lifetime tracking
-Every instance SHALL track: created, last transition, last active execution, current-status
+Every retained instance SHALL track: created, last transition, last active execution, current-status
 entry time, total age, current wait age, terminal time. Every executing step SHALL track:
 start time, optional progress heartbeat, expected timeout, completion time, outcome.
 Application operations SHALL obtain transition timestamps from the runtime `TimeProvider`.
@@ -144,15 +152,18 @@ pretending terminal status released its lease.
 ## 9.6 Resource lifecycle (activation & eviction)
 
 ### MG-050 Safe eviction
-Idle in-memory instances SHALL be evictable without correctness loss: waiting instances with
+Idle durable in-memory activations SHALL be evictable without correctness loss: waiting instances with
 no runnable work, idle instances between commands, and terminal instances after durable
 terminal handling. Instances currently executing a step, mid-commit, or holding
 non-delegated short-wait wake-ups SHALL NOT be evicted. The requirement is *safe eviction*
 semantics; LRU or idle-timeout is an implementation strategy.
+This is durable activation eviction, not permission to discard an active/waiting ephemeral
+instance. Ephemeral retirement obeys MG-054–058 and has no rehydration promise.
 
 ### MG-051 Eviction policy dimensions
-Configurable: active idle timeout, optional wait-residency optimization, max active instance
-count, and memory-pressure eviction. Every committed durable `Wait` is a safe cold-eviction
+Durable residency policy can configure active idle timeout, optional wait-residency optimization,
+max resident activation count, and memory-pressure eviction. These are memory-residency controls,
+not an independent workflow-instance/advancement admission ceiling. Every committed durable `Wait` is a safe cold-eviction
 boundary; authors do not select residency (EV-040).
 
 ### MG-052 Eviction preserves single-mutator
@@ -160,8 +171,81 @@ Eviction releases ownership cleanly; rehydration reacquires it; at most one logi
 exists at any time, under any eviction/reactivation race (CR-040).
 
 ### MG-053 Terminal instances leave memory quickly
-After terminal state and lifecycle handling are durably complete, instances SHALL be evicted
+After terminal state and lifecycle handling are durably complete, durable activations SHALL be evicted
 from active memory while remaining durably queryable per retention (DU-050).
+Accepted ephemeral instances instead follow host-lifetime retention unless the host opts into
+MG-054; no shared terminal-memory wording overrides its physical-settlement and pin protections.
+
+### MG-054 Explicit ephemeral terminal retention policy
+`EphemeralEngineHostOptions.TerminalRetention` SHALL default to null. Accepted instances and
+their start bindings then remain for the host lifetime and no retention timer exists. The
+optional immutable `EphemeralTerminalRetentionPolicy.Create(int maxRetainedInstances,
+TimeSpan maxAge, TimeSpan sweepInterval)` has get-only `MaxRetainedInstances`, `MaxAge` and
+`SweepInterval`. It rejects count below one, nonpositive age/interval, interval greater than age,
+or interval greater than one day, in parameter order with `ArgumentOutOfRangeException` naming
+the parameter. Registration freezes owned values and fingerprints all values plus enabled state;
+equal values compose idempotently and differing values conflict before service mutation.
+All positive intervals within those ceilings, including one tick, are valid; very small intervals
+can cause continuously busy sweeps/CPU overhead and SHALL be documented without silent clamping.
+
+### MG-055 Physical settlement and provisional aborts
+Accepted active, waiting, delayed or cancellation-requested work, and terminal work with
+unsettled owned root/branch/item attempts, callbacks, continuations or commits, SHALL be
+protected regardless of count/age. Ownership is registered before dispatch and cleared only on
+definitive physical completion, whether or not throttles/pools exist. Terminality, a free path
+token, elapsed time or a cancellation ACK is not settlement or proof external effects stopped.
+
+Cancellation of a start observed after runtime creation but before facade acceptance, or an
+exception escaping after `Init` before acceptance, SHALL abort the unaccepted provisional unit.
+Before returning the original error, its owning lane fences it to `Terminated` with cleanup
+authority independent of the caller token, preserving any already committed terminal status.
+No facade binding, start-key binding or handle is published. It stays outside the accepted
+retention budget and is released eagerly after physical settlement even with retention off.
+If atomic acceptance wins, return `Accepted`; later start-token cancellation cannot cancel the
+accepted workflow. An abort error is not evidence that no step/effect ran or that retry is safe.
+
+### MG-056 One complete ephemeral retirement unit
+Retirement SHALL remove the runtime instance, retained state/output/failure ownership, facade
+instance/start bindings, obsolete routing/timer/notification/retention records and all per-instance
+`EphemeralWorkflowEventRouter.accepted` deduplication entries together. Definitions remain
+registered. No permanent retired-ID/key tombstone or deferred cleanup queue may grow with jobs.
+Stamp monotonic settlement age once after physical settlement and facade publication, with a
+unique increasing settlement ordinal. On publication/settlement, final operation-pin release and
+each non-overlapping idle sweep, retire expired eligible units first and then oldest eligible units
+until the host-wide count across definitions is at most `MaxRetainedInstances`, before the
+triggering operation completes. Reads/replays do not refresh age/order. Age retirement is on the
+first sweep at/after `MaxAge`, subject to scheduler delay; wall-clock jumps do not alter age.
+Active/unsettled and transiently pinned units are additional to that eligible-terminal budget.
+After work/operations settle, every owned per-instance collection plateaus at the configured
+count. Count pressure can retire sooner than age: neither minimum retention time nor byte/RSS,
+active/stuck-work, registered-definition or caller-owned-copy bounds are promised.
+
+### MG-057 Retained handles and output waiting
+Handles grant identity, not a lifetime lease. Pin admission and retirement SHALL linearize:
+pin-first protects the unit until a coherent detached query/terminal wait result is captured;
+retire-first rejects new operations. A pre-existing output wait keeps subscribe-then-recheck,
+no polling/missed wakeup, exactly-once pin release on result/error/local cancellation, and no
+workflow cancellation from local wait cancellation. Merely returning `Accepted` or a handle
+does not subscribe or pin a later wait. Every runtime operation on a retired handle, and
+`GetInstanceAsync` for its old ID, throws `WorkflowInstanceNotFoundException` with existing
+`WF-INSTANCE-NOT-FOUND`; retained definition/type mismatch rules remain exact. Caller-owned
+detached values and completed wait results remain valid; an old handle never addresses a new ID.
+
+Count pressure may retire a completed job between start return and direct/helper wait admission.
+That wait throws not-found despite the job having run, and its now-unbound key can start a new ID
+and repeat effects. Not-found after `Accepted` is not proof a run never started or permission for
+an effect-safe retry. Size the retained count above completions possible during the caller's
+start-to-observe gap and retain independent effect deduplication where required.
+
+### MG-058 Start binding lifetime equals actual retirement
+While a unit is retained/protected/pinned, compatible definition/version/fingerprint/fixed-codec
+input replay returns the same ID with `WasExisting = true`; changed intent returns the existing
+closed conflict without mutation. Actual atomic retirement removes the key and unit visibility
+together; elapsed age alone does not unbind it. A later valid start on that unbound key creates a
+fresh runtime-minted ID with `WasExisting = false`. Concurrent replay/start/retire must observe
+one complete side of the visibility boundary, never a binding to missing data or two newly
+accepted instances for one current key. Host-local start deduplication ends there; physical
+side-effect exactly-once and durable retention are separate obligations.
 
 ## 9.7 Concurrency and durable resource governance
 
@@ -190,6 +274,10 @@ governing cancellation after releasing the instance turn; it is not workflow fai
 fail-fast/capacity-wait-timeout policy or custom transient-governance SPI. Driver segment
 budgets such as `MaxSegmentDuration` remain a separate fairness mechanism, not a capacity-wait
 exit.
+
+The ephemeral host may additionally configure MG-054's terminal-retention policy. Its eligible
+retained-data count has no role in path/step/pool/DAG admission and never releases physical
+capacity or evicts active/waiting/unsettled work to satisfy a memory budget.
 
 Authors SHALL NOT configure a definition-wide execution-path ceiling. The host owns
 `MaxConcurrentExecutionPathsPerInstance`; fixed root `Parallel` branches are admitted in authored

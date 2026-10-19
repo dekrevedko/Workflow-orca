@@ -74,6 +74,18 @@ internal sealed class EphemeralTimerService(TimeProvider timeProvider) : IDispos
         scheduledTimer.Dispose();
     }
 
+    internal void CancelInstance(InstanceId instanceId)
+    {
+        ScheduledTimer[] cancelled;
+        lock (gate)
+        {
+            cancelled = scheduledTimers.Where(timer => timer.InstanceId.Equals(instanceId)).ToArray();
+            scheduledTimers.RemoveAll(timer => timer.InstanceId.Equals(instanceId));
+            foreach (var timer in cancelled) claimedTimerTokens.Remove(timer.Token);
+        }
+        foreach (var timer in cancelled) timer.Dispose();
+    }
+
     internal void Release(ScheduledTimer scheduledTimer)
     {
         lock (gate)

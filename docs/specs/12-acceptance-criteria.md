@@ -510,6 +510,57 @@ first-release evidence for AC-512…517.
   workflow handles expose none of these facts, and remote adapters own authorization/redaction.
   [MG-001/064]
 
+- **AC-533** *Explicit optional host policy* — Null/omitted policy retains accepted instances and
+  start bindings for the host lifetime with no retention timer. Factory parameter-order/range
+  tests cover count, age and interval, including a valid one-tick interval. Equal copied policy
+  values compose; any changed value/enabled state conflicts before service mutation. [MG-054]
+- **AC-534** *Physical work is protected* — With and without throttles/pools, barriers hold
+  root/branch/item attempts or callbacks alive after timeout/cancellation/termination. Count/age
+  pressure never removes their units or releases physical slots early; waiting/delayed/joined
+  accepted work stays protected. Fake time alone is not settlement. [MG-055]
+- **AC-535** *Aborted start leaves no unreachable active unit* — Cancel the start token during
+  the first physical step after `Init`, and separately throw after `Init` before acceptance.
+  In both policy modes the owning lane fences to `Terminated` (or preserves prior terminality)
+  before returning the original error, publishes no facade/key/handle, and eagerly releases all
+  provisional records after physical settlement outside the retained budget. Test acceptance
+  winning the race and a noncooperative body that remains protected. [MG-055]
+- **AC-536** *Host-wide count and idle age retirement* — Across multiple definitions and equal
+  settlement timestamps, fake-clock tests prove age-first then ordinal-oldest count retirement,
+  no read/replay refresh, count enforcement at operation completion, non-overlapping idle sweeps,
+  and no wall-clock-jump effect. Eligible data plateaus; protected/pinned records are accounted
+  separately, with no claimed byte/RSS ceiling. [MG-056]
+- **AC-537** *Every ownership store retires together* — Exercise nontrivial root state/output,
+  failure payloads and event delivery, then prove runtime/facade/start/router-`accepted`/timer/
+  notification/retention records retire together, no late callback republishes them, definitions
+  remain installed, and no retired-ID/tombstone backlog replaces the removed data. [MG-056]
+- **AC-538** *Queries and pre-existing waits pin coherent results* — Force read/retire and
+  subscribe/recheck/terminal-notification/retire interleavings. Each admitted waiter obtains its
+  detached success or typed terminal failure, releases once on result/error/local cancellation,
+  and cannot hang. Other waiters/workflow state remain intact; returned detached values survive
+  retirement and stale handles cannot root payloads. [MG-057]
+- **AC-539** *Accepted start may be unobservable after count retirement* — Hold the caller
+  between `Accepted` return and direct/helper output-wait admission; complete enough other jobs
+  to retire its completed unit. The wait throws not-found for its old ID despite a proven step
+  effect; replay of the expired key returns a fresh ID with `WasExisting = false` and can repeat
+  the effect. No automatic safe-retry inference is permitted. [MG-057/058]
+- **AC-540** *Key expiry and stale IDs linearize* — Barrier tests race compatible/incompatible
+  replay, completion and retirement. While protected/retained/pinned, same intent returns the
+  same ID and changed intent conflicts; actual retirement unbinds key/unit together. Reuse then
+  creates one new ID. Old handles always fail for their old ID; existing retained type/definition
+  mismatch behavior remains. Elapsed age alone never unbinds a key. [MG-058]
+- **AC-541** *Published-consumer evidence is fresh* — Package-only Release experiments compare
+  disabled and bounded resident hosts over at least 20 times the count budget, dropping caller
+  copies but retaining sample handles. Separately report every ownership-store count, payload
+  reachability, allocations, managed heap and process memory, idle expiry, key reuse and protected
+  stuck-work exceptions. Diagnostic GC is experiment-only, not product behavior. Source/package
+  hashes, closure, OS/runtime, inputs and commands are recorded. These acceptance results remain
+  unclaimed until source/consumer gates execute. [MG-054–058, NF-031]
+- **AC-542** *Internal abort telemetry is classified* — In both policy modes, a provisional
+  abort records internal-abort/terminal-fence observations and eventual settlement cleanup,
+  without counting an application termination command that no caller issued. Retirement emits
+  best-effort internal eviction only after removal; metric labels contain no instance/key IDs.
+  Sharing a termination primitive does not alter this classification. [MG-020, OB-026]
+
 ## Bounded fanout and typed DAG (AC-6xx)
 
 - **AC-601** *Finite item snapshot* — A pure root `ForEach` selector may be evaluated more than

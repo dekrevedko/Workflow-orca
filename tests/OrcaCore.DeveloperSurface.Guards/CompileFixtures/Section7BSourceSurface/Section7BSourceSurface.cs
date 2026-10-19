@@ -2,6 +2,19 @@ using OrcaCore;
 using OrcaCore.Durable.Hosting;
 using OrcaCore.Hosting;
 
+var retention = EphemeralTerminalRetentionPolicy.Create(128, TimeSpan.FromMinutes(10), TimeSpan.FromSeconds(1));
+var retentionOptions = new EphemeralEngineHostOptions
+{
+    StructuredExecution = new() { MaxConcurrentExecutionPathsPerInstance = 2, StepThrottles = [] },
+    TransientPools = [], TerminalRetention = retention
+};
+_ = (retention.MaxRetainedInstances, retention.MaxAge, retention.SweepInterval, retentionOptions.TerminalRetention);
+#if RETENTION_NEGATIVE
+_ = new EphemeralTerminalRetentionPolicy(1, TimeSpan.FromHours(1), TimeSpan.FromSeconds(1));
+retention.MaxAge = TimeSpan.FromMinutes(1);
+_ = new DurableEngineHostOptions { TerminalRetention = retention };
+#endif
+
 var fixedDefinitionId = DefinitionId.Parse("44f38e8a-7a68-43dc-a184-5a0d555f1b20");
 var payloadlessContract = WorkflowEventContract.Create(
     EventName.Create("approval-requested"), EventContractVersion.Initial);

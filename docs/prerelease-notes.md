@@ -11,7 +11,8 @@ The GitHub release URL itself is not a NuGet feed.
 Current limitations:
 
 - Completed ephemeral instances and their start bindings remain retained for the host lifetime.
-  Use bounded, disposable job hosts until a retention contract is implemented:
+  Use bounded, disposable job hosts until the approved retention contract has runtime and
+  consumer qualification; approval alone does not add the policy to these binaries:
   [issue #1](https://github.com/dekrevedko/Workflow-orca/issues/1).
 - Applications must request cancellation and settle active work before disposing dependencies.
   Host shutdown does not yet provide an integrated stop-and-join guarantee:

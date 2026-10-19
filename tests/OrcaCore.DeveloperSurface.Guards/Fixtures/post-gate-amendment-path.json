@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 11,
+  "schemaVersion": 16,
   "requiredStages": [
     "amendment-approval",
     "canonical-open-spec",
@@ -546,5 +546,141 @@
       165
     ],
     "approval": null
+  },
+  "ephemeralRetentionContractEvidence": {
+    "checkpointCommit": "5501cade3b9fdede14ac61421d26b8f4b0b6e0ec",
+    "checkpointParent": "370b239402c8974a45fc0a54f539a823ab470cf4",
+    "checkpointTree": "9881d97d63ded744141d8994a1759580bbe061c2",
+    "approvalEvidenceCommit": "3a0879629c2b3591023ce5b3cac984beb7c00181",
+    "verdictPath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/contract-r1-independent-review-verdict-2026-10-16.md",
+    "verdictSha256": "c642b8152a6188443a72dca6da9a7073d3b60fed4b448c223eedd6ae258c17a9",
+    "artifactPath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-1-amendment-registry-2026-10-16.md",
+    "artifactNormalizedSha256": "de760a4a62c6809e15b8cca9258d74e8b89a2a6d163df555e5a8e521170b9ea9"
+  },
+  "sourcePendingAmendments": [
+    {
+      "id": "ephemeral-retention-developer-facing-surface",
+      "owningChange": "add-ephemeral-terminal-retention",
+      "capability": "developer-facing-surface",
+      "stage": "Complete",
+      "declaredRequirementCount": 1,
+      "pendingCanonicalOperationCount": 0,
+      "requirementIdentities": [
+        "Ephemeral terminal retention policy is explicit and host-owned"
+      ],
+      "contractApprovalTask": "1.3",
+      "contractCheckpointTask": "1.4",
+      "canonicalPreparationTask": "2.1",
+      "canonicalReviewTask": "2.2",
+      "numberedRequirementPaths": [
+        "docs/specs/10-provider-model-and-extensibility.md",
+        "docs/specs/17-selected-mode-capability-matrix.md"
+      ],
+      "acceptanceCriteriaPaths": [
+        "docs/specs/12-acceptance-criteria.md"
+      ],
+      "sourceTasks": [
+        "3.1",
+        "3.2",
+        "3.3",
+        "4.1",
+        "4.2",
+        "4.3",
+        "4.4",
+        "4.5",
+        "5.1",
+        "5.2",
+        "5.3"
+      ],
+      "canonicalApprovalEvidencePath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-1-transition-independent-review-verdict-2026-10-16.md",
+      "sourceApprovalEvidencePath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/final-independent-review-verdict-2026-10-18.md",
+      "authoringCompanionDisposition": "ExcludedNoHostingDeclarations",
+      "ownershipApprovalEvidencePath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-3-ownership-independent-review-verdict-2026-10-17.md"
+    },
+    {
+      "id": "ephemeral-retention-management-and-querying",
+      "owningChange": "add-ephemeral-terminal-retention",
+      "capability": "management-and-querying",
+      "stage": "Complete",
+      "declaredRequirementCount": 4,
+      "pendingCanonicalOperationCount": 0,
+      "requirementIdentities": [
+        "Ephemeral terminal retention requires physical settlement",
+        "Ephemeral terminal retention retires one complete ownership unit",
+        "Retired ephemeral handles have deterministic outcomes",
+        "Ephemeral start idempotency expires with atomic retirement"
+      ],
+      "contractApprovalTask": "1.3",
+      "contractCheckpointTask": "1.4",
+      "canonicalPreparationTask": "2.1",
+      "canonicalReviewTask": "2.2",
+      "numberedRequirementPaths": [
+        "docs/specs/02-lessons-from-prior-art.md",
+        "docs/specs/03-domain-model-and-glossary.md",
+        "docs/specs/04-requirements-core-runtime.md",
+        "docs/specs/06-requirements-durable-execution.md",
+        "docs/specs/09-requirements-management-operations.md",
+        "docs/specs/10-provider-model-and-extensibility.md",
+        "docs/specs/11-non-functional-requirements.md",
+        "docs/specs/13-phasing-and-open-questions.md",
+        "docs/specs/15-requirements-observability-otel.md",
+        "docs/specs/17-selected-mode-capability-matrix.md"
+      ],
+      "acceptanceCriteriaPaths": [
+        "docs/specs/12-acceptance-criteria.md"
+      ],
+      "sourceTasks": [
+        "3.1",
+        "3.2",
+        "3.3",
+        "4.1",
+        "4.2",
+        "4.3",
+        "4.4",
+        "4.5",
+        "5.1",
+        "5.2",
+        "5.3"
+      ],
+      "canonicalApprovalEvidencePath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-1-transition-independent-review-verdict-2026-10-16.md",
+      "sourceApprovalEvidencePath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/final-independent-review-verdict-2026-10-18.md",
+      "authoringCompanionDisposition": "ExcludedNoHostingDeclarations",
+      "ownershipApprovalEvidencePath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-3-ownership-independent-review-verdict-2026-10-17.md"
+    }
+  ],
+  "ephemeralRetentionCanonicalEvidence": {
+    "checkpointCommit": "d1d3cf669e966a567155205715ebc53c398875d5",
+    "checkpointParent": "f1eb86e31306d0aab88d8f84d38c925ef2eaf4c7",
+    "checkpointTree": "83a08eaad4511500f482b7beace3a9455678a3ff",
+    "approvalEvidenceCommit": "3eee5165e94ef91a0a1ef6eb4ec4b80ae1ea528f",
+    "verdictPath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-1-transition-independent-review-verdict-2026-10-16.md",
+    "verdictSha256": "67abed678ba58bd72411b79b5ab4276299689197f067123a84acf6f7a19d747a",
+    "artifactPath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-2-canonical-binding-2026-10-17.md",
+    "artifactNormalizedSha256": "9620df73d7809757833560bd51739186c2a58021b511a995dc49364b058b5698"
+  },
+  "ephemeralRetentionOwnershipEvidence": {
+    "checkpointCommit": "c1459cc427c77a8b0c7b3b52b81878e1c8c50ab9",
+    "checkpointParent": "ef88957af4c41bf18def689ba81c71e1a1d18696",
+    "checkpointTree": "e4cf5a0651d9324ae1a0ed8dff735d3f8978aeee",
+    "approvalEvidenceCommit": "0b33d02b47d03bddf0958c5d63052f32d0b2b8e6",
+    "verdictPath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-3-ownership-independent-review-verdict-2026-10-17.md",
+    "verdictSha256": "ecfc02f215274d7527c119316729aa96d0b7f223dfb9453b38dc1524ff9bfbcd"
+  },
+  "ephemeralRetentionPolicyEvidence": {
+    "checkpointCommit": "dd5dce34b93b976787eac6adfdcfbbbc24714ab1",
+    "checkpointParent": "0b33d02b47d03bddf0958c5d63052f32d0b2b8e6",
+    "checkpointTree": "09fd5669a00ef3feae38bdf97375950010df70eb",
+    "approvalEvidenceCommit": "8e10dd1c7fa8e5cc24f9491c80dd80ae01f80541",
+    "verdictPath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/section-4-independent-review-verdict-2026-10-18.md",
+    "verdictSha256": "112f844af0cb1d2a3ed511b9cc4bc7774894b17d540b9f8d8532b03ae8054ac8"
+  },
+  "ephemeralRetentionFinalEvidence": {
+    "checkpointCommit": "805ae2d0e6513f50a226438866669a967ff9d758",
+    "checkpointFirstParent": "8e10dd1c7fa8e5cc24f9491c80dd80ae01f80541",
+    "checkpointSecondParent": "1c86c239fe11b893cc9bd526ce2cf64472323024",
+    "checkpointTree": "d4ab4a057de82328de532ab460ddf7070a8ba03c",
+    "approvalEvidenceCommit": "1f31652b20f88b4c7046919d8ddd1edb9d3040ca",
+    "verdictPath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/final-independent-review-verdict-2026-10-18.md",
+    "verdictSha256": "cfb5c993aaa7067819ddc3e13abbef73766ec359d095f56e2ed8fe11beda80e5"
   }
 }

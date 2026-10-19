@@ -38,6 +38,7 @@ public sealed partial class RepositoryGuardTests
         ["AC-530"] = "Atomic resource-governance aggregate certification is implemented by reshape-developer-facing-interfaces tasks 6.6 and 6.10.",
         ["AC-531"] = "The reduced pool-management surface is implemented by reshape-developer-facing-interfaces tasks 6.8 and 7.7.",
         ["AC-532"] = "Trusted outstanding-lease discovery is implemented by reshape-developer-facing-interfaces tasks 6.7 and 6.10.",
+        ["AC-541"] = "Published-consumer count-pressure and memory evidence is pending add-ephemeral-terminal-retention task 5.2.",
         ["AC-617"] = "Compiled ordered DAG snapshot evidence is pending reshape-developer-facing-interfaces tasks 8.6 and 8.10.",
         ["AC-618"] = "Compiled reactive DAG terminal-wait evidence is pending reshape-developer-facing-interfaces tasks 8.6 and 8.10.",
         ["DR-AC-007"] = "DR-P3 saga driving is still open.",

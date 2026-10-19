@@ -184,7 +184,9 @@ codec is a future format migration, not a provider registration option. Reuse th
 definition/version or with a different structural or payload fingerprint
 returns stable `StartIdempotencyConflict` and never returns an incompatible instance through
 the typed handle. Durable mode persists the binding across restart; ephemeral mode preserves
-the same within-process semantics without claiming restart survival.
+the same matching semantics while its instance remains retained, without claiming restart
+survival. MG-058 defines atomic ephemeral instance/key retirement and fresh execution after
+expiry; a returned start result does not reserve output-wait admission (MG-057).
 
 ### DU-054 Explicit host-scoped registration
 Definition registration SHALL be an explicit host-scoped operation through

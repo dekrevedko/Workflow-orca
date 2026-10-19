@@ -214,6 +214,13 @@ exposes live internal state. Caller cancellation cancels only that local wait an
 request workflow, DAG-run, or child cancellation. A terminal workflow without output throws
 typed `WorkflowOutputUnavailableException` carrying status and optional `WorkflowFailure`.
 
+For retained ephemeral instances, MG-055–058 govern admission of that wait. An accepted start
+is not an implicit subscription or retention lease. Count pressure can retire a completed
+instance before a later direct/helper wait is admitted; then existing not-found applies even
+though the job ran. Already admitted waiters capture a detached terminal result before releasing
+their pin. Start-token cancellation before acceptance follows the provisional abort fence in
+MG-055; local output-wait cancellation remains separate from workflow cancellation.
+
 ### CR-017 Runtime-owned execution quantum
 Fiber turns, checkpoint cadence, and fair rescheduling are runtime decisions. Reaching the
 configured instruction/time admission budget SHALL commit any already-completed transitions,

@@ -57,7 +57,11 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         return new StepTransition(blockedState, InstanceTerminated: false);
     }
 
-    private async Task AwaitRetryAndResumeAsync(
+    private Task AwaitRetryAndResumeAsync(FiberId fiberId, string obligationId, TimeSpan backoff, WorkflowInstance<TState> instance) =>
+        instance.Lifetime.RunAsync(EphemeralWorkKind.RetryContinuation,
+            () => RunRetryContinuationAsync(fiberId, obligationId, backoff, instance));
+
+    private async Task RunRetryContinuationAsync(
         FiberId fiberId,
         string obligationId,
         TimeSpan backoff,
@@ -66,14 +70,18 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         try
         {
             using var instanceCancellation = instance.CreateLinkedExecutionToken(CancellationToken.None);
+            using var waitingCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                instanceCancellation.Token, instance.Lifetime.TerminalCancellation);
             if (backoff > TimeSpan.Zero)
             {
-                await Task.Delay(backoff, timeProvider, instanceCancellation.Token).ConfigureAwait(false);
+                await Task.Delay(backoff, timeProvider, waitingCancellation.Token).ConfigureAwait(false);
             }
             else
             {
                 await Task.Yield();
             }
+
+            if (instance.Lifetime.IsTerminal) return;
 
             await yieldContinuationScheduler.ResumeAsync(
                 instance,

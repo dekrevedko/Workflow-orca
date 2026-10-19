@@ -199,6 +199,18 @@ public sealed partial class NormativeContractInfrastructureGuards
     }
 
     [Fact]
+    public void EphemeralRetention_Doc17HostingSignatureIncludesTheCompletePolicy()
+    {
+        var matrix = Read("docs/specs/17-selected-mode-capability-matrix.md");
+        matrix.Should().Contain("public EphemeralTerminalRetentionPolicy? TerminalRetention { get; init; }");
+        matrix.Should().Contain("public sealed class EphemeralTerminalRetentionPolicy");
+        matrix.Should().Contain("private EphemeralTerminalRetentionPolicy(");
+        foreach (var member in new[] { "int MaxRetainedInstances", "TimeSpan MaxAge", "TimeSpan SweepInterval" })
+            matrix.Should().Contain("public " + member + " { get; }");
+        matrix.Should().Contain("public static EphemeralTerminalRetentionPolicy Create(\n        int maxRetainedInstances, TimeSpan maxAge, TimeSpan sweepInterval);");
+    }
+
+    [Fact]
     public void OwnershipCatalog_AgreesWithExactMatrixRows()
     {
         var matrix = Read("docs/specs/17-selected-mode-capability-matrix.md");

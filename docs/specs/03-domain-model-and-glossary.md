@@ -133,14 +133,16 @@ output. Unnamed completion is represented by absence, not an empty/default name.
 
 - **Workflow instance** — one logical execution of a definition. Identified by a globally
   unique, stable **`InstanceId`** that is independent of process, thread, memory object, or
-  activation. Optional identity extensions: `StartIdempotencyKey` (caller-selected durable
-  start-deduplication identity, distinct from `InstanceId`),
+  activation. Optional identity extensions: `StartIdempotencyKey` (caller-selected
+  start-deduplication identity, distinct from `InstanceId`; durable bindings survive restart,
+  while ephemeral bindings expire with atomic retirement under MG-058),
   `ParentInstanceId` and `RootInstanceId` (child-workflow lineage), and a monotonic
   **execution epoch / stream version** for concurrency control.
 - **Runtime state** — engine-owned orchestration metadata: lifecycle status, execution
   position, branch/join state, active waits, accepted-event records, consumed event IDs, timer
   subscriptions, failure details, timestamps, version/epoch.
-  Always queryable without deserializing business state.
+  Queryable without deserializing business state while the instance remains retained; MG-057
+  defines the not-found outcome after ephemeral retirement.
 - **Business state** — workflow-owned, typed (`TState`) application data encoded by the fixed
   `orcacore-json-v1` codec. The runtime gives each attempt a codec-detached copy of the last
   committed root/branch/item state. A successful attempt's winning commit replaces committed
@@ -153,8 +155,9 @@ output. Unnamed completion is represented by absence, not an empty/default name.
   (`InstanceId`, `DefinitionId`, `DefinitionVersion`, `Status`, timestamps, error summary…).
   Live internal instances are never exposed. Business state is read via an explicit typed
   accessor that returns a copy.
-- **Activation** — the disposable in-memory execution object for an instance. Cache, not
-  identity; evictable at safe boundaries; reconstructable by rehydration.
+- **Activation** — the disposable in-memory execution object for a durable instance. Cache, not
+  identity; evictable at safe boundaries; reconstructable by durable rehydration. An ephemeral
+  instance has no persistent copy from which to rehydrate after terminal retirement.
 - **Rehydration** — deterministic reconstruction of an executable activation from durable
   state (checkpoint + stream tail + wait records + definition identity). Requires no prior
   in-memory references.
@@ -166,9 +169,12 @@ output. Unnamed completion is represented by absence, not an empty/default name.
   `Terminated`. `Paused` and `Parked` are not v1 public lifecycle states. Transitions form an
   explicit table with named triggers; illegal triggers are rejected.
 - **Terminal state** — `Completed`, `Failed`, `TimedOut`, `Cancelled`, or `Terminated`. V1
-  never reopens a terminal instance. Terminal instances
-  leave active memory quickly and remain durably
-  inspectable per retention policy.
+  never reopens a terminal instance. Durable terminal activations leave active memory quickly
+  and remain durably inspectable per provider retention. Accepted ephemeral instances and start
+  bindings remain for the host lifetime by default; an explicit host policy can retire a physically
+  settled terminal instance and its complete binding/payload ownership. A logical terminal status
+  alone does not prove settlement. Unaccepted aborted provisional starts are fenced and cleaned
+  after settlement in both policy modes, rather than retained as unreachable active instances.
 
 ### Events, waits, correlation
 
@@ -241,15 +247,21 @@ output. Unnamed completion is represented by absence, not an empty/default name.
   wait. Durable `IWorkflowEventIngress` owns the closed four-route event union. Broad fluent
   selection, public instance enumeration/bulk retrieval, pause/resume, failed-instance retry,
   archive, and purge remain absent from the application surface; provider/operator maintenance
-  owns retained statistics and retention policy.
+  owns durable retained statistics and retention policy. The ephemeral host separately owns
+  automatic terminal retention under MG-054–058.
 - **Lifecycle events** — first-class notifications for instance and step transitions
   (created, activated, suspended, resumed, completed, failed, timed out, cancelled,
   terminated, evicted, stuck-detected; step scheduled/started/completed/failed/retried/
-  timed-out/cancelled).
+  timed-out/cancelled). OB-026 distinguishes internal provisional-abort fencing from an
+  application-issued termination command, and internal post-removal `evicted` observation
+  from deferred archive/delete events.
 - **Stuck detection** — threshold-based identification of steps/instances without progress,
   producing observable signals and queryable results.
 - **Retention** — the separated policy set: active-memory eviction ≠ durable retention ≠
   archival ≠ hard deletion.
+  Automatic ephemeral terminal retirement is a separate host-local lifetime policy: its count/age
+  limits end retained queryability and start-key binding together, and do not prove external work
+  stopped or provide durable history, public purge, or an active-work admission ceiling.
 - **Resource pool / ticket** — capacity governance in two tiers: *ephemeral-only transient
   in-process pools*, named by `TransientPoolName`, bound step execution within one host and vanish on
   restart; *durable pools*, named by the distinct `ResourcePoolName`, issue **tickets** held by

@@ -1,0 +1,494 @@
+{
+  "method": "Diagnostic full GC in consumer, external dotnet-dump Heap and SOS; no engine reflection or friend access",
+  "lab": "E:\\oc5-lab",
+  "feed": "E:\\oc5\\artifacts\\phase0-packages",
+  "dumpTool": "10.0.750501+ad724c4b85e7ae775e42f393c6e95a7557a57954",
+  "dotnet": ".NET SDK:\n Version:           10.0.402\n Commit:            a8dd0577c5\n Workload version:  10.0.400-manifests.6055ec36\n MSBuild version:   18.9.15+a8dd0577c\n\nRuntime Environment:\n OS Name:     Windows\n OS Version:  10.0.26300\n OS Platform: Windows\n RID:         win-x64\n Base Path:   C:\\Program Files\\dotnet\\sdk\\10.0.402\\\n\n.NET workloads installed:\n [maui-windows]\n   Installation Source: VS 18.11.12306.390\n   Manifest Version:    10.0.110/10.0.100\n   Manifest Path:       C:\\Program Files\\dotnet\\sdk-manifests\\10.0.100\\microsoft.net.sdk.maui\\10.0.110\\WorkloadManifest.json\n   Install Type:              Msi\n\n [maccatalyst]\n   Installation Source: VS 18.11.12306.390\n   Manifest Version:    26.5.10315/10.0.100\n   Manifest Path:       C:\\Program Files\\dotnet\\sdk-manifests\\10.0.100\\microsoft.net.sdk.maccatalyst\\26.5.10315\\WorkloadManifest.json\n   Install Type:              Msi\n\n [ios]\n   Installation Source: VS 18.11.12306.390\n   Manifest Version:    26.5.10315/10.0.100\n   Manifest Path:       C:\\Program Files\\dotnet\\sdk-manifests\\10.0.100\\microsoft.net.sdk.ios\\26.5.10315\\WorkloadManifest.json\n   Install Type:              Msi\n\n [android]\n   Installation Source: VS 18.11.12306.390\n   Manifest Version:    36.1.118/10.0.100\n   Manifest Path:       C:\\Program Files\\dotnet\\sdk-manifests\\10.0.100\\microsoft.net.sdk.android\\36.1.118\\WorkloadManifest.json\n   Install Type:              Msi\n\nConfigured to use workload sets when installing new manifests.\nNo workload sets are installed. Run \"dotnet workload restore\" to install a workload set.\n\nHost:\n  Version:      10.0.13\n  Architecture: x64\n  Commit:       4099f83977\n\n.NET SDKs installed:\n  9.0.122 [C:\\Program Files\\dotnet\\sdk]\n  9.0.319 [C:\\Program Files\\dotnet\\sdk]\n  10.0.402 [C:\\Program Files\\dotnet\\sdk]\n\n.NET runtimes installed:\n  Microsoft.AspNetCore.App 6.0.36 [C:\\Program Files\\dotnet\\shared\\Microsoft.AspNetCore.App]\n  Microsoft.AspNetCore.App 9.0.21 [C:\\Program Files\\dotnet\\shared\\Microsoft.AspNetCore.App]\n  Microsoft.AspNetCore.App 10.0.13 [C:\\Program Files\\dotnet\\shared\\Microsoft.AspNetCore.App]\n  Microsoft.NETCore.App 3.1.8 [C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App]\n  Microsoft.NETCore.App 6.0.31 [C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App]\n  Microsoft.NETCore.App 6.0.36 [C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App]\n  Microsoft.NETCore.App 8.0.21 [C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App]\n  Microsoft.NETCore.App 8.0.32 [C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App]\n  Microsoft.NETCore.App 9.0.21 [C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App]\n  Microsoft.NETCore.App 10.0.13 [C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App]\n  Microsoft.WindowsDesktop.App 3.1.8 [C:\\Program Files\\dotnet\\shared\\Microsoft.WindowsDesktop.App]\n  Microsoft.WindowsDesktop.App 6.0.31 [C:\\Program Files\\dotnet\\shared\\Microsoft.WindowsDesktop.App]\n  Microsoft.WindowsDesktop.App 6.0.36 [C:\\Program Files\\dotnet\\shared\\Microsoft.WindowsDesktop.App]\n  Microsoft.WindowsDesktop.App 9.0.21 [C:\\Program Files\\dotnet\\shared\\Microsoft.WindowsDesktop.App]\n  Microsoft.WindowsDesktop.App 10.0.13 [C:\\Program Files\\dotnet\\shared\\Microsoft.WindowsDesktop.App]\n\nOther architectures found:\n  x86   [C:\\Program Files (x86)\\dotnet]\n    registered at [HKLM\\SOFTWARE\\dotnet\\Setup\\InstalledVersions\\x86\\InstallLocation]\n\nEnvironment variables:\n  Not set\n\nglobal.json file:\n  C:\\Users\\Denis\\.codex\\worktrees\\issue-1-ephemeral-retention\\Workflow-orca\\global.json\n\nLearn more:\n  https://aka.ms/dotnet/info\n\nDownload .NET:\n  https://aka.ms/dotnet/download\n",
+  "packages": {
+    "OrcaCore.0.0.0-phase0.nupkg": "0a416f399804966b6566571783abf5e5be9fd40628eef0c80aecf591f50a9968",
+    "OrcaCore.Core.0.0.0-phase0.nupkg": "804b72f286c165fbc5f47a4749fa3be6be3e539a4fe76362b1b3619d8968afb3",
+    "OrcaCore.Dag.0.0.0-phase0.nupkg": "16e8e1adbd3c92bd5d59dbe22cb06ae2804cc2c232acd0d2d2534728aaed6323",
+    "OrcaCore.Dag.Hosting.0.0.0-phase0.nupkg": "93ba46cb387731cb92de38d5f24445208943a9e7ce7eb7a3ecd2ef9fb75ff4ff",
+    "OrcaCore.Durable.Hosting.0.0.0-phase0.nupkg": "3063d63e956eff8066a34144efd646b3117b024d21230d46eb31c7c05a4e8802",
+    "OrcaCore.Engine.Durable.0.0.0-phase0.nupkg": "f6ab1c5f5fa60213f899b42135e42d12c076cfe4f47b36b96c2e953fcd3814f2",
+    "OrcaCore.Engine.Ephemeral.0.0.0-phase0.nupkg": "415d1539728c63ffffd8cb30ea12c399bacdaafce778140def12f8bb710eb3e0",
+    "OrcaCore.Provider.Abstractions.0.0.0-phase0.nupkg": "7825cec486a4ace718ae3351ced64dcb876bdf6593c1062c20ae105215c62d5f",
+    "OrcaCore.Providers.InMemory.0.0.0-phase0.nupkg": "c3132ef895669131ce079b6dd4916e6351971199d9f2a203832b0c0c8e7fdbd6",
+    "OrcaCore.Providers.PostgreSql.0.0.0-phase0.nupkg": "8d45f8bb97559f56ef8de6e5948bcb09e23bf1d7a546dded9c1d7f7823a7abf7",
+    "OrcaCore.Providers.SqlServer.0.0.0-phase0.nupkg": "4e72c81b982c232a01ed07b75f9a28efce6ca3261b6acaf06c1cde7a43cf0b2f",
+    "OrcaCore.Runtime.Protocol.0.0.0-phase0.nupkg": "f2e38005a6704069ed49c392f457d796da646dadcf6b55740bba8a93dd5249b7"
+  },
+  "runs": [
+    {
+      "kind": "checkpoint",
+      "phase": "empty",
+      "jobs": 0,
+      "bounded": false,
+      "heldHandles": 0,
+      "pid": 27308,
+      "statePayloadBytes": 49152,
+      "outputPayloadBytes": 49152,
+      "allocated": 958776,
+      "managedBytes": 453208,
+      "heapBytes": 475600,
+      "privateBytes": 11083776,
+      "workingSet": 38690816,
+      "diagnosticGc": true,
+      "callerCopiesAlive": 0,
+      "mode": "unbounded",
+      "heap": {
+        "types": {
+          "OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry": {
+            "methodTable": "7ffdef829128",
+            "count": 1,
+            "bytes": 64
+          },
+          "OrcaCore.Engine.Ephemeral.Execution.EphemeralRetentionCoordinator": {
+            "methodTable": "7ffdef8c73d0",
+            "count": 1,
+            "bytes": 72
+          }
+        },
+        "metadata": {
+          "instances": {
+            "count": 0,
+            "capacity": 0
+          },
+          "starts": {
+            "count": 0,
+            "capacity": 0
+          },
+          "registrations": {
+            "count": 2,
+            "capacity": 3
+          },
+          "retentionEntries": {
+            "count": 0,
+            "capacity": 0
+          }
+        },
+        "dumpBytes": 16899705
+      }
+    },
+    {
+      "kind": "checkpoint",
+      "phase": "jobs-512",
+      "jobs": 512,
+      "bounded": false,
+      "heldHandles": 8,
+      "pid": 27308,
+      "statePayloadBytes": 49152,
+      "outputPayloadBytes": 49152,
+      "allocated": 11713963616,
+      "managedBytes": 138829768,
+      "heapBytes": 144628808,
+      "privateBytes": 211066880,
+      "workingSet": 253161472,
+      "diagnosticGc": true,
+      "callerCopiesAlive": 0,
+      "mode": "unbounded",
+      "heap": {
+        "types": {
+          "OrcaCore.Engine.Ephemeral.Execution.WorkflowInstance<RetentionConsumer.ResidentState>": {
+            "methodTable": "7ffdefce94c0",
+            "count": 512,
+            "bytes": 180224
+          },
+          "RetentionConsumer.ResidentState": {
+            "methodTable": "7ffdef820308",
+            "count": 1024,
+            "bytes": 49152
+          },
+          "RetentionConsumer.ResidentOutput": {
+            "methodTable": "7ffdef7e3de0",
+            "count": 1024,
+            "bytes": 32768
+          },
+          "OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry": {
+            "methodTable": "7ffdef829128",
+            "count": 1,
+            "bytes": 64
+          },
+          "OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry+InstanceBinding": {
+            "methodTable": "7ffdef934550",
+            "count": 512,
+            "bytes": 28672
+          },
+          "OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry+StartBinding": {
+            "methodTable": "7ffdef933a10",
+            "count": 512,
+            "bytes": 28672
+          },
+          "OrcaCore.Engine.Ephemeral.Execution.EphemeralRetentionCoordinator": {
+            "methodTable": "7ffdef8c73d0",
+            "count": 1,
+            "bytes": 72
+          }
+        },
+        "metadata": {
+          "instances": {
+            "count": 512,
+            "capacity": 919
+          },
+          "starts": {
+            "count": 512,
+            "capacity": 919
+          },
+          "registrations": {
+            "count": 2,
+            "capacity": 3
+          },
+          "retentionEntries": {
+            "count": 0,
+            "capacity": 0
+          }
+        },
+        "dumpBytes": 219945351
+      }
+    },
+    {
+      "kind": "checkpoint",
+      "phase": "jobs-1024",
+      "jobs": 1024,
+      "bounded": false,
+      "heldHandles": 8,
+      "pid": 27308,
+      "statePayloadBytes": 49152,
+      "outputPayloadBytes": 49152,
+      "allocated": 23489288952,
+      "managedBytes": 274894192,
+      "heapBytes": 280185000,
+      "privateBytes": 414154752,
+      "workingSet": 455446528,
+      "diagnosticGc": true,
+      "callerCopiesAlive": 0,
+      "mode": "unbounded",
+      "heap": {
+        "types": {
+          "OrcaCore.Engine.Ephemeral.Execution.WorkflowInstance<RetentionConsumer.ResidentState>": {
+            "methodTable": "7ffdefce94c0",
+            "count": 1024,
+            "bytes": 360448
+          },
+          "RetentionConsumer.ResidentState": {
+            "methodTable": "7ffdef820308",
+            "count": 2048,
+            "bytes": 98304
+          },
+          "RetentionConsumer.ResidentOutput": {
+            "methodTable": "7ffdef7e3de0",
+            "count": 2048,
+            "bytes": 65536
+          },
+          "OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry": {
+            "methodTable": "7ffdef829128",
+            "count": 1,
+            "bytes": 64
+          },
+          "OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry+InstanceBinding": {
+            "methodTable": "7ffdef934550",
+            "count": 1024,
+            "bytes": 57344
+          },
+          "OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry+StartBinding": {
+            "methodTable": "7ffdef933a10",
+            "count": 1024,
+            "bytes": 57344
+          },
+          "OrcaCore.Engine.Ephemeral.Execution.EphemeralRetentionCoordinator": {
+            "methodTable": "7ffdef8c73d0",
+            "count": 1,
+            "bytes": 72
+          }
+        },
+        "metadata": {
+          "instances": {
+            "count": 1024,
+            "capacity": 1931
+          },
+          "starts": {
+            "count": 1024,
+            "capacity": 1931
+          },
+          "registrations": {
+            "count": 2,
+            "capacity": 3
+          },
+          "retentionEntries": {
+            "count": 0,
+            "capacity": 0
+          }
+        },
+        "dumpBytes": 422620161
+      }
+    },
+    {
+      "kind": "result",
+      "bounded": false,
+      "jobs": 1024,
+      "definitions": 2,
+      "heldHandles": 8,
+      "retainedReplay": true,
+      "keyReuse": "same ID and no repeated effect",
+      "oldId": "01a15070-eca7-75cb-bf4d-655a3d08737f",
+      "newId": "01a15070-eca7-75cb-bf4d-655a3d08737f",
+      "effects": 1024,
+      "mode": "unbounded"
+    },
+    {
+      "kind": "checkpoint",
+      "phase": "empty",
+      "jobs": 0,
+      "bounded": true,
+      "heldHandles": 0,
+      "pid": 66116,
+      "statePayloadBytes": 49152,
+      "outputPayloadBytes": 49152,
+      "allocated": 963936,
+      "managedBytes": 460056,
+      "heapBytes": 482472,
+      "privateBytes": 10792960,
+      "workingSet": 38588416,
+      "diagnosticGc": true,
+      "callerCopiesAlive": 0,
+      "mode": "bounded",
+      "heap": {
+        "types": {
+          "OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry": {
+            "methodTable": "7ffdef839cd0",
+            "count": 1,
+            "bytes": 64
+          },
+          "OrcaCore.Engine.Ephemeral.Execution.EphemeralRetentionCoordinator": {
+            "methodTable": "7ffdef8db650",
+            "count": 1,
+            "bytes": 72
+          }
+        },
+        "metadata": {
+          "instances": {
+            "count": 0,
+            "capacity": 0
+          },
+          "starts": {
+            "count": 0,
+            "capacity": 0
+          },
+          "registrations": {
+            "count": 2,
+            "capacity": 3
+          },
+          "retentionEntries": {
+            "count": 0,
+            "capacity": 0
+          }
+        },
+        "dumpBytes": 16846413
+      }
+    },
+    {
+      "kind": "checkpoint",
+      "phase": "jobs-512",
+      "jobs": 512,
+      "bounded": true,
+      "heldHandles": 8,
+      "pid": 66116,
+      "statePayloadBytes": 49152,
+      "outputPayloadBytes": 49152,
+      "allocated": 11690517824,
+      "managedBytes": 7437384,
+      "heapBytes": 9262656,
+      "privateBytes": 58748928,
+      "workingSet": 101400576,
+      "diagnosticGc": true,
+      "callerCopiesAlive": 0,
+      "mode": "bounded",
+      "heap": {
+        "types": {
+          "OrcaCore.Engine.Ephemeral.Execution.WorkflowInstance<RetentionConsumer.ResidentState>": {
+            "methodTable": "7ffdefd0c8d0",
+            "count": 16,
+            "bytes": 5632
+          },
+          "RetentionConsumer.ResidentState": {
+            "methodTable": "7ffdef830308",
+            "count": 32,
+            "bytes": 1536
+          },
+          "RetentionConsumer.ResidentOutput": {
+            "methodTable": "7ffdef7f3de0",
+            "count": 32,
+            "bytes": 1024
+          },
+          "OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry": {
+            "methodTable": "7ffdef839cd0",
+            "count": 1,
+            "bytes": 64
+          },
+          "OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry+StartBinding": {
+            "methodTable": "7ffdef94fb10",
+            "count": 16,
+            "bytes": 896
+          },
+          "OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry+InstanceBinding": {
+            "methodTable": "7ffdef9506d0",
+            "count": 24,
+            "bytes": 1344
+          },
+          "OrcaCore.Engine.Ephemeral.Execution.EphemeralRetentionCoordinator": {
+            "methodTable": "7ffdef8db650",
+            "count": 1,
+            "bytes": 72
+          },
+          "OrcaCore.Engine.Ephemeral.Execution.EphemeralRetentionCoordinator+Entry": {
+            "methodTable": "7ffdef905028",
+            "count": 16,
+            "bytes": 640
+          }
+        },
+        "metadata": {
+          "instances": {
+            "count": 16,
+            "capacity": 17
+          },
+          "starts": {
+            "count": 16,
+            "capacity": 17
+          },
+          "registrations": {
+            "count": 2,
+            "capacity": 3
+          },
+          "retentionEntries": {
+            "count": 16,
+            "capacity": 17
+          }
+        },
+        "dumpBytes": 68232903
+      }
+    },
+    {
+      "kind": "checkpoint",
+      "phase": "jobs-1024",
+      "jobs": 1024,
+      "bounded": true,
+      "heldHandles": 8,
+      "pid": 66116,
+      "statePayloadBytes": 49152,
+      "outputPayloadBytes": 49152,
+      "allocated": 23377266560,
+      "managedBytes": 7429160,
+      "heapBytes": 9262512,
+      "privateBytes": 47452160,
+      "workingSet": 91770880,
+      "diagnosticGc": true,
+      "callerCopiesAlive": 0,
+      "mode": "bounded",
+      "heap": {
+        "types": {
+          "OrcaCore.Engine.Ephemeral.Execution.WorkflowInstance<RetentionConsumer.ResidentState>": {
+            "methodTable": "7ffdefd0c8d0",
+            "count": 16,
+            "bytes": 5632
+          },
+          "RetentionConsumer.ResidentState": {
+            "methodTable": "7ffdef830308",
+            "count": 32,
+            "bytes": 1536
+          },
+          "RetentionConsumer.ResidentOutput": {
+            "methodTable": "7ffdef7f3de0",
+            "count": 32,
+            "bytes": 1024
+          },
+          "OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry": {
+            "methodTable": "7ffdef839cd0",
+            "count": 1,
+            "bytes": 64
+          },
+          "OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry+StartBinding": {
+            "methodTable": "7ffdef94fb10",
+            "count": 16,
+            "bytes": 896
+          },
+          "OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry+InstanceBinding": {
+            "methodTable": "7ffdef9506d0",
+            "count": 24,
+            "bytes": 1344
+          },
+          "OrcaCore.Engine.Ephemeral.Execution.EphemeralRetentionCoordinator": {
+            "methodTable": "7ffdef8db650",
+            "count": 1,
+            "bytes": 72
+          },
+          "OrcaCore.Engine.Ephemeral.Execution.EphemeralRetentionCoordinator+Entry": {
+            "methodTable": "7ffdef905028",
+            "count": 16,
+            "bytes": 640
+          }
+        },
+        "metadata": {
+          "instances": {
+            "count": 16,
+            "capacity": 17
+          },
+          "starts": {
+            "count": 16,
+            "capacity": 17
+          },
+          "registrations": {
+            "count": 2,
+            "capacity": 3
+          },
+          "retentionEntries": {
+            "count": 16,
+            "capacity": 17
+          }
+        },
+        "dumpBytes": 56955622
+      }
+    },
+    {
+      "kind": "result",
+      "bounded": true,
+      "jobs": 1024,
+      "definitions": 2,
+      "heldHandles": 8,
+      "retainedReplay": true,
+      "keyReuse": "fresh ID and repeated effect",
+      "oldId": "01a15071-5442-7972-95c5-e04b74952215",
+      "newId": "01a15071-b433-7a9d-87e1-8cf0e4ddc796",
+      "effects": 1025,
+      "mode": "bounded"
+    }
+  ],
+  "behavior": {
+    "kind": "result",
+    "scenario": "behavior",
+    "idleAge": true,
+    "waitingProtected": true,
+    "physicalWorkProtected": true,
+    "protectedReplay": true,
+    "releasedAfterPhysicalReturn": true,
+    "finiteJobs": 64,
+    "evictions": 66
+  },
+  "consumerSourceSha256": {
+    "Program.cs": "f2d5a9bab876ab584f4c43148955a74238cc75dacb7db8d42789a0a5dc953c15",
+    "RetentionConsumer.csproj": "0b51106cb666a0d6935fe6dee7a9ff02df12e0980cf8bc46a59b0e2919683392"
+  },
+  "resolvedPackageClosure": [
+    "Microsoft.Extensions.Configuration.Abstractions/10.0.9",
+    "Microsoft.Extensions.DependencyInjection.Abstractions/10.0.9",
+    "Microsoft.Extensions.DependencyInjection/10.0.9",
+    "Microsoft.Extensions.Diagnostics.Abstractions/10.0.9",
+    "Microsoft.Extensions.FileProviders.Abstractions/10.0.9",
+    "Microsoft.Extensions.Hosting.Abstractions/10.0.9",
+    "Microsoft.Extensions.Logging.Abstractions/10.0.9",
+    "Microsoft.Extensions.Options/10.0.9",
+    "Microsoft.Extensions.Primitives/10.0.9",
+    "OrcaCore.Core/0.0.0-phase0",
+    "OrcaCore.Engine.Ephemeral/0.0.0-phase0",
+    "OrcaCore/0.0.0-phase0"
+  ]
+}
