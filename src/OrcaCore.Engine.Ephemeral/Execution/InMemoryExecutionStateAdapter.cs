@@ -405,8 +405,11 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                 _ =>
                 {
                     Interlocked.Exchange(ref timedOut, 1);
-                    timeoutReached?.TrySetResult();
-                    timeoutCancellation.Cancel();
+                    // Deliver cancellation before waking the turn: otherwise it can
+                    // dispose this source while the timer callback still needs it.
+                    try { timeoutCancellation.Cancel(); }
+                    catch (ObjectDisposedException) { /* Physical completion won disposal before this callback. */ }
+                    finally { timeoutReached?.TrySetResult(); }
                 },
                 null,
                 timeout,

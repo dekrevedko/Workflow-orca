@@ -5,7 +5,9 @@ requires every documented tier to pack and pass clean application/provider/custo
 consumer certification. The owner's 2026-10-16 request reopens prerelease distribution for
 use in other projects: CI builds installable packages and a validated GitHub prerelease
 can publish them as downloads. See [package installation and publishing](packages.md).
-External NuGet registries, signing, SourceLink, and a stable compatibility promise remain deferred.
+The release workflow supports NuGet.org trusted publishing after the owner completes
+[account and policy setup](nuget-publishing.md); availability requires public-feed verification.
+GitHub Packages, signing, SourceLink, and a stable compatibility promise remain deferred.
 
 The exhaustive first-release package manifest is `OrcaCore`, `OrcaCore.Core`,
 `OrcaCore.Engine.Ephemeral`, `OrcaCore.Runtime.Protocol`, `OrcaCore.Provider.Abstractions`,
@@ -175,16 +177,20 @@ The ordinary sample flow keeps the closed registration/start results available f
 inspection, uses `GetHandleOrThrow()` for the success path, and awaits
 `start.WaitForOutputAsync(token)` rather than polling snapshots.
 
-The approved ephemeral retention contract (MG-054–058) is a source-pending amendment, not a
-qualification claim for these binaries. Omitted retention keeps accepted-instance/key lifetime
+The ephemeral retention contract (MG-054–058) is implemented and independently source-approved.
+The [fresh local package-consumer experiment](../openspec/changes/add-ephemeral-terminal-retention/artifacts/final-consumer-2026-10-18/experiment.md)
+measures payload and runtime/facade/start ownership after 1,024 finite jobs in one host. Candidate
+packages obey the configured count of 16; omitted-policy counts grow with the jobs. These are
+local candidate packages, not the published `0.1.0-preview.1` binaries. Final integration review
+and a subsequent feature-containing release remain separate. Omitted retention keeps accepted-instance/key lifetime
 unchanged; aborted unaccepted starts must still terminally fence and clean up after settlement
-once implemented. Opt-in count/age retirement is not a public purge/history API, durable
+in both policy modes. Opt-in count/age retirement is not a public purge/history API, durable
 retention, active-instance ceiling, byte/RSS cap, or proof of physical stop. A completed result
 can be retired between `Accepted` and output-wait admission: not-found then does not mean the
 run never started, and key replay may repeat effects. Size the count for the start-to-observe
-gap and use independent effect deduplication where needed. The fresh package-only allocation/
-retention experiment and source/consumer acceptance remain required; this document does not
-claim them from structural guards. OB-026 also requires internal abort fences to be distinguished
+gap and use independent effect deduplication where needed. The experiment separately reports
+allocation, diagnostic-GC heap data, owned metadata and process memory; it establishes no total
+byte/RSS ceiling or working-set decline guarantee. OB-026 requires internal abort fences to be distinguished
 from application-issued termination metrics.
 
 The sample may intentionally use the development/test in-memory provider so it can build and

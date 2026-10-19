@@ -9,6 +9,11 @@ on:
         description: "Prerelease NuGet version (for example 0.1.0-preview.1)"
         required: true
         type: string
+      nuget-only:
+        description: "Publish an existing GitHub prerelease to NuGet.org without rebuilding it"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -29,7 +34,12 @@ jobs:
         env:
           PACKAGE_VERSION: ${{ inputs.version }}
           RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          NUGET_ONLY: ${{ inputs.nuget-only }}
+          SOURCE_REF: ${{ github.ref }}
         run: |
+          if ($env:NUGET_ONLY -eq 'true' -and $env:SOURCE_REF -ne 'refs/heads/master') {
+            throw 'Existing-release publication must run from master.'
+          }
           if ($env:RELEASE_TAG) { $env:PACKAGE_VERSION = $env:RELEASE_TAG.Substring(1) }
           if ($env:PACKAGE_VERSION -cnotmatch '^\d+\.\d+\.\d+-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*$') {
             throw 'This implementation only publishes prerelease versions.'
@@ -38,6 +48,7 @@ jobs:
 
   ci:
     needs: validate
+    if: ${{ !inputs.nuget-only }}
     uses: ./.github/workflows/ci.yml
     with:
       package-version: ${{ needs.validate.outputs.version }}
@@ -69,3 +80,79 @@ jobs:
           --target "$SOURCE_COMMIT" --prerelease
           --title "OrcaCore $PACKAGE_VERSION"
           --notes-file docs/prerelease-notes.md --generate-notes
+
+  nuget:
+    name: Publish and verify NuGet.org packages
+    needs: [validate, ci, publish]
+    if: >-
+      ${{ !cancelled() && needs.validate.result == 'success' &&
+          (inputs.nuget-only || (needs.ci.result == 'success' && needs.publish.result == 'success')) &&
+          (inputs.nuget-only || vars.NUGET_USER != '') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: nuget
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Download and verify the existing release
+        id: release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PACKAGE_VERSION: ${{ needs.validate.outputs.version }}
+          NUGET_USER: ${{ vars.NUGET_USER }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:NUGET_USER)) {
+            throw 'Set repository variable NUGET_USER and create the NuGet.org trusted publishing policy. See docs/nuget-publishing.md.'
+          }
+          $tag = "v$env:PACKAGE_VERSION"
+          $release = & gh release view $tag --json tagName,isDraft,isPrerelease | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read the GitHub prerelease.' }
+          if ($release.tagName -cne $tag -or $release.isDraft -or -not $release.isPrerelease) {
+            throw 'Only a published GitHub prerelease can be sent to NuGet.org.'
+          }
+          & gh release download $tag --dir packages --pattern '*.nupkg' --pattern SHA256SUMS
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot download the release packages.' }
+          $sourceCommit = & git rev-parse "$tag^{commit}"
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve the release tag.' }
+          ./eng/Test-ReleasePackages.ps1 -Version $env:PACKAGE_VERSION -SourceCommit $sourceCommit -PackageDirectory packages
+          "source-commit=$sourceCommit" >> $env:GITHUB_OUTPUT
+
+      - name: Obtain a temporary NuGet.org publishing credential
+        id: login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      - name: Publish the verified package files
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+          for package in packages/*.nupkg; do
+            dotnet nuget push "$package" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate --no-symbols
+          done
+
+      - name: Verify public availability and source metadata
+        shell: pwsh
+        env:
+          PACKAGE_VERSION: ${{ needs.validate.outputs.version }}
+          SOURCE_COMMIT: ${{ steps.release.outputs.source-commit }}
+        run: |
+          ./eng/Wait-NuGetPackages.ps1 -Version $env:PACKAGE_VERSION -SourceCommit $env:SOURCE_COMMIT
+          ./eng/Test-Packages.ps1 -Version $env:PACKAGE_VERSION -NuGetOrg
+          "## NuGet.org packages are available" >> $env:GITHUB_STEP_SUMMARY
+          $contract = Get-Content -Raw tests/OrcaCore.DeveloperSurface.Guards/Fixtures/v1-public-contract.json | ConvertFrom-Json
+          foreach ($package in $contract.packages) {
+            "- [$($package.id)](https://www.nuget.org/packages/$($package.id)/$env:PACKAGE_VERSION)" >> $env:GITHUB_STEP_SUMMARY
+          }

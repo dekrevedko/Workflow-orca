@@ -20,8 +20,9 @@ An ephemeral application references `OrcaCore` for authoring and application con
 `EphemeralTerminalRetentionPolicy` is implemented in `OrcaCore.Hosting`, owned by this engine
 package. For example, set `TerminalRetention = EphemeralTerminalRetentionPolicy.Create(128,
 TimeSpan.FromMinutes(10), TimeSpan.FromSeconds(1))`. The source, exact API baseline and compile
-fixtures include these members together. Fresh external package-consumer qualification is
-still a separate gate; this guide does not claim a released package version contains them.
+fixtures include these members together. The [fresh package-consumer experiment](../openspec/changes/add-ephemeral-terminal-retention/artifacts/final-consumer-2026-10-18/experiment.md)
+qualifies candidate local packages. The published `0.1.0-preview.1` packages predate this API;
+use a package release containing retention before compiling these options against NuGet.org.
 
 The engine role is mutually exclusive with the durable engine role in one service collection.
 There is no catch-all registration method, configuration-binder overload, hosted-service toggle,
@@ -123,7 +124,13 @@ the unpublished unit to `Terminated` through its lane (preserving any prior term
 returns the original error, publishes no key/handle, and eagerly releases owned data after
 physical settlement. Acceptance winning the race returns `Accepted`; later cancellation of the
 start token is not workflow cancellation. Internal abort telemetry is separate from a caller's
-termination command. This runtime correction is also pending the source/acceptance gates.
+termination command. The same consumer experiment verifies idle expiry and physical-work protection.
+
+Background sweep cleanup failures are contained and do not stop later sweeps. The existing
+`orca.lifecycle.events` instrument records internal `cleanup-failed` observations with origin
+`retention-sweep`; labels contain no instance IDs, start keys, payloads or exception messages.
+Diagnostic listeners cannot propagate failures through the timer callback. This does not
+hide cleanup exceptions from synchronous caller-triggered lifetime operations.
 
 ## Waits and external event ingress
 

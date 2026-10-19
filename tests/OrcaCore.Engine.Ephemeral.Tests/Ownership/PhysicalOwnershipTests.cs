@@ -347,15 +347,22 @@ public sealed class PhysicalOwnershipTests
         var body = new Body();
         using var host = new Host(bounded, body);
         var original = new InvalidOperationException("terminal commit observer failed with a physical attempt outstanding");
+        var failedCommit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         host.Engine.InstanceCommitted += _ =>
         {
-            if (host.Initialized!.ToSnapshot().Status == WorkflowInstanceStatus.Failed) throw original;
+            if (host.Initialized!.ToSnapshot().Status == WorkflowInstanceStatus.Failed)
+            {
+                failedCommit.TrySetResult();
+                throw original;
+            }
         };
         var start = host.Start(host.Register(host.Definition(timeout: true)), "unsettled-exception");
         try
         {
             await body.Entered.Task.WaitAsync(Guard, TestContext.Current.CancellationToken);
             host.Clock.Advance(StepTimeout);
+            await body.CancellationObserved.Task.WaitAsync(Guard, TestContext.Current.CancellationToken);
+            await failedCommit.Task.WaitAsync(Guard, TestContext.Current.CancellationToken);
             var error = await Record.ExceptionAsync(async () => await start.WaitAsync(Guard, TestContext.Current.CancellationToken));
             error.Should().BeSameAs(original);
             body.PhysicalTask!.IsCompleted.Should().BeFalse();

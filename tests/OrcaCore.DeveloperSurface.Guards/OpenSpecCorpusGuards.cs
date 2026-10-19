@@ -491,7 +491,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "3a8c825163f0dd1dd5fef5b2ecacaa65649722510a5ba6e7c44ed8eb768c99fa";
+        "762d0cdc484a9151b8cae1c671337dd862ab00c523ff5701c7fb789ab2e17912";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +
@@ -1688,7 +1688,7 @@ public sealed class OpenSpecCorpusGuards
         IReadOnlyCollection<DeltaRequirement> activeRequirements,
         PostGateAmendmentCheckpoint checkpoint)
     {
-        checkpoint.SchemaVersion.Should().Be(14);
+        checkpoint.SchemaVersion.Should().Be(15);
         checkpoint.ProposedRequirementSuccessors.Should().Equal(
             ExactProposedDagSuccessors,
             "only the exact reviewed predecessor/successor headings may bypass sole active ownership");
@@ -4799,7 +4799,7 @@ public sealed class OpenSpecCorpusGuards
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonicalRequirements,
         PostGateAmendmentCheckpoint checkpoint)
     {
-        checkpoint.SchemaVersion.Should().Be(14);
+        checkpoint.SchemaVersion.Should().Be(15);
         checkpoint.ProposedRequirementSuccessors.Should().Equal(
             ExactProposedDagSuccessors,
             "a proposed post-gate successor is a named exception, not a general duplicate-owner waiver");
@@ -4984,6 +4984,7 @@ public sealed class OpenSpecCorpusGuards
 
         ValidateEphemeralRetentionCanonicalEvidence(root, checkpoint);
         ValidateEphemeralRetentionOwnershipEvidence(root, checkpoint);
+        ValidateEphemeralRetentionPolicyEvidence(root, checkpoint);
 
         checkpoint.SourcePendingAmendments.Select(item => item.Capability).Should().Equal(
             "developer-facing-surface", "management-and-querying");
@@ -4991,11 +4992,11 @@ public sealed class OpenSpecCorpusGuards
         {
             amendment.Id.Should().Be("ephemeral-retention-" + amendment.Capability);
             amendment.OwningChange.Should().Be(change);
-            amendment.Stage.Should().Be("OwnershipApprovedPolicyReviewPending");
+            amendment.Stage.Should().Be("PolicyApprovedFinalReviewPending");
             amendment.OwnershipApprovalEvidencePath.Should().Be(checkpoint.EphemeralRetentionOwnershipEvidence.VerdictPath);
             amendment.PendingCanonicalOperationCount.Should().Be(0);
             amendment.CanonicalApprovalEvidencePath.Should().Be(checkpoint.EphemeralRetentionCanonicalEvidence.VerdictPath);
-            amendment.SourceApprovalEvidencePath.Should().BeNull();
+            amendment.SourceApprovalEvidencePath.Should().Be(checkpoint.EphemeralRetentionPolicyEvidence.VerdictPath);
             amendment.AuthoringCompanionDisposition.Should().Be("ExcludedNoHostingDeclarations");
             amendment.ContractApprovalTask.Should().Be("1.3");
             amendment.ContractCheckpointTask.Should().Be("1.4");
@@ -5008,7 +5009,7 @@ public sealed class OpenSpecCorpusGuards
             amendment.SourceTasks.Should().Equal("3.1", "3.2", "3.3", "4.1", "4.2", "4.3", "4.4", "4.5", "5.1", "5.2", "5.3");
             foreach (var task in amendment.SourceTasks)
             {
-                ValidateTaskReference(root, new(change, task, task.StartsWith("3.", StringComparison.Ordinal) || task is "4.1" or "4.2" or "4.3" or "4.4" ? CompleteTaskState : OpenTaskState));
+                ValidateTaskReference(root, new(change, task, task != "5.3" ? CompleteTaskState : OpenTaskState));
             }
 
             string[] expected = amendment.Capability == "developer-facing-surface"
@@ -5068,6 +5069,29 @@ public sealed class OpenSpecCorpusGuards
         RunGit(root, "merge-base", "--is-ancestor", evidence.ApprovalEvidenceCommit, "HEAD").ExitCode.Should().Be(0);
         var bytes = File.ReadAllBytes(RequireNonEmptyFile(root, evidence.VerdictPath, "ownership approval"));
         bytes.Should().HaveCount(7_867); Sha256(bytes).Should().Be(evidence.VerdictSha256);
+        ReadGitBlob(root, evidence.ApprovalEvidenceCommit, evidence.VerdictPath).Should().Equal(bytes);
+    }
+
+    private static void ValidateEphemeralRetentionPolicyEvidence(string root, PostGateAmendmentCheckpoint checkpoint)
+    {
+        var evidence = checkpoint.EphemeralRetentionPolicyEvidence;
+        evidence.Should().Be(new EphemeralRetentionOwnershipEvidence(
+            "dd5dce34b93b976787eac6adfdcfbbbc24714ab1", "0b33d02b47d03bddf0958c5d63052f32d0b2b8e6",
+            "09fd5669a00ef3feae38bdf97375950010df70eb", "8e10dd1c7fa8e5cc24f9491c80dd80ae01f80541",
+            "openspec/changes/add-ephemeral-terminal-retention/artifacts/section-4-independent-review-verdict-2026-10-18.md",
+            "112f844af0cb1d2a3ed511b9cc4bc7774894b17d540b9f8d8532b03ae8054ac8"));
+        var parent = RunGit(root, "rev-list", "--parents", "-n", "1", evidence.CheckpointCommit);
+        parent.ExitCode.Should().Be(0);
+        parent.StandardOutput.Trim().Should().Be(evidence.CheckpointCommit + " " + evidence.CheckpointParent);
+        var tree = RunGit(root, "rev-parse", evidence.CheckpointCommit + "^{tree}");
+        tree.ExitCode.Should().Be(0); tree.StandardOutput.Trim().Should().Be(evidence.CheckpointTree);
+        var child = RunGit(root, "rev-list", "--parents", "-n", "1", evidence.ApprovalEvidenceCommit);
+        child.ExitCode.Should().Be(0); child.StandardOutput.Trim().Should().Be(evidence.ApprovalEvidenceCommit + " " + evidence.CheckpointCommit);
+        var changed = RunGit(root, "diff-tree", "--no-commit-id", "--name-status", "-r", evidence.ApprovalEvidenceCommit);
+        changed.ExitCode.Should().Be(0); changed.StandardOutput.Trim().Should().Be("A\t" + evidence.VerdictPath);
+        RunGit(root, "merge-base", "--is-ancestor", evidence.ApprovalEvidenceCommit, "HEAD").ExitCode.Should().Be(0);
+        var bytes = File.ReadAllBytes(RequireNonEmptyFile(root, evidence.VerdictPath, "policy approval"));
+        bytes.Should().HaveCount(4_419); Sha256(bytes).Should().Be(evidence.VerdictSha256);
         ReadGitBlob(root, evidence.ApprovalEvidenceCommit, evidence.VerdictPath).Should().Equal(bytes);
     }
 
@@ -6923,6 +6947,7 @@ public sealed class OpenSpecCorpusGuards
         EphemeralRetentionContractEvidence EphemeralRetentionContractEvidence,
         EphemeralRetentionCanonicalEvidence EphemeralRetentionCanonicalEvidence,
         EphemeralRetentionOwnershipEvidence EphemeralRetentionOwnershipEvidence,
+        EphemeralRetentionOwnershipEvidence EphemeralRetentionPolicyEvidence,
         SourcePendingAmendment[] SourcePendingAmendments,
         string ArtifactPath,
         string ArtifactNormalizedSha256);

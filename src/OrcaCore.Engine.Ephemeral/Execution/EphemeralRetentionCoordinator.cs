@@ -1,4 +1,5 @@
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Engine.Ephemeral.Diagnostics;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
 
@@ -61,6 +62,11 @@ internal sealed class EphemeralRetentionCoordinator : IDisposable
     {
         if (Interlocked.CompareExchange(ref sweeping, 1, 0) != 0) return;
         try { Enforce(); }
+        catch (Exception)
+        {
+            try { OrcaCoreEphemeralDiagnostics.RecordRetentionSweepFailure(); }
+            catch (Exception) { /* Even diagnostic initialization cannot escape a system timer callback. */ }
+        }
         finally
         {
             Volatile.Write(ref sweeping, 0);

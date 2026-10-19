@@ -218,6 +218,12 @@ jobs:
           PACKAGE_VERSION: ${{ inputs.package-version || format('0.1.0-preview.{0}.{1}', github.run_number, github.run_attempt) }}
         run: ./eng/Test-Packages.ps1 -Version $env:PACKAGE_VERSION
 
+      - name: Verify package identity and publication guards
+        shell: pwsh
+        env:
+          PACKAGE_VERSION: ${{ inputs.package-version || format('0.1.0-preview.{0}.{1}', github.run_number, github.run_attempt) }}
+        run: ./eng/Test-Publishing.ps1 -Version $env:PACKAGE_VERSION -SourceCommit (git rev-parse HEAD) -PackageDirectory artifacts/packages
+
       - name: Upload installable packages
         uses: actions/upload-artifact@v4
         with:

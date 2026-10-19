@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 14,
+  "schemaVersion": 15,
   "requiredStages": [
     "amendment-approval",
     "canonical-open-spec",
@@ -562,7 +562,7 @@
       "id": "ephemeral-retention-developer-facing-surface",
       "owningChange": "add-ephemeral-terminal-retention",
       "capability": "developer-facing-surface",
-      "stage": "OwnershipApprovedPolicyReviewPending",
+      "stage": "PolicyApprovedFinalReviewPending",
       "declaredRequirementCount": 1,
       "pendingCanonicalOperationCount": 0,
       "requirementIdentities": [
@@ -593,7 +593,7 @@
         "5.3"
       ],
       "canonicalApprovalEvidencePath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-1-transition-independent-review-verdict-2026-10-16.md",
-      "sourceApprovalEvidencePath": null,
+      "sourceApprovalEvidencePath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/section-4-independent-review-verdict-2026-10-18.md",
       "authoringCompanionDisposition": "ExcludedNoHostingDeclarations",
       "ownershipApprovalEvidencePath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-3-ownership-independent-review-verdict-2026-10-17.md"
     },
@@ -601,7 +601,7 @@
       "id": "ephemeral-retention-management-and-querying",
       "owningChange": "add-ephemeral-terminal-retention",
       "capability": "management-and-querying",
-      "stage": "OwnershipApprovedPolicyReviewPending",
+      "stage": "PolicyApprovedFinalReviewPending",
       "declaredRequirementCount": 4,
       "pendingCanonicalOperationCount": 0,
       "requirementIdentities": [
@@ -643,7 +643,7 @@
         "5.3"
       ],
       "canonicalApprovalEvidencePath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-1-transition-independent-review-verdict-2026-10-16.md",
-      "sourceApprovalEvidencePath": null,
+      "sourceApprovalEvidencePath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/section-4-independent-review-verdict-2026-10-18.md",
       "authoringCompanionDisposition": "ExcludedNoHostingDeclarations",
       "ownershipApprovalEvidencePath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-3-ownership-independent-review-verdict-2026-10-17.md"
     }
@@ -665,5 +665,13 @@
     "approvalEvidenceCommit": "0b33d02b47d03bddf0958c5d63052f32d0b2b8e6",
     "verdictPath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-3-3-ownership-independent-review-verdict-2026-10-17.md",
     "verdictSha256": "ecfc02f215274d7527c119316729aa96d0b7f223dfb9453b38dc1524ff9bfbcd"
+  },
+  "ephemeralRetentionPolicyEvidence": {
+    "checkpointCommit": "dd5dce34b93b976787eac6adfdcfbbbc24714ab1",
+    "checkpointParent": "0b33d02b47d03bddf0958c5d63052f32d0b2b8e6",
+    "checkpointTree": "09fd5669a00ef3feae38bdf97375950010df70eb",
+    "approvalEvidenceCommit": "8e10dd1c7fa8e5cc24f9491c80dd80ae01f80541",
+    "verdictPath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/section-4-independent-review-verdict-2026-10-18.md",
+    "verdictSha256": "112f844af0cb1d2a3ed511b9cc4bc7774894b17d540b9f8d8532b03ae8054ac8"
   }
 }

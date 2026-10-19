@@ -16,14 +16,14 @@ requires the numbered rows, paths, and hashes exactly as recorded here.
 | 1 | `CLAUDE.md` | `3ca1378e1bf99d338743c6a282edd65f02f83d55b5f21a286abb2c6e701bc274` |
 | 2 | `docs/eks-scheduler-handoff.md` | `48cf025958482433e34b4e52185484ed587936ba56ef4822bc96e1b08b3f9ef2` |
 | 3 | `docs/end-to-end-plan.md` | `d439267f6d31cb652510b9472878cddd0427212fad71bf0e38194a30d146c8a5` |
-| 4 | `docs/ephemeral-engine-developer-guide.md` | `3ae0314cc0910d189503bd9ab3ae8486e89c195dc0422e9cd556520464755ddf` |
-| 5 | `docs/ephemeral-engine-diagrams.md` | `dfc53b131fc46012c4f7948c889614be1e8083d50f696cbcf6ff9006b12e0156` |
+| 4 | `docs/ephemeral-engine-developer-guide.md` | `b9cf7cbbdbe7e06da4d0034707feb3586ecc6a50506ad91a8d2b7632e197ddca` |
+| 5 | `docs/ephemeral-engine-diagrams.md` | `b9b6eb1ac6aa1179baae2c6e34c0eef72dd3134d2a5aafd9c99c5d441e7338cf` |
 | 6 | `docs/implementation/00-stack-decisions.md` | `f1cf2bf9a3e810801571cdeee55e0510ac185f880800c94cb0b41af9b01d187b` |
 | 7 | `docs/implementation/01-solution-architecture.md` | `530502d6f8d457cd2696834aca42cec43db72c5747d5760ab709fde6cb3de3b3` |
 | 8 | `docs/implementation/02-engineering-conventions.md` | `2e7b90685956840f80202447c0a9cc5495ea63c4d8bbdb6385f392ee68ceea73` |
 | 9 | `docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md` | `af8a3ccd4903915faf0fc5ff114f322048345379157f0656ad3efeeba1efa372` |
 | 10 | `docs/normative-source-map.md` | `61859f4ed681c2d84564b3290779fd32ceb7c6ea61b0f3846496f3ab029f5d9d` |
-| 11 | `docs/production-readiness.md` | `6bd3e1bbbf8162a0ee08abbc1430eb141262109483fabb0d6952e239a02c733f` |
+| 11 | `docs/production-readiness.md` | `b548b4645866c1b121d42e9c9fc047e973e14763a986010a6a9b96141aa00213` |
 | 12 | `docs/project-technical-overview.md` | `8a52fe45f28b8df8e1614cd442fcc73911dcbdb08105d5779e5377e5d56f3523` |
 | 13 | `docs/specs/01-concept-and-goals.md` | `36826933178462e6d83eb817cec2b51ec77cd93609a5726ad883b888c0960fb4` |
 | 14 | `docs/specs/03-domain-model-and-glossary.md` | `32f72c7e6dc5bd4d012251c3d5b7cc0041dadfa029ef18cad464f0f96197f2c0` |
@@ -153,3 +153,18 @@ and operation pins. The other twenty rows and all historical review records stay
 The same Section 4 target updates this maintained table and its guard digest. Doc 17 is
 outside this catalog and has its own signature guard. Source approval and fresh package-
 consumer qualification remain separate gates.
+
+## Owner-authorized NuGet.org distribution refresh (2026-10-16)
+
+The owner requested NuGet.org publishing configuration after the GitHub prerelease was published.
+Row 11 now records the trusted publishing workflow and the remaining account/policy setup.
+Only that distribution note and its maintained hash are refreshed; the other twenty-one
+source pins and the approved Section 7B contracts remain unchanged. This records publishing
+configuration, not completed account setup, live registry availability, or a product phase exit.
+
+## Issue #1 final integration (2026-10-18)
+
+This pending merge combines the Section 4 retention documentation with master
+`1c86c23` publishing updates. Each maintained row records its actual combined
+source. Historical review evidence remains immutable; the final review covers
+this table, its guard pin, the consumer results and the two-parent merge.

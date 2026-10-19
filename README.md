@@ -14,7 +14,7 @@ Build workflow logic in C#, keep execution inside your application, and choose t
 your workload needs: **ephemeral** for process-local coordination, or **durable** with
 PostgreSQL or SQL Server for persisted execution and recovery.
 
-> **Available now:** [v0.1.0-preview.1](https://github.com/dekrevedko/Workflow-orca/releases/tag/v0.1.0-preview.1)
+> **Available on NuGet.org:** [v0.1.0-preview.1](https://www.nuget.org/packages/OrcaCore.Engine.Ephemeral/0.1.0-preview.1)
 > ships twelve installable packages. This is a pre-production preview; see [current status](#current-status)
 > and [remaining work](#remaining-work) before adoption.
 
@@ -108,7 +108,8 @@ APIs, provider schemas, and persistence formats can change.
 
 | Item | Status |
 |---|---|
-| Distribution | Twelve NuGet packages and `SHA256SUMS` on the GitHub release |
+| Distribution | Twelve packages on NuGet.org; package files and `SHA256SUMS` also available on the GitHub release |
+| NuGet.org | [All twelve versions and source metadata verified; a fresh NuGet.org-only consumer returned `42`](https://github.com/dekrevedko/Workflow-orca/actions/runs/38979035794/attempts/2) |
 | Published source | [`299d02d`](https://github.com/dekrevedko/Workflow-orca/commit/299d02dce92a8ee703ea0d89a42f05bb0a103055) |
 | Release validation | [Build, tests, coverage, packaging, and clean consumer passed](https://github.com/dekrevedko/Workflow-orca/actions/runs/38961860144) |
 | Engine line coverage | **77.37%**, above the approved **75%** gate |
@@ -119,21 +120,17 @@ See the [publishing record](docs/github-publishing-status.md) for validation det
 
 ## Use in another project
 
-Download all twelve `.nupkg` assets from the release and keep them in one directory so
-NuGet can resolve their dependencies. Register that directory as a local NuGet source.
-For example, in PowerShell with the GitHub CLI installed:
+Install directly from NuGet.org in a .NET 10 project:
 
 ```powershell
-$packageFeed = Join-Path $PWD 'packages/OrcaCore'
-gh release download v0.1.0-preview.1 --repo dekrevedko/Workflow-orca --pattern '*.nupkg' --pattern SHA256SUMS --dir $packageFeed
-dotnet nuget add source $packageFeed --name OrcaCore-local
 dotnet add ./YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.1
 ```
 
 Replace `./YourProject.csproj` with your project path. For durable applications, reference
 `OrcaCore.Durable.Hosting` and the PostgreSQL or SQL Server provider at the same version.
 `OrcaCore.Providers.InMemory` is for development and testing. The
-[package installation guide](docs/packages.md) covers the package roles and distribution.
+[package installation guide](docs/packages.md) covers the package roles and the alternative
+GitHub release download feed.
 
 ## Remaining work
 

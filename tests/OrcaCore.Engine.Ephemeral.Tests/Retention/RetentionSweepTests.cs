@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using System.Diagnostics.Metrics;
 using OrcaCore.Engine.Ephemeral.Execution;
 using Xunit;
 
@@ -7,6 +8,52 @@ namespace OrcaCore.Engine.Ephemeral.Tests.Retention;
 [Trait("AC", "AC-536")]
 public sealed class RetentionSweepTests
 {
+    [Fact]
+    public void ThrowingCleanup_IsDiagnosedWithoutEscapingTimer_AndLaterIdleSweepsContinue()
+    {
+        var clock = new ManualClock();
+        using var coordinator = new EphemeralRetentionCoordinator(clock, new(3, TimeSpan.FromTicks(10), TimeSpan.FromTicks(1)));
+        var failures = 0L;
+        using var listener = new MeterListener();
+        listener.InstrumentPublished = (instrument, current) =>
+        {
+            if (instrument.Name == "orca.lifecycle.events") current.EnableMeasurementEvents(instrument);
+        };
+        listener.SetMeasurementEventCallback<long>((_, value, tags, _) =>
+        {
+            var values = tags.ToArray();
+            if (!values.Any(tag => tag.Key == "orca.lifecycle.origin" && Equals(tag.Value, "retention-sweep"))) return;
+            values.Select(tag => tag.Key).Should().BeEquivalentTo("event.name", "durable", "orca.lifecycle.origin");
+            values.Single(tag => tag.Key == "event.name").Value.Should().Be("cleanup-failed");
+            Interlocked.Add(ref failures, value);
+            throw new InvalidOperationException("the diagnostic listener also fails");
+        });
+        listener.Start();
+        var removed = 0;
+        void Add(Action cleanup)
+        {
+            var life = new EphemeralInstanceLifetime(InstanceId.Parse(Guid.NewGuid().ToString()));
+            life.Initialize(cleanup, null, coordinator.Gate, coordinator.Changed);
+            coordinator.Track(life);
+            life.SignalTerminal();
+            life.TryAccept(CancellationToken.None).Should().BeTrue();
+        }
+        Add(() => throw new InvalidOperationException("injected retirement cleanup failure"));
+        Add(() => Interlocked.Increment(ref removed));
+        clock.Ticks = 10;
+        Record.Exception(clock.Pulse).Should().BeNull("a system timer must never receive a cleanup or diagnostic exception");
+        removed.Should().Be(1, "one failing unit must not prevent cleanup of the other selected units");
+        failures.Should().Be(1);
+        coordinator.TrackedCount.Should().Be(0);
+        clock.Timer!.Changes.Should().Be(2);
+        Add(() => Interlocked.Increment(ref removed));
+        clock.Ticks = 20;
+        Record.Exception(clock.Pulse).Should().BeNull();
+        removed.Should().Be(2, "the next idle sweep must still run");
+        failures.Should().Be(1);
+        clock.Timer.Changes.Should().Be(3);
+    }
+
     [Fact]
     public async Task ConcurrentSweep_DoesNotOverlapCleanup_AndDisposalStopsRearming()
     {

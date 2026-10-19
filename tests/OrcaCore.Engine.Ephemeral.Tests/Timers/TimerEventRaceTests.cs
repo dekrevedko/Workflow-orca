@@ -62,7 +62,7 @@ public sealed class TimerEventRaceTests
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
         clock.Advance(TimeSpan.FromMinutes(5));
 
-        var snapshot = await WaitForStatusAsync(instance, WorkflowInstanceStatus.Failed);
+        var snapshot = await WaitForStatusAsync(provider.GetRequiredService<EphemeralWorkflowEngine>(), instance, WorkflowInstanceStatus.Failed);
         var late = await provider
             .GetRequiredService<EphemeralWorkflowEventRouter>()
             .RouteToInstanceAsync(
@@ -96,7 +96,7 @@ public sealed class TimerEventRaceTests
             StartIdempotencyKey.Create("timer-first-instance"),
             TestContext.Current.CancellationToken)).GetHandleOrThrow();
         clock.Advance(TimeSpan.FromMinutes(5));
-        var afterTimeout = await WaitForStatusAsync(timedOut, WorkflowInstanceStatus.Failed);
+        var afterTimeout = await WaitForStatusAsync(provider.GetRequiredService<EphemeralWorkflowEngine>(), timedOut, WorkflowInstanceStatus.Failed);
 
         var freshInstance = (await handle.StartOrGetAsync(
             "start",
@@ -120,24 +120,23 @@ public sealed class TimerEventRaceTests
     }
 
     private static async Task<WorkflowInstanceSnapshot> WaitForStatusAsync(
+        EphemeralWorkflowEngine engine,
         WorkflowInstanceHandle instance,
         WorkflowInstanceStatus expected)
     {
-        WorkflowInstanceSnapshot? latest = null;
-        for (var attempt = 0; attempt < 10_000; attempt++)
+        while (true)
         {
-            TestContext.Current.CancellationToken.ThrowIfCancellationRequested();
-            latest = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
-            if (latest.Status == expected && latest.ActiveWaits.Count == 0)
+            var changed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            void OnCommitted(InstanceId id) { if (id == instance.InstanceId) changed.TrySetResult(); }
+            engine.InstanceCommitted += OnCommitted;
+            try
             {
-                return latest;
+                var snapshot = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
+                if (snapshot.Status == expected && snapshot.ActiveWaits.Count == 0) return snapshot;
+                await changed.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
             }
-
-            await Task.Yield();
+            finally { engine.InstanceCommitted -= OnCommitted; }
         }
-
-        throw new InvalidOperationException(
-            $"Instance '{instance.InstanceId}' did not reach '{expected}'; latest was '{latest?.Status}'.");
     }
 
     private static ServiceProvider CreateProvider(Clock clock)
