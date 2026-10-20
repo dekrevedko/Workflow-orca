@@ -1,0 +1,22 @@
+{
+  "lateRootHookSeesDependencyAlreadyDisposed": true,
+  "runAsyncStopThrewButRootDependencyWasDisposed": true,
+  "explicitOwnerRetainedProviderUntilRealWorkJoined": true,
+  "secondCancelAsyncCompletedWhileFirstHandlerStillOwned": true,
+  "applicationStoppingTokenCancelledBeforeBlockedObserverNotification": true,
+  "framework": ".NET 10.0.13",
+  "os": "Microsoft Windows 10.0.26300",
+  "hostingAssembly": "Microsoft.Extensions.Hosting, Version=10.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60",
+  "hostingPackageVersion": "10.0.9",
+  "scope": "Framework-only probes; no OrcaCore source/API/runtime acceptance credit",
+  "packageHashesSha512": {
+    "Microsoft.Extensions.DependencyInjection/10.0.9": "NijozhERJDIaJ4k5TSMy1jOi0cSC2HfkvRD/Sl+kGSSKgVbFnF4GxgtMN/MrzHB8D1JxIrD4xSer9Blh9v3axQ==",
+    "Microsoft.Extensions.Hosting/10.0.9": "HTgnvmK0ubesUFO16pLC+i9+RS8lEGd6TmDouuy75FsAgIFrSwUVhYCqG2IENzBJwgxGc/6Rsulfsvd9ZG/XkA=="
+  },
+  "sdk": "10.0.402",
+  "directoryBuildPropsExistsAtScratchParent": false,
+  "probeSourcesSha256": {
+    "di-framework-probe-2026-10-18.cs.txt": "361236de66d693a8555aaf6dde34ea56c3eb4e722864f6fe2b6e4e5cce0a8660",
+    "di-framework-probe-2026-10-18.csproj.txt": "3a07c5159aa8087fa2169f831fc2e291aaa52a07220f7dfa311114e2490e104f"
+  }
+}

@@ -1,0 +1,167 @@
+// Framework ownership/cancellation probe only. No OrcaCore reference or shutdown implementation.
+using System.Runtime.InteropServices;
+using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+
+var guard = TimeSpan.FromSeconds(20);
+var observations = new Dictionary<string, object?>();
+
+// A root-level disposer created before a later step dependency cannot intercept
+// reverse-order root disposal before that dependency has already been disposed.
+Probe.Reset();
+var services = new ServiceCollection();
+services.AddSingleton<LateDisposalHook>();
+services.AddSingleton<Dependency>();
+var provider = services.BuildServiceProvider();
+_ = provider.GetRequiredService<LateDisposalHook>();
+_ = provider.GetRequiredService<Dependency>();
+provider.Dispose();
+Require(Probe.HookObservedDisposedDependency, "root reverse-disposal counterexample");
+observations["lateRootHookSeesDependencyAlreadyDisposed"] = true;
+
+// Generic Host RunAsync still disposes its root when an IHostedService stop throws.
+Probe.Reset();
+var builder = Host.CreateApplicationBuilder();
+builder.Logging.ClearProviders();
+builder.Services.AddSingleton<Dependency>();
+builder.Services.AddHostedService<ThrowingStop>();
+var host = builder.Build();
+using var stopRequest = new CancellationTokenSource();
+var running = host.RunAsync(stopRequest.Token);
+await Probe.Started.Task.WaitAsync(guard);
+stopRequest.Cancel();
+Exception? stopFailure = null;
+try { await running.WaitAsync(guard); }
+catch (Exception error) when (error.ToString().Contains("framework-probe-stop", StringComparison.Ordinal))
+{ stopFailure = error; }
+Require(stopFailure is not null && Probe.StopEntered && Probe.Dependency!.Disposed,
+    "RunAsync disposal after stop exception");
+observations["runAsyncStopThrewButRootDependencyWasDisposed"] = true;
+
+// Explicit owner ordering: keep the actual provider after an incomplete observation,
+// let real work finish, then dispose. This is application code, not a new engine API.
+Probe.Reset();
+var direct = new ServiceCollection().AddSingleton<Dependency>().BuildServiceProvider();
+var dependency = direct.GetRequiredService<Dependency>();
+var release = NewSignal();
+var body = UseDependencyAfterRelease();
+var timedOut = false;
+try { await body.WaitAsync(TimeSpan.Zero); }
+catch (TimeoutException) { timedOut = true; }
+Require(timedOut && !dependency.Disposed && !body.IsCompleted, "retain owner after timeout");
+release.SetResult();
+await body.WaitAsync(guard);
+Require(!dependency.AccessAfterDispose, "work joined before dependency disposal");
+direct.Dispose();
+Require(dependency.Disposed, "dispose only after join");
+observations["explicitOwnerRetainedProviderUntilRealWorkJoined"] = true;
+
+// A repeated CancelAsync can be completed while the first dispatch's handler is
+// still blocked. The original task, not the second return, is the join obligation.
+using var source = new CancellationTokenSource();
+using var callbackRelease = new ManualResetEventSlim();
+var entered = NewSignal();
+using var registration = source.Token.Register(() =>
+{
+    entered.SetResult();
+    if (!callbackRelease.Wait(guard)) throw new TimeoutException("probe callback guard");
+});
+var first = source.CancelAsync();
+try
+{
+    await entered.Task.WaitAsync(guard);
+    var second = source.CancelAsync();
+    Require(source.IsCancellationRequested && second.IsCompletedSuccessfully && !first.IsCompleted,
+        "repeated cancellation is not a handler-join proof");
+    observations["secondCancelAsyncCompletedWhileFirstHandlerStillOwned"] = true;
+}
+finally { callbackRelease.Set(); }
+await first.WaitAsync(guard);
+
+// ApplicationStopping's token is already cancelled even when another handler
+// blocks the observer's notification. Admission cannot rely on callback order.
+var blockedBuilder = Host.CreateApplicationBuilder();
+blockedBuilder.Logging.ClearProviders();
+using var blockedHost = blockedBuilder.Build();
+var applicationLifetime = blockedHost.Services.GetRequiredService<IHostApplicationLifetime>();
+using var stoppingRelease = new ManualResetEventSlim();
+var stoppingEntered = NewSignal();
+var observedStopping = 0;
+using var stoppingObserver = applicationLifetime.ApplicationStopping.Register(
+    () => Interlocked.Exchange(ref observedStopping, 1));
+using var stoppingBlocker = applicationLifetime.ApplicationStopping.Register(() =>
+{
+    stoppingEntered.SetResult();
+    if (!stoppingRelease.Wait(guard)) throw new TimeoutException("probe stopping-handler guard");
+});
+var stoppingDispatch = Task.Run(applicationLifetime.StopApplication);
+try
+{
+    await stoppingEntered.Task.WaitAsync(guard);
+    Require(applicationLifetime.ApplicationStopping.IsCancellationRequested &&
+        Volatile.Read(ref observedStopping) == 0, "stopping token precedes blocked notification");
+    observations["applicationStoppingTokenCancelledBeforeBlockedObserverNotification"] = true;
+}
+finally { stoppingRelease.Set(); }
+await stoppingDispatch.WaitAsync(guard);
+
+observations["framework"] = RuntimeInformation.FrameworkDescription;
+observations["os"] = RuntimeInformation.OSDescription;
+observations["hostingAssembly"] = typeof(Host).Assembly.FullName;
+observations["hostingPackageVersion"] = "10.0.9";
+observations["scope"] = "Framework-only probes; no OrcaCore source/API/runtime acceptance credit";
+Console.WriteLine(JsonSerializer.Serialize(observations, new JsonSerializerOptions { WriteIndented = true }));
+
+async Task UseDependencyAfterRelease()
+{
+    await release.Task;
+    dependency.Touch();
+}
+static TaskCompletionSource NewSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
+static void Require(bool condition, string context)
+{
+    if (!condition) throw new InvalidOperationException(context);
+}
+sealed class Dependency : IDisposable
+{
+    internal bool Disposed;
+    internal bool AccessAfterDispose;
+    public Dependency() => Probe.Dependency = this;
+    internal void Touch() => AccessAfterDispose |= Disposed;
+    public void Dispose() => Disposed = true;
+}
+sealed class LateDisposalHook : IDisposable
+{
+    public void Dispose() => Probe.HookObservedDisposedDependency = Probe.Dependency?.Disposed == true;
+}
+sealed class ThrowingStop(Dependency dependency) : IHostedService
+{
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        dependency.Touch();
+        Probe.Started.SetResult();
+        return Task.CompletedTask;
+    }
+    public Task StopAsync(CancellationToken cancellationToken)
+    {
+        Probe.StopEntered = true;
+        throw new InvalidOperationException("framework-probe-stop");
+    }
+}
+static class Probe
+{
+    internal static Dependency? Dependency;
+    internal static bool HookObservedDisposedDependency;
+    internal static bool StopEntered;
+    internal static TaskCompletionSource Started = NewStarted();
+    internal static void Reset()
+    {
+        Dependency = null;
+        HookObservedDisposedDependency = false;
+        StopEntered = false;
+        Started = NewStarted();
+    }
+    private static TaskCompletionSource NewStarted() => new(TaskCreationOptions.RunContinuationsAsynchronously);
+}

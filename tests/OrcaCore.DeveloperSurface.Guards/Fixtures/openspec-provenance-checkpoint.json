@@ -1,11 +1,24 @@
 {
   "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
-  "recordCount": 189,
-  "recordBytes": 49879,
-  "recordSha256": "0f56a33d2aa17e6848ac8f3bf4769ec1a8604d0dadb25a7f9f9b8092a673f459",
-  "semanticApprovalEligible": true,
-  "pendingCanonicalOperations": [],
+  "recordCount": 195,
+  "recordBytes": 51141,
+  "recordSha256": "9547ee6c115df3bdf1fecba4e65b1c8c051d1f9e0360bc9e220831cb5b2c00d2",
+  "semanticApprovalEligible": false,
+  "pendingCanonicalOperations": [
+    {
+      "capability": "developer-facing-surface",
+      "count": 2,
+      "turnsGreenChange": "add-ephemeral-host-shutdown",
+      "turnsGreenTask": "2.2"
+    },
+    {
+      "capability": "management-and-querying",
+      "count": 4,
+      "turnsGreenChange": "add-ephemeral-host-shutdown",
+      "turnsGreenTask": "2.2"
+    }
+  ],
   "activeNewCapabilitiesOutsideCanonical": [
     {
       "capability": "spec-driven-planning",
@@ -172,11 +185,11 @@
     }
   ],
   "capabilityDirectoryRecordFormat": "repository-relative active openspec/changes/*/specs/*/ path with forward slashes and one trailing slash",
-  "capabilityDirectoryCount": 24,
-  "capabilityDirectoryBytes": 1971,
-  "capabilityDirectorySha256": "a50788bb2f903a5903ddee5a494a92421e34c347e3a9b67f8a4c935a009dc03a",
-  "artifactPath": "openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-1-openspec-provenance-2026-10-16.md",
-  "artifactNormalizedSha256": "8b4e385a0a79816e583b54b3bee269d11f2b3c0b14bbc7493246ac7d7d43c0bb",
+  "capabilityDirectoryCount": 26,
+  "capabilityDirectoryBytes": 2124,
+  "capabilityDirectorySha256": "4d9fbe5fbb56d75d8b78273983b9720ea72890d4948a51cfd86b90823d7d91df",
+  "artifactPath": "openspec/changes/add-ephemeral-host-shutdown/artifacts/contract-openspec-provenance-2026-10-18.md",
+  "artifactNormalizedSha256": "87f527a9a3cc39c6519fe75f860908778f705009fe23381e005104804f16c5e0",
   "canonicalContents": [
     {
       "path": "openspec/specs/developer-facing-surface/spec.md",
