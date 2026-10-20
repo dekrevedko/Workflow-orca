@@ -160,6 +160,11 @@ program and exercised indirectly by many criteria here, without a dedicated AC e
   [`structured-fiber-execution` join ordering](../../openspec/specs/structured-fiber-execution/spec.md#requirement-join-policies-define-one-scope-outcome), and the
   [public-contract companion](17-selected-mode-capability-matrix.md).
 
+Host lifetime coverage AC-543–554 preserves AC-014 single-instance cancellation.
+ApplicationStopping only closes admission; it does not issue those instance commands.
+Natural/event/retry-or-delay completion and initialized pending-start acceptance in
+Closed are distinct from later Stopping cancellation/join.
+
 ## Events, waits, timers (AC-1xx)
 
 - **AC-101** *Wait parks the requesting fiber* — Executing `Wait` creates one inspectable
@@ -325,6 +330,11 @@ program and exercised indirectly by many criteria here, without a dedicated AC e
   step retry/replay presents the same `StepOperationId` to an application adapter; a later
   loop/item/branch/generation occurrence receives another ID. No public external-job facade or
   job-specific identity is required. [CR-019, DU-055/056]
+
+The shared typed StartOrGetAsync contract is unchanged. AC-545/546 separately prove
+ephemeral Closed rejects new/replayed/queued-pre-Init calls while an initialization
+admitted before close may finish normally and return Accepted; only Stopping elects
+acceptance versus abort. This grants no durable-style effect-safe replay guarantee.
 
 ## Deferred saga scenario reservations (AC-4xx)
 
@@ -560,6 +570,52 @@ first-release evidence for AC-512…517.
   without counting an application termination command that no caller issued. Retirement emits
   best-effort internal eviction only after removal; metric labels contain no instance/key IDs.
   Sharing a termination primitive does not alter this classification. [MG-020, OB-026]
+
+### Ephemeral host shutdown acceptance (source implementation pending)
+
+- **AC-543** Exact seven-type surface, constructor restrictions, reserved singleton,
+  child-scope identity, conflict-before-mutation, unchanged options/fingerprint. [PR-041]
+- **AC-544** Exact timeout ticks/bounds, zero/infinite, validation/pre-cancel/disposal
+  ordering; public no-effect versus already-cancelled hosted Stopping. [MG-069]
+- **AC-545** Barrier-held ApplicationStopping before hosted stop: Closed rejects
+  starts/replays/registrations but permits accepted live queries, commands and ingress;
+  no cancellation is queued, including delayed callback notification. [MG-066]
+- **AC-546** Queued pre-Init rejects at Closed; initialization admitted before Closed
+  finishes its first step and returns Accepted during drain. Race acceptance with
+  Stopping: only the still-unaccepted loser aborts, preserving original errors,
+  immutable status and physical ownership in both policy modes. Include a Running
+  pre-handle body and no close-caused host-stopping error after its effects. [MG-066]
+- **AC-547** Natural completion and delay/timer/retry/grant attempts progress in Closed;
+  Stopping seals producers and joins physical root/branch/item work, lanes, capacity
+  transfers and sweeps. Force successor-before-release handoffs without false zero. [MG-067]
+- **AC-548** Event delivery satisfies an accepted wait while Closed; a new output wait
+  admitted in Closed pins its normal result, including when Stopping follows. Local
+  wait cancellation is isolated; terminal notification/cleanup remain joined. [MG-066/067]
+- **AC-549** Noncooperative physical work survives every finite observation without
+  fabricated release; explicit DI/host/scoped dependency sentinels stay alive. [MG-068, NF-032]
+- **AC-550** Blocking/throwing cancellation handlers, linked propagation and first
+  CancelAsync ownership; independent observers progress, faults are contained and
+  terminal fences actually settle. Diagnostic listeners cannot escape. [MG-068, OB-027]
+- **AC-551** External candidate-package consumers prove ordered sequential Generic Host
+  drainer and shared budget, concurrent-stop caveat, explicit-host owner and plain-DI
+  submission gate. Pending initialized starts/handles drain before stop; Incomplete
+  retains the real owner. RunAsync exception/final disposal and raw-disposal negatives
+  are explicit. No friend/reflection or implementation source reference. [PR-041]
+- **AC-552** After Completed reject live handle/query/wait/command/ingress operations
+  before codec/DI/user/pin/timer/diagnostic/commit work, with original-ID precedence.
+  Detached values/passive registered identity/cached result stay usable; cached stop
+  never calls TimeProvider. No post-disposal engine-owned access. [MG-067, NF-032]
+- **AC-553** Concurrent/repeated observers, cancellation/deadline/settlement precedence,
+  later actual completion, sticky accounting fault and independent fresh roots; no
+  retained observer/token/result history. [MG-068/069]
+- **AC-554** Both retention modes, Closed's ordinary retirement races versus frozen
+  Completed metadata, existing stuck-step diagnostics before stop, source-qualified
+  migration/package status and required CI coverage/stress. No status-only stop proof.
+  [MG-066–069, OB-027]
+
+These are mandatory source/consumer criteria, not passes supplied by Markdown.
+Tests use explicit barriers/notifications and fake clocks; an unfiltered expected-red
+state cannot be checkpointed. Contract/canonical approval grants no test execution credit.
 
 ## Bounded fanout and typed DAG (AC-6xx)
 

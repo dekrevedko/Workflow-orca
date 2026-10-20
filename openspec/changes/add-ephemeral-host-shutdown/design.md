@@ -3,8 +3,9 @@
 Issue #2 contract candidate on master `fa88986aaac219c998b15e96748efdf2f245de51`,
 after the two-parent PR #7 merge. No product implementation is included. Exact
 declarations and public/hosted validation precedence are in
-`artifacts/contract-public-api-2026-10-18.md`; all decisions below are proposed for
-independent approval, not already selected-v1 runtime behavior.
+`artifacts/task-2-1-public-api-2026-10-19.md`. The contract checkpoint and approval
+are 3c8d33c and 4bd7c3e; this transition applies their required F2 wording correction
+and still awaits canonical review. No source behavior or shipped API is claimed.
 
 The current readiness hosted service has a no-op StopAsync; engine disposal stops
 timers but does not close facade admission or join work. A start holds `startGate`
@@ -55,17 +56,22 @@ Stopping, closing first if still Open. Stopping acquires one shared cancellation
 producer-sealing/join authority before releasing the gate; all work is queued outside.
 No new configuration, timeout, close method or result is introduced.
 
-Start ownership still precedes input serialization and startGate queuing. A queued
-start losing its initialization recheck to Closed runs no Init. Publication and
-close share one acceptance/abort election. Acceptance winning close returns Accepted
-once; that instance keeps ordinary drain rights and is not cancelled by Closed.
-An unpublished start losing close stays owned, cannot publish Accepted or admit a
-new provisional business attempt, but already-admitted Init/attempt work may return
-normally. Preserve its authoritative original error/caller cancellation, otherwise
-return host-stopping. Caller-independent owning-lane Terminated fencing preserves
-immutable status and physical capacity in both retention modes. Fencing that would
-signal cancellation must wait for Stopping or actual physical settlement; closing
-alone never cancels even this work. Stop can still join pre-handle/provisional work.
+Start ownership precedes input serialization and startGate queuing. A queued
+start losing its initialization-admission recheck to Closed runs no Init. Per F2
+in the contract approval verdict, a start that passed initialization admission
+before Closed proceeds normally and may publish Accepted during Closed, even if
+its first step/Init body begins or returns later outside the gate. Closing does not
+abort it or manufacture a host-stopping error after its effects. The drain owner
+can await pending initialized starts and then their handles normally.
+
+Acceptance and entry to Stopping share the final visibility election. Acceptance
+winning Stopping publishes Accepted once; remaining workflow work is then cancelled
+separately. Only a start still unaccepted when Stopping wins is independently fenced
+to Terminated through its lane, preserving immutable prior status and authoritative
+original error/caller cancellation, otherwise reporting host-stopping. Physical
+capacity is retained until actual settlement in both retention modes. Initialized
+provisional work can continue its normal admission path during Closed; neither
+abort nor cancellation is caused by that close. All pre-handle work remains owned.
 
 Closed refuses all new/replayed/conflicting starts and compatible registrations
 with the already reviewed validation/static-compatibility precedence. It changes
@@ -98,7 +104,7 @@ already admitted, then completes required cancellation/abort commits and cleanup
 Closed still permits accepted-instance attempts, retries and resource grants.
 No new business attempt/Init is admitted once Stopping begins. An invocation whose
 own initialization/attempt admission won before the applicable boundary (Closed for
-provisional initialization; Stopping for accepted work) can begin or return later and remains owned; do not promise impossible wall-clock
+new initialization; Stopping for already-initialized or accepted work) can begin or return later and remains owned; do not promise impossible wall-clock
 ordering of user code outside the gate. The internal terminal-fence/cleanup lane
 remains available until drained.
 Disposing a timer alone is insufficient; join entered callbacks, underlying timer
@@ -250,8 +256,8 @@ baselines are unchanged. Source task 3.3 changes executable baselines with sourc
 
 None for this contract candidate. Independent review must approve or reject these
 concrete choices before canonical synchronization or any source implementation.
-The retained initial assessment describes an earlier planning state, not current
-implementation authority.
+The retained initial assessment and contract artifacts describe their dated stages,
+not source authority. The F2 correction is reviewed with this canonical transition.
 
 ## Framework grounding
 

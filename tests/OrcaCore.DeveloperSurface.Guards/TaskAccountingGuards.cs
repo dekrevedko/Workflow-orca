@@ -72,7 +72,7 @@ public sealed partial class TaskAccountingGuards
             "and the DAG run Task 2.1 typed-identity slice, " +
             "and the GitHub prerelease regression slice, " +
             "and the issue #1 task 3.1 ownership-test slice, " +
-            "and the issue #1 task 3.2 ownership-implementation slice, and the issue #1 Section 4 policy/handle slice, and the issue #1 final sweep/race slice, and the issue #1 task 5.3 completion binding at",
+            "and the issue #1 task 3.2 ownership-implementation slice, and the issue #1 Section 4 policy/handle slice, and the issue #1 final sweep/race slice, and the issue #1 task 5.3 completion binding, and the issue #2 canonical-transition guards at",
             "the maintained inventory provenance must name the task that produced the current counts");
     }
 

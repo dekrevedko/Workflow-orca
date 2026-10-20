@@ -3,10 +3,10 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 351,
-    "physicalDeclarations": 1456,
-    "activeFiles": 203,
-    "activeDeclarations": 768,
+    "physicalFiles": 352,
+    "physicalDeclarations": 1460,
+    "activeFiles": 204,
+    "activeDeclarations": 772,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 17,
@@ -742,6 +742,12 @@
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
       "status": "active",
       "declarations": 1
+    },
+    {
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/EphemeralShutdownTransitionGuards.cs",
+      "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
+      "status": "active",
+      "declarations": 4
     },
     {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/ExecutableBehaviorContractGuards.cs",

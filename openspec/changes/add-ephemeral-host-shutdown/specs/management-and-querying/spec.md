@@ -13,16 +13,19 @@ under the visibility gate.
 
 A start SHALL acquire host ownership before input fingerprinting and startGate
 queuing, including pre-Init time. Queued starts SHALL recheck initialization and
-run no Init if Closed won. Created but unaccepted starts losing close SHALL remain
-owned and unpublished; already-admitted Init/attempt work MAY finish but no new
-provisional business attempt SHALL be admitted. Caller-independent owning-lane abort
-fencing SHALL preserve prior immutable terminal status and authoritative original
-error/caller cancellation, otherwise returning host-stopping, and release capacity
-only after physical settlement in both retention modes. Fencing that would signal
-cancellation SHALL wait for Stopping or actual settlement; Closed alone SHALL NOT
-dispatch cancellation. Acceptance winning close SHALL publish Accepted once and
-allow ordinary accepted-instance draining; only Stopping SHALL cancel any remaining
-active work. The acceptance/abort election SHALL share close's visibility gate.
+run no Init if Closed won. A start whose initialization admission won before Closed
+SHALL proceed normally through Init/attempts and MAY publish Accepted while Closed;
+closing SHALL NOT abort it or convert successful pending-start completion to a
+host-stopping error. The acceptance/abort election SHALL instead share the Stopping
+visibility gate. Acceptance winning Stopping SHALL publish Accepted once; Stopping
+then cancels remaining active workflow work separately. Only starts still unaccepted
+when Stopping wins SHALL be unpublished and caller-independently fenced through
+their owning lane, preserving immutable terminal status and authoritative original
+error/caller cancellation, otherwise returning host-stopping. They SHALL release
+physical capacity only after actual settlement in both retention modes. Closed
+alone SHALL neither abort these initialized starts nor dispatch cancellation. An
+initialization/attempt admission winning its applicable gate MAY begin/return later
+outside the lock and SHALL remain owned.
 
 After ordinary argument/token checks, new/replayed/conflicting StartOrGetAsync in
 Closed or later SHALL fail as host-stopping before input serialization. Registration
@@ -83,15 +86,19 @@ SHALL add the host lifecycle precondition without rewriting ordinary open-host r
 
 #### Scenario: A noncooperative first step holds the start semaphore
 - **WHEN** close races a pre-handle start running its first physical step
-- **THEN** admission closes without that semaphore, the provisional work remains owned and uncancelled by Closed, and only a later Stopping phase requests its cancellation
+- **THEN** admission closes without that semaphore, the initialized start remains owned and can return Accepted while Closed after its first step finishes; only a later Stopping phase cancels remaining work or aborts a still-unaccepted start
 
 #### Scenario: A queued start has not initialized
 - **WHEN** a start admitted before close reaches initialization after Closed
 - **THEN** no Init/business step runs and the queued start releases its admission with the authoritative original cancellation/error or host-stopping result
 
-#### Scenario: Acceptance races close
-- **WHEN** final accepted publication and Closed contend at the same boundary
-- **THEN** the start either becomes accepted once with drain rights or stays unpublished/owned for abort settlement without cancellation merely from Closed
+#### Scenario: An initialized pending start completes during Closed
+- **WHEN** initialization admission won before close and its first step finishes during Closed
+- **THEN** the pending start proceeds normally and returns Accepted once; awaiting pending starts during drain does not produce host-stopping merely because close occurred
+
+#### Scenario: Acceptance races Stopping
+- **WHEN** accepted publication and entry to Stopping contend at the same visibility boundary
+- **THEN** acceptance either wins once and the workflow is separately cancelled if still active, or Stopping wins while unaccepted and owning-lane abort preserves authoritative original errors/cancellation and physical ownership
 
 #### Scenario: A retired handle is queried on a stopping host
 - **WHEN** the old handle's original ID has retired before a query in Stopping or Completed
@@ -117,7 +124,7 @@ SHALL be joined; any late rejected trampoline SHALL only check the sealed gate a
 return without engine/dependency access, rearming, notification, ownership or commit.
 No owned user callback, dependency use or late commit SHALL occur after Completed.
 An invocation whose own initialization/attempt admission won the applicable gate
-(Closed for provisional initialization, Stopping for accepted attempts) SHALL remain
+(Closed for new initialization, Stopping for already-initialized or accepted work) SHALL remain
 owned even if its user body begins or returns later; user code SHALL NOT
 run under the visibility lock to manufacture wall-clock ordering. Stop observers
 and the coordinator's root reference SHALL NOT count as join obligations or wait

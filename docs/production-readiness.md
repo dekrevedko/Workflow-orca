@@ -195,3 +195,12 @@ from application-issued termination metrics.
 
 The sample may intentionally use the development/test in-memory provider so it can build and
 smoke-test without external infrastructure, but it must not imply restart durability.
+
+Shutdown implementation remains a separate gate. The sample's eventual ephemeral
+lifetime is automatically owned by the existing engine role. Use the engine guide's
+ordered Generic Host drainer (registered after the engine; sequential stops and one
+shared budget), explicit-host owner, or controlled plain-DI submitters. Retain the
+actual host/provider/scopes on Incomplete. Drain initialized pending starts to Accepted
+before awaiting their handles; only Stopping elects abort. Capture existing stuck-step/
+lifecycle diagnostics before stop, since Incomplete has only a count. Source task 3.4
+must prove dependency sentinels and all recipes; no sample source is changed here.

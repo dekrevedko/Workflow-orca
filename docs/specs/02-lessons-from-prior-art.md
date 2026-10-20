@@ -62,6 +62,12 @@ documents turn them into numbered requirements.
 15. **Duplicate-activation defense**: any future multi-node mode needs an explicit ownership
     model (optimistic concurrency now, leases later) and tests for duplicate executors.
 
+Ephemeral host shutdown (MG-066–069) is a physical ownership boundary, not durable
+restart recovery: Closed permits drain without cancellation; Stopping seals and
+joins actual bodies, callbacks and handoffs. A logical terminal, disposed timer or
+empty registry cannot replace that proof. Durable persistence/restart lessons remain
+unchanged; an ephemeral host cannot recover discarded process memory.
+
 ### From Dapr, Elsa, MassTransit, Stateless, Workflow Core
 
 16. **A stable management boundary is part of the product, not an add-on.** V1 deliberately

@@ -94,6 +94,16 @@ registered definitions and payload byte size can exceed that data-count budget. 
 physical capacity or proves external work stopped. Authors cannot raise host ceilings. Explicit performance
 targets and benchmarks are a production-readiness-phase deliverable.
 
+### NF-032 Shutdown budgets preserve real ownership
+An observer timeout SHALL bound observation, not release physical capacity or DI
+ownership. Blocked noncooperative attempts/callbacks remain owned across Incomplete;
+the application SHALL serialize disposal and retain its real provider/scopes until
+Completed. Closure cannot promise effect rollback or durable restart. Registered
+monotonic TimeProvider governs pending finite observations; no hard real-time,
+forced-kill, thread-abort or byte/RSS bound is implied. Cached Completed SHALL avoid
+TimeProvider/user work. Generic Host drain/stop shares one host shutdown budget;
+plain-DI drain uses the application submission/ownership protocol. [MG-067–069, PR-041]
+
 ## 11.5 Security posture
 
 ### NF-040 Security baseline

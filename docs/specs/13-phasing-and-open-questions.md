@@ -139,6 +139,14 @@ semantics. Any such change requires an explicit document-17/OpenSpec amendment f
   SDKs belong to a separate companion project. No OrcaCore package depends on them; `OrcaCore`
   is the primary contracts/authoring package, not a meta-package.
 
+The later ephemeral shutdown contract (MG-066–069, PR-041, NF-032, OB-027,
+AC-543–554) adds host Closed/drain and Stopping/join with explicit DI ownership.
+Contract checkpoint 3c8d33c and approval 4bd7c3e authorize this canonical transition
+including the F2 correction; canonical review and all source/consumer tasks remain
+pending. It adds no deferred workflow management command. The §13.4 registry below
+is unchanged. Issue #1 retention archival and every affected active-path/provenance
+pin belong to a separate later maintenance target, not this transition.
+
 ## 13.4 Future-capability registry
 
 This section is the **future-capability registry** named and cross-referenced by the canonical

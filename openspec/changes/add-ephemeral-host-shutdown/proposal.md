@@ -16,7 +16,8 @@ ownership when a stop observation is incomplete.
   new starts/registrations without cancelling anything; accepted work drains with
   ordinary queries, waits, commands, ingress, timers and retries. Only the engine's
   hosted StopAsync or direct StopAsync starts cancellation/join of remaining work.
-  Preserve pre-handle ownership and acceptance/abort election without cancelling on close.
+  Preserve pre-handle ownership: initialized pending starts can be accepted during
+  Closed, and acceptance/abort is elected only at Stopping (F2).
 - Use one fixed cooperative-cancel policy. No new host option, role fingerprint,
   registration overload, hosted-service toggle, dependency, provider or friend is added.
 - Replace the readiness hosted service's no-op stop with the same lifetime join;
@@ -61,8 +62,9 @@ canonical blocks and earlier approval evidence remain byte-exact. A green proces
 lane validates that pending state; it does not authorize canonical or source work.
 
 Base: GitHub-synced master `fa88986aaac219c998b15e96748efdf2f245de51`.
-R1 (2026-10-19) remediates the owner-directed F1 drain decision from the rejected
-tree 7d3f144f; other reviewed choices and the seven declarations stay unchanged.
-This target is uncommitted and awaits independent contract approval. The initial
+Contract R1 is approved at checkpoint 3c8d33c, verdict-only child 4bd7c3e. This
+canonical transition applies the approval-required F2 correction and awaits its
+own independent review; source remains unimplemented. The seven declarations stay
+unchanged; current corrected catalogue: `artifacts/task-2-1-public-api-2026-10-19.md`. The initial
 assessment is retained as dated history; this target supersedes its unresolved
 design decisions and unrefrozen-inventory status only.

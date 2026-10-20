@@ -173,6 +173,14 @@ depend outward on `OrcaCore.Dag.Hosting`, but no OrcaCore package depends on or
   applies when retention is off. Never convert not-found after acceptance into an effect-safe
   retry or count an internal abort fence as an application termination command (OB-026).
 
+Ephemeral host shutdown (MG-066–069) must preserve ownership across all successor
+handoffs. Closed permits initialized pending starts/accepted attempts to continue;
+only Stopping seals producers and cancels. Join first cancellation dispatch, entered
+timer/sweep/notification work and physical capacity release, never a logical terminal
+or a snapshot of WhenSettled alone. No user callbacks under lifetime locks, no inline
+stop cancellation signalling and no post-Completed DI/codec/diagnostic work. Tests use
+barriers/notifications and fake clocks. These requirements are source pending.
+
 ## 7. Comments & docs
 
 - XML docs on all public contracts: state the *contract* (guarantees, failure modes,

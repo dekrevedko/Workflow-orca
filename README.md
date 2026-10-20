@@ -147,6 +147,14 @@ the CI retry, 30 isolated repetitions, and the full infrastructure suite passed.
 remains unconfirmed; the evidence is recorded in [PR #4](https://github.com/dekrevedko/Workflow-orca/pull/4).
 See [production readiness](docs/production-readiness.md) before choosing a deployment scope.
 
+Issue #2's contract is checkpointed (3c8d33c / 4bd7c3e); its F2 canonical transition,
+source and package qualification are separate gates. The planned ownership protocol
+drains initialized pending starts/handles through ordered Generic Host, an explicit
+host owner or a plain-DI submission gate, then calls StopAsync and retains dependencies
+on Incomplete. Canonical text does not add a callable API to published packages; see
+the [engine guide](docs/ephemeral-engine-developer-guide.md#shutdown-drain-recipes-implementation-pending)
+for the contract and implementation status.
+
 ## Build and run from source
 
 Use the SDK pinned by `global.json` and run from the repository root:

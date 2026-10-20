@@ -2075,6 +2075,77 @@ This single serialization point is a deliberate first-release correctness tradeo
 EKS scheduling. Future sharding requires an amendment that assigns pools to governance partitions
 and forbids or coordinates cross-partition atomic requests; v1 never silently splits one request.
 
+### Ephemeral host shutdown lifetime (PR-041; implementing source pending)
+
+The exact additional namespace/assembly owner is OrcaCore.Hosting in
+OrcaCore.Engine.Ephemeral. These seven declarations are the canonical source target,
+not compiled/package availability or a change to the authoring-only companion:
+
+```csharp
+namespace OrcaCore.Hosting;
+
+public interface IEphemeralWorkflowHostLifetime
+{
+    ValueTask<EphemeralHostShutdownResult> StopAsync(
+        TimeSpan timeout, CancellationToken cancellationToken = default);
+}
+
+public abstract class EphemeralHostShutdownResult
+{
+    private protected EphemeralHostShutdownResult();
+
+    public sealed class Completed : EphemeralHostShutdownResult
+    {
+        internal Completed();
+    }
+
+    public sealed class Incomplete : EphemeralHostShutdownResult
+    {
+        internal Incomplete(EphemeralHostShutdownIncompleteReason reason, long pendingWorkCount);
+        public EphemeralHostShutdownIncompleteReason Reason { get; }
+        public long PendingWorkCount { get; }
+    }
+}
+
+public enum EphemeralHostShutdownIncompleteReason
+{
+    DeadlineElapsed = 0,
+    ObservationCancelled = 1,
+    ShutdownFaulted = 2
+}
+
+public sealed class EphemeralHostStoppingException : global::OrcaCore.OrcaCoreException
+{
+    internal EphemeralHostStoppingException();
+}
+
+public sealed class EphemeralHostShutdownIncompleteException : global::OrcaCore.OrcaCoreException
+{
+    internal EphemeralHostShutdownIncompleteException(EphemeralHostShutdownResult.Incomplete result);
+    public EphemeralHostShutdownResult.Incomplete Result { get; }
+}
+```
+
+The result is classes, not records; no generated equality/deconstruction, public
+factories/constructors, extra enum values, options or fingerprints are authorized.
+Inherited codes are `WF-EPHEMERAL-HOST-STOPPING` and `WF-EPHEMERAL-SHUTDOWN-INCOMPLETE`.
+Exact timeout validation is InfiniteTimeSpan or zero through 4,294,967,294ms by ticks,
+then public pre-cancelled token (no effect), then disposal. Zero enters Stopping and
+observes immediately; pending finite budgets use monotonic TimeProvider and include
+scheduling/cleanup. Decision precedence is accounting fault, stable completion,
+observer cancellation, then deadline. An already Completed fast path returns cached
+detached data without TimeProvider or observation resources. Hosted entry starts
+Stopping even with an exhausted token, returns only for Completed, otherwise throws
+the detached incomplete result; it never signals user cancellation inline.
+
+Closed retains ordinary accepted work and may accept pending starts whose initialization
+admission won before close. Stopping alone cancels and elects acceptance versus abort.
+The observer budget is not a workflow/step deadline, execution-path limit or retained-
+data age; Closed retains normal retirement races, Stopping seals/join sweeps, Completed
+freezes remaining metadata until disposal. Exact corrected catalogue:
+`openspec/changes/add-ephemeral-host-shutdown/artifacts/task-2-1-public-api-2026-10-19.md`.
+Source task 3.3 alone updates executable API/compile/package baselines with source.
+
 ## 17.5 Package and integration boundary
 
 `OrcaCore` is the primary application contracts/authoring package and assembly, not a
@@ -2104,6 +2175,7 @@ different namespace from an unqualified signature sketch:
 | `DagNodeId`, `DagRunId`, DAG authoring/definitions/references/handles/results/errors | `OrcaCore.Dag` | `OrcaCore.Dag` |
 | `StructuredExecutionHostOptions`, `StepExecutionThrottle` | `OrcaCore.Hosting` | `OrcaCore` |
 | `EphemeralEngineHostOptions`, `EphemeralTerminalRetentionPolicy`, `TransientPoolDefinition`, ephemeral registration extension | `OrcaCore.Hosting` | `OrcaCore.Engine.Ephemeral` |
+| Ephemeral lifetime, shutdown result (including nested Completed/Incomplete), incomplete-reason enum and two shutdown exceptions | `OrcaCore.Hosting` | `OrcaCore.Engine.Ephemeral` |
 | `DurableEngineHostOptions`, `DurableResourcePoolOptions`, `DurableResourcePoolDefinition`, durable engine/ingress registration extension | `OrcaCore.Hosting` | `OrcaCore.Durable.Hosting` |
 | `DagHostOptions`, DAG registration extension | `OrcaCore.Dag.Hosting` | `OrcaCore.Dag.Hosting` |
 | Lease/pool statuses, snapshots, closed resize result, governance records/stream/append result | `OrcaCore.Runtime.Protocol.ResourceGovernance` | `OrcaCore.Runtime.Protocol` |
@@ -2300,6 +2372,17 @@ protected work and confirms the generic lease token.
 OrcaCore guarantees stable identity, at-least-once invocation, event deduplication, and exact
 lease accounting; it does not claim exactly-once external API calls or external fence
 enforcement.
+
+PR-041's seven-type family is an engine-owned source-pending addition, not a new
+package or dependency. The existing ephemeral role reserves one singleton lifetime
+per root, identical through scopes. Equal options remain idempotent; an application
+descriptor for it before first role registration fails ArgumentException for services
+before mutation. Later manual replacement is unsupported. One application owner
+retains the actual provider/host/scopes on Incomplete and serializes disposal after
+Completed and other hosted stops. Generic Host drain needs a later-registered
+application drainer and sequential stops with one shared shutdown budget; an explicit
+host owner or app-gated plain-DI owner can drain pending starts/handles before stop.
+No role toggle, close-only method, host option, fingerprint or new friend is added.
 
 ## 17.6 Explicitly deferred or removed surface
 
@@ -2941,3 +3024,32 @@ deadline; it is not proof that external work stopped. Failed-instance retry is d
 than smuggled in as a terminal-state transition.
 Completion, failure, deadline, cancellation, and termination race through one serialized mutation
 lane; the first committed terminal status wins and every loser is a no-op/`AlreadyTerminal` result.
+
+### Ephemeral shutdown operation and error boundary (MG-066–069)
+
+Closed refuses new/replayed/conflicting StartOrGetAsync and compatible registration
+before fingerprint/codec work, preserving mode/static-compatibility precedence.
+Initialization admitted before Closed proceeds normally and may return Accepted;
+queued pre-Init starts reject. At Stopping, acceptance wins once or a still-unaccepted
+start is fenced with authoritative original error/cancellation priority. No replay
+key is expired by closure, and host-stopping never proves the first step had no effect.
+
+| Operation | Closed before Stopping | From Stopping, including Completed | Rejection rationale |
+|---|---|---|---|
+| Live GetInstanceAsync | Ordinary original-ID lookup | Host-stopping | Can acquire live runtime state/pins |
+| Snapshot/state/output query | Ordinary query | Host-stopping, even terminal output | Mapping/decoding can use codecs/dependencies |
+| New output wait | Ordinary waiter and pin | Host-stopping | Creates wait/pin/decoding work |
+| Cancellation/termination | Ordinary command | Host-stopping | Can dispatch callbacks, lane work or commit |
+| Event ingress | Ordinary dispatch | Host-stopping | Can run handlers, resume attempts or commit |
+| Initialized/accepted timers/retries/grants | Ordinary progression | No new business admission | Producers must seal before stable zero |
+| Passive registered-definition identity lookup | Passive lookup | Passive lookup only | No codec/user/DI/work/commit allowed |
+| Detached caller-owned values | Readable | Readable | No engine operation occurs |
+| StopAsync | Enters Stopping | Same operation/cached detached Completed | No new work or TimeProvider use after Completed |
+
+Argument/token and metadata-only original-ID not-found/definition/state mismatch
+precedence remain. Already-admitted operations keep normal outcomes and join
+obligations across Stopping. After Completed only pure checks, passive registered
+identity and detached/cached data remain; no DI/user work, timers, diagnostics,
+notifications or commits. Incomplete reports an obligation count, not identities;
+inspect existing stuck-step/state diagnostics before calling stop. The typed stopping
+and incomplete exceptions add the two stable codes above with internal constructors.

@@ -36,6 +36,13 @@ source/test roots remain removed, and durable storage providers beyond PostgreSQ
 require a future amendment and complete current certification. Hosting packages register internal
 runtimes, continuation processing, operational services, and telemetry.
 
+The implementation-pending shutdown contract adds one engine-owned lifetime beside
+the shared registry. Closed rejects new/replayed starts and compatible registrations
+without cancelling; starts already past initialization admission and accepted work
+can drain. Stopping is entered only by engine-hosted/public StopAsync and joins all
+physical/callback/handoff owners. One application owner retains DI dependencies on
+Incomplete; a logical terminal or timed-out observer is not disposal permission.
+
 ## Approved v1 target boundaries
 
 The refactor is converging on this package direction:
@@ -107,6 +114,13 @@ facade/start/router/timer ownership retires together; stale handles fail for the
 an expired key can start a new run. A result can disappear between accepted start and wait
 admission, so not-found is not proof that no step ran and replay is not necessarily effect-safe.
 This is neither durable history nor an active-work/physical-capacity limit or public purge API.
+
+The separately approved shutdown contract (3c8d33c / 4bd7c3e) and F2 transition
+preserve retention defaults and Closed's ordinary count/age retirement. They do not
+expire keys or remove the start-to-observe gap. Stopping seals/join sweeps and live
+operations; Completed freezes remaining metadata and permits only passive/detached
+access. Shutdown source, API/compile/package baselines and public consumer proof are
+still pending, independently of the existing retention API.
 
 ## Code map
 

@@ -332,11 +332,20 @@ The behaviors of the terminal paths are:
   `WorkflowDeadlineExceededException`; it is distinct from cooperative cancellation and forced
   termination, commits any required `AmbiguousHeld -> Quarantined` transfer before terminal
   progression, and never reopens.
-- **Host stop.** Correctness never depends on shutdown handling: all committed transitions
-  were persisted at safe boundaries (DU-021); on restart, instances resume from committed
-  state.
+- **Host stop.** In durable mode, committed transitions persist at safe boundaries
+  (DU-021) and restart resumes committed state. Ephemeral memory has no restart
+  guarantee: Closed permits initialized starts/accepted work to drain; only Stopping
+  cancels and joins physical work before Completed permits dependency disposal
+  (MG-066–069). Incomplete retains ownership and never proves external effects stopped.
 
 For each path, which lifecycle events fire and in what order SHALL be documented and tested.
+
+Host-triggered cancellation starts only at Stopping; ApplicationStopping/Closed
+does not issue a per-instance cancellation or termination. Initialization admitted
+before Closed may finish and return Accepted while draining. Stopping's acceptance/
+abort gate preserves authoritative original start errors/cancellation, immutable
+terminals and physical ownership. Single-instance request semantics above remain
+unchanged. [MG-066/067, AC-546]
 
 ### CR-032 Completion with unresolved runtime-owned work
 An instance SHALL NOT reach `Completed` while runtime-owned waits or timers are unresolved,
